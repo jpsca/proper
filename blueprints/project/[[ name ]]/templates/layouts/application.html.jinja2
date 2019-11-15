@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>{% block title %}{% endblock %}</title>
+	<link rel="icon" type="image/x-icon" href="{{ app.url_for('static', file='favicon.ico') }}">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+	{% block body %}{% endblock %}
+</body>
+</html>

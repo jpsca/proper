@@ -1,0 +1,57 @@
+<h3>Request</h3>
+
+{% if req.query -%}
+<section>
+	<h4>Query:</h4>
+	<p><code>{{ req.query }}</code></p>
+</section>
+{%- endif %}
+
+{% if req.form -%}
+<section>
+	<h4>Form data:</h4>
+	<p><code>{{ req.form }}</code></p>
+</section>
+{%- endif %}
+
+{% if req.files -%}
+<section>
+	<h4>Files:</h4>
+	<p><code>{{ req.files }}</code></p>
+</section>
+{%- endif %}
+
+{% if req.headers -%}
+<section>
+	<h4>Environment:</h4>
+	<div class="scroll-container">
+		<table class="config">
+			{%- for name, value in req.headers.items() %}
+			<tr>
+				<th><div>{{ name }}</div></th>
+				<td><div>{{ value }}</div></td>
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+</section>
+{%- endif %}
+
+
+{% if resp.headers -%}
+<h3>Response</h3>
+
+<section>
+	<h4>Headers:</h4>
+	<div class="scroll-container">
+		<table class="config">
+			{%- for name, value in resp.headers.items() %}
+			<tr>
+				<th><div>{{ name }}</div></th>
+				<td><div>{{ value }}</div></td>
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+</section>
+{%- endif %}

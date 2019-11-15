@@ -1,0 +1,16 @@
+"""
+## proper.constants
+
+"""
+# HTTP methods (minus CONNECT and TRACE)
+GET = "GET"
+HEAD = "HEAD"
+POST = "POST"
+PUT = "PUT"
+DELETE = "DELETE"
+OPTIONS = "OPTIONS"
+PATCH = "PATCH"
+
+FLASHES_SESSION_KEY = "__flashes"
+
+MIN_SECRET_LENGTH = 48

@@ -1,0 +1,11 @@
+{% extends 'layouts/application.html.jinja2' %}
+
+{% block title %}Reset your password{% endblock %}
+
+{% block body %}
+<h1>Password reset email sent</h1>
+
+<p>We sent you a link to the following email: <strong>{{ email }}</strong></p>
+
+<p>Check your email, and click on the link to reset your password. If it doesn’t appear within a few minutes, check your spam folder.</p>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'layout.html.jinja' %}
+
+{% block styles %}
+<style>{{ include_raw("_prism.css") }}</style>
+{% endblock %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+<pre class="traceback">
+	<code class="language-python">{{ traceback }}</code>
+</pre>
+<script>{{ include_raw("_prism.js") }}</script>
+{% endblock %}

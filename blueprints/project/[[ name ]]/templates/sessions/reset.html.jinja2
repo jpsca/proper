@@ -1,0 +1,23 @@
+{% extends 'layouts/application.html.jinja2' %}
+
+{% block title %}Reset your password{% endblock %}
+
+{% block body %}
+<h1>Reset your password</h1>
+
+<form method="post" action="" id="resetForm" novalidate>
+  <input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
+  
+  {{ form.render_error() }}
+  {{ form.login.render_error() }}
+
+  <div>
+    {{ form.login.as_input(
+      label="Enter your email address and we will send you a link to reset your password.",
+      placeholder="Enter your email address"
+    ) }}
+  </div>
+
+  <button type="submit">Send password reset email</button>
+</form>
+{% endblock %}

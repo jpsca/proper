@@ -1,0 +1,14 @@
+---
+#########################################
+# Common settings
+#########################################
+
+session:
+  cookie_name": _[[ name ]]_session
+
+auth:
+  hash_name: argon2
+  rounds: null  # The default
+  password_minlen: 6
+  password_maxlen: 1024
+  token_life: 10800  # 3 hours

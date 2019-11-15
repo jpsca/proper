@@ -1,0 +1,33 @@
+"""
+## proper.iplugs.method_override
+
+"""
+from ..constants import POST, PUT, PATCH, DELETE
+
+
+__all__ = ("method_override", )
+
+
+def method_override(req, resp, _app):
+    """Overrides the request's `POST` method with the method defined in
+    the `_method` request parameter.
+
+    The `POST` method can be overridden only by these HTTP methods:
+    * `PUT`
+    * `PATCH`
+    * `DELETE`
+
+    """
+    if resp.dispatched:
+        return
+
+    if req.method != POST:
+        return
+
+    new_method = req.query.get('_method').upper()
+
+    if new_method not in (PUT, PATCH, DELETE):
+        return
+
+    req.real_method = POST
+    req.method = new_method

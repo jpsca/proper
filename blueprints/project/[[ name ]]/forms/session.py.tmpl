@@ -1,0 +1,24 @@
+from proper_form import Form, Text, Password, LongerThan, Confirmed
+
+from [[ name ]].app import config
+
+
+class SignInForm(Form):
+    login = Text(required=True)
+    password = Password(required=True)
+
+
+class PasswordResetForm(Form):
+    login = Text(required=True)
+
+
+class PasswordChangeForm(Form):
+    password = Password(
+        Confirmed("Passwords don’t match."),
+        LongerThan(
+            config.auth.password_minlen,
+            f"Password must be at least {config.auth.password_minlen} chars long."
+        ),
+        multiple=True,
+        required=True
+    )
