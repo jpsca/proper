@@ -47,13 +47,20 @@ def _call(cmd):
 def _setup_secrets(path):
     print(" Generating secrets for development and production…")
     config_path = path / "config"
-    for env in ["development", "production"]:
-        master_key = secrets.new_master_key_file(config_path / env)
-        secrets.save_secrets(
-            config_path / env / "secrets.yaml.enc",
-            secrets.make_dev_default_secrets(),
-            master_key=master_key,
-        )
+
+    master_key = secrets.new_master_key_file(config_path / "development")
+    secrets.save_secrets(
+        config_path / "development" / "secrets.yaml.enc",
+        secrets.make_dev_default_secrets(),
+        master_key=master_key,
+    )
+
+    master_key = secrets.new_master_key_file(config_path / "production")
+    secrets.save_secrets(
+        config_path / "production" / "secrets.yaml.enc",
+        secrets.make_prod_default_secrets(),
+        master_key=master_key,
+    )
     print()
 
 
