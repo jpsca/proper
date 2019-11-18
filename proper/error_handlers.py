@@ -21,12 +21,12 @@ logger = logging.getLogger("Proper")
 def debug_not_found_handler(req, resp, app):
     error = resp.error
     data = {
-        "req": req,
         "resp": resp,
         "title": _get_title(error),
         "description": str(error),
         "routes": app.routes,
     }
+    data.update(_get_req_data(req))
     resp.body = _render("debug-not-found.html.jinja", **data)
 
 
@@ -35,12 +35,12 @@ def debug_error_handler(req, resp, _app):
     logger.error(error, exc_info=True)
     excp = traceback.format_exc()
     data = {
-        "req": req,
         "resp": resp,
         "title": _get_title(error),
         "description": str(error),
         "traceback": excp,
     }
+    data.update(_get_req_data(req))
     resp.body = _render("debug-error.html.jinja", **data)
 
 
@@ -55,6 +55,31 @@ def fallback_forbidden_handler(_req, resp, _app):
 def fallback_error_handler(req, resp, _app):
     logger.error(resp.error, exc_info=True)
     resp.body = _render("fallback-error.html")
+
+
+def _get_req_data(req):
+    try:
+        req_query = req.query
+    except Exception:
+        req_query = None
+    try:
+        req_form = req.form
+    except Exception:
+        req_form = None
+    try:
+        req_files = req.files
+    except Exception:
+        req_files = None
+    try:
+        req_headers = req.headers
+    except Exception:
+        req_headers = None
+    return {
+        "req_query": req_query,
+        "req_form": req_form,
+        "req_files": req_files,
+        "req_headers": req_headers,
+    }
 
 
 def _get_title(error):
