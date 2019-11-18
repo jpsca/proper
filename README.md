@@ -1,5 +1,4 @@
-| WARNING: This is a work in progress. It doesn't have documentation. Do NOT use it. |
-| --- |
+> :warning: WARNING: This is a work in progress. It doesn't have documentation. Do NOT use it.
 
 # Proper
 
