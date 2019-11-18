@@ -1,3 +1,6 @@
+| WARNING: This is a work in progress. It doesn't have documentation. Do NOT use it. |
+| --- |
+
 # Proper
 
 A web framework optimized for programmer happiness.
