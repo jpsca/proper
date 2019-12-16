@@ -1,5 +1,5 @@
 """
-## proper.iplugs.match
+## proper.middleware.match
 
 """
 __all__ = ("LOCAL_HOSTS", "match", )

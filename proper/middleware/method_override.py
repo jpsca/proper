@@ -1,5 +1,5 @@
 """
-## proper.iplugs.method_override
+## proper.middleware.method_override
 
 """
 from ..constants import POST, PUT, PATCH, DELETE

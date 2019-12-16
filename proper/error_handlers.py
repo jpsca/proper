@@ -1,5 +1,5 @@
 """
-## proper.iplugs.error_handlers
+## proper.error_handlers
 
 Fallback error handlers
 

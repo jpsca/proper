@@ -1,4 +1,4 @@
-from . import iplugs, plugs, status, errors  # noqa
+from . import middleware, plugs, status, errors  # noqa
 from .app import *  # noqa
 from .base_channel import BaseChannel  # noqa
 from .base_controller import BaseController  # noqa

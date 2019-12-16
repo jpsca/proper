@@ -31,7 +31,8 @@ class Response(object):
     # handled incorrectly by some browsers. Set to 0 to disable this check.
     max_cookie_size = 4093
 
-    # `iplugs.dispatch will use this as the extension of the generated `resp.template`.
+    # `middleware.dispatch will use this as the extension of the
+    # generated `resp.template`.
     format = ".html"
 
     template = None

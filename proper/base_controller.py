@@ -10,15 +10,18 @@ class BaseController(object):
 
     template = None
 
+    _before_action = tuple()
+    _after_action = tuple()
+
     def _asdict(self):
         """Serializable to a dictionary.
         """
-        exclude = ("template",)
+        exclude = ("template", )
         return {
             name: getattr(self, name)
             for name in dir(self)
             if not name.startswith("_") and name not in exclude
         }
 
-    def render(self):
+    def _render(self, req, resp):
         raise NotImplementedError

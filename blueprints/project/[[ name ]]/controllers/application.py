@@ -2,9 +2,11 @@ from pathlib import Path
 from datetime import datetime
 
 import jinja2
-from proper import BaseController, cached_property
+from proper import BaseController, cached_property, plugs
 
 from ..app import app
+from ..auth import auth
+from ..models.user import User
 
 
 class ApplicationController(BaseController):
@@ -37,3 +39,30 @@ def render(template, **context):
     """
     tmpl = jinja_env.get_template(template + ".jinja2")
     return tmpl.render(**context)
+
+
+class PublicController(ApplicationController):
+
+    _before_action = [
+        plugs.session,
+        plugs.protect_from_forgery,
+        auth.load(User, session_key="_user_token"),
+    ]
+
+    _after_action = [
+        plugs.put_secure_headers,
+    ]
+
+
+class PrivateController(ApplicationController):
+
+    _before_action = [
+        plugs.session,
+        plugs.protect_from_forgery,
+        auth.load(User, session_key="_user_token"),
+        auth.login_required(sign_in_url="/sign-in"),
+    ]
+
+    _after_action = [
+        plugs.put_secure_headers,
+    ]

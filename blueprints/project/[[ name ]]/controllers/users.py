@@ -1,7 +1,7 @@
-from .application import ApplicationController
+from .application import PrivateController
 
 
-class Users(ApplicationController):
+class Users(PrivateController):
 
     def profile(self, req, resp):
         pass

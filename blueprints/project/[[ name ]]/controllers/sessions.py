@@ -2,11 +2,11 @@ from ..forms.session import SignInForm, PasswordResetForm, PasswordChangeForm
 from ..app import app
 from ..models.user import User
 
-from .application import ApplicationController
+from .application import PublicController
 from .concerns.emails.password_reset import send_password_reset_email
 
 
-class Sessions(ApplicationController):
+class Sessions(PublicController):
 
     def login(self, req, resp):
         if req.current_user:

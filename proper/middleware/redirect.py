@@ -1,5 +1,5 @@
 """
-## proper.iplugs.redirect
+## proper.middleware.redirect
 
 """
 __all__ = ("redirect", )

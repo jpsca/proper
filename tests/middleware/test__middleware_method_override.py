@@ -2,7 +2,7 @@ import pytest
 
 from proper import Request, Response
 from proper.constants import GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
-from proper.iplugs.method_override import method_override
+from proper.middleware import method_override
 
 
 @pytest.mark.parametrize("_method", [PUT, PATCH, DELETE])

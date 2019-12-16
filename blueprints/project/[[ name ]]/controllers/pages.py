@@ -1,7 +1,7 @@
-from .application import ApplicationController
+from .application import PublicController
 
 
-class Pages(ApplicationController):
+class Pages(PublicController):
 
     def index(self, req, resp):
         pass

@@ -1,5 +1,5 @@
 """
-## proper.iplugs.dispatch
+## proper.middleware.dispatch
 
 """
 from os import path
@@ -11,21 +11,7 @@ __all__ = ("dispatch", )
 
 
 def dispatch(req, resp, app):
-    run_pipeline(req, resp, app)
-    dispatch_to_endpoint(req, resp, app)
-    run_pipeline(req, resp, app)
-
-
-def run_pipeline(req, resp, app):
-    pipeline = req.matched_route.pipeline
-    for plug in pipeline:
-        if resp.stop:
-            break
-        plug(req, resp, app)
-
-
-def dispatch_to_endpoint(req, resp, app):
-    if resp.stop:
+    if resp.dispatched:
         return
     route = req.matched_route
     controller, method = objectify(route.to, app.controllers_mod)
@@ -35,7 +21,18 @@ def dispatch_to_endpoint(req, resp, app):
     if resp.template is None:
         set_template(resp, route)
 
+    run_plugs(controller._before_action, req, resp, app)
+    if resp.stop:
+        return
     call(controller, method, req, resp, req.matched_params)
+    run_plugs(controller._after_action, req, resp, app)
+
+
+def run_plugs(plugs, req, resp, app):
+    for plug in plugs:
+        if resp.stop:
+            break
+        plug(req, resp, app)
 
 
 def set_template(resp, route):

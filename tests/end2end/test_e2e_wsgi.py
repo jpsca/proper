@@ -52,22 +52,3 @@ def test_forward(app):
     resp_env, resp_sr = app(env, start_response)
     assert resp_env == env
     assert resp_sr == start_response
-
-
-def test_forward_stopped(app):
-    def echo(env, start_response):
-        return (env, start_response)
-
-    def plug_stop(_req, resp, _app):
-        resp.stop = True
-
-    app.routes = [
-        forward("/", to=echo, pipeline=[plug_stop, ]),
-    ]
-    start_response = FakeStartResponse()
-    env = make_test_environ()
-    body = app(env, start_response)
-
-    assert body == []
-    assert start_response.status_code == status.ok
-    assert start_response.headers["content-type"] == "text/html; charset=utf-8"

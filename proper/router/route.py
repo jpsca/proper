@@ -51,10 +51,6 @@ class Route(BaseRoute):
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
-        pipeline (list or tuple):
-            List of functions to be called before and after processing requests to
-            this route.
-
         host (str):
             Optional. Host for this route, including any subdomain
             and an optional port. Examples: "www.example.com", "localhost:5000".
@@ -104,7 +100,6 @@ class Route(BaseRoute):
         "path",
         "to",
         "name",
-        "pipeline",
         "host",
         "redirect",
         "redirect_status_code",
@@ -121,7 +116,6 @@ class Route(BaseRoute):
         *,
         to=None,
         name=None,
-        pipeline=None,
         host=None,
         redirect=None,
         redirect_status_code=status.temporary_redirect,
@@ -136,7 +130,6 @@ class Route(BaseRoute):
         self.path = "/" + path.strip("/")
         self.to = to
         self.name = name or (to.__qualname__ if callable(to) else to)
-        self.pipeline = pipeline or ()
         self.host = host
         self.redirect = redirect
         self.redirect_status_code = redirect_status_code
@@ -152,7 +145,6 @@ class Route(BaseRoute):
             f"<route {self.method} {self.path}"
             + (f" “{self.name}”" if self.name else "")
             + (f" host={ self.host}" if self.host else "")
-            + (" pipeline=…" if self.pipeline else "")
             + (f" redirect={self.redirect} " if self.redirect else "")
             + ">"
         )

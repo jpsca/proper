@@ -7,11 +7,6 @@ from proper.router import scope
 def test_scope_defaults():
     s = scope("/")
     assert s.mount == "/"
-    assert s.pipeline == ()
-
-    s = scope("api", pipeline=[1, 2, 4])
-    assert s.mount == "/api"
-    assert s.pipeline == [1, 2, 4]
 
 
 @pytest.mark.parametrize("mount, expected", [
@@ -36,14 +31,12 @@ def test_scope_must_have_mount():
 
 
 def test_scope_mount_routes_static():
-    pipeline = [1, 2, 3]
-    routes = scope("/", host="example.com", pipeline=pipeline)(
+    routes = scope("/", host="example.com")(
         get("api", to="meh")
     )
     route = routes[0]
     assert route.path == "/api"
     assert route.host == "example.com"
-    assert route.pipeline == pipeline
 
 
 def test_scope_mount_routes_with_placeholders():

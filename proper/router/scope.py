@@ -21,17 +21,13 @@ def flatten(ll):
 
 class Scope(object):
     """
-    A Scope is a convenient shortcut to set a prefix, pipeline and a host to a group
+    A Scope is a convenient shortcut to set a prefix and a host to a group
     of routes.
 
     Arguments are:
 
         mount (str):
             Prefix for all routes under this scope. Can contain placeholders.
-
-        pipeline (list or tuple):
-            List of functions to be called before and after processing requests to
-            this group of routes.
 
         host (str):
             Optional. Host for all routes under this scope, including any subdomain
@@ -65,18 +61,10 @@ class Scope(object):
 
     """
 
-    __slots__ = ("mount", "pipeline", "host", "rules")
+    __slots__ = ("mount", "host", "rules")
 
-    def __init__(
-        self,
-        mount,
-        pipeline=None,
-        *,
-        host=None,
-        rules=None,
-    ):
+    def __init__(self, mount, *, host=None, rules=None):
         self.mount = "/" + mount.strip("/")
-        self.pipeline = pipeline or ()
         self.host = host
 
         rules = rules or {}
@@ -103,13 +91,11 @@ class Scope(object):
         new_rules.update(route.rules)
         route.rules = new_rules
         route.host = self.host
-        route.pipeline = self.pipeline
 
     def __repr__(self):
         return (
             f"<scope {self.mount}"
             + (f" host={ self.host}" if self.host else "")
-            + (" pipeline=…" if self.pipeline else "")
             + ">"
         )
 

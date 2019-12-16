@@ -1,24 +1,10 @@
 """These routes are connected to the application in the `main.py` file.
 """
-from proper import plugs, scope, get, post
+from proper import scope, get, post
 
-from .auth import auth
-from .models.user import User
-
-
-pipeline_public = [
-    plugs.session,
-    plugs.protect_from_forgery,
-    auth.load(User, session_key="_user_token"),
-    plugs.put_secure_headers,
-]
-
-pipeline_protected = pipeline_public + [
-    auth.login_required(sign_in_url="/sign-in"),
-]
 
 routes = [
-    scope("/", pipeline_public)(
+    scope("/")(
         get("", to="Pages.index"),
 
         # This routes exist so you can test your error pages
@@ -49,7 +35,7 @@ routes = [
         )
     ),
 
-    scope("/user", pipeline_protected)(
+    scope("/user")(
         get("", to="Users.profile"),
     )
 ]

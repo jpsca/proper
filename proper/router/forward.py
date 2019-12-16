@@ -28,10 +28,6 @@ class Forward(Route):
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
-        pipeline (list or tuple):
-            List of functions to be called before and after processing requests to
-            this route.
-
         host (str):
             Optional. Host for this route, including any subdomain
             and an optional port. Examples: "www.example.com", "localhost:5000".
@@ -64,14 +60,13 @@ class Forward(Route):
 
     """
 
-    def __init__(self, path, to, *, name=None, pipeline=(), host=None, rules=None):
+    def __init__(self, path, to, *, name=None, host=None, rules=None):
         assert callable(to), "You can forward only to an WSGI application."
         super().__init__(
             "forward",
             path,
             to=to,
             name=name,
-            pipeline=pipeline,
             host=host,
             rules=rules,
         )

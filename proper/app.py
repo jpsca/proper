@@ -4,7 +4,7 @@
 """
 from pony.orm import db_session
 
-from . import iplugs
+from . import middleware
 from .app_errors_mixin import AppErrorsMixin
 from .app_proxy_mixin import AppProxyMixin
 from .config import DEFAULT_CONFIG
@@ -25,8 +25,16 @@ class App(AppErrorsMixin, AppProxyMixin):
     # Internal plugs
     # If one of them sets the stop attribute of the response, the rest is skipped.
 
-    pipeline_in = (iplugs.head, iplugs.match, iplugs.redirect)
-    pipeline_out = (iplugs.dispatch, iplugs.head)
+    pipeline_in = (
+        middleware.head_to_get,
+        middleware.match,
+        middleware.redirect,
+    )
+
+    pipeline_out = (
+        middleware.dispatch,
+        middleware.strip_body_if_head,
+    )
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
@@ -140,9 +148,7 @@ class App(AppErrorsMixin, AppProxyMixin):
 
                 route = req.matched_route
                 if route.forward_to:
-                    self._run_pipeline(req, resp, route.pipeline)
-                    if not resp.stop:
-                        return route.forward_to(req.environ, req.start_response)
+                    return route.forward_to(req.environ, req.start_response)
 
                 self._run_pipeline(req, resp, self.pipeline_out)
         except Exception as error:
