@@ -10,8 +10,7 @@ class BaseController(object):
 
     template = None
 
-    _before_action = tuple()
-    _after_action = tuple()
+    _plugs = tuple()
 
     def _asdict(self):
         """Serializable to a dictionary.

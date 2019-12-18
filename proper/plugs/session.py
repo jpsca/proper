@@ -5,7 +5,7 @@
 from ..support import Dot, BadSignature
 
 
-__all__ = ("session",)
+__all__ = ("session", )
 
 
 def session(req, resp, app):
@@ -14,10 +14,6 @@ def session(req, resp, app):
             update_session_cookie(resp, app)
     else:
         fetch_session(req, resp, app)
-
-
-def session_was_updated(req):
-    return req.original_session != req.session
 
 
 def fetch_session(req, resp, app):
@@ -37,6 +33,10 @@ def get_session(req, app):
         return serializer.loads(cookie_value, max_age=app.config.session.lifetime)
     except BadSignature:
         return {}
+
+
+def session_was_updated(req):
+    return req.original_session != req.session
 
 
 def update_session_cookie(resp, app):

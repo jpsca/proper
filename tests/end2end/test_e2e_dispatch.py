@@ -27,8 +27,7 @@ def plug_template(req, resp, _app):
 
 
 class PipelineCalled(AppController):
-    _before_action = [plug1, plug2, plug3, ]
-    _after_action = [plug1, plug2, plug3, ]
+    _plugs = [plug1, plug2, plug3, ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"
@@ -45,8 +44,7 @@ def test_pipeline_called(app, web):
 
 
 class StopPipeline(AppController):
-    _before_action = [plug1, plug_stop, plug3, ]
-    _after_action = [plug1, plug2, plug3, ]
+    _plugs = [plug1, plug_stop, plug3, ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"
@@ -86,7 +84,7 @@ def test_custom_temnplate(app, web):
 
 
 class CustomTemplateFromPlug(AppController):
-    _before_action = [plug_template, ]
+    _plugs = [plug_template, ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"

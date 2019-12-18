@@ -21,14 +21,14 @@ def dispatch(req, resp, app):
     if resp.template is None:
         set_template(resp, route)
 
-    run_plugs(controller._before_action, req, resp, app)
+    run_pipeline(controller._plugs, req, resp, app)
     if resp.stop:
         return
     call(controller, method, req, resp, req.matched_params)
-    run_plugs(controller._after_action, req, resp, app)
+    run_pipeline(controller._plugs, req, resp, app)
 
 
-def run_plugs(plugs, req, resp, app):
+def run_pipeline(plugs, req, resp, app):
     for plug in plugs:
         if resp.stop:
             break
