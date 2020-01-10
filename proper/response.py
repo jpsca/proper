@@ -21,7 +21,7 @@ class Response(object):
     dispatched = False
 
     # Set it to `True` to stop the normal flow and return inmediatly.
-    # Safety not guaranteed.
+    # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
     stop = False
 
     # Warn if a cookie header exceeds this size.

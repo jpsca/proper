@@ -14,6 +14,7 @@ from .support import (
     tunnel_encode,
     tunnel_decode,
     MultiDict,
+    HeadersDict,
 )
 
 
@@ -198,7 +199,7 @@ class Request(object):
 
     @cached_property
     def scheme(self):
-        return self.environ.get("HTTP_X-FORWARDED-PROTO") \
+        return self.environ.get("HTTP_X_FORWARDED_PROTO") \
             or self.environ.get("wsgi.url_scheme")
 
     @cached_property
@@ -229,9 +230,10 @@ class Request(object):
 
     @cached_property
     def headers(self):
-        headers = {}
+        headers = HeadersDict()
 
         for name, value in self.environ.items():
+            name = name.upper()
             if name.startswith("HTTP_"):
                 headers[name[5:]] = value
 

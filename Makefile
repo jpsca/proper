@@ -24,13 +24,13 @@ clean-pyc:
 	find . -name '.pytest_cache' -exec rm -rf {} +
 
 test:
-	python -m pytest -x proper tests
+	pytest -x proper tests
 
 flake:
-	python -m flake8 --config=setup.cfg proper tests
+	flake8 --config=setup.cfg proper tests
 
 coverage:
-	python -m pytest --cov-report html --cov proper proper tests
+	pytest --cov-report html --cov proper proper tests
 
 install:
-	python -m pip install -e .[dev]
+	pip install -e .[dev]
