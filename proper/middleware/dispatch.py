@@ -50,10 +50,8 @@ def call(controller, method, req, resp, params):
     method(req, resp, **params)
     resp.dispatched = True
 
-    if resp.stop:
-        resp.body = ""
     # If resp.body was manually set, our work here is done.
-    if resp.has_body:
+    if resp.has_body or resp.stop:
         return
 
     # Otherwise, is template time...

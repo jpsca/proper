@@ -9,9 +9,9 @@ __all__ = ("HeadersDict",)
 
 
 class HeadersDict(Dot):
-    """A `proper.Dot` that provides case-insensitive and dahses-to-underscores
+    """A `proper.Dot` that provides case-insensitive and underscores-to-dashes
     to HTTP request headers.
     """
 
     def _key_encode(self, key):
-        return str(key).upper().replace("-", "_")
+        return str(key).title().replace("_", "-")

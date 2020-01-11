@@ -22,23 +22,20 @@ __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 class App(AppErrorsMixin, AppProxyMixin):
     serializer = None
 
-    # Internal plugs
-    # If one of them sets the stop attribute of the response, the rest is skipped.
-
-    pipeline_in = (
+    # Internal plugs.
+    # If one of these functions sets the stop attribute of the response,
+    # the rest is skipped.
+    _pipeline = (
         middleware.head_to_get,
         middleware.match,
         middleware.redirect,
-    )
-
-    pipeline_out = (
         middleware.dispatch,
         middleware.strip_body_if_head,
     )
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    pipeline_final = tuple()
+    after_request = tuple()
 
     def __init__(self, import_name, *, config=None, secrets=None):
         """
@@ -135,7 +132,7 @@ class App(AppErrorsMixin, AppProxyMixin):
 
         except Exception as error:
             # We need this other try...except for handling any errors the custom
-            # error handlers or the functions in the `pipeline_final` might raise.
+            # error handlers or the functions in the `after_request` might raise.
             resp.error = error
             self._handle_errors(req, resp)
 
@@ -144,18 +141,15 @@ class App(AppErrorsMixin, AppProxyMixin):
     def call(self, req, resp):
         try:
             with db_session:
-                self._run_pipeline(req, resp, self.pipeline_in)
-
+                self._run_pipeline(req, resp, self._pipeline)
                 route = req.matched_route
                 if route.forward_to:
                     return route.forward_to(req.environ, req.start_response)
-
-                self._run_pipeline(req, resp, self.pipeline_out)
         except Exception as error:
             resp.error = error
             self._handle_app_errors(req, resp)
         finally:
-            self._run_pipeline(req, resp, self.pipeline_final)
+            self._run_pipeline(req, resp, self.after_request)
 
     def _run_pipeline(self, req, resp, pipeline):
         for plug in pipeline:

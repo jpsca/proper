@@ -12,7 +12,9 @@ def test_encode_set():
     dot = UpperDot()
     dot["hello"] = "a"
 
-    assert "hello" not in dot
+    assert "hello" in dot
+    assert "HELLO" in dot
+    assert "hEllO" in dot
     assert dot.HELLO == "a"
 
 

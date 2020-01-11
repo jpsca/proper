@@ -60,6 +60,12 @@ class Dot(dict):
         key = self._key_encode(key)
         super().__delitem__(key)
 
+    def __contains__(self, key):
+        return self._key_encode(key) in super().keys()
+
+    def keys(self):
+        return (self._key_encode(key) for key in super().keys())
+
     def setdefault(self, key, default=None):
         key = self._key_encode(key)
         return super().setdefault(key, default)

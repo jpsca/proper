@@ -21,7 +21,7 @@ def test_call(app):
 
     assert body == [b"Hello World!"]
     assert start_response.status_code == status.ok
-    assert start_response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 def test_pipefinal_error(app):
@@ -30,7 +30,7 @@ def test_pipefinal_error(app):
     def plug_fail(_req, _resp, _app):
         raise ValueError
 
-    app.pipeline_final = (plug_fail,)
+    app.after_request = (plug_fail,)
 
     start_response = FakeStartResponse()
     env = make_test_environ()
@@ -38,7 +38,7 @@ def test_pipefinal_error(app):
 
     assert b"<title>Error</title>" in body[0]
     assert start_response.status_code == status.server_error
-    assert start_response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 def test_forward(app):
