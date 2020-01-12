@@ -30,16 +30,20 @@ class ConfigDict(Dot):
     def load_file(self, path):
         """Load values from a YAML file.
         """
-        content = Path(path).read_text()
-        config = self._parse_content(path, content)
-        self.update(config)
+        path = Path(path)
+        if path.is_file():
+            content = path.read_text()
+            config = self._parse_content(path, content)
+            self.update(config)
         return self
 
     def load_secrets(self, secrets_path):
         """Load values from a YAML file, and decrypt those values using a
         `master.key` that should be in the same folder.
         """
-        content = read_secrets(secrets_path)
-        config = self._parse_content(secrets_path, content)
-        self.update(config)
+        secrets_path = Path(secrets_path)
+        if secrets_path.is_file():
+            content = read_secrets(secrets_path)
+            config = self._parse_content(secrets_path, content)
+            self.update(config)
         return self

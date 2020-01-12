@@ -12,6 +12,8 @@ __all__ = ("objectify",)
 
 
 def objectify(to, package):
+    assert to
+    assert package
     if callable(to):
         cls_name, method_name = to.__qualname__.split(".")
         Controller = import_controller(to.__module__, None, cls_name)

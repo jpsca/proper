@@ -123,16 +123,20 @@ class App(AppErrorsMixin, AppProxyMixin):
     def wsgi(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
         resp = Response()
+
         try:
-            rv = self.call(req, resp)
+            with db_session:
+                rv = self.call(req, resp)
+
             # If there is a return value, is the result of a
             # forward function that we must return right away.
             if rv is not None:
                 return rv
 
         except Exception as error:
-            # We need this other try...except for handling any errors the custom
-            # error handlers or the functions in the `after_request` might raise.
+            # We need this other `try...except` for handling any errors the custom
+            # error handlers or the functions in the `after_request` functions
+            # might raise.
             resp.error = error
             self._handle_errors(req, resp)
 
@@ -140,11 +144,10 @@ class App(AppErrorsMixin, AppProxyMixin):
 
     def call(self, req, resp):
         try:
-            with db_session:
-                self._run_pipeline(req, resp, self._pipeline)
-                route = req.matched_route
-                if route.forward_to:
-                    return route.forward_to(req.environ, req.start_response)
+            self._run_pipeline(req, resp, self._pipeline)
+            route = req.matched_route
+            if route.forward_to:
+                return route.forward_to(req.environ, req.start_response)
         except Exception as error:
             resp.error = error
             self._handle_app_errors(req, resp)

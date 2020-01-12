@@ -110,6 +110,10 @@ class Router(object):
                 allowed.add(route.method)
                 continue
 
+            if not (route.to or route.forward_to or route.redirect):
+                # build-only route
+                continue
+
             params = route.defaults.copy() or {}
             params.update(match.groupdict())
 

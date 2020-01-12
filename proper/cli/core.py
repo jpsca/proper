@@ -21,5 +21,8 @@ class CantFindApp(Exception):
 def import_app():
     cwd = os.getcwd()
     sys.path.insert(0, cwd)
-    from main import app
-    return app
+    try:
+        from main import app
+        return app
+    except ImportError:
+        return None

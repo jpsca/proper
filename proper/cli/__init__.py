@@ -6,9 +6,10 @@ from .run import *  # noqa
 
 def start_cli():
     app = import_app()
-    cli = getattr(app, "cli", None) or {}
-    for group, commands in cli.items():
-        core.add_commands(commands, group=group)
+    if app:
+        cli = getattr(app, "cli", None) or {}
+        for group, commands in cli.items():
+            core.add_commands(commands, group=group)
     return core.run()
 
 
