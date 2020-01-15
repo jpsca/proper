@@ -7,13 +7,13 @@ html, body {
 	margin: 0;
 	color: #333;
 	background-color: #fefefe;
-	font-size: 14px;
+	font-size: 16px;
 	font-family: Helvetica, Arial, sans-serif;
 	overflow-x: hidden;
 }
 
 header h1, .container {
-	max-width: 978px;
+	max-width: 1280px;
 }
 
 header {
@@ -22,13 +22,13 @@ header {
 }
 header h1 {
 	margin: 0;
-	padding: 13px 20px;
+	padding: 13px 30px;
 	line-height: 1.1;
 	font-size: 26px;
 }
 
 .container {
-	padding: 0 20px 150px;
+	padding: 0 30px 150px;
 	margin: 0;
 }
 .scroll-container {
@@ -60,7 +60,7 @@ section h4 {
 
 code, table {
 	font-family: Monaco, "Courier New", Courier;
-	font-size: 13px;
+	font-size: 15px;
 }
 
 .table-header {
@@ -79,7 +79,11 @@ table {
 	min-width: 640px;
 }
 table div {
-	padding: 2px 4px;
+	padding: 4px;
+}
+table th {
+	color: #444;
+	font-size: 14px;
 }
 table th,
 table td {

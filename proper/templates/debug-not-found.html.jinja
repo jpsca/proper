@@ -3,20 +3,19 @@
 {% block styles %}
 <style>
 table.routes {
-	border: 1px solid #ddd;
+	border: none;
+	margin-top: 20px;
 }
-table.routes th {
-	font-size: 11px;
-	color: #999;
+table.routes th,
+table.routes td {
+	vertical-align: middle;
 }
 table.routes div {
 	padding: 1px 4px;
-	height: 20px;
-	line-height: 20px;
+	min-height: 27px;
 }
-table.routes th div {
-	height: 10px;
-	line-height: 10px;
+table.routes [role] {
+	cursor: default;
 }
 </style>
 {% endblock %}
@@ -28,9 +27,6 @@ table.routes th div {
 <p>Routes match in priority from top to bottom.</p>
 
 <div class="scroll-container">
-{%- for scope in routes %}
-	<div class="table-header">Scope: {{ scope.mount }}
-		{% if scope.rules %}, {{ scope.rules }}{% endif %}</div>
 	<table class="routes">
 		<tr>
 			<th></th>
@@ -40,17 +36,20 @@ table.routes th div {
 			<th><div>RULES</div></th>
 			<th><div>DEFAULTS</div></th>
 		</tr>
-		{%- for route in scope.routes %}
+		{%- for route in routes %}
 		<tr>
-			<td><div>{{ route.method if route.method else '—' }}<div></td>
-			<td><div>{{ route.path }}<div></td>
-			<td><div>{{ route.to or route.redirect or route.forward }}<div></td>
-			<td><div>{{ route.name if route.name else '—' }}<div></td>
-			<td><div>{{ route.rules if route.rules else '—' }}<div></td>
-			<td><div>{{ route.defaults if route.defaults else '—' }}<div></td>
+			<td><div>{{ route.method if route.method else '—' }}</div></td>
+			<td><div>{{ route.path }}</div></td>
+			<td><div>
+				{% if route.redirect %}<span role="image" title="redirect">↪️</span>{% endif %}
+				{% if route.forward %}<span role="image" title="forward">⏩</span>{% endif %}
+				{{ route.to or route.redirect or route.forward }}
+			</div></td>
+			<td><div>{{ route.name if route.name else '—' }}</div></td>
+			<td><div>{{ route.rules if route.rules else '—' }}</div></td>
+			<td><div>{{ route.defaults if route.defaults else '—' }}</div></td>
 		</tr>
 		{%- endfor %}
 	</table>
-{%- endfor %}
 </div>
 {% endblock %}
