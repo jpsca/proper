@@ -152,7 +152,6 @@ class Route(BaseRoute):
 
     @property
     def build_only(self):
-        print(self.to, self.redirect, self.forward_to)
         return not (self.to or self.redirect or self.forward_to)
 
 
