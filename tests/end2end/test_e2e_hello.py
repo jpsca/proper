@@ -18,10 +18,12 @@ class MyController(BaseController):
         resp.body = "Hello Callable!"
 
     def echo_query(self, req, resp):
-        resp.headers["req-query"] = "|".join([
-            f"{key}:{','.join(str(val) for val in values)}"
-            for key, values in req.query.items()
-        ])
+        resp.headers["req-query"] = "|".join(
+            [
+                f"{key}:{','.join(str(val) for val in values)}"
+                for key, values in req.query.items()
+            ]
+        )
 
 
 def test_hello_world(app, web):

@@ -63,12 +63,7 @@ class Forward(Route):
     def __init__(self, path, to, *, name=None, host=None, rules=None):
         assert callable(to), "You can forward only to an WSGI application."
         super().__init__(
-            "forward",
-            path,
-            to=to,
-            name=name,
-            host=host,
-            rules=rules,
+            "forward", path, to=to, name=name, host=host, rules=rules,
         )
         self.forward_to = to
 

@@ -1,7 +1,7 @@
 import logging
 
 
-__all__ = ("PlugProtect", )
+__all__ = ("PlugProtect",)
 
 
 logger = logging.getLogger(__name__)

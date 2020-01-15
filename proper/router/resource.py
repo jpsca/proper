@@ -7,7 +7,7 @@ from ..constants import DELETE, GET, PATCH, POST, PUT
 from .route import Route
 
 
-__all__ = ("resource", )
+__all__ = ("resource",)
 
 
 REST_ROUTES = (
@@ -35,9 +35,7 @@ def resource(path, only=REST_ACTIONS, ignore=None, **kwargs):
 
     ignore = ignore or []
     _actions = [
-        action
-        for action in only
-        if (action in REST_ACTIONS) and (action not in ignore)
+        action for action in only if (action in REST_ACTIONS) and (action not in ignore)
     ]
     assert _actions, "None of the actions are valid."
     return expand_resource(res, _actions)

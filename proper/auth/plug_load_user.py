@@ -1,14 +1,14 @@
 import logging
 
 
-__all__ = ("PlugLoadUser", )
+__all__ = ("PlugLoadUser",)
 
 
 logger = logging.getLogger(__name__)
 
 
 def split_token(token):
-    uid, mac = token.split('$', 1)
+    uid, mac = token.split("$", 1)
     return uid
 
 

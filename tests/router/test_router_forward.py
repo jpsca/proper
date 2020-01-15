@@ -14,13 +14,16 @@ def test_forward_defaults():
     assert fw.forward_to == wsgi_app
 
 
-@pytest.mark.parametrize("path, expected", [
-    ("", "/"),
-    ("api", "/api"),
-    ("/api", "/api"),
-    ("api/", "/api"),
-    ("/api/", "/api"),
-])
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        ("", "/"),
+        ("api", "/api"),
+        ("/api", "/api"),
+        ("api/", "/api"),
+        ("/api/", "/api"),
+    ],
+)
 def test_forward_must_add_slashes_to_path(path, expected):
     assert forward(path, wsgi_app).path == expected
 

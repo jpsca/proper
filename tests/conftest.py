@@ -15,7 +15,6 @@ SECRET_KEY = generate_secret_key()
 @pytest.fixture()
 def app():
     app = App(__name__, config={"secret_key": SECRET_KEY, "debug": False})
-    app.controllers_mod = "webapp"
     return app
 
 

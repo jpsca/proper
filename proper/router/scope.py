@@ -6,7 +6,10 @@ from .base import RE_PARAMS
 from .route import Route
 
 
-__all__ = ("Scope", "scope",)
+__all__ = (
+    "Scope",
+    "scope",
+)
 
 
 def flatten(ll):
@@ -84,19 +87,21 @@ class Scope(object):
         return _routes
 
     def _mount_route(self, route):
-        assert isinstance(route, Route), \
-            "A scope only can work over instances of `proper_router.route`."
-        route.path = self.mount.rstrip("/") + route.path
+        assert isinstance(
+            route, Route
+        ), "A scope only can work over instances of `proper_router.route`."
+        if route.path == "/":
+            route.path = self.mount
+        else:
+            route.path = self.mount.rstrip("/") + route.path
         new_rules = self.rules.copy()
         new_rules.update(route.rules)
         route.rules = new_rules
-        route.host = self.host
+        route.host = self.host or route.host
 
     def __repr__(self):
         return (
-            f"<scope {self.mount}"
-            + (f" host={ self.host}" if self.host else "")
-            + ">"
+            f"<scope {self.mount}" + (f" host={ self.host}" if self.host else "") + ">"
         )
 
 

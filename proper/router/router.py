@@ -12,7 +12,7 @@ from .router_errors import NameNotFound
 from .scope import flatten
 
 
-__all__ = ("Router", )
+__all__ = ("Router",)
 
 
 class Router(object):
@@ -45,12 +45,7 @@ class Router(object):
     )
 
     def __init__(
-        self,
-        *,
-        host="0.0.0.0:3030",
-        root_path="",
-        use_ssl=False,
-        _debug=False
+        self, *, host="0.0.0.0:3030", root_path="", use_ssl=False, _debug=False
     ):
 
         self.host = host
@@ -99,7 +94,6 @@ class Router(object):
         # If the path match but the method do not, we need to return
         # a list of the allowed methods with the 405 response.
         allowed = set([])
-
         for route in self.routes:
             if route.host != host:
                 continue
@@ -134,8 +128,9 @@ class Router(object):
     def routes(self, values):
         _routes = flatten(values)
         if self._debug:
-            assert all([isinstance(x, Route) for x in _routes]), \
-                "All routes must be instances of `proper_router.route`."
+            assert all(
+                [isinstance(x, Route) for x in _routes]
+            ), "All routes must be instances of `proper_router.route`."
         for route in _routes:
             route.compile_path()
         self._routes = tuple(_routes)

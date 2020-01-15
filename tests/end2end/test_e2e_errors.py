@@ -17,12 +17,9 @@ def test_fallback_not_found(app, web):
 
 def test_fallback_error(app, web):
     app.router.routes = [
-        scope("/")(
-            get("/", to="Pages.index"),
-            get("fail/not_acceptable", to="Pages.fail_not_acceptable"),
-            get("fail/not_implemented", to="Pages.fail_not_implemented"),
-            get("fail/forbidden", to="Pages.fail_forbidden"),
-        )
+        get("fail/not_acceptable", to="Pages.fail_not_acceptable"),
+        get("fail/not_implemented", to="Pages.fail_not_implemented"),
+        get("fail/forbidden", to="Pages.fail_forbidden"),
     ]
 
     resp = web.get("/fail/not_acceptable", expect_errors=True)

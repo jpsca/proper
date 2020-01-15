@@ -1,4 +1,13 @@
-from proper import get, scope, BaseController
+from proper import get, scope, BaseController, status
+
+
+def test_controller_dispatch(app, web):
+    app.router.routes = [
+        get("/", to="Pages.index"),
+    ]
+
+    resp = web.get("/")
+    assert resp.status == status.ok
 
 
 class AppController(BaseController):
@@ -27,7 +36,11 @@ def plug_template(req, resp, _app):
 
 
 class PipelineCalled(AppController):
-    _plugs = [plug1, plug2, plug3, ]
+    _plugs = [
+        plug1,
+        plug2,
+        plug3,
+    ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"
@@ -35,25 +48,25 @@ class PipelineCalled(AppController):
 
 def test_pipeline_called(app, web):
 
-    app.routes = [
-        scope("/")(get("/", to=PipelineCalled.append))
-    ]
+    app.routes = [scope("/")(get("/", to=PipelineCalled.append))]
     resp = web.get("/")
 
     assert resp.text == "-plug1--plug2--plug3--index--plug1--plug2--plug3-"
 
 
 class StopPipeline(AppController):
-    _plugs = [plug1, plug_stop, plug3, ]
+    _plugs = [
+        plug1,
+        plug_stop,
+        plug3,
+    ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"
 
 
 def test_stop_in_pipeline(app, web):
-    app.routes = [
-        scope("/")(get("/", to=StopPipeline.append))
-    ]
+    app.routes = [scope("/")(get("/", to=StopPipeline.append))]
     resp = web.get("/")
 
     assert resp.text == "-plug1-"
@@ -84,7 +97,9 @@ def test_custom_temnplate(app, web):
 
 
 class CustomTemplateFromPlug(AppController):
-    _plugs = [plug_template, ]
+    _plugs = [
+        plug_template,
+    ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"
@@ -94,13 +109,9 @@ class CustomTemplateFromPlug(AppController):
 
 
 def test_custom_template_from_plug(app, web):
-    app.routes = [
-        scope("/")(get("/", to=CustomTemplateFromPlug.append))
-    ]
+    app.routes = [scope("/")(get("/", to=CustomTemplateFromPlug.append))]
 
-    app.routes = [
-        scope("/")(get("", to=CustomTemplateFromPlug.rendered))
-    ]
+    app.routes = [scope("/")(get("", to=CustomTemplateFromPlug.rendered))]
     resp = web.get("/")
 
     assert resp.text == "<html>plug_custom.mako was rendered</html>"

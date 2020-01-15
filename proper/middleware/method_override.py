@@ -5,7 +5,7 @@
 from ..constants import POST, PUT, PATCH, DELETE
 
 
-__all__ = ("method_override", )
+__all__ = ("method_override",)
 
 
 def method_override(req, resp, _app):

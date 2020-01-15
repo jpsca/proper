@@ -25,9 +25,9 @@ class AppErrorsMixin(object):
     def errorhandler(self, cls, to):
         """Register a controller method to handle errors by exception class.
         """
-        assert inspect.isclass(cls) and issubclass(cls, Exception), (
-            "`errorhandler` takes a subclass of `Exception` as first argument."
-        )
+        assert inspect.isclass(cls) and issubclass(
+            cls, Exception
+        ), "`errorhandler` takes a subclass of `Exception` as first argument."
         self.error_handlers = self.error_handlers or {}
         self.error_handlers[cls] = to
 
@@ -52,7 +52,7 @@ class AppErrorsMixin(object):
         self._handle_errors(req, resp)
 
     def _call_custom_handler(self, handler, req, resp):
-        _, method = objectify(handler, self.controllers_mod)
+        _, method = objectify(self.controllers_mod, handler)
         return method(req, resp, self)
 
     def _handle_errors(self, req, resp):

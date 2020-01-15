@@ -15,9 +15,7 @@ app = App(
         f"{root_path}/config/common.yaml",
         f"{root_path}/config/{env}/config.yaml",
     ],
-    secrets=[
-        f"{root_path}/config/{env}/secrets.yaml.enc",
-    ],
+    secrets=[f"{root_path}/config/{env}/secrets.yaml.enc",],
 )
 
 config = app.config
@@ -35,8 +33,5 @@ app.errorhandler(errors.ServerError, "Pages.error")
 # Please read: http://whitenoise.evans.io
 static_path = (root_path / "static").resolve()
 app.wsgi = WhiteNoise(
-    app.wsgi,
-    root=static_path,
-    autorefresh=config.debug,
-    allow_all_origins=True,
+    app.wsgi, root=static_path, autorefresh=config.debug, allow_all_origins=True,
 )

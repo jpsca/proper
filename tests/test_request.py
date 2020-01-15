@@ -128,7 +128,8 @@ def test_flashes():
 
 
 @pytest.mark.parametrize(
-    "method, result", [
+    "method, result",
+    [
         (GET, False),
         (POST, True),
         (PUT, True),
@@ -137,7 +138,7 @@ def test_flashes():
         (HEAD, False),
         (OPTIONS, False),
         ("MEH", False),
-    ]
+    ],
 )
 def test_must_check_csrf(method, result):
     assert Request(method=method).must_check_csrf() == result

@@ -8,17 +8,15 @@ from proper.parsers import parse_form_data
 REQUESTS = [
     (
         "multipart-png-tbla.txt",
-        "disk lookup.png", "folder.png",
+        "disk lookup.png",
+        "folder.png",
         "--text\n--with boundary\n--lookalikes--",
     ),
-    (
-        "multipart-svg-jpg-tnull.txt",
-        "photo.jpg", "home.svg",
-        ""
-    ),
+    ("multipart-svg-jpg-tnull.txt", "photo.jpg", "home.svg", ""),
     (
         "multipart-webkit-png-tacc.txt",
-        "folder.png", "disk lookup.png",
+        "folder.png",
+        "disk lookup.png",
         "loremipsdj áé ñ öäü",
     ),
 ]

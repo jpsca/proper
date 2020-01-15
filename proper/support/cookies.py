@@ -10,7 +10,10 @@ from http.cookies import Morsel
 from http.cookies import SimpleCookie
 
 
-__all__ = ("CookiesDict", "add_cookie", )
+__all__ = (
+    "CookiesDict",
+    "add_cookie",
+)
 
 
 # Monkey-patching the Morsel to add support for samesite for Python version < 3.8
@@ -39,7 +42,7 @@ def add_cookie(
     httponly=False,
     samesite=None,
     comment=None,
-    max_size=None
+    max_size=None,
 ):
     """Set (add) a cookie for the response.
     Returns the cookie set.
@@ -113,9 +116,7 @@ def add_cookie(
     if max_age is not None:
         cookies[key]["max-age"] = max_age
         # Internet Explore (Edge too?) ignores "max-age" and requires "expires"
-        cookies[key]["expires"] = formatdate(
-            time.time() + max_age, usegmt=True
-        )
+        cookies[key]["expires"] = formatdate(time.time() + max_age, usegmt=True)
 
     if key.startswith(HOST_PREFIX):
         path = "/"
@@ -146,14 +147,14 @@ def add_cookie(
 
 
 def validate_domain(domain):
-    if domain and '.' not in domain:
+    if domain and "." not in domain:
         # Chrome doesn't allow names without a '.'
         # This should only come up with something like "localhost"
         warnings.warn(
             "For some browser, like Chrome, “{domain}” is not a valid cookie domain, "
             "because it must contain a “.”. Add an entry to your hosts file, "
             "for example “{domain}.localdomain”, and use that instead.",
-            stacklevel=2
+            stacklevel=2,
         )
 
 
@@ -164,5 +165,5 @@ def validate_cookie_size(key, output, max_size):
             f"The “{key}” cookie is too large. The cookie final size "
             "is {cookie_size} bytes but the limit is {max_size} bytes. "
             "Browsers may silently ignore cookies larger than the limit.",
-            stacklevel=2
+            stacklevel=2,
         )

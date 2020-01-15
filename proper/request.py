@@ -199,8 +199,9 @@ class Request(object):
 
     @cached_property
     def scheme(self):
-        return self.environ.get("HTTP_X_FORWARDED_PROTO") \
-            or self.environ.get("wsgi.url_scheme")
+        return self.environ.get("HTTP_X_FORWARDED_PROTO") or self.environ.get(
+            "wsgi.url_scheme"
+        )
 
     @cached_property
     def secure(self):

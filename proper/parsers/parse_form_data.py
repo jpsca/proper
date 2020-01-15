@@ -11,7 +11,7 @@ from .. import errors
 from ..support import MultiDict
 
 
-__all__ = ("parse_form_data", )
+__all__ = ("parse_form_data",)
 
 
 def parse_form_data(stream, content_type, content_length, encoding="utf8", config=None):
@@ -19,7 +19,7 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
     max_content_length = config.get("max_content_length")
     max_memory_size = config.get("max_memory_size")
 
-    if (max_content_length and content_length and content_length > max_content_length):
+    if max_content_length and content_length and content_length > max_content_length:
         raise errors.RequestEntityTooLarge("Maximum content length exceeded")
 
     content_type, options = parse_options_header(content_type)
@@ -33,7 +33,7 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
 
         return parse_multipart(stream, content_length, encoding, boundary)
 
-    if (max_memory_size and content_length and content_length > max_memory_size):
+    if max_memory_size and content_length and content_length > max_memory_size:
         raise errors.RequestEntityTooLarge("Increase max_memory_size")
 
     content = stream.read(max_memory_size).decode(encoding)

@@ -70,7 +70,7 @@ class ProperWebSocketHandler(WebSocketHandler):
 
         now = datetime.now()
 
-        return '{} {} -> {} {} {} {}'.format(
+        return "{} {} -> {} {} {} {}".format(
             now.strftime("%H:%M:%S"),
             client_address or "?",
             (self.requestline or "").rsplit(" ", 1)[0],
@@ -93,8 +93,6 @@ def set_logger(app):
 def run_server(app, host, port):
     set_logger(app)
     server = pywsgi.WSGIServer(
-        (host, port),
-        app.wsgi,
-        handler_class=ProperWebSocketHandler
+        (host, port), app.wsgi, handler_class=ProperWebSocketHandler
     )
     return server.serve_forever()

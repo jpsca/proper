@@ -46,7 +46,7 @@ class PrivateController(ApplicationController):
     ]
 
 
-templates = Path(__file__).parent.parent / 'templates'
+templates = Path(__file__).parent.parent / "templates"
 templates = str(templates.absolute())
 loader = jinja2.FileSystemLoader(templates)
 jinja_env = jinja2.Environment(loader=loader)

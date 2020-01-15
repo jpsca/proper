@@ -37,7 +37,9 @@ class App(AppErrorsMixin, AppProxyMixin):
     # even if an exception was raised before.
     after_request = tuple()
 
-    def __init__(self, import_name, *, config=None, secrets=None):
+    def __init__(
+        self, import_name, *, config=None, secrets=None, _controllers="controllers"
+    ):
         """
             import_name (str):
                 The `__name__` of your application
@@ -52,15 +54,13 @@ class App(AppErrorsMixin, AppProxyMixin):
                 Module with the controllers, relative to the root of your application.
 
         """
-        self.controllers_mod = (
-            import_name.rsplit(".", 1)[0] + "." + "controllers"
-        ).strip(".")
+        self.controllers_mod = _get_controllers_mod(import_name, _controllers)
         self.config = ConfigDict(DEFAULT_CONFIG)
         self.router = Router()
         self.setup(config=config, secrets=secrets)
 
     def setup(self, config=None, *, secrets=None):
-        self.load_config(be_a_list(config), be_a_list(secrets))
+        self.load_config(_be_a_list(config), _be_a_list(secrets))
         self.config_router()
         if "secret_key" in self.config:
             self.init_serializer()
@@ -169,7 +169,13 @@ class BadSecretKey(Exception):
     pass
 
 
-def be_a_list(something):
+def _get_controllers_mod(import_name, _controllers):
+    if "." not in import_name:
+        return _controllers
+    return (import_name.rsplit(".", 1)[0] + "." + _controllers).strip(".")
+
+
+def _be_a_list(something):
     if something is None:
         return []
     if isinstance(something, (list, tuple)):

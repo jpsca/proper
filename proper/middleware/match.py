@@ -2,7 +2,10 @@
 ## proper.middleware.match
 
 """
-__all__ = ("LOCAL_HOSTS", "match", )
+__all__ = (
+    "LOCAL_HOSTS",
+    "match",
+)
 
 
 LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")

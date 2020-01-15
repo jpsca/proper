@@ -5,7 +5,7 @@
 import re
 
 
-__all__ = ("pascal_to_snake", "snake_to_pascal", "titleize")
+__all__ = ("pascal_to_snake", "titleize")
 
 NON_ALPHANUMDOT_RE = re.compile("[^A-Z^a-z^0-9^.]+")
 FIRST_CAP_RE = re.compile("(.)([A-Z][a-z]+)")
@@ -43,33 +43,6 @@ def pascal_to_snake(name):
     s1 = FIRST_CAP_RE.sub(r"\1_\2", name)
     s2 = ALL_CAP_RE.sub(r"\1_\2", s1)
     return s2.replace("__", "_").lower()
-
-
-def snake_to_pascal(name):
-    """Converts snake_case to PascalCase.
-
-    Is the opposite of `pascal_to_snake` except for can't restore ALLCAPS words.
-    It will remove non alphanumeric character from the word first, so "who's online"
-    will be converted to "WhoSOnline".
-
-    >>> snake_to_pascal('pascal')
-    'Pascal'
-    >>> snake_to_pascal('pascal_case')
-    'PascalCase'
-    >>> snake_to_pascal('pascal_pascal_case')
-    'PascalPascalCase'
-    >>> snake_to_pascal('pascal__pascal__case')
-    'PascalPascalCase'
-    >>> snake_to_pascal('pascal2_pascal2_case')
-    'Pascal2Pascal2Case'
-    >>> snake_to_pascal('get_http_response_code')
-    'GetHttpResponseCode'
-    >>> snake_to_pascal('get_HTTP_response_code')
-    'GetHTTPResponseCode'
-
-    """
-    name = NON_ALPHANUMDOT_RE.sub("_", name)
-    return "".join(w[0].upper() + w[1:] for w in name.split("_"))
 
 
 def titleize(word):

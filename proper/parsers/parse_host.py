@@ -2,7 +2,7 @@
 ## proper.parsers.parse_host
 
 """
-__all__ = ("parse_host", )
+__all__ = ("parse_host",)
 
 
 def parse_host(host):

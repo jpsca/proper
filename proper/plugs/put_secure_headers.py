@@ -2,7 +2,7 @@
 ## proper.plugs.put_secure_headers
 
 """
-__all__ = ("put_secure_headers", )
+__all__ = ("put_secure_headers",)
 
 
 def put_secure_headers(_req, resp, _app):

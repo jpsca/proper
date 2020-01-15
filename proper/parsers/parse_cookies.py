@@ -19,4 +19,4 @@ def parse_cookies(cookie):
     if not cookie:
         return {}
     cookie = cookie.strip(";")
-    return dict([pair.split('=', 1) for pair in cookie.split('; ')])
+    return dict([pair.split("=", 1) for pair in cookie.split("; ")])

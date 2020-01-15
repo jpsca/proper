@@ -2,7 +2,7 @@
 ## proper.middleware.redirect
 
 """
-__all__ = ("redirect", )
+__all__ = ("redirect",)
 
 
 def redirect(req, resp, _app):

@@ -23,6 +23,7 @@ def import_app():
     sys.path.insert(0, cwd)
     try:
         from main import app
+
         return app
     except ImportError:
         return None

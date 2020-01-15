@@ -82,12 +82,10 @@ class Response(object):
     @property
     def headers_list(self):
         headers = [
-            (key, tunnel_encode(value, "utf-8"))
-            for key, value in self.headers.items()
+            (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
         ]
         cookie_headers = [
-            tuple(morsel.output().split(": ", 1))
-            for morsel in self.cookies.values()
+            tuple(morsel.output().split(": ", 1)) for morsel in self.cookies.values()
         ]
         return headers + cookie_headers
 
@@ -118,15 +116,17 @@ class Response(object):
     def redirect_to(self, to, status_code=status.see_other):
         self.status_code = status_code
         self.headers["location"] = to
-        self.body = "\n".join([
-            '<!doctype html>',
-            '<meta charset="utf-8">',
-            f'<meta http-equiv="refresh" content="0; url={to}">',
-            f'<script>window.location.href="{to}"</script>',
-            '<title>Page Redirection</title>',
-            'If you are not redirected automatically, follow the ',
-            f'<a href="{to}">link to the page</a>.'
-        ])
+        self.body = "\n".join(
+            [
+                "<!doctype html>",
+                '<meta charset="utf-8">',
+                f'<meta http-equiv="refresh" content="0; url={to}">',
+                f'<script>window.location.href="{to}"</script>',
+                "<title>Page Redirection</title>",
+                "If you are not redirected automatically, follow the ",
+                f'<a href="{to}">link to the page</a>.',
+            ]
+        )
 
     def set_cookie(self, key, value="", **kwargs):
         """Set (add) a cookie for the response. Returns the cookie set.

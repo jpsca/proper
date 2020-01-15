@@ -22,11 +22,7 @@ TEST_ROUTES = [
         post("/items", to="Items.create"),
         delete("/items/:item_id", to="", rules={"item_id": "int"}),
     ),
-    scope("/foobar/")(
-        get("", to=""),
-        get("foo", to=""),
-        get("bar", to=""),
-    ),
+    scope("/foobar/")(get("", to=""), get("foo", to=""), get("bar", to=""),),
     scope("/")(
         get("", to="Pages.index", name="index"),
         get("login", to="Pages.login", name="login"),
@@ -34,8 +30,7 @@ TEST_ROUTES = [
         get("foobar/:catchall", to="", rules={"catchall": "path"}),
     ),
     scope("/", host="blog.example.com")(
-        get("admin", to=""),
-        get("foobar/foo", to="FooBar.foo"),
+        get("admin", to=""), get("foobar/foo", to="FooBar.foo"),
     ),
     scope("/:locale/", rules={"locale": r"(en|es)"})(
         get("", to="localized.index"),
@@ -47,9 +42,7 @@ TEST_ROUTES = [
 def test_match_domain(app, web):
     app.setup({"debug": True})
     app.routes = [
-        scope("/", host="example.com")(
-            get("/", to="Pages.index"),
-        ),
+        scope("/", host="example.com")(get("/", to="Pages.index"),),
     ]
     resp = web.get("http://example.com/")
 

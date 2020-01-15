@@ -7,7 +7,6 @@ from .concerns.emails.password_reset import send_password_reset_email
 
 
 class Sessions(PublicController):
-
     def login(self, req, resp):
         if req.current_user:
             return go_forward(resp)

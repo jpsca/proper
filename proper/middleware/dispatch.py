@@ -7,14 +7,14 @@ from os import path
 from ..support import objectify, pascal_to_snake
 
 
-__all__ = ("dispatch", )
+__all__ = ("dispatch",)
 
 
 def dispatch(req, resp, app):
     if resp.dispatched:
         return
     route = req.matched_route
-    controller, method = objectify(route.to, app.controllers_mod)
+    controller, method = objectify(app.controllers_mod, route.to)
 
     # Even if we might not use it, let set the inferred template name now
     # (unless is already set), so the client can overwrite it if they want.

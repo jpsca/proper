@@ -5,7 +5,7 @@
 from ..support import Dot, BadSignature
 
 
-__all__ = ("session", )
+__all__ = ("session",)
 
 
 def session(req, resp, app):

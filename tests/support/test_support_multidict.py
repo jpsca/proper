@@ -64,7 +64,6 @@ def test_exbool():
         ("false5", "FALSE"),
         ("false6", "no"),
         ("false7", "NO"),
-
         ("true1", "yes"),
         ("true2", "YEAAAAAAAAH"),
         ("true3", "42"),

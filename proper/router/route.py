@@ -123,8 +123,9 @@ class Route(BaseRoute):
         rules=None,
     ):
         # Look ma, a practical use case for a XOR!
-        assert (to is not None) ^ (redirect is not None), \
-            "A rule must be created with either a `to` or a `redirect`."
+        assert (to is not None) ^ (
+            redirect is not None
+        ), "A rule must be created with either a `to` or a `redirect`."
 
         self.method = method.upper()
         self.path = "/" + path.strip("/")

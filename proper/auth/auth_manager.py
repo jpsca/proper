@@ -162,19 +162,19 @@ class AuthManager(object):
             return False
 
     def get_token(self, secret_key, user):
-        key = "|".join([
-            # Includes the secret key, so without access to the source code,
-            # fake tokens cannot be generated even if the database is compromised.
-            secret_key,
-
-            # So the the token is always unique for each user.
-            str(user.id),
-
-            # By using a snippet of the password hash **salt**,
-            # you can logout from all other devices
-            # just by changing (or re-saving) the password.
-            (user.password or "").rsplit("$", 1)[0][-10:],
-        ])
+        key = "|".join(
+            [
+                # Includes the secret key, so without access to the source code,
+                # fake tokens cannot be generated even if the database is compromised.
+                secret_key,
+                # So the the token is always unique for each user.
+                str(user.id),
+                # By using a snippet of the password hash **salt**,
+                # you can logout from all other devices
+                # just by changing (or re-saving) the password.
+                (user.password or "").rsplit("$", 1)[0][-10:],
+            ]
+        )
 
         key = key.encode("utf8", "ignore")
         mac = hmac.new(key, msg=None, digestmod=hashlib.sha512)
@@ -184,22 +184,21 @@ class AuthManager(object):
     def get_timestamped_token(self, secret_key, user, timestamp):
         timestamp = int(timestamp or time())
 
-        key = "|".join([
-            # Includes the secret key, so without access to the source code,
-            # fake tokens cannot be generated even if the database is compromised.
-            secret_key,
-
-            # So the the token is always unique for each user.
-            str(user.id),
-
-            # By using a snippet of the password hash **salt**,
-            # you can logout from all other devices
-            # just by changing (or re-saving) the password.
-            (user.password or "").rsplit("$", 1)[0][-10:],
-
-            # So the timestamp cannot be forged
-            str(timestamp)
-        ])
+        key = "|".join(
+            [
+                # Includes the secret key, so without access to the source code,
+                # fake tokens cannot be generated even if the database is compromised.
+                secret_key,
+                # So the the token is always unique for each user.
+                str(user.id),
+                # By using a snippet of the password hash **salt**,
+                # you can logout from all other devices
+                # just by changing (or re-saving) the password.
+                (user.password or "").rsplit("$", 1)[0][-10:],
+                # So the timestamp cannot be forged
+                str(timestamp),
+            ]
+        )
 
         key = key.encode("utf8", "ignore")
         mac = hmac.new(key, msg=None, digestmod=hashlib.sha512)

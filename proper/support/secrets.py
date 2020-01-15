@@ -49,7 +49,8 @@ def new_master_key_file(parent_path):
 
 
 def make_default_secrets():
-    return dedent(f"""\
+    return dedent(
+        f"""\
     # This is an encrypted YAML file.
     #
     # Your can safely store here credentials like API keys and such,
@@ -57,11 +58,13 @@ def make_default_secrets():
     # -------------------------------------------------------------
 
     # foo: "bar"
-    """)
+    """
+    )
 
 
 def make_dev_default_secrets():
-    return dedent(f"""\
+    return dedent(
+        f"""\
     # This is an encrypted YAML file for development.
     #
     # Your can safely store here credentials used in development,
@@ -70,11 +73,13 @@ def make_dev_default_secrets():
     # -------------------------------------------------------------
 
     # foo: "bar"
-    """)
+    """
+    )
 
 
 def make_prod_default_secrets():
-    return dedent(f"""\
+    return dedent(
+        f"""\
     # This is an encrypted YAML file for production.
     #
     # Your can safely store here credentials used in production,
@@ -88,7 +93,8 @@ def make_prod_default_secrets():
     # all random, no regular words or you'll be exposed to dictionary attacks.
     # You can use `proper secret` to generate a secure secret key.
     secret_key: "{generate_secret_key()}"
-    """)
+    """
+    )
 
 
 def read_master_key(parent_path, error_if_not_found=True):

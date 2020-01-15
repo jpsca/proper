@@ -86,10 +86,7 @@ def test_resource_with_callable():
 def test_resource_only():
     routes = resource("posts", to="Posts", only=["index", "show"])
 
-    expected = [
-        get("posts/", to="Posts.index"),
-        get("posts/:uid", to="Posts.show")
-    ]
+    expected = [get("posts/", to="Posts.index"), get("posts/:uid", to="Posts.show")]
 
     assert routes == expected
 
@@ -111,10 +108,7 @@ def test_resource_ignore():
 def test_some_invalid_actions():
     routes = resource("posts", to="Posts", only=["index", "jump", "show", "fire"])
 
-    expected = [
-        get("posts/", to="Posts.index"),
-        get("posts/:uid", to="Posts.show")
-    ]
+    expected = [get("posts/", to="Posts.index"), get("posts/:uid", to="Posts.show")]
 
     assert routes == expected
 
@@ -140,9 +134,6 @@ def test_only_and_ignore():
 def test_ignore_invalid():
     routes = resource("posts", to="Posts", only=["index", "show"], ignore=["patrice"])
 
-    expected = [
-        get("posts/", to="Posts.index"),
-        get("posts/:uid", to="Posts.show")
-    ]
+    expected = [get("posts/", to="Posts.index"), get("posts/:uid", to="Posts.show")]
 
     assert routes == expected

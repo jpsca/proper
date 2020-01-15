@@ -19,6 +19,9 @@ from proper.router.router_errors import NameNotFound
 def router():
     router = Router()
     router.routes = [
+        get("", to="Pages.index", name="index"),
+        get("login", to="Pages.login", name="login"),
+
         scope("/api/")(
             get("items", to="Items.index"),
             get("items/:item_id", to="Items.show", rules={"item_id": "int"}),
@@ -28,23 +31,22 @@ def router():
                 rules={"year": r"\d{4}", "month": r"\d{1,2}"},
             ),
             post("/items", to="Items.create"),
-            delete("/items/:item_id", to="", rules={"item_id": "int"}),
+            delete("/items/:item_id", to="meh", rules={"item_id": "int"}),
         ),
+
         scope("/foobar/")(
-            get("", to=""),
-            get("foo", to=""),
-            get("bar", to=""),
+            get("", to="meh"),
+            get("foo", to="meh"),
+            get("bar", to="meh"),
         ),
-        scope("/")(
-            get("", to="Pages.index", name="index"),
-            get("login", to="Pages.login", name="login"),
-            get("admin", to=""),
-            get("foobar/:catchall", to="", rules={"catchall": "path"}),
-        ),
+        get("foobar/:catchall", to="meh", rules={"catchall": "path"}),
+
+        get("admin", to="meh"),
         scope("/", host="blog.example.com")(
-            get("admin", to=""),
+            get("admin", to="meh"),
             get("foobar/foo", to="FooBar.foo"),
         ),
+
         scope("/:locale/", rules={"locale": r"(en|es)"})(
             get("", to="localized.index"),
             get(":item_id", to="localized.item", rules={"item_id": "int"}),
@@ -61,7 +63,9 @@ def test_match(router):
     assert params == {}
 
     ro, params = router.match(GET, "/foobar")
-    assert ro.path == "/foobar/"
+    assert ro.path == "/foobar"
+    ro, params = router.match(GET, "/foobar/")
+    assert ro.path == "/foobar"
 
     ro, params = router.match(GET, "/api/items")
     assert ro.path == "/api/items"
@@ -100,9 +104,9 @@ def test_try_with_the_next_scope(router):
 
 def test_match_host(router):
     router.routes = [
-        scope("/", host="example.com")(get("meh", to="", name="com_host")),
-        scope("/", host="example.org")(get("meh", to="", name="org_host")),
-        scope("/")(get("meh", to="", name="default_host")),
+        get("meh", to="meh", name="com_host", host="example.com"),
+        get("meh", to="meh", name="org_host", host="example.org"),
+        get("meh", to="meh", name="default_host"),
     ]
 
     ro, params = router.match(GET, "/meh")
@@ -128,7 +132,7 @@ def test_match_scope_placeholder(router):
 
 def test_match_mixed_paths(router):
     router.routes = [
-        scope("/")(get("books/:section/:title", to="", rules={"section": "path"}))
+        scope("/")(get("books/:section/:title", to="meh", rules={"section": "path"}))
     ]
     _, params = router.match(GET, "/books/some/section/last-words")
     assert params["section"] == "some/section"
@@ -136,7 +140,7 @@ def test_match_mixed_paths(router):
 
     router.routes = [
         scope("/")(
-            get(":this/is/:madness", to="", rules={"this": "path", "madness": "path"})
+            get(":this/is/:madness", to="meh", rules={"this": "path", "madness": "path"})
         )
     ]
     _, params = router.match(GET, "/a/b/c/d/is/e/f/g")
@@ -144,7 +148,7 @@ def test_match_mixed_paths(router):
     assert params["madness"] == "e/f/g"
 
     router.routes = [
-        scope("/")(get(":super/:bad", to="", rules={"super": "path", "bad": "path"}))
+        scope("/")(get(":super/:bad", to="meh", rules={"super": "path", "bad": "path"}))
     ]
     _, params = router.match(GET, "/a/b/c/d/e/f/g")
     assert params["super"] == "a/b/c/d/e/f"

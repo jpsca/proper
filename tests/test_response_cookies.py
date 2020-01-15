@@ -126,7 +126,7 @@ def test_cookie_comment():
     resp.set_cookie("lorem", "ipsum", comment="This is cool")
 
     assert resp.cookies["lorem"]["comment"] == "This is cool"
-    assert "; Comment=\"This is cool\"" in resp.headers_list[-1][1]
+    assert '; Comment="This is cool"' in resp.headers_list[-1][1]
 
 
 def test_cookie_host_prefix_path():

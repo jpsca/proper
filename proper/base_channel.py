@@ -6,7 +6,6 @@ Better to close it and forget about it.
 
 
 class BaseChannel(object):
-
     def __init__(self, ws):
         self.ws = ws
 

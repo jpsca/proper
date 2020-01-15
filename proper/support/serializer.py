@@ -12,7 +12,10 @@ from itsdangerous import BadSignature
 from itsdangerous import URLSafeTimedSerializer
 
 
-__all__ = ("Serializer", "BadSignature", )
+__all__ = (
+    "Serializer",
+    "BadSignature",
+)
 
 
 class Serializer(object):

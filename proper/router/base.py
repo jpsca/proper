@@ -10,7 +10,7 @@ from .router_errors import BadRule
 from .router_errors import MissingParameter
 
 
-__all__ = ("BaseRoute", )
+__all__ = ("BaseRoute",)
 
 
 """Rules to be replaced with regular expressions.
@@ -31,6 +31,7 @@ class _RouteTemplate(Template):
 class BaseRoute(object):
     """
     """
+
     def __init__(self):
         # Make sure all params have a key in the rules
         for param in RE_PARAMS.findall(self.path):
@@ -39,11 +40,13 @@ class BaseRoute(object):
     def __eq__(self, other):
         if getattr(other, "__slots__", None) != self.__slots__:
             return NotImplemented
-        return all([
-            getattr(self, attr) == getattr(other, attr)
-            for attr in self.__slots__
-            if not attr.startswith("_")
-        ])
+        return all(
+            [
+                getattr(self, attr) == getattr(other, attr)
+                for attr in self.__slots__
+                if not attr.startswith("_")
+            ]
+        )
 
     def compile_path(self):
         # py36 incorrectly escapes the colon

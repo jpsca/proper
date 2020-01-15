@@ -15,7 +15,7 @@ class BaseController(object):
     def _asdict(self):
         """Serializable to a dictionary.
         """
-        exclude = ("template", )
+        exclude = ("template",)
         return {
             name: getattr(self, name)
             for name in dir(self)

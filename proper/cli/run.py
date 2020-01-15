@@ -9,7 +9,7 @@ from ..server import run_server
 from .core import core, import_app
 
 
-__all__ = ("run", )
+__all__ = ("run",)
 
 
 @core.command(help="Run Proper’s development server.")

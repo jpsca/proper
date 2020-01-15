@@ -34,29 +34,25 @@ def test_can_set_underscore_attributes():
 
 
 def test_deep_update():
-    dot = Dot({
-        "auth": {
-            "hash": "sha1",
-            "rounds": 123,
-        },
-        "users": ["foo", "bar"],
-        "a": 1,
-        "foo": "bar",
-    })
-    dot.update({
-        "auth": {
-            "hash": "argon2",
-        },
-        "users": ["lorem", "ipsum"],
-        "a": 2,
-        "fizz": {"buzz": 3},
-    })
+    dot = Dot(
+        {
+            "auth": {"hash": "sha1", "rounds": 123,},
+            "users": ["foo", "bar"],
+            "a": 1,
+            "foo": "bar",
+        }
+    )
+    dot.update(
+        {
+            "auth": {"hash": "argon2",},
+            "users": ["lorem", "ipsum"],
+            "a": 2,
+            "fizz": {"buzz": 3},
+        }
+    )
 
     assert dot == {
-        "auth": {
-            "hash": "argon2",
-            "rounds": 123,
-        },
+        "auth": {"hash": "argon2", "rounds": 123,},
         "users": ["lorem", "ipsum"],
         "a": 2,
         "foo": "bar",

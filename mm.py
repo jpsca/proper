@@ -26,7 +26,6 @@ data = {
         'Topic :: Software Development :: Libraries :: Application Frameworks"',
         'Topic :: Software Development :: Libraries :: Python Modules"',
     ],
-
     "development_status": "4 - Beta",
     "minimal_python": 3.6,
     "install_requires": [
@@ -44,24 +43,18 @@ data = {
         "ujson ~= 1.35",
         "wsaccel ~= 0.6",
     ],
-    "testing_requires": [
-        "pytest",
-        "pytest-cov",
-        "WebTest",
-    ],
+    "testing_requires": ["pytest", "pytest-cov", "WebTest",],
     "development_requires": [
         "pytest-flake8",
         "flake8",
         "ipdb",
         "tox",
-
         "mkdocs",
         "pymdown-extensions",
         "pygments",
         "pygments-github-lexers",
     ],
     "entry_points": "proper = proper.cli:run",
-
     "coverage_omit": [
         "proper/base_channel.py",
         "proper/cli.py",
