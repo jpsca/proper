@@ -160,6 +160,10 @@ class App(AppErrorsMixin, AppProxyMixin):
                 return
             plug(req, resp, self)
 
+    def test_server(self):
+        from .server import run_server
+        run_server(self, host="0.0.0.0", port=3030)
+
 
 class MissingSecretKey(Exception):
     pass
