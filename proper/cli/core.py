@@ -22,7 +22,7 @@ def import_app():
     cwd = os.getcwd()
     sys.path.insert(0, cwd)
     try:
-        from main import app
+        from app.main import app
 
         return app
     except ImportError:

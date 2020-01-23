@@ -1,7 +1,8 @@
 from .core import BLUEPRINTS, core, import_app  # noqa
+from .generators import *  # noqa
 from .new import *  # noqa
-from .secrets import *  # noqa
 from .run import *  # noqa
+from .secrets import *  # noqa
 
 
 def start_cli():
