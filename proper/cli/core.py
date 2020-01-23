@@ -18,12 +18,22 @@ class CantFindApp(Exception):
     pass
 
 
-def import_app():
+def import_app(ignore_error=False):
     cwd = os.getcwd()
-    sys.path.insert(0, cwd)
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
     try:
-        from app.main import app
-
-        return app
+        from main import main
+        return main.app
     except ImportError:
-        return None
+        if ignore_error:
+            return None
+        raise
+
+
+def get_app_root():
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+    from main import main
+    return Path(main.__file__).parent

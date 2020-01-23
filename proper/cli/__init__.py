@@ -6,7 +6,7 @@ from .secrets import *  # noqa
 
 
 def start_cli():
-    app = import_app()
+    app = import_app(ignore_error=True)
     if app:
         cli = getattr(app, "cli", None) or {}
         for group, commands in cli.items():

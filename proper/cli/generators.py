@@ -1,17 +1,9 @@
-from pathlib import Path
-import os
-
 from pyceo import param
 import hecto
 
 from proper.support import pascal_to_snake
 
-from .core import core, BLUEPRINTS
-
-
-def get_app_root():
-    cwd = os.getcwd()
-    return Path(cwd) / "app"
+from .core import core, BLUEPRINTS, get_app_root
 
 
 @core.command(help="Adds a new controller", group="g")
