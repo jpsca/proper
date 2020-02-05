@@ -7,8 +7,8 @@ from proper import Request
 from proper import Response
 
 
-def test_error_if_no_secret_key():
-    app = App(__name__)
+def test_error_if_no_secret_key(root_path):
+    app = App(root_path)
     req = Request()
     resp = Response()
 

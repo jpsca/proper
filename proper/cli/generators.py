@@ -10,9 +10,9 @@ from .core import core, BLUEPRINTS, get_app_root
 @param("name", help="PascalCased name of the controller class")
 def controller(name):
     source = BLUEPRINTS / "controller"
-    dst = get_app_root()
+    app_root = get_app_root()
     data = {
         "class_name": name,
         "snake_name": pascal_to_snake(name),
     }
-    hecto.copy(source, dst, data=data)
+    hecto.copy(source, app_root, data=data)

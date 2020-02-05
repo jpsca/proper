@@ -13,8 +13,13 @@ SECRET_KEY = generate_secret_key()
 
 
 @pytest.fixture()
-def app():
-    app = App(__name__, config={"secret_key": SECRET_KEY, "debug": False})
+def root_path():
+    return Path(__file__).parent
+
+
+@pytest.fixture()
+def app(root_path):
+    app = App(root_path, config={"secret_key": SECRET_KEY, "debug": False})
     return app
 
 

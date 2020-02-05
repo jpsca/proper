@@ -2,6 +2,10 @@
 ## proper.app
 
 """
+import importlib
+from pathlib import Path
+import sys
+
 from pony.orm import db_session
 
 from . import middleware
@@ -38,11 +42,16 @@ class App(AppErrorsMixin, AppProxyMixin):
     after_request = tuple()
 
     def __init__(
-        self, import_name, *, config=None, secrets=None, _controllers="controllers"
+        self,
+        root=None,
+        *,
+        config=None,
+        secrets=None,
+        _controllers="controllers",
     ):
         """
-            import_name (str):
-                The `__name__` of your application
+            root (str):
+                The root path of your application
 
             config (dict, path, list of paths and/or dicts, or None):
                 Config file(s)
@@ -50,14 +59,25 @@ class App(AppErrorsMixin, AppProxyMixin):
             secrets (dict, path, list of paths and/or dicts, or None):
                 Encrypted secrets file(s)
 
-            controllers_mod (str):
-                Module with the controllers, relative to the root of your application.
+            _controllers (str):
+                Name of the module with the controllers, relative to the
+                root of your application.
 
         """
-        self.controllers_mod = _get_controllers_mod(import_name, _controllers)
+        self._set_root(root)
+        self._set_controllers_mod(_controllers)
         self.config = ConfigDict(DEFAULT_CONFIG)
         self.router = Router()
         self.setup(config=config, secrets=secrets)
+
+    def _set_root(self, root):
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        self.root = root
+
+    def _set_controllers_mod(self, controllers):
+        self.controllers_mod = self.root.name + "." + controllers
 
     def setup(self, config=None, *, secrets=None):
         self.load_config(_be_a_list(config), _be_a_list(secrets))
@@ -162,6 +182,7 @@ class App(AppErrorsMixin, AppProxyMixin):
 
     def test_server(self):
         from .server import run_server
+
         run_server(self, host="0.0.0.0", port=3030)
 
 
@@ -173,10 +194,8 @@ class BadSecretKey(Exception):
     pass
 
 
-def _get_controllers_mod(import_name, _controllers):
-    if "." not in import_name:
-        return _controllers
-    return (import_name.rsplit(".", 1)[0] + "." + _controllers).strip(".")
+class ControllersNotFound(Exception):
+    pass
 
 
 def _be_a_list(something):

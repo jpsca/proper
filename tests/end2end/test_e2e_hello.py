@@ -49,14 +49,14 @@ def test_hello_callable(app, web):
     assert resp.text == "Hello Callable!"
 
 
-def test_default_config():
-    app = App(__name__)
+def test_default_config(root_path):
+    app = App(root_path)
     assert "debug" in app.config
     assert app.config.catch_all_errors
 
 
-def test_multiple_configs():
-    app = App(__name__, config=[{"a": 1}, {"b": 2}])
+def test_multiple_configs(root_path):
+    app = App(root_path, config=[{"a": 1}, {"b": 2}])
     assert app.config.a == 1
     assert app.config.b == 2
 
@@ -66,37 +66,37 @@ def test_serializer(app):
     assert app.serializer
 
 
-def test_no_secret_key_no_serializer():
-    app = App(__name__)
+def test_no_secret_key_no_serializer(root_path):
+    app = App(root_path)
     assert "secret_key" not in app.config
     assert getattr(app, "serializer", None) is None
 
 
-def test_add_secret_key_to_add_serializer():
-    app = App(__name__)
+def test_add_secret_key_to_add_serializer(root_path):
+    app = App(root_path)
 
     assert getattr(app, "serializer", None) is None
     app.setup({"secret_key": "a" * 60})
     assert getattr(app, "serializer", None)
 
 
-def test_secret_key_too_short(app):
+def test_secret_key_too_short(root_path):
     with pytest.raises(BadSecretKey):
-        App(__name__, config={"secret_key": "qwertyuiop"})
+        App(root_path, config={"secret_key": "qwertyuiop"})
 
 
-def test_load_config_file(assets_path):
+def test_load_config_file(assets_path, root_path):
     config_path = assets_path / "config.yaml"
-    app = App(__name__, config=config_path)
+    app = App(root_path, config=config_path)
 
     assert app.config.hello == "world"
     assert app.config.secret_key.startswith("Not secure.")
 
 
-def test_load_secrets_file(assets_path):
+def test_load_secrets_file(assets_path, root_path):
     config_path = assets_path / "config.yaml"
     secrets_path = assets_path / "secrets.yaml.enc"
-    app = App(__name__, config=config_path, secrets=secrets_path)
+    app = App(root_path, config=config_path, secrets=secrets_path)
 
     assert app.config.hello == "world"
     assert app.config.secret_key is not None
