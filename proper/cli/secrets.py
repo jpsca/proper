@@ -41,9 +41,11 @@ def secrets_edit(path=None, env=None):
     if path is None:
         if env is None:
             env = os.getenv("PROPER_ENV", "development")
-        path = f"app/config{env}secrets.yaml.enc"
+        path = f"config/{env}/secrets.yaml.enc"
 
     path = Path(path)
+    if not path.exists():
+        raise SecretsNotFound(path)
     path.touch()
     content = secrets.read_secrets(path)
     if not content:
@@ -63,3 +65,12 @@ def secrets_edit(path=None, env=None):
     secrets.save_secrets(path, new_content)
 
     print("Your secrets are safe.")
+
+
+class SecretsNotFound(Exception):
+    def __init__(self, path):
+        message = (
+            "\nI went looking for `" + str(path) + "` but it does not exists."
+            + "\nYou must specify the path of your secrets file."
+        )
+        super().__init__(message)
