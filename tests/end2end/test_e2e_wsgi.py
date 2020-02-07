@@ -27,10 +27,9 @@ def test_call(app):
 def test_pipefinal_error(app):
     app.routes = [scope("/")(get("/", to="Pages.index"))]
 
+    @app.teardown
     def plug_fail(_req, _resp, _app):
         raise ValueError
-
-    app.after_request = (plug_fail,)
 
     start_response = FakeStartResponse()
     env = make_test_environ()

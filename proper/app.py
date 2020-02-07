@@ -2,11 +2,7 @@
 ## proper.app
 
 """
-import importlib
 from pathlib import Path
-import sys
-
-from pony.orm import db_session
 
 from . import middleware
 from .app_errors_mixin import AppErrorsMixin
@@ -39,7 +35,7 @@ class App(AppErrorsMixin, AppProxyMixin):
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    after_request = tuple()
+    _teardown = tuple()
 
     def __init__(
         self,
@@ -145,8 +141,7 @@ class App(AppErrorsMixin, AppProxyMixin):
         resp = Response()
 
         try:
-            with db_session:
-                rv = self.call(req, resp)
+            rv = self.call(req, resp)
 
             # If there is a return value, is the result of a
             # forward function that we must return right away.
@@ -155,7 +150,7 @@ class App(AppErrorsMixin, AppProxyMixin):
 
         except Exception as error:
             # We need this other `try...except` for handling any errors the custom
-            # error handlers or the functions in the `after_request` functions
+            # error handlers or the functions in the `_teardown` functions
             # might raise.
             resp.error = error
             self._handle_errors(req, resp)
@@ -172,7 +167,7 @@ class App(AppErrorsMixin, AppProxyMixin):
             resp.error = error
             self._handle_app_errors(req, resp)
         finally:
-            self._run_pipeline(req, resp, self.after_request)
+            self._run_pipeline(req, resp, self._teardown)
 
     def _run_pipeline(self, req, resp, pipeline):
         for plug in pipeline:
@@ -184,6 +179,12 @@ class App(AppErrorsMixin, AppProxyMixin):
         from .server import run_server
 
         run_server(self, host="0.0.0.0", port=3030)
+
+    def teardown(self, func):
+        """Decorator to add a function to the `_teardown` tuple.
+        """
+        self._teardown = (self._teardown or ()) + (func, )
+        return func
 
 
 class MissingSecretKey(Exception):
