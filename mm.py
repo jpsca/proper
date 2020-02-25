@@ -48,7 +48,7 @@ data = {
         "pygments",
         "pygments-github-lexers",
     ],
-    "entry_points": "proper = proper.cli:run",
+    "entry_points": "proper = proper.cli:start",
     "coverage_omit": [
         "proper/base_channel.py",
         "proper/cli.py",

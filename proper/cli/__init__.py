@@ -5,7 +5,7 @@ from .run import *  # noqa
 from .secrets import *  # noqa
 
 
-def start_cli():
+def start():
     app = import_app(ignore_error=True)
     if app:
         cli = getattr(app, "cli", None) or {}
@@ -15,4 +15,4 @@ def start_cli():
 
 
 if __name__ == "__main__":
-    start_cli()
+    start()
