@@ -27,12 +27,12 @@ class Sessions(PublicController):
             return
 
         # If there is one, THEN we store its token in the session.
-        user.auth.login(req)
+        user.login(req)
         return go_forward(resp)
 
     def logout(self, req, resp):
         if req.current_user:
-            req.current_user.auth.logout(req)
+            req.current_user.logout(req)
         return resp.redirect_to("/")
 
     def reset(self, req, resp):
@@ -58,7 +58,7 @@ class Sessions(PublicController):
         if not user:
             resp.template = "sessions/reset_invalid"
             return
-        user.auth.login(req)
+        user.login(req)
         resp.redirect_to(app.url_for("Sessions.password_change"))
 
     def password_change(self, req, resp):
@@ -76,7 +76,7 @@ class Sessions(PublicController):
         req.current_user.set_password(new_password)
         # Password has change, so we need to change the user token in the
         # session as well
-        req.current_user.auth.login(req)
+        req.current_user.login(req)
 
         go_forward(resp)
 

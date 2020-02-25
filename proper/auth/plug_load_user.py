@@ -45,7 +45,7 @@ class PlugLoadUser(object):
             del session[self.session_key]
             return None
 
-        if token != user.auth.get_session_token():
+        if token != user.get_session_token():
             logger.warn("Invalid user session. Tampered?")
             del session[self.session_key]
             return None

@@ -252,7 +252,7 @@ class AuthManager(object):
             logger.info(f"Invalid token. User `{user_id[:20]} not found")
             return None
 
-        invalid = user.auth.get_timestamped_token(timestamp) != token
+        invalid = user.get_timestamped_token(timestamp) != token
         if invalid:
             logger.info("Invalid token")
             return None
