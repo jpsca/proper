@@ -34,7 +34,7 @@ data = {
         "pyceo ~= 2.20204",
         "pyyaml ~= 5.1",
         "texteditor ~= 1.0",
-        "ujson ~= 1.35",
+        "ujson ~= 2.0",
         "wsaccel ~= 0.6",
     ],
     "testing_requires": ["pytest", "pytest-cov", "WebTest",],

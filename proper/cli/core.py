@@ -26,7 +26,9 @@ def import_app(ignore_error=False):
     try:
         from wsgi import app
         return app
-    except ImportError:
+    except ImportError as e:
+        if e.name != "wsgi":
+            raise
         if ignore_error:
             return None
         raise CantFindApp()
