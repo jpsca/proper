@@ -19,8 +19,8 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
     max_content_length = config.get("max_content_length")
     max_memory_size = config.get("max_memory_size")
 
-    if max_content_length and content_length and content_length > max_content_length:
-        raise errors.RequestEntityTooLarge("Maximum content length exceeded")
+    if max_content_length and content_length > max_content_length:
+        raise errors.RequestEntityTooLarge("Maximum content length exceeded.")
 
     content_type, options = parse_options_header(content_type)
     encoding = options.get("charset", encoding)
@@ -33,13 +33,20 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
 
         return parse_multipart(stream, content_length, encoding, boundary)
 
-    if max_memory_size and content_length and content_length > max_memory_size:
-        raise errors.RequestEntityTooLarge("Increase max_memory_size")
+    if max_memory_size and content_length > max_memory_size:
+        raise errors.RequestEntityTooLarge("Increase max_memory_size.")
 
     content = stream.read(max_memory_size).decode(encoding)
 
     if stream.read(1):  # OMG there is still more.
-        raise errors.RequestEntityTooLarge("Increase max_memory_size")
+        raise errors.RequestEntityTooLarge("Increase max_memory_size.")
+
+    actual_content_length = len(content)
+
+    if actual_content_length > content_length:
+        raise errors.BadRequest("Body is bigger than the declared Content-Length.")
+    elif actual_content_length < content_length:
+        raise errors.BadRequest("Body is smaller than the declared Content-Length.")
 
     form = MultiDict()
 
