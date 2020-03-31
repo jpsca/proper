@@ -4,9 +4,11 @@ import sys
 
 from pyceo import param
 from pyceo import option
+from proper_config.secrets import new_master_key_file, save_secrets
 import hecto
 
 from proper.support import secrets
+from proper.constants import MIN_SECRET_LENGTH
 
 from .core import core, BLUEPRINTS
 
@@ -51,17 +53,17 @@ def _setup_secrets(path):
     print(" Generating secrets for development and production…")
     config_path = path / "config"
 
-    master_key = secrets.new_master_key_file(config_path / "development")
-    secrets.save_secrets(
+    master_key = new_master_key_file(config_path / "development")
+    save_secrets(
         config_path / "development" / "secrets.yaml.enc",
         secrets.make_dev_default_secrets(),
         master_key=master_key,
     )
 
-    master_key = secrets.new_master_key_file(config_path / "production")
-    secrets.save_secrets(
+    master_key = new_master_key_file(config_path / "production")
+    save_secrets(
         config_path / "production" / "secrets.yaml.enc",
-        secrets.make_prod_default_secrets(),
+        secrets.make_prod_default_secrets(MIN_SECRET_LENGTH),
         master_key=master_key,
     )
     print()

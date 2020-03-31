@@ -23,7 +23,6 @@ data = {
     "development_status": "4 - Beta",
     "minimal_python": 3.6,
     "install_requires": [
-        "cryptography ~= 2.5",
         "gevent ~= 1.4",
         "gevent-websocket",
         "hecto ~= 1.200121",
@@ -32,12 +31,15 @@ data = {
         "multipart ~= 0.2",
         "passlib ~= 1.7",
         "pyceo ~= 2.20204",
-        "pyyaml ~= 5.1",
-        "texteditor ~= 1.0",
+        "proper_config ~= 1.200331",
         "ujson ~= 2.0",
         "wsaccel ~= 0.6",
     ],
-    "testing_requires": ["pytest", "pytest-cov", "WebTest",],
+    "testing_requires": [
+        "pytest",
+        "pytest-cov",
+        "WebTest",
+    ],
     "development_requires": [
         "pytest-flake8",
         "flake8",

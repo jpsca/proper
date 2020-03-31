@@ -1,11 +1,8 @@
 """
-## proper.config
+## proper.default_config
 
 """
 from datetime import timedelta
-
-
-__all__ = ("DEFAULT_CONFIG",)
 
 
 DEFAULT_CONFIG = {
@@ -39,7 +36,7 @@ DEFAULT_CONFIG = {
         "cookie_samesite": None,
         "lifetime": timedelta(days=30).total_seconds(),
     },
-    "redis": {"host": "localhost", "port": 6379, "db": 0,},
+    "redis": {"host": "localhost", "port": 6379, "db": 0},
     "auth": {
         "hash_name": "pbkdf2_sha512",
         "rounds": None,  # The default

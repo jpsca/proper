@@ -3,16 +3,16 @@
 
 """
 from pathlib import Path
+from proper_config import ConfigDict
 
 from . import middleware
 from .app_errors_mixin import AppErrorsMixin
 from .app_proxy_mixin import AppProxyMixin
-from .config import DEFAULT_CONFIG
 from .constants import MIN_SECRET_LENGTH
+from .default_config import DEFAULT_CONFIG
 from .request import Request
 from .response import Response
 from .router import Router
-from .support import ConfigDict
 from .support import Serializer
 
 
@@ -62,9 +62,13 @@ class App(AppErrorsMixin, AppProxyMixin):
         """
         self._set_root(root)
         self._set_controllers_mod(_controllers)
-        self.config = ConfigDict(DEFAULT_CONFIG)
+        self._config = ConfigDict(DEFAULT_CONFIG)
         self.router = Router()
         self.setup(config=config, secrets=secrets)
+
+    @property
+    def config(self):
+        return self._config
 
     def _set_root(self, root):
         root = Path(root)
@@ -84,17 +88,17 @@ class App(AppErrorsMixin, AppProxyMixin):
     def load_config(self, config=None, secrets=None):
         for file_or_dict in config:
             if isinstance(file_or_dict, dict):
-                self.config.update(file_or_dict)
+                self._config.update(file_or_dict)
             else:
-                self.config.load_file(file_or_dict)
+                self._config.load_file(file_or_dict)
 
         for file_or_dict in secrets:
-            self.config.load_secrets(file_or_dict)
+            self._config.load_secrets(file_or_dict)
 
     def config_router(self):
-        self.router.host = self.config.get("default_host", "localhost")
-        self.router.root_path = self.config.get("root_path", "")
-        self.router.use_ssl = self.config.get("use_ssl", False)
+        self.router.host = self._config.get("default_host", "localhost")
+        self.router.root_path = self._config.get("root_path", "")
+        self.router.use_ssl = self._config.get("use_ssl", False)
         self.router._debug = self.debug
 
     def init_serializer(self):
@@ -102,7 +106,7 @@ class App(AppErrorsMixin, AppProxyMixin):
         self.serializer = Serializer(secret_key)
 
     def get_secret_key(self):
-        secret_key = self.config.get("secret_key")
+        secret_key = self._config.get("secret_key")
 
         if secret_key is None:
             raise MissingSecretKey(
