@@ -19,7 +19,7 @@ def root_path():
 
 @pytest.fixture()
 def app(root_path):
-    app = App(root_path, config={"secret_key": SECRET_KEY, "debug": False})
+    app = App(root_path, debug=False, config={"secret_key": SECRET_KEY})
     return app
 
 

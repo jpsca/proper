@@ -6,9 +6,6 @@ from datetime import timedelta
 
 
 DEFAULT_CONFIG = {
-    # Activate several useful features while developing, like showing a
-    # stack-traced error page instead of the one intended for production.
-    "debug": False,
     # Turn off to let debugging middleware handle exceptions.
     "catch_all_errors": True,
     # Limits the total content length (in bytes).

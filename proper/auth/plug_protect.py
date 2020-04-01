@@ -1,10 +1,6 @@
-import logging
 
 
 __all__ = ("PlugProtect",)
-
-
-logger = logging.getLogger(__name__)
 
 
 class PlugProtect(object):
@@ -24,7 +20,6 @@ class PlugProtect(object):
         for test in self.tests:
             test_pass = test(user, req)
             if not test_pass:
-                logger.debug(f"User `{user.login}` failed {test}")
                 return self.redirect_away(app, req, resp)
 
     def redirect_away(self, app, req, resp):

@@ -37,7 +37,7 @@ class AppErrorsMixin(object):
         """
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug handlers.
-        if self.config.debug:
+        if self.debug:
             return self._handle_errors(req, resp)
 
         error = resp.error
@@ -56,14 +56,14 @@ class AppErrorsMixin(object):
         return method(req, resp, self)
 
     def _handle_errors(self, req, resp):
-        if not self.config.debug and not self.config.catch_all_errors:
+        if not self.debug and not self.config.catch_all_errors:
             raise
 
         error = resp.error
         resp.stop = True
         resp.status_code = getattr(error, "status_code", status.server_error)
 
-        if self.config.debug:
+        if self.debug:
             self._handle_errors_debug(req, resp)
         else:
             self._handle_errors_production(req, resp)

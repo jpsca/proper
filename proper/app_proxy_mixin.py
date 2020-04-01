@@ -6,10 +6,6 @@
 
 class AppProxyMixin(object):
     @property
-    def debug(self):
-        return self.config.get("debug", False)
-
-    @property
     def routes(self):
         """Proxy for `~router.routes`."""
         return self.router._routes

@@ -40,7 +40,7 @@ TEST_ROUTES = [
 
 
 def test_match_domain(app, web):
-    app.setup({"debug": True})
+    app.debug = True
     app.routes = [
         scope("/", host="example.com")(get("/", to="Pages.index"),),
     ]

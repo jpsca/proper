@@ -36,7 +36,7 @@ def test_fallback_error(app, web):
 
 
 def test_debug_not_found(app, web):
-    app.setup({"debug": True})
+    app.debug = True
     app.router.routes = []
 
     resp = web.get("/", expect_errors=True)
@@ -46,7 +46,7 @@ def test_debug_not_found(app, web):
 
 
 def test_debug_error(app, web):
-    app.setup({"debug": True})
+    app.debug = True
     app.router.routes = [
         scope("/")(
             get("/", to="Pages.index"),
@@ -150,7 +150,7 @@ def test_error_when_rendering_the_error_page(app, web):
     original_func = error_handlers._render_with_jinja
     error_handlers._render_with_jinja = boom
 
-    app.setup({"debug": True})
+    app.debug = True
     app.router.routes = []
     resp = web.get("/", expect_errors=True)
 

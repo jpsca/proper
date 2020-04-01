@@ -13,6 +13,13 @@ def split_token(token):
 
 
 class PlugLoadUser(object):
+    """Requires a `model` with the following methods:
+
+    - `by_login()`: Query for a "user" object by login
+    - `by_id()`: Query for a "user" object by id.
+
+    """
+
     def __init__(self, model, session_key="_user_token"):
         self.User = model
         self.session_key = session_key

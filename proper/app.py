@@ -41,6 +41,7 @@ class App(AppErrorsMixin, AppProxyMixin):
         self,
         root=None,
         *,
+        debug=False,
         config=None,
         secrets=None,
         _controllers="controllers",
@@ -60,6 +61,7 @@ class App(AppErrorsMixin, AppProxyMixin):
                 root of your application.
 
         """
+        self.debug = debug
         self._set_root(root)
         self._set_controllers_mod(_controllers)
         self._config = ConfigDict(DEFAULT_CONFIG)

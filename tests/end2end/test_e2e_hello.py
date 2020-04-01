@@ -51,7 +51,6 @@ def test_hello_callable(app, web):
 
 def test_default_config(root_path):
     app = App(root_path)
-    assert "debug" in app.config
     assert app.config.catch_all_errors
 
 
