@@ -69,6 +69,9 @@ def do_the_thing():
         ".",
         data=data,
         force=False,
+        ignore=[
+            "CHANGELOG.md",
+        ],
     )
 
 
