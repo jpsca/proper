@@ -21,12 +21,6 @@ __all__ = (
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 
-@core.command(help="Returns a secure secret_key")
-@option("length")
-def secret(length=MIN_SECRET_LENGTH):
-    print(secrets.generate_secret_key(length))
-
-
 @core.command(help="Creates a new Proper application at `path`.")
 @param("path", help="Where to create the new application.")
 @option("force", help="Overwrite files that already exist, without asking.")
@@ -48,6 +42,12 @@ def new(path, force=False, _install_deps=True, _prompt=True):
     else:
         deps_installed = False
     wrap_up(path, deps_installed)
+
+
+@core.command(help="Returns a secure secret_key")
+@option("length")
+def secret(length=MIN_SECRET_LENGTH):
+    print(secrets.generate_secret_key(length))
 
 
 def _call(cmd):
