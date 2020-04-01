@@ -36,12 +36,4 @@ DEFAULT_CONFIG = {
         "cookie_samesite": None,
         "lifetime": timedelta(days=30).total_seconds(),
     },
-    "redis": {"host": "localhost", "port": 6379, "db": 0},
-    "auth": {
-        "hash_name": "pbkdf2_sha512",
-        "rounds": None,  # The default
-        "password_minlen": 6,
-        "password_maxlen": 1024,
-        "token_life": 3 * 60,
-    },
 }

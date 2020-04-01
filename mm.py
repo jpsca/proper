@@ -29,7 +29,6 @@ data = {
         "itsdangerous ~= 1.1",
         "jinja2 ~= 2.10",
         "multipart ~= 0.2",
-        "passlib ~= 1.7",
         "pyceo ~= 2.200401",
         "proper_config ~= 1.200331",
         "ujson ~= 2.0",
@@ -59,6 +58,16 @@ data = {
     ],
 }
 
+exclude = [
+    "README.md",
+    ".git",
+    ".git/*",
+    ".venv",
+    ".venv/*",
+    ".DS_Store",
+    "CHANGELOG.md",
+]
+
 
 def do_the_thing():
     import hecto
@@ -68,10 +77,8 @@ def do_the_thing():
         "../mastermold",  # Path to the local copy of Master Mold
         ".",
         data=data,
+        exclude=exclude,
         force=False,
-        ignore=[
-            "CHANGELOG.md",
-        ],
     )
 
 
