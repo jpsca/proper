@@ -1,15 +1,13 @@
-from .core import BLUEPRINTS, core, import_app  # noqa
+from .core import BLUEPRINTS, core, import_cli  # noqa
 from .generators import *  # noqa
 from .new import *  # noqa
 from .run import *  # noqa
 
 
 def start():
-    app = import_app(ignore_error=True)
-    if app:
-        cli = getattr(app, "cli", None) or {}
-        for group, commands in cli.items():
-            core.add_commands(commands, group=group)
+    cli = import_cli()
+    if cli:
+        core.merge(cli)
     return core.run()
 
 

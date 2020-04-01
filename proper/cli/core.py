@@ -29,9 +29,16 @@ def import_app(ignore_error=False):
     except ImportError as e:
         if e.name != "wsgi":
             raise
-        if ignore_error:
-            return None
-        raise CantFindApp()
+
+
+def import_cli():
+    try:
+        from cli import cli
+        return cli
+    except ImportError as e:
+        if e.name != "wsgi":
+            raise
+        return None
 
 
 def get_app_root():
