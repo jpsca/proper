@@ -33,7 +33,7 @@ def import_app(ignore_error=False):
 
 def import_cli():
     try:
-        from cli import cli
+        from manage import cli
         return cli
     except ImportError as e:
         if e.name != "wsgi":
