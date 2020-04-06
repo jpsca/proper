@@ -22,7 +22,7 @@ class PlugLoadUser(object):
 
     """
 
-    def __init__(self, user_by_id, session_key="_user_token"):
+    def __init__(self, user_by_id, *, session_key="_user_token"):
         self.user_by_id = user_by_id
         self.session_key = session_key
 
