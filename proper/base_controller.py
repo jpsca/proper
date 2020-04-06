@@ -12,7 +12,10 @@ class BaseController(object):
 
     _plugs = tuple()
 
-    def _asdict(self):
+    def _render(self, req, resp):
+        raise NotImplementedError
+
+    def _as_dict(self):
         """Serializable to a dictionary.
         """
         exclude = ("template",)
@@ -21,6 +24,3 @@ class BaseController(object):
             for name in dir(self)
             if not name.startswith("_") and name not in exclude
         }
-
-    def _render(self, req, resp):
-        raise NotImplementedError

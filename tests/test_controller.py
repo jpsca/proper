@@ -18,7 +18,7 @@ class MyTestController(BaseController):
 
 
 def test_as_dict():
-    data = MyTestController()._asdict()
+    data = MyTestController()._as_dict()
 
     assert "foo" in data
     assert "hello" in data

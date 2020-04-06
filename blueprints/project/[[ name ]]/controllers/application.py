@@ -18,7 +18,7 @@ class ApplicationController(BaseController):
     def _render(self, req, resp):
         # resp.template doesn't have a extension
         template = resp.template + resp.format
-        return render(template, app=app, req=req, **self._asdict())
+        return render(template, app=app, req=req, **self._as_dict())
 
     @cached_property
     def now(self):
