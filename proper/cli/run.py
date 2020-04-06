@@ -1,10 +1,6 @@
-# from pathlib import Path
-# import os
-# import sys
 from pyceo import option
 
-from ..server import display_running_message
-from ..server import run_server
+from proper.server import display_running_message, run_server
 
 from .core import core, import_app
 

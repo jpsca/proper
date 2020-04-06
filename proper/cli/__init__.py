@@ -1,13 +1,19 @@
-from .core import BLUEPRINTS, core, import_cli  # noqa
-from .generators import *  # noqa
-from .new import *  # noqa
-from .run import *  # noqa
+from .core import BLUEPRINTS, core, import_cli, running_in_app  # noqa
+
+if running_in_app:
+    from .run import *  # noqa
+    from .secret import *  # noqa
+    from .generators import *  # noqa
+else:
+    from .new import *  # noqa
+    from .secret import *  # noqa
 
 
 def start():
-    cli = import_cli()
-    if cli:
-        core.merge(cli)
+    if running_in_app:
+        cli = import_cli()
+        if cli:
+            core.merge(cli)
     return core.run()
 
 

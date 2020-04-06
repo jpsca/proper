@@ -44,12 +44,6 @@ def new(path, force=False, _install_deps=True, _prompt=True):
     wrap_up(path, deps_installed)
 
 
-@core.command(help="Returns a secure secret_key")
-@option("length")
-def secret(length=MIN_SECRET_LENGTH):
-    print(secrets.generate_secret_key(length))
-
-
 def _call(cmd):
     core.echo("   <cmd>running</cmd>  " + cmd)
     os.system(cmd)

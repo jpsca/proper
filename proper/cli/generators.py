@@ -6,6 +6,9 @@ from proper.support import pascal_to_snake
 from .core import core, BLUEPRINTS, get_app_root
 
 
+__all__ = ("controller",)
+
+
 @core.command(help="Adds a new controller", group="g")
 @param("name", help="PascalCased name of the controller class")
 def controller(name):

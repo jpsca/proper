@@ -22,7 +22,7 @@ class CantFindApp(Exception):
     pass
 
 
-def import_app(ignore_error=False):
+def import_app():
     try:
         from wsgi import app
         return app
@@ -36,7 +36,7 @@ def import_cli():
         from manage import cli
         return cli
     except ImportError as e:
-        if e.name != "wsgi":
+        if e.name != "manage":
             raise
         return None
 
@@ -44,3 +44,6 @@ def import_cli():
 def get_app_root():
     app = import_app()
     return app.root
+
+
+running_in_app = import_app() is not None
