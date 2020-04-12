@@ -12,10 +12,8 @@ LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")
 
 
 def match(req, resp, app):
-    """Match the request url to a route."""
-    if resp.dispatched:
-        return
-
+    """Match the request url to a route.
+    """
     host = req.host
     if host in LOCAL_HOSTS:
         host = None

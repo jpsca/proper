@@ -10,9 +10,6 @@ def redirect(req, resp, _app):
     for that redirect to happen. If it is a forward does noting.
     In both cases it stop further process of the response.
     """
-    if resp.dispatched:
-        return
-
     route = req.matched_route
     if not route:
         return

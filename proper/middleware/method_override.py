@@ -19,9 +19,6 @@ def method_override(req, resp, _app):
     * `DELETE`
 
     """
-    if resp.dispatched:
-        return
-
     if req.method != POST:
         return
 

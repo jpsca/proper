@@ -31,7 +31,9 @@ class App(AppErrorsMixin, AppProxyMixin):
         middleware.redirect,
         middleware.fetch_session,
         middleware.protect_from_forgery,
+
         middleware.dispatch,
+
         middleware.put_csrf_header,
         middleware.put_session,
         middleware.strip_body_if_head,
@@ -152,7 +154,6 @@ class App(AppErrorsMixin, AppProxyMixin):
 
         try:
             rv = self.call(req, resp)
-
             # If there is a return value, is the result of a
             # forward function that we must return right away.
             if rv is not None:
@@ -173,9 +174,11 @@ class App(AppErrorsMixin, AppProxyMixin):
             route = req.matched_route
             if route.forward_to:
                 return route.forward_to(req.environ, req.start_response)
+
         except Exception as error:
             resp.error = error
             self._handle_app_errors(req, resp)
+
         finally:
             self._run_pipeline(req, resp, self._teardown)
 

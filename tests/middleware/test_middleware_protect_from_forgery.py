@@ -119,14 +119,19 @@ def test_invalid_csrf_from_alt_header(method):
 
 def test_get_existing_token_from_session():
     req = Request()
-    req._Request__session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
+    resp = Response()
+    session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
+    req._Request__session = session
+    req._Response__session = session
 
-    assert get_or_set_token(req) == "qwertyuiop"
+    assert get_or_set_token(req, resp) == "qwertyuiop"
 
 
 def test_get_new_token_from_session():
     req = Request()
-    req._Request__session = Dot()
-    print(get_or_set_token(req))
+    resp = Response()
+    session = Dot()
+    req._Request__session = session
+    req._Response__session = session
 
-    assert get_or_set_token(req) is not None
+    assert get_or_set_token(req, resp) is not None

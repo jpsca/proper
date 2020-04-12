@@ -2,16 +2,18 @@
 ## proper.middleware.session
 
 """
-from ..support import Dot, BadSignature
+from ..support import Dot, BadSignature, FrozenDict
 
 
 __all__ = ("fetch_session", "put_session",)
 
 
 def fetch_session(req, resp, app):
-    """Get the session data from the cookie and puts into the request and response."""
+    """Get the session data from the cookie and puts into the request
+    and response.
+    """
     session = Dot(get_session(req, app))
-    req._Request__session = session
+    req._Request__session = FrozenDict(session, "req.session")
     resp._Response__session = session.copy()
 
 
@@ -27,7 +29,9 @@ def get_session(req, app):
 
 
 def put_session(req, resp, app):
-    if req.session != resp.session:
+    """
+    """
+    if resp.session != req.session:
         update_session_cookie(resp, app)
 
 

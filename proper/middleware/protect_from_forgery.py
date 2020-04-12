@@ -26,8 +26,9 @@ CSRF_HEADER_ALT = "X-CSRFToken"
 
 
 def protect_from_forgery(req, resp, app):
-    req_token = get_or_set_token(req)
-
+    """
+    """
+    req_token = get_or_set_token(req, resp)
     if not req.must_check_csrf():
         return
 
@@ -47,8 +48,10 @@ def protect_from_forgery(req, resp, app):
 
 
 def put_csrf_header(req, resp, _app):
-    req_token = get_or_set_token(req)
-    resp.headers[CSRF_HEADER] = req_token
+    """
+    """
+    token = get_or_set_token(req, resp)
+    resp.headers[CSRF_HEADER] = token
 
 
 def get_used_token(req):
@@ -60,11 +63,11 @@ def get_used_token(req):
     )
 
 
-def get_or_set_token(req):
+def get_or_set_token(req, resp):
     token = req.session.get(CSRF_SESSION_KEY)
     if not token:
         token = make_new_token()
-        req.session[CSRF_SESSION_KEY] = token
+        resp.session[CSRF_SESSION_KEY] = token
     req.csrf_token = token
     return token
 

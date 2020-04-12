@@ -11,8 +11,6 @@ __all__ = ("dispatch",)
 
 
 def dispatch(req, resp, app):
-    if resp.dispatched:
-        return
     route = req.matched_route
     controller, method = objectify(app.controllers_mod, route.to)
 
