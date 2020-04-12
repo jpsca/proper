@@ -114,7 +114,6 @@ class Request(object):
     matched_params = None
     template = None
     __session = None
-    __original_session = None
 
     def __init__(
         self,
@@ -138,7 +137,6 @@ class Request(object):
         self.path = "/" + tunnel_decode(environ["PATH_INFO"].strip("/"))
 
         self.__session = {}
-        self.__original_session = {}
 
     def _normalize_environment(self, environ, kwargs):
         environ = environ or make_test_environ(**kwargs)
@@ -290,10 +288,6 @@ class Request(object):
     @property
     def session(self):
         return self.__session
-
-    @property
-    def original_session(self):
-        return self.__original_session
 
 
 def make_test_environ(method=None, host=None, path=None, **kwargs):

@@ -24,3 +24,4 @@ class Protect(object):
         if self.redirect_key not in resp.session:
             resp.session[self.redirect_key] = req.path
         resp.redirect_to(self.sign_in_url)
+        resp.dispatched = True

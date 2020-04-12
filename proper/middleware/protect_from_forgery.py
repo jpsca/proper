@@ -12,6 +12,7 @@ from ..errors import MissingCSRFToken
 
 __all__ = (
     "protect_from_forgery",
+    "put_csrf_header",
     "CSRF_SESSION_KEY",
     "CSRF_QUERY_KEY",
     "CSRF_HEADER",
@@ -26,10 +27,6 @@ CSRF_HEADER_ALT = "X-CSRFToken"
 
 def protect_from_forgery(req, resp, app):
     req_token = get_or_set_token(req)
-
-    if resp.dispatched:
-        resp.headers[CSRF_HEADER] = req_token
-        return
 
     if not req.must_check_csrf():
         return
@@ -47,6 +44,11 @@ def protect_from_forgery(req, resp, app):
             "Invalid Cross-Site Request Forgery (CSRF) token. "
             "The token provided doesn't match the one stored in the session."
         )
+
+
+def put_csrf_header(req, resp, _app):
+    req_token = get_or_set_token(req)
+    resp.headers[CSRF_HEADER] = req_token
 
 
 def get_used_token(req):

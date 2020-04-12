@@ -37,7 +37,7 @@ def plug_template(req, resp, _app):
 
 
 class PipelineCalled(AppController):
-    _pipeline = [
+    _plugs = [
         plug1,
         plug2,
         plug3,
@@ -48,7 +48,7 @@ class PipelineCalled(AppController):
         resp.body = ""
 
 
-def test_pipeline_called(app, web):
+def test_plugs_called(app, web):
 
     app.routes = [scope("/")(get("/", to=PipelineCalled.append))]
     resp = web.get("/")
@@ -57,8 +57,8 @@ def test_pipeline_called(app, web):
     assert resp.headers["X-Test"] == expected
 
 
-class StopPipeline(AppController):
-    _pipeline = [
+class StopPlug(AppController):
+    _plugs = [
         plug1,
         plug_stop,
         plug3,
@@ -69,8 +69,8 @@ class StopPipeline(AppController):
         resp.body = ""
 
 
-def test_stop_in_pipeline(app, web):
-    app.routes = [scope("/")(get("/", to=StopPipeline.append))]
+def test_stop_in_plugs(app, web):
+    app.routes = [scope("/")(get("/", to=StopPlug.append))]
     resp = web.get("/")
 
     assert resp.headers["X-Test"] == "-plug1-"
@@ -101,7 +101,7 @@ def test_custom_temnplate(app, web):
 
 
 class CustomTemplateFromPlug(AppController):
-    _pipeline = [
+    _plugs = [
         plug_template,
     ]
 

@@ -8,7 +8,7 @@ iherit from. Stores methods and data available to view/template.
 
 class BaseController(object):
 
-    _pipeline = tuple()
+    _plugs = tuple()
 
     def _render(self, req, resp):
         raise NotImplementedError

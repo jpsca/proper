@@ -5,23 +5,14 @@
 from ..support import Dot, BadSignature
 
 
-__all__ = ("session",)
-
-
-def session(req, resp, app):
-    if resp.dispatched:
-        if session_was_updated(req):
-            update_session_cookie(resp, app)
-    else:
-        fetch_session(req, resp, app)
+__all__ = ("fetch_session", "put_session",)
 
 
 def fetch_session(req, resp, app):
     """Get the session data from the cookie and puts into the request and response."""
     session = Dot(get_session(req, app))
-    req._Request__original_session = session.copy()
     req._Request__session = session
-    resp._Response__session = session
+    resp._Response__session = session.copy()
 
 
 def get_session(req, app):
@@ -35,8 +26,9 @@ def get_session(req, app):
         return {}
 
 
-def session_was_updated(req):
-    return req.original_session != req.session
+def put_session(req, resp, app):
+    if req.session != resp.session:
+        update_session_cookie(resp, app)
 
 
 def update_session_cookie(resp, app):
