@@ -1,9 +1,7 @@
+__all__ = ("Protect",)
 
 
-__all__ = ("PlugProtect",)
-
-
-class PlugProtect(object):
+class Protect(object):
     def __init__(self, *tests, sign_in_url="/sign-in", redirect_key="_redirect"):
         self.tests = tests
         self.sign_in_url = sign_in_url
@@ -26,4 +24,3 @@ class PlugProtect(object):
         if self.redirect_key not in resp.session:
             resp.session[self.redirect_key] = req.path
         resp.redirect_to(self.sign_in_url)
-        resp.stop = True

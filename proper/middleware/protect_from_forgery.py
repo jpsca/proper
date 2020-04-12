@@ -1,7 +1,7 @@
 """
-## proper.plugs.protect_from_forgery
+## proper.middleware.protect_from_forgery
 
-Requires `plugs.session`.
+Requires `proper.middleware.session`.
 
 """
 import uuid

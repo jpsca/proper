@@ -1,6 +1,6 @@
-from proper import plugs
 from proper import Request
 from proper import Response
+from proper.middleware import session
 from proper.support import Dot
 
 
@@ -12,10 +12,10 @@ def serialize_cookie(app, value):
 def test_set_cookie(app):
     req = Request()
     resp = Response()
-    plugs.session(req, resp, app)
+    session(req, resp, app)
     resp.dispatched = True
     resp.session["foo"] = "bar"
-    plugs.session(req, resp, app)
+    session(req, resp, app)
 
     expected = serialize_cookie(app, {"foo": "bar"})
     print(resp.cookies)
@@ -25,10 +25,10 @@ def test_set_cookie(app):
 def test_do_not_set_cookie_if_not_data(app):
     req = Request()
     resp = Response()
-    plugs.session(req, resp, app)
+    session(req, resp, app)
     resp.dispatched = True
     resp._Response__session = Dot()
-    plugs.session(req, resp, app)
+    session(req, resp, app)
 
     assert app.config.session.cookie_name not in resp.cookies
 
@@ -39,11 +39,11 @@ def test_set_delete_cookie_if_not_data_and_modified(app):
 
     expected = serialize_cookie(app, {"foo": "bar"})
     req.cookies[app.config.session.cookie_name] = expected
-    plugs.session(req, resp, app)
+    session(req, resp, app)
 
     resp.dispatched = True
     del resp.session["foo"]
-    plugs.session(req, resp, app)
+    session(req, resp, app)
 
     cookie_name = app.config.session.cookie_name
     assert cookie_name in resp.cookies

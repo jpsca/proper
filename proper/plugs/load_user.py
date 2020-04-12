@@ -1,10 +1,6 @@
-import logging
 
 
-__all__ = ("PlugLoadUser",)
-
-
-logger = logging.getLogger(__name__)
+__all__ = ("LoadUser",)
 
 
 def split_token(token):
@@ -12,7 +8,7 @@ def split_token(token):
     return uid
 
 
-class PlugLoadUser(object):
+class LoadUser(object):
     """Reads the user_token from the session and store the user object in the
     request at `req.current_user`.
 
@@ -52,12 +48,10 @@ class PlugLoadUser(object):
             user_id = split_token(token)
             user = self.user_by_id(user_id)
         except ValueError:
-            logger.warn("Invalid user session format. Tampered?")
             del session[self.session_key]
             return None
 
-        if token != user.get_session_token():
-            logger.warn("Invalid user session. Tampered?")
+        if not user or token != user.get_session_token():
             del session[self.session_key]
             return None
 

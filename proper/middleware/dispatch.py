@@ -21,11 +21,17 @@ def dispatch(req, resp, app):
     if resp.template is None:
         set_template(resp, route)
 
-    run_pipeline(controller._plugs, req, resp, app)
+    run_pipeline(controller._pipeline, req, resp, app)
     if resp.stop:
         return
-    call(controller, method, req, resp, req.matched_params)
-    run_pipeline(controller._plugs, req, resp, app)
+
+    # A redirect sets a body so we must not call the endpointm
+    # but we have to process the rest of the plugs, to set the
+    # session cookie, for example.
+    if not resp.has_body:
+        call(controller, method, req, resp, req.matched_params)
+
+    run_pipeline(controller._pipeline, req, resp, app)
 
 
 def run_pipeline(plugs, req, resp, app):

@@ -8,9 +8,7 @@ iherit from. Stores methods and data available to view/template.
 
 class BaseController(object):
 
-    template = None
-
-    _plugs = tuple()
+    _pipeline = tuple()
 
     def _render(self, req, resp):
         raise NotImplementedError
@@ -18,9 +16,8 @@ class BaseController(object):
     def _as_dict(self):
         """Serializable to a dictionary.
         """
-        exclude = ("template",)
         return {
             name: getattr(self, name)
             for name in dir(self)
-            if not name.startswith("_") and name not in exclude
+            if not name.startswith("_")
         }

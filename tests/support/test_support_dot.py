@@ -58,3 +58,13 @@ def test_deep_update():
         "foo": "bar",
         "fizz": {"buzz": 3},
     }
+
+
+def test_get():
+    dot = Dot([("a", 1), ("B", 2), ("foo", {"B": {"a": "r"}})])
+
+    assert dot.get("a") == 1
+    assert dot.get("B") == 2
+    assert dot.get("c", 99) == 99
+    assert dot.get("d") is None
+    assert dot.foo.get("B").get("a") == "r"

@@ -45,3 +45,13 @@ def test_encode():
     dot = UpperDot({"a": "aaa", "b": "bbb"})
 
     assert list(dot.items()) == [("A", "aaa"), ("B", "bbb")]
+
+
+def test_get():
+    dot = UpperDot([("a", 1), ("B", 2), ("foo", {"B": {"a": "r"}})])
+
+    assert dot.get("a") == dot.get("A") == 1
+    assert dot.get("b") == dot.get("B") == 2
+    assert dot.get("c", 99) == dot.get("C", 99) == 99
+    assert dot.get("d") is None
+    assert dot.foo.get("B").get("a") == "r"

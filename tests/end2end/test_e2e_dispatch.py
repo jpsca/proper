@@ -16,15 +16,16 @@ class AppController(BaseController):
 
 
 def plug1(_req, resp, _app):
-    resp.body = (resp.body or "") + "-plug1-"
+    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-plug1-"
 
 
 def plug2(_req, resp, _app):
-    resp.body = (resp.body or "") + "-plug2-"
+    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-plug2-"
 
 
 def plug3(_req, resp, _app):
-    resp.body = (resp.body or "") + "-plug3-"
+    print(resp.headers)
+    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-plug3-"
 
 
 def plug_stop(_req, resp, _app):
@@ -36,14 +37,15 @@ def plug_template(req, resp, _app):
 
 
 class PipelineCalled(AppController):
-    _plugs = [
+    _pipeline = [
         plug1,
         plug2,
         plug3,
     ]
 
     def append(self, req, resp):
-        resp.body = (resp.body or "") + "-index-"
+        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
+        resp.body = ""
 
 
 def test_pipeline_called(app, web):
@@ -51,25 +53,27 @@ def test_pipeline_called(app, web):
     app.routes = [scope("/")(get("/", to=PipelineCalled.append))]
     resp = web.get("/")
 
-    assert resp.text == "-plug1--plug2--plug3--index--plug1--plug2--plug3-"
+    expected = "-plug1--plug2--plug3--index--plug1--plug2--plug3-"
+    assert resp.headers["X-Test"] == expected
 
 
 class StopPipeline(AppController):
-    _plugs = [
+    _pipeline = [
         plug1,
         plug_stop,
         plug3,
     ]
 
     def append(self, req, resp):
-        resp.body = (resp.body or "") + "-index-"
+        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
+        resp.body = ""
 
 
 def test_stop_in_pipeline(app, web):
     app.routes = [scope("/")(get("/", to=StopPipeline.append))]
     resp = web.get("/")
 
-    assert resp.text == "-plug1-"
+    assert resp.headers["X-Test"] == "-plug1-"
 
 
 class CallRender(AppController):
@@ -97,7 +101,7 @@ def test_custom_temnplate(app, web):
 
 
 class CustomTemplateFromPlug(AppController):
-    _plugs = [
+    _pipeline = [
         plug_template,
     ]
 

@@ -29,6 +29,8 @@ class App(AppErrorsMixin, AppProxyMixin):
         middleware.head_to_get,
         middleware.match,
         middleware.redirect,
+        middleware.session,
+        middleware.protect_from_forgery,
         middleware.dispatch,
         middleware.strip_body_if_head,
     )

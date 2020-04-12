@@ -70,6 +70,13 @@ class Dot(dict):
         key = self._key_encode(key)
         return super().setdefault(key, default)
 
+    def get(self, key, default=None):
+        key = self._key_encode(key)
+        value = super().get(key, default)
+        if isinstance(value, dict):
+            return self.__class__(value)
+        return value
+
     def update(self, src=None, **kwargs):
         if src is None:
             return

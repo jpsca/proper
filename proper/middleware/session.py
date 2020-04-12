@@ -1,5 +1,5 @@
 """
-## proper.plugs.session
+## proper.middleware.session
 
 """
 from ..support import Dot, BadSignature
