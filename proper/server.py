@@ -45,11 +45,11 @@ def get_local_ip():
 
 
 def add_time_unit(delta):
-    if delta >= 0.01:
+    if delta >= 0.001:
         return str(int(delta * 1000)) + "ms"
-    if delta >= 0.0001:
-        return str(int(delta * 10000)) + "μs"
-    return str(int(delta * 100000)) + "ns"
+    if delta >= 0.000001:
+        return str(int(delta * 1000000)) + "μs"
+    return str(int(delta * 1000000000)) + "ns"
 
 
 def add_size_unit(size):

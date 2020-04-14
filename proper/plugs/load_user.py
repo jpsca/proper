@@ -27,7 +27,7 @@ class LoadUser(object):
         current_user = None
         if app.debug:
             current_user = self.get_remote_user(req.environ)
-        req.current_user = current_user or self.get_user(req.session)
+        req.current_user = current_user or self.get_user(resp.session)
 
     def get_remote_user(self, environ):
         """Simulate authentication for testing.
