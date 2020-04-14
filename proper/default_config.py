@@ -1,7 +1,3 @@
-"""
-## proper.default_config
-
-"""
 from datetime import timedelta
 
 

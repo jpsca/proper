@@ -1,7 +1,3 @@
-"""
-## proper.middleware.method_override
-
-"""
 from ..constants import POST, PUT, PATCH, DELETE
 
 

@@ -1,6 +1,4 @@
 """
-## proper.base_controller
-
 A base controller class, all other application controllers must
 iherit from. Stores methods and data available to view/template.
 """

@@ -1,7 +1,3 @@
-"""
-## proper.middleware.session
-
-"""
 from ..support import Dot, BadSignature, FrozenDict
 
 

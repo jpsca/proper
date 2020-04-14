@@ -1,7 +1,3 @@
-"""
-## proper.middleware.dispatch
-
-"""
 from os import path
 
 from ..support import objectify, pascal_to_snake

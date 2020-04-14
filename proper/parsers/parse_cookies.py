@@ -1,7 +1,3 @@
-"""
-## proper.parsers.parse_cookies
-
-"""
 __all__ = ("parse_cookies",)
 
 

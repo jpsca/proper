@@ -1,7 +1,3 @@
-"""
-## proper.app_errors_mixin
-
-"""
 import inspect
 
 from . import status

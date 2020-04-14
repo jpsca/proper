@@ -1,7 +1,3 @@
-"""
-## proper.errors
-
-"""
 from . import status
 
 

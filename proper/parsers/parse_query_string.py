@@ -1,7 +1,3 @@
-"""
-## proper.parsers.parse_query_string
-
-"""
 import multipart
 
 from .. import errors

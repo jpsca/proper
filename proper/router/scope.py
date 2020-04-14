@@ -1,15 +1,8 @@
-"""
-## proper_router.scope
-
-"""
 from .base import RE_PARAMS
 from .route import Route
 
 
-__all__ = (
-    "Scope",
-    "scope",
-)
+__all__ = ("Scope", "scope", )
 
 
 def flatten(ll):

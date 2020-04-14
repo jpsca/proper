@@ -1,6 +1,4 @@
 """
-## proper.error_handlers
-
 Fallback error handlers
 
 """

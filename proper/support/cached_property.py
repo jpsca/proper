@@ -1,7 +1,3 @@
-"""
-## proper.support.cached_property
-
-"""
 __all__ = ("cached_property",)
 
 

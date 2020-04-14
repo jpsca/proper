@@ -1,6 +1,4 @@
 """
-## proper.middleware.protect_from_forgery
-
 Requires `proper.middleware.session`.
 
 """

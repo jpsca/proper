@@ -1,7 +1,3 @@
-"""
-## proper.support.cookies
-
-"""
 import re
 import time
 import warnings
@@ -10,10 +6,7 @@ from http.cookies import Morsel
 from http.cookies import SimpleCookie
 
 
-__all__ = (
-    "CookiesDict",
-    "add_cookie",
-)
+__all__ = ("CookiesDict", "add_cookie", )
 
 
 # Monkey-patching the Morsel to add support for samesite for Python version < 3.8

@@ -1,6 +1,4 @@
 """
-## proper.request
-
 Request class.
 
 """

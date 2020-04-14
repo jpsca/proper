@@ -1,7 +1,3 @@
-"""
-## proper.support.multidict
-
-"""
 from collections import defaultdict
 
 

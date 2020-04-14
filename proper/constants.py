@@ -1,7 +1,3 @@
-"""
-## proper.constants
-
-"""
 # HTTP methods (minus CONNECT and TRACE)
 GET = "GET"
 HEAD = "HEAD"

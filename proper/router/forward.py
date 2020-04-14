@@ -1,7 +1,3 @@
-"""
-## proper.router.forward
-
-"""
 from .route import Route
 
 

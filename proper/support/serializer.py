@@ -1,6 +1,4 @@
 """
-## proper.support.serializer
-
 A wrapper arround the `URLSafeTimedSerializer` from "ItsDangerous".
 Used by proper to serialize the session and available to the user for other things.
 

@@ -1,6 +1,4 @@
 """
-## proper.response
-
 Response class.
 
 """

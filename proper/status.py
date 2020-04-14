@@ -1,6 +1,4 @@
 """
-## proper.status
-
 HTTP status messages (plus some)
 
 You can use the snake_case like `status.ok` or the

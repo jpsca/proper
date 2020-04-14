@@ -1,7 +1,3 @@
-"""
-## proper.support.objectify
-
-"""
 import importlib
 
 __all__ = ("objectify",)

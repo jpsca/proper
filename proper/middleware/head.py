@@ -1,7 +1,3 @@
-"""
-## proper.middleware.head
-
-"""
 from ..constants import HEAD, GET
 
 

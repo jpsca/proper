@@ -1,7 +1,3 @@
-"""
-## proper.middleware.redirect
-
-"""
 __all__ = ("redirect",)
 
 

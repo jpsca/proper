@@ -1,6 +1,4 @@
 """
-## proper.router.router
-
 Router object that holds all routes and match them to urls.
 
 """

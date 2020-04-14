@@ -1,7 +1,3 @@
-"""
-## proper.middleware.match
-
-"""
 __all__ = (
     "LOCAL_HOSTS",
     "match",

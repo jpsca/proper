@@ -1,6 +1,4 @@
 """
-## proper.support.encoding
-
 When a request comes in, web servers decode some fields like the path.
 The decoded path may contain UTF-8 characters but, according to the WSGI spec,
 no strings can contain chars outside ISO-8859-1.

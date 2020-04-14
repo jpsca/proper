@@ -1,7 +1,3 @@
-"""
-## proper.parsers.parse_form_data
-
-"""
 from multipart import MultipartParser
 from multipart import parse_options_header
 from multipart import parse_qs

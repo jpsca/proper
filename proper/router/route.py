@@ -1,6 +1,4 @@
 """
-## proper.router.route
-
 Utilities to declare routes in your application.
 
 """

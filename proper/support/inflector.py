@@ -1,7 +1,3 @@
-"""
-## proper.support.inflector
-
-"""
 import re
 
 

@@ -1,7 +1,3 @@
-"""
-## proper.plugs.put_secure_headers
-
-"""
 __all__ = ("put_secure_headers",)
 
 

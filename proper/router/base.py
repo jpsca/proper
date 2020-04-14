@@ -1,7 +1,3 @@
-"""
-## proper.router.base
-
-"""
 import re
 from string import Template
 

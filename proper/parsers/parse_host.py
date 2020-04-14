@@ -1,7 +1,3 @@
-"""
-## proper.parsers.parse_host
-
-"""
 __all__ = ("parse_host",)
 
 

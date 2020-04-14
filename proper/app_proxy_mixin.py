@@ -1,7 +1,3 @@
-"""
-## proper.app_proxy_mixin
-
-"""
 
 
 class AppProxyMixin(object):

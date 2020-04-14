@@ -1,7 +1,3 @@
-"""
-## proper.router.resource
-
-"""
 from ..constants import DELETE, GET, PATCH, POST, PUT
 
 from .route import Route

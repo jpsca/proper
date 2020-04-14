@@ -1,7 +1,3 @@
-"""
-## proper_router.router_errors
-
-"""
 from ..errors import MatchNotFound  # noqa
 from ..errors import MethodNotAllowed  # noqa
 

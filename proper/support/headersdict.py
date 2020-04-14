@@ -1,7 +1,3 @@
-"""
-## proper.support.headersdict
-
-"""
 from .dot import Dot
 
 

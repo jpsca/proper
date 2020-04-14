@@ -1,7 +1,3 @@
-"""
-## proper.support.dot
-
-"""
 import copy
 
 
