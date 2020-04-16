@@ -233,11 +233,10 @@ class Request(object):
 
         for name, value in self.environ.items():
             name = name.upper()
-            if name.startswith("HTTP_"):
+            if name.startswith(("HTTP_", "HTTP-")):
                 headers[name[5:]] = value
+            headers[name] = value
 
-        headers["CONTENT_TYPE"] = self.environ.get("CONTENT_TYPE") or None
-        headers["CONTENT_LENGTH"] = self.environ.get("CONTENT_LENGTH") or None
         return headers
 
     @cached_property

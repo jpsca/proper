@@ -35,7 +35,7 @@ def protect_from_forgery(req, resp, app):
         raise MissingCSRFToken(
             "Missing Cross-Site Request Forgery (CSRF) token. "
             f"You must provide the token value as a “{CSRF_QUERY_KEY}” form field, "
-            f"a query field with the same name, in a “{CSRF_HEADER}” header."
+            f"a query field with the same name, or in a “{CSRF_HEADER}” header."
         )
 
     if req_token != token:
@@ -55,8 +55,8 @@ def put_csrf_header(req, resp, _app):
 def get_used_token(req):
     return (
         req.query.get(CSRF_QUERY_KEY)
-        or req.environ.get(CSRF_HEADER)
-        or req.environ.get(CSRF_HEADER_ALT)
+        or req.headers.get(CSRF_HEADER)
+        or req.headers.get(CSRF_HEADER_ALT)
         or (req.form.get(CSRF_QUERY_KEY) if req.content_length else None)
     )
 
