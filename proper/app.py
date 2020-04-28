@@ -27,9 +27,13 @@ class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
         middleware.strip_body_if_head,
     )
 
+    # A lists of functions that are all called if an exception is raised,
+    # before any error handlers.
+    _on_error = tuple()
+
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    _teardown = tuple()
+    _on_teardown = tuple()
 
     def __call__(self, environ, start_response):
         return self.wsgi(environ, start_response)
@@ -47,8 +51,8 @@ class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
 
         except Exception as error:
             # We need this other `try...except` for handling any errors the custom
-            # error handlers or the functions in the `_teardown` functions
-            # might raise.
+            # error handlers or the functions in the `_on_teardown` or
+            # `_on_error` functions might raise.
             resp.error = error
             self._handle_errors(req, resp)
 
@@ -67,16 +71,24 @@ class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
 
         except Exception as error:
             resp.error = error
+            for plug in self._on_error:
+                plug(req, resp, self)
             self._handle_app_errors(req, resp)
 
         finally:
-            for plug in self._teardown:
+            for plug in self._on_teardown:
                 plug(req, resp, self)
 
-    def teardown(self, func):
-        """Decorator to add a function to the `_teardown` tuple.
+    def on_error(self, func):
+        """Decorator to add a function to the `_on_error` tuple.
         """
-        self._teardown = (self._teardown or ()) + (func, )
+        self._on_error = (self._on_error or ()) + (func, )
+        return func
+
+    def on_teardown(self, func):
+        """Decorator to add a function to the `_on_teardown` tuple.
+        """
+        self._on_teardown = (self._on_teardown or ()) + (func, )
         return func
 
     def test_server(self):

@@ -135,6 +135,7 @@ class Request(object):
         # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
         # Read the docstring on `support/encoding.py` for more details.
         self.path = "/" + tunnel_decode(environ["PATH_INFO"].strip("/"))
+        self.content_type = self.environ["CONTENT_TYPE"]
 
         self.__session = {}
 
@@ -176,10 +177,6 @@ class Request(object):
     @cached_property
     def host(self):
         return parse_host(self.environ["HTTP_HOST"])
-
-    @cached_property
-    def content_type(self):
-        return self.environ["CONTENT_TYPE"]
 
     @cached_property
     def content_length(self):

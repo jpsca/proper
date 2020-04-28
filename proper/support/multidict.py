@@ -15,7 +15,7 @@ class MultiDict(defaultdict):
             self[key].append(value)
 
     def __repr__(self):
-        return f"<Multidict {self.keys()} >"
+        return f"<Multidict {self.keys()}>"
 
     def get(self, key, default=None, *, type=None, index=-1):
         """Return the first value of the key of `default` one if the key

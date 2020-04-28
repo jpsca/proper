@@ -32,7 +32,7 @@ class AppErrorsMixin(object):
         handlers if there isn't one for this error.
         """
         # Do not call the custom error handlers while in DEBUG
-        # Otherwise you would never see the debug handlers.
+        # Otherwise you would never see the debug pages.
         if self.debug:
             return self._handle_errors(req, resp)
 
