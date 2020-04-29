@@ -4,6 +4,10 @@ from collections import defaultdict
 __all__ = ("MultiDict", "exbool")
 
 
+class NoValue:
+    pass
+
+
 class MultiDict(defaultdict):
     """A :class:`MultiDict` is a defaultdict subclass customized to deal with
     multiple values for the same key and type casting its values.
@@ -18,7 +22,7 @@ class MultiDict(defaultdict):
         return f"<Multidict {self.keys()}>"
 
     def get(self, key, default=None, *, type=None, index=-1):
-        """Return the first value of the key of `default` one if the key
+        """Return the last value of the key of `default` one if the key
         doesn't exist.
 
         If a `type` parameter is provided and is a callable, it should convert
@@ -46,6 +50,9 @@ class MultiDict(defaultdict):
                 :class:`MultiDict`.  If a :exc:`ValueError` is raised
                 by this callable the default value is returned.
 
+            index (int):
+                Optional. Get this index instead of the first value
+
         """
         values = self[key]
         value = values[index] if values else None
@@ -56,6 +63,14 @@ class MultiDict(defaultdict):
                 return type(value)
             except ValueError:
                 return default
+        return value
+
+    def get_or_error(self, key, *, type=None, index=-1):
+        """Like `.get()` but raises a `KeyError` if the key doesn't exist.
+        """
+        value = self.get(key, default=NoValue, type=type, index=index)
+        if value is NoValue:
+            raise KeyError(key)
         return value
 
     def getall(self, key, *, type=None):

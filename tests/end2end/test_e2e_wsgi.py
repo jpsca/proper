@@ -27,7 +27,7 @@ def test_call(app):
 def test_pipefinal_error(app):
     app.routes = [scope("/")(get("/", to="Pages.index"))]
 
-    @app.teardown
+    @app.on_teardown
     def plug_fail(_req, _resp, _app):
         raise ValueError
 

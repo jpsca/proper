@@ -1,3 +1,5 @@
+import pytest
+
 from proper.support import exbool
 from proper.support import MultiDict
 
@@ -17,6 +19,8 @@ def test_get():
     assert md.get("foo", default=42, type=int) == 16
     assert md.get("foo", default="yay", type=int) == 16
 
+    assert md.get("foo", index=0) == "42"
+
     assert md.get("bar") == "blub"
     assert md.get("bar", default="yay") == "blub"
     assert md.get("bar", type=int) is None
@@ -30,6 +34,19 @@ def test_get():
     assert md.get("meh", default=42, type=int) == 42
     assert md.get("meh", default="42", type=int) == "42"
     assert md.get("meh", default="yay", type=int) == "yay"
+
+
+def test_get_or_error():
+    md = MultiDict(("foo", "42"), ("foo", "16"), ("bar", "blub"))
+
+    assert md.get_or_error("foo") == "16"
+    assert md.get_or_error("foo", type=int) == 16
+    assert md.get_or_error("foo", index=0) == "42"
+
+    with pytest.raises(KeyError):
+        assert md.get_or_error("meh")
+    with pytest.raises(KeyError):
+        assert md.get_or_error("bar", type=int)
 
 
 def test_getall():

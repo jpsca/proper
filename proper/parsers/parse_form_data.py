@@ -45,20 +45,19 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
         raise errors.BadRequest("Body is smaller than the declared Content-Length.")
 
     form = MultiDict()
-
     # application/x-www-form-urlencoded
     # application/x-url-encoded
     if content_type.startswith("application/x-"):
         data = parse_qs(content, keep_blank_values=True)
         for key, values in data.items():
-            form[key] = [True if value == "" else value for value in values]
+            form[key] = [(True if value == "" else value) for value in values]
         return form
 
     # application/json
     if content_type.startswith("application/json"):
         data = ujson.loads(content)
-        for key, values in data.items():
-            form[key] = values
+        for key, value in data.items():
+            form[key] = [value]
         return form
 
     raise errors.UnsupportedMediaType("Unsupported Content-Type")

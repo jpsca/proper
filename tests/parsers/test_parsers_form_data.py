@@ -8,25 +8,27 @@ from proper.parsers import parse_form_data
 
 def test_parse_json():
     source = {
-        "menu": {
-            "id": "file",
-            "value": "File",
-            "popup": {
-                "menuitem": [
-                    {"value": "New", "onclick": "CreateNewDoc()"},
-                    {"value": "Open", "onclick": "OpenDoc()"},
-                    {"value": "Close", "onclick": "CloseDoc()"},
-                ]
-            },
-        }
+        "id": "file",
+        "value": "File",
+        "menuitem": [
+            {"value": "New", "onclick": "CreateNewDoc()"},
+            {"value": "Open", "onclick": "OpenDoc()"},
+            {"value": "Close", "onclick": "CloseDoc()"},
+        ]
     }
     body = ujson.dumps(source).encode("utf8")
     stream = BytesIO(body)
     content_type = "application/json"
     content_length = len(body)
 
-    body = parse_form_data(stream, content_type, content_length)
-    assert body == source
+    md = parse_form_data(stream, content_type, content_length)
+    assert md["id"] == ["file"]
+    assert md["value"] == ["File"]
+    assert md["menuitem"] == [[
+        {"value": "New", "onclick": "CreateNewDoc()"},
+        {"value": "Open", "onclick": "OpenDoc()"},
+        {"value": "Close", "onclick": "CloseDoc()"},
+    ]]
 
 
 def test_parse_bad_json_body():
