@@ -9,7 +9,11 @@ def fetch_session(req, resp, app):
     and response.
     """
     session = Dot(get_session(req, app))
-    req._Request__session = FrozenDict(session, "req.session")
+    req._Request__session = FrozenDict(
+        session,
+        "req.session",
+        error="`req.session` is read-only. Update `resp.session` instead"
+    )
     resp._Response__session = session.copy()
 
 

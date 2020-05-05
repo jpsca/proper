@@ -9,10 +9,11 @@ class FrozenDict(collections.Mapping):
     An immutable wrapper around dictionaries.
     """
 
-    def __init__(self, wrapped, name=None):
+    def __init__(self, wrapped, name=None, error=None):
         self._dict = wrapped
         if name is not None:
             self.__class__.__name__ = name
+        self._error = error or self.__class__.__name__ + " is read-only"
 
     def __getitem__(self, key):
         return self._dict[key]
@@ -34,3 +35,24 @@ class FrozenDict(collections.Mapping):
 
     def __hash__(self):
         return self._dict.__hash__()
+
+    def __delitem__(self, *args, **kwargs):
+        raise AttributeError(self.error)
+
+    def __setitem__(self, *args, **kwargs):
+        raise AttributeError(self.error)
+
+    def clear(self, *args, **kwargs):
+        raise AttributeError(self.error)
+
+    def pop(self, *args, **kwargs):
+        raise AttributeError(self.error)
+
+    def popitem(self, *args, **kwargs):
+        raise AttributeError(self.error)
+
+    def setdefault(self, *args, **kwargs):
+        raise AttributeError(self.error)
+
+    def update(self, *args, **kwargs):
+        raise AttributeError(self.error)
