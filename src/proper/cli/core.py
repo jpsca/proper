@@ -24,7 +24,7 @@ class CantFindApp(Exception):
 
 def import_app():
     try:
-        from wsgi import app
+        from wsgi import app  # noqa
         return app
     except ImportError as e:
         if e.name != "wsgi":
@@ -33,7 +33,7 @@ def import_app():
 
 def import_cli():
     try:
-        from manage import cli
+        from manage import cli  # noqa
         return cli
     except ImportError as e:
         if e.name != "manage":
