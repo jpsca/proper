@@ -1,8 +1,6 @@
+"""Response class.
 """
-Response class.
-
-"""
-import ujson
+import json
 
 from . import status
 from .constants import FLASHES_SESSION_KEY
@@ -101,7 +99,7 @@ class Response(object):
         encodes it to JSON and sets the content_type to "application/json"
         """
         if isinstance(content, dict):
-            self.raw_body = ujson.dumps(content)
+            self.raw_body = json.dumps(content)
             self.content_type = "application/json"
         else:
             self.raw_body = content

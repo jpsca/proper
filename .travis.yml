@@ -12,5 +12,5 @@ python:
 
 before_install: pip install -U pip coveralls
 install: pip install .[testing]
-script: pytest --cov proper .
+script: pytest --cov proper --cov tests .
 after_success: coveralls

@@ -21,7 +21,7 @@ def generate_secret_key(key_len=SECRET_KEY_LEN):
 
 def make_default_secrets():
     return dedent(
-        f"""\
+        """\
     # This is an encrypted YAML file.
     #
     # Your can safely store here credentials like API keys and such,
@@ -35,7 +35,7 @@ def make_default_secrets():
 
 def make_dev_default_secrets():
     return dedent(
-        f"""\
+        """\
     # This is an encrypted YAML file for development.
     #
     # Your can safely store here credentials used in development,

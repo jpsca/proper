@@ -14,7 +14,7 @@ def test_query():
     assert req.query
     assert req.query == req.query  # idempotent
     assert req.query.get("foo") == "bar"
-    assert req.query.get("ok") == True
+    assert req.query.get("ok") is True
     assert req.query.getall("color") == ["red", "green", "blue"]
 
 

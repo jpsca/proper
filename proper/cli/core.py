@@ -7,7 +7,7 @@ from proper.version import __version__
 
 __all__ = ("BLUEPRINTS", "core", "import_app")
 
-BLUEPRINTS = (Path(__file__).parent.parent.parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 
 WELCOME_MSG = f"""
   <b>Proper v{__version__}</b>

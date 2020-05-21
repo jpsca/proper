@@ -123,7 +123,7 @@ def test_json(app, web):
 
     assert resp.status == status.ok
     assert resp.headers["Content-Type"] == "application/json; charset=utf-8"
-    assert resp.text == """{"Hello":"World"}"""
+    assert resp.text == """{"Hello": "World"}"""
 
 
 def test_charset(app, web):

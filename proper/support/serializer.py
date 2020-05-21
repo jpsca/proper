@@ -1,11 +1,10 @@
-"""
-A wrapper arround the `URLSafeTimedSerializer` from "ItsDangerous".
-Used by proper to serialize the session and available to the user for other things.
+"""A wrapper arround the `URLSafeTimedSerializer` from "ItsDangerous".
 
+Used by proper to serialize the session and available to the user for other things.
 """
 import hashlib
 
-import ujson
+import json
 from itsdangerous import BadSignature
 from itsdangerous import URLSafeTimedSerializer
 
@@ -24,7 +23,7 @@ class Serializer(object):
     key_derivation = "hmac"
 
     namespace = "proper.session"
-    data_serializer = ujson
+    data_serializer = json
 
     def __init__(self, secret_key):
         signer_kwargs = {

@@ -1,7 +1,7 @@
 from multipart import MultipartParser
 from multipart import parse_options_header
 from multipart import parse_qs
-import ujson
+import json
 
 from .. import errors
 from ..support import MultiDict
@@ -55,7 +55,7 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
 
     # application/json
     if content_type.startswith("application/json"):
-        data = ujson.loads(content)
+        data = json.loads(content)
         for key, value in data.items():
             form[key] = [value]
         return form

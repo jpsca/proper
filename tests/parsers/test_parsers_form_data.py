@@ -1,7 +1,7 @@
 from io import BytesIO
 
 import pytest
-import ujson
+import json
 
 from proper.parsers import parse_form_data
 
@@ -16,7 +16,7 @@ def test_parse_json():
             {"value": "Close", "onclick": "CloseDoc()"},
         ]
     }
-    body = ujson.dumps(source).encode("utf8")
+    body = json.dumps(source).encode("utf8")
     stream = BytesIO(body)
     content_type = "application/json"
     content_length = len(body)
