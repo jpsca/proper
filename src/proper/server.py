@@ -3,8 +3,7 @@ import logging
 import socket
 import sys
 
-from gevent import pywsgi
-from geventwebsocket.handler import WebSocketHandler
+from gevent.pywsgi import WSGIHandler, WSGIServer
 
 
 logger = logging.getLogger()
@@ -60,11 +59,7 @@ def add_size_unit(size):
     return str(int(size / 1000) / 10) + "MB"
 
 
-class ProperWebSocketHandler(WebSocketHandler):
-
-    # prevent the WebSocketHandler to call the underlying WSGI application,
-    # but only setup the WebSocket negotiations
-    prevent_wsgi_call = True
+class ProperWSGIHandler(WSGIHandler):
 
     def format_request(self):
         if isinstance(self.client_address, tuple):
@@ -106,7 +101,5 @@ def set_logger(app):
 
 def run_server(app, host, port):
     set_logger(app)
-    server = pywsgi.WSGIServer(
-        (host, port), app.wsgi, handler_class=ProperWebSocketHandler
-    )
+    server = WSGIServer((host, port), app.wsgi, handler_class=ProperWSGIHandler)
     return server.serve_forever()
