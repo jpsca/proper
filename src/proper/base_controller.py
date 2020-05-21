@@ -1,6 +1,5 @@
-"""
-A base controller class, all other application controllers must
-iherit from. Stores methods and data available to view/template.
+"""A base controller class, all other application controllers must
+inherit from. Stores methods and data available to view/template.
 """
 
 
