@@ -28,7 +28,7 @@ def test_pipefinal_error(app):
     app.routes = [scope("/")(get("/", to="Pages.index"))]
 
     @app.on_teardown
-    def plug_fail(_req, _resp, _app):
+    def on_fail(_req, _resp, _app):
         raise ValueError
 
     start_response = FakeStartResponse()

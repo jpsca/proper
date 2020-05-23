@@ -60,8 +60,8 @@ class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
 
     def call(self, req, resp):
         try:
-            for plug in self._pipeline:
-                plug(req, resp, self)
+            for func in self._pipeline:
+                func(req, resp, self)
                 if resp.stop:
                     break
 
@@ -71,13 +71,13 @@ class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
 
         except Exception as error:
             resp.error = error
-            for plug in self._on_error:
-                plug(req, resp, self)
+            for func in self._on_error:
+                func(req, resp, self)
             self._handle_app_errors(req, resp)
 
         finally:
-            for plug in self._on_teardown:
-                plug(req, resp, self)
+            for func in self._on_teardown:
+                func(req, resp, self)
 
     def on_error(self, func):
         """Decorator to add a function to the `_on_error` tuple.

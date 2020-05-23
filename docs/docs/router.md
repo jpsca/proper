@@ -25,6 +25,3 @@ router.routes = [
 ```
 
 the request is dispatched to the product controller's show action with `{"id": "42"}` as argument. 
-
-
-## Pipelines and plugs 

@@ -15,65 +15,59 @@ class AppController(BaseController):
         return f"<html>{resp.template} was rendered</html>"
 
 
-def plug1(_req, resp, _app):
-    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-plug1-"
+def cb1(_req, resp, _app):
+    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-cb1-"
 
 
-def plug2(_req, resp, _app):
-    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-plug2-"
+def cb2(_req, resp, _app):
+    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-cb2-"
 
 
-def plug3(_req, resp, _app):
+def cb3(_req, resp, _app):
     print(resp.headers)
-    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-plug3-"
+    resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-cb3-"
 
 
-def plug_stop(_req, resp, _app):
+def cb_stop(_req, resp, _app):
     resp.stop = True
 
 
-def plug_template(req, resp, _app):
-    resp.template = "plug_custom.mako"
+def cb_template(req, resp, _app):
+    resp.template = "cb_custom.mako"
 
 
 class PipelineCalled(AppController):
-    _plugs = [
-        plug1,
-        plug2,
-        plug3,
-    ]
+    _callbacks_before = [ cb1, cb2, cb3 ]
+    _callbacks_after = [ cb1, cb2, cb3 ]
 
     def append(self, req, resp):
         resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
         resp.body = ""
 
 
-def test_plugs_called(app, web):
+def test_cbs_called(app, web):
 
     app.routes = [scope("/")(get("/", to=PipelineCalled.append))]
     resp = web.get("/")
 
-    expected = "-plug1--plug2--plug3--index--plug1--plug2--plug3-"
+    expected = "-cb1--cb2--cb3--index--cb1--cb2--cb3-"
     assert resp.headers["X-Test"] == expected
 
 
-class StopPlug(AppController):
-    _plugs = [
-        plug1,
-        plug_stop,
-        plug3,
-    ]
+class Stopcb(AppController):
+    _callbacks_before = [ cb1, cb_stop, cb3 ]
+    _callbacks_after = [ cb1, cb_stop, cb3 ]
 
     def append(self, req, resp):
         resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
         resp.body = ""
 
 
-def test_stop_in_plugs(app, web):
-    app.routes = [scope("/")(get("/", to=StopPlug.append))]
+def test_stop_in_cbs(app, web):
+    app.routes = [scope("/")(get("/", to=Stopcb.append))]
     resp = web.get("/")
 
-    assert resp.headers["X-Test"] == "-plug1-"
+    assert resp.headers["X-Test"] == "-cb1-"
 
 
 class CallRender(AppController):
@@ -100,10 +94,8 @@ def test_custom_temnplate(app, web):
     assert resp.text == "<html>from_controller.jinja was rendered</html>"
 
 
-class CustomTemplateFromPlug(AppController):
-    _plugs = [
-        plug_template,
-    ]
+class CustomTemplateFromcb(AppController):
+    _callbacks_before = [ cb_template ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"
@@ -112,10 +104,10 @@ class CustomTemplateFromPlug(AppController):
         pass
 
 
-def test_custom_template_from_plug(app, web):
-    app.routes = [scope("/")(get("/", to=CustomTemplateFromPlug.append))]
+def test_custom_template_from_cb(app, web):
+    app.routes = [scope("/")(get("/", to=CustomTemplateFromcb.append))]
 
-    app.routes = [scope("/")(get("", to=CustomTemplateFromPlug.rendered))]
+    app.routes = [scope("/")(get("", to=CustomTemplateFromcb.rendered))]
     resp = web.get("/")
 
-    assert resp.text == "<html>plug_custom.mako was rendered</html>"
+    assert resp.text == "<html>cb_custom.mako was rendered</html>"

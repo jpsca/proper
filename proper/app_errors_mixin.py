@@ -48,7 +48,9 @@ class AppErrorsMixin(object):
         self._handle_errors(req, resp)
 
     def _call_custom_handler(self, handler, req, resp):
-        _, method = objectify(self.controllers_mod, handler)
+        Controller, action = objectify(self.controllers_mod, handler)
+        controller = Controller()
+        method = getattr(controller, action)
         return method(req, resp, self)
 
     def _handle_errors(self, req, resp):

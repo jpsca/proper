@@ -8,50 +8,29 @@ __all__ = ("dispatch",)
 
 def dispatch(req, resp, app):
     route = req.matched_route
-    controller, method = objectify(app.controllers_mod, route.to)
 
     # Even if we might not use it, let set the inferred template name now
-    # (unless is already set), so the client can overwrite it if they want.
-    if resp.template is None:
-        set_template(resp, route)
+    # (unless is already set), so the action can overwrite it if they want.
+    resp.template = resp.template or get_default_template(resp, route.to)
 
-    run_pipeline(controller._plugs, req, resp, app)
-    if resp.stop:
-        resp.dispatched = True
-        return
-
-    if not resp.dispatched:
-        call(controller, method, req, resp, req.matched_params)
-
-    run_pipeline(controller._plugs, req, resp, app)
-
-
-def run_pipeline(plugs, req, resp, app):
-    for plug in plugs:
-        if resp.stop:
-            break
-        plug(req, resp, app)
-
-
-def set_template(resp, route):
-    to = route.to.__qualname__ if callable(route.to) else route.to
-    cls_name, method_name = to.split(".")
-    folder_name = pascal_to_snake(cls_name)
-    file_name = method_name.lower()
-    resp.template = path.join(folder_name, file_name)
-
-
-def call(controller, method, req, resp, params):
-    # We call the endpoint but we do not expect a result value.
-    # All the side effects of this call should be stored in the same
-    # controller and in `resp`.
-    method(req, resp, **params)
+    Controller, action = objectify(app.controllers_mod, route.to)
+    # We instantiate the controllers class so we can have an independent
+    # container for this request.
+    controller = Controller()
+    controller._dispatch(action, req, resp, app)
     resp.dispatched = True
 
-    # If resp.body was manually set, our work here is done.
-    if resp.has_body or resp.stop:
-        return
 
-    # Otherwise, is template time...
-    # `_render()` is a method all controllers MUST have implemented
-    resp.body = controller._render(req, resp)
+def get_default_template(resp, endpoint):
+    """Return the template basepath using the controller class name
+    and the action.
+
+    The template doesn't have a extension so the action can choose to use
+    the default template name but changing the response format from the
+    default, for example, using ".json" instead of ".html".
+    """
+    to = endpoint.__qualname__ if callable(endpoint) else endpoint
+    cls_name, action = to.split(".")
+    folder_name = pascal_to_snake(cls_name)
+    file_name = action.lower()
+    return path.join(folder_name, file_name)

@@ -110,7 +110,6 @@ class Request(object):
 
     matched_route = None
     matched_params = None
-    template = None
     current_user = None
     csrf_token = None
     __session = None

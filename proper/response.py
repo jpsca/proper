@@ -20,6 +20,12 @@ class Response(object):
     # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
     stop = False
 
+    # relative path of the template, minus the extension
+    template = None
+
+    # the default extension of the template.
+    format = ".html"
+
     # Warn if a cookie header exceeds this size.
     # The default is 4093 and should be supported by most browsers
     # (See http://browsercookielimits.squawky.net)
@@ -27,11 +33,6 @@ class Response(object):
     # handled incorrectly by some browsers. Set to 0 to disable this check.
     max_cookie_size = 4093
 
-    # `middleware.dispatch will use this as the extension of the
-    # generated `resp.template`.
-    format = ".html"
-
-    template = None
     error = None
 
     raw_body = None
