@@ -1,4 +1,4 @@
-from proper import callbacks
+from proper import filters
 from proper import Request
 from proper import Response
 
@@ -7,7 +7,7 @@ def test_put_secure_headers():
     req = Request()
     resp = Response()
     resp.dispatched = True
-    callbacks.put_secure_headers(req, resp, None)
+    filters.put_secure_headers(req, resp, None)
 
     for key in (
         "x-frame-options",
@@ -23,6 +23,6 @@ def test_put_secure_headers():
 def test_dont_put_secure_headers_before_dispatching():
     req = Request()
     resp = Response()
-    callbacks.put_secure_headers(req, resp, None)
+    filters.put_secure_headers(req, resp, None)
 
     assert "x-frame-options" not in resp.headers

@@ -37,8 +37,8 @@ def cb_template(req, resp, _app):
 
 
 class PipelineCalled(AppController):
-    _callbacks_before = [ cb1, cb2, cb3 ]
-    _callbacks_after = [ cb1, cb2, cb3 ]
+    _before_action = [ cb1, cb2, cb3 ]
+    _after_action = [ cb1, cb2, cb3 ]
 
     def append(self, req, resp):
         resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
@@ -55,8 +55,8 @@ def test_cbs_called(app, web):
 
 
 class Stopcb(AppController):
-    _callbacks_before = [ cb1, cb_stop, cb3 ]
-    _callbacks_after = [ cb1, cb_stop, cb3 ]
+    _before_action = [ cb1, cb_stop, cb3 ]
+    _after_action = [ cb1, cb_stop, cb3 ]
 
     def append(self, req, resp):
         resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
@@ -95,7 +95,7 @@ def test_custom_temnplate(app, web):
 
 
 class CustomTemplateFromcb(AppController):
-    _callbacks_before = [ cb_template ]
+    _before_action = [ cb_template ]
 
     def append(self, req, resp):
         resp.body = (resp.body or "") + "-index-"

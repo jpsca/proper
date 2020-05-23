@@ -5,18 +5,18 @@ inherit from. Stores data available to view/template.
 
 class BaseController(object):
 
-    _callbacks_before = tuple()
-    _callbacks_after = tuple()
+    _before_action = tuple()
+    _after_action = tuple()
 
     def _dispatch(self, action, req, resp, app):
-        run_callbacks(self._callbacks_before, req, resp, app)
+        apply_filters(self._before_action, req, resp, app)
         if resp.stop:
             return
 
         if not resp.dispatched:
             self._call(action, req, resp)
 
-        run_callbacks(self._callbacks_after, req, resp, app)
+        apply_filters(self._after_action, req, resp, app)
 
     def _call(self, action, req, resp):
             method = getattr(self, action)
@@ -58,8 +58,8 @@ class BaseController(object):
         }
 
 
-def run_callbacks(callbacks, req, resp, app):
-    for callback in callbacks:
+def apply_filters(filters, req, resp, app):
+    for func in filters:
         if resp.stop:
             break
-        callback(req, resp, app)
+        func(req, resp, app)
