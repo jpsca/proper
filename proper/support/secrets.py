@@ -29,8 +29,7 @@ def make_default_secrets():
     # -------------------------------------------------------------
 
     # foo: "bar"
-    """
-    )
+    """)
 
 
 def make_dev_default_secrets():
@@ -63,5 +62,4 @@ def make_prod_default_secrets(min_secret_length):
     # all random, no regular words or you'll be exposed to dictionary attacks.
     # You can use `proper secret` to generate a secure secret key.
     secret_key: "{generate_secret_key()}"
-    """
-    )
+    """)
