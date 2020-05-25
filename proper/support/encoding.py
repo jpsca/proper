@@ -14,7 +14,7 @@ does that:
     'olé'
 
 """
-__all__ = ("tunnel_encode", "tunnel_decode")
+__all__ = ("tunnel_encode", "tunnel_decode", )
 
 
 def tunnel_encode(string, charset="utf8"):

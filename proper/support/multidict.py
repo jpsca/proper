@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 
-__all__ = ("MultiDict", "exbool")
+__all__ = ("MultiDict", "exbool", )
 
 
 class NoValue:

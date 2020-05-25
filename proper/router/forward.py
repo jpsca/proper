@@ -1,7 +1,7 @@
 from .route import Route
 
 
-__all__ = ("Forward", "forward")
+__all__ = ("Forward", "forward", )
 
 
 class Forward(Route):

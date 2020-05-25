@@ -3,7 +3,7 @@ from ..constants import DELETE, GET, PATCH, POST, PUT
 from .route import Route
 
 
-__all__ = ("resource",)
+__all__ = ("resources", )
 
 
 REST_ROUTES = (
@@ -20,34 +20,33 @@ REST_ROUTES = (
 REST_ACTIONS = ("index", "show", "new", "create", "edit", "update", "delete")
 
 
-def resource(path, only=REST_ACTIONS, ignore=None, **kwargs):
+def resources(path, to, only=REST_ACTIONS, ignore=None, **kwargs):
     """Shortcut to return a list of HTTP REST routes with the same arguments.
 
     We calidate the arguments first so we can show errors about what the user has
     typed instead of being about dynamically generated routes.
     """
-    assert kwargs.get("to"), "A resource must be created with `to`."
-    res = Route("resource", path, **kwargs)
+    res = Route("resources", path, to=to, **kwargs)
 
     ignore = ignore or []
     _actions = [
         action for action in only if (action in REST_ACTIONS) and (action not in ignore)
     ]
     assert _actions, "None of the actions are valid."
-    return expand_resource(res, _actions)
+    return expand_resources(res, _actions)
 
 
-def expand_resource(res, actions):
+def expand_resources(res, actions):
     routes = []
     for method, path, action in REST_ROUTES:
         if action not in actions:
             continue
-        route = expand_resource_route(res, method, path, action)
+        route = expand_resources_route(res, method, path, action)
         routes.append(route)
     return routes
 
 
-def expand_resource_route(res, method, path, action):
+def expand_resources_route(res, method, path, action):
     base_path = "/" + res.path.lstrip("/")
     route = Route(
         method,

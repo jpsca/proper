@@ -1,11 +1,11 @@
-"""Import all *.py files in this folder.
-"""
-import importlib
-import os
-
-
-for __filename in os.listdir(os.path.dirname(__file__)):  # pragma: no cover
-    if __filename.startswith("_") or __filename[-3:] != ".py":
-        continue
-    __module = importlib.import_module("." + __filename[:-3], __package__)
-    globals().update({name: getattr(__module, name) for name in __module.__all__})
+from .cached_property import *  # noqa
+from .cookies import *  # noqa
+from .dot import *  # noqa
+from .encoding import *  # noqa
+from .frozendict import *  # noqa
+from .headersdict import *  # noqa
+from .inflector import *  # noqa
+from .multidict import *  # noqa
+from .objectify import *  # noqa
+from .secrets import *  # noqa
+from .serializer import *  # noqa

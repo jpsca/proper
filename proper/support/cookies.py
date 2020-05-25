@@ -2,8 +2,7 @@ import re
 import time
 import warnings
 from email.utils import formatdate
-from http.cookies import Morsel
-from http.cookies import SimpleCookie
+from http.cookies import Morsel, SimpleCookie
 
 
 __all__ = ("CookiesDict", "add_cookie", )

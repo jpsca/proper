@@ -1,5 +1,4 @@
-from ..errors import MatchNotFound  # noqa
-from ..errors import MethodNotAllowed  # noqa
+from ..errors import MatchNotFound, MethodNotAllowed  # noqa
 
 
 class MissingParameter(Exception):

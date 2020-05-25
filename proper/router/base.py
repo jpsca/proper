@@ -1,12 +1,10 @@
 import re
 from string import Template
 
-from .router_errors import BadParameter
-from .router_errors import BadRule
-from .router_errors import MissingParameter
+from .router_errors import BadParameter, BadRule, MissingParameter
 
 
-__all__ = ("BaseRoute",)
+__all__ = ("BaseRoute", )
 
 
 """Rules to be replaced with regular expressions.

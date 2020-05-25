@@ -1,7 +1,7 @@
 import copy
 
 
-__all__ = ("Dot",)
+__all__ = ("Dot", )
 
 
 class Dot(dict):

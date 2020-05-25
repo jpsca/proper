@@ -5,8 +5,7 @@ __all__ = ("FrozenDict", )
 
 
 class FrozenDict(collections.Mapping):
-    """
-    An immutable wrapper around dictionaries.
+    """An immutable wrapper around dictionaries.
     """
 
     def __init__(self, wrapped, name=None, error=None):

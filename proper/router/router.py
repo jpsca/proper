@@ -1,12 +1,7 @@
+"""Router object that holds all routes and match them to urls.
 """
-Router object that holds all routes and match them to urls.
-
-"""
-# from .channel import Channel
 from .route import Route
-from .router_errors import MatchNotFound
-from .router_errors import MethodNotAllowed
-from .router_errors import NameNotFound
+from .router_errors import MatchNotFound, MethodNotAllowed, NameNotFound
 from .scope import flatten
 
 
@@ -38,7 +33,6 @@ class Router(object):
         "use_ssl",
         "_debug",
         "_routes",
-        "_channels",
         "_by_name",
     )
 
@@ -52,7 +46,6 @@ class Router(object):
 
         self._debug = _debug
         self._routes = ()
-        self._channels = ()
 
         # Routes by name
         self._by_name = ()
@@ -133,18 +126,6 @@ class Router(object):
             route.compile_path()
         self._routes = tuple(_routes)
         self._by_name = {route.name: route for route in _routes}
-
-    # @property
-    # def channels(self):
-    #     return self._channels
-
-    # @channels.setter
-    # def channels(self, values):
-    #     if self._debug:
-    #         assert all([isinstance(x, Channel) for x in values]), \
-    #             "All channels must be instances of `proper_router.channel`."
-
-    #     self._channels = tuple(values)
 
     def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
         """...

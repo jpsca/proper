@@ -44,8 +44,7 @@ def make_dev_default_secrets():
     # -------------------------------------------------------------
 
     # foo: "bar"
-    """
-    )
+    """)
 
 
 def make_prod_default_secrets(min_secret_length):

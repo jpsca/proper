@@ -1,16 +1,18 @@
 import pytest
 
-from proper.router import delete
-from proper.router import get
-from proper.router import patch
-from proper.router import post
-from proper.router import put
-from proper.router import resource
-from proper.router import scope
+from proper.router import (
+    delete,
+    get,
+    patch,
+    post,
+    put,
+    resources,
+    scope,
+)
 
 
-def test_basic_resource():
-    routes = resource("posts", to="Posts")
+def test_basic_resources():
+    routes = resources("posts", to="Posts")
 
     expected = [
         get("posts", to="Posts.index"),
@@ -26,8 +28,8 @@ def test_basic_resource():
     assert routes == expected
 
 
-def test_basic_resource_mounted():
-    routes = scope("/mount/")(resource("posts", to="Posts"))
+def test_basic_resources_mounted():
+    routes = scope("/mount/")(resources("posts", to="Posts"))
 
     expected = scope("/mount/")(
         get("posts/", to="Posts.index"),
@@ -66,8 +68,8 @@ class MyController(object):
         pass
 
 
-def test_resource_with_callable():
-    routes = resource("posts", to=MyController)
+def test_resources_with_callable():
+    routes = resources("posts", to=MyController)
 
     expected = [
         get("posts/", to=MyController.index),
@@ -83,16 +85,16 @@ def test_resource_with_callable():
     assert routes == expected
 
 
-def test_resource_only():
-    routes = resource("posts", to="Posts", only=["index", "show"])
+def test_resources_only():
+    routes = resources("posts", to="Posts", only=["index", "show"])
 
     expected = [get("posts/", to="Posts.index"), get("posts/:uid", to="Posts.show")]
 
     assert routes == expected
 
 
-def test_resource_ignore():
-    routes = resource("posts", to="Posts", ignore=["new", "create", "delete"])
+def test_resources_ignore():
+    routes = resources("posts", to="Posts", ignore=["new", "create", "delete"])
 
     expected = [
         get("posts/", to="Posts.index"),
@@ -106,7 +108,7 @@ def test_resource_ignore():
 
 
 def test_some_invalid_actions():
-    routes = resource("posts", to="Posts", only=["index", "jump", "show", "fire"])
+    routes = resources("posts", to="Posts", only=["index", "jump", "show", "fire"])
 
     expected = [get("posts/", to="Posts.index"), get("posts/:uid", to="Posts.show")]
 
@@ -115,14 +117,14 @@ def test_some_invalid_actions():
 
 def test_only_invalid_actions():
     with pytest.raises(AssertionError):
-        resource("posts", to="Posts", only=["ready", "set", "fire"])
+        resources("posts", to="Posts", only=["ready", "set", "fire"])
 
     with pytest.raises(AssertionError):
-        resource("posts", to="Posts", only=[])
+        resources("posts", to="Posts", only=[])
 
 
 def test_only_and_ignore():
-    routes = resource(
+    routes = resources(
         "posts", to="Posts", only=["index", "show"], ignore=["show", "edit"]
     )
 
@@ -132,7 +134,7 @@ def test_only_and_ignore():
 
 
 def test_ignore_invalid():
-    routes = resource("posts", to="Posts", only=["index", "show"], ignore=["patrice"])
+    routes = resources("posts", to="Posts", only=["index", "show"], ignore=["patrice"])
 
     expected = [get("posts/", to="Posts.index"), get("posts/:uid", to="Posts.show")]
 

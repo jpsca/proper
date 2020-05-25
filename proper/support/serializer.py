@@ -5,14 +5,10 @@ Used by proper to serialize the session and available to the user for other thin
 import hashlib
 
 import json
-from itsdangerous import BadSignature
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 
-__all__ = (
-    "Serializer",
-    "BadSignature",
-)
+__all__ = ("Serializer", "BadSignature", )
 
 
 class Serializer(object):

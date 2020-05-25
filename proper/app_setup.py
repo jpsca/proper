@@ -7,7 +7,7 @@ from .router import Router
 from .support import Serializer
 
 
-class AppSetupMixin(object):
+class AppSetup(object):
     serializer = None
 
     def __init__(
@@ -44,6 +44,18 @@ class AppSetupMixin(object):
     @property
     def config(self):
         return self._config
+
+    @property
+    def routes(self):
+        return self.router._routes
+
+    @routes.setter
+    def routes(self, values):
+        self.router.routes = values
+
+    def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
+        """Proxy for `self.router.url_for()`."""
+        return self.router.url_for(name, _external=_external, _anchor=_anchor, **kwargs)
 
     def _set_root(self, root):
         root = Path(root)
@@ -118,10 +130,6 @@ class MissingSecretKey(Exception):
 
 
 class BadSecretKey(Exception):
-    pass
-
-
-class ControllersNotFound(Exception):
     pass
 
 

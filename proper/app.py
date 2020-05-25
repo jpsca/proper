@@ -1,7 +1,6 @@
 from . import middleware
-from .app_errors_mixin import AppErrorsMixin
-from .app_proxy_mixin import AppProxyMixin
-from .app_setup_mixin import AppSetupMixin, MissingSecretKey, BadSecretKey
+from .app_errors import AppErrors
+from .app_setup import AppSetup, MissingSecretKey, BadSecretKey
 from .request import Request
 from .response import Response
 
@@ -9,7 +8,7 @@ from .response import Response
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 
 
-class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
+class App(AppSetup, AppErrors):
 
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
@@ -90,8 +89,3 @@ class App(AppSetupMixin, AppErrorsMixin, AppProxyMixin):
         """
         self._on_teardown = (self._on_teardown or ()) + (func, )
         return func
-
-    def test_server(self):
-        from .server import run_server
-
-        run_server(self, host="0.0.0.0", port=3030)

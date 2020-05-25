@@ -1,7 +1,5 @@
 """
-This file is empty.
-Better to close it and forget about it.
-
+What file? This doesn't look like anything to me.
 """
 
 

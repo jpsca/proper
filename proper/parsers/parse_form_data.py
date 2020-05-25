@@ -1,6 +1,8 @@
-from multipart import MultipartParser
-from multipart import parse_options_header
-from multipart import parse_qs
+from multipart import (
+    MultipartParser,
+    parse_options_header,
+    parse_qs,
+)
 import json
 
 from .. import errors

@@ -10,7 +10,7 @@ from .errors import MatchNotFound
 from .support import objectify
 
 
-class AppErrorsMixin(object):
+class AppErrors(object):
 
     """A dict of functions to call when an HTTPError is raised.
     The keys are any subclasses of Exception, but, not necessarily subclasses

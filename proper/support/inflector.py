@@ -1,7 +1,7 @@
 import re
 
 
-__all__ = ("pascal_to_snake", "titleize")
+__all__ = ("pascal_to_snake", "titleize", )
 
 NON_ALPHANUMDOT_RE = re.compile("[^A-Z^a-z^0-9^.]+")
 FIRST_CAP_RE = re.compile("(.)([A-Z][a-z]+)")
