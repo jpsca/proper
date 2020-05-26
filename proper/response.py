@@ -34,18 +34,19 @@ class Response(object):
     max_cookie_size = 4093
 
     error = None
-
     raw_body = None
     _content_type = "text/html"
     _charset = "utf-8"
-    _status_code = status.ok
     __session = None
 
-    def __init__(self):
+    def __init__(self, status_code=status.ok, content_type="text/html", charset="utf-8"):
         self.headers = HeadersDict()
-        self.content_type = self._content_type
         self.cookies = CookiesDict()
         self.__session = {}
+
+        self.status_code = status_code
+        self.content_type = content_type
+        self.charset = charset
 
     @property
     def status_code(self):
@@ -84,22 +85,16 @@ class Response(object):
     @property
     def regular_headers_items(self):
         return [
-            self.pack_header_item(key, value)
+            (key, tunnel_encode(value, "utf-8"))
             for key, value in self.headers.items()
         ]
 
     @property
     def cookie_headers_items(self):
         return [
-            self.pack_cookie_header_item(morsel)
+            tuple(morsel.output().split(": ", 1))
             for morsel in self.cookies.values()
         ]
-
-    def pack_header_item(self, key, value):
-        return key, tunnel_encode(value, "utf-8")
-
-    def pack_cookie_header_item(self, morsel):
-        return tuple(morsel.output().split(": ", 1))
 
     @property
     def has_body(self):
@@ -123,8 +118,8 @@ class Response(object):
         self.raw_body = content
 
     def set_json_body(self, content):
-        self.set_raw_body(json.dumps(content))
         self.content_type = "application/json"
+        self.set_raw_body(json.dumps(content))
 
     @property
     def session(self):

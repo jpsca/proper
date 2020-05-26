@@ -1,11 +1,11 @@
-from pathlib import Path
 import os
 import sys
+from pathlib import Path
 
+import hecto
 from pyceo import param
 from pyceo import option
 from proper_config.secrets import new_master_key_file, save_secrets
-import hecto
 
 from proper.support import secrets
 from proper.constants import MIN_SECRET_LENGTH

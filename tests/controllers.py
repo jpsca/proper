@@ -1,7 +1,6 @@
 """A mock controller for testing.
 """
-from proper import BaseController
-from proper import errors
+from proper import BaseController, errors
 
 
 class AppController(BaseController):

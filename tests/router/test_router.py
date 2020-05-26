@@ -1,18 +1,14 @@
 import pytest
 
-from proper.constants import GET
-from proper.constants import POST
-from proper.router import delete
-from proper.router import forward
-from proper.router import get
-from proper.router import post
-from proper.router import Router
-from proper.router import scope
-from proper.router.router_errors import BadParameter
-from proper.router.router_errors import MatchNotFound
-from proper.router.router_errors import MethodNotAllowed
-from proper.router.router_errors import MissingParameter
-from proper.router.router_errors import NameNotFound
+from proper.constants import GET, POST
+from proper.router import delete, forward, get, post, Router, scope
+from proper.router.router_errors import (
+    BadParameter,
+    MatchNotFound,
+    MethodNotAllowed,
+    MissingParameter,
+    NameNotFound,
+)
 
 
 @pytest.fixture
@@ -21,7 +17,6 @@ def router():
     router.routes = [
         get("", to="Pages.index", name="index"),
         get("login", to="Pages.login", name="login"),
-
         scope("/api/")(
             get("items", to="Items.index"),
             get("items/:item_id", to="Items.show", rules={"item_id": "int"}),
@@ -33,20 +28,17 @@ def router():
             post("/items", to="Items.create"),
             delete("/items/:item_id", to="meh", rules={"item_id": "int"}),
         ),
-
         scope("/foobar/")(
             get("", to="meh"),
             get("foo", to="meh"),
             get("bar", to="meh"),
         ),
         get("foobar/:catchall", to="meh", rules={"catchall": "path"}),
-
         get("admin", to="meh"),
         scope("/", host="blog.example.com")(
             get("admin", to="meh"),
             get("foobar/foo", to="FooBar.foo"),
         ),
-
         scope("/:locale/", rules={"locale": r"(en|es)"})(
             get("", to="localized.index"),
             get(":item_id", to="localized.item", rules={"item_id": "int"}),
@@ -140,7 +132,10 @@ def test_match_mixed_paths(router):
 
     router.routes = [
         scope("/")(
-            get(":this/is/:madness", to="meh", rules={"this": "path", "madness": "path"})
+            get(
+                ":this/is/:madness", to="meh",
+                rules={"this": "path", "madness": "path"}
+            )
         )
     ]
     _, params = router.match(GET, "/a/b/c/d/is/e/f/g")

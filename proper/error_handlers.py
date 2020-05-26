@@ -3,8 +3,8 @@ Fallback error handlers
 
 """
 import logging
-from pathlib import Path
 import traceback
+from pathlib import Path
 
 import jinja2
 

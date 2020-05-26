@@ -1,5 +1,5 @@
-from pyceo import param
 import hecto
+from pyceo import param
 
 from proper.support import pascal_to_snake
 

@@ -1,7 +1,6 @@
 import pytest
 
-from proper.router import get
-from proper.router import scope
+from proper.router import get, scope
 
 
 def test_scope_defaults():

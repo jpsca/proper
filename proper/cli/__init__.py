@@ -1,5 +1,6 @@
 from .core import BLUEPRINTS, core, import_cli, running_in_app  # noqa
 
+
 if running_in_app:
     from .run import *  # noqa
     from .secret import *  # noqa

@@ -1,21 +1,8 @@
 import pytest
 
-from proper.constants import DELETE
-from proper.constants import GET
-from proper.constants import OPTIONS
-from proper.constants import PATCH
-from proper.constants import POST
-from proper.constants import PUT
-from proper.router import delete
-from proper.router import get
-from proper.router import options
-from proper.router import patch
-from proper.router import post
-from proper.router import put
-from proper.router import route
-from proper.router.router_errors import BadParameter
-from proper.router.router_errors import BadRule
-from proper.router.router_errors import MissingParameter
+from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
+from proper.router import delete, get, options, patch, post, put, route
+from proper.router.router_errors import BadParameter, BadRule, MissingParameter
 
 
 def test_route_defaults():

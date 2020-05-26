@@ -1,7 +1,6 @@
 import pytest
 
-from proper.support import exbool
-from proper.support import MultiDict
+from proper.support import exbool, MultiDict
 
 
 def test_init():

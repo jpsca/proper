@@ -1,14 +1,6 @@
 import pytest
 
-from proper.router import (
-    delete,
-    get,
-    patch,
-    post,
-    put,
-    resources,
-    scope,
-)
+from proper.router import delete, get, patch, post, put, resources, scope
 
 
 def test_basic_resources():

@@ -1,6 +1,6 @@
-from textwrap import dedent
 import os
 import string
+from textwrap import dedent
 
 
 __all__ = (

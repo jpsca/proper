@@ -1,10 +1,9 @@
-from datetime import datetime
 import logging
 import socket
 import sys
+from datetime import datetime
 
 from gevent import pywsgi
-
 
 logger = logging.getLogger()
 

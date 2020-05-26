@@ -1,9 +1,9 @@
+import shutil
 from pathlib import Path
 from tempfile import mkdtemp
-import shutil
 
-from webtest import TestApp
 import pytest
+from webtest import TestApp
 
 from proper import App
 from proper.support.secrets import generate_secret_key

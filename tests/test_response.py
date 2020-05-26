@@ -1,5 +1,4 @@
-from proper.response import FLASHES_SESSION_KEY
-from proper.response import Response
+from proper.response import FLASHES_SESSION_KEY, Response
 from proper.support import Dot
 
 
