@@ -45,7 +45,6 @@ class Response(object):
         self.headers = HeadersDict()
         self.content_type = self._content_type
         self.cookies = CookiesDict()
-
         self.__session = {}
 
     @property
@@ -63,8 +62,7 @@ class Response(object):
     @content_type.setter
     def content_type(self, value):
         self._content_type = value
-        header = f"{self._content_type}; charset={self._charset}"
-        self.headers["Content-Type"] = header
+        self.set_content_type_header()
 
     @property
     def charset(self):
@@ -73,18 +71,35 @@ class Response(object):
     @charset.setter
     def charset(self, value):
         self._charset = value
+        self.set_content_type_header()
+
+    def set_content_type_header(self):
         header = f"{self._content_type}; charset={self._charset}"
         self.headers["Content-Type"] = header
 
     @property
-    def headers_list(self):
-        headers = [
-            (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
+    def headers_items(self):
+        return self.regular_headers_items + self.cookie_headers_items
+
+    @property
+    def regular_headers_items(self):
+        return [
+            self.pack_header_item(key, value)
+            for key, value in self.headers.items()
         ]
-        cookie_headers = [
-            tuple(morsel.output().split(": ", 1)) for morsel in self.cookies.values()
+
+    @property
+    def cookie_headers_items(self):
+        return [
+            self.pack_cookie_header_item(morsel)
+            for morsel in self.cookies.values()
         ]
-        return headers + cookie_headers
+
+    def pack_header_item(self, key, value):
+        return key, tunnel_encode(value, "utf-8")
+
+    def pack_cookie_header_item(self, morsel):
+        return tuple(morsel.output().split(": ", 1))
 
     @property
     def has_body(self):
@@ -100,10 +115,16 @@ class Response(object):
         encodes it to JSON and sets the content_type to "application/json"
         """
         if isinstance(content, dict):
-            self.raw_body = json.dumps(content)
-            self.content_type = "application/json"
+            self.set_json_body(content)
         else:
-            self.raw_body = content
+            self.set_raw_body(content)
+
+    def set_raw_body(self, content):
+        self.raw_body = content
+
+    def set_json_body(self, content):
+        self.set_raw_body(json.dumps(content))
+        self.content_type = "application/json"
 
     @property
     def session(self):
@@ -203,7 +224,7 @@ class Response(object):
         body = (self.raw_body or "").encode(self.charset)
         self.headers["Content-Length"] = str(len(body))
 
-        start_response(self.status_code, self.headers_list)
+        start_response(self.status_code, self.headers_items)
         if not body:
             return []
         return [body]

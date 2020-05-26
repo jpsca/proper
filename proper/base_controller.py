@@ -19,18 +19,13 @@ class BaseController(object):
         apply_filters(self._after_action, req, resp, app)
 
     def _call(self, action, req, resp):
-            method = getattr(self, action)
+        # We call the endpoint but we do not expect a result value.
+        # All the side effects of this call should be stored in the same
+        # controller and in `resp`.
+        method = getattr(self, action)
+        method(req, resp, **req.matched_params)
 
-            # We call the endpoint but we do not expect a result value.
-            # All the side effects of this call should be stored in the same
-            # controller and in `resp`.
-            method(req, resp, **req.matched_params)
-
-            # If resp.body was manually set, our work here is done.
-            if resp.has_body or resp.stop:
-                return
-
-            # Otherwise, it's render time...
+        if not resp.has_body and not resp.stop:
             # `_render()` is a method all controllers MUST have implemented
             resp.body = self._render(req, resp)
 

@@ -181,8 +181,12 @@ class Request(object):
     def content_length(self):
         """The content_length value as an integer.
         """
+        length = self.environ["CONTENT_LENGTH"]
+        return self.validate_content_length(length)
+
+    def validate_content_length(self, length):
         try:
-            length = int(self.environ["CONTENT_LENGTH"])
+            length = int(length)
         except ValueError:
             raise errors.InvalidHeader("The Content-Length header must be a number.")
         if length < 0:
@@ -193,9 +197,8 @@ class Request(object):
 
     @cached_property
     def scheme(self):
-        return self.environ.get("HTTP_X_FORWARDED_PROTO") or self.environ.get(
-            "wsgi.url_scheme"
-        )
+        return self.environ.get("HTTP_X_FORWARDED_PROTO") \
+            or self.environ.get("wsgi.url_scheme")
 
     @cached_property
     def secure(self):

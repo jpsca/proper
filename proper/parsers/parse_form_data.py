@@ -1,9 +1,5 @@
-from multipart import (
-    MultipartParser,
-    parse_options_header,
-    parse_qs,
-)
 import json
+import multipart
 
 from .. import errors
 from ..support import MultiDict
@@ -14,67 +10,93 @@ __all__ = ("parse_form_data",)
 
 def parse_form_data(stream, content_type, content_length, encoding="utf8", config=None):
     config = config or {}
-    max_content_length = config.get("max_content_length")
-    max_memory_size = config.get("max_memory_size")
 
-    if max_content_length and content_length > max_content_length:
-        raise errors.RequestEntityTooLarge("Maximum content length exceeded.")
+    validate_max_content_length(content_length, config)
+    max_memory_size = validate_max_memory_size(content_length, config)
 
-    content_type, options = parse_options_header(content_type)
+    content_type, options = multipart.parse_options_header(content_type)
     encoding = options.get("charset", encoding)
 
     # multipart/form-data
     if content_type.startswith("multipart/"):
-        boundary = options.get("boundary", "")
-        if not boundary:
-            raise errors.BadRequest("No boundary for multipart/form-data.")
+        return parse_multipart(stream, content_length, encoding, options)
 
-        return parse_multipart(stream, content_length, encoding, boundary)
+    content = read_content(stream, max_memory_size, encoding)
+    validate_actual_content_length(content, content_length)
 
+    # application/x-www-form-urlencoded
+    # application/x-url-encoded
+    if content_type.startswith("application/x-"):
+        return parse_qs(content)
+
+    # application/json
+    if content_type.startswith("application/json"):
+        return parse_json(content)
+
+    raise errors.UnsupportedMediaType("Unsupported Content-Type")
+
+
+def validate_max_content_length(content_length, config):
+    max_content_length = config.get("max_content_length")
+    if max_content_length and content_length > max_content_length:
+        raise errors.RequestEntityTooLarge("Maximum content length exceeded.")
+    return max_content_length
+
+
+def validate_max_memory_size(content_length, config):
+    max_memory_size = config.get("max_memory_size")
     if max_memory_size and content_length > max_memory_size:
         raise errors.RequestEntityTooLarge("Increase max_memory_size.")
+    return max_memory_size
 
+
+def parse_multipart(stream, content_length, encoding, options):
+    boundary = get_boundary(options)
+    form = MultiDict()
+    parser = multipart.MultipartParser(stream, boundary, content_length, charset=encoding)
+    for part in parser:
+        if part.filename:
+            form[part.name].append(part)
+        else:
+            form[part.name].append(normalize_newlines(part.value))
+    return form
+
+
+def get_boundary(options):
+    boundary = options.get("boundary", "")
+    if not boundary:
+        raise errors.BadRequest("No boundary for multipart/form-data.")
+    return boundary
+
+
+def read_content(stream, max_memory_size, encoding):
     content = stream.read(max_memory_size).decode(encoding)
-
     if stream.read(1):  # OMG there is still more.
         raise errors.RequestEntityTooLarge("Increase max_memory_size.")
+    return content
 
+
+def validate_actual_content_length(content, content_length):
     actual_content_length = len(content)
-
     if actual_content_length > content_length:
         raise errors.BadRequest("Body is bigger than the declared Content-Length.")
     elif actual_content_length < content_length:
         raise errors.BadRequest("Body is smaller than the declared Content-Length.")
 
+
+def parse_qs(content):
     form = MultiDict()
-    # application/x-www-form-urlencoded
-    # application/x-url-encoded
-    if content_type.startswith("application/x-"):
-        data = parse_qs(content, keep_blank_values=True)
-        for key, values in data.items():
-            form[key] = [(True if value == "" else value) for value in values]
-        return form
-
-    # application/json
-    if content_type.startswith("application/json"):
-        data = json.loads(content)
-        for key, value in data.items():
-            form[key] = [value]
-        return form
-
-    raise errors.UnsupportedMediaType("Unsupported Content-Type")
+    data = multipart.parse_qs(content, keep_blank_values=True)
+    for key, values in data.items():
+        form[key] = [(True if value == "" else value) for value in values]
+    return form
 
 
-def parse_multipart(stream, content_length, encoding, boundary, **kwargs):
+def parse_json(content):
     form = MultiDict()
-    kwargs["charset"] = encoding
-
-    for part in MultipartParser(stream, boundary, content_length, **kwargs):
-        if part.filename:
-            form[part.name].append(part)
-        else:
-            form[part.name].append(normalize_newlines(part.value))
-
+    data = json.loads(content)
+    for key, value in data.items():
+        form[key] = [value]
     return form
 
 

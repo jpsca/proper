@@ -6,11 +6,11 @@ from proper import status
 
 
 class FakeStartResponse(object):
-    status_code = headers_list = None
+    status_code = headers_items = None
 
-    def __call__(self, status_code, headers_list):
+    def __call__(self, status_code, headers_items):
         self.status_code = status_code
-        self.headers = dict(headers_list)
+        self.headers = dict(headers_items)
 
 
 def test_call(app):
