@@ -2,9 +2,6 @@
 Utilities to declare routes in your application.
 
 """
-from .. import status
-from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH
-
 from .base import BaseRoute
 
 
@@ -116,7 +113,7 @@ class Route(BaseRoute):
         name=None,
         host=None,
         redirect=None,
-        redirect_status_code=status.temporary_redirect,
+        redirect_status_code="307 Temporary Redirect",
         defaults=None,
         rules=None,
     ):
@@ -155,32 +152,32 @@ class Route(BaseRoute):
 
 class Get(Route):
     def __init__(self, path, **kwargs):
-        super().__init__(GET, path, **kwargs)
+        super().__init__("GET", path, **kwargs)
 
 
 class Post(Route):
     def __init__(self, path, **kwargs):
-        super().__init__(POST, path, **kwargs)
+        super().__init__("POST", path, **kwargs)
 
 
 class Put(Route):
     def __init__(self, path, **kwargs):
-        super().__init__(PUT, path, **kwargs)
+        super().__init__("PUT", path, **kwargs)
 
 
 class Delete(Route):
     def __init__(self, path, **kwargs):
-        super().__init__(DELETE, path, **kwargs)
+        super().__init__("DELETE", path, **kwargs)
 
 
 class Options(Route):
     def __init__(self, path, **kwargs):
-        super().__init__(OPTIONS, path, **kwargs)
+        super().__init__("OPTIONS", path, **kwargs)
 
 
 class Patch(Route):
     def __init__(self, path, **kwargs):
-        super().__init__(PATCH, path, **kwargs)
+        super().__init__("PATCH", path, **kwargs)
 
 
 route = Route

@@ -3,6 +3,7 @@ from proper_config import ConfigDict
 
 from .constants import MIN_SECRET_LENGTH
 from .default_config import DEFAULT_CONFIG
+from .errors import MatchNotFound, MethodNotAllowed
 from .router import Router
 from .support import Serializer
 
@@ -38,7 +39,7 @@ class AppSetup(object):
         self._set_root(root)
         self._set_controllers_mod(_controllers)
         self._config = ConfigDict(DEFAULT_CONFIG)
-        self.router = Router()
+        self.router = Router(MatchNotFound=MatchNotFound, MethodNotAllowed=MethodNotAllowed)
         self.setup(config=config, secrets=secrets)
 
     @property

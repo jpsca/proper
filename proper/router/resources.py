@@ -1,5 +1,3 @@
-from ..constants import DELETE, GET, PATCH, POST, PUT
-
 from .route import Route
 
 
@@ -7,14 +5,14 @@ __all__ = ("resources", )
 
 
 REST_ROUTES = (
-    (GET, "/", "index"),
-    (GET, "/:uid", "show"),
-    (GET, "/new", "new"),
-    (POST, "/", "create"),
-    (GET, "/:uid/edit", "edit"),
-    (PATCH, "/:uid", "update"),
-    (PUT, "/:uid", "update"),
-    (DELETE, "/:uid", "delete"),
+    ("GET", "/", "index"),
+    ("GET", "/:uid", "show"),
+    ("GET", "/new", "new"),
+    ("POST", "/", "create"),
+    ("GET", "/:uid/edit", "edit"),
+    ("PATCH", "/:uid", "update"),
+    ("PUT", "/:uid", "update"),
+    ("DELETE", "/:uid", "delete"),
 )
 
 REST_ACTIONS = ("index", "show", "new", "create", "edit", "update", "delete")

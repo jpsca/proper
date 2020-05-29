@@ -1,10 +1,8 @@
 import re
 from string import Template
 
-from .router_errors import BadParameter, BadRule, MissingParameter
 
-
-__all__ = ("BaseRoute", )
+__all__ = ("BaseRoute", "MissingParameter", "BadParameter", "BadRule")
 
 
 """Rules to be replaced with regular expressions.
@@ -16,6 +14,18 @@ DEFAULT_RULE = r"[^\/]+"
 
 RE_PARAMS = re.compile(r":\{?([_a-z][_a-z0-9]*)\}?")
 RE_PARAMS_ESC = re.compile(r"(:(?:\\\{)?([_a-z][_a-z0-9]*)(?:\\\})?)")
+
+
+class MissingParameter(Exception):
+    pass
+
+
+class BadParameter(Exception):
+    pass
+
+
+class BadRule(Exception):
+    pass
 
 
 class _RouteTemplate(Template):

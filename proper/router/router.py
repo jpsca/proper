@@ -1,11 +1,14 @@
 """Router object that holds all routes and match them to urls.
 """
 from .route import Route
-from .router_errors import MatchNotFound, MethodNotAllowed, NameNotFound
 from .scope import flatten
 
 
-__all__ = ("Router",)
+__all__ = ("Router", "NameNotFound")
+
+
+class NameNotFound(Exception):
+    pass
 
 
 class Router(object):
@@ -25,24 +28,36 @@ class Router(object):
             Used by `url_for` to use `https` instead of when building an absolute
             URL. The default is `False`.
 
+        MatchNotFound (Exception):
+            Raise thsi exception if a matching endpoint for an URL cannot be found.
+
+        MethodNotAllowed (Exception):
+            Raise this exception if a matching endpoint is found, but doesn't allow
+            the requested HTTP method.
+
     """
 
     __slots__ = (
         "_host",
         "_root_path",
         "use_ssl",
+        "MatchNotFound",
+        "MethodNotAllowed",
         "_debug",
         "_routes",
         "_by_name",
     )
 
     def __init__(
-        self, *, host="0.0.0.0:3030", root_path="", use_ssl=False, _debug=False
+        self, *, host="0.0.0.0:3030", root_path="", use_ssl=False,
+        MatchNotFound=Exception, MethodNotAllowed=Exception, _debug=False
     ):
 
         self.host = host
         self.root_path = root_path
         self.use_ssl = bool(use_ssl)
+        self.MatchNotFound = MatchNotFound
+        self.MethodNotAllowed = MethodNotAllowed
 
         self._debug = _debug
         self._routes = ()
@@ -106,10 +121,10 @@ class Router(object):
 
         if allowed:
             msg = f"`{path}` does not accept a `{method}`."
-            raise MethodNotAllowed(msg, allowed=allowed)
+            raise self.MethodNotAllowed(msg, allowed=allowed)
         else:
             msg = f"{method} `{path}` does not match."
-            raise MatchNotFound(msg)
+            raise self.MatchNotFound(msg)
 
     @property
     def routes(self):

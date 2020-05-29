@@ -1,19 +1,14 @@
 import pytest
 
 from proper.constants import GET, POST
-from proper.router import delete, forward, get, post, Router, scope
-from proper.router.router_errors import (
-    BadParameter,
-    MatchNotFound,
-    MethodNotAllowed,
-    MissingParameter,
-    NameNotFound,
-)
+from proper.errors import MatchNotFound, MethodNotAllowed
+from proper.router import (BadParameter, MissingParameter, NameNotFound,
+                           Router, delete, forward, get, post, scope)
 
 
 @pytest.fixture
 def router():
-    router = Router()
+    router = Router(MatchNotFound=MatchNotFound, MethodNotAllowed=MethodNotAllowed)
     router.routes = [
         get("", to="Pages.index", name="index"),
         get("login", to="Pages.login", name="login"),
