@@ -11,6 +11,6 @@ python:
 #     - python: 'nightly'
 
 before_install: pip install -U pip coveralls
-install: pip install .[testing]
+install: pip install .[test]
 script: pytest --cov proper --cov tests .
 after_success: coveralls

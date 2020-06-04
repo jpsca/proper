@@ -25,7 +25,7 @@ class LoadUser(object):
             return
 
         current_user = None
-        if app.debug:
+        if app.config.debug:
             current_user = self.get_remote_user(req.environ)
         req.current_user = current_user or self.get_user(resp.session)
 

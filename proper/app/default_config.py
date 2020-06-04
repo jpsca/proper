@@ -2,6 +2,7 @@ from datetime import timedelta
 
 
 DEFAULT_CONFIG = {
+    "debug": False,
     # Turn off to let debugging middleware handle exceptions.
     "catch_all_errors": True,
     # Limits the total content length (in bytes).

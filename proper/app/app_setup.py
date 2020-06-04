@@ -1,11 +1,13 @@
+from importlib import import_module
 from pathlib import Path
 from proper_config import ConfigDict
 
-from .constants import MIN_SECRET_LENGTH
+from proper.constants import MIN_SECRET_LENGTH
+from proper.errors import MatchNotFound, MethodNotAllowed
+from proper.support import Serializer
+from proper.router import Router
+
 from .default_config import DEFAULT_CONFIG
-from .errors import MatchNotFound, MethodNotAllowed
-from .router import Router
-from .support import Serializer
 
 
 class AppSetup(object):
@@ -13,34 +15,36 @@ class AppSetup(object):
 
     def __init__(
         self,
-        root=None,
+        import_name,
         *,
-        debug=False,
         config=None,
-        secrets=None,
-        _controllers="controllers",
+        controllers_name="controllers",
     ):
         """
-            root (str):
-                The root path of your application
+            import_name (str):
+                The name of the application package. Eg.: `foobar.web`.
 
             config (dict, path, list of paths and/or dicts, or None):
-                Config file(s)
+                Config file(s) or dict(s)
 
-            secrets (dict, path, list of paths and/or dicts, or None):
-                Encrypted secrets file(s)
-
-            _controllers (str):
-                Name of the module with the controllers, relative to the
-                root of your application.
+            controllers_name (str):
+                Optional.
+                The name of the controllers module, relative to `import_name`.
 
         """
-        self.debug = debug
-        self._set_root(root)
-        self._set_controllers_mod(_controllers)
-        self._config = ConfigDict(DEFAULT_CONFIG)
+        self.import_name = import_name
+        self.controllers_name = f"{import_name}.{controllers_name}"
+        self._cached_controllers_module = None
         self.router = Router(MatchNotFound=MatchNotFound, MethodNotAllowed=MethodNotAllowed)
-        self.setup(config=config, secrets=secrets)
+        self._set_root_path()
+        self.setup(*_be_a_list(config))
+
+    def _set_root_path(self):
+        module = import_module(self.import_name)
+        path = Path(module.__file__)
+        if path.is_file():
+            path = path.parent
+        self.root_path = path
 
     @property
     def config(self):
@@ -54,44 +58,46 @@ class AppSetup(object):
     def routes(self, values):
         self.router.routes = values
 
-    def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
-        """Proxy for `self.router.url_for()`."""
-        return self.router.url_for(name, _external=_external, _anchor=_anchor, **kwargs)
+    @property
+    def controllers_module(self):
+        if self._cached_controllers_module:
+            return self.__cached_controllers_module
+        module = import_module(self.controllers_name)
+        self.__cached_controllers_module = module
+        return module
 
-    def _set_root(self, root):
-        root = Path(root)
-        if root.is_file():
-            root = root.parent
-        self.root = root
-
-    def _set_controllers_mod(self, controllers):
-        self.controllers_mod = self.root.name + "." + controllers
-
-    def setup(self, config=None, *, secrets=None):
-        self.load_config(_be_a_list(config), _be_a_list(secrets))
-        self.config_router()
-        if "secret_key" in self.config:
-            self.init_serializer()
-
-    def load_config(self, config=None, secrets=None):
+    def load_config(self, *config):
         for file_or_dict in config:
             if isinstance(file_or_dict, dict):
                 self._config.update(file_or_dict)
             else:
                 self._config.load_file(file_or_dict)
 
-        for file_or_dict in secrets:
-            self._config.load_secrets(file_or_dict)
+    def setup(self, *config):
+        self._config = ConfigDict(DEFAULT_CONFIG)
+        self.load_config(*config)
+        self.config_router()
+        if "secret_key" in self.config:
+            self.init_serializer()
 
     def config_router(self):
         self.router.host = self._config.get("default_host", "localhost")
         self.router.root_path = self._config.get("root_path", "")
         self.router.use_ssl = self._config.get("use_ssl", False)
-        self.router._debug = self.debug
+        self.router._debug = self.config.debug
+
+    def get_serializer(self):
+        if not self.serializer:
+            self.init_serializer()
+        return self.serializer
 
     def init_serializer(self):
         secret_key = self.get_secret_key()
         self.serializer = Serializer(secret_key)
+
+    def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
+        """Proxy for `self.router.url_for()`."""
+        return self.router.url_for(name, _external=_external, _anchor=_anchor, **kwargs)
 
     def get_secret_key(self):
         secret_key = self._config.get("secret_key")
@@ -119,11 +125,6 @@ class AppSetup(object):
             )
 
         return secret_key
-
-    def get_serializer(self):
-        if not self.serializer:
-            self.init_serializer()
-        return self.serializer
 
 
 class MissingSecretKey(Exception):

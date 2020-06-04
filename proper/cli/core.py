@@ -41,9 +41,4 @@ def import_cli():
         return None
 
 
-def get_app_root():
-    app = import_app()
-    return app.root
-
-
 running_in_app = import_app() is not None

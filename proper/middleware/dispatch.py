@@ -13,8 +13,8 @@ def dispatch(req, resp, app):
     # (unless is already set), so the action can overwrite it if they want.
     resp.template = resp.template or get_default_template(resp, route.to)
 
-    Controller, action = objectify(app.controllers_mod, route.to)
-    # We instantiate the controllers class so we can have an independent
+    Controller, action = objectify(app.controllers_module, route.to)
+    # We instantiate the controller class so we can have an independent
     # container for this request.
     controller = Controller()
     controller._dispatch(action, req, resp, app)

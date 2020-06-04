@@ -7,8 +7,8 @@ from proper import Response
 from proper.middleware import fetch_session
 
 
-def test_error_if_no_secret_key(root_path):
-    app = App(root_path)
+def test_error_if_no_secret_key(import_name):
+    app = App(import_name)
     req = Request()
     resp = Response()
 

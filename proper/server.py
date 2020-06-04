@@ -89,7 +89,7 @@ class ProperWSGIHandler(pywsgi.WSGIHandler):
 
 
 def set_logger(app):
-    level = logging.INFO if app.debug else logging.ERROR
+    level = logging.INFO if app.config.debug else logging.ERROR
     logger.setLevel(level)
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(level)

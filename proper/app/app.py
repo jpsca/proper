@@ -1,8 +1,9 @@
-from . import middleware
+from proper import middleware
+from proper.request import Request
+from proper.response import Response
+
 from .app_errors import AppErrors
 from .app_setup import AppSetup, MissingSecretKey, BadSecretKey
-from .request import Request
-from .response import Response
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")

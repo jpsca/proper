@@ -1,13 +1,14 @@
 import inspect
 
-from . import status
+from proper import status
+from proper.errors import MatchNotFound
+from proper.support import objectify
+
 from .error_handlers import debug_error_handler
 from .error_handlers import debug_not_found_handler
 from .error_handlers import fallback_error_handler
 from .error_handlers import fallback_forbidden_handler
 from .error_handlers import fallback_not_found_handler
-from .errors import MatchNotFound
-from .support import objectify
 
 
 class AppErrors(object):
@@ -33,7 +34,7 @@ class AppErrors(object):
         """
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
-        if self.debug:
+        if self.config.debug:
             return self._handle_errors(req, resp)
 
         error = resp.error
@@ -48,20 +49,20 @@ class AppErrors(object):
         self._handle_errors(req, resp)
 
     def _call_custom_handler(self, handler, req, resp):
-        Controller, action = objectify(self.controllers_mod, handler)
+        Controller, action = objectify(self.controllers_module, handler)
         controller = Controller()
         method = getattr(controller, action)
         return method(req, resp, self)
 
     def _handle_errors(self, req, resp):
-        if not self.debug and not self.config.catch_all_errors:
+        if not self.config.debug and not self.config.catch_all_errors:
             raise
 
         error = resp.error
         resp.stop = True
         resp.status_code = getattr(error, "status_code", status.server_error)
 
-        if self.debug:
+        if self.config.debug:
             self._handle_errors_debug(req, resp)
         else:
             self._handle_errors_production(req, resp)

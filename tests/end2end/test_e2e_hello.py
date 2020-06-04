@@ -49,13 +49,13 @@ def test_hello_callable(app, web):
     assert resp.text == "Hello Callable!"
 
 
-def test_default_config(root_path):
-    app = App(root_path)
+def test_default_config(import_name):
+    app = App(import_name)
     assert app.config.catch_all_errors
 
 
-def test_multiple_configs(root_path):
-    app = App(root_path, config=[{"a": 1}, {"b": 2}])
+def test_multiple_configs(import_name):
+    app = App(import_name, config=[{"a": 1}, {"b": 2}])
     assert app.config.a == 1
     assert app.config.b == 2
 
@@ -65,40 +65,31 @@ def test_serializer(app):
     assert app.serializer
 
 
-def test_no_secret_key_no_serializer(root_path):
-    app = App(root_path)
+def test_no_secret_key_no_serializer(import_name):
+    app = App(import_name)
     assert "secret_key" not in app.config
     assert getattr(app, "serializer", None) is None
 
 
-def test_add_secret_key_to_add_serializer(root_path):
-    app = App(root_path)
+def test_add_secret_key_to_add_serializer(import_name):
+    app = App(import_name)
 
     assert getattr(app, "serializer", None) is None
     app.setup({"secret_key": "a" * 60})
     assert getattr(app, "serializer", None)
 
 
-def test_secret_key_too_short(root_path):
+def test_secret_key_too_short(import_name):
     with pytest.raises(BadSecretKey):
-        App(root_path, config={"secret_key": "qwertyuiop"})
+        App(import_name, config={"secret_key": "qwertyuiop"})
 
 
-def test_load_config_file(assets_path, root_path):
+def test_load_config_file(assets_path, import_name):
     config_path = assets_path / "config.yaml"
-    app = App(root_path, config=config_path)
+    app = App(import_name, config=config_path)
 
     assert app.config.hello == "world"
     assert app.config.secret_key.startswith("Not secure.")
-
-
-def test_load_secrets_file(assets_path, root_path):
-    config_path = assets_path / "config.yaml"
-    secrets_path = assets_path / "secrets.yaml.enc"
-    app = App(root_path, config=config_path, secrets=secrets_path)
-
-    assert app.config.hello == "world"
-    assert app.config.secret_key is not None
 
 
 def test_head(app, web):
