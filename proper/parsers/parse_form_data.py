@@ -8,12 +8,35 @@ from ..support import MultiDict
 __all__ = ("parse_form_data",)
 
 
-def parse_form_data(stream, content_type, content_length, encoding="utf8", config=None):
+def parse_form_data(
+    stream,
+    content_type,
+    content_length,
+    encoding="utf8",
+    config=None,
+):
     config = config or {}
+    try:
+        return _parse_form_data(
+            stream,
+            content_type,
+            content_length,
+            encoding,
+            config,
+        )
+    except ValueError:
+        raise errors.BadRequest()
 
-    validate_max_content_length(content_length, config)
-    max_memory_size = validate_max_memory_size(content_length, config)
 
+def _parse_form_data(
+    stream,
+    content_type,
+    content_length,
+    encoding,
+    config,
+):
+    max_content_length = config.get("max_content_length")
+    validate_max_content_length(content_length, max_content_length)
     content_type, options = multipart.parse_options_header(content_type)
     encoding = options.get("charset", encoding)
 
@@ -21,10 +44,10 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
     if content_type.startswith("multipart/"):
         return parse_multipart(stream, content_length, encoding, options)
 
-    content = read_content(stream, max_memory_size, encoding)
+    content = read_content(stream, max_content_length, encoding)
     validate_actual_content_length(content, content_length)
 
-    # application/x-www-form-urlencoded
+    # application/x-www-form-memory
     # application/x-url-encoded
     if content_type.startswith("application/x-"):
         return parse_qs(content)
@@ -36,24 +59,17 @@ def parse_form_data(stream, content_type, content_length, encoding="utf8", confi
     raise errors.UnsupportedMediaType("Unsupported Content-Type")
 
 
-def validate_max_content_length(content_length, config):
-    max_content_length = config.get("max_content_length")
+def validate_max_content_length(content_length, max_content_length):
     if max_content_length and content_length > max_content_length:
         raise errors.RequestEntityTooLarge("Maximum content length exceeded.")
-    return max_content_length
-
-
-def validate_max_memory_size(content_length, config):
-    max_memory_size = config.get("max_memory_size")
-    if max_memory_size and content_length > max_memory_size:
-        raise errors.RequestEntityTooLarge("Increase max_memory_size.")
-    return max_memory_size
 
 
 def parse_multipart(stream, content_length, encoding, options):
     boundary = get_boundary(options)
     form = MultiDict()
-    parser = multipart.MultipartParser(stream, boundary, content_length, charset=encoding)
+    parser = multipart.MultipartParser(
+        stream, boundary, content_length, charset=encoding
+    )
     for part in parser:
         if part.filename:
             form[part.name].append(part)
@@ -69,10 +85,10 @@ def get_boundary(options):
     return boundary
 
 
-def read_content(stream, max_memory_size, encoding):
-    content = stream.read(max_memory_size).decode(encoding)
+def read_content(stream, max_content_length, encoding):
+    content = stream.read(max_content_length).decode(encoding)
     if stream.read(1):  # OMG there is still more.
-        raise errors.RequestEntityTooLarge("Increase max_memory_size.")
+        raise errors.RequestEntityTooLarge("Increase max_content_length.")
     return content
 
 

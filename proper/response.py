@@ -223,3 +223,6 @@ class Response(object):
         if not body:
             return []
         return [body]
+
+    def __repr__(self):
+        return f"<Response “{self._status_code}”>"

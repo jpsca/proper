@@ -241,10 +241,7 @@ class Request(object):
     @cached_property
     def query(self):
         query_string = self.environ.get("QUERY_STRING")
-        try:
-            return parse_query_string(query_string, self.config)
-        except ValueError:
-            raise errors.BadRequest()
+        return parse_query_string(query_string, self.config)
 
     @cached_property
     def form(self):
@@ -252,23 +249,17 @@ class Request(object):
         if self.method in (GET, HEAD):
             return MultiDict()
 
-        try:
-            return parse_form_data(
-                self.stream,
-                self.content_type,
-                self.content_length,
-                self.encoding,
-                self.config,
-            )
-        except ValueError:
-            raise errors.BadRequest()
+        return parse_form_data(
+            self.stream,
+            self.content_type,
+            self.content_length,
+            self.encoding,
+            self.config,
+        )
 
     @cached_property
     def cookies(self):
-        try:
-            return parse_cookies(self.environ.get("HTTP_COOKIE"))
-        except ValueError:
-            return {}
+        return parse_cookies(self.environ.get("HTTP_COOKIE"))
 
     @cached_property
     def stream(self):

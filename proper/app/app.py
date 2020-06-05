@@ -73,7 +73,7 @@ class App(AppSetup, AppErrors):
             resp.error = error
             for func in self._on_error:
                 func(req, resp, self)
-            self._handle_app_errors(req, resp)
+            self._handle_app_error(req, resp)
 
         finally:
             for func in self._on_teardown:

@@ -24,13 +24,20 @@ def parse_query_string(query_string, config=None):
         only one is found for that key.
 
     """
+    try:
+        return _parse_query_string(query_string, config)
+    except ValueError:
+        raise errors.BadRequest()
+
+
+def _parse_query_string(query_string, config):
     query = MultiDict()
     if not query_string:
         return query
 
     config = config or {}
-    max_memory_size = config.get("max_memory_size")
-    if max_memory_size and len(query_string) > max_memory_size:
+    max_query_size = config.get("max_query_size")
+    if max_query_size and len(query_string) > max_query_size:
         raise errors.UriTooLong("The query string is too long")
 
     data = multipart.parse_qs(query_string, keep_blank_values=True)

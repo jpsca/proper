@@ -13,7 +13,7 @@ from proper.support import titleize
 
 TEMPLATES = (Path(__file__).parent / "templates").absolute()
 
-logger = logging.getLogger("Proper")
+logger = logging.getLogger("proper")
 
 
 def debug_not_found_handler(req, resp, app):
