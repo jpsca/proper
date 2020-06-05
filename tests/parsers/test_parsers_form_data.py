@@ -3,6 +3,7 @@ from io import BytesIO
 import pytest
 import json
 
+from proper import errors
 from proper.parsers import parse_form_data
 
 
@@ -37,7 +38,7 @@ def test_parse_bad_json_body():
     content_type = "application/json"
     content_length = len(body)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(errors.BadRequest):
         parse_form_data(stream, content_type, content_length)
 
 

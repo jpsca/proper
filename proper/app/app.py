@@ -54,7 +54,7 @@ class App(AppSetup, AppErrors):
             # error handlers or the functions in the `_on_teardown` or
             # `_on_error` functions might raise.
             resp.error = error
-            self._handle_errors(req, resp)
+            self._default_error_handler(req, resp)
 
         return resp(start_response)
 

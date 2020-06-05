@@ -32,37 +32,43 @@ class AppErrors(object):
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
         """
-        error = resp.error
-        resp.stop = True
-        resp.status_code = getattr(error, "status_code", status.server_error)
+        self._set_status_code(resp)
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
         if self.config.debug:
-            return self._default_handler(req, resp)
+            return self._default_error_handler(req, resp)
 
         if self.error_handlers:
+            error = resp.error
             for cls, handler in self.error_handlers.items():
                 if isinstance(error, cls):
-                    return self._custom_handler(handler, req, resp)
+                    return self._custom_error_handler(handler, req, resp)
 
-        self._default_handler(req, resp)
+        self._default_error_handler(req, resp)
 
-    def _default_handler(self, req, resp):
+    def _set_status_code(self, resp):
+        error = resp.error
+        resp.stop = True
+        resp.status_code = getattr(error, "status_code", status.server_error)
+
+    def _default_error_handler(self, req, resp):
+        self._set_status_code(resp)
+
         if not self.config.debug and not self.config.catch_all_errors:
             raise
         if self.config.debug:
-            self._default_handler_debug(req, resp)
+            self._default_error_handler_debug(req, resp)
         else:
-            self._default_handler_production(req, resp)
+            self._default_error_handler_production(req, resp)
 
-    def _default_handler_debug(self, req, resp):
+    def _default_error_handler_debug(self, req, resp):
         if isinstance(resp.error, MatchNotFound):
             debug_not_found_handler(req, resp, self)
         else:
             debug_error_handler(req, resp, self)
 
-    def _default_handler_production(self, req, resp):
+    def _default_error_handler_production(self, req, resp):
         if resp.status_code in (status.not_found, status.gone):
             fallback_not_found_handler(req, resp, self)
         elif resp.status_code == status.forbidden:
@@ -70,7 +76,7 @@ class AppErrors(object):
         else:
             fallback_error_handler(req, resp, self)
 
-    def _custom_handler(self, handler, req, resp):
+    def _custom_error_handler(self, handler, req, resp):
         Controller, action = objectify(self.controllers_module, handler)
         controller = Controller()
         method = getattr(controller, action)
