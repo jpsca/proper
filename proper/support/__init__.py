@@ -4,8 +4,9 @@ from .dot import *  # noqa
 from .encoding import *  # noqa
 from .frozendict import *  # noqa
 from .headersdict import *  # noqa
-from .inflector import *  # noqa
 from .multidict import *  # noqa
+from .lists import *  # noqa
+from .inflector import *  # noqa
 from .objectify import *  # noqa
 from .secrets import *  # noqa
 from .serializer import *  # noqa

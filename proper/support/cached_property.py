@@ -1,7 +1,7 @@
 __all__ = ("cached_property", )
 
 
-class cached_property(object):
+class cached_property:
     """Decorator to create properties that are computed only once per instance
     and then saved as normal attributes.
     Works for classes with a `__dict__` (no slots).

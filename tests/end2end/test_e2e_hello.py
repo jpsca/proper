@@ -1,13 +1,6 @@
 import pytest
 
-from proper import (
-    App,
-    BaseController,
-    scope,
-    get,
-    status,
-    BadSecretKey,
-)
+from proper import App, BaseController, get, status, BadSecretKey
 
 
 class MyController(BaseController):
@@ -27,7 +20,7 @@ class MyController(BaseController):
 
 
 def test_hello_world(app, web):
-    app.routes = [scope("/")(get("/", to="Pages.index"))]
+    app.routes = [get("/", to="Pages.index")]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -36,13 +29,13 @@ def test_hello_world(app, web):
 
 
 def test_proxied_routes(app):
-    app.routes = [scope("/")(get("/", to="Pages.index"))]
+    app.routes = [get("/", to="Pages.index")]
 
     assert app.router.routes == app.routes
 
 
 def test_hello_callable(app, web):
-    app.routes = [scope("/")(get("/", to=MyController.index))]
+    app.routes = [get("/", to=MyController.index)]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -93,7 +86,7 @@ def test_load_config_file(assets_path, import_name):
 
 
 def test_head(app, web):
-    app.routes = [scope("/")(get("/", to="Pages.index"))]
+    app.routes = [get("/", to="Pages.index")]
     resp = web.head("/")
 
     assert resp.status == status.ok
@@ -101,7 +94,7 @@ def test_head(app, web):
 
 
 def test_redirect_to(app, web):
-    app.routes = [scope("/")(get("/", to="Pages.redirect"))]
+    app.routes = [get("/", to="Pages.redirect")]
     resp = web.get("/")
 
     assert resp.status == status.see_other
@@ -109,7 +102,7 @@ def test_redirect_to(app, web):
 
 
 def test_json(app, web):
-    app.routes = [scope("/")(get("/", to="Pages.json"))]
+    app.routes = [get("/", to="Pages.json")]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -118,7 +111,7 @@ def test_json(app, web):
 
 
 def test_charset(app, web):
-    app.routes = [scope("/")(get("/", to="Pages.charset"))]
+    app.routes = [get("/", to="Pages.charset")]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -127,7 +120,7 @@ def test_charset(app, web):
 
 
 def test_req_query(app, web):
-    app.routes = [scope("/")(get("/", to=MyController.echo_query))]
+    app.routes = [get("/", to=MyController.echo_query)]
     resp = web.get("/?foo=bar&ok&color=red&color=green&color=blue")
 
     assert resp.status == status.ok

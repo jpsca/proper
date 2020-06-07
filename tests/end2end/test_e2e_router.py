@@ -23,12 +23,10 @@ TEST_ROUTES = [
         delete("/items/:item_id", to="", rules={"item_id": "int"}),
     ),
     scope("/foobar/")(get("", to=""), get("foo", to=""), get("bar", to=""),),
-    scope("/")(
-        get("", to="Pages.index", name="index"),
-        get("login", to="Pages.login", name="login"),
-        get("admin", to=""),
-        get("foobar/:catchall", to="", rules={"catchall": "path"}),
-    ),
+    get("", to="Pages.index", name="index"),
+    get("login", to="Pages.login", name="login"),
+    get("admin", to=""),
+    get("foobar/:catchall", to="", rules={"catchall": "path"}),
     scope("/", host="blog.example.com")(
         get("admin", to=""), get("foobar/foo", to="FooBar.foo"),
     ),
@@ -51,7 +49,7 @@ def test_match_domain(app, web):
 
 
 def test_redirect(app, web):
-    app.routes = [scope("/")(get("/", redirect="http://example.com"))]
+    app.routes = [get("/", redirect="http://example.com")]
     resp = web.get("/")
 
     assert resp.status == status.temporary_redirect

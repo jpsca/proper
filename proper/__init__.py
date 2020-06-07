@@ -1,6 +1,5 @@
 from .app import *  # noqa
-from .base_channel import BaseChannel  # noqa
-from .base_controller import BaseController  # noqa
+from .controller import *  # noqa
 from .parsers import *  # noqa
 from .router import *  # noqa
 from .request import Request, make_test_environ  # noqa

@@ -1,8 +1,4 @@
-from proper import forward
-from proper import get
-from proper import make_test_environ
-from proper import scope
-from proper import status
+from proper import forward, get, make_test_environ, status
 
 
 class FakeStartResponse(object):
@@ -14,7 +10,7 @@ class FakeStartResponse(object):
 
 
 def test_call(app):
-    app.routes = [scope("/")(get("/", to="Pages.index"))]
+    app.routes = [get("/", to="Pages.index")]
     start_response = FakeStartResponse()
     env = make_test_environ()
     body = app(env, start_response)
@@ -25,7 +21,7 @@ def test_call(app):
 
 
 def test_pipefinal_error(app):
-    app.routes = [scope("/")(get("/", to="Pages.index"))]
+    app.routes = [get("/", to="Pages.index")]
 
     @app.on_teardown
     def on_fail(_req, _resp, _app):

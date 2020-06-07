@@ -1,4 +1,4 @@
-from proper.base_controller import BaseController
+from proper import BaseController
 
 
 class MyTestController(BaseController):

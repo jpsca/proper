@@ -3,20 +3,43 @@ inherit from. Stores data available to view/template.
 """
 
 
+__all__ = ("BaseController", )
+
+
 class BaseController(object):
 
     _before_action = tuple()
     _after_action = tuple()
 
     def _dispatch(self, action, req, resp, app):
-        apply_filters(self._before_action, req, resp, app)
+        self._apply_filters(self._before_action, action, req, resp, app)
         if resp.stop:
             return
 
         if not resp.dispatched:
             self._call(action, req, resp)
 
-        apply_filters(self._after_action, req, resp, app)
+        self._apply_filters(self._after_action, action, req, resp, app)
+
+    def _apply_filters(self, filters, action, req, resp, app):
+        for _filter in filters:
+            if resp.stop:
+                break
+            if not self._should_apply_filter(_filter, action):
+                continue
+            func = _filter["filter"]
+            if isinstance(func, str):
+                func = getattr(self, func)
+            func(req, resp, app)
+
+    def _should_apply_filter(self, _filter, action):
+        skip = _filter.get("skip")
+        if skip and action in skip:
+            return False
+        only = _filter.get("only")
+        if only and action not in only:
+            return False
+        return True
 
     def _call(self, action, req, resp):
         # We call the endpoint but we do not expect a result value.
@@ -51,10 +74,3 @@ class BaseController(object):
             for name in dir(self)
             if not name.startswith("_")
         }
-
-
-def apply_filters(filters, req, resp, app):
-    for func in filters:
-        if resp.stop:
-            break
-        func(req, resp, app)

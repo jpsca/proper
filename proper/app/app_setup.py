@@ -4,7 +4,7 @@ from proper_config import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.errors import MatchNotFound, MethodNotAllowed
-from proper.support import Serializer
+from proper.support import Serializer, be_a_list
 from proper.router import Router
 
 from .default_config import DEFAULT_CONFIG
@@ -37,7 +37,7 @@ class AppSetup(object):
         self._cached_controllers_module = None
         self.router = Router(MatchNotFound=MatchNotFound, MethodNotAllowed=MethodNotAllowed)
         self._set_root_path()
-        self.setup(*_be_a_list(config))
+        self.setup(*be_a_list(config))
 
     def _set_root_path(self):
         module = import_module(self.import_name)
@@ -133,11 +133,3 @@ class MissingSecretKey(Exception):
 
 class BadSecretKey(Exception):
     pass
-
-
-def _be_a_list(something):
-    if something is None:
-        return []
-    if isinstance(something, (list, tuple)):
-        return something
-    return [something]

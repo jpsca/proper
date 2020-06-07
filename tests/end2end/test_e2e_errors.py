@@ -1,9 +1,6 @@
 import pytest
 
-from proper import errors
-from proper import get
-from proper import scope
-from proper import status
+from proper import errors, get, status
 
 
 def test_fallback_not_found(app, web):
@@ -48,12 +45,10 @@ def test_debug_not_found(app, web):
 def test_debug_error(app, web):
     app.config["debug"] = True
     app.router.routes = [
-        scope("/")(
-            get("/", to="Pages.index"),
-            get("fail/not_acceptable", to="Pages.fail_not_acceptable"),
-            get("fail/not_implemented", to="Pages.fail_not_implemented"),
-            get("fail/forbidden", to="Pages.fail_forbidden"),
-        )
+        get("/", to="Pages.index"),
+        get("fail/not_acceptable", to="Pages.fail_not_acceptable"),
+        get("fail/not_implemented", to="Pages.fail_not_implemented"),
+        get("fail/forbidden", to="Pages.fail_forbidden"),
     ]
 
     resp = web.get("/fail/not_acceptable", expect_errors=True)
@@ -84,12 +79,10 @@ def test_custom_register_not_even_a_class(app, web):
 
 def test_custom_error_handlers(app, web):
     app.router.routes = [
-        scope("/")(
-            get("fail/not_acceptable", to="Pages.fail_not_acceptable"),
-            get("fail/not_implemented", to="Pages.fail_not_implemented"),
-            get("fail/forbidden", to="Pages.fail_forbidden"),
-            get("fail/value_error", to="Pages.fail_value_error"),
-        )
+        get("fail/not_acceptable", to="Pages.fail_not_acceptable"),
+        get("fail/not_implemented", to="Pages.fail_not_implemented"),
+        get("fail/forbidden", to="Pages.fail_forbidden"),
+        get("fail/value_error", to="Pages.fail_value_error"),
     ]
 
     app.errorhandler(errors.NotFound, "Pages.custom_not_found_handler")
@@ -120,7 +113,7 @@ def test_custom_error_handlers(app, web):
 
 def test_fallback_from_custom_error_handlers(app, web):
     app.router.routes = [
-        scope("/")(get("fail/value_error", to="Pages.fail_value_error"))
+        get("fail/value_error", to="Pages.fail_value_error")
     ]
 
     app.errorhandler(errors.HTTPError, "Pages.custom_error_handler")
@@ -133,7 +126,7 @@ def test_fallback_from_custom_error_handlers(app, web):
 def test_do_not_catch_error(app, web):
     app.setup({"catch_all_errors": False})
     app.router.routes = [
-        scope("/")(get("fail/value_error", to="Pages.fail_value_error"))
+        get("fail/value_error", to="Pages.fail_value_error")
     ]
 
     with pytest.raises(ValueError):
