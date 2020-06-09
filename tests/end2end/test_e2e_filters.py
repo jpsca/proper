@@ -1,4 +1,4 @@
-from proper import get, BaseController, before_action, after_action
+from proper import get, BaseController, before_action, after_action, around_action
 
 
 class AppController(BaseController):
@@ -18,14 +18,29 @@ def f2(_req, resp, _app):
 @before_action(f2)
 @after_action(f1)
 @after_action(f2)
-class HasFilters(AppController):
+class HasBeforeActerFilters(AppController):
     def append(self, req, resp):
         resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
         resp.body = ""
 
 
-def test_filters_applied(app, web):
-    app.routes = [get("/", to=HasFilters.append)]
+def test_before_after_filters_applied(app, web):
+    app.routes = [get("/", to=HasBeforeActerFilters.append)]
+    resp = web.get("/")
+    expected = "-f1--f2--index--f1--f2-"
+    assert resp.headers["X-Test"] == expected
+
+
+@around_action(f1)
+@around_action(f2)
+class HasAroundFilters(AppController):
+    def append(self, req, resp):
+        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
+        resp.body = ""
+
+
+def test_around_filters_applied(app, web):
+    app.routes = [get("/", to=HasAroundFilters.append)]
     resp = web.get("/")
     expected = "-f1--f2--index--f1--f2-"
     assert resp.headers["X-Test"] == expected
@@ -38,6 +53,7 @@ class HasMethodFilter(AppController):
 
     def index(self, req, resp):
         resp.body = f"{self.greeting} world"
+
 
 def test_method_filter(app, web):
     app.routes = [get("/", to=HasMethodFilter.index)]

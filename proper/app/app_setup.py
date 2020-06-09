@@ -35,7 +35,10 @@ class AppSetup(object):
         self.import_name = import_name
         self.controllers_name = f"{import_name}.{controllers_name}"
         self._cached_controllers_module = None
-        self.router = Router(MatchNotFound=MatchNotFound, MethodNotAllowed=MethodNotAllowed)
+        self.router = Router(
+            MatchNotFound=MatchNotFound,
+            MethodNotAllowed=MethodNotAllowed
+        )
         self._set_root_path()
         self.setup(*be_a_list(config))
 
