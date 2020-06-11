@@ -152,7 +152,7 @@ class Auth(object):
         except ValueError:
             return False
 
-    def get_token(self, secret_key, user):
+    def get_session_token(self, secret_key, user):
         key = "|".join(
             [
                 # Includes the secret key, so without access to the source code,
@@ -196,10 +196,6 @@ class Auth(object):
         mac = mac.hexdigest()
         return f"{user.id}${to36(timestamp)}${mac}"
 
-    def split_timestamped_token(self, token):
-        uid, t36, mac = token.split("$", 2)
-        return uid, from36(t36)
-
     def update_password_hash(self, secret, user):
         new_hash = self.hash_password(secret)
         if new_hash.split("$")[:3] == user.password.split("$")[:3]:
@@ -229,10 +225,36 @@ class Auth(object):
             self.update_password_hash(password, user)
         return user
 
-    def authenticate_token(self, model, token, token_life):
+    def authenticate_token(self, model, token, token_life=None):
         if token is None:
             return None
 
+        if token_life:
+            return self.authenticate_timestamped_token(model, token, token_life)
+        return self.authenticate_session_token(model, token)
+
+    def authenticate_session_token(self, model, token):
+        if token is None:
+            return None
+        user_id, _ = self.split_session_token(token)
+        if not user_id:
+            logger.info("Invalid token format")
+            return None
+
+        user = model.by_id(user_id)
+        if not user:
+            logger.info(f"Invalid token. User `{user_id[:20]} not found")
+            return None
+
+        if user.get_session_token() != token:
+            logger.info("Invalid token")
+            return None
+
+        return user
+
+    def authenticate_timestamped_token(self, model, token, token_life):
+        if token is None:
+            return None
         user_id, timestamp = self.split_timestamped_token(token)
         if not user_id:
             logger.info("Invalid token format")
@@ -243,8 +265,7 @@ class Auth(object):
             logger.info(f"Invalid token. User `{user_id[:20]} not found")
             return None
 
-        invalid = user.get_timestamped_token(timestamp) != token
-        if invalid:
+        if user.get_timestamped_token(timestamp) != token:
             logger.info("Invalid token")
             return None
 
@@ -254,3 +275,17 @@ class Auth(object):
             return None
 
         return user
+
+    def split_session_token(self, token):
+        try:
+            uid, mac = token.split("$", 1)
+            return uid, mac
+        except ValueError:
+            return None, None
+
+    def split_timestamped_token(self, token):
+        try:
+            uid, t36, mac = token.split("$", 2)
+            return uid, from36(t36)
+        except ValueError:
+            return None, None

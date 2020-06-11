@@ -126,7 +126,7 @@ class Response(object):
         """Read-only session"""
         return self.__session
 
-    def redirect_to(self, to, status_code=status.see_other):
+    def redirect_to(self, to, status_code=status.see_other, flash=None, **kwargs):
         self.status_code = status_code
         self.headers["location"] = to
         self.body = "\n".join(
@@ -140,6 +140,19 @@ class Response(object):
                 f'<a href="{to}">link to the page</a>.',
             ]
         )
+        if flash:
+            self.flash
+
+    def flash(self, message, **data):
+        """Flashes a message for the next request.
+        To fetch the flashed message and to display it to the user,
+        you must read `req.flashes` in the template.
+
+        Requires an already fetched session.
+        """
+        flashes = self.session.get(FLASHES_SESSION_KEY, [])
+        flashes.append((message, data))
+        self.session[FLASHES_SESSION_KEY] = flashes
 
     def set_cookie(self, key, value="", **kwargs):
         """Set (add) a cookie for the response. Returns the cookie set.
@@ -203,17 +216,6 @@ class Response(object):
         expire immediately.
         """
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
-
-    def flash(self, message, **data):
-        """Flashes a message for the next request.
-        To fetch the flashed message and to display it to the user,
-        you must read `req.flashes` in the template.
-
-        Requires an already fetched session.
-        """
-        flashes = self.session.get(FLASHES_SESSION_KEY, [])
-        flashes.append((message, data))
-        self.session[FLASHES_SESSION_KEY] = flashes
 
     def __call__(self, start_response):
         body = (self.raw_body or "").encode(self.charset)

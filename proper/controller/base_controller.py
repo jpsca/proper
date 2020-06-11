@@ -12,16 +12,34 @@ class BaseController(object):
     _after_action = tuple()
 
     def _dispatch(self, action, req, resp, app):
-        self._apply_filters(self._before_action, action, req, resp, app)
+        filters = self._get_before_action_filters()
+        self._apply_filters(filters, action, req, resp)
         if resp.stop:
             return
 
         if not resp.dispatched:
             self._call(action, req, resp)
 
-        self._apply_filters(self._after_action, action, req, resp, app)
+        filters = self._get_after_action_filters()
+        self._apply_filters(filters, action, req, resp)
 
-    def _apply_filters(self, filters, action, req, resp, app):
+    def _get_before_action_filters(self):
+        filters = ()
+        for cls in reversed(type.mro(self.__class__)):
+            cls_filters = cls.__dict__.get("_before_action")
+            if cls_filters:
+                filters += cls_filters
+        return filters
+
+    def _get_after_action_filters(self):
+        filters = ()
+        for cls in type.mro(self.__class__):
+            cls_filters = cls.__dict__.get("_after_action")
+            if cls_filters:
+                filters += cls_filters
+        return filters
+
+    def _apply_filters(self, filters, action, req, resp):
         for _filter in filters:
             if resp.stop:
                 break
@@ -30,7 +48,7 @@ class BaseController(object):
             func = _filter["filter"]
             if isinstance(func, str):
                 func = getattr(self, func)
-            func(req, resp, app)
+            func(req, resp)
 
     def _should_apply_filter(self, _filter, action):
         skip = _filter.get("skip")

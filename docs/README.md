@@ -1,8 +1,7 @@
 # Proper Documentation
 
 
-Instead of Sphinx, this documentation is written in Markdown and managed using
-[mkdocs.org](https://www.mkdocs.org).
+This documentation is written in Markdown and managed using [mkdocs.org](https://www.mkdocs.org).
 
 
 ## Commands
@@ -22,4 +21,3 @@ Instead of Sphinx, this documentation is written in Markdown and managed using
 ## License
 
 The text of the documentation is licensed under a ("Creative Commons Attribution-ShareAlike 4.0 International")[https://creativecommons.org/licenses/by-sa/4.0/] License.
->>>>>>> mastermold/master

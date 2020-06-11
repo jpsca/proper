@@ -7,7 +7,7 @@ __all__ = ("before_action", "after_action", "around_action")
 def before_action(func_or_method_name, only=None, skip=None):
     def decorator(cls):
         _filter = _build_filter(func_or_method_name, only, skip)
-        cls._before_action = (_filter, ) + cls._before_action
+        _add_before_action(cls, _filter)
         return cls
     return decorator
 
@@ -15,7 +15,7 @@ def before_action(func_or_method_name, only=None, skip=None):
 def after_action(func_or_method_name, only=None, skip=None):
     def decorator(cls):
         _filter = _build_filter(func_or_method_name, only, skip)
-        cls._after_action = (_filter, ) + cls._after_action
+        _add_after_action(cls, _filter)
         return cls
     return decorator
 
@@ -23,10 +23,24 @@ def after_action(func_or_method_name, only=None, skip=None):
 def around_action(func_or_method_name, only=None, skip=None):
     def decorator(cls):
         _filter = _build_filter(func_or_method_name, only, skip)
-        cls._before_action = (_filter, ) + cls._before_action
-        cls._after_action = (_filter, ) + cls._after_action
+        _add_before_action(cls, _filter)
+        _add_after_action(cls, _filter)
         return cls
     return decorator
+
+
+def _add_before_action(cls, _filter):
+    if not cls.__dict__.get("_before_action"):
+        cls._before_action =  (_filter, )
+    else:
+        cls._before_action =  (_filter, ) + cls._before_action
+
+
+def _add_after_action(cls, _filter):
+    if not cls.__dict__.get("_after_action"):
+        cls._after_action =  (_filter, )
+    else:
+        cls._after_action =  (_filter, ) + cls._after_action
 
 
 def _build_filter(func_or_method_name, only, skip):
