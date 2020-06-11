@@ -54,6 +54,10 @@ class AppSetup(object):
         return self._config
 
     @property
+    def current(self):
+        return self._current
+
+    @property
     def routes(self):
         return self.router._routes
 

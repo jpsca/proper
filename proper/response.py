@@ -12,6 +12,9 @@ from .support import (
 )
 
 
+__all__ = ("Response", )
+
+
 class Response(object):
     # Set to `True` by the dispatcher to indicate the endpoint was called.
     dispatched = False

@@ -10,10 +10,10 @@ class MyTestController(BaseController):
     def lorem(self):
         return self._lorem
 
-    def hello():
+    def hello(self):
         pass
 
-    def _render(*args, **kwargs):
+    def _render(self, *args, **kwargs):
         pass
 
 

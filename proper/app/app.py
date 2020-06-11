@@ -1,4 +1,5 @@
 from proper import middleware
+from proper.local import current
 from proper.request import Request
 from proper.response import Response
 
@@ -41,6 +42,7 @@ class App(AppSetup, AppErrors):
     def wsgi(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
         resp = Response()
+        current.req = req
 
         try:
             rv = self.call(req, resp)
@@ -56,6 +58,7 @@ class App(AppSetup, AppErrors):
             resp.error = error
             self._default_error_handler(req, resp)
 
+        current.release()
         return resp(start_response)
 
     def call(self, req, resp):
