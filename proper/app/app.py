@@ -4,13 +4,14 @@ from proper.request import Request
 from proper.response import Response
 
 from .app_errors import AppErrors
+from .app_server import AppServer
 from .app_setup import AppSetup, MissingSecretKey, BadSecretKey
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 
 
-class App(AppSetup, AppErrors):
+class App(AppSetup, AppErrors, AppServer):
 
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.

@@ -18,6 +18,22 @@ DISPLAY = """
    └─────────────────────────────────────────────────┘
 """
 
+def run(app, host, port):
+    set_logger(app)
+    display_running_message(host, port)
+    server = pywsgi.WSGIServer((host, port), app.wsgi, handler_class=ProperWSGIHandler)
+    return server.serve_forever()
+
+
+def set_logger(app):
+    level = logging.INFO if app.config.debug else logging.ERROR
+    logger.setLevel(level)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(level)
+    formatter = logging.Formatter("%(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 
 def display_running_message(host, port):  # pragma: no cover
     local = "{:<29}".format(f"http://{host}:{port}")
@@ -40,22 +56,6 @@ def get_local_ip():
     finally:
         sock.close()
     return ip
-
-
-def add_time_unit(delta):
-    if delta >= 0.001:
-        return str(int(delta * 1000)) + "ms"
-    if delta >= 0.000001:
-        return str(int(delta * 1000000)) + "μs"
-    return str(int(delta * 1000000000)) + "ns"
-
-
-def add_size_unit(size):
-    if size < 1000:
-        return str(size) + "B"
-    if size < 10000:
-        return str(int(size / 100) / 10) + "KB"
-    return str(int(size / 1000) / 10) + "MB"
 
 
 class ProperWSGIHandler(pywsgi.WSGIHandler):
@@ -88,17 +88,17 @@ class ProperWSGIHandler(pywsgi.WSGIHandler):
         )
 
 
-def set_logger(app):
-    level = logging.INFO if app.config.debug else logging.ERROR
-    logger.setLevel(level)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(level)
-    formatter = logging.Formatter("%(levelname)s %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+def add_time_unit(delta):
+    if delta >= 0.001:
+        return str(int(delta * 1000)) + "ms"
+    if delta >= 0.000001:
+        return str(int(delta * 1000000)) + "μs"
+    return str(int(delta * 1000000000)) + "ns"
 
 
-def run_server(app, host, port):
-    set_logger(app)
-    server = pywsgi.WSGIServer((host, port), app.wsgi, handler_class=ProperWSGIHandler)
-    return server.serve_forever()
+def add_size_unit(size):
+    if size < 1000:
+        return str(size) + "B"
+    if size < 10000:
+        return str(int(size / 100) / 10) + "KB"
+    return str(int(size / 1000) / 10) + "MB"

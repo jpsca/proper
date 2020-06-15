@@ -1,7 +1,12 @@
 from datetime import timedelta
 
 
+HOST = "0.0.0.0"
+PORT = 8080
+
 DEFAULT_CONFIG = {
+    "host": HOST,
+    "port": PORT,
     "debug": False,
     # Turn off to let debugging middleware handle exceptions.
     "catch_all_errors": True,
@@ -12,7 +17,7 @@ DEFAULT_CONFIG = {
     # Raises a RequestEntityTooLarge or an UriTooLong exception if this value is exceeded.
     "max_query_size": 2 ** 20,  # 1 MB
     # 'host:port/root_path', used for `url_for(..., _external=True)`.
-    "default_host": "0.0.0.0:3030",
+    "default_host": f"{HOST}:{PORT}",
     # The root path of the script, used for `url_for(..., _external=True)`.
     "root_path": "",
     # use 'https' instead of 'http' for `url_for(..., _external=True)`.
