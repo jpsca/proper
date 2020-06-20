@@ -67,11 +67,11 @@ def test_parse_port_in_host():
     assert req.host == "example.com"
 
 
-def test_no_remote_addr():
+def test_no_remote_addr_is_127_0_0_1():
     req = Request()
     if "REMOTE_ADDR" in req.environ:
         del req.environ["REMOTE_ADDR"]
-    assert req.remote_addr is None
+    assert req.remote_addr == "127.0.0.1"
 
 
 def test_remote_addr():
@@ -118,7 +118,7 @@ def test_parse_invalid_cookies():
 def test_flashes():
     req = Request()
     flashes = [("flash1", {}), ("flash2", {})]
-    req._Request__session = Dot({FLASHES_SESSION_KEY: flashes})
+    req._session = Dot({FLASHES_SESSION_KEY: flashes})
 
     assert req.flashes == req.flashes
     assert req.flashes == flashes

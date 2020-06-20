@@ -40,68 +40,16 @@ class Response(object):
     raw_body = None
     _content_type = "text/html"
     _charset = "utf-8"
-    __session = None
+    _session = None
 
     def __init__(self, status_code=status.ok, content_type="text/html", charset="utf-8"):
         self.headers = HeadersDict()
         self.cookies = CookiesDict()
-        self.__session = {}
+        self._session = {}
 
         self.status_code = status_code
         self.content_type = content_type
         self.charset = charset
-
-    @property
-    def status_code(self):
-        return self._status_code
-
-    @status_code.setter
-    def status_code(self, value):
-        self._status_code = tunnel_encode(value)
-
-    @property
-    def content_type(self):
-        return self._content_type
-
-    @content_type.setter
-    def content_type(self, value):
-        self._content_type = value
-        self.set_content_type_header()
-
-    @property
-    def charset(self):
-        return self._charset
-
-    @charset.setter
-    def charset(self, value):
-        self._charset = value
-        self.set_content_type_header()
-
-    def set_content_type_header(self):
-        header = f"{self._content_type}; charset={self._charset}"
-        self.headers["Content-Type"] = header
-
-    @property
-    def headers_items(self):
-        return self.regular_headers_items + self.cookie_headers_items
-
-    @property
-    def regular_headers_items(self):
-        return [
-            (key, tunnel_encode(value, "utf-8"))
-            for key, value in self.headers.items()
-        ]
-
-    @property
-    def cookie_headers_items(self):
-        return [
-            tuple(morsel.output().split(": ", 1))
-            for morsel in self.cookies.values()
-        ]
-
-    @property
-    def has_body(self):
-        return self.raw_body is not None
 
     @property
     def body(self):
@@ -125,9 +73,72 @@ class Response(object):
         self.set_raw_body(json.dumps(content))
 
     @property
+    def charset(self):
+        return self._charset
+
+    @charset.setter
+    def charset(self, value):
+        self._charset = value
+        self.set_content_type_header()
+
+    def set_content_type_header(self):
+        header = f"{self._content_type}; charset={self._charset}"
+        self.headers["Content-Type"] = header
+
+    @property
+    def content_type(self):
+        return self._content_type
+
+    @content_type.setter
+    def content_type(self, value):
+        self._content_type = value
+        self.set_content_type_header()
+
+    @property
+    def has_body(self):
+        return self.raw_body is not None
+
+    @property
+    def headers_items(self):
+        return self.regular_headers_items + self.cookie_headers_items
+
+    @property
+    def regular_headers_items(self):
+        return [
+            (key, tunnel_encode(value, "utf-8"))
+            for key, value in self.headers.items()
+        ]
+
+    @property
+    def cookie_headers_items(self):
+        return [
+            tuple(morsel.output().split(": ", 1))
+            for morsel in self.cookies.values()
+        ]
+
+    @property
     def session(self):
         """Read-only session"""
-        return self.__session
+        return self._session
+
+    @property
+    def status_code(self):
+        return self._status_code
+
+    @status_code.setter
+    def status_code(self, value):
+        self._status_code = tunnel_encode(value)
+
+    def flash(self, message, **data):
+        """Flashes a message for the next request.
+        To fetch the flashed message and to display it to the user,
+        you must read `req.flashes` in the template.
+
+        Requires an already fetched session.
+        """
+        flashes = self.session.get(FLASHES_SESSION_KEY, [])
+        flashes.append((message, data))
+        self.session[FLASHES_SESSION_KEY] = flashes
 
     def redirect_to(self, to, status_code=status.see_other, flash=None, **kwargs):
         self.status_code = status_code
@@ -145,17 +156,6 @@ class Response(object):
         )
         if flash:
             self.flash
-
-    def flash(self, message, **data):
-        """Flashes a message for the next request.
-        To fetch the flashed message and to display it to the user,
-        you must read `req.flashes` in the template.
-
-        Requires an already fetched session.
-        """
-        flashes = self.session.get(FLASHES_SESSION_KEY, [])
-        flashes.append((message, data))
-        self.session[FLASHES_SESSION_KEY] = flashes
 
     def set_cookie(self, key, value="", **kwargs):
         """Set (add) a cookie for the response. Returns the cookie set.

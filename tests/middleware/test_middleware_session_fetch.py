@@ -29,7 +29,7 @@ def test_fetch_fetch_session(app):
     resp = Response()
     serializer = app.get_serializer()
     data = {"hello": "world!"}
-    req.cookies = {app.config.session.cookie_name: serializer.dumps(data)}
+    req._cookies = {app.config.session.cookie_name: serializer.dumps(data)}
     fetch_session(req, resp, app)
 
     assert req.session == resp.session == data
@@ -38,7 +38,7 @@ def test_fetch_fetch_session(app):
 def test_fetch_session_bad_cookie(app):
     req = Request()
     resp = Response()
-    req.cookies = {app.config.session.cookie_name: "bad cookie"}
+    req._cookies = {app.config.session.cookie_name: "bad cookie"}
     fetch_session(req, resp, app)
 
     assert req.session == resp.session == {}

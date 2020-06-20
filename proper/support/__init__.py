@@ -1,4 +1,3 @@
-from .cached_property import *  # noqa
 from .cookies import *  # noqa
 from .dot import *  # noqa
 from .encoding import *  # noqa

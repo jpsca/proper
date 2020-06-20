@@ -27,7 +27,7 @@ def test_do_not_set_cookie_if_not_data(app):
     resp = Response()
     fetch_session(req, resp, app)
     resp.dispatched = True
-    resp._Response__session = Dot()
+    resp._session = Dot()
     put_session(req, resp, app)
 
     assert app.config.session.cookie_name not in resp.cookies

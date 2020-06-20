@@ -8,7 +8,6 @@ from . import errors
 from .constants import GET, HEAD, POST, PUT, PATCH, DELETE, FLASHES_SESSION_KEY
 from .parsers import parse_host, parse_query_string, parse_cookies, parse_form_data
 from .support import (
-    cached_property,
     tunnel_encode,
     tunnel_decode,
     MultiDict,
@@ -112,7 +111,7 @@ class Request(object):
     matched_params = None
     user = None
     csrf_token = None
-    __session = None
+    _session = None
 
     def __init__(
         self,
@@ -136,7 +135,15 @@ class Request(object):
         self.path = "/" + tunnel_decode(environ["PATH_INFO"].strip("/"))
         self.content_type = self.environ["CONTENT_TYPE"]
 
-        self.__session = {}
+        self._content_length = None
+        self._cookies = None
+        self._flashes = None
+        self._form = None
+        self._headers = None
+        self._host = None
+        self._query = None
+        self._remote_addr = None
+        self._session = {}
 
     def _normalize_environment(self, environ, kwargs):
         environ = environ or make_test_environ(**kwargs)
@@ -148,6 +155,72 @@ class Request(object):
 
     def __repr__(self):
         return f"<Request {self.method} “{self.path}”>"
+
+    @property
+    def content_length(self):
+        """The content_length value as an integer.
+        """
+        if self._content_length is None:
+            length = self.environ["CONTENT_LENGTH"]
+            self._content_length = self._validate_content_length(length)
+        return self._content_length
+
+    def _validate_content_length(self, length):
+        try:
+            length = int(length)
+        except ValueError:
+            raise errors.InvalidHeader("The Content-Length header must be a number.")
+        if length < 0:
+            raise errors.InvalidHeader(
+                "The value of the Content-Length header must be a positive number."
+            )
+        return length
+
+    @property
+    def cookies(self):
+        if self._cookies is None:
+            self._cookies = parse_cookies(self.environ.get("HTTP_COOKIE"))
+        return self._cookies
+
+    @property
+    def flashes(self):
+        if self._flashes is None:
+            self._flashes = self.session.pop(FLASHES_SESSION_KEY, [])
+        return self._flashes
+
+    @property
+    def form(self):
+        if self._form is None:
+            # GET and HEAD can't have form data.
+            if self.method in (GET, HEAD):
+                self._form = MultiDict()
+            else:
+                self._form = parse_form_data(
+                    self.stream,
+                    self.content_type,
+                    self.content_length,
+                    self.encoding,
+                    self.config,
+                )
+        return self._form
+
+    @property
+    def headers(self):
+        if self._headers is None:
+            headers = HeadersDict()
+            for name, value in self.environ.items():
+                name = name.upper()
+                if name.startswith(("HTTP_", "HTTP-")):
+                    headers[name[5:]] = value
+                headers[name] = value
+            self._headers = headers
+        return self._headers
+
+    @property
+    def host(self):
+        if self._host is None:
+            self._host = parse_host(self.environ["HTTP_HOST"])
+        return self._host
 
     @property
     def is_get(self):
@@ -173,110 +246,58 @@ class Request(object):
     def is_delete(self):
         return self.method == DELETE
 
-    @cached_property
-    def host(self):
-        return parse_host(self.environ["HTTP_HOST"])
+    @property
+    def query(self):
+        if self._query is None:
+            query_string = self.environ.get("QUERY_STRING")
+            self._query = parse_query_string(query_string, self.config)
+        return self._query
 
-    @cached_property
-    def content_length(self):
-        """The content_length value as an integer.
-        """
-        length = self.environ["CONTENT_LENGTH"]
-        return self.validate_content_length(length)
-
-    def validate_content_length(self, length):
-        try:
-            length = int(length)
-        except ValueError:
-            raise errors.InvalidHeader("The Content-Length header must be a number.")
-        if length < 0:
-            raise errors.InvalidHeader(
-                "The value of the Content-Length header must be a positive number."
-            )
-        return length
-
-    @cached_property
-    def scheme(self):
-        return self.environ.get("HTTP_X_FORWARDED_PROTO") \
-            or self.environ.get("wsgi.url_scheme")
-
-    @cached_property
-    def secure(self):
-        return self.scheme == "https"
-
-    @cached_property
+    @property
     def remote_addr(self):
         """Passed-forward IP address of the client or IP address of the
         closest proxy to the WSGI server.
         """
-        addr = None
-        if "HTTP_X_REAL_IP" in self.environ:
-            addr = self.environ["HTTP_X_REAL_IP"]
-        elif "REMOTE_ADDR" in self.environ:
-            addr = self.environ["REMOTE_ADDR"]
-        return addr
+        if self._remote_addr is None:
+            addr = "127.0.0.1"
+            if "HTTP_X_REAL_IP" in self.environ:
+                addr = self.environ["HTTP_X_REAL_IP"]
+            elif "REMOTE_ADDR" in self.environ:
+                addr = self.environ["REMOTE_ADDR"]
+            self._remote_addr = addr
+        return self._remote_addr
 
-    @cached_property
+    @property
     def root_path(self):
         return self.environ.get("SCRIPT_NAME")
 
-    @cached_property
+    @property
+    def scheme(self):
+        return self.environ.get("HTTP_X_FORWARDED_PROTO") \
+            or self.environ.get("wsgi.url_scheme")
+
+    @property
+    def secure(self):
+        return self.scheme == "https"
+
+    @property
+    def session(self):
+        return self._session
+
+    @property
+    def stream(self):
+        return self.environ["wsgi.input"]
+
+    @property
     def xhr(self):
         if "HTTP_X_REQUESTED_WITH" in self.environ:
             return self.environ["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
         return False
 
-    @cached_property
-    def headers(self):
-        headers = HeadersDict()
-
-        for name, value in self.environ.items():
-            name = name.upper()
-            if name.startswith(("HTTP_", "HTTP-")):
-                headers[name[5:]] = value
-            headers[name] = value
-
-        return headers
-
-    @cached_property
-    def query(self):
-        query_string = self.environ.get("QUERY_STRING")
-        return parse_query_string(query_string, self.config)
-
-    @cached_property
-    def form(self):
-        # GET and HEAD can't have form data.
-        if self.method in (GET, HEAD):
-            return MultiDict()
-
-        return parse_form_data(
-            self.stream,
-            self.content_type,
-            self.content_length,
-            self.encoding,
-            self.config,
-        )
-
-    @cached_property
-    def cookies(self):
-        return parse_cookies(self.environ.get("HTTP_COOKIE"))
-
-    @cached_property
-    def stream(self):
-        return self.environ["wsgi.input"]
-
     def must_check_csrf(self):
         """Return wether the CSRF token in this request must be checked
         for validity."""
         return self.method in (POST, PUT, DELETE, PATCH)
-
-    @cached_property
-    def flashes(self):
-        return self.session.pop(FLASHES_SESSION_KEY, [])
-
-    @property
-    def session(self):
-        return self.__session
 
 
 def make_test_environ(method=None, host=None, path=None, **kwargs):

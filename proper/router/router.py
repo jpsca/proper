@@ -16,7 +16,7 @@ class Router(object):
     Arguments are:
 
         host (str):
-            Default `host:port`, example: "example.org:5000". Default is "0.0.0.0:3030".
+            Default `host:port`, example: "example.org:5000". Default is "0.0.0.0:8080".
             Used by `url_for` to build an absolute URL if the route doesn't have
             a its host defined.
 
@@ -49,7 +49,7 @@ class Router(object):
     )
 
     def __init__(
-        self, *, host="0.0.0.0:3030", root_path="", use_ssl=False,
+        self, *, host="0.0.0.0:8080", root_path="", use_ssl=False,
         MatchNotFound=Exception, MethodNotAllowed=Exception, _debug=False
     ):
 
