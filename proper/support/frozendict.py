@@ -36,22 +36,22 @@ class FrozenDict(collections.Mapping):
         return self._dict.__hash__()
 
     def __delitem__(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)
 
     def __setitem__(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)
 
     def clear(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)
 
     def pop(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)
 
     def popitem(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)
 
     def setdefault(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)
 
     def update(self, *args, **kwargs):
-        raise AttributeError(self.error)
+        raise AttributeError(self._error)

@@ -1,3 +1,4 @@
+from ..constants import FLASHES_SESSION_KEY
 from ..support import Dot, BadSignature, FrozenDict
 
 
@@ -15,6 +16,7 @@ def fetch_session(req, resp, app):
         error="`req.session` is read-only. Update `resp.session` instead"
     )
     resp._session = session.copy()
+    resp._session.pop(FLASHES_SESSION_KEY, None)
 
 
 def get_session(req, app):

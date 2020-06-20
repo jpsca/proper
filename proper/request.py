@@ -137,7 +137,6 @@ class Request(object):
 
         self._content_length = None
         self._cookies = None
-        self._flashes = None
         self._form = None
         self._headers = None
         self._host = None
@@ -184,9 +183,7 @@ class Request(object):
 
     @property
     def flashes(self):
-        if self._flashes is None:
-            self._flashes = self.session.pop(FLASHES_SESSION_KEY, [])
-        return self._flashes
+        return self._session.get(FLASHES_SESSION_KEY, [])
 
     @property
     def form(self):
