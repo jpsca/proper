@@ -1,16 +1,16 @@
 dist: bionic
 language: python
 python:
-  - '3.6'
-  - '3.7'
-  - '3.8'
-  # - 'nightly'
+  - "3.6"
+  - "3.7"
+  - "3.8"
+  # - "nightly"
 
 # matrix:
 #   allow_failures:
-#     - python: 'nightly'
+#     - python: "nightly"
 
 before_install: pip install -U pip coveralls
-install: pip install .[test]
+install: pip install .
 script: pytest --cov proper --cov tests .
 after_success: coveralls

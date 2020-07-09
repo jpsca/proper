@@ -5,8 +5,8 @@ from datetime import datetime
 
 from gevent import pywsgi
 
-logger = logging.getLogger()
 
+logger = logging.getLogger()
 
 DISPLAY = """
    ┌─────────────────────────────────────────────────┐
@@ -17,6 +17,7 @@ DISPLAY = """
    │   Press `ctrl+c` to quit.                       │
    └─────────────────────────────────────────────────┘
 """
+
 
 def run(app, host, port):
     set_logger(app)

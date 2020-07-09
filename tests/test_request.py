@@ -120,9 +120,7 @@ def test_flashes():
     flashes = [("flash1", {}), ("flash2", {})]
     req._session = Dot({FLASHES_SESSION_KEY: flashes})
 
-    assert req.flashes == req.flashes
-    assert req.flashes == flashes
-    assert not req.session.get(FLASHES_SESSION_KEY)
+    assert req.flashes == req.flashes == flashes
 
 
 @pytest.mark.parametrize(

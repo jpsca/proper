@@ -3,25 +3,25 @@ import sys
 from pathlib import Path
 
 import hecto
-from pyceo import param
-from pyceo import option
+from pyceo import Manager, param, option
 from proper_config.secrets import new_master_key_file, save_secrets
 
 from proper.support import secrets
 from proper.constants import MIN_SECRET_LENGTH
+from proper.version import __version__
 
-from .core import core, BLUEPRINTS
 
-
-__all__ = (
-    "PROJECT_BLUEPRINT",
-    "new",
-)
-
+BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
+WELCOME_MSG = f"""
+  <b>Proper v{__version__}</b>
+
+  This utility provides commands from Proper itself."""
+
+manager = Manager(WELCOME_MSG, catch_errors=False)
 
 
-@core.command(help="Creates a new Proper application at `path`.")
+@manager.command(help="Creates a new Proper application at `path`.")
 @param("path", help="Where to create the new application.")
 @option("force", help="Overwrite files that already exist, without asking.")
 def new(path, force=False, _install_deps=True, _prompt=True):
@@ -45,7 +45,7 @@ def new(path, force=False, _install_deps=True, _prompt=True):
 
 
 def _call(cmd):
-    core.echo("   <cmd>running</cmd>  " + cmd)
+    manager.echo("   <cmd>running</cmd>  " + cmd)
     os.system(cmd)
 
 
@@ -107,3 +107,17 @@ def wrap_up(path, deps_installed):
     print()
     print("   $ proper serve")
     print()
+
+
+@manager.command(help="Returns a secure secret_key")
+@option("length")
+def secret(length=MIN_SECRET_LENGTH):
+    print(secrets.generate_secret_key(length))
+
+
+def manager_run():
+    manager.run()
+
+
+if __name__ == "__main__":
+    manager.run()

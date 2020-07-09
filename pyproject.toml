@@ -1,5 +1,47 @@
+[tool.poetry]
+name = "proper"
+version = "1.0"
+description = "A web framework optimized for programmer happiness"
+authors = ["Juan-Pablo Scaletti <juanpablo@jpscaletti.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/jpsca/proper"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+]
+include = ["blueprints", "LICENSE", "README.md", ]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+gevent = "^20.6.2"
+hecto = "^1.200708"
+itsdangerous = "^1.1.0"
+jinja2 = "^2.11.2"
+multipart = "^0.2.1"
+passlib = "^1.7.2"
+proper_config = "^1.200628"
+pyceo = "^2.200628"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^3.8.3"
+ipdb = "^0.13.3"
+mkdocs = "^1.1.2"
+pygments = "^2.6.1"
+pygments-github-lexers = "^0.0.5"
+pymdown-extensions = "^7.1"
+pytest = "^5.4.3"
+pytest-cov = "^2.10.0"
+pytest-flake8 = "^1.0.6"
+black = "^19.10b0"
+webtest = "^2.0.35"
+
+[tool.poetry.scripts]
+proper = "proper.cli:manager_run"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/jpsca/proper/issues"
+
 [build-system]
-# These are the assumed default build requirements from pip:
-# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
-requires = ["setuptools>=40.8.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
