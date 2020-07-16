@@ -10,7 +10,7 @@ python:
 #   allow_failures:
 #     - python: "nightly"
 
-before_install: pip install -U pip coveralls
-install: pip install .
+before_install: pip install poetry coveralls
+install: poetry install
 script: pytest --cov proper --cov tests .
 after_success: coveralls
