@@ -7,5 +7,4 @@ from .multidict import *  # noqa
 from .lists import *  # noqa
 from .inflector import *  # noqa
 from .objectify import *  # noqa
-from .secrets import *  # noqa
 from .serializer import *  # noqa

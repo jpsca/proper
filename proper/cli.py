@@ -1,12 +1,13 @@
 import os
+import shutil
 import sys
 from pathlib import Path
+from tempfile import mkdtemp
 
 import hecto
 from pyceo import Manager, param, option
-from proper_config.secrets import new_master_key_file, save_secrets
+from properconf.cli import setup as conf_setup, generate_secret_token
 
-from proper.support import secrets
 from proper.constants import MIN_SECRET_LENGTH
 from proper.version import __version__
 
@@ -32,41 +33,26 @@ def new(path, force=False, _install_deps=True, _prompt=True):
     This generates a skeletal Proper application at `~/Code/blog`.
     """
     path = Path(path)
-    data = {"name": path.name}
-    hecto.copy(PROJECT_BLUEPRINT, path, data=data, force=force)
+    _copy_blueprint(path, force=force)
+    _copy_config(path, force=force)
     print()
-
-    _setup_secrets(path)
     if _install_deps:
         deps_installed = _install_dependencies(path, _prompt=_prompt)
     else:
         deps_installed = False
-    wrap_up(path, deps_installed)
+    _wrap_up(path, deps_installed)
 
 
-def _call(cmd):
-    manager.echo("   <cmd>running</cmd>  " + cmd)
-    os.system(cmd)
+def _copy_blueprint(path, force):
+    data = {"name": path.name}
+    hecto.copy(PROJECT_BLUEPRINT, path, data=data, force=force)
 
 
-def _setup_secrets(path):
-    print(" Generating secrets for development and production…")
-    config_path = path / "config"
-
-    master_key = new_master_key_file(config_path / "development")
-    save_secrets(
-        config_path / "development" / "secrets.yaml.enc",
-        secrets.make_dev_default_secrets(),
-        master_key=master_key,
-    )
-
-    master_key = new_master_key_file(config_path / "production")
-    save_secrets(
-        config_path / "production" / "secrets.yaml.enc",
-        secrets.make_prod_default_secrets(MIN_SECRET_LENGTH),
-        master_key=master_key,
-    )
-    print()
+def _copy_config(path, force):
+    temp = Path(mkdtemp())
+    conf_setup(temp / path.name / "config")
+    hecto.copy(temp, path, force=force)
+    shutil.rmtree(temp)
 
 
 def _install_dependencies(path, _prompt=True):
@@ -87,8 +73,14 @@ def _install_dependencies(path, _prompt=True):
     return True
 
 
-def wrap_up(path, deps_installed):
-    print(" Done! The following steps are missing:")
+def _call(cmd):
+    manager.echo("   <cmd>running</cmd>  " + cmd)
+    os.system(cmd)
+
+
+def _wrap_up(path, deps_installed):
+    print(" Done! ✨")
+    print(" The following steps are missing:")
     print()
     print("   $ cd " + path.stem + "")
     if deps_installed:
@@ -97,22 +89,18 @@ def wrap_up(path, deps_installed):
         print("   $ python -m venv .venv")
         print("   $ source .venv/bin/activate")
         print("   $ pip install -e .")
-        print("   $ npm install")
-    print()
-    print(" Then, configure your database in config/development/config.yaml and run:")
-    print()
-    print("   $ db_create yourdatabase")
+        print("   $ cd web && npm install")
     print()
     print(" Start your Proper app with:")
     print()
-    print("   $ proper serve")
+    print("   $ python manage.py run")
     print()
 
 
 @manager.command(help="Returns a secure secret_key")
 @option("length")
 def secret(length=MIN_SECRET_LENGTH):
-    print(secrets.generate_secret_key(length))
+    print(generate_secret_token(length))
 
 
 def manager_run():

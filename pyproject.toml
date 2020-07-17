@@ -14,25 +14,25 @@ include = ["blueprints", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-gevent = "^20.6.2"
+gevent = "^20.6"
 hecto = "^1.200708"
-itsdangerous = "^1.1.0"
-jinja2 = "^2.11.2"
-multipart = "^0.2.1"
-passlib = "^1.7.2"
-proper_config = "^1.200628"
+itsdangerous = "^1.1"
+jinja2 = "^2.11"
+multipart = "^0.2"
+passlib = "^1.7"
+properconf = {path = "../properconf"}
 
 [tool.poetry.dev-dependencies]
-flake8 = "^3.8.3"
-ipdb = "^0.13.3"
-mkdocs = "^1.1.2"
-pygments = "^2.6.1"
-pygments-github-lexers = "^0.0.5"
+flake8 = "^3.8"
+ipdb = "^0.13"
+# mkdocs = "^1.1"
+pygments = "^2.6"
+pygments-github-lexers = "*"
 pymdown-extensions = "^7.1"
-pytest = "^5.4.3"
-pytest-cov = "^2.10.0"
-pytest-flake8 = "^1.0.6"
-webtest = "^2.0.35"
+pytest = "^5.4"
+pytest-cov = "^2.10"
+pytest-flake8 = "^1.0"
+webtest = "^2.0"
 
 [tool.poetry.scripts]
 proper = "proper.cli:manager_run"
