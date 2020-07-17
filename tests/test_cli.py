@@ -15,7 +15,6 @@ def test_new(dst):
     new(dest, _install_deps=False, _prompt=False)
 
     assert (dest / "README.md").is_file()
-    assert 'name="myproject"' in (dest / "setup.py").read_text()
     assert (dest / "myproject" / "config" / "development" / "secrets.yaml.enc").is_file()
     assert (dest / "myproject" / "config" / "development" / "master.key").is_file()
     assert (dest / "myproject" / "config" / "production" / "secrets.yaml.enc").is_file()

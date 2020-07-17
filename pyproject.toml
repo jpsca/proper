@@ -20,7 +20,8 @@ itsdangerous = "^1.1"
 jinja2 = "^2.11"
 multipart = "^0.2"
 passlib = "^1.7"
-properconf = {path = "../properconf"}
+pyceo = "^2.200716"
+properconf = "^1.200718"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8"

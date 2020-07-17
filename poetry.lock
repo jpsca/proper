@@ -265,7 +265,7 @@ marker = "python_version >= \"3.4\""
 name = "jedi"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "0.17.1"
+version = "0.17.2"
 
 [package.dependencies]
 parso = ">=0.7.0,<0.8.0"
@@ -425,23 +425,17 @@ wcwidth = "*"
 
 [[package]]
 category = "main"
-description = ""
-develop = true
+description = "A modest config system"
 name = "properconf"
 optional = false
-python-versions = "^3.6"
-version = "1.200717"
+python-versions = ">=3.6,<4.0"
+version = "1.200718"
 
 [package.dependencies]
-cryptography = "^2.9.2"
-pyceo = "^2.200716"
-pyyaml = "^5.1"
-texteditor = "^1.1"
-
-[package.source]
-reference = ""
-type = "directory"
-url = "../properconf"
+cryptography = ">=2.9.2,<3.0.0"
+pyceo = ">=2.200716,<3.0"
+pyyaml = ">=5.1,<6.0"
+texteditor = ">=1.1,<2.0"
 
 [[package]]
 category = "dev"
@@ -734,7 +728,7 @@ test = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [metadata]
-content-hash = "ad691b3b758ad50cc3d2df401ff3f1aedccc80ab25c8ad6634a2b7e9da53f126"
+content-hash = "89fdf72a868100b3b564fe9de3ac8327c155b49a25c87d0a527adf0dbc0cffdf"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -931,8 +925,8 @@ itsdangerous = [
     {file = "itsdangerous-1.1.0.tar.gz", hash = "sha256:321b033d07f2a4136d3ec762eac9f16a10ccd60f53c0c91af90217ace7ba1f19"},
 ]
 jedi = [
-    {file = "jedi-0.17.1-py2.py3-none-any.whl", hash = "sha256:1ddb0ec78059e8e27ec9eb5098360b4ea0a3dd840bedf21415ea820c21b40a22"},
-    {file = "jedi-0.17.1.tar.gz", hash = "sha256:807d5d4f96711a2bcfdd5dfa3b1ae6d09aa53832b182090b222b5efb81f52f63"},
+    {file = "jedi-0.17.2-py2.py3-none-any.whl", hash = "sha256:98cc583fa0f2f8304968199b01b6b4b94f469a1f4a74c1560506ca2a211378b5"},
+    {file = "jedi-0.17.2.tar.gz", hash = "sha256:86ed7d9b750603e4ba582ea8edc678657fb4007894a12bcf6f4bb97892f31d20"},
 ]
 jinja2 = [
     {file = "Jinja2-2.11.2-py2.py3-none-any.whl", hash = "sha256:f0a4641d3cf955324a89c04f3d94663aa4d638abe8f733ecd3582848e1c37035"},
@@ -1017,7 +1011,10 @@ prompt-toolkit = [
     {file = "prompt_toolkit-3.0.3-py3-none-any.whl", hash = "sha256:c93e53af97f630f12f5f62a3274e79527936ed466f038953dfa379d4941f651a"},
     {file = "prompt_toolkit-3.0.3.tar.gz", hash = "sha256:a402e9bf468b63314e37460b68ba68243d55b2f8c4d0192f85a019af3945050e"},
 ]
-properconf = []
+properconf = [
+    {file = "properconf-1.200718-py3-none-any.whl", hash = "sha256:694b3669f2426d36515808cb7f19be1036deada6c5274ef0c508c53f23e57102"},
+    {file = "properconf-1.200718.tar.gz", hash = "sha256:e9c9aa55a2c9f111cda6d2a27523909cb926c74f6296c6feebda1edbc5093384"},
+]
 ptyprocess = [
     {file = "ptyprocess-0.6.0-py2.py3-none-any.whl", hash = "sha256:d7cc528d76e76342423ca640335bd3633420dc1366f258cb31d05e865ef5ca1f"},
     {file = "ptyprocess-0.6.0.tar.gz", hash = "sha256:923f299cc5ad920c68f2bc0bc98b75b9f838b93b599941a6b63ddbc2476394c0"},

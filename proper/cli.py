@@ -1,12 +1,10 @@
 import os
-import shutil
 import sys
 from pathlib import Path
-from tempfile import mkdtemp
 
 import hecto
 from pyceo import Manager, param, option
-from properconf.cli import setup as conf_setup, generate_secret_token
+from properconf.cli import setup_secrets, generate_secret_token
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.version import __version__
@@ -34,7 +32,7 @@ def new(path, force=False, _install_deps=True, _prompt=True):
     """
     path = Path(path)
     _copy_blueprint(path, force=force)
-    _copy_config(path, force=force)
+    _setup_secrets(path)
     print()
     if _install_deps:
         deps_installed = _install_dependencies(path, _prompt=_prompt)
@@ -48,11 +46,10 @@ def _copy_blueprint(path, force):
     hecto.copy(PROJECT_BLUEPRINT, path, data=data, force=force)
 
 
-def _copy_config(path, force):
-    temp = Path(mkdtemp())
-    conf_setup(temp / path.name / "config")
-    hecto.copy(temp, path, force=force)
-    shutil.rmtree(temp)
+def _setup_secrets(path):
+    config_path = path / path.name / "config"
+    setup_secrets(config_path / "development", quiet=True)
+    setup_secrets(config_path / "production", quiet=True)
 
 
 def _install_dependencies(path, _prompt=True):
