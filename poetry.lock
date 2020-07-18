@@ -429,7 +429,7 @@ description = "A modest config system"
 name = "properconf"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "1.200718"
+version = "1.200719"
 
 [package.dependencies]
 cryptography = ">=2.9.2,<3.0.0"
@@ -728,7 +728,7 @@ test = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [metadata]
-content-hash = "89fdf72a868100b3b564fe9de3ac8327c155b49a25c87d0a527adf0dbc0cffdf"
+content-hash = "0133457ab426b79f89d795e7d058d7ec978ba4e3ec7c161be344220ff2a2da82"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1012,8 +1012,8 @@ prompt-toolkit = [
     {file = "prompt_toolkit-3.0.3.tar.gz", hash = "sha256:a402e9bf468b63314e37460b68ba68243d55b2f8c4d0192f85a019af3945050e"},
 ]
 properconf = [
-    {file = "properconf-1.200718-py3-none-any.whl", hash = "sha256:694b3669f2426d36515808cb7f19be1036deada6c5274ef0c508c53f23e57102"},
-    {file = "properconf-1.200718.tar.gz", hash = "sha256:e9c9aa55a2c9f111cda6d2a27523909cb926c74f6296c6feebda1edbc5093384"},
+    {file = "properconf-1.200719-py3-none-any.whl", hash = "sha256:d69ae8184a3ced4a1967e64663a705681e0493dce0eb8d8cebd35421b450c9b8"},
+    {file = "properconf-1.200719.tar.gz", hash = "sha256:060b674700a9439278f240d7c8656a272f27c23c170768f19a4405067442725d"},
 ]
 ptyprocess = [
     {file = "ptyprocess-0.6.0-py2.py3-none-any.whl", hash = "sha256:d7cc528d76e76342423ca640335bd3633420dc1366f258cb31d05e865ef5ca1f"},

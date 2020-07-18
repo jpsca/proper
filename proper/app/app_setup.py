@@ -24,8 +24,8 @@ class AppSetup(object):
             import_name (str):
                 The name of the application package. Eg.: `foobar.web`.
 
-            config (dict, path, list of paths and/or dicts, or None):
-                Config file(s) or dict(s)
+            config (dict):
+                Optional dict-like with the config.
 
             controllers_name (str):
                 Optional.
@@ -40,7 +40,7 @@ class AppSetup(object):
             MethodNotAllowed=MethodNotAllowed
         )
         self._set_root_path()
-        self.setup(*be_a_list(config))
+        self.setup(config)
 
     def _set_root_path(self):
         module = import_module(self.import_name)
@@ -73,25 +73,18 @@ class AppSetup(object):
         self.__cached_controllers_module = module
         return module
 
-    def load_config(self, *config):
-        for file_or_dict in config:
-            if isinstance(file_or_dict, dict):
-                self._config.update(file_or_dict)
-            else:
-                self._config.load_file(file_or_dict)
-
-    def setup(self, *config):
+    def setup(self, config):
         self._config = ConfigDict(DEFAULT_CONFIG)
-        self.load_config(*config)
+        self._config.update(config)
         self.config_router()
-        if "secret_key" in self.config:
+        if "secret_key" in self._config:
             self.init_serializer()
 
     def config_router(self):
         self.router.host = self._config.get("default_host", "localhost")
         self.router.root_path = self._config.get("root_path", "")
         self.router.use_ssl = self._config.get("use_ssl", False)
-        self.router._debug = self.config.debug
+        self.router._debug = self._config.debug
 
     def get_serializer(self):
         if not self.serializer:

@@ -4,7 +4,8 @@ from pathlib import Path
 
 import hecto
 from pyceo import Manager, param, option
-from properconf.cli import setup_secrets, generate_secret_token
+from properconf.cli import setup_secrets
+from properconf.secrets import generate_token
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.version import __version__
@@ -97,7 +98,7 @@ def _wrap_up(path, deps_installed):
 @manager.command(help="Returns a secure secret_key")
 @option("length")
 def secret(length=MIN_SECRET_LENGTH):
-    print(generate_secret_token(length))
+    print(generate_token())
 
 
 def manager_run():

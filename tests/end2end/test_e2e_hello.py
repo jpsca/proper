@@ -47,12 +47,6 @@ def test_default_config(import_name):
     assert app.config.catch_all_errors
 
 
-def test_multiple_configs(import_name):
-    app = App(import_name, config=[{"a": 1}, {"b": 2}])
-    assert app.config.a == 1
-    assert app.config.b == 2
-
-
 def test_serializer(app):
     assert "secret_key" in app.config
     assert app.serializer
@@ -78,8 +72,9 @@ def test_secret_key_too_short(import_name):
 
 
 def test_load_config_file(assets_path, import_name):
+    app = App(import_name)
     config_path = assets_path / "config.yaml"
-    app = App(import_name, config=config_path)
+    app.config.load_file(config_path)
 
     assert app.config.hello == "world"
     assert app.config.secret_key.startswith("Not secure.")

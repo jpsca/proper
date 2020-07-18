@@ -6,10 +6,10 @@ import pytest
 from webtest import TestApp
 
 from proper import App
-from proper.cli import secret
+from properconf.secrets import generate_token
 
 
-SECRET_KEY = secret()
+SECRET_KEY = generate_token()
 
 
 @pytest.fixture()
