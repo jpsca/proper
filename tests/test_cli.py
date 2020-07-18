@@ -13,12 +13,13 @@ def test_new(dst):
     dest = dst / "myproject"
     os.mkdir(dest)
     new(dest, _install_deps=False, _prompt=False)
+    config_path = dest / "myproject" / "config"
 
     assert (dest / "README.md").is_file()
-    assert (dest / "myproject" / "config" / "development" / "secrets.yaml.enc").is_file()
-    assert (dest / "myproject" / "config" / "development" / "master.key").is_file()
-    assert (dest / "myproject" / "config" / "production" / "secrets.yaml.enc").is_file()
-    assert (dest / "myproject" / "config" / "production" / "master.key").is_file()
+    assert (config_path / "development" / "secrets.yaml.enc").is_file()
+    assert (config_path / "development" / "master.key").is_file()
+    assert (config_path / "production" / "secrets.yaml.enc").is_file()
+    assert (config_path / "production" / "master.key").is_file()
 
 
 @pytest.mark.skip(reason="too slow")

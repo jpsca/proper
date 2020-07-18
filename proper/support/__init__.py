@@ -4,7 +4,6 @@ from .encoding import *  # noqa
 from .frozendict import *  # noqa
 from .headersdict import *  # noqa
 from .multidict import *  # noqa
-from .lists import *  # noqa
 from .inflector import *  # noqa
 from .objectify import *  # noqa
 from .serializer import *  # noqa

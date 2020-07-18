@@ -42,7 +42,12 @@ class Response(object):
     _charset = "utf-8"
     _session = None
 
-    def __init__(self, status_code=status.ok, content_type="text/html", charset="utf-8"):
+    def __init__(
+        self,
+        status_code=status.ok,
+        content_type="text/html",
+        charset="utf-8"
+    ):
         self.headers = HeadersDict()
         self.cookies = CookiesDict()
         self._session = {}

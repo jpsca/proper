@@ -1,6 +1,3 @@
-from proper.support import be_a_list
-
-
 __all__ = ("before_action", "after_action", "around_action")
 
 
@@ -43,10 +40,18 @@ def _add_after_action(cls, _filter):
         cls._after_action = (_filter, ) + cls._after_action
 
 
+def _be_a_list(something):
+    if something is None:
+        return []
+    if isinstance(something, (list, tuple)):
+        return something
+    return [something]
+
+
 def _build_filter(func_or_method_name, only, skip):
     _filter = {"filter": func_or_method_name}
     if only:
-        _filter["only"] = be_a_list(only)
+        _filter["only"] = _be_a_list(only)
     if skip:
-        _filter["skip"] = be_a_list(skip)
+        _filter["skip"] = _be_a_list(skip)
     return _filter
