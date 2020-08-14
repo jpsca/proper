@@ -46,9 +46,10 @@ class _RouteTemplate(Template):
 
 
 class BaseRoute:
-    path_re = None
-    path_plain = None
-    path_placeholders = None
+    def __init__(self):
+        self.path_re = None
+        self.path_plain = None
+        self.path_placeholders = None
 
     def __eq__(self, other):
         if getattr(other, "__slots__", None) != self.__slots__:
@@ -108,10 +109,13 @@ class BaseRoute:
         return self.path_re.match(path)
 
     def format(self, **kwargs):
-        tmpl = _RouteTemplate(self.path_plain)
+        if self.path_plain is None:
+            self.compile_path()
 
+        tmpl = _RouteTemplate(self.path_plain)
         path_params = self._get_path_params(kwargs)
-        url = tmpl.substitute(dict(path_params))
+        url = tmpl.substitute(dict(path_params)) or "/"
+
         query_params = self._get_query_params(path_params, kwargs)
         if query_params:
             params = "&".join(
