@@ -79,7 +79,7 @@ def from36(snumber):
     return int(snumber, 36)
 
 
-class Auth(object):
+class Auth:
     def __init__(
         self,
         hash_name=DEFAULT_HASHER,

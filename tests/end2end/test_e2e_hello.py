@@ -73,7 +73,7 @@ def test_secret_key_too_short(import_name):
 
 def test_load_config_file(assets_path, import_name):
     app = App(import_name)
-    config_path = assets_path / "config.yaml"
+    config_path = assets_path / "config.toml"
     app.config.load_file(config_path)
 
     assert app.config.hello == "world"

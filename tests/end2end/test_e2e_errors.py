@@ -65,7 +65,7 @@ def test_debug_error(app, web):
 
 
 def test_custom_register_not_an_exception(app, web):
-    class NotAnException(object):
+    class NotAnException:
         pass
 
     with pytest.raises(AssertionError):

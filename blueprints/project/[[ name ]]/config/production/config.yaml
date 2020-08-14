@@ -1,5 +1,0 @@
-# Production config
-# -------------------------------------------------------------
-
-DEBUG: false
-SECRET_KEY: NULL  # Set in secrets

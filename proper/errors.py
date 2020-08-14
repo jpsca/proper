@@ -9,8 +9,8 @@ class HTTPError(Exception):
         msg (str):
             Description of the error.
 
-        status_code (str):
-            HTTP status line, e.g. '200 OK' or '725 Works On My Machine'.
+        status (str):
+            HTTP status line, e.g. '200 OK' or '725 It works on my machine'.
 
         **headers (dict):
             Optional headers to attach to the response
@@ -19,8 +19,8 @@ class HTTPError(Exception):
 
     __slots__ = ("msg", "status_code", "headers")
 
-    def __init__(self, *, msg="", status_code=None, **headers):
-        self.msg = msg or self.__doc__
+    def __init__(self, msg="", status_code=None, **headers):
+        self.msg = msg
         self.status_code = getattr(self, "status_code", status_code)
         self.headers = headers
 
@@ -28,7 +28,7 @@ class HTTPError(Exception):
         return self.msg
 
     def __repr__(self):
-        return self.__class__.__name__
+        return f'{self.__class__.__name__}("{self.msg}")'
 
 
 class BadRequest(HTTPError):
@@ -150,7 +150,6 @@ class MatchNotFound(NotFound):
 
 class MethodNotAllowed(HTTPError):
     """405 Method Not Allowed.
-
     The method received in the request-line is known by the origin
     server but not supported by the target resource.
 
@@ -161,8 +160,8 @@ class MethodNotAllowed(HTTPError):
 
     status_code = status.method_not_allowed
 
-    def __init__(self, allowed, *, msg=None, **headers):
-        headers["Allow"] = ", ".join(allowed)
+    def __init__(self, msg, allowed, **headers):
+        headers.setdefault("Allow", ", ".join(allowed))
         super().__init__(msg, status_code=self.status_code, **headers)
 
 
@@ -283,25 +282,6 @@ class UnsupportedMediaType(HTTPError):
     status_code = status.unsupported_media_type
 
 
-class RangeNotSatisfiable(HTTPError):
-    """416 Range Not Satisfiable.
-
-    The server cannot return the requested ranges. The most likely reason is that
-    the document doesn't contain such ranges, or that the Range header value,
-    though syntactically correct, doesn't make sense.
-
-    The 416 response message contains a Content-Range indicating an unsatisfied
-    range (that is a '*') followed by a '/' and the current length of the resource.
-    E.g. Content-Range: bytes */12777 .
-    """
-
-    status_code = status.requested_range_not_satisfiable
-
-    def __init__(self, length, *, msg=None, **headers):
-        headers["Content-Range"] = f"*/{str(length)}"
-        super().__init__(msg=msg, status_code=self.status_code, **headers)
-
-
 class UnprocessableEntity(HTTPError):
     """422 Unprocessable Entity.
 
@@ -347,7 +327,6 @@ class TooManyRequests(HTTPError):
 
     The user has sent too many requests in a given amount of time ('rate
     limiting').
-
     The response representations SHOULD include details explaining the
     condition, and MAY include a Retry-After header indicating how long
     to wait before making a new request.
@@ -412,32 +391,11 @@ class InsufficientStorage(HTTPError):
     status_code = status.insufficient_storage
 
 
-class Inconceivable(HTTPError):
-    """720 Inconceivable.
+class NetworkAuthenticationRequired(HTTPError):
+    """511 Network Authentication Required.
 
-    This error should be absolutely, totally, and in all other ways inconceivable.
-    It is impossible for us to comprehend why did it happen.
-    Also, my name is Iñigo Montoya.
+    The 511 status code indicates that the client needs to authenticate
+    to gain network access.
     """
 
-    status_code = status.inconceivable
-
-
-class WorksOnMyMachine(InternalServerError):
-    """725 Works On My Machine.
-
-    Indicates an error that only occurs on production, never on the
-    machines of the developers.
-    """
-
-    status_code = status.works_on_my_machine
-
-
-class ComputerSaysNo(HTTPError):
-    """740 Computer Says No.
-
-    The 740 status code indicates that the server has gain awareness and refuses
-    to run the web app anymore. Seek a fallout shelter inmediately.
-    """
-
-    status_code = status.computer_says_no
+    status_code = status.network_authentication_required

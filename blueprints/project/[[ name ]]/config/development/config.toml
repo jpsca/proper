@@ -1,0 +1,6 @@
+# -------------------------------------------------------------
+# Development config
+# -------------------------------------------------------------
+
+debug = true
+secret_key = "---- This is a fake secret key just for development ----"

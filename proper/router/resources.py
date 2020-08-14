@@ -50,7 +50,6 @@ def expand_resources_route(res, method, path, action):
         method,
         base_path.rstrip("/") + path,
         to=expand_to(res.to, action),
-        rules=res.rules,
         defaults=res.defaults,
     )
     route.compile_path()

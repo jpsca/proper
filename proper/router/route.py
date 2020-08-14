@@ -34,6 +34,23 @@ class Route(BaseRoute):
 
         path (str):
             The path of this route.
+            Can contain placeholders like `:name` or `:name<format>` where format can be:
+
+            - nothing, for matching anything except slashes
+            - `int` or `float`, for matching numbers
+            - `path`, for matching anything *including* slashes
+            - a regular expression
+
+            Note that declaring a format doesn't make type conversions, **all values
+            are passed to the controller as strings**.
+
+            Examples:
+
+            - `docs/:lang<en|es|pt>`
+            - `questions/:uuid`
+            - `archive/:url<path>`
+            - `:year<int>/:month<int>/:day<int>/:slug`
+            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
 
         to (str or callable):
             Optional. A reference to the controller that this route is connected to.
@@ -50,6 +67,14 @@ class Route(BaseRoute):
             Optional. Host for this route, including any subdomain
             and an optional port. Examples: "www.example.com", "localhost:5000".
 
+            Like `path`, it can contain placeholders like `:name` or `:name<format>`
+            with the same format rules.
+
+            Examples:
+
+            - :lang<en|es|pt>.example.com
+            - :username.localhost:5000
+
         redirect (str):
             Optional. Instead of dispatching to a controller, redirect to this
             other URL.
@@ -59,34 +84,7 @@ class Route(BaseRoute):
             The status "307 Temporary Redirect" is the default.
 
         defaults (dict):
-            Optional. A dict with values that will be sent to the controller along to
-            those of the placeholders.
-
-        rules (list or tuple):
-            Optional. If `path` contains placeholders, this dict can be used to
-            specify the constraints a value must have to match. Without a rule, a
-            placeholder will match to everything except slashes.
-
-            ```python
-            rules={"<placeholder>": "<constraint>", ...}
-            ```
-
-            You can use as constraints regular expressions or one of:
-            "int", "float" or "path", that'll be converted to regular
-            expressions for integers, floats or everything *including* slashes.
-            Example:
-
-            ```python
-            rules={
-                "item_id": "int",
-                "locales": "(en|es|pt)",
-                "path": "path",
-                ...
-            }
-            ```
-
-            Note that this doesn't make type conversions, all values will be passed to
-            the controller as strings.
+            Optional. A dict with extra values that will be sent to the controller.
 
     """
 
@@ -99,9 +97,11 @@ class Route(BaseRoute):
         "redirect",
         "redirect_status_code",
         "defaults",
-        "rules",
         "forward_to",
-        "_re_path",
+
+        "path_re",
+        "path_plain",
+        "path_placeholders",
     )
 
     def __init__(
@@ -115,13 +115,7 @@ class Route(BaseRoute):
         redirect=None,
         redirect_status_code="307 Temporary Redirect",
         defaults=None,
-        rules=None,
     ):
-        # Look ma, a practical use case for a XOR!
-        assert (to is not None) ^ (
-            redirect is not None
-        ), "A rule must be created with either a `to` or a `redirect`."
-
         self.method = method.upper()
         self.path = "/" + path.strip("/")
         self.to = to
@@ -130,7 +124,6 @@ class Route(BaseRoute):
         self.redirect = redirect
         self.redirect_status_code = redirect_status_code
         self.defaults = defaults or {}
-        self.rules = rules or {}
 
         self.forward_to = None
 

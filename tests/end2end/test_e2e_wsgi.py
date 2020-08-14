@@ -1,7 +1,7 @@
 from proper import forward, get, make_test_environ, status
 
 
-class FakeStartResponse(object):
+class FakeStartResponse:
     status_code = headers_items = None
 
     def __call__(self, status_code, headers_items):

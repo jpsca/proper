@@ -2,29 +2,42 @@ import re
 from string import Template
 
 
-__all__ = ("BaseRoute", "MissingParameter", "BadParameter", "BadRule")
+__all__ = ("BaseRoute", "MissingParameter", "BadPlaceholder", "BadFormat")
 
 
-"""Rules to be replaced with regular expressions.
+"""Formats to be replaced with regular expressions.
 Note that these DOESN'T do any type conversion, just
 validates the section of the route match the regular expression.
 """
-SPECIAL_RULES = {"path": r".+", "int": r"[0-9]+", "float": r"[0-9]+\.[0-9]+"}
-DEFAULT_RULE = r"[^\/]+"
+FORMATS = {
+    None: r"[^\/]+",
+    "path": r".+",
+    "int": r"[0-9]+",
+    "float": r"[0-9]+\.[0-9]+",
+}
 
-RE_PARAMS = re.compile(r":\{?([_a-z][_a-z0-9]*)\}?")
-RE_PARAMS_ESC = re.compile(r"(:(?:\\\{)?([_a-z][_a-z0-9]*)(?:\\\})?)")
+RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
 
 
 class MissingParameter(Exception):
-    pass
+    def __init__(self, name, path):
+        msg = f"missing value for {name} in {path}"
+        super().__init__(msg)
 
 
-class BadParameter(Exception):
-    pass
+class BadPlaceholder(Exception):
+    def __init__(self, name, path, rx):
+        msg = f"placeholder {name} doesn't have the expected format <{rx}> in {path}"
+        super().__init__(msg)
 
 
-class BadRule(Exception):
+class DuplicatedPlaceholder(Exception):
+    def __init__(self, name, path):
+        msg = f"placeholder {name} declared more than once in {path}"
+        super().__init__(msg)
+
+
+class BadFormat(Exception):
     pass
 
 
@@ -32,14 +45,10 @@ class _RouteTemplate(Template):
     delimiter = ":"
 
 
-class BaseRoute(object):
-    """
-    """
-
-    def __init__(self):
-        # Make sure all params have a key in the rules
-        for param in RE_PARAMS.findall(self.path):
-            self.rules.setdefault(param, None)
+class BaseRoute:
+    path_re = None
+    path_plain = None
+    path_placeholders = None
 
     def __eq__(self, other):
         if getattr(other, "__slots__", None) != self.__slots__:
@@ -48,31 +57,58 @@ class BaseRoute(object):
             [
                 getattr(self, attr) == getattr(other, attr)
                 for attr in self.__slots__
-                if not attr.startswith("_")
+                if not attr.startswith("_") and not attr.startswith("path_")
             ]
         )
 
     def compile_path(self):
-        # py36 incorrectly escapes the colon
-        path = re.escape(self.path.rstrip("/")).replace("\\:", ":")
+        self.path_re, self.path_plain, self.path_placeholders = self._compile(
+            self.path.rstrip("/")
+        )
 
-        for placeholder, name in RE_PARAMS_ESC.findall(path):
-            rule = self.rules.get(name) or DEFAULT_RULE
-            rule = SPECIAL_RULES.get(rule, rule)
-            path = path.replace(placeholder, rf"(?P<{name}>{rule})")
+    def _compile(self, path):
+        parts = []
+        parts_re = []
+        placeholders = {}
+        index = 0
 
+        while True:
+            match = RE_PLACEHOLDERS.search(path, pos=index)
+            if not match:
+                break
+            start, end = match.span()
+            part = path[index:start]
+            parts.append(part)
+            parts_re.append(re.escape(part))
+            index = end
+
+            name, rx = match.groups()
+            if name in placeholders:
+                raise DuplicatedPlaceholder(name, self.path)
+
+            rx = FORMATS.get(rx, rx)
+            placeholders[name] = rx
+            parts.append(f":{name}")
+            parts_re.append(rf"(?P<{name}>{rx})")
+
+        part = path[index:]
+        parts.append(part)
+        plain = "".join(parts)
+
+        parts_re.append(re.escape(part))
+        path_re = r"".join(parts_re) + r"/?$"
         try:
-            self._re_path = re.compile(rf"^{path}" + r"/?$")
+            path_re = re.compile(path_re)
         except Exception as e:
-            raise BadRule(e)
+            raise BadFormat(e)
 
-        return self._re_path  # For easier testing
+        return path_re, plain, placeholders
 
     def match(self, path):
-        return self._re_path.match(path)
+        return self.path_re.match(path)
 
     def format(self, **kwargs):
-        tmpl = _RouteTemplate(self.path)
+        tmpl = _RouteTemplate(self.path_plain)
 
         path_params = self._get_path_params(kwargs)
         url = tmpl.substitute(dict(path_params))
@@ -88,28 +124,22 @@ class BaseRoute(object):
     def _get_path_params(self, kwargs):
         path_params = {}
 
-        for key, rule in self.rules.items():
-            value = kwargs.get(key)
-            self._validate_value_exist(key, value)
+        for name, rx in self.path_placeholders.items():
+            value = kwargs.get(name)
+            if value is None:
+                raise MissingParameter(name, self.path)
             value = str(value)
-            self._validate_value_format(key, value, rule)
-            path_params[key] = value
+            if not re.match(rx, value):
+                raise BadPlaceholder(name, self.path, rx)
+            path_params[name] = value
 
         return path_params
 
-    def _validate_value_exist(self, key, value):
-        if value is None:
-            raise MissingParameter(f"missing value for {key} in {self.path}")
-
-    def _validate_value_format(self, key, value, rule):
-        rx = SPECIAL_RULES.get(rule) or rule or DEFAULT_RULE
-        if not re.match(rx, value):
-            raise BadParameter(f"param {key} doesn't have the expected format")
-
     def _get_query_params(self, path_params, kwargs):
         query_params = {}
-        path_keys = path_params.keys()
-        for key, value in kwargs.items():
-            if key not in path_keys:
-                query_params[key] = value
+
+        for name, value in kwargs.items():
+            if name not in path_params:
+                query_params[name] = value
+
         return query_params

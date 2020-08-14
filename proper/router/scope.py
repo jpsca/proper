@@ -1,4 +1,3 @@
-from .base import RE_PARAMS
 from .route import Route
 
 
@@ -15,7 +14,7 @@ def flatten(ll):
     return result
 
 
-class Scope(object):
+class Scope:
     """
     A Scope is a convenient shortcut to set a prefix and a host to a group
     of routes.
@@ -23,51 +22,43 @@ class Scope(object):
     Arguments are:
 
         mount (str):
-            Prefix for all routes under this scope. Can contain placeholders.
+            Prefix for all routes under this scope.
+            Can contain placeholders like `:name` or `:name<format>` where format can be:
+
+            - nothing, for matching anything except slashes
+            - `int` or `float`, for matching numbers
+            - `path`, for matching anything *including* slashes
+            - a regular expression
+
+            Note that declaring a format doesn't make type conversions, **all values
+            are passed to the controller as strings**.
+
+            Examples:
+
+            - `docs/:lang<en|es|pt>`
+            - `questions/:uuid`
+            - `:year<int>/:month<int>`
+            - `:year<\d{4}>/:month<\d{2}>`
 
         host (str):
             Optional. Host for all routes under this scope, including any subdomain
             and an optional port. Examples: "www.example.com", "localhost:5000".
 
-        rules (list or tuple):
-            Optional. If `mount` contains placeholders, this dict can be used to
-            specify the constraints a value must have to match. Without a rule, a
-            placeholder will match to everything except slashes.
+            Like `mount`, it can contain placeholders like `:name` or `:name<format>`
+            with the same format rules.
 
-            ```python
-            rules={"<placeholder>": "<constraint>", ...}
-            ```
+            Examples:
 
-            You can use as constraints regular expressions or one of:
-            "int", "float" or "path", that"ll be converted to regular
-            expressions for integers, floats or everything *including* slashes.
-            Example:
-
-            ```python
-            rules={
-                "item_id": "int",
-                "locales": "(en|es|pt)",
-                "path": "path",
-                ...
-            }
-            ```
-
-            Note that this doesn't make type conversions, all values will be passed to
-            the controller as strings.
+            - :lang<en|es|pt>.example.com
+            - :username.localhost:5000
 
     """
 
-    __slots__ = ("mount", "host", "rules")
+    __slots__ = ("mount", "host", )
 
-    def __init__(self, mount, *, host=None, rules=None):
+    def __init__(self, mount, *, host=None):
         self.mount = "/" + mount.strip("/")
         self.host = host
-
-        rules = rules or {}
-        # Make sure all params have a key in the rules
-        for param in RE_PARAMS.findall(mount):
-            rules.setdefault(param, None)
-        self.rules = rules
 
     def __call__(self, *routes):
         routes = flatten(routes)
@@ -87,9 +78,6 @@ class Scope(object):
             route.path = self.mount
         else:
             route.path = self.mount.rstrip("/") + route.path
-        new_rules = self.rules.copy()
-        new_rules.update(route.rules)
-        route.rules = new_rules
         route.host = self.host or route.host
 
     def __repr__(self):

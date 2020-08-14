@@ -37,7 +37,7 @@ def test_basic_resources_mounted():
     assert routes == expected
 
 
-class MyController(object):
+class MyController:
     def index(self, req, resp):
         pass
 

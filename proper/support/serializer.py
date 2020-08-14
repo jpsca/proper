@@ -11,7 +11,7 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 __all__ = ("Serializer", "BadSignature", )
 
 
-class Serializer(object):
+class Serializer:
     # the hash function to use for the signature.
     digest_method = staticmethod(hashlib.sha1)
 

@@ -56,7 +56,7 @@ def _setup_secrets(path):
 def _install_dependencies(path, _prompt=True):
     name = path.stem
     if _prompt and not hecto.utils.prompt_bool(
-        f" Install dependencies in a virtualenv at {name}/.venv?", default=True,
+        f" Install dependencies in a virtualenv at {name}/.venv ?", default=True,
     ):
         print()
         return False

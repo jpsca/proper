@@ -9,8 +9,8 @@ from proper.router import (
     post,
     put,
     route,
-    BadParameter,
-    BadRule,
+    BadPlaceholder,
+    BadFormat,
     MissingParameter,
 )
 
@@ -23,30 +23,25 @@ def test_route_defaults():
     assert r.name == "something"
     assert r.redirect is None
 
-    r = get("foobar/", to="")
+    r = get("foobar/")
     assert r.path == "/foobar"
 
-    assert get("foobar/", to="") == get("foobar", to="")
-    assert get("foobar", to="") != get("/", to="")
-    assert get("foobar", to="") != object()
-
-
-def test_route_must_have_to_redirect_or_forward():
-    with pytest.raises(AssertionError):
-        get("foobar")
+    assert get("foobar/") == get("foobar")
+    assert get("foobar") != get("/")
+    assert get("foobar") != object()
 
 
 def test_route_repr():
-    assert str(get("foobar", to="")) == "<route GET /foobar>"
+    assert str(get("foobar")) == "<route GET /foobar>"
 
 
 def test_route_shortcuts():
-    get("/", to="").method == GET
-    post("/", to="").method == POST
-    put("/", to="").method == PUT
-    delete("/", to="").method == DELETE
-    options("/", to="").method == OPTIONS
-    patch("/", to="").method == PATCH
+    get("/").method == GET
+    post("/").method == POST
+    put("/").method == PUT
+    delete("/").method == DELETE
+    options("/").method == OPTIONS
+    patch("/").method == PATCH
 
 
 def test_route_must_have_method_and_path():
@@ -60,7 +55,7 @@ def test_route_must_have_method_and_path():
         get()
 
 
-class TestController(object):
+class TestController:
     def method(self):
         pass
 
@@ -81,17 +76,20 @@ def test_route_name_is_set():
     r = get("/", to="TestController.method")
     assert r.name == "TestController.method"
 
-    r = get("/", to="")
-    assert r.name == ""
+    r = get("/")
+    assert r.name is None
 
 
-def test_invalid_route_rule():
-    with pytest.raises(BadRule):
-        get(":a", to="", rules={"a": r"{1["}).compile_path()
+def test_invalid_route_format():
+    with pytest.raises(BadFormat):
+        ro = get(":a<{1[>")
+        ro.compile_path()
 
 
-def test_default_route_rule():
-    rx = get(":a", to="").compile_path()
+def test_default_route_format():
+    ro = get(":a")
+    ro.compile_path()
+    rx = ro.path_re
     assert rx.match("/hola")
     assert rx.match("/h-o.l_a")
     assert rx.match("/1234")
@@ -101,7 +99,9 @@ def test_default_route_rule():
 
 
 def test_route_path_pattern():
-    rx = get(":a", to="", rules={"a": "path"}).compile_path()
+    ro = get(":a<path>")
+    ro.compile_path()
+    rx = ro.path_re
     assert rx.match("/hola/mundo")
     assert rx.match("/hola")
     assert rx.match("/hola/../mundo")
@@ -110,14 +110,18 @@ def test_route_path_pattern():
 
 
 def test_route_int_pattern():
-    rx = get(":a", to="", rules={"a": "int"}).compile_path()
+    ro = get(":a<int>")
+    ro.compile_path()
+    rx = ro.path_re
     assert rx.match("/1")
     assert rx.match("/4567")
     assert not rx.match("/45hola67")
 
 
 def test_route_float_pattern():
-    rx = get(":a", to="", rules={"a": "float"}).compile_path()
+    ro = get(":a<float>")
+    ro.compile_path()
+    rx = ro.path_re
     assert rx.match("/3.14159")
     assert rx.match("/0.6")
     assert not rx.match("/1984")
@@ -127,38 +131,38 @@ def test_route_float_pattern():
 
 
 def test_route_format():
-    route = get(":year/:month", to="", rules={"year": r"\d{4}", "month": r"\d{1,2}"})
+    route = get(r":year<\d{4}>/:month<\d{2}>")
     assert route.format(year="2018", month="05") == "/2018/05"
 
 
 def test_route_format_static():
-    route = get("/", to="")
+    route = get("/")
     assert route.format() == "/"
 
-    route = get("/iopenat/theclose", to="")
+    route = get("/iopenat/theclose")
     assert route.format() == "/iopenat/theclose"
 
 
 def test_route_format_params_to_strings():
-    route = get(":year/:month", to="", rules={"year": r"\d{4}", "month": r"\d{1,2}"})
+    route = get(r":year<\d{4}>/:month<\d{1,2}>")
     assert route.format(year=2018, month=5) == "/2018/5"
 
 
 def test_route_format_missing_param():
-    route = get(":year/:month", to="", rules={"year": r"\d{4}", "month": r"\d{1,2}"})
+    route = get(r":year<\d{4}>/:month<\d{1,2}>")
     with pytest.raises(MissingParameter):
         route.format(year="2018")
 
 
-def test_route_format_bad_param():
-    route = get(":year/:month", to="", rules={"year": r"\d{4}", "month": r"\d{1,2}"})
-    with pytest.raises(BadParameter):
+def test_route_format_bad_placeholder():
+    route = get(r":year<\d{4}>/:month<\d{1,2}>")
+    with pytest.raises(BadPlaceholder):
         route.format(year="18", month="10")
 
 
 def test_route_format_query():
-    route = get("/", to="")
+    route = get("/")
     assert route.format(a="Dirk", b="Gently") == "/?a=Dirk&b=Gently"
 
-    route = get(":year/:month", to="", rules={"year": r"\d{4}", "month": r"\d{1,2}"})
+    route = get(r":year<\d{4}>/:month<\d{1,2}>")
     assert route.format(year=2018, month=5, foo="bar") == "/2018/5?foo=bar"

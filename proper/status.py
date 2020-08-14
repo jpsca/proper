@@ -189,11 +189,20 @@ network_authentication_required = http_511
 
 
 # Special Cases
+http_701 = "701 Meh"
+meh = http_701
+
 http_720 = "720 Inconceivable"
 inconceivable = http_720
 
 http_725 = "725 Works On My Machine"
 works_on_my_machine = http_725
 
+http_726 = "726 A Feature Not A Bug"
+a_feature_not_a_bug = http_726
+
 http_740 = "740 Computer Says No"
 computer_says_no = http_740
+
+http_763 = "763 Under Caffeinated"
+under_caffeinated = http_763

@@ -11,7 +11,7 @@ from .error_handlers import fallback_forbidden_handler
 from .error_handlers import fallback_not_found_handler
 
 
-class AppErrors(object):
+class AppErrors:
 
     """A dict of functions to call when an HTTPError is raised.
     The keys are any subclasses of Exception, but, not necessarily subclasses

@@ -18,7 +18,7 @@ from .support import (
 __all__ = ("Request", "make_test_environ")
 
 
-class Request(object):
+class Request:
     """An HTTP request.
 
     Arguments are:

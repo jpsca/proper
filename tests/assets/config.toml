@@ -1,0 +1,6 @@
+# -------------------------------------------------------------
+# Development config
+# -------------------------------------------------------------
+
+hello = "world"
+secret_key = "Not secure. It is a BAD idea not using encrypted secrets!"

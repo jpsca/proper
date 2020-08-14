@@ -6,7 +6,7 @@ inherit from. Stores data available to view/template.
 __all__ = ("BaseController", )
 
 
-class BaseController(object):
+class BaseController:
 
     _before_action = tuple()
     _after_action = tuple()

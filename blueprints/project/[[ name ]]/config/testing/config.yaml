@@ -1,5 +1,0 @@
-# Testing config
-# -------------------------------------------------------------
-
-DEBUG: false
-SECRET_KEY: "---- This is a fake secret key just for testing ----"

@@ -1,6 +1,6 @@
 import pytest
 
-from proper import BadParameter
+from proper import BadPlaceholder
 from proper import delete
 from proper import get
 from proper import MissingParameter
@@ -13,26 +13,31 @@ from proper import status
 TEST_ROUTES = [
     scope("/api/")(
         get("items", to="Items.index"),
-        get("items/:item_id", to="Items.show", rules={"item_id": "int"}),
-        get(
-            "items/:year/:month",
-            to="items.archive",
-            rules={"year": r"\d{4}", "month": r"\d{1,2}"},
-        ),
+        get("items/:item_id<int>", to="Items.show"),
+        get(r"items/:year<\d{4}>/:month<\d{1,2}>", to="items.archive"),
         post("/items", to="Items.create"),
-        delete("/items/:item_id", to="", rules={"item_id": "int"}),
+        delete("/items/:item_id<int>"),
     ),
-    scope("/foobar/")(get("", to=""), get("foo", to=""), get("bar", to=""),),
+
+    scope("/foobar/")(
+        get(""),
+        get("foo"),
+        get("bar"),
+    ),
+
     get("", to="Pages.index", name="index"),
     get("login", to="Pages.login", name="login"),
-    get("admin", to=""),
-    get("foobar/:catchall", to="", rules={"catchall": "path"}),
+    get("admin"),
+    get("foobar/:catchall<path>"),
+
     scope("/", host="blog.example.com")(
-        get("admin", to=""), get("foobar/foo", to="FooBar.foo"),
+        get("admin"),
+        get("foobar/foo", to="FooBar.foo"),
     ),
-    scope("/:locale/", rules={"locale": r"(en|es)"})(
+
+    scope("/:locale<en|es>/")(
         get("", to="localized.index"),
-        get(":item_id", to="localized.item", rules={"item_id": "int"}),
+        get(":item_id<int>", to="localized.item"),
     ),
 ]
 
@@ -90,9 +95,9 @@ def test_url_for_missing_param(app):
         app.url_for("items.archive", year="2018")
 
 
-def test_url_for_bad_param(app):
+def test_url_for_bad_placeholder(app):
     app.routes = TEST_ROUTES
-    with pytest.raises(BadParameter):
+    with pytest.raises(BadPlaceholder):
         app.url_for("items.archive", year=18, month=-3)
 
 

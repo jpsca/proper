@@ -11,7 +11,7 @@ class NameNotFound(Exception):
     pass
 
 
-class Router(object):
+class Router:
     """
     Arguments are:
 

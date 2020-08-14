@@ -44,12 +44,3 @@ def test_scope_mount_empty_path():
         get("", to="")
     )
     assert routes[0].path == "/foobar"
-
-
-def test_scope_mount_routes_with_placeholders():
-    routes = scope("/:year/", rules={"year": "[0-9]{4}"})(
-        get("/:title-:id", to="meh", rules={"id": "[0-9]"})
-    )
-    route = routes[0]
-    assert route.path == "/:year/:title-:id"
-    assert sorted(route.rules.keys()) == ["id", "title", "year"]

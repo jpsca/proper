@@ -1,6 +1,6 @@
 from importlib import import_module
 from pathlib import Path
-from proper_config import ConfigDict
+from properconf import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.errors import MatchNotFound, MethodNotAllowed
@@ -10,7 +10,7 @@ from proper.router import Router
 from .default_config import DEFAULT_CONFIG
 
 
-class AppSetup(object):
+class AppSetup:
     serializer = None
 
     def __init__(
