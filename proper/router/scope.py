@@ -15,15 +15,15 @@ def flatten(ll):
 
 
 class Scope:
-    """
+    r"""
     A Scope is a convenient shortcut to set a prefix and a host to a group
     of routes.
 
     Arguments are:
 
         mount (str):
-            Prefix for all routes under this scope.
-            Can contain placeholders like `:name` or `:name<format>` where format can be:
+            Prefix for all routes under this scope. Can contain placeholders
+            like `:name` or `:name<format>` where "format" can be:
 
             - nothing, for matching anything except slashes
             - `int` or `float`, for matching numbers

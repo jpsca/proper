@@ -11,13 +11,17 @@ class Forward(Route):
     Arguments are:
 
         path (str):
-            The path of this route.
-            Can contain placeholders like `:name` or `:name<format>` where format can be:
+            The path of this route. Can contain placeholders like `:name` or
+            `:name<format>` where "format" can be:
 
             - nothing, for matching anything except slashes
             - `int` or `float`, for matching numbers
             - `path`, for matching anything *including* slashes
             - a regular expression
+
+            Note that, in a `Forward` route, these placheolder are only to match
+            he URL, the application where the request is forwarded must do its
+            own parsing if it wants to extract values from the URL.
 
         to (str or callable):
             Optional. A reference to the controller that this route is connected to.
@@ -33,6 +37,14 @@ class Forward(Route):
         host (str):
             Optional. Host for this route, including any subdomain
             and an optional port. Examples: "www.example.com", "localhost:5000".
+
+            Like `path`, it can contain placeholders like `:name` or `:name<format>`
+            with the same format rules.
+
+            Examples:
+
+            - :lang<en|es|pt>.example.com
+            - :username.localhost:5000
 
     """
 

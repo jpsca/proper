@@ -24,7 +24,7 @@ __all__ = (
 
 
 class Route(BaseRoute):
-    """
+    r"""
     Arguments are:
 
         method (str):
@@ -33,8 +33,8 @@ class Route(BaseRoute):
             application-specific value.
 
         path (str):
-            The path of this route.
-            Can contain placeholders like `:name` or `:name<format>` where format can be:
+            The path of this route. Can contain placeholders like `:name` or
+            `:name<format>` where "format" can be:
 
             - nothing, for matching anything except slashes
             - `int` or `float`, for matching numbers
