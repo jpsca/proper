@@ -46,11 +46,7 @@ class App(AppSetup, AppErrors, AppServer):
         current.req = req
 
         try:
-            rv = self.call(req, resp)
-            # If there is a return value, is the result of a
-            # forward function that we must return right away.
-            if rv is not None:
-                return rv
+            self.call(req, resp)
 
         except Exception as error:
             # We need this other `try...except` for handling any errors the custom
@@ -68,10 +64,6 @@ class App(AppSetup, AppErrors, AppServer):
                 func(req, resp, self)
                 if resp.stop:
                     break
-
-            route = req.matched_route
-            if route.forward_to:
-                return route.forward_to(req.environ, req.start_response)
 
         except Exception as error:
             resp.error = error

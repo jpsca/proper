@@ -40,4 +40,6 @@ DEFAULT_CONFIG = {
         "cookie_samesite": None,
         "lifetime": timedelta(days=30).total_seconds(),
     },
+
+    "websockets_queue_url": "redis://hostname:port/0",
 }

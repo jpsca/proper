@@ -1,4 +1,4 @@
-from proper import forward, get, make_test_environ, status
+from proper import get, make_test_environ, status
 
 
 class FakeStartResponse:
@@ -34,16 +34,3 @@ def test_pipefinal_error(app):
     assert b"<title>Error</title>" in body[0]
     assert start_response.status_code == status.server_error
     assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
-
-
-def test_forward(app):
-    def echo(env, start_response):
-        return (env, start_response)
-
-    app.routes = [forward("/", to=echo)]
-    start_response = FakeStartResponse()
-    env = make_test_environ()
-
-    resp_env, resp_sr = app(env, start_response)
-    assert resp_env == env
-    assert resp_sr == start_response

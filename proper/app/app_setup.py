@@ -1,5 +1,6 @@
 from importlib import import_module
 from pathlib import Path
+
 from properconf import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH

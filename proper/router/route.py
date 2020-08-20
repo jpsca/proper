@@ -97,7 +97,6 @@ class Route(BaseRoute):
         "redirect",
         "redirect_status_code",
         "defaults",
-        "forward_to",
 
         "path_re",
         "path_plain",
@@ -125,8 +124,6 @@ class Route(BaseRoute):
         self.redirect_status_code = redirect_status_code
         self.defaults = defaults or {}
 
-        self.forward_to = None
-
         super().__init__()
 
     def __repr__(self):
@@ -140,7 +137,7 @@ class Route(BaseRoute):
 
     @property
     def build_only(self):
-        return not (self.to or self.redirect or self.forward_to)
+        return not (self.to or self.redirect)
 
 
 class Get(Route):

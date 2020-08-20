@@ -93,8 +93,7 @@ class Router:
 
         Returns (tuple):
 
-            A matched `(route, params)` where `route` and `params`
-            can be `None` if the route is a forward directive.
+            A matched `(route, params)`
 
         """
         # If the path match but the method do not, we need to return
@@ -106,11 +105,11 @@ class Router:
             match = route.match(path)
             if not match:
                 continue
-            if route.forward_to is None and route.method != method:
+            if route.method != method:
                 allowed.add(route.method)
                 continue
 
-            if not (route.to or route.forward_to or route.redirect):
+            if not (route.to or route.redirect):
                 # build-only route
                 continue
 

@@ -8,7 +8,6 @@ from proper.router import (
     NameNotFound,
     Router,
     delete,
-    forward,
     get,
     post,
     scope,
@@ -192,28 +191,6 @@ def test_url_for_extra_query(router):
 def test_url_for_not_found(router):
     with pytest.raises(NameNotFound):
         router.url_for("wtf")
-
-
-def test_match_a_forward():
-    def another_app1(environ, start_response):
-        pass
-
-    def another_app2(environ, start_response):
-        pass
-
-    router = Router()
-    router.routes = [
-        forward("/dashboard/", another_app1),
-        forward("/dashboard/", another_app2, host="blog.example.com"),
-    ]
-
-    ro, params = router.match(GET, "/dashboard")
-    assert params == {}
-    assert ro.forward_to == another_app1
-
-    ro, params = router.match(GET, "/dashboard", host="blog.example.com")
-    assert params == {}
-    assert ro.forward_to == another_app2
 
 
 def test_can_only_work_with_routes():
