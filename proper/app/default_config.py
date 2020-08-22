@@ -41,5 +41,12 @@ DEFAULT_CONFIG = {
         "lifetime": timedelta(days=30).total_seconds(),
     },
 
-    "websockets_queue_url": "redis://hostname:port/0",
+    "websockets": {
+        # None = Do not use a message queue for the websocket server
+        # Works for development but you are going to need one for
+        # scaling beyond one process or to use websocket in async jobs
+        "queue_url": None,
+
+        "mode": "gevent",
+    },
 }

@@ -1,6 +1,7 @@
 from importlib import import_module
 from pathlib import Path
 
+import socketio
 from properconf import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH
@@ -77,15 +78,27 @@ class AppSetup:
     def setup(self, config):
         self._config = ConfigDict(DEFAULT_CONFIG)
         self._config.update(config)
-        self.config_router()
         if "secret_key" in self._config:
             self.init_serializer()
+
+        self.config_router()
+        self.config_socket()
 
     def config_router(self):
         self.router.host = self._config.get("default_host", "localhost")
         self.router.root_path = self._config.get("root_path", "")
         self.router.use_ssl = self._config.get("use_ssl", False)
         self.router._debug = self._config.debug
+
+    def config_socket(self):
+        client_manager = None
+        if self.config.websockets.queue_url:
+            client_manager = socketio.KombuManager(url=self.config.websockets.queue_url)
+
+        self.socket = socketio.Server(
+            async_mode=self.config.websockets.mode,
+            client_manager=client_manager
+        )
 
     def get_serializer(self):
         if not self.serializer:

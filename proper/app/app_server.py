@@ -3,7 +3,6 @@ import socket
 import sys
 from datetime import datetime
 
-import socketio
 from gevent.pywsgi import WSGIServer, WSGIHandler
 
 
@@ -32,23 +31,18 @@ class AppServer:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    def run_server(self, host=None, port=None):
+    def run(self):
         self._set_logger()
-
-        client_manager = socketio.KombuManager(url=self.config.websockets_queue_url)
-        self.sio = socketio.Server(async_mode="gevent", client_manager=client_manager)
-        self.wsgi = socketio.WSGIApp(self._sio, self.wsgi)
-
-        host = self.config.host if host is None else host
-        port = self.config.port if port is None else port
-        display_running_message(host, port)
-
+        display_running_message(self.config.host, self.config.port)
         try:
-            server = WSGIServer((host, port), self.wsgi, handler_class=ProperWSGIHandler)
+            server = WSGIServer(
+                (self.config.host, self.config.port),
+                self,
+                handler_class=ProperWSGIHandler,
+            )
             server.serve_forever()
         except KeyboardInterrupt:
             print("Goodbye!\n")
-
 
 
 def display_running_message(host, port):  # pragma: no cover
@@ -75,7 +69,6 @@ def get_local_ip():
 
 
 class ProperWSGIHandler(WSGIHandler):
-
     def format_request(self):
         if isinstance(self.client_address, tuple):
             client_address = self.client_address[0]

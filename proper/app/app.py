@@ -1,3 +1,5 @@
+import socketio
+
 from proper import middleware
 from proper.local import current
 from proper.request import Request
@@ -38,7 +40,11 @@ class App(AppSetup, AppErrors, AppServer):
     _on_teardown = tuple()
 
     def __call__(self, environ, start_response):
-        return self.wsgi(environ, start_response)
+        return self.wsgi_app(environ, start_response)
+
+    def wsgi_app(self, environ, start_response):
+        wapp = socketio.WSGIApp(self.socket, self.wsgi)
+        return wapp(environ, start_response)
 
     def wsgi(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
@@ -46,7 +52,7 @@ class App(AppSetup, AppErrors, AppServer):
         current.req = req
 
         try:
-            self.call(req, resp)
+            self.run_pipeline(req, resp)
 
         except Exception as error:
             # We need this other `try...except` for handling any errors the custom
@@ -58,7 +64,7 @@ class App(AppSetup, AppErrors, AppServer):
         current.release()
         return resp(start_response)
 
-    def call(self, req, resp):
+    def run_pipeline(self, req, resp):
         try:
             for func in self._pipeline:
                 func(req, resp, self)
