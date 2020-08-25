@@ -49,4 +49,8 @@ DEFAULT_CONFIG = {
 
         "mode": "gevent",
     },
+
+    "server": {
+        "watch": ["**/*.py", "**/*.toml", "**/*.key", "**/*.enc.toml"],
+    }
 }

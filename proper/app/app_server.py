@@ -3,6 +3,7 @@ import socket
 import sys
 from datetime import datetime
 
+import hupper
 from gevent.pywsgi import WSGIServer, WSGIHandler
 
 
@@ -30,6 +31,10 @@ class AppServer:
         formatter = logging.Formatter("%(levelname)s %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
+
+    def run_with_reloader(self):
+        reloader = hupper.start_reloader("wsgi.run")
+        reloader.watch_files(self.config.server.watch)
 
     def run(self):
         self._set_logger()
