@@ -92,12 +92,14 @@ class AppSetup:
 
     def config_socket(self):
         client_manager = None
-        if self.config.websockets.queue_url:
-            client_manager = socketio.KombuManager(url=self.config.websockets.queue_url)
+        config = self.config.websockets
+        if config.queue_url:
+            client_manager = socketio.KombuManager(url=config.queue_url)
 
         self.socket = socketio.Server(
-            async_mode=self.config.websockets.mode,
-            client_manager=client_manager
+            async_mode=config.mode,
+            client_manager=client_manager,
+            cors_allowed_origins=config.cors_allowed_origins
         )
 
     def get_serializer(self):

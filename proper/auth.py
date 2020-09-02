@@ -121,6 +121,10 @@ class Auth:
             hash_name + "__default_rounds": rounds,
         }
         self.hasher = CryptContext(**op)
+        self._set_decoy_password()
+
+    def _set_decoy_password(self):
+        self._decoy_password = self.hasher.hash("!")
 
     def hash_password(self, secret):
         if secret is None:
@@ -209,10 +213,12 @@ class Auth:
         user = model.by_login(login)
         if not user:
             logger.debug(f"User `{login}` not found")
+            self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not user.password:
             logger.debug(f"User `{login}` has no password")
+            self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not self.password_is_valid(password, user.password):

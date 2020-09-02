@@ -4,8 +4,8 @@ import sys
 from datetime import datetime
 
 import hupper
-from gevent.pywsgi import WSGIServer, WSGIHandler
-
+from gevent.pywsgi import WSGIServer
+from geventwebsocket.handler import WebSocketHandler
 
 logger = logging.getLogger()
 
@@ -73,7 +73,7 @@ def get_local_ip():
     return ip
 
 
-class ProperWSGIHandler(WSGIHandler):
+class ProperWSGIHandler(WebSocketHandler):
     def format_request(self):
         if isinstance(self.client_address, tuple):
             client_address = self.client_address[0]

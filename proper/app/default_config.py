@@ -46,8 +46,8 @@ DEFAULT_CONFIG = {
         # Works for development but you are going to need one for
         # scaling beyond one process or to use websocket in async jobs
         "queue_url": None,
-
         "mode": "gevent",
+        "cors_allowed_origins": None,
     },
 
     "server": {

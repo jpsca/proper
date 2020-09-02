@@ -34,7 +34,7 @@ A web framework optimized for programmer happiness.
 - "Everyone is an adult here".
 	Run with scissors if you must.
 
-- Gevent over async.
+- Green coroutines over async.
 
 
 # Sources of inspirations
