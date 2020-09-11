@@ -42,11 +42,11 @@ DEFAULT_CONFIG = {
     },
 
     "websockets": {
-        # None = Do not use a message queue for the websocket server
+        # None = No message queue for the websocket server
         # Works for development but you are going to need one for
         # scaling beyond one process or to use websocket in async jobs
-        "queue_url": None,
-        "mode": "gevent",
+        "queue_uri": None,
+
         "cors_allowed_origins": None,
     },
 

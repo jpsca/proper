@@ -3,9 +3,7 @@ import socket
 import sys
 from datetime import datetime
 
-import hupper
-from gevent.pywsgi import WSGIServer
-from geventwebsocket.handler import WebSocketHandler
+import gunicorn
 
 logger = logging.getLogger()
 
@@ -19,6 +17,26 @@ DISPLAY = """
    └─────────────────────────────────────────────────┘
 """
 
+class GunicornMiddleware(gunicorn.app.base.BaseApplication):
+
+    def __init__(self, app, **options):
+        self.options = options
+        self.application = app
+        super().__init__()
+
+    def load_config(self):
+        config = {key: value for key, value in self.options.items()
+                  if key in self.cfg.settings and value is not None}
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
+
+
+GUNICORN_DEV_OPTIONS = {
+
+}
 
 class AppServer:
     sio = None
@@ -32,20 +50,11 @@ class AppServer:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    def run_with_reloader(self):
-        reloader = hupper.start_reloader("wsgi.run")
-        reloader.watch_files(self.config.server.watch)
-
     def run(self):
         self._set_logger()
         display_running_message(self.config.host, self.config.port)
         try:
-            server = WSGIServer(
-                (self.config.host, self.config.port),
-                self,
-                handler_class=ProperWSGIHandler,
-            )
-            server.serve_forever()
+            GunicornMiddleware(self, **GUNICORN_DEV_OPTIONS).run()
         except KeyboardInterrupt:
             print("Goodbye!\n")
 
@@ -71,35 +80,6 @@ def get_local_ip():
     finally:
         sock.close()
     return ip
-
-
-class ProperWSGIHandler(WebSocketHandler):
-    def format_request(self):
-        if isinstance(self.client_address, tuple):
-            client_address = self.client_address[0]
-        else:
-            client_address = self.client_address
-
-        if self.response_length:
-            length = add_size_unit(self.response_length)
-        else:
-            length = "-"
-
-        if self.time_finish:
-            delta = add_time_unit(self.time_finish - self.time_start)
-        else:
-            delta = "-"
-
-        now = datetime.now()
-
-        return "{} {} -> {} {} {} {}".format(
-            now.strftime("%H:%M:%S"),
-            client_address or "?",
-            (self.requestline or "").rsplit(" ", 1)[0],
-            self._orig_status.split()[0],
-            length,
-            delta,
-        )
 
 
 def add_time_unit(delta):

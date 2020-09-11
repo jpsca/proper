@@ -3,7 +3,7 @@ inherit from. Stores data available to view/template.
 """
 
 
-__all__ = ("BaseController", )
+__all__ = ("BaseController",)
 
 
 class BaseController:
@@ -82,13 +82,13 @@ class BaseController:
             return render(template, app=app, req=req, **self._as_dict())
         ```
         """
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"{self.__class__} should implement the `_render(req, resp)` method"
+        )
 
     def _as_dict(self):
         """Serializable to a dictionary.
         """
         return {
-            name: getattr(self, name)
-            for name in dir(self)
-            if not name.startswith("_")
+            name: getattr(self, name) for name in dir(self) if not name.startswith("_")
         }

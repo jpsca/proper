@@ -1,7 +1,6 @@
 from importlib import import_module
 from pathlib import Path
 
-import socketio
 from properconf import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH
@@ -91,16 +90,8 @@ class AppSetup:
         self.router._debug = self._config.debug
 
     def config_socket(self):
-        client_manager = None
-        config = self.config.websockets
-        if config.queue_url:
-            client_manager = socketio.KombuManager(url=config.queue_url)
-
-        self.socket = socketio.Server(
-            async_mode=config.mode,
-            client_manager=client_manager,
-            cors_allowed_origins=config.cors_allowed_origins
-        )
+        # TODO
+        self.socket = None
 
     def get_serializer(self):
         if not self.serializer:
