@@ -2,8 +2,6 @@
 Request class.
 
 """
-from wsgiref.util import setup_testing_defaults
-
 from . import errors
 from .constants import GET, HEAD, POST, PUT, PATCH, DELETE, FLASHES_SESSION_KEY
 from .parsers import parse_host, parse_query_string, parse_cookies, parse_form_data
@@ -298,6 +296,8 @@ class Request:
 
 
 def make_test_environ(method=None, host=None, path=None, **kwargs):
+    from wsgiref.util import setup_testing_defaults
+
     environ = {"REMOTE_ADDR": "127.0.0.1"}
     setup_testing_defaults(environ)
 

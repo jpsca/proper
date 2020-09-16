@@ -1,3 +1,4 @@
+from . import server  # noqa
 from .app import *  # noqa
 from .controller import *  # noqa
 from .local import *  # noqa

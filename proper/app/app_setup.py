@@ -13,6 +13,7 @@ from .default_config import DEFAULT_CONFIG
 
 class AppSetup:
     serializer = None
+    socket = None
 
     def __init__(
         self,
@@ -90,8 +91,7 @@ class AppSetup:
         self.router._debug = self._config.debug
 
     def config_socket(self):
-        # TODO
-        self.socket = None
+        pass
 
     def get_serializer(self):
         if not self.serializer:

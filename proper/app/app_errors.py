@@ -36,7 +36,7 @@ class AppErrors:
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
-        if self.config.debug:
+        if self._config.debug:
             return self._default_error_handler(req, resp)
 
         if self.error_handlers:
@@ -55,9 +55,9 @@ class AppErrors:
     def _default_error_handler(self, req, resp):
         self._set_status_code(resp)
 
-        if not self.config.debug and not self.config.catch_all_errors:
+        if not self._config.debug and not self._config.catch_all_errors:
             raise
-        if self.config.debug:
+        if self._config.debug:
             self._default_error_handler_debug(req, resp)
         else:
             self._default_error_handler_production(req, resp)

@@ -1,23 +1,20 @@
-import socketio
-
 from proper import middleware
 from proper.local import current
 from proper.request import Request
 from proper.response import Response
 
 from .app_errors import AppErrors
-from .app_server import AppServer
-from .app_setup import AppSetup, MissingSecretKey, BadSecretKey
+from .app_setup import AppSetup, MissingSecretKey, BadSecretKey  # noqa
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 
 
-class App(AppSetup, AppErrors, AppServer):
+class App(AppSetup, AppErrors):
 
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
-    _pipeline = (
+    _middleware = (
         middleware.head_to_get,
         middleware.match,
         middleware.redirect,
@@ -43,16 +40,12 @@ class App(AppSetup, AppErrors, AppServer):
         return self.wsgi_app(environ, start_response)
 
     def wsgi_app(self, environ, start_response):
-        wapp = socketio.WSGIApp(self.socket, self.wsgi)
-        return wapp(environ, start_response)
-
-    def wsgi(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
         resp = Response()
         current.req = req
 
         try:
-            self.run_pipeline(req, resp)
+            self.run_middleware(req, resp)
 
         except Exception as error:
             # We need this other `try...except` for handling any errors the custom
@@ -64,9 +57,9 @@ class App(AppSetup, AppErrors, AppServer):
         current.release()
         return resp(start_response)
 
-    def run_pipeline(self, req, resp):
+    def run_middleware(self, req, resp):
         try:
-            for func in self._pipeline:
+            for func in self._middleware:
                 func(req, resp, self)
                 if resp.stop:
                     break

@@ -1,12 +1,7 @@
 from datetime import timedelta
 
 
-HOST = "0.0.0.0"
-PORT = 8080
-
 DEFAULT_CONFIG = {
-    "host": HOST,
-    "port": PORT,
     "debug": False,
 
     # Turn off to let debugging middleware handle exceptions.
@@ -21,7 +16,7 @@ DEFAULT_CONFIG = {
     "max_query_size": 2 ** 20,  # 1 MB
 
     # 'host:port/root_path', used for `url_for(..., _external=True)`.
-    "default_host": f"{HOST}:{PORT}",
+    "default_host": "0.0.0.0:8080",
 
     # The root path of the script, used for `url_for(..., _external=True)`.
     "root_path": "",
