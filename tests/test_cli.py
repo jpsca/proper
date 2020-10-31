@@ -16,10 +16,9 @@ def test_new(dst):
     config_path = dest / "myproject" / "config"
 
     assert (dest / "README.md").is_file()
+    assert (config_path / "master.key").is_file()
     assert (config_path / "development" / "secrets.enc.toml").is_file()
-    assert (config_path / "development" / "master.key").is_file()
     assert (config_path / "production" / "secrets.enc.toml").is_file()
-    assert (config_path / "production" / "master.key").is_file()
 
 
 @pytest.mark.skip(reason="too slow")

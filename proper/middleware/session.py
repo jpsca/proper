@@ -1,5 +1,5 @@
 from ..constants import FLASHES_SESSION_KEY
-from ..support import Dot, BadSignature, FrozenDict
+from ..helpers import Dot, BadSignature, FrozenDict
 
 
 __all__ = ("fetch_session", "put_session",)

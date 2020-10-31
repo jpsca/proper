@@ -3,7 +3,8 @@ from .dot import *  # noqa
 from .encoding import *  # noqa
 from .frozendict import *  # noqa
 from .headersdict import *  # noqa
-from .multidict import *  # noqa
 from .inflector import *  # noqa
+from .multidict import *  # noqa
 from .objectify import *  # noqa
 from .serializer import *  # noqa
+from .slugify import *  # noqa

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import jinja2
 
-from proper.support import titleize
+from proper.helpers import titleize
 
 
 TEMPLATES = (Path(__file__).parent / "templates").absolute()

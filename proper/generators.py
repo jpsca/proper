@@ -2,7 +2,7 @@ from pathlib import Path
 
 import hecto
 
-from proper.support import pascal_to_snake
+from proper.helpers import pascal_to_snake
 
 
 __all__ = ("controller",)

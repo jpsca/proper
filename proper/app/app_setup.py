@@ -5,7 +5,7 @@ from properconf import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.errors import MatchNotFound, MethodNotAllowed
-from proper.support import Serializer
+from proper.helpers import Serializer
 from proper.router import Router
 
 from .default_config import DEFAULT_CONFIG

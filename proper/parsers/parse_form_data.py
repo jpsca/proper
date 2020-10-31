@@ -2,7 +2,7 @@ import json
 import multipart
 
 from .. import errors
-from ..support import MultiDict
+from ..helpers import MultiDict
 
 
 __all__ = ("parse_form_data",)

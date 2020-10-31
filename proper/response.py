@@ -4,7 +4,7 @@ import json
 
 from . import status
 from .constants import FLASHES_SESSION_KEY
-from .support import (
+from .helpers import (
     add_cookie,
     CookiesDict,
     HeadersDict,

@@ -11,6 +11,7 @@ DISPLAY = """
    └─────────────────────────────────────────────────┘
 """
 
+
 def on_starting(server):
     """Gunicorn hook"""
     _display_running_message(*server.address[0])

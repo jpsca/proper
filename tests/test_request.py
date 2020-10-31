@@ -3,7 +3,7 @@ import pytest
 from proper.constants import GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
 from proper.errors import InvalidHeader
 from proper.request import FLASHES_SESSION_KEY, make_test_environ, Request
-from proper.support import Dot
+from proper.helpers import Dot
 
 
 def test_query():

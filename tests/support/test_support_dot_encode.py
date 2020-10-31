@@ -1,4 +1,4 @@
-from proper.support import Dot
+from proper.helpers import Dot
 
 
 class UpperDot(Dot):

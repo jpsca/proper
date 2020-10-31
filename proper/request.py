@@ -5,7 +5,7 @@ Request class.
 from . import errors
 from .constants import GET, HEAD, POST, PUT, PATCH, DELETE, FLASHES_SESSION_KEY
 from .parsers import parse_host, parse_query_string, parse_cookies, parse_form_data
-from .support import (
+from .helpers import (
     tunnel_encode,
     tunnel_decode,
     MultiDict,

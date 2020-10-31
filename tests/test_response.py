@@ -1,5 +1,5 @@
 from proper.response import FLASHES_SESSION_KEY, Response
-from proper.support import Dot
+from proper.helpers import Dot
 
 
 def test_flash():

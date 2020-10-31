@@ -1,5 +1,5 @@
 from proper.parsers import parse_query_string as parse
-from proper.support import MultiDict
+from proper.helpers import MultiDict
 
 
 def test_parse_empty_query_string():

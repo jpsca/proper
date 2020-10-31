@@ -1,6 +1,6 @@
 from os import path
 
-from ..support import objectify, pascal_to_snake
+from ..helpers import objectify, pascal_to_snake
 
 
 __all__ = ("dispatch",)

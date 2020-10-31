@@ -2,7 +2,7 @@ import inspect
 
 from proper import status
 from proper.errors import MatchNotFound
-from proper.support import objectify
+from proper.helpers import objectify
 
 from .error_handlers import debug_error_handler
 from .error_handlers import debug_not_found_handler

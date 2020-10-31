@@ -1,6 +1,6 @@
 import pytest
 
-from proper.support import Dot
+from proper.helpers import Dot
 
 
 def test_dict_init():

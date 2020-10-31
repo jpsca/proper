@@ -5,7 +5,7 @@ from pathlib import Path
 import hecto
 from pyceo import Manager, param, option
 from properconf.cli import setup_secrets
-from properconf.secrets import generate_token
+from properconf.secrets import generate_token, new_master_key_file
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.version import __version__
@@ -49,8 +49,9 @@ def _copy_blueprint(path, force):
 
 def _setup_secrets(path):
     config_path = path / path.name / "config"
-    setup_secrets(config_path / "development", quiet=True)
-    setup_secrets(config_path / "production", quiet=True)
+    master_key = new_master_key_file(config_path)
+    setup_secrets(config_path / "development", master_key=master_key, quiet=True)
+    setup_secrets(config_path / "production", master_key=master_key, quiet=True)
 
 
 def _install_dependencies(path, _prompt=True):
