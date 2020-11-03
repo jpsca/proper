@@ -105,5 +105,8 @@ def _render_with_jinja(template, **data):
 
 
 loader = jinja2.FileSystemLoader(str(TEMPLATES))
-jinja_env = jinja2.Environment(loader=loader)
+jinja_env = jinja2.Environment(
+    loader=loader,
+    autoescape=jinja2.select_autoescape(default=True),
+)
 jinja_env.globals["include_raw"] = _include_raw

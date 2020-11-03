@@ -21,6 +21,13 @@ class AppErrors:
 
     def errorhandler(self, cls, to):
         """Register a controller method to handle errors by exception class.
+
+        Example:
+
+        ```
+        app.errorhandler(errors.NotFound, "Pages.not_found")
+        app.errorhandler(Exception, "Pages.error")
+        ```
         """
         assert inspect.isclass(cls) and issubclass(
             cls, Exception
