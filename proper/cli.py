@@ -7,6 +7,7 @@ from pyceo import Manager, param, option
 from properconf.cli import setup_secrets
 from properconf.secrets import generate_token, new_master_key_file
 
+from proper import generators
 from proper.constants import MIN_SECRET_LENGTH
 from proper.version import __version__
 
@@ -40,6 +41,23 @@ def new(path, force=False, _install_deps=True, _prompt=True):
     else:
         deps_installed = False
     _wrap_up(path, deps_installed)
+
+
+@manager.command(help="Returns a secure secret_key")
+@option("length")
+def secret(length=MIN_SECRET_LENGTH):
+    print(generate_token())
+
+
+@manager.command(help="Adds a new controller", group="g")
+@param("app_root", help="Root path of the web application")
+@param("name", help="PascalCased name of the controller class")
+def controller(app_root, name):
+    generators.controller(app_root, name)
+
+
+def manager_run():
+    manager.run()
 
 
 def _copy_blueprint(path, force):
@@ -94,16 +112,6 @@ def _wrap_up(path, deps_installed):
     print()
     print("   $ python manage.py run")
     print()
-
-
-@manager.command(help="Returns a secure secret_key")
-@option("length")
-def secret(length=MIN_SECRET_LENGTH):
-    print(generate_token())
-
-
-def manager_run():
-    manager.run()
 
 
 if __name__ == "__main__":
