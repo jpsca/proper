@@ -1,5 +1,4 @@
-# Include the license file
 include LICENSE
-
-# Include the data files
+recursive-exclude tests *
+recursive-include proper *
 recursive-include blueprints *

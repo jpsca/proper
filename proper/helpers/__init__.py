@@ -6,5 +6,6 @@ from .headersdict import *  # noqa
 from .inflector import *  # noqa
 from .multidict import *  # noqa
 from .objectify import *  # noqa
+from .paginator import *  # noqa
 from .serializer import *  # noqa
 from .slugify import *  # noqa
