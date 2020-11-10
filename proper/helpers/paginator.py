@@ -185,52 +185,58 @@ class Paginator(object):
         for i in self.items:
             yield i
 
-    @property
     def pages(self):
         """Iterates over the page numbers in the pagination."""
-        return self.iter_pages()
+        return self.get_pages()
 
-    def iter_pages(self, showmax=12):
-        """Iterates over the page numbers in the pagination. The `showmax`
+    def get_pages(self, showmax=12):
+        """Return a list of the page numbers in the pagination. The `showmax`
         parameter control how many numbers are shown at most.
 
         Depending of the page number and the showmax value, there are several
-        possible scenarios:
+        possible scenarios, but the these rules are followed:
 
-            [(1), 2, 3, 4, 5, 6, None, 12, 13, 14, 15]
-            [1, (2), 3, 4, 5, 6, None, 12, 13, 14, 15]
-            [1, 2, (3), 4, 5, 6, None, 12, 13, 14, 15]
-            [1, 2, 3, (4), 5, 6, None, 12, 13, 14, 15]
-            [None, 3, 4, (5), 6, 7, None, 12, 13, 14, 15]
+        1. The first, last and current pages are always returned.
+        2. After those three, the remaining slots are filled around the
+        current page, after the first page, and before the last page, in that
+        order, in turns.
+        3. Skipped page numbers are represented as `None`. We never skip just
+        one page, so the final number of pages shown could be less than
+        the value of `showmax`.
 
+        Examples:
 
-        ```python
-        [
-            1..left_edge
-            None
-            (current - left_current), current, (current + right_current)
-            None
-            (num_pages - right_edge)..num_pages
-        ]
-        ```
+            [ (1), 2, 3, 4, 5, 6, None, 10, 11, 12, 13, 14, 15 ]
+            [ 1, (2), 3, 4, 5, 6, 7, None, 11, 12, 13, 14, 15 ]
+            [ 1, 2, (3), 4, 5, 6, 7, None, 11, 12, 13, 14, 15 ]
+            [ 1, 2, 3, (4), 5, 6, 7, 8, None, 12, 13, 14, 15 ]
+            [ 1, 2, 3, 4, (5), 6, 7, 8, None, 12, 13, 14, 15 ]
+            [ 1, 2, 3, 4, 5, (6), 7, 8, 9, None, 13, 14, 15 ]
+            [ 1, 2, 3, 4, 5, 6, (7), 8, 9, None, 13, 14, 15 ]
+            [ 1, 2, None, 5, 6, 7, (8), 9, 10, None, 13, 14, 15 ]
+            [ 1, 2, 3, None, 6, 7, 8, (9), 10, 11, None, 14, 15 ]
+            [ 1, 2, 3, None, 7, 8, 9, (10), 11, 12, 13, 14, 15 ]
+            [ 1, 2, 3, 4, None, 8, 9, 10, (11), 12, 13, 14, 15 ]
+            [ 1, 2, 3, 4, None, 8, 9, 10, 11, (12), 13, 14, 15 ]
+            [ 1, 2, 3, 4, 5, None, 9, 10, 11, 12, (13), 14, 15 ]
+            [ 1, 2, 3, 4, 5, None, 9, 10, 11, 12, 13, (14), 15 ]
+            [ 1, 2, 3, 4, 5, 6, None, 10, 11, 12, 13, 14, (15) ]
 
-        Skipped page numbers are represented as `None`.
         This is one way how you could render such a pagination in the template:
 
         ```jinja
-        {% macro render_paginator(paginator, endpoint) %}
-          <p>Showing {{ paginator.showing }} or {{ paginator.total }}</p>
-          <ol class="paginator">
-          {%- if paginator.has_prev %}
-            <li><a href="{{ url_for(endpoint, page=paginator.prev_num) }}"
+          <p>Showing {{ pg.showing }} or {{ pg.total }}</p>
+          <ol class="pg">
+          {%- if pg.has_prev %}
+            <li><a href="{{ url_for(endpoint, page=pg.prev_num) }}"
              rel="me prev">«</a></li>
           {% else %}
             <li class="disabled"><span>«</span></li>
           {%- endif %}
 
-          {%- for page in paginator.pages %}
+          {%- for page in pg.pages %}
             {% if page %}
-              {% if page != paginator.page %}
+              {% if page != pg.page %}
                 <li><a href="{{ url_for(endpoint, page=page) }}"
                  rel="me">{{ page }}</a></li>
               {% else %}
@@ -241,28 +247,92 @@ class Paginator(object):
             {% endif %}
           {%- endfor %}
 
-          {%- if paginator.has_next %}
-            <li><a href="{{ url_for(endpoint, page=paginator.next_num) }}"
+          {%- if pg.has_next %}
+            <li><a href="{{ url_for(endpoint, page=pg.next_num) }}"
              rel="me next">»</a></li>
           {% else %}
             <li class="disabled"><span>»</span></li>
           {%- endif %}
           </ol>
-        {% endmacro %}
         ```
 
         """
-        last = 0
-        for num in range(1, self.num_pages + 1):
-            if (
-                num <= left_edge
-                or (
-                    num > self.page - left_current - 1
-                    and num < self.page + right_current
-                )
-                or num > self.num_pages - right_edge
-            ):
-                if last + 1 != num:
-                    yield None
-                yield num
-                last = num
+        assert showmax >= 4
+        if self.num_pages <= showmax:
+            return list(range(1, self.num_pages + 1))
+
+        left, center, right = self._get_page_groups(showmax)
+        return self._merge_page_groups(left, center, right)
+
+    def _get_page_groups(self, showmax):
+        left = [1]
+        center = [self.page]
+        right = [self.num_pages]
+
+        def full():
+            return len(list(set(left + center + right))) >= showmax
+
+        while True:
+            if full():
+                break
+            value = center[0] - 1
+            if value:
+                center = [value] + center
+
+            if full():
+                break
+            value = center[-1] + 1
+            if value <= self.num_pages:
+                center = center + [value]
+
+            if full():
+                break
+            left = left + [left[-1] + 1]
+
+            if full():
+                break
+            value = right[0] - 1
+            if value:
+                right = [value] + right
+
+        return left, center, right
+
+    def _merge_page_groups(self, left, center, right):
+        print(left)
+        print(center)
+        print(right)
+
+        pages = left[:]
+
+        if pages[-1] == center[0] - 2:
+            if len(pages) > 1:
+                pages = pages[:-1]
+
+        if pages[-1] < center[0] - 1:
+            pages.append(None)
+
+        pages += center
+
+        if pages[-1] == right[0] - 2:
+            if len(right) > 1:
+                right = right[1:]
+
+        if pages[-1] < right[0] - 1:
+            pages.append(None)
+
+        pages += right
+
+        return sorted_dedup(pages)
+
+
+def sorted_dedup(iterable):
+    dedup = []
+    visited = set()
+    for item in iterable:
+        if item is None:
+            dedup.append(item)
+        elif item not in visited:
+            dedup.append(item)
+            visited.add(item)
+
+    return dedup
