@@ -226,7 +226,9 @@ class Response:
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
     def __call__(self, start_response):
-        body = (self.raw_body or "").encode(self.charset)
+        body = self.raw_body or ""
+        if hasattr(body, "encode"):
+            body = body.encode(self.charset)
         self.headers["Content-Length"] = str(len(body))
 
         start_response(self.status_code, self.headers_items)

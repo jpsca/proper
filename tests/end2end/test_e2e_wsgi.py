@@ -34,3 +34,13 @@ def test_pipefinal_error(app):
     assert b"<title>Error</title>" in body[0]
     assert start_response.status_code == status.server_error
     assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
+
+
+def test_return_bytes(app):
+    app.routes = [get("/", to="Pages.bytes")]
+
+    start_response = FakeStartResponse()
+    env = make_test_environ()
+    body = app(env, start_response)
+
+    assert body[0] == b"bytes"

@@ -61,7 +61,7 @@ class Request:
             IP address of the closest client or proxy to the WSGI server.
 
             If your application is behind one or more reverse proxies,
-            and it doesn"t pass forward the IP address of the client,
+            and it doesn't pass forward the IP address of the client,
             you can use the `access_route` attribute to retrieve the real
             IP address of the client.
 
@@ -254,11 +254,14 @@ class Request:
         closest proxy to the WSGI server.
         """
         if self._remote_addr is None:
-            addr = "127.0.0.1"
+            addr = None
+            if "HTTP_X_FORWARDED_FOR" in self.environ:
+                addr = self.environ["HTTP_X_FORWARDED_FOR   "]
             if "HTTP_X_REAL_IP" in self.environ:
                 addr = self.environ["HTTP_X_REAL_IP"]
             elif "REMOTE_ADDR" in self.environ:
                 addr = self.environ["REMOTE_ADDR"]
+            addr = addr or "127.0.0.1"
             self._remote_addr = addr
         return self._remote_addr
 

@@ -46,16 +46,18 @@ class App(AppSetup, AppErrors):
 
         try:
             self.run_middleware(req, resp)
+            current.release()
+            return resp(start_response)
 
         except Exception as error:
-            # We need this other `try...except` for handling any errors the custom
-            # error handlers or the functions in the `_on_teardown` or
-            # `_on_error` functions might raise.
+            # We need this other `try...except` for handling any errors on:
+            # - the custom error handlers,
+            # - the functions in the `_on_teardown` or `_on_error` lists, or
+            # - the body encoding on the `resp(start_response)`.
             resp.error = error
             self._default_error_handler(req, resp)
-
-        current.release()
-        return resp(start_response)
+            current.release()
+            return resp(start_response)
 
     def run_middleware(self, req, resp):
         try:

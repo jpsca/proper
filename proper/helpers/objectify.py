@@ -6,7 +6,7 @@ __all__ = ("objectify",)
 
 def objectify(module, to):
     if callable(to):
-        cls_name, action = to.__qualname__.split(".")
+        cls_name, action = to.__qualname__.rsplit(".", 1)
         module = import_module(to.__module__)
     else:
         cls_name, action = to.split(".")

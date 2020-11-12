@@ -59,3 +59,6 @@ class Pages(AppController):
     def charset(self, req, resp):
         resp.charset = "latin1"
         resp.body = "Hello World!"
+
+    def bytes(self, req, resp):
+        resp.body = b"bytes"

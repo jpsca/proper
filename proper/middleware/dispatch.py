@@ -30,7 +30,8 @@ def get_default_template(resp, endpoint):
     default, for example, using ".json" instead of ".html".
     """
     to = endpoint.__qualname__ if callable(endpoint) else endpoint
-    cls_name, action = to.split(".")
+    splitted = to.split(".")
+    cls_name, action = splitted[-2], splitted[-1]
     folder_name = pascal_to_snake(cls_name)
     file_name = action.lower()
     return path.join(folder_name, file_name)
