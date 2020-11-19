@@ -1,10 +1,10 @@
-import collections
+from collections.abc import Mapping
 
 
 __all__ = ("FrozenDict", )
 
 
-class FrozenDict(collections.Mapping):
+class FrozenDict(Mapping):
     """An immutable wrapper around dictionaries.
     """
 

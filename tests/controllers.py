@@ -32,16 +32,16 @@ class Pages(AppController):
     def fail_value_error(self, req, resp):
         raise ValueError("A non-http exception")
 
-    def custom_not_found_handler(self, req, resp, app):
+    def custom_not_found_handler(self, req, resp):
         resp.body = "Custom not found handler"
 
-    def custom_not_acceptable_handler(self, req, resp, app):
+    def custom_not_acceptable_handler(self, req, resp):
         resp.body = "Custom not acceptable handler"
 
-    def custom_error_handler(self, req, resp, app):
+    def custom_error_handler(self, req, resp):
         resp.body = "Custom error handler"
 
-    def custom_value_error_handler(self, req, resp, app):
+    def custom_value_error_handler(self, req, resp):
         resp.body = "Custom value error handler"
 
     def append(self, req, resp):

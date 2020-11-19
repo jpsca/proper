@@ -92,23 +92,23 @@ def test_custom_error_handlers(app, web):
 
     resp = web.get("/", expect_errors=True)
     assert resp.status == status.not_found
-    assert resp.text == "Custom not found handler"
+    assert resp.body == b"Custom not found handler"
 
     resp = web.get("/fail/not_acceptable", expect_errors=True)
     assert resp.status == status.not_acceptable
-    assert resp.text == "Custom not acceptable handler"
+    assert resp.body == b"Custom not acceptable handler"
 
     resp = web.get("/fail/not_implemented", expect_errors=True)
     assert resp.status == status.not_implemented
-    assert resp.text == "Custom error handler"
+    assert resp.body == b"Custom error handler"
 
     resp = web.get("/fail/forbidden", expect_errors=True)
     assert resp.status == status.forbidden
-    assert resp.text == "Custom error handler"
+    assert resp.body == b"Custom error handler"
 
     resp = web.get("/fail/value_error", expect_errors=True)
     assert resp.status == status.server_error
-    assert resp.text == "Custom value error handler"
+    assert resp.body == b"Custom value error handler"
 
 
 def test_fallback_from_custom_error_handlers(app, web):

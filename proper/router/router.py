@@ -18,7 +18,7 @@ class Router:
         host (str):
             Default `host:port`, example: "example.org:5000". Default is "0.0.0.0:8080".
             Used by `url_for` to build an absolute URL if the route doesn't have
-            a its host defined.
+            a defined host.
 
         root_path (str):
             The root path of the script, default is an empry string.
@@ -100,7 +100,7 @@ class Router:
         # a list of the allowed methods with the 405 response.
         allowed = set([])
         for route in self.routes:
-            if route.host != host:
+            if route.host is not None and route.host != host:
                 continue
             match = route.match(path)
             if not match:

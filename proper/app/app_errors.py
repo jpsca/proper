@@ -2,13 +2,17 @@ import inspect
 
 from proper import status
 from proper.errors import MatchNotFound
-from proper.helpers import objectify
+from proper.helpers import Dot
 
-from .error_handlers import debug_error_handler
-from .error_handlers import debug_not_found_handler
-from .error_handlers import fallback_error_handler
-from .error_handlers import fallback_forbidden_handler
-from .error_handlers import fallback_not_found_handler
+from ..middleware.dispatch import dispatch
+
+from .error_handlers import (
+    debug_error_handler,
+    debug_not_found_handler,
+    fallback_error_handler,
+    fallback_forbidden_handler,
+    fallback_not_found_handler,
+)
 
 
 class AppErrors:
@@ -50,13 +54,12 @@ class AppErrors:
             error = resp.error
             for cls, handler in self.error_handlers.items():
                 if isinstance(error, cls):
-                    return self._custom_error_handler(handler, req, resp)
+                    return self._custom_error_handler(req, resp, handler)
 
         self._default_error_handler(req, resp)
 
     def _set_status_code(self, resp):
         error = resp.error
-        resp.stop = True
         resp.status_code = getattr(error, "status_code", status.server_error)
 
     def _default_error_handler(self, req, resp):
@@ -83,8 +86,7 @@ class AppErrors:
         else:
             fallback_error_handler(req, resp, self)
 
-    def _custom_error_handler(self, handler, req, resp):
-        Controller, action = objectify(self.controllers_module, handler)
-        controller = Controller()
-        method = getattr(controller, action)
-        return method(req, resp, self)
+    def _custom_error_handler(self, req, resp, handler):
+        req.matched_route = Dot({"to": handler})
+        req.matched_params = {}
+        dispatch(req, resp, self)

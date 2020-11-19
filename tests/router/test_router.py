@@ -115,6 +115,18 @@ def test_match_host(router):
     assert ro.name == "com_host"
 
 
+def test_route_without_host_match_any_host(router):
+    router.routes = [
+        get("a", to="meh", name="a"),
+        get("b", to="meh", name="b"),
+    ]
+
+    ro, params = router.match(GET, "/a", "jpscaletti.com")
+    assert ro.name == "a"
+    ro, params = router.match(GET, "/b", "jpscaletti.com")
+    assert ro.name == "b"
+
+
 def test_match_scope_placeholder(router):
     ro, _ = router.match(GET, "/en")
     assert ro.to == "localized.index"
