@@ -56,10 +56,6 @@ class AppSetup:
         return self._config
 
     @property
-    def current(self):
-        return self._current
-
-    @property
     def routes(self):
         return self.router._routes
 
@@ -85,7 +81,7 @@ class AppSetup:
         self.config_socket()
 
     def config_router(self):
-        self.router.host = self._config.get("default_host", "localhost")
+        self.router.host = self._config.get("default_host", "0.0.0.0:5000")
         self.router.root_path = self._config.get("root_path", "")
         self.router.use_ssl = self._config.get("use_ssl", False)
         self.router._debug = self._config.debug

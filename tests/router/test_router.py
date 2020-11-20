@@ -173,13 +173,13 @@ def test_url_for_anchor(router):
 
 def test_url_for_external(router):
     url = router.url_for("login", _external=True)
-    assert url == "http://0.0.0.0:8080/login"
+    assert url == "http://0.0.0.0:5000/login"
 
 
 def test_url_for_external_with_ssl(router):
     router.use_ssl = True
     url = router.url_for("login", _external=True)
-    assert url == "https://0.0.0.0:8080/login"
+    assert url == "https://0.0.0.0:5000/login"
 
 
 def test_url_for_missing_param(router):

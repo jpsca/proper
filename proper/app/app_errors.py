@@ -87,6 +87,7 @@ class AppErrors:
             fallback_error_handler(req, resp, self)
 
     def _custom_error_handler(self, req, resp, handler):
+        resp.template = None
         req.matched_route = Dot({"to": handler})
         req.matched_params = {}
         dispatch(req, resp, self)

@@ -49,7 +49,7 @@ class Router:
     )
 
     def __init__(
-        self, *, host="0.0.0.0:8080", root_path="", use_ssl=False,
+        self, *, host="0.0.0.0:5000", root_path="", use_ssl=False,
         MatchNotFound=Exception, MethodNotAllowed=Exception, _debug=False
     ):
 

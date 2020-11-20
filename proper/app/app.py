@@ -36,13 +36,18 @@ class App(AppSetup, AppErrors):
     # even if an exception was raised before.
     _on_teardown = tuple()
 
+    @property
+    def current_req(self):
+        return current.req
+
     def __call__(self, environ, start_response):
         return self.wsgi_app(environ, start_response)
 
     def wsgi_app(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
-        resp = Response()
         current.req = req
+        self.router.host = req.host
+        resp = Response()
 
         try:
             self.run_middleware(req, resp)

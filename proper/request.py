@@ -132,12 +132,12 @@ class Request:
         # Read the docstring on `support/encoding.py` for more details.
         self.path = "/" + tunnel_decode(environ["PATH_INFO"].strip("/"))
         self.content_type = self.environ["CONTENT_TYPE"]
+        self.host = parse_host(self.environ["HTTP_HOST"])
 
         self._content_length = None
         self._cookies = None
         self._form = None
         self._headers = None
-        self._host = None
         self._query = None
         self._remote_addr = None
         self._session = {}
@@ -210,12 +210,6 @@ class Request:
                 headers[name] = value
             self._headers = headers
         return self._headers
-
-    @property
-    def host(self):
-        if self._host is None:
-            self._host = parse_host(self.environ["HTTP_HOST"])
-        return self._host
 
     @property
     def is_get(self):
