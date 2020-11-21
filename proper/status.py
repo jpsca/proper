@@ -130,6 +130,7 @@ requested_range_not_satisfiable = http_416
 http_417 = "417 Expectation Failed"
 expectation_failed = http_417
 
+# Server refuses to brew coffee because it is a teapot
 http_418 = "418 I'm a teapot"
 im_a_teapot = http_418
 

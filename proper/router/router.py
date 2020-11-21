@@ -1,5 +1,7 @@
 """Router object that holds all routes and match them to urls.
 """
+from proper.local import current
+
 from .route import Route
 from .scope import flatten
 
@@ -18,7 +20,7 @@ class Router:
         host (str):
             Default `host:port`, example: "example.org:5000".
             Used by `url_for` to build an absolute URL if the route doesn't have
-            a defined host.
+            a defined host or there isn't a current request from where to extract a host.
 
         root_path (str):
             The root path of the script, default is an empry string.
@@ -49,7 +51,7 @@ class Router:
     )
 
     def __init__(
-        self, *, host="0.0.0.0:5000", root_path="", use_ssl=False,
+        self, *, host="example.com", root_path="", use_ssl=False,
         MatchNotFound=Exception, MethodNotAllowed=Exception, _debug=False
     ):
 
@@ -157,5 +159,7 @@ class Router:
             return url
 
         protocol = ("https" if self.use_ssl else "http") + "://"
-        host = route.host or self.host
+        current_req = getattr(current, "req", None)
+        req_host = current.req.host_with_port if current_req else None
+        host = route.host or req_host or self.host
         return protocol + host + url

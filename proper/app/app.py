@@ -38,7 +38,7 @@ class App(AppSetup, AppErrors):
 
     @property
     def current_req(self):
-        return current.req
+        return getattr(current, "req", None)
 
     def __call__(self, environ, start_response):
         return self.wsgi_app(environ, start_response)
@@ -46,7 +46,6 @@ class App(AppSetup, AppErrors):
     def wsgi_app(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
         current.req = req
-        self.router.host = req.host_with_port
         resp = Response()
 
         try:
@@ -92,3 +91,7 @@ class App(AppSetup, AppErrors):
         """
         self._on_teardown = (self._on_teardown or ()) + (func, )
         return func
+
+    def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
+        """Proxy for `self.router.url_for()`."""
+        return self.router.url_for(name, _external=_external, _anchor=_anchor, **kwargs)
