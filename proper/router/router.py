@@ -16,7 +16,7 @@ class Router:
     Arguments are:
 
         host (str):
-            Default `host:port`, example: "example.org:5000". Default is "0.0.0.0:8080".
+            Default `host:port`, example: "example.org:5000".
             Used by `url_for` to build an absolute URL if the route doesn't have
             a defined host.
 
@@ -38,11 +38,11 @@ class Router:
     """
 
     __slots__ = (
-        "_host",
-        "_root_path",
         "use_ssl",
         "MatchNotFound",
         "MethodNotAllowed",
+        "_host",
+        "_root_path",
         "_debug",
         "_routes",
         "_by_name",

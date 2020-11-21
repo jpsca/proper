@@ -15,6 +15,8 @@ from .helpers import (
 
 __all__ = ("Request", "make_test_environ")
 
+DEFAULT_HTTP_PORT = 80
+DEFAULT_HTTPS_PORT = 443
 
 class Request:
     """An HTTP request.
@@ -132,7 +134,10 @@ class Request:
         # Read the docstring on `support/encoding.py` for more details.
         self.path = "/" + tunnel_decode(environ["PATH_INFO"].strip("/"))
         self.content_type = self.environ["CONTENT_TYPE"]
+        self.scheme = self.environ.get("HTTP_X_FORWARDED_PROTO") or self.environ.get("wsgi.url_scheme")
         self.host = parse_host(self.environ["HTTP_HOST"])
+        self.port = self._port()
+        self.host_with_port = self._host_with_port()
 
         self._content_length = None
         self._cookies = None
@@ -142,6 +147,10 @@ class Request:
         self._remote_addr = None
         self._session = {}
 
+
+    def __repr__(self):
+        return f"<Request {self.method} “{self.path}”>"
+
     def _normalize_environment(self, environ, kwargs):
         environ = environ or make_test_environ(**kwargs)
         environ.setdefault("HTTP_HOST", "")
@@ -150,8 +159,17 @@ class Request:
         environ.setdefault("CONTENT_TYPE", "")
         return environ
 
-    def __repr__(self):
-        return f"<Request {self.method} “{self.path}”>"
+    def _port(self):
+        return self.environ.get("SERVER_PORT") or (DEFAULT_HTTPS_PORT if self.scheme == "https" else DEFAULT_HTTP_PORT)
+
+    def _host_with_port(self):
+        if self.port_is_default:
+            return self.host
+        return f"{self.host}:{self.port}"
+
+    @property
+    def port_is_default(self):
+        return (self.port == DEFAULT_HTTPS_PORT and self.scheme == "https") or (self.port == DEFAULT_HTTP_PORT)
 
     @property
     def content_length(self):
@@ -262,11 +280,6 @@ class Request:
     @property
     def root_path(self):
         return self.environ.get("SCRIPT_NAME")
-
-    @property
-    def scheme(self):
-        return self.environ.get("HTTP_X_FORWARDED_PROTO") \
-            or self.environ.get("wsgi.url_scheme")
 
     @property
     def secure(self):

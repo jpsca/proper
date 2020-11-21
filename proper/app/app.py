@@ -46,7 +46,7 @@ class App(AppSetup, AppErrors):
     def wsgi_app(self, environ, start_response):
         req = Request(environ, start_response, config=self.config)
         current.req = req
-        self.router.host = req.host
+        self.router.host = req.host_with_port
         resp = Response()
 
         try:
