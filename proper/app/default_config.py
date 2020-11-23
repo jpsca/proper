@@ -16,7 +16,7 @@ DEFAULT_CONFIG = {
     "max_query_size": 2 ** 20,  # 1 MB
 
     # 'host:port/root_path', used for `url_for(..., _external=True)`.
-    "default_host": "0.0.0.0:8080",
+    "default_host": "example.com",
 
     # The root path of the script, used for `url_for(..., _external=True)`.
     "root_path": "",
@@ -35,17 +35,4 @@ DEFAULT_CONFIG = {
         "cookie_samesite": None,
         "lifetime": timedelta(days=30).total_seconds(),
     },
-
-    "websockets": {
-        # None = No message queue for the websocket server
-        # Works for development but you are going to need one for
-        # scaling beyond one process or to use websocket in async jobs
-        "queue_uri": None,
-
-        "cors_allowed_origins": None,
-    },
-
-    "server": {
-        "watch": ["**/*.py", "**/*.toml", "**/*.key", "**/*.enc.toml"],
-    }
 }

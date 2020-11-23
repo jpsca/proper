@@ -81,10 +81,11 @@ class AppSetup:
         self.config_socket()
 
     def config_router(self):
-        self.router.host = self._config.get("default_host", "0.0.0.0:5000")
-        self.router.root_path = self._config.get("root_path", "")
-        self.router.use_ssl = self._config.get("use_ssl", False)
-        self.router._debug = self._config.debug
+        router = self.router
+        router.host = self._config.get("default_host", router.host)
+        router.root_path = self._config.get("root_path", router.root_path)
+        router.use_ssl = self._config.get("use_ssl", router.use_ssl)
+        router._debug = self._config.debug
 
     def config_socket(self):
         pass

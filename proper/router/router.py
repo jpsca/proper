@@ -158,8 +158,8 @@ class Router:
         if not _external:
             return url
 
-        protocol = ("https" if self.use_ssl else "http") + "://"
         current_req = getattr(current, "req", None)
-        req_host = current.req.host_with_port if current_req else None
+        protocol = ("https" if self.use_ssl else "http") + "://"
+        req_host = current_req.host_with_port if current_req else None
         host = route.host or req_host or self.host
         return protocol + host + url

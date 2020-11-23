@@ -79,14 +79,14 @@ def test_url_for_anchor(app):
 def test_url_for_external(app):
     app.routes = TEST_ROUTES
     url = app.url_for("login", _external=True)
-    assert url == "http://0.0.0.0:8080/login"
+    assert url == "http://example.com/login"
 
 
 def test_url_for_external_with_ssl(app):
     app.setup({"use_ssl": True})
     app.routes = TEST_ROUTES
     url = app.url_for("login", _external=True)
-    assert url == "https://0.0.0.0:8080/login"
+    assert url == "https://example.com/login"
 
 
 def test_url_for_missing_param(app):
