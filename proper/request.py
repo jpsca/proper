@@ -4,7 +4,7 @@ Request class.
 """
 from . import errors
 from .constants import GET, HEAD, POST, PUT, PATCH, DELETE, FLASHES_SESSION_KEY
-from .parsers import parse_host, parse_query_string, parse_cookies, parse_form_data
+from .parsers import parse_query_string, parse_cookies, parse_form_data
 from .helpers import (
     tunnel_encode,
     tunnel_decode,
@@ -23,26 +23,29 @@ class Request:
 
     Arguments are:
 
-        environ (dict):
-            A WSGI environment dict passed in from the server (See also PEP-3333).
-            If none is passed, a default one will be used instead.
-
-        start_response (function):
-            A WSGI `start_response` function from the server (See also PEP-3333).
-
         encoding (str):
-            "utf8" by default
+            Default encoding.
 
-        method (str)
-        host (str)
-        path (str)
-        **kwargs (dict):
-            Update the values of the environment (used for testing).
+        config (dict):
+            Extra options
+
+        **environ (dict):
+            A WSGI environment dict passed in from the server (See also PEP-3333).
 
     Attributes:
 
         environ (dict):
             The WSGI environment dict passed in from the server.
+
+        scheme (str):
+            The request scheme as an string (either "http" or "https").
+
+        host (str):
+            The requested host.
+
+        host_with_port (str):
+            A host:port string for this request. The port is not included
+            if its the default for the scheme.
 
         method (str):
             The uppercased request method, example: "GET".
@@ -50,14 +53,12 @@ class Request:
         path (str):
             Requested path without the leading or trailing slash.
 
+        query (MultiDict):
+            Parsed args from the URL.
 
-    Lazy-loaded attributes:
-
-    The information in these attributes is not populated until they are readed for the
-    first time.
-
-        host (str):
-            The requested host.
+        form (MultiDict):
+            A :class:`MultiDict` object containing the parsed body data, like the
+            one sent by a HTML form with a POST, **including** the files.
 
         remote_addr (str):
             IP address of the closest client or proxy to the WSGI server.
@@ -71,22 +72,13 @@ class Request:
             The root path of the script (SCRIPT_NAME).
             Note: The router does **NOT** uses this value for `url_for()`, but the
             one from `app.config.root_path`.
-
-        query (MultiDict):
             A :class:`MultiDict` object containing the query string data.
-
-        form (MultiDict):
-            A :class:`MultiDict` object containing the parsed body data, like the
-            one sent by a HTML form with a POST, **including** the files.
 
         cookies (dict):
             All cookies transmitted with the request.
 
         xhr (bool)
             True if current request is an XHR request.
-
-        scheme (str):
-            The request scheme as an string (either "http" or "https").
 
         secure (bool)
             Whether the current request was made via a SSL connection.
@@ -115,29 +107,27 @@ class Request:
 
     def __init__(
         self,
-        environ=None,
-        start_response=None,
         *,
         encoding="utf8",
         config=None,
-        **kwargs,
+        **environ,
     ):
-        environ = self._normalize_environment(environ, kwargs)
-        self.environ = environ
-        self.start_response = start_response
         self.encoding = encoding
         self.config = config or {}
+        environ = environ or make_test_environ()
+        self.environ = environ
 
-        self.method = environ["REQUEST_METHOD"].upper()
+        self.method = environ.get("REQUEST_METHOD", "GET").upper()
         self.real_method = self.method
+
         # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
         # Read the docstring on `support/encoding.py` for more details.
-        self.path = "/" + tunnel_decode(environ["PATH_INFO"].strip("/"))
-        self.content_type = self.environ["CONTENT_TYPE"]
+        self.path = "/" + tunnel_decode(environ.get("PATH_INFO", "").strip("/"))
+
+        self.content_type = self.environ.get("CONTENT_TYPE", "")
+
         self.scheme = self.environ.get("HTTP_X_FORWARDED_PROTO") or self.environ.get("wsgi.url_scheme")
-        self.host = parse_host(self.environ["HTTP_HOST"])
-        self.port = self._port()
-        self.host_with_port = self._host_with_port()
+        self.host, self.port = self._parse_host(self.environ.get("HTTP_HOST"))
 
         self._content_length = None
         self._cookies = None
@@ -147,36 +137,47 @@ class Request:
         self._remote_addr = None
         self._session = {}
 
-
     def __repr__(self):
         return f"<Request {self.method} “{self.path}”>"
 
-    def _normalize_environment(self, environ, kwargs):
-        environ = environ or make_test_environ(**kwargs)
-        environ.setdefault("HTTP_HOST", "")
-        environ.setdefault("QUERY_STRING", "")
-        environ.setdefault("CONTENT_LENGTH", "0")
-        environ.setdefault("CONTENT_TYPE", "")
-        return environ
+    def _parse_host(self, host):
+        _defport = DEFAULT_HTTPS_PORT if self.scheme == "https" else DEFAULT_HTTP_PORT
+        if not host:
+            return "", _defport
 
-    def _port(self):
-        return self.environ.get("SERVER_PORT") or (DEFAULT_HTTPS_PORT if self.scheme == "https" else DEFAULT_HTTP_PORT)
+        port = None
 
-    def _host_with_port(self):
-        if self.port_is_default:
-            return self.host
-        return f"{self.host}:{self.port}"
+        if "]:" in host:
+            host, port = host.split("]:", 1)
+            host = host[1:]
+        elif  host[0] == "[":
+            host = host[1:-1]
+        elif ":" in host:
+            host, port = host.rsplit(":", 1)
+
+        port = int(port) if port and port.isdecimal() else _defport
+        return host, port
 
     @property
     def port_is_default(self):
         return (self.port == DEFAULT_HTTPS_PORT and self.scheme == "https") or (self.port == DEFAULT_HTTP_PORT)
 
     @property
+    def host_with_port(self):
+        """Returns a host:port string for this request, such as “example.com” or
+        “example.com:8080”.
+        Port is only included if it is not a default port (80 or 443)
+        """
+        if self.port_is_default:
+            return self.host
+        return f"{self.host}:{self.port}"
+
+    @property
     def content_length(self):
         """The content_length value as an integer.
         """
         if self._content_length is None:
-            length = self.environ["CONTENT_LENGTH"]
+            length = self.environ.get("CONTENT_LENGTH", "0")
             self._content_length = self._validate_content_length(length)
         return self._content_length
 
@@ -256,7 +257,7 @@ class Request:
     @property
     def query(self):
         if self._query is None:
-            query_string = self.environ.get("QUERY_STRING")
+            query_string = self.environ.get("QUERY_STRING", "")
             self._query = parse_query_string(query_string, self.config)
         return self._query
 
@@ -305,16 +306,12 @@ class Request:
         return self.method in (POST, PUT, DELETE, PATCH)
 
 
-def make_test_environ(method=None, host=None, path=None, **kwargs):
+def make_test_environ(path=None, **kwargs):
     from wsgiref.util import setup_testing_defaults
 
     environ = {"REMOTE_ADDR": "127.0.0.1"}
     setup_testing_defaults(environ)
 
-    if method:
-        environ["REQUEST_METHOD"] = method.upper()
-    if host:
-        environ["HTTP_HOST"] = host
     if path:
         if "?" in path:
             path, query = path.rsplit("?", 1)

@@ -2,12 +2,12 @@ import pytest
 
 from proper.constants import GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
 from proper.errors import InvalidHeader
-from proper.request import FLASHES_SESSION_KEY, make_test_environ, Request
+from proper.request import FLASHES_SESSION_KEY, Request
 from proper.helpers import Dot
 
 
 def test_query():
-    req = Request(method=GET, path="/?foo=bar&ok&color=red&color=green&color=blue")
+    req = Request(QUERY_STRING="foo=bar&ok&color=red&color=green&color=blue")
 
     assert req.query
     assert req.query == req.query  # idempotent
@@ -54,17 +54,59 @@ def test_extra_content_length():
 
 
 def test_parse_host():
-    env = make_test_environ(method=GET, host="example.com")
-    req = Request(env)
+    req = Request(HTTP_HOST="0.0.0.0")
+    assert req.host == "0.0.0.0"
+    assert req.port == 80
 
+    req = Request(HTTP_HOST="0.0.0.0:5000")
+    assert req.host == "0.0.0.0"
+    assert req.port == 5000
+
+    req = Request(HTTP_HOST="localhost")
+    assert req.host == "localhost"
+    assert req.port == 80
+
+    ipv6_addr = "2800:200:e480:10d4:dc9e:51f0:f99e:b5f4"
+    req = Request(HTTP_HOST="[" + ipv6_addr + "]")
+    assert req.host == ipv6_addr
+    assert req.port == 80
+
+    req = Request(HTTP_HOST="[" + ipv6_addr + "]:34567")
+    assert req.host == ipv6_addr
+    assert req.port == 34567
+
+    req = Request(HTTP_HOST="example.com")
     assert req.host == "example.com"
+    assert req.port == 80
 
+    req = Request(HTTP_HOST="proper.jpscaletti.com")
+    assert req.host == "proper.jpscaletti.com"
+    assert req.port == 80
 
-def test_parse_port_in_host():
-    env = make_test_environ(method=GET, host="example.com:4567")
-    req = Request(env)
+    req = Request(HTTP_HOST="proper.jpscaletti.com:4000")
+    assert req.host == "proper.jpscaletti.com"
+    assert req.port == 4000
 
+    req = Request(HTTP_HOST="example.com", HTTP_X_FORWARDED_PROTO="https")
     assert req.host == "example.com"
+    assert req.port == 443
+
+
+def test_host_with_port():
+    req = Request(HTTP_HOST="example.com")
+    assert req.host_with_port == "example.com"
+
+    req = Request(HTTP_HOST="example.com:80")
+    assert req.host_with_port == "example.com"
+
+    req = Request(HTTP_HOST="example.com:5000")
+    assert req.host_with_port == "example.com:5000"
+
+    req = Request(HTTP_HOST="example.com:443")
+    assert req.host_with_port == "example.com:443"
+
+    req = Request(HTTP_HOST="example.com:443", HTTP_X_FORWARDED_PROTO="https")
+    assert req.host_with_port == "example.com"
 
 
 def test_no_remote_addr_is_127_0_0_1():
@@ -137,4 +179,4 @@ def test_flashes():
     ],
 )
 def test_must_check_csrf(method, result):
-    assert Request(method=method).must_check_csrf() == result
+    assert Request(REQUEST_METHOD=method).must_check_csrf() == result

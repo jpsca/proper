@@ -17,7 +17,7 @@ from proper.middleware.protect_from_forgery import (
 
 @pytest.mark.parametrize("method", [GET, HEAD, OPTIONS, "MEH"])
 def test_no_need_to_argue(method):
-    req = Request(method=method)
+    req = Request(REQUEST_METHOD=method)
     req._session = Dot()
     resp = Response()
     protect_from_forgery(req, resp, None)
@@ -26,7 +26,7 @@ def test_no_need_to_argue(method):
 
 
 def test_missing_csrf():
-    req = Request(method=POST)
+    req = Request(REQUEST_METHOD=POST)
     resp = Response()
 
     with pytest.raises(MissingCSRFToken):
@@ -35,7 +35,7 @@ def test_missing_csrf():
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_valid_csrf_from_form(method):
-    req = Request(method=method, path="/")
+    req = Request(REQUEST_METHOD=method)
     req._form = Dot({CSRF_QUERY_KEY: "qwertyuiop"})
     req._content_length = 10
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
@@ -46,7 +46,7 @@ def test_valid_csrf_from_form(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_csrf_from_form(method):
-    req = Request(method=method, path="/")
+    req = Request(REQUEST_METHOD=method)
     req._form = Dot({CSRF_QUERY_KEY: "hello"})
     req._content_length = 10
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
@@ -58,7 +58,7 @@ def test_invalid_csrf_from_form(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_valid_csrf_from_query(method):
-    req = Request(method=method, path=f"/?{CSRF_QUERY_KEY}=qwertyuiop")
+    req = Request(REQUEST_METHOD=method, QUERY_STRING=f"{CSRF_QUERY_KEY}=qwertyuiop")
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
     resp = Response()
 
@@ -67,7 +67,7 @@ def test_valid_csrf_from_query(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_csrf_from_query(method):
-    req = Request(method=method, path=f"/?{CSRF_QUERY_KEY}=hello")
+    req = Request(REQUEST_METHOD=method, QUERY_STRING=f"{CSRF_QUERY_KEY}=hello")
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
     resp = Response()
 
@@ -77,7 +77,7 @@ def test_invalid_csrf_from_query(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_valid_csrf_from_header(method):
-    req = Request(method=method, path="/")
+    req = Request(REQUEST_METHOD=method)
     req.environ[CSRF_HEADER] = "qwertyuiop"
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
     resp = Response()
@@ -87,7 +87,7 @@ def test_valid_csrf_from_header(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_csrf_from_header(method):
-    req = Request(method=method, path="/")
+    req = Request(REQUEST_METHOD=method)
     req.environ[CSRF_HEADER] = "hello"
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
     resp = Response()
@@ -98,7 +98,7 @@ def test_invalid_csrf_from_header(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_valid_csrf_from_alt_header(method):
-    req = Request(method=method, path="/")
+    req = Request(REQUEST_METHOD=method)
     req.environ[CSRF_HEADER_ALT] = "qwertyuiop"
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
     resp = Response()
@@ -108,7 +108,7 @@ def test_valid_csrf_from_alt_header(method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_csrf_from_alt_header(method):
-    req = Request(method=method, path="/")
+    req = Request(REQUEST_METHOD=method)
     req.environ[CSRF_HEADER_ALT] = "hello"
     req._session = Dot({CSRF_SESSION_KEY: "qwertyuiop"})
     resp = Response()

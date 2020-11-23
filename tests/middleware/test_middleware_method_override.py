@@ -7,7 +7,7 @@ from proper.middleware import method_override
 
 @pytest.mark.parametrize("_method", [PUT, PATCH, DELETE])
 def test_method_override(_method):
-    req = Request(method=POST, path="/?_method=" + _method)
+    req = Request(REQUEST_METHOD=POST, QUERY_STRING="_method=" + _method)
     resp = Response()
     method_override(req, resp, None)
 
@@ -17,7 +17,7 @@ def test_method_override(_method):
 
 @pytest.mark.parametrize("_method", [GET, HEAD, OPTIONS, "MEH"])
 def test_ignore_invalid_new_methods(_method):
-    req = Request(method=POST, path="/?_method=" + _method)
+    req = Request(REQUEST_METHOD=POST, QUERY_STRING="_method=" + _method)
     resp = Response()
     method_override(req, resp, None)
 
@@ -27,7 +27,7 @@ def test_ignore_invalid_new_methods(_method):
 @pytest.mark.parametrize("_method", [GET, PUT, PATCH, DELETE, HEAD, OPTIONS, "MEH"])
 def test_only_override_post(_method):
     _m = PUT if _method != PUT else PATCH
-    req = Request(method=_method, path="/?_method=" + _m)
+    req = Request(REQUEST_METHOD=_method, QUERY_STRING="_method=" + _m)
     resp = Response()
     method_override(req, resp, None)
 

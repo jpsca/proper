@@ -44,7 +44,7 @@ class App(AppSetup, AppErrors):
         return self.wsgi_app(environ, start_response)
 
     def wsgi_app(self, environ, start_response):
-        req = Request(environ, start_response, config=self.config)
+        req = Request(config=self.config, **environ)
         current.req = req
         resp = Response()
 

@@ -1,4 +1,4 @@
-from proper import get, make_test_environ, status
+from proper import get, status
 
 
 class FakeStartResponse:
@@ -12,8 +12,7 @@ class FakeStartResponse:
 def test_call(app):
     app.routes = [get("/", to="Pages.index")]
     start_response = FakeStartResponse()
-    env = make_test_environ()
-    body = app(env, start_response)
+    body = app({}, start_response)
 
     assert body == [b"Hello World!"]
     assert start_response.status_code == status.ok
@@ -28,8 +27,7 @@ def test_pipefinal_error(app):
         raise ValueError
 
     start_response = FakeStartResponse()
-    env = make_test_environ()
-    body = app(env, start_response)
+    body = app({}, start_response)
 
     assert b"<title>Error</title>" in body[0]
     assert start_response.status_code == status.server_error
@@ -40,7 +38,6 @@ def test_return_bytes(app):
     app.routes = [get("/", to="Pages.bytes")]
 
     start_response = FakeStartResponse()
-    env = make_test_environ()
-    body = app(env, start_response)
+    body = app({}, start_response)
 
     assert body[0] == b"bytes"
