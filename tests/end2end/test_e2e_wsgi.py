@@ -2,11 +2,11 @@ from proper import get, status
 
 
 class FakeStartResponse:
-    status_code = headers_items = None
+    status_code = headers_list = None
 
-    def __call__(self, status_code, headers_items):
+    def __call__(self, status_code, headers_list):
         self.status_code = status_code
-        self.headers = dict(headers_items)
+        self.headers = dict(headers_list)
 
 
 def test_call(app):

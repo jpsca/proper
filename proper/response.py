@@ -1,5 +1,7 @@
 """Response class.
 """
+from datetime import date
+from hashlib import md5
 import json
 
 from . import status
@@ -56,6 +58,20 @@ class Response:
         self.content_type = content_type
         self.charset = charset
 
+    def __call__(self, start_response):
+        body = self.raw_body or ""
+        if hasattr(body, "encode"):
+            body = body.encode(self.charset)
+        self.headers["Content-Length"] = str(len(body))
+
+        start_response(self.status_code, self.headers_list)
+        if not body:
+            return []
+        return [body]
+
+    def __repr__(self):
+        return f"<Response “{self._status_code}”>"
+
     @property
     def body(self):
         return self.raw_body
@@ -104,18 +120,16 @@ class Response:
         return self.raw_body is not None
 
     @property
-    def headers_items(self):
-        return self.regular_headers_items + self.cookie_headers_items
+    def headers_list(self):
+        return self._build_regular_headers() + self._build_cookie_headers()
 
-    @property
-    def regular_headers_items(self):
+    def _build_regular_headers(self):
         return [
             (key, tunnel_encode(value, "utf-8"))
             for key, value in self.headers.items()
         ]
 
-    @property
-    def cookie_headers_items(self):
+    def _build_cookie_headers(self):
         return [
             tuple(morsel.output().split(": ", 1))
             for morsel in self.cookies.values()
@@ -225,16 +239,21 @@ class Response:
         """
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
-    def __call__(self, start_response):
-        body = self.raw_body or ""
-        if hasattr(body, "encode"):
-            body = body.encode(self.charset)
-        self.headers["Content-Length"] = str(len(body))
-
-        start_response(self.status_code, self.headers_items)
-        if not body:
-            return []
-        return [body]
-
-    def __repr__(self):
-        return f"<Response “{self._status_code}”>"
+    def fresh_when(self, *values, strong=False):
+        """Sets the Etag header from a value or a list of values.
+        A valid value is a date, a string, a number, or an object with an `updated_at` attribute.
+        """
+        seeds = []
+        for value in values:
+            upd = getattr(value, "updated_at", value)
+            if upd is not None:
+                seeds.append(str(upd))
+            else:
+                assert isinstance(value, (str, int, float, date)), (
+                    "To generate an etag, you can only use a date, a string, a number, an object with"
+                    "an `updated_at` attribute, or a list of values with those types."
+                )
+                seeds.append(str(value))
+        seed = ",".join(seeds).encode()
+        digest = md5(seed).hexdigest()
+        self.headers["Etag"] = digest if strong else f'W/"{digest}"'
