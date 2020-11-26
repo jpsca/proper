@@ -16,5 +16,4 @@ def strip_body_if_head(req, resp, _app):
     """Strip the response body if the method was HEAD.
     """
     if req.real_method == "HEAD":
-        resp.headers["Content-Length"] = 0
         resp.body = ""

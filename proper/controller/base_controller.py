@@ -1,6 +1,8 @@
 """A base controller class, all other application controllers must
 inherit from. Stores data available to view/template.
 """
+from ..constants import HEAD
+from ..status import not_modified
 
 
 __all__ = ("BaseController",)
@@ -66,7 +68,14 @@ class BaseController:
         method = getattr(self, action)
         method(req, resp, **req.matched_params)
 
-        if not resp.has_body and not resp.stop:
+        if req.real_method == HEAD:
+            resp.body = ""
+
+        elif resp.is_fresh:
+            resp.status_code = not_modified
+            resp.body = ""
+
+        elif not resp.has_body and not resp.stop:
             # `_render()` is a method all controllers MUST have implemented
             resp.body = self._render(req, resp)
 

@@ -73,7 +73,10 @@ class Response:
         body = self.raw_body or ""
         if hasattr(body, "encode"):
             body = body.encode(self.charset)
-        self.headers["Content-Length"] = str(len(body))
+
+        content_length = len(body)
+        if content_length:
+            self.headers["Content-Length"] = str(content_length)
 
         start_response(self.status_code, self.headers_list)
         if not body:
