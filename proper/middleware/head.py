@@ -4,7 +4,7 @@ from ..constants import HEAD, GET
 __all__ = ("head_to_get", "strip_body_if_head")
 
 
-def head_to_get(req, resp, _app):
+def head_to_get(req, _resp, _app):
     """Transform a HEAD request to a fake GET request.
     """
     if req.method == HEAD:

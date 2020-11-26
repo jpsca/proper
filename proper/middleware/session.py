@@ -31,8 +31,6 @@ def get_session(req, app):
 
 
 def put_session(req, resp, app):
-    """
-    """
     if resp.session != req.session:
         update_session_cookie(resp, app)
 

@@ -46,10 +46,7 @@ def protect_from_forgery(req, resp, app):
 
 
 def put_csrf_header(req, resp, _app):
-    """
-    """
-    token = get_or_set_token(req, resp)
-    resp.headers[CSRF_HEADER] = token
+    get_or_set_token(req, resp)
 
 
 def get_used_token(req):

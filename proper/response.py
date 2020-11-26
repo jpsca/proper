@@ -1,8 +1,9 @@
 """Response class.
 """
+import json
 from datetime import date
 from hashlib import md5
-import json
+from uuid import uuid4
 
 from . import status
 from .constants import FLASHES_SESSION_KEY
@@ -59,7 +60,7 @@ class Response:
         charset="utf-8",
         _req=None,
     ):
-        self.headers = HeadersDict()
+        self.headers = HeadersDict({"X-Request-Id": str(uuid4())})
         self.cookies = CookiesDict()
 
         self.status_code = status_code
@@ -291,7 +292,7 @@ class Response:
             self._last_modified = dt
             self.headers["Last-Modified"] = dt.strftime(fmt)
 
-        self.headers["Cache-Control"] = "public" if public else "private"
+        self.headers["Cache-Control"] =f"max-age=0, {'public' if public else 'private'}, must-revalidate"
         return self.is_fresh
 
     @property
