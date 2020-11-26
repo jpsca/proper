@@ -4,7 +4,13 @@ Request class.
 """
 from . import errors
 from .constants import GET, HEAD, POST, PUT, PATCH, DELETE, FLASHES_SESSION_KEY
-from .parsers import parse_query_string, parse_cookies, parse_form_data
+from .parsers import (
+    parse_comma_separated,
+    parse_cookies,
+    parse_http_date,
+    parse_form_data,
+    parse_query_string,
+)
 from .helpers import (
     tunnel_encode,
     tunnel_decode,
@@ -77,10 +83,10 @@ class Request:
         cookies (dict):
             All cookies transmitted with the request.
 
-        xhr (bool)
+        xhr (bool):
             True if current request is an XHR request.
 
-        secure (bool)
+        secure (bool):
             Whether the current request was made via a SSL connection.
 
         content_type (str):
@@ -89,13 +95,21 @@ class Request:
         content_length (int):
             The length in bytes, as an integer, of the content sent by the client.
 
-        stream (stream)
+        stream (stream):
             Returns the contents of the incoming HTTP entity body.
 
         flashes (list):
             The flashed messages stored in the session cookie.
             By reading this value it will be stored in the request but
             deleted form the session.
+
+        if_none_match (list):
+            Value of the If-None-Match header, as a parsed list of strings,
+            or an empty list if the header is missing or its value is blank.
+
+        if_modified_since (datetime):
+            Value of the If-Modified-Since header, or an empty string if the header
+            is missing or the date cannot be parsed.
 
     """
 
@@ -136,6 +150,8 @@ class Request:
         self._query = None
         self._remote_addr = None
         self._session = {}
+        self._if_none_match = None
+        self._if_modified_since = None
 
     def __repr__(self):
         return f"<Request {self.method} “{self.path}”>"
@@ -304,6 +320,23 @@ class Request:
         """Return wether the CSRF token in this request must be checked
         for validity."""
         return self.method in (POST, PUT, DELETE, PATCH)
+
+    @property
+    def if_none_match(self):
+        """Value of the If-None-Match header, as a parsed list of strings,
+        or an empty list if the header is missing or its value is blank.
+        """
+        if self._if_none_match is None:
+            header = self.environ.get("IF_NONE_MATCH", "")
+            self._if_none_match = parse_comma_separated(header)
+        return self._if_none_match
+
+    @property
+    def if_modified_since(self):
+        if self._if_modified_since is None:
+            header = self.environ.get("IF_MODIFIED_SINCE", "")
+            self._if_modified_since = parse_http_date(header)
+        return self._if_modified_since
 
 
 def make_test_environ(path=None, **kwargs):

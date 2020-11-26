@@ -11,10 +11,14 @@ from .helpers import (
     CookiesDict,
     HeadersDict,
     tunnel_encode,
+    iterable,
 )
 
 
 __all__ = ("Response", )
+
+DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
 class Response:
@@ -40,23 +44,30 @@ class Response:
 
     error = None
     raw_body = None
-    _content_type = "text/html"
-    _charset = "utf-8"
+
+    _content_type = None
+    _charset = None
+    _req = None
     _session = None
+    _etag = None
+    _last_modified = None
 
     def __init__(
         self,
         status_code=status.ok,
         content_type="text/html",
-        charset="utf-8"
+        charset="utf-8",
+        _req=None,
     ):
         self.headers = HeadersDict()
         self.cookies = CookiesDict()
-        self._session = {}
 
         self.status_code = status_code
         self.content_type = content_type
         self.charset = charset
+
+        self._req = _req
+        self._session = {}
 
     def __call__(self, start_response):
         body = self.raw_body or ""
@@ -239,21 +250,59 @@ class Response:
         """
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
-    def fresh_when(self, *values, strong=False):
-        """Sets the Etag header from a value or a list of values.
-        A valid value is a date, a string, a number, or an object with an `updated_at` attribute.
+    def fresh_when(self, objects=None, *, etag=None, last_modified=None, strong=False, public=False):
+        """Sets the Etag header, the Last-Modified header, or both.
+
+        The Etag can be generated from a date, a string or a number.
+        The Last-Modified can be generated from an UTC or naive datetime.
+        You can also use an object or a list of objects with an `updated_at` attribute.
+        The maximum `updated_at` of that list will be used to set both values.
+
+        strong (boolean):
+            By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
+            validator on the response. A strong ETag implies exact equality: the response
+            must match byte for byte. This is necessary for doing Range requests within a
+            large file or for compatibility with some CDNs that don’t support weak ETags.
+
+        public (boolean):
+            By default the Cache-Control header is private, set this to `True` if you want
+            your application to be cacheable by other devices (proxy caches).
+
         """
-        seeds = []
-        for value in values:
-            upd = getattr(value, "updated_at", value)
-            if upd is not None:
-                seeds.append(str(upd))
-            else:
-                assert isinstance(value, (str, int, float, date)), (
-                    "To generate an etag, you can only use a date, a string, a number, an object with"
-                    "an `updated_at` attribute, or a list of values with those types."
-                )
-                seeds.append(str(value))
-        seed = ",".join(seeds).encode()
-        digest = md5(seed).hexdigest()
-        self.headers["Etag"] = digest if strong else f'W/"{digest}"'
+        if objects is not None:
+            if not iterable(objects):
+                objects = [objects]
+            updated_at = max([obj.updated_at for obj in objects])
+            assert isinstance(updated_at, date), "`updated_at` attribute must be a datetime"
+            etag = updated_at
+            last_modified = updated_at
+
+        if etag is not None:
+            digest = md5(str(etag).encode()).hexdigest()
+            self._etag = f'"{digest}"' if strong else f'W/"{digest}"'
+            self.headers["ETag"] = self._etag
+
+        if last_modified is not None:
+            dt = last_modified
+            fmt = f"{DAYS[dt.weekday()]}, %d {MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
+            self._last_modified = dt
+            self.headers["Last-Modified"] = dt.strftime(fmt)
+
+        self.headers["Cache-Control"] = "public" if public else "private"
+        return self.is_fresh
+
+    @property
+    def is_fresh(self):
+        if self._req is None:
+            return False
+
+        # An ETag has priority over Last-Modified
+        if self._req.if_none_match and self._etag:
+            if self._etag in self._req.if_none_match:
+                return True
+
+        if self._req.if_modified_since and self._last_modified:
+            if self._last_modified <= self._req.if_modified_since:
+                return True
+
+        return False

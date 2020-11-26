@@ -4,6 +4,7 @@ from .encoding import *  # noqa
 from .frozendict import *  # noqa
 from .headersdict import *  # noqa
 from .inflector import *  # noqa
+from .iterable import *  # noqa
 from .multidict import *  # noqa
 from .objectify import *  # noqa
 from .paginator import *  # noqa

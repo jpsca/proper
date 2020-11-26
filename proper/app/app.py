@@ -46,7 +46,7 @@ class App(AppSetup, AppErrors):
     def wsgi_app(self, environ, start_response):
         req = Request(config=self.config, **environ)
         current.req = req
-        resp = Response()
+        resp = Response(_req=req)
 
         try:
             self.run_middleware(req, resp)
