@@ -68,10 +68,7 @@ class BaseController:
         method = getattr(self, action)
         method(req, resp, **req.matched_params)
 
-        if req.real_method == HEAD:
-            resp.body = ""
-
-        elif resp.is_fresh:
+        if resp.is_fresh:
             resp.status_code = not_modified
             resp.body = ""
 
