@@ -127,7 +127,7 @@ def add_cookie(
         cookies[key]["httponly"] = True
 
     if samesite:
-        if samesite.lower() not in ("lax", "strict"):
+        if str(samesite).lower() not in ("lax", "strict"):
             raise ValueError("`samesite` must be “lax” or “strict”.")
         cookies[key]["samesite"] = samesite
 
