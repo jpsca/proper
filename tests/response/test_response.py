@@ -37,12 +37,13 @@ def test_multiple_flashes():
 def test_set_etag():
     resp = Response()
 
-    resp.fresh_when(etag=123)
+    resp.fresh_when(etag=123, public=False)
     assert resp.headers["ETag"] == 'W/"202cb962ac59075b964b07152d234b70"'
+    assert resp.headers["Cache-Control"] == "max-age=0, private, must-revalidate"
 
     resp.fresh_when(etag=123, strong=True, public=True)
     assert resp.headers["ETag"] == '"202cb962ac59075b964b07152d234b70"'
-    assert resp.headers["Cache-Control"] == "public"
+    assert resp.headers["Cache-Control"] == "max-age=0, public, must-revalidate"
 
     resp.fresh_when(etag=datetime(2020, 11, 24, 17, 17, 0))
     assert resp.headers["ETag"] == 'W/"77292437646103d054834b5a9f9cbf5d"'
@@ -74,30 +75,30 @@ def test_fresh_when_from_objects():
 def test_is_fresh_by_etag():
     resp = Response()
 
-    resp._req = Request(IF_NONE_MATCH='W/"202cb962ac59075b964b07152d234b70"')
+    resp._req = Request(HTTP_IF_NONE_MATCH='W/"202cb962ac59075b964b07152d234b70"')
     assert resp.fresh_when(etag=123)
 
-    resp._req = Request(IF_NONE_MATCH='"abc", W/"202cb962ac59075b964b07152d234b70", W/"meh"')
+    resp._req = Request(HTTP_IF_NONE_MATCH='"abc", W/"202cb962ac59075b964b07152d234b70", W/"meh"')
     assert resp.fresh_when(etag=123)
 
     resp._req = Request(
-        IF_NONE_MATCH='W/"202cb962ac59075b964b07152d234b70"',
-        IF_MODIFIED_SINCE="Wed, 21 Oct 2015 07:28:00 GMT",
+        HTTP_IF_NONE_MATCH='W/"202cb962ac59075b964b07152d234b70"',
+        HTTP_IF_MODIFIED_SINCE="Wed, 21 Oct 2015 07:28:00 GMT",
     )
     # If ETag match, Last-Modified is ignored
     assert resp.fresh_when(etag=123, last_modified=datetime(2020, 11, 24, 17, 17, 0))
 
-    resp._req = Request(IF_NONE_MATCH="")
+    resp._req = Request(HTTP_IF_NONE_MATCH="")
     assert not resp.fresh_when(etag=123)
 
-    resp._req = Request(IF_NONE_MATCH='W/"abc"')
+    resp._req = Request(HTTP_IF_NONE_MATCH='W/"abc"')
     assert not resp.fresh_when(etag=123)
 
     resp._req = None
     assert not resp.fresh_when(etag=123)
 
-    resp._req = Request(IF_MODIFIED_SINCE="Wed, 21 Oct 2020 07:28:00 GMT")
+    resp._req = Request(HTTP_IF_MODIFIED_SINCE="Wed, 21 Oct 2020 07:28:00 GMT")
     assert resp.fresh_when(last_modified=datetime(2019, 11, 24))
 
-    resp._req = Request(IF_MODIFIED_SINCE="Wed, 21 Oct 2015 07:28:00 GMT")
+    resp._req = Request(HTTP_IF_MODIFIED_SINCE="Wed, 21 Oct 2015 07:28:00 GMT")
     assert not resp.fresh_when(last_modified=datetime(2020, 11, 24))

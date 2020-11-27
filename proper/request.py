@@ -327,14 +327,14 @@ class Request:
         or an empty list if the header is missing or its value is blank.
         """
         if self._if_none_match is None:
-            header = self.environ.get("IF_NONE_MATCH", "")
+            header = self.environ.get("HTTP_IF_NONE_MATCH", "")
             self._if_none_match = parse_comma_separated(header)
         return self._if_none_match
 
     @property
     def if_modified_since(self):
         if self._if_modified_since is None:
-            header = self.environ.get("IF_MODIFIED_SINCE", "")
+            header = self.environ.get("HTTP_IF_MODIFIED_SINCE", "")
             self._if_modified_since = parse_http_date(header)
         return self._if_modified_since
 

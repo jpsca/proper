@@ -46,8 +46,6 @@ class Response:
     error = None
     raw_body = None
 
-    _content_type = None
-    _charset = None
     _req = None
     _session = None
     _etag = None
@@ -78,6 +76,7 @@ class Response:
         content_length = len(body)
         if content_length:
             self.headers["Content-Length"] = str(content_length)
+            self.headers["Content-Type"] = f"{self.content_type}; charset={self.charset}"
 
         start_response(self.status_code, self.headers_list)
         if not body:
@@ -107,28 +106,6 @@ class Response:
     def set_json_body(self, content):
         self.content_type = "application/json"
         self.set_raw_body(json.dumps(content))
-
-    @property
-    def charset(self):
-        return self._charset
-
-    @charset.setter
-    def charset(self, value):
-        self._charset = value
-        self.set_content_type_header()
-
-    def set_content_type_header(self):
-        header = f"{self._content_type}; charset={self._charset}"
-        self.headers["Content-Type"] = header
-
-    @property
-    def content_type(self):
-        return self._content_type
-
-    @content_type.setter
-    def content_type(self, value):
-        self._content_type = value
-        self.set_content_type_header()
 
     @property
     def has_body(self):
