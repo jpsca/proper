@@ -71,10 +71,12 @@ class BaseController:
         if resp.is_fresh:
             resp.status_code = not_modified
             resp.body = ""
+            return
 
-        elif not resp.has_body and not resp.stop:
-            # `_render()` is a method all controllers MUST have implemented
-            resp.body = self._render(req, resp)
+        if req.real_method == "HEAD" or resp.has_body or resp.stop:
+            return
+
+        resp.body = self._render(req, resp)
 
     def _render(self, req, resp):
         """Placeholder to be implemented in the application.
