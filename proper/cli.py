@@ -9,6 +9,7 @@ from properconf.secrets import generate_token, new_master_key_file
 
 from proper import generators
 from proper.constants import MIN_SECRET_LENGTH
+from proper.server import on_start
 from proper.version import __version__
 
 
@@ -41,6 +42,13 @@ def new(path, force=False, _install_deps=True, _prompt=True):
     else:
         deps_installed = False
     _wrap_up(path, deps_installed)
+
+
+@manager.command(help="Display the welcome message for the development server.")
+@option("host")
+@option("port")
+def welcome(host="0.0.0.0", port=5000):
+    on_start(host=host, port=port)
 
 
 @manager.command(help="Returns a secure secret_key")

@@ -12,12 +12,7 @@ DISPLAY = """
 """
 
 
-def on_starting(server):
-    """Gunicorn hook"""
-    _display_running_message(*server.address[0])
-
-
-def _display_running_message(host, port):  # pragma: no cover
+def on_start(host, port):
     local = "{:<29}".format(f"http://{host}:{port}")
     network = "{:<29}".format(f"http://{_get_local_ip()}:{port}")
 
