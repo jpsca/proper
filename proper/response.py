@@ -43,6 +43,11 @@ class Response:
     # handled incorrectly by some browsers. Set to 0 to disable this check.
     max_cookie_size = 4093
 
+    # Set to True to not set cookies in this response, including any changes to the
+    # session or CSRF token. You might want to use it for some read-only public
+    # endpoints, like a RSS feed.
+    disable_cookies = False
+
     error = None
     raw_body = None
 
@@ -122,6 +127,8 @@ class Response:
         ]
 
     def _build_cookie_headers(self):
+        if self.disable_cookies:
+            return []
         return [
             tuple(morsel.output().split(": ", 1))
             for morsel in self.cookies.values()
