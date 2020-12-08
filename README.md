@@ -12,7 +12,7 @@ A web framework optimized for programmer happiness.
 
 ### Installation
 
-	python -m pip install proper
+	pip install proper
 
 
 ## Design principles
@@ -34,7 +34,7 @@ A web framework optimized for programmer happiness.
 - "Everyone is an adult here".
 	Run with scissors if you must.
 
-- Green coroutines over async.
+- Regular WSGI is great.
 
 
 # Sources of inspirations
