@@ -137,18 +137,22 @@ class Router:
         if self._debug:
             assert all(
                 [isinstance(x, Route) for x in _routes]
-            ), "All routes must be instances of `proper_router.route`."
+            ), "All routes must be instances of `Route`."
         for route in _routes:
             route.compile_path()
         self._routes = tuple(_routes)
         self._by_name = {route.name: route for route in _routes}
 
-    def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
+    def url_for(self, name, object=None, *, _external=False, _anchor=None, **kwargs):
         """...
         """
         route = self._by_name.get(name)
         if not route:
             raise NameNotFound(name)
+
+        if object is not None:
+            for key in route.path_placeholders:
+                kwargs.setdefault(key, getattr(object, key))
 
         url = self.root_path + route.format(**kwargs)
 

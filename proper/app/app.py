@@ -46,7 +46,7 @@ class App(AppSetup, AppErrors):
     def wsgi_app(self, environ, start_response):
         req = Request(config=self.config, **environ)
         current.req = req
-        resp = Response(_req=req)
+        resp = Response(_app=self, _req=req)
 
         try:
             self.run_middleware(req, resp)
@@ -92,6 +92,6 @@ class App(AppSetup, AppErrors):
         self._on_teardown = (self._on_teardown or ()) + (func, )
         return func
 
-    def url_for(self, name, *, _external=False, _anchor=None, **kwargs):
+    def url_for(self, name, object=None, *, _external=False, _anchor=None, **kwargs):
         """Proxy for `self.router.url_for()`."""
-        return self.router.url_for(name, _external=_external, _anchor=_anchor, **kwargs)
+        return self.router.url_for(name, object=object, _external=_external, _anchor=_anchor, **kwargs)

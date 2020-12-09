@@ -51,6 +51,7 @@ class Response:
     error = None
     raw_body = None
 
+    _app = None
     _req = None
     _session = None
     _etag = None
@@ -61,6 +62,7 @@ class Response:
         status_code=status.ok,
         content_type="text/html",
         charset="utf-8",
+        _app=None,
         _req=None,
     ):
         self.headers = HeadersDict({"X-Request-Id": str(uuid4())})
@@ -70,6 +72,7 @@ class Response:
         self.content_type = content_type
         self.charset = charset
 
+        self._app = _app
         self._req = _req
         self._session = {}
 
@@ -158,8 +161,13 @@ class Response:
         flashes.append((message, data))
         self.session[FLASHES_SESSION_KEY] = flashes
 
-    def redirect_to(self, to, status_code=status.see_other):
+    def redirect_to(self, url_or_route, status_code=status.see_other, **kwargs):
         self.status_code = status_code
+
+        to = url_or_route
+        if not url_or_route.startswith(("/", "http")):
+            to = self._app.url_for(url_or_route, **kwargs)
+
         self.headers["location"] = to
         self.body = "\n".join(
             [
@@ -247,7 +255,7 @@ class Response:
         strong (boolean):
             By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
             validator on the response. A strong ETag implies exact equality: the response
-            must match byte for byte. This is necessary for doing Range requests within a
+            must match byte for byte. This is necessary for doing range requests within a
             large file or for compatibility with some CDNs that don’t support weak ETags.
 
         public (boolean):
