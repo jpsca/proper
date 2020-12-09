@@ -189,6 +189,15 @@ class Request:
         return f"{self.host}:{self.port}"
 
     @property
+    def url(self):
+        """Returns the current URL."""
+        url_ = f"{self.host_with_port}{self.path}"
+        query_string = self.environ.get("QUERY_STRING", "")
+        if query_string:
+            url_ = f"{url_}?{query_string}"
+        return url_
+
+    @property
     def content_length(self):
         """The content_length value as an integer.
         """

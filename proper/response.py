@@ -158,7 +158,7 @@ class Response:
         flashes.append((message, data))
         self.session[FLASHES_SESSION_KEY] = flashes
 
-    def redirect_to(self, to, status_code=status.see_other, flash=None, **kwargs):
+    def redirect_to(self, to, status_code=status.see_other):
         self.status_code = status_code
         self.headers["location"] = to
         self.body = "\n".join(
@@ -168,12 +168,10 @@ class Response:
                 f'<meta http-equiv="refresh" content="0; url={to}">',
                 f'<script>window.location.href="{to}"</script>',
                 "<title>Page Redirection</title>",
-                "If you are not redirected automatically, follow the ",
-                f'<a href="{to}">link to the page</a>.',
+                "If you are not redirected automatically, follow ",
+                f'<a href="{to}">this link to the new page</a>.',
             ]
         )
-        if flash:
-            self.flash
 
     def set_cookie(self, key, value="", **kwargs):
         """Set (add) a cookie for the response. Returns the cookie set.
