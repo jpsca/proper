@@ -50,9 +50,6 @@ class Pages(AppController):
     def set_template(self, req, resp):
         resp.template = "from_controller.jinja"
 
-    def redirect(self, req, resp):
-        resp.redirect_to("http://example.com")
-
     def json(self, req, resp):
         resp.body = {"Hello": "World"}
 

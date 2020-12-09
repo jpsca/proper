@@ -1,10 +1,5 @@
 from proper import get, BaseController, status
-
-
-def test_controller_dispatch(app, web):
-    app.router.routes = [get("/", to="Pages.index")]
-    resp = web.get("/")
-    assert resp.status == status.ok
+from proper.helpers import Dot
 
 
 class AppController(BaseController):
@@ -71,3 +66,45 @@ def test_disable_cookies(app, web):
     app.router.routes = [get("/", to=DisableCookies.index)]
     resp = web.get("/")
     assert "Set-Cookie" not in resp.headers
+
+
+class Redirect(AppController):
+    def show(self, req, resp, *kwargs):
+        pass
+
+    def external(self, req, resp):
+        resp.redirect_to("http://example.com")
+
+    def local(self, req, resp):
+        resp.redirect_to("/local/url")
+
+    def verbose(self, req, resp):
+        resp.redirect_to("Redirect.show", id=1, slug="something")
+
+    def compact(self, req, resp):
+        post = Dot({"id": 1, "slug": "something"})
+        resp.redirect_to("Redirect.show", post)
+
+
+
+def test_redirect_to(app, web):
+    app.routes = [
+        get("/posts/:id<int>/:slug", to=Redirect.show, name="Redirect.show"),
+        get("/external", to=Redirect.external),
+        get("/local", to=Redirect.local),
+        get("/verbose", to=Redirect.verbose),
+        get("/compact", to=Redirect.compact),
+    ]
+
+    resp = web.get("/external")
+    assert resp.status == status.see_other
+    assert resp.headers["Location"] == "http://example.com"
+
+    resp = web.get("/local")
+    assert resp.headers["Location"] == "/local/url"
+
+    resp = web.get("/verbose")
+    assert resp.headers["Location"] == "/posts/1/something"
+
+    resp = web.get("/compact")
+    assert resp.headers["Location"] == "/posts/1/something"

@@ -161,12 +161,12 @@ class Response:
         flashes.append((message, data))
         self.session[FLASHES_SESSION_KEY] = flashes
 
-    def redirect_to(self, url_or_route, status_code=status.see_other, **kwargs):
+    def redirect_to(self, url_or_route, object=None, *, status_code=status.see_other, **kwargs):
         self.status_code = status_code
 
         to = url_or_route
         if not url_or_route.startswith(("/", "http")):
-            to = self._app.url_for(url_or_route, **kwargs)
+            to = self._app.url_for(url_or_route, object=object, **kwargs)
 
         self.headers["location"] = to
         self.body = "\n".join(

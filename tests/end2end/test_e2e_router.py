@@ -1,13 +1,9 @@
 import pytest
 
-from proper import BadPlaceholder
-from proper import delete
-from proper import get
-from proper import MissingParameter
-from proper import NameNotFound
-from proper import post
-from proper import scope
-from proper import status
+from proper import (
+    BadPlaceholder, delete, get, MissingParameter, NameNotFound, post, scope, status
+)
+from proper.helpers import Dot
 
 
 TEST_ROUTES = [
@@ -66,8 +62,13 @@ def test_url_for(app):
     assert app.url_for("Items.index") == "/api/items"
     assert app.url_for("Items.create") == "/api/items"
     assert app.url_for("Items.show", item_id=3) == "/api/items/3"
-    url = app.url_for("items.archive", year=2018, month=5)
-    assert url == "/api/items/2018/5"
+    assert app.url_for("items.archive", year=2018, month=5) == "/api/items/2018/5"
+
+
+def test_url_for_object(app):
+    app.routes = TEST_ROUTES
+    object = Dot({"year": 2018, "month": 5})
+    assert app.url_for("items.archive", object) == "/api/items/2018/5"
 
 
 def test_url_for_anchor(app):

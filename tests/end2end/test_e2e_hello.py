@@ -88,14 +88,6 @@ def test_head(app, web):
     assert resp.text == ""
 
 
-def test_redirect_to(app, web):
-    app.routes = [get("/", to="Pages.redirect")]
-    resp = web.get("/")
-
-    assert resp.status == status.see_other
-    assert resp.headers["Location"] == "http://example.com"
-
-
 def test_json(app, web):
     app.routes = [get("/", to="Pages.json")]
     resp = web.get("/")

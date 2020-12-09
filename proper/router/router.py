@@ -26,7 +26,7 @@ class Router:
             The root path of the script, default is an empry string.
             Used by `url_for` to build an absolute URL.
 
-        ssl (bool):
+        use_ssl (bool):
             Used by `url_for` to use `https` instead of when building an absolute
             URL. The default is `False`.
 
