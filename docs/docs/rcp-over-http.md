@@ -1,4 +1,6 @@
-# RESTe in peace
+Nope, ignore this
+
+# REST in peace
 
 If you follow RESTful API design to the letter, you we´ll end creating or deleting "resources" when you really want to perform an action. For example: `POST /session` and `DELETE /session` for sign-in and sign-out, even if you are just creating or deleting a cookie. It's weird.
 
