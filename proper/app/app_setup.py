@@ -4,7 +4,6 @@ from pathlib import Path
 from properconf import ConfigDict
 
 from proper.constants import MIN_SECRET_LENGTH
-from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import Serializer
 from proper.router import Router
 
@@ -37,10 +36,7 @@ class AppSetup:
         self.import_name = import_name
         self.controllers_name = f"{import_name}.{controllers_name}"
         self._cached_controllers_module = None
-        self.router = Router(
-            MatchNotFound=MatchNotFound,
-            MethodNotAllowed=MethodNotAllowed
-        )
+        self.router = Router()
         self._set_root_path()
         self.setup(config)
 
@@ -77,18 +73,7 @@ class AppSetup:
         if "secret_key" in self._config:
             self.init_serializer()
 
-        self.config_router()
-        self.config_socket()
-
-    def config_router(self):
-        router = self.router
-        router.host = self._config.get("default_host", router.host)
-        router.root_path = self._config.get("root_path", router.root_path)
-        router.use_ssl = self._config.get("use_ssl", router.use_ssl)
-        router._debug = self._config.debug
-
-    def config_socket(self):
-        pass
+        self.router._debug = self._config.debug
 
     def get_serializer(self):
         if not self.serializer:

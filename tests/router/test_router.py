@@ -16,7 +16,7 @@ from proper.router import (
 
 @pytest.fixture
 def router():
-    router = Router(MatchNotFound=MatchNotFound, MethodNotAllowed=MethodNotAllowed)
+    router = Router()
     router.routes = [
         get("", to="Pages.index", name="index"),
         get("login", to="Pages.login", name="login"),
@@ -169,17 +169,6 @@ def test_url_for(router):
 def test_url_for_anchor(router):
     url = router.url_for("login", _anchor="success")
     assert url == "/login#success"
-
-
-def test_url_for_external(router):
-    url = router.url_for("login", _external=True)
-    assert url == "http://example.com/login"
-
-
-def test_url_for_external_with_ssl(router):
-    router.use_ssl = True
-    url = router.url_for("login", _external=True)
-    assert url == "https://example.com/login"
 
 
 def test_url_for_missing_param(router):

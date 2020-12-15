@@ -1,6 +1,7 @@
 """Router object that holds all routes and match them to urls.
 """
 from proper.local import current
+from proper.errors import MatchNotFound, MethodNotAllowed
 
 from .route import Route
 from .scope import flatten
@@ -14,74 +15,16 @@ class NameNotFound(Exception):
 
 
 class Router:
-    """
-    Arguments are:
-
-        host (str):
-            Default `host:port`, example: "example.org:5000".
-            Used by `url_for` to build an absolute URL if the route doesn't have
-            a defined host or there isn't a current request from where to extract a host.
-
-        root_path (str):
-            The root path of the script, default is an empry string.
-            Used by `url_for` to build an absolute URL.
-
-        use_ssl (bool):
-            Used by `url_for` to use `https` instead of when building an absolute
-            URL. The default is `False`.
-
-        MatchNotFound (Exception):
-            Raise thsi exception if a matching endpoint for an URL cannot be found.
-
-        MethodNotAllowed (Exception):
-            Raise this exception if a matching endpoint is found, but doesn't allow
-            the requested HTTP method.
-
-    """
-
     __slots__ = (
-        "use_ssl",
-        "MatchNotFound",
-        "MethodNotAllowed",
-        "_host",
-        "_root_path",
         "_debug",
         "_routes",
-        "_by_name",
+        "_routes_by_name",
     )
 
-    def __init__(
-        self, *, host="example.com", root_path="", use_ssl=False,
-        MatchNotFound=Exception, MethodNotAllowed=Exception, _debug=False
-    ):
-
-        self.host = host
-        self.root_path = root_path
-        self.use_ssl = bool(use_ssl)
-        self.MatchNotFound = MatchNotFound
-        self.MethodNotAllowed = MethodNotAllowed
-
+    def __init__(self, *, _debug=False):
         self._debug = _debug
         self._routes = ()
-
-        # Routes by name
-        self._by_name = ()
-
-    @property
-    def host(self):
-        return self._host
-
-    @host.setter
-    def host(self, host):
-        self._host = host.rstrip("/")
-
-    @property
-    def root_path(self):
-        return self._root_path
-
-    @root_path.setter
-    def root_path(self, root_path):
-        self._root_path = ("/" + root_path.strip("/")).rstrip("/")
+        self._routes_by_name = ()
 
     def match(self, method, path, host=None):
         """Takes a method and a path, that came from an URL,
@@ -122,10 +65,10 @@ class Router:
 
         if allowed:
             msg = f"`{path}` does not accept a `{method}`."
-            raise self.MethodNotAllowed(msg, allowed=allowed)
+            raise MethodNotAllowed(msg, allowed=allowed)
         else:
             msg = f"{method} `{path}` does not match."
-            raise self.MatchNotFound(msg)
+            raise MatchNotFound(msg)
 
     @property
     def routes(self):
@@ -141,12 +84,10 @@ class Router:
         for route in _routes:
             route.compile_path()
         self._routes = tuple(_routes)
-        self._by_name = {route.name: route for route in _routes}
+        self._routes_by_name = {route.name: route for route in _routes}
 
-    def url_for(self, name, object=None, *, _external=False, _anchor=None, **kwargs):
-        """...
-        """
-        route = self._by_name.get(name)
+    def url_for(self, name, object=None, *, _anchor=None, **kwargs):
+        route = self._routes_by_name.get(name)
         if not route:
             raise NameNotFound(name)
 
@@ -154,16 +95,8 @@ class Router:
             for key in route.path_placeholders:
                 kwargs.setdefault(key, getattr(object, key))
 
-        url = self.root_path + route.format(**kwargs)
-
+        url = route.format(**kwargs)
         if _anchor:
             url += "#" + _anchor
 
-        if not _external:
-            return url
-
-        current_req = getattr(current, "req", None)
-        protocol = ("https" if self.use_ssl else "http") + "://"
-        req_host = current_req.host_with_port if current_req else None
-        host = route.host or req_host or self.host
-        return protocol + host + url
+        return url

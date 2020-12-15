@@ -92,6 +92,6 @@ class App(AppSetup, AppErrors):
         self._on_teardown = (self._on_teardown or ()) + (func, )
         return func
 
-    def url_for(self, name, object=None, *, _external=False, _anchor=None, **kwargs):
+    def url_for(self, name, object=None, *, _anchor=None, **kwargs):
         """Proxy for `self.router.url_for()`."""
-        return self.router.url_for(name, object=object, _external=_external, _anchor=_anchor, **kwargs)
+        return self.router.url_for(name, object=object, _anchor=_anchor, **kwargs)
