@@ -28,8 +28,8 @@ class Route(BaseRoute):
     Arguments are:
 
         method (str):
-            Usualy, one of the HTTP methods: "get", "head", "post", "put", "delete",
-            "connect", "options", "trace" or "patch"; but it could also be another
+            Usualy, one of the HTTP methods: "get", "post", "put", "delete",
+            "options", or "patch"; but it could also be another
             application-specific value.
 
         path (str):
