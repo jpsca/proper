@@ -74,8 +74,7 @@ This is not only faster (and less boring) to type, but also reduce the brittlene
 The routes for your application live in the `[yourapp]/routes.py` file and typically looks like this:
 
 ```python
-"""These routes are connected to the application in the `main.py` file.
-"""
+"""These routes are connected to the application in the `main.py` file."""
 from proper import get
 
 routes = [
@@ -86,9 +85,10 @@ routes = [
 The routes is just a regular list of `Route` objects that, as the docstring says, is assigned to `app.routes` in the `[yourapp]/main.py` file.
 
 
-## Standalone Routes
 
-### HTTP Methods
+## Regular Routes
+
+To declare a route, you use the helpers: `get`, `post`, `put`, `patch`, `delete`, and `options`, that correspond to the same HTTP verb. There isn't a `head` helper because a GET route automatically also creates a HEAD route.
 
 ### Options
 
