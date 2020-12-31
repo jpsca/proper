@@ -16,8 +16,8 @@ def dispatch(req, resp, app):
     Controller, action = objectify(app.controllers_module, route.to)
     # We instantiate the controller class so we can have an independent
     # container for this request.
-    controller = Controller()
-    controller._dispatch(action, req, resp, app)
+    controller = Controller(app)
+    controller._dispatch(action, req, resp)
     resp.dispatched = True
 
 

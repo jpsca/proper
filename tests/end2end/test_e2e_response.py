@@ -52,7 +52,7 @@ def test_set_session(app, web):
     app.router.routes = [get("/", to=AppController.index)]
     resp = web.get("/")
     assert "Set-Cookie" in resp.headers
-    assert resp.headers["Set-Cookie"].startswith("_proper_session")
+    assert resp.headers["Set-Cookie"].startswith("_session")
 
 
 class DisableCookies(AppController):

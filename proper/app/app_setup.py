@@ -1,3 +1,4 @@
+import json
 from importlib import import_module
 from pathlib import Path
 
@@ -8,44 +9,43 @@ from proper.helpers import Serializer
 from proper.router import Router
 
 from .default_config import DEFAULT_CONFIG
+from .render import Render
+
+
+class NoValue:
+    pass
+
+
+class MissingSecretKey(Exception):
+    pass
+
+
+class BadSecretKey(Exception):
+    pass
+
+
+TEMPLATES_FOLDER = "templates"
+STATIC_FOLDER = "static/public"
+STATIC_MANIFEST = "manifest.json"
 
 
 class AppSetup:
     serializer = None
-    socket = None
+    _cached_controllers_module = None
 
-    def __init__(
-        self,
-        import_name,
-        *,
-        config=None,
-        controllers_name="controllers",
-    ):
+    def __init__(self, import_name, *, config=None):
         """
-            import_name (str):
-                The name of the application package. Eg.: `foobar.web`.
+        import_name (str):
+            The name of the application package. Eg.: `foobar.web`.
 
-            config (dict):
-                Optional dict-like with the config.
-
-            controllers_name (str):
-                Optional.
-                The name of the controllers module, relative to `import_name`.
+        config (dict):
+            Optional dict-like with the config.
 
         """
-        self.import_name = import_name
-        self.controllers_name = f"{import_name}.{controllers_name}"
-        self._cached_controllers_module = None
         self.router = Router()
-        self._set_root_path()
         self.setup(config)
-
-    def _set_root_path(self):
-        module = import_module(self.import_name)
-        path = Path(module.__file__)
-        if path.is_file():
-            path = path.parent
-        self.root_path = path
+        self.setup_paths(import_name)
+        self.setup_render()
 
     @property
     def config(self):
@@ -62,29 +62,64 @@ class AppSetup:
     @property
     def controllers_module(self):
         if self._cached_controllers_module:
-            return self.__cached_controllers_module
+            return self._cached_controllers_module
         module = import_module(self.controllers_name)
-        self.__cached_controllers_module = module
+        self._cached_controllers_module = module
         return module
+
+    @property
+    def templates_path(self):
+        return self.root_path / TEMPLATES_FOLDER
+
+    @property
+    def static_path(self):
+        return self.root_path.parent / STATIC_FOLDER
 
     def setup(self, config):
         self._config = ConfigDict(DEFAULT_CONFIG)
         self._config.update(config)
         if "secret_key" in self._config:
-            self.init_serializer()
+            self._setup_serializer()
 
         self.router._debug = self._config.debug
 
+    def setup_paths(self, import_name):
+        self.import_name = import_name
+        self.controllers_name = f"{import_name}.controllers"
+
+        module = import_module(import_name)
+        path = Path(module.__file__)
+        if path.is_file():
+            path = path.parent
+
+        self.root_path = path.absolute()
+
+    def setup_render(self):
+        self._load_static_manifest()
+        self.render = Render(self.templates_path)
+
+        self.render.env.globals["url_for"] = self.url_for
+        self.render.env.globals["url_static"] = self.url_static
+
+    def url_static(self, filename, *, host=NoValue):
+        host = self._config.static.host if host is NoValue else host
+        prefix = self._config.static.prefix
+        filename = filename.replace("..", ".").strip("/").strip("\\").strip()
+        filename = self.static_manifest.get(filename, filename)
+        return f"host/{prefix}/{filename}"
+
     def get_serializer(self):
         if not self.serializer:
-            self.init_serializer()
+            self._setup_serializer()
         return self.serializer
 
-    def init_serializer(self):
-        secret_key = self.get_secret_key()
+    # Private
+
+    def _setup_serializer(self):
+        secret_key = self._get_secret_key()
         self.serializer = Serializer(secret_key)
 
-    def get_secret_key(self):
+    def _get_secret_key(self):
         secret_key = self._config.get("secret_key")
 
         if secret_key is None:
@@ -111,10 +146,9 @@ class AppSetup:
 
         return secret_key
 
-
-class MissingSecretKey(Exception):
-    pass
-
-
-class BadSecretKey(Exception):
-    pass
+    def _load_static_manifest(self):
+        path = self.static_path / STATIC_MANIFEST
+        if not path.exists():
+            self.static_manifest = json.loads(path.read_bytes())
+        else:
+            self.static_manifest = {}

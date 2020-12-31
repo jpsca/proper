@@ -15,19 +15,9 @@ DEFAULT_CONFIG = {
     # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
     "max_query_size": 2 ** 20,  # 1 MB
 
-    # 'host:port/root_path', used for `url_for(..., _external=True)`.
-    "default_host": "example.com",
-
-    # The root path of the script, used for `url_for(..., _external=True)`.
-    "root_path": "",
-
-    # use 'https' instead of 'http' for `url_for(..., _external=True)`.
-    # if a request isn't available.
-    "use_ssl": False,
-
     # Session config
     "session": {
-        "cookie_name": "_proper_session",
+        "cookie_name": "_session",
         "cookie_domain": None,
         "cookie_path": "/",
         "cookie_httponly": True,
@@ -35,4 +25,10 @@ DEFAULT_CONFIG = {
         "cookie_samesite": None,
         "lifetime": timedelta(days=30).total_seconds(),
     },
+
+    # Static assets
+    "static": {
+        "host": "",
+        "prefix": "static",
+    }
 }

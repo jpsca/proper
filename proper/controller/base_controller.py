@@ -13,7 +13,10 @@ class BaseController:
     _before_action = tuple()
     _after_action = tuple()
 
-    def _dispatch(self, action, req, resp, app):
+    def __init__(self, app):
+        self._app = app
+
+    def _dispatch(self, action, req, resp):
         filters = self._get_before_action_filters()
         self._apply_filters(filters, action, req, resp)
         if resp.stop:
@@ -79,24 +82,14 @@ class BaseController:
         resp.body = self._render(req, resp)
 
     def _render(self, req, resp):
-        """Placeholder to be implemented in the application.
-        Should render the current template.
-
-        A possible implementation could look like this:
-
-        ```python
-        def _render(self, req, resp):
-            template = resp.template + resp.format
-            return render(template, app=app, req=req, **self._as_dict())
-        ```
-        """
-        raise NotImplementedError(
-            f"{self.__class__} should implement the `_render(req, resp)` method"
-        )
+        # The template doesn't have a extension so the action can choose to use
+        # the default template name but changing the response format from the
+        # default, for example, using ".json" instead of ".html".
+        template = resp.template + resp.format
+        return self._app.render(template, req=req, **self._as_dict())
 
     def _as_dict(self):
-        """Serializable to a dictionary.
-        """
         return {
-            name: getattr(self, name) for name in dir(self) if not name.startswith("_")
+            name: getattr(self, name)
+            for name in dir(self) if not name.startswith("_")
         }
