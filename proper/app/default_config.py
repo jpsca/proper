@@ -28,7 +28,6 @@ DEFAULT_CONFIG = {
 
     # Static assets
     "static": {
-        "host": "",
-        "prefix": "static",
+        "host": "/static",
     }
 }

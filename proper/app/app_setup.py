@@ -12,10 +12,6 @@ from .default_config import DEFAULT_CONFIG
 from .render import Render
 
 
-class NoValue:
-    pass
-
-
 class MissingSecretKey(Exception):
     pass
 
@@ -26,7 +22,7 @@ class BadSecretKey(Exception):
 
 TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static/public"
-STATIC_MANIFEST = "manifest.json"
+STATIC_MANIFEST = "static/manifest.json"
 
 
 class AppSetup:
@@ -75,6 +71,10 @@ class AppSetup:
     def static_path(self):
         return self.root_path.parent / STATIC_FOLDER
 
+    @property
+    def static_manifest_path(self):
+        return self.root_path.parent / STATIC_MANIFEST
+
     def setup(self, config):
         self._config = ConfigDict(DEFAULT_CONFIG)
         self._config.update(config)
@@ -101,12 +101,11 @@ class AppSetup:
         self.render.env.globals["url_for"] = self.url_for
         self.render.env.globals["url_static"] = self.url_static
 
-    def url_static(self, filename, *, host=NoValue):
-        host = self._config.static.host if host is NoValue else host
-        prefix = self._config.static.prefix
+    def url_static(self, filename, *, host=None):
+        host = host or self._config.static.host
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
-        return f"host/{prefix}/{filename}"
+        return f"host/{filename}"
 
     def get_serializer(self):
         if not self.serializer:
@@ -147,8 +146,8 @@ class AppSetup:
         return secret_key
 
     def _load_static_manifest(self):
-        path = self.static_path / STATIC_MANIFEST
-        if not path.exists():
+        path = self.static_manifest_path
+        if path.exists():
             self.static_manifest = json.loads(path.read_bytes())
         else:
             self.static_manifest = {}

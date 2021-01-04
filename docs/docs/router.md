@@ -49,7 +49,7 @@ app.routes = [
 /products/latest
 ```
 
-If the route contains variables (like `:id` or `:slug`), you must specify values for them using keyword arguments:
+If the route contains placeholders (like `:id` or `:slug`), you must specify values for them using keyword arguments:
 
 ```python
 >>> post = Post(id=123, slug="lorem-ipsum")
@@ -90,9 +90,14 @@ The routes is just a regular list of `Route` objects that, as the docstring says
 
 To declare a route, you use the helpers: `get`, `post`, `put`, `patch`, `delete`, and `options`, that correspond to the same HTTP verb. There isn't a `head` helper because a GET route automatically also creates a HEAD route.
 
-### Options
+### Connecting a route to a controller
 
-### Variables
+
+
+### Redirects
+
+
+### Placeholders
 
 ### Built-in Converters
 
