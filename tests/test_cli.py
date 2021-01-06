@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from proper.cli import PROJECT_BLUEPRINT, new
+from proper.cli_proper import cli, PROJECT_BLUEPRINT
 
 
 def test_project_blueprint_exists():
@@ -12,7 +12,7 @@ def test_project_blueprint_exists():
 def test_new(dst):
     dest = dst / "myproject"
     os.mkdir(dest)
-    new(dest, _install_deps=False, _prompt=False)
+    cli.new(dest, install_deps=False, _prompt=False)
     config_path = dest / "myproject" / "config"
 
     assert (dest / "README.md").is_file()
@@ -25,6 +25,6 @@ def test_new(dst):
 def test_new_full(dst):
     dest = dst / "myproject"
     os.mkdir(dest)
-    new(dest, _prompt=False)
+    cli.new(dest, _prompt=False)
 
     assert (dest / ".venv").is_dir()

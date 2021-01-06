@@ -33,4 +33,5 @@ coverage:
 	pytest --cov-report html --cov proper --cov tests proper tests
 
 install:
+	pip install -U pip wheel
 	pip install -e .[dev]

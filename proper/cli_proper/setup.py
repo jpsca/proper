@@ -3,10 +3,12 @@ import sys
 from pathlib import Path
 
 import hecto
-from properconf.cli import setup_secrets
+from properconf.cli import setup
 from properconf.secrets import new_master_key_file
-from pyceo import Cli, echo
+from pyceo import echo
 
+
+__all__ = ("BLUEPRINTS", "PROJECT_BLUEPRINT", "SetupMixin")
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
@@ -16,8 +18,8 @@ def _call(cmd):
     os.system(cmd)
 
 
-class SetupCli(Cli):
-    def new(self, path, force=False, _install_deps=True, _prompt=True):
+class SetupMixin:
+    def new(self, path, force=False, install_deps=True, _prompt=True):
         """Creates a new Proper application at `path`.
 
         The `proper new` command creates a new Proper application with a default
@@ -27,14 +29,20 @@ class SetupCli(Cli):
         This generates a skeletal Proper application at `~/Code/blog`.
 
         Arguments:
-        - path: Where to create the new application.
-        - force [False]: Overwrite files that already exist, without asking.
+
+        - path:
+            Where to create the new application.
+        - force [False]:
+            Overwrite files that already exist, without asking.
+        - install_deps [True]:
+            Create a new virtualenv and install the dependencies of the new app
+
         """
         path = Path(path)
         self._copy_blueprint(path, force=force)
         self._setup_secrets(path)
         print()
-        if _install_deps:
+        if install_deps:
             deps_installed = self._install_dependencies(path, _prompt=_prompt)
         else:
             deps_installed = False
@@ -47,8 +55,8 @@ class SetupCli(Cli):
     def _setup_secrets(self, path):
         config_path = path / path.name / "config"
         master_key = new_master_key_file(config_path)
-        setup_secrets(config_path / "development", master_key=master_key, quiet=True)
-        setup_secrets(config_path / "production", master_key=master_key, quiet=True)
+        setup.secrets(config_path / "development", master_key=master_key, quiet=True)
+        setup.secrets(config_path / "production", master_key=master_key, quiet=True)
 
     def _install_dependencies(self, path, _prompt=True):
         name = path.stem
