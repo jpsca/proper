@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from proper.cli_proper import cli, PROJECT_BLUEPRINT
+from proper.cli import cli, PROJECT_BLUEPRINT
 
 
 def test_project_blueprint_exists():

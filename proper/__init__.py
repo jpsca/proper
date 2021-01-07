@@ -1,6 +1,5 @@
 from . import server  # noqa
 from .app import *  # noqa
-from .cli_application import ApplicationCli  # noqa
 from .controller import *  # noqa
 from .local import *  # noqa
 from .parsers import *  # noqa
