@@ -5,8 +5,8 @@ from proper.local import current
 from proper.request import Request
 from proper.response import Response
 
-from .app_errors import AppErrors
-from .app_setup import AppSetup, MissingSecretKey, BadSecretKey  # noqa
+from .errors_mixin import ErrorsMixin
+from .setup_mixin import SetupMixin, MissingSecretKey, BadSecretKey  # noqa
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
@@ -15,7 +15,7 @@ __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 STATIC_PREFIX = "static"
 
 
-class App(AppSetup, AppErrors):
+class App(ErrorsMixin, SetupMixin):
 
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.

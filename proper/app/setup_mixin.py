@@ -8,6 +8,7 @@ from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Serializer
 from proper.router import Router
 
+from .cli import Cli
 from .default_config import DEFAULT_CONFIG
 from .render import Render
 
@@ -25,7 +26,7 @@ STATIC_FOLDER = "static/public"
 STATIC_MANIFEST = "static/manifest.json"
 
 
-class AppSetup:
+class SetupMixin:
     serializer = None
     _cached_controllers_module = None
 
@@ -38,6 +39,7 @@ class AppSetup:
             Optional dict-like with the config.
 
         """
+        self.cli = Cli(self)
         self.router = Router()
         self.setup(config)
         self.setup_paths(import_name)

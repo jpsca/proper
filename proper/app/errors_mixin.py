@@ -15,7 +15,7 @@ from .error_handlers import (
 )
 
 
-class AppErrors:
+class ErrorsMixin:
 
     """A dict of functions to call when an HTTPError is raised.
     The keys are any subclasses of Exception, but, not necessarily subclasses
