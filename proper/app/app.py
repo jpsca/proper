@@ -4,6 +4,7 @@ from proper import middleware
 from proper.local import current
 from proper.request import Request
 from proper.response import Response
+from proper.static import RX_INMUTABLES_FILE
 
 from .errors_mixin import ErrorsMixin
 from .setup_mixin import SetupMixin, MissingSecretKey, BadSecretKey  # noqa
@@ -51,6 +52,7 @@ class App(ErrorsMixin, SetupMixin):
             root=self.static_path,
             prefix=STATIC_PREFIX,
             autorefresh=self._config.debug,
+            immutable_file_test=RX_INMUTABLES_FILE,
         )
         return app(environ, start_response)
 

@@ -1,6 +1,7 @@
 import pyceo
 
 from proper import generators as g
+from proper import static
 
 
 class Cli:
@@ -26,11 +27,11 @@ class Cli:
 
     @property
     def GeneratorsCli(self):
-        app = self.app
-
         class GeneratorsCli(pyceo.Cli):
             """Generate new code.
             """
+
+            _root_path = self.app.root_path
 
             def controller(self, name):
                 """Generates a new controller.
@@ -41,7 +42,7 @@ class Cli:
                 - name: PascalCased name of the controller class
 
                 """
-                g.controller(app.root_path, name=name)
+                g.controller(self._root_path, name=name)
 
             def resource(self, name):
                 """Generates a new resource.
@@ -59,18 +60,20 @@ class Cli:
 
     @property
     def StaticCli(self):
-        app = self.app
-
         class StaticCli(pyceo.Cli):
             """Manage static files.
             """
 
-            def clean(self):
-                """."""
-                pass
+            _root_path = self.app.root_path
 
-            def precompile(self):
-                """."""
-                pass
+            def clean(self):
+                """Delete all digested and compressed assets in static/public.
+                """
+                static.clean(self._root_path)
+
+            def compile(self):
+                """Digest and compress the assets in static/public.
+                """
+                static.compile(self._root_path)
 
         return StaticCli

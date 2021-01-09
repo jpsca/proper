@@ -7,6 +7,7 @@ from properconf import ConfigDict
 from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Serializer
 from proper.router import Router
+from proper.static import STATIC_FOLDER, STATIC_MANIFEST
 
 from .cli import Cli
 from .default_config import DEFAULT_CONFIG
@@ -22,8 +23,6 @@ class BadSecretKey(Exception):
 
 
 TEMPLATES_FOLDER = "templates"
-STATIC_FOLDER = "static/public"
-STATIC_MANIFEST = "static/manifest.json"
 
 
 class SetupMixin:
