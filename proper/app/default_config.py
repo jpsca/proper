@@ -29,5 +29,6 @@ DEFAULT_CONFIG = {
     # Static assets
     "static": {
         "host": "/static",
+        "compress": True,
     }
 }

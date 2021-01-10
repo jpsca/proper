@@ -31,7 +31,7 @@ class Cli:
             """Generate new code.
             """
 
-            _root_path = self.app.root_path
+            _app = self.app
 
             def controller(self, name):
                 """Generates a new controller.
@@ -42,7 +42,7 @@ class Cli:
                 - name: PascalCased name of the controller class
 
                 """
-                g.controller(self._root_path, name=name)
+                g.controller(self._app, name=name)
 
             def resource(self, name):
                 """Generates a new resource.
@@ -64,16 +64,16 @@ class Cli:
             """Manage static files.
             """
 
-            _root_path = self.app.root_path
+            _app = self.app
 
             def clean(self):
-                """Delete all digested and compressed assets in static/public.
+                """Delete all digested and/or compressed assets in static/public.
                 """
-                static.clean(self._root_path)
+                static.clean(self._app)
 
             def compile(self):
                 """Digest and compress the assets in static/public.
                 """
-                static.compile(self._root_path)
+                static.compile(self._app)
 
         return StaticCli

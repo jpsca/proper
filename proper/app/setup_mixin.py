@@ -106,7 +106,7 @@ class SetupMixin:
         host = host or self._config.static.host
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
-        return f"host/{filename}"
+        return f"{host}/{filename}"
 
     def get_serializer(self):
         if not self.serializer:
@@ -148,7 +148,8 @@ class SetupMixin:
 
     def _load_static_manifest(self):
         path = self.static_manifest_path
+        # if not self._config.debug and path.exists():
         if path.exists():
-            self.static_manifest = json.loads(path.read_bytes())
+            self.static_manifest = json.loads(path.read_text())
         else:
             self.static_manifest = {}

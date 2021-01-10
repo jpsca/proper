@@ -19,33 +19,32 @@ RX_INMUTABLES_FILE = r"^.+\.[0-9a-f]{12}\..+$"
 RE_INMUTABLES_FILE = re.compile(RX_INMUTABLES_FILE)
 
 
-def compile(app_root):
-    digest(app_root)
+def compile(app):
+    root = app.root_path.parent
+    static_root = root / STATIC_FOLDER
+    manifest_path = root / STATIC_MANIFEST
+    digest(static_root, manifest_path)
     print()
-    compress(app_root)
+    if app._config.static.compress:
+        compress(static_root)
 
 
-def digest(app_root):
+def digest(root, manifest_path):
     echo("<b>-- Hashing files --</b>")
-    manifest = {}
-    root = app_root.parent / STATIC_FOLDER
-    digestor = Digestor()
+    digestor = Digestor(root)
 
     for dirpath, _, files in os.walk(root):
         for filename in files:
             if _should_digest(filename):
                 path = Path(dirpath) / filename
-                new_path = digestor.digest(path).relative_to(root)
-                manifest[str(path.relative_to(root))] = str(new_path)
-                print(new_path)
+                print(digestor.digest(path))
 
-    manifest_json = json.dumps(manifest)
-    (app_root.parent / STATIC_MANIFEST).write_text(manifest_json)
+    manifest_json = json.dumps(digestor.manifest)
+    manifest_path.write_text(manifest_json)
 
 
-def compress(app_root):
+def compress(root):
     echo("<b>-- Compressing files --</b>")
-    root = app_root.parent / STATIC_FOLDER
     compressor = Compressor(use_gzip=True, use_brotli=bool(brotli), quiet=False)
     for dirpath, _, files in os.walk(root):
         for filename in files:
@@ -55,41 +54,29 @@ def compress(app_root):
                     pass  # Whitenoise is weird like this
 
 
-def clean(app_root):
-    """Delete all compressed assets."""
-    echo("<b>-- Removing files --</b>")
-    root = app_root.parent / STATIC_FOLDER
+def clean(root):
+    echo("<b>-- Removing hashed and/or compressed files --</b>")
     for dirpath, _, files in os.walk(root):
         for filename in files:
             if _is_compressed(filename) or _is_inmutable(filename):
                 path = (Path(dirpath) / filename)
-                print(path)
+                print(path.relative_to(root))
                 path.unlink()
 
 
-UNDIGESTABLE = (".map", )
-RE_SKIP_DIGEST = (
-    r"^[\.\_]",
-    r"\.({0})$".format("|".join(map(re.escape, UNDIGESTABLE))),
-)
-SKIP_DIGEST = [re.compile(rx, re.IGNORECASE) for rx in RE_SKIP_DIGEST]
-
-COMPRESSED = (".gz", ".br")
-UNCOMPRESSABLE = (
+IGNORE_STARTS = (".", "_")
+COMPRESSED_ENDS = (".gz", ".br")
+UNDIGESTABLE_ENDS = (".map")
+UNCOMPRESSABLE_ENDS = (
     ".map", "jpg", "jpeg", "png", "gif", "webp",
     "zip", "gz", "tgz", "bz2", "tbz", "xz", "br",
     "swf", "flv",
     "woff", "woff2",
 )
-RE_SKIP_COMPRESS = (
-    r"^[\.\_]",
-    r"\.({0})$".format("|".join(map(re.escape, UNCOMPRESSABLE))),
-)
-SKIP_COMPRESS = [re.compile(rx, re.IGNORECASE) for rx in RE_SKIP_COMPRESS]
 
 
 def _is_compressed(filename):
-    return filename.endswith(COMPRESSED)
+    return filename.endswith(COMPRESSED_ENDS)
 
 
 def _is_inmutable(filename):
@@ -97,20 +84,22 @@ def _is_inmutable(filename):
 
 
 def _should_digest(filename):
+    if filename.startswith(IGNORE_STARTS):
+        return False
     if _is_inmutable(filename):
         return False
-    for rxc in SKIP_DIGEST:
-        if rxc.search(filename):
-            return False
+    if filename.endswith(UNDIGESTABLE_ENDS):
+        return False
     return True
 
 
 def _should_compress(filename):
+    if filename.startswith(IGNORE_STARTS):
+        return False
     if not _is_inmutable(filename):
         return False
-    for rxc in SKIP_COMPRESS:
-        if rxc.search(filename):
-            return False
+    if filename.endswith(UNCOMPRESSABLE_ENDS):
+        return False
     return True
 
 
