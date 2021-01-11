@@ -19,6 +19,17 @@ RX_INMUTABLES_FILE = r"^.+\.[0-9a-f]{12}\..+$"
 RE_INMUTABLES_FILE = re.compile(RX_INMUTABLES_FILE)
 
 
+def clean(app):
+    static_root = app.root_path.parent / STATIC_FOLDER
+    echo("<b>-- Removing hashed and/or compressed files --</b>")
+    for dirpath, _, files in os.walk(static_root):
+        for filename in files:
+            if _is_compressed(filename) or _is_inmutable(filename):
+                path = (Path(dirpath) / filename)
+                print(path.relative_to(static_root))
+                path.unlink()
+
+
 def compile(app):
     root = app.root_path.parent
     static_root = root / STATIC_FOLDER
@@ -42,6 +53,21 @@ def digest(root, manifest_path):
     manifest_json = json.dumps(digestor.manifest)
     manifest_path.write_text(manifest_json)
 
+    replace_urls(root, digestor.manifest)
+
+
+REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
+
+def replace_urls(root, manifest):
+    for filename in manifest.values():
+        if not filename.endswith(REPLACEABLE_ENDS):
+            continue
+        path = root / filename
+        text = path.read_text()
+        for name, replacement in manifest.items():
+            text = text.replace(name, replacement)
+        path.write_text(text)
+
 
 def compress(root):
     echo("<b>-- Compressing files --</b>")
@@ -52,16 +78,6 @@ def compress(root):
                 path = os.path.join(dirpath, filename)
                 for comp in compressor.compress(path):
                     pass  # Whitenoise is weird like this
-
-
-def clean(root):
-    echo("<b>-- Removing hashed and/or compressed files --</b>")
-    for dirpath, _, files in os.walk(root):
-        for filename in files:
-            if _is_compressed(filename) or _is_inmutable(filename):
-                path = (Path(dirpath) / filename)
-                print(path.relative_to(root))
-                path.unlink()
 
 
 IGNORE_STARTS = (".", "_")
