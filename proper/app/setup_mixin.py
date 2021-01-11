@@ -3,11 +3,12 @@ from importlib import import_module
 from pathlib import Path
 
 from properconf import ConfigDict
+from whitenoise import WhiteNoise
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Serializer
 from proper.router import Router
-from proper.static import STATIC_FOLDER, STATIC_MANIFEST
+from proper.static import STATIC_FOLDER, STATIC_MANIFEST, RX_INMUTABLES_FILE
 
 from .cli import Cli
 from .default_config import DEFAULT_CONFIG
@@ -23,6 +24,7 @@ class BadSecretKey(Exception):
 
 
 TEMPLATES_FOLDER = "templates"
+STATIC_PREFIX = "static"
 
 
 class SetupMixin:
@@ -43,6 +45,7 @@ class SetupMixin:
         self.setup(config)
         self.setup_paths(import_name)
         self.setup_render()
+        self._wrap_wsgi_app()
 
     @property
     def config(self):
@@ -103,7 +106,7 @@ class SetupMixin:
         self.render.env.globals["url_static"] = self.url_static
 
     def url_static(self, filename, *, host=None):
-        host = host or self._config.static.host
+        host = host or self._config.static.host or f"/{STATIC_PREFIX}"
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
         return f"{host}/{filename}"
@@ -152,3 +155,15 @@ class SetupMixin:
             self.static_manifest = json.loads(path.read_text())
         else:
             self.static_manifest = {}
+
+    def _wrap_wsgi_app(self):
+        self._wrapped_wsgi = self.wsgi_app
+
+        if self.static_path.exists():
+            self._wrapped_wsgi = WhiteNoise(
+                self.wsgi_app,
+                root=self.static_path,
+                prefix=STATIC_PREFIX,
+                autorefresh=self._config.debug,
+                immutable_file_test=RX_INMUTABLES_FILE,
+            )

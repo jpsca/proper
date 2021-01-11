@@ -1,19 +1,13 @@
-from whitenoise import WhiteNoise
-
 from proper import middleware
 from proper.local import current
 from proper.request import Request
 from proper.response import Response
-from proper.static import RX_INMUTABLES_FILE
 
 from .errors_mixin import ErrorsMixin
 from .setup_mixin import SetupMixin, MissingSecretKey, BadSecretKey  # noqa
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
-
-
-STATIC_PREFIX = "static"
 
 
 class App(ErrorsMixin, SetupMixin):
@@ -42,19 +36,14 @@ class App(ErrorsMixin, SetupMixin):
     # even if an exception was raised before.
     _on_teardown = tuple()
 
+    _wrapped_app = None
+
     @property
     def current_req(self):
         return getattr(current, "req", None)
 
     def __call__(self, environ, start_response):
-        app = WhiteNoise(
-            self.wsgi_app,
-            root=self.static_path,
-            prefix=STATIC_PREFIX,
-            autorefresh=self._config.debug,
-            immutable_file_test=RX_INMUTABLES_FILE,
-        )
-        return app(environ, start_response)
+        return self._wrapped_wsgi(environ, start_response)
 
     def wsgi_app(self, environ, start_response):
         req = Request(config=self.config, **environ)
