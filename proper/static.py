@@ -106,8 +106,10 @@ def replace_urls(root, manifest):
             continue
         path = root / filename
         text = path.read_text()
+        is_js = filename.endswith(".js")
+
         for name, replacement in manifest.items():
-            if name.endswith(".js.map"):
+            if is_js and name.endswith(".js.map"):
                 name = f"sourceMappingURL={name.rsplit('/')[-1]}"
                 replacement = f"sourceMappingURL={replacement.rsplit('/')[-1]}"
 
