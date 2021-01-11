@@ -8,7 +8,7 @@ from whitenoise import WhiteNoise
 from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Serializer
 from proper.router import Router
-from proper.static import STATIC_FOLDER, STATIC_MANIFEST, RX_INMUTABLES_FILE
+from proper.static import STATIC, MANIFEST, RX_INMUTABLES_FILE
 
 from .cli import Cli
 from .default_config import DEFAULT_CONFIG
@@ -73,11 +73,11 @@ class SetupMixin:
 
     @property
     def static_path(self):
-        return self.root_path.parent / STATIC_FOLDER
+        return self.root_path.parent / STATIC
 
     @property
     def static_manifest_path(self):
-        return self.root_path.parent / STATIC_MANIFEST
+        return self.root_path.parent / MANIFEST
 
     def setup(self, config):
         self._config = ConfigDict(DEFAULT_CONFIG)

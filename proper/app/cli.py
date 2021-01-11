@@ -39,6 +39,7 @@ class Cli:
                 This includes a controller file and the default templates.
 
                 Arguments:
+
                 - name: PascalCased name of the controller class
 
                 """
@@ -51,6 +52,7 @@ class Cli:
                 a resource route in the `routes.py` file
 
                 Arguments:
+
                 - name: PascalCased name of the resource class
 
                 """
@@ -65,6 +67,18 @@ class Cli:
             """
 
             _app = self.app
+
+            def bundle(self, watch=False):
+                """Calls `npm run build` in the `static/` folder for building the CSS and JS bundles.
+
+                Add `--watch` to call `npm run watch` instead
+                """
+                static.bundle(self._app)
+
+            def deploy(self):
+                """Calls `npm run deploy` in the `static/` folder for making production bundles.
+                """
+                static.deploy(self._app)
 
             def clean(self):
                 """Delete all digested and/or compressed assets in static/public.

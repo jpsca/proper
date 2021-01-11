@@ -13,31 +13,67 @@ from whitenoise.compress import Compressor
 from proper.helpers import Digestor
 
 
-STATIC_FOLDER = "static/public"
-STATIC_MANIFEST = "static/cache_manifest.json"
+BUNDLE = "npm run bundle"
+BUNDLE_WATCH = "npm run watch"
+BUNDLE_PROD = "npm run deploy"
+
+STATIC = "static"
+PUBLIC = "public"
+MANIFEST = "cache_manifest.json"
 RX_INMUTABLES_FILE = r"^.+\.[0-9a-f]{12}\..+$"
 RE_INMUTABLES_FILE = re.compile(RX_INMUTABLES_FILE)
 
+IGNORE_STARTS = (".", "_")
+COMPRESSED_ENDS = (".gz", ".br")
+UNCOMPRESSABLE_ENDS = (
+    ".map", "jpg", "jpeg", "png", "gif", "webp",
+    "zip", "gz", "tgz", "bz2", "tbz", "xz", "br",
+    "swf", "flv",
+    "woff", "woff2",
+)
+REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
+
+
+def bundle(app):
+    os.chdir(app.root_path.parent / STATIC)
+    cmd = BUNDLE
+    print(cmd)
+    os.system(cmd)
+
+
+def watch(app):
+    os.chdir(app.root_path.parent / STATIC)
+    cmd = BUNDLE_WATCH
+    print(cmd)
+    os.system(cmd)
+
+
+def deploy(app):
+    os.chdir(app.root_path.parent / STATIC)
+    cmd = BUNDLE_PROD
+    print(cmd)
+    os.system(cmd)
+
 
 def clean(app):
-    static_root = app.root_path.parent / STATIC_FOLDER
+    public = app.root_path.parent / STATIC / PUBLIC
     echo("<b>-- Removing hashed and/or compressed files --</b>")
-    for dirpath, _, files in os.walk(static_root):
+    for dirpath, _, files in os.walk(public):
         for filename in files:
             if _is_compressed(filename) or _is_inmutable(filename):
                 path = (Path(dirpath) / filename)
-                print(path.relative_to(static_root))
+                print(path.relative_to(public))
                 path.unlink()
 
 
 def compile(app):
     root = app.root_path.parent
-    static_root = root / STATIC_FOLDER
-    manifest_path = root / STATIC_MANIFEST
-    digest(static_root, manifest_path)
+    public = root / STATIC / PUBLIC
+    manifest_path = root / STATIC / MANIFEST
+    digest(public, manifest_path)
     print()
     if app._config.static.compress:
-        compress(static_root)
+        compress(public)
 
 
 def digest(root, manifest_path):
@@ -56,15 +92,25 @@ def digest(root, manifest_path):
     replace_urls(root, digestor.manifest)
 
 
-REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
-
 def replace_urls(root, manifest):
+    """Replace the references to the digested assets with hashed ones
+    in CSS and JS files.
+
+    With assets in subfolders, this only works if the full URL relative to the
+    `static/` folder is used, eg: `/static/images/bg.png` or `../fonts/museo.woff`.
+
+    An exception to this rule is taken for source maps.
+    """
     for filename in manifest.values():
         if not filename.endswith(REPLACEABLE_ENDS):
             continue
         path = root / filename
         text = path.read_text()
         for name, replacement in manifest.items():
+            if name.endswith(".js.map"):
+                name = f"sourceMappingURL={name.rsplit('/')[-1]}"
+                replacement = f"sourceMappingURL={replacement.rsplit('/')[-1]}"
+
             text = text.replace(name, replacement)
         path.write_text(text)
 
@@ -80,17 +126,6 @@ def compress(root):
                     pass  # Whitenoise is weird like this
 
 
-IGNORE_STARTS = (".", "_")
-COMPRESSED_ENDS = (".gz", ".br")
-UNDIGESTABLE_ENDS = (".map")
-UNCOMPRESSABLE_ENDS = (
-    ".map", "jpg", "jpeg", "png", "gif", "webp",
-    "zip", "gz", "tgz", "bz2", "tbz", "xz", "br",
-    "swf", "flv",
-    "woff", "woff2",
-)
-
-
 def _is_compressed(filename):
     return filename.endswith(COMPRESSED_ENDS)
 
@@ -104,8 +139,6 @@ def _should_digest(filename):
         return False
     if _is_inmutable(filename):
         return False
-    if filename.endswith(UNDIGESTABLE_ENDS):
-        return False
     return True
 
 
@@ -117,73 +150,3 @@ def _should_compress(filename):
     if filename.endswith(UNCOMPRESSABLE_ENDS):
         return False
     return True
-
-
-# WEBPACK = "./node_modules/.bin/webpack"
-# POSTCSS = (
-#     "./node_modules/.bin/postcss ./src/css/*.css"
-#     " --base src --dir public"
-# )
-# root_path = str(static_path.parent)
-
-
-# def _run(cmd):
-#     print(cmd)
-#     os.system(cmd)
-
-
-
-# def wcss():
-#     """Build the CSS bundles and keep monitoring the CSS files for changes."""
-#     os.chdir(root_path)
-#     _run(
-#         "./node_modules/.bin/postcss"
-#         " ./src/css/**/*.css"
-#         " --base src --dir public --watch"
-#     )
-
-
-# def wjs():
-#     """Build the JS bundles and keep monitoring the CSS files for changes."""
-#     os.chdir(root_path)
-#     _run(f"{WEBPACK} --watch")
-
-
-# def build():
-#     """Builds all bundles, deleting first, the old ones.
-#     """
-#     css()
-#     js()
-
-
-# def css():
-#     """Build the CSS bundles."""
-#     os.chdir(root_path)
-#     print("\n********** Updating css bundles **********")
-#     _run(POSTCSS)
-
-
-# def js():
-#     """Build the JS bundles."""
-#     os.chdir(root_path)
-#     print("\n********** Updating js bundles **********")
-#     _run(WEBPACK)
-#     print()
-
-
-# def buildp():
-#     """Builds all bundles for production and generate compressed versions.
-#     """
-#     print("\n********** Updating bundles **********")
-#     os.environ["NODE_ENV"] = "production"
-#     os.chdir(root_path)
-#     _run(f"{WEBPACK} --mode production")
-#     _run(POSTCSS)
-
-#     print("\n********** Compressing **********")
-#     compress()
-
-#     print("\n********** Done. **********")
-
-
-
