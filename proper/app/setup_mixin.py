@@ -157,13 +157,10 @@ class SetupMixin:
             self.static_manifest = {}
 
     def _wrap_wsgi_app(self):
-        self._wrapped_wsgi = self.wsgi_app
-
-        if self.static_path.exists():
-            self._wrapped_wsgi = WhiteNoise(
-                self.wsgi_app,
-                root=self.static_path,
-                prefix=STATIC_PREFIX,
-                autorefresh=self._config.debug,
-                immutable_file_test=RX_INMUTABLES_FILE,
-            )
+        self._wrapped_wsgi = WhiteNoise(
+            self.wsgi_app,
+            root=self.static_path,
+            prefix=STATIC_PREFIX,
+            autorefresh=self._config.debug,
+            immutable_file_test=RX_INMUTABLES_FILE,
+        )
