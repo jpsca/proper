@@ -75,10 +75,10 @@ class Cli:
                 """
                 static.bundle(self._app)
 
-            def deploy(self):
-                """Calls `npm run deploy` in the `static/` folder for making production bundles.
+            def build(self):
+                """Calls `npm run build` in the `static/` folder for making production bundles.
                 """
-                static.deploy(self._app)
+                static.build(self._app)
 
             def clean(self):
                 """Delete all digested and/or compressed assets in static/public.

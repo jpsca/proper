@@ -45,7 +45,7 @@ def watch(app):
     os.system(cmd)
 
 
-def deploy(app):
+def build(app):
     os.chdir(app.static_path)
     cmd = BUNDLE_PROD
     print(cmd)
