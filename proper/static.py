@@ -17,9 +17,6 @@ BUNDLE = "npm run bundle"
 BUNDLE_WATCH = "npm run watch"
 BUNDLE_PROD = "npm run deploy"
 
-STATIC = "static"
-PUBLIC = "public"
-MANIFEST = "cache_manifest.json"
 RX_INMUTABLES_FILE = r"^.+\.[0-9a-f]{12}\..+$"
 RE_INMUTABLES_FILE = re.compile(RX_INMUTABLES_FILE)
 
@@ -35,28 +32,28 @@ REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
 
 
 def bundle(app):
-    os.chdir(app.root_path.parent / STATIC)
+    os.chdir(app.static_path)
     cmd = BUNDLE
     print(cmd)
     os.system(cmd)
 
 
 def watch(app):
-    os.chdir(app.root_path.parent / STATIC)
+    os.chdir(app.static_path)
     cmd = BUNDLE_WATCH
     print(cmd)
     os.system(cmd)
 
 
 def deploy(app):
-    os.chdir(app.root_path.parent / STATIC)
+    os.chdir(app.static_path)
     cmd = BUNDLE_PROD
     print(cmd)
     os.system(cmd)
 
 
 def clean(app):
-    public = app.root_path.parent / STATIC / PUBLIC
+    public = app.public_path
     echo("<b>-- Removing hashed and/or compressed files --</b>")
     for dirpath, _, files in os.walk(public):
         for filename in files:
@@ -67,10 +64,8 @@ def clean(app):
 
 
 def compile(app):
-    root = app.root_path.parent
-    public = root / STATIC / PUBLIC
-    manifest_path = root / STATIC / MANIFEST
-    digest(public, manifest_path)
+    public = app.public_path
+    digest(public, app.static_manifest_path)
     print()
     if app._config.static.compress:
         compress(public)
