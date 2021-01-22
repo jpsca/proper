@@ -15,7 +15,7 @@ from proper.helpers import Digestor
 
 BUNDLE = "npm run bundle"
 BUNDLE_WATCH = "npm run watch"
-BUNDLE_PROD = "npm run deploy"
+BUNDLE_PROD = "npm run build"
 
 RX_INMUTABLES_FILE = r"^.+\.[0-9a-f]{12}\..+$"
 RE_INMUTABLES_FILE = re.compile(RX_INMUTABLES_FILE)

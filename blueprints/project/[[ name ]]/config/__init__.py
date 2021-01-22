@@ -3,15 +3,39 @@ from pathlib import Path
 
 from properconf import ConfigDict
 
+from . import shared, development, production, testing  # noqa
+
+
+ENV_VAR = "APP_ENV"
+ENV_FILE = ".APP_ENV"
+ENVIRONMENTS = {
+    "development": development,
+    "production": production,
+    "testing": testing,
+}
+
+def get_env(default="development"):
+    env = os.getenv(ENV_VAR)
+    if env:
+        return env
+    envfile = Path(ENV_FILE)
+    if envfile.exists():
+        return envfile.read_text().strip()
+    return default
+
 
 def load_config(env):
-    root_path = Path(__file__).parent
     config = ConfigDict()
-    config.load_file(root_path / "shared.toml")
-    config.load_file(root_path / env / "config.toml")
+    config.load_module(shared)
+
+    env_config = ENVIRONMENTS.get(env, production)
+    config.load_module(env_config)
+
+    root_path = Path(__file__).parent
     config.load_secrets(root_path / env / "secrets.enc.toml")
+
     return config
 
 
-env = os.getenv("APP_ENV", "development")
+env = get_env()
 config = load_config(env)

@@ -1,0 +1,25 @@
+{
+    "sideEffects": [],
+    "scripts": {
+        "bundle": "npm run css && npm run js",
+        "watch": "npm run css_watch && npm run js_watch",
+        "build": "npm run css_build && npm run js_build",
+        "css": "postcss ./src/css/*.css --base src --dir public",
+        "css_watch": "postcss ./src/css/**/*.css --base src --dir public --watch",
+        "css_build": "NODE_ENV=production npm run css",
+        "js": "webpack --mode development",
+        "js_watch": "webpack --mode development --watch",
+        "js_build": "webpack --mode production"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.2.1",
+        "cssnano": "^4.1.10",
+        "postcss": "^8.2.4",
+        "postcss-cli": "^8.3.1",
+        "postcss-import": "^14.0.0",
+        "tailwindcss": "^2.0.2",
+        "webpack": "^5.12.3",
+        "webpack-cli": "^4.3.1"
+    },
+    "browserslist": "last 2 versions"
+}

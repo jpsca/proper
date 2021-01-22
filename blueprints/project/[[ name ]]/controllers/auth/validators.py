@@ -1,0 +1,44 @@
+import hyperform as hf
+
+from [[ name ]].models import User
+from [[ name ]].config import config
+
+from .pwned import get_pwned_count
+
+
+def login_exists(values):
+    msg = "We don't recognize that email. Want to try another?"
+    if not values:
+        return False, msg
+    login = User.normalize_login(login=values[0])
+    if not User.exists(login=login):
+        return False, msg
+    return True
+
+
+def login_is_free(values):
+    msg = "That email is already in use by an account"
+    if not values:
+        return False, msg
+    login = User.normalize_login(login=values[0])
+    if User.exists(login=login):
+        return False, msg
+    return True
+
+
+password_is_long = hf.LongerThan(
+    config.auth.password_minlen,
+    f"Your password must be at least {config.auth.password_minlen} characters long",
+)
+
+
+def password_hasnt_been_pwned(values):
+    msg = (
+        "This password may have been compromised on another site.<br>"
+        "For your own safety, we recommend you create a new, unique password"
+        " using something like LastPass or 1Password."
+    )
+    for value in values:
+        if get_pwned_count(value):
+            return False, msg
+    return True

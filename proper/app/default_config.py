@@ -29,6 +29,9 @@ DEFAULT_CONFIG = {
     # Static assets
     "static": {
         "host": None,
+
+        # When set to False then compressed files will not be created but static files
+        # will still get md5 tagged.
         "compress": True,
     }
 }

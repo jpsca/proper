@@ -1,0 +1,12 @@
+alembic  # Database migration
+argon2-cffi  # Next-gen hash function for the passwords
+brotli  # To generate brotli-compressed assets
+jinja2  # Template system
+mailshake  # Dramatically simplify sending email
+# proper Pure happiness
+properconf # Flexible configuration system
+psycopg2-binary  # PostgreSQL driver
+redis  # Redis adapter
+rq  # Async tasks
+sqla_wrapper  # SQLAlchemy wrapper
+sqlalchemy  # ORM

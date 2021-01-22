@@ -69,7 +69,7 @@ class Cli:
             _app = self.app
 
             def bundle(self, watch=False):
-                """Calls `npm run build` in the `static/` folder for building the CSS and JS bundles.
+                """Calls `npm run bundle` in the `static/` folder for building the CSS and JS bundles.
 
                 Add `--watch` to call `npm run watch` instead
                 """

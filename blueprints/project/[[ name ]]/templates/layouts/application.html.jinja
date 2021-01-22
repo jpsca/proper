@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>{% block title %}Juan-Pablo Scaletti{% endblock %}</title>
+	<link rel="stylesheet" href="{{ url_static('css/common.css') }}">
+	<script src="{{ url_static('vendor/turbolinks.js') }}" defer></script>
+	<script src="{{ url_static('js/scripts.js') }}" defer></script>
+	<link rel="preload" as="font" href="{{ url_static('fonts/merriweather-light.woff2') }}" type="font/woff2" crossorigin="anonymous">
+	<link rel="preload" as="font" href="{{ url_static('fonts/merriweather-lightitalic.woff2') }}" type="font/woff2" crossorigin="anonymous">
+	<link rel="preload" as="font" href="{{ url_static('fonts/merriweather-bold.woff2') }}" type="font/woff2" crossorigin="anonymous">
+	<link rel="alternate" type="application/rss+xml" title="JPScaletti.com &raquo; Feed" href="https://jpscaletti/com{{ url_for('Posts.feed') }}">
+	<meta property="og:site_name" content="JpScaletti.com">
+	<meta property="twitter:site" content="@jpscaletti">
+	<meta property="twitter:card" content="summary">
+	<meta property="og:image" content="https://jpscaletti/com{{ url_static('images/avatar.png') }}">
+	<meta property="twitter:creator" content="@jpscaletti">
+	{% block meta %}{% endblock %}
+	{% block scripts %}{% endblock %}
+	<meta name="theme-color" content="#f6f2ef">
+	<link rel="icon" href="{{ url_static('favicon.svg') }}">
+	<link rel="apple-touch-icon" href="{{ url_static('apple-touch-icon.png') }}">
+	<link rel="manifest" href="{{ url_static('manifest.json') }}">
+	<meta name="generator" content="Bitacora">
+	<script>window.CSRF_TOKEN = "{{ req.csrf_token }}";</script>
+</head>
+<body class="font-sans antialiased text-gray-800 bg-white cursor-default">
+	<main class="pb-12">
+		{% include "common/_main-header.html.jinja" %}
+		{% include "common/_flashes.html.jinja" %}
+		<div class="w-full max-w-screen-lg px-6 mx-auto">
+		{% block body %}{% endblock %}
+		</div>
+	</main>
+	{% include "common/_main-footer.html.jinja" %}
+</body>
+</html>

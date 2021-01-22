@@ -1,0 +1,15 @@
+{% extends "layouts/application.html.jinja" %}
+
+{% block title %}Page Not Found{% endblock %}
+
+{% block body %}
+<div class="">
+    <h1>Page Not Found</h1>
+    <p>The page you were looking for does not exist, o maybe I deleted it.</p>
+    <p>There is also the possibility that you may have mistyped the&nbsp;address.</p>
+</div>
+<!--
+WARNING:
+If this page is smaller than 512 bytes, then Internet Explorer and Chrome|Chromium will display their own built-in 404 page and the Internet will be flooded with ones and zeros.
+-->
+{% endblock %}

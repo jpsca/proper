@@ -1,0 +1,51 @@
+{% extends "layouts/application.html.jinja" %}
+{% from "posts/_Topics.html.jinja" import Topics %}
+
+{% block meta -%}
+<link rel="stylesheet" href="{{ url_static('css/post.css') }}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Quote: {{ post.title }}">
+<meta property="og:description" content="{{ post.description }}">
+{%- endblock %}
+
+{% block title %}Quote: {{ post.title }} | {{ super() }}{% endblock %}
+
+{% block body %}
+<article class="font-serif">
+	<header class="my-8 text-center">
+		{% include "common/_flourish.html.jinja" %}
+	</header>
+
+	<section class="max-w-3xl mx-auto mt-16">
+		<blockquote class="pl-12 mb-8 text-xl sm:text-2xl font-light text-gray-700 quote">
+			{{ post.html | safe }}
+		</blockquote>
+		{% if post.source_author or post.source or post.source_url -%}
+		<div class="pt-6 pl-10 text-base sm:text-xl italic font-light text-gray-700">
+    	&mdash;
+    	{%- if post.source_author %}
+    		{{ post.source_author }}
+    	{%- endif %}
+    	{%- if post.source_author and post.source %}
+    		<em class="text-gray-600">on</em>
+    	{%- endif %}
+    	{%- if post.source_url %}
+    		<a class="not-italic link" href="{{ post.source_url }}">{{ post.source or post.source_url }}</a>
+    	{%- elif post.source %}
+    		{{ post.source }}
+    	{%- endif %}
+    </div>
+    {%- endif %}
+	</section>
+
+	<footer class="max-w-3xl pt-4 pb-2 mx-auto mt-12 text-base tracking-wide text-center text-gray-700 uppercase border-t-2 border-b border-gray-400">
+		Quoted <em class="italic font-normal tracking-normal lowercase">on</em>
+		<time datetime="{{ post.published_at_iso }}" title="{{ post.published_at_iso }}">
+			{{ post.published_at.strftime("%B %-d %Y") }}.
+		</time>
+	</footer>
+
+	{% include "common/_author.html.jinja" %}
+	{{ Topics(post.topics) }}
+</article>
+{% endblock %}

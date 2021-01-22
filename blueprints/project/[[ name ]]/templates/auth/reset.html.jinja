@@ -1,0 +1,45 @@
+{% extends "layouts/auth.html.jinja" %}
+
+{% block title %}Reset your password{% endblock %}
+
+{% block body %}
+<div class="h-full max-w-lg mx-auto">
+	<div class="flex items-center h-full p-10 bg-white border-l border-r border-gray-400 shadow-md">
+		<form method="post" action="" class="w-full" id="resetForm" novalidate>
+			<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
+
+			<div class="mb-8 text-center">
+				<h2 class="mt-6 text-3xl font-bold text-gray-900">
+					Reset your password
+				</h2>
+				<p class="mt-2 text-gray-600">
+					Enter your email address and we will send you a link to reset your&nbsp;password.
+				</p>
+			</div>
+
+			<div class="mb-4">
+				{{ form.login.as_input(
+					aria_label="Email",
+					classes="form-input w-full lowercase text-lg py-3",
+					error="border-red-500",
+					placeholder="Email"
+				) }}
+				{{ form.login.render_error(classes="text-red-500 text-sm font-bold mb-3 mt-2") }}
+			</div>
+
+			<div class="mt-6">
+				<button class="w-full py-2 btn btn--primary" type="submit">
+					Email reset link
+				</button>
+			</div>
+
+			<div class="mt-6 text-right">
+				<a class="text-sm link"
+					href="{{ url_for('Auth.sign_in') }}">
+					Nevermind, go back
+				</a>
+			</div>
+		</form>
+	</div>
+</div>
+{% endblock %}

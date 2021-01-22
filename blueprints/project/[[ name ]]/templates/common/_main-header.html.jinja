@@ -1,0 +1,22 @@
+<header class="z-10 w-full">
+	<nav class="w-full max-w-screen-lg px-4 py-6 mx-auto" aria-label="Main Menu">
+		<ul class="flex">
+			<li class="mr-4">
+				<a href="/" class="text-base font-bold text-gray-600 underline hover:no-underline hover:text-gray-800" title="Home page">
+					Juan-Pablo Scaletti
+				</a>
+			</li>
+			{% if req.user -%}
+			<li>
+				<a class="text-base font-bold text-gray-600 underline hover:no-underline hover:text-gray-800" href="">
+					Admin
+				</a>
+			<li>
+				<a class="text-base font-bold text-gray-600 underline hover:no-underline hover:text-gray-800" data-method="post" href="{ url_for('Auth.sign_out', _csrf_token=req.csrf_token) }}">
+					Sign out
+				</a>
+			</li>
+			{%- endif %}
+		</ul>
+	</nav>
+</header>

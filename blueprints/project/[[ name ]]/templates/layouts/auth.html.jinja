@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" class="antialiased h-full">
+<head>
+	<meta charset="utf-8">
+	<title>{% block title %}{% endblock %}</title>
+	<link rel="icon" type="image/x-icon" href="{{ url_for('static', file='favicon.ico') }}">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<link rel="stylesheet" href="{{ url_static('css/common.css') }}">
+	{%- block css %}{%- endblock -%}
+	<script>window.CSRF_TOKEN = "{{ req.csrf_token }}";</script>
+	{%- block js %}{% endblock %}
+</head>
+<body class="cursor-default bg-warm h-full min-h-500">
+	{%- block body %}{% endblock %}
+</body>
+</html>
