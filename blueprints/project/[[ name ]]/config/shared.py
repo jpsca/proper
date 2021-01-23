@@ -1,6 +1,3 @@
-"""
-Shared config
-"""
 import os
 
 
@@ -16,9 +13,8 @@ auth = {
 }
 
 mailer = {
-    "default_from": "admin@jpscaletti.com",
+    "default_from": "admin@example.com",
 }
-
 session = {
     "cookie_name": "_proper_session",
     "cookie_httponly": True,

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from properconf import ConfigDict
 
-from . import shared, development, production, testing  # noqa
+from . import development, production, shared, staging, testing
 
 
 ENV_VAR = "APP_ENV"
@@ -11,8 +11,10 @@ ENV_FILE = ".APP_ENV"
 ENVIRONMENTS = {
     "development": development,
     "production": production,
+    "staging": staging,
     "testing": testing,
 }
+
 
 def get_env(default="development"):
     env = os.getenv(ENV_VAR)
@@ -26,13 +28,17 @@ def get_env(default="development"):
 
 def load_config(env):
     config = ConfigDict()
+
+    # Load shared config
     config.load_module(shared)
 
+    # Load env config
     env_config = ENVIRONMENTS.get(env, production)
     config.load_module(env_config)
 
+    # Load env secrets
     root_path = Path(__file__).parent
-    config.load_secrets(root_path / env / "secrets.enc.toml")
+    config.load_secrets(root_path / f"{env}.enc.toml")
 
     return config
 

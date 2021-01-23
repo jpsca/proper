@@ -1,11 +1,4 @@
-"""
-Production config
-"""
-
-
 debug = False
-host = "https://jpscaletti.com"
-
 secret_key = ""  # Set in secrets
 
 database = {
