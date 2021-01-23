@@ -2,6 +2,7 @@ import json
 from importlib import import_module
 from pathlib import Path
 
+from jinja2 import Markup
 from properconf import ConfigDict
 from whitenoise import WhiteNoise
 
@@ -111,12 +112,20 @@ class SetupMixin:
 
         self.render.env.globals["url_for"] = self.url_for
         self.render.env.globals["url_static"] = self.url_static
+        self.render.env.globals["include_static"] = self.include_static
 
     def url_static(self, filename, *, host=None):
         host = host or self._config.static.host or f"/{STATIC_PREFIX}"
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
         return f"{host}/{filename}"
+
+    def include_static(self, filename):
+        """Read and returns a text file from the `static/public` folder, to include
+        in the template as-is.
+        """
+        text = (self.static_path / filename).read_text()
+        return Markup(text)
 
     def get_serializer(self):
         if not self.serializer:

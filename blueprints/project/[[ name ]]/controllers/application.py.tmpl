@@ -1,8 +1,6 @@
 from os import getenv
-from textwrap import dedent
 
 from proper import BaseController, before_action, after_action
-from sentry_sdk import configure_scope
 
 from [[ name ]].models import User
 from [[ name ]].app import app
@@ -71,8 +69,6 @@ class PrivateController(ApplicationController):
 
     def _require_login(self, req, resp):
         if req.user:
-            with configure_scope() as scope:
-                scope.user = {"login": req.user.login}
             return
         if REDIRECT_AFTER_LOGIN_KEY not in resp.session:
             resp.session[REDIRECT_AFTER_LOGIN_KEY] = req.path

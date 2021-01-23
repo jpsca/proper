@@ -1,0 +1,10 @@
+import random
+from pathlib import Path
+
+from jinja2 import Markup
+from proper import App
+
+from .config import config
+
+
+app = App("[[ name ]]", config=config)

@@ -49,3 +49,7 @@ class Manager(app.cli.ApplicationCli):
 
 
 manager = Manager()
+
+
+def run():
+    manager()

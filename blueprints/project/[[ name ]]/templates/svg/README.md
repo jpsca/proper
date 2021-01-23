@@ -1,1 +1,0 @@
-This svg files are located here because there are used as part of the template markup, not an image to be imported client-side.

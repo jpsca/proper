@@ -1,15 +1,14 @@
-#!/usr/bin/env python
 import multiprocessing
 
 from rq import Connection, Worker
 
-from [[ name ]].adapters import redis, QUEUES
+from .adapters import redis, QUEUES
 
 
 NUM_WORKERS = 3
 
 
-def run_workers():
+def run():
     with Connection(redis):
         workers = []
         for i in range(NUM_WORKERS):
@@ -19,7 +18,3 @@ def run_workers():
             )
             workers.append(p)
             p.start()
-
-
-if __name__ == "__main__":
-    run_workers()

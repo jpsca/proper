@@ -1,6 +1,0 @@
-<p class="flex mx-auto mb-8 justify-between w-full max-w-xs sm:px-5 px-0">
-	{%- set images = ["server", "teapot", "workspace", "upload", "coffee", "people", "mac"] %}
-	{%- for name in images | shuffle(post.id) %}
-	<img class="h-8 md:h-10" src="{{ url_static('images/' + name + '.svg') }}" alt="{{ name }} icon">
-	{%- endfor %}
-</p>

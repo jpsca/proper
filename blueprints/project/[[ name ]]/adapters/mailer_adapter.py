@@ -1,6 +1,6 @@
 from mailshake import AmazonSESMailer, ToConsoleMailer
 
-from [[ name ]].config import config
+from ..config import config
 
 
 __all__ = ("mailer", )
