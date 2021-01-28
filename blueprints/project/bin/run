@@ -1,0 +1,3 @@
+#!/bin/bash
+set -o errexit
+uwsgi --ini uwsgi-dev.ini

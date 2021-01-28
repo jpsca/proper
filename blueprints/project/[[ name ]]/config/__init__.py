@@ -37,8 +37,8 @@ def load_config(env):
     config.load_module(env_config)
 
     # Load env secrets
-    root_path = Path(__file__).parent
-    config.load_secrets(root_path / f"{env}.enc.toml")
+    path = Path(__file__).parent
+    config.load_secrets(path / env)
 
     return config
 

@@ -56,10 +56,6 @@ dbsetup:
 	createdb [[ name ]]_tests || true
 	alembic upgrade head
 
-.PHONY: run
-run:
-	uwsgi --ini uwsgi-dev.ini
-
 .PHONY: migration
 migration:
 	alembic revision --autogenerate

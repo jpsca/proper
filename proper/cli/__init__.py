@@ -1,6 +1,6 @@
 """Command Line User Interface for Proper itself.
 """
-from properconf.secrets import generate_token
+from properconf import manager
 from pyceo import Cli
 
 from proper.constants import MIN_SECRET_LENGTH
@@ -34,7 +34,7 @@ class ProperCli(Cli, SetupMixin):
         - length [DEFAULT]
 
         """
-        print(generate_token())
+        print(manager.token(length))
 
 
 cli = ProperCli()

@@ -6,10 +6,6 @@ import pytest
 from webtest import TestApp
 
 from proper import App
-from properconf.secrets import generate_token
-
-
-SECRET_KEY = generate_token()
 
 
 @pytest.fixture()
@@ -19,7 +15,7 @@ def import_name():
 
 @pytest.fixture()
 def app(import_name):
-    app = App(import_name, config={"secret_key": SECRET_KEY, "debug": False})
+    app = App(import_name, config={"secret_key": "*" * 50, "debug": False})
     return app
 
 

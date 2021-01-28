@@ -1,5 +1,7 @@
+-c common.txt
 black
 flake8
 pip-tools
 pytest
+rq-dashboard
 uwsgi

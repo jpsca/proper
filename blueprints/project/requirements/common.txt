@@ -1,12 +1,19 @@
 alembic  # Database migration
 argon2-cffi  # Next-gen hash function for the passwords
 brotli  # To generate brotli-compressed assets
+cached-property
+feedgen
+hyperform  # Form-handling library that doesn't suck
 jinja2  # Template system
 mailshake  # Dramatically simplify sending email
 # proper Pure happiness
-properconf # Flexible configuration system
+properconf ~=2.2 # Flexible configuration system
 psycopg2-binary  # PostgreSQL driver
+Pygments ~=2.6
+pymdown_extensions ~=7.1
 redis  # Redis adapter
 rq  # Async tasks
+sentry-sdk
 sqla_wrapper  # SQLAlchemy wrapper
 sqlalchemy  # ORM
+pyceo ~=3.1  # CLI

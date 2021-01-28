@@ -3,8 +3,6 @@ import sys
 from pathlib import Path
 
 import hecto
-from properconf.cli import setup
-from properconf.secrets import new_master_key_file
 from pyceo import echo
 
 
@@ -40,7 +38,6 @@ class SetupMixin:
         """
         path = Path(path)
         self._copy_blueprint(path, force=force)
-        self._setup_secrets(path)
         print()
         if install_deps:
             deps_installed = self._install_dependencies(path, _prompt=_prompt)
@@ -51,12 +48,6 @@ class SetupMixin:
     def _copy_blueprint(self, path, force):
         data = {"name": path.name}
         hecto.copy(PROJECT_BLUEPRINT, path, data=data, force=force)
-
-    def _setup_secrets(self, path):
-        config_path = path / path.name / "config"
-        master_key = new_master_key_file(config_path)
-        setup.secrets(config_path / "development", master_key=master_key, quiet=True)
-        setup.secrets(config_path / "production", master_key=master_key, quiet=True)
 
     def _install_dependencies(self, path, _prompt=True):
         name = path.stem
@@ -69,10 +60,10 @@ class SetupMixin:
         venv = Path(name) / ".venv"
         _call(f"{sys.executable or 'python'} -m venv {venv}")
         pip = venv / "bin" / "pip"
-        _call(f"{pip} install -U pip")
-        _call(f"{pip} install -e {name}")
-        _call(f"{pip} install -r {Path(name) / 'requirements-dev.txt'}")
-        # _call(f"cd {name} && npm install")
+        _call(f"{pip} install -U pip wheel")
+        _call(f"{pip} install -r requirements/development.txt")
+        _call(f"{pip} install -e .")
+        _call(f"cd static && npm install")
         return True
 
     def _wrap_up(self, path, deps_installed):
@@ -85,10 +76,9 @@ class SetupMixin:
         else:
             print("   $ python -m venv .venv")
             print("   $ source .venv/bin/activate")
-            print("   $ pip install -e .")
-            print("   $ cd web && npm install")
+            print("   $ make install")
         print()
         print(" Start your Proper app with:")
         print()
-        print("   $ python manage.py run")
+        print("   $ bin/run")
         print()
