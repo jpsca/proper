@@ -1,0 +1,4 @@
+#
+# Dependencies only for production
+#
+-r requirements.txt

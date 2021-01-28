@@ -1,6 +1,0 @@
--r common.txt
-black
-flake8
-pip-tools
-pytest
-uwsgi

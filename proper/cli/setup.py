@@ -43,6 +43,8 @@ class SetupMixin:
             deps_installed = self._install_dependencies(path, _prompt=_prompt)
         else:
             deps_installed = False
+
+        self._make_executables(path)
         self._wrap_up(path, deps_installed)
 
     def _copy_blueprint(self, path, force):
@@ -61,10 +63,14 @@ class SetupMixin:
         os.chdir(str(path))
         _call(f"{sys.executable or 'python'} -m venv .venv")
         _call(".venv/bin/pip install -U pip wheel")
-        _call(".venv/bin/pip install -r requirements/development.txt")
+        _call(".venv/bin/pip install -r requirements/requirements-dev.txt")
         _call(".venv/bin/pip install -e .")
         _call("cd static && npm install")
         return True
+
+    def _make_executables(self, path):
+        for child in (path / "bin").iterdir():
+            child.chmod(0o755)
 
     def _wrap_up(self, path, deps_installed):
         print()

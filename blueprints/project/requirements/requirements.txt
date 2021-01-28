@@ -1,0 +1,17 @@
+#
+# Application dependencies
+#
+alembic             # Database migration
+argon2-cffi         # Next-gen hash function for the passwords
+brotli              # To generate brotli-compressed assets
+hyperform           # Form-handling library that doesn't suck
+jinja2              # Template system
+mailshake           # Dramatically simplify sending email
+# proper              # Pure happiness
+properconf ~=2.2    # Flexible configuration system
+psycopg2-binary     # PostgreSQL driver
+redis               # Redis adapter
+rq                  # Async tasks
+sqla_wrapper        # SQLAlchemy wrapper
+sqlalchemy          # ORM
+pyceo ~=3.1         # CLI
