@@ -1,2 +1,2 @@
--c common.txt
+-r common.txt
 boto3

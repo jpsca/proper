@@ -26,15 +26,5 @@ class ProperCli(Cli, SetupMixin):
         """
         on_start(host=host, port=port)
 
-    def secret(self, length=MIN_SECRET_LENGTH):
-        """Returns a secure secret_key.
-
-        Arguments:
-
-        - length [DEFAULT]
-
-        """
-        print(manager.token(length))
-
 
 cli = ProperCli()

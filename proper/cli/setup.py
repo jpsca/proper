@@ -12,7 +12,7 @@ BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 def _call(cmd):
-    echo("   <cmd>running</cmd>  " + cmd)
+    echo("   <fg:yellow>running</fg>  " + cmd)
     os.system(cmd)
 
 
@@ -56,17 +56,18 @@ class SetupMixin:
         ):
             print()
             return False
+
         print()
-        venv = Path(name) / ".venv"
-        _call(f"{sys.executable or 'python'} -m venv {venv}")
-        pip = venv / "bin" / "pip"
-        _call(f"{pip} install -U pip wheel")
-        _call(f"{pip} install -r requirements/development.txt")
-        _call(f"{pip} install -e .")
-        _call(f"cd static && npm install")
+        os.chdir(str(path))
+        _call(f"{sys.executable or 'python'} -m venv .venv")
+        _call(".venv/bin/pip install -U pip wheel")
+        _call(".venv/bin/pip install -r requirements/development.txt")
+        _call(".venv/bin/pip install -e .")
+        _call("cd static && npm install")
         return True
 
     def _wrap_up(self, path, deps_installed):
+        print()
         print(" Done! ✨")
         print(" The following steps are missing:")
         print()

@@ -1,4 +1,4 @@
--c common.txt
+-r common.txt
 black
 flake8
 pip-tools
