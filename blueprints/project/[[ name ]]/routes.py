@@ -29,8 +29,5 @@ routes = [
 
     # Your routes below
 
-    get("", to="Posts.index"),
-    get("p/:id<int>/:slug", to="Posts.show"),
-    get("feed.rss", to="Posts.feed"),
-    get("t/:id<int>/:slug", to="Topics.show"),
+    get("", to="Pages.index"),
 ]
