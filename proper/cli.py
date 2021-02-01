@@ -1,12 +1,17 @@
+"""Command Line User Interface for Proper itself.
+"""
 import os
 import sys
 from pathlib import Path
 
 import hecto
-from pyceo import echo
+from pyceo import Cli, echo
+
+from proper.server import on_start
+from proper.version import __version__
 
 
-__all__ = ("BLUEPRINTS", "PROJECT_BLUEPRINT", "SetupMixin")
+__all__ = ("BLUEPRINTS", "PROJECT_BLUEPRINT", "SetupMixin", "ProperCli")
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
@@ -16,7 +21,22 @@ def _call(cmd):
     os.system(cmd)
 
 
-class SetupMixin:
+class ProperCli(Cli):
+    __doc__ = f"""<b>Proper v{__version__}</b>
+
+    This utility provides commands from Proper itself."""
+
+    def welcome(self, host="0.0.0.0", port=5000):
+        """Display the welcome message for the development server.
+
+        Arguments:
+
+        - host [0.0.0.0]
+        - port [5000]
+
+        """
+        on_start(host=host, port=port)
+
     def new(self, path, force=False, install_deps=True, _prompt=True):
         """Creates a new Proper application at `path`.
 
@@ -46,6 +66,8 @@ class SetupMixin:
 
         self._make_executables(path)
         self._wrap_up(path, deps_installed)
+
+    # Private
 
     def _copy_blueprint(self, path, force):
         data = {"name": path.name}
@@ -89,3 +111,6 @@ class SetupMixin:
         print()
         print("   $ bin/run")
         print()
+
+
+cli = ProperCli()

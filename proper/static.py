@@ -31,21 +31,20 @@ UNCOMPRESSABLE_ENDS = (
 REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
 
 
-def bundle(app):
-    os.chdir(app.static_path)
-    cmd = BUNDLE
-    print(cmd)
-    os.system(cmd)
+def bundle(app, watch=False):
+    """Calls `npm run bundle` in the `static/` folder for building the CSS and JS bundles.
 
-
-def watch(app):
+    Add `--watch` to call `npm run watch` instead
+    """
     os.chdir(app.static_path)
-    cmd = BUNDLE_WATCH
+    cmd = BUNDLE_WATCH if watch else BUNDLE
     print(cmd)
     os.system(cmd)
 
 
 def build(app):
+    """Calls `npm run build` in the `static/` folder for making production bundles.
+    """
     os.chdir(app.static_path)
     cmd = BUNDLE_PROD
     print(cmd)
@@ -53,6 +52,8 @@ def build(app):
 
 
 def clean(app):
+    """Delete all digested and/or compressed assets in static/public.
+    """
     public = app.public_path
     echo("<b>-- Removing hashed and/or compressed files --</b>")
     for dirpath, _, files in os.walk(public):
@@ -64,14 +65,16 @@ def clean(app):
 
 
 def compile(app):
+    """Digest and compress the assets in static/public.
+    """
     public = app.public_path
-    digest(public, app.static_manifest_path)
+    _digest(public, app.static_manifest_path)
     print()
     if app._config.static.compress:
         compress(public)
 
 
-def digest(root, manifest_path):
+def _digest(root, manifest_path):
     echo("<b>-- Hashing files --</b>")
     digestor = Digestor(root)
 
@@ -84,10 +87,10 @@ def digest(root, manifest_path):
     manifest_json = json.dumps(digestor.manifest)
     manifest_path.write_text(manifest_json)
 
-    replace_urls(root, digestor.manifest)
+    _replace_urls(root, digestor.manifest)
 
 
-def replace_urls(root, manifest):
+def _replace_urls(root, manifest):
     """Replace the references to the digested assets with hashed ones
     in CSS and JS files.
 

@@ -1,8 +1,7 @@
 import pyceo
 import properconf
 
-from proper import generators as g
-from proper import static
+from proper import generators, static
 
 
 ENCRIPTED_HEADER = """# -------------------------------------------------------------
@@ -52,67 +51,38 @@ class Cli:
 
     @property
     def GeneratorsCli(self):
-        class GeneratorsCli(pyceo.Cli):
-            """Generate new code.
-            """
+        attrs = {
+            "__doc__": """Generate new code.""",
+            "_app": self.app,
+        }
 
-            _app = self.app
+        for name in ("resource", "controller", "model"):
+            func = getattr(generators, name)
 
-            def controller(self, name):
-                """Generates a new controller.
+            def cmd(self, *args, **kwargs):
+                return func(self._app, *args, **kwargs)
 
-                This includes a controller file and the default templates.
+            cmd.__name__ = name
+            cmd.__doc__ = func.__doc__
+            attrs[name] = cmd
 
-                Arguments:
-
-                - name: PascalCased name of the controller class
-
-                """
-                g.controller(self._app, name=name)
-
-            def resource(self, name):
-                """Generates a new resource.
-
-                This include a model, controller, templates, and
-                a resource route in the `routes.py` file
-
-                Arguments:
-
-                - name: PascalCased name of the resource class
-
-                """
-                pass
-
-        return GeneratorsCli
+        return type("GeneratorsCli", (pyceo.Cli, ), attrs)
 
     @property
     def StaticCli(self):
-        class StaticCli(pyceo.Cli):
-            """Manage static files.
-            """
+        attrs = {
+            "__doc__": """Manage static files.""",
+            "_app": self.app,
+        }
 
-            _app = self.app
+        for name in ("bundle", "build", "clean", "compile"):
+            func = getattr(static, name)
 
-            def bundle(self, watch=False):
-                """Calls `npm run bundle` in the `static/` folder for building the CSS and JS bundles.
+            def cmd(self, *args, **kwargs):
+                return func(self._app, *args, **kwargs)
 
-                Add `--watch` to call `npm run watch` instead
-                """
-                static.bundle(self._app)
+            cmd.__name__ = name
+            cmd.__doc__ = func.__doc__
+            attrs[name] = cmd
 
-            def build(self):
-                """Calls `npm run build` in the `static/` folder for making production bundles.
-                """
-                static.build(self._app)
-
-            def clean(self):
-                """Delete all digested and/or compressed assets in static/public.
-                """
-                static.clean(self._app)
-
-            def compile(self):
-                """Digest and compress the assets in static/public.
-                """
-                static.compile(self._app)
-
-        return StaticCli
+        return type("StaticCli", (pyceo.Cli, ), attrs)
