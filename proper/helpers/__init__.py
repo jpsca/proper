@@ -11,6 +11,7 @@ from .iterable import *  # noqa
 from .multidict import *  # noqa
 from .objectify import *  # noqa
 from .paginator import *  # noqa
+from .render import *  # noqa
 from .serializer import *  # noqa
 from .slugify import *  # noqa
 

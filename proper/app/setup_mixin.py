@@ -7,13 +7,12 @@ from properconf import ConfigDict
 from whitenoise import WhiteNoise
 
 from proper.constants import MIN_SECRET_LENGTH
-from proper.helpers import Serializer
+from proper.helpers import Render, Serializer
 from proper.router import Router
 from proper.static import RX_INMUTABLES_FILE
 
 from .cli import Cli
 from .default_config import DEFAULT_CONFIG
-from .render import Render
 
 
 class MissingSecretKey(Exception):

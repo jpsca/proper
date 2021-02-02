@@ -4,16 +4,16 @@ import os
 import sys
 from pathlib import Path
 
-import hecto
-from pyceo import Cli, echo
+from pyceo import Cli, echo, confirm
 
+from proper.helpers import BLUEPRINTS, render_folder
 from proper.server import on_start
 from proper.version import __version__
 
 
-__all__ = ("BLUEPRINTS", "PROJECT_BLUEPRINT", "SetupMixin", "ProperCli")
+__all__ = ("PROJECT_BLUEPRINT", "SetupMixin", "ProperCli")
 
-BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
+
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 def _call(cmd):
@@ -71,11 +71,11 @@ class ProperCli(Cli):
 
     def _copy_blueprint(self, path, force):
         data = {"name": path.name}
-        hecto.copy(PROJECT_BLUEPRINT, path, data=data, force=force)
+        render_folder(PROJECT_BLUEPRINT, path, data=data, force=force)
 
     def _install_dependencies(self, path, _prompt=True):
         name = path.stem
-        if _prompt and not hecto.utils.prompt_bool(
+        if _prompt and not confirm(
             f" Install dependencies in a virtualenv at {name}/.venv ?", default=True,
         ):
             print()

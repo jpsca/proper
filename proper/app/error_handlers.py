@@ -8,12 +8,18 @@ from pathlib import Path
 
 import jinja2
 
-from proper.helpers import titleize
+from proper.helpers import titleize, Render
 
-
-TEMPLATES = (Path(__file__).parent / "templates").absolute()
 
 logger = logging.getLogger("proper")
+
+TEMPLATES = (Path(__file__).parent / "templates").absolute()
+jinja_render = Render(TEMPLATES)
+
+def _include_raw(name):
+    return jinja2.Markup(jinja_render.loader.get_source(jinja_render.env, name)[0])
+
+jinja_render.globals["include_raw"] = _include_raw
 
 
 def debug_not_found_handler(req, resp, app):
@@ -87,26 +93,10 @@ def _get_title(error):
 def _render(template, **data):
     if not data:
         return (TEMPLATES / template).read_text()
-
     try:
-        return _render_with_jinja(template, **data)
+        return jinja_render(template, **data)
     except Exception as error:
         logger.error(error, exc_info=True)
         return _render("fallback-error.html")
 
 
-def _include_raw(name):
-    return jinja2.Markup(loader.get_source(jinja_env, name)[0])
-
-
-def _render_with_jinja(template, **data):
-    tmpl = jinja_env.get_template(template)
-    return tmpl.render(**data)
-
-
-loader = jinja2.FileSystemLoader(str(TEMPLATES))
-jinja_env = jinja2.Environment(
-    loader=loader,
-    autoescape=jinja2.select_autoescape(default=True),
-)
-jinja_env.globals["include_raw"] = _include_raw
