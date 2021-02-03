@@ -32,40 +32,32 @@ class Cli:
             def routes(self):
                 """Show all registered routes.
                 """
-                METHOD = 6
-                PATH = 32
-                TO = 36
-                NAME = 22
-                DEFAULTS = 22
-
                 print("Routes match in priority from top to bottom.")
                 print("The rules that doesn't have a `to` property are build-only and never match.")
                 print()
-                print(
-                    " " * METHOD,
-                    "PATH".ljust(PATH, " "),
-                    "TO".ljust(TO, " "),
-                    "NAME".ljust(NAME, " "),
-                    "DEFAULTS".ljust(DEFAULTS, " ")
-                )
-                print("-" * METHOD, "-" * PATH, "-" * TO, "-" * NAME, "-" * DEFAULTS)
 
+                routes = []
                 for route in self._app.routes:
                     method = route.method if route.method else "—"
                     path = route.path
                     to = f"↪ {route.redirect}" if route.redirect else route.to or "-"
                     name = route.name or "-"
                     defaults = route.defaults or "-"
+                    routes.append([method, path, to, name, defaults])
 
-                    print(
-                        method.ljust(METHOD, " "),
-                        path.ljust(PATH, " "),
-                        to.ljust(TO, " "),
-                        name.ljust(NAME, " "),
-                        defaults.ljust(DEFAULTS, " "),
-                    )
+                PADDING = 2
+                HEADERS = ["", "PATH", "TO", "NAME", "DEFAULTS"]
+
+                lengths = [len(header) for header in HEADERS]
+                for route in routes:
+                    lengths = [max(ll, len(text)) for ll, text in zip(lengths, route)]
+                lengths = [ll + PADDING for ll in lengths]
+
+                print(*[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths)])
+                print(*["-" * ll for ll in lengths])
+                for route in routes:
+                    print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
                 print()
-
 
             def secrets(self, env):
                 """Edit your encrypted secrets.
