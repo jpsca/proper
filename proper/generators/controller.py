@@ -1,6 +1,4 @@
-from proper.helpers import BLUEPRINTS, pascal_to_snake
-
-from .helpers import render_folder
+from proper.helpers import BLUEPRINTS, pascal_to_snake, render_folder
 
 
 def controller(app, name, *actions):
@@ -13,14 +11,15 @@ def controller(app, name, *actions):
     """
     snake_name = pascal_to_snake(name)
     actions = [pascal_to_snake(action) for action in actions]
-
-    source = BLUEPRINTS / "controller"
-    data = {
-        "pascal_name": name,
-        "snake_name": snake_name,
-        "actions": actions or ["index"]
-    }
-    render_folder(source, app.root_path, data=data)
+    render_folder(
+        BLUEPRINTS / "controller",
+        app.root_path,
+        context={
+            "pascal_name": name,
+            "snake_name": snake_name,
+            "actions": actions or ["index"]
+        }
+    )
 
     templates = app.root_path / "templates" / snake_name
     templates.mkdir(parents=False, exist_ok=True)

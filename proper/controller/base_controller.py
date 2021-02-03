@@ -85,7 +85,7 @@ class BaseController:
         # The template doesn't have a extension so the action can choose to use
         # the default template name but changing the response format from the
         # default, for example, using ".json" instead of ".html".
-        template = resp.template + resp.format
+        template = f"{resp.template}{resp.format}.jinja"
         return self._app.render(template, req=req, **self._as_dict())
 
     def _as_dict(self):

@@ -1,9 +1,5 @@
 debug = False
-secret_key = ""  # Set in secrets
-
-database = {
-    "uri": "",  # Set in secrets
-}
+secret_key = ""  # SET IN SECRETS
 
 session = {
     "cookie_secure": True,

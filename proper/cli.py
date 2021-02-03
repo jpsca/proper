@@ -37,7 +37,7 @@ class ProperCli(Cli):
         """
         on_start(host=host, port=port)
 
-    def new(self, path, force=False, install_deps=True, _prompt=True):
+    def new(self, path, force=False, _dependencies=True):
         """Creates a new Proper application at `path`.
 
         The `proper new` command creates a new Proper application with a default
@@ -52,37 +52,30 @@ class ProperCli(Cli):
             Where to create the new application.
         - force [False]:
             Overwrite files that already exist, without asking.
-        - install_deps [True]:
-            Create a new virtualenv and install the dependencies of the new app
 
         """
-        path = Path(path)
-        self._copy_blueprint(path, force=force)
-        print()
-        if install_deps:
-            deps_installed = self._install_dependencies(path, _prompt=_prompt)
-        else:
-            deps_installed = False
-
+        path = Path(path).resolve().absolute()
+        self._render_blueprint(path, force=force)
+        os.chdir(str(path))
+        deps_installed = self._install_dependencies(path) if _dependencies else False
         self._make_executables(path)
         self._wrap_up(path, deps_installed)
 
     # Private
 
-    def _copy_blueprint(self, path, force):
-        data = {"name": path.name}
-        render_folder(PROJECT_BLUEPRINT, path, data=data, force=force)
+    def _render_blueprint(self, path, force):
+        render_folder(PROJECT_BLUEPRINT, path, context={"name": path.name}, force=force)
+        print()
 
-    def _install_dependencies(self, path, _prompt=True):
+    def _install_dependencies(self, path):
         name = path.stem
-        if _prompt and not confirm(
+        if not confirm(
             f" Install dependencies in a virtualenv at {name}/.venv ?", default=True,
         ):
             print()
             return False
 
         print()
-        os.chdir(str(path))
         _call(f"{sys.executable or 'python'} -m venv .venv")
         _call(".venv/bin/pip install -U pip wheel")
         _call(".venv/bin/pip install -r requirements/requirements-dev.txt")
@@ -95,8 +88,8 @@ class ProperCli(Cli):
             child.chmod(0o755)
 
     def _wrap_up(self, path, deps_installed):
+        print("✨ Done! ✨")
         print()
-        print(" Done! ✨")
         print(" The following steps are missing:")
         print()
         print("   $ cd " + path.stem + "")

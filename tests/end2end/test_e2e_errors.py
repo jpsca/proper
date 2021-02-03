@@ -140,8 +140,8 @@ def boom(*args, **kwargs):
 def test_error_when_rendering_the_error_page(app, web):
     from proper import error_handlers
 
-    original_func = error_handlers._render_with_jinja
-    error_handlers._render_with_jinja = boom
+    original = error_handlers.jinja_render
+    error_handlers.jinja_render = boom
 
     app.config["debug"] = True
     app.router.routes = []
@@ -151,4 +151,4 @@ def test_error_when_rendering_the_error_page(app, web):
     assert resp.status == status.not_found
     assert "<title>Error</title>" in resp.text
 
-    error_handlers._render_with_jinja = original_func
+    error_handlers.jinja_render = original

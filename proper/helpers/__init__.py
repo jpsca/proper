@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from .cookies import *  # noqa
 from .dot import *  # noqa
 from .encoding import *  # noqa
@@ -14,6 +12,3 @@ from .paginator import *  # noqa
 from .render import *  # noqa
 from .serializer import *  # noqa
 from .slugify import *  # noqa
-
-
-BLUEPRINTS = (Path(__file__).parent.parent  / "blueprints").resolve()

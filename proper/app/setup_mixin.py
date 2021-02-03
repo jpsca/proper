@@ -108,10 +108,9 @@ class SetupMixin:
     def setup_render(self):
         self._load_static_manifest()
         self.render = Render(self.templates_path)
-
-        self.render.env.globals["url_for"] = self.url_for
-        self.render.env.globals["url_static"] = self.url_static
-        self.render.env.globals["include_static"] = self.include_static
+        self.render.globals["url_for"] = self.url_for
+        self.render.globals["url_static"] = self.url_static
+        self.render.globals["include_static"] = self.include_static
 
     def url_static(self, filename, *, host=None):
         host = host or self._config.static.host or f"/{STATIC_PREFIX}"

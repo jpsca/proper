@@ -15,9 +15,14 @@ auth = {
 mailer = {
     "default_from": "admin@example.com",
 }
+
 session = {
-    "cookie_name": "_proper_session",
+    "cookie_name": "_session",
     "cookie_httponly": True,
+}
+
+database = {
+    "uri": os.environ.get("DATABASE_URI", "postgres://@localhost/[[ name ]]"),
 }
 
 redis = {
