@@ -1,5 +1,12 @@
 
 
+ROUTES_TMPL = """,
+    resource("[[ action ]]", to="[[ pascal_name ]]"),
+]
+
+"""
+
+
 def resource(app, name):
     """Stubs out a new resource.
 

@@ -1,5 +1,6 @@
 import filecmp
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -7,10 +8,10 @@ import jinja2
 from pyceo import echo, confirm
 
 
-__all__ = ["BLUEPRINTS", "Render", "FolderRender", "render_folder", "get_blueprint_render", "printf"]
+__all__ = ["BLUEPRINTS", "Render", "BlueprintRender", "printf", "get_blueprint_render", "extend_routes"]
 
 
-BLUEPRINTS = (Path(__file__).parent.parent.parent  / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 
 
 class Render:
@@ -31,7 +32,7 @@ class Render:
         self.env = jinja2.Environment(
             loader=self.loader,
             autoescape=jinja2.select_autoescape(default=True),
-            **envops
+            **envops,
         )
 
     def __call__(self, relpath, **context):
@@ -44,28 +45,6 @@ class Render:
     def render(self, relpath, **context):
         tmpl = self.env.get_template(str(relpath))
         return tmpl.render(**context)
-
-
-def printf(verb, msg="", color="cyan", indent=10):
-    verb = str(verb).rjust(indent, " ")
-    verb = f"<fg:{color}>{verb}</fg>"
-    echo(f"{verb}  {msg}".rstrip())
-
-
-def get_blueprint_render(src, context=None, *, envops=None):
-    envops = envops or {}
-    envops.setdefault("block_start_string", "[%")
-    envops.setdefault("block_end_string", "%]")
-    envops.setdefault("variable_start_string", "[[")
-    envops.setdefault("variable_end_string", "]]")
-    envops.setdefault("keep_trailing_newline", True)
-    render = Render(src, **(envops or {}))
-    render.globals.update(context or {})
-    return render
-
-
-def render_blueprint(src, dst, context=None, *, envops=None, force=False):
-    BlueprintRender(src, dst, context=context, envops=envops, force=force)()
 
 
 class BlueprintRender:
@@ -132,11 +111,14 @@ class BlueprintRender:
         dst_path = self.dst / dst_relpath
         verb = "extended" if dst_path.exists() else "created"
         printf(verb, dst_relpath, color="green")
-        dst_path.touch(exist_ok=True)
 
-        content = self.render(src_relpath)
-        with dst_path.open("a") as f:
-            f.write(content)
+        dst_path.touch(exist_ok=True)
+        curr_content = dst_path.read_text()
+        if not curr_content.endswith("\n"):
+            curr_content += "\n"
+        new_content = self.render(src_relpath)
+        dst_path.write_text(curr_content + new_content)
+
 
     def _copy_file(self, src_path, dst_relpath):
         dst_path = self.dst / dst_relpath
@@ -164,3 +146,34 @@ class BlueprintRender:
         if self.force:
             return True
         return confirm(" Overwrite?")
+
+
+def printf(verb, msg="", color="cyan", indent=10):
+    verb = str(verb).rjust(indent, " ")
+    verb = f"<fg:{color}>{verb}</fg>"
+    echo(f"{verb}  {msg}".rstrip())
+
+
+def get_blueprint_render(src, context=None, *, envops=None):
+    envops = envops or {}
+    envops.setdefault("block_start_string", "[%")
+    envops.setdefault("block_end_string", "%]")
+    envops.setdefault("variable_start_string", "[[")
+    envops.setdefault("variable_end_string", "]]")
+    envops.setdefault("keep_trailing_newline", True)
+    render = Render(src, **(envops or {}))
+    render.globals.update(context or {})
+    return render
+
+
+RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")
+
+
+def extend_routes(app, new_routes):
+    routes_path = app.root_path / "routes.py"
+    routes = routes_path.read_text()
+    match = RE_CLOSE_ROUTES.search(routes)
+    if match:
+        routes = routes[: match.start()].rstrip()
+    routes_path.write_text(routes + new_routes)
+    printf("updated", str(routes_path), color="yellow")

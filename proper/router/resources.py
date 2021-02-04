@@ -6,32 +6,33 @@ __all__ = ("resources", )
 
 ROUTES = (
     ("GET", "/", "index"),
-    ("GET", "/new", "new"),
-    ("POST", "/create", "create"),
     ("GET", "/:uid", "show"),
+    ("GET", "/new", "new"),
+    ("POST", "/", "create"),
     ("GET", "/:uid/edit", "edit"),
-    ("POST", "/:uid/update", "update"),
-    ("POST", "/:uid/delete", "delete"),
+    ("PATCH", "/:uid", "update"),
+    ("PUT", "/:uid", "update"),
+    ("DELETE", "/:uid", "delete"),
 )
 
 ACTIONS = ("index", "new", "create", "show", "edit", "update", "delete")
 
 
 def resources(path, to, only=ACTIONS, ignore=None, **kwargs):
-    """Shortcut to return a list of REST-RPC routes with the same arguments:
+    """Shortcut to return a list of REST routes with the same arguments:
 
-    METHOD | PATH           | ENDPOINT
-    ----------------------------------------
-    GET       /               index
-    GET       /new            new
-    POST      /create         create
-    GET       /:uid           show
-    GET       /:uid/edit      edit
-    POST      /:uid/update    update
-    POST      /:uid/delete    delete
-    ----------------------------------------
+    METHOD   PATH            ENDPOINT
+    -------- --------------- ---------------
+    GET      /               index
+    GET      /:uid           show
+    GET      /new            new
+    POST     /               create
+    GET      /:uid/edit      edit
+    PATCH    /:uid           update
+    PUT      /:uid           update
+    DELETE   /:uid           delete
 
-    We calidate the arguments first so we can show errors about what the user has
+    We validate the arguments first so we can show errors about what the user has
     typed instead of being about dynamically generated routes.
     """
     res = Route("resources", path, to=to, **kwargs)

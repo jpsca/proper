@@ -1,6 +1,11 @@
-from proper.helpers import BLUEPRINTS, pascal_to_snake, render_blueprint
+from proper.helpers import BLUEPRINTS, BlueprintRender, extend_routes, pascal_to_snake
 
-from .helpers import _extend_routes
+
+ROUTES_TMPL = """,[% for action in actions %]
+    get("[[ action ]]", to="[[ pascal_name ]].[[ action ]]"),[% endfor %]
+]
+
+"""
 
 
 def controller(app, name, *actions):
@@ -18,16 +23,20 @@ def controller(app, name, *actions):
     snake_name = pascal_to_snake(name)
     actions = [pascal_to_snake(action) for action in actions]
 
-    render_blueprint(
+    bprender = BlueprintRender(
         BLUEPRINTS / "controller",
         app.root_path,
         context={
             "pascal_name": name,
             "snake_name": snake_name,
-            "actions": actions or ["index"]
-        }
+            "actions": actions or ["index"],
+        },
     )
-    _extend_routes(app, name, actions)
+    bprender()
+
+    new_routes = bprender.string(ROUTES_TMPL)
+    extend_routes(app, new_routes)
+
     templates = app.root_path / "templates" / snake_name
     templates.mkdir(parents=False, exist_ok=True)
     _stub_templates(templates, actions)
