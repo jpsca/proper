@@ -1,16 +1,23 @@
 from proper.helpers import BLUEPRINTS, pascal_to_snake, render_folder
 
+from .helpers import _extend_routes
+
 
 def controller(app, name, *actions):
     """Stubs out a new controller and its templates.
 
         bin/manage g controller NAME [action ...]
 
-    Pass the PascalCased model name, and an optional list of actions as arguments.
+    Pass the PascalCased controller name (in plural), and an optional list
+    of actions as arguments.
+    Example:
+
+        bin/manage g controller Articles index show
 
     """
     snake_name = pascal_to_snake(name)
     actions = [pascal_to_snake(action) for action in actions]
+
     render_folder(
         BLUEPRINTS / "controller",
         app.root_path,
@@ -20,7 +27,7 @@ def controller(app, name, *actions):
             "actions": actions or ["index"]
         }
     )
-
+    _extend_routes(app, name, actions)
     templates = app.root_path / "templates" / snake_name
     templates.mkdir(parents=False, exist_ok=True)
     _stub_templates(templates, actions)

@@ -3,8 +3,7 @@ from .application import ApplicationController
 
 class [[ pascal_name ]](ApplicationController):
 
-    [% for action in actions -%]
+    [%- for action in actions %]
     def [[ action ]](self, req, resp):
         pass
-
     [% endfor -%]

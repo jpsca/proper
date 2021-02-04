@@ -11,6 +11,17 @@ ENCRIPTED_HEADER = """# --------------------------------------------------------
 #
 """
 
+def get_cmd(module, name):
+    func = getattr(module, name)
+
+    def cmd(self, *args, **kwargs):
+        return func(self._app, *args, **kwargs)
+
+    cmd.__name__ = name
+    cmd.__doc__ = func.__doc__
+    return cmd
+
+
 class Cli:
     def __init__(self, app):
         self.app = app
@@ -45,7 +56,7 @@ class Cli:
                     defaults = route.defaults or "-"
                     routes.append([method, path, to, name, defaults])
 
-                PADDING = 2
+                PADDING = 1
                 HEADERS = ["", "PATH", "TO", "NAME", "DEFAULTS"]
 
                 lengths = [len(header) for header in HEADERS]
@@ -88,14 +99,7 @@ class Cli:
         }
 
         for name in ("resource", "controller", "model"):
-            func = getattr(generators, name)
-
-            def cmd(self, *args, **kwargs):
-                return func(self._app, *args, **kwargs)
-
-            cmd.__name__ = name
-            cmd.__doc__ = func.__doc__
-            attrs[name] = cmd
+            attrs[name] = get_cmd(generators, name)
 
         return type("GeneratorsCli", (pyceo.Cli, ), attrs)
 
@@ -107,13 +111,6 @@ class Cli:
         }
 
         for name in ("bundle", "build", "clean", "compile"):
-            func = getattr(static, name)
-
-            def cmd(self, *args, **kwargs):
-                return func(self._app, *args, **kwargs)
-
-            cmd.__name__ = name
-            cmd.__doc__ = func.__doc__
-            attrs[name] = cmd
+            attrs[name] = get_cmd(static, name)
 
         return type("StaticCli", (pyceo.Cli, ), attrs)
