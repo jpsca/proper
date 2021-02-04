@@ -1,4 +1,4 @@
-from proper.helpers import BLUEPRINTS, pascal_to_snake, render_folder
+from proper.helpers import BLUEPRINTS, pascal_to_snake, render_blueprint
 
 from .helpers import _extend_routes
 
@@ -18,7 +18,7 @@ def controller(app, name, *actions):
     snake_name = pascal_to_snake(name)
     actions = [pascal_to_snake(action) for action in actions]
 
-    render_folder(
+    render_blueprint(
         BLUEPRINTS / "controller",
         app.root_path,
         context={

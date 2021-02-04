@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pyceo import Cli, echo, confirm
 
-from proper.helpers import BLUEPRINTS, render_folder
+from proper.helpers import BLUEPRINTS, render_blueprint
 from proper.server import on_start
 from proper.version import __version__
 
@@ -55,17 +55,14 @@ class ProperCli(Cli):
 
         """
         path = Path(path).resolve().absolute()
-        self._render_blueprint(path, force=force)
+        render_blueprint(PROJECT_BLUEPRINT, path, context={"name": path.name}, force=force)
+        print()
         os.chdir(str(path))
         deps_installed = self._install_dependencies(path) if _dependencies else False
         self._make_executables(path)
         self._wrap_up(path, deps_installed)
 
     # Private
-
-    def _render_blueprint(self, path, force):
-        render_folder(PROJECT_BLUEPRINT, path, context={"name": path.name}, force=force)
-        print()
 
     def _install_dependencies(self, path):
         name = path.stem

@@ -64,11 +64,11 @@ def get_blueprint_render(src, context=None, *, envops=None):
     return render
 
 
-def render_folder(src, dst, context=None, *, envops=None, force=False):
-    FolderRender(src, dst, context=context, envops=envops, force=force)()
+def render_blueprint(src, dst, context=None, *, envops=None, force=False):
+    BlueprintRender(src, dst, context=context, envops=envops, force=force)()
 
 
-class FolderRender:
+class BlueprintRender:
     def __init__(self, src, dst, context=None, *, envops=None, force=False):
         self.src = str(src)
         self.dst = Path(dst)
