@@ -7,7 +7,7 @@ ROUTES_TMPL = """,
 """
 
 
-def resource(app, name):
+def resource(app, scope, name, only=None, ignore=None, singular=False):
     """Stubs out a new resource.
 
     This include a model, controller, templates, and
