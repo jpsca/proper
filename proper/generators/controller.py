@@ -1,4 +1,7 @@
-from proper.helpers import BLUEPRINTS, BlueprintRender, extend_routes, pascal_to_snake
+from pathlib import Path
+
+from proper.helpers import pascal_to_snake
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, extend_routes
 
 
 ROUTES_TMPL = """,[% for action in actions %]
@@ -23,7 +26,7 @@ def controller(app, name, *actions):
     snake_name = pascal_to_snake(name)
     actions = [pascal_to_snake(action) for action in actions]
 
-    bprender = BlueprintRender(
+    bp = BlueprintRender(
         BLUEPRINTS / "controller",
         app.root_path,
         context={
@@ -32,18 +35,16 @@ def controller(app, name, *actions):
             "actions": actions or ["index"],
         },
     )
-    bprender()
+    bp()
 
-    new_routes = bprender.string(ROUTES_TMPL)
+    new_routes = bp.render.string(ROUTES_TMPL)
     extend_routes(app, new_routes)
 
-    templates = app.root_path / "templates" / snake_name
+    relpath = Path("templates") / snake_name
+    templates = app.root_path / relpath
     templates.mkdir(parents=False, exist_ok=True)
-    _stub_templates(templates, actions)
 
-
-def _stub_templates(path, actions):
-    source = (BLUEPRINTS / "template.html.jinja").read_text()
+    src_relpath = "template.html.jinja"
     for action in actions:
-        action = action.lower()
-        (path / f"{action}.html.jinja").write_text(source)
+        dst_relpath = relpath / f"{action}.html.jinja"
+        bp._render_file(src_relpath, dst_relpath)

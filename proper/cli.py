@@ -76,11 +76,11 @@ class ProperCli(Cli):
         _call(f"{sys.executable or 'python'} -m venv .venv")
         _call(".venv/bin/pip install -U pip wheel")
         _call(".venv/bin/pip install -r requirements/requirements-dev.txt")
-        _call(".venv/bin/pip install -e .")
         _call("cd static && npm install")
         return True
 
     def _make_executables(self, path):
+        _call(".venv/bin/pip install -e .")
         for child in (path / "bin").iterdir():
             child.chmod(0o755)
 

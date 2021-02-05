@@ -8,8 +8,14 @@ import jinja2
 from pyceo import echo, confirm
 
 
-__all__ = ["BLUEPRINTS", "Render", "BlueprintRender", "printf", "get_blueprint_render", "extend_routes"]
-
+__all__ = [
+    "BLUEPRINTS",
+    "Render",
+    "BlueprintRender",
+    "printf",
+    "get_blueprint_render",
+    "extend_routes",
+]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 
@@ -83,12 +89,13 @@ class BlueprintRender:
 
     def _make_folder(self, rel_folder):
         path = self.dst / rel_folder
-        display = f"{str(rel_folder).rstrip('.')}{os.path.sep}"
-
         if path.exists():
-            printf("exists", display)
-        else:
-            path.mkdir(parents=False, exist_ok=False)
+            return
+
+        rel_folder = str(rel_folder).rstrip(".")
+        display = f"{rel_folder}{os.path.sep}"
+        path.mkdir(parents=False, exist_ok=False)
+        if rel_folder:
             printf("created", display, color="green")
 
     def _render_file(self, src_relpath, dst_relpath):
@@ -118,7 +125,6 @@ class BlueprintRender:
             curr_content += "\n"
         new_content = self.render(src_relpath)
         dst_path.write_text(curr_content + new_content)
-
 
     def _copy_file(self, src_path, dst_relpath):
         dst_path = self.dst / dst_relpath
