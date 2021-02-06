@@ -1,6 +1,5 @@
 """Router object that holds all routes and match them to urls.
 """
-from proper.local import current
 from proper.errors import MatchNotFound, MethodNotAllowed
 
 from .route import Route

@@ -16,7 +16,7 @@ from .helpers import (
 )
 
 
-__all__ = ("Response", )
+__all__ = ("Response",)
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -84,7 +84,9 @@ class Response:
         content_length = len(body)
         if content_length:
             self.headers["Content-Length"] = str(content_length)
-            self.headers["Content-Type"] = f"{self.content_type}; charset={self.charset}"
+            self.headers[
+                "Content-Type"
+            ] = f"{self.content_type}; charset={self.charset}"
 
         start_response(self.status_code, self.headers_list)
         if not body:
@@ -125,16 +127,14 @@ class Response:
 
     def _build_regular_headers(self):
         return [
-            (key, tunnel_encode(value, "utf-8"))
-            for key, value in self.headers.items()
+            (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
         ]
 
     def _build_cookie_headers(self):
         if self.disable_cookies:
             return []
         return [
-            tuple(morsel.output().split(": ", 1))
-            for morsel in self.cookies.values()
+            tuple(morsel.output().split(": ", 1)) for morsel in self.cookies.values()
         ]
 
     @property
@@ -161,7 +161,9 @@ class Response:
         flashes.append((message, data))
         self.session[FLASHES_SESSION_KEY] = flashes
 
-    def redirect_to(self, url_or_route, object=None, *, status_code=status.see_other, **kwargs):
+    def redirect_to(
+        self, url_or_route, object=None, *, status_code=status.see_other, **kwargs
+    ):
         self.status_code = status_code
 
         to = url_or_route
@@ -244,7 +246,9 @@ class Response:
         """
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
-    def fresh_when(self, objects=None, *, etag=None, last_modified=None, strong=False, public=False):
+    def fresh_when(
+        self, objects=None, *, etag=None, last_modified=None, strong=False, public=False
+    ):
         """Sets the Etag header, the Last-Modified header, or both.
 
         The Etag can be generated from a date, a string or a number.
@@ -267,7 +271,9 @@ class Response:
             if not iterable(objects):
                 objects = [objects]
             updated_at = max([obj.updated_at for obj in objects])
-            assert isinstance(updated_at, date), "`updated_at` attribute must be a datetime"
+            assert isinstance(
+                updated_at, date
+            ), "`updated_at` attribute must be a datetime"
             etag = updated_at
             last_modified = updated_at
 
@@ -282,7 +288,9 @@ class Response:
             self._last_modified = dt
             self.headers["Last-Modified"] = dt.strftime(fmt)
 
-        self.headers["Cache-Control"] =f"max-age=0, {'public' if public else 'private'}, must-revalidate"
+        self.headers[
+            "Cache-Control"
+        ] = f"max-age=0, {'public' if public else 'private'}, must-revalidate"
         return self.is_fresh
 
     @property

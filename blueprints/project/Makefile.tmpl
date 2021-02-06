@@ -26,11 +26,11 @@ clean-pyc:
 
 .PHONY: test
 test:
-	python -m pytest -x [[ name ]]/tests
+	python -m pytest -x [[ app_name ]]/tests
 
 .PHONY: lint
 lint:
-	python -m flake8 --config=setup.cfg [[ name ]]
+	python -m flake8 --config=setup.cfg [[ app_name ]]
 
 .PHONY: install
 install:
@@ -41,8 +41,8 @@ install:
 
 .PHONY: dbsetup
 dbsetup:
-	dropdb [[ name ]] || true
-	dropdb [[ name ]]_tests || true
-	createdb [[ name ]] || true
-	createdb [[ name ]]_tests || true
+	dropdb [[ app_name ]] || true
+	dropdb [[ app_name ]]_tests || true
+	createdb [[ app_name ]] || true
+	createdb [[ app_name ]]_tests || true
 	alembic upgrade head

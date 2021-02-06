@@ -24,6 +24,7 @@ __all__ = ("Request", "make_test_environ")
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 
+
 class Request:
     """An HTTP request.
 
@@ -140,7 +141,9 @@ class Request:
 
         self.content_type = self.environ.get("CONTENT_TYPE", "")
 
-        self.scheme = self.environ.get("HTTP_X_FORWARDED_PROTO") or self.environ.get("wsgi.url_scheme")
+        self.scheme = self.environ.get("HTTP_X_FORWARDED_PROTO") or self.environ.get(
+            "wsgi.url_scheme"
+        )
         self.host, self.port = self._parse_host(self.environ.get("HTTP_HOST"))
 
         self._content_length = None
@@ -166,7 +169,7 @@ class Request:
         if "]:" in host:
             host, port = host.split("]:", 1)
             host = host[1:]
-        elif  host[0] == "[":
+        elif host[0] == "[":
             host = host[1:-1]
         elif ":" in host:
             host, port = host.rsplit(":", 1)
@@ -176,7 +179,9 @@ class Request:
 
     @property
     def port_is_default(self):
-        return (self.port == DEFAULT_HTTPS_PORT and self.scheme == "https") or (self.port == DEFAULT_HTTP_PORT)
+        return (self.port == DEFAULT_HTTPS_PORT and self.scheme == "https") or (
+            self.port == DEFAULT_HTTP_PORT
+        )
 
     @property
     def host_with_port(self):
@@ -199,8 +204,7 @@ class Request:
 
     @property
     def content_length(self):
-        """The content_length value as an integer.
-        """
+        """The content_length value as an integer."""
         if self._content_length is None:
             length = self.environ.get("CONTENT_LENGTH", "0")
             self._content_length = self._validate_content_length(length)

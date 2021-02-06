@@ -1,12 +1,15 @@
 import re
 
 
-__all__ = ("pascal_to_snake", "titleize", )
+__all__ = (
+    "pascal_to_snake",
+    "titleize",
+)
 
-NON_ALPHANUMDOT_RE = re.compile("[^A-Z^a-z^0-9^.]+")
-FIRST_CAP_RE = re.compile("(.)([A-Z][a-z]+)")
-ALL_CAP_RE = re.compile("([a-z0-9])([A-Z])")
-SPACES = re.compile(r"\s+")
+RE_NON_ALPHANUMDOT = re.compile("[^A-Z^a-z^0-9^.]+")
+RE_FIRST_CAP = re.compile("(.)([A-Z][a-z]+)")
+RE_ALL_CAP = re.compile("([a-z0-9])([A-Z])")
+RE_SPACES = re.compile(r"\s+")
 
 
 def pascal_to_snake(text):
@@ -36,13 +39,13 @@ def pascal_to_snake(text):
     'already_in_snake_case'
 
     """
-    s1 = FIRST_CAP_RE.sub(r"\1_\2", text)
-    s2 = ALL_CAP_RE.sub(r"\1_\2", s1)
+    s1 = RE_FIRST_CAP.sub(r"\1_\2", text)
+    s2 = RE_ALL_CAP.sub(r"\1_\2", s1)
     return s2.replace("__", "_").lower()
 
 
 def snake_to_pascal(text):
-  """Converts snake_case to PascalCase.
+    """Converts snake_case to PascalCase.
 
     >>> snake_to_pascal('snake')
     'Snake'
@@ -55,9 +58,9 @@ def snake_to_pascal(text):
     >>> snake_to_pascal('getHTTPCode')
     'GetHTTPCode'
 
-  """
-  text = text.replace("_", " ").strip()
-  return "".join([f"{word[0].upper()}{word[1:]}" for word in SPACES.split(text)])
+    """
+    text = text.replace("_", " ").strip()
+    return "".join([f"{word[0].upper()}{word[1:]}" for word in RE_SPACES.split(text)])
 
 
 def titleize(text):
@@ -76,4 +79,4 @@ def titleize(text):
       'Raiders Of The Lost Ark'
 
     """
-    return pascal_to_snake(SPACES.sub("_", text)).replace("_", " ").title()
+    return pascal_to_snake(RE_SPACES.sub("_", text)).replace("_", " ").title()

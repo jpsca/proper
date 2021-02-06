@@ -1,12 +1,11 @@
 from collections.abc import Mapping
 
 
-__all__ = ("FrozenDict", )
+__all__ = ("FrozenDict",)
 
 
 class FrozenDict(Mapping):
-    """An immutable wrapper around dictionaries.
-    """
+    """An immutable wrapper around dictionaries."""
 
     def __init__(self, wrapped, name=None, error=None):
         self._dict = wrapped

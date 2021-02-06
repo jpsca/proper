@@ -11,6 +11,7 @@ ENCRIPTED_HEADER = """# --------------------------------------------------------
 #
 """
 
+
 def get_cmd(module, name):
     func = getattr(module, name)
 
@@ -28,7 +29,6 @@ class Cli:
 
     @property
     def ApplicationCli(self):
-
         class ApplicationCli(pyceo.Cli):
             """Application-specific commands.
 
@@ -41,10 +41,11 @@ class Cli:
             _app = self.app
 
             def routes(self):
-                """Show all registered routes.
-                """
+                """Show all registered routes."""
                 print("Routes match in priority from top to bottom.")
-                print("The rules that doesn't have a `to` property are build-only and never match.")
+                print(
+                    "The rules that doesn't have a `to` property are build-only and never match."
+                )
                 print()
 
                 routes = []
@@ -64,7 +65,9 @@ class Cli:
                     lengths = [max(ll, len(text)) for ll, text in zip(lengths, route)]
                 lengths = [ll + PADDING for ll in lengths]
 
-                print(*[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths)])
+                print(
+                    *[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths)]
+                )
                 print(*["-" * ll for ll in lengths])
                 for route in routes:
                     print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
@@ -82,9 +85,8 @@ class Cli:
 
                 """
                 path = self._app.root_path / "config"
-                header = ENCRIPTED_HEADER % (env, )
+                header = ENCRIPTED_HEADER % (env,)
                 properconf.edit_secrets(path, env, secrets_header=header)
-
 
             g = self.GeneratorsCli
             static = self.StaticCli
@@ -99,9 +101,9 @@ class Cli:
         }
 
         for name in ("resource", "controller", "model"):
-            attrs[name] = get_cmd(generators, name)
+            attrs[name] = get_cmd(generators, f"gen_{name}")
 
-        return type("GeneratorsCli", (pyceo.Cli, ), attrs)
+        return type("GeneratorsCli", (pyceo.Cli,), attrs)
 
     @property
     def StaticCli(self):
@@ -113,4 +115,4 @@ class Cli:
         for name in ("bundle", "build", "clean", "compile"):
             attrs[name] = get_cmd(static, name)
 
-        return type("StaticCli", (pyceo.Cli, ), attrs)
+        return type("StaticCli", (pyceo.Cli,), attrs)

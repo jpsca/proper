@@ -1,17 +1,15 @@
 from pathlib import Path
 
 from proper.helpers import pascal_to_snake
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, extend_routes
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
 
 
-ROUTES_TMPL = """,[% for action in actions %]
-    get("[[ action ]]", to="[[ pascal_name ]].[[ action ]]"),[% endfor %]
-]
-
-"""
+CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
+ROUTES_TMPL = BLUEPRINTS / "routes.py.generic.tmpl"
+TEMPLATE_TMPL = BLUEPRINTS / "template.html.jinja.tmpl"
 
 
-def controller(app, name, *actions):
+def gen_controller(app, name, *actions):
     """Stubs out a new controller and its templates.
 
         bin/manage g controller NAME [action ...]
@@ -27,9 +25,10 @@ def controller(app, name, *actions):
     actions = [pascal_to_snake(action) for action in actions]
 
     bp = BlueprintRender(
-        BLUEPRINTS / "controller",
-        app.root_path,
+        CONTROLLER_BLUEPRINT,
+        app.root_path.parent,
         context={
+            "app_name": app.root_path.name,
             "pascal_name": name,
             "snake_name": snake_name,
             "actions": actions or ["index"],
@@ -37,14 +36,12 @@ def controller(app, name, *actions):
     )
     bp()
 
-    new_routes = bp.render.string(ROUTES_TMPL)
-    extend_routes(app, new_routes)
+    new_routes = bp.render.string(ROUTES_TMPL.read_text())
+    append_routes(app, new_routes)
 
-    relpath = Path("templates") / snake_name
-    templates = app.root_path / relpath
+    templates = Path(app.root_path.name) / "templates" / snake_name
     templates.mkdir(parents=False, exist_ok=True)
-
-    src_relpath = "template.html.jinja"
+    content = bp.render.string(TEMPLATE_TMPL.read_text())
     for action in actions:
-        dst_relpath = relpath / f"{action}.html.jinja"
-        bp._render_file(src_relpath, dst_relpath)
+        dst_relpath = templates / f"{action}.html.jinja"
+        bp.save_file(content, dst_relpath)

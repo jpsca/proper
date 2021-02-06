@@ -14,7 +14,7 @@ __all__ = [
     "BlueprintRender",
     "printf",
     "get_blueprint_render",
-    "extend_routes",
+    "append_routes",
 ]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
@@ -62,9 +62,9 @@ class BlueprintRender:
 
     def __call__(self):
         for folder, _, files in os.walk(self.src):
-            self._render_folder(Path(folder), files)
+            self.render_folder(Path(folder), files)
 
-    def _render_folder(self, folder, files):
+    def render_folder(self, folder, files):
         src_relfolder = str(folder).replace(self.src, "", 1).lstrip(os.path.sep)
         dst_relfolder = self.render.string(src_relfolder)
         src_relfolder = Path(src_relfolder)
@@ -79,27 +79,19 @@ class BlueprintRender:
 
             if name.endswith(".tmpl"):
                 dst_relpath = dst_relfolder / name[:-5]
-                self._render_file(src_relpath, dst_relpath)
+                self.render_file(src_relpath, dst_relpath)
             elif name.endswith(".append"):
                 dst_relpath = dst_relfolder / name[:-7]
-                self._append_to_file(src_relpath, dst_relpath)
+                self.append_to_file(src_relpath, dst_relpath)
             else:
                 dst_relpath = dst_relfolder / name
-                self._copy_file(src_path, dst_relpath)
+                self.copy_file(src_path, dst_relpath)
 
-    def _make_folder(self, rel_folder):
-        path = self.dst / rel_folder
-        if path.exists():
-            return
-
-        rel_folder = str(rel_folder).rstrip(".")
-        display = f"{rel_folder}{os.path.sep}"
-        path.mkdir(parents=False, exist_ok=False)
-        if rel_folder:
-            printf("created", display, color="green")
-
-    def _render_file(self, src_relpath, dst_relpath):
+    def render_file(self, src_relpath, dst_relpath):
         content = self.render(src_relpath)
+        self.save_file(content, dst_relpath)
+
+    def save_file(self, content, dst_relpath):
         dst_path = self.dst / dst_relpath
         if dst_path.exists():
             if self._contents_are_identical(content, dst_path):
@@ -114,10 +106,12 @@ class BlueprintRender:
 
         dst_path.write_text(content)
 
-    def _append_to_file(self, src_relpath, dst_relpath):
+    def append_to_file(self, src_relpath, dst_relpath):
         dst_path = self.dst / dst_relpath
-        verb = "extended" if dst_path.exists() else "created"
-        printf(verb, dst_relpath, color="green")
+        if dst_path.exists():
+            printf("appended", dst_relpath, color="yellow")
+        else:
+            printf("created", dst_relpath, color="green")
 
         dst_path.touch(exist_ok=True)
         curr_content = dst_path.read_text()
@@ -126,7 +120,7 @@ class BlueprintRender:
         new_content = self.render(src_relpath)
         dst_path.write_text(curr_content + new_content)
 
-    def _copy_file(self, src_path, dst_relpath):
+    def copy_file(self, src_path, dst_relpath):
         dst_path = self.dst / dst_relpath
         if dst_path.exists():
             if self._files_are_identical(src_path, dst_path):
@@ -140,6 +134,19 @@ class BlueprintRender:
             printf("created", dst_relpath, color="green")
 
         shutil.copy2(str(src_path), str(dst_path))
+
+    # Private
+
+    def _make_folder(self, rel_folder):
+        path = self.dst / rel_folder
+        if path.exists():
+            return
+
+        rel_folder = str(rel_folder).rstrip(".")
+        display = f"{rel_folder}{os.path.sep}"
+        path.mkdir(parents=False, exist_ok=False)
+        if rel_folder:
+            printf("created", display, color="green")
 
     def _files_are_identical(self, src_path, dst_path):
         return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
@@ -175,11 +182,11 @@ def get_blueprint_render(src, context=None, *, envops=None):
 RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")
 
 
-def extend_routes(app, new_routes):
-    routes_path = app.root_path / "routes.py"
+def append_routes(app, new_routes):
+    routes_path = Path(app.root_path.name) / "routes.py"
     routes = routes_path.read_text()
     match = RE_CLOSE_ROUTES.search(routes)
     if match:
         routes = routes[: match.start()].rstrip()
     routes_path.write_text(routes + new_routes)
-    printf("updated", str(routes_path), color="yellow")
+    printf("appended", str(routes_path), color="yellow")

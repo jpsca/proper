@@ -1,6 +1,6 @@
 
 
-def model(app, name, *fields):
+def gen_model(app, name, *fields):
     """Stubs out a new model.
 
     Pass the PascalCased model name, and an optional list of attribute pairs

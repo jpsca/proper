@@ -1,13 +1,12 @@
+from proper.helpers.render import BLUEPRINTS
 
 
-ROUTES_TMPL = """,
-    resource("[[ action ]]", to="[[ pascal_name ]]"),
-]
-
-"""
+CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
+ROUTES_TMPL = BLUEPRINTS / "routes.py.resource.tmpl"
+TEMPLATE_TMPL = BLUEPRINTS / "template.html.jinja.tmpl"
 
 
-def resource(app, scope, name, only=None, ignore=None, singular=False):
+def gen_resource(app, name, only=None, ignore=None, singular=False):
     """Stubs out a new resource.
 
     This include a model, controller, templates, and

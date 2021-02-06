@@ -1,7 +1,6 @@
 """A base controller class, all other application controllers must
 inherit from. Stores data available to view/template.
 """
-from ..constants import HEAD
 from ..status import not_modified
 
 

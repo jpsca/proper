@@ -86,7 +86,6 @@ class Redirect(AppController):
         resp.redirect_to("Redirect.show", post)
 
 
-
 def test_redirect_to(app, web):
     app.routes = [
         get("/posts/:id<int>/:slug", to=Redirect.show, name="Redirect.show"),

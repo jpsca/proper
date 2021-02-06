@@ -16,8 +16,10 @@ logger = logging.getLogger("proper")
 TEMPLATES = (Path(__file__).parent / "templates").absolute()
 jinja_render = Render(TEMPLATES)
 
+
 def _include_raw(name):
     return jinja2.Markup(jinja_render.loader.get_source(jinja_render.env, name)[0])
+
 
 jinja_render.globals["include_raw"] = _include_raw
 
@@ -98,5 +100,3 @@ def _render(template, **data):
     except Exception as error:
         logger.error(error, exc_info=True)
         return _render("fallback-error.html")
-
-
