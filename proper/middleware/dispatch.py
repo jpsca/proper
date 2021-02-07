@@ -1,6 +1,8 @@
 from os import path
 
-from ..helpers import objectify, pascal_to_snake
+import inflection
+
+from ..helpers import objectify
 
 
 __all__ = ("dispatch",)
@@ -31,7 +33,7 @@ def get_default_template(resp, endpoint):
     """
     to = endpoint.__qualname__ if callable(endpoint) else endpoint
     splitted = to.split(".")
-    cls_name, action = splitted[-2], splitted[-1]
-    folder_name = pascal_to_snake(cls_name)
+    class_name, action = splitted[-2], splitted[-1]
+    folder_name = inflection.underscore(class_name)
     file_name = action.lower()
     return path.join(folder_name, file_name)

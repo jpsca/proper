@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 
+import inflection
 from pyceo import confirm
 
 from proper.helpers import BLUEPRINTS, BlueprintRender, printf
@@ -28,8 +29,13 @@ def gen_project(path, force=False, _dependencies=True):
 
     """
     path = Path(path).resolve().absolute()
+    path = path.parent / inflection.underscore(str(path.name))
+
     BlueprintRender(
-        PROJECT_BLUEPRINT, path, context={"app_name": path.name}, force=force
+        PROJECT_BLUEPRINT,
+        path,
+        context={"app_name": path.name},
+        force=force
     )()
     print()
     os.chdir(str(path))

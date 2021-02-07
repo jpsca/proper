@@ -2,7 +2,7 @@
 """
 import re
 
-from anyascii import anyascii
+import inflection
 
 
 rx_pars = re.compile(r"\([^)]+\)")
@@ -36,10 +36,10 @@ def slugify(text, space="-", lower=True, nopars=True, nodots=True, strict=True):
     'hello-world-ole'
 
     >>> slugify("Python’s Enum makes me (a little) angry")
-    'python-s-enum-makes-me-angry'
+    'pythons-enum-makes-me-angry'
 
     >>> slugify("Python’s Enum makes me (a little) angry", nopars=False)
-    'python-s-enum-makes-me-a-little-angry'
+    'pythons-enum-makes-me-a-little-angry'
 
     >>> slugify("The man from U.N.C.L.E.")
     'the-man-from-uncle'
@@ -51,7 +51,7 @@ def slugify(text, space="-", lower=True, nopars=True, nodots=True, strict=True):
     'my-four-years-old-son'
 
     """
-    atext = anyascii(text)
+    atext = inflection.transliterate(text)
     if lower:
         atext = atext.lower()
 

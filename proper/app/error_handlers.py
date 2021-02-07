@@ -6,9 +6,10 @@ import logging
 import traceback
 from pathlib import Path
 
+import inflection
 import jinja2
 
-from proper.helpers import titleize, Render
+from proper.helpers import Render
 
 
 logger = logging.getLogger("proper")
@@ -89,7 +90,7 @@ def _get_req_data(req):
 
 
 def _get_title(error):
-    return titleize(error.__class__.__name__)
+    return inflection.titleize(error.__class__.__name__)
 
 
 def _render(template, **data):

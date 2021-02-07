@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from proper.helpers import pascal_to_snake
+import inflection
+
 from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
 
 
@@ -9,29 +10,31 @@ ROUTES_TMPL = BLUEPRINTS / "routes.py.generic.tmpl"
 TEMPLATE_TMPL = BLUEPRINTS / "template.html.jinja.tmpl"
 
 
-def gen_controller(app, name, *actions):
+def gen_controller(app, class_name, *actions):
     """Stubs out a new controller and its templates.
 
         bin/manage g controller NAME [action ...]
 
-    Pass the PascalCased controller name (in plural), and an optional list
+    Pass the PascalCased controller class_name (in plural), and an optional list
     of actions as arguments.
+
     Example:
 
         bin/manage g controller Articles index show
 
     """
-    snake_name = pascal_to_snake(name)
-    actions = [pascal_to_snake(action) for action in actions]
+    class_name = inflection.camelize(inflection.pluralize(class_name))
+    snake_name = inflection.underscore(class_name)
+    actions = [inflection.underscore(action) for action in actions] or ["index"]
 
     bp = BlueprintRender(
         CONTROLLER_BLUEPRINT,
         app.root_path.parent,
         context={
             "app_name": app.root_path.name,
-            "pascal_name": name,
+            "class_name": class_name,
             "snake_name": snake_name,
-            "actions": actions or ["index"],
+            "actions": actions,
         },
     )
     bp()

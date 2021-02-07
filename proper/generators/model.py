@@ -1,9 +1,15 @@
+import inflection
+
+from proper.helpers.render import BLUEPRINTS, BlueprintRender
 
 
-def gen_model(app, name, *fields):
+MODEL_BLUEPRINT = BLUEPRINTS / "model"
+
+
+def gen_model(app, class_name, *items):
     """Stubs out a new model.
 
-    Pass the PascalCased model name, and an optional list of attribute pairs
+    Pass the PascalCased model name (singular), and an optional list of attribute pairs
     as arguments.
 
     You don't have to think up every attribute up front, but it helps to
@@ -21,7 +27,7 @@ def gen_model(app, name, *fields):
     model's attributes. Timestamps are added by default, so you **don't have**
     to specify them by hand as 'created_at:datetime updated_at:datetime'.
 
-    An `id` primary key will be also added by default. YTou can edit it later if you want
+    An `id` primary key will be also added by default. You can edit it later if you want
     another name or type a primary key.
 
 
@@ -46,25 +52,25 @@ def gen_model(app, name, *fields):
         - float
         - numeric
         - interval
-        - binary
         - json
+        - binary
 
     After the type, you can add one or more options. For example, for integer, string, and binary fields, an
     integer be set as the limit:
 
-        bin/manage g model user name:string-30
+        bin/manage g model User name:string-30
 
     for decimal, two integers separated by a dash will be used for precision and scale:
 
-        bin/manage g model product price:decimal-10-2
+        bin/manage g model Product price:decimal-10-2
 
     and so on.
 
 
-    ### Field attributes:
+    ### Field constraints:
 
-    After the field type, you can add one or more pairs of `attribute` or attribute-value`.
-    The following attributes are supported:
+    After the field type, you can add one or more pairs of `constraint` or `constraint-value`.
+    The following constraints are supported:
 
     - unique
     - index
@@ -87,7 +93,7 @@ def gen_model(app, name, *fields):
 
     - Simple backref:
 
-            bin/manage g model Post -r tags:Tag:post:joined
+            bin/manage g model Post tags:Tag:post:joined
 
         generates
 
@@ -95,7 +101,7 @@ def gen_model(app, name, *fields):
 
     - Backref with lazy type:
 
-            bin/manage g model Post -r tags:Tag:post-select:joined
+            bin/manage g model Post tags:Tag:post-select:joined
 
         generates
 
@@ -103,7 +109,7 @@ def gen_model(app, name, *fields):
 
     - Implicit backref and lazy type:
 
-            bin/manage g model Post -r tags:Tag
+            bin/manage g model Post tags:Tag
 
         generates
 
@@ -111,4 +117,100 @@ def gen_model(app, name, *fields):
 
 
     """
-    pass
+    class_name = inflection.camelize(inflection.singularize(class_name))
+    snake_name = inflection.underscore(class_name)
+    table_name = inflection.tableize(class_name)
+    rows = [_build_row(snake_name, item) for item in items]
+
+    bp = BlueprintRender(
+        MODEL_BLUEPRINT,
+        app.root_path.parent,
+        context={
+            "app_name": app.root_path.name,
+            "class_name": class_name,
+            "snake_name": snake_name,
+            "table_name": table_name,
+            "rows": rows,
+        },
+    )
+    bp()
+
+
+DEFAULT_FIELD_TYPE = "string"
+
+COLUMN_TYPES = {
+    "integer" : "Integer",
+    "string" : "String",
+    "text" : "Text",
+    "boolean" : "Boolean",
+    "datetime" : "DateTime",
+    "date" : "Date",
+    "time" : "Time",
+    "float" : "Float",
+    "numeric" : "Numeric",
+    "interval" : "Interval",
+    "json" : "JSON",
+    "binary" : "LargeBinary",
+}
+FOREIGN_CONSTRAINT = "foreign"
+CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
+
+
+def _build_row(snake_name, item):
+    name, ctype, extra = (f"{item}::").split(":", 2)
+    ctype = ctype or DEFAULT_FIELD_TYPE
+    extra = extra.rstrip(":")
+    options = ""
+    if "-" in ctype:
+        ctype, options = ctype.split("-", 1)
+
+    ColumnType = COLUMN_TYPES.get(ctype)
+    if ColumnType:
+        col = _field(ColumnType, options, extra)
+    else:
+        col = _relationship(snake_name, ctype, extra)
+
+    return f"{name} = {col}"
+
+
+def _field(ColumnType, options, constraints):
+    options = options.replace("-", ", ")
+    options = f"({options})" if options else ""
+    constraints = _build_constraints(constraints) if constraints else ""
+    constraints = f", {constraints}" if constraints else ""
+    return f"db.Column({ColumnType}{options}{constraints})"
+
+
+def _build_constraints(constraints):
+    return ", ".join([
+        _build_constraint(constraint) for constraint in constraints.split(":")
+    ])
+
+
+def _build_constraint(constraint):
+    constraint, value = f"{constraint}-".split("-", 1)
+    value = value.rstrip("-")
+
+    assert constraint in CONSTRAINTS, f"Invalid constraint `{constraint}`"
+    if constraint == FOREIGN_CONSTRAINT:
+        assert value, "Missing column for foreign key. Use `foreign-table.column`"
+        return f'ForeignKey("{value}")'
+    else:
+        value = False if value.lower() == "false" else True
+        return f'{constraint}={value}'
+
+
+def _relationship(snake_name, Model, constraints):
+    backref, lazy = f"{constraints}:".split(":", 1)
+    lazy = lazy.rstrip(":") or "select"
+    backref = _build_backref(snake_name, backref)
+    return f'db.relationship("{Model}", backref={backref}, lazy="{lazy}")'
+
+
+def _build_backref(snake_name, backref):
+    if not backref:
+        return f'db.backref("{snake_name}")'
+    backref, lazy = f"{backref}-".split("-", 1)
+    lazy = lazy.rstrip("-")
+    lazy = f', lazy="{lazy}"' if lazy else ""
+    return f'db.backref("{backref}"{lazy})'
