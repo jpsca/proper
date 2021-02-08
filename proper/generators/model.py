@@ -60,9 +60,9 @@ def gen_model(app, class_name, *items):
 
         bin/manage g model User name:string-30
 
-    for decimal, two integers separated by a dash will be used for precision and scale:
+    for numeric fields, two integers separated by a dash will be used for precision and scale:
 
-        bin/manage g model Product price:decimal-10-2
+        bin/manage g model Product price:numeric-10-2
 
     and so on.
 
@@ -139,24 +139,26 @@ def gen_model(app, class_name, *items):
 DEFAULT_FIELD_TYPE = "string"
 
 COLUMN_TYPES = {
-    "integer" : "Integer",
-    "string" : "String",
-    "text" : "Text",
+    "binary" : "LargeBinary",
     "boolean" : "Boolean",
-    "datetime" : "DateTime",
     "date" : "Date",
-    "time" : "Time",
+    "datetime" : "DateTime",
+    "decimal" : "Numeric",
     "float" : "Float",
-    "numeric" : "Numeric",
+    "integer" : "Integer",
     "interval" : "Interval",
     "json" : "JSON",
-    "binary" : "LargeBinary",
+    "numeric" : "Numeric",
+    "string" : "String",
+    "text" : "Text",
+    "time" : "Time",
 }
 FOREIGN_CONSTRAINT = "foreign"
 CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
 
 
 def _build_row(snake_name, item):
+    import ipdb; ipdb.set_trace()
     name, ctype, extra = (f"{item}::").split(":", 2)
     ctype = ctype or DEFAULT_FIELD_TYPE
     extra = extra.rstrip(":")
