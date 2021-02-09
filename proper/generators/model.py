@@ -86,7 +86,7 @@ def gen_model(app, name, *attrs):
 
     ### Example:
 
-        bin/manage g model Post title:string-30 body:text author_id:integer:foreign-users.id
+        `bin/manage g model Post title:string-30 body:text author_id:integer:foreign-users.id`
 
         class Post(Base, Timestamped):
             __tablename__ = "posts"
@@ -104,7 +104,7 @@ def gen_model(app, name, *attrs):
 
     - Simple backref:
 
-            bin/manage g model Post tags:Tag:post:joined
+            `bin/manage g model Post tags:Tag:post:joined`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"
@@ -117,7 +117,7 @@ def gen_model(app, name, *attrs):
 
     - Backref with lazy type:
 
-            bin/manage g model Post tags:Tag:post-select:joined
+            `bin/manage g model Post tags:Tag:post-select:joined`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"
@@ -130,7 +130,7 @@ def gen_model(app, name, *attrs):
 
     - Implicit backref and lazy type:
 
-            bin/manage g model Post tags:Tag
+            `bin/manage g model Post tags:Tag`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"

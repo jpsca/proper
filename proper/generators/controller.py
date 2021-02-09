@@ -6,8 +6,8 @@ from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
-ROUTES_TMPL = BLUEPRINTS / "routes.py.generic.tmpl"
-TEMPLATE_TMPL = BLUEPRINTS / "template.html.jinja.tmpl"
+ROUTES_TMPL = "routes.py.generic.tmpl"
+TEMPLATE_TMPL = "template.html.jinja.tmpl"
 
 
 def gen_controller(app, class_name, *actions):
@@ -36,15 +36,18 @@ def gen_controller(app, class_name, *actions):
             "snake_name": snake_name,
             "actions": actions,
         },
+        ignore=[ROUTES_TMPL, TEMPLATE_TMPL]
     )
     bp()
 
-    new_routes = bp.render.string(ROUTES_TMPL.read_text())
+    routes_tmpl = CONTROLLER_BLUEPRINT / ROUTES_TMPL
+    new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
     templates = Path(app.root_path.name) / "templates" / snake_name
     templates.mkdir(parents=False, exist_ok=True)
-    content = bp.render.string(TEMPLATE_TMPL.read_text())
+    template_tmpl = CONTROLLER_BLUEPRINT / TEMPLATE_TMPL
+    content = bp.render.string(template_tmpl.read_text())
     for action in actions:
         dst_relpath = templates / f"{action}.html.jinja"
         bp.save_file(content, dst_relpath)

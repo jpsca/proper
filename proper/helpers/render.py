@@ -2,6 +2,7 @@ import filecmp
 import os
 import re
 import shutil
+from fnmatch import fnmatch
 from pathlib import Path
 
 import jinja2
@@ -54,11 +55,12 @@ class Render:
 
 
 class BlueprintRender:
-    def __init__(self, src, dst, context=None, *, envops=None, force=False):
+    def __init__(self, src, dst, context=None, *, ignore=None, envops=None, force=False):
         self.src = str(src)
         self.dst = Path(dst)
         self.force = force
         self.render = get_blueprint_render(src, context=context, envops=envops)
+        self.ignore = ignore
 
     def __call__(self):
         for folder, _, files in os.walk(self.src):
@@ -142,6 +144,13 @@ class BlueprintRender:
         shutil.copy2(str(src_path), str(dst_path))
 
     # Private
+
+    def _ignore(self, path):
+        name = path.name
+        for pattern in self.ignore:
+            if fnmatch(name, pattern) or fnmatch(path, pattern):
+                return True
+        return False
 
     def _make_folder(self, rel_folder):
         path = self.dst / rel_folder
