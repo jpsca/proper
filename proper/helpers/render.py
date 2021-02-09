@@ -107,18 +107,24 @@ class BlueprintRender:
         dst_path.write_text(content)
 
     def append_to_file(self, src_relpath, dst_relpath):
+        new_content = self.render(src_relpath)
+
         dst_path = self.dst / dst_relpath
         if dst_path.exists():
+            curr_content = dst_path.read_text()
+            if new_content in curr_content:
+                printf("skipped", dst_relpath, color="yellow")
+                return
+
+            if not curr_content.endswith("\n"):
+                curr_content += "\n"
+            new_content = curr_content + new_content
             printf("appended", dst_relpath, color="yellow")
         else:
+            dst_path.touch(exist_ok=True)
             printf("created", dst_relpath, color="green")
 
-        dst_path.touch(exist_ok=True)
-        curr_content = dst_path.read_text()
-        if not curr_content.endswith("\n"):
-            curr_content += "\n"
-        new_content = self.render(src_relpath)
-        dst_path.write_text(curr_content + new_content)
+        dst_path.write_text(new_content)
 
     def copy_file(self, src_path, dst_relpath):
         dst_path = self.dst / dst_relpath

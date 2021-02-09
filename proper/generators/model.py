@@ -6,10 +6,10 @@ from proper.helpers.render import BLUEPRINTS, BlueprintRender
 MODEL_BLUEPRINT = BLUEPRINTS / "model"
 
 
-def gen_model(app, class_name, *items):
+def gen_model(app, name, *attrs):
     """Stubs out a new model.
 
-    Pass the PascalCased model name (singular), and an optional list of attribute pairs
+    Pass the model name (singular), and an optional list of attribute pairs
     as arguments.
 
     You don't have to think up every attribute up front, but it helps to
@@ -36,7 +36,7 @@ def gen_model(app, class_name, *items):
     Just after the field name you can specify a type like text or boolean.
     It will generate the column with the associated SQL type. For instance:
 
-        bin/manage g model post title:string body:text
+        bin/manage g model Post title:string body:text
 
     will generate a title column with a varchar type and a body column with a text
     type. If no type is specified the string type will be used by default.
@@ -84,43 +84,69 @@ def gen_model(app, class_name, *items):
 
         bin/manage g model Post author_id:integer:foreign-users.id
 
+    ### Example:
+
+        bin/manage g model Post title:string-30 body:text author_id:integer:foreign-users.id
+
+        class Post(Base, Timestamped):
+            __tablename__ = "posts"
+            id = db.Column(db.Integer, primary_key=True)
+            title = db.Column(db.String(30))
+            body = db.Column(db.Text)
+            author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
 
     ## Declaring relationships
 
         bin/manage g model NAME [ field:Model[:backref[-lazy]][:lazy] ]
 
-    Examples:
+    ### Examples:
 
     - Simple backref:
 
             bin/manage g model Post tags:Tag:post:joined
 
-        generates
-
-            tags = db.relationship("Tag", backref=db.backref("post"), lazy="joined")
+            class Post(Base, Timestamped):
+                __tablename__ = "posts"
+                id = db.Column(db.Integer, primary_key=True)
+                tags = db.relationship(
+                    "Tag",
+                    backref=db.backref("post"),
+                    lazy="joined"
+                )
 
     - Backref with lazy type:
 
             bin/manage g model Post tags:Tag:post-select:joined
 
-        generates
-
-            tags = db.relationship("Tag", backref=db.backref("post", lazy="select"), lazy="joined")
+            class Post(Base, Timestamped):
+                __tablename__ = "posts"
+                id = db.Column(db.Integer, primary_key=True)
+                tags = db.relationship(
+                    "Tag",
+                    backref=db.backref("post", lazy="select"),
+                    lazy="joined"
+                )
 
     - Implicit backref and lazy type:
 
             bin/manage g model Post tags:Tag
 
-        generates
-
-            tags = db.relationship("Tag", backref=db.backref("post"), lazy="select")
-
+            class Post(Base, Timestamped):
+                __tablename__ = "posts"
+                id = db.Column(db.Integer, primary_key=True)
+                tags = db.relationship(
+                    "Tag",
+                    backref=db.backref("post"),
+                    lazy="select"
+                )
 
     """
-    class_name = inflection.camelize(inflection.singularize(class_name))
-    snake_name = inflection.underscore(class_name)
+    name = inflection.singularize(name)
+    class_name = inflection.camelize(name)
+    snake_name = inflection.underscore(name)
     table_name = inflection.tableize(class_name)
-    rows = [_build_row(snake_name, item) for item in items]
+    rows = [_build_row(snake_name, attr) for attr in attrs]
 
     bp = BlueprintRender(
         MODEL_BLUEPRINT,
@@ -157,19 +183,19 @@ FOREIGN_CONSTRAINT = "foreign"
 CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
 
 
-def _build_row(snake_name, item):
-    import ipdb; ipdb.set_trace()
-    name, ctype, extra = (f"{item}::").split(":", 2)
+def _build_row(snake_name, attr):
+    name, ctype, extra = (f"{attr}::").split(":", 2)
     ctype = ctype or DEFAULT_FIELD_TYPE
     extra = extra.rstrip(":")
     options = ""
     if "-" in ctype:
         ctype, options = ctype.split("-", 1)
 
-    ColumnType = COLUMN_TYPES.get(ctype)
+    ColumnType = COLUMN_TYPES.get(ctype.lower())
     if ColumnType:
         col = _field(ColumnType, options, extra)
     else:
+        ctype = inflection.camelize(ctype)
         col = _relationship(snake_name, ctype, extra)
 
     return f"{name} = {col}"
@@ -180,7 +206,7 @@ def _field(ColumnType, options, constraints):
     options = f"({options})" if options else ""
     constraints = _build_constraints(constraints) if constraints else ""
     constraints = f", {constraints}" if constraints else ""
-    return f"db.Column({ColumnType}{options}{constraints})"
+    return f"db.Column(db.{ColumnType}{options}{constraints})"
 
 
 def _build_constraints(constraints):
@@ -196,7 +222,7 @@ def _build_constraint(constraint):
     assert constraint in CONSTRAINTS, f"Invalid constraint `{constraint}`"
     if constraint == FOREIGN_CONSTRAINT:
         assert value, "Missing column for foreign key. Use `foreign-table.column`"
-        return f'ForeignKey("{value}")'
+        return f'db.ForeignKey("{value}")'
     else:
         value = False if value.lower() == "false" else True
         return f'{constraint}={value}'
@@ -211,6 +237,7 @@ def _relationship(snake_name, Model, constraints):
 
 def _build_backref(snake_name, backref):
     if not backref:
+        snake_name = inflection.tableize(snake_name)
         return f'db.backref("{snake_name}")'
     backref, lazy = f"{backref}-".split("-", 1)
     lazy = lazy.rstrip("-")
