@@ -161,6 +161,8 @@ def gen_model(app, name, *attrs):
     )
     bp()
 
+    return class_name
+
 
 DEFAULT_FIELD_TYPE = "string"
 

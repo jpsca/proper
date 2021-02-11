@@ -40,10 +40,6 @@ def gen_controller(app, class_name, *actions):
     )
     bp()
 
-    routes_tmpl = CONTROLLER_BLUEPRINT / ROUTES_TMPL
-    new_routes = bp.render.string(routes_tmpl.read_text())
-    append_routes(app, new_routes)
-
     templates = Path(app.root_path.name) / "templates" / snake_name
     templates.mkdir(parents=False, exist_ok=True)
     template_tmpl = CONTROLLER_BLUEPRINT / TEMPLATE_TMPL
@@ -51,3 +47,7 @@ def gen_controller(app, class_name, *actions):
     for action in actions:
         dst_relpath = templates / f"{action}.html.jinja"
         bp.save_file(content, dst_relpath)
+
+    routes_tmpl = CONTROLLER_BLUEPRINT / ROUTES_TMPL
+    new_routes = bp.render.string(routes_tmpl.read_text())
+    append_routes(app, new_routes)

@@ -1,12 +1,16 @@
-from proper.helpers.render import BLUEPRINTS
+import inflection
+
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
+from proper.router.resource import ACTIONS
+
+from .model import gen_model
 
 
-CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
-ROUTES_TMPL = BLUEPRINTS / "routes.py.resource.tmpl"
-TEMPLATE_TMPL = BLUEPRINTS / "template.html.jinja.tmpl"
+RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
+ROUTES_TMPL = "routes.py.tmpl"
 
 
-def gen_resource(app, name, *attrs, *, only=None, ignore=None, singular=False):
+def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
     """Stubs out a new resource.
 
     This include a model, controller, templates, and a resource
@@ -37,4 +41,34 @@ def gen_resource(app, name, *attrs, *, only=None, ignore=None, singular=False):
         bin/manage g resource --singular
 
     """
-    pass
+    snake_name = inflection.underscore(name)
+    class_name = gen_model(name, *attrs)
+
+    actions = set(ACTIONS)
+    if only:
+        actions = actions.intersection(set(only))
+    elif ignore:
+        actions = actions.difference(set(ignore))
+    if singular:
+        actions.remove("index")
+
+    ignored_templates = [
+        f"{action}.html.jinja"
+        for action in set(ACTIONS).difference(actions)
+    ]
+    bp = BlueprintRender(
+        RESOURCE_BLUEPRINT,
+        app.root_path.parent,
+        context={
+            "app_name": app.root_path.name,
+            "snake_name": snake_name,
+            "class_name": class_name,
+            "actions": actions,
+        },
+        ignore=[ROUTES_TMPL] + ignored_templates
+    )
+    bp()
+
+    routes_tmpl = RESOURCE_BLUEPRINT / ROUTES_TMPL
+    new_routes = bp.render.string(routes_tmpl.read_text())
+    append_routes(app, new_routes)
