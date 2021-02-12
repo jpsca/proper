@@ -37,3 +37,20 @@ def dst(request):
 @pytest.fixture()
 def assets_path():
     return Path(__file__).parent / "assets"
+
+
+APP_NAME = "app"
+
+
+@pytest.fixture()
+def scaffold(dst):
+    app_root = Path(dst) / APP_NAME
+    (app_root / "controllers").mkdir(parents=True, exist_ok=True)
+    (app_root / "templates").mkdir(parents=True, exist_ok=True)
+    (app_root / "controllers" / "__init__.py").touch()
+    (app_root / "routes.py").write_text("""routes = [
+    get("", to="Pages.index"),
+]
+
+""")
+    return app_root

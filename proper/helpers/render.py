@@ -198,10 +198,12 @@ RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")
 
 
 def append_routes(app, new_routes):
-    routes_path = Path(app.root_path.name) / "routes.py"
+    routes_path = app.root_path/ "routes.py"
     routes = routes_path.read_text()
     match = RE_CLOSE_ROUTES.search(routes)
     if match:
         routes = routes[: match.start()].rstrip()
     routes_path.write_text(routes + new_routes)
-    printf("appended", str(routes_path), color="yellow")
+
+    display = str(Path(app.root_path.name) / "routes.py")
+    printf("appended", display, color="yellow")

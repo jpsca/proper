@@ -71,15 +71,6 @@ def test_secret_key_too_short(import_name):
         App(import_name, config={"secret_key": "qwertyuiop"})
 
 
-def test_load_config_file(assets_path, import_name):
-    app = App(import_name)
-    config_path = assets_path / "config.toml"
-    app.config.load_file(config_path)
-
-    assert app.config.hello == "world"
-    assert app.config.secret_key.startswith("Not secure.")
-
-
 def test_head(app, web):
     app.routes = [get("/", to="Pages.index")]
     resp = web.head("/")

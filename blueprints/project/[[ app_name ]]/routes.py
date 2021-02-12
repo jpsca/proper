@@ -1,6 +1,6 @@
 """These routes are connected to the application in the `main.py` file.
 """
-from proper import get, post, scope
+from proper.router import *  # noqa
 
 
 routes = [
