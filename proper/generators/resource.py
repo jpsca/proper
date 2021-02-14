@@ -42,7 +42,8 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
 
     """
     snake_name = inflection.underscore(name)
-    class_name = gen_model(name, *attrs)
+
+    gen_model(app, name, *attrs)
 
     actions = set(ACTIONS)
     if only:
@@ -62,8 +63,9 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
         context={
             "app_name": app.root_path.name,
             "snake_name": snake_name,
-            "class_name": class_name,
+            "class_name": name,
             "actions": actions,
+            "singular": singular,
         },
         ignore=[ROUTES_TMPL] + ignored_templates
     )

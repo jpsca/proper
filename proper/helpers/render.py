@@ -60,13 +60,15 @@ class BlueprintRender:
         self.dst = Path(dst)
         self.force = force
         self.render = get_blueprint_render(src, context=context, envops=envops)
-        self.ignore = ignore
+        self.ignore = ignore or []
 
     def __call__(self):
         for folder, _, files in os.walk(self.src):
             self.render_folder(Path(folder), files)
 
     def render_folder(self, folder, files):
+        if self._ignore(folder):
+            return
         src_relfolder = str(folder).replace(self.src, "", 1).lstrip(os.path.sep)
         dst_relfolder = self.render.string(src_relfolder)
         src_relfolder = Path(src_relfolder)
@@ -77,6 +79,8 @@ class BlueprintRender:
         for name in files:
             src_path = folder / name
             src_relpath = src_relfolder / name
+            if self._ignore(src_relpath):
+                continue
             name = self.render.string(name)
 
             if name.endswith(".tmpl"):

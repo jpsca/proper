@@ -117,7 +117,7 @@ def gen_model(app, name, *attrs):
 
     - Backref with lazy type:
 
-            `bin/manage g model Post tags:Tag:post-select:joined`
+            `bin/manage g model Post tags:Tag:posts-select:joined`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"
@@ -137,7 +137,7 @@ def gen_model(app, name, *attrs):
                 id = db.Column(db.Integer, primary_key=True)
                 tags = db.relationship(
                     "Tag",
-                    backref=db.backref("post"),
+                    backref=db.backref("posts"),
                     lazy="select"
                 )
 
@@ -160,8 +160,6 @@ def gen_model(app, name, *attrs):
         },
     )
     bp()
-
-    return class_name
 
 
 DEFAULT_FIELD_TYPE = "string"

@@ -11,7 +11,7 @@ from proper.helpers import BLUEPRINTS, BlueprintRender, printf
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 
-def gen_project(path, force=False, _dependencies=True):
+def gen_project(path, *, name=None, force=False, _dependencies=True):
     """Creates a new Proper application at `path`.
 
     The `proper new` command creates a new Proper application with a default
@@ -24,17 +24,19 @@ def gen_project(path, force=False, _dependencies=True):
 
     - path:
         Where to create the new application.
+    - name [None]:
+        Optional name of the app instead of the one in `path`
     - force [False]:
         Overwrite files that already exist, without asking.
 
     """
     path = Path(path).resolve().absolute()
-    path = path.parent / inflection.underscore(str(path.name))
+    app_name = inflection.underscore(name or str(path.stem))
 
     BlueprintRender(
         PROJECT_BLUEPRINT,
         path,
-        context={"app_name": path.name},
+        context={"app_name": app_name},
         force=force
     )()
     print()
@@ -50,9 +52,8 @@ def _call(cmd):
 
 
 def _install_dependencies(path):
-    name = path.stem
     if not confirm(
-        f" Install dependencies in a virtualenv at {name}/.venv ?",
+        f" Install dependencies in a virtualenv at {path.stem}/.venv ?",
         default=True,
     ):
         print()

@@ -46,3 +46,39 @@ def test_constraints(app, scaffold):
     model_text = (app_root / "models" / "post.py").read_text()
     assert "slug = db.Column(db.String, unique=True, index=True)" in model_text
     assert 'author_id = db.Column(db.Integer, db.ForeignKey("users.id"))' in model_text
+
+
+def test_simple_backref(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    gen_model(
+        app, "Post", "tags:Tag:post:joined"
+    )
+
+    model_text = (app_root / "models" / "post.py").read_text()
+    expected = 'tags = db.relationship("Tag", backref=db.backref("post"), lazy="joined")'
+    assert expected in model_text
+
+
+def test_backref_with_lazy(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    gen_model(
+        app, "Post", "tags:Tag:post-select:joined"
+    )
+
+    model_text = (app_root / "models" / "post.py").read_text()
+    expected = 'tags = db.relationship("Tag", backref=db.backref("post", lazy="select"), lazy="joined")'
+    assert expected in model_text
+
+
+def test_implicit_backref_and_lazy(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    gen_model(
+        app, "Post", "tags:Tag"
+    )
+
+    model_text = (app_root / "models" / "post.py").read_text()
+    expected = 'tags = db.relationship("Tag", backref=db.backref("posts"), lazy="select")'
+    assert expected in model_text
