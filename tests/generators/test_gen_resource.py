@@ -1,17 +1,15 @@
-from pathlib import Path
-
 from proper.generators import gen_resource
 
 
-# def test_gen_resource(app, scaffold):
-#     app_root = scaffold
-#     app.root_path = app_root
-#     gen_resource(app, "Products")
+def test_gen_resource(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    gen_resource(app, "Products")
 
-#     _test_controller(app_root)
-#     _test_model(app_root)
-#     _test_templates(app_root)
-#     _test_routes(app_root)
+    _test_controller(app_root)
+    _test_model(app_root)
+    _test_templates(app_root)
+    _test_routes(app_root)
 
 
 def _test_controller(app_root):

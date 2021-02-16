@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from proper.generators import gen_model
 
 

@@ -10,7 +10,6 @@ from .version import __version__
 __all__ = ("ProperCli")
 
 
-
 class ProperCli(Cli):
     __doc__ = f"""<b>Proper v{__version__}</b>
 
