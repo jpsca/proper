@@ -1,1 +1,32 @@
 @import "tailwindcss/components";
+
+.link {
+	text-decoration: underline;
+	text-underline-offset: 0.11em;
+	color: theme("colors.blue.500");
+}
+
+.link:hover {
+	text-decoration: none;
+}
+
+.btn {
+	font-weight: 700;
+	padding: 1.5rem 1rem;
+	border: 1px solid theme('colors.blue.200');
+	border-radius: 0.25rem;
+	transition-property: background-color, border-color, color, fill, stroke;
+	background-color: theme('colors.blue.100');
+	color: theme('colors.blue.700');
+}
+
+.btn:hover {
+	color: theme('colors.blue.800');
+	border-color: theme('colors.blue.300');
+	background-color: theme('colors.blue.200');
+	box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.1);
+}
+
+.btn:focus {
+	box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+}
