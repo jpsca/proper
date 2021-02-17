@@ -3,7 +3,7 @@
 {% block title %}Sign in{% endblock %}
 
 {% block body %}
-<div class="h-full max-w-lg mx-auto">
+<div class="h-screen max-w-lg mx-auto">
 	<div class="flex items-center h-full p-10 bg-white border-l border-r border-gray-400 shadow-md">
 		<form method="post" action="" class="w-full" id="signInForm" novalidate>
 			<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
@@ -19,7 +19,8 @@
 					aria_label="Email",
 					classes="form-input w-full lowercase text-lg py-3 rounded-none rounded-t-md",
 					error="border-red-500",
-					placeholder="Email"
+					placeholder="Email",
+					tabindex="1"
 				) }}
 				{{ form.login.render_error(classes="text-red-500 text-sm font-bold mb-3 mt-2") }}
 			</div>
@@ -29,20 +30,23 @@
 					aria_label="Password",
 					classes="form-input w-full text-lg py-3 rounded-none rounded-b-md",
 					error="border-red-500",
-					placeholder="Password"
+					placeholder="Password",
+					tabindex="2"
 				) }}
 				{{ form.password.render_error(classes="text-red-500 text-sm font-bold mb-3 mt-2") }}
 			</div>
 
 			<div class="mt-8">
-				<button class="w-full btn btn--primary" type="submit">
+				<button class="btn w-full py-3 uppercase bg-gray-100 hover:bg-gray-200" type="submit" tabindex="3">
 					Sign in
 				</button>
 			</div>
 
 			<div class="mt-6 text-right">
 				<a class="text-sm link"
-					href="{{ url_for('Auth.reset') }}">
+					href="{{ url_for('Auth.reset') }}"
+					tabindex="4"
+				>
 					Forgot your password?
 				</a>
 			</div>
