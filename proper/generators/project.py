@@ -64,7 +64,7 @@ def _install_dependencies(path):
     _call(".venv/bin/pip install -U pip wheel")
     _call(".venv/bin/pip install -r requirements/requirements-dev.txt")
     _call(".venv/bin/pip install -e .")
-    _call("cd static && npm install")
+    _call("cd static && npm install && npm run bundle")
     return True
 
 
