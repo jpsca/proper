@@ -122,7 +122,7 @@ class SetupMixin:
         """Read and returns a text file from the `static/public` folder, to include
         in the template as-is.
         """
-        text = (self.static_path / filename).read_text()
+        text = (self.public_path / filename).read_text()
         return Markup(text)
 
     def get_serializer(self):
