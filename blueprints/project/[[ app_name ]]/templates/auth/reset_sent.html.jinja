@@ -3,22 +3,18 @@
 {% block title %}Password-reset email sent{% endblock %}
 
 {% block body %}
-<div class="h-full max-w-lg mx-auto">
-	<div class="flex items-center h-full p-10 bg-white border-l border-r border-gray-400 shadow-md">
-		<div class="text-center">
-			<h2 class="mt-6 text-3xl font-bold text-gray-900">
-				Password-reset email sent
-			</h2>
-			<p class="mt-6 text-gray-700">
-				We sent you a link to the following email: <span class="font-bold">{{ email }}</span>
-			</p>
-			<p class="mt-4 text-gray-700">
-				Check your email, and click on the link to reset your&nbsp;password
-			</p>
-			<p class="mt-4 text-gray-700">
-				If it doesn’t appear within a few minutes, check your spam&nbsp;folder.
-			</p>
-		</div>
-	</div>
+<div class="w-full p-12 bg-white border border-gray-300 shadow-xl pb-28 rounded-xl">
+	<h2 class="mt-6 text-3xl font-bold text-gray-900">
+		Password-reset email sent
+	</h2>
+	<p class="mt-6 text-gray-700">
+		We sent you a link to the following email: <span class="font-bold">{{ email }}</span>
+	</p>
+	<p class="mt-4 text-gray-700">
+		Check your email, and click on the link to reset your&nbsp;password
+	</p>
+	<p class="mt-4 text-gray-700">
+		If it doesn’t appear within a few minutes, check your spam&nbsp;folder.
+	</p>
 </div>
 {% endblock %}

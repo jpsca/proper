@@ -18,7 +18,9 @@ class Auth(ApplicationController):
 
         user = User.authenticate(**form.save())
         if not user:
-            form.password.error = "We didn’t recognize that password."
+            # msg = "We didn’t recognize that password."
+            msg = "Wrong username and/or password"
+            form.password.error = msg
             return
 
         user.sign_in(req, resp)

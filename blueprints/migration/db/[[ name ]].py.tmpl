@@ -1,0 +1,32 @@
+from orator.migrations import Migration
+
+
+class [[ class_name ]](Migration):
+
+    def up(self):
+        """
+        Run the migrations.
+        """
+        [% if table and create -%]
+        with self.schema.create("[[ table ]]") as table:
+            table.increments("id")
+            table.timestamps()
+        [% elif table -%]
+        with self.schema.table("[[ table ]]") as table:
+            pass
+        [%- else -%]
+        pass
+        [%- endif %]
+
+    def down(self):
+        """
+        Revert the migrations.
+        """
+        [% if table and create -%]
+        self.schema.drop("[[ table ]]")
+        [% elif table -%]
+        with self.schema.table("[[ table ]]") as table:
+            pass
+        [%- else -%]
+        pass
+        [%- endif %]

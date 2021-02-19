@@ -7,7 +7,8 @@ from .pwned import get_pwned_count
 
 
 def login_exists(values):
-    msg = "We don't recognize that email. Want to try another?"
+    # msg = "We don't recognize that email. Want to try another?"
+    msg = "Wrong username and/or password"
     if not values:
         return False, msg
     login = User.normalize_login(login=values[0])
