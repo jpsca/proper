@@ -9,59 +9,24 @@ __all__ = ("BaseController",)
 
 class BaseController:
 
-    _before_action = tuple()
-    _after_action = tuple()
+    def before_action(self, req, resp, action):
+        pass
+
+    def after_action(self, req, resp, action):
+        pass
 
     def __init__(self, app):
         self._app = app
 
     def _dispatch(self, action, req, resp):
-        filters = self._get_before_action_filters()
-        self._apply_filters(filters, action, req, resp)
+        self.before_action(req, resp, action)
         if resp.stop:
             return
 
         if not resp.dispatched:
             self._call(action, req, resp)
 
-        filters = self._get_after_action_filters()
-        self._apply_filters(filters, action, req, resp)
-
-    def _get_before_action_filters(self):
-        filters = ()
-        for cls in reversed(type.mro(self.__class__)):
-            cls_filters = cls.__dict__.get("_before_action")
-            if cls_filters:
-                filters += cls_filters
-        return filters
-
-    def _get_after_action_filters(self):
-        filters = ()
-        for cls in type.mro(self.__class__):
-            cls_filters = cls.__dict__.get("_after_action")
-            if cls_filters:
-                filters += cls_filters
-        return filters
-
-    def _apply_filters(self, filters, action, req, resp):
-        for _filter in filters:
-            if resp.stop:
-                break
-            if not self._should_apply_filter(_filter, action):
-                continue
-            func = _filter["filter"]
-            if isinstance(func, str):
-                func = getattr(self, func)
-            func(req, resp)
-
-    def _should_apply_filter(self, _filter, action):
-        skip = _filter.get("skip")
-        if skip and action in skip:
-            return False
-        only = _filter.get("only")
-        if only and action not in only:
-            return False
-        return True
+        self.after_action(req, resp, action)
 
     def _call(self, action, req, resp):
         # We call the endpoint but we do not expect a result value.
