@@ -55,7 +55,7 @@ def clean(app):
     """Delete all digested and/or compressed assets in static/public.
     """
     public = app.public_path
-    echo("<b>-- Removing hashed and/or compressed files --</b>")
+    echo("<bold>-- Removing hashed and/or compressed files --</>")
     for dirpath, _, files in os.walk(public):
         for filename in files:
             if _is_compressed(filename) or _is_inmutable(filename):
@@ -75,7 +75,7 @@ def compile(app):
 
 
 def _digest(root, manifest_path):
-    echo("<b>-- Hashing files --</b>")
+    echo("<bold>-- Hashing files --</>")
     digestor = Digestor(root)
 
     for dirpath, _, files in os.walk(root):
@@ -116,7 +116,7 @@ def _replace_urls(root, manifest):
 
 
 def compress(root):
-    echo("<b>-- Compressing files --</b>")
+    echo("<bold>-- Compressing files --</bold>")
     compressor = Compressor(use_gzip=True, use_brotli=bool(brotli), quiet=False)
     for dirpath, _, files in os.walk(root):
         for filename in files:

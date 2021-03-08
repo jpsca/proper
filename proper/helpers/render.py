@@ -182,7 +182,7 @@ class BlueprintRender:
 
 def printf(verb, msg="", color="cyan", indent=10):
     verb = str(verb).rjust(indent, " ")
-    verb = f"<fg:{color}>{verb}</fg>"
+    verb = f"<fg={color}>{verb}</>"
     echo(f"{verb}  {msg}".rstrip())
 
 
