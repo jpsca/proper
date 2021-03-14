@@ -184,7 +184,8 @@ class Response:
         )
 
     def set_cookie(self, key, value="", **kwargs):
-        """Set (add) a cookie for the response. Returns the cookie set.
+        """
+        Set (add) a cookie for the response. Returns the cookie set.
 
         Arguments are:
 
@@ -231,14 +232,16 @@ class Response:
         )
 
     def unset_cookie(self, name):
-        """Removes a cookie from this response (before sending it to the client).
+        """
+        Removes a cookie from this response (before sending it to the client).
         If the cookie is already on the client, use `delete_cookie()` instead.
         """
         if name in self.cookies:
             del self.cookies[name]
 
     def delete_cookie(self, name, *, path="/", domain=None):
-        """Delete a cookie from the client. Note that path and domain must match
+        """
+        Delete a cookie from the client. Note that path and domain must match
         how the cookie was originally set.
 
         This sets the cookie to the empty string, and max_age=0 so that it should
@@ -249,33 +252,39 @@ class Response:
     def fresh_when(
         self, objects=None, *, etag=None, last_modified=None, strong=False, public=False
     ):
-        """Sets the Etag header, the Last-Modified header, or both.
+        """
+        Sets the Etag header, the Last-Modified header, or both.
 
         The Etag can be generated from a date, a string or a number.
         The Last-Modified can be generated from an UTC or naive datetime.
         You can also use an object or a list of objects with an `updated_at` attribute.
         The maximum `updated_at` of that list will be used to set both values.
 
-        strong (boolean):
+        Arguments:
+
+        - strong (boolean):
             By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
             validator on the response. A strong ETag implies exact equality: the response
             must match byte for byte. This is necessary for doing range requests within a
             large file or for compatibility with some CDNs that don’t support weak ETags.
 
-        public (boolean):
+        - public (boolean):
             By default the Cache-Control header is private, set this to `True` if you want
             your application to be cacheable by other devices (proxy caches).
 
         """
-        if objects is not None:
+        if not objects:
             if not iterable(objects):
                 objects = [objects]
-            updated_at = max([obj.updated_at for obj in objects])
-            assert isinstance(
-                updated_at, date
-            ), "`updated_at` attribute must be a datetime"
-            etag = updated_at
-            last_modified = updated_at
+            dates = [obj.updated_at for obj in objects]
+            if dates:
+                # objects could be a lazy-loaded empty collection
+                updated_at = max(dates)
+                assert isinstance(
+                    updated_at, date
+                ), "`updated_at` attribute must be a datetime"
+                etag = updated_at
+                last_modified = updated_at
 
         if etag is not None:
             digest = md5(str(etag).encode()).hexdigest()
