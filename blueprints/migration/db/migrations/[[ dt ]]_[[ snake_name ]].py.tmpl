@@ -7,26 +7,34 @@ class [[ class_name ]](Migration):
         """
         Run the migrations.
         """
-        [% if table and create -%]
-        with self.schema.create("[[ table ]]") as table:
+    [% if table -%]
+        with self.schema.
+        [[- 'create' if create else 'table' -]]
+        ("[[ table ]]") as table:
+        [% if lines -%]
             table.increments("id")
             table.timestamps()
-        [% elif table -%]
-        with self.schema.table("[[ table ]]") as table:
-            pass
+            [%- for line in lines %]
+            [[ line ]]
+            [%- endfor %]
         [%- else -%]
+            pass
+        [% endif -%]
+    [%- else -%]
         pass
-        [%- endif %]
+    [%- endif %]
 
     def down(self):
         """
         Revert the migrations.
         """
-        [% if table and create -%]
+    [% if table -%]
+        [% if create -%]
         self.schema.drop("[[ table ]]")
-        [% elif table -%]
+        [% else -%]
         with self.schema.table("[[ table ]]") as table:
             pass
-        [%- else -%]
-        pass
         [%- endif %]
+    [%- else -%]
+        pass
+    [%- endif %]

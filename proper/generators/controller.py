@@ -15,8 +15,10 @@ def gen_controller(app, class_name, *actions):
 
         bin/manage g controller NAME [action ...]
 
-    Pass the PascalCased controller class_name (in plural), and an optional list
-    of actions as arguments.
+    Arguments:
+
+    - class_name: The PascalCased controller class name (in plural).
+    - actions: Optional list of actions.
 
     Example:
 

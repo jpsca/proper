@@ -100,7 +100,7 @@ class Cli:
             "_app": self.app,
         }
 
-        for name in ("resource", "controller", "model"):
+        for name in ("resource", "controller", "model", "migration"):
             attrs[name] = get_cmd(generators, f"gen_{name}")
 
         return type("GeneratorsCli", (pyceo.Cli,), attrs)

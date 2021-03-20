@@ -22,12 +22,9 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
 
     Arguments:
 
-    - path:
-        Where to create the new application.
-    - name [None]:
-        Optional name of the app instead of the one in `path`
-    - force [False]:
-        Overwrite files that already exist, without asking.
+    - path: Where to create the new application.
+    - name [None]: Optional name of the app instead of the one in `path`
+    - force [False]: Overwrite files that already exist, without asking.
 
     """
     path = Path(path).resolve().absolute()
