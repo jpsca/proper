@@ -273,10 +273,10 @@ class Response:
             your application to be cacheable by other devices (proxy caches).
 
         """
-        if not objects:
+        if objects:
             if not iterable(objects):
                 objects = [objects]
-            dates = [obj.updated_at for obj in objects]
+            dates = [obj.updated_at for obj in objects if obj is not None]
             if dates:
                 # objects could be a lazy-loaded empty collection
                 updated_at = max(dates)
