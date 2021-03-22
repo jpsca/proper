@@ -48,6 +48,7 @@ def _test_migration(app_root):
     assert "class CreateProducts(Migration):" in content
     assert "def up(self):" in content
     assert "def down(self):" in content
+    assert 'self.schema.create("products") as table:' in content
 
 
 def _test_templates(app_root):
@@ -106,13 +107,14 @@ def _test_model_singular(app_root):
 
 
 def _test_migration_singular(app_root):
-    migration = app_root / ".." / "db" / "migrations" / "2012_01_14_032134_create_profile.py"
+    migration = app_root / ".." / "db" / "migrations" / "2012_01_14_032134_create_profiles.py"
     assert migration.exists()
 
     content = migration.read_text()
-    assert "class CreateProfile(Migration):" in content
+    assert "class CreateProfiles(Migration):" in content
     assert "def up(self):" in content
     assert "def down(self):" in content
+    assert 'self.schema.create("profiles") as table:' in content
 
 
 def _test_templates_singular(app_root):

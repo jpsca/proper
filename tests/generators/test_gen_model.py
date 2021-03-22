@@ -28,3 +28,4 @@ def test_migration_made(app, scaffold):
     assert "class CreateProducts(Migration):" in content
     assert "def up(self):" in content
     assert "def down(self):" in content
+    assert 'self.schema.create("products") as table:' in content

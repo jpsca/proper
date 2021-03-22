@@ -1,5 +1,5 @@
 ,
 [% for action in actions %]
-    get("[[ snake_name ]]/[[ action ]]", to="[[ class_name ]].[[ action ]]"),[% endfor %]
+    get("[[ snake_name|safe ]]/[[ action|safe ]]", to="[[ class_name|safe ]].[[ action|safe ]]"),[% endfor %]
 ]
 

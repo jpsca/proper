@@ -51,8 +51,8 @@ def test_set_etag():
 
 def test_invalid_etag_value():
     resp = Response()
-    with pytest.raises(Exception):
-        resp.fresh_when({})
+    assert not resp.fresh_when({})
+    assert "ETag" not in resp.headers
 
 
 def test_fresh_when_from_objects():

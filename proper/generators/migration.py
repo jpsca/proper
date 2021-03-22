@@ -59,6 +59,7 @@ After the column type, you can add one or more`constraints. The following are su
 - unique
 - index
 - default-value
+- foreign-table.col
 
 Use "true" or "false" as the value of the `default` constraint, and it will be
 converted to the booleans `True` or `False`
@@ -68,19 +69,18 @@ Example:
     bin/manage g {cmd} title:string-30:nullable is_draft:boolean:default-true
 
 
-## Foreign keys:
-
-Instead of a constraint, use `foreign` for adding a foreign key:
+Use `foreign` for adding a foreign key:
 
     bin/manage g {cmd} author_id:integer:foreign-users.id
 
 """
 DEFAULT_FIELD_TYPE = "string"
+INTEGER_FIELD_TYPE = "integer"
 DEFAULT_CONSTRAINT = "default"
 FOREIGN_CONSTRAINT = "foreign"
 
 
-def gen_migration(app, name, table=None, create=False, *attrs):
+def gen_migration(app, name, *attrs, table=None, create=False):
     name = name.replace(" ", "_")
     class_name = inflection.camelize(name)
     table = inflection.pluralize(table) if table else None
@@ -88,7 +88,7 @@ def gen_migration(app, name, table=None, create=False, *attrs):
 
     lines = []
     for attr in attrs:
-        _add_field(lines, attr)
+        lines = _add_field(lines, attr)
 
     bp = BlueprintRender(
         MIGRATION_BLUEPRINT,
@@ -133,35 +133,41 @@ def _add_field(lines, attr):
     options = options.replace("-", ", ")
     options = f", {options})" if options else ""
 
-    lines = [f'table.{ctype}("{name}"{options})']
+    flines = [f'table.{ctype}("{name}"{options})']
     if extra:
-        _add_constraints(lines, name, extra)
+        flines = _add_constraints(flines, name, ctype, extra)
 
-    lines.extend(lines)
+    lines.extend(flines)
+    return lines
 
 
-def _add_constraints(lines, name, extra):
-    line = lines[0]
+def _add_constraints(flines, name, ctype, extra):
+    fline = flines[0]
 
     for constraint in extra.split(":"):
         constraint, value = f"{constraint}-".split("-", 1)
         value = value.rstrip("-")
 
         if constraint == FOREIGN_CONSTRAINT:
+            if ctype == INTEGER_FIELD_TYPE and ":unsigned" not in extra:
+                fline = f'{fline}.unsigned()'
+
             assert value, "Missing column for foreign key. Use `foreign-table.column`"
             ftable, fcol = value.split(".")
-            lines.append('table.foreign("{name}").references("{fcol}").on("{ftable}")')
+            flines.append(f'table.foreign("{name}").references("{fcol}").on("{ftable}")')
+
         elif constraint == DEFAULT_CONSTRAINT:
             if value.lower() == "true":
                 value = True
             elif value.lower() == "false":
                 value = False
-            line = f'{line}.default("{value}")'
+            fline = f'{fline}.default("{value}")'
 
         else:
-            line = f"{line}.{constraint}()"
+            fline = f"{fline}.{constraint}()"
 
-    lines[0] = line
+    flines[0] = fline
+    return flines
 
 
 def get_dt_slug():
