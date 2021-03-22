@@ -1,13 +1,18 @@
+from freezegun import freeze_time
+
 from proper.generators import gen_resource
 
 
 def test_gen_resource(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_resource(app, "Products")
+
+    with freeze_time("2012-01-14 03:21:34"):
+        gen_resource(app, "Products")
 
     _test_controller(app_root)
     _test_model(app_root)
+    _test_migration(app_root)
     _test_templates(app_root)
     _test_routes(app_root)
 
@@ -29,12 +34,20 @@ def _test_controller(app_root):
 
 def _test_model(app_root):
     model_text = (app_root / "models" / "product.py").read_text()
-    assert "class Product(Base, Timestamped):" in model_text
-    assert '__tablename__ = "products"' in model_text
-    assert "id = db.Column(db.Integer, primary_key=True)" in model_text
+    assert "class Product(Base):" in model_text
 
     init_text = (app_root / "models" / "__init__.py").read_text()
     assert init_text.strip() == "from .product import *  # noqa"
+
+
+def _test_migration(app_root):
+    migration = app_root / ".." / "db" / "migrations" / "2012_01_14_032134_create_products.py"
+    assert migration.exists()
+
+    content = migration.read_text()
+    assert "class CreateProducts(Migration):" in content
+    assert "def up(self):" in content
+    assert "def down(self):" in content
 
 
 def _test_templates(app_root):
@@ -61,10 +74,13 @@ def _test_routes(app_root):
 def test_gen_resource_singular(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_resource(app, "Profile", singular=True)
+
+    with freeze_time("2012-01-14 03:21:34"):
+        gen_resource(app, "Profile", singular=True)
 
     _test_controller_singular(app_root)
     _test_model_singular(app_root)
+    _test_migration_singular(app_root)
     _test_templates_singular(app_root)
     _test_routes_singular(app_root)
 
@@ -83,12 +99,20 @@ def _test_controller_singular(app_root):
 
 def _test_model_singular(app_root):
     model_text = (app_root / "models" / "profile.py").read_text()
-    assert "class Profile(Base, Timestamped):" in model_text
-    assert '__tablename__ = "profiles"' in model_text
-    assert "id = db.Column(db.Integer, primary_key=True)" in model_text
+    assert "class Profile(Base):" in model_text
 
     init_text = (app_root / "models" / "__init__.py").read_text()
     assert init_text.strip() == "from .profile import *  # noqa"
+
+
+def _test_migration_singular(app_root):
+    migration = app_root / ".." / "db" / "migrations" / "2012_01_14_032134_create_profile.py"
+    assert migration.exists()
+
+    content = migration.read_text()
+    assert "class CreateProfile(Migration):" in content
+    assert "def up(self):" in content
+    assert "def down(self):" in content
 
 
 def _test_templates_singular(app_root):
