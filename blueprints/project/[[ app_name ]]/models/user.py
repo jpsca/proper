@@ -1,13 +1,9 @@
-from .base import Base, db
+from .base import Base
 from .mixins import Authenticable
 
 
 class User(Authenticable, Base):
-    __repr_attrs__ = ("login", )
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Text, nullable=True)
-    bio = db.Column(db.Text, nullable=True)
+    __repr_by__ = ["login"]
 
     @property
     def email(self):

@@ -1,10 +1,11 @@
 .PHONY: help
 help:
-	@echo "clean - remove build/python artifacts"
-	@echo "test - run tests"
-	@echo "lint - check style with flake8"
-	@echo "install - install for development"
-	@echo "dbsetup - reset the database"
+	@echo "clean: remove build/python artifacts"
+	@echo "run: run the development server"
+	@echo "test: run tests"
+	@echo "lint: check style with flake8"
+	@echo "setup: install for development"
+	@echo "dbsetup: reset the database"
 
 .PHONY: clean
 clean: clean-build clean-pyc
@@ -24,6 +25,10 @@ clean-pyc:
 	find . -name '__pycache__' -exec rm -rf {} +
 	find . -name '.pytest_cache' -exec rm -rf {} +
 
+.PHONY: run
+run:
+	honcho -f Procfile.dev start
+
 .PHONY: test
 test:
 	python -m pytest -x [[ app_name ]]/tests
@@ -32,8 +37,8 @@ test:
 lint:
 	python -m flake8 --config=setup.cfg [[ app_name ]]
 
-.PHONY: install
-install:
+.PHONY: setup
+setup:
 	pip install -U pip wheel
 	pip install -r requirements/requirements-dev.txt
 	pip install -e .
@@ -45,4 +50,10 @@ dbsetup:
 	dropdb [[ app_name ]]_tests || true
 	createdb [[ app_name ]] || true
 	createdb [[ app_name ]]_tests || true
-	alembic upgrade head
+
+.PHONY: setup-deploy
+setup-deploy:
+	.venv/bin/pip install -U pip wheel
+	.venv/bin/pip install -e .
+	.venv/bin/pip install -r requirements/prod-requirements.txt
+	.venv/bin/bin/manage db migrate

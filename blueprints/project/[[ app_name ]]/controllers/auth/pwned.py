@@ -1,4 +1,5 @@
-"""Interface to the ¨Have I been pwned?" database
+"""
+Interface to the ¨Have I been pwned?" database
 """
 import urllib.request
 from hashlib import sha1

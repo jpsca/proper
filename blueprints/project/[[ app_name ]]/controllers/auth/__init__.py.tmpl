@@ -76,6 +76,5 @@ class Auth(ApplicationController):
 
 
 def go_forward(resp):
-    next_url = resp.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) \
-        or app.url_for("Pages.index")
+    next_url = resp.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
     resp.redirect_to(next_url)

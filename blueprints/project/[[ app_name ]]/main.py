@@ -1,9 +1,11 @@
-"""This file connects the application to the routes and error handlers.
 """
+This file connects the application to the routes and error handlers.
+"""
+from liquid_orm.exceptions.orm import ModelNotFound
 from proper import errors
 
-from .adapters import db
 from .app import app
+from .models import db
 from .routes import routes
 
 
@@ -13,14 +15,15 @@ app.routes = routes
 # only HTTP exceptions but custom ones or even native Python exceptions
 # like `ValueError` or a catch-all Exception.
 app.errorhandler(errors.NotFound, "Pages.not_found")
+app.errorhandler(ModelNotFound, "Pages.not_found")
 app.errorhandler(Exception, "Pages.error")
 
 
 @app.on_error
-def rollback_on_error(req, resp, app):
-    db.rollback()
+def on_error(req, resp, app):
+    pass
 
 
 @app.on_teardown
-def teardown_db(req, resp, app):
-    db.remove()
+def on_teardown(req, resp, app):
+    db.disconnect()

@@ -1,0 +1,18 @@
+import os
+
+
+debug = False
+secret_key = ""  # SET IN SECRETS
+host = "https://example.com"
+
+session = {
+    "cookie_secure": True,
+}
+
+databases = {
+    "main": {
+        "database": os.environ.get("POSTGRES_DATABASE_NAME", "[[ app_name ]]"),
+        "user": os.environ.get("POSTGRES_DATABASE_USER", "[[ app_name ]]"),
+        "password": os.environ.get("POSTGRES_DATABASE_PASSWORD", ""),
+    }
+}

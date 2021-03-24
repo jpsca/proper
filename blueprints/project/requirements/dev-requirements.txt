@@ -4,4 +4,6 @@
 -r requirements.txt
 black
 flake8
+honcho ~=1.0
 pytest
+uwsgi ~= 2.0

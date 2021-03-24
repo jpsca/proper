@@ -1,4 +1,4 @@
-@import "./modules/base.css";
-@import "./modules/forms.css";
-@import "./modules/components.css";
-@import "./modules/utilities.css";
+@import "./_base.css";
+@import "./_forms.css";
+@import "./_components.css";
+@import "./_utilities.css";

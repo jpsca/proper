@@ -1,0 +1,4 @@
+web: uwsgi --ini uwsgi-dev.ini
+css: cd static && npm run css:watch
+js: cd static && npm run js:watch
+rq: bin/workers

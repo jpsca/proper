@@ -4,6 +4,35 @@ import os
 debug = False
 host = ""
 
+# databases = {
+#     "default": "main",
+#     "main": {
+#         "driver": "postgres",
+#         "host": os.environ.get("POSTGRES_DATABASE_HOST", "localhost"),
+#         "database": os.environ.get("POSTGRES_DATABASE_NAME", "[[ app_name ]]"),
+#         "user": os.environ.get("POSTGRES_DATABASE_USER", "postgres"),
+#         "password": os.environ.get("POSTGRES_DATABASE_PASSWORD", ""),
+#     },
+#     "tests": {
+#         "driver": "postgres",
+#         "host": os.environ.get("POSTGRES_DATABASE_HOST", "localhost"),
+#         "database": os.environ.get("POSTGRES_DATABASE_NAME", "[[ app_name ]]_tests"),
+#         "user": os.environ.get("POSTGRES_DATABASE_USER", "postgres"),
+#         "password": os.environ.get("POSTGRES_DATABASE_PASSWORD", ""),
+#     },
+# }
+databases = {
+    "default": "main",
+    "main": {
+        "driver": "sqlite",
+        "database": "db/dev.sqlite",
+    },
+    "tests": {
+        "driver": "sqlite",
+        "database": "db/tests.sqlite",
+    },
+}
+
 auth = {
     "hash_name": "argon2",
     "rounds": None,
@@ -19,10 +48,6 @@ mailer = {
 session = {
     "cookie_name": "_session",
     "cookie_httponly": True,
-}
-
-database = {
-    "uri": os.environ.get("DATABASE_URI", "postgres://@localhost/[[ app_name ]]"),
 }
 
 redis = {

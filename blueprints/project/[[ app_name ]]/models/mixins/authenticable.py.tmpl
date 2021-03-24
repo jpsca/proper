@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 
-from [[ app_name ]].adapters import db
-from [[ app_name ]].config import config
+from liquid_orm.orm import mutator
 from proper.auth import Auth
+
+from [[ app_name ]].config import config
 
 
 __all__ = ["Authenticable"]
@@ -20,38 +21,39 @@ class Authenticable:
     REDIRECT_KEY = "_redirect"
     CLEAR_SESSION_ON_SIGN_OUT = True
 
-    login = db.Column(db.Unicode(255), nullable=False, unique=True, index=True)
-    password = db.Column(db.String(255))
-    last_sign_in = db.Column(db.DateTime)
+    @classmethod
+    def _boot(cls):
+        def login(self, value):
+            value = self.normalize_login(value)
+            self.set_raw_attribute("login", value)
 
-    @db.validates("login")
-    def __normalize_login(self, _, login):
-        return self.__class__.normalize_login(login)
+        def password(self, value):
+            value = auth.hash_password(value) if value else ""
+            self.set_raw_attribute("password", value)
 
-    @db.validates("password")
-    def __hash_password(self, _, password):
-        return auth.hash_password(password) if password else ""
+        cls.login = mutator(login)
+        cls.password = mutator(password)
+
+        super()._boot()
 
     @classmethod
-    def normalize_login(cls, login):
-        # This avoids you so many support emails you wouldn't believe it.
-        return (login or "").lower()
+    def normalize_login(cls, value):
+        return (value or "").lower()
 
     @classmethod
     def by_id(cls, user_id):
-        """Needed by auth.AuthManager. Get an user by its primary key.
-
-        Modify this code or overwrite in the User class to to include whatever
+        """Modify this code or overwrite in the User class to to include whatever
         scope restriction you need to add to this query.
         """
-        return cls.first(id=user_id)
+        return cls.find(user_id)
 
     @classmethod
     def by_login(cls, login):
-        """Needed by auth.AuthManager. Get an user by login.
+        """Modify this code or overwrite in the User class to to include whatever
+        scope restriction you need to add to this query.
         """
         login = cls.normalize_login(login)
-        return cls.first(login=login)
+        return cls.where("login", "=", login).first()
 
     @classmethod
     def authenticate(cls, login, password, *, update_hash=True):
@@ -84,14 +86,13 @@ class Authenticable:
         logged between requests.
         """
         self.last_sign_in = datetime.now(tz=timezone.utc)
-        db.commit()
+        self.save()
         assert self.id is not None
         req.user = self
         resp.session[self.SESSION_KEY] = self.get_session_token()
 
     def sign_out(self, req, resp):
         req.user = None
-
         # The session is shared so, if you have more than
         # one model/user-type signed in at the same time,
         # you don't want to do this.
@@ -103,19 +104,3 @@ class Authenticable:
             del resp.session[self.SESSION_KEY]
         if self.REDIRECT_KEY in resp.session:
             del resp.session[self.SESSION_KEY]
-
-    def set_password(self, password):
-        self.password = password
-        db.commit()
-
-    def set_raw_password(self, password):
-        """Sets the password without hashing.
-        Don't use it unless you have a good reason to do so.
-        """
-        table = self.__table__
-        db.execute(
-            table.update()
-            .where(table.c.id == self.id)
-            .values(password=password)
-        )
-        db.commit()

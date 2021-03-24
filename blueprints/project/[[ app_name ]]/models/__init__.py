@@ -1,5 +1,3 @@
 """Import all the models in this folder.
 """
-from [[ app_name ]].adapters import db  # noqa
-
 from .user import *  # noqa

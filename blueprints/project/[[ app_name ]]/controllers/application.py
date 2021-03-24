@@ -1,20 +1,25 @@
 from os import getenv
 
-from proper import BaseController, before_action, after_action
+from proper import BaseController
 
-from [[ app_name ]].models import User
-from [[ app_name ]].app import app
+from ..models import User
+from ..app import app
 
 
 REDIRECT_AFTER_LOGIN_KEY = "_redirect"
 USER_SESSION_KEY = "_user_token"
 
 
-@before_action("_load_user")
-@after_action("_put_security_headers")
 class ApplicationController(BaseController):
     """All other controllers must inherit from this class.
     """
+    def before_action(self, req, resp, action):
+        self._load_user(req, resp)
+        super().before_action(req, resp, action)
+
+    def after_action(self, req, resp, action):
+        self._put_security_headers(req, resp)
+        super().after_action(req, resp, action)
 
     def _load_user(self, req, resp):
         user = None
@@ -64,8 +69,11 @@ class ApplicationController(BaseController):
         })
 
 
-@before_action("_require_login")
 class PrivateController(ApplicationController):
+
+    def before_action(self, req, resp, action):
+        self._require_login(req, resp)
+        super().before_action(req, resp, action)
 
     def _require_login(self, req, resp):
         if req.user:

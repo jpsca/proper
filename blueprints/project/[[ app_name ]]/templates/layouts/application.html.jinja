@@ -1,18 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<meta charset="utf-8">
-	<title>{% block title %}{% endblock %}</title>
 	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<link rel="icon" href="{{ url_static('favicon.svg') }}">
-	<link rel="apple-touch-icon" href="{{ url_static('apple-touch-icon.png') }}">
-	<link rel="manifest" href="{{ url_static('manifest.json') }}">
+	<title>{% block title %}{% endblock %}</title>
 	<link rel="stylesheet" href="{{ url_static('css/common.css') }}">
+	<script src="{{ url_static('js/scripts.js') }}" defer></script>
+	{% block scripts %}{% endblock %}
+	{% block meta %}{% endblock %}
 	<meta name="csrf_token" content="{{ req.csrf_token }}">
-	{%- block css %}{%- endblock -%}
-	{%- block js %}{% endblock %}
 </head>
-<body>
+<body class="font-sans antialiased text-gray-800 bg-white cursor-default">
+	{% include "_flashes.html.jinja" %}
 	{% block body %}{% endblock %}
 </body>
 </html>

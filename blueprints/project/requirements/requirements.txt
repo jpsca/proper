@@ -4,12 +4,10 @@
 argon2-cffi         # Next-gen hash function for the passwords
 brotli              # To generate brotli-compressed assets
 hyperform           # Form-handling library that doesn't suck
-jinja2 ~=2.11       # Template system
+liquid-orm ~=0.10  # Active Record ORM
 mailshake           # Dramatically simplify sending email
 # proper              # Pure happiness
 properconf ~=3.0    # Flexible configuration system
 psycopg2-binary     # PostgreSQL driver
 redis               # Redis adapter
 rq ~=1.7            # Async tasks
-pyceo ~=3.1         # CLI
-uwsgi ~= 2.0

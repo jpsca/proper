@@ -37,7 +37,7 @@ def password_hasnt_been_pwned(values):
     msg = (
         "This password may have been compromised on another site.<br>"
         "For your own safety, we recommend you create a new, unique password"
-        " using something like LastPass or 1Password."
+        " using a password manager (like 1Password or LastPass.)"
     )
     for value in values:
         if get_pwned_count(value):

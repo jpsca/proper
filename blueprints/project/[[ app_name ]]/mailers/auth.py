@@ -1,7 +1,6 @@
-from [[ app_name ]].app import app
-from [[ app_name ]].config import config
-from [[ app_name ]].jobs.emails import send_email
-from [[ app_name ]].adapters import queue_notif
+from ..app import app
+from ..config import config
+from ..jobs.emails import send_email
 
 
 __all__ = (
@@ -15,7 +14,7 @@ def render_password_reset_email(user):
     validate_url = app.url_for("Auth.reset_validate", token=token)
     reset_url = app.url_for("Auth.reset")
     return app.render(
-        "emails/password_reset.html",
+        "emails/password_reset.html.jinja",
         validate_url=f"{config.host}{validate_url}",
         reset_url=f"{config.host}{reset_url}",
     )
@@ -30,4 +29,4 @@ def send_password_reset_email(user):
     if config.debug:
         send_email(**kwargs)
     else:
-        queue_notif.enqueue(send_email, **kwargs)
+        send_email.delay(**kwargs)
