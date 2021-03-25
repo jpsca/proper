@@ -1,4 +1,4 @@
-from ..constants import HEAD, GET
+from ..constants import GET, HEAD
 
 
 __all__ = ("head_to_get", "strip_body_if_head")

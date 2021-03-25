@@ -49,7 +49,7 @@ def test_create_table(app, scaffold):
     assert "def down(self):" in content
     assert 'self.schema.create("products") as table:' in content
     assert 'table.increments("id")' in content
-    assert 'table.timestamps()' in content
+    assert "table.timestamps()" in content
 
 
 def test_add_columns(app, scaffold):
@@ -72,7 +72,7 @@ def test_add_columns(app, scaffold):
     content = (migrations / "2012_01_14_032134_meh.py").read_text()
     print(content)
     assert 'table.increments("id")' in content
-    assert 'table.timestamps()' in content
+    assert "table.timestamps()" in content
     assert 'table.string("name", 30)' in content
     assert 'table.string("description")' in content
     assert 'table.decimal("price", 10, 2)' in content

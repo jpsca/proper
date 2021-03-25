@@ -3,9 +3,6 @@ import inspect
 from proper import status
 from proper.errors import MatchNotFound
 from proper.helpers import Dot
-
-from ..middleware.dispatch import dispatch
-
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -13,6 +10,7 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from ..middleware.dispatch import dispatch
 
 
 class ErrorsMixin:

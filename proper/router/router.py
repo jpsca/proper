@@ -1,7 +1,6 @@
 """Router object that holds all routes and match them to urls.
 """
 from proper.errors import MatchNotFound, MethodNotAllowed
-
 from .route import Route
 from .scope import flatten
 
@@ -42,7 +41,7 @@ class Router:
         """
         # If the path match but the method do not, we need to return
         # a list of the allowed methods with the 405 response.
-        allowed = set([])
+        allowed = set()
         for route in self.routes:
             if route.host is not None and route.host != host:
                 continue

@@ -1,9 +1,9 @@
 import pytest
 
-from proper.constants import GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
 from proper.errors import InvalidHeader
-from proper.request import FLASHES_SESSION_KEY, Request
 from proper.helpers import Dot
+from proper.request import FLASHES_SESSION_KEY, Request
 
 
 def test_query():

@@ -1,21 +1,15 @@
 """
 Request class.
-
 """
 from . import errors
-from .constants import GET, HEAD, POST, PUT, PATCH, DELETE, FLASHES_SESSION_KEY
+from .constants import DELETE, FLASHES_SESSION_KEY, GET, HEAD, PATCH, POST, PUT
+from .helpers import HeadersDict, MultiDict, tunnel_decode, tunnel_encode
 from .parsers import (
     parse_comma_separated,
     parse_cookies,
-    parse_http_date,
     parse_form_data,
+    parse_http_date,
     parse_query_string,
-)
-from .helpers import (
-    tunnel_encode,
-    tunnel_decode,
-    MultiDict,
-    HeadersDict,
 )
 
 

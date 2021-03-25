@@ -122,7 +122,7 @@ def compress(root):
         for filename in files:
             if _should_compress(filename):
                 path = os.path.join(dirpath, filename)
-                for comp in compressor.compress(path):
+                for _ in compressor.compress(path):
                     pass  # Whitenoise is weird like this
 
 

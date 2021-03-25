@@ -1,7 +1,7 @@
 from proper import Request
 from proper import Response
-from proper.middleware import fetch_session, put_session
 from proper.helpers import Dot
+from proper.middleware import fetch_session, put_session
 
 
 def serialize_cookie(app, value):

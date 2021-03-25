@@ -1,4 +1,5 @@
-"""Response class.
+"""
+Response class.
 """
 import json
 from datetime import date
@@ -8,11 +9,11 @@ from uuid import uuid4
 from . import status
 from .constants import FLASHES_SESSION_KEY
 from .helpers import (
-    add_cookie,
     CookiesDict,
     HeadersDict,
-    tunnel_encode,
+    add_cookie,
     iterable,
+    tunnel_encode,
 )
 
 

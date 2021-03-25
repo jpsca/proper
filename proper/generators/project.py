@@ -6,6 +6,7 @@ import inflection
 from pyceo import confirm
 
 from proper.helpers import BLUEPRINTS, BlueprintRender, printf
+from .migration import get_datestamp
 
 
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
@@ -33,7 +34,10 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     BlueprintRender(
         PROJECT_BLUEPRINT,
         path,
-        context={"app_name": app_name},
+        context={
+            "app_name": app_name,
+            "datestamp": get_datestamp(),
+        },
         force=force
     )()
     print()
@@ -59,7 +63,7 @@ def _install_dependencies(path):
     print()
     _call(f"{sys.executable or 'python'} -m venv .venv")
     _call(".venv/bin/pip install -U pip wheel")
-    _call(".venv/bin/pip install -r requirements/requirements-dev.txt")
+    _call(".venv/bin/pip install -r requirements/dev-requirements.txt")
     _call(".venv/bin/pip install -e .")
     _call("cd static && npm install && npm run bundle")
     return True

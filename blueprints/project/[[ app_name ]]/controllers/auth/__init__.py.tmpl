@@ -7,7 +7,6 @@ from . import forms
 
 
 class Auth(ApplicationController):
-
     def sign_in(self, req, resp):
         if req.user:
             return go_forward(resp)

@@ -29,6 +29,5 @@ routes = [
     ]),
 
     # Your routes below
-
     get("", to="Pages.index"),
 ]

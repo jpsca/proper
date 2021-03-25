@@ -1,7 +1,7 @@
 import pytest
 
-from proper.response import Response
 from proper.helpers.cookies import HOST_PREFIX, SECURE_PREFIX
+from proper.response import Response
 
 
 def set_no_cookies():

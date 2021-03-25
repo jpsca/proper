@@ -2,6 +2,9 @@ import pytest
 
 from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
 from proper.router import (
+    BadFormat,
+    BadPlaceholder,
+    MissingParameter,
     delete,
     get,
     options,
@@ -9,9 +12,6 @@ from proper.router import (
     post,
     put,
     route,
-    BadPlaceholder,
-    BadFormat,
-    MissingParameter,
 )
 
 
@@ -36,12 +36,12 @@ def test_route_repr():
 
 
 def test_route_shortcuts():
-    get("/").method == GET
-    post("/").method == POST
-    put("/").method == PUT
-    delete("/").method == DELETE
-    options("/").method == OPTIONS
-    patch("/").method == PATCH
+    assert get("/").method == GET
+    assert post("/").method == POST
+    assert put("/").method == PUT
+    assert delete("/").method == DELETE
+    assert options("/").method == OPTIONS
+    assert patch("/").method == PATCH
 
 
 def test_route_must_have_method_and_path():

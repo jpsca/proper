@@ -2,7 +2,7 @@ import multiprocessing
 
 from rq import Connection, Worker
 
-from .adapters import redis, QUEUES
+from .adapters import QUEUES, redis
 
 
 NUM_WORKERS = 3
@@ -11,7 +11,7 @@ NUM_WORKERS = 3
 def run():
     with Connection(redis):
         workers = []
-        for i in range(NUM_WORKERS):
+        for _ in range(NUM_WORKERS):
             worker = Worker(QUEUES)
             p = multiprocessing.Process(
                 target=worker.work, kwargs={"with_scheduler": True}

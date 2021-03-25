@@ -1,5 +1,3 @@
-
-
 class Representable:
     __repr_by__ = []
     __repr_max_length__ = 64

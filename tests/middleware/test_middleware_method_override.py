@@ -1,7 +1,7 @@
 import pytest
 
 from proper import Request, Response
-from proper.constants import GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
 from proper.middleware import method_override
 
 

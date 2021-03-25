@@ -1,9 +1,8 @@
 import pytest
 
 from proper import Request, Response
-from proper.constants import GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
-from proper.errors import InvalidCSRFToken
-from proper.errors import MissingCSRFToken
+from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import Dot
 from proper.middleware.protect_from_forgery import (
     CSRF_HEADER,

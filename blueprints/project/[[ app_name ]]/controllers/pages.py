@@ -2,7 +2,6 @@ from .application import ApplicationController
 
 
 class Pages(ApplicationController):
-
     def index(self, req, resp):
         pass
 

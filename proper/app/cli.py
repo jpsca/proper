@@ -1,5 +1,5 @@
-import pyceo
 import properconf
+import pyceo
 
 from proper import generators, static
 

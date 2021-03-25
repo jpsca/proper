@@ -3,8 +3,8 @@
 Used by proper to serialize the session and available to the user for other things.
 """
 import hashlib
-
 import json
+
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 

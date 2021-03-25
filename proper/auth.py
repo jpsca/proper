@@ -3,8 +3,8 @@ import hmac
 import logging
 from time import time
 
-from passlib.context import CryptContext
 import passlib.hash
+from passlib.context import CryptContext
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")
@@ -49,7 +49,8 @@ application here:
 https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
 
 """.format(
-    "\n - ".join(VALID_HASHERS), "\n - ".join(DEPRECATED_HASHERS)
+    "\n - ".join(VALID_HASHERS),
+    "\n - ".join(DEPRECATED_HASHERS),
 )
 
 logger = logging.getLogger(__name__)
@@ -212,17 +213,17 @@ class Auth:
 
         user = model.by_login(login)
         if not user:
-            logger.debug(f"User `{login}` not found")
+            logger.debug("User `{login}` not found", extra={"login": login})
             self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not user.password:
-            logger.debug(f"User `{login}` has no password")
+            logger.debug("User `{login}` has no password", extra={"login": login})
             self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not self.password_is_valid(password, user.password):
-            logger.debug(f"Invalid password for user `{login}`")
+            logger.debug("Invalid password for user `{login}`", extra={"login": login})
             return None
 
         if update_hash:
@@ -249,7 +250,10 @@ class Auth:
 
         user = model.by_id(user_id)
         if not user:
-            logger.info(f"Invalid token. User `{user_id[:20]} not found")
+            logger.info(
+                "Invalid token. User `{user_id}` not found",
+                extra={"user_id": user_id[:20]}
+            )
             return None
 
         if user.get_session_token() != token:
@@ -268,7 +272,10 @@ class Auth:
 
         user = model.by_id(user_id)
         if not user:
-            logger.info(f"Invalid token. User `{user_id[:20]} not found")
+            logger.info(
+                "Invalid token. User `{user_id}` not found",
+                extra={"user_id": user_id[:20]}
+            )
             return None
 
         if user.get_timestamped_token(timestamp) != token:

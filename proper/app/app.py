@@ -2,9 +2,8 @@ from proper import middleware
 from proper.local import current
 from proper.request import Request
 from proper.response import Response
-
 from .errors_mixin import ErrorsMixin
-from .setup_mixin import SetupMixin, MissingSecretKey, BadSecretKey  # noqa
+from .setup_mixin import BadSecretKey, MissingSecretKey, SetupMixin  # noqa
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")

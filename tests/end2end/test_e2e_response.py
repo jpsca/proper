@@ -1,4 +1,4 @@
-from proper import get, BaseController, status
+from proper import BaseController, get, status
 from proper.helpers import Dot
 
 

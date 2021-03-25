@@ -94,7 +94,7 @@ def gen_migration(app, name, *attrs, table=None, create=False):
         MIGRATION_BLUEPRINT,
         app.root_path.parent,
         context={
-            "dt": get_dt_slug(),
+            "dt": get_datestamp(),
             "snake_name": snake_name,
             "class_name": class_name,
             "table": table,
@@ -150,7 +150,7 @@ def _add_constraints(flines, name, ctype, extra):
 
         if constraint == FOREIGN_CONSTRAINT:
             if ctype == INTEGER_FIELD_TYPE and ":unsigned" not in extra:
-                fline = f'{fline}.unsigned()'
+                fline = f"{fline}.unsigned()"
 
             assert value, "Missing column for foreign key. Use `foreign-table.column`"
             ftable, fcol = value.split(".")
@@ -170,7 +170,7 @@ def _add_constraints(flines, name, ctype, extra):
     return flines
 
 
-def get_dt_slug():
+def get_datestamp():
     return (
         str(datetime.utcnow())
         .split(".")[0]

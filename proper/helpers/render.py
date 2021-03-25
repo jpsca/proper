@@ -6,7 +6,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import jinja2
-from pyceo import echo, confirm
+from pyceo import confirm, echo
 
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
 ]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
+IGNORE = [".DS_Store"]
 
 
 class Render:
@@ -60,7 +61,7 @@ class BlueprintRender:
         self.dst = Path(dst)
         self.force = force
         self.render = get_blueprint_render(src, context=context, envops=envops)
-        self.ignore = ignore or []
+        self.ignore = ignore or IGNORE
 
     def __call__(self):
         for folder, _, files in os.walk(self.src):

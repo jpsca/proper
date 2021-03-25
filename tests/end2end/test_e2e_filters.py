@@ -1,4 +1,4 @@
-from proper import get, BaseController
+from proper import BaseController, get
 
 
 class BeforeAndAfterTestCase(BaseController):

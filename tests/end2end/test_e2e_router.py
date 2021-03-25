@@ -1,7 +1,14 @@
 import pytest
 
 from proper import (
-    BadPlaceholder, delete, get, MissingParameter, NameNotFound, post, scope, status
+    BadPlaceholder,
+    MissingParameter,
+    NameNotFound,
+    delete,
+    get,
+    post,
+    scope,
+    status,
 )
 from proper.helpers import Dot
 

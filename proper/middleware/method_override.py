@@ -1,4 +1,4 @@
-from ..constants import POST, PUT, PATCH, DELETE
+from ..constants import DELETE, PATCH, POST, PUT
 
 
 __all__ = ("method_override",)

@@ -59,11 +59,11 @@ def slugify(text, space="-", lower=True, nopars=True, nodots=True, strict=True):
         atext = rx_pars.sub(space, atext)
 
     if nodots:
-        atext = atext.replace('.', '')
+        atext = atext.replace(".", "")
 
     if strict:
         atext = rx_extra.sub(space, atext)
 
     # Remove duplicated spaces
-    atext = re.sub(space + '{2,}', space, atext).strip(space)
+    atext = re.sub(space + "{2,}", space, atext).strip(space)
     return atext

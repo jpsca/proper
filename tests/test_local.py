@@ -2,6 +2,7 @@ import time
 from threading import Thread
 
 import pytest
+
 from proper.local import Local
 
 

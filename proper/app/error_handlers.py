@@ -39,7 +39,7 @@ def debug_not_found_handler(req, resp, app):
 
 def debug_error_handler(req, resp, _app):
     error = resp.error
-    logger.error(error, exc_info=True)
+    logger.exception(error)
     excp = traceback.format_exc()
     data = {
         "resp": resp,
@@ -60,7 +60,7 @@ def fallback_forbidden_handler(_req, resp, _app):
 
 
 def fallback_error_handler(req, resp, _app):
-    logger.error(resp.error, exc_info=True)
+    logger.exception(resp.error)
     resp.body = _render("fallback-error.html")
 
 
@@ -98,6 +98,6 @@ def _render(template, **data):
         return (TEMPLATES / template).read_text()
     try:
         return jinja_render(template, **data)
-    except Exception as error:
-        logger.error(error, exc_info=True)
+    except Exception:
+        logger.exception("")
         return _render("fallback-error.html")

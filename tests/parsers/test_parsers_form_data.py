@@ -1,7 +1,7 @@
+import json
 from io import BytesIO
 
 import pytest
-import json
 
 from proper import errors
 from proper.parsers import parse_form_data

@@ -1,6 +1,6 @@
 import pytest
 
-from proper import App, BaseController, get, status, BadSecretKey
+from proper import App, BadSecretKey, BaseController, get, status
 
 
 class MyController(BaseController):

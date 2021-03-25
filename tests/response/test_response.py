@@ -1,8 +1,6 @@
 from datetime import datetime
 
-import pytest
-
-from proper import Request, Response, Dot
+from proper import Dot, Request, Response
 from proper.response import FLASHES_SESSION_KEY
 
 
