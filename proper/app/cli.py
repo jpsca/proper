@@ -12,107 +12,99 @@ ENCRIPTED_HEADER = """# --------------------------------------------------------
 """
 
 
-def get_cmd(module, name):
+def get_app_cli(app):
+    def routes(self):
+        """Show all registered routes.
+        """
+        print(
+            "Routes match in priority from top to bottom.\n",
+            "The rules that doesn't have a `to` property are",
+            "build-only and never match.",
+        )
+
+        routes = []
+        for route in app.routes:
+            method = route.method if route.method else "—"
+            path = route.path
+            to = f"↪ {route.redirect}" if route.redirect else route.to or "-"
+            name = route.name or "-"
+            defaults = route.defaults or "-"
+            routes.append([method, path, to, name, defaults])
+
+        PADDING = 1
+        HEADERS = ["", "PATH", "TO", "NAME", "DEFAULTS"]
+
+        lengths = [len(header) for header in HEADERS]
+        for route in routes:
+            lengths = [max(ll, len(text)) for ll, text in zip(lengths, route)]
+        lengths = [ll + PADDING for ll in lengths]
+
+        print(*[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths)])
+        print(*["-" * ll for ll in lengths])
+        for route in routes:
+            print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
+        print()
+
+    def secrets(self, env):
+        """Edit your encrypted secrets.
+
+        Arguments:
+
+        - env:
+            Name of the environment (e.g.: "development", "production", etc.)
+            It will be used for finding the encrypted file (e.g.: "development.enc.toml")
+            and the key (e.g.: "development.key").
+
+        """
+        path = app.root_path / "config"
+        header = ENCRIPTED_HEADER % (env,)
+        properconf.edit_secrets(path, env, secrets_header=header)
+
+    attrs = {
+        "__doc__": """
+        Application-specific commands.
+
+        You don't need a special console to interact with the app,
+        just run `ipython` or the regular python interpreter and import
+        the application, like a regular python package.
+        """,
+        "routes": routes,
+        "secrets": secrets,
+        "g": get_generators_cli(app),
+        "static": get_static_cli(app),
+    }
+
+    return type("AppCli", (pyceo.Cli,), attrs)
+
+
+def get_cmd(app, module, name):
     func = getattr(module, name)
 
     def cmd(self, *args, **kwargs):
-        return func(self._app, *args, **kwargs)
+        return func(app, *args, **kwargs)
 
     cmd.__name__ = name
     cmd.__doc__ = func.__doc__
     return cmd
 
 
-class Cli:
-    def __init__(self, app):
-        self.app = app
+def get_generators_cli(app):
+    attrs = {
+        "__doc__": """Generate new code.""",
+    }
 
-    @property
-    def ApplicationCli(self):
-        class ApplicationCli(pyceo.Cli):
-            """Application-specific commands.
+    for name in ("resource", "controller", "model", "migration"):
+        attrs[name] = get_cmd(app, generators, f"gen_{name}")
 
-            You don't need a special console to interact with the app,
-            just run `ipython` or the regular python interpreter and import
-            the application, like a regular python package.
+    return type("Generators", (pyceo.Cli,), attrs)
 
-            """
 
-            _app = self.app
+def get_static_cli(app):
+    attrs = {
+        "__doc__": """Manage static files.""",
+    }
 
-            def routes(self):
-                """Show all registered routes."""
-                print("Routes match in priority from top to bottom.")
-                print(
-                    "The rules that doesn't have a `to` property are build-only and never match."
-                )
-                print()
+    for name in ("bundle", "build", "clean", "compile"):
+        attrs[name] = get_cmd(app, static, name)
 
-                routes = []
-                for route in self._app.routes:
-                    method = route.method if route.method else "—"
-                    path = route.path
-                    to = f"↪ {route.redirect}" if route.redirect else route.to or "-"
-                    name = route.name or "-"
-                    defaults = route.defaults or "-"
-                    routes.append([method, path, to, name, defaults])
-
-                PADDING = 1
-                HEADERS = ["", "PATH", "TO", "NAME", "DEFAULTS"]
-
-                lengths = [len(header) for header in HEADERS]
-                for route in routes:
-                    lengths = [max(ll, len(text)) for ll, text in zip(lengths, route)]
-                lengths = [ll + PADDING for ll in lengths]
-
-                print(
-                    *[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths)]
-                )
-                print(*["-" * ll for ll in lengths])
-                for route in routes:
-                    print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
-                print()
-
-            def secrets(self, env):
-                """Edit your encrypted secrets.
-
-                Arguments:
-
-                - env:
-                    Name of the environment (e.g.: "development", "production", etc.)
-                    It will be used for finding the encrypted file (e.g.: "development.enc.toml")
-                    and the key (e.g.: "development.key").
-
-                """
-                path = self._app.root_path / "config"
-                header = ENCRIPTED_HEADER % (env,)
-                properconf.edit_secrets(path, env, secrets_header=header)
-
-            g = self.GeneratorsCli
-            static = self.StaticCli
-
-        return ApplicationCli
-
-    @property
-    def GeneratorsCli(self):
-        attrs = {
-            "__doc__": """Generate new code.""",
-            "_app": self.app,
-        }
-
-        for name in ("resource", "controller", "model", "migration"):
-            attrs[name] = get_cmd(generators, f"gen_{name}")
-
-        return type("GeneratorsCli", (pyceo.Cli,), attrs)
-
-    @property
-    def StaticCli(self):
-        attrs = {
-            "__doc__": """Manage static files.""",
-            "_app": self.app,
-        }
-
-        for name in ("bundle", "build", "clean", "compile"):
-            attrs[name] = get_cmd(static, name)
-
-        return type("StaticCli", (pyceo.Cli,), attrs)
+    return type("Static", (pyceo.Cli,), attrs)

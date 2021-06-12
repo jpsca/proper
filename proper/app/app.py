@@ -14,14 +14,15 @@ class App(ErrorsMixin, SetupMixin):
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
     _middleware = (
+        # before response
         middleware.head_to_get,
         middleware.match,
         middleware.redirect,
         middleware.fetch_session,
         middleware.protect_from_forgery,
-
+        # response
         middleware.dispatch,
-
+        # after response
         middleware.put_csrf_header,
         middleware.put_session,
         middleware.strip_body_if_head,

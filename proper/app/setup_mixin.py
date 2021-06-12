@@ -10,7 +10,7 @@ from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Render, Serializer
 from proper.router import Router
 from proper.static import RX_INMUTABLES_FILE
-from .cli import Cli
+from .cli import get_app_cli
 from .default_config import DEFAULT_CONFIG
 
 
@@ -42,7 +42,7 @@ class SetupMixin:
             Optional dict-like with the config.
 
         """
-        self.cli = Cli(self)
+        self.cli = get_app_cli(self)()
         self.router = Router()
         self.setup(config)
         self.setup_paths(import_name)

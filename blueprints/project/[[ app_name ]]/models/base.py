@@ -4,6 +4,8 @@ from ..config import config
 from .mixins import Representable
 
 
+__all__ = ("db", "Model", "Base")
+
 db = DatabaseManager(config.databases)
 Model.set_connection_resolver(db)
 
