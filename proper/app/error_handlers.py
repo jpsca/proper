@@ -7,7 +7,7 @@ import traceback
 from pathlib import Path
 
 import inflection
-import jinja2
+from markupsafe import Markup
 
 from proper.helpers import Render
 
@@ -19,7 +19,7 @@ jinja_render = Render(TEMPLATES)
 
 
 def _include_raw(name):
-    return jinja2.Markup(jinja_render.loader.get_source(jinja_render.env, name)[0])
+    return Markup(jinja_render.loader.get_source(jinja_render.env, name)[0])
 
 
 jinja_render.globals["include_raw"] = _include_raw
