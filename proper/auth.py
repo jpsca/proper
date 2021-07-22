@@ -83,11 +83,14 @@ def from36(snumber):
 class Auth:
     def __init__(
         self,
+        secret_key,
+        *,
         hash_name=DEFAULT_HASHER,
         rounds=None,
         password_minlen=5,
         password_maxlen=1024,
     ):
+        self.secret_key = secret_key
         self.set_hasher(hash_name, rounds)
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
@@ -157,12 +160,12 @@ class Auth:
         except ValueError:
             return False
 
-    def get_session_token(self, secret_key, user):
+    def get_session_token(self, user):
         key = "|".join(
             [
                 # Includes the secret key, so without access to the source code,
                 # fake tokens cannot be generated even if the database is compromised.
-                secret_key,
+                self.secret_key,
                 # So the the token is always unique for each user.
                 str(user.id),
                 # By using a snippet of the password hash **salt**,
@@ -177,14 +180,14 @@ class Auth:
         mac = mac.hexdigest()
         return f"{user.id}${mac}"
 
-    def get_timestamped_token(self, secret_key, user, timestamp):
+    def get_timestamped_token(self, user, timestamp):
         timestamp = int(timestamp or time())
 
         key = "|".join(
             [
                 # Includes the secret key, so without access to the source code,
                 # fake tokens cannot be generated even if the database is compromised.
-                secret_key,
+                self.secret_key,
                 # So the the token is always unique for each user.
                 str(user.id),
                 # By using a snippet of the password hash **salt**,
@@ -256,7 +259,7 @@ class Auth:
             )
             return None
 
-        if user.get_session_token() != token:
+        if self.get_session_token(user) != token:
             logger.info("Invalid token")
             return None
 
@@ -278,7 +281,7 @@ class Auth:
             )
             return None
 
-        if user.get_timestamped_token(timestamp) != token:
+        if self.get_timestamped_token(user, timestamp) != token:
             logger.info("Invalid token")
             return None
 
