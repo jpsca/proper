@@ -9,8 +9,8 @@ class FakeStartResponse:
         self.headers = dict(headers_list)
 
 
-def test_call(app):
-    app.routes = [get("/", to="Pages.index")]
+def test_call(app, Pages):
+    app.routes = [get("/", to=Pages.index)]
     start_response = FakeStartResponse()
     body = app({}, start_response)
 
@@ -19,11 +19,11 @@ def test_call(app):
     assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
-def test_pipefinal_error(app):
-    app.routes = [get("/", to="Pages.index")]
+def test_pipefinal_error(app, Pages):
+    app.routes = [get("/", to=Pages.index)]
 
     @app.on_teardown
-    def on_fail(_req, _resp, _app):
+    def on_fail(req, resp, app):
         raise ValueError
 
     start_response = FakeStartResponse()
@@ -34,8 +34,8 @@ def test_pipefinal_error(app):
     assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
-def test_return_bytes(app):
-    app.routes = [get("/", to="Pages.bytes")]
+def test_return_bytes(app, Pages):
+    app.routes = [get("/", to=Pages.bytes)]
 
     start_response = FakeStartResponse()
     body = app({}, start_response)

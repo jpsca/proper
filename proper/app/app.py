@@ -1,3 +1,5 @@
+from typing import Callable, Optional, Tuple
+
 from proper import middleware
 from proper.local import current
 from proper.request import Request
@@ -30,16 +32,14 @@ class App(ErrorsMixin, SetupMixin):
 
     # A lists of functions that are all called if an exception is raised,
     # before any error handlers.
-    _on_error = tuple()
+    _on_error: Tuple[Callable] = tuple()
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    _on_teardown = tuple()
-
-    _wrapped_app = None
+    _on_teardown: Tuple[Callable] = tuple()
 
     @property
-    def current_req(self):
+    def current_req(self) -> Optional[Request]:
         return getattr(current, "req", None)
 
     def __call__(self, environ, start_response):
@@ -65,7 +65,7 @@ class App(ErrorsMixin, SetupMixin):
             current.release()
             return resp(start_response)
 
-    def run_middleware(self, req, resp):
+    def run_middleware(self, req: Request, resp: Response) -> None:
         try:
             for func in self._middleware:
                 func(req, resp, self)
@@ -82,18 +82,18 @@ class App(ErrorsMixin, SetupMixin):
             for func in self._on_teardown:
                 func(req, resp, self)
 
-    def on_error(self, func):
+    def on_error(self, func: Callable) -> Callable:
         """Decorator to add a function to the `_on_error` tuple.
         """
         self._on_error = (self._on_error or ()) + (func, )
         return func
 
-    def on_teardown(self, func):
+    def on_teardown(self, func: Callable) -> Callable:
         """Decorator to add a function to the `_on_teardown` tuple.
         """
         self._on_teardown = (self._on_teardown or ()) + (func, )
         return func
 
-    def url_for(self, name, object=None, *, _anchor=None, **kwargs):
+    def url_for(self, name: str, object=None, *, _anchor=None, **kwargs):
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object=object, _anchor=_anchor, **kwargs)

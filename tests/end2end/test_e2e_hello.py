@@ -4,23 +4,23 @@ from proper import App, BadSecretKey, BaseController, get, status
 
 
 class MyController(BaseController):
-    def _render(self, req, resp):
+    def _render(self):
         return "whatever"
 
-    def index(self, req, resp):
-        resp.body = "Hello Callable!"
+    def index(self):
+        self.resp.body = "Hello Callable!"
 
-    def echo_query(self, req, resp):
-        resp.headers["req-query"] = "|".join(
+    def echo_query(self):
+        self.resp.headers["req-query"] = "|".join(
             [
                 f"{key}:{','.join(str(val) for val in values)}"
-                for key, values in req.query.items()
+                for key, values in self.req.query.items()
             ]
         )
 
 
-def test_hello_world(app, web):
-    app.routes = [get("/", to="Pages.index")]
+def test_hello_world(app, Pages, web):
+    app.routes = [get("/", to=Pages.index)]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -28,8 +28,8 @@ def test_hello_world(app, web):
     assert resp.content_type == "text/plain"
 
 
-def test_proxied_routes(app):
-    app.routes = [get("/", to="Pages.index")]
+def test_proxied_routes(app, Pages):
+    app.routes = [get("/", to=Pages.index)]
 
     assert app.router.routes == app.routes
 
@@ -71,16 +71,16 @@ def test_secret_key_too_short(import_name):
         App(import_name, config={"secret_key": "qwertyuiop"})
 
 
-def test_head(app, web):
-    app.routes = [get("/", to="Pages.index")]
+def test_head(app, Pages, web):
+    app.routes = [get("/", to=Pages.index)]
     resp = web.head("/")
 
     assert resp.status == status.ok
     assert resp.text == ""
 
 
-def test_json(app, web):
-    app.routes = [get("/", to="Pages.json")]
+def test_json(app, Pages, web):
+    app.routes = [get("/", to=Pages.json)]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -88,8 +88,8 @@ def test_json(app, web):
     assert resp.text == """{"Hello": "World"}"""
 
 
-def test_charset(app, web):
-    app.routes = [get("/", to="Pages.charset")]
+def test_charset(app, Pages, web):
+    app.routes = [get("/", to=Pages.charset)]
     resp = web.get("/")
 
     assert resp.status == status.ok

@@ -31,7 +31,6 @@ MANIFEST_PATH = "cache_manifest.json"
 
 class SetupMixin:
     serializer = None
-    _cached_controllers_module = None
 
     def __init__(self, import_name, *, config=None):
         """
@@ -45,7 +44,7 @@ class SetupMixin:
         self.cli = get_app_cli(self)()
         self.router = Router()
         self.setup(config)
-        self.setup_paths(import_name)
+        self.setup_root_path(import_name)
         self.setup_render()
         self._wrap_wsgi_app()
 
@@ -60,14 +59,6 @@ class SetupMixin:
     @routes.setter
     def routes(self, values):
         self.router.routes = values
-
-    @property
-    def controllers_module(self):
-        if self._cached_controllers_module:
-            return self._cached_controllers_module
-        module = import_module(self.controllers_name)
-        self._cached_controllers_module = module
-        return module
 
     @property
     def templates_path(self):
@@ -93,10 +84,7 @@ class SetupMixin:
 
         self.router._debug = self._config.debug
 
-    def setup_paths(self, import_name):
-        self.import_name = import_name
-        self.controllers_name = f"{import_name}.controllers"
-
+    def setup_root_path(self, import_name):
         module = import_module(import_name)
         path = Path(module.__file__)
         if path.is_file():

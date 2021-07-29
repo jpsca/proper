@@ -27,11 +27,11 @@ def test_routes_updated(app, scaffold):
 
     routes_text = (app_root / "routes.py").read_text()
     print(routes_text)
-    assert routes_text == """routes = [
-    get("", to="Pages.index"),
+    assert routes_text.endswith("""routes = [
+    get("", to=Pages.index),
 
-    get("products/index", to="Products.index"),
-    get("products/show", to="Products.show"),
+    get("products/index", to=Products.index),
+    get("products/show", to=Products.show),
 ]
 
-"""
+""")

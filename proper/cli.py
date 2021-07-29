@@ -4,14 +4,13 @@ from pyceo import Cli
 
 from .generators import gen_project
 from .server import on_start
-from .version import __version__
 
 
 __all__ = ("ProperCli")
 
 
 class ProperCli(Cli):
-    __doc__ = f"""<b>Proper v{__version__}</b>
+    __doc__ = """<b>Proper</b>
 
     This utility provides commands from Proper itself."""
 

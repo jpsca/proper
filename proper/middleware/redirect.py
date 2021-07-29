@@ -1,7 +1,7 @@
 __all__ = ("redirect",)
 
 
-def redirect(req, resp, _app):
+def redirect(req, resp, app):
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
     """

@@ -4,7 +4,7 @@ from ..constants import DELETE, PATCH, POST, PUT
 __all__ = ("method_override",)
 
 
-def method_override(req, resp, _app):
+def method_override(req, resp, app):
     """Overrides the request's `POST` method with the method defined in
     the `_method` request parameter or in the `X-HTTP-Method-Override`
     header.

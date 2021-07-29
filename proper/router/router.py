@@ -1,5 +1,7 @@
 """Router object that holds all routes and match them to urls.
 """
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
 from proper.errors import MatchNotFound, MethodNotAllowed
 from .route import Route
 from .scope import flatten
@@ -13,31 +15,39 @@ class NameNotFound(Exception):
 
 
 class Router:
-    __slots__ = (
-        "_debug",
-        "_routes",
-        "_routes_by_name",
-    )
+    _debug: bool
+    _routes: List
+    _routes_by_name = Dict[str, Route]
 
-    def __init__(self, *, _debug=False):
+    def __init__(self, *, _debug: bool = False) -> None:
+        self._routes = []
+        self._routes_by_name = {}
         self._debug = _debug
-        self._routes = ()
-        self._routes_by_name = ()
 
-    def match(self, method, path, host=None):
+    def match(
+        self,
+        method: str,
+        path: str,
+        host: Optional[str] = None,
+    ) -> Tuple[Route, Dict[str, Any]]:
         """Takes a method and a path, that came from an URL,
         and tries to match them to a existing route
 
         Arguments are:
 
-            method(str)
-            path (str)
-            host (str): Optional
+        method:
+            Usualy, one of the HTTP methods: "get", "post", "put", "delete",
+            "options", or "patch"; but it could also be another
+            application-specific value.
 
-        Returns (tuple):
+        path:
+            The path of this route
 
-            A matched `(route, params)`
+        host:
+            Optional. Host for this route, including any subdomain
+            and an optional port. Examples: "www.example.com", "localhost:5000".
 
+        Returns a matched `(route, params)`
         """
         # If the path match but the method do not, we need to return
         # a list of the allowed methods with the 405 response.
@@ -69,11 +79,11 @@ class Router:
             raise MatchNotFound(msg)
 
     @property
-    def routes(self):
+    def routes(self) -> List[Route]:
         return self._routes
 
     @routes.setter
-    def routes(self, values):
+    def routes(self, values: Iterable) -> None:
         _routes = flatten(values)
         if self._debug:
             assert all(
@@ -81,10 +91,17 @@ class Router:
             ), "All routes must be instances of `Route`."
         for route in _routes:
             route.compile_path()
-        self._routes = tuple(_routes)
+        self._routes = _routes
         self._routes_by_name = {route.name: route for route in _routes}
 
-    def url_for(self, name, object=None, *, _anchor=None, **kwargs):
+    def url_for(
+        self,
+        name: str,
+        object: Optional[Any] = None,
+        *,
+        _anchor: Optional[str] = None,
+        **kwargs: Dict[str, Any]
+    ) -> str:
         route = self._routes_by_name.get(name)
         if not route:
             raise NameNotFound(name)

@@ -27,8 +27,8 @@ class ErrorsMixin:
         Example:
 
         ```
-        app.errorhandler(errors.NotFound, "Pages.not_found")
-        app.errorhandler(Exception, "Pages.error")
+        app.errorhandler(errors.NotFound, Pages.not_found)
+        app.errorhandler(Exception, Pages.error)
         ```
         """
         assert inspect.isclass(cls) and issubclass(

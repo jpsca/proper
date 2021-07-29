@@ -1,8 +1,7 @@
+from importlib import import_module
 from os import path
 
 import inflection
-
-from ..helpers import objectify
 
 
 __all__ = ("dispatch",)
@@ -13,17 +12,18 @@ def dispatch(req, resp, app):
 
     # Even if we might not use it, let set the inferred template name now
     # (unless is already set), so the action can overwrite it if they want.
-    resp.template = resp.template or get_default_template(resp, route.to)
+    resp.template = resp.template or get_default_template(route.to)
 
-    Controller, action = objectify(app.controllers_module, route.to)
+    Controller, action = objectify(route.to)
+
     # We instantiate the controller class so we can have an independent
     # container for this request.
-    controller = Controller(app)
-    controller._dispatch(action, req, resp)
+    controller = Controller(req=req, resp=resp, app=app)
+    controller._dispatch(action)
     resp.dispatched = True
 
 
-def get_default_template(resp, endpoint):
+def get_default_template(endpoint):
     """Return the template basepath using the controller class name
     and the action.
 
@@ -37,3 +37,10 @@ def get_default_template(resp, endpoint):
     folder_name = inflection.underscore(class_name)
     file_name = action.lower()
     return path.join(folder_name, file_name)
+
+
+def objectify(to):
+    cls_name, action = to.__qualname__.rsplit(".", 1)
+    module = import_module(to.__module__)
+    Controller = getattr(module, cls_name)
+    return Controller, action

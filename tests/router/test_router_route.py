@@ -15,12 +15,12 @@ from proper.router import (
 )
 
 
-def test_route_defaults():
-    r = get("foobar", to="something")
+def test_route_defaults(Pages):
+    r = get("foobar", to=Pages.index)
     assert r.method == GET
     assert r.path == "/foobar"
-    assert r.to == "something"
-    assert r.name == "something"
+    assert r.to == Pages.index
+    assert r.name == "_Pages.index"
     assert r.redirect is None
 
     r = get("foobar/")
@@ -61,20 +61,14 @@ class TestController:
 
 
 def test_route_name_is_set():
-    r = get("/", to="Pages.method", name="hello")
-    assert r.name == "hello"
-
-    r = get("/", to="Pages.method")
-    assert r.name == "Pages.method"
-
-    r = get("/", name="hello", redirect="/blog/")
+    r = get("/", to=TestController.method, name="hello")
     assert r.name == "hello"
 
     r = get("/", to=TestController.method)
     assert r.name == "TestController.method"
 
-    r = get("/", to="TestController.method")
-    assert r.name == "TestController.method"
+    r = get("/", name="hello", redirect="/blog/")
+    assert r.name == "hello"
 
     r = get("/")
     assert r.name is None

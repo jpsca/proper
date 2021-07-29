@@ -2,25 +2,25 @@ from proper import BaseController, get
 
 
 class BeforeAndAfterTestCase(BaseController):
-    def before_action(self, req, resp, action):
-        self._f1(req, resp)
-        self._f2(req, resp)
-        super().before_action(req, resp, action)
+    def before_action(self, action):
+        self._f1()
+        self._f2()
+        super().before_action(action)
 
-    def after_action(self, req, resp, action):
-        self._f1(req, resp)
-        self._f2(req, resp)
-        super().after_action(req, resp, action)
+    def after_action(self, action):
+        self._f1()
+        self._f2()
+        super().after_action(action)
 
-    def index(self, req, resp):
-        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
-        resp.body = ""
+    def index(self):
+        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-index-"
+        self.resp.body = ""
 
-    def _f1(self, req, resp):
-        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-f1-"
+    def _f1(self):
+        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f1-"
 
-    def _f2(self, req, resp):
-        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-f2-"
+    def _f2(self):
+        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f2-"
 
 
 def test_before_and_after_filters(app, web):
@@ -31,12 +31,12 @@ def test_before_and_after_filters(app, web):
 
 
 class SideEffectsTestCase(BaseController):
-    def before_action(self, req, resp, action):
-        resp.template = "f_custom.mako"
-        super().before_action(req, resp, action)
+    def before_action(self, action):
+        self.resp.template = "f_custom.mako"
+        super().before_action(action)
 
-    def rendered(self, req, resp, *args):
-        resp.body = f"<html>{resp.template} was rendered</html>"
+    def rendered(self, *args):
+        self.resp.body = f"<html>{self.resp.template} was rendered</html>"
 
 
 def test_custom_template_from_cb(app, web):
@@ -47,14 +47,14 @@ def test_custom_template_from_cb(app, web):
 
 
 class StopTestCase(BaseController):
-    def before_action(self, req, resp, action):
-        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-f1-"
-        resp.stop = True
-        super().before_action(req, resp, action)
+    def before_action(self, action):
+        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f1-"
+        self.resp.stop = True
+        super().before_action(action)
 
-    def index(self, req, resp):
-        resp.headers["X-Test"] = resp.headers.get("X-Test", "") + "-index-"
-        resp.body = ""
+    def index(self):
+        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-index-"
+        self.resp.body = ""
 
 
 def test_stop_in_filters(app, web):

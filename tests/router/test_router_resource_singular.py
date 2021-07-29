@@ -3,57 +3,40 @@ import pytest
 from proper.router import delete, get, patch, post, put, resource
 
 
-def test_singular_resource():
-    routes = resource("profile", to="Profile", singular=True)
-
-    expected = [
-        get("profile/new", to="Profile.new"),
-        post("profile", to="Profile.create"),
-        get("profile", to="Profile.show"),
-        get("profile/edit", to="Profile.edit"),
-        patch("profile", to="Profile.update"),
-        put("profile", to="Profile.update"),
-        delete("profile", to="Profile.delete"),
-    ]
-
-    print(routes)
-    assert routes == expected
-
-
-class MyController:
-    def index(self, req, resp):
+class Profile:
+    def index(self):
         pass
 
-    def show(self, req, resp):
+    def show(self):
         pass
 
-    def new(self, req, resp):
+    def new(self):
         pass
 
-    def create(self, req, resp):
+    def create(self):
         pass
 
-    def edit(self, req, resp):
+    def edit(self):
         pass
 
-    def update(self, req, resp):
+    def update(self):
         pass
 
-    def delete(self, req, resp):
+    def delete(self):
         pass
 
 
 def test_singular_resource_with_callable():
-    routes = resource("profile", to=MyController, singular=True)
+    routes = resource("profile", to=Profile, singular=True)
 
     expected = [
-        get("profile/new", to=MyController.new),
-        post("profile/", to=MyController.create),
-        get("profile", to=MyController.show),
-        get("profile/edit", to=MyController.edit),
-        patch("profile", to=MyController.update),
-        put("profile", to=MyController.update),
-        delete("profile", to=MyController.delete),
+        get("profile/new", to=Profile.new),
+        post("profile/", to=Profile.create),
+        get("profile", to=Profile.show),
+        get("profile/edit", to=Profile.edit),
+        patch("profile", to=Profile.update),
+        put("profile", to=Profile.update),
+        delete("profile", to=Profile.delete),
     ]
 
     print(routes)
@@ -61,10 +44,10 @@ def test_singular_resource_with_callable():
 
 
 def test_singular_resource_only():
-    routes = resource("profile", to="Profile", only=["show"], singular=True)
+    routes = resource("profile", to=Profile, only=["show"], singular=True)
 
     expected = [
-        get("profile", to="Profile.show"),
+        get("profile", to=Profile.show),
     ]
 
     print(routes)
@@ -73,14 +56,14 @@ def test_singular_resource_only():
 
 def test_singular_resource_ignore():
     routes = resource(
-        "profile", to="Profile", ignore=["new", "create", "delete"], singular=True
+        "profile", to=Profile, ignore=["new", "create", "delete"], singular=True
     )
 
     expected = [
-        get("profile", to="Profile.show"),
-        get("profile/edit", to="Profile.edit"),
-        patch("profile", to="Profile.update"),
-        put("profile", to="Profile.update"),
+        get("profile", to=Profile.show),
+        get("profile/edit", to=Profile.edit),
+        patch("profile", to=Profile.update),
+        put("profile", to=Profile.update),
     ]
 
     print(routes)
@@ -89,11 +72,11 @@ def test_singular_resource_ignore():
 
 def test_some_invalid_actions():
     routes = resource(
-        "profile", to="Profile", only=["index", "jump", "show", "fire"], singular=True
+        "profile", to=Profile, only=["index", "jump", "show", "fire"], singular=True
     )
 
     expected = [
-        get("profile", to="Profile.show"),
+        get("profile", to=Profile.show),
     ]
 
     print(routes)
@@ -102,20 +85,20 @@ def test_some_invalid_actions():
 
 def test_only_invalid_actions():
     with pytest.raises(AssertionError):
-        resource("profile", to="Profile", only=["ready", "set", "fire"], singular=True)
+        resource("profile", to=Profile, only=["ready", "set", "fire"], singular=True)
 
     with pytest.raises(AssertionError):
-        resource("profile", to="Profile", only=[])
+        resource("profile", to=Profile, only=[])
 
 
 def test_only_and_ignore():
     routes = resource(
-        "profile", to="Profile", only=["show", "update"], ignore=["show", "edit"], singular=True
+        "profile", to=Profile, only=["show", "update"], ignore=["show", "edit"], singular=True
     )
 
     expected = [
-        patch("profile", to="Profile.update"),
-        put("profile", to="Profile.update"),
+        patch("profile", to=Profile.update),
+        put("profile", to=Profile.update),
     ]
 
     print(routes)
@@ -124,11 +107,11 @@ def test_only_and_ignore():
 
 def test_ignore_invalid():
     routes = resource(
-        "profile", to="Profile", only=["show"], ignore=["patrice"], singular=True
+        "profile", to=Profile, only=["show"], ignore=["patrice"], singular=True
     )
 
     expected = [
-        get("profile", to="Profile.show"),
+        get("profile", to=Profile.show),
     ]
 
     print(routes)

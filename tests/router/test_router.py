@@ -1,5 +1,6 @@
 import pytest
 
+from proper import BaseController
 from proper.constants import GET, POST
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.router import (
@@ -14,38 +15,68 @@ from proper.router import (
 )
 
 
+class Foo(BaseController):
+    def bar(self):
+        self.resp.body = "Hello World!"
+
+
+class Items(BaseController):
+    def index(self):
+        self.resp.body = "index"
+
+    def create(self):
+        pass
+
+    def show(self):
+        self.resp.body = "show"
+
+    def archive(self):
+        self.resp.body = "archive"
+
+    def delete(self):
+        pass
+
+
+class Localized(BaseController):
+    def index(self):
+        self.resp.body = "Localized index"
+
+    def item(self, item_id):
+        self.resp.body = f"Localized {item_id}"
+
+
 @pytest.fixture
 def router():
     router = Router()
     router.routes = [
-        get("", to="Pages.index", name="index"),
-        get("login", to="Pages.login", name="login"),
+        get("", to=Foo.bar, name="index"),
+        get("login", to=Foo.bar, name="login"),
 
         scope("/api/")(
-            get("items", to="Items.index"),
-            get("items/:item_id<int>", to="Items.show"),
-            get(r"items/:year<\d{4}>/:month<\d{1,2}>", to="items.archive"),
-            post("/items", to="Items.create"),
-            delete("/items/:item_id<int>", to="meh"),
+            get("items", to=Items.index),
+            post("/items", to=Items.create),
+            get("items/:item_id<int>", to=Items.show),
+            get(r"items/:year<\d{4}>/:month<\d{1,2}>", to=Items.archive),
+            delete("/items/:item_id<int>", to=Items.delete),
         ),
 
         scope("/foobar/")(
-            get("", to="meh"),
-            get("foo", to="meh"),
-            get("bar", to="meh"),
+            get("", to=Foo.bar),
+            get("foo", to=Foo.bar),
+            get("bar", to=Foo.bar),
         ),
 
-        get("foobar/:catchall<path>", to="meh"),
-        get("admin", to="meh"),
+        get("foobar/:catchall<path>", to=Foo.bar),
+        get("admin", to=Foo.bar),
 
         scope("/", host="blog.example.com")(
-            get("admin", to="meh"),
-            get("foobar/foo", to="FooBar.foo"),
+            get("admin", to=Foo.bar),
+            get("foobar/foo", to=Foo.bar),
         ),
 
         scope("/:locale<en|es>/")(
-            get("", to="localized.index"),
-            get(":item_id<int>", to="localized.item"),
+            get("", to=Localized.index),
+            get(":item_id<int>", to=Localized.item),
         ),
     ]
     return router
@@ -100,9 +131,9 @@ def test_try_with_the_next_scope(router):
 
 def test_match_host(router):
     router.routes = [
-        get("meh", to="meh", name="com_host", host="example.com"),
-        get("meh", to="meh", name="org_host", host="example.org"),
-        get("meh", to="meh", name="default_host"),
+        get("meh", to=Foo.bar, name="com_host", host="example.com"),
+        get("meh", to=Foo.bar, name="org_host", host="example.org"),
+        get("meh", to=Foo.bar, name="default_host"),
     ]
 
     ro, params = router.match(GET, "/meh")
@@ -117,8 +148,8 @@ def test_match_host(router):
 
 def test_route_without_host_match_any_host(router):
     router.routes = [
-        get("a", to="meh", name="a"),
-        get("b", to="meh", name="b"),
+        get("a", to=Foo.bar, name="a"),
+        get("b", to=Foo.bar, name="b"),
     ]
 
     ro, params = router.match(GET, "/a", "jpscaletti.com")
@@ -129,29 +160,29 @@ def test_route_without_host_match_any_host(router):
 
 def test_match_scope_placeholder(router):
     ro, _ = router.match(GET, "/en")
-    assert ro.to == "localized.index"
+    assert ro.to == Localized.index
 
     ro, _ = router.match(GET, "/es/33")
-    assert ro.to == "localized.item"
+    assert ro.to == Localized.item
 
 
 def test_match_mixed_paths(router):
     router.routes = [
-        get("books/:section<path>/:title", to="meh")
+        get("books/:section<path>/:title", to=Foo.bar)
     ]
     _, params = router.match(GET, "/books/some/section/last-words")
     assert params["section"] == "some/section"
     assert params["title"] == "last-words"
 
     router.routes = [
-        get(":this<path>/is/:madness<path>", to="meh")
+        get(":this<path>/is/:madness<path>", to=Foo.bar)
     ]
     _, params = router.match(GET, "/a/b/c/d/is/e/f/g")
     assert params["this"] == "a/b/c/d"
     assert params["madness"] == "e/f/g"
 
     router.routes = [
-        get(":super<path>/:bad<path>", to="meh")
+        get(":super<path>/:bad<path>", to=Foo.bar)
     ]
     _, params = router.match(GET, "/a/b/c/d/e/f/g")
     assert params["super"] == "a/b/c/d/e/f"
@@ -162,7 +193,7 @@ def test_url_for(router):
     assert router.url_for("Items.index") == "/api/items"
     assert router.url_for("Items.create") == "/api/items"
     assert router.url_for("Items.show", item_id=3) == "/api/items/3"
-    url = router.url_for("items.archive", year=2018, month=5)
+    url = router.url_for("Items.archive", year=2018, month=5)
     assert url == "/api/items/2018/5"
 
 
@@ -173,19 +204,19 @@ def test_url_for_anchor(router):
 
 def test_url_for_missing_param(router):
     with pytest.raises(MissingParameter):
-        router.url_for("items.archive", year="2018")
+        router.url_for("Items.archive", year="2018")
 
 
 def test_url_for_bad_param(router):
     with pytest.raises(BadPlaceholder):
-        router.url_for("items.archive", year=18, month=-3)
+        router.url_for("Items.archive", year=18, month=-3)
 
 
 def test_url_for_extra_query(router):
     url = router.url_for("Items.index", foo="bar")
     assert url == "/api/items?foo=bar"
 
-    url = router.url_for("items.archive", year=2018, month=5, foo="bar")
+    url = router.url_for("Items.archive", year=2018, month=5, foo="bar")
     assert url == "/api/items/2018/5?foo=bar"
 
 
@@ -194,13 +225,13 @@ def test_url_for_not_found(router):
         router.url_for("wtf")
 
 
-def test_can_only_work_with_routes():
+def test_can_only_work_with_routes(Pages):
     router = Router()
     router._debug = True
-    router.routes = [get("foo", to="bar")]
+    router.routes = [get("foo", to=Pages.index)]
 
     with pytest.raises(AssertionError):
         router.routes = [
-            get("foo", to="bar"),
+            get("foo", to=Pages.index),
             object(),
         ]

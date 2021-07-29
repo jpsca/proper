@@ -4,6 +4,16 @@ Response class.
 import json
 from datetime import date
 from hashlib import md5
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 from uuid import uuid4
 
 from . import status
@@ -15,6 +25,7 @@ from .helpers import (
     iterable,
     tunnel_encode,
 )
+from .request import Request
 
 
 __all__ = ("Response",)
@@ -25,47 +36,47 @@ MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", 
 
 class Response:
     # Set to `True` by the dispatcher to indicate the endpoint was called.
-    dispatched = False
+    dispatched: bool = False
 
     # Set it to `True` to stop the normal flow and return inmediatly.
     # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
-    stop = False
+    stop: bool = False
 
     # relative path of the template, minus the extension
-    template = None
+    template: Optional[str] = None
 
     # the default extension of the template.
-    format = ".html"
+    format: str = ".html"
 
     # Warn if a cookie header exceeds this size.
     # The default is 4093 and should be supported by most browsers
     # (See http://browsercookielimits.squawky.net)
     # A cookie larger than this size will still be sent, but it may be ignored or
     # handled incorrectly by some browsers. Set to 0 to disable this check.
-    max_cookie_size = 4093
+    max_cookie_size: int = 4093
 
     # Set to True to not set cookies in this response, including any changes to the
     # session or CSRF token. You might want to use it for some read-only public
     # endpoints, like a RSS feed.
-    disable_cookies = False
+    disable_cookies: bool = False
 
-    error = None
-    raw_body = None
+    error: Optional[Exception] = None
+    raw_body: Optional[str] = None
 
-    _app = None
-    _req = None
-    _session = None
-    _etag = None
-    _last_modified = None
+    _app: Any
+    _req: Optional[Request]
+    _session: Dict[str, str]
+    _etag: Optional[str] = None
+    _last_modified: Optional[date] = None
 
     def __init__(
         self,
-        status_code=status.ok,
-        content_type="text/html",
-        charset="utf-8",
-        _app=None,
-        _req=None,
-    ):
+        status_code: str = status.ok,
+        content_type: str = "text/html",
+        charset: str = "utf-8",
+        _app: Any = None,
+        _req: Optional[Request] = None,
+    ) -> None:
         self.headers = HeadersDict({"X-Request-Id": str(uuid4())})
         self.cookies = CookiesDict()
 
@@ -76,8 +87,10 @@ class Response:
         self._app = _app
         self._req = _req
         self._session = {}
+        self._etag = None
+        self._last_modified = None
 
-    def __call__(self, start_response):
+    def __call__(self, start_response: Callable) -> Iterable:
         body = self.raw_body or ""
         if hasattr(body, "encode"):
             body = body.encode(self.charset)
@@ -94,15 +107,15 @@ class Response:
             return []
         return [body]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Response “{self._status_code}”>"
 
     @property
-    def body(self):
+    def body(self) -> Optional[str]:
         return self.raw_body
 
     @body.setter
-    def body(self, content):
+    def body(self, content: Any) -> None:
         """Sets the response body content. If it is a dictionary,
         encodes it to JSON and sets the content_type to "application/json"
         """
@@ -111,27 +124,27 @@ class Response:
         else:
             self.set_raw_body(content)
 
-    def set_raw_body(self, content):
+    def set_raw_body(self, content: str) -> None:
         self.raw_body = content
 
-    def set_json_body(self, content):
+    def set_json_body(self, content: Dict) -> None:
         self.content_type = "application/json"
         self.set_raw_body(json.dumps(content))
 
     @property
-    def has_body(self):
+    def has_body(self) -> bool:
         return self.raw_body is not None
 
     @property
-    def headers_list(self):
+    def headers_list(self) -> List[Tuple]:
         return self._build_regular_headers() + self._build_cookie_headers()
 
-    def _build_regular_headers(self):
+    def _build_regular_headers(self) -> List[Tuple]:
         return [
             (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
         ]
 
-    def _build_cookie_headers(self):
+    def _build_cookie_headers(self) -> List[Tuple]:
         if self.disable_cookies:
             return []
         return [
@@ -139,19 +152,19 @@ class Response:
         ]
 
     @property
-    def session(self):
+    def session(self) -> Dict[str, Any]:
         """Read-only session"""
         return self._session
 
     @property
-    def status_code(self):
+    def status_code(self) -> str:
         return self._status_code
 
     @status_code.setter
-    def status_code(self, value):
+    def status_code(self, value: str) -> None:
         self._status_code = tunnel_encode(value)
 
-    def flash(self, message, **data):
+    def flash(self, message: str, **data) -> None:
         """Flashes a message for the next request.
         To fetch the flashed message and to display it to the user,
         you must read `req.flashes` in the template.
@@ -163,8 +176,13 @@ class Response:
         self.session[FLASHES_SESSION_KEY] = flashes
 
     def redirect_to(
-        self, url_or_route, object=None, *, status_code=status.see_other, **kwargs
-    ):
+        self,
+        url_or_route: str,
+        object: Optional[Any] = None,
+        *,
+        status_code: str = status.see_other,
+        **kwargs,
+    ) -> None:
         self.status_code = status_code
 
         to = url_or_route
@@ -184,16 +202,16 @@ class Response:
             ]
         )
 
-    def set_cookie(self, key, value="", **kwargs):
+    def set_cookie(self, key: str, value: str = "", **kwargs) -> None:
         """
         Set (add) a cookie for the response. Returns the cookie set.
 
         Arguments are:
 
-            key (str):
+            key:
                 The cookie name.
 
-            value (str):
+            value:
                 The cookie value.
 
             max_age:
@@ -232,7 +250,7 @@ class Response:
             self.cookies, key, value, max_size=self.max_cookie_size, **kwargs
         )
 
-    def unset_cookie(self, name):
+    def unset_cookie(self, name: str) -> None:
         """
         Removes a cookie from this response (before sending it to the client).
         If the cookie is already on the client, use `delete_cookie()` instead.
@@ -240,7 +258,13 @@ class Response:
         if name in self.cookies:
             del self.cookies[name]
 
-    def delete_cookie(self, name, *, path="/", domain=None):
+    def delete_cookie(
+        self,
+        name: str,
+        *,
+        path: str = "/",
+        domain: Optional[str] = None
+    ) -> None:
         """
         Delete a cookie from the client. Note that path and domain must match
         how the cookie was originally set.
@@ -251,8 +275,14 @@ class Response:
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
     def fresh_when(
-        self, objects=None, *, etag=None, last_modified=None, strong=False, public=False
-    ):
+        self,
+        objects: Any = None,
+        *,
+        etag: Optional[Union[date, int, float, str]] = None,
+        last_modified: Optional[date] = None,
+        strong: bool = False,
+        public: bool = False,
+    ) -> bool:
         """
         Sets the Etag header, the Last-Modified header, or both.
 
@@ -263,13 +293,13 @@ class Response:
 
         Arguments:
 
-        - strong (boolean):
+        - strong:
             By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
             validator on the response. A strong ETag implies exact equality: the response
             must match byte for byte. This is necessary for doing range requests within a
             large file or for compatibility with some CDNs that don’t support weak ETags.
 
-        - public (boolean):
+        - public:
             By default the Cache-Control header is private, set this to `True` if you want
             your application to be cacheable by other devices (proxy caches).
 
@@ -304,7 +334,7 @@ class Response:
         return self.is_fresh
 
     @property
-    def is_fresh(self):
+    def is_fresh(self) -> bool:
         if self._req is None:
             return False
 
@@ -313,7 +343,7 @@ class Response:
             if self._etag in self._req.if_none_match:
                 return True
 
-        if self._req.if_modified_since and self._last_modified:
+        if self._last_modified and self._req.if_modified_since:
             if self._last_modified <= self._req.if_modified_since:
                 return True
 

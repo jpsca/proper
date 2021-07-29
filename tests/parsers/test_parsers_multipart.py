@@ -12,7 +12,12 @@ REQUESTS = [
         "folder.png",
         "--text\n--with boundary\n--lookalikes--",
     ),
-    ("multipart-svg-jpg-tnull.txt", "photo.jpg", "home.svg", ""),
+    (
+        "multipart-svg-jpg-tnull.txt",
+        "photo.jpg",
+        "home.svg",
+        "",
+    ),
     (
         "multipart-webkit-png-tacc.txt",
         "folder.png",

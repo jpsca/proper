@@ -32,15 +32,15 @@ def test_scope_must_have_mount():
         scope()
 
 
-def test_scope_mount_routes_static():
-    routes = scope("/", host="example.com")(get("api", to="meh"))
+def test_scope_mount_routes_static(Pages):
+    routes = scope("/", host="example.com")(get("api", to=Pages.index))
     route = routes[0]
     assert route.path == "/api"
     assert route.host == "example.com"
 
 
-def test_scope_mount_empty_path():
+def test_scope_mount_empty_path(Pages):
     routes = scope("/foobar/")(
-        get("", to="")
+        get("", to=Pages.index)
     )
     assert routes[0].path == "/foobar"

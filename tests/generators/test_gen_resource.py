@@ -63,13 +63,13 @@ def _test_templates(app_root):
 def _test_routes(app_root):
     routes_text = (app_root / "routes.py").read_text()
     print(routes_text)
-    assert routes_text == """routes = [
-    get("", to="Pages.index"),
+    assert routes_text.endswith("""routes = [
+    get("", to=Pages.index),
 
-    resource("products", to="Products"),
+    resource("products", to=Products),
 ]
 
-"""
+""")
 
 
 def test_gen_resource_singular(app, scaffold):
@@ -129,10 +129,10 @@ def _test_templates_singular(app_root):
 def _test_routes_singular(app_root):
     routes_text = (app_root / "routes.py").read_text()
     print(routes_text)
-    assert routes_text == """routes = [
-    get("", to="Pages.index"),
+    assert routes_text.endswith("""routes = [
+    get("", to=Pages.index),
 
-    resource("profile", to="Profile", singular=True),
+    resource("profile", to=Profile, singular=True),
 ]
 
-"""
+""")

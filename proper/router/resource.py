@@ -1,3 +1,5 @@
+from typing import Any, Callable, Dict, Iterable, List, Optional
+
 from .route import Route
 
 
@@ -26,7 +28,15 @@ SINGLE_ROUTES = (
 ACTIONS = ("index", "new", "create", "show", "edit", "update", "delete")
 
 
-def resource(path, *, to, only=ACTIONS, ignore=None, singular=False, **kwargs):
+def resource(
+    path: str,
+    *,
+    to: Callable,
+    only: Iterable[str] = ACTIONS,
+    ignore: Optional[Iterable[str]] = None,
+    singular: bool = False,
+    **kwargs: Dict[str, Any],
+) -> List[Route]:
     """Shortcut to return a list of REST routes for a resource.
 
     ## Group resource

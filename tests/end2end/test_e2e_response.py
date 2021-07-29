@@ -3,15 +3,15 @@ from proper.helpers import Dot
 
 
 class AppController(BaseController):
-    def _render(self, req, resp):
-        return f"{resp.template} was rendered"
+    def _render(self):
+        return f"{self.resp.template} was rendered"
 
-    def index(self, req, resp):
+    def index(self):
         pass
 
 
 class DefaultTemplate(AppController):
-    def rendered(self, req, resp, *args):
+    def rendered(self, *args):
         pass
 
 
@@ -23,8 +23,8 @@ def test_default_template(app, web):
 
 
 class CustomTemplate(AppController):
-    def set_template(self, req, resp):
-        resp.template = "from_controller.jinja"
+    def set_template(self):
+        self.resp.template = "from_controller.jinja"
 
 
 def test_custom_template(app, web):
@@ -35,9 +35,9 @@ def test_custom_template(app, web):
 
 
 class ETagged(AppController):
-    def index(self, req, resp):
-        resp.fresh_when(etag=123)
-        resp.template = "index.jinja"
+    def index(self):
+        self.resp.fresh_when(etag=123)
+        self.resp.template = "index.jinja"
 
 
 def test_if_none_match(app, web):
@@ -56,10 +56,10 @@ def test_set_session(app, web):
 
 
 class DisableCookies(AppController):
-    def index(self, req, resp):
-        resp.set_cookie("foo", "bar")
-        resp.disable_cookies = True
-        resp.set_cookie("lorem", "ipsum")
+    def index(self):
+        self.resp.set_cookie("foo", "bar")
+        self.resp.disable_cookies = True
+        self.resp.set_cookie("lorem", "ipsum")
 
 
 def test_disable_cookies(app, web):
@@ -69,21 +69,21 @@ def test_disable_cookies(app, web):
 
 
 class Redirect(AppController):
-    def show(self, req, resp, *kwargs):
+    def show(self, *kwargs):
         pass
 
-    def external(self, req, resp):
-        resp.redirect_to("http://example.com")
+    def external(self):
+        self.resp.redirect_to("http://example.com")
 
-    def local(self, req, resp):
-        resp.redirect_to("/local/url")
+    def local(self):
+        self.resp.redirect_to("/local/url")
 
-    def verbose(self, req, resp):
-        resp.redirect_to("Redirect.show", id=1, slug="something")
+    def verbose(self):
+        self.resp.redirect_to("Redirect.show", id=1, slug="something")
 
-    def compact(self, req, resp):
+    def compact(self):
         post = Dot({"id": 1, "slug": "something"})
-        resp.redirect_to("Redirect.show", post)
+        self.resp.redirect_to("Redirect.show", post)
 
 
 def test_redirect_to(app, web):

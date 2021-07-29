@@ -2,6 +2,7 @@ import pytest
 
 from proper import (
     BadPlaceholder,
+    BaseController,
     MissingParameter,
     NameNotFound,
     delete,
@@ -13,13 +14,35 @@ from proper import (
 from proper.helpers import Dot
 
 
+class Foo(BaseController):
+    def bar(self):
+        self.resp.body = "Hello World!"
+
+
+class Items(BaseController):
+    def index(self):
+        self.resp.body = "index"
+
+    def create(self):
+        pass
+
+    def show(self):
+        self.resp.body = "show"
+
+    def archive(self):
+        self.resp.body = "archive"
+
+    def delete(self):
+        pass
+
+
 TEST_ROUTES = [
     scope("/api/")(
-        get("items", to="Items.index"),
-        get("items/:item_id<int>", to="Items.show"),
-        get(r"items/:year<\d{4}>/:month<\d{1,2}>", to="items.archive"),
-        post("/items", to="Items.create"),
-        delete("/items/:item_id<int>"),
+        get("items", to=Items.index),
+        post("/items", to=Items.create),
+        get("items/:item_id<int>", to=Items.show),
+        get(r"items/:year<\d{4}>/:month<\d{1,2}>", to=Items.archive),
+        delete("/items/:item_id<int>", to=Items.delete),
     ),
 
     scope("/foobar/")(
@@ -28,19 +51,19 @@ TEST_ROUTES = [
         get("bar"),
     ),
 
-    get("", to="Pages.index", name="index"),
-    get("login", to="Pages.login", name="login"),
+    get("", to=Foo.bar, name="index"),
+    get("login", to=Foo.bar, name="login"),
     get("admin"),
     get("foobar/:catchall<path>"),
 
     scope("/", host="blog.example.com")(
         get("admin"),
-        get("foobar/foo", to="FooBar.foo"),
+        get("foobar/foo", to=Foo.bar),
     ),
 
     scope("/:locale<en|es>/")(
-        get("", to="localized.index"),
-        get(":item_id<int>", to="localized.item"),
+        get("", to=Foo.bar),
+        get(":item_id<int>", to=Foo.bar),
     ),
 ]
 
@@ -48,7 +71,9 @@ TEST_ROUTES = [
 def test_match_domain(app, web):
     app.config["debug"] = True
     app.routes = [
-        scope("/", host="example.com")(get("/", to="Pages.index"),),
+        scope("/", host="example.com")(
+            get("/", to=Foo.bar),
+        ),
     ]
     resp = web.get("http://example.com/")
 
@@ -69,13 +94,13 @@ def test_url_for(app):
     assert app.url_for("Items.index") == "/api/items"
     assert app.url_for("Items.create") == "/api/items"
     assert app.url_for("Items.show", item_id=3) == "/api/items/3"
-    assert app.url_for("items.archive", year=2018, month=5) == "/api/items/2018/5"
+    assert app.url_for("Items.archive", year=2018, month=5) == "/api/items/2018/5"
 
 
 def test_url_for_object(app):
     app.routes = TEST_ROUTES
     object = Dot({"year": 2018, "month": 5})
-    assert app.url_for("items.archive", object) == "/api/items/2018/5"
+    assert app.url_for("Items.archive", object) == "/api/items/2018/5"
 
 
 def test_url_for_anchor(app):
@@ -87,13 +112,13 @@ def test_url_for_anchor(app):
 def test_url_for_missing_param(app):
     app.routes = TEST_ROUTES
     with pytest.raises(MissingParameter):
-        app.url_for("items.archive", year="2018")
+        app.url_for("Items.archive", year="2018")
 
 
 def test_url_for_bad_placeholder(app):
     app.routes = TEST_ROUTES
     with pytest.raises(BadPlaceholder):
-        app.url_for("items.archive", year=18, month=-3)
+        app.url_for("Items.archive", year=18, month=-3)
 
 
 def test_url_for_extra_query(app):
@@ -101,7 +126,7 @@ def test_url_for_extra_query(app):
     url = app.url_for("Items.index", foo="bar")
     assert url == "/api/items?foo=bar"
 
-    url = app.url_for("items.archive", year=2018, month=5, foo="bar")
+    url = app.url_for("Items.archive", year=2018, month=5, foo="bar")
     assert url == "/api/items/2018/5?foo=bar"
 
 
