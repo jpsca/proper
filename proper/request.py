@@ -2,7 +2,7 @@
 Request class.
 """
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from . import errors
 from .constants import DELETE, FLASHES_SESSION_KEY, GET, HEAD, PATCH, POST, PUT
@@ -226,7 +226,7 @@ class Request:
             self._content_length = self._validate_content_length(length)
         return self._content_length
 
-    def _validate_content_length(self, length: Union[int, Literal[""]]) -> int:
+    def _validate_content_length(self, length: Union[int, str]) -> int:
         try:
             ilength = int(length)
         except ValueError:
