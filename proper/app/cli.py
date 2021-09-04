@@ -2,6 +2,7 @@ import properconf
 import pyceo
 
 from proper import generators, static
+from .cli_run import run_server
 
 
 ENCRIPTED_HEADER = """# -------------------------------------------------------------
@@ -13,20 +14,44 @@ ENCRIPTED_HEADER = """# --------------------------------------------------------
 
 
 def get_app_cli(app):
+    attrs = {
+        "__doc__": """
+        Application-specific commands.
+
+        You don't need a special console to interact with the app,
+        just run `ipython` or the regular python interpreter and import
+        the application, like a regular python package.
+        """,
+        "run": run_server,
+        "routes": get_routes_cmd(app),
+        "secrets": get_secrets_cmd(app),
+        "g": get_generators_cli(app),
+        "static": get_static_cli(app),
+    }
+
+    return type("AppCli", (pyceo.Cli,), attrs)
+
+
+def get_routes_cmd(app):
     def routes(self):
         """Show all registered routes.
         """
         print(
-            "Routes match in priority from top to bottom.\n",
-            "The rules that doesn't have a `to` property are",
-            "build-only and never match.",
+            "\nRoutes match in priority from top to bottom.\n"
+            "The rules that doesn't have a `to` property are"
+            " build-only and never match.\n"
         )
 
         routes = []
         for route in app.routes:
             method = route.method if route.method else "—"
             path = route.path
-            to = f"↪ {route.redirect}" if route.redirect else route.to or "-"
+            if route.redirect:
+                to = f"↪ {route.redirect}"
+            elif route.to:
+                to = route.to.__qualname__
+            else:
+                to = "-"
             name = route.name or "-"
             defaults = route.defaults or "-"
             routes.append([method, path, to, name, defaults])
@@ -44,7 +69,10 @@ def get_app_cli(app):
         for route in routes:
             print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
         print()
+    return routes
 
+
+def get_secrets_cmd(app):
     def secrets(self, env):
         """Edit your encrypted secrets.
 
@@ -59,33 +87,7 @@ def get_app_cli(app):
         path = app.root_path / "config"
         header = ENCRIPTED_HEADER % (env,)
         properconf.edit_secrets(path, env, secrets_header=header)
-
-    attrs = {
-        "__doc__": """
-        Application-specific commands.
-
-        You don't need a special console to interact with the app,
-        just run `ipython` or the regular python interpreter and import
-        the application, like a regular python package.
-        """,
-        "routes": routes,
-        "secrets": secrets,
-        "g": get_generators_cli(app),
-        "static": get_static_cli(app),
-    }
-
-    return type("AppCli", (pyceo.Cli,), attrs)
-
-
-def get_cmd(app, module, name):
-    func = getattr(module, name)
-
-    def cmd(self, *args, **kwargs):
-        return func(app, *args, **kwargs)
-
-    cmd.__name__ = name
-    cmd.__doc__ = func.__doc__
-    return cmd
+    return secrets
 
 
 def get_generators_cli(app):
@@ -93,8 +95,8 @@ def get_generators_cli(app):
         "__doc__": """Generate new code.""",
     }
 
-    for name in ("resource", "controller", "model", "migration"):
-        attrs[name] = get_cmd(app, generators, f"gen_{name}")
+    for name in ("resource", "controller", "model"):
+        attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
     return type("Generators", (pyceo.Cli,), attrs)
 
@@ -105,6 +107,17 @@ def get_static_cli(app):
     }
 
     for name in ("bundle", "build", "clean", "compile"):
-        attrs[name] = get_cmd(app, static, name)
+        attrs[name] = _get_cmd(app, static, name)
 
     return type("Static", (pyceo.Cli,), attrs)
+
+
+def _get_cmd(app, module, name):
+    func = getattr(module, name)
+
+    def cmd(self, *args, **kwargs):
+        return func(app, *args, **kwargs)
+
+    cmd.__name__ = name
+    cmd.__doc__ = func.__doc__
+    return cmd

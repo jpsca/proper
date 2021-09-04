@@ -2,7 +2,6 @@ const path = require("path");
 
 module.exports = {
 	entry: {
-		// Edit this entry points
 		"js/scripts": "./src/js/scripts.js",
 	},
 	output: {

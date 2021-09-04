@@ -1,18 +1,13 @@
-from freezegun import freeze_time
-
 from proper.generators import gen_resource
 
 
 def test_gen_resource(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-
-    with freeze_time("2012-01-14 03:21:34"):
-        gen_resource(app, "Products")
+    gen_resource(app, "Products")
 
     _test_controller(app_root)
     _test_model(app_root)
-    _test_migration(app_root)
     _test_templates(app_root)
     _test_routes(app_root)
 
@@ -20,13 +15,13 @@ def test_gen_resource(app, scaffold):
 def _test_controller(app_root):
     products_text = (app_root / "controllers" / "products.py").read_text()
     assert "class Products(ApplicationController):" in products_text
-    assert "def index(self, req, resp):" in products_text
-    assert "def new(self, req, resp):" in products_text
-    assert "def create(self, req, resp):" in products_text
-    assert "def show(self, req, resp, uid):" in products_text
-    assert "def edit(self, req, resp, uid):" in products_text
-    assert "def update(self, req, resp, uid):" in products_text
-    assert "def delete(self, req, resp, uid):" in products_text
+    assert "def index(self):" in products_text
+    assert "def new(self):" in products_text
+    assert "def create(self):" in products_text
+    assert "def show(self, uid):" in products_text
+    assert "def edit(self, uid):" in products_text
+    assert "def update(self, uid):" in products_text
+    assert "def delete(self, uid):" in products_text
 
     init_text = (app_root / "controllers" / "__init__.py").read_text()
     assert init_text.strip() == "from .products import *  # noqa"
@@ -38,17 +33,6 @@ def _test_model(app_root):
 
     init_text = (app_root / "models" / "__init__.py").read_text()
     assert init_text.strip() == "from .product import *  # noqa"
-
-
-def _test_migration(app_root):
-    migration = app_root / ".." / "db" / "migrations" / "2012_01_14_032134_create_products.py"
-    assert migration.exists()
-
-    content = migration.read_text()
-    assert "class CreateProducts(Migration):" in content
-    assert "def up(self):" in content
-    assert "def down(self):" in content
-    assert 'self.schema.create("products") as table:' in content
 
 
 def _test_templates(app_root):
@@ -75,13 +59,10 @@ def _test_routes(app_root):
 def test_gen_resource_singular(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-
-    with freeze_time("2012-01-14 03:21:34"):
-        gen_resource(app, "Profile", singular=True)
+    gen_resource(app, "Profile", singular=True)
 
     _test_controller_singular(app_root)
     _test_model_singular(app_root)
-    _test_migration_singular(app_root)
     _test_templates_singular(app_root)
     _test_routes_singular(app_root)
 
@@ -89,13 +70,13 @@ def test_gen_resource_singular(app, scaffold):
 def _test_controller_singular(app_root):
     products_text = (app_root / "controllers" / "profile.py").read_text()
     assert "class Profile(ApplicationController):" in products_text
-    assert "def index(self, req, resp):" not in products_text
-    assert "def new(self, req, resp):" in products_text
-    assert "def create(self, req, resp):" in products_text
-    assert "def show(self, req, resp):" in products_text
-    assert "def edit(self, req, resp):" in products_text
-    assert "def update(self, req, resp):" in products_text
-    assert "def delete(self, req, resp):" in products_text
+    assert "def index(self):" not in products_text
+    assert "def new(self):" in products_text
+    assert "def create(self):" in products_text
+    assert "def show(self):" in products_text
+    assert "def edit(self):" in products_text
+    assert "def update(self):" in products_text
+    assert "def delete(self):" in products_text
 
 
 def _test_model_singular(app_root):
@@ -104,17 +85,6 @@ def _test_model_singular(app_root):
 
     init_text = (app_root / "models" / "__init__.py").read_text()
     assert init_text.strip() == "from .profile import *  # noqa"
-
-
-def _test_migration_singular(app_root):
-    migration = app_root / ".." / "db" / "migrations" / "2012_01_14_032134_create_profiles.py"
-    assert migration.exists()
-
-    content = migration.read_text()
-    assert "class CreateProfiles(Migration):" in content
-    assert "def up(self):" in content
-    assert "def down(self):" in content
-    assert 'self.schema.create("profiles") as table:' in content
 
 
 def _test_templates_singular(app_root):

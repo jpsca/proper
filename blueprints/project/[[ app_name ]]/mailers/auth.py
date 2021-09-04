@@ -1,6 +1,5 @@
-from ..app import app
+from ..app import app, send_email
 from ..config import config
-from ..jobs.emails import send_email
 
 
 __all__ = (
@@ -21,12 +20,9 @@ def render_password_reset_email(user):
 
 
 def send_password_reset_email(user):
-    kwargs = {
+    kw = {
         "to": user.email,
         "subject": "Reset your password",
         "html": render_password_reset_email(user),
     }
-    if config.debug:
-        send_email(**kwargs)
-    else:
-        send_email.delay(**kwargs)
+    send_email(**kw)

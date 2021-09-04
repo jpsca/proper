@@ -1,2 +1,2 @@
-from .authenticable import *  # noqa
-from .representable import *  # noqa
+from .authenticable import Authenticable  # noqa
+from .timestamped import Timestamped  # noqa

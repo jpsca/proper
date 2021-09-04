@@ -1,1 +1,12 @@
 @import "tailwindcss/components";
+@import "./_forms.css";
+@import "./_buttons.css";
+
+.link {
+	text-decoration: underline;
+	text-underline-offset: 0.11em;
+	color: #0074e8;
+}
+.link:hover {
+	text-decoration: none;
+}

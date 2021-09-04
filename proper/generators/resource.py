@@ -6,7 +6,7 @@ from .model import gen_model
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
-ROUTES_TMPL = "routes.py.tmpl"
+ROUTES_TMPL = "routes.tmpl.py"
 
 
 def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
@@ -14,7 +14,7 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
     including a controller, model, migration, templates, and a resource route
     in the `routes.py` file
 
-        bin/manage g resource NAME
+        ./manage.py g resource NAME
             [--only=action[,action]] [--ignore=action[,action]] [--singular]
 
     Arguments:
@@ -29,7 +29,7 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
 
     Attribute pairs are field:type arguments specifying the model's attributes,
     and follows the same syntax of the model generator.
-    Run `bin/manage g model --help` for instructions.
+    Run `./manage.py g model --help` for instructions.
 
     By default it generates the full set of REST actions, but you can choose
     only some of these or to ignore a few by using the optional `only` and
@@ -41,10 +41,10 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
 
     Examples:
 
-        bin/manage g resource post
-        bin/manage g resource post --only=index,show
-        bin/manage g resource post title:string body:text published:boolean
-        bin/manage g resource --singular
+        ./manage.py g resource post
+        ./manage.py g resource post --only=index,show
+        ./manage.py g resource post title:string body:text published:boolean
+        ./manage.py g resource --singular
 
     """
     snake_name = inflection.underscore(name)

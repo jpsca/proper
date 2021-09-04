@@ -14,7 +14,6 @@ from proper.helpers import Digestor
 
 
 BUNDLE = "npm run bundle"
-BUNDLE_WATCH = "npm run watch"
 BUNDLE_PROD = "npm run build"
 
 RX_INMUTABLES_FILE = r"^.+\.[0-9a-f]{12}\..+$"
@@ -31,13 +30,11 @@ UNCOMPRESSABLE_ENDS = (
 REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
 
 
-def bundle(app, watch=False):
+def bundle(app):
     """Calls `npm run bundle` in the `static/` folder for building the CSS and JS bundles.
-
-    Add `--watch` to call `npm run watch` instead
     """
     os.chdir(app.static_path)
-    cmd = BUNDLE_WATCH if watch else BUNDLE
+    cmd = BUNDLE
     print(cmd)
     os.system(cmd)
 

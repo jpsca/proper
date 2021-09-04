@@ -8,8 +8,8 @@ def test_gen_controller(app, scaffold):
 
     products_text = (app_root / "controllers" / "products.py").read_text()
     assert "class Products(ApplicationController):" in products_text
-    assert "def index(self, req, resp):" in products_text
-    assert "def show(self, req, resp):" in products_text
+    assert "def index(self):" in products_text
+    assert "def show(self):" in products_text
 
     init_text = (app_root / "controllers" / "__init__.py").read_text()
     assert init_text.strip() == "from .products import *  # noqa"

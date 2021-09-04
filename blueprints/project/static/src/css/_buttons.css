@@ -1,0 +1,74 @@
+.btn {
+	position: relative;
+	border: none;
+	background: transparent;
+	padding: 0;
+	cursor: pointer;
+	outline-offset: 4px;
+	transition: filter 100ms;
+}
+.btn__front {
+	border-radius: 12px;
+	display: block;
+	position: relative;
+	will-change: transform;
+	transform: translateY(-4px);
+	transition: transform 200ms cubic-bezier(0.3, 0.7, 0.4, 1);
+
+	/* Overwritable defaults */
+	padding: 12px 42px;
+	font-weight: 600;
+	color: #444;
+	border: 1px solid #9ca3af;
+	background: hsl(345deg 2% 90%);
+}
+.btn__edge {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	border-radius: 12px;
+
+	/* Overwritable defaults */
+	border: 1px solid #9ca3af;
+	background: linear-gradient(
+		to left,
+		hsl(340deg 2% 70%) 0%,
+		hsl(340deg 2% 80%) 8%,
+		hsl(340deg 2% 80%) 92%,
+		hsl(340deg 2% 70%) 100%
+	)
+}
+.btn__shadow {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	border-radius: 12px;
+	will-change: transform;
+	transform: translateY(3px);
+	transition: transform 200ms cubic-bezier(0.3, 0.7, 0.4, 1);
+	background: hsl(0deg 0% 0% / 0.25);
+	filter: blur(2px);
+}
+
+.btn:hover .btn__front, .btn:hover .btn__edge {
+	filter: brightness(102%);
+}
+.btn:hover .btn__front, .btn:hover .btn__shadow {
+	transition: transform 100ms cubic-bezier(0.3, 0.7, 0.4, 1.05);
+}
+
+.btn:active .btn__front {
+	transform: translateY(-2px);
+	transition: transform 34ms;
+}
+.btn:active .btn__shadow {
+	transform: translateY(1px);
+	transition: transform 34ms;
+}
+.btn:focus:not(:focus-visible) {
+	outline: none;
+}

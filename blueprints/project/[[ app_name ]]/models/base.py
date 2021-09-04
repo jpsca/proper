@@ -1,19 +1,33 @@
-from liquid_orm import DatabaseManager, Model
+from proper.errors import NotFound
+from sqla_wrapper import Alembic, SQLAlchemy
+from sqlalchemy.orm import scoped_session
 
 from ..config import config
-from .mixins import Representable
 
 
-__all__ = ("db", "Model", "Base")
+__all__ = ("Base", "alembic", "db", "dbs")
 
-db = DatabaseManager(config.databases)
-Model.set_connection_resolver(db)
+db = SQLAlchemy(
+    dialect=config.database_dialect,
+    name=config.database_name,
+    user=config.database_user,
+    password=config.database_password,
+    host=config.database_host,
+    port=config.database_port,
+    engine_options=config.database_engine_options,
+    session_options={"expire_on_commit": False}
+)
+dbs = scoped_session(db.Session)
+
+alembic = Alembic(db, config.alembic_migrations)
 
 
-class Base(Representable, Model):
-    def set_defaults(self):
-        pass
+class Base(db.Model):
+    __abstract__ = True
 
-    def save(self, *args, **kwargs):
-        self.set_defaults()
-        super().save(*args, **kwargs)
+    @classmethod
+    def get_or_fail(cls, pk):
+        obj = dbs.get(cls, pk)
+        if not obj:
+            raise NotFound(f"{cls.__name__} #{pk} not found")
+        return obj

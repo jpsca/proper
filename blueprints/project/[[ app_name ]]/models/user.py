@@ -1,10 +1,11 @@
+from sqlalchemy import *  # noqa
+from sqlalchemy.orm import *  # noqa
+
 from .base import Base
-from .mixins import Authenticable
+from .mixins import Authenticable, Timestamped
 
 
-class User(Authenticable, Base):
-    __repr_by__ = ["login"]
+class User(Authenticable, Timestamped, Base):
+    __tablename__ = "users"
 
-    @property
-    def email(self):
-        return self.login
+    id = Column(Integer, primary_key=True)

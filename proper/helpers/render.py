@@ -84,11 +84,13 @@ class BlueprintRender:
                 continue
             name = self.render.string(name)
 
-            if name.endswith(".tmpl"):
-                dst_relpath = dst_relfolder / name[:-5]
+            if ".tmpl." in name or name.endswith(".tmpl"):
+                dst_name = name.replace(".tmpl", "")
+                dst_relpath = dst_relfolder / dst_name
                 self.render_file(src_relpath, dst_relpath)
-            elif name.endswith(".append"):
-                dst_relpath = dst_relfolder / name[:-7]
+            elif ".append." in name or name.endswith(".append"):
+                dst_name = name.replace(".append", "")
+                dst_relpath = dst_relfolder / dst_name
                 self.append_to_file(src_relpath, dst_relpath)
             else:
                 dst_relpath = dst_relfolder / name

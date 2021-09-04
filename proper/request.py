@@ -314,7 +314,7 @@ class Request:
         if self._remote_addr is None:
             addr = None
             if "HTTP_X_FORWARDED_FOR" in self.environ:
-                addr = self.environ["HTTP_X_FORWARDED_FOR   "]
+                addr = self.environ["HTTP_X_FORWARDED_FOR"]
             if "HTTP_X_REAL_IP" in self.environ:
                 addr = self.environ["HTTP_X_REAL_IP"]
             elif "REMOTE_ADDR" in self.environ:

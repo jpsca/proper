@@ -1,0 +1,9 @@
+{% macro Button(content, class="", type="submit", attrs="") -%}
+<button class="btn {{ class }}" type="{{ type }}" {{ attrs|safe }}>
+	<span class="btn__shadow"></span>
+	<span class="btn__edge"></span>
+	<span class="btn__front">
+		{{ content|safe }}
+	</span>
+</button>
+{%- endmacro %}

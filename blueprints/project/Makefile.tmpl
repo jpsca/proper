@@ -1,59 +1,32 @@
-.PHONY: help
-help:
-	@echo "clean: remove build/python artifacts"
-	@echo "run: run the development server"
-	@echo "test: run tests"
-	@echo "lint: check style with flake8"
-	@echo "setup: install for development"
-	@echo "dbsetup: reset the database"
-
-.PHONY: clean
-clean: clean-build clean-pyc
-
-.PHONY: clean-build
-clean-build:
-	rm -rf build/
-	rm -rf dist/
-	rm -rf *.egg-info
-	rm -rf pip-wheel-metadata
-
-.PHONY: clean-pyc
-clean-pyc:
-	find . -name '*.pyc' -exec rm -f {} +
-	find . -name '*.pyo' -exec rm -f {} +
-	find . -name '*~' -exec rm -f {} +
-	find . -name '__pycache__' -exec rm -rf {} +
-	find . -name '.pytest_cache' -exec rm -rf {} +
+.PHONY: setup
+setup:  # Requires an active virtualenv
+	pip install -U pip wheel pip-tools
+	make reqs
+	pip install -r requirements/dev-requirements.txt
+	pip install -e .
+	cd static && npm install
 
 .PHONY: run
 run:
-	honcho -f Procfile.dev start
+	python manage.py run
 
 .PHONY: test
 test:
-	python -m pytest -x [[ app_name ]]/tests
+	pytest -x [[ app_name ]]/tests
 
 .PHONY: lint
 lint:
-	python -m flake8 --config=setup.cfg [[ app_name ]]
+	flake8 --config=setup.cfg [[ app_name ]]
 
-.PHONY: setup
-setup:
-	pip install -U pip wheel
-	pip install -r requirements/requirements-dev.txt
-	pip install -e .
-	cd static && npm install && npm run bundle
+.PHONY: db
+db:
+	rm db/[[ app_name ]].sqlite || true
+	python manage.py db upgrade
 
-.PHONY: dbsetup
-dbsetup:
-	dropdb [[ app_name ]] || true
-	dropdb [[ app_name ]]_tests || true
-	createdb [[ app_name ]] || true
-	createdb [[ app_name ]]_tests || true
+.PHONY: reqs
+reqs:
+	pip-compile requirements/requirements.ini
+	pip-compile requirements/test-requirements.ini
+	pip-compile requirements/prod-requirements.ini
+	pip-compile requirements/dev-requirements.ini
 
-.PHONY: setup-deploy
-setup-deploy:
-	.venv/bin/pip install -U pip wheel
-	.venv/bin/pip install -e .
-	.venv/bin/pip install -r requirements/prod-requirements.txt
-	.venv/bin/bin/manage db migrate

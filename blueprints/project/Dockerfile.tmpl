@@ -1,0 +1,15 @@
+FROM python:3.9-buster
+
+ENV PYTHONUNBUFFERED 1
+ARG APP_ENV=development
+ENV APP_ENV=${APP_ENV}
+
+# ENV DATABASE_NAME=[[ app_name ]]
+# ENV DATABASE_USER=postgres
+# ENV DATABASE_PASSWORD=postgres
+# ENV PYTHONPATH=${PYTHONPATH}:${PWD}
+
+RUN mkdir /app
+WORKDIR /app
+COPY requirements-dev.txt requirements-dev.txt
+RUN pip install -U pip && pip install -r requirements-dev.txt

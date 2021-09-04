@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<title>{% block title %}{% endblock %}</title>
-	<link rel="stylesheet" href="{{ url_static('css/common.css') }}">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<link rel="icon" type="image/x-icon" href="{{ url_static('favicon.ico') }}">
+	<link rel="stylesheet" href="{{ url_static('css/styles.css') }}">
+	{% block meta %}{% endblock %}
 	<script src="{{ url_static('js/scripts.js') }}" defer></script>
 	{% block scripts %}{% endblock %}
-	{% block meta %}{% endblock %}
-	<meta name="csrf_token" content="{{ req.csrf_token }}">
+	<script>window.CSRF_TOKEN = "{{ req.csrf_token }}";</script>
 </head>
-<body class="font-sans antialiased text-gray-800 bg-white cursor-default">
-	{% include "_flashes.html.jinja" %}
+<body>
 	{% block body %}{% endblock %}
 </body>
 </html>

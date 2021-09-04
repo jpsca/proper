@@ -2,11 +2,11 @@ from .application import ApplicationController
 
 
 class Pages(ApplicationController):
-    def index(self, req, resp):
+    def index(self):
         pass
 
-    def not_found(self, req, resp):
+    def not_found(self):
         pass
 
-    def error(self, req, resp):
+    def error(self):
         pass

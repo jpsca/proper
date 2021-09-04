@@ -1,0 +1,22 @@
+version: "3"
+
+services:
+  # db:
+  #   image: postgres
+  #   environment:
+  #     - POSTGRES_DB=[[ app_name ]]
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=postgres
+  # redis:
+  #   image: "redis:alpine"
+  app:
+    build: .
+    command: uwsgi --ini uwsgi-dev.ini
+    restart: always
+    volumes:
+      - .:/app:delegated
+    ports:
+      - "2300:2300"
+    # depends_on:
+    #   - db
+    #   - redis

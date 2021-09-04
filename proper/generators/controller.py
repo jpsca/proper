@@ -6,14 +6,14 @@ from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
-ROUTES_TMPL = "routes.py.tmpl"
-TEMPLATE_TMPL = "template.html.jinja.tmpl"
+ROUTES_TMPL = "routes.tmpl.py"
+TEMPLATE_TMPL = "template.tmpl.html.jinja"
 
 
 def gen_controller(app, class_name, *actions):
     """Stubs out a new controller and its templates.
 
-        bin/manage g controller NAME [action ...]
+        ./manage.py g controller NAME [action ...]
 
     Arguments:
 
@@ -22,7 +22,7 @@ def gen_controller(app, class_name, *actions):
 
     Example:
 
-        bin/manage g controller Articles index show
+        ./manage.py g controller Articles index show
 
     """
     class_name = inflection.camelize(inflection.pluralize(class_name))

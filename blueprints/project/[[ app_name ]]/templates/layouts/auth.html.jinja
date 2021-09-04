@@ -3,16 +3,17 @@
 <head>
 	<meta charset="utf-8">
 	<title>{% block title %}{% endblock %}</title>
-	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<link rel="icon" href="{{ url_static('favicon.svg') }}">
-	<link rel="apple-touch-icon" href="{{ url_static('apple-touch-icon.png') }}">
-	<link rel="manifest" href="{{ url_static('manifest.json') }}">
-	<link rel="stylesheet" href="{{ url_static('css/common.css') }}">
-	<meta name="csrf_token" content="{{ req.csrf_token }}">
-	{%- block css %}{%- endblock -%}
-	{%- block js %}{% endblock %}
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<link rel="icon" type="image/x-icon" href="{{ url_static('favicon.ico') }}">
+	<link rel="stylesheet" href="{{ url_static('css/styles.css') }}">
+	{% block meta %}{% endblock %}
+	<script src="{{ url_static('js/scripts.js') }}" defer></script>
+	{% block scripts %}{% endblock %}
+	<script>window.CSRF_TOKEN = "{{ req.csrf_token }}";</script>
 </head>
-<body>
-	{% block body %}{% endblock %}
+<body class="h-24 cursor-default" style="background-color: #f6f2ef">
+	<div class="flex flex-col justify-center h-screen max-w-lg mx-auto">
+	{%- block body %}{% endblock %}
+	</div>
 </body>
 </html>

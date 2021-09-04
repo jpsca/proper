@@ -6,7 +6,6 @@ import inflection
 from pyceo import confirm
 
 from proper.helpers import BLUEPRINTS, BlueprintRender, printf
-from .migration import get_datestamp
 
 
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
@@ -18,8 +17,13 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     The `proper new` command creates a new Proper application with a default
     directory structure and configuration at the path you specify.
 
-    Example: `proper new ~/Code/blog`
-    This generates a skeletal Proper application at `~/Code/blog`.
+    Examples:
+
+        `proper new ~/Code/blog`
+        generates a Proper application at `~/Code/blog`.
+
+        `proper new myapp`
+        generates a Proper application at `myapp` in the current folder.
 
     Arguments:
 
@@ -36,7 +40,6 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
         path,
         context={
             "app_name": app_name,
-            "datestamp": get_datestamp(),
         },
         force=force
     )()
@@ -62,16 +65,12 @@ def _install_dependencies(path):
 
     print()
     _call(f"{sys.executable or 'python'} -m venv .venv")
-    _call(".venv/bin/pip install -U pip wheel")
-    _call(".venv/bin/pip install -r requirements/dev-requirements.txt")
-    _call(".venv/bin/pip install -e .")
-    _call("cd static && npm install && npm run bundle")
+    _call("source .venv/bin/activate && make setup")
     return True
 
 
 def _make_executables(path):
-    for child in (path / "bin").iterdir():
-        child.chmod(0o755)
+    (path / "manage.py").chmod(0o755)
 
 
 def _wrap_up(path, deps_installed):
@@ -85,9 +84,9 @@ def _wrap_up(path, deps_installed):
     else:
         print("   $ python -m venv .venv")
         print("   $ source .venv/bin/activate")
-        print("   $ make install")
+        print("   $ make setup")
     print()
     print(" Start your Proper app with:")
     print()
-    print("   $ bin/run")
+    print("   $ make run")
     print()
