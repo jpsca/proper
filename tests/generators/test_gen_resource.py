@@ -29,7 +29,7 @@ def _test_controller(app_root):
 
 def _test_model(app_root):
     model_text = (app_root / "models" / "product.py").read_text()
-    assert "class Product(Base):" in model_text
+    assert "class Product(Base, Timestamped):" in model_text
 
     init_text = (app_root / "models" / "__init__.py").read_text()
     assert init_text.strip() == "from .product import *  # noqa"
@@ -81,7 +81,7 @@ def _test_controller_singular(app_root):
 
 def _test_model_singular(app_root):
     model_text = (app_root / "models" / "profile.py").read_text()
-    assert "class Profile(Base):" in model_text
+    assert "class Profile(Base, Timestamped):" in model_text
 
     init_text = (app_root / "models" / "__init__.py").read_text()
     assert init_text.strip() == "from .profile import *  # noqa"
