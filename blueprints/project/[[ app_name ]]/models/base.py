@@ -1,4 +1,3 @@
-from proper.errors import NotFound
 from sqla_wrapper import Alembic, SQLAlchemy
 from sqlalchemy.orm import scoped_session
 
@@ -17,17 +16,10 @@ db = SQLAlchemy(
     engine_options=config.database_engine_options,
     session_options={"expire_on_commit": False}
 )
-dbs = scoped_session(db.Session)
+dbs = scoped_session(db.Session)()
 
 alembic = Alembic(db, config.alembic_migrations)
 
 
 class Base(db.Model):
     __abstract__ = True
-
-    @classmethod
-    def get_or_fail(cls, pk):
-        obj = dbs.get(cls, pk)
-        if not obj:
-            raise NotFound(f"{cls.__name__} #{pk} not found")
-        return obj

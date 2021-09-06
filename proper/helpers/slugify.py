@@ -1,4 +1,7 @@
-"""A slugify helper based on the non-GPL-licensed "anyascii" library.
+"""A super simple slugify helper.
+
+If if it is too simple for your needs you might want to use
+https://github.com/un33k/python-slugify
 """
 import re
 

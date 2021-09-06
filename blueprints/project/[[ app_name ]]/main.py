@@ -25,4 +25,4 @@ def rollback_db_session(app, req, resp):
 @app.on_teardown
 def remove_db_session(app, req, resp):
     dbs.commit()
-    dbs.remove()
+    dbs.close()

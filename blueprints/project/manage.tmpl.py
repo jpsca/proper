@@ -2,25 +2,37 @@
 from pyceo import Cli
 
 from [[ app_name ]].main import app
-from [[ app_name ]].models import User, alembic
+from [[ app_name ]].models import User, alembic, dbs
 
 
 class AuthCli(Cli):
-    def user(self, super=False, **kw):
+    def user(self, login, password):
         """
         Adds an user.
 
         Arguments:
           - login:    Username
           - password: Plain-text password (will be encrypted)
-          - name:     Optional name
-          - super:    Super user?
         """
-        if super:
-            print("Adding superuser")
-        else:
-            print("Adding user")
-        User.create(super=super, **kw)
+        dbs.create(User, login=login, password=password)
+        dbs.commit()
+        print("User added")
+
+    def password(self, login, password):
+        """
+        Set the password of a user.
+
+        Arguments:
+          - login:    Username
+          - password: Plain-text password (will be encrypted)
+        """
+        user = User.by_login(login)
+        if not user:
+            print ("User not found")
+            return
+        user.password = password
+        dbs.commit()
+        print("Password updated")
 
 
 app.cli.auth = AuthCli

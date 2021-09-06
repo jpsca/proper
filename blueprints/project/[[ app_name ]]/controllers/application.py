@@ -68,18 +68,13 @@ class ApplicationController(BaseController):
 
 
 class PrivateController(ApplicationController):
-
+    """User-only controllers can inherit from this one."""
     def before_action(self, action):
         self._require_login()
         super().before_action(action)
 
     def _require_login(self):
-        if self.req.user and configure_scope:
-            with configure_scope() as scope:
-                scope.user = {
-                    "id": self.req.user.id,
-                    "login": self.req.user.login,
-                }
+        if self.req.user:
             return
         if REDIRECT_AFTER_LOGIN_KEY not in self.resp.session:
             self.resp.session[REDIRECT_AFTER_LOGIN_KEY] = self.req.path
