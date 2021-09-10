@@ -1,5 +1,5 @@
-from [[ app_name ]].models import db, dbs
 from [[ app_name ]].services.auth_services import auth, normalize_login
+from ..base import db, dbs
 
 
 class Authenticable:

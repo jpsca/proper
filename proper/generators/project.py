@@ -45,8 +45,8 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     )()
     print()
     os.chdir(str(path))
-    deps_installed = _install_dependencies(path) if _dependencies else False
     _make_executables(path)
+    deps_installed = _install_dependencies(path) if _dependencies else False
     _wrap_up(path, deps_installed)
 
 

@@ -4,6 +4,7 @@ setup:  # Requires an active virtualenv
 	make reqs
 	pip install -r requirements/dev-requirements.txt
 	pip install -e .
+	python manage.py db upgrade
 	cd static && npm install
 
 .PHONY: run

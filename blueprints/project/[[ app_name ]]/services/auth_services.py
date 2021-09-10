@@ -3,7 +3,6 @@ import unicodedata
 from proper.auth import Auth
 
 from ..config import config
-from ..models import dbs
 
 
 auth = Auth(
@@ -59,6 +58,5 @@ def sign_out(user, req, resp):
 
 def set_new_password(user, new_password, *, req, resp):
     user.password = new_password
-    dbs.commit
     # Password has change, so we need to updated the session too
     sign_in(user, req, resp)
