@@ -62,7 +62,7 @@ def test_add_secret_key_to_add_serializer(import_name):
     app = App(import_name)
 
     assert getattr(app, "serializer", None) is None
-    app.setup({"secret_key": "a" * 60})
+    app.update_config({"secret_key": "a" * 60})
     assert getattr(app, "serializer", None)
 
 

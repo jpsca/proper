@@ -8,9 +8,7 @@ from whitenoise import WhiteNoise
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Render, Serializer
-from proper.router import Router
 from proper.static import RX_INMUTABLES_FILE
-from .cli import get_app_cli
 from .default_config import DEFAULT_CONFIG
 
 
@@ -31,22 +29,6 @@ MANIFEST_PATH = "cache_manifest.json"
 
 class SetupMixin:
     serializer = None
-
-    def __init__(self, import_name, *, config=None):
-        """
-        import_name (str):
-            The name of the application package. Eg.: `foobar.web`.
-
-        config (dict):
-            Optional dict-like with the config.
-
-        """
-        self.cli = get_app_cli(self)()
-        self.router = Router()
-        self.setup(config)
-        self.setup_root_path(import_name)
-        self.setup_render()
-        self._wrap_wsgi_app()
 
     @property
     def config(self):
@@ -76,28 +58,13 @@ class SetupMixin:
     def static_manifest_path(self):
         return self.static_path / MANIFEST_PATH
 
-    def setup(self, config):
+    def update_config(self, config):
         self._config = ConfigDict(DEFAULT_CONFIG)
         self._config.update(config)
         if "secret_key" in self._config:
             self._setup_serializer()
 
         self.router._debug = self._config.debug
-
-    def setup_root_path(self, import_name):
-        module = import_module(import_name)
-        path = Path(module.__file__)
-        if path.is_file():
-            path = path.parent
-
-        self.root_path = path.absolute()
-
-    def setup_render(self):
-        self._load_static_manifest()
-        self.render = Render(self.templates_path)
-        self.render.globals["url_for"] = self.url_for
-        self.render.globals["url_static"] = self.url_static
-        self.render.globals["include_static"] = self.include_static
 
     def url_static(self, filename, *, host=None):
         host = host or self._config.static.host or f"/{STATIC_PREFIX}"
@@ -118,6 +85,14 @@ class SetupMixin:
         return self.serializer
 
     # Private
+
+    def _setup_root_path(self, import_name):
+        module = import_module(import_name)
+        path = Path(module.__file__)
+        if path.is_file():
+            path = path.parent
+
+        self.root_path = path.absolute()
 
     def _setup_serializer(self):
         secret_key = self._get_secret_key()
@@ -150,6 +125,13 @@ class SetupMixin:
 
         return secret_key
 
+    def _setup_render(self):
+        self._load_static_manifest()
+        self.render = Render(self.templates_path)
+        self.render.globals["url_for"] = self.url_for
+        self.render.globals["url_static"] = self.url_static
+        self.render.globals["include_static"] = self.include_static
+
     def _load_static_manifest(self):
         path = self.static_manifest_path
         if not self._config.debug and path.exists():
@@ -157,7 +139,7 @@ class SetupMixin:
         else:
             self.static_manifest = {}
 
-    def _wrap_wsgi_app(self):
+    def _setup_whitenoise(self):
         self._wrapped_wsgi = self.wsgi_app
 
         if self.public_path.exists():

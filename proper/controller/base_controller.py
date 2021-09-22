@@ -13,7 +13,7 @@ __all__ = ("BaseController",)
 
 
 class BaseController:
-    def before_action(self, action: str) -> None:
+    def before_action(self, action: str, kwargs: Dict[str, Any]) -> None:
         pass
 
     def after_action(self, action: str) -> None:
@@ -31,7 +31,7 @@ class BaseController:
         self._app = app
 
     def _dispatch(self, action: str) -> None:
-        self.before_action(action)
+        self.before_action(action, self.req.matched_params)
         if self.resp.stop:
             return
 

@@ -124,7 +124,7 @@ def test_fallback_from_custom_error_handlers(app, Pages, web):
 
 
 def test_do_not_catch_error(app, Pages, web):
-    app.setup({"catch_all_errors": False})
+    app.update_config({"catch_all_errors": False})
     app.router.routes = [
         get("fail/value_error", to=Pages.fail_value_error)
     ]
