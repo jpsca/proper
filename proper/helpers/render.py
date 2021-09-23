@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
-IGNORE = [".DS_Store"]
+IGNORE = [".DS_Store", "__pycache__"]
 
 
 class Render:

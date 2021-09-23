@@ -2,7 +2,7 @@
 from pyceo import Cli
 
 from [[ app_name ]].main import app
-from [[ app_name ]].models import User, alembic, dbs
+from [[ app_name ]].models import User, alembic, db
 
 
 class AuthCli(Cli):
@@ -14,8 +14,8 @@ class AuthCli(Cli):
           - login:    Username
           - password: Plain-text password (will be encrypted)
         """
-        dbs.create(User, login=login, password=password)
-        dbs.commit()
+        db.s.create(User, login=login, password=password)
+        db.s.commit()
         print("User added")
 
     def password(self, login, password):
@@ -31,7 +31,7 @@ class AuthCli(Cli):
             print ("User not found")
             return
         user.password = password
-        dbs.commit()
+        db.s.commit()
         print("Password updated")
 
 

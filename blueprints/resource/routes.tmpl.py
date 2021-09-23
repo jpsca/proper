@@ -1,5 +1,4 @@
 ,
-
-    resource("[[ snake_name ]]", to=[[ class_name ]][% if singular %], singular=True[% endif %]),
+    resource("[[ controller_snake_name ]]", to=[[ controller_class_name ]][% if singular %], singular=True[% endif %]),
 ]
 

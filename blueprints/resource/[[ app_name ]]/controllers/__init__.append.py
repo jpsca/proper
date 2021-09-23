@@ -1,1 +1,1 @@
-from .[[ snake_name|safe ]] import *  # noqa
+from .[[ controller_snake_name ]] import [[ controller_class_name ]]  # noqa

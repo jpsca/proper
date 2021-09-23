@@ -12,7 +12,7 @@ def test_gen_controller(app, scaffold):
     assert "def show(self):" in products_text
 
     init_text = (app_root / "controllers" / "__init__.py").read_text()
-    assert init_text.strip() == "from .products import *  # noqa"
+    assert init_text.strip() == "from .products import Products  # noqa"
 
     templates = app_root / "templates" / "products"
     assert templates.is_dir()

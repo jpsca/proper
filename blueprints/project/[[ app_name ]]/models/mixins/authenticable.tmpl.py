@@ -1,5 +1,5 @@
 from [[ app_name ]].services.auth_services import auth, normalize_login
-from ..base import db, dbs
+from ..base import db, db
 
 
 class Authenticable:
@@ -31,7 +31,7 @@ class Authenticable:
 
         Required by proper.auth.Auth()
         """
-        return dbs.get(cls, pk)
+        return db.s.get(cls, pk)
 
     @classmethod
     def by_login(cls, login):
@@ -42,6 +42,6 @@ class Authenticable:
         Required by proper.auth.Auth()
         """
         login = normalize_login(login)
-        return dbs.execute(
+        return db.s.execute(
             db.select(cls).where(cls.login == login)
         ).scalars().first()

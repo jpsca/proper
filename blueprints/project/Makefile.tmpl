@@ -3,8 +3,9 @@ setup:  # Requires an active virtualenv
 	pip install -U pip wheel pip-tools
 	make reqs
 	pip install -r requirements/dev-requirements.txt
+	pip install -e ../proper
 	pip install -e .
-	python manage.py db upgrade
+	make db
 	cd static && npm install
 
 .PHONY: run
@@ -22,7 +23,8 @@ lint:
 .PHONY: db
 db:
 	rm db/[[ app_name ]].sqlite || true
-	python manage.py db upgrade
+	# python manage.py db upgrade
+	python manage.py db create_all
 
 .PHONY: reqs
 reqs:

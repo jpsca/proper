@@ -14,9 +14,9 @@ USER_SESSION_KEY = "_user_token"
 class ApplicationController(BaseController):
     """All other controllers must inherit from this class.
     """
-    def before_action(self, action):
+    def before_action(self, action, kwargs):
         self._load_user()
-        super().before_action(action)
+        super().before_action(action, kwargs)
 
     def after_action(self, action):
         self._put_security_headers()
@@ -69,9 +69,9 @@ class ApplicationController(BaseController):
 
 class PrivateController(ApplicationController):
     """User-only controllers can inherit from this one."""
-    def before_action(self, action):
+    def before_action(self, action, kwargs):
         self._require_login()
-        super().before_action(action)
+        super().before_action(action, kwargs)
 
     def _require_login(self):
         if self.req.user:

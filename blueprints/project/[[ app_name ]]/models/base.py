@@ -1,10 +1,9 @@
 from sqla_wrapper import Alembic, SQLAlchemy
-from sqlalchemy.orm import scoped_session
 
 from ..config import config
 
 
-__all__ = ("Base", "alembic", "db", "dbs")
+__all__ = ("Base", "alembic", "db", "db")
 
 db = SQLAlchemy(
     dialect=config.database_dialect,
@@ -16,8 +15,6 @@ db = SQLAlchemy(
     engine_options=config.database_engine_options,
     session_options={"expire_on_commit": False}
 )
-dbs = scoped_session(db.Session)()
-
 alembic = Alembic(db, config.alembic_migrations)
 
 

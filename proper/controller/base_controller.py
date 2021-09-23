@@ -28,7 +28,7 @@ class BaseController:
     ) -> None:
         self.req = req or Request()
         self.resp = resp or Response()
-        self._app = app
+        self.app = app
 
     def _dispatch(self, action: str) -> None:
         self.before_action(action, self.req.matched_params)
@@ -63,7 +63,7 @@ class BaseController:
         # the default template name but changing the response format from the
         # default, for example, using ".json" instead of ".html".
         template = f"{self.resp.template}{self.resp.format}.jinja"
-        return self._app.render(template, **self._as_dict())
+        return self.app.render(template, **self._as_dict())
 
     def _as_dict(self) -> Dict[str, Any]:
         return {

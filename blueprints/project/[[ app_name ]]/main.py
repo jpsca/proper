@@ -4,7 +4,7 @@ from proper import errors
 
 from .app import app
 from .controllers import Pages
-from .models import dbs
+from .models import db
 from .routes import routes
 
 
@@ -17,12 +17,11 @@ app.errorhandler(errors.NotFound, Pages.not_found)
 app.errorhandler(Exception, Pages.error)
 
 
-@app.on_error
-def rollback_db_session(app, req, resp):
-    dbs.rollback()
+@app.on_before_dispatch
+def init_db_scoped_session(req, resp):
+    db.s()
 
 
 @app.on_teardown
-def remove_db_session(app, req, resp):
-    dbs.commit()
-    dbs.close()
+def remove_db_scoped_session(req, resp):
+    db.s.remove()

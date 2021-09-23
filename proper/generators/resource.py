@@ -19,7 +19,7 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
 
     Arguments:
 
-    - name: The model name (singular).
+    - name: The PascalCased resource name (plural unless is singular).
     - only: Optional comma-separated list of actions to include,
         instead of using the full set.)
     - ignore: Optional comma-separated lists of actions to NOT include
@@ -41,13 +41,18 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
 
     Examples:
 
-        ./manage.py g resource post
-        ./manage.py g resource post --only=index,show
-        ./manage.py g resource post title:string body:text published:boolean
-        ./manage.py g resource --singular
+        ./manage.py g resource Posts
+        ./manage.py g resource Posts --only=index,show
+        ./manage.py g resource Posts title:string body:text published:boolean
+        ./manage.py g resource Profile --singular
 
     """
-    snake_name = inflection.underscore(name)
+    controller_class_name = inflection.camelize(name)
+    controller_snake_name = inflection.underscore(name)
+
+    singular_name = inflection.singularize(name)
+    model_class_name = inflection.camelize(singular_name)
+    model_snake_name = inflection.underscore(singular_name)
 
     actions = set(ACTIONS)
     if only:
@@ -58,15 +63,17 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
         actions.remove("index")
 
     ignored_templates = [
-        f"{action}.html.jinja" for action in set(ACTIONS).difference(actions)
+        f"{action}.tmpl.html.jinja" for action in set(ACTIONS).difference(actions)
     ]
     bp = BlueprintRender(
         RESOURCE_BLUEPRINT,
         app.root_path.parent,
         context={
             "app_name": app.root_path.name,
-            "snake_name": snake_name,
-            "class_name": name,
+            "controller_class_name": controller_class_name,
+            "controller_snake_name": controller_snake_name,
+            "model_class_name": model_class_name,
+            "model_snake_name": model_snake_name,
             "actions": actions,
             "singular": singular,
         },
@@ -74,7 +81,13 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
     )
     bp()
 
-    gen_model(app, name, *attrs)
+    gen_model(
+        app,
+        name,
+        class_name=model_class_name,
+        snake_name=model_snake_name,
+        *attrs
+    )
 
     routes_tmpl = RESOURCE_BLUEPRINT / ROUTES_TMPL
     new_routes = bp.render.string(routes_tmpl.read_text())

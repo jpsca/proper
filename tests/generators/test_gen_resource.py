@@ -24,7 +24,7 @@ def _test_controller(app_root):
     assert "def delete(self, uid):" in products_text
 
     init_text = (app_root / "controllers" / "__init__.py").read_text()
-    assert init_text.strip() == "from .products import *  # noqa"
+    assert init_text.strip() == "from .products import Products  # noqa"
 
 
 def _test_model(app_root):
@@ -49,7 +49,6 @@ def _test_routes(app_root):
     print(routes_text)
     assert routes_text.endswith("""routes = [
     get("", to=Pages.index),
-
     resource("products", to=Products),
 ]
 
@@ -101,7 +100,6 @@ def _test_routes_singular(app_root):
     print(routes_text)
     assert routes_text.endswith("""routes = [
     get("", to=Pages.index),
-
     resource("profile", to=Profile, singular=True),
 ]
 

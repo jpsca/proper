@@ -6,7 +6,7 @@ from proper.helpers.render import BLUEPRINTS, BlueprintRender
 MODEL_BLUEPRINT = BLUEPRINTS / "model"
 
 
-def gen_model(app, name, *attrs):
+def gen_model(app, name, *attrs, class_name=None, snake_name=None):
     """Stubs out a new model.
 
     Pass the model name (singular), and an optional list of attribute pairs
@@ -143,8 +143,8 @@ def gen_model(app, name, *attrs):
 
     """
     name = inflection.singularize(name)
-    class_name = inflection.camelize(name)
-    snake_name = inflection.underscore(name)
+    class_name = class_name or inflection.camelize(name)
+    snake_name = snake_name or inflection.underscore(name)
     table_name = inflection.tableize(class_name)
     rows = [_build_row(snake_name, attr) for attr in attrs]
 
