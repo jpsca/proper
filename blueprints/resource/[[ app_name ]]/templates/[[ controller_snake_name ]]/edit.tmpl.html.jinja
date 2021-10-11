@@ -5,7 +5,7 @@
 {% block title %}Edit [[ model_snake_name ]]{% endblock %}
 
 {% block body %}
-<form method="post" action="{{ app.url_for('Person.update', uid=person.uid) }}">
+<form method="post" action="{{ app.url_for('[[ controller_class_name ]].update', pk=[[ model_snake_name ]].id) }}">
 	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
 
 	<div class="mt-8">

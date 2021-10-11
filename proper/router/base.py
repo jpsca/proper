@@ -115,6 +115,9 @@ class BaseRoute:
         self.path_placeholders = placeholders
 
     def match(self, path: str) -> Optional[re.Match]:
+        if self.path_re is None:
+            self.compile_path()
+
         return self.path_re.match(path)
 
     def format(self, **kwargs: Dict[str, str]) -> str:

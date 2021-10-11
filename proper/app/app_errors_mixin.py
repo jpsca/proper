@@ -1,5 +1,3 @@
-import inspect
-
 from proper import status
 from proper.errors import MatchNotFound
 from proper.helpers import Dot
@@ -13,30 +11,7 @@ from .error_handlers import (
 from ..middleware.dispatch import dispatch
 
 
-class ErrorsMixin:
-
-    """A dict of functions to call when an HTTPError is raised.
-    The keys are any subclasses of Exception, but, not necessarily subclasses
-    of HTTPError."""
-
-    error_handlers = None
-
-    def errorhandler(self, cls, to):
-        """Register a controller method to handle errors by exception class.
-
-        Example:
-
-        ```
-        app.errorhandler(errors.NotFound, Pages.not_found)
-        app.errorhandler(Exception, Pages.error)
-        ```
-        """
-        assert inspect.isclass(cls) and issubclass(
-            cls, Exception
-        ), "`errorhandler` takes a subclass of `Exception` as first argument."
-        self.error_handlers = self.error_handlers or {}
-        self.error_handlers[cls] = to
-
+class AppErrorsMixin:
     def _handle_app_error(self, req, resp):
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.

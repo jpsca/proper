@@ -54,9 +54,9 @@ def test_singular_resource_only():
     assert routes == expected
 
 
-def test_singular_resource_ignore():
+def test_singular_resource_exclude():
     routes = resource(
-        "profile", to=Profile, ignore=["new", "create", "delete"], singular=True
+        "profile", to=Profile, exclude=["new", "create", "delete"], singular=True
     )
 
     expected = [
@@ -91,9 +91,9 @@ def test_only_invalid_actions():
         resource("profile", to=Profile, only=[])
 
 
-def test_only_and_ignore():
+def test_only_and_exclude():
     routes = resource(
-        "profile", to=Profile, only=["show", "update"], ignore=["show", "edit"], singular=True
+        "profile", to=Profile, only=["show", "update"], exclude=["show", "edit"], singular=True
     )
 
     expected = [
@@ -105,9 +105,9 @@ def test_only_and_ignore():
     assert routes == expected
 
 
-def test_ignore_invalid():
+def test_exclude_invalid():
     routes = resource(
-        "profile", to=Profile, only=["show"], ignore=["patrice"], singular=True
+        "profile", to=Profile, only=["show"], exclude=["patrice"], singular=True
     )
 
     expected = [

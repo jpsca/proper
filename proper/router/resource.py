@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 from .route import Route
 
@@ -27,23 +27,28 @@ SINGLE_ROUTES = (
 )
 ACTIONS = ("index", "new", "create", "show", "edit", "update", "delete")
 
+StrOrIter = Union[Iterable[str], str]
+
 
 def resource(
     path: str,
     *,
     to: Callable,
-    only: Iterable[str] = ACTIONS,
-    ignore: Optional[Iterable[str]] = None,
+    only: StrOrIter = ACTIONS,
+    exclude: Optional[StrOrIter] = None,
     singular: bool = False,
     **kwargs: Dict[str, Any],
 ) -> List[Route]:
     """Shortcut to return a list of REST routes for a resource.
 
+    You can define a resource that uses only some of the actions
+    with `only`, or one that uses all excluding some with `exclude`.
+
     ## Group resource
 
     Example: `resource("photos", "Photo")`
 
-    HTTP     PATH                METHOD   USED FOR
+    HTTP     PATH                ACTION   USED FOR
     -------- ------------------- -------- -------------------------------
     GET      /photos             index    a list of all photos
     GET      /photos/new         new      form for creating a new photo
@@ -64,7 +69,7 @@ def resource(
 
     Example: `resource("profile", "Profile", singular=True)`
 
-    HTTP     PATH                METHOD   USED FOR
+    HTTP     PATH                ACTION   USED FOR
     -------- ------------------- -------- -------------------------------
     GET      /profile/new        new      form for creating the profile
     POST     /profile            create   create the profile
@@ -75,18 +80,27 @@ def resource(
     DELETE   /profile            delete   delete the profile
 
 
-    In both secenarios, we validate the arguments first so we can show errors about what the user has
+    In both scenarios, we validate the arguments first so we can show errors about what the user has
     typed instead of being about dynamically generated routes.
     """
     res = Route("resource", path, to=to, **kwargs)
 
-    ignore = ignore or []
+    only = _to_list(only)
+    exclude = _to_list(exclude)
+
     _actions = [
         action for action in only
-        if (action in ACTIONS) and (action not in ignore)
+        if (action in ACTIONS) and (action not in exclude)
     ]
     assert _actions, "None of the actions are valid."
     return _expand_routes(res, _actions, SINGLE_ROUTES if singular else GROUP_ROUTES)
+
+
+def _to_list(iterable):
+    iterable = iterable or []
+    if isinstance(iterable, str):
+        return [iterable]
+    return iterable
 
 
 def _expand_routes(res, actions, data):

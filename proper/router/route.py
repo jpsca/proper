@@ -22,6 +22,7 @@ __all__ = (
     "delete",
     "options",
     "patch",
+    "static",
 )
 
 
@@ -170,6 +171,14 @@ class Patch(Route):
         super().__init__("PATCH", path, **kwargs)
 
 
+class Static(Route):
+    """A route for static files."""
+    def __init__(self, filepath) -> None:
+        filepath = str(filepath).lstrip("/")
+        redirect = f"/static/{filepath}"
+        super().__init__("GET", filepath, redirect=redirect)
+
+
 route = Route
 get = Get
 post = Post
@@ -177,3 +186,4 @@ put = Put
 delete = Delete
 options = Options
 patch = Patch
+static = Static

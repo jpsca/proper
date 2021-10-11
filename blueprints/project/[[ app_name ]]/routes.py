@@ -12,7 +12,7 @@ routes = [
     get("humans.txt", redirect="/static/humans.txt"),
 
     # This routes exist so you can test your error pages
-    # but we need to use `app.errorhandler()` (like we do in `app.py`
+    # but we need to use `app.error_handler()` (like we do in `app.py`
     # to *actually* use them for handling errors.
     get("_not_found", to=Pages.not_found),
     get("_error", to=Pages.error),

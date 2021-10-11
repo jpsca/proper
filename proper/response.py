@@ -42,7 +42,10 @@ class Response:
     # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
     stop: bool = False
 
-    # relative path of the template, minus the extension
+    # snake_case name of the controller class
+    snake_controller: Optional[str] = None
+
+    # name of the template, minus the extension
     template: Optional[str] = None
 
     # the default extension of the template.

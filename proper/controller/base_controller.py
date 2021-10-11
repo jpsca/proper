@@ -13,7 +13,7 @@ __all__ = ("BaseController",)
 
 
 class BaseController:
-    def before_action(self, action: str, kwargs: Dict[str, Any]) -> None:
+    def before_action(self, action: str, params: Dict[str, Any]) -> None:
         pass
 
     def after_action(self, action: str) -> None:
@@ -29,6 +29,16 @@ class BaseController:
         self.req = req or Request()
         self.resp = resp or Response()
         self.app = app
+
+    def render(self) -> str:
+        # The template doesn't have a extension so you can choose to use
+        # the default template name but changing the response format from the
+        # default, for example, using ".json" instead of ".html".
+        template = (
+            f"{self.resp.snake_controller}/"
+            f"{self.resp.template}{self.resp.format}.jinja"
+        )
+        return self.app.render(template, **vars(self))
 
     def _dispatch(self, action: str) -> None:
         self.before_action(action, self.req.matched_params)
@@ -56,16 +66,4 @@ class BaseController:
         if req.real_method == "HEAD" or resp.has_body or resp.stop:
             return
 
-        resp.body = self._render()
-
-    def _render(self) -> str:
-        # The template doesn't have a extension so the action can choose to use
-        # the default template name but changing the response format from the
-        # default, for example, using ".json" instead of ".html".
-        template = f"{self.resp.template}{self.resp.format}.jinja"
-        return self.app.render(template, **self._as_dict())
-
-    def _as_dict(self) -> Dict[str, Any]:
-        return {
-            name: getattr(self, name) for name in dir(self) if not name.startswith("_")
-        }
+        resp.body = self.render()

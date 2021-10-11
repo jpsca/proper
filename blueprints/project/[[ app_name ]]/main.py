@@ -13,8 +13,8 @@ app.routes = routes
 # You can call your own views for handling any kind of exception, not
 # only HTTP exceptions but custom ones or even native Python exceptions
 # like `ValueError` or a catch-all Exception.
-app.errorhandler(errors.NotFound, Pages.not_found)
-app.errorhandler(Exception, Pages.error)
+app.error_handler(errors.NotFound, Pages.not_found)
+app.error_handler(Exception, Pages.error)
 
 
 @app.on_before_dispatch

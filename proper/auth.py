@@ -180,7 +180,7 @@ class Auth:
         mac = mac.hexdigest()
         return f"{user.id}${mac}"
 
-    def get_timestamped_token(self, user, timestamp):
+    def get_timestamped_token(self, user, timestamp=None):
         timestamp = int(timestamp or time())
 
         key = "|".join(

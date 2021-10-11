@@ -5,7 +5,7 @@
 {% block title %}New [[ model_snake_name ]]{% endblock %}
 
 {% block body %}
-<form method="post" action="{{ app.url_for('Person.create') }}">
+<form method="post" action="{{ app.url_for('[[ controller_class_name ]].create') }}">
 	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
 
 	<div class="mt-8">

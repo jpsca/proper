@@ -2,14 +2,14 @@ import json
 from importlib import import_module
 from pathlib import Path
 
-from jinja2 import Markup
-from properconf import ConfigDict
 from whitenoise import WhiteNoise
 
 from proper.constants import MIN_SECRET_LENGTH
 from proper.helpers import Render, Serializer
 from proper.static import RX_INMUTABLES_FILE
-from .default_config import DEFAULT_CONFIG
+
+
+STATIC_PREFIX = "static"
 
 
 class MissingSecretKey(Exception):
@@ -20,72 +20,7 @@ class BadSecretKey(Exception):
     pass
 
 
-TEMPLATES_FOLDER = "templates"
-STATIC_PREFIX = "static"
-STATIC_FOLDER = "static"
-PUBLIC_FOLDER = "public"
-MANIFEST_PATH = "cache_manifest.json"
-
-
-class SetupMixin:
-    serializer = None
-
-    @property
-    def config(self):
-        return self._config
-
-    @property
-    def routes(self):
-        return self.router._routes
-
-    @routes.setter
-    def routes(self, values):
-        self.router.routes = values
-
-    @property
-    def templates_path(self):
-        return self.root_path / TEMPLATES_FOLDER
-
-    @property
-    def static_path(self):
-        return self.root_path.parent / STATIC_FOLDER
-
-    @property
-    def public_path(self):
-        return self.static_path / PUBLIC_FOLDER
-
-    @property
-    def static_manifest_path(self):
-        return self.static_path / MANIFEST_PATH
-
-    def update_config(self, config):
-        self._config = ConfigDict(DEFAULT_CONFIG)
-        self._config.update(config)
-        if "secret_key" in self._config:
-            self._setup_serializer()
-
-        self.router._debug = self._config.debug
-
-    def url_static(self, filename, *, host=None):
-        host = host or self._config.static.host or f"/{STATIC_PREFIX}"
-        filename = filename.replace("..", ".").strip("/").strip("\\").strip()
-        filename = self.static_manifest.get(filename, filename)
-        return f"{host}/{filename}"
-
-    def include_static(self, filename):
-        """Read and returns a text file from the `static/public` folder, to include
-        in the template as-is.
-        """
-        text = (self.public_path / filename).read_text()
-        return Markup(text)
-
-    def get_serializer(self):
-        if not self.serializer:
-            self._setup_serializer()
-        return self.serializer
-
-    # Private
-
+class AppSetupMixin:
     def _setup_root_path(self, import_name):
         module = import_module(import_name)
         path = Path(module.__file__)

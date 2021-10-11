@@ -1,20 +1,36 @@
+import inspect
 from functools import partial
 from typing import Callable, Optional, Tuple
+
+import inflection
+from jinja2 import Markup
+from properconf import ConfigDict
 
 from proper import middleware
 from proper.local import current
 from proper.request import Request
 from proper.response import Response
-from proper.router import Router
+from proper.router import Router, get
+from .app_errors_mixin import AppErrorsMixin
+from .app_setup_mixin import (
+    AppSetupMixin,
+    BadSecretKey,
+    MissingSecretKey,
+    STATIC_PREFIX,
+)
 from .cli import get_app_cli
-from .errors_mixin import ErrorsMixin
-from .setup_mixin import BadSecretKey, MissingSecretKey, SetupMixin  # noqa
+from .default_config import DEFAULT_CONFIG
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 
+TEMPLATES_FOLDER = "templates"
+STATIC_FOLDER = "static"
+PUBLIC_FOLDER = "public"
+MANIFEST_PATH = "cache_manifest.json"
 
-class App(ErrorsMixin, SetupMixin):
+
+class App(AppErrorsMixin, AppSetupMixin):
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
     _on_before_dispatch: Tuple[Callable] = tuple()
@@ -30,6 +46,13 @@ class App(ErrorsMixin, SetupMixin):
     # even if an exception was raised before.
     _on_teardown: Tuple[Callable] = tuple()
 
+    # A dict of functions to call when an HTTPError is raised.
+    # The keys are any subclasses of Exception, but, not necessarily
+    # subclasses of HTTPError.
+    error_handlers = None
+
+    serializer = None
+
     def __init__(self, import_name, *, config=None):
         """
         import_name (str):
@@ -41,19 +64,19 @@ class App(ErrorsMixin, SetupMixin):
         """
         self._on_before_dispatch = (
             partial(middleware.head_to_get, app=self),
+            partial(middleware.method_override, app=self),
             partial(middleware.match, app=self),
             partial(middleware.redirect, app=self),
             partial(middleware.fetch_session, app=self),
             partial(middleware.protect_from_forgery, app=self),
         )
-        self._on_dispatch = (
-            partial(middleware.dispatch, app=self),
-        )
+        self._on_dispatch = (partial(middleware.dispatch, app=self),)
         self._on_after_dispatch = (
             partial(middleware.put_csrf_header, app=self),
             partial(middleware.put_session, app=self),
             partial(middleware.strip_body_if_head, app=self),
         )
+        self.error_handlers = {}
 
         self.cli = get_app_cli(self)()
         self.router = Router()
@@ -64,6 +87,34 @@ class App(ErrorsMixin, SetupMixin):
 
     def __call__(self, environ, start_response):
         return self._wrapped_wsgi(environ, start_response)
+
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def routes(self):
+        return self.router._routes
+
+    @routes.setter
+    def routes(self, values):
+        self.router.routes = values
+
+    @property
+    def templates_path(self):
+        return self.root_path / TEMPLATES_FOLDER
+
+    @property
+    def static_path(self):
+        return self.root_path.parent / STATIC_FOLDER
+
+    @property
+    def public_path(self):
+        return self.static_path / PUBLIC_FOLDER
+
+    @property
+    def static_manifest_path(self):
+        return self.static_path / MANIFEST_PATH
 
     @property
     def current_req(self) -> Optional[Request]:
@@ -130,6 +181,53 @@ class App(ErrorsMixin, SetupMixin):
             for func in self._on_teardown:
                 func(req, resp)
 
+    def get_serializer(self):
+        if not self.serializer:
+            self._setup_serializer()
+        return self.serializer
+
+    def error_handler(self, cls, to):
+        """Register a controller method to handle errors by exception class.
+        If debug=True, it also adds a route to test that page.
+
+        Example:
+
+        ```
+        app.error_handler(errors.NotFound, Pages.not_found)
+        app.error_handler(Exception, Pages.error)
+        ```
+        """
+        assert inspect.isclass(cls) and issubclass(
+            cls, Exception
+        ), "`error_handler` takes a subclass of `Exception` as first argument."
+        self.error_handlers[cls] = to
+
+        if self._config.debug:
+            self.router.routes.append(
+                get(f"_{inflection.underscore(cls.__qualname__)}", to=to)
+            )
+
+    def update_config(self, config):
+        self._config = ConfigDict(DEFAULT_CONFIG)
+        self._config.update(config)
+        if "secret_key" in self._config:
+            self._setup_serializer()
+
+        self.router._debug = self._config.debug
+
     def url_for(self, name: str, object=None, *, _anchor=None, **kwargs):
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object=object, _anchor=_anchor, **kwargs)
+
+    def url_static(self, filename, *, host=None):
+        host = host or self._config.static.host or f"/{STATIC_PREFIX}"
+        filename = filename.replace("..", ".").strip("/").strip("\\").strip()
+        filename = self.static_manifest.get(filename, filename)
+        return f"{host}/{filename}"
+
+    def include_static(self, filename):
+        """Read and returns a text file from the `static/public` folder, to include
+        in the template as-is.
+        """
+        text = (self.public_path / filename).read_text()
+        return Markup(text)

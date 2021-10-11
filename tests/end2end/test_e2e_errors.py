@@ -69,12 +69,12 @@ def test_custom_register_not_an_exception(app, Pages, web):
         pass
 
     with pytest.raises(AssertionError):
-        app.errorhandler(NotAnException, Pages.custom_not_found_handler)
+        app.error_handler(NotAnException, Pages.custom_not_found_handler)
 
 
 def test_custom_register_not_even_a_class(app, Pages, web):
     with pytest.raises(AssertionError):
-        app.errorhandler(5, Pages.custom_not_found_handler)
+        app.error_handler(5, Pages.custom_not_found_handler)
 
 
 def test_custom_error_handlers(app, Pages, web):
@@ -85,10 +85,10 @@ def test_custom_error_handlers(app, Pages, web):
         get("fail/value_error", to=Pages.fail_value_error),
     ]
 
-    app.errorhandler(errors.NotFound, Pages.custom_not_found_handler)
-    app.errorhandler(errors.NotAcceptable, Pages.custom_not_acceptable_handler)
-    app.errorhandler(errors.HTTPError, Pages.custom_error_handler)
-    app.errorhandler(ValueError, Pages.custom_value_error_handler)
+    app.error_handler(errors.NotFound, Pages.custom_not_found_handler)
+    app.error_handler(errors.NotAcceptable, Pages.custom_not_acceptable_handler)
+    app.error_handler(errors.HTTPError, Pages.custom_error_handler)
+    app.error_handler(ValueError, Pages.custom_value_error_handler)
 
     resp = web.get("/", expect_errors=True)
     assert resp.status == status.not_found
@@ -116,7 +116,7 @@ def test_fallback_from_custom_error_handlers(app, Pages, web):
         get("fail/value_error", to=Pages.fail_value_error)
     ]
 
-    app.errorhandler(errors.HTTPError, Pages.custom_error_handler)
+    app.error_handler(errors.HTTPError, Pages.custom_error_handler)
 
     resp = web.get("/fail/value_error", expect_errors=True)
     assert resp.status == status.server_error
@@ -152,3 +152,27 @@ def test_error_when_rendering_the_error_page(app, web):
     assert "<title>Error</title>" in resp.text
 
     error_handlers.jinja_render = original
+
+
+def test_register_a_test_error_route_if_in_debug(app, Pages):
+    app.config["debug"] = True
+    app.router.routes = [
+        get("fail/value_error", to=Pages.fail_value_error),
+    ]
+    app.error_handler(ValueError, Pages.custom_value_error_handler)
+
+    last_route = app.router.routes[-1]
+    assert last_route.path == "/_value_error"
+    assert last_route.to == Pages.custom_value_error_handler
+
+
+def test_do_not_register_a_test_error_route_if_not_in_debug(app, Pages):
+    app.config["debug"] = False
+    app.router.routes = [
+        get("fail/value_error", to=Pages.fail_value_error),
+    ]
+    app.error_handler(ValueError, Pages.custom_value_error_handler)
+
+    last_route = app.router.routes[-1]
+    assert last_route.path != "_value_error"
+    assert last_route.to != Pages.custom_value_error_handler

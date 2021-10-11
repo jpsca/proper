@@ -56,8 +56,8 @@ def test_resource_only():
     assert routes == expected
 
 
-def test_resource_ignore():
-    routes = resource("posts", to=Posts, ignore=["new", "create", "delete"])
+def test_resource_exclude():
+    routes = resource("posts", to=Posts, exclude=["new", "create", "delete"])
 
     expected = [
         get("posts/", to=Posts.index),
@@ -91,9 +91,9 @@ def test_only_invalid_actions():
         resource("posts", to=Posts, only=[])
 
 
-def test_only_and_ignore():
+def test_only_and_exclude():
     routes = resource(
-        "posts", to=Posts, only=["index", "show"], ignore=["show", "edit"]
+        "posts", to=Posts, only=["index", "show"], exclude=["show", "edit"]
     )
 
     expected = [
@@ -104,8 +104,8 @@ def test_only_and_ignore():
     assert routes == expected
 
 
-def test_ignore_invalid():
-    routes = resource("posts", to=Posts, only=["index", "show"], ignore=["patrice"])
+def test_exclude_invalid():
+    routes = resource("posts", to=Posts, only=["index", "show"], exclude=["patrice"])
 
     expected = [
         get("posts/", to=Posts.index),

@@ -9,20 +9,20 @@ RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 ROUTES_TMPL = "routes.tmpl.py"
 
 
-def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
+def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     """Stubs out a new resource
     including a controller, model, migration, templates, and a resource route
     in the `routes.py` file
 
         ./manage.py g resource NAME
-            [--only=action[,action]] [--ignore=action[,action]] [--singular]
+            [--only=action[,action]] [--exclude=action[,action]] [--singular]
 
     Arguments:
 
     - name: The PascalCased resource name (plural unless is singular).
     - only: Optional comma-separated list of actions to include,
         instead of using the full set.)
-    - ignore: Optional comma-separated lists of actions to NOT include
+    - exclude: Optional comma-separated lists of actions to NOT include
         from the full set of actions.
     - singular [False]: Wether the resource is just one.
     - attrs: Optional list of columns to add to the schema of the resource.
@@ -32,8 +32,8 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
     Run `./manage.py g model --help` for instructions.
 
     By default it generates the full set of REST actions, but you can choose
-    only some of these or to ignore a few by using the optional `only` and
-    `ignore` arguments.
+    only some of these or to exclude a few by using the optional `only` and
+    `exclude` arguments.
 
     Sometimes, you have a resource that clients always look up without
     referencing an ID. In this case, you can use `singular=True` to build a
@@ -57,8 +57,8 @@ def gen_resource(app, name, *attrs, only=None, ignore=None, singular=False):
     actions = set(ACTIONS)
     if only:
         actions = actions.intersection(set(only.split(",")))
-    elif ignore:
-        actions = actions.difference(set(ignore.split(",")))
+    elif exclude:
+        actions = actions.difference(set(exclude.split(",")))
     if singular:
         actions.remove("index")
 

@@ -30,11 +30,10 @@ def run_server(self):
     else:
         print(f"💥 {PACKAGE_JSON} not found. Skipping.")
 
+    cmd = f"uwsgi --ini {UWSGI_DEV_CONFIG}"
+    print(cmd)
     try:
-        subprocess.check_call(
-            f"uwsgi --ini {UWSGI_DEV_CONFIG}",
-            shell=True
-        )
+        subprocess.check_call(cmd, shell=True)
     except KeyboardInterrupt:
         print("\n✨ Goodbye ✨")
     finally:
@@ -43,10 +42,9 @@ def run_server(self):
 
 
 def npm_watch():
+    cmd = "cd static && npm run watch"
+    print(cmd)
     try:
-        subprocess.run(
-            "cd static && npm run watch",
-            shell=True,
-        )
+        subprocess.run(cmd, shell=True)
     except KeyboardInterrupt:
         pass
