@@ -18,10 +18,10 @@ def _test_controller(app_root):
     assert "def index(self):" in products_text
     assert "def new(self):" in products_text
     assert "def create(self):" in products_text
-    assert "def show(self, uid):" in products_text
-    assert "def edit(self, uid):" in products_text
-    assert "def update(self, uid):" in products_text
-    assert "def delete(self, uid):" in products_text
+    assert "def show(self, pk):" in products_text
+    assert "def edit(self, pk):" in products_text
+    assert "def update(self, pk):" in products_text
+    assert "def delete(self, pk):" in products_text
 
     init_text = (app_root / "controllers" / "__init__.py").read_text()
     assert init_text.strip() == "from .products import Products  # noqa"

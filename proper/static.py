@@ -49,7 +49,8 @@ def build(app):
 
 
 def clean(app):
-    """Delete all digested and/or compressed assets in static/public.
+    """Delete the manifest and all digested and/or compressed assets
+    in static/public.
     """
     public = app.public_path
     echo("<bold>-- Removing hashed and/or compressed files --</>")
@@ -59,6 +60,7 @@ def clean(app):
                 path = (Path(dirpath) / filename)
                 print(path.relative_to(public))
                 path.unlink()
+    app.static_manifest_path.unlink()
 
 
 def compile(app):

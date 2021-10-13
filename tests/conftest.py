@@ -66,7 +66,7 @@ def scaffold(dst):
 
 
 class AppController(BaseController):
-    def _render(self):
+    def render(self):
         return f"<html>{self.resp.template} was rendered</html>"
 
 

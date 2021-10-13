@@ -3,7 +3,7 @@ from proper.helpers import Dot
 
 
 class AppController(BaseController):
-    def _render(self):
+    def render(self):
         return f"{self.resp.template} was rendered"
 
     def index(self):
@@ -11,7 +11,7 @@ class AppController(BaseController):
 
 
 class DefaultTemplate(AppController):
-    def rendered(self, *args):
+    def rendered(self, *kwargs):
         pass
 
 
@@ -19,7 +19,7 @@ def test_default_template(app, web):
     app.routes = [get("/", to=DefaultTemplate.rendered)]
     resp = web.get("/")
 
-    assert resp.text == "default_template/rendered was rendered"
+    assert resp.text == "rendered was rendered"
 
 
 class CustomTemplate(AppController):

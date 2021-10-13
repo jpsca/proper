@@ -4,7 +4,7 @@ from proper import App, BadSecretKey, BaseController, get, status
 
 
 class MyController(BaseController):
-    def _render(self):
+    def render(self):
         return "whatever"
 
     def index(self):
