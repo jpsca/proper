@@ -63,7 +63,7 @@ class Request:
         Parsed args from the URL.
 
     form:
-        A :class:`MultiDict` object containing the parsed body data, like the
+        A `MultiDict` object containing the parsed body data, like the
         one sent by a HTML form with a POST, **including** the files.
 
     remote_addr:
@@ -78,7 +78,7 @@ class Request:
         The root path of the script (SCRIPT_NAME).
         Note: The router does **NOT** uses this value for `url_for()`, but the
         one from `app.config.root_path`.
-        A :class:`MultiDict` object containing the query string data.
+        A `MultiDict` object containing the query string data.
 
     cookies:
         All cookies transmitted with the request.

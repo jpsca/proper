@@ -9,7 +9,7 @@ class NoValue:
 
 
 class MultiDict(defaultdict):
-    """A :class:`MultiDict` is a defaultdict subclass customized to deal with
+    """A `MultiDict` is a defaultdict subclass customized to deal with
     multiple values for the same key and type casting its values.
     """
 
@@ -47,7 +47,7 @@ class MultiDict(defaultdict):
 
             type (callable):
                 A callable that is used to cast the value in the
-                :class:`MultiDict`.  If a :exc:`ValueError` is raised
+                `MultiDict`.  If a :exc:`ValueError` is raised
                 by this callable the default value is returned.
 
             index (int):
@@ -75,7 +75,7 @@ class MultiDict(defaultdict):
 
     def getall(self, key, *, type=None):
         """Return the list of items for a given key. If that key is not in the
-        :class:`MultiDict`, the return value will be an empty list.
+        `MultiDict`, the return value will be an empty list.
 
         Just as `get` `getlist` accepts a `type` parameter.
         All items will be converted with the callable defined there.
@@ -89,7 +89,7 @@ class MultiDict(defaultdict):
 
             type (callable):
                 A callable that is used to cast the value in the
-                :class:`MultiDict`.  If a :exc:`ValueError` is raised
+                `MultiDict`.  If a :exc:`ValueError` is raised
                 by this callable the value will be removed from the list.
 
         """

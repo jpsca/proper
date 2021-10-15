@@ -1,4 +1,4 @@
-import hyperform as f
+import proper.forms as f
 
 from [[ app_name ]].models import [[ model_class_name ]]
 from .base import ModelForm
