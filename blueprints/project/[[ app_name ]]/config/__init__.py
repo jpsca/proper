@@ -2,7 +2,7 @@ import os
 from importlib import import_module
 from pathlib import Path
 
-from properconf import ConfigDict
+from proper_config import ConfigDict
 
 
 ENV_VAR = "APP_ENV"

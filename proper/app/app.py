@@ -4,7 +4,7 @@ from typing import Callable, Optional, Tuple
 
 import inflection
 from jinja2 import Markup
-from properconf import ConfigDict
+from proper_config import ConfigDict
 
 from proper import middleware
 from proper.local import current

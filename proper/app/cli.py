@@ -1,4 +1,4 @@
-import properconf
+import proper_config
 import pyceo
 
 from proper import generators, static
@@ -86,7 +86,7 @@ def get_secrets_cmd(app):
         """
         path = app.root_path / "config"
         header = ENCRIPTED_HEADER % (env,)
-        properconf.edit_secrets(path, env, secrets_header=header)
+        proper_config.edit_secrets(path, env, secrets_header=header)
     return secrets
 
 

@@ -10,4 +10,4 @@ coverage:
 setup:
 	pip install -U pip wheel
 	pip install -e .[dev,test]
-	pre-commit install --hook-type pre-push
+	pre-commit install
