@@ -6,7 +6,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import jinja2
-from pyceo import confirm, echo
+from proper_cli import confirm, echo
 
 
 __all__ = [

@@ -7,7 +7,7 @@ try:
     import brotli
 except ImportError:
     botli = None
-from pyceo import echo
+from proper_cli import echo
 from whitenoise.compress import Compressor
 
 from proper.helpers import Digestor

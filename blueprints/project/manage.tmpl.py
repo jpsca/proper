@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from pyceo import Cli
+from proper_cli import Cli
 
 from [[ app_name ]].main import app
 from [[ app_name ]].models import User, alembic, db
@@ -36,7 +36,7 @@ class AuthCli(Cli):
 
 
 app.cli.auth = AuthCli
-app.cli.db = alembic.get_pyceo_cli()
+app.cli.db = alembic.get_proper_cli()
 
 
 if __name__ == "__main__":

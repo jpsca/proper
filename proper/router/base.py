@@ -2,6 +2,7 @@ import re
 from string import Template
 from typing import Any, Dict, Optional
 
+
 __all__ = ("BaseRoute", "MissingParameter", "BadPlaceholder", "BadFormat")
 
 

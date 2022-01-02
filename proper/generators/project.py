@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 import inflection
-from pyceo import confirm
+from proper_cli import confirm
 
 from proper.helpers import BLUEPRINTS, BlueprintRender, printf
 

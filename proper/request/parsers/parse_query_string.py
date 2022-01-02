@@ -1,7 +1,7 @@
 import multipart
 
-from .. import errors
-from ..helpers import MultiDict
+from proper import errors
+from proper.helpers import MultiDict
 
 
 __all__ = ("parse_query_string",)

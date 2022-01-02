@@ -1,36 +1,55 @@
 import inspect
+import json
 from functools import partial
+from importlib import import_module
+from pathlib import Path
 from typing import Callable, Optional, Tuple
 
 import inflection
 from jinja2 import Markup
 from proper_config import ConfigDict
+from whitenoise import WhiteNoise
 
-from proper import middleware
-from proper.local import current
-from proper.request import Request
-from proper.response import Response
-from proper.router import Router, get
-from .app_errors_mixin import AppErrorsMixin
-from .app_setup_mixin import (
-    AppSetupMixin,
-    BadSecretKey,
-    MissingSecretKey,
-    STATIC_PREFIX,
-)
+from .. import middleware, status
+from ..constants import MIN_SECRET_LENGTH
+from ..errors import MatchNotFound
+from ..helpers import Dot, Render, Serializer
+from ..local import current
+from ..middleware.dispatch import dispatch
+from ..request import Request
+from ..response import Response
+from ..router import Router, get
+from ..static import RX_INMUTABLES_FILE
+
 from .cli import get_app_cli
 from .default_config import DEFAULT_CONFIG
+from .error_handlers import (
+    debug_error_handler,
+    debug_not_found_handler,
+    fallback_error_handler,
+    fallback_forbidden_handler,
+    fallback_not_found_handler,
+)
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")
 
 TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
+STATIC_PREFIX = "static"
 PUBLIC_FOLDER = "public"
 MANIFEST_PATH = "cache_manifest.json"
 
 
-class App(AppErrorsMixin, AppSetupMixin):
+class MissingSecretKey(Exception):
+    pass
+
+
+class BadSecretKey(Exception):
+    pass
+
+
+class App:
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
     _on_before_dispatch: Tuple[Callable] = tuple()
@@ -231,3 +250,123 @@ class App(AppErrorsMixin, AppSetupMixin):
         """
         text = (self.public_path / filename).read_text()
         return Markup(text)
+
+    # Private
+
+    def _setup_root_path(self, import_name):
+        module = import_module(import_name)
+        path = Path(module.__file__)
+        if path.is_file():
+            path = path.parent
+
+        self.root_path = path.absolute()
+
+    def _setup_serializer(self):
+        secret_key = self._get_secret_key()
+        self.serializer = Serializer(secret_key)
+
+    def _get_secret_key(self):
+        secret_key = self._config.get("secret_key")
+
+        if secret_key is None:
+            raise MissingSecretKey(
+                'Please add a "secret_key" to your secrets.\n'
+                "Your secret key is needed for verifying the integrity of "
+                "signed cookies. \n"
+                f"Make sure is at least {MIN_SECRET_LENGTH} characters "
+                "and all random, no regular words or you'll be exposed to "
+                "dictionary attacks. \n"
+                "You can use `proper secret` to generate a secure secret key."
+            )
+
+        secret_key = str(secret_key)
+        if len(secret_key) < MIN_SECRET_LENGTH:
+            raise BadSecretKey(
+                "Your secret_key, used for verifying the integrity of "
+                "signed cookies, is not secure enough. \n"
+                f"Make sure is at least {MIN_SECRET_LENGTH} characters "
+                "and all random, no regular words or you'll be exposed to "
+                "dictionary attacks. \n"
+                "You can use `proper secret` to generate a secure secret key."
+            )
+
+        return secret_key
+
+    def _setup_render(self):
+        self._load_static_manifest()
+        self.render = Render(self.templates_path)
+        self.render.globals["url_for"] = self.url_for
+        self.render.globals["url_static"] = self.url_static
+        self.render.globals["include_static"] = self.include_static
+
+    def _load_static_manifest(self):
+        path = self.static_manifest_path
+        if not self._config.debug and path.exists():
+            self.static_manifest = json.loads(path.read_text())
+        else:
+            self.static_manifest = {}
+
+    def _setup_whitenoise(self):
+        self._wrapped_wsgi = self.wsgi_app
+
+        if self.public_path.exists():
+            self._wrapped_wsgi = WhiteNoise(
+                self.wsgi_app,
+                root=self.public_path,
+                prefix=STATIC_PREFIX,
+                autorefresh=self._config.debug,
+                immutable_file_test=RX_INMUTABLES_FILE,
+            )
+
+    def _handle_app_error(self, req, resp):
+        """Call the registered exception handler if exists or the fallback
+        handlers if there isn't one for this error.
+        """
+        self._set_status_code(resp)
+
+        # Do not call the custom error handlers while in DEBUG
+        # Otherwise you would never see the debug pages.
+        if self._config.debug:
+            return self._default_error_handler(req, resp)
+
+        if self.error_handlers:
+            error = resp.error
+            for cls, handler in self.error_handlers.items():
+                if isinstance(error, cls):
+                    return self._custom_error_handler(req, resp, handler)
+
+        self._default_error_handler(req, resp)
+
+    def _set_status_code(self, resp):
+        error = resp.error
+        resp.status_code = getattr(error, "status_code", status.server_error)
+
+    def _default_error_handler(self, req, resp):
+        self._set_status_code(resp)
+
+        if not self._config.debug and not self._config.catch_all_errors:
+            raise
+        if self._config.debug:
+            self._default_error_handler_debug(req, resp)
+        else:
+            self._default_error_handler_production(req, resp)
+
+    def _default_error_handler_debug(self, req, resp):
+        if isinstance(resp.error, MatchNotFound):
+            debug_not_found_handler(req, resp, self)
+        else:
+            debug_error_handler(req, resp, self)
+
+    def _default_error_handler_production(self, req, resp):
+        if resp.status_code in (status.not_found, status.gone):
+            fallback_not_found_handler(req, resp, self)
+        elif resp.status_code == status.forbidden:
+            fallback_forbidden_handler(req, resp, self)
+        else:
+            fallback_error_handler(req, resp, self)
+
+    def _custom_error_handler(self, req, resp, handler):
+        resp.template = None
+        req.matched_route = Dot({"to": handler})
+        req.matched_params = {}
+        dispatch(req, resp, self)

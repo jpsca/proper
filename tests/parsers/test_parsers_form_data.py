@@ -4,7 +4,7 @@ from io import BytesIO
 import pytest
 
 from proper import errors
-from proper.parsers import parse_form_data
+from proper.request.parsers import parse_form_data
 
 
 def test_parse_json():

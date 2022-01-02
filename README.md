@@ -7,7 +7,7 @@ A web framework optimized for programmer happiness.
 
 ### Requirements
 
-- Python 3.6+
+- Python 3.7+
 
 
 ### Installation
@@ -40,11 +40,6 @@ A web framework optimized for programmer happiness.
 # Sources of inspirations
 
 ## From Elixir/Phoenix
-
-### Pipelines in the routes.
-
-You don't need to have a framework for APIs and other for full-fletched apps, you can just deactivate cookie sessions, flash messages and other things yoi don't need for specific sections of your sites.
-And is super easy to add things too like admin-only sections just by composing multiple pipelines, after all, there are just lists of callables.
 
 ### App-code over framework-code.
 

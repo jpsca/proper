@@ -1,4 +1,10 @@
+"""Command Line User Interface for Proper itself.
+"""
 import socket
+
+from proper_cli import Cli
+
+from proper.generators import gen_project
 
 
 DISPLAY = """
@@ -13,22 +19,7 @@ DISPLAY = """
 EXAMPLE_COM_IP = "93.184.216.34"
 
 
-def welcome_message(host="0.0.0.0", port=2300):
-    """Display the welcome message for the development server.
-
-    Arguments:
-
-    - host [0.0.0.0]
-    - port [2300]
-
-    """
-    local = "{:<29}".format(f"http://{host}:{port}")
-    network = "{:<29}".format(f"http://{_get_local_ip()}:{port}")
-
-    print(DISPLAY.format(local=local, network=network))
-
-
-def _get_local_ip():
+def get_local_ip():
     ip = socket.gethostbyname(socket.gethostname())
     if not ip.startswith("127."):
         return ip
@@ -42,3 +33,30 @@ def _get_local_ip():
     finally:
         sock.close()
     return ip
+
+
+class ProperCli(Cli):
+    __doc__ = """<b>Proper</b>
+
+    This utility provides commands from Proper itself."""
+
+    def new(self, *args, **kwargs):
+        gen_project(*args, **kwargs)
+
+    def welcome_message(self, host="0.0.0.0", port=2300):
+        """Display the welcome message for the development server.
+
+        Arguments:
+
+        - host [0.0.0.0]
+        - port [2300]
+
+        """
+        local = "{:<29}".format(f"http://{host}:{port}")
+        network = "{:<29}".format(f"http://{get_local_ip()}:{port}")
+
+        print(DISPLAY.format(local=local, network=network))
+
+
+ProperCli.new.__doc__ = gen_project.__doc__
+cli = ProperCli()
