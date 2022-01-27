@@ -7,7 +7,6 @@ from typing import Callable, Optional, Tuple
 
 import inflection
 from jinja2 import Markup
-from proper_config import ConfigDict
 from whitenoise import WhiteNoise
 
 from .. import middleware, status
@@ -22,7 +21,6 @@ from ..router import Router, get
 from ..static import RX_INMUTABLES_FILE
 
 from .cli import get_app_cli
-from .default_config import DEFAULT_CONFIG
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -207,7 +205,7 @@ class App:
 
     def error_handler(self, cls, to):
         """Register a controller method to handle errors by exception class.
-        If debug=True, it also adds a route to test that page.
+        If debug=True, it also adds a route to preview that page.
 
         Example:
 
@@ -227,12 +225,11 @@ class App:
             )
 
     def update_config(self, config):
-        self._config = ConfigDict(DEFAULT_CONFIG)
-        self._config.update(config)
-        if "secret_key" in self._config:
+        self._config = config
+        if "secret_key" in config:
             self._setup_serializer()
 
-        self.router._debug = self._config.debug
+        self.router._debug = config.debug
 
     def url_for(self, name: str, object=None, *, _anchor=None, **kwargs):
         """Proxy for `self.router.url_for()`."""

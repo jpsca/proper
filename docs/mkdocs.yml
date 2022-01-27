@@ -10,18 +10,17 @@ copyright: Copyright &copy; 2019 Juan-Pablo Scaletti
 nav:
   - index.md
   - router.md
-  - Forms:
-    - forms/index.md
-    - forms/declaring-forms.md
-    - forms/fields.md
-    - forms/rendering.md
-    - forms/validators.md
-    - forms/orm.md
+  - API:
+      - api/index.md
+      - api/app.md
+      - api/controller.md
+      - api/request-response.md
+      - api/auth.md
 
 theme:
   name: material
-  logo: assets/img/logo.svg
-  favicon: assets/img/favicon.svg
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
   font:
     text: Convergence
     code: Roboto Mono
@@ -52,10 +51,10 @@ theme:
       name: Switch to light mode
 
 extra_css:
-  - assets/css/common.css
-  - assets/css/highlight.css
+  - assets/common.css
+  - assets/highlight.css
 extra_javascript:
-  # - assets/js/termynal.js
+  # - assets/termynal.js
 
 plugins:
   - search
@@ -64,10 +63,7 @@ markdown_extensions:
   - admonition
   - attr_list
   - smarty
-  - tables
-  - toc:
-      permalink: "#"
-      toc_depth: 4
+  - mkautodoc
   - pymdownx.betterem:
       smart_enable: all
   - pymdownx.caret
@@ -81,3 +77,7 @@ markdown_extensions:
   - pymdownx.tabbed
   - pymdownx.tasklist
   - pymdownx.tilde
+  - tables
+  - toc:
+      permalink: "#"
+      toc_depth: 4

@@ -1,7 +1,9 @@
 from datetime import timedelta
 
+from proper_config import ConfigDict
 
-DEFAULT_CONFIG = {
+
+default_config = {
     "debug": False,
 
     # Turn off to let debugging middleware handle exceptions.
@@ -35,3 +37,7 @@ DEFAULT_CONFIG = {
         "compress": True,
     }
 }
+
+
+def get_config():
+    return ConfigDict(default_config)

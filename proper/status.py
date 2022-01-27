@@ -2,8 +2,7 @@
 HTTP status messages (plus some)
 
 You can use the snake_case like `status.ok` or the
-http_<code> version, like `status.http_400`.
-
+http_CODE version, like `status.http_400`.
 """
 
 

@@ -31,7 +31,7 @@ REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
 
 
 def bundle(app):
-    """Calls `npm run bundle` in the `static/` folder for building the CSS and JS bundles.
+    """Calls `npm run bundle` to bundle the assets in the `static` folder.
     """
     os.chdir(app.static_path)
     cmd = BUNDLE
@@ -40,17 +40,22 @@ def bundle(app):
 
 
 def build(app):
-    """Calls `npm run build` in the `static/` folder for making production bundles.
+    """Build/digest/compress the assets in `static/public` for production.
     """
     os.chdir(app.static_path)
     cmd = BUNDLE_PROD
     print(cmd)
     os.system(cmd)
 
+    public = app.public_path
+    _digest(public, app.static_manifest_path)
+    print()
+    if app._config.static.compress:
+        compress(public)
+
 
 def clean(app):
-    """Delete the manifest and all digested and/or compressed assets
-    in static/public.
+    """Delete the manifest and all hashed/compressed assets.
     """
     public = app.public_path
     echo("<bold>-- Removing hashed and/or compressed files --</>")
@@ -61,16 +66,6 @@ def clean(app):
                 print(path.relative_to(public))
                 path.unlink()
     app.static_manifest_path.unlink()
-
-
-def compile(app):
-    """Digest and compress the assets in static/public.
-    """
-    public = app.public_path
-    _digest(public, app.static_manifest_path)
-    print()
-    if app._config.static.compress:
-        compress(public)
 
 
 def _digest(root, manifest_path):
@@ -94,7 +89,7 @@ def _replace_urls(root, manifest):
     in CSS and JS files.
 
     With assets in subfolders, this only works if the full URL relative to the
-    `static/` folder is used, eg: `/static/images/bg.png` or `../fonts/museo.woff`.
+    `static` folder is used, eg: `/static/images/bg.png` or `../fonts/museo.woff`.
 
     An exception to this rule is taken for source maps.
     """

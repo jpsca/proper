@@ -43,7 +43,7 @@ class ProperCli(Cli):
     def new(self, *args, **kwargs):
         gen_project(*args, **kwargs)
 
-    def welcome_message(self, host="0.0.0.0", port=2300):
+    def welcome(self, host="0.0.0.0", port=2300):
         """Display the welcome message for the development server.
 
         Arguments:
