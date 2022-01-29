@@ -1,4 +1,4 @@
-import proper.forms as f
+import proper_forms as f
 
 from [[ app_name ]].config import config
 from [[ app_name ]].models import User
@@ -10,7 +10,7 @@ def login_exists(values):
     msg = "Wrong username and/or password"
     if not values:
         return False, msg
-    if not User.by_login(values[0]):
+    if not User.exists(values[0]):
         return False, msg
     return True
 
@@ -19,7 +19,7 @@ def login_is_free(values):
     msg = "That email is already in use by an account"
     if not values:
         return False, msg
-    if User.by_login(values[0]):
+    if User.exists(values[0]):
         return False, msg
     return True
 
@@ -40,24 +40,3 @@ def password_hasnt_been_pwned(values):
         if get_pwned_count(value):
             return False, msg
     return True
-
-
-class SignInForm(f.Form):
-    login = f.Text(login_exists, required=True)
-    password = f.Password(required=True)
-
-
-class PasswordResetForm(f.Form):
-    login = f.Text(login_exists, required=True)
-
-
-class PasswordChangeForm(f.Form):
-    # I want the passwords to be remembered if there is
-    # a validation error, so it can be fixed quickly.
-    password = f.Text(
-        f.Confirmed("Passwords don’t match.<br>Remember that are case-sensitive"),
-        password_is_long,
-        password_hasnt_been_pwned,
-        multiple=True,
-        required=True,
-    )

@@ -1,1 +1,0 @@
-from .[[ snake_name ]] import [[ class_name ]]  # noqa

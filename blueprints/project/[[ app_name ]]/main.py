@@ -17,11 +17,11 @@ app.error_handler(errors.NotFound, Pages.not_found)
 app.error_handler(Exception, Pages.error)
 
 
-@app.on_before_dispatch
-def init_db_scoped_session(req, resp):
-    db.s()
+@app.on_error
+def rollback_db_session(req, resp):
+    db.s.rollback()
 
 
 @app.on_teardown
-def remove_db_scoped_session(req, resp):
+def remove_db_session(req, resp):
     db.s.remove()

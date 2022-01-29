@@ -9,6 +9,7 @@ from proper.helpers import BLUEPRINTS, BlueprintRender, printf
 
 
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
+RUN = "run"
 
 
 def gen_project(path, *, name=None, force=False, _dependencies=True):
@@ -51,7 +52,7 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
 
 
 def _call(cmd):
-    printf("running", cmd, color="yellow")
+    printf(RUN, cmd, color="yellow")
     os.system(cmd)
 
 

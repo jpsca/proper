@@ -1,3 +1,4 @@
+import socket
 import subprocess
 from pathlib import Path
 
@@ -18,6 +19,17 @@ ENCRIPTED_HEADER = """# --------------------------------------------------------
 #
 """
 
+WELCOME = """
+   ┌─────────────────────────────────────────────────┐
+   │   Running on:                                   │
+   │   - Your machine:  {local}│
+   │   - Your network:  {network}│
+   │                                                 │
+   │   Press `ctrl+c` to quit.                       │
+   └─────────────────────────────────────────────────┘
+"""
+EXAMPLE_COM_IP = "93.184.216.34"
+
 
 def get_app_cli(app):
     attrs = {
@@ -33,12 +45,13 @@ def get_app_cli(app):
         "secrets": get_secrets_cmd(app),
         "g": get_generators_cli(app),
         "static": get_static_cli(app),
+        "welcome": welcome,
     }
 
     return type("AppCli", (Cli,), attrs)
 
 
-def run_server(self):
+def run_server(_self):
     """Runs the development server and the assets watchers.
 
     Read the uWSGI config from `uwsgi-dev.ini` and tries to run
@@ -59,7 +72,7 @@ def run_server(self):
 
 
 def get_routes_cmd(app):
-    def routes(self):
+    def routes(_self):
         """Show all registered routes.
         """
         print(
@@ -99,7 +112,7 @@ def get_routes_cmd(app):
 
 
 def get_secrets_cmd(app):
-    def secrets(self, env):
+    def secrets(_self, env):
         """Edit your encrypted secrets.
 
         Arguments:
@@ -138,12 +151,43 @@ def get_static_cli(app):
     return type("Static", (Cli,), attrs)
 
 
+def welcome(_self, host="0.0.0.0", port=2300):
+    """Display the welcome message for the development server.
+
+    Arguments:
+
+    - host [0.0.0.0]
+    - port [2300]
+
+    """
+    local = "{:<29}".format(f"http://{host}:{port}")
+    network = "{:<29}".format(f"http://{_get_local_ip()}:{port}")
+
+    print(WELCOME.format(local=local, network=network))
+
+
 def _get_cmd(app, module, name):
     func = getattr(module, name)
 
-    def cmd(self, *args, **kwargs):
+    def cmd(_, *args, **kwargs):
         return func(app, *args, **kwargs)
 
     cmd.__name__ = name
     cmd.__doc__ = func.__doc__
     return cmd
+
+
+def _get_local_ip():
+    ip = socket.gethostbyname(socket.gethostname())
+    if not ip.startswith("127."):
+        return ip
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        sock.connect((EXAMPLE_COM_IP, 1))
+        ip = sock.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        sock.close()
+    return ip

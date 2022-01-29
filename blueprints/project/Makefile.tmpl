@@ -1,12 +1,10 @@
 .PHONY: setup
 setup:  # Requires an active virtualenv
-	pip install -U pip wheel pip-tools
-	make reqs
+	pip install -U pip wheel --quiet
 	pip install -r requirements/dev-requirements.txt
-	pip install -e ../proper
 	pip install -e .
 	make db
-	cd static && npm install
+	cd static && npm install --quiet
 
 .PHONY: run
 run:
@@ -14,7 +12,7 @@ run:
 
 .PHONY: test
 test:
-	pytest -x [[ app_name ]]/tests
+	pytest -x tests
 
 .PHONY: lint
 lint:
@@ -25,11 +23,3 @@ db:
 	rm db/[[ app_name ]].sqlite || true
 	# python manage.py db upgrade
 	python manage.py db create_all
-
-.PHONY: reqs
-reqs:
-	pip-compile requirements/requirements.ini
-	pip-compile requirements/test-requirements.ini
-	pip-compile requirements/prod-requirements.ini
-	pip-compile requirements/dev-requirements.ini
-

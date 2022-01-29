@@ -21,6 +21,12 @@ __all__ = [
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 IGNORE = [".DS_Store", "__pycache__"]
 
+CREATE = "create"
+UPDATE = "update"
+SKIPPED = "skipped"
+IDENTICAL = "identical"
+APPEND = "append"
+
 
 class Render:
     @property
@@ -104,14 +110,14 @@ class BlueprintRender:
         dst_path = self.dst / dst_relpath
         if dst_path.exists():
             if self._contents_are_identical(content, dst_path):
-                printf("identical", dst_relpath)
+                printf(IDENTICAL, dst_relpath)
                 return
             if not self._confirm_overwrite(dst_relpath):
-                printf("skipped", dst_relpath, color="yellow")
+                printf(SKIPPED, dst_relpath, color="yellow")
                 return
-            printf("updated", dst_relpath, color="yellow")
+            printf(UPDATE, dst_relpath, color="yellow")
         else:
-            printf("created", dst_relpath, color="green")
+            printf(CREATE, dst_relpath, color="green")
 
         dst_path.write_text(content)
 
@@ -122,16 +128,16 @@ class BlueprintRender:
         if dst_path.exists():
             curr_content = dst_path.read_text()
             if new_content in curr_content:
-                printf("skipped", dst_relpath, color="yellow")
+                printf(SKIPPED, dst_relpath, color="yellow")
                 return
 
             if not curr_content.endswith("\n"):
                 curr_content += "\n"
             new_content = curr_content + new_content
-            printf("appended", dst_relpath, color="yellow")
+            printf(APPEND, dst_relpath, color="yellow")
         else:
             dst_path.touch(exist_ok=True)
-            printf("created", dst_relpath, color="green")
+            printf(CREATE, dst_relpath, color="green")
 
         dst_path.write_text(new_content)
 
@@ -139,14 +145,14 @@ class BlueprintRender:
         dst_path = self.dst / dst_relpath
         if dst_path.exists():
             if self._files_are_identical(src_path, dst_path):
-                printf("identical", dst_relpath)
+                printf(IDENTICAL, dst_relpath)
                 return
             if not self._confirm_overwrite(dst_relpath):
-                printf("skipped", dst_relpath, color="yellow")
+                printf(SKIPPED, dst_relpath, color="yellow")
                 return
-            printf("updated", dst_relpath, color="yellow")
+            printf(UPDATE, dst_relpath, color="yellow")
         else:
-            printf("created", dst_relpath, color="green")
+            printf(CREATE, dst_relpath, color="green")
 
         shutil.copy2(str(src_path), str(dst_path))
 
@@ -168,7 +174,7 @@ class BlueprintRender:
         display = f"{rel_folder}{os.path.sep}"
         path.mkdir(parents=False, exist_ok=False)
         if rel_folder:
-            printf("created", display, color="green")
+            printf(CREATE, display, color="green")
 
     def _files_are_identical(self, src_path, dst_path):
         return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
@@ -213,4 +219,4 @@ def append_routes(app, new_routes):
     routes_path.write_text(routes + new_routes)
 
     display = str(Path(app.root_path.name) / "routes.py")
-    printf("appended", display, color="yellow")
+    printf(APPEND, display, color="yellow")

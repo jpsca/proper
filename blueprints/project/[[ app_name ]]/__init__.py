@@ -1,1 +1,1 @@
-from . import main, models  # noqa
+from . import cli, main, models  # noqa

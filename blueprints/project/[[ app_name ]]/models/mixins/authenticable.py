@@ -1,5 +1,5 @@
-from [[ app_name ]].services.auth_services import auth, normalize_login
-from ..base import db, db
+from ...services.auth_services import auth, normalize_login
+from ..base import db
 
 
 class Authenticable:

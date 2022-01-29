@@ -2,9 +2,9 @@ from os import getenv
 
 from proper import BaseController
 
-from ..app import app
-from ..models import User
-from ..services import auth_services
+from [[ app_name ]].app import app
+from [[ app_name ]].models import User
+from [[ app_name ]].services import auth_services
 
 
 REDIRECT_AFTER_LOGIN_KEY = "_redirect"
