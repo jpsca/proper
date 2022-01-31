@@ -1,17 +1,21 @@
-{% from "common/Button.html.jinja" import Button -%}
-
 {% extends "layouts/application.html.jinja" %}
 
 {% block title %}Edit [[ model_snake_name ]]{% endblock %}
 
 {% block body %}
-<form method="post" action="{{ app.url_for('[[ controller_class_name ]].update', pk=[[ model_snake_name ]].id) }}">
+<h1>Edit [[ model_snake_name ]]</h1>
+
+<form
+	method="post"
+	action="{{ app.url_for('[[ controller_class_name ]].update', pk=[[ model_snake_name ]].id) }}"
+	novalidate
+>
 	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
 
 	{% include "[[ controller_snake_name ]]/_form.html.jinja" %}
 
-	<div class="mt-8">
-		{{ Button("Update", class="", type="submit") }}
+	<div>
+		<button type="submit">Update [[ model_snake_name ]]</button>
 	</div>
 </form>
 {% endblock %}

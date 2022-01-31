@@ -1,14 +1,20 @@
 {% extends "layouts/application.html.jinja" %}
 
-{% block title %}[[ model_snake_name|title ]]{% endblock %}
+{% block title %}[[ model_class_name ]]{% endblock %}
 
 {% block body %}
-<h1>[[ model_snake_name|title ]]</h1>
+<h1>[[ model_class_name ]] #[[ model_snake_name ]].id</h1>
 
-<p><strong>ID:</strong> {{ [[ model_snake_name ]].id }}</p>
 [% for name, _fclass, _required in form_fields -%]
 <p><strong>[[ name|title ]]:</strong> {{ [[ model_snake_name ]].[[ name ]] }}</p>
 [% endfor -%]
 
-<p><a href="{{ url_for('[[ controller_class_name ]].index') }}">&laquo; See all</a></p>
+<p class="actions">
+  <a href="{{ url_for('[[ controller_class_name ]].edit', pk=[[ model_snake_name ]].id) }}">Edit this [[ model_snake_name ]]</a>
+  <a href="{{ url_for('[[ controller_class_name ]].index') }}">Back to [[ controller_snake_name ]]</a>
+</p>
+<form method="delete" action="{{ url_for('[[ controller_class_name ]].edit', pk=[[ model_snake_name ]].id) }}">
+  <input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
+  <button type="submit">Delete this [[ model_snake_name ]]</button>
+</form>
 {% endblock %}

@@ -1,17 +1,21 @@
-{% from "common/Button.html.jinja" import Button -%}
-
 {% extends "layouts/application.html.jinja" %}
 
 {% block title %}New [[ model_snake_name ]]{% endblock %}
 
 {% block body %}
-<form method="post" action="{{ app.url_for('[[ controller_class_name ]].create') }}">
+<h1>New [[ model_snake_name ]]</h1>
+
+<form
+	method="post"
+	action="{{ app.url_for('[[ controller_class_name ]].create') }}"
+	novalidate
+>
 	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
 
 	{% include "[[ controller_snake_name ]]/_form.html.jinja" %}
 
-	<div class="mt-8">
-		{{ Button("Create", class="", type="submit") }}
+	<div>
+		<button type="submit">Create [[ model_snake_name ]]</button>
 	</div>
 </form>
 {% endblock %}

@@ -1,5 +1,3 @@
-{% from "common/Button.html.jinja" import Button -%}
-
 {% extends "layouts/auth.html.jinja" %}
 
 {% block title %}Sign in{% endblock %}
@@ -41,7 +39,7 @@
 	</div>
 
 	<div class="mt-8">
-		{{ Button("Sign in", class="w-full", attrs='tabindex="3"', type="submit") }}
+		<button type="submit" class="w-full" tabindex="3">Sign in</button>
 	</div>
 
 </form>
