@@ -3,4 +3,13 @@
 {% block title %}[[ controller_snake_name|title ]]{% endblock %}
 
 {% block body %}
+<h1>[[ controller_snake_name|title ]]</h1>
+
+<ul>
+{% for [[ model_snake_name ]] in [[ controller_snake_name ]] -%}
+<li><a href="{{ url_for('[[ controller_class_name ]].show', pk=[[ model_snake_name ]].id) }}">
+  {{ [[ model_snake_name ]] }}
+</a></li>
+{% endfor -%}
+</ul>
 {% endblock %}

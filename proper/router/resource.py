@@ -10,11 +10,11 @@ GROUP_ROUTES = (
     ("GET", "/", "index"),
     ("GET", "/new", "new"),
     ("POST", "/", "create"),
-    ("GET", "/:uid", "show"),
-    ("GET", "/:uid/edit", "edit"),
-    ("PATCH", "/:uid", "update"),
-    ("PUT", "/:uid", "update"),
-    ("DELETE", "/:uid", "delete"),
+    ("GET", "/:pk", "show"),
+    ("GET", "/:pk/edit", "edit"),
+    ("PATCH", "/:pk", "update"),
+    ("PUT", "/:pk", "update"),
+    ("DELETE", "/:pk", "delete"),
 )
 SINGLE_ROUTES = (
     ("GET", "/new", "new"),
@@ -53,11 +53,11 @@ def resource(
     GET      /photos             index    a list of all photos
     GET      /photos/new         new      form for creating a new photo
     POST     /photos             create   create a new photo
-    GET      /photos/:uid        show     show a specific photo
-    GET      /photos/:uid/edit   edit     form for editing a specific photo
-    PATCH    /photos/:uid        update   update a specific photo
-    PUT      /photos/:uid        update   replace a specific photo
-    DELETE   /photos/:uid        delete   delete a specific photo
+    GET      /photos/:pk        show     show a specific photo
+    GET      /photos/:pk/edit   edit     form for editing a specific photo
+    PATCH    /photos/:pk        update   update a specific photo
+    PUT      /photos/:pk        update   replace a specific photo
+    DELETE   /photos/:pk        delete   delete a specific photo
 
     Note that both PATCH and PUT are routed to the `update` method.
 
@@ -65,7 +65,7 @@ def resource(
     ## Singular resource
 
     Sometimes, you have a resource that clients always look up without referencing an ID.
-    In this case, you can use `singular=True` to build a set of REST routes without `:uid`.
+    In this case, you can use `singular=True` to build a set of REST routes without `:pk`.
 
     Example: `resource("profile", "Profile", singular=True)`
 

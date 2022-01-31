@@ -5,11 +5,10 @@ from pathlib import Path
 import inflection
 from proper_cli import confirm
 
-from proper.helpers import BLUEPRINTS, BlueprintRender, printf
+from proper.helpers import BLUEPRINTS, BlueprintRender, call
 
 
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
-RUN = "run"
 
 
 def gen_project(path, *, name=None, force=False, _dependencies=True):
@@ -51,11 +50,6 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     _wrap_up(path, deps_installed)
 
 
-def _call(cmd):
-    printf(RUN, cmd, color="yellow")
-    os.system(cmd)
-
-
 def _install_dependencies(path):
     if not confirm(
         f" Install dependencies in a virtualenv at {path.stem}/.venv ?",
@@ -65,8 +59,8 @@ def _install_dependencies(path):
         return False
 
     print()
-    _call(f"{sys.executable or 'python'} -m venv .venv")
-    _call("source .venv/bin/activate && make setup")
+    call(f"{sys.executable or 'python'} -m venv .venv")
+    call("source .venv/bin/activate && make setup")
     return True
 
 

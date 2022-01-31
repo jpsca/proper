@@ -6,10 +6,6 @@ setup:  # Requires an active virtualenv
 	make db
 	cd static && npm install --quiet
 
-.PHONY: run
-run:
-	python manage.py run
-
 .PHONY: test
 test:
 	pytest -x tests

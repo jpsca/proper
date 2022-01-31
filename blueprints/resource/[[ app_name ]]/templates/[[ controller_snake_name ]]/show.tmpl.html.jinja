@@ -3,4 +3,12 @@
 {% block title %}[[ model_snake_name|title ]]{% endblock %}
 
 {% block body %}
+<h1>[[ model_snake_name|title ]]</h1>
+
+<p><strong>ID:</strong> {{ [[ model_snake_name ]].id }}</p>
+[% for name, _fclass, _required in form_fields -%]
+<p><strong>[[ name|title ]]:</strong> {{ [[ model_snake_name ]].[[ name ]] }}</p>
+[% endfor -%]
+
+<p><a href="{{ url_for('[[ controller_class_name ]].index') }}">&laquo; See all</a></p>
 {% endblock %}

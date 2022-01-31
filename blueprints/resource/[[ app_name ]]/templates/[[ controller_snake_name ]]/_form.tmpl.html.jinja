@@ -1,0 +1,12 @@
+[% for name, fclass, required in form_fields -%]
+<div>
+  {{ form.[[ name ]].as_input(
+    label="[[ name|title ]]:",
+    type="[[ fclass|lower ]]",
+    classes="",
+    error="border-red-500",
+    placeholder="[[ name|title ]]"
+  ) }}
+  {{ form.[[ name ]].render_error(classes="text-red") }}
+</div>
+[% endfor -%]

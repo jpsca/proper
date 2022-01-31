@@ -1,12 +1,26 @@
 import inflection
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
 from proper.router.resource import ACTIONS
 from .model import gen_model
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 ROUTES_TMPL = "routes.tmpl.py"
+FIELD_TYPES = {
+    "binary": "File",
+    "boolean" : "Boolean",
+    "date" : "Date",
+    "datetime" : "DateTime",
+    "decimal" : "Float",
+    "float" : "Float",
+    "integer" : "Integer",
+    "json" : "Text",
+    "numeric" : "Float",
+    "string" : "Text",
+    "text" : "Text",
+    "time" : "Time",
+}
 
 
 def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
@@ -37,7 +51,7 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
 
     Sometimes, you have a resource that clients always look up without
     referencing an ID. In this case, you can use `singular=True` to build a
-    set of REST routes without `:uid`.
+    set of REST routes without `:pk`.
 
     Examples:
 
@@ -65,6 +79,20 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     ignored_templates = [
         f"{action}.tmpl.html.jinja" for action in set(ACTIONS).difference(actions)
     ]
+
+    attrs_tuples = gen_model(
+        app,
+        name,
+        class_name=model_class_name,
+        snake_name=model_snake_name,
+        *attrs
+    )
+    form_fields = [
+        (name, FIELD_TYPES[ftype], "nullable" not in constraints)
+        for name, ftype, _, constraints in attrs_tuples
+        if ftype in FIELD_TYPES
+    ]
+
     bp = BlueprintRender(
         RESOURCE_BLUEPRINT,
         app.root_path.parent,
@@ -76,19 +104,14 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
             "model_snake_name": model_snake_name,
             "actions": actions,
             "singular": singular,
+            "form_fields": form_fields,
         },
         ignore=[ROUTES_TMPL] + ignored_templates,
     )
     bp()
 
-    gen_model(
-        app,
-        name,
-        class_name=model_class_name,
-        snake_name=model_snake_name,
-        *attrs
-    )
-
     routes_tmpl = RESOURCE_BLUEPRINT / ROUTES_TMPL
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
+
+    call(f'proper db revision "Create {model_snake_name} table"')

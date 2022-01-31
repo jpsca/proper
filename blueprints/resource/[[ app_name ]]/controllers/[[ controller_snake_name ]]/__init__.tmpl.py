@@ -10,7 +10,7 @@ class [[ controller_class_name ]](ApplicationController):
     [% if "index" in actions -%]
     def index(self):
         "GET /[[ controller_snake_name ]]"
-        ...
+        self.[[ controller_snake_name ]] = db.s.all([[ model_class_name ]])
     [%- endif %]
 
     [% if "new" in actions -%]

@@ -8,8 +8,10 @@
 <form method="post" action="{{ app.url_for('[[ controller_class_name ]].update', pk=[[ model_snake_name ]].id) }}">
 	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
 
+	{% include "[[ controller_snake_name ]]/_form.html.jinja" %}
+
 	<div class="mt-8">
-		{{ Button("Save", class="", type="submit") }}
+		{{ Button("Update", class="", type="submit") }}
 	</div>
 </form>
 {% endblock %}

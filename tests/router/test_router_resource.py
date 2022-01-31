@@ -33,11 +33,11 @@ def test_resource():
         get("posts/", to=Posts.index),
         get("posts/new", to=Posts.new),
         post("posts/", to=Posts.create),
-        get("posts/:uid", to=Posts.show),
-        get("posts/:uid/edit", to=Posts.edit),
-        patch("posts/:uid", to=Posts.update),
-        put("posts/:uid", to=Posts.update),
-        delete("posts/:uid", to=Posts.delete),
+        get("posts/:pk", to=Posts.show),
+        get("posts/:pk/edit", to=Posts.edit),
+        patch("posts/:pk", to=Posts.update),
+        put("posts/:pk", to=Posts.update),
+        delete("posts/:pk", to=Posts.delete),
     ]
 
     print(routes)
@@ -49,7 +49,7 @@ def test_resource_only():
 
     expected = [
         get("posts/", to=Posts.index),
-        get("posts/:uid", to=Posts.show),
+        get("posts/:pk", to=Posts.show),
     ]
 
     print(routes)
@@ -61,10 +61,10 @@ def test_resource_exclude():
 
     expected = [
         get("posts/", to=Posts.index),
-        get("posts/:uid", to=Posts.show),
-        get("posts/:uid/edit", to=Posts.edit),
-        patch("posts/:uid", to=Posts.update),
-        put("posts/:uid", to=Posts.update),
+        get("posts/:pk", to=Posts.show),
+        get("posts/:pk/edit", to=Posts.edit),
+        patch("posts/:pk", to=Posts.update),
+        put("posts/:pk", to=Posts.update),
     ]
 
     print(routes)
@@ -76,7 +76,7 @@ def test_some_invalid_actions():
 
     expected = [
         get("posts/", to=Posts.index),
-        get("posts/:uid", to=Posts.show),
+        get("posts/:pk", to=Posts.show),
     ]
 
     print(routes)
@@ -109,7 +109,7 @@ def test_exclude_invalid():
 
     expected = [
         get("posts/", to=Posts.index),
-        get("posts/:uid", to=Posts.show),
+        get("posts/:pk", to=Posts.show),
     ]
 
     print(routes)

@@ -14,6 +14,7 @@ __all__ = [
     "Render",
     "BlueprintRender",
     "printf",
+    "call",
     "get_blueprint_render",
     "append_routes",
 ]
@@ -26,6 +27,7 @@ UPDATE = "update"
 SKIPPED = "skipped"
 IDENTICAL = "identical"
 APPEND = "append"
+RUN = "run"
 
 
 class Render:
@@ -195,6 +197,11 @@ def printf(verb, msg="", color="cyan", indent=10):
     echo(f"{verb}  {msg}".rstrip())
 
 
+def call(cmd):
+    printf(RUN, cmd, color="yellow")
+    os.system(cmd)
+
+
 def get_blueprint_render(src, context=None, *, envops=None):
     envops = envops or {}
     envops.setdefault("block_start_string", "[%")
@@ -213,6 +220,9 @@ RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")
 def append_routes(app, new_routes):
     routes_path = app.root_path / "routes.py"
     routes = routes_path.read_text()
+    if new_routes in routes:
+        return
+
     match = RE_CLOSE_ROUTES.search(routes)
     if match:
         routes = routes[: match.start()].rstrip()

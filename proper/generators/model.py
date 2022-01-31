@@ -146,7 +146,8 @@ def gen_model(app, name, *attrs, class_name=None, snake_name=None):
     class_name = class_name or inflection.camelize(name)
     snake_name = snake_name or inflection.underscore(name)
     table_name = inflection.tableize(class_name)
-    rows = [_build_row(snake_name, attr) for attr in attrs]
+    attrs_tuples = [_split_attr(attr) for attr in attrs]
+    rows = [_build_row(snake_name, *attr) for attr in attrs_tuples]
 
     bp = BlueprintRender(
         MODEL_BLUEPRINT,
@@ -160,6 +161,7 @@ def gen_model(app, name, *attrs, class_name=None, snake_name=None):
         },
     )
     bp()
+    return attrs_tuples
 
 
 DEFAULT_FIELD_TYPE = "string"
@@ -183,20 +185,31 @@ FOREIGN_CONSTRAINT = "foreign"
 CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
 
 
-def _build_row(snake_name, attr):
-    name, ctype, extra = (f"{attr}::").split(":", 2)
+def _split_attr(attr):
+    # We add "::" to the end so the split doesn't fail when `attr` doesn't
+    # specify a field type (meaning, use the default) and/or doesn't
+    # have constraints
+    name, ctype, constraints = (f"{attr}::").split(":", 2)
     ctype = ctype or DEFAULT_FIELD_TYPE
-    extra = extra.rstrip(":")
+
+    # We strip the extra colons here, in case the attr *did* provide a
+    # field type and/or constraints
+    constraints = constraints.rstrip(":").split(":")
+
     options = ""
     if "-" in ctype:
         ctype, options = ctype.split("-", 1)
 
+    return name, ctype, options, constraints
+
+
+def _build_row(snake_name, name, ctype, options, constraints):
     ColumnType = COLUMN_TYPES.get(ctype.lower())
     if ColumnType:
-        col = _field(ColumnType, options, extra)
+        col = _field(ColumnType, options, constraints)
     else:
         ctype = inflection.camelize(ctype)
-        col = _relationship(snake_name, ctype, extra)
+        col = _relationship(snake_name, ctype, constraints)
 
     return f"{name} = {col}"
 
@@ -211,7 +224,8 @@ def _field(ColumnType, options, constraints):
 
 def _build_constraints(constraints):
     return ", ".join([
-        _build_constraint(constraint) for constraint in constraints.split(":")
+        _build_constraint(constraint) for constraint in constraints
+        if constraint
     ])
 
 
@@ -229,8 +243,9 @@ def _build_constraint(constraint):
 
 
 def _relationship(snake_name, Model, constraints):
-    backref, lazy = f"{constraints}:".split(":", 1)
-    lazy = lazy.rstrip(":") or "select"
+    constraints.append("select")
+    backref = constraints[0]
+    lazy = constraints[1]
     backref = _build_backref(snake_name, backref)
     return f'db.relationship("{Model}", backref={backref}, lazy="{lazy}")'
 
