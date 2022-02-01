@@ -114,4 +114,4 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
-    call(f'proper db revision "Create {model_snake_name} table"')
+    call(f'proper db revision "Create {controller_snake_name} table"')

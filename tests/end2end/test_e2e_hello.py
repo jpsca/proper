@@ -58,14 +58,6 @@ def test_no_secret_key_no_serializer(import_name):
     assert getattr(app, "serializer", None) is None
 
 
-def test_add_secret_key_to_add_serializer(import_name):
-    app = App(import_name)
-
-    assert getattr(app, "serializer", None) is None
-    app.update_config({"secret_key": "a" * 60})
-    assert getattr(app, "serializer", None)
-
-
 def test_secret_key_too_short(import_name):
     with pytest.raises(BadSecretKey):
         App(import_name, config={"secret_key": "qwertyuiop"})

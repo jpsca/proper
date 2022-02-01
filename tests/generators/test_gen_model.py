@@ -11,9 +11,6 @@ def test_base_model(app, scaffold):
     assert '__tablename__ = "products"' in model_text
     assert "id = db.Column(db.Integer, primary_key=True)" in model_text
 
-    init_text = (app_root / "models" / "__init__.py").read_text()
-    assert init_text.strip() == "from .product import *  # noqa"
-
 
 def test_fields(app, scaffold):
     app_root = scaffold

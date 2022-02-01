@@ -39,5 +39,5 @@ default_config = {
 }
 
 
-def get_config():
+def get_default_config():
     return ConfigDict(default_config)

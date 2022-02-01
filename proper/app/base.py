@@ -21,6 +21,7 @@ from ..router import Router, get
 from ..static import RX_INMUTABLES_FILE
 
 from .cli import get_app_cli
+from .config import get_default_config
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -97,7 +98,7 @@ class App:
 
         self.cli = get_app_cli(self)()
         self.router = Router()
-        self.update_config(config)
+        self._set_config(config)
         self._setup_root_path(import_name)
         self._setup_render()
         self._setup_whitenoise()
@@ -224,13 +225,6 @@ class App:
                 get(f"_{inflection.underscore(cls.__qualname__)}", to=to)
             )
 
-    def update_config(self, config):
-        self._config = config
-        if "secret_key" in config:
-            self._setup_serializer()
-
-        self.router._debug = config.debug
-
     def url_for(self, name: str, object=None, *, _anchor=None, **kwargs):
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object=object, _anchor=_anchor, **kwargs)
@@ -249,6 +243,15 @@ class App:
         return Markup(text)
 
     # Private
+
+    def _set_config(self, config):
+        _config = get_default_config()
+        _config.update(config)
+        self._config = _config
+
+        if "secret_key" in _config:
+            self._setup_serializer()
+        self.router._debug = _config.debug
 
     def _setup_root_path(self, import_name):
         module = import_module(import_name)

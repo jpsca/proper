@@ -1,19 +1,22 @@
-from proper.generators import gen_resource
+from unittest.mock import Mock
+from proper.generators import resource as module
 
 
 def test_gen_resource(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_resource(app, "Products")
+    module.call = Mock()
+    module.gen_resource(app, "Products")
 
     _test_controller(app_root)
     _test_model(app_root)
     _test_templates(app_root)
     _test_routes(app_root)
+    module.call.assert_called_once_with('proper db revision "Create products table"')
 
 
 def _test_controller(app_root):
-    products_text = (app_root / "controllers" / "products.py").read_text()
+    products_text = (app_root / "controllers" / "products" / "__init__.py").read_text()
     assert "class Products(ApplicationController):" in products_text
     assert "def index(self):" in products_text
     assert "def new(self):" in products_text
@@ -23,16 +26,10 @@ def _test_controller(app_root):
     assert "def update(self, pk):" in products_text
     assert "def delete(self, pk):" in products_text
 
-    init_text = (app_root / "controllers" / "__init__.py").read_text()
-    assert init_text.strip() == "from .products import Products  # noqa"
-
 
 def _test_model(app_root):
     model_text = (app_root / "models" / "product.py").read_text()
     assert "class Product(Base, Timestamped):" in model_text
-
-    init_text = (app_root / "models" / "__init__.py").read_text()
-    assert init_text.strip() == "from .product import *  # noqa"
 
 
 def _test_templates(app_root):
@@ -58,16 +55,18 @@ def _test_routes(app_root):
 def test_gen_resource_singular(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_resource(app, "Profile", singular=True)
+    module.call = Mock()
+    module.gen_resource(app, "Profile", singular=True)
 
     _test_controller_singular(app_root)
     _test_model_singular(app_root)
     _test_templates_singular(app_root)
     _test_routes_singular(app_root)
+    module.call.assert_called_once_with('proper db revision "Create profile table"')
 
 
 def _test_controller_singular(app_root):
-    products_text = (app_root / "controllers" / "profile.py").read_text()
+    products_text = (app_root / "controllers" / "profile" / "__init__.py").read_text()
     assert "class Profile(ApplicationController):" in products_text
     assert "def index(self):" not in products_text
     assert "def new(self):" in products_text
@@ -81,9 +80,6 @@ def _test_controller_singular(app_root):
 def _test_model_singular(app_root):
     model_text = (app_root / "models" / "profile.py").read_text()
     assert "class Profile(Base, Timestamped):" in model_text
-
-    init_text = (app_root / "models" / "__init__.py").read_text()
-    assert init_text.strip() == "from .profile import *  # noqa"
 
 
 def _test_templates_singular(app_root):
