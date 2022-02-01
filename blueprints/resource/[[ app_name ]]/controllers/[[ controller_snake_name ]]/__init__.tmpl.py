@@ -1,3 +1,4 @@
+from proper import status
 from proper.errors import NotFound
 
 from [[ app_name ]].models import [[ model_class_name ]], db
@@ -25,6 +26,7 @@ class [[ controller_class_name ]](ApplicationController):
         self.form = [[ model_class_name ]]Form(self.req.form)
         if not self.form.validate():
             self.resp.template = "new"
+            self.resp.status_code = status.unprocessable_entity
             return
 
         [[ model_snake_name ]] = self.form.save()
@@ -54,6 +56,7 @@ class [[ controller_class_name ]](ApplicationController):
         self.form = [[ model_class_name ]]Form(self.req.form, object=self.[[ model_snake_name ]])
         if not self.form.validate():
             self.resp.template = "edit"
+            self.resp.status_code = status.unprocessable_entity
             return
 
         self.form.save()

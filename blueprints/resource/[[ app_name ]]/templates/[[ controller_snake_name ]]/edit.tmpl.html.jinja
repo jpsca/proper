@@ -11,6 +11,7 @@
 	novalidate
 >
 	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
+	<input type="hidden" name="_method" value="PATCH">
 
 	{% include "[[ controller_snake_name ]]/_form.html.jinja" %}
 

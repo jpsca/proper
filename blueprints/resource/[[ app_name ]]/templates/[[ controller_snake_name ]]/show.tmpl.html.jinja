@@ -3,7 +3,7 @@
 {% block title %}[[ model_class_name ]]{% endblock %}
 
 {% block body %}
-<h1>[[ model_class_name ]] #[[ model_snake_name ]].id</h1>
+<h1>[[ model_class_name ]] #{{ [[ model_snake_name ]].id }}</h1>
 
 [% for name, _fclass, _required in form_fields -%]
 <p><strong>[[ name|title ]]:</strong> {{ [[ model_snake_name ]].[[ name ]] }}</p>
@@ -13,8 +13,9 @@
   <a href="{{ url_for('[[ controller_class_name ]].edit', pk=[[ model_snake_name ]].id) }}">Edit this [[ model_snake_name ]]</a>
   <a href="{{ url_for('[[ controller_class_name ]].index') }}">Back to [[ controller_snake_name ]]</a>
 </p>
-<form method="delete" action="{{ url_for('[[ controller_class_name ]].edit', pk=[[ model_snake_name ]].id) }}">
+<form method="post" action="{{ url_for('[[ controller_class_name ]].delete', pk=[[ model_snake_name ]].id) }}">
   <input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
+  <input type="hidden" name="_method" value="DELETE">
   <button type="submit">Delete this [[ model_snake_name ]]</button>
 </form>
 {% endblock %}

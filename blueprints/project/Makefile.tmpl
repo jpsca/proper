@@ -17,5 +17,5 @@ lint:
 .PHONY: db
 db:
 	rm db/[[ app_name ]].sqlite || true
-	# python manage.py db upgrade
-	python manage.py db create_all
+	proper db create_all
+	proper db stamp

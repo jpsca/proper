@@ -47,6 +47,8 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     os.chdir(str(path))
     _make_executables(path)
     deps_installed = _install_dependencies(path) if _dependencies else False
+    if deps_installed:
+        _create_users_migration()
     _wrap_up(path, deps_installed)
 
 
@@ -66,6 +68,10 @@ def _install_dependencies(path):
 
 def _make_executables(path):
     (path / "manage.py").chmod(0o755)
+
+
+def _create_users_migration():
+    call('.venv/bin/proper db revision "Create users table"')
 
 
 def _wrap_up(path, deps_installed):

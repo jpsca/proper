@@ -9,7 +9,7 @@ from proper import BaseController
 
 
 # iterate through the modules in the current package
-package_dir = Path(__file__).resolve().parent
+package_dir = str(Path(__file__).resolve().parent)
 for (_, module_name, _) in iter_modules([package_dir]):
 
     # import the module and iterate through its attributes
