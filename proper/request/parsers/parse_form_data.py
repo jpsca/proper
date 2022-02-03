@@ -105,7 +105,7 @@ def parse_qs(content):
     form = MultiDict()
     data = multipart.parse_qs(content, keep_blank_values=True)
     for key, values in data.items():
-        form[key] = [(True if value == "" else value) for value in values]
+        form[key] = values
     return form
 
 

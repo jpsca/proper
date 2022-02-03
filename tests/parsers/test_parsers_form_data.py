@@ -56,8 +56,8 @@ def test_parse_urlencoded():
     md = parse_form_data(stream, content_type, content_length)
     assert md["colors"] == ["red", "green", "blue"]
     assert md["foo"] == ["bar"]
-    assert md["empty1"] == [True]
-    assert md["empty2"] == [True]
-    assert md["empty3"] == [True]
-    assert md["empty4"] == [True, True, True]
-    assert md["empty5"] == [True, True, True]
+    assert md["empty1"] == [""]
+    assert md["empty2"] == [""]
+    assert md["empty3"] == [""]
+    assert md["empty4"] == ["", "", ""]
+    assert md["empty5"] == ["", "", ""]
