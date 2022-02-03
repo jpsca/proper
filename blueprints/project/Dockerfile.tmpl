@@ -1,0 +1,22 @@
+#=== Dockerfile for development ===
+FROM python:3.9-buster
+
+# create and activate virtual environment
+RUN python3.9 -m venv /venv
+ENV VIRTUAL_ENV=/venv
+ENV PATH="/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED 1
+
+RUN python -m pip install --no-cache-dir -U pip wheel
+RUN mkdir /requirements
+COPY requirements/*requirements.txt /requirements/
+RUN python -m pip install --no-cache-dir -r /requirements/dev-requirements.txt
+
+# copy the rest of the code
+RUN mkdir /app
+COPY . /app
+
+# run
+WORKDIR /app
+EXPOSE 2300
+CMD ["proper", "run", "2300"]
