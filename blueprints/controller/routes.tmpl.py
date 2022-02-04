@@ -1,5 +1,5 @@
 ,
 [% for action in actions %]
-    get("[[ snake_name ]]/[[ action ]]", to=[[ class_name ]].[[ action ]]),[% endfor %]
+    get("[[ plural_snake ]]/[[ action ]]", to=[[ plural_pascal ]].[[ action ]]),[% endfor %]
 ]
 

@@ -10,14 +10,14 @@ ROUTES_TMPL = "routes.tmpl.py"
 TEMPLATE_TMPL = "template.tmpl.html.jinja"
 
 
-def gen_controller(app, class_name, *actions):
+def gen_controller(app, name, *actions):
     """Stubs out a new controller and its templates.
 
         ./manage.py g controller NAME [action ...]
 
     Arguments:
 
-    - class_name: The PascalCased controller class name (in plural).
+    - name: The PascalCased controller class name (in plural).
     - actions: Optional list of actions.
 
     Example:
@@ -25,8 +25,9 @@ def gen_controller(app, class_name, *actions):
         ./manage.py g controller Articles index show
 
     """
-    class_name = inflection.camelize(inflection.pluralize(class_name))
-    snake_name = inflection.underscore(class_name)
+    plural_name = inflection.pluralize(name)
+    plural_pascal = inflection.camelize(plural_name)
+    plural_snake = inflection.underscore(plural_name)
     actions = [inflection.underscore(action) for action in actions] or ["index"]
 
     bp = BlueprintRender(
@@ -34,8 +35,9 @@ def gen_controller(app, class_name, *actions):
         app.root_path.parent,
         context={
             "app_name": app.root_path.name,
-            "class_name": class_name,
-            "snake_name": snake_name,
+            "plural_pascal": plural_pascal,
+            "plural_snake": plural_snake,
+            "snake_name": plural_snake,
             "actions": actions,
         },
         ignore=[ROUTES_TMPL, TEMPLATE_TMPL]
@@ -45,8 +47,8 @@ def gen_controller(app, class_name, *actions):
     template_tmpl = CONTROLLER_BLUEPRINT / TEMPLATE_TMPL
     content = bp.render.string(template_tmpl.read_text())
 
-    (app.root_path / "templates" / snake_name).mkdir(parents=False, exist_ok=True)
-    folder = Path(app.root_path.name) / "templates" / snake_name
+    (app.root_path / "templates" / plural_snake).mkdir(parents=False, exist_ok=True)
+    folder = Path(app.root_path.name) / "templates" / plural_snake
     for action in actions:
         dst_relpath = folder / f"{action}.html.jinja"
         bp.save_file(content, dst_relpath)

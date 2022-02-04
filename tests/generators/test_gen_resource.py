@@ -62,7 +62,7 @@ def test_gen_resource_singular(app, scaffold):
     _test_model_singular(app_root)
     _test_templates_singular(app_root)
     _test_routes_singular(app_root)
-    module.call.assert_called_once_with('proper db revision "Create profile table"')
+    module.call.assert_called_once_with('proper db revision "Create profiles table"')
 
 
 def _test_controller_singular(app_root):

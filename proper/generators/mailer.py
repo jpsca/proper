@@ -3,7 +3,7 @@
 def gen_mailer(app):
     """Stubs out a new mailer.
 
-        ./manage.py g controller NAME [action ...]
+        ./manage.py g mailer NAME [action ...]
 
     Arguments:
 

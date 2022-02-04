@@ -1,0 +1,21 @@
+{% extends "layouts/application.html.jinja" %}
+
+{% block title %}New [[ singular_snake ]]{% endblock %}
+
+{% block body %}
+<h1>New [[ singular_snake ]]</h1>
+
+<form
+	method="post"
+	action="{{ app.url_for('[[ plural_pascal ]].create') }}"
+	novalidate
+>
+	<input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
+
+	{% include "[[ plural_snake ]]/_form.html.jinja" %}
+
+	<div>
+		<button type="submit">Create [[ singular_snake ]]</button>
+	</div>
+</form>
+{% endblock %}

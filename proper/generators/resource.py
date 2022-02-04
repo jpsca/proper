@@ -61,12 +61,15 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
         ./manage.py g resource Profile --singular
 
     """
-    controller_class_name = inflection.camelize(name)
-    controller_snake_name = inflection.underscore(name)
+    plural_name = inflection.pluralize(name)
+    plural_pascal = inflection.camelize(plural_name)
+    plural_snake = inflection.underscore(plural_name)
 
     singular_name = inflection.singularize(name)
-    model_class_name = inflection.camelize(singular_name)
-    model_snake_name = inflection.underscore(singular_name)
+    singular_pascal = inflection.camelize(singular_name)
+    singular_snake = inflection.underscore(singular_name)
+    controller_snake = singular_snake if singular else plural_snake
+    controller_pascal = singular_pascal if singular else plural_pascal
 
     actions = set(ACTIONS)
     if only:
@@ -83,8 +86,9 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     attrs_tuples = gen_model(
         app,
         name,
-        class_name=model_class_name,
-        snake_name=model_snake_name,
+        singular_pascal=singular_pascal,
+        singular_snake=singular_snake,
+        plural_snake=plural_snake,
         *attrs
     )
     form_fields = [
@@ -98,12 +102,15 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
         app.root_path.parent,
         context={
             "app_name": app.root_path.name,
-            "controller_class_name": controller_class_name,
-            "controller_snake_name": controller_snake_name,
-            "model_class_name": model_class_name,
-            "model_snake_name": model_snake_name,
+            "plural_pascal": plural_pascal,
+            "plural_snake": plural_snake,
+            "singular_pascal": singular_pascal,
+            "singular_snake": singular_snake,
+            "controller_snake": controller_snake,
+            "controller_pascal": controller_pascal,
             "actions": actions,
             "singular": singular,
+            "attrs_tuples": attrs_tuples,
             "form_fields": form_fields,
         },
         ignore=[ROUTES_TMPL] + ignored_templates,
@@ -114,4 +121,4 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
-    call(f'proper db revision "Create {controller_snake_name} table"')
+    call(f'proper db revision "Create {plural_snake} table"')

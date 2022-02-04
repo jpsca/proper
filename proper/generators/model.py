@@ -6,7 +6,14 @@ from proper.helpers.render import BLUEPRINTS, BlueprintRender
 MODEL_BLUEPRINT = BLUEPRINTS / "model"
 
 
-def gen_model(app, name, *attrs, class_name=None, snake_name=None):
+def gen_model(
+    app,
+    name,
+    *attrs,
+    singular_pascal=None,
+    singular_snake=None,
+    plural_snake=None,
+):
     """Stubs out a new model.
 
     Pass the model name (singular), and an optional list of attribute pairs
@@ -142,21 +149,21 @@ def gen_model(app, name, *attrs, class_name=None, snake_name=None):
                 )
 
     """
-    name = inflection.singularize(name)
-    class_name = class_name or inflection.camelize(name)
-    snake_name = snake_name or inflection.underscore(name)
-    table_name = inflection.tableize(class_name)
+    singular_name = inflection.singularize(name)
+    singular_pascal = singular_pascal or inflection.camelize(singular_name)
+    singular_snake = singular_snake or inflection.underscore(singular_name)
+    plural_snake = plural_snake or inflection.tableize(singular_pascal)
     attrs_tuples = [_split_attr(attr) for attr in attrs]
-    rows = [_build_row(snake_name, *attr) for attr in attrs_tuples]
+    rows = [_build_row(plural_snake, *attr) for attr in attrs_tuples]
 
     bp = BlueprintRender(
         MODEL_BLUEPRINT,
         app.root_path.parent,
         context={
             "app_name": app.root_path.name,
-            "class_name": class_name,
-            "snake_name": snake_name,
-            "table_name": table_name,
+            "singular_pascal": singular_pascal,
+            "singular_snake": singular_snake,
+            "plural_snake": plural_snake,
             "rows": rows,
         },
     )
@@ -203,15 +210,16 @@ def _split_attr(attr):
     return name, ctype, options, constraints
 
 
-def _build_row(snake_name, name, ctype, options, constraints):
+def _build_row(plural_snake, *attrs):
+    cname, ctype, options, constraints = attrs
     ColumnType = COLUMN_TYPES.get(ctype.lower())
     if ColumnType:
         col = _field(ColumnType, options, constraints)
     else:
         ctype = inflection.camelize(ctype)
-        col = _relationship(snake_name, ctype, constraints)
+        col = _relationship(plural_snake, ctype, constraints)
 
-    return f"{name} = {col}"
+    return f"{cname} = {col}"
 
 
 def _field(ColumnType, options, constraints):
@@ -242,18 +250,17 @@ def _build_constraint(constraint):
         return f"{constraint}={value}"
 
 
-def _relationship(snake_name, Model, constraints):
+def _relationship(plural_snake, Model, constraints):
     constraints.append("select")
     backref = constraints[0]
     lazy = constraints[1]
-    backref = _build_backref(snake_name, backref)
+    backref = _build_backref(plural_snake, backref)
     return f'db.relationship("{Model}", backref={backref}, lazy="{lazy}")'
 
 
-def _build_backref(snake_name, backref):
+def _build_backref(plural_snake, backref):
     if not backref:
-        snake_name = inflection.tableize(snake_name)
-        return f'db.backref("{snake_name}")'
+        return f'db.backref("{plural_snake}")'
     backref, lazy = f"{backref}-".split("-", 1)
     lazy = lazy.rstrip("-")
     lazy = f', lazy="{lazy}"' if lazy else ""
