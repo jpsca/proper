@@ -7,7 +7,7 @@ from .model import gen_model
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 ROUTES_TMPL = "routes.tmpl.py"
-FIELD_TYPES = {
+FORM_FIELDS = {
     "binary": "File",
     "boolean" : "Boolean",
     "date" : "Date",
@@ -21,6 +21,24 @@ FIELD_TYPES = {
     "text" : "Text",
     "time" : "Time",
 }
+FORM_RENDER_AS = {
+    "binary" : "textarea",
+    "boolean" : "checkbox",
+    "json" : "textarea",
+    "text" : "textarea",
+}
+FORM_DEFAULT_RENDER_AS = "input"
+FORM_INPUT_TYPES = {
+    "date" : "date",
+    "datetime" : "datetime-local",
+    "decimal" : "number",
+    "float" : "number",
+    "integer" : "number",
+    "interval" : "range",
+    "numeric" : "number",
+    "time" : "time",
+}
+FORM_DEFAULT_INPUT_TYPE = "text"
 
 
 def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
@@ -92,9 +110,15 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
         *attrs
     )
     form_fields = [
-        (name, FIELD_TYPES[ftype], "nullable" not in constraints)
+        {
+            "fclass": FORM_FIELDS[ftype],
+            "name": name,
+            "render_as": FORM_RENDER_AS.get(ftype, FORM_DEFAULT_RENDER_AS),
+            "input_type": FORM_INPUT_TYPES.get(ftype, FORM_DEFAULT_INPUT_TYPE),
+            "required": "nullable" not in constraints,
+        }
         for name, ftype, _, constraints in attrs_tuples
-        if ftype in FIELD_TYPES
+        if ftype in FORM_FIELDS
     ]
 
     bp = BlueprintRender(
@@ -110,7 +134,6 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
             "controller_pascal": controller_pascal,
             "actions": actions,
             "singular": singular,
-            "attrs_tuples": attrs_tuples,
             "form_fields": form_fields,
         },
         ignore=[ROUTES_TMPL] + ignored_templates,

@@ -6,6 +6,6 @@ from [[ app_name ]].models import [[ singular_pascal ]]
 class [[ singular_pascal ]]Form(f.Form):
     _model = [[ singular_pascal ]]
 
-    [% for name, fclass, required in form_fields -%]
-    [[ name ]] = f.[[ fclass ]]([% if required %]required=True[% endif %])
+    [% for f in form_fields -%]
+    [[ f.name ]] = f.[[ f.fclass ]]([% if f.required %]required=True[% endif %])
     [% endfor %]

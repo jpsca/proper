@@ -209,6 +209,7 @@ def get_blueprint_render(src, context=None, *, envops=None):
     envops.setdefault("variable_start_string", "[[")
     envops.setdefault("variable_end_string", "]]")
     envops.setdefault("keep_trailing_newline", True)
+    envops["undefined"] = jinja2.StrictUndefined
     render = Render(src, **(envops or {}))
     render.globals.update(context or {})
     return render

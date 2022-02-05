@@ -5,8 +5,8 @@
 {% block body %}
 <h1>[[ singular_pascal ]] #{{ [[ singular_snake ]].id }}</h1>
 
-[% for name, _fclass, _required in form_fields -%]
-<p><strong>[[ name|title ]]:</strong> {{ [[ singular_snake ]].[[ name ]] }}</p>
+[% for f in form_fields -%]
+<p><strong>[[ f.name|title ]]:</strong> {{ [[ singular_snake ]].[[ f.name ]] }}</p>
 [% endfor -%]
 
 <p class="actions">
