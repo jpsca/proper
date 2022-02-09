@@ -45,6 +45,7 @@ def get_app_cli(app):
         "secrets": get_secrets_cmd(app),
         "g": get_generators_cli(app),
         "static": get_static_cli(app),
+        "install": get_install_cli(app),
         "welcome": welcome,
     }
 
@@ -149,6 +150,14 @@ def get_static_cli(app):
         attrs[name] = _get_cmd(app, static, name)
 
     return type("Static", (Cli,), attrs)
+
+
+def get_install_cli(app):
+    attrs = {
+        "__doc__": "",
+        "proper_text": _get_cmd(app, generators, "install_proper_text")
+    }
+    return type("Install", (Cli,), attrs)
 
 
 def welcome(_self, host="0.0.0.0", port=2300):

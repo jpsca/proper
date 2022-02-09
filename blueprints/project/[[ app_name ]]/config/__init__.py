@@ -2,7 +2,7 @@ import os
 from importlib import import_module
 from pathlib import Path
 
-from proper import get_config
+from proper import get_default_config
 
 
 ENV_VAR = "APP_ENV"
@@ -20,7 +20,7 @@ def get_env(default="development"):
 
 
 def load_config(env):
-    config = get_config()
+    config = get_default_config()
 
     # Load env config
     env_config = import_module(f".{env}", __package__)

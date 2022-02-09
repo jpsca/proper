@@ -2,7 +2,7 @@ const path = require("path");
 
 module.exports = {
 	entry: {
-		"js/scripts": "./src/js/scripts.js",
+		"js/application": "./src/js/application.js",
 	},
 	output: {
 		filename: "[name].js",
@@ -11,6 +11,6 @@ module.exports = {
 	devtool: "source-map",
 	resolve: {
 		modules: ["node_modules", "src"],
-		extensions: [".js", ".jsx"],
+		extensions: [".js"],
 	}
 };

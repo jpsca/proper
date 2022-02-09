@@ -6,7 +6,7 @@
         "build": "concurrently npm:css:build npm:js:build",
         "css": "postcss src/css/*.css --base src --dir public --verbose",
         "css:watch": "postcss src/css/*.css --base src --dir public --watch --verbose",
-        "css:build": "NODE_ENV=production npm run css && rm public/css/_*.css",
+        "css:build": "NODE_ENV=production npm run css",
         "js": "webpack --mode development",
         "js:watch": "webpack --mode development --watch",
         "js:build": "webpack --mode production"

@@ -64,8 +64,10 @@ class Render:
 
 
 class BlueprintRender:
-    def __init__(self, src, dst, context=None, *, ignore=None, envops=None, force=False):
-        self.src = str(src)
+    def __init__(
+        self, src, dst, context=None, *, ignore=None, envops=None, force=False
+    ):
+        self.src = Path(src)
         self.dst = Path(dst)
         self.force = force
         self.render = get_blueprint_render(src, context=context, envops=envops)
@@ -78,15 +80,14 @@ class BlueprintRender:
     def render_folder(self, folder, files):
         if self._ignore(folder):
             return
-        src_relfolder = str(folder).replace(self.src, "", 1).lstrip(os.path.sep)
+        src_relfolder = str(folder).replace(str(self.src), "", 1).lstrip(os.path.sep)
         dst_relfolder = self.render.string(src_relfolder)
         src_relfolder = Path(src_relfolder)
         dst_relfolder = Path(dst_relfolder)
 
-        self._make_folder(dst_relfolder)
+        make_folder(self.dst, dst_relfolder)
 
         for name in files:
-            src_path = folder / name
             src_relpath = src_relfolder / name
             if self._ignore(src_relpath):
                 continue
@@ -95,70 +96,16 @@ class BlueprintRender:
             if ".tmpl." in name or name.endswith(".tmpl"):
                 dst_name = name.replace(".tmpl", "")
                 dst_relpath = dst_relfolder / dst_name
-                self.render_file(src_relpath, dst_relpath)
+                content = self.render(src_relpath)
+                save_file(self.dst, dst_relpath, content, force=self.force)
             elif ".append." in name or name.endswith(".append"):
                 dst_name = name.replace(".append", "")
                 dst_relpath = dst_relfolder / dst_name
-                self.append_to_file(src_relpath, dst_relpath)
+                content = self.render(src_relpath)
+                append_to_file(self.dst, dst_relpath, content)
             else:
                 dst_relpath = dst_relfolder / name
-                self.copy_file(src_path, dst_relpath)
-
-    def render_file(self, src_relpath, dst_relpath):
-        content = self.render(src_relpath)
-        self.save_file(content, dst_relpath)
-
-    def save_file(self, content, dst_relpath):
-        dst_path = self.dst / dst_relpath
-        if dst_path.exists():
-            if self._contents_are_identical(content, dst_path):
-                printf(IDENTICAL, dst_relpath)
-                return
-            if not self._confirm_overwrite(dst_relpath):
-                printf(SKIPPED, dst_relpath, color="yellow")
-                return
-            printf(UPDATE, dst_relpath, color="yellow")
-        else:
-            printf(CREATE, dst_relpath, color="green")
-
-        dst_path.write_text(content)
-
-    def append_to_file(self, src_relpath, dst_relpath):
-        new_content = self.render(src_relpath)
-
-        dst_path = self.dst / dst_relpath
-        if dst_path.exists():
-            curr_content = dst_path.read_text()
-            if new_content in curr_content:
-                printf(SKIPPED, dst_relpath, color="yellow")
-                return
-
-            if not curr_content.endswith("\n"):
-                curr_content += "\n"
-            new_content = curr_content + new_content
-            printf(APPEND, dst_relpath, color="yellow")
-        else:
-            dst_path.touch(exist_ok=True)
-            printf(CREATE, dst_relpath, color="green")
-
-        dst_path.write_text(new_content)
-
-    def copy_file(self, src_path, dst_relpath):
-        dst_path = self.dst / dst_relpath
-        if dst_path.exists():
-            if self._files_are_identical(src_path, dst_path):
-                printf(IDENTICAL, dst_relpath)
-                return
-            if not self._confirm_overwrite(dst_relpath):
-                printf(SKIPPED, dst_relpath, color="yellow")
-                return
-            printf(UPDATE, dst_relpath, color="yellow")
-        else:
-            printf(CREATE, dst_relpath, color="green")
-
-        shutil.copy2(str(src_path), str(dst_path))
-
-    # Private
+                copy_file(self.src / src_relpath, self.dst, dst_relpath)
 
     def _ignore(self, path):
         name = path.name
@@ -167,39 +114,68 @@ class BlueprintRender:
                 return True
         return False
 
-    def _make_folder(self, rel_folder):
-        path = self.dst / rel_folder
-        if path.exists():
+
+def make_folder(root_path, rel_folder):
+    path = root_path / rel_folder
+    if path.exists():
+        return
+
+    rel_folder = str(rel_folder).rstrip(".")
+    display = f"{rel_folder}{os.path.sep}"
+    path.mkdir(parents=False, exist_ok=False)
+    if rel_folder:
+        printf(CREATE, display, color="green")
+
+
+def copy_file(src_path, root_path, dst_relpath, *, force=False):
+    dst_path = root_path / dst_relpath
+    if dst_path.exists():
+        if files_are_identical(src_path, dst_path):
+            printf(IDENTICAL, dst_relpath)
+            return
+        if not confirm_overwrite(dst_relpath, force=force):
+            printf(SKIPPED, dst_relpath, color="yellow")
+            return
+        printf(UPDATE, dst_relpath, color="yellow")
+    else:
+        printf(CREATE, dst_relpath, color="green")
+
+    shutil.copy2(str(src_path), str(dst_path))
+
+
+def append_to_file(root_path, dst_relpath, new_content):
+    dst_path = root_path / dst_relpath
+    if dst_path.exists():
+        curr_content = dst_path.read_text()
+        if new_content in curr_content:
+            printf(SKIPPED, dst_relpath, color="yellow")
             return
 
-        rel_folder = str(rel_folder).rstrip(".")
-        display = f"{rel_folder}{os.path.sep}"
-        path.mkdir(parents=False, exist_ok=False)
-        if rel_folder:
-            printf(CREATE, display, color="green")
+        if not curr_content.endswith("\n"):
+            curr_content += "\n"
+        new_content = curr_content + new_content
+        printf(APPEND, dst_relpath, color="yellow")
+    else:
+        dst_path.touch(exist_ok=True)
+        printf(CREATE, dst_relpath, color="green")
 
-    def _files_are_identical(self, src_path, dst_path):
-        return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
-
-    def _contents_are_identical(self, content, dst_path):
-        return content == dst_path.read_text()
-
-    def _confirm_overwrite(self, dst_relpath):
-        printf("conflict", dst_relpath, color="red")
-        if self.force:
-            return True
-        return confirm(" Overwrite?")
+    dst_path.write_text(new_content)
 
 
-def printf(verb, msg="", color="cyan", indent=10):
-    verb = str(verb).rjust(indent, " ")
-    verb = f"<fg={color}>{verb}</>"
-    echo(f"{verb}  {msg}".rstrip())
+def save_file(root_path, dst_relpath, content, *, force=False):
+    dst_path = root_path / dst_relpath
+    if dst_path.exists():
+        if contents_are_identical(content, dst_path):
+            printf(IDENTICAL, dst_relpath)
+            return
+        if not confirm_overwrite(dst_relpath, force=force):
+            printf(SKIPPED, dst_relpath, color="yellow")
+            return
+        printf(UPDATE, dst_relpath, color="yellow")
+    else:
+        printf(CREATE, dst_relpath, color="green")
 
-
-def call(cmd):
-    printf(RUN, cmd, color="yellow")
-    os.system(cmd)
+    dst_path.write_text(content)
 
 
 def get_blueprint_render(src, context=None, *, envops=None):
@@ -213,6 +189,32 @@ def get_blueprint_render(src, context=None, *, envops=None):
     render = Render(src, **(envops or {}))
     render.globals.update(context or {})
     return render
+
+
+def printf(verb, msg="", color="cyan", indent=10):
+    verb = str(verb).rjust(indent, " ")
+    verb = f"<fg={color}>{verb}</>"
+    echo(f"{verb}  {msg}".rstrip())
+
+
+def call(cmd):
+    printf(RUN, cmd, color="yellow")
+    os.system(cmd)
+
+
+def files_are_identical(src_path, dst_path):
+    return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
+
+
+def contents_are_identical(content, dst_path):
+    return content == dst_path.read_text()
+
+
+def confirm_overwrite(dst_relpath, *, force=False):
+    printf("conflict", dst_relpath, color="red")
+    if force:
+        return True
+    return confirm(" Overwrite?")
 
 
 RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")

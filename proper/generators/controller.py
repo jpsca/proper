@@ -2,7 +2,7 @@ from pathlib import Path
 
 import inflection
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_file
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
@@ -29,10 +29,11 @@ def gen_controller(app, name, *actions):
     plural_pascal = inflection.camelize(plural_name)
     plural_snake = inflection.underscore(plural_name)
     actions = [inflection.underscore(action) for action in actions] or ["index"]
+    root_path = Path(app.root_path.parent)
 
     bp = BlueprintRender(
         CONTROLLER_BLUEPRINT,
-        app.root_path.parent,
+        root_path,
         context={
             "app_name": app.root_path.name,
             "plural_pascal": plural_pascal,
@@ -51,7 +52,7 @@ def gen_controller(app, name, *actions):
     folder = Path(app.root_path.name) / "templates" / plural_snake
     for action in actions:
         dst_relpath = folder / f"{action}.html.jinja"
-        bp.save_file(content, dst_relpath)
+        save_file(root_path, dst_relpath, content)
 
     routes_tmpl = CONTROLLER_BLUEPRINT / ROUTES_TMPL
     new_routes = bp.render.string(routes_tmpl.read_text())
