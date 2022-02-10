@@ -1,11 +1,13 @@
 import inspect
 import json
+from contextvars import ContextVar
 from functools import partial
 from importlib import import_module
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
 import inflection
+from apscheduler.schedulers.background import BackgroundScheduler
 from jinja2 import Markup
 from whitenoise import WhiteNoise
 
@@ -13,7 +15,6 @@ from .. import middleware, status
 from ..constants import MIN_SECRET_LENGTH
 from ..errors import MatchNotFound
 from ..helpers import Dot, Render, Serializer
-from ..local import current
 from ..middleware.dispatch import dispatch
 from ..request import Request
 from ..response import Response
@@ -38,6 +39,8 @@ STATIC_FOLDER = "static"
 STATIC_PREFIX = "static"
 PUBLIC_FOLDER = "public"
 MANIFEST_PATH = "cache_manifest.json"
+
+current = ContextVar("current", default=None)
 
 
 class MissingSecretKey(Exception):
@@ -70,6 +73,7 @@ class App:
     error_handlers = None
 
     serializer = None
+    scheduler = None
 
     def __init__(self, import_name, *, config=None):
         """
@@ -102,6 +106,7 @@ class App:
         self._setup_root_path(import_name)
         self._setup_render()
         self._setup_whitenoise()
+        self._setup_scheduler()
 
     def __call__(self, environ, start_response):
         return self._wrapped_wsgi(environ, start_response)
@@ -136,7 +141,7 @@ class App:
 
     @property
     def current_req(self) -> Optional[Request]:
-        return getattr(current, "req", None)
+        return current.get(None)
 
     def on_before_dispatch(self, func: Callable) -> Callable:
         """Decorator to add a function to the `_on_after_dispatch` tuple."""
@@ -160,12 +165,12 @@ class App:
 
     def wsgi_app(self, environ, start_response):
         req = Request(config=self.config, **environ)
-        current.req = req
+        token = current.set(req)
         resp = Response(_app=self, _req=req)
 
         try:
             self.run_pipeline(req, resp)
-            current.release()
+            current.reset(token)
             return resp(start_response)
 
         except Exception as error:
@@ -175,7 +180,7 @@ class App:
             # - the body encoding on the `resp(start_response)`.
             resp.error = error
             self._default_error_handler(req, resp)
-            current.release()
+            current.reset(token)
             return resp(start_response)
 
     def run_pipeline(self, req: Request, resp: Response) -> None:
@@ -317,6 +322,9 @@ class App:
                 autorefresh=self._config.debug,
                 immutable_file_test=RX_INMUTABLES_FILE,
             )
+
+    def _setup_scheduler(self):
+        self.scheduler = BackgroundScheduler()
 
     def _handle_app_error(self, req, resp):
         """Call the registered exception handler if exists or the fallback

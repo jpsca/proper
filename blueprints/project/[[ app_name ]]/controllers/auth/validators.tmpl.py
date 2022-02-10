@@ -1,4 +1,4 @@
-import proper_forms as f
+import proper.forms as f
 
 from [[ app_name ]].config import config
 from [[ app_name ]].models import User

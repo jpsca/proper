@@ -1,4 +1,4 @@
-import proper_forms as f
+import proper.forms as f
 
 from .validators import (
     login_exists,
