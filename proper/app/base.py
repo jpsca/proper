@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Callable, Optional, Tuple
 
 import inflection
-from apscheduler.schedulers.background import BackgroundScheduler
 from jinja2 import Markup
 from whitenoise import WhiteNoise
 
@@ -19,6 +18,7 @@ from ..middleware.dispatch import dispatch
 from ..request import Request
 from ..response import Response
 from ..router import Router, get
+from ..scheduler import Scheduler
 from ..static import RX_INMUTABLES_FILE
 
 from .cli import get_app_cli
@@ -74,6 +74,7 @@ class App:
 
     serializer = None
     scheduler = None
+    first_call = True
 
     def __init__(self, import_name, *, config=None):
         """
@@ -106,9 +107,13 @@ class App:
         self._setup_root_path(import_name)
         self._setup_render()
         self._setup_whitenoise()
-        self._setup_scheduler()
+        self.scheduler = Scheduler()
 
     def __call__(self, environ, start_response):
+        if self.first_call:
+            self.scheduler.start()
+            self.first_call = False
+
         return self._wrapped_wsgi(environ, start_response)
 
     @property
@@ -247,6 +252,11 @@ class App:
         text = (self.public_path / filename).read_text()
         return Markup(text)
 
+    def shutdown(self):
+        print("\nShutting down")
+        self.scheduler.shutdown(wait=True)
+        print("\n✨ Goodbye ✨")
+
     # Private
 
     def _set_config(self, config):
@@ -322,9 +332,6 @@ class App:
                 autorefresh=self._config.debug,
                 immutable_file_test=RX_INMUTABLES_FILE,
             )
-
-    def _setup_scheduler(self):
-        self.scheduler = BackgroundScheduler()
 
     def _handle_app_error(self, req, resp):
         """Call the registered exception handler if exists or the fallback

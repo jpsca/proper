@@ -40,7 +40,7 @@ def get_app_cli(app):
         just run `ipython` or the regular python interpreter and import
         the application, like a regular python package.
         """,
-        "run": run_server,
+        "run": get_run_server(app),
         "routes": get_routes_cmd(app),
         "secrets": get_secrets_cmd(app),
         "g": get_generators_cli(app),
@@ -52,24 +52,27 @@ def get_app_cli(app):
     return type("AppCli", (Cli,), attrs)
 
 
-def run_server(_self):
-    """Runs the development server and the assets watchers.
+def get_run_server(app):
+    def run_server(_self):
+        """Runs the development server and the assets watchers.
 
-    Read the uWSGI config from `uwsgi-dev.ini` and tries to run
-    `npm run watch` in the background if it founds a
-    `static/package.json` file.
-    """
-    if not Path(UWSGI_DEV_CONFIG).exists():
-        print(f"💥 {UWSGI_DEV_CONFIG} not found.")
-        print("💥 Check you are in the root folder of your application.")
-        return
+        Read the uWSGI config from `uwsgi-dev.ini` and tries to run
+        `npm run watch` in the background if it founds a
+        `static/package.json` file.
+        """
+        if not Path(UWSGI_DEV_CONFIG).exists():
+            print(f"💥 {UWSGI_DEV_CONFIG} not found.")
+            print("💥 Check you are in the root folder of your application.")
+            return
 
-    cmd = f"uwsgi --ini {UWSGI_DEV_CONFIG}"
-    print(cmd)
-    try:
-        subprocess.check_call(cmd, shell=True)
-    except KeyboardInterrupt:
-        print("\n✨ Goodbye ✨")
+        cmd = f"uwsgi --ini {UWSGI_DEV_CONFIG}"
+        print(cmd)
+        try:
+            subprocess.check_call(cmd, shell=True)
+        except KeyboardInterrupt:
+            app.shutdown()
+            raise
+    return run_server
 
 
 def get_routes_cmd(app):
