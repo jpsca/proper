@@ -5,7 +5,7 @@ from pathlib import Path
 import proper_config
 from proper_cli import Cli
 
-from proper import generators, static
+from . import generators, static
 
 
 UWSGI_DEV_CONFIG = "uwsgi-dev.ini"

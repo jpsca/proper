@@ -10,7 +10,7 @@ except ImportError:
 from proper_cli import echo
 from whitenoise.compress import Compressor
 
-from proper.helpers import Digestor
+from .helpers import Digestor
 
 
 BUNDLE = "npm run bundle"

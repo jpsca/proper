@@ -2,7 +2,7 @@ from pathlib import Path
 
 import inflection
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_file
+from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_file
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"

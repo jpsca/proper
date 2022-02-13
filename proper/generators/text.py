@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from proper.helpers.render import append_to_file, call, copy_file
+from ..helpers.render import append_to_file, call, copy_file
 
 
 TRIX_INSTALL = "npm install trix --no-audit --no-fund"

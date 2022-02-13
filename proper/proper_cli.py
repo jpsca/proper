@@ -2,7 +2,7 @@
 """
 from proper_cli import Cli
 
-from proper.generators import gen_project
+from .generators import gen_project
 
 
 class ProperCli(Cli):

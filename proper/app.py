@@ -10,19 +10,10 @@ import inflection
 from jinja2 import Markup
 from whitenoise import WhiteNoise
 
-from .. import middleware, status
-from ..constants import MIN_SECRET_LENGTH
-from ..errors import MatchNotFound
-from ..helpers import Dot, Render, Serializer
-from ..middleware.dispatch import dispatch
-from ..request import Request
-from ..response import Response
-from ..router import Router, get
-from ..scheduler import Scheduler
-from ..static import RX_INMUTABLES_FILE
-
-from .cli import get_app_cli
+from . import middleware, status
+from .app_cli import get_app_cli
 from .config import get_default_config
+from .constants import MIN_SECRET_LENGTH
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -30,6 +21,14 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from .errors import MatchNotFound
+from .helpers import Dot, Render, Serializer
+from .middleware.dispatch import dispatch
+from .request import Request
+from .response import Response
+from .router import Router, get
+from .scheduler import Scheduler
+from .static import RX_INMUTABLES_FILE
 
 
 __all__ = ("App", "MissingSecretKey", "BadSecretKey")

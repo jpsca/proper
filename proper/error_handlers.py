@@ -9,7 +9,7 @@ from pathlib import Path
 import inflection
 from markupsafe import Markup
 
-from proper.helpers import Render
+from .helpers import Render
 
 
 logger = logging.getLogger("proper")

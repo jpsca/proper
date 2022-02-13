@@ -1,6 +1,6 @@
 import inflection
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender
+from ..helpers.render import BLUEPRINTS, BlueprintRender
 
 
 MODEL_BLUEPRINT = BLUEPRINTS / "model"

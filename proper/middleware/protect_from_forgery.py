@@ -4,8 +4,7 @@ Requires `proper.middleware.session`.
 """
 import uuid
 
-from ..errors import InvalidCSRFToken
-from ..errors import MissingCSRFToken
+from ..errors import InvalidCSRFToken, MissingCSRFToken
 
 
 __all__ = (

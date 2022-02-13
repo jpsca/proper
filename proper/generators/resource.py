@@ -1,7 +1,7 @@
 import inflection
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
-from proper.router.resource import ACTIONS
+from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
+from ..router.resource import ACTIONS
 from .model import gen_model
 
 

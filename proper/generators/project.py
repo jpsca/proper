@@ -5,7 +5,7 @@ from pathlib import Path
 import inflection
 from proper_cli import confirm
 
-from proper.helpers import BLUEPRINTS, BlueprintRender, call
+from ..helpers import BLUEPRINTS, BlueprintRender, call
 
 
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"

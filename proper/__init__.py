@@ -1,4 +1,3 @@
-import apscheduler as scheduler  # noqa
 from .app import *  # noqa
 from .controller import *  # noqa
 from .router import *  # noqa

@@ -3,10 +3,10 @@ inherit from. Stores data available to view/template.
 """
 from typing import Any, Dict, Optional
 
-from proper.app import App
-from proper.request import Request
-from proper.response import Response
-from proper.status import not_modified
+from ..app import App
+from ..request import Request
+from ..response import Response
+from ..status import not_modified
 
 
 __all__ = ("BaseController",)
