@@ -323,15 +323,20 @@ class App:
 
     def _setup_whitenoise(self):
         self._wrapped_wsgi = self.wsgi_app
+        if not self.public_path.exists():
+            return
 
-        if self.public_path.exists():
-            self._wrapped_wsgi = WhiteNoise(
-                self.wsgi_app,
-                root=self.public_path,
-                prefix=STATIC_PREFIX,
-                autorefresh=self._config.debug,
-                immutable_file_test=RX_INMUTABLES_FILE,
-            )
+        self._wrapped_wsgi = WhiteNoise(
+            self.wsgi_app,
+            root=self.public_path,
+            prefix=STATIC_PREFIX,
+            autorefresh=self._config.debug,
+            immutable_file_test=RX_INMUTABLES_FILE,
+        )
+        for sp in (self._config.static.paths or []):
+            path = self.root_path.parent / sp["path"].strip("/\\")
+            prefix = sp["prefix"].lstrip("/\\")
+            self._wrapped_wsgi.add_files(path, prefix=prefix)
 
     def _handle_app_error(self, req, resp):
         """Call the registered exception handler if exists or the fallback
