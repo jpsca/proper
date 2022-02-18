@@ -1,4 +1,4 @@
-from [[ app_name ]].main import app  # noqa
+from [[ app_name ]] import app  # noqa
 
 
 application = app  # Alias for uwsgi

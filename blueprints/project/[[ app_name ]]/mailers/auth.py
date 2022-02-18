@@ -1,5 +1,6 @@
 from ..app import app, send_email
 from ..config import config
+from .mailer import send_email
 
 
 __all__ = (

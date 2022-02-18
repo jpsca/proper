@@ -1,5 +1,3 @@
-"""These routes are connected to the application in the `main.py` file.
-"""
 from proper.router import *  # noqa
 
 from .controllers import *  # noqa

@@ -3,6 +3,8 @@ from datetime import timedelta
 from proper_config import ConfigDict
 
 
+__all__ = ("get_default_config", )
+
 default_config = {
     "debug": False,
 

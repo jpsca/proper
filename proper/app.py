@@ -11,7 +11,7 @@ from jinja2 import Markup
 from whitenoise import WhiteNoise
 
 from . import middleware, status
-from .app_cli import get_app_cli
+from .cli_app import get_app_cli
 from .config import get_default_config
 from .constants import MIN_SECRET_LENGTH
 from .error_handlers import (

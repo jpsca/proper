@@ -1,6 +1,6 @@
-from proper_cli import Cli
+from proper.cli import Cli
 
-from .main import app
+from .app import app
 from .models import User, alembic, db
 
 
