@@ -45,7 +45,6 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     )()
     print()
     os.chdir(str(path))
-    _make_executables(path)
     deps_installed = _install_dependencies(path) if _dependencies else False
     _wrap_up(path, deps_installed)
 
@@ -69,10 +68,6 @@ def _install_dependencies(path):
     return True
 
 
-def _make_executables(path):
-    (path / "manage.py").chmod(0o755)
-
-
 def _wrap_up(path, deps_installed):
     print("✨ Done! ✨")
     print()
@@ -88,5 +83,5 @@ def _wrap_up(path, deps_installed):
     print()
     print(" Start your Proper app with:")
     print()
-    print("   $ make run")
+    print("   $ proper run")
     print()

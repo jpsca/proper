@@ -46,7 +46,7 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     including a controller, model, migration, templates, and a resource route
     in the `routes.py` file
 
-        ./manage.py g resource NAME
+        proper g resource NAME
             [--only=action[,action]] [--exclude=action[,action]] [--singular]
 
     Arguments:
@@ -61,7 +61,7 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
 
     Attribute pairs are field:type arguments specifying the model's attributes,
     and follows the same syntax of the model generator.
-    Run `./manage.py g model --help` for instructions.
+    Run `proper g model --help` for instructions.
 
     By default it generates the full set of REST actions, but you can choose
     only some of these or to exclude a few by using the optional `only` and
@@ -73,10 +73,10 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
 
     Examples:
 
-        ./manage.py g resource Posts
-        ./manage.py g resource Posts --only=index,show
-        ./manage.py g resource Posts title:string body:text published:boolean
-        ./manage.py g resource Profile --singular
+        proper g resource Posts
+        proper g resource Posts --only=index,show
+        proper g resource Posts title:string body:text published:boolean
+        proper g resource Profile --singular
 
     """
     plural_name = inflection.pluralize(name)

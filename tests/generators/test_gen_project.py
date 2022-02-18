@@ -13,7 +13,6 @@ def test_gen_project(dst):
     assert (root / name / "templates").is_dir()
 
     assert (root / name / "app.py").exists()
-    assert (root / name / "main.py").exists()
     assert (root / name / "routes.py").exists()
 
 
@@ -29,5 +28,4 @@ def test_gen_project_custom(dst):
     assert (root / name / "templates").is_dir()
 
     assert (root / name / "app.py").exists()
-    assert (root / name / "main.py").exists()
     assert (root / name / "routes.py").exists()

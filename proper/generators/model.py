@@ -28,7 +28,7 @@ def gen_model(
 
     ## Declaring fields
 
-        ./manage.py g model NAME [field[:type[-options]][:attribute[-value]] ...]
+        proper g model NAME [field[:type[-options]][:attribute[-value]] ...]
 
     Attribute pairs are field:type arguments specifying the
     model's attributes. Timestamps are added by default, so you **don't have**
@@ -43,7 +43,7 @@ def gen_model(
     Just after the field name you can specify a type like text or boolean.
     It will generate the column with the associated SQL type. For instance:
 
-        ./manage.py g model Post title:string body:text
+        proper g model Post title:string body:text
 
     will generate a title column with a varchar type and a body column with a text
     type. If no type is specified the string type will be used by default.
@@ -65,11 +65,11 @@ def gen_model(
     After the type, you can add one or more options. For example, for integer, string, and binary fields, an
     integer be set as the limit:
 
-        ./manage.py g model User name:string-30
+        proper g model User name:string-30
 
     for numeric fields, two integers separated by a dash will be used for precision and scale:
 
-        ./manage.py g model Product price:numeric-10-2
+        proper g model Product price:numeric-10-2
 
     and so on.
 
@@ -89,11 +89,11 @@ def gen_model(
 
     Use `foreign` for adding a foreign key:
 
-        ./manage.py g model Post author_id:integer:foreign-users.id
+        proper g model Post author_id:integer:foreign-users.id
 
     ### Example:
 
-        `./manage.py g model Post title:string-30 body:text author_id:integer:foreign-users.id`
+        `proper g model Post title:string-30 body:text author_id:integer:foreign-users.id`
 
         class Post(Base, Timestamped):
             __tablename__ = "posts"
@@ -105,13 +105,13 @@ def gen_model(
 
     ## Declaring relationships
 
-        ./manage.py g model NAME [ field:Model[:backref[-lazy]][:lazy] ]
+        proper g model NAME [ field:Model[:backref[-lazy]][:lazy] ]
 
     ### Examples:
 
     - Simple backref:
 
-            `./manage.py g model Post tags:Tag:post:joined`
+            `proper g model Post tags:Tag:post:joined`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"
@@ -124,7 +124,7 @@ def gen_model(
 
     - Backref with lazy type:
 
-            `./manage.py g model Post tags:Tag:posts-select:joined`
+            `proper g model Post tags:Tag:posts-select:joined`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"
@@ -137,7 +137,7 @@ def gen_model(
 
     - Implicit backref and lazy type:
 
-            `./manage.py g model Post tags:Tag`
+            `proper g model Post tags:Tag`
 
             class Post(Base, Timestamped):
                 __tablename__ = "posts"

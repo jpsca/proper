@@ -74,15 +74,15 @@ This is not only faster (and less boring) to type, but also reduce the brittlene
 The routes for your application live in the `[yourapp]/routes.py` file and typically looks like this:
 
 ```python
-"""These routes are connected to the application in the `main.py` file."""
 from proper import get
+from .app import app
 
-routes = [
+app.routes = [
     ...
 ]
 ```
 
-The routes is just a regular list of `Route` objects that, as the docstring says, is assigned to `app.routes` in the `[yourapp]/main.py` file.
+The routes is just a regular list of `Route` objects that, as the docstring says, is assigned to `app.routes`.
 
 
 

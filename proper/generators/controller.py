@@ -13,7 +13,7 @@ TEMPLATE_TMPL = "template.tmpl.html.jinja"
 def gen_controller(app, name, *actions):
     """Stubs out a new controller and its templates.
 
-        ./manage.py g controller NAME [action ...]
+        proper g controller NAME [action ...]
 
     Arguments:
 
@@ -22,7 +22,7 @@ def gen_controller(app, name, *actions):
 
     Example:
 
-        ./manage.py g controller Articles index show
+        proper g controller Articles index show
 
     """
     plural_name = inflection.pluralize(name)

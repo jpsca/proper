@@ -1,4 +1,4 @@
-from ..app import app, send_email
+from ..app import app
 from ..config import config
 from .mailer import send_email
 
