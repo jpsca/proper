@@ -1,8 +1,7 @@
 import proper
 
-from ..app import app
+from ..app import app, db
 from ..controllers import Pages
-from ..models import db
 
 
 # You can call your own views for handling any kind of exception, not

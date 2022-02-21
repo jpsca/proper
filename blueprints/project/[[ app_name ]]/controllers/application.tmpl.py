@@ -4,7 +4,6 @@ from proper import BaseController
 
 from [[ app_name ]].app import app
 from [[ app_name ]].models import User
-from [[ app_name ]].services import auth_services
 
 
 REDIRECT_AFTER_LOGIN_KEY = "_redirect"
@@ -38,7 +37,7 @@ class ApplicationController(BaseController):
 
     def _get_user(self, session):
         token = session.get(USER_SESSION_KEY)
-        user = auth_services.authenticate_session_token(User, token)
+        user = User.authenticate_session_token(token)
         if token and not user:
             del session[USER_SESSION_KEY]
             return None

@@ -41,7 +41,17 @@ default_config = {
         "paths": [
             {"path": "static/public", "prefix": "static/"}
         ]
-    }
+    },
+
+    "database_dialect": "sqlite+pysqlite",
+    "database_name": ":memory:",
+    "database_host": None,
+    "database_port": None,
+    "database_user": None,
+    "database_password": None,
+    "database_engine_options": None,
+    "database_session_options": {"expire_on_commit": False},
+    "alembic_migrations": None,
 }
 
 

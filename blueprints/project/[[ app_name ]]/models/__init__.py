@@ -5,7 +5,7 @@ from inspect import isclass
 from pathlib import Path
 from pkgutil import iter_modules
 
-from .base import *  # noqa
+from ..app import db
 
 
 # iterate through the modules in the current package

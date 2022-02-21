@@ -42,9 +42,10 @@ def get_app_cli(app):
         """,
         "run": get_run_server(app),
         "routes": get_routes_cmd(app),
+        "db": app.alembic.get_proper_cli() if app.alembic else None,
         "secrets": get_secrets_cmd(app),
-        "g": get_generators_cli(app),
         "static": get_static_cli(app),
+        "g": get_generators_cli(app),
         "install": get_install_cli(app),
         "welcome": welcome,
     }
@@ -54,11 +55,9 @@ def get_app_cli(app):
 
 def get_run_server(app):
     def run_server(_self):
-        """Runs the development server and the assets watchers.
+        """Runs the development server.
 
-        Read the uWSGI config from `uwsgi-dev.ini` and tries to run
-        `npm run watch` in the background if it founds a
-        `static/package.json` file.
+        Read the uWSGI config from `uwsgi-dev.ini`.
         """
         if not Path(UWSGI_DEV_CONFIG).exists():
             print(f"💥 {UWSGI_DEV_CONFIG} not found.")
@@ -158,7 +157,7 @@ def get_static_cli(app):
 def get_install_cli(app):
     attrs = {
         "__doc__": "",
-        "proper_text": _get_cmd(app, generators, "install_proper_text")
+        "text": _get_cmd(app, generators, "install_proper_text")
     }
     return type("Install", (Cli,), attrs)
 

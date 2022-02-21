@@ -1,7 +1,6 @@
 from [[ app_name ]].app import app
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
-from [[ app_name ]].services import auth_services
 from ..application import ApplicationController, REDIRECT_AFTER_LOGIN_KEY
 from . import forms
 
@@ -17,20 +16,20 @@ class Auth(ApplicationController):
             return
 
         credentials = form.save()
-        user = auth_services.authenticate(User, **credentials)
+        user = User.authenticate(**credentials)
         if not user:
             # msg = "We didn’t recognize that password."
             msg = "Wrong username and/or password"
             form.password.error = msg
             return
 
-        auth_services.sign_in(user)
+        user.sign_in(self.req, self.resp)
         self.resp.flash("Welcome back!")
         return go_forward(self.resp)
 
     def sign_out(self):
         if self.req.user:
-            auth_services.sign_out(self.req.user)
+            self.req.user.sign_out()
         return self.resp.redirect_to("/")
 
     def reset(self):
@@ -48,12 +47,12 @@ class Auth(ApplicationController):
         self.resp.component = "AuthResetSent"
 
     def reset_validate(self, token):
-        user = auth_services.authenticate_timestamped_token(User, token)
+        user = User.authenticate_timestamped_token(token)
         if not user:
             self.resp.component = "AuthResetInvalid"
             return
 
-        auth_services.sign_in(user, self.req, self.resp)
+        user.sign_in(self.req, self.resp)
         self.resp.redirect_to(app.url_for("Auth.password_change"))
 
     def password_change(self):
@@ -70,8 +69,7 @@ class Auth(ApplicationController):
             return
 
         new_password = form.save()["password"][0]
-        auth_services.set_new_password(
-            self.req.user,
+        self.req.user.set_new_password(
             new_password,
             req=self.req,
             resp=self._appresp,

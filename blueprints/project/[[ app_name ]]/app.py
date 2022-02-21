@@ -4,3 +4,4 @@ from .config import config
 
 
 app = App(__name__, config=config)
+db = app.db

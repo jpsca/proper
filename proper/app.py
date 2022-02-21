@@ -8,6 +8,7 @@ from typing import Callable, Optional, Tuple
 
 import inflection
 from jinja2 import Markup
+from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
 
 from . import middleware, status
@@ -84,29 +85,17 @@ class App:
             Optional dict-like with the config.
 
         """
-        self._on_before_dispatch = (
-            partial(middleware.head_to_get, app=self),
-            partial(middleware.method_override, app=self),
-            partial(middleware.match, app=self),
-            partial(middleware.redirect, app=self),
-            partial(middleware.fetch_session, app=self),
-            partial(middleware.protect_from_forgery, app=self),
-        )
-        self._on_dispatch = (partial(middleware.dispatch, app=self),)
-        self._on_after_dispatch = (
-            partial(middleware.put_csrf_header, app=self),
-            partial(middleware.put_session, app=self),
-            partial(middleware.strip_body_if_head, app=self),
-        )
-        self.error_handlers = {}
-
-        self.cli = get_app_cli(self)()
-        self.router = Router()
-        self._set_config(config)
         self._setup_root_path(import_name)
+        self._setup_config(config)
+        if "secret_key" in self._config:
+            self._setup_serializer()
+        self._setup_middleware()
+        self._setup_router()
+        self._setup_db()
+        self._setup_scheduler()
         self._setup_render()
         self._setup_whitenoise()
-        self.scheduler = Scheduler()
+        self._setup_cli()
 
     def __call__(self, environ, start_response):
         if self.first_call:
@@ -258,22 +247,17 @@ class App:
 
     # Private
 
-    def _set_config(self, config):
-        _config = get_default_config()
-        _config.update(config)
-        self._config = _config
-
-        if "secret_key" in _config:
-            self._setup_serializer()
-        self.router._debug = _config.debug
-
     def _setup_root_path(self, import_name):
         module = import_module(import_name)
         path = Path(module.__file__)
         if path.is_file():
             path = path.parent
-
         self.root_path = path.absolute()
+
+    def _setup_config(self, config):
+        _config = get_default_config()
+        _config.update(config)
+        self._config = _config
 
     def _setup_serializer(self):
         secret_key = self._get_secret_key()
@@ -306,6 +290,47 @@ class App:
 
         return secret_key
 
+    def _setup_middleware(self):
+        self._on_before_dispatch = (
+            partial(middleware.head_to_get, app=self),
+            partial(middleware.method_override, app=self),
+            partial(middleware.match, app=self),
+            partial(middleware.redirect, app=self),
+            partial(middleware.fetch_session, app=self),
+            partial(middleware.protect_from_forgery, app=self),
+        )
+        self._on_dispatch = (partial(middleware.dispatch, app=self),)
+        self._on_after_dispatch = (
+            partial(middleware.put_csrf_header, app=self),
+            partial(middleware.put_session, app=self),
+            partial(middleware.strip_body_if_head, app=self),
+        )
+        self.error_handlers = {}
+
+    def _setup_router(self):
+        self.router = Router()
+        self.router._debug = self._config.debug
+
+    def _setup_db(self):
+        config = self._config
+        self.db = SQLAlchemy(
+            dialect=config.database_dialect,
+            name=config.database_name,
+            user=config.database_user,
+            password=config.database_password,
+            host=config.database_host,
+            port=config.database_port,
+            engine_options=config.database_engine_options,
+            session_options=config.database_session_options,
+        )
+        if config.alembic_migrations:
+            self.alembic = Alembic(self.db, config.alembic_migrations)
+        else:
+            self.alembic = None
+
+    def _setup_scheduler(self):
+        self.scheduler = Scheduler()
+
     def _setup_render(self):
         self._load_static_manifest()
         self.render = Render(self.templates_path)
@@ -336,6 +361,10 @@ class App:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
             self._wrapped_wsgi.add_files(path, prefix=prefix)
+
+    def _setup_cli(self):
+        Cli = get_app_cli(self)
+        self.cli = Cli()
 
     def _handle_app_error(self, req, resp):
         """Call the registered exception handler if exists or the fallback

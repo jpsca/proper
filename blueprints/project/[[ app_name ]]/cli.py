@@ -1,7 +1,7 @@
 from proper.cli import Cli
 
-from .app import app
-from .models import User, alembic, db
+from .app import app, db
+from .models import User
 
 
 class AuthCli(Cli):
@@ -35,4 +35,3 @@ class AuthCli(Cli):
 
 
 app.cli.auth = AuthCli
-app.cli.db = alembic.get_proper_cli()
