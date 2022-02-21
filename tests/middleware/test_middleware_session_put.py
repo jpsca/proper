@@ -5,8 +5,7 @@ from proper.middleware import fetch_session, put_session
 
 
 def serialize_cookie(app, value):
-    serializer = app.get_serializer()
-    return serializer.dumps({"foo": "bar"})
+    return app.serializer.dumps({"foo": "bar"})
 
 
 def test_set_cookie(app):

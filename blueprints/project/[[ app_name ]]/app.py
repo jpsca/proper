@@ -4,4 +4,5 @@ from .config import config
 
 
 app = App(__name__, config=config)
+auth = app.auth
 db = app.db

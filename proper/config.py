@@ -52,6 +52,12 @@ default_config = {
     "database_engine_options": None,
     "database_session_options": {"expire_on_commit": False},
     "alembic_migrations": None,
+
+    "auth_hash_name": None,
+    "auth_rounds": None,
+    "auth_password_minlen": 9,
+    "auth_password_maxlen": 1024,
+    "auth_token_life": 10800,  # 3 hours
 }
 
 

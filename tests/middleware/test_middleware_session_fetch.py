@@ -1,19 +1,5 @@
-import pytest
-
-from proper import App
-from proper import MissingSecretKey
-from proper import Request
-from proper import Response
+from proper import Request, Response
 from proper.middleware import fetch_session
-
-
-def test_error_if_no_secret_key(import_name):
-    app = App(import_name)
-    req = Request()
-    resp = Response()
-
-    with pytest.raises(MissingSecretKey):
-        fetch_session(req, resp, app)
 
 
 def test_no_session_to_fetch(app):
@@ -27,9 +13,8 @@ def test_no_session_to_fetch(app):
 def test_fetch_fetch_session(app):
     req = Request()
     resp = Response()
-    serializer = app.get_serializer()
     data = {"hello": "world!"}
-    req._cookies = {app.config.session.cookie_name: serializer.dumps(data)}
+    req._cookies = {app.config.session.cookie_name: app.serializer.dumps(data)}
     fetch_session(req, resp, app)
 
     assert req.session == resp.session == data

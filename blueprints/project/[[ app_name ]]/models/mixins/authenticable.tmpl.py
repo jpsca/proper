@@ -1,18 +1,7 @@
 import unicodedata
 
-from proper.auth import Auth
-
-from [[ app_name ]].app import db
+from [[ app_name ]].app import auth, db
 from [[ app_name ]].config import config
-
-
-auth = Auth(
-    secret_key=config.secret_key,
-    hash_name=config.auth_hash_name,
-    rounds=config.auth_rounds,
-    password_minlen=config.auth_password_minlen,
-    password_maxlen=config.auth_password_maxlen,
-)
 
 
 class Authenticable:

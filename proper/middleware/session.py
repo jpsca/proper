@@ -20,12 +20,11 @@ def fetch_session(req, resp, app):
 
 
 def get_session(req, app):
-    serializer = app.get_serializer()
     cookie_value = req.cookies.get(app.config.session.cookie_name)
     if cookie_value is None:
         return {}
     try:
-        return serializer.loads(cookie_value, max_age=app.config.session.lifetime)
+        return app.serializer.loads(cookie_value, max_age=app.config.session.lifetime)
     except BadSignature:
         return {}
 
@@ -49,8 +48,7 @@ def update_session_cookie(resp, app):
         )
         return
 
-    serializer = app.get_serializer()
-    cookie_value = serializer.dumps(dict(session))
+    cookie_value = app.serializer.dumps(dict(session))
 
     resp.set_cookie(
         config.cookie_name,

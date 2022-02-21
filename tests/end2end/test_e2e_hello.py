@@ -1,6 +1,6 @@
 import pytest
 
-from proper import App, BadSecretKey, BaseController, get, status
+from proper import App, BadSecretKey, BaseController, MissingSecretKey, get, status
 
 
 class MyController(BaseController):
@@ -42,20 +42,13 @@ def test_hello_callable(app, web):
     assert resp.text == "Hello Callable!"
 
 
-def test_default_config(import_name):
-    app = App(import_name)
+def test_default_config(app):
     assert app.config.catch_all_errors
 
 
-def test_serializer(app):
-    assert "secret_key" in app.config
-    assert app.serializer
-
-
-def test_no_secret_key_no_serializer(import_name):
-    app = App(import_name)
-    assert "secret_key" not in app.config
-    assert getattr(app, "serializer", None) is None
+def test_error_if_no_secret_key(import_name):
+    with pytest.raises(MissingSecretKey):
+        App(import_name)
 
 
 def test_secret_key_too_short(import_name):

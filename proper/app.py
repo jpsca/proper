@@ -12,6 +12,7 @@ from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
 
 from . import middleware, status
+from .auth import Auth
 from .cli_app import get_app_cli
 from .config import get_default_config
 from .constants import MIN_SECRET_LENGTH
@@ -87,11 +88,11 @@ class App:
         """
         self._setup_root_path(import_name)
         self._setup_config(config)
-        if "secret_key" in self._config:
-            self._setup_serializer()
         self._setup_middleware()
         self._setup_router()
         self._setup_db()
+        self._setup_serializer()
+        self._setup_auth()
         self._setup_scheduler()
         self._setup_render()
         self._setup_whitenoise()
@@ -197,11 +198,6 @@ class App:
             for func in self._on_teardown:
                 func(req, resp)
 
-    def get_serializer(self):
-        if not self.serializer:
-            self._setup_serializer()
-        return self.serializer
-
     def error_handler(self, cls, to):
         """Register a controller method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
@@ -257,15 +253,11 @@ class App:
     def _setup_config(self, config):
         _config = get_default_config()
         _config.update(config)
+        secret_key = _config.get("secret_key")
+        _config["secret_key"] = self._validate_secret_key(secret_key)
         self._config = _config
 
-    def _setup_serializer(self):
-        secret_key = self._get_secret_key()
-        self.serializer = Serializer(secret_key)
-
-    def _get_secret_key(self):
-        secret_key = self._config.get("secret_key")
-
+    def _validate_secret_key(self, secret_key):
         if secret_key is None:
             raise MissingSecretKey(
                 'Please add a "secret_key" to your secrets.\n'
@@ -327,6 +319,19 @@ class App:
             self.alembic = Alembic(self.db, config.alembic_migrations)
         else:
             self.alembic = None
+
+    def _setup_serializer(self):
+        self.serializer = Serializer(self._config.secret_key)
+
+    def _setup_auth(self):
+        config = self._config
+        self.auth = Auth(
+            secret_key=config.secret_key,
+            hash_name=config.auth_hash_name,
+            rounds=config.auth_rounds,
+            password_minlen=config.auth_password_minlen,
+            password_maxlen=config.auth_password_maxlen,
+        )
 
     def _setup_scheduler(self):
         self.scheduler = Scheduler()

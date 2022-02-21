@@ -91,7 +91,7 @@ class Auth:
         password_maxlen=1024,
     ):
         self.secret_key = secret_key
-        self.set_hasher(hash_name, rounds)
+        self.set_hasher(hash_name or DEFAULT_HASHER, rounds)
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
 
