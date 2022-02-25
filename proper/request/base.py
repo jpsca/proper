@@ -31,8 +31,9 @@ class Request:
     encoding:
         Default encoding.
 
-    config:
-        Extra options
+    max_content_length:
+
+    max_query_size:
 
     **environ:
         A WSGI environment dict passed in from the server (See also PEP-3333).
@@ -77,7 +78,7 @@ class Request:
     root_path:
         The root path of the script (SCRIPT_NAME).
         Note: The router does **NOT** uses this value for `url_for()`, but the
-        one from `app.config.root_path`.
+        one from `app.root_path`.
         A `MultiDict` object containing the query string data.
 
     cookies:
@@ -114,7 +115,8 @@ class Request:
     """
 
     encoding: str
-    config: Dict[str, Any]
+    max_content_length: Optional[int]
+    max_query_size: Optional[int]
     environ: Dict[str, Any]
     method: str
     real_method: str
@@ -135,11 +137,13 @@ class Request:
         self,
         *,
         encoding: str = "utf8",
-        config: Optional[Dict[str, Any]] = None,
+        max_content_length: Optional[int] = None,
+        max_query_size: Optional[int] = None,
         **environ,
     ) -> None:
         self.encoding = encoding
-        self.config = config or {}
+        self.max_content_length = max_content_length
+        self.max_query_size = max_query_size
         environ = environ or make_test_environ()
         self.environ = environ
 
@@ -259,7 +263,7 @@ class Request:
                     self.content_type,
                     self.content_length,
                     self.encoding,
-                    self.config,
+                    self.max_content_length,
                 )
         return self._form
 
@@ -303,7 +307,7 @@ class Request:
     def query(self) -> MultiDict:
         if self._query is None:
             query_string = self.environ.get("QUERY_STRING", "")
-            self._query = parse_query_string(query_string, self.config)
+            self._query = parse_query_string(query_string, self.max_query_size)
         return self._query
 
     @property

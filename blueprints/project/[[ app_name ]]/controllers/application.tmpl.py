@@ -2,7 +2,7 @@ from os import getenv
 
 from proper import BaseController
 
-from [[ app_name ]].app import app
+from [[ app_name ]].app import app, config
 from [[ app_name ]].models import User
 
 
@@ -25,7 +25,7 @@ class ApplicationController(BaseController):
 
     def _load_user(self):
         user = None
-        if app.config.debug:
+        if config.debug:
             user = self._get_remote_user()
         self.req.user = user or self._get_user(self.resp.session)
 

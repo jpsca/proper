@@ -1,4 +1,4 @@
-from [[ app_name ]].app import app
+from [[ app_name ]].app import app, config
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
 from ..application import ApplicationController, REDIRECT_AFTER_LOGIN_KEY
@@ -60,7 +60,7 @@ class Auth(ApplicationController):
             return self.resp.redirect_to(app.url_for("Auth.sign_in"))
 
         self.form = form = forms.PasswordChangeForm(self.req.form)
-        self.password_minlen = app.config.auth_password_minlen
+        self.password_minlen = config.auth.password_minlen
 
         if not self.req.is_post:
             return

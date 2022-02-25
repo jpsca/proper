@@ -1,10 +1,8 @@
-from .shared import *  # noqa
+from .shared import config
 
 
-secret_key = ""
+config.debug = False
+config.secret_key = ""  # REPLACE
+config.host = "https://YOUR-DOMAIN.com"
 
-debug = False
-host = "https://YOUR-DOMAIN.com"
-use_sentry = True
-
-session_cookie_secure = True
+config.session.cookie.secure = True

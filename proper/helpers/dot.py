@@ -11,45 +11,35 @@ class Dot(dict):
        `obj.foo.bar` in addition to `obj['foo']['bar']`.
     2. Can normalize keys with the optional methods `_key_encode`.
     3. Improved `update()` method for deep updating and key normalization.
-
-    Examples:
-
-    >>> d = Dot({'a': 1, 'b': 2, 'foo': {'b': {'a': 'r'}} })
-    >>> d.a
-    1
-    >>> d.foo
-    {'b': {'a': 'r'}}
-    >>> d.foo.b.a
-    'r'
-
     """
 
     def __init__(self, dict_or_iter=None, **kwargs):
         super().__init__()
-        self.update(dict_or_iter, **kwargs)
+        self.update(dict_or_iter or kwargs)
 
     def _key_encode(self, key):
         return key
 
     def __setattr__(self, key, value):
-        if key.startswith("_"):
+        if key.startswith("__"):
             return super().__setattr__(key, value)
-        raise AttributeError(
-            """Use the obj[key] = value notation to set or update values."""
-        )
+
+        return self.__setitem__(key, value)
 
     def __getattr__(self, key):
+        if key.startswith("__"):
+            return super().__getattribute__(key)
+
         return self.__getitem__(key)
 
     def __getitem__(self, key):
         key = self._key_encode(key)
-        value = super().__getitem__(key)
-        if isinstance(value, dict):
-            return self.__class__(value)
-        return value
+        return super().__getitem__(key)
 
     def __setitem__(self, key, value):
         key = self._key_encode(key)
+        if isinstance(value, dict):
+            value = self.__class__(value)
         super().__setitem__(key, value)
 
     def __delitem__(self, key):
@@ -68,31 +58,26 @@ class Dot(dict):
 
     def get(self, key, default=None):
         key = self._key_encode(key)
-        value = super().get(key, default)
-        if isinstance(value, dict):
-            return self.__class__(value)
-        return value
+        return super().get(key, default)
 
-    def update(self, src=None, **kwargs):
-        if src is None:
-            return
-        if not hasattr(src, "items"):
-            src = dict(src)
-        self._deepupdate(self, src)
-
-    def _deepupdate(self, target, src):
+    def update(self, src, *, target=None):
         """Deep update target dict with src.
 
         For each k,v in src: if k doesn't exist in target, it is deep copied from
         src to target. Otherwise, if v is a dict, recursively deep-update it.
 
         """
+        if not src:
+            return
+        target = target or self
+        if not hasattr(src, "items"):
+            src = dict(src)
+
         for key, value in src.items():
-            key = self._key_encode(key)
             if isinstance(value, dict):
                 if key not in target:
-                    dict.__setitem__(target, key, copy.deepcopy(value))
+                    target.__setitem__(key, copy.deepcopy(value))
                 else:
-                    self._deepupdate(dict.__getitem__(target, key), value)
+                    target.update(src=value, target=target.__getitem__(key))
             else:
-                dict.__setitem__(target, key, copy.copy(value))
+                target.__setitem__(key, copy.copy(value))

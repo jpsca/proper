@@ -198,7 +198,7 @@ def printf(verb, msg="", color="cyan", indent=10):
 
 
 def call(cmd):
-    printf(RUN, cmd, color="yellow")
+    printf(RUN, cmd, color="green")
     os.system(cmd)
 
 

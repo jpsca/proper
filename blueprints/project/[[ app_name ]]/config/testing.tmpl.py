@@ -1,10 +1,10 @@
-from .development import *  # noqa
+from .development import config
 
 
-debug = False
-secret_key = "---- This is a fake secret key just for testing ----"
+config.debug = False
+config.secret_key = "---- This is a fake secret key just for testing ----"
 
-database_dialect = "sqlite+pysqlite"
-database_name = "db/[[ app_name ]]-test.sqlite"
-database_host = None
-database_user = None
+config.database.dialect = "sqlite+pysqlite"
+config.database.name = "db/[[ app_name ]]-test.sqlite"
+config.database.host = None
+config.database.user = None

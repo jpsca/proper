@@ -14,16 +14,15 @@ def parse_form_data(
     content_type,
     content_length,
     encoding="utf8",
-    config=None,
+    max_content_length=None,
 ):
-    config = config or {}
     try:
         return _parse_form_data(
             stream,
             content_type,
             content_length,
             encoding,
-            config,
+            max_content_length,
         )
     except ValueError:
         raise errors.BadRequest()
@@ -34,9 +33,8 @@ def _parse_form_data(
     content_type,
     content_length,
     encoding,
-    config,
+    max_content_length=None,
 ):
-    max_content_length = config.get("max_content_length")
     validate_max_content_length(content_length, max_content_length)
     content_type, options = multipart.parse_options_header(content_type)
     encoding = options.get("charset", encoding)

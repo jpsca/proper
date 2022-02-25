@@ -1,5 +1,3 @@
-import pytest
-
 from proper.helpers import Dot
 
 
@@ -19,18 +17,12 @@ def test_iter_init():
     assert dot.foo.B.a == "r"
 
 
-def test_do_not_set_attributes():
+def test_dunder_attributes_is_not_key():
     dot = Dot()
+    dot.__foo = "bar"
 
-    with pytest.raises(AttributeError):
-        dot.foo = "bar"
-
-
-def test_can_set_underscore_attributes():
-    dot = Dot()
-    dot._foo = "bar"
-
-    assert dot._foo == "bar"
+    assert dot.__foo == "bar"
+    assert "__foo" not in dot
 
 
 def test_deep_update():

@@ -14,7 +14,7 @@ from whitenoise import WhiteNoise
 from . import middleware, status
 from .auth import Auth
 from .cli_app import get_app_cli
-from .config import get_default_config
+from .config import load_config
 from .constants import MIN_SECRET_LENGTH
 from .error_handlers import (
     debug_error_handler,
@@ -33,7 +33,7 @@ from .scheduler import Scheduler
 from .static import RX_INMUTABLES_FILE
 
 
-__all__ = ("App", "MissingSecretKey", "BadSecretKey")
+__all__ = ("App", "BadSecretKey")
 
 TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
@@ -42,10 +42,6 @@ PUBLIC_FOLDER = "public"
 MANIFEST_PATH = "cache_manifest.json"
 
 current = ContextVar("current", default=None)
-
-
-class MissingSecretKey(Exception):
-    pass
 
 
 class BadSecretKey(Exception):
@@ -158,7 +154,11 @@ class App:
         return func
 
     def wsgi_app(self, environ, start_response):
-        req = Request(config=self.config, **environ)
+        req = Request(
+            max_content_length=self._config.max_content_length,
+            max_query_size=self._config.max_query_size,
+            **environ
+        )
         token = current.set(req)
         resp = Response(_app=self, _req=req)
 
@@ -248,36 +248,24 @@ class App:
         path = Path(module.__file__)
         if path.is_file():
             path = path.parent
+        self.module = module
         self.root_path = path.absolute()
 
     def _setup_config(self, config):
-        _config = get_default_config()
+        _config = load_config(self.module, self.root_path)
         _config.update(config)
-        secret_key = _config.get("secret_key")
-        _config["secret_key"] = self._validate_secret_key(secret_key)
+        _config.secret_key = self._validate_secret_key(_config.secret_key)
         self._config = _config
 
     def _validate_secret_key(self, secret_key):
-        if secret_key is None:
-            raise MissingSecretKey(
-                'Please add a "secret_key" to your secrets.\n'
-                "Your secret key is needed for verifying the integrity of "
-                "signed cookies. \n"
-                f"Make sure is at least {MIN_SECRET_LENGTH} characters "
-                "and all random, no regular words or you'll be exposed to "
-                "dictionary attacks. \n"
-                "You can use `proper secret` to generate a secure secret key."
-            )
-
-        secret_key = str(secret_key)
+        secret_key = str(secret_key or "")
         if len(secret_key) < MIN_SECRET_LENGTH:
             raise BadSecretKey(
                 "Your secret_key, used for verifying the integrity of "
                 "signed cookies, is not secure enough. \n"
                 f"Make sure is at least {MIN_SECRET_LENGTH} characters "
                 "and all random, no regular words or you'll be exposed to "
-                "dictionary attacks. \n"
-                "You can use `proper secret` to generate a secure secret key."
+                "dictionary attacks."
             )
 
         return secret_key
@@ -306,17 +294,17 @@ class App:
     def _setup_db(self):
         config = self._config
         self.db = SQLAlchemy(
-            dialect=config.database_dialect,
-            name=config.database_name,
-            user=config.database_user,
-            password=config.database_password,
-            host=config.database_host,
-            port=config.database_port,
-            engine_options=config.database_engine_options,
-            session_options=config.database_session_options,
+            dialect=config.database.dialect,
+            name=config.database.name,
+            user=config.database.user,
+            password=config.database.password,
+            host=config.database.host,
+            port=config.database.port,
+            engine_options=config.database.engine_options,
+            session_options=config.database.session_options,
         )
-        if config.alembic_migrations:
-            self.alembic = Alembic(self.db, config.alembic_migrations)
+        if config.database.migrations:
+            self.alembic = Alembic(self.db, config.database.migrations)
         else:
             self.alembic = None
 
@@ -327,10 +315,10 @@ class App:
         config = self._config
         self.auth = Auth(
             secret_key=config.secret_key,
-            hash_name=config.auth_hash_name,
-            rounds=config.auth_rounds,
-            password_minlen=config.auth_password_minlen,
-            password_maxlen=config.auth_password_maxlen,
+            hash_name=config.auth.hash_name,
+            rounds=config.auth.rounds,
+            password_minlen=config.auth.password_minlen,
+            password_maxlen=config.auth.password_maxlen,
         )
 
     def _setup_scheduler(self):

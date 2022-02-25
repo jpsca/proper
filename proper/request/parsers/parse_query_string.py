@@ -7,7 +7,7 @@ from proper.helpers import MultiDict
 __all__ = ("parse_query_string",)
 
 
-def parse_query_string(query_string, config=None):
+def parse_query_string(query_string, max_query_size=None):
     """Parse a query string into a MultiDict.
 
     Query string parameters are assumed to use standard form-encoding.
@@ -25,18 +25,16 @@ def parse_query_string(query_string, config=None):
 
     """
     try:
-        return _parse_query_string(query_string, config)
+        return _parse_query_string(query_string, max_query_size)
     except ValueError:
         raise errors.BadRequest()
 
 
-def _parse_query_string(query_string, config):
+def _parse_query_string(query_string, max_query_size=None):
     query = MultiDict()
     if not query_string:
         return query
 
-    config = config or {}
-    max_query_size = config.get("max_query_size")
     if max_query_size and len(query_string) > max_query_size:
         raise errors.UriTooLong("The query string is too long")
 

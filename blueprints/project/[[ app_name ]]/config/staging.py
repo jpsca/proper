@@ -1,4 +1,4 @@
-from .production import *  # noqa
+from .production import config
 
 
-secret_key = "---- This is a fake secret key just for staging ----"
+config.secret_key = "---- This is a fake secret key just for staging ----"

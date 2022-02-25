@@ -1,6 +1,6 @@
 import pytest
 
-from proper import App, BadSecretKey, BaseController, MissingSecretKey, get, status
+from proper import App, BadSecretKey, BaseController, get, status
 
 
 class MyController(BaseController):
@@ -44,11 +44,6 @@ def test_hello_callable(app, web):
 
 def test_default_config(app):
     assert app.config.catch_all_errors
-
-
-def test_error_if_no_secret_key(import_name):
-    with pytest.raises(MissingSecretKey):
-        App(import_name)
 
 
 def test_secret_key_too_short(import_name):

@@ -1,6 +1,6 @@
 import proper.forms as f
 
-from [[ app_name ]].config import config
+from [[ app_name ]].app import config
 from [[ app_name ]].models import User
 from .pwned import get_pwned_count
 
@@ -25,8 +25,8 @@ def login_is_free(values):
 
 
 password_is_long = f.LongerThan(
-    config.auth_password_minlen,
-    f"Your password must be at least {config.auth_password_minlen} characters long",
+    config.auth.password_minlen,
+    f"Your password must be at least {config.auth.password_minlen} characters long",
 )
 
 

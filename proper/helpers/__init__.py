@@ -1,4 +1,5 @@
 from .cookies import *  # noqa
+from .configdict import *  # noqa
 from .dot import *  # noqa
 from .encoding import *  # noqa
 from .digestor import *  # noqa

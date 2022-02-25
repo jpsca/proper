@@ -20,7 +20,7 @@ def fetch_session(req, resp, app):
 
 
 def get_session(req, app):
-    cookie_value = req.cookies.get(app.config.session.cookie_name)
+    cookie_value = req.cookies.get(app.config.session.cookie.name)
     if cookie_value is None:
         return {}
     try:
@@ -42,21 +42,21 @@ def update_session_cookie(resp, app):
     # If the session was modified to be empty, remove the cookie.
     if not session:
         resp.delete_cookie(
-            config.cookie_name,
-            path=config.cookie_path or "/",
-            domain=config.cookie_domain,
+            config.cookie.name,
+            path=config.cookie.path or "/",
+            domain=config.cookie.domain,
         )
         return
 
     cookie_value = app.serializer.dumps(dict(session))
 
     resp.set_cookie(
-        config.cookie_name,
+        config.cookie.name,
         cookie_value,
         max_age=int(config.lifetime) if config.lifetime else None,
-        httponly=config.cookie_httponly,
-        domain=config.cookie_domain,
-        path=config.cookie_path or "/",
-        secure=config.cookie_secure,
-        samesite=config.cookie_samesite,
+        httponly=config.cookie.httponly,
+        domain=config.cookie.domain,
+        path=config.cookie.path or "/",
+        secure=config.cookie.secure,
+        samesite=config.cookie.samesite,
     )

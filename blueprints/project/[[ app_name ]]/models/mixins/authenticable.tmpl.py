@@ -1,7 +1,6 @@
 import unicodedata
 
-from [[ app_name ]].app import auth, db
-from [[ app_name ]].config import config
+from [[ app_name ]].app import auth, config, db
 
 
 class Authenticable:
@@ -60,7 +59,7 @@ class Authenticable:
 
     @classmethod
     def authenticate_timestamped_token(cls, token):
-        return auth.authenticate_timestamped_token(cls, token, config.auth_token_life)
+        return auth.authenticate_timestamped_token(cls, token, config.auth.token_life)
 
     @classmethod
     def authenticate_session_token(cls, token):

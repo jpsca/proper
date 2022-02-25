@@ -1,8 +1,7 @@
 from proper import App
 
-from .config import config
 
-
-app = App(__name__, config=config)
+app = App(__name__)
+config = app.config
 auth = app.auth
 db = app.db
