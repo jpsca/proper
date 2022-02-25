@@ -60,3 +60,11 @@ def test_get():
     assert dot.get("c", 99) == 99
     assert dot.get("d") is None
     assert dot.foo.get("B").get("a") == "r"
+
+
+def test_dicts_to_dots():
+    dot = Dot()
+    dot.a = 1
+    dot.b = {}
+    dot.b.c = 3
+    assert dot.b.c == 3

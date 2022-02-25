@@ -1,3 +1,4 @@
-from proper import ConfigDict
+from proper import Dot
 
-config = ConfigDict()
+config = Dot()
+config.lorem = "ipsum"

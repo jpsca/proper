@@ -46,6 +46,10 @@ def test_default_config(app):
     assert app.config.catch_all_errors
 
 
+def test_load_config(app):
+    assert app.config.lorem == "ipsum"
+
+
 def test_secret_key_too_short(import_name):
     with pytest.raises(BadSecretKey):
         App(import_name, config={"secret_key": "qwertyuiop"})

@@ -1,10 +1,10 @@
 from datetime import timedelta
 
-from proper.helpers import ConfigDict
+from proper.helpers import Dot
 
 
 def get_default_config():
-    config = ConfigDict()
+    config = Dot()
 
     config.debug = False
     config.host = None
@@ -23,10 +23,10 @@ def get_default_config():
     # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
     config.max_query_size = 2 ** 20  # 1 MB
 
-    config.session = {}
+    config.session = Dot()
     config.session.lifetime = timedelta(days=30).total_seconds()
 
-    config.session.cookie = {}
+    config.session.cookie = Dot()
     config.session.cookie.name = "_session"
     config.session.cookie.domain = None
     config.session.cookie.path = "/"
@@ -34,7 +34,7 @@ def get_default_config():
     config.session.cookie.secure = False
     config.session.cookie.samesite = None  # "Lax", "Strict", or None
 
-    config.static = {}
+    config.static = Dot()
     config.static.host = None
 
     # When set to False then compressed files will not be created but static files
@@ -45,7 +45,7 @@ def get_default_config():
         {"path": "static/public", "prefix": "static/"},
     ]
 
-    config.database = {}
+    config.database = Dot()
     config.database.dialect = "sqlite+pysqlite"
     config.database.name = ":memory:"
     config.database.host = None
@@ -56,14 +56,14 @@ def get_default_config():
     config.database.session_options = {"expire_on_commit": False}
     config.database.migrations = None
 
-    config.auth = {}
+    config.auth = Dot()
     config.auth.hash_name = None  # default
     config.auth.rounds = None  # default
     config.auth.password_minlen = 9
     config.auth.password_maxlen = 1024
     config.auth.token_life = 10800  # 3 hours
 
-    config.mailer = {}
+    config.mailer = Dot()
     config.mailer.default_from = "hello@example.com"
 
     return config
