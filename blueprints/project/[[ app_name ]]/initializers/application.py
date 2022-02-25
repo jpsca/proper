@@ -1,6 +1,6 @@
 import proper
 
-from ..app import app, db
+from ..app import app
 from ..controllers import Pages
 
 
@@ -9,13 +9,3 @@ from ..controllers import Pages
 # like `ValueError` or a catch-all Exception.
 app.error_handler(proper.errors.NotFound, Pages.not_found)
 app.error_handler(Exception, Pages.error)
-
-
-@app.on_error
-def rollback_db_session(req, resp):
-    db.s.rollback()
-
-
-@app.on_teardown
-def remove_db_session(req, resp):
-    db.s.remove()

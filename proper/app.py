@@ -279,12 +279,21 @@ class App:
             partial(middleware.fetch_session, app=self),
             partial(middleware.protect_from_forgery, app=self),
         )
-        self._on_dispatch = (partial(middleware.dispatch, app=self),)
+        self._on_dispatch = (
+            partial(middleware.dispatch, app=self),
+        )
         self._on_after_dispatch = (
             partial(middleware.put_csrf_header, app=self),
             partial(middleware.put_session, app=self),
             partial(middleware.strip_body_if_head, app=self),
         )
+        self._on_error = (
+            self._rollback_db_session,
+        )
+        self._on_teardown = (
+            self._remove_db_session,
+        )
+
         self.error_handlers = {}
 
     def _setup_router(self):
@@ -411,3 +420,9 @@ class App:
         req.matched_route = Dot({"to": handler})
         req.matched_params = {}
         dispatch(req, resp, self)
+
+    def _rollback_db_session(self, _req, _resp):
+        self.db.s.rollback()
+
+    def _remove_db_session(self, _req, _resp):
+        self.db.s.remove()
