@@ -27,7 +27,7 @@ class AuthCli(Cli):
         """
         user = User.by_login(login)
         if not user:
-            print ("User not found")
+            print("User not found")
             return
         user.password = password
         db.s.commit()

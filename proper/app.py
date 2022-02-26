@@ -1,5 +1,6 @@
 import inspect
 import json
+import logging
 from contextvars import ContextVar
 from functools import partial
 from importlib import import_module
@@ -14,8 +15,9 @@ from whitenoise import WhiteNoise
 from . import middleware, status
 from .auth import Auth
 from .cli_app import get_app_cli
-from .config import load_config
+from .config import get_env, get_default_config
 from .constants import MIN_SECRET_LENGTH
+from .cryptex import Cryptex
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -41,6 +43,7 @@ STATIC_PREFIX = "static"
 PUBLIC_FOLDER = "public"
 MANIFEST_PATH = "cache_manifest.json"
 
+logger = logging.getLogger(__name__)
 current = ContextVar("current", default=None)
 
 
@@ -82,7 +85,7 @@ class App:
             Optional dict-like with the config.
 
         """
-        self._setup_root_path(import_name)
+        self._setup_paths(import_name)
         self._setup_config(config)
         self._setup_middleware()
         self._setup_router()
@@ -236,6 +239,10 @@ class App:
         text = (self.public_path / filename).read_text()
         return Markup(text)
 
+    def edit_credentials(self, env):
+        cryptex = Cryptex(self.credentials_path, env)
+        return cryptex.edit()
+
     def shutdown(self):
         print("\nShutting down")
         self.scheduler.shutdown(wait=True)
@@ -243,19 +250,38 @@ class App:
 
     # Private
 
-    def _setup_root_path(self, import_name):
+    def _setup_paths(self, import_name):
         module = import_module(import_name)
         path = Path(module.__file__)
         if path.is_file():
             path = path.parent
         self.module = module
         self.root_path = path.absolute()
+        self.config_path = self.root_path / "config"
+        self.credentials_path = self.config_path / "credentials"
 
-    def _setup_config(self, config):
-        _config = load_config(self.module, self.root_path)
-        _config.update(config)
-        _config.secret_key = self._validate_secret_key(_config.secret_key)
-        self._config = _config
+    def _setup_config(self, _config):
+        self.env = get_env()
+        config = self._load_config()
+        config.update(_config)
+        credentials = self._load_credentials()
+        config.update(credentials)
+        config.secret_key = self._validate_secret_key(config.secret_key)
+        self._config = config
+
+    def _load_config(self):
+        config = get_default_config()
+        config_file = self.config_path / f"{self.env}.py"
+        if config_file.is_file():
+            env_config = import_module(f".config.{self.env}", self.module.__package__).config
+            config.update(env_config)
+        else:
+            logger.warning("%s cannot be imported", config_file)
+        return config
+
+    def _load_credentials(self):
+        cryptex = Cryptex(self.credentials_path, self.env)
+        return cryptex.load()
 
     def _validate_secret_key(self, secret_key):
         secret_key = str(secret_key or "")

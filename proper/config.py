@@ -1,6 +1,14 @@
+import logging
+import os
 from datetime import timedelta
+from pathlib import Path
 
 from proper.helpers import Dot
+
+
+__all__ = ("get_env", )
+
+logger = logging.getLogger(__name__)
 
 
 def get_default_config():
@@ -67,3 +75,22 @@ def get_default_config():
     config.mailer.default_from = "hello@example.com"
 
     return config
+
+
+ENV_VAR = "APP_ENV"
+ENV_FILE = ".APP_ENV"
+
+
+def get_env(default="development"):
+    env = os.getenv(ENV_VAR)
+    if env:
+        logger.debug("%s var found: %s", ENV_VAR, env)
+        return env
+    envfile = Path(ENV_FILE)
+    if envfile.exists():
+        env = envfile.read_text().strip()
+        logger.debug("%s file found: %s", ENV_VAR, env)
+        return env
+
+    logger.debug("Using default environment")
+    return default
