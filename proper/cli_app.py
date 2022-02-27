@@ -106,15 +106,14 @@ def get_routes_cmd(app):
 
 
 def get_credentials_cmd(app):
-    def credentials(_self, env):
+    def credentials(_self, env="production"):
         """Edit your encrypted credentials.
 
         Arguments:
 
         - env:
-            Name of the environment (e.g.: "development", "production", etc.)
-            It will be used for finding the encrypted file (e.g.: "development.enc.yaml")
-            and the key (e.g.: "development.key").
+            Name of the environment (e.g.: "production"). It will be used
+            for finding the encrypted file ("production.enc.yaml").
 
         """
         app.edit_credentials(env)
