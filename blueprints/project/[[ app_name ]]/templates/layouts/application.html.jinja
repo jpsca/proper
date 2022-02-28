@@ -12,6 +12,7 @@
 	<script>window.CSRF_TOKEN = "{{ req.csrf_token }}";</script>
 </head>
 <body>
+	{% include "layouts/_flashes.html" -%}
 	{% block body %}{% endblock %}
 </body>
 </html>

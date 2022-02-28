@@ -24,7 +24,7 @@ class Auth(ApplicationController):
             return
 
         user.sign_in(self.req, self.resp)
-        self.resp.flash("Welcome back!")
+        self.resp.flash["notice"] = "Welcome back!"
         return go_forward(self.resp)
 
     def sign_out(self):

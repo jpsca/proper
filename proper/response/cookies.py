@@ -5,9 +5,6 @@ from email.utils import formatdate
 from http.cookies import Morsel, SimpleCookie
 
 
-__all__ = ("CookiesDict", "add_cookie", )
-
-
 # Monkey-patching the Morsel to add support for samesite for Python version < 3.8
 # https://github.com/python/cpython/pull/6413
 Morsel._reserved["samesite"] = "SameSite"

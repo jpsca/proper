@@ -16,16 +16,13 @@ from typing import (
 )
 from uuid import uuid4
 
-from . import status
-from .constants import FLASHES_SESSION_KEY
-from .helpers import (
-    CookiesDict,
-    HeadersDict,
-    add_cookie,
-    iterable,
-    tunnel_encode,
-)
-from .request import Request
+from .. import status
+from ..helpers import HeadersDict, tunnel_encode
+from ..request import Request
+
+from .cookies import CookiesDict, add_cookie
+from .flash_dict import FlashDict
+from .iterable import is_iterable
 
 
 __all__ = ("Response",)
@@ -80,18 +77,19 @@ class Response:
         _app: Any = None,
         _req: Optional[Request] = None,
     ) -> None:
-        self.headers = HeadersDict({"X-Request-Id": str(uuid4())})
-        self.cookies = CookiesDict()
-
-        self.status_code = status_code
-        self.content_type = content_type
-        self.charset = charset
-
         self._app = _app
         self._req = _req
         self._session = {}
         self._etag = None
         self._last_modified = None
+
+        self.status_code = status_code
+        self.content_type = content_type
+        self.charset = charset
+
+        self.headers = HeadersDict({"X-Request-Id": str(uuid4())})
+        self.cookies = CookiesDict()
+        self.flash = FlashDict(self)
 
     def __call__(self, start_response: Callable) -> Iterable:
         body = self.raw_body or ""
@@ -167,22 +165,13 @@ class Response:
     def status_code(self, value: str) -> None:
         self._status_code = tunnel_encode(value)
 
-    def flash(self, message: str, **data) -> None:
-        """Flashes a message for the next request.
-        To fetch the flashed message and to display it to the user,
-        you must read `req.flashes` in the template.
-
-        Requires an already fetched session.
-        """
-        flashes = self.session.get(FLASHES_SESSION_KEY, [])
-        flashes.append((message, data))
-        self.session[FLASHES_SESSION_KEY] = flashes
-
     def redirect_to(
         self,
         url_or_route: str,
         object: Optional[Any] = None,
         *,
+        flash: Optional[str] = None,
+        flash_type: str = "notice",
         status_code: str = status.see_other,
         **kwargs,
     ) -> None:
@@ -204,6 +193,9 @@ class Response:
                 f'<a href="{to}">this link to the new page</a>.',
             ]
         )
+
+        if flash:
+            self.flash[flash_type] = flash
 
     def set_cookie(self, key: str, value: str = "", **kwargs) -> None:
         """
@@ -308,7 +300,7 @@ class Response:
 
         """
         if objects:
-            if not iterable(objects):
+            if not is_iterable(objects):
                 objects = [objects]
             dates = [obj.updated_at for obj in objects if obj is not None]
             if dates:

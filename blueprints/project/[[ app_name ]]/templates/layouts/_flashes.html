@@ -1,0 +1,5 @@
+{% for mtype, msg in req.flashes.items() %}
+<div class="{{ mtype }}" role="alert">
+	{{ msg | safe }}
+</div>
+{%- endfor %}

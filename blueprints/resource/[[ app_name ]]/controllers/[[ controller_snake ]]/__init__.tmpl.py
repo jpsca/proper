@@ -32,7 +32,7 @@ class [[ controller_pascal ]](ApplicationController):
         [[ singular_snake ]] = self.form.save()
         db.s.add([[ singular_snake ]])
         db.s.commit()
-        self.resp.flash("[[ singular_pascal ]] created")
+        self.resp.flash["notice"] = "[[ singular_pascal ]] created"
         self.resp.redirect_to("[[ plural_pascal ]].show", pk=[[ singular_snake ]].id)
     [%- endif %]
 
@@ -61,7 +61,7 @@ class [[ controller_pascal ]](ApplicationController):
 
         self.form.save()
         db.s.commit()
-        self.resp.flash("[[ singular_pascal ]] updated")
+        self.resp.flash["notice"] = "[[ singular_pascal ]] updated"
         self.resp.redirect_to("[[ plural_pascal ]].show", pk=pk)
     [%- endif %]
 
@@ -72,7 +72,7 @@ class [[ controller_pascal ]](ApplicationController):
         if [[ singular_snake ]]:  # deleting twice does not fail
             db.s.delete([[ singular_snake ]])
             db.s.commit()
-        self.resp.flash("[[ singular_pascal ]] deleted")
+        self.resp.flash["notice"] = "[[ singular_pascal ]] deleted"
         self.resp.redirect_to("[[ plural_pascal ]].index")
     [%- endif %]
 

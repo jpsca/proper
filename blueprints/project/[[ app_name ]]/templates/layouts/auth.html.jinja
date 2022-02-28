@@ -12,6 +12,7 @@
 	<script>window.CSRF_TOKEN = "{{ req.csrf_token }}";</script>
 </head>
 <body class="h-24 cursor-default" style="background-color: #f6f2ef">
+	{% include "layouts/_flashes.html" -%}
 	<div class="flex flex-col justify-center h-screen max-w-lg mx-auto">
 	{%- block body %}{% endblock %}
 	</div>

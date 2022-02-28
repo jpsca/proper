@@ -20,17 +20,17 @@ class Dot(dict):
     def _key_encode(self, key):
         return key
 
-    def __setattr__(self, key, value):
-        if key.startswith("__"):
-            return super().__setattr__(key, value)
+    def __setattr__(self, name, value):
+        if name.startswith("__"):
+            return super().__setattr__(name, value)
 
-        return self.__setitem__(key, value)
+        return self.__setitem__(name, value)
 
-    def __getattr__(self, key):
-        if key.startswith("__"):
-            return super().__getattribute__(key)
+    def __getattr__(self, name):
+        if name.startswith("__"):
+            return super().__getattribute__(name)
 
-        return self.__getitem__(key)
+        return self.__getitem__(name)
 
     def __getitem__(self, key):
         key = self._key_encode(key)
@@ -48,9 +48,6 @@ class Dot(dict):
 
     def __contains__(self, key):
         return self._key_encode(key) in super().keys()
-
-    def keys(self):
-        return (self._key_encode(key) for key in super().keys())
 
     def setdefault(self, key, default=None):
         key = self._key_encode(key)
