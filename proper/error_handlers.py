@@ -9,6 +9,7 @@ from pathlib import Path
 import inflection
 from markupsafe import Markup
 
+from .constants import GET
 from .helpers import Render
 
 
@@ -25,16 +26,41 @@ def _include_raw(name):
 jinja_render.globals["include_raw"] = _include_raw
 
 
+def render(template, **data):
+    if not data:
+        return (TEMPLATES / template).read_text()
+    try:
+        return jinja_render(template, **data)
+    except Exception:
+        logger.exception("")
+        return render("fallback-error.html")
+
+
 def debug_not_found_handler(req, resp, app):
+    if is_index(req):
+        return render_default_index(resp)
+
     error = resp.error
     data = {
         "resp": resp,
-        "title": _get_title(error),
+        "title": get_title(error),
         "description": str(error),
         "routes": app.routes,
     }
-    data.update(_get_req_data(req))
-    resp.body = _render("debug-not-found.html.jinja", **data)
+    data.update(get_request_data(req))
+    resp.body = render("debug-not-found.html.jinja", **data)
+
+
+def is_index(req):
+    return req.method == GET and req.path == "/"
+
+
+def render_default_index(resp):
+    data = {
+        "proper_version": "",
+        "python_version": "",
+    }
+    resp.body = render("default-index.html.jinja", **data)
 
 
 def debug_error_handler(req, resp, _app):
@@ -43,28 +69,19 @@ def debug_error_handler(req, resp, _app):
     excp = traceback.format_exc()
     data = {
         "resp": resp,
-        "title": _get_title(error),
+        "title": get_title(error),
         "description": str(error),
         "traceback": excp,
     }
-    data.update(_get_req_data(req))
-    resp.body = _render("debug-error.html.jinja", **data)
+    data.update(get_request_data(req))
+    resp.body = render("debug-error.html.jinja", **data)
 
 
-def fallback_not_found_handler(req, resp, _app):
-    resp.body = _render("fallback-not-found.html")
+def get_title(error):
+    return inflection.titleize(error.__class__.__name__)
 
 
-def fallback_forbidden_handler(_req, resp, _app):
-    resp.body = _render("fallback-forbidden.html")
-
-
-def fallback_error_handler(req, resp, _app):
-    logger.exception(resp.error)
-    resp.body = _render("fallback-error.html")
-
-
-def _get_req_data(req):
+def get_request_data(req):
     try:
         req_query = req.query
     except Exception:
@@ -89,15 +106,14 @@ def _get_req_data(req):
     }
 
 
-def _get_title(error):
-    return inflection.titleize(error.__class__.__name__)
+def fallback_not_found_handler(req, resp, _app):
+    resp.body = render("fallback-not-found.html")
 
 
-def _render(template, **data):
-    if not data:
-        return (TEMPLATES / template).read_text()
-    try:
-        return jinja_render(template, **data)
-    except Exception:
-        logger.exception("")
-        return _render("fallback-error.html")
+def fallback_forbidden_handler(_req, resp, _app):
+    resp.body = render("fallback-forbidden.html")
+
+
+def fallback_error_handler(req, resp, _app):
+    logger.exception(resp.error)
+    resp.body = render("fallback-error.html")

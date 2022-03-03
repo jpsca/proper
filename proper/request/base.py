@@ -248,8 +248,8 @@ class Request:
         return self._cookies
 
     @property
-    def flashes(self) -> List[Dict[str, Any]]:
-        return self._session.get(FLASHES_SESSION_KEY, [])
+    def flashes(self) -> Dict[str, Any]:
+        return self._session.get(FLASHES_SESSION_KEY, {})
 
     @property
     def form(self) -> MultiDict:
