@@ -3,6 +3,8 @@ Fallback error handlers
 
 """
 import logging
+import pkg_resources
+import sys
 import traceback
 from pathlib import Path
 
@@ -57,8 +59,8 @@ def is_index(req):
 
 def render_default_index(resp):
     data = {
-        "proper_version": "",
-        "python_version": "",
+        "proper_version": pkg_resources.get_distribution("proper").version,
+        "python_version": sys.version,
     }
     resp.body = render("default-index.html.jinja", **data)
 
