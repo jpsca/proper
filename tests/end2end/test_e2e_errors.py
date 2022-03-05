@@ -6,10 +6,10 @@ from proper import errors, get, status
 def test_fallback_not_found(app, web):
     app.router.routes = []
 
-    resp = web.get("/", expect_errors=True)
+    resp = web.get("/qwertyuiop", expect_errors=True)
 
     assert resp.status == status.not_found
-    assert "<title>Page Not Found</title>" in resp.text
+    assert "<title>Page Not Found" in resp.text
 
 
 def test_fallback_error(app, Pages, web):
@@ -21,25 +21,25 @@ def test_fallback_error(app, Pages, web):
 
     resp = web.get("/fail/not_acceptable", expect_errors=True)
     assert resp.status == status.not_acceptable
-    assert "<title>Error</title>" in resp.text
+    assert "<title>Error" in resp.text
 
     resp = web.get("/fail/not_implemented", expect_errors=True)
     assert resp.status == status.not_implemented
-    assert "<title>Error</title>" in resp.text
+    assert "<title>Error" in resp.text
 
     resp = web.get("/fail/forbidden", expect_errors=True)
     assert resp.status == status.forbidden
-    assert "<title>Access Denied</title>" in resp.text
+    assert "<title>Access Denied" in resp.text
 
 
 def test_debug_not_found(app, web):
     app.config["debug"] = True
     app.router.routes = []
 
-    resp = web.get("/", expect_errors=True)
+    resp = web.get("/qwertyuiop", expect_errors=True)
 
     assert resp.status == status.not_found
-    assert "<title>Match Not Found</title>" in resp.text
+    assert "<title>Match Not Found" in resp.text
 
 
 def test_debug_error(app, Pages, web):
@@ -53,15 +53,15 @@ def test_debug_error(app, Pages, web):
 
     resp = web.get("/fail/not_acceptable", expect_errors=True)
     assert resp.status == status.not_acceptable
-    assert "<title>Not Acceptable</title>" in resp.text
+    assert "<title>Not Acceptable" in resp.text
 
     resp = web.get("/fail/not_implemented", expect_errors=True)
     assert resp.status == status.not_implemented
-    assert "<title>Not Implemented</title>" in resp.text
+    assert "<title>Not Implemented" in resp.text
 
     resp = web.get("/fail/forbidden", expect_errors=True)
     assert resp.status == status.forbidden
-    assert "<title>Forbidden</title>" in resp.text
+    assert "<title>Forbidden" in resp.text
 
 
 def test_custom_register_not_an_exception(app, Pages, web):
@@ -90,7 +90,7 @@ def test_custom_error_handlers(app, Pages, web):
     app.error_handler(errors.HTTPError, Pages.custom_error_handler)
     app.error_handler(ValueError, Pages.custom_value_error_handler)
 
-    resp = web.get("/", expect_errors=True)
+    resp = web.get("/qwertyuiop", expect_errors=True)
     assert resp.status == status.not_found
     assert resp.body == b"Custom not found handler"
 
@@ -120,7 +120,7 @@ def test_fallback_from_custom_error_handlers(app, Pages, web):
 
     resp = web.get("/fail/value_error", expect_errors=True)
     assert resp.status == status.server_error
-    assert "<title>Error</title>" in resp.text
+    assert "<title>Error" in resp.text
 
 
 def test_do_not_catch_error(app, Pages, web):
@@ -149,7 +149,7 @@ def test_error_when_rendering_the_error_page(app, web):
 
     # The original error code is preserved
     assert resp.status == status.not_found
-    assert "<title>Error</title>" in resp.text
+    assert "<title>Error" in resp.text
 
     error_handlers.jinja_render = original
 
