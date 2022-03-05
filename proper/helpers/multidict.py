@@ -77,7 +77,7 @@ class MultiDict(defaultdict):
         """Return the list of items for a given key. If that key is not in the
         `MultiDict`, the return value will be an empty list.
 
-        Just as `get` `getlist` accepts a `type` parameter.
+        Just as `get`, `getall` accepts a `type` parameter.
         All items will be converted with the callable defined there.
         Those values that return :exc:`ValueError` in the conversion will not
         be included in the final list.

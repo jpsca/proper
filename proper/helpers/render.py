@@ -29,6 +29,10 @@ IDENTICAL = "identical"
 APPEND = "append"
 RUN = "run"
 
+COLOR_OK = "green"
+COLOR_WARNING = "yellow"
+COLOR_CONFLICT = "red"
+
 
 class Render:
     @property
@@ -124,7 +128,7 @@ def make_folder(root_path, rel_folder):
     display = f"{rel_folder}{os.path.sep}"
     path.mkdir(parents=False, exist_ok=False)
     if rel_folder:
-        printf(CREATE, display, color="green")
+        printf(CREATE, display, color=COLOR_OK)
 
 
 def copy_file(src_path, root_path, dst_relpath, *, force=False):
@@ -134,11 +138,11 @@ def copy_file(src_path, root_path, dst_relpath, *, force=False):
             printf(IDENTICAL, dst_relpath)
             return
         if not confirm_overwrite(dst_relpath, force=force):
-            printf(SKIPPED, dst_relpath, color="yellow")
+            printf(SKIPPED, dst_relpath, color=COLOR_WARNING)
             return
-        printf(UPDATE, dst_relpath, color="yellow")
+        printf(UPDATE, dst_relpath, color=COLOR_WARNING)
     else:
-        printf(CREATE, dst_relpath, color="green")
+        printf(CREATE, dst_relpath, color=COLOR_OK)
 
     shutil.copy2(str(src_path), str(dst_path))
 
@@ -148,16 +152,16 @@ def append_to_file(root_path, dst_relpath, new_content):
     if dst_path.exists():
         curr_content = dst_path.read_text()
         if new_content in curr_content:
-            printf(SKIPPED, dst_relpath, color="yellow")
+            printf(SKIPPED, dst_relpath, color=COLOR_WARNING)
             return
 
         if not curr_content.endswith("\n"):
             curr_content += "\n"
         new_content = curr_content + new_content
-        printf(APPEND, dst_relpath, color="yellow")
+        printf(APPEND, dst_relpath, color=COLOR_WARNING)
     else:
         dst_path.touch(exist_ok=True)
-        printf(CREATE, dst_relpath, color="green")
+        printf(CREATE, dst_relpath, color=COLOR_OK)
 
     dst_path.write_text(new_content)
 
@@ -169,11 +173,11 @@ def save_file(root_path, dst_relpath, content, *, force=False):
             printf(IDENTICAL, dst_relpath)
             return
         if not confirm_overwrite(dst_relpath, force=force):
-            printf(SKIPPED, dst_relpath, color="yellow")
+            printf(SKIPPED, dst_relpath, color=COLOR_WARNING)
             return
-        printf(UPDATE, dst_relpath, color="yellow")
+        printf(UPDATE, dst_relpath, color=COLOR_WARNING)
     else:
-        printf(CREATE, dst_relpath, color="green")
+        printf(CREATE, dst_relpath, color=COLOR_OK)
 
     dst_path.write_text(content)
 
@@ -198,7 +202,7 @@ def printf(verb, msg="", color="cyan", indent=10):
 
 
 def call(cmd):
-    printf(RUN, cmd, color="green")
+    printf(RUN, cmd, color=COLOR_OK)
     os.system(cmd)
 
 
@@ -211,7 +215,7 @@ def contents_are_identical(content, dst_path):
 
 
 def confirm_overwrite(dst_relpath, *, force=False):
-    printf("conflict", dst_relpath, color="red")
+    printf("conflict", dst_relpath, color=COLOR_CONFLICT)
     if force:
         return True
     return confirm(" Overwrite?")
@@ -232,4 +236,4 @@ def append_routes(app, new_routes):
     routes_path.write_text(routes + new_routes)
 
     display = str(Path(app.root_path.name) / "routes.py")
-    printf(APPEND, display, color="yellow")
+    printf(APPEND, display, color=COLOR_WARNING)

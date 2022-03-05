@@ -16,7 +16,7 @@ __all__ = (
     "CSRF_HEADER_ALT",
 )
 
-CSRF_SESSION_KEY = "__csrf_token"
+CSRF_SESSION_KEY = "_csrf_token"
 CSRF_QUERY_KEY = "_csrf_token"
 CSRF_HEADER = "X-CSRF-TOKEN"
 CSRF_HEADER_ALT = "X-CSRFToken"

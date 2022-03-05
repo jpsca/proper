@@ -22,14 +22,14 @@ MASTER_KEY_FILE = "master.key"
 MASTER_KEY_ENV = "MASTER_KEY"
 
 KEY_NOT_FOUND_ERROR = """
-Key not found. Either put a `%s` beside your encrypted secrets,
+Key not found. Either put a `%s` beside your encrypted credentials,
 or set and environment variable `%s` with the key value
 (the file takes precendence over the environment variable).
 """ % (MASTER_KEY_FILE, MASTER_KEY_ENV)
 
-BEFORE_EDIT = "You can edit your secrets now. Don't forget to save your changes"
+BEFORE_EDIT = "You can edit your credentials now. Don't forget to save your changes"
 AFTER_EDIT = f"""
-Credentials saved. You must share your `{MASTER_KEY_FILE}` file
+Credentials encrypted and saved. You must share your `{MASTER_KEY_FILE}` file
 with anyone who need to read those credentials.
 """
 
@@ -39,7 +39,7 @@ ENCRIPTED_HEADER = """# --------------------------------------------------------
 # -------------------------------------------------------------
 #
 """
-DEFAULT_SECRETS = """# -------------------------------------------------------------------
+DEFAULT_CONTENT = """# -------------------------------------------------------------------
 # This is an encrypted config file in YAML language
 # (https://en.wikipedia.org/wiki/YAML)
 #
@@ -73,13 +73,13 @@ class Cryptex:
         """Edit your encrypted credentials in the default text editor."""
         key = self.read_key()
         if self.enc_path.exists():
-            content = self.read(key) or DEFAULT_SECRETS
+            content = self.read(key) or DEFAULT_CONTENT
         else:
             if not confirm(f"{self.enc_path} does not exists. Create?", default=False):
                 return
             if not key:
                 key = self.new_key_file()
-            content = DEFAULT_SECRETS
+            content = DEFAULT_CONTENT
 
         print(BEFORE_EDIT)
         new_content = texteditor.open(content, extension=self.enc_path.suffix)
