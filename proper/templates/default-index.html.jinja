@@ -39,11 +39,15 @@
       cursor: pointer;
       padding: 2rem 2rem 1rem;
       margin-bottom: 1rem;
-      border-radius: 4px;
-      transition: background-color 0.5s cubic-bezier(0.33, 1, 0.68, 1);
+      border-width: 2px;
+      border-style: solid;
+      border-color: #d30001;
+      border-radius: 6px;
+      transition: all 0.2s cubic-bezier(0.33, 1, 0.68, 1);
     }
     a:hover {
-      background-color: #d30001;
+      border-color: #fff;
+      transform: scale(1.05);
     }
     svg {
       height: auto;
@@ -52,9 +56,6 @@
       max-width: 220px;
       fill: currentColor;
       color: #d30001;
-    }
-    a:hover svg {
-      color: #fff;
     }
     ul {
       bottom: 0;
