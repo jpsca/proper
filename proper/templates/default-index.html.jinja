@@ -11,17 +11,18 @@
       padding: 0;
     }
     body {
+      -moz-osx-font-smoothing: grayscale;
       align-items: center;
       background-color: #fff8f4;
       background-image: url(data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjEwMjQiIHZpZXdCb3g9IjAgMCAxNDQwIDEwMjQiIHdpZHRoPSIxNDQwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Im0xNDQwIDUxMC4wMDA2NDh2LTUxMC4wMDA2NDhoLTE0NDB2Mzg0LjAwMDY0OGM0MTcuMzExOTM5IDEzMS4xNDIxNzkgODkxIDE3MS41MTMgMTQ0MCAxMjZ6IiBmaWxsPSIjZmZmIi8+PC9zdmc+);
       background-position: center center;
       background-repeat: no-repeat;
       background-size: cover;
-      color: #261B23;
+      color: #261b23;
       display: flex;
       flex-direction: column;
-      font-family: Sans-Serif;
-      font-size: calc(0.9em + 0.5vw);
+      font-family: 'Calibre', Sans-Serif;
+      font-size: calc(0.9rem + 0.8vw);
       font-style: normal;
       font-weight: 400;
       line-height: 1.5;
@@ -34,9 +35,15 @@
       padding: 3rem 2rem;
     }
     a {
-      display: block;
+      display: inline-block;
       cursor: pointer;
-      padding: 2rem 1rem 1rem;
+      padding: 2rem 2rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+      transition: background-color 0.5s cubic-bezier(0.33, 1, 0.68, 1);
+    }
+    a:hover {
+      background-color: #d30001;
     }
     svg {
       height: auto;
@@ -44,20 +51,22 @@
       max-height: 220px;
       max-width: 220px;
       fill: currentColor;
-      color: #f47124;
-      transition: all 0.25s cubic-bezier(0.33, 1, 0.68, 1);
+      color: #d30001;
     }
     a:hover svg {
-      color: #222;
-      transform: scale(1.01);
+      color: #fff;
     }
     ul {
       bottom: 0;
       left: 0;
       list-style: none;
-      padding: 2rem;
+      padding: 2rem 2rem 3rem;
       position: absolute;
       right: 0;
+      font-size: calc(0.9rem + 0.3vw);
+    }
+    li {
+      padding: 0.2rem;
     }
   </style>
 </head>
@@ -74,7 +83,7 @@
         </svg>
       </a>
     </p>
-    <p>Congratulations!</p>
+    <p><strong>Congratulations!</strong></p>
     <p>You are now running a <em>proper</em> web&nbsp;application.</p>
   </nav>
 
