@@ -6,6 +6,7 @@ RUN python3.9 -m venv /venv
 ENV VIRTUAL_ENV=/venv
 ENV PATH="/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED 1
+ENV PORT=2300
 
 RUN python -m pip install --no-cache-dir -U pip wheel
 RUN mkdir /requirements
@@ -18,5 +19,5 @@ COPY . /app
 
 # run
 WORKDIR /app
-EXPOSE 2300
-CMD ["proper", "run", "2300"]
+EXPOSE "$PORT"
+CMD ["proper", "run", "$PORT"]

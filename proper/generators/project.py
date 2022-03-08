@@ -64,7 +64,7 @@ def _install_dependencies(path):
     call(".venv/bin/pip install -e .")
     call(".venv/bin/proper db create_all")
     call(".venv/bin/proper db stamp")
-    call("cd static && npm install --no-audit --no-fund")
+    call("npm install --no-audit --no-fund")
     return True
 
 

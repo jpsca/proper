@@ -38,9 +38,8 @@ from .static import RX_INMUTABLES_FILE
 __all__ = ("App", "BadSecretKey")
 
 TEMPLATES_FOLDER = "templates"
-STATIC_FOLDER = "static"
 STATIC_PREFIX = "static"
-PUBLIC_FOLDER = "public"
+STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
 
 logger = logging.getLogger(__name__)
@@ -123,10 +122,6 @@ class App:
     @property
     def static_path(self):
         return self.root_path.parent / STATIC_FOLDER
-
-    @property
-    def public_path(self):
-        return self.static_path / PUBLIC_FOLDER
 
     @property
     def static_manifest_path(self):
@@ -233,10 +228,10 @@ class App:
         return f"{host}/{filename}"
 
     def include_static(self, filename):
-        """Read and returns a text file from the `static/public` folder, to include
+        """Read and returns a text file from the `static` folder, to include
         in the template as-is.
         """
-        text = (self.public_path / filename).read_text()
+        text = (self.static_path / filename).read_text()
         return Markup(text)
 
     def edit_credentials(self, env):
@@ -375,12 +370,12 @@ class App:
 
     def _setup_whitenoise(self):
         self._wrapped_wsgi = self.wsgi_app
-        if not self.public_path.exists():
+        if not self.static_path.exists():
             return
 
         self._wrapped_wsgi = WhiteNoise(
             self.wsgi_app,
-            root=self.public_path,
+            root=self.static_path,
             prefix=STATIC_PREFIX,
             autorefresh=self._config.debug,
             immutable_file_test=RX_INMUTABLES_FILE,

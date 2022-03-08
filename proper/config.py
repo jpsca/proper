@@ -50,7 +50,9 @@ def get_default_config():
     config.static.compress = True
 
     config.static.paths = [
-        {"path": "static/public", "prefix": "static/"},
+        # Everything in the `static` folder is available at `/static/...`
+        # You can add other paths/prefixes here
+        # {"path": "FOLDER_PATH", "prefix": "URL"},
     ]
 
     config.database = Dot()
