@@ -4,7 +4,7 @@ from pathlib import Path
 
 from proper_cli import Cli
 
-from . import generators, static
+from . import generators, proper_text, static
 
 
 UWSGI_DEV_CONFIG = "uwsgi-dev.ini"
@@ -145,7 +145,7 @@ def get_static_cli(app):
 def get_install_cli(app):
     attrs = {
         "__doc__": "",
-        "text": _get_cmd(app, generators, "install_proper_text")
+        "text": _get_cmd(app, proper_text, "install")
     }
     return type("Install", (Cli,), attrs)
 

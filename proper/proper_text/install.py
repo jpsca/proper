@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ..helpers.render import append_to_file, call, copy_file
+from proper.helpers.render import append_to_file, call, copy_file
 
 
 TRIX_INSTALL = "npm install trix --no-audit --no-fund"
@@ -13,7 +13,7 @@ APPLICATION_JS = "static/src/js/application.js"
 JS_IMPORT = 'import "node_modules/trix/dist/trix.js"\n'
 
 
-def install_proper_text(app):
+def install(app):
     call(TRIX_INSTALL)
     root_path = Path(app.root_path.parent)
     copy_file(root_path / CSS_FROM, root_path, CSS_TO)

@@ -13,7 +13,6 @@ from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
 
 from . import middleware, status
-from .auth import Auth
 from .cli_app import get_app_cli
 from .config import get_env, get_default_config
 from .constants import MIN_SECRET_LENGTH
@@ -28,6 +27,7 @@ from .error_handlers import (
 from .errors import MatchNotFound
 from .helpers import Dot, Render, Serializer
 from .middleware.dispatch import dispatch
+from .proper_auth import Auth
 from .request import Request
 from .response import Response
 from .router import Router, get
