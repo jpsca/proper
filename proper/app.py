@@ -24,10 +24,10 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from .auth import Auth
 from .errors import MatchNotFound
 from .helpers import Dot, Render, Serializer
 from .middleware.dispatch import dispatch
-from .proper_auth import Auth
 from .request import Request
 from .response import Response
 from .router import Router, get
