@@ -76,6 +76,8 @@ def get_default_config():
     config.mailer = Dot()
     config.mailer.default_from = "hello@example.com"
 
+    config.scheduler = Dot()
+
     return config
 
 
