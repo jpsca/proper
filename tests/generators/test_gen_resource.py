@@ -100,3 +100,87 @@ def _test_routes_singular(app_root):
 ]
 
 """)
+
+
+def test_gen_resource_only(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_resource(app, "Persons", only="create,update")
+
+    _test_controller_only(app_root)
+    _test_templates_only(app_root)
+    _test_routes_only(app_root)
+
+
+def _test_controller_only(app_root):
+    text = (app_root / "controllers" / "persons" / "__init__.py").read_text()
+    assert "class Persons(ApplicationController):" in text
+    assert "def index(self):" not in text
+    assert "def new(self):" not in text
+    assert "def create(self):" in text
+    assert "def show(self, pk):" not in text
+    assert "def edit(self, pk):" not in text
+    assert "def update(self, pk):" in text
+    assert "def delete(self, pk):" not in text
+
+
+def _test_templates_only(app_root):
+    templates = app_root / "templates" / "persons"
+    assert templates.is_dir()
+    assert not (templates / "index.html.jinja").exists()
+    assert not (templates / "new.html.jinja").exists()
+    assert not (templates / "show.html.jinja").exists()
+    assert not (templates / "edit.html.jinja").exists()
+
+
+def _test_routes_only(app_root):
+    routes_text = (app_root / "routes.py").read_text()
+    print(routes_text)
+    assert routes_text.endswith("""
+    resource("persons", to=Persons, only="create,update"),
+]
+
+""")
+
+
+def test_gen_resource_exclude(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_resource(app, "Persons", exclude="edit,update")
+
+    _test_controller_exclude(app_root)
+    _test_templates_exclude(app_root)
+    _test_routes_exclude(app_root)
+
+
+def _test_controller_exclude(app_root):
+    text = (app_root / "controllers" / "persons" / "__init__.py").read_text()
+    assert "class Persons(ApplicationController):" in text
+    assert "def index(self):" in text
+    assert "def new(self):" in text
+    assert "def create(self):" in text
+    assert "def show(self, pk):" in text
+    assert "def edit(self, pk):" not in text
+    assert "def update(self, pk):" not in text
+    assert "def delete(self, pk):" in text
+
+
+def _test_templates_exclude(app_root):
+    templates = app_root / "templates" / "persons"
+    assert templates.is_dir()
+    assert (templates / "index.html.jinja").exists()
+    assert (templates / "new.html.jinja").exists()
+    assert (templates / "show.html.jinja").exists()
+    assert not (templates / "edit.html.jinja").exists()
+
+
+def _test_routes_exclude(app_root):
+    routes_text = (app_root / "routes.py").read_text()
+    print(routes_text)
+    assert routes_text.endswith("""
+    resource("persons", to=Persons, exclude="edit,update"),
+]
+
+""")

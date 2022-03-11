@@ -41,7 +41,7 @@ FORM_INPUT_TYPES = {
 FORM_DEFAULT_INPUT_TYPE = "text"
 
 
-def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
+def gen_resource(app, name, *attrs, only="", exclude="", singular=False):
     """Stubs out a new resource
     including a controller, model, migration, templates, and a resource route
     in the `routes.py` file
@@ -89,11 +89,14 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     controller_snake = singular_snake if singular else plural_snake
     controller_pascal = singular_pascal if singular else plural_pascal
 
+    only = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
+    exclude = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
+
     actions = set(ACTIONS)
     if only:
-        actions = actions.intersection(set(only.split(",")))
+        actions = actions.intersection(set(only))
     elif exclude:
-        actions = actions.difference(set(exclude.split(",")))
+        actions = actions.difference(set(exclude))
     if singular:
         actions.remove("index")
 
@@ -132,6 +135,8 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
             "singular_snake": singular_snake,
             "controller_snake": controller_snake,
             "controller_pascal": controller_pascal,
+            "only": only,
+            "exclude": exclude,
             "actions": actions,
             "singular": singular,
             "form_fields": form_fields,
