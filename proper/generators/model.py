@@ -95,7 +95,7 @@ def gen_model(
 
         `proper g model Post title:string-30 body:text author_id:integer:foreign-users.id`
 
-        class Post(Base, Timestamped):
+        class Post(Timestamped, db.Model):
             __tablename__ = "posts"
             id = db.Column(db.Integer, primary_key=True)
             title = db.Column(db.String(30))
@@ -113,7 +113,7 @@ def gen_model(
 
             `proper g model Post tags:Tag:post:joined`
 
-            class Post(Base, Timestamped):
+            class Post(Timestamped, db.Model):
                 __tablename__ = "posts"
                 id = db.Column(db.Integer, primary_key=True)
                 tags = db.relationship(
@@ -126,7 +126,7 @@ def gen_model(
 
             `proper g model Post tags:Tag:posts-select:joined`
 
-            class Post(Base, Timestamped):
+            class Post(Timestamped, db.Model):
                 __tablename__ = "posts"
                 id = db.Column(db.Integer, primary_key=True)
                 tags = db.relationship(
@@ -139,7 +139,7 @@ def gen_model(
 
             `proper g model Post tags:Tag`
 
-            class Post(Base, Timestamped):
+            class Post(Timestamped, db.Model):
                 __tablename__ = "posts"
                 id = db.Column(db.Integer, primary_key=True)
                 tags = db.relationship(

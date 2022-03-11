@@ -7,7 +7,7 @@ def test_base_model(app, scaffold):
     gen_model(app, "Product")
 
     model_text = (app_root / "models" / "product.py").read_text()
-    assert "class Product(Base, Timestamped):" in model_text
+    assert "class Product(Timestamped, db.Model):" in model_text
     assert '__tablename__ = "products"' in model_text
     assert "id = db.Column(db.Integer, primary_key=True)" in model_text
 

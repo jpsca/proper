@@ -29,7 +29,7 @@ def _test_controller(app_root):
 
 def _test_model(app_root):
     model_text = (app_root / "models" / "product.py").read_text()
-    assert "class Product(Base, Timestamped):" in model_text
+    assert "class Product(Timestamped, db.Model):" in model_text
 
 
 def _test_templates(app_root):
@@ -79,7 +79,7 @@ def _test_controller_singular(app_root):
 
 def _test_model_singular(app_root):
     model_text = (app_root / "models" / "profile.py").read_text()
-    assert "class Profile(Base, Timestamped):" in model_text
+    assert "class Profile(Timestamped, db.Model):" in model_text
 
 
 def _test_templates_singular(app_root):

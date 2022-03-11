@@ -31,7 +31,6 @@ from .middleware.dispatch import dispatch
 from .request import Request
 from .response import Response
 from .router import Router, get
-from .scheduler import Scheduler
 from .static import RX_INMUTABLES_FILE
 
 
@@ -72,7 +71,6 @@ class App:
     error_handlers = None
 
     serializer = None
-    scheduler = None
     first_call = True
 
     def __init__(self, import_name, *, config=None):
@@ -91,14 +89,12 @@ class App:
         self._setup_db()
         self._setup_serializer()
         self._setup_auth()
-        self._setup_scheduler()
         self._setup_render()
         self._setup_whitenoise()
         self._setup_cli()
 
     def __call__(self, environ, start_response):
         if self.first_call:
-            self.scheduler.start()
             self.first_call = False
 
         return self._wrapped_wsgi(environ, start_response)
@@ -240,7 +236,6 @@ class App:
 
     def shutdown(self):
         print("\nShutting down")
-        self.scheduler.shutdown(wait=True)
         print("\n✨ Goodbye ✨")
 
     # Private
@@ -350,9 +345,6 @@ class App:
             password_minlen=config.auth.password_minlen,
             password_maxlen=config.auth.password_maxlen,
         )
-
-    def _setup_scheduler(self):
-        self.scheduler = Scheduler()
 
     def _setup_render(self):
         self._load_static_manifest()

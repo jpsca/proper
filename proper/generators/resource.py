@@ -63,9 +63,9 @@ def gen_resource(app, name, *attrs, only=None, exclude=None, singular=False):
     and follows the same syntax of the model generator.
     Run `proper g model --help` for instructions.
 
-    By default it generates the full set of REST actions, but you can choose
-    only some of these or to exclude a few by using the optional `only` and
-    `exclude` arguments.
+    By default it generates the full set of REST actions ("index", "new", "create",
+    "show", "edit", "update", and "delete"), but you can choose only some of these
+    or to exclude a few by using the optional `only` and `exclude` arguments.
 
     Sometimes, you have a resource that clients always look up without
     referencing an ID. In this case, you can use `singular=True` to build a
