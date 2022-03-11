@@ -7,14 +7,15 @@ from ..app import App
 from ..request import Request
 from ..response import Response
 from ..status import not_modified
+from .request_forgery_protection import RequestForgeryProtection
 
 
 __all__ = ("BaseController",)
 
 
-class BaseController:
+class BaseController(RequestForgeryProtection):
     def before_action(self, action: str, params: Dict[str, Any]) -> None:
-        pass
+        self.protect_from_forgery(action)
 
     def after_action(self, action: str) -> None:
         pass

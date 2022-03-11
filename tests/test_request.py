@@ -1,15 +1,6 @@
 import pytest
 
-from proper.constants import (
-    DELETE,
-    FLASHES_SESSION_KEY,
-    GET,
-    HEAD,
-    OPTIONS,
-    PATCH,
-    POST,
-    PUT,
-)
+from proper.constants import FLASHES_SESSION_KEY
 from proper.errors import InvalidHeader
 from proper.helpers import Dot
 from proper.request import Request
@@ -172,20 +163,3 @@ def test_flashes():
     req._session = Dot({FLASHES_SESSION_KEY: flashes})
 
     assert req.flashes == req.flashes == flashes
-
-
-@pytest.mark.parametrize(
-    "method, result",
-    [
-        (GET, False),
-        (POST, True),
-        (PUT, True),
-        (PATCH, True),
-        (DELETE, True),
-        (HEAD, False),
-        (OPTIONS, False),
-        ("MEH", False),
-    ],
-)
-def test_must_check_csrf(method, result):
-    assert Request(REQUEST_METHOD=method).must_check_csrf() == result

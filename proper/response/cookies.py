@@ -81,9 +81,9 @@ def add_cookie(
         samesite (str):
             Allows servers to assert that a cookie ought not to be sent along with
             cross-site requests, which provides some protection against
-            cross-site request forgery attacks (CSRF).
+            cross-site request forgery attacks.
 
-            Should only be "Strict" or "Lax".
+            If set, should only be "Strict" or "Lax".
 
         comment (str|None):
             A string representing the cookie Comment value, or None. If comment

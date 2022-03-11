@@ -293,13 +293,11 @@ class App:
             partial(middleware.match, app=self),
             partial(middleware.redirect, app=self),
             partial(middleware.fetch_session, app=self),
-            partial(middleware.protect_from_forgery, app=self),
         )
         self._on_dispatch = (
             partial(middleware.dispatch, app=self),
         )
         self._on_after_dispatch = (
-            partial(middleware.put_csrf_header, app=self),
             partial(middleware.put_session, app=self),
             partial(middleware.strip_body_if_head, app=self),
         )

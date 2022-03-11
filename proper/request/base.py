@@ -126,12 +126,21 @@ class Request:
     host: str
     port: int
 
-    matched_route: Optional[Route]
-    matched_params: Optional[Dict[str, Any]]
-    user: Optional[Any]
-    csrf_token: Optional[str]
+    matched_route: Optional[Route] = None
+    matched_params: Optional[Dict[str, Any]] = None
+    matched_action: Optional[str] = None
+    user: Optional[Any] = None
+    csrf_token: Optional[str] = None
 
     _session: Dict[str, Any]
+    _content_length: Optional[int] = None
+    _cookies: Optional[Dict[str, Any]] = None
+    _form: Optional[MultiDict] = None
+    _headers: Optional[HeadersDict] = None
+    _query: Optional[MultiDict] = None
+    _remote_addr: Optional[str] = None
+    _if_none_match: Optional[List[str]] = None
+    _if_modified_since: Optional[Union[datetime, str]] = None
 
     def __init__(
         self,
@@ -161,20 +170,7 @@ class Request:
         )
         self.host, self.port = self._parse_host(self.environ.get("HTTP_HOST"))
 
-        self.matched_route = None
-        self.matched_params = None
-        self.user = None
-        self.csrf_token = None
         self._session = {}
-
-        self._content_length = None
-        self._cookies = None
-        self._form = None
-        self._headers = None
-        self._query = None
-        self._remote_addr = None
-        self._if_none_match = None
-        self._if_modified_since = None
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
@@ -348,11 +344,6 @@ class Request:
         if "HTTP_X_REQUESTED_WITH" in self.environ:
             return self.environ["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
         return False
-
-    def must_check_csrf(self) -> bool:
-        """Return wether the CSRF token in this request must be checked
-        for validity."""
-        return self.method in (POST, PUT, DELETE, PATCH)
 
     @property
     def if_none_match(self) -> List[str]:

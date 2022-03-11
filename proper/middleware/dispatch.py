@@ -9,6 +9,7 @@ __all__ = ("dispatch",)
 def dispatch(req, resp, app):
     route = req.matched_route
     cls_name, action = route.to.__qualname__.rsplit(".", 1)
+    req.matched_action = action
     module = import_module(route.to.__module__)
     Controller = getattr(module, cls_name)
 
