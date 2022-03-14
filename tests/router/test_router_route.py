@@ -11,7 +11,7 @@ from proper.router import (
     patch,
     post,
     put,
-    route,
+    Route,
 )
 
 
@@ -46,10 +46,10 @@ def test_route_shortcuts():
 
 def test_route_must_have_method_and_path():
     with pytest.raises(Exception):
-        route()
+        Route()
 
     with pytest.raises(Exception):
-        route(GET)
+        Route(GET)
 
     with pytest.raises(Exception):
         get()

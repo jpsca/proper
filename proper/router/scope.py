@@ -3,14 +3,33 @@ from typing import Iterable, List, Optional
 from .route import Route
 
 
-__all__ = ("Scope", "scope", )
+__all__ = (
+    "Scope",
+    "scope",
+)
 
 
-def flatten(ll: Iterable) -> List[Route]:
+def flatten(ll: Iterable) -> List:
+    """
+    Flatten a list of lists and items into a list of items, without sublists
+    Examples:
+
+    >>> flatten([[1, 2, 3], 4, [5]])
+    [1, 2, 3, 4, 5]
+    >>> flatten([1, 2, 3, 4, 5])
+    [1, 2, 3, 4, 5]
+    >>> flatten([[1, 2, 3, 4, 5]])
+    [1, 2, 3, 4, 5]
+    >>> flatten([[], 1])
+    [1]
+    >>> flatten([[1, [2, 3]], 4, [5]])
+    [1, 2, 3, 4, 5]
+
+    """
     result = []
     for item in ll:
         if isinstance(item, list):
-            result += item
+            result += flatten(item)
         else:
             result.append(item)
     return result
@@ -55,7 +74,10 @@ class Scope:
         - :username.localhost:5000
 
     """
-    __slots__ = ("mount", "host", )
+    __slots__ = (
+        "mount",
+        "host",
+    )
 
     mount: str
     host: Optional[str]
@@ -66,7 +88,6 @@ class Scope:
 
     def __call__(self, *routes: Iterable) -> List[Route]:
         _routes = []
-
         for route in flatten(routes):
             self._mount_route(route)
             _routes.append(route)
@@ -74,9 +95,7 @@ class Scope:
         return _routes
 
     def _mount_route(self, route: Route) -> None:
-        assert isinstance(
-            route, Route
-        ), "A scope only can work over instances of `route`."
+        assert isinstance(route, Route), "A scope only can work over instances of `route`."
         if route.path == "/":
             route.path = self.mount
         else:
