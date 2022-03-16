@@ -15,11 +15,9 @@ class ApplicationController(BaseController):
     """
     def before_action(self, action, params):
         self._load_user()
-        super().before_action(action, params)
 
     def after_action(self, action):
         self._put_security_headers()
-        super().after_action(action)
 
     # Private
 
@@ -70,7 +68,6 @@ class PrivateController(ApplicationController):
     """User-only controllers can inherit from this one."""
     def before_action(self, action, params):
         self._require_login()
-        super().before_action(action, params)
 
     def _require_login(self):
         if self.req.user:

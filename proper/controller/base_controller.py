@@ -42,14 +42,25 @@ class BaseController(RequestForgeryProtection):
         return self.app.render(template, **vars(self))
 
     def _dispatch(self, action: str) -> None:
-        self.before_action(action, self.req.matched_params)
+        self._call_mro_method("before_action", action, self.req.matched_params)
         if self.resp.stop:
             return
 
         if not self.resp.dispatched:
             self._call(action)
 
-        self.after_action(action)
+        self._call_mro_method("after_action", action)
+
+    def _call_mro_method(self, method_name: str, *args, **kwargs) -> None:
+        visited = []
+        # last item is "object"
+        mro = self.__class__.mro()[:-1]
+
+        for cls in mro:
+            method = getattr(cls, method_name, None)
+            if method and method not in visited:
+                method(self, *args, **kwargs)
+                visited.append(method)
 
     def _call(self, action: str) -> None:
         # We call the endpoint but we do not expect a result value.
@@ -57,14 +68,18 @@ class BaseController(RequestForgeryProtection):
         # controller and in `resp`.
         req, resp = self.req, self.resp
         method = getattr(self, action)
-        method(**req.matched_params)
+        ret_value = method(**req.matched_params)
 
         if resp.is_fresh:
             resp.status_code = not_modified
             resp.body = ""
             return
 
-        if req.real_method == "HEAD" or resp.has_body or resp.stop:
+        if resp.stop or req.real_method == "HEAD":
             return
 
-        resp.body = self.render()
+        if ret_value is not None:
+            resp.body = ret_value
+
+        if not resp.has_body:
+            resp.body = self.render()

@@ -1,7 +1,6 @@
 """
 Response class.
 """
-import json
 from datetime import date
 from hashlib import md5
 from typing import (
@@ -17,7 +16,7 @@ from typing import (
 from uuid import uuid4
 
 from .. import status
-from ..helpers import HeadersDict, tunnel_encode
+from ..helpers import HeadersDict, json, tunnel_encode
 from ..request import Request
 
 from .cookies import CookiesDict, add_cookie
@@ -117,20 +116,25 @@ class Response:
 
     @body.setter
     def body(self, content: Any) -> None:
-        """Sets the response body content. If it is a dictionary,
-        encodes it to JSON and sets the content_type to "application/json"
+        """Sets the response body content.
         """
-        if isinstance(content, dict):
-            self.set_json_body(content)
-        else:
-            self.set_raw_body(content)
+        if isinstance(content, (str, bytes)):
+            return self.set_raw_body(content)
 
-    def set_raw_body(self, content: str) -> None:
-        self.raw_body = content
+        if isinstance(content, (dict, list)):
+            return self.set_json_body(content)
+
+        if hasattr(content, "render"):
+            return self.set_raw_body(content.render())
+
+        self.set_raw_body(str(content))
 
     def set_json_body(self, content: Dict) -> None:
         self.content_type = "application/json"
         self.set_raw_body(json.dumps(content))
+
+    def set_raw_body(self, content: str) -> None:
+        self.raw_body = content
 
     @property
     def has_body(self) -> bool:
