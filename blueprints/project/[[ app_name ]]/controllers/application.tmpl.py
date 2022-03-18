@@ -21,26 +21,6 @@ class ApplicationController(BaseController):
 
     # Private
 
-    def _load_user(self):
-        user = None
-        if config.debug:
-            user = self._get_remote_user()
-        self.req.user = user or self._get_user(self.resp.session)
-
-    def _get_remote_user(self):
-        """Simulate authentication for testing."""
-        user_id = getenv("REMOTE_USER")
-        if user_id:
-            return User.by_id(user_id)
-
-    def _get_user(self, session):
-        token = session.get(USER_SESSION_KEY)
-        user = User.authenticate_session_token(token)
-        if token and not user:
-            del session[USER_SESSION_KEY]
-            return None
-        return user
-
     def _put_security_headers(self):
         self.resp.headers.update({
             # It determines if a web page can or cannot be included via <frame>
@@ -63,11 +43,33 @@ class ApplicationController(BaseController):
             "Referrer-Policy": "strict-origin-when-cross-origin",
         })
 
+    def _load_user(self):
+        user = None
+        if config.debug:
+            user = self._get_remote_user()
+        self.req.user = user or self._get_user(self.resp.session)
+
+    def _get_remote_user(self):
+        """Simulate authentication for testing."""
+        user_id = getenv("REMOTE_USER")
+        if user_id:
+            return User.by_id(user_id)
+
+    def _get_user(self, session):
+        token = session.get(USER_SESSION_KEY)
+        user = User.authenticate_session_token(token)
+        if token and not user:
+            del session[USER_SESSION_KEY]
+            return None
+        return user
+
 
 class PrivateController(ApplicationController):
     """User-only controllers can inherit from this one."""
     def before_action(self, action, params):
         self._require_login()
+
+    # Private
 
     def _require_login(self):
         if self.req.user:

@@ -78,7 +78,7 @@ def test_valid_csrf_from_header(method):
     token = "a" * CSRF_TOKEN_LENGTH
     mask = "x" * CSRF_TOKEN_LENGTH
 
-    co.req.environ[CSRF_HEADER] = mask + token
+    co.req.env[CSRF_HEADER] = mask + token
     co.req._session = Dot({CSRF_SESSION_KEY: token})
 
     co.protect_from_forgery("action")
@@ -91,7 +91,7 @@ def test_invalid_csrf_from_header(method):
     invalid_token = "b" * CSRF_TOKEN_LENGTH
     mask = "x" * CSRF_TOKEN_LENGTH
 
-    co.req.environ[CSRF_HEADER] = mask + invalid_token
+    co.req.env[CSRF_HEADER] = mask + invalid_token
     co.req._session = Dot({CSRF_SESSION_KEY: token})
 
     with pytest.raises(InvalidCSRFToken):

@@ -75,7 +75,7 @@ class BaseController(RequestForgeryProtection):
             resp.body = ""
             return
 
-        if resp.stop or req.real_method == "HEAD":
+        if resp.stop or req.request_method == "HEAD":
             return
 
         if ret_value is not None:

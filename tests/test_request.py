@@ -111,19 +111,19 @@ def test_host_with_port():
 
 def test_no_remote_addr_is_127_0_0_1():
     req = Request()
-    if "REMOTE_ADDR" in req.environ:
-        del req.environ["REMOTE_ADDR"]
-    assert req.remote_addr == "127.0.0.1"
+    if "REMOTE_ADDR" in req.env:
+        del req.env["REMOTE_ADDR"]
+    assert req.remote_ip == "127.0.0.1"
 
 
 def test_remote_addr():
     req = Request(REMOTE_ADDR="192.168.56.1")
-    assert req.remote_addr == req.remote_addr == "192.168.56.1"
+    assert req.remote_ip == req.remote_ip == "192.168.56.1"
 
 
 def test_x_remote_addr():
     req = Request(HTTP_X_REAL_IP="172.217.15.206", REMOTE_ADDR="localhost")
-    assert req.remote_addr == req.remote_addr == "172.217.15.206"
+    assert req.remote_ip == req.remote_ip == "172.217.15.206"
 
 
 def test_no_cookies():

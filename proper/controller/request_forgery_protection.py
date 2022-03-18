@@ -39,7 +39,7 @@ class RequestForgeryProtection:
         """Return wether the csrf token in the request must be checked
         for validity."""
         return (
-            self.req.method not in (HEAD, GET, OPTIONS)
+            self.req.request_method not in (HEAD, GET, OPTIONS)
             and action not in self.skip_csrf_check_for
         )
 
@@ -93,7 +93,7 @@ class RequestForgeryProtection:
 
     def _handle_unverified_request(self):
         session_token = self.req.session.get(CSRF_SESSION_KEY)
-        if not session_token and self.req.method == GET:
+        if not session_token and self.req.request_method == GET:
             self._set_new_csrf_token()
 
     def _set_new_csrf_token(self) -> None:

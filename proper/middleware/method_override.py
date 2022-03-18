@@ -15,7 +15,7 @@ def method_override(req, resp, app):
     * `DELETE`
 
     """
-    if req.method != POST:
+    if req.request_method != POST:
         return
 
     new_method = req.headers.get("X_HTTP_METHOD_OVERRIDE")
@@ -26,5 +26,4 @@ def method_override(req, resp, app):
     if new_method not in (PUT, PATCH, DELETE):
         return
 
-    req.real_method = POST
     req.method = new_method

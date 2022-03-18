@@ -12,7 +12,7 @@ def test_method_override(_method):
     method_override(req, resp, None)
 
     assert req.method == _method
-    assert req.real_method == POST
+    assert req.request_method == POST
 
 
 @pytest.mark.parametrize("_method", [GET, HEAD, OPTIONS, "MEH"])
@@ -21,7 +21,7 @@ def test_ignore_invalid_new_methods(_method):
     resp = Response()
     method_override(req, resp, None)
 
-    assert req.method == POST
+    assert req.request_method == POST
 
 
 @pytest.mark.parametrize("_method", [GET, PUT, PATCH, DELETE, HEAD, OPTIONS, "MEH"])
@@ -31,4 +31,4 @@ def test_only_override_post(_method):
     resp = Response()
     method_override(req, resp, None)
 
-    assert req.method == _method
+    assert req.request_method == _method

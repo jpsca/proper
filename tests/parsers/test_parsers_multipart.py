@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pytest
 
-from proper.request.parsers import parse_form_data
+from proper.request.parse_form_data import parse_form_data
 
 
 REQUESTS = [
