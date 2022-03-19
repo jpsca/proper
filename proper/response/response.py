@@ -13,10 +13,9 @@ from typing import (
     Tuple,
     Union,
 )
-from uuid import uuid4
 
 from .. import status
-from ..helpers import HeadersDict, json, tunnel_encode
+from ..helpers import HeadersDict, tunnel_encode
 from ..request import Request
 
 from .cookies import CookiesDict, add_cookie
@@ -86,7 +85,7 @@ class Response:
         self.content_type = content_type
         self.charset = charset
 
-        self.headers = HeadersDict({"X-Request-Id": str(uuid4())})
+        self.headers = HeadersDict()
         self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 
@@ -119,22 +118,9 @@ class Response:
         """Sets the response body content.
         """
         if isinstance(content, (str, bytes)):
-            return self.set_raw_body(content)
-
-        if isinstance(content, (dict, list)):
-            return self.set_json_body(content)
-
-        if hasattr(content, "render"):
-            return self.set_raw_body(content.render())
-
-        self.set_raw_body(str(content))
-
-    def set_json_body(self, content: Dict) -> None:
-        self.content_type = "application/json"
-        self.set_raw_body(json.dumps(content))
-
-    def set_raw_body(self, content: str) -> None:
-        self.raw_body = content
+            self.raw_body = content
+        else:
+            self.raw_body = str(content)
 
     @property
     def has_body(self) -> bool:
@@ -168,6 +154,9 @@ class Response:
     @status_code.setter
     def status_code(self, value: str) -> None:
         self._status_code = tunnel_encode(value)
+
+    def set_header(self, name: str, value: str) -> None:
+        self.headers[name] = value
 
     def redirect_to(
         self,
