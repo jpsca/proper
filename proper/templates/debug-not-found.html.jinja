@@ -50,7 +50,9 @@ Those that doesn't have a "<code>to</code>" property are build-only and never ma
 			<td><div>{{ route.path }}</div></td>
 			<td><div>
 				{% if route.redirect %}<span role="image" title="redirect">↪️</span>{% endif %}
-				{{ route.to or route.redirect or "-" }}
+				{% if route.to %}{{ route.to.__qualname__ }}
+				{%- elif route.redirect %}{{ route.redirect }}
+				{%- else %}–{% endif %}
 			</div></td>
 			<td><div>{{ route.name or '—' }}</div></td>
 			<td><div>{{ route.defaults or '—' }}</div></td>

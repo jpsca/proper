@@ -1,9 +1,9 @@
 import pytest
 
-from proper import App, BadSecretKey, BaseController, get, status
+from proper import App, BadSecretKey, Controller, get, status
 
 
-class MyController(BaseController):
+class MyController(Controller):
     def render(self):
         return "whatever"
 
@@ -61,15 +61,6 @@ def test_head(app, Pages, web):
 
     assert resp.status == status.ok
     assert resp.text == ""
-
-
-def test_json(app, Pages, web):
-    app.routes = [get("/", to=Pages.json)]
-    resp = web.get("/")
-
-    assert resp.status == status.ok
-    assert resp.headers["Content-Type"] == "application/json; charset=utf-8"
-    assert resp.text == """{"Hello": "World"}"""
 
 
 def test_charset(app, Pages, web):

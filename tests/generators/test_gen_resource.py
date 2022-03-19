@@ -16,15 +16,16 @@ def test_gen_resource(app, scaffold):
 
 
 def _test_controller(app_root):
-    products_text = (app_root / "controllers" / "products" / "__init__.py").read_text()
-    assert "class Products(ApplicationController):" in products_text
+    products_text = (app_root / "controllers" / "products" / "products.py").read_text()
+    print(products_text)
+    assert "class Products(AppController):" in products_text
     assert "def index(self):" in products_text
     assert "def new(self):" in products_text
     assert "def create(self):" in products_text
-    assert "def show(self, pk):" in products_text
-    assert "def edit(self, pk):" in products_text
-    assert "def update(self, pk):" in products_text
-    assert "def delete(self, pk):" in products_text
+    assert "def show(self):" in products_text
+    assert "def edit(self):" in products_text
+    assert "def update(self):" in products_text
+    assert "def delete(self):" in products_text
 
 
 def _test_model(app_root):
@@ -66,8 +67,8 @@ def test_gen_resource_singular(app, scaffold):
 
 
 def _test_controller_singular(app_root):
-    products_text = (app_root / "controllers" / "profile" / "__init__.py").read_text()
-    assert "class Profile(ApplicationController):" in products_text
+    products_text = (app_root / "controllers" / "profile" / "profile.py").read_text()
+    assert "class Profile(AppController):" in products_text
     assert "def index(self):" not in products_text
     assert "def new(self):" in products_text
     assert "def create(self):" in products_text
@@ -114,15 +115,15 @@ def test_gen_resource_only(app, scaffold):
 
 
 def _test_controller_only(app_root):
-    text = (app_root / "controllers" / "persons" / "__init__.py").read_text()
-    assert "class Persons(ApplicationController):" in text
+    text = (app_root / "controllers" / "persons" / "persons.py").read_text()
+    assert "class Persons(AppController):" in text
     assert "def index(self):" not in text
     assert "def new(self):" not in text
     assert "def create(self):" in text
-    assert "def show(self, pk):" not in text
-    assert "def edit(self, pk):" not in text
-    assert "def update(self, pk):" in text
-    assert "def delete(self, pk):" not in text
+    assert "def show(self):" not in text
+    assert "def edit(self):" not in text
+    assert "def update(self):" in text
+    assert "def delete(self):" not in text
 
 
 def _test_templates_only(app_root):
@@ -156,15 +157,15 @@ def test_gen_resource_exclude(app, scaffold):
 
 
 def _test_controller_exclude(app_root):
-    text = (app_root / "controllers" / "persons" / "__init__.py").read_text()
-    assert "class Persons(ApplicationController):" in text
+    text = (app_root / "controllers" / "persons" / "persons.py").read_text()
+    assert "class Persons(AppController):" in text
     assert "def index(self):" in text
     assert "def new(self):" in text
     assert "def create(self):" in text
-    assert "def show(self, pk):" in text
-    assert "def edit(self, pk):" not in text
-    assert "def update(self, pk):" not in text
-    assert "def delete(self, pk):" in text
+    assert "def show(self):" in text
+    assert "def edit(self):" not in text
+    assert "def update(self):" not in text
+    assert "def delete(self):" in text
 
 
 def _test_templates_exclude(app_root):

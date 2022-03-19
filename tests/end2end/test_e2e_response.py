@@ -1,8 +1,8 @@
-from proper import BaseController, get, status
+from proper import Controller, get, status
 from proper.helpers import Dot
 
 
-class AppController(BaseController):
+class AppController(Controller):
     def render(self):
         return f"{self.resp.template} was rendered"
 
@@ -19,7 +19,7 @@ def test_default_template(app, web):
     app.routes = [get("/", to=DefaultTemplate.rendered)]
     resp = web.get("/")
 
-    assert resp.text == "rendered was rendered"
+    assert resp.text == "default_template/rendered was rendered"
 
 
 class CustomTemplate(AppController):

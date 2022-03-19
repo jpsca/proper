@@ -7,7 +7,7 @@ def test_gen_controller(app, scaffold):
     gen_controller(app, "Products", "index", "show")
 
     products_text = (app_root / "controllers" / "products.py").read_text()
-    assert "class Products(ApplicationController):" in products_text
+    assert "class Products(AppController):" in products_text
     assert "def index(self):" in products_text
     assert "def show(self):" in products_text
 

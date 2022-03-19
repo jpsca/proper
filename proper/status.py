@@ -134,6 +134,7 @@ http_418 = "418 I'm a teapot"
 im_a_teapot = http_418
 
 http_422 = "422 Unprocessable Entity"
+unprocessable = http_422
 unprocessable_entity = http_422
 
 http_423 = "423 Locked"

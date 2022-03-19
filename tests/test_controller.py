@@ -9,7 +9,7 @@ from proper.controller import (
     CSRF_FORM_KEY,
     CSRF_SESSION_KEY,
     CSRF_TOKEN_LENGTH,
-    BaseController,
+    Controller,
 )
 
 
@@ -17,7 +17,7 @@ def get_controller(method):
     req = Request(REQUEST_METHOD=method)
     resp = Response()
     req._session = resp._session = Dot()
-    return BaseController(req=req, resp=resp)
+    return Controller(req=req, resp=resp)
 
 
 def test_no_need_to_argue():

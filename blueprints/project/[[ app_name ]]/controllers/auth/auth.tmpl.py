@@ -1,11 +1,11 @@
 from [[ app_name ]].app import app, config
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
-from ..application import ApplicationController, REDIRECT_AFTER_LOGIN_KEY
+from ..application import AppController, REDIRECT_AFTER_LOGIN_KEY
 from . import forms
 
 
-class Auth(ApplicationController):
+class Auth(AppController):
 
     def sign_in(self):
         if self.req.user:

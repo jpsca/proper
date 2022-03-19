@@ -2,7 +2,7 @@ import pytest
 
 from proper import (
     BadPlaceholder,
-    BaseController,
+    Controller,
     MissingParameter,
     NameNotFound,
     delete,
@@ -14,12 +14,12 @@ from proper import (
 from proper.helpers import Dot
 
 
-class Foo(BaseController):
+class Foo(Controller):
     def bar(self):
         self.resp.body = "Hello World!"
 
 
-class Items(BaseController):
+class Items(Controller):
     def index(self):
         self.resp.body = "index"
 

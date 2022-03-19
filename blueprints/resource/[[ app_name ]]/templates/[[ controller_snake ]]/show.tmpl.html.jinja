@@ -9,13 +9,13 @@
 <p><strong>[[ f.name|title ]]:</strong> {{ [[ singular_snake ]].[[ f.name ]] }}</p>
 [% endfor -%]
 
-<p class="actions">
+<div class="actions">
   <a href="{{ url_for('[[ plural_pascal ]].edit', pk=[[ singular_snake ]].id) }}">Edit this [[ singular_snake ]]</a>
   <a href="{{ url_for('[[ plural_pascal ]].index') }}">Back to [[ plural_snake ]]</a>
-</p>
-<form method="post" action="{{ url_for('[[ plural_pascal ]].delete', pk=[[ singular_snake ]].id) }}">
-  <input type="hidden" name="_csrf_token" value="{{ req.csrf_token }}">
-  <input type="hidden" name="_method" value="DELETE">
-  <button type="submit">Delete this [[ singular_snake ]]</button>
-</form>
+  <form method="post" action="{{ url_for('[[ plural_pascal ]].delete', pk=[[ singular_snake ]].id) }}">
+    <input type="hidden" name="csrf_token" value="{{ req.csrf_token }}">
+    <input type="hidden" name="_method" value="DELETE">
+    <button type="submit">Delete this [[ singular_snake ]]</button>
+  </form>
+</div>
 {% endblock %}

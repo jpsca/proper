@@ -1,6 +1,6 @@
 import pytest
 
-from proper import BaseController
+from proper import Controller
 from proper.constants import GET, POST
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.router import (
@@ -15,12 +15,12 @@ from proper.router import (
 )
 
 
-class Foo(BaseController):
+class Foo(Controller):
     def bar(self):
         self.resp.body = "Hello World!"
 
 
-class Items(BaseController):
+class Items(Controller):
     def index(self):
         self.resp.body = "index"
 
@@ -37,7 +37,7 @@ class Items(BaseController):
         pass
 
 
-class Localized(BaseController):
+class Localized(Controller):
     def index(self):
         self.resp.body = "Localized index"
 

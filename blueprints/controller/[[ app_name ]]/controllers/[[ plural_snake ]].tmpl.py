@@ -1,7 +1,7 @@
-from .application import ApplicationController
+from .application import AppController
 
 
-class [[ plural_pascal ]](ApplicationController):
+class [[ plural_pascal ]](AppController):
 
     [%- for action in actions %]
     def [[ action ]](self):

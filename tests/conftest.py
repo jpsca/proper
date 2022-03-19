@@ -5,7 +5,7 @@ from tempfile import mkdtemp
 import pytest
 from webtest import TestApp
 
-from proper import App, BaseController, errors
+from proper import App, Controller, errors
 
 
 @pytest.fixture()
@@ -65,7 +65,7 @@ def scaffold(dst):
     return app_root
 
 
-class AppController(BaseController):
+class AppController(Controller):
     def render(self):
         return f"<html>{self.resp.template} was rendered</html>"
 
@@ -77,7 +77,7 @@ class _Pages(AppController):
         assert self.resp.content_type == "text/plain"
 
     def echo(self, *args):
-        self.resp.raw_body = self.req.stream
+        self.resp.raw_body = self.req.body
 
     def rendered(self, *args):
         pass
@@ -111,9 +111,6 @@ class _Pages(AppController):
 
     def set_template(self):
         self.resp.template = "from_controller.jinja"
-
-    def json(self):
-        self.resp.body = {"Hello": "World"}
 
     def charset(self):
         self.resp.charset = "latin1"

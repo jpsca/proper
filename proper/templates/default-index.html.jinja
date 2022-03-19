@@ -39,14 +39,20 @@
       cursor: pointer;
       padding: 2rem 2rem 1rem;
       margin-bottom: 1rem;
-      border-width: 2px;
+      outline-width: 1px;
+      outline-style: solid;
+      outline-color: #d30001;
+      outline-offset: 0;
+      border-width: 1px;
       border-style: solid;
       border-color: #d30001;
       border-radius: 6px;
       transition: all 0.2s cubic-bezier(0.33, 1, 0.68, 1);
     }
     a:hover {
-      border-color: #fff;
+      outline-offset: 30px;
+      outline-color: transparent;
+      border-color: transparent;
       transform: scale(1.05);
     }
     svg {

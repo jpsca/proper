@@ -73,43 +73,32 @@ def test_is_fresh_by_etag():
     assert not resp.fresh_when(last_modified=datetime(2020, 11, 24))
 
 
-def test_set_renderable_object_as_body():
-    class Renderable:
-        def render(self):
-            return "rendered"
+# def test_set_dict_as_body():
+#     resp = Response()
+#     resp.body = {"i_am": "a json"}
 
-    resp = Response()
-    resp.body = Renderable()
-
-    assert resp.body == "rendered"
+#     assert resp.body == '{"i_am": "a json"}'
+#     assert resp.content_type == "application/json"
 
 
-def test_set_dict_as_body():
-    resp = Response()
-    resp.body = {"i_am": "a json"}
+# def test_set_list_as_body():
+#     resp = Response()
+#     resp.body = ["i_am", "also", "a json"]
 
-    assert resp.body == '{"i_am": "a json"}'
-    assert resp.content_type == "application/json"
-
-
-def test_set_list_as_body():
-    resp = Response()
-    resp.body = ["i_am", "also", "a json"]
-
-    assert resp.body == '["i_am", "also", "a json"]'
-    assert resp.content_type == "application/json"
+#     assert resp.body == '["i_am", "also", "a json"]'
+#     assert resp.content_type == "application/json"
 
 
-def test_non_renderable_become_string_when_set_as_body():
-    resp = Response()
-    resp.body = 5
+# def test_non_renderable_become_string_when_set_as_body():
+#     resp = Response()
+#     resp.body = 5
 
-    assert resp.body == "5"
+#     assert resp.body == "5"
 
 
-def test_encode_datetimes_in_json():
-    resp = Response()
-    resp.body = {"date": datetime(2022, 2, 23, 22, 42)}
+# def test_encode_datetimes_in_json():
+#     resp = Response()
+#     resp.body = {"date": datetime(2022, 2, 23, 22, 42)}
 
-    assert resp.body == '{"date": "2022-02-23T22:42:00"}'
-    assert resp.content_type == "application/json"
+#     assert resp.body == '{"date": "2022-02-23T22:42:00"}'
+#     assert resp.content_type == "application/json"

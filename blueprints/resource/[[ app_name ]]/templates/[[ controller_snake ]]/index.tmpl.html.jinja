@@ -9,11 +9,13 @@
   <ul>
   {% for [[ singular_snake ]] in [[ plural_snake ]] -%}
   <li><a href="{{ url_for('[[ plural_pascal ]].show', pk=[[ singular_snake ]].id) }}">
-    {{ [[ singular_snake ]] }}
+    [[ singular_pascal ]] #{{ [[ singular_snake ]].id }}
   </a></li>
   {% endfor -%}
   </ul>
 </div>
 
-<p><a href="{{ url_for('[[ plural_pascal ]].new') }}">New [[ singular_snake ]]</a></p>
+<div class="actions">
+  <a href="{{ url_for('[[ plural_pascal ]].new') }}">New [[ singular_snake ]]</a>
+</div>
 {% endblock %}

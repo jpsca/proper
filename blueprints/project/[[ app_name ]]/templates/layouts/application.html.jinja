@@ -9,7 +9,7 @@
 	{% block meta %}{% endblock %}
 	<script src="{{ url_static('js/application.js') }}" defer></script>
 	{% block scripts %}{% endblock %}
-	<script>window.authenticity_token = "{{ req.authenticity_token }}";</script>
+	<script>window.csrf_token = "{{ req.csrf_token }}";</script>
 </head>
 <body>
 	{% include "layouts/_flashes.html" -%}

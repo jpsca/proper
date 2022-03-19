@@ -1,7 +1,7 @@
-from .application import ApplicationController
+from .application import AppController
 
 
-class Pages(ApplicationController):
+class Pages(AppController):
     def not_found(self):
         pass
 

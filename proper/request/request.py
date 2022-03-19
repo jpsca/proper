@@ -3,6 +3,7 @@ Request class.
 """
 import mimetypes
 from datetime import datetime
+from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 from .. import errors
@@ -22,6 +23,8 @@ __all__ = ("Request", "make_test_environ")
 
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
+MIME_ALL = "*/*"
+DEFAULT_FORMAT = "html"
 
 
 class Request:
@@ -120,7 +123,7 @@ class Request:
         A sorted list of the languages from the "Accept-Languages" header.
 
     - body:
-        The request body i an I/O stream.
+        The request body as a BytesIO stream.
 
     - query:
         A `MultiDict` object containing the query string data.
@@ -320,11 +323,14 @@ class Request:
     def format(self) -> str:
         if self._format is None:
             for mime in self.accepts:
+                if mime == MIME_ALL:
+                    break
                 ext = mimetypes.guess_extension(mime)
                 if ext:
                     self._format = ext[1:]
                     break
-            self._format = self._format or "html"
+
+            self._format = self._format or DEFAULT_FORMAT
         return self._format
 
     @property
@@ -348,14 +354,16 @@ class Request:
     def languages(self) -> List[str]:
         if self._languages is None:
             value = self.env.get("HTTP_ACCEPT_LANGUAGES", "")
-            _languages = [lang for lang, q in parse_accept_header(value)]
-            self._languages = _languages
+            self._languages = [
+                lang.lower().replace("_", "-")
+                for lang, q in parse_accept_header(value)
+            ]
 
         return self._languages
 
     @property
     def body(self) -> Any:
-        return self.env["wsgi.input"]
+        return self.env.get("wsgi.input", BytesIO())
 
     @property
     def query(self) -> MultiDict:
@@ -372,7 +380,7 @@ class Request:
                 self._form = MultiDict()
             else:
                 self._form = parse_form_data(
-                    self.stream,
+                    self.body,
                     self.content_type,
                     self.content_length,
                     self.encoding,

@@ -1,12 +1,12 @@
-from proper import BaseController, get
+from proper import Controller, get
 
 
-class BeforeAndAfterTestCase(BaseController):
-    def before_action(self, action, params):
+class BeforeAndAfterTestCase(Controller):
+    def before_action(self):
         self._f1()
         self._f2()
 
-    def after_action(self, action):
+    def after_action(self):
         self._f1()
         self._f2()
 
@@ -28,8 +28,8 @@ def test_before_and_after_filters(app, web):
     assert resp.headers["X-Test"] == expected
 
 
-class SideEffectsTestCase(BaseController):
-    def before_action(self, action, params):
+class SideEffectsTestCase(Controller):
+    def before_action(self):
         self.resp.template = "f_custom.mako"
 
     def rendered(self, *args):
@@ -43,8 +43,8 @@ def test_custom_template_from_cb(app, web):
     assert resp.text == "<html>f_custom.mako was rendered</html>"
 
 
-class StopTestCase(BaseController):
-    def before_action(self, action, params):
+class StopTestCase(Controller):
+    def before_action(self):
         self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f1-"
         self.resp.stop = True
 

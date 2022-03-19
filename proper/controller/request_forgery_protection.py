@@ -22,9 +22,9 @@ CSRF_TOKEN_LENGTH = 32
 class RequestForgeryProtection:
     skip_csrf_check_for = tuple()
 
-    def protect_from_forgery(self, action) -> None:
+    def protect_from_forgery(self, action_name: str) -> None:
         """"""
-        if self._must_check_csrf_token(action):
+        if self._must_check_csrf_token(action_name):
             self._handle_verified_request()
         else:
             self._handle_unverified_request()
@@ -80,13 +80,13 @@ class RequestForgeryProtection:
 
     def _handle_invalid_csrf_token(self) -> None:
         raise InvalidCSRFToken(
-            "Invalid authenticity (a.k.a. 'Anti Cross-Site Request Forgery') token. "
+            "Invalid CSRF (Cross-Site Request Forgery) token. "
             "The token provided doesn't match the one stored in the session."
         )
 
     def _handle_missing_csrf_token(self) -> None:
         raise MissingCSRFToken(
-            "Missing the authenticity (a.k.a. 'Anti Cross-Site Request Forgery') token. "
+            "Missing CSRF (Cross-Site Request Forgery) token. "
             f"You must provide the token value as a “{CSRF_FORM_KEY}” form field "
             f"or in a “{CSRF_HEADER}” header."
         )
