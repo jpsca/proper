@@ -2,7 +2,7 @@ import shutil
 from hashlib import md5
 
 
-__all__ = ("Digestor", )
+__all__ = ("Digestor",)
 
 
 class Digestor:
@@ -25,4 +25,4 @@ class Digestor:
         with open(path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
                 md5_hash.update(byte_block)
-        return md5_hash.hexdigest()[:self.length]
+        return md5_hash.hexdigest()[: self.length]

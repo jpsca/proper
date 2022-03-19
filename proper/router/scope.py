@@ -95,7 +95,9 @@ class Scope:
         return _routes
 
     def _mount_route(self, route: Route) -> None:
-        assert isinstance(route, Route), "A scope only can work over instances of `route`."
+        assert isinstance(
+            route, Route
+        ), "A scope only can work over instances of `route`."
         if route.path == "/":
             route.path = self.mount
         else:

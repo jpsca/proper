@@ -355,8 +355,7 @@ class Request:
         if self._languages is None:
             value = self.env.get("HTTP_ACCEPT_LANGUAGES", "")
             self._languages = [
-                lang.lower().replace("_", "-")
-                for lang, q in parse_accept_header(value)
+                lang.lower().replace("_", "-") for lang, q in parse_accept_header(value)
             ]
 
         return self._languages

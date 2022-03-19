@@ -5,8 +5,7 @@ __all__ = ("parse_http_date",)
 
 
 def parse_http_date(http_date):
-    """Parse a datetime from a header. Ignores obsoletes formats.
-    """
+    """Parse a datetime from a header. Ignores obsoletes formats."""
     if not http_date:
         return None
     try:

@@ -151,7 +151,7 @@ class App:
         req = Request(
             max_content_length=self._config.max_content_length,
             max_query_size=self._config.max_query_size,
-            **environ
+            **environ,
         )
         token = current.set(req)
         resp = Response(_app=self, _req=req)
@@ -174,9 +174,7 @@ class App:
     def run_pipeline(self, req: Request, resp: Response) -> None:
         try:
             for func in (
-                self._on_before_dispatch +
-                self._on_dispatch +
-                self._on_after_dispatch
+                self._on_before_dispatch + self._on_dispatch + self._on_after_dispatch
             ):
                 func(req, resp)
                 if resp.stop:
@@ -263,7 +261,9 @@ class App:
         config = get_default_config()
         config_file = self.config_path / f"{self.env}.py"
         if config_file.is_file():
-            env_config = import_module(f".config.{self.env}", self.module.__package__).config
+            env_config = import_module(
+                f".config.{self.env}", self.module.__package__
+            ).config
             config.update(env_config)
         else:
             logger.warning("%s cannot be imported", config_file)
@@ -295,19 +295,13 @@ class App:
             partial(middleware.redirect, app=self),
             partial(middleware.fetch_session, app=self),
         )
-        self._on_dispatch = (
-            partial(middleware.dispatch, app=self),
-        )
+        self._on_dispatch = (partial(middleware.dispatch, app=self),)
         self._on_after_dispatch = (
             partial(middleware.put_session, app=self),
             partial(middleware.strip_body_if_head, app=self),
         )
-        self._on_error = (
-            self._rollback_db_session,
-        )
-        self._on_teardown = (
-            self._remove_db_session,
-        )
+        self._on_error = (self._rollback_db_session,)
+        self._on_teardown = (self._remove_db_session,)
 
         self.error_handlers = {}
 
@@ -371,7 +365,7 @@ class App:
             autorefresh=self._config.debug,
             immutable_file_test=RX_INMUTABLES_FILE,
         )
-        for sp in (self._config.static.paths or []):
+        for sp in self._config.static.paths or []:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
             self._wrapped_wsgi.add_files(path, prefix=prefix)

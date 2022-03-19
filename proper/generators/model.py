@@ -174,19 +174,19 @@ def gen_model(
 DEFAULT_FIELD_TYPE = "string"
 
 COLUMN_TYPES = {
-    "binary" : "LargeBinary",
-    "boolean" : "Boolean",
-    "date" : "Date",
-    "datetime" : "DateTime",
-    "decimal" : "Numeric",
-    "float" : "Float",
-    "integer" : "Integer",
-    "interval" : "Interval",
-    "json" : "JSON",
-    "numeric" : "Numeric",
-    "string" : "String",
-    "text" : "Text",
-    "time" : "Time",
+    "binary": "LargeBinary",
+    "boolean": "Boolean",
+    "date": "Date",
+    "datetime": "DateTime",
+    "decimal": "Numeric",
+    "float": "Float",
+    "integer": "Integer",
+    "interval": "Interval",
+    "json": "JSON",
+    "numeric": "Numeric",
+    "string": "String",
+    "text": "Text",
+    "time": "Time",
 }
 FOREIGN_CONSTRAINT = "foreign"
 CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
@@ -231,10 +231,9 @@ def _field(ColumnType, options, constraints):
 
 
 def _build_constraints(constraints):
-    return ", ".join([
-        _build_constraint(constraint) for constraint in constraints
-        if constraint
-    ])
+    return ", ".join(
+        [_build_constraint(constraint) for constraint in constraints if constraint]
+    )
 
 
 def _build_constraint(constraint):

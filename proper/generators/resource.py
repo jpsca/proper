@@ -9,34 +9,34 @@ RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 ROUTES_TMPL = "routes.tmpl.py"
 FORM_FIELDS = {
     "binary": "File",
-    "boolean" : "Boolean",
-    "date" : "Date",
-    "datetime" : "DateTime",
-    "decimal" : "Float",
-    "float" : "Float",
-    "integer" : "Integer",
-    "json" : "Text",
-    "numeric" : "Float",
-    "string" : "Text",
-    "text" : "Text",
-    "time" : "Time",
+    "boolean": "Boolean",
+    "date": "Date",
+    "datetime": "DateTime",
+    "decimal": "Float",
+    "float": "Float",
+    "integer": "Integer",
+    "json": "Text",
+    "numeric": "Float",
+    "string": "Text",
+    "text": "Text",
+    "time": "Time",
 }
 FORM_RENDER_AS = {
-    "binary" : "textarea",
-    "boolean" : "checkbox",
-    "json" : "textarea",
-    "text" : "textarea",
+    "binary": "textarea",
+    "boolean": "checkbox",
+    "json": "textarea",
+    "text": "textarea",
 }
 FORM_DEFAULT_RENDER_AS = "input"
 FORM_INPUT_TYPES = {
-    "date" : "date",
-    "datetime" : "datetime-local",
-    "decimal" : "number",
-    "float" : "number",
-    "integer" : "number",
-    "interval" : "range",
-    "numeric" : "number",
-    "time" : "time",
+    "date": "date",
+    "datetime": "datetime-local",
+    "decimal": "number",
+    "float": "number",
+    "integer": "number",
+    "interval": "range",
+    "numeric": "number",
+    "time": "time",
 }
 FORM_DEFAULT_INPUT_TYPE = "text"
 
@@ -110,7 +110,7 @@ def gen_resource(app, name, *attrs, only="", exclude="", singular=False):
         singular_pascal=singular_pascal,
         singular_snake=singular_snake,
         plural_snake=plural_snake,
-        *attrs
+        *attrs,
     )
     form_fields = [
         {

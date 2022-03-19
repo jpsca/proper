@@ -62,13 +62,13 @@ def get_run_server(app):
         except KeyboardInterrupt:
             app.shutdown()
             raise
+
     return run_server
 
 
 def get_routes_cmd(app):
     def routes(_self):
-        """Show all registered routes.
-        """
+        """Show all registered routes."""
         print(
             "\nRoutes match in priority from top to bottom.\n"
             "The rules that doesn't have a `to` property are"
@@ -102,6 +102,7 @@ def get_routes_cmd(app):
         for route in routes:
             print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
         print()
+
     return routes
 
 
@@ -117,6 +118,7 @@ def get_credentials_cmd(app):
 
         """
         app.edit_credentials(env)
+
     return credentials
 
 
@@ -143,10 +145,7 @@ def get_static_cli(app):
 
 
 def get_install_cli(app):
-    attrs = {
-        "__doc__": "",
-        "text": _get_cmd(app, proper_text, "install")
-    }
+    attrs = {"__doc__": "", "text": _get_cmd(app, proper_text, "install")}
     return type("Install", (Cli,), attrs)
 
 

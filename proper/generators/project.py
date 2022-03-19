@@ -41,7 +41,7 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
         context={
             "app_name": app_name,
         },
-        force=force
+        force=force,
     )()
     print()
     os.chdir(str(path))

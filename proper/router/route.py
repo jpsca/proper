@@ -92,7 +92,6 @@ class Route(BaseRoute):
         "path_re",
         "path_plain",
         "path_placeholders",
-
         "method",
         "path",
         "to",
@@ -173,6 +172,7 @@ class Patch(Route):
 
 class Static(Route):
     """A route for static files."""
+
     def __init__(self, filepath) -> None:
         filepath = str(filepath).lstrip("/")
         redirect = f"/static/{filepath}"

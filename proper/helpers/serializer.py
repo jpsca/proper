@@ -8,7 +8,10 @@ import json
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 
-__all__ = ("Serializer", "BadSignature", )
+__all__ = (
+    "Serializer",
+    "BadSignature",
+)
 
 
 class Serializer:

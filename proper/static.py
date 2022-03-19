@@ -22,17 +22,30 @@ RE_INMUTABLES_FILE = re.compile(RX_INMUTABLES_FILE)
 IGNORE_STARTS = (".", "_")
 COMPRESSED_ENDS = (".gz", ".br")
 UNCOMPRESSABLE_ENDS = (
-    ".map", "jpg", "jpeg", "png", "gif", "webp", "ico",
-    "zip", "gz", "tgz", "bz2", "tbz", "xz", "br",
-    "swf", "flv",
-    "woff", "woff2",
+    ".map",
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "ico",
+    "zip",
+    "gz",
+    "tgz",
+    "bz2",
+    "tbz",
+    "xz",
+    "br",
+    "swf",
+    "flv",
+    "woff",
+    "woff2",
 )
 REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
 
 
 def bundle(app):
-    """Calls `npm run bundle` to bundle the assets in the `static` folder.
-    """
+    """Calls `npm run bundle` to bundle the assets in the `static` folder."""
     os.chdir(app.static_path)
     cmd = BUNDLE
     print(cmd)
@@ -40,8 +53,7 @@ def bundle(app):
 
 
 def build(app):
-    """Build/digest/compress the assets in `static` for production.
-    """
+    """Build/digest/compress the assets in `static` for production."""
     os.chdir(app.static_path)
     cmd = BUNDLE_PROD
     print(cmd)
@@ -55,14 +67,13 @@ def build(app):
 
 
 def clean(app):
-    """Delete the manifest and all hashed/compressed assets.
-    """
+    """Delete the manifest and all hashed/compressed assets."""
     static = app.static_path
     echo("<bold>-- Removing hashed and/or compressed files --</>")
     for dirpath, _, files in os.walk(static):
         for filename in files:
             if _is_compressed(filename) or _is_inmutable(filename):
-                path = (Path(dirpath) / filename)
+                path = Path(dirpath) / filename
                 print(path.relative_to(static))
                 path.unlink()
     app.static_manifest_path.unlink()

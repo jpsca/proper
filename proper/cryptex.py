@@ -9,6 +9,7 @@ import texteditor
 import yaml
 from cryptography.fernet import Fernet
 from proper_cli import confirm
+
 try:
     from yaml import CLoader as YamlLoader, CDumper as YamlDumper
 except ImportError:  # pragma: no cover
@@ -25,7 +26,10 @@ KEY_NOT_FOUND_ERROR = """
 Key not found. Either put a `%s` beside your encrypted credentials,
 or set and environment variable `%s` with the key value
 (the file takes precendence over the environment variable).
-""" % (MASTER_KEY_FILE, MASTER_KEY_ENV)
+""" % (
+    MASTER_KEY_FILE,
+    MASTER_KEY_ENV,
+)
 
 BEFORE_EDIT = "You can edit your credentials now. Don't forget to save your changes"
 AFTER_EDIT = f"""
@@ -58,7 +62,7 @@ class Cryptex:
     def __init__(self, path: Path, env: str) -> None:
         self.path = path
         self.env = env
-        self.enc_path = path / (ENCRYPTED_FILE % (env, ))
+        self.enc_path = path / (ENCRYPTED_FILE % (env,))
         self.key_path = path / MASTER_KEY_FILE
 
     def load(self) -> Dict[str, Any]:
@@ -109,7 +113,7 @@ class Cryptex:
 
     def save(self, key: bytes, content: str) -> None:
         enc_content = Fernet(key).encrypt(content.encode("utf8"))
-        header = ENCRIPTED_HEADER % (self.env, )
+        header = ENCRIPTED_HEADER % (self.env,)
         self.enc_path.write_bytes(header.encode("utf8"))
         summary = self.get_summary(content)
         with self.enc_path.open("ab") as f:

@@ -14,8 +14,7 @@ JS_IMPORT = 'import "node_modules/trix/dist/trix.js"\n'
 
 
 def install(app):
-    """Install WYSIWYG support.
-    """
+    """Install WYSIWYG support."""
     call(TRIX_INSTALL)
     root_path = Path(app.root_path.parent)
     copy_file(root_path / CSS_FROM, root_path, CSS_TO)

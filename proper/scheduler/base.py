@@ -1,4 +1,4 @@
-__all__ = ("BaseScheduler", )
+__all__ = ("BaseScheduler",)
 
 
 class BaseScheduler:
@@ -12,7 +12,9 @@ class BaseScheduler:
     def task(self, func, retries=0, retry_delay=0, **kwargs):
         pass
 
-    def periodic_task(self, func, validate_datetime, retries=0, retry_delay=0, **kwargs):
+    def periodic_task(
+        self, func, validate_datetime, retries=0, retry_delay=0, **kwargs
+    ):
         pass
 
     def start(self):

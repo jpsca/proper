@@ -255,7 +255,7 @@ class Auth:
         if not user:
             logger.info(
                 "Invalid token. User `{user_id}` not found",
-                extra={"user_id": user_id[:20]}
+                extra={"user_id": user_id[:20]},
             )
             return None
 
@@ -277,7 +277,7 @@ class Auth:
         if not user:
             logger.info(
                 "Invalid token. User `{user_id}` not found",
-                extra={"user_id": user_id[:20]}
+                extra={"user_id": user_id[:20]},
             )
             return None
 

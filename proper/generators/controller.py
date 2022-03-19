@@ -41,7 +41,7 @@ def gen_controller(app, name, *actions):
             "snake_name": plural_snake,
             "actions": actions,
         },
-        ignore=[ROUTES_TMPL, TEMPLATE_TMPL]
+        ignore=[ROUTES_TMPL, TEMPLATE_TMPL],
     )
     bp()
 

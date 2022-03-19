@@ -1,7 +1,7 @@
 from .dot import Dot
 
 
-__all__ = ("HeadersDict", )
+__all__ = ("HeadersDict",)
 
 
 class HeadersDict(Dot):

@@ -1,7 +1,10 @@
 from collections import defaultdict
 
 
-__all__ = ("MultiDict", "exbool", )
+__all__ = (
+    "MultiDict",
+    "exbool",
+)
 
 
 class NoValue:
@@ -66,8 +69,7 @@ class MultiDict(defaultdict):
         return value
 
     def get_or_error(self, key, *, type=None, index=-1):
-        """Like `.get()` but raises a `KeyError` if the key doesn't exist.
-        """
+        """Like `.get()` but raises a `KeyError` if the key doesn't exist."""
         value = self.get(key, default=NoValue, type=type, index=index)
         if value is NoValue:
             raise KeyError(key)

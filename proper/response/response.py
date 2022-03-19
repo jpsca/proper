@@ -26,7 +26,20 @@ from .iterable import is_iterable
 __all__ = ("Response",)
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
 
 
 class Response:
@@ -115,8 +128,7 @@ class Response:
 
     @body.setter
     def body(self, content: Any) -> None:
-        """Sets the response body content.
-        """
+        """Sets the response body content."""
         if isinstance(content, (str, bytes)):
             self.raw_body = content
         else:
@@ -196,42 +208,42 @@ class Response:
 
         Arguments are:
 
-            key:
-                The cookie name.
+        - key:
+            The cookie name.
 
-            value:
-                The cookie value.
+        - value:
+            The cookie value.
 
-            max_age:
-                An integer representing a number of seconds, datetime.timedelta,
-                or None. This value is used for the Max-Age and Expires values of
-                the generated cookie (Expires will be set to now + max_age).
-                If this value is None, the cookie will not have a Max-Age value.
+        - max_age:
+            An integer representing a number of seconds, datetime.timedelta,
+            or None. This value is used for the Max-Age and Expires values of
+            the generated cookie (Expires will be set to now + max_age).
+            If this value is None, the cookie will not have a Max-Age value.
 
-            path:
-                A string representing the cookie Path value. It defaults to `/`.
+        - path:
+            A string representing the cookie Path value. It defaults to `/`.
 
-            domain:
-                A string representing the cookie Domain, or None. If domain is None,
-                no Domain value will be sent in the cookie.
+        - domain:
+            A string representing the cookie Domain, or None. If domain is None,
+            no Domain value will be sent in the cookie.
 
-            secure:
-                A boolean. If it's True, the secure flag will be sent in the cookie,
-                if it's False, the secure flag will not be sent in the cookie.
+        - secure:
+            A boolean. If it's True, the secure flag will be sent in the cookie,
+            if it's False, the secure flag will not be sent in the cookie.
 
-            httponly:
-                A boolean. If it's True, the HttpOnly flag will be sent in the cookie,
-                if it's False, the HttpOnly flag will not be sent in the cookie.
+        - httponly:
+            A boolean. If it's True, the HttpOnly flag will be sent in the cookie,
+            if it's False, the HttpOnly flag will not be sent in the cookie.
 
-            samesite:
-                A string representing the SameSite attribute of the cookie or None.
-                If samesite is None no SameSite value will be sent in the cookie.
-                Should only be "Strict" or "Lax".
-                https://www.owasp.org/index.php/SameSite
+        - samesite:
+            A string representing the SameSite attribute of the cookie or None.
+            If samesite is None no SameSite value will be sent in the cookie.
+            Should only be "Strict" or "Lax".
+            https://www.owasp.org/index.php/SameSite
 
-            comment:
-                A string representing the cookie Comment value, or None. If comment
-                is None, no Comment value will be sent in the cookie.
+        - comment:
+            A string representing the cookie Comment value, or None. If comment
+            is None, no Comment value will be sent in the cookie.
 
         """
         return add_cookie(
@@ -247,11 +259,7 @@ class Response:
             del self.cookies[name]
 
     def delete_cookie(
-        self,
-        name: str,
-        *,
-        path: str = "/",
-        domain: Optional[str] = None
+        self, name: str, *, path: str = "/", domain: Optional[str] = None
     ) -> None:
         """
         Delete a cookie from the client. Note that path and domain must match

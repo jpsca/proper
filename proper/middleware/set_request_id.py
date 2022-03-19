@@ -15,7 +15,7 @@ import re
 from uuid import uuid4
 
 
-__all__ = ("set_request_id", )
+__all__ = ("set_request_id",)
 
 REQUEST_ID_HEADER = "X-Request-Id"
 REQUEST_ID_MAX_LENGTH = 200

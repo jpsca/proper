@@ -100,7 +100,7 @@ class Router:
         object: Optional[Any] = None,
         *,
         _anchor: Optional[str] = None,
-        **kwargs: Dict[str, Any]
+        **kwargs: Dict[str, Any],
     ) -> str:
         route = self._routes_by_name.get(name)
         if not route:

@@ -1,5 +1,3 @@
-
-
 def gen_mailer(app):
     """Stubs out a new mailer.
 

@@ -3,7 +3,9 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 from .route import Route
 
 
-__all__ = ["resource", ]
+__all__ = [
+    "resource",
+]
 
 
 GROUP_ROUTES = (
@@ -89,8 +91,7 @@ def resource(
     exclude = _to_list(exclude)
 
     _actions = [
-        action for action in only
-        if (action in ACTIONS) and (action not in exclude)
+        action for action in only if (action in ACTIONS) and (action not in exclude)
     ]
     assert _actions, "None of the actions are valid."
     return _expand_routes(res, _actions, SINGLE_ROUTES if singular else GROUP_ROUTES)

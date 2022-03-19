@@ -6,7 +6,7 @@ from pathlib import Path
 from proper.helpers import Dot
 
 
-__all__ = ("get_env", )
+__all__ = ("get_env",)
 
 logger = logging.getLogger(__name__)
 

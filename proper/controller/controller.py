@@ -51,7 +51,7 @@ class Controller(RequestForgeryProtection):
         *,
         status: Optional[str] = None,
         json: Optional[Any] = None,
-        text: Optional[Any] = None
+        text: Optional[Any] = None,
     ) -> str:
         if status is not None:
             self.resp.status_code = status
@@ -92,7 +92,7 @@ class Controller(RequestForgeryProtection):
             flash=flash,
             flash_type=flash_type,
             status_code=status_code,
-            **kwargs
+            **kwargs,
         )
 
     def send_data(

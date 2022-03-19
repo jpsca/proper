@@ -6,14 +6,14 @@ class HTTPError(Exception):
 
     Arguments are:
 
-        msg (str):
-            Description of the error.
+    - msg (str):
+        Description of the error.
 
-        status (str):
-            HTTP status line, e.g. '200 OK' or '725 It works on my machine'.
+    - status (str):
+        HTTP status line, e.g. '200 OK' or '725 It works on my machine'.
 
-        **headers (dict):
-            Optional headers to attach to the response
+    - **headers (dict):
+        Optional headers to attach to the response
 
     """
 

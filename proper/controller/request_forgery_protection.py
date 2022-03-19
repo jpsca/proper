@@ -6,12 +6,7 @@ from ..constants import HEAD, GET, OPTIONS
 from ..errors import InvalidCSRFToken, MissingCSRFToken
 
 
-__all__ = (
-    "CSRF_SESSION_KEY",
-    "CSRF_FORM_KEY",
-    "CSRF_HEADER",
-    "CSRF_TOKEN_LENGTH"
-)
+__all__ = ("CSRF_SESSION_KEY", "CSRF_FORM_KEY", "CSRF_HEADER", "CSRF_TOKEN_LENGTH")
 
 CSRF_SESSION_KEY = "_csrf_token"
 CSRF_FORM_KEY = "csrf_token"
@@ -65,7 +60,8 @@ class RequestForgeryProtection:
         ]
         expected_length = CSRF_TOKEN_LENGTH * 2
         return [
-            self._unmask_csrf_token(token) for token in req_tokens
+            self._unmask_csrf_token(token)
+            for token in req_tokens
             if token and len(token) == expected_length
         ]
 

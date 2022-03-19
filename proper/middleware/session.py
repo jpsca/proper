@@ -2,7 +2,10 @@ from ..constants import FLASHES_SESSION_KEY
 from ..helpers import BadSignature, Dot, FrozenDict
 
 
-__all__ = ("fetch_session", "put_session",)
+__all__ = (
+    "fetch_session",
+    "put_session",
+)
 
 
 def fetch_session(req, resp, app):
@@ -13,7 +16,7 @@ def fetch_session(req, resp, app):
     req._session = FrozenDict(
         session,
         "req.session",
-        error="`req.session` is read-only. Update `resp.session` instead"
+        error="`req.session` is read-only. Update `resp.session` instead",
     )
     resp._session = session.copy()
     resp._session.pop(FLASHES_SESSION_KEY, None)

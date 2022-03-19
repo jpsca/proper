@@ -1,7 +1,6 @@
 ## proper.middleware
 
-This functions that take a request, a response, and an application instance.
-They return nothing, all side-effects must be on the request and/or the response instances.
+This folder contains the pipeline of funcions used to process a request, dispatch it to a controller, and prost-process the response.
 
-The middleware functions in this folder are for private use.
-For instance, even the URL matcher and controller dispatcher are implemented as middleware.
+Each of these functions take a request, a response, and an application instance.
+They return nothing, all side-effects must be on the request and/or the response instances.
