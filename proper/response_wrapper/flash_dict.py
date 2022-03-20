@@ -8,14 +8,14 @@ DICT_ATTRS = ("keys", "get", "items", "update", "setdefault", "values")
 
 
 class FlashDict:
-    def __init__(self, resp):
-        self.resp = resp
+    def __init__(self, response):
+        self.response = response
 
     @property
     def dict(self):
-        if FLASHES_SESSION_KEY not in self.resp.session:
-            self.resp.session[FLASHES_SESSION_KEY] = {}
-        return self.resp.session[FLASHES_SESSION_KEY]
+        if FLASHES_SESSION_KEY not in self.response.session:
+            self.response.session[FLASHES_SESSION_KEY] = {}
+        return self.response.session[FLASHES_SESSION_KEY]
 
     def __getattr__(self, name):
         if name in DICT_ATTRS:

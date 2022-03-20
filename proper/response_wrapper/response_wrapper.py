@@ -16,7 +16,7 @@ from typing import (
 
 from .. import status
 from ..helpers import HeadersDict, tunnel_encode
-from ..request import Request
+from ..request_wrapper import Request
 
 from .cookies import CookiesDict, add_cookie
 from .flash_dict import FlashDict
@@ -75,7 +75,7 @@ class Response:
     raw_body: Optional[str] = None
 
     _app: Any
-    _req: Optional[Request]
+    _request: Optional[Request]
     _session: Dict[str, str]
     _etag: Optional[str] = None
     _last_modified: Optional[date] = None
@@ -86,10 +86,10 @@ class Response:
         content_type: str = "text/html",
         charset: str = "utf-8",
         _app: Any = None,
-        _req: Optional[Request] = None,
+        _request: Optional[Request] = None,
     ) -> None:
         self._app = _app
-        self._req = _req
+        self._request = _request
         self._session = {}
         self._etag = None
         self._last_modified = None
@@ -331,16 +331,16 @@ class Response:
 
     @property
     def is_fresh(self) -> bool:
-        if self._req is None:
+        if self._request is None:
             return False
 
         # An ETag has priority over Last-Modified
-        if self._req.if_none_match and self._etag:
-            if self._etag in self._req.if_none_match:
+        if self._request.if_none_match and self._etag:
+            if self._etag in self._request.if_none_match:
                 return True
 
-        if self._last_modified and self._req.if_modified_since:
-            if self._last_modified <= self._req.if_modified_since:
+        if self._last_modified and self._request.if_modified_since:
+            if self._last_modified <= self._request.if_modified_since:
                 return True
 
         return False

@@ -4,7 +4,7 @@ from ..constants import DELETE, PATCH, POST, PUT
 __all__ = ("method_override",)
 
 
-def method_override(req, resp, app):
+def method_override(request, response, app):
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
     path or in the request body.
@@ -15,15 +15,15 @@ def method_override(req, resp, app):
     * `DELETE`
 
     """
-    if req.request_method != POST:
+    if request.request_method != POST:
         return
 
-    new_method = req.headers.get("X_HTTP_METHOD_OVERRIDE")
+    new_method = request.headers.get("X_HTTP_METHOD_OVERRIDE")
     if not new_method:
-        new_method = req.query.get("_method") or req.form.get("_method")
+        new_method = request.query.get("_method") or request.form.get("_method")
 
     new_method = (new_method or "").upper()
     if new_method not in (PUT, PATCH, DELETE):
         return
 
-    req.method = new_method
+    request.method = new_method

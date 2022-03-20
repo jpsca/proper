@@ -67,17 +67,17 @@ def scaffold(dst):
 
 class AppController(Controller):
     def render(self):
-        return f"<html>{self.resp.template} was rendered</html>"
+        return f"<html>{self.response.template} was rendered</html>"
 
 
 class _Pages(AppController):
     def index(self, *args):
-        self.resp.body = "Hello World!"
-        self.resp.content_type = "text/plain"
-        assert self.resp.content_type == "text/plain"
+        self.response.body = "Hello World!"
+        self.response.content_type = "text/plain"
+        assert self.response.content_type == "text/plain"
 
     def echo(self, *args):
-        self.resp.raw_body = self.req.body
+        self.response.raw_body = self.request.body
 
     def rendered(self, *args):
         pass
@@ -95,29 +95,29 @@ class _Pages(AppController):
         raise ValueError("A non-http exception")
 
     def custom_not_found_handler(self):
-        self.resp.body = "Custom not found handler"
+        self.response.body = "Custom not found handler"
 
     def custom_not_acceptable_handler(self):
-        self.resp.body = "Custom not acceptable handler"
+        self.response.body = "Custom not acceptable handler"
 
     def custom_error_handler(self):
-        self.resp.body = "Custom error handler"
+        self.response.body = "Custom error handler"
 
     def custom_value_error_handler(self):
-        self.resp.body = "Custom value error handler"
+        self.response.body = "Custom value error handler"
 
     def append(self):
-        self.resp.body = (self.resp.body or "") + "-index-"
+        self.response.body = (self.response.body or "") + "-index-"
 
     def set_template(self):
-        self.resp.template = "from_controller.jinja"
+        self.response.template = "from_controller.jinja"
 
     def charset(self):
-        self.resp.charset = "latin1"
-        self.resp.body = "Hello World!"
+        self.response.charset = "latin1"
+        self.response.body = "Hello World!"
 
     def bytes(self):
-        self.resp.body = b"bytes"
+        self.response.body = b"bytes"
 
 
 @pytest.fixture(scope="session")

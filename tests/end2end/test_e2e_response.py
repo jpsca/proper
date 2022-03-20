@@ -4,7 +4,7 @@ from proper.helpers import Dot
 
 class AppController(Controller):
     def render(self):
-        return f"{self.resp.template} was rendered"
+        return f"{self.response.template} was rendered"
 
     def index(self):
         pass
@@ -24,7 +24,7 @@ def test_default_template(app, web):
 
 class CustomTemplate(AppController):
     def set_template(self):
-        self.resp.template = "from_controller.jinja"
+        self.response.template = "from_controller.jinja"
 
 
 def test_custom_template(app, web):
@@ -36,8 +36,8 @@ def test_custom_template(app, web):
 
 class ETagged(AppController):
     def index(self):
-        self.resp.fresh_when(etag=123)
-        self.resp.template = "index.jinja"
+        self.response.fresh_when(etag=123)
+        self.response.template = "index.jinja"
 
 
 def test_if_none_match(app, web):
@@ -57,9 +57,9 @@ def test_set_session(app, web):
 
 class DisableCookies(AppController):
     def index(self):
-        self.resp.set_cookie("foo", "bar")
-        self.resp.disable_cookies = True
-        self.resp.set_cookie("lorem", "ipsum")
+        self.response.set_cookie("foo", "bar")
+        self.response.disable_cookies = True
+        self.response.set_cookie("lorem", "ipsum")
 
 
 def test_disable_cookies(app, web):
@@ -73,17 +73,17 @@ class Redirect(AppController):
         pass
 
     def external(self):
-        self.resp.redirect_to("http://example.com")
+        self.response.redirect_to("http://example.com")
 
     def local(self):
-        self.resp.redirect_to("/local/url")
+        self.response.redirect_to("/local/url")
 
     def verbose(self):
-        self.resp.redirect_to("Redirect.show", id=1, slug="something")
+        self.response.redirect_to("Redirect.show", id=1, slug="something")
 
     def compact(self):
         post = Dot({"id": 1, "slug": "something"})
-        self.resp.redirect_to("Redirect.show", post)
+        self.response.redirect_to("Redirect.show", post)
 
 
 def test_redirect_to(app, web):

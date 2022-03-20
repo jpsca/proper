@@ -38,84 +38,84 @@ def render(template, **data):
         return render("fallback-error.html")
 
 
-def debug_not_found_handler(req, resp, app):
-    if is_index(req):
-        return render_default_index(resp)
+def debug_not_found_handler(request, response, app):
+    if is_index(request):
+        return render_default_index(response)
 
-    error = resp.error
+    error = response.error
     data = {
-        "resp": resp,
+        "response": response,
         "title": get_title(error),
         "description": str(error),
         "routes": app.routes,
     }
-    data.update(get_request_data(req))
-    resp.body = render("debug-not-found.html.jinja", **data)
+    data.update(get_request_data(request))
+    response.body = render("debug-not-found.html.jinja", **data)
 
 
-def is_index(req):
-    return req.method == GET and req.path == "/"
+def is_index(request):
+    return request.method == GET and request.path == "/"
 
 
-def render_default_index(resp):
+def render_default_index(response):
     data = {
         "proper_version": pkg_resources.get_distribution("proper").version,
         "python_version": sys.version,
     }
-    resp.body = render("default-index.html.jinja", **data)
+    response.body = render("default-index.html.jinja", **data)
 
 
-def debug_error_handler(req, resp, _app):
-    error = resp.error
+def debug_error_handler(request, response, _app):
+    error = response.error
     logger.exception(error)
     excp = traceback.format_exc()
     data = {
-        "resp": resp,
+        "response": response,
         "title": get_title(error),
         "description": str(error),
         "traceback": excp,
     }
-    data.update(get_request_data(req))
-    resp.body = render("debug-error.html.jinja", **data)
+    data.update(get_request_data(request))
+    response.body = render("debug-error.html.jinja", **data)
 
 
 def get_title(error):
     return inflection.titleize(error.__class__.__name__)
 
 
-def get_request_data(req):
+def get_request_data(request):
     try:
-        req_query = req.query
+        request_query = request.query
     except Exception:
-        req_query = None
+        request_query = None
     try:
-        req_form = req.form
+        request_form = request.form
     except Exception:
-        req_form = None
+        request_form = None
     try:
-        req_files = req.files
+        request_files = request.files
     except Exception:
-        req_files = None
+        request_files = None
     try:
-        req_headers = req.headers
+        request_headers = request.headers
     except Exception:
-        req_headers = None
+        request_headers = None
     return {
-        "req_query": req_query,
-        "req_form": req_form,
-        "req_files": req_files,
-        "req_headers": req_headers,
+        "request_query": request_query,
+        "request_form": request_form,
+        "request_files": request_files,
+        "request_headers": request_headers,
     }
 
 
-def fallback_not_found_handler(req, resp, _app):
-    resp.body = render("fallback-not-found.html")
+def fallback_not_found_handler(request, response, _app):
+    response.body = render("fallback-not-found.html")
 
 
-def fallback_forbidden_handler(_req, resp, _app):
-    resp.body = render("fallback-forbidden.html")
+def fallback_forbidden_handler(request, response, _app):
+    response.body = render("fallback-forbidden.html")
 
 
-def fallback_error_handler(req, resp, _app):
-    logger.exception(resp.error)
-    resp.body = render("fallback-error.html")
+def fallback_error_handler(request, response, _app):
+    logger.exception(response.error)
+    response.body = render("fallback-error.html")

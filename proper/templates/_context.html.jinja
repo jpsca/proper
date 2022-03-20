@@ -13,43 +13,43 @@
 
 <h3>Request</h3>
 
-{% if req_query -%}
+{% if request_query -%}
 <section>
 	<h4>Query:</h4>
-	{{ print_dict(req_query) }}
+	{{ print_dict(request_query) }}
 </section>
 {%- endif %}
 
-{% if req_form -%}
+{% if request_form -%}
 <section>
 	<h4>Form data:</h4>
-	{{ print_dict(req_form) }}
+	{{ print_dict(request_form) }}
 </section>
 {%- endif %}
 
-{% if req_files -%}
+{% if request_files -%}
 <section>
 	<h4>Files:</h4>
-	{{ print_dict(req_files) }}
+	{{ print_dict(request_files) }}
 </section>
 {%- endif %}
 
-{% if req_headers -%}
+{% if request_headers -%}
 <section>
 	<h4>Environment:</h4>
-	{{ print_dict(req_headers) }}
+	{{ print_dict(request_headers) }}
 </section>
 {%- endif %}
 
 
-{% if resp.headers -%}
+{% if response.headers -%}
 <h3>Response</h3>
 
 <section>
 	<h4>Headers:</h4>
 	<div class="scroll-container">
 		<table class="config">
-			{%- for name, value in resp.headers.items() %}
+			{%- for name, value in response.headers.items() %}
 			<tr>
 				<th><div>{{ name }}</div></th>
 				<td><div>{{ value }}</div></td>

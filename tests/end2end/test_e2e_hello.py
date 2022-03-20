@@ -8,13 +8,13 @@ class MyController(Controller):
         return "whatever"
 
     def index(self):
-        self.resp.body = "Hello Callable!"
+        self.response.body = "Hello Callable!"
 
     def echo_query(self):
-        self.resp.headers["req-query"] = "|".join(
+        self.response.headers["req-query"] = "|".join(
             [
                 f"{key}:{','.join(str(val) for val in values)}"
-                for key, values in self.req.query.items()
+                for key, values in self.request.query.items()
             ]
         )
 

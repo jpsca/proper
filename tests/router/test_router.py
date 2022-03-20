@@ -17,21 +17,21 @@ from proper.router import (
 
 class Foo(Controller):
     def bar(self):
-        self.resp.body = "Hello World!"
+        self.response.body = "Hello World!"
 
 
 class Items(Controller):
     def index(self):
-        self.resp.body = "index"
+        self.response.body = "index"
 
     def create(self):
         pass
 
     def show(self):
-        self.resp.body = "show"
+        self.response.body = "show"
 
     def archive(self):
-        self.resp.body = "archive"
+        self.response.body = "archive"
 
     def delete(self):
         pass
@@ -39,10 +39,10 @@ class Items(Controller):
 
 class Localized(Controller):
     def index(self):
-        self.resp.body = "Localized index"
+        self.response.body = "Localized index"
 
     def item(self, item_id):
-        self.resp.body = f"Localized {item_id}"
+        self.response.body = f"Localized {item_id}"
 
 
 @pytest.fixture

@@ -9,42 +9,44 @@ def serialize_cookie(app, value):
 
 
 def test_set_cookie(app):
-    req = Request()
-    resp = Response()
-    fetch_session(req, resp, app)
-    resp.dispatched = True
-    resp.session["foo"] = "bar"
-    put_session(req, resp, app)
+    request = Request()
+    response = Response()
+
+    fetch_session(request, response, app)
+    response.dispatched = True
+    response.session["foo"] = "bar"
+    put_session(request, response, app)
 
     expected = serialize_cookie(app, {"foo": "bar"})
-    print(resp.cookies)
-    assert resp.cookies[app.config.session.cookie.name].value == expected
+    print(response.cookies)
+    assert response.cookies[app.config.session.cookie.name].value == expected
 
 
 def test_do_not_set_cookie_if_not_data(app):
-    req = Request()
-    resp = Response()
-    fetch_session(req, resp, app)
-    resp.dispatched = True
-    resp._session = Dot()
-    put_session(req, resp, app)
+    request = Request()
+    response = Response()
 
-    assert app.config.session.cookie.name not in resp.cookies
+    fetch_session(request, response, app)
+    response.dispatched = True
+    response._session = Dot()
+    put_session(request, response, app)
+
+    assert app.config.session.cookie.name not in response.cookies
 
 
 def test_set_delete_cookie_if_not_data_and_modified(app):
-    req = Request()
-    resp = Response()
+    request = Request()
+    response = Response()
 
     expected = serialize_cookie(app, {"foo": "bar"})
-    req.cookies[app.config.session.cookie.name] = expected
-    fetch_session(req, resp, app)
+    request.cookies[app.config.session.cookie.name] = expected
+    fetch_session(request, response, app)
 
-    resp.dispatched = True
-    del resp.session["foo"]
-    put_session(req, resp, app)
+    response.dispatched = True
+    del response.session["foo"]
+    put_session(request, response, app)
 
     cookie_name = app.config.session.cookie.name
-    assert cookie_name in resp.cookies
-    assert resp.cookies[cookie_name].value == ""
-    assert resp.cookies[cookie_name]["max-age"] == 0
+    assert cookie_name in response.cookies
+    assert response.cookies[cookie_name].value == ""
+    assert response.cookies[cookie_name]["max-age"] == 0

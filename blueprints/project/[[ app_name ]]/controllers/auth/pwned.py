@@ -12,12 +12,12 @@ HTTP_OK = 200
 def query_api(hprefix):
     url = f"{API_URL}{hprefix}"
     try:
-        req = urllib.request.urlopen(url, timeout=1)
+        resp = urllib.request.urlopen(url, timeout=1)
     except HTTPException:
         return []
-    if req.status != HTTP_OK:
+    if resp.status != HTTP_OK:
         return []
-    return req.read().decode("utf8").split("\r\n")
+    return resp.read().decode("utf8").split("\r\n")
 
 
 def get_pwned_count(passw):

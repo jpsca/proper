@@ -11,14 +11,14 @@ class BeforeAndAfterTestCase(Controller):
         self._f2()
 
     def index(self):
-        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-index-"
-        self.resp.body = ""
+        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-index-"
+        self.response.body = ""
 
     def _f1(self):
-        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f1-"
+        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-f1-"
 
     def _f2(self):
-        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f2-"
+        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-f2-"
 
 
 def test_before_and_after_filters(app, web):
@@ -30,10 +30,10 @@ def test_before_and_after_filters(app, web):
 
 class SideEffectsTestCase(Controller):
     def before_action(self):
-        self.resp.template = "f_custom.mako"
+        self.response.template = "f_custom.mako"
 
     def rendered(self, *args):
-        self.resp.body = f"<html>{self.resp.template} was rendered</html>"
+        self.response.body = f"<html>{self.response.template} was rendered</html>"
 
 
 def test_custom_template_from_cb(app, web):
@@ -45,12 +45,12 @@ def test_custom_template_from_cb(app, web):
 
 class StopTestCase(Controller):
     def before_action(self):
-        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-f1-"
-        self.resp.stop = True
+        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-f1-"
+        self.response.stop = True
 
     def index(self):
-        self.resp.headers["X-Test"] = self.resp.headers.get("X-Test", "") + "-index-"
-        self.resp.body = ""
+        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-index-"
+        self.response.body = ""
 
 
 def test_stop_in_filters(app, web):

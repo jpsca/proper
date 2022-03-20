@@ -6,8 +6,8 @@ from typing import Any, Optional, Union
 
 from ..app import App
 from ..helpers import MultiDict, jsonplus
-from ..request import Request
-from ..response import Response
+from ..request_wrapper import Request
+from ..response_wrapper import Response
 from ..status import not_modified, ok, see_other
 from .request_forgery_protection import RequestForgeryProtection
 
@@ -29,20 +29,20 @@ class Controller(RequestForgeryProtection):
     def __init__(
         self,
         *,
-        req: Optional[Request] = None,
-        resp: Optional[Response] = None,
+        request: Optional[Request] = None,
+        response: Optional[Response] = None,
         app: Optional[App] = None,
     ) -> None:
-        self.req = req or Request()
-        self.resp = resp or Response()
+        self.request = request or Request()
+        self.response = response or Response()
         self.app = app
 
     @property
     def params(self) -> MultiDict:
         params = MultiDict()
-        params.update(self.req.query)
-        params.update(self.req.form)
-        params.update(self.req.matched_params or {})
+        params.update(self.request.query)
+        params.update(self.request.form)
+        params.update(self.request.matched_params or {})
         return params
 
     def render(
@@ -54,27 +54,27 @@ class Controller(RequestForgeryProtection):
         text: Optional[Any] = None,
     ) -> str:
         if status is not None:
-            self.resp.status_code = status
+            self.response.status_code = status
 
         if json is not None:
-            self.resp.content_type = "application/json"
+            self.response.content_type = "application/json"
             return jsonplus.dumps(json)
 
         if text is not None:
-            self.resp.content_type = "text/plain"
+            self.response.content_type = "text/plain"
             return text
 
         # The template doesn't have a extension so you can choose to use
         # the default template name but changing the response format from the
         # default, for example, using ".json" instead of ".html".
-        template = template or self.resp.template
+        template = template or self.response.template
         filename = self.get_template_filename(template)
         return self.app.render(filename, **vars(self))
 
     def get_template_filename(self, template: str) -> str:
         """Override to use a different schema, for example, to
         not use the ".jinja" postfix."""
-        return f"{template}{self.resp.format}.jinja"
+        return f"{template}{self.response.format}.jinja"
 
     def redirect_to(
         self,
@@ -86,7 +86,7 @@ class Controller(RequestForgeryProtection):
         status_code: str = see_other,
         **kwargs,
     ) -> None:
-        return self.resp.redirect_to(
+        return self.response.redirect_to(
             url_or_route,
             object=object,
             flash=flash,
@@ -124,10 +124,10 @@ class Controller(RequestForgeryProtection):
         self.action_name = action_name
 
         self._call_mro_method("before_action")
-        if self.resp.stop:
+        if self.response.stop:
             return
 
-        if not self.resp.dispatched:
+        if not self.response.dispatched:
             self._call()
 
         self._call_mro_method("after_action")
@@ -147,20 +147,20 @@ class Controller(RequestForgeryProtection):
         # We call the endpoint but we do not expect a result value.
         # All the side effects of this call should be stored in the same
         # controller and in `resp`.
-        req, resp = self.req, self.resp
+        request, response = self.request, self.response
         method = getattr(self, self.action_name)
         ret_value = method()
 
-        if resp.is_fresh:
-            resp.status_code = not_modified
-            resp.body = ""
+        if response.is_fresh:
+            response.status_code = not_modified
+            response.body = ""
             return
 
-        if resp.stop or req.request_method == "HEAD":
+        if response.stop or request.request_method == "HEAD":
             return
 
         if ret_value is not None:
-            resp.body = ret_value
+            response.body = ret_value
 
-        if not resp.has_body:
-            resp.body = self.render()
+        if not response.has_body:
+            response.body = self.render()

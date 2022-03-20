@@ -5,7 +5,7 @@ def test_catch_on_teardown_func_error(app, Pages, start_response):
     app.routes = [get("/", to=Pages.index)]
 
     @app.on_teardown
-    def always_fail(req, resp):
+    def always_fail(request, response):
         raise ValueError
 
     body = app({}, start_response)

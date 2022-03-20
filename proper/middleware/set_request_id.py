@@ -1,5 +1,5 @@
 """
-Makes a unique request id available to the `req.request_id` variable
+Makes a unique request id available to the `request.request_id` variable
 and sends the same id to the client via the "X-Request-Id" header.
 
 This unique request id can be used to trace a request end-to-end and would typically
@@ -22,15 +22,15 @@ REQUEST_ID_MAX_LENGTH = 200
 RE_NON_ASCII = re.compile(r"[^\x00-\x7f-]")
 
 
-def set_request_id(req, resp, app):
-    request_id = req.headers.get(REQUEST_ID_HEADER)
+def set_request_id(request, response, app):
+    request_id = request.headers.get(REQUEST_ID_HEADER)
     if request_id:
         request_id = sanitize_request_id(request_id)
     else:
         request_id = new_request_id()
 
-    req.request_id = request_id
-    resp.set_header(REQUEST_ID_HEADER, request_id)
+    request.request_id = request_id
+    response.set_header(REQUEST_ID_HEADER, request_id)
 
 
 def sanitize_request_id(request_id: str) -> str:

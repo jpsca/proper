@@ -13,7 +13,7 @@
   <a href="{{ url_for('[[ plural_pascal ]].edit', pk=[[ singular_snake ]].id) }}">Edit this [[ singular_snake ]]</a>
   <a href="{{ url_for('[[ plural_pascal ]].index') }}">Back to [[ plural_snake ]]</a>
   <form method="post" action="{{ url_for('[[ plural_pascal ]].delete', pk=[[ singular_snake ]].id) }}">
-    <input type="hidden" name="csrf_token" value="{{ req.csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ request.csrf_token }}">
     <input type="hidden" name="_method" value="DELETE">
     <button type="submit">Delete this [[ singular_snake ]]</button>
   </form>

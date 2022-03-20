@@ -5,7 +5,7 @@ from contextvars import ContextVar
 from functools import partial
 from importlib import import_module
 from pathlib import Path
-from typing import Callable, Optional, Tuple
+from typing import Callable, Tuple
 
 import inflection
 from jinja2 import Markup
@@ -28,13 +28,11 @@ from .auth import Auth
 from .errors import MatchNotFound
 from .helpers import Dot, Render, Serializer
 from .middleware.dispatch import dispatch
-from .request import Request
-from .response import Response
+from .request_wrapper import Request
+from .response_wrapper import Response
 from .router import Router, get
 from .static import RX_INMUTABLES_FILE
 
-
-__all__ = ("App", "BadSecretKey")
 
 TEMPLATES_FOLDER = "templates"
 STATIC_PREFIX = "static"
@@ -42,7 +40,9 @@ STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
 
 logger = logging.getLogger(__name__)
-current = ContextVar("current", default=None)
+
+_request_cv = ContextVar("_request_cv", default=Request())
+_response_cv = ContextVar("_response_cv", default=Response())
 
 
 class BadSecretKey(Exception):
@@ -123,10 +123,6 @@ class App:
     def static_manifest_path(self):
         return self.static_path / MANIFEST_PATH
 
-    @property
-    def current_req(self) -> Optional[Request]:
-        return current.get(None)
-
     def on_before_dispatch(self, func: Callable) -> Callable:
         """Decorator to add a function to the `_on_after_dispatch` tuple."""
         self._on_before_dispatch = self._on_before_dispatch + (func,)
@@ -148,47 +144,49 @@ class App:
         return func
 
     def wsgi_app(self, environ, start_response):
-        req = Request(
+        request = Request(
             max_content_length=self._config.max_content_length,
             max_query_size=self._config.max_query_size,
             **environ,
         )
-        token = current.set(req)
-        resp = Response(_app=self, _req=req)
+        response = Response(_app=self, _request=request)
+
+        _request_cv.set(request)
+        _response_cv.set(response)
 
         try:
-            self.run_pipeline(req, resp)
-            current.reset(token)
-            return resp(start_response)
+            self.run_pipeline(request, response)
+            return response(start_response)
 
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
             # - the custom error handlers,
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
-            resp.error = error
-            self._default_error_handler(req, resp)
-            current.reset(token)
-            return resp(start_response)
+            response.error = error
+            self._default_error_handler(request, response)
+            _request_cv.set(None)
+            _response_cv.set(None)
+            return response(start_response)
 
-    def run_pipeline(self, req: Request, resp: Response) -> None:
+    def run_pipeline(self, request: Request, response: Response) -> None:
         try:
             for func in (
                 self._on_before_dispatch + self._on_dispatch + self._on_after_dispatch
             ):
-                func(req, resp)
-                if resp.stop:
+                func(request, response)
+                if response.stop:
                     break
 
         except Exception as error:
-            resp.error = error
+            response.error = error
             for func in self._on_error:
-                func(req, resp)
-            self._handle_app_error(req, resp)
+                func(request, response)
+            self._handle_app_error(request, response)
 
         finally:
             for func in self._on_teardown:
-                func(req, resp)
+                func(request, response)
 
     def error_handler(self, cls, to):
         """Register a controller method to handle errors by exception class.
@@ -374,61 +372,61 @@ class App:
         Cli = get_app_cli(self)
         self.cli = Cli()
 
-    def _handle_app_error(self, req, resp):
+    def _handle_app_error(self, request, response):
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
         """
-        self._set_status_code(resp)
+        self._set_status_code(response)
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
         if self._config.debug:
-            return self._default_error_handler(req, resp)
+            return self._default_error_handler(request, response)
 
         if self.error_handlers:
-            error = resp.error
+            error = response.error
             for cls, handler in self.error_handlers.items():
                 if isinstance(error, cls):
-                    return self._custom_error_handler(req, resp, handler)
+                    return self._custom_error_handler(request, response, handler)
 
-        self._default_error_handler(req, resp)
+        self._default_error_handler(request, response)
 
-    def _set_status_code(self, resp):
-        error = resp.error
-        resp.status_code = getattr(error, "status_code", status.server_error)
+    def _set_status_code(self, response):
+        error = response.error
+        response.status_code = getattr(error, "status_code", status.server_error)
 
-    def _default_error_handler(self, req, resp):
-        self._set_status_code(resp)
+    def _default_error_handler(self, request, response):
+        self._set_status_code(response)
 
         if not self._config.debug and not self._config.catch_all_errors:
             raise
         if self._config.debug:
-            self._default_error_handler_debug(req, resp)
+            self._default_error_handler_debug(request, response)
         else:
-            self._default_error_handler_production(req, resp)
+            self._default_error_handler_production(request, response)
 
-    def _default_error_handler_debug(self, req, resp):
-        if isinstance(resp.error, MatchNotFound):
-            debug_not_found_handler(req, resp, self)
+    def _default_error_handler_debug(self, request, response):
+        if isinstance(response.error, MatchNotFound):
+            debug_not_found_handler(request, response, self)
         else:
-            debug_error_handler(req, resp, self)
+            debug_error_handler(request, response, self)
 
-    def _default_error_handler_production(self, req, resp):
-        if resp.status_code in (status.not_found, status.gone):
-            fallback_not_found_handler(req, resp, self)
-        elif resp.status_code == status.forbidden:
-            fallback_forbidden_handler(req, resp, self)
+    def _default_error_handler_production(self, request, response):
+        if response.status_code in (status.not_found, status.gone):
+            fallback_not_found_handler(request, response, self)
+        elif response.status_code == status.forbidden:
+            fallback_forbidden_handler(request, response, self)
         else:
-            fallback_error_handler(req, resp, self)
+            fallback_error_handler(request, response, self)
 
-    def _custom_error_handler(self, req, resp, handler):
-        resp.template = None
-        req.matched_route = Dot({"to": handler})
-        req.matched_params = {}
-        dispatch(req, resp, self)
+    def _custom_error_handler(self, request, response, handler):
+        response.template = None
+        request.matched_route = Dot({"to": handler})
+        request.matched_params = {}
+        dispatch(request, response, self)
 
-    def _rollback_db_session(self, _req, _resp):
+    def _rollback_db_session(self, request, response):
         self.db.s.rollback()
 
-    def _remove_db_session(self, _req, _resp):
+    def _remove_db_session(self, request, response):
         self.db.s.remove()

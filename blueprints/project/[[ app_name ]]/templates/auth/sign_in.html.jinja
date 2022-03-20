@@ -4,7 +4,7 @@
 
 {% block body %}
 <form method="post" action="" class="w-full p-12 bg-white border border-gray-300 shadow-xl rounded-xl" id="signInForm" novalidate>
-	<input type="hidden" name="csrf_token" value="{{ req.csrf_token }}">
+	<input type="hidden" name="csrf_token" value="{{ request.csrf_token }}">
 
 	<div class="mb-8 text-center">
 		<h2 class="mt-6 text-3xl font-bold text-gray-900">

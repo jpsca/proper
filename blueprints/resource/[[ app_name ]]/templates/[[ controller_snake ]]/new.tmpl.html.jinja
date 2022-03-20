@@ -10,7 +10,7 @@
 	action="{{ app.url_for('[[ plural_pascal ]].create') }}"
 	novalidate
 >
-	<input type="hidden" name="csrf_token" value="{{ req.csrf_token }}">
+	<input type="hidden" name="csrf_token" value="{{ request.csrf_token }}">
 
 	{% include "[[ plural_snake ]]/_form.html.jinja" %}
 

@@ -1,5 +1,7 @@
 import unicodedata
 
+from proper import request, response
+
 from [[ app_name ]].app import auth, config, db
 
 
@@ -65,29 +67,29 @@ class Authenticable:
     def authenticate_session_token(cls, token):
         return auth.authenticate_session_token(cls, token)
 
-    def sign_in(self, req, resp):
+    def sign_in(self):
         """Store in the session an unique token for the user, so it can stay
         logged between requests.
         """
         assert self.id is not None
-        req.user = self
-        resp.session[self.SESSION_KEY] = auth.get_session_token(req.user)
+        request.user = self
+        response.session[self.SESSION_KEY] = auth.get_session_token(request.user)
 
-    def sign_out(self, req, resp):
-        req.user = None
+    def sign_out(self):
+        request.user = None
         # The session is shared so, if you have more than
         # one model/user-type signed in at the same time,
         # you don't want to do this.
         if self.CLEAR_SESSION_ON_SIGN_OUT:
-            resp.session.clear()
+            response.session.clear()
             return
 
-        if self.SESSION_KEY in resp.session:
-            del resp.session[self.SESSION_KEY]
-        if self.REDIRECT_KEY in resp.session:
-            del resp.session[self.SESSION_KEY]
+        if self.SESSION_KEY in response.session:
+            del response.session[self.SESSION_KEY]
+        if self.REDIRECT_KEY in response.session:
+            del response.session[self.SESSION_KEY]
 
-    def set_new_password(self, new_password, *, req, resp):
+    def set_new_password(self, new_password):
         self.password = new_password
         # Password has change, so we need to updated the session too
-        self.sign_in(req, resp)
+        self.sign_in()

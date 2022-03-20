@@ -1,6 +1,6 @@
 from os import getenv
 
-from proper import Controller
+from proper import Controller, request, response
 
 from [[ app_name ]].app import app, config
 from [[ app_name ]].models import User
@@ -22,7 +22,7 @@ class AppController(Controller):
     # Private
 
     def _put_security_headers(self):
-        self.resp.headers.update({
+        response.headers.update({
             # It determines if a web page can or cannot be included via <frame>
             # and <iframe> topics by untrusted domains.
             # https://developer.mozilla.org/Web/HTTP/Headers/X-Frame-Options
@@ -47,7 +47,7 @@ class AppController(Controller):
         user = None
         if config.debug:
             user = self._get_remote_user()
-        self.req.user = user or self._get_user(self.resp.session)
+        request.user = user or self._get_user(response.session)
 
     def _get_remote_user(self):
         """Simulate authentication for testing."""
@@ -72,8 +72,8 @@ class PrivateController(AppController):
     # Private
 
     def _require_login(self):
-        if self.req.user:
+        if request.user:
             return
-        if REDIRECT_AFTER_LOGIN_KEY not in self.resp.session:
-            self.resp.session[REDIRECT_AFTER_LOGIN_KEY] = self.req.path
-        self.resp.redirect_to(app.url_for("Auth.sign_in"))
+        if REDIRECT_AFTER_LOGIN_KEY not in response.session:
+            response.session[REDIRECT_AFTER_LOGIN_KEY] = request.path
+        response.redirect_to(app.url_for("Auth.sign_in"))

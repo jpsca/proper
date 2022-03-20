@@ -24,22 +24,22 @@ class RequestForgeryProtection:
         else:
             self._handle_unverified_request()
 
-        token = self.req.session.get(CSRF_SESSION_KEY)
+        token = self.request.session.get(CSRF_SESSION_KEY)
         masked_token = self._mask_csrf_token(token) if token else None
-        self.req.csrf_token = masked_token
+        self.request.csrf_token = masked_token
         if masked_token:
-            self.resp.headers[CSRF_HEADER] = masked_token
+            self.response.headers[CSRF_HEADER] = masked_token
 
     def _must_check_csrf_token(self, action: str) -> bool:
         """Return wether the csrf token in the request must be checked
         for validity."""
         return (
-            self.req.request_method not in (HEAD, GET, OPTIONS)
+            self.request.request_method not in (HEAD, GET, OPTIONS)
             and action not in self.skip_csrf_check_for
         )
 
     def _handle_verified_request(self):
-        session_token = self.req.session.get(CSRF_SESSION_KEY)
+        session_token = self.request.session.get(CSRF_SESSION_KEY)
         if not session_token:
             self._handle_invalid_csrf_token()
             return
@@ -55,7 +55,7 @@ class RequestForgeryProtection:
     def _get_request_csrf_tokens(self) -> List[str]:
         """Get possible csrf tokens sent in the request."""
         req_tokens = [
-            self._csrf_token_in_form() if self.req.content_length else None,
+            self._csrf_token_in_form() if self.request.content_length else None,
             self._csrf_token_in_header(),
         ]
         expected_length = CSRF_TOKEN_LENGTH * 2
@@ -68,11 +68,11 @@ class RequestForgeryProtection:
     def _csrf_token_in_form(self) -> Optional[str]:
         """Search for a CSRF token in the body data.
         Override to provide your own."""
-        return self.req.form.get(CSRF_FORM_KEY)
+        return self.request.form.get(CSRF_FORM_KEY)
 
     def _csrf_token_in_header(self) -> Optional[str]:
         """Search for a CSRF token in a header"""
-        return self.req.headers.get(CSRF_HEADER)
+        return self.request.headers.get(CSRF_HEADER)
 
     def _handle_invalid_csrf_token(self) -> None:
         raise InvalidCSRFToken(
@@ -88,13 +88,13 @@ class RequestForgeryProtection:
         )
 
     def _handle_unverified_request(self):
-        session_token = self.req.session.get(CSRF_SESSION_KEY)
-        if not session_token and self.req.request_method == GET:
+        session_token = self.request.session.get(CSRF_SESSION_KEY)
+        if not session_token and self.request.request_method == GET:
             self._set_new_csrf_token()
 
     def _set_new_csrf_token(self) -> None:
         token = self._generate_csrf_token()
-        self.resp.session[CSRF_SESSION_KEY] = token
+        self.response.session[CSRF_SESSION_KEY] = token
 
     def _generate_csrf_token(self) -> str:
         token = base64.urlsafe_b64encode(os.urandom(CSRF_TOKEN_LENGTH))

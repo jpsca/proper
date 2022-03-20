@@ -8,22 +8,22 @@ __all__ = (
 )
 
 
-def fetch_session(req, resp, app):
+def fetch_session(request, response, app):
     """Get the session data from the cookie and puts into the request
     and response.
     """
-    session = Dot(get_session(req, app))
-    req._session = FrozenDict(
+    session = Dot(get_session(request, app))
+    request._session = FrozenDict(
         session,
-        "req.session",
-        error="`req.session` is read-only. Update `resp.session` instead",
+        "request.session",
+        error="`request.session` is read-only. Update `response.session` instead",
     )
-    resp._session = session.copy()
-    resp._session.pop(FLASHES_SESSION_KEY, None)
+    response._session = session.copy()
+    response._session.pop(FLASHES_SESSION_KEY, None)
 
 
-def get_session(req, app):
-    cookie_value = req.cookies.get(app.config.session.cookie.name)
+def get_session(request, app):
+    cookie_value = request.cookies.get(app.config.session.cookie.name)
     if cookie_value is None:
         return {}
     try:
@@ -32,19 +32,19 @@ def get_session(req, app):
         return {}
 
 
-def put_session(req, resp, app):
-    if resp.session != req.session:
-        update_session_cookie(resp, app)
+def put_session(request, response, app):
+    if response.session != request.session:
+        update_session_cookie(response, app)
 
 
-def update_session_cookie(resp, app):
+def update_session_cookie(response, app):
     """Update the session cookie if its needed."""
     config = app.config.session
-    session = resp.session
+    session = response.session
 
     # If the session was modified to be empty, remove the cookie.
     if not session:
-        resp.delete_cookie(
+        response.delete_cookie(
             config.cookie.name,
             path=config.cookie.path or "/",
             domain=config.cookie.domain,
@@ -53,7 +53,7 @@ def update_session_cookie(resp, app):
 
     cookie_value = app.serializer.dumps(dict(session))
 
-    resp.set_cookie(
+    response.set_cookie(
         config.cookie.name,
         cookie_value,
         max_age=int(config.lifetime) if config.lifetime else None,

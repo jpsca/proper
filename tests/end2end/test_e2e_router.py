@@ -16,21 +16,21 @@ from proper.helpers import Dot
 
 class Foo(Controller):
     def bar(self):
-        self.resp.body = "Hello World!"
+        self.response.body = "Hello World!"
 
 
 class Items(Controller):
     def index(self):
-        self.resp.body = "index"
+        self.response.body = "index"
 
     def create(self):
         pass
 
     def show(self):
-        self.resp.body = "show"
+        self.response.body = "show"
 
     def archive(self):
-        self.resp.body = "archive"
+        self.response.body = "archive"
 
     def delete(self):
         pass
