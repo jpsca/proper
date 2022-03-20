@@ -13,7 +13,7 @@ class Auth(AppController):
         if request.user:
             return go_forward()
 
-        self.form = form = forms.SignInForm(request.form)
+        self.form = form = forms.SignInForm(self.params)
         if not request.is_post or not form.validate():
             return
 
@@ -35,7 +35,7 @@ class Auth(AppController):
         return response.redirect_to("/")
 
     def reset(self):
-        self.form = form = forms.PasswordResetForm(request.form)
+        self.form = form = forms.PasswordResetForm(self.params)
         if not request.is_post:
             return
 
@@ -60,7 +60,7 @@ class Auth(AppController):
         if not request.user:
             return response.redirect_to(app.url_for("Auth.sign_in"))
 
-        self.form = form = forms.PasswordChangeForm(request.form)
+        self.form = form = forms.PasswordChangeForm(self.params)
         self.password_minlen = config.auth.password_minlen
 
         if not request.is_post:
