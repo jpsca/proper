@@ -3,7 +3,8 @@ import proper.forms as f
 from .validators import (
     login_exists,
     password_hasnt_been_pwned,
-    password_is_long,
+    password_is_long_enough,
+    password_confirmed,
 )
 
 
@@ -17,11 +18,11 @@ class PasswordResetForm(f.Form):
 
 
 class PasswordChangeForm(f.Form):
-    # I want the passwords to be remembered if there is
-    # a validation error, so it can be fixed quickly.
+    # This is a `Text` field and not a `Password` so the password is remembered
+    # when the validation fails, so it can be fixed quickly.
     password = f.Text(
-        f.Confirmed("Passwords don’t match.<br>Remember that are case-sensitive"),
-        password_is_long,
+        password_is_long_enough,
+        password_confirmed,
         password_hasnt_been_pwned,
         multiple=True,
         required=True,

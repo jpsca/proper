@@ -20,10 +20,10 @@ TStringOrPath = Union[str, Path]
 class Controller(RequestForgeryProtection):
     action_name: str
 
-    def before_action(self) -> None:
-        self.protect_from_forgery(self.action_name)
+    def __before__(self) -> None:
+        pass
 
-    def after_action(self) -> None:
+    def __after__(self) -> None:
         pass
 
     def __init__(
@@ -123,14 +123,14 @@ class Controller(RequestForgeryProtection):
     def _dispatch(self, action_name: str) -> None:
         self.action_name = action_name
 
-        self._call_mro_method("before_action")
+        self._call_mro_method("__before__")
         if self.response.stop:
             return
 
         if not self.response.dispatched:
             self._call()
 
-        self._call_mro_method("after_action")
+        self._call_mro_method("__after__")
 
     def _call_mro_method(self, method_name: str) -> None:
         visited = []

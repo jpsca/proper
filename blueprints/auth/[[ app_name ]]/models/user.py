@@ -1,5 +1,5 @@
 from ..app import db
-from .mixins import Authenticable, Timestamped
+from .concerns import Authenticable, Timestamped
 
 
 class User(Authenticable, Timestamped, db.Model):

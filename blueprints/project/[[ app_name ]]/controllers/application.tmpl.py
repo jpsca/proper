@@ -1,22 +1,13 @@
-from os import getenv
-
-from proper import Controller, request, response
-
-from [[ app_name ]].app import app, config
-from [[ app_name ]].models import User
-
-
-REDIRECT_AFTER_LOGIN_KEY = "_redirect"
-USER_SESSION_KEY = "_user_token"
+from proper import Controller, response
 
 
 class AppController(Controller):
     """All other controllers must inherit from this class.
     """
-    def before_action(self):
-        self._load_user()
+    def __before__(self):
+        pass
 
-    def after_action(self):
+    def __after__(self):
         self._put_security_headers()
 
     # Private
@@ -42,38 +33,3 @@ class AppController(Controller):
 
             "Referrer-Policy": "strict-origin-when-cross-origin",
         })
-
-    def _load_user(self):
-        user = None
-        if config.debug:
-            user = self._get_remote_user()
-        request.user = user or self._get_user(response.session)
-
-    def _get_remote_user(self):
-        """Simulate authentication for testing."""
-        user_id = getenv("REMOTE_USER")
-        if user_id:
-            return User.by_id(user_id)
-
-    def _get_user(self, session):
-        token = session.get(USER_SESSION_KEY)
-        user = User.authenticate_session_token(token)
-        if token and not user:
-            del session[USER_SESSION_KEY]
-            return None
-        return user
-
-
-class PrivateController(AppController):
-    """User-only controllers can inherit from this one."""
-    def before_action(self):
-        self._require_login()
-
-    # Private
-
-    def _require_login(self):
-        if request.user:
-            return
-        if REDIRECT_AFTER_LOGIN_KEY not in response.session:
-            response.session[REDIRECT_AFTER_LOGIN_KEY] = request.path
-        response.redirect_to(app.url_for("Auth.sign_in"))

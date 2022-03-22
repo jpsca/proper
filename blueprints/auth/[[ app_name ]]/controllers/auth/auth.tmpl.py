@@ -3,15 +3,21 @@ from proper import request, response
 from [[ app_name ]].app import app, config
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
-from ..application import AppController, REDIRECT_AFTER_LOGIN_KEY
+from ..application import AppController
+from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from . import forms
+from .validators import ERROR_CREDENTIALS
+
+
+# ERROR_PASSWORD = "We didn't recognize that password"
+ERROR_PASSWORD = ERROR_CREDENTIALS
 
 
 class Auth(AppController):
 
     def sign_in(self):
         if request.user:
-            return go_forward()
+            return self._go_forward()
 
         self.form = form = forms.SignInForm(self.params)
         if not request.is_post or not form.validate():
@@ -20,14 +26,11 @@ class Auth(AppController):
         credentials = form.save()
         user = User.authenticate(**credentials)
         if not user:
-            # msg = "We didn’t recognize that password."
-            msg = "Wrong username and/or password"
-            form.password.error = msg
+            form.password.error = ERROR_PASSWORD
             return
 
         user.sign_in()
-        response.flash["notice"] = "Welcome back!"
-        return go_forward()
+        return self._go_forward(flash="Welcome back!")
 
     def sign_out(self):
         if request.user:
@@ -71,9 +74,10 @@ class Auth(AppController):
 
         new_password = form.save()["password"][0]
         request.user.set_new_password(new_password)
-        go_forward()
+        self._go_forward(flash="Password updated")
 
+    # Private
 
-def go_forward():
-    next_url = response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
-    response.redirect_to(next_url)
+    def _go_forward(self, flash=None):
+        next_url = response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
+        response.redirect_to(next_url, flash=flash)

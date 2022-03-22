@@ -17,6 +17,9 @@ CSRF_TOKEN_LENGTH = 32
 class RequestForgeryProtection:
     skip_csrf_check_for = tuple()
 
+    def __before__(self) -> None:
+        self.protect_from_forgery(self.action_name)
+
     def protect_from_forgery(self, action_name: str) -> None:
         """"""
         if self._must_check_csrf_token(action_name):
