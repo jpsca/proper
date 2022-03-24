@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from ..app import App
+from ..constants import HEAD
 from ..helpers import MultiDict, jsonplus
 from ..request_wrapper import Request
 from ..response_wrapper import Response
@@ -156,7 +157,7 @@ class Controller(RequestForgeryProtection):
             response.body = ""
             return
 
-        if response.stop or request.request_method == "HEAD":
+        if response.stop or request.request_method == HEAD:
             return
 
         if ret_value is not None:

@@ -189,7 +189,7 @@ class Request:
         self.max_query_size = max_query_size
         env = env or make_test_environ()
         self.env = env
-        self.method = env.get("REQUEST_METHOD", "GET").upper()
+        self.method = env.get("REQUEST_METHOD", GET).upper()
         self.request_method = self.method
         # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
         # Read the docstring on `support/encoding.py` for more details.

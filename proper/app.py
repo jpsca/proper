@@ -15,7 +15,6 @@ from whitenoise import WhiteNoise
 from . import middleware, status
 from .cli_app import get_app_cli
 from .config import get_env, get_default_config
-from .constants import MIN_SECRET_LENGTH
 from .cryptex import Cryptex
 from .error_handlers import (
     debug_error_handler,
@@ -38,6 +37,7 @@ TEMPLATES_FOLDER = "templates"
 STATIC_PREFIX = "static"
 STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
+MIN_SECRET_LENGTH = 48
 
 logger = logging.getLogger(__name__)
 

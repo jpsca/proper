@@ -1,4 +1,4 @@
-from ..constants import DELETE, PATCH, POST, PUT
+from ..constants import DELETE, PATCH, POST, PUT, RESTORE
 
 
 __all__ = ("method_override",)
@@ -13,6 +13,7 @@ def method_override(request, response, app):
     * `PUT`
     * `PATCH`
     * `DELETE`
+    * `RESTORE`
 
     """
     if request.request_method != POST:
@@ -23,7 +24,7 @@ def method_override(request, response, app):
         new_method = request.query.get("_method") or request.form.get("_method")
 
     new_method = (new_method or "").upper()
-    if new_method not in (PUT, PATCH, DELETE):
+    if new_method not in (PUT, PATCH, DELETE, RESTORE):
         return
 
     request.method = new_method

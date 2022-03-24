@@ -1,33 +1,47 @@
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
+from ..constants import GET, POST, PUT, DELETE, PATCH
 from .route import Route
 
 
-__all__ = [
-    "resource",
-]
+__all__ = ("resource",)
 
+ACTION_INDEX = "index"
+ACTION_NEW = "new"
+ACTION_CREATE = "create"
+ACTION_SHOW = "show"
+ACTION_EDIT = "edit"
+ACTION_UPDATE = "update"
+ACTION_DELETE = "delete"
 
 GROUP_ROUTES = (
-    ("GET", "/", "index"),
-    ("GET", "/new", "new"),
-    ("POST", "/", "create"),
-    ("GET", "/:pk", "show"),
-    ("GET", "/:pk/edit", "edit"),
-    ("PATCH", "/:pk", "update"),
-    ("PUT", "/:pk", "update"),
-    ("DELETE", "/:pk", "delete"),
+    (GET, "/", ACTION_INDEX),
+    (GET, "/new", ACTION_NEW),
+    (POST, "/", ACTION_CREATE),
+    (GET, "/:pk", ACTION_SHOW),
+    (GET, "/:pk/edit", ACTION_EDIT),
+    (PATCH, "/:pk", ACTION_UPDATE),
+    (PUT, "/:pk", ACTION_UPDATE),
+    (DELETE, "/:pk", ACTION_DELETE),
 )
 SINGLE_ROUTES = (
-    ("GET", "/new", "new"),
-    ("POST", "/", "create"),
-    ("GET", "/", "show"),
-    ("GET", "/edit", "edit"),
-    ("PATCH", "/", "update"),
-    ("PUT", "/", "update"),
-    ("DELETE", "/", "delete"),
+    (GET, "/new", ACTION_NEW),
+    (POST, "/", ACTION_CREATE),
+    (GET, "/", ACTION_SHOW),
+    (GET, "/edit", ACTION_EDIT),
+    (PATCH, "/", ACTION_UPDATE),
+    (PUT, "/", ACTION_UPDATE),
+    (DELETE, "/", ACTION_DELETE),
 )
-ACTIONS = ("index", "new", "create", "show", "edit", "update", "delete")
+ACTIONS = (
+    ACTION_INDEX,
+    ACTION_NEW,
+    ACTION_CREATE,
+    ACTION_SHOW,
+    ACTION_EDIT,
+    ACTION_UPDATE,
+    ACTION_DELETE,
+)
 
 StrOrIter = Union[Iterable[str], str]
 
@@ -84,6 +98,12 @@ def resource(
 
     In both scenarios, we validate the arguments first so we can show errors about what the user has
     typed instead of being about dynamically generated routes.
+
+
+    ## Undelete support
+
+    If `undelete` is `True`, an undelete will be added as well.
+
     """
     res = Route("resource", path, to=to, **kwargs)
 
@@ -94,7 +114,8 @@ def resource(
         action for action in only if (action in ACTIONS) and (action not in exclude)
     ]
     assert _actions, "None of the actions are valid."
-    return _expand_routes(res, _actions, SINGLE_ROUTES if singular else GROUP_ROUTES)
+    routes = _expand_routes(res, _actions, SINGLE_ROUTES if singular else GROUP_ROUTES)
+    return routes
 
 
 def _to_list(iterable):

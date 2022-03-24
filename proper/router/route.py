@@ -4,6 +4,7 @@ Utilities to declare routes in your application.
 """
 from typing import Callable, Dict, Optional
 
+from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, RESTORE
 from .base import BaseRoute
 
 
@@ -15,6 +16,7 @@ __all__ = (
     "Delete",
     "Options",
     "Patch",
+    "Restore",
     "route",
     "get",
     "post",
@@ -23,6 +25,7 @@ __all__ = (
     "options",
     "patch",
     "static",
+    "restore",
 )
 
 
@@ -142,32 +145,32 @@ class Route(BaseRoute):
 
 class Get(Route):
     def __init__(self, path: str, **kwargs) -> None:
-        super().__init__("GET", path, **kwargs)
+        super().__init__(GET, path, **kwargs)
 
 
 class Post(Route):
     def __init__(self, path: str, **kwargs) -> None:
-        super().__init__("POST", path, **kwargs)
+        super().__init__(POST, path, **kwargs)
 
 
 class Put(Route):
     def __init__(self, path: str, **kwargs) -> None:
-        super().__init__("PUT", path, **kwargs)
+        super().__init__(PUT, path, **kwargs)
 
 
 class Delete(Route):
     def __init__(self, path: str, **kwargs) -> None:
-        super().__init__("DELETE", path, **kwargs)
+        super().__init__(DELETE, path, **kwargs)
 
 
 class Options(Route):
     def __init__(self, path: str, **kwargs) -> None:
-        super().__init__("OPTIONS", path, **kwargs)
+        super().__init__(OPTIONS, path, **kwargs)
 
 
 class Patch(Route):
     def __init__(self, path: str, **kwargs) -> None:
-        super().__init__("PATCH", path, **kwargs)
+        super().__init__(PATCH, path, **kwargs)
 
 
 class Static(Route):
@@ -179,6 +182,16 @@ class Static(Route):
         super().__init__("GET", filepath, redirect=redirect)
 
 
+class Restore(Route):
+    """Yes, it's not standard, but so anything WebDAV, so sue me (better if not)
+    I feel that implementing a RESTful un-delete is ugly and hacky:
+    A `/restore` is not restful and a PATCH is weird for undoing a DELETE
+    So, form the ashes of uncertainty, rises... the RESTORE.
+    """
+    def __init__(self, path: str, **kwargs) -> None:
+        super().__init__(RESTORE, path, **kwargs)
+
+
 route = Route
 get = Get
 post = Post
@@ -187,3 +200,4 @@ delete = Delete
 options = Options
 patch = Patch
 static = Static
+restore = Restore

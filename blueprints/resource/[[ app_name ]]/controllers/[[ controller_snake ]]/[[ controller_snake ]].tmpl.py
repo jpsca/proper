@@ -38,29 +38,29 @@ class [[ controller_pascal ]](AppController):
         "POST /[[ plural_snake ]]"
         self.form = [[ singular_pascal ]]Form(self.params)
         if not self.form.validate():
-            return self.render("posts/new", status=unprocessable)
+            return self.render("[[ plural_snake ]]/new", status=unprocessable)
 
         [[ singular_snake ]] = self.form.save()
         db.s.add([[ singular_snake ]])
         db.s.commit()
         self.redirect_to(
-            "[[ plural_pascal ]].show", pk=[[ singular_snake ]].id,
+            "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was created",
         )
 
     [%- endif %]
     [% if "update" in actions %]
     def update(self):
-        "PATCH/PUT /[[ plural_snake ]]/1"
+        "PATCH|PUT /[[ plural_snake ]]/1"
         self._load_[[ singular_snake ]]()
         self.form = [[ singular_pascal ]]Form(self.params, object=self.[[ singular_snake ]])
         if not self.form.validate():
-            return self.render("posts/edit", status=unprocessable)
+            return self.render("[[ plural_snake ]]/edit", status=unprocessable)
 
         self.form.save()
         db.s.commit()
         self.redirect_to(
-            "[[ plural_pascal ]].show", pk=self.post.id,
+            "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was updated",
         )
 
