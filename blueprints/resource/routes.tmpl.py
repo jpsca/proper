@@ -5,4 +5,3 @@
     [%- if singular %], singular=True[% endif -%]
     ),
 ]
-

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Tuple
 
 import inflection
-from jinja2 import Markup
+from markupsafe import Markup
 from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
 
@@ -30,6 +30,7 @@ from .middleware.dispatch import dispatch
 from .request_wrapper import Request
 from .response_wrapper import Response
 from .router import Router, get
+from .scheduler import DummyScheduler
 from .static import RX_INMUTABLES_FILE
 
 
@@ -50,13 +51,15 @@ class BadSecretKey(Exception):
 
 
 class App:
+    # A lists of functions that are called before, during, and after dispatching
+    # a request.
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
     _on_before_dispatch: Tuple[Callable] = tuple()
     _on_dispatch: Tuple[Callable] = tuple()
     _on_after_dispatch: Tuple[Callable] = tuple()
 
-    # A lists of functions that are called in any of the functions in the
+    # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
     _on_error: Tuple[Callable] = tuple()
@@ -65,13 +68,18 @@ class App:
     # even if an exception was raised before.
     _on_teardown: Tuple[Callable] = tuple()
 
+    # A lists of functions that are called when the development server starts,
+    # and when it shutdown. Useful for running the scheduler on development and
+    # similar tasks.
+    _on_dev_start: Tuple[Callable] = tuple()
+    _on_dev_shutdown: Tuple[Callable] = tuple()
+
     # A dict of functions to call when an HTTPError is raised.
     # The keys are any subclasses of Exception, but, not necessarily
     # subclasses of HTTPError.
     error_handlers = None
 
     serializer = None
-    first_call = True
 
     def __init__(self, import_name, *, config=None):
         """
@@ -93,10 +101,9 @@ class App:
         self._setup_whitenoise()
         self._setup_cli()
 
-    def __call__(self, environ, start_response):
-        if self.first_call:
-            self.first_call = False
+        self.scheduler = DummyScheduler(self)
 
+    def __call__(self, environ, start_response):
         return self._wrapped_wsgi(environ, start_response)
 
     @property
@@ -124,23 +131,38 @@ class App:
         return self.static_path / MANIFEST_PATH
 
     def on_before_dispatch(self, func: Callable) -> Callable:
-        """Decorator to add a function to the `_on_after_dispatch` tuple."""
+        """Decorator to add a function that runs before a request is dispatched"""
         self._on_before_dispatch = self._on_before_dispatch + (func,)
         return func
 
     def on_after_dispatch(self, func: Callable) -> Callable:
-        """Decorator to add a function to the `_on_after_dispatch` tuple."""
+        """Decorator to add a function that runs after a request is dispatched"""
         self._on_after_dispatch = self._on_after_dispatch + (func,)
         return func
 
     def on_error(self, func: Callable) -> Callable:
-        """Decorator to add a function to the `_on_error` tuple."""
+        """Decorator to add a function that runs if a request
+        raises an exception."""
         self._on_error = self._on_error + (func,)
         return func
 
     def on_teardown(self, func: Callable) -> Callable:
-        """Decorator to add a function to the `_on_teardown` tuple."""
+        """Decorator to add a function that *always* run at the end of
+        a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
+        return func
+
+    def on_dev_start(self, func: Callable) -> Callable:
+        """Decorator to add a function that runs when the development
+        server starts. Useful for running the scheduler on development and
+        similar tasks."""
+        self._on_dev_start = self._on_dev_start + (func,)
+        return func
+
+    def on_dev_shutdown(self, func: Callable) -> Callable:
+        """Decorator to add a function that runs when the development
+        server is shutdown."""
+        self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
     def wsgi_app(self, environ, start_response):
@@ -230,8 +252,14 @@ class App:
         cryptex = Cryptex(self.credentials_path, env)
         return cryptex.edit()
 
+    def start(self):
+        for func in self._on_dev_start:
+            func()
+
     def shutdown(self):
         print("\nShutting down")
+        for func in self._on_dev_shutdown:
+            func()
         print("\n✨ Goodbye ✨")
 
     # Private

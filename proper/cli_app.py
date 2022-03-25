@@ -57,11 +57,13 @@ def get_run_server(app):
 
         cmd = f"uwsgi --ini {UWSGI_DEV_CONFIG}"
         print(cmd)
+        app.start()
         try:
             subprocess.check_call(cmd, shell=True)
         except KeyboardInterrupt:
-            app.shutdown()
             raise
+        finally:
+            app.shutdown()
 
     return run_server
 

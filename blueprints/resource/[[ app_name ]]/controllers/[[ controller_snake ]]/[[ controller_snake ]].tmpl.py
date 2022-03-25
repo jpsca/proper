@@ -10,32 +10,28 @@ from .forms import [[ singular_pascal ]]Form
 class [[ controller_pascal ]](AppController):
     [% if "index" in actions -%]
     def index(self):
-        "GET /[[ plural_snake ]]"
+        """GET /[[ plural_snake ]]"""
         self.[[ plural_snake ]] = db.s.all([[ singular_pascal ]])
-
-    [%- endif %]
-    [% if "show" in actions %]
+[% endif %]
+    [% if "show" in actions -%]
     def show(self):
-        "GET /[[ plural_snake ]]/1"
+        """GET /[[ plural_snake ]]/1"""
         self._load_[[ singular_snake ]]()
-
-    [%- endif %]
-    [% if "new" in actions %]
+[% endif %]
+    [% if "new" in actions -%]
     def new(self):
-        "GET /[[ plural_snake ]]/new"
+        """GET /[[ plural_snake ]]/new"""
         self.form = [[ singular_pascal ]]Form()
-
-    [%- endif %]
-    [% if "edit" in actions %]
+[% endif %]
+    [% if "edit" in actions -%]
     def edit(self):
-        "GET /[[ plural_snake ]]/1/edit"
+        """GET /[[ plural_snake ]]/1/edit"""
         self._load_[[ singular_snake ]]()
         self.form = [[ singular_pascal ]]Form(object=self.[[ singular_snake ]])
-
-    [%- endif %]
-    [% if "create" in actions %]
+[% endif %]
+    [% if "create" in actions -%]
     def create(self):
-        "POST /[[ plural_snake ]]"
+        """POST /[[ plural_snake ]]"""
         self.form = [[ singular_pascal ]]Form(self.params)
         if not self.form.validate():
             return self.render("[[ plural_snake ]]/new", status=unprocessable)
@@ -47,11 +43,10 @@ class [[ controller_pascal ]](AppController):
             "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was created",
         )
-
-    [%- endif %]
-    [% if "update" in actions %]
+[% endif %]
+    [% if "update" in actions -%]
     def update(self):
-        "PATCH|PUT /[[ plural_snake ]]/1"
+        """PATCH|PUT /[[ plural_snake ]]/1"""
         self._load_[[ singular_snake ]]()
         self.form = [[ singular_pascal ]]Form(self.params, object=self.[[ singular_snake ]])
         if not self.form.validate():
@@ -63,11 +58,10 @@ class [[ controller_pascal ]](AppController):
             "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was updated",
         )
-
-    [%- endif %]
-    [% if "delete" in actions %]
+[% endif %]
+    [% if "delete" in actions -%]
     def delete(self):
-        "DELETE /[[ plural_snake ]]/1"
+        """DELETE /[[ plural_snake ]]/1"""
         self._load_[[ singular_snake ]](not_found=False)
         if self.[[ singular_snake ]]:  # deleting twice does not fail
             db.s.delete(self.[[ singular_snake ]])
@@ -76,14 +70,13 @@ class [[ controller_pascal ]](AppController):
             "[[ plural_pascal ]].index",
             flash="[[ singular_pascal ]] was deleted",
         )
-
-    [%- endif %]
+[% endif %]
     [% if
       "show" in actions
       or "edit" in actions
       or "update" in actions
       or "delete" in actions
-    %]
+    -%]
     # Private
 
     def _load_[[ singular_snake ]](self, not_found=True):
@@ -94,4 +87,4 @@ class [[ controller_pascal ]](AppController):
         [% endif -%]
         if not_found and not self.[[ singular_snake ]]:
             raise NotFound
-    [%- endif %]
+[%- endif %]

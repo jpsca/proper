@@ -1,1 +1,1 @@
-from . import app, routes, initializers, models, cli  # noqa
+from . import initializers, app, routes, models, cli  # noqa

@@ -1,5 +1,5 @@
 from [[ app_name ]].app import db
-from [[ app_name ]].models.mixins import Timestamped
+from [[ app_name ]].models.concerns import Timestamped
 
 
 class [[ singular_pascal ]](Timestamped, db.Model):

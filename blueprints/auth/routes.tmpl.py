@@ -11,4 +11,3 @@
         post("change", to=Auth.password_change),
     ),
 ]
-

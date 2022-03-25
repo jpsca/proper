@@ -30,5 +30,4 @@ def test_routes_updated(app, scaffold):
     get("products/index", to=Products.index),
     get("products/show", to=Products.show),
 ]
-
 """)

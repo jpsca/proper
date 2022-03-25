@@ -49,7 +49,6 @@ def _test_routes(app_root):
     get("", to=Pages.index),
     resource("products", to=Products),
 ]
-
 """)
 
 
@@ -99,7 +98,6 @@ def _test_routes_singular(app_root):
     get("", to=Pages.index),
     resource("profile", to=Profile, singular=True),
 ]
-
 """)
 
 
@@ -141,7 +139,6 @@ def _test_routes_only(app_root):
     assert routes_text.endswith("""
     resource("persons", to=Persons, only="create,update"),
 ]
-
 """)
 
 
@@ -183,5 +180,4 @@ def _test_routes_exclude(app_root):
     assert routes_text.endswith("""
     resource("persons", to=Persons, exclude="edit,update"),
 ]
-
 """)
