@@ -39,7 +39,7 @@ class [[ controller_pascal ]](AppController):
         [[ singular_snake ]] = self.form.save()
         db.s.add([[ singular_snake ]])
         db.s.commit()
-        self.redirect_to(
+        response.redirect_to(
             "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was created",
         )
@@ -54,7 +54,7 @@ class [[ controller_pascal ]](AppController):
 
         self.form.save()
         db.s.commit()
-        self.redirect_to(
+        response.redirect_to(
             "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was updated",
         )
@@ -66,7 +66,7 @@ class [[ controller_pascal ]](AppController):
         if self.[[ singular_snake ]]:  # deleting twice does not fail
             db.s.delete(self.[[ singular_snake ]])
             db.s.commit()
-        self.redirect_to(
+        response.redirect_to(
             "[[ plural_pascal ]].index",
             flash="[[ singular_pascal ]] was deleted",
         )

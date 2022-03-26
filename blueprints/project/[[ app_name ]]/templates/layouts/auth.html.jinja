@@ -5,9 +5,9 @@
 	<title>{% block title %}{% endblock %}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<link rel="icon" type="image/x-icon" href="{{ url_static('favicon.ico') }}">
-	<link rel="stylesheet" href="{{ url_static('css/styles.css') }}">
+	<link rel="stylesheet" href="{{ url_static('css/application.css') }}">
 	{% block meta %}{% endblock %}
-	<script src="{{ url_static('js/scripts.js') }}" defer></script>
+	<script src="{{ url_static('js/application.js') }}" defer></script>
 	{% block scripts %}{% endblock %}
 	<script>window.csrf_token = "{{ request.csrf_token }}";</script>
 </head>

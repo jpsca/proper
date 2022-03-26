@@ -35,7 +35,7 @@ class Auth(AppController):
     def sign_out(self):
         if request.user:
             request.user.sign_out()
-        return response.redirect_to("/")
+        response.redirect_to("/")
 
     def reset(self):
         self.form = form = forms.PasswordResetForm(self.params)
@@ -61,7 +61,8 @@ class Auth(AppController):
 
     def password_change(self):
         if not request.user:
-            return response.redirect_to(app.url_for("Auth.sign_in"))
+            response.redirect_to(app.url_for("Auth.sign_in"))
+            return
 
         self.form = form = forms.PasswordChangeForm(self.params)
         self.password_minlen = config.auth.password_minlen

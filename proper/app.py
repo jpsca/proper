@@ -166,7 +166,6 @@ class App:
         return func
 
     def wsgi_app(self, environ, start_response):
-        breakpoint()
         request = Request(
             max_content_length=self._config.max_content_length,
             max_query_size=self._config.max_query_size,

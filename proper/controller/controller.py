@@ -9,7 +9,7 @@ from ..constants import HEAD
 from ..helpers import MultiDict, jsonplus
 from ..request_wrapper import Request
 from ..response_wrapper import Response
-from ..status import not_modified, ok, see_other
+from ..status import not_modified, ok
 from .request_forgery_protection import RequestForgeryProtection
 
 
@@ -76,25 +76,6 @@ class Controller(RequestForgeryProtection):
         """Override to use a different schema, for example, to
         not use the ".jinja" postfix."""
         return f"{template}{self.response.format}.jinja"
-
-    def redirect_to(
-        self,
-        url_or_route: str,
-        object: Optional[Any] = None,
-        *,
-        flash: Optional[str] = None,
-        flash_type: str = "notice",
-        status_code: str = see_other,
-        **kwargs,
-    ) -> None:
-        return self.response.redirect_to(
-            url_or_route,
-            object=object,
-            flash=flash,
-            flash_type=flash_type,
-            status_code=status_code,
-            **kwargs,
-        )
 
     def send_data(
         self,
