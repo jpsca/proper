@@ -10,13 +10,11 @@ class BaseScheduler(ABC):
         app.on_dev_shutdown(self.shutdown)
 
     @abstractmethod
-    def task(self, func, retries=0, retry_delay=0, **kwargs):
+    def task(self, func, *args, **kwargs):
         pass
 
     @abstractmethod
-    def periodic_task(
-        self, func, validate_datetime, retries=0, retry_delay=0, **kwargs
-    ):
+    def periodic_task(self, func, *args, **kwargs):
         pass
 
     def start(self):

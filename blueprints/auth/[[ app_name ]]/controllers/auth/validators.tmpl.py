@@ -14,7 +14,7 @@ ERROR_EMAIL_IN_USE = "That email is already in use by an account"
 
 ERROR_PASSWORD_TOO_SHORT = f"Your password must be at least {config.auth.password_minlen} characters long"
 
-ERROR_PASSWORD_PWNED =  (
+ERROR_PASSWORD_PWNED = (
     "This password may have been compromised on another site.<br>"
     "For your own safety, we recommend you create a new, unique password"
     " using something like LastPass or 1Password."

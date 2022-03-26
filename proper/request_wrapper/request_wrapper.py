@@ -19,7 +19,7 @@ from .parse_http_date import parse_http_date
 from .parse_query_string import parse_query_string
 
 
-__all__ = ("Request", "make_test_environ")
+__all__ = ("Request", "make_test_env")
 
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
@@ -39,7 +39,7 @@ class Request:
 
     - max_query_size:
 
-    - **environ:
+    - **env:
         A WSGI environment dict passed in from the server (See also PEP-3333).
 
 
@@ -187,7 +187,7 @@ class Request:
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
-        env = env or make_test_environ()
+        env = env or make_test_env()
         self.env = env
         self.method = env.get("REQUEST_METHOD", GET).upper()
         self.request_method = self.method
@@ -415,17 +415,17 @@ class Request:
         return ilength
 
 
-def make_test_environ(path: str = None, **kwargs: Dict[str, Any]) -> Dict[str, str]:
+def make_test_env(path: str = None, **kwargs: Dict[str, Any]) -> Dict[str, str]:
     from wsgiref.util import setup_testing_defaults
 
-    environ = {"REMOTE_ADDR": "127.0.0.1"}
-    setup_testing_defaults(environ)
+    env = {"REMOTE_ADDR": "127.0.0.1"}
+    setup_testing_defaults(env)
 
     if path:
         if "?" in path:
             path, query = path.rsplit("?", 1)
-            environ["QUERY_STRING"] = query
-        environ["PATH_INFO"] = tunnel_encode(path.strip())
+            env["QUERY_STRING"] = query
+        env["PATH_INFO"] = tunnel_encode(path.strip())
 
-    environ.update(**{key: str(value) for key, value in kwargs.items()})
-    return environ
+    env.update(**{key: str(value) for key, value in kwargs.items()})
+    return env

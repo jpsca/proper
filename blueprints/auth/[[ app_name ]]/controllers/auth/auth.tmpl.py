@@ -56,7 +56,7 @@ class Auth(AppController):
         if not user:
             return self.render("auth/reset_invalid")
 
-        user.sign_in(request, response)
+        user.sign_in()
         response.redirect_to(app.url_for("Auth.password_change"))
 
     def password_change(self):

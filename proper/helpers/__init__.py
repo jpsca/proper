@@ -5,5 +5,6 @@ from .digestor import *  # noqa
 from .frozendict import *  # noqa
 from .headersdict import *  # noqa
 from .multidict import *  # noqa
+from .proxy import *  # noqa
 from .render import *  # noqa
 from .serializer import *  # noqa
