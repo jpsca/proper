@@ -66,17 +66,17 @@ def get_default_config():
     config.database.session_options = {"expire_on_commit": False}
     config.database.migrations = None
 
+    config.mailer = Dot()
+    config.mailer.default_from = "hello@example.com"
+
+    config.scheduler = Dot()
+
     config.auth = Dot()
     config.auth.hash_name = None  # default
     config.auth.rounds = None  # default
     config.auth.password_minlen = 9
     config.auth.password_maxlen = 1024
     config.auth.token_life = 10800  # 3 hours
-
-    config.mailer = Dot()
-    config.mailer.default_from = "hello@example.com"
-
-    config.scheduler = Dot()
 
     return config
 
