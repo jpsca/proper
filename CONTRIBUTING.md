@@ -1,50 +1,38 @@
+## How to contribute to Proper
 
-# Contributing
+#### **Did you find a bug?**
 
-Contributions are welcome, and they are greatly appreciated! Every
-little bit helps, and credit will always be given.
+* **Do not open up a GitHub issue if the bug is a security vulnerability
+  in Proper**, and instead to refer to our [security policy](https://properweb.dev/security).
 
-You can contribute in many ways:
+* **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/jpsca/proper/issues).
 
-### Report Bugs
+* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/jpsca/proper/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
 
-Report bugs at <https://github.com/jpscaletti/proper/issues>.
+#### **Did you write a patch that fixes a bug?**
 
-If you are reporting a bug, please include:
+* Open a new GitHub pull request with the patch.
 
--   Detailed steps to reproduce the bug.
--   Any details about your local setup that might be helpful in
-    troubleshooting.
+* Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
 
-### Fix Bugs
+* Before submitting, please make sure the code doesn't rises any linter error and run `tox` to run the tests in all supported python versions.
 
-Look through the GitHub issues for bugs. Anything tagged with "bug" is
-open to whoever wants to implement it.
+#### **Did you fix whitespace, format code, or make a purely cosmetic patch?**
 
-### Implement Features
+Changes that are cosmetic in nature and do not add anything substantial to the stability, functionality, or testability of Proper will generally not be accepted.
 
-Look through the GitHub issues for features. Anything tagged with
+#### **Do you intend to add a new feature or change an existing one?**
+
+* Look through the GitHub issues for features. Anything tagged with
 "Feature request" is open to whoever wants to implement it.
 
-### Write Documentation
+#### **Do you want to contribute to the Proper documentation?**
 
-The project could always use more documentation, whether as part of the
+* The project could always use more documentation, whether as part of the
 official project docs, or even on the web in blog posts, articles, and
 such.
 
-### Submit Feedback
-
-The best way to send feedback is to file an issue at
-<https://github.com/jpscaletti/proper/issues>.
-
-If you are proposing a feature:
-
--   Explain in detail how it would work.
--   Keep the scope as narrow as possible, to make it easier to implement.
--   Remember that this is a volunteer-driven project, and that
-    contributions are welcome :)
-
-## Get Started!
+### **Get Started!**
 
 Ready to contribute? Here's how to set up the project for local development.
 
@@ -55,18 +43,18 @@ Ready to contribute? Here's how to set up the project for local development.
 git clone git@github.com:jpscaletti/proper.git
 ```
 
-3.  Install your local copy into a virtualenv. 
+3.  Install your local copy into a virtualenv.
 
 ```bash
 python -m virtualenv .venv
 source .venv/bin/activate
-make install
+make setup
 ```
 
 5.  Create a branch for local development:
 
 ```bash
-git checkout -b name-of-your-bugfix-or-feature
+git switch -c name-of-your-bugfix-or-feature
 ```
 
 Now you can make your changes locally.
@@ -79,20 +67,20 @@ flake8 .
 ```
 
 To have multiple Python versions on the same machine for running `tox`, I recommend
-using [pyenv](https://github.com/pyenv/pyenv) (*do not* confuse it with `pipenv`,).
+using [asdf](https://asdf-vm.com/).
 
 7.  Commit your changes and push your branch to GitHub:
 
 ```
 git add .
-git commit -m "Detailed description of your changes."
+git commit -m "Summary description of your changes."
 git push origin name-of-your-bugfix-or-feature
 ```
 
 8.  Submit a pull request through the GitHub website.
 
 
-## Pull Request Guidelines
+### **Pull Request Guidelines**
 
 Before you submit a pull request, check that it meets these guidelines:
 
@@ -100,7 +88,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2.  Run `tox` and make sure that the tests pass for all supported Python
     versions.
 
-## Tips
+### **Tips**
 
 To run a subset of tests:
 
