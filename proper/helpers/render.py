@@ -35,6 +35,15 @@ COLOR_CONFLICT = "red"
 
 
 class Render:
+    def __init__(self, templates, **envops):
+        self.loader = jinja2.FileSystemLoader(str(templates))
+        self.env = jinja2.Environment(
+            loader=self.loader,
+            autoescape=jinja2.select_autoescape(default=True),
+            **envops,
+        )
+        self.env.globals["render"] = self.render
+
     @property
     def globals(self):
         return self.env.globals
@@ -46,14 +55,6 @@ class Render:
     @property
     def tests(self):
         return self.env.tests
-
-    def __init__(self, templates, **envops):
-        self.loader = jinja2.FileSystemLoader(str(templates))
-        self.env = jinja2.Environment(
-            loader=self.loader,
-            autoescape=jinja2.select_autoescape(default=True),
-            **envops,
-        )
 
     def __call__(self, relpath, **context):
         return self.render(relpath, **context)
