@@ -4,11 +4,10 @@ import huey
 import inflection
 from huey.consumer import Consumer
 
-from proper.scheduler import BaseScheduler
-from ..app import app, config
+from .base import BaseScheduler
 
 
-DEFAULT_HUEY_TYPE = "sqlite"
+DEFAULT_HUEY_TYPE = "memory"
 
 
 class HueyScheduler(BaseScheduler):
@@ -23,9 +22,14 @@ class HueyScheduler(BaseScheduler):
         Cls = getattr(huey, cls)
 
         self.huey = Cls(**config)
+        self.consumer = None
+        if not config.get("inmediate", True):
+            self.consumer = Consumer(self.huey, **consumer_config)
+
         self.pre_execute = self.huey.pre_execute
         self.post_execute = self.huey.post_execute
-        self.consumer = Consumer(self.huey, **consumer_config)
+        self.pre_execute(app.db.engine.dispose)
+        self.post_execute(app.db.s.remove)
 
         super().__init__(app, **config)
 
@@ -41,7 +45,7 @@ class HueyScheduler(BaseScheduler):
         )
 
     def start(self):
-        if self.running:
+        if self.running or not self.consumer:
             return
 
         if sys.version_info >= (3, 8) and sys.platform == "darwin":
@@ -62,17 +66,3 @@ class HueyScheduler(BaseScheduler):
             print("Waiting until all tasks finish...")
         self.consumer.stop(graceful=wait)
         self.running = False
-
-
-scheduler = HueyScheduler(app, **config.scheduler)
-app.scheduler = scheduler
-
-
-@scheduler.pre_execute()
-def db_engine_dispose():
-    app.db.engine.dispose()
-
-
-@scheduler.post_execute()
-def db_session_remove():
-    app.db.s.remove()

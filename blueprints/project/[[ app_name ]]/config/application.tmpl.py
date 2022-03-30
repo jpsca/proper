@@ -3,6 +3,7 @@ from datetime import timedelta
 from proper import Dot
 
 from .database import config as database_config
+from .scheduler import config as scheduler_config
 
 
 config = Dot()
@@ -52,3 +53,4 @@ config.mailer = Dot()
 config.mailer.default_from = "hello@example.com"
 
 config.database = database_config
+config.scheduler = scheduler_config

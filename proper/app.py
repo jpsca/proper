@@ -27,10 +27,11 @@ from .auth import Auth
 from .errors import MatchNotFound
 from .helpers import Dot, Render, Serializer
 from .middleware.dispatch import dispatch
+from .proper_storage import AttachableBaseModel
 from .request_wrapper import Request
 from .response_wrapper import Response
 from .router import Router, get
-from .scheduler import DummyScheduler
+from .scheduler import HueyScheduler
 from .static import RX_INMUTABLES_FILE
 
 
@@ -100,8 +101,7 @@ class App:
         self._setup_render()
         self._setup_whitenoise()
         self._setup_cli()
-
-        self.scheduler = DummyScheduler(self)
+        self._setup_scheduler()
 
     def __call__(self, environ, start_response):
         return self._wrapped_wsgi(environ, start_response)
@@ -346,6 +346,7 @@ class App:
             port=config.database.port,
             engine_options=config.database.engine_options,
             session_options=config.database.session_options,
+            base_model_class=AttachableBaseModel,
         )
         if config.database.migrations:
             self.alembic = Alembic(self.db, config.database.migrations)
@@ -399,6 +400,9 @@ class App:
     def _setup_cli(self):
         Cli = get_app_cli(self)
         self.cli = Cli()
+
+    def _setup_scheduler(self):
+        self.scheduler = HueyScheduler(self, **self._config.scheduler)
 
     def _handle_app_error(self, request, response):
         """Call the registered exception handler if exists or the fallback

@@ -37,6 +37,7 @@ class Controller(RequestForgeryProtection):
         self.request = request or Request()
         self.response = response or Response()
         self.app = app
+        self.redirect_to = self.response.redirect_to
 
     @property
     def params(self) -> MultiDict:

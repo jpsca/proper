@@ -40,7 +40,7 @@ class [[ controller_pascal ]](AppController):
         db.s.add([[ singular_snake ]])
         db.s.commit()
         response.redirect_to(
-            "[[ plural_pascal ]].show", pk=self.[[ singular_snake ]].id,
+            "[[ plural_pascal ]].show", pk=[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was created",
         )
 [% endif %]
