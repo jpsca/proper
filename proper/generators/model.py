@@ -1,6 +1,6 @@
 import inflection
 
-from ..helpers.render import BLUEPRINTS, BlueprintRender
+from ..helpers.render import BLUEPRINTS, BlueprintRender, call
 
 
 MODEL_BLUEPRINT = BLUEPRINTS / "model"
@@ -13,6 +13,7 @@ def gen_model(
     singular_pascal=None,
     singular_snake=None,
     plural_snake=None,
+    migration=False,
 ):
     """Stubs out a new model.
 
@@ -148,6 +149,8 @@ def gen_model(
                     lazy="select"
                 )
 
+    Use `--migration` to generate a migration for creating the table.
+
     """
     singular_name = inflection.singularize(name)
     singular_pascal = singular_pascal or inflection.camelize(singular_name)
@@ -168,6 +171,10 @@ def gen_model(
         },
     )
     bp()
+
+    if migration:
+        call(f'proper db revision "Create {plural_snake} table"')
+
     return attrs_tuples
 
 

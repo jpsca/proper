@@ -91,5 +91,6 @@ class Authenticable:
 
     def set_new_password(self, new_password):
         self.password = new_password
-        # Password has change, so we need to updated the session too
-        self.sign_in()
+        if request.user == self:
+            # Password has change, so we need to updated the session too
+            self.sign_in()

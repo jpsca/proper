@@ -1,7 +1,7 @@
 import proper
 
 from ..app import app
-from ..controllers import Pages
+from ..controllers import Page
 
 
 # You can call your own views for handling any kind of exception, not
@@ -9,5 +9,5 @@ from ..controllers import Pages
 # like `ValueError` or a catch-all Exception.
 # If `app.config.debug = True`, this also will create routes so can test
 # your error pages.
-app.error_handler(proper.errors.NotFound, Pages.not_found)  # /_not_found
-app.error_handler(Exception, Pages.error)  # /_exception
+app.error_handler(proper.errors.NotFound, Page.not_found)  # /_not_found
+app.error_handler(Exception, Page.error)  # /_exception

@@ -6,12 +6,12 @@ from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_fi
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
+COMPONENT_TMPL = "component.html.jinja"
 ROUTES_TMPL = "routes.tmpl.py"
-TEMPLATE_TMPL = "template.tmpl.html.jinja"
 
 
 def gen_controller(app, name, *actions):
-    """Stubs out a new controller and its templates.
+    """Stubs out a new controller and its components.
 
         proper g controller NAME [action ...]
 
@@ -41,18 +41,19 @@ def gen_controller(app, name, *actions):
             "snake_name": plural_snake,
             "actions": actions,
         },
-        ignore=[ROUTES_TMPL, TEMPLATE_TMPL],
+        ignore=[ROUTES_TMPL, COMPONENT_TMPL],
     )
     bp()
 
-    template_tmpl = CONTROLLER_BLUEPRINT / TEMPLATE_TMPL
-    content = bp.render.string(template_tmpl.read_text())
-
-    (app.root_path / "templates" / plural_snake).mkdir(parents=False, exist_ok=True)
-    folder = Path(app.root_path.name) / "templates" / plural_snake
+    component_tmpl = CONTROLLER_BLUEPRINT / COMPONENT_TMPL
+    content = component_tmpl.read_text()
     for action in actions:
-        dst_relpath = folder / f"{action}.html.jinja"
-        save_file(root_path, dst_relpath, content)
+        action_pascal = inflection.camelize(action)
+        save_file(
+            root_path,
+            f"{app.root_path.name}/components/{plural_snake}/{plural_pascal}{action_pascal}.html.jinja",
+            content
+        )
 
     routes_tmpl = CONTROLLER_BLUEPRINT / ROUTES_TMPL
     new_routes = bp.render.string(routes_tmpl.read_text())

@@ -58,7 +58,7 @@ routes = [
 def scaffold(dst):
     app_root = Path(dst) / APP_NAME
     (app_root / "controllers").mkdir(parents=True, exist_ok=True)
-    (app_root / "templates").mkdir(parents=True, exist_ok=True)
+    (app_root / "components").mkdir(parents=True, exist_ok=True)
     (app_root / "controllers" / "__init__.py").touch()
     (app_root / "controllers" / "pages.py").write_text(SCAF_CONTROLLER)
     (app_root / "routes.py").write_text(SCAFF_ROUTES)
@@ -67,7 +67,7 @@ def scaffold(dst):
 
 class AppController(Controller):
     def render(self):
-        return f"<html>{self.response.template} was rendered</html>"
+        return f"<html>{self.response.component} was rendered</html>"
 
 
 class _Pages(AppController):
@@ -109,8 +109,8 @@ class _Pages(AppController):
     def append(self):
         self.response.body = (self.response.body or "") + "-index-"
 
-    def set_template(self):
-        self.response.template = "from_controller.jinja"
+    def set_component(self):
+        self.response.component = "FromComtroller"
 
     def charset(self):
         self.response.charset = "latin1"

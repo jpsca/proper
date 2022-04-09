@@ -24,8 +24,11 @@ class AppController(LoadUser, Controller):
 """
 
 
-def install(app):
-    """Install user/password authentication support."""
+def install(app, migration=False):
+    """Install user/password authentication support.
+    Use `--migration` to generate a migration for creating
+    the users table.
+    """
     curr_appc = app.root_path / APPLICATION_CONTROLLER
     if not curr_appc.is_file():
         raise ValueError(f"{str(curr_appc)} not found")
@@ -52,4 +55,5 @@ def install(app):
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
-    call('proper db revision "Create users table"')
+    if migration:
+        call('proper db revision "Create users table"')

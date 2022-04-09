@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Tuple
 
 import inflection
+import oot
 from markupsafe import Markup
 from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
@@ -24,18 +25,19 @@ from .error_handlers import (
     fallback_not_found_handler,
 )
 from .auth import Auth
-from .errors import MatchNotFound
-from .helpers import Dot, Render, Serializer
+from .errors import MatchNotFound, MethodNotAllowed
+from .helpers import Dot, Serializer
 from .middleware.dispatch import dispatch
-from .proper_storage import AttachableBaseModel
 from .request_wrapper import Request
 from .response_wrapper import Response
 from .router import Router, get
 from .scheduler import HueyScheduler
 from .static import RX_INMUTABLES_FILE
+from .storage import AttachableBaseModel, Storage
 
 
-TEMPLATES_FOLDER = "templates"
+COMPONENTS_FOLDER = "components"
+COMPONENTS_URL_ROOT = "/components/"
 STATIC_PREFIX = "static"
 STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
@@ -91,17 +93,20 @@ class App:
             Optional dict-like with the config.
 
         """
+        self._wrapped_wsgi = self.wsgi_app
         self._setup_paths(import_name)
         self._setup_config(config)
         self._setup_middleware()
         self._setup_router()
-        self._setup_db()
         self._setup_serializer()
-        self._setup_auth()
+        self._setup_db()
+        self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
         self._setup_cli()
         self._setup_scheduler()
+        self._setup_auth()
+        self._setup_storage()
 
     def __call__(self, environ, start_response):
         return self._wrapped_wsgi(environ, start_response)
@@ -119,8 +124,8 @@ class App:
         self.router.routes = values
 
     @property
-    def templates_path(self):
-        return self.root_path / TEMPLATES_FOLDER
+    def components_path(self):
+        return self.root_path / COMPONENTS_FOLDER
 
     @property
     def static_path(self):
@@ -175,6 +180,11 @@ class App:
 
         _request_cv.set(request)
         _response_cv.set(response)
+        if self.catalog:
+            self.catalog.jinja_env.globals.update({
+                "request": request,
+                "response": response,
+            })
 
         try:
             self.run_pipeline(request, response)
@@ -242,8 +252,7 @@ class App:
         return f"{host}/{filename}"
 
     def include_static(self, filename):
-        """Read and returns a text file from the `static` folder, to include
-        in the template as-is.
+        """Read and returns a text file from the `static` folder, to include as-is.
         """
         text = (self.static_path / filename).read_text()
         return Markup(text)
@@ -335,6 +344,9 @@ class App:
         self.router = Router()
         self.router._debug = self._config.debug
 
+    def _setup_serializer(self):
+        self.serializer = Serializer(self._config.secret_key)
+
     def _setup_db(self):
         config = self._config
         self.db = SQLAlchemy(
@@ -353,26 +365,6 @@ class App:
         else:
             self.alembic = None
 
-    def _setup_serializer(self):
-        self.serializer = Serializer(self._config.secret_key)
-
-    def _setup_auth(self):
-        config = self._config
-        self.auth = Auth(
-            secret_key=config.secret_key,
-            hash_name=config.auth.hash_name,
-            rounds=config.auth.rounds,
-            password_minlen=config.auth.password_minlen,
-            password_maxlen=config.auth.password_maxlen,
-        )
-
-    def _setup_render(self):
-        self._load_static_manifest()
-        self.render = Render(self.templates_path)
-        self.render.globals["url_for"] = self.url_for
-        self.render.globals["url_static"] = self.url_static
-        self.render.globals["include_static"] = self.include_static
-
     def _load_static_manifest(self):
         path = self.static_manifest_path
         if not self._config.debug and path.exists():
@@ -380,8 +372,27 @@ class App:
         else:
             self.static_manifest = {}
 
+    def _setup_render(self):
+        if not self.components_path.exists():
+            self.catalog = None
+            return
+
+        self.catalog = oot.Catalog(
+            root_url=COMPONENTS_URL_ROOT,
+            globals={
+                "url_for": self.url_for,
+                "url_static": self.url_static,
+                "include_static": self.include_static,
+            },
+        )
+        self.catalog.add_folder(self.components_path)
+        self._wrapped_wsgi = self.catalog.get_middleware(
+            self.wsgi_app,
+            autorefresh=self._config.debug,
+            immutable_file_test=RX_INMUTABLES_FILE,
+        )
+
     def _setup_whitenoise(self):
-        self._wrapped_wsgi = self.wsgi_app
         if not self.static_path.exists():
             return
 
@@ -402,7 +413,30 @@ class App:
         self.cli = Cli()
 
     def _setup_scheduler(self):
+        if not self._config.scheduler:
+            self.scheduler = None
+            return
         self.scheduler = HueyScheduler(self, **self._config.scheduler)
+
+    def _setup_auth(self):
+        if not self._config.auth:
+            self.auth = None
+            return
+        config = self._config
+        self.auth = Auth(
+            secret_key=config.secret_key,
+            hash_name=config.auth.hash_name,
+            rounds=config.auth.rounds,
+            password_minlen=config.auth.password_minlen,
+            password_maxlen=config.auth.password_maxlen,
+        )
+
+    def _setup_storage(self):
+        config = self._config
+        if not config.storage:
+            self.storage = None
+            return
+        self.storage = Storage(self, **config)
 
     def _handle_app_error(self, request, response):
         """Call the registered exception handler if exists or the fallback
@@ -438,7 +472,7 @@ class App:
             self._default_error_handler_production(request, response)
 
     def _default_error_handler_debug(self, request, response):
-        if isinstance(response.error, MatchNotFound):
+        if isinstance(response.error, (MatchNotFound, MethodNotAllowed)):
             debug_not_found_handler(request, response, self)
         else:
             debug_error_handler(request, response, self)
@@ -452,7 +486,7 @@ class App:
             fallback_error_handler(request, response, self)
 
     def _custom_error_handler(self, request, response, handler):
-        response.template = None
+        response.component = None
         request.matched_route = Dot({"to": handler})
         request.matched_params = {}
         dispatch(request, response, self)

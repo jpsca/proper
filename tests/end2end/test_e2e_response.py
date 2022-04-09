@@ -4,7 +4,7 @@ from proper.helpers import Dot
 
 class AppController(Controller):
     def render(self):
-        return f"{self.response.template} was rendered"
+        return f"{self.response.component} was rendered"
 
     def index(self):
         pass
@@ -15,29 +15,29 @@ class DefaultTemplate(AppController):
         pass
 
 
-def test_default_template(app, web):
+def test_default_component(app, web):
     app.routes = [get("/", to=DefaultTemplate.rendered)]
     resp = web.get("/")
 
-    assert resp.text == "default_template/rendered was rendered"
+    assert resp.text == "DefaultTemplateRendered was rendered"
 
 
 class CustomTemplate(AppController):
-    def set_template(self):
-        self.response.template = "from_controller.jinja"
+    def set_component(self):
+        self.response.component = "FromComtroller"
 
 
-def test_custom_template(app, web):
-    app.routes = [get("/", to=CustomTemplate.set_template)]
+def test_custom_component(app, web):
+    app.routes = [get("/", to=CustomTemplate.set_component)]
     resp = web.get("/")
 
-    assert resp.text == "from_controller.jinja was rendered"
+    assert resp.text == "FromComtroller was rendered"
 
 
 class ETagged(AppController):
     def index(self):
         self.response.fresh_when(etag=123)
-        self.response.template = "index.jinja"
+        self.response.component = "index.jinja"
 
 
 def test_if_none_match(app, web):

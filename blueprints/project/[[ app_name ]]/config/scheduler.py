@@ -1,33 +1,32 @@
-from proper import Dot, get_env
+from proper import Dot, is_staging_or_production_env
 
 
-env = get_env()
+config = scheduler_config = Dot()
 
-config = Dot()
 config.type = "redis"
 # If True, run synchronously and ignore the type above
-config.immediate = env not in ("production", "staging")
+config.immediate = not is_staging_or_production_env
 
 config.results = True  # Store return values of tasks
 config.store_none = False  # If a task returns None, do not save to results
 config.utc = True  # Use UTC for all times internally
 config.blocking = True  # Perform blocking pop rather than poll Redis
 
-config.connection = Dot()
-config.connection.host = "localhost"
-config.connection.port = 6379
-config.connection.db = 0
-config.connection.connection_pool = None  # Definitely you should use pooling
-config.connection.read_timeout = 1  # If not polling (blocking pop), use timeout
-config.connection.url = None  # Allow Redis config via a DSN
+connection = config.connection = Dot()
+connection.host = "localhost"
+connection.port = 6379
+connection.db = 0
+connection.connection_pool = None  # Definitely you should use pooling
+connection.read_timeout = 1  # If not polling (blocking pop), use timeout
+connection.url = None  # Allow Redis config via a DSN
 
-config.consumer = Dot()
-config.consumer.workers = 1
-config.consumer.worker_type = "thread"
-config.consumer.initial_delay = 0.1  # Smallest polling interval
-config.consumer.backoff = 1.15  # Exponential backoff using this rate
-config.consumer.max_delay = 10.0  # Max possible polling interval
-config.consumer.scheduler_interval = 1  # Check schedule every second
-config.consumer.periodic = True  # Enable crontab feature
-config.consumer.check_worker_health = True  # Enable worker health checks
-config.consumer.health_check_interval = 1  # Check worker health every second
+consumer = config.consumer = Dot()
+consumer.workers = 1
+consumer.worker_type = "thread"
+consumer.initial_delay = 0.1  # Smallest polling interval
+consumer.backoff = 1.15  # Exponential backoff using this rate
+consumer.max_delay = 10.0  # Max possible polling interval
+consumer.scheduler_interval = 1  # Check schedule every second
+consumer.periodic = True  # Enable crontab feature
+consumer.check_worker_health = True  # Enable worker health checks
+consumer.health_check_interval = 1  # Check worker health every second

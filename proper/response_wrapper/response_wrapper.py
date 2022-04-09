@@ -50,14 +50,8 @@ class Response:
     # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
     stop: bool = False
 
-    # snake_case name of the controller class
-    snake_controller: Optional[str] = None
-
-    # name of the template, minus the extension
-    template: Optional[str] = None
-
-    # the default extension of the template.
-    format: str = ".html"
+    # name of the component
+    component: Optional[str] = None
 
     # Warn if a cookie header exceeds this size.
     # The default is 4093 and should be supported by most browsers

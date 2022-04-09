@@ -7,7 +7,7 @@ lint:
 coverage:
 	pytest --cov-report html --cov proper --cov tests proper tests
 
-setup:
+install:
 	pip install -U pip wheel
 	pip install -e .[dev,test]
 	pre-commit install

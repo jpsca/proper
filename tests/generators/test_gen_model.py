@@ -1,21 +1,32 @@
-from proper.generators import gen_model
+from unittest.mock import Mock
+from proper.generators import model as module
 
 
 def test_base_model(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_model(app, "Product")
+    module.call = Mock()
+    module.gen_model(app, "Product")
 
     model_text = (app_root / "models" / "product.py").read_text()
     assert "class Product(Timestamped, db.Model):" in model_text
     assert '__tablename__ = "products"' in model_text
     assert "id = db.Column(db.Integer, primary_key=True)" in model_text
+    module.call.assert_not_called
+
+
+def test_gen_model_with_migration(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_model(app, "Product", migration=True)
+    module.call.assert_called_once_with('proper db revision "Create products table"')
 
 
 def test_fields(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_model(
+    module.gen_model(
         app,
         "Product",
         "name:string-30",
@@ -34,7 +45,7 @@ def test_fields(app, scaffold):
 def test_constraints(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_model(
+    module.gen_model(
         app, "Post", "slug:string:unique:index", "author_id:integer:foreign-users.id"
     )
 
@@ -46,7 +57,7 @@ def test_constraints(app, scaffold):
 def test_simple_backref(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_model(
+    module.gen_model(
         app, "Post", "tags:Tag:post:joined"
     )
 
@@ -58,7 +69,7 @@ def test_simple_backref(app, scaffold):
 def test_backref_with_lazy(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_model(
+    module.gen_model(
         app, "Post", "tags:Tag:post-select:joined"
     )
 
@@ -70,7 +81,7 @@ def test_backref_with_lazy(app, scaffold):
 def test_implicit_backref_and_lazy(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    gen_model(
+    module.gen_model(
         app, "Post", "tags:Tag"
     )
 

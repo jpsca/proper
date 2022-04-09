@@ -1,5 +1,0 @@
-{% for mtype, msg in request.flashes.items() %}
-<div class="{{ mtype }}" role="alert">
-	{{ msg | safe }}
-</div>
-{%- endfor %}

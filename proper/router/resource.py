@@ -1,3 +1,4 @@
+import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 from ..constants import GET, POST, PUT, DELETE, PATCH
@@ -118,10 +119,13 @@ def resource(
     return routes
 
 
+RX_COMMA = re.compile(r",\s*")
+
+
 def _to_list(iterable):
     iterable = iterable or []
     if isinstance(iterable, str):
-        return [iterable]
+        return RX_COMMA.split(iterable.strip())
     return iterable
 
 

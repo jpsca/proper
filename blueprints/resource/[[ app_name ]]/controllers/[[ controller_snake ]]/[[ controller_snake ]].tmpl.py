@@ -34,7 +34,7 @@ class [[ controller_pascal ]](AppController):
         """POST /[[ plural_snake ]]"""
         self.form = [[ singular_pascal ]]Form(self.params)
         if not self.form.validate():
-            return self.render("[[ plural_snake ]]/new", status=unprocessable)
+            return self.render("[[ controller_pascal ]]New", status=unprocessable)
 
         [[ singular_snake ]] = self.form.save()
         db.s.add([[ singular_snake ]])
@@ -50,7 +50,7 @@ class [[ controller_pascal ]](AppController):
         self._load_[[ singular_snake ]]()
         self.form = [[ singular_pascal ]]Form(self.params, object=self.[[ singular_snake ]])
         if not self.form.validate():
-            return self.render("[[ plural_snake ]]/edit", status=unprocessable)
+            return self.render("[[ controller_pascal ]]Edit", status=unprocessable)
 
         self.form.save()
         db.s.commit()

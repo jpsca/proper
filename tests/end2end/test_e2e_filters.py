@@ -30,17 +30,17 @@ def test_before_and_after_filters(app, web):
 
 class SideEffectsTestCase(Controller):
     def __before__(self):
-        self.response.template = "f_custom.mako"
+        self.response.component = "CustomComponent"
 
     def rendered(self, *args):
-        self.response.body = f"<html>{self.response.template} was rendered</html>"
+        self.response.body = f"<html>{self.response.component} was rendered</html>"
 
 
-def test_custom_template_from_cb(app, web):
+def test_custom_component_from_cb(app, web):
     app.routes = [get("", to=SideEffectsTestCase.rendered)]
     resp = web.get("/")
 
-    assert resp.text == "<html>f_custom.mako was rendered</html>"
+    assert resp.text == "<html>CustomComponent was rendered</html>"
 
 
 class StopTestCase(Controller):

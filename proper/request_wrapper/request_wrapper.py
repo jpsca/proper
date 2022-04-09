@@ -303,7 +303,7 @@ class Request:
             for name, value in self.env.items():
                 name = name.upper()
                 if name.startswith(("HTTP_", "HTTP-")):
-                    headers[name[5:]] = value
+                    name = name[5:]
                 headers[name] = value
             self._headers = headers
         return self._headers

@@ -10,7 +10,7 @@ def test_gen_project(dst):
     assert (root / name / "config").is_dir()
     assert (root / name / "controllers").is_dir()
     assert (root / name / "models").is_dir()
-    assert (root / name / "templates").is_dir()
+    assert (root / name / "components").is_dir()
 
     assert (root / name / "app.py").exists()
     assert (root / name / "routes.py").exists()
@@ -25,7 +25,7 @@ def test_gen_project_custom(dst):
     assert (root / name / "config").is_dir()
     assert (root / name / "controllers").is_dir()
     assert (root / name / "models").is_dir()
-    assert (root / name / "templates").is_dir()
+    assert (root / name / "components").is_dir()
 
     assert (root / name / "app.py").exists()
     assert (root / name / "routes.py").exists()

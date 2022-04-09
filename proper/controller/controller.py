@@ -1,5 +1,5 @@
 """A base controller class, all other application controllers must
-inherit from. Stores data available to the view/template.
+inherit from. Stores data available to the component.
 """
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -49,7 +49,7 @@ class Controller(RequestForgeryProtection):
 
     def render(
         self,
-        template: Optional[str] = None,
+        component: Optional[str] = None,
         *,
         status: Optional[str] = None,
         json: Optional[Any] = None,
@@ -66,17 +66,10 @@ class Controller(RequestForgeryProtection):
             self.response.content_type = "text/plain"
             return text
 
-        # The template doesn't have a extension so you can choose to use
-        # the default template name but changing the response format from the
-        # default, for example, using ".json" instead of ".html".
-        template = template or self.response.template
-        filename = self.get_template_filename(template)
-        return self.app.render(filename, **vars(self))
-
-    def get_template_filename(self, template: str) -> str:
-        """Override to use a different schema, for example, to
-        not use the ".jinja" postfix."""
-        return f"{template}{self.response.format}.jinja"
+        return self.app.catalog.render(
+            component or self.response.component,
+            **vars(self)
+        )
 
     def send_data(
         self,

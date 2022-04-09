@@ -5,7 +5,7 @@
 
 Although they look similar, an URL path like `/hello/world` in Proper (as in most modern frameworks) it doesn't match a `word` file in a `hello` folder. You must connect that URL to some code that will answer that request.
 
-That is what the Proper router does: recognizes URLs and dispatches them to a controller's action; or redirect you to another URL. It can also generate URLs for you from their names, avoiding the need to hardcode strings in your templates.
+That is what the Proper router does: recognizes URLs and dispatches them to a controller's action; or redirect you to another URL. It can also generate URLs for you from their names, avoiding the need to hardcode strings in your components.
 
 ### 1.1 Connecting URLs to Code
 
@@ -67,7 +67,7 @@ However, if you have an object with attributes with the same names, you can simp
 /posts/123/lorem-ipsum
 ```
 
-This is not only faster (and less boring) to type, but also reduce the brittleness of your templates and makes your code easier to understand.
+This is not only faster (and less boring) to type, but also reduce the brittleness of your components and makes your code easier to understand.
 
 ### 1.3 Configuring the Proper Router
 

@@ -1,0 +1,26 @@
+{#
+action = ''
+method = 'post'
+multipart = false
+novalidate = true
+real_method = ''
+#}
+{% set method = method.upper() -%}
+{% if method not in ("get", "post") -%}
+  {% set real_method = method -%}
+  {% set method = "post" -%}
+{% endif -%}
+<form method="{{ method }}" action="{{ action }}"
+  {%- if multipart %} enctype="multipart/form-data"{% endif %}
+  {{ html_attrs }}
+  {%- if novalidate %} novalidate{% endif -%}
+>
+  {% if method == "post" -%}
+  <input type="hidden" name="csrf_token" value="{{ request.csrf_token }}">
+  {%- endif %}
+  {% if real_method -%}
+  <input type="hidden" name="_method" value="{{ real_method }}">
+  {%- endif %}
+
+  {{ content }}
+</form>

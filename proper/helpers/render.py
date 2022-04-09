@@ -127,7 +127,7 @@ def make_folder(root_path, rel_folder):
 
     rel_folder = str(rel_folder).rstrip(".")
     display = f"{rel_folder}{os.path.sep}"
-    path.mkdir(parents=False, exist_ok=False)
+    path.mkdir(parents=True, exist_ok=False)
     if rel_folder:
         printf(CREATE, display, color=COLOR_OK)
 
@@ -189,6 +189,8 @@ def get_blueprint_render(src, context=None, *, envops=None):
     envops.setdefault("block_end_string", "%]")
     envops.setdefault("variable_start_string", "[[")
     envops.setdefault("variable_end_string", "]]")
+    envops.setdefault("comment_start_string", "[#")
+    envops.setdefault("comment_end_string", "#]")
     envops.setdefault("keep_trailing_newline", True)
     envops["undefined"] = jinja2.StrictUndefined
     render = Render(src, **(envops or {}))

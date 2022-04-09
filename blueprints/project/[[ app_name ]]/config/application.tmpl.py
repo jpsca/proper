@@ -2,14 +2,11 @@ from datetime import timedelta
 
 from proper import Dot
 
-from .database import config as database_config
-from .scheduler import config as scheduler_config
-
 
 config = Dot()
 
 config.debug = False
-config.host = None
+config.host = "http://127.0.0.1:2300"
 
 # Used for verifying the integrity of signed cookies
 config.secret_key = ""
@@ -19,11 +16,11 @@ config.catch_all_errors = True
 
 # Limits the total content length (in bytes).
 # Raises a RequestEntityTooLarge exception if this value is exceeded.
-config.max_content_length = 2 ** 23  # 8 MB
+config.max_content_length = 2**23  # 8 MB
 
 # Limits the content length (in bytes) of the query string.
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
-config.max_query_size = 2 ** 20  # 1 MB
+config.max_query_size = 2**20  # 1 MB
 
 config.session = Dot()
 config.session.lifetime = timedelta(days=30).total_seconds()
@@ -52,5 +49,10 @@ config.static.paths = [
 config.mailer = Dot()
 config.mailer.default_from = "hello@example.com"
 
+from .database import database_config
+
 config.database = database_config
+
+from .scheduler import scheduler_config
+
 config.scheduler = scheduler_config

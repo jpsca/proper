@@ -1,4 +1,4 @@
-from ..app import app, config
+from ..app import app, auth, config
 from .mailer import send_email
 
 
@@ -9,11 +9,11 @@ __all__ = (
 
 
 def render_password_reset_email(user):
-    token = user.get_timestamped_token()
-    validate_url = app.url_for("Auth.reset_validate", token=token)
-    reset_url = app.url_for("Auth.reset")
-    return app.render(
-        "emails/password_reset.html.jinja",
+    token = auth.get_timestamped_token(user)
+    validate_url = app.url_for("PasswordReset.edit", pk=token)
+    reset_url = app.url_for("PasswordReset.new")
+    return app.catalog.render(
+        "EmailPasswordReset",
         validate_url=f"{config.host}{validate_url}",
         reset_url=f"{config.host}{reset_url}",
     )

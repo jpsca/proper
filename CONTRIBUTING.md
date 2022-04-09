@@ -48,7 +48,7 @@ git clone git@github.com:jpscaletti/proper.git
 ```bash
 python -m virtualenv .venv
 source .venv/bin/activate
-make setup
+make install
 ```
 
 5.  Create a branch for local development:

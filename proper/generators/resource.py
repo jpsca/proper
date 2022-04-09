@@ -41,10 +41,21 @@ FORM_INPUT_TYPES = {
 FORM_DEFAULT_INPUT_TYPE = "text"
 
 
-def gen_resource(app, name, *attrs, only="", exclude="", singular=False):
+def gen_resource(
+    app,
+    name,
+    *attrs,
+    only="",
+    exclude="",
+    singular=False,
+    migration=False,
+):
     """Stubs out a new resource
-    including a controller, model, migration, templates, and a resource route
-    in the `routes.py` file
+    including a controller, model, migration, components, and a resource route
+    in the `routes.py` file.
+
+    Use `--migration` to also generate a migration for creating the table.
+
 
         proper g resource NAME
             [--only=action[,action]] [--exclude=action[,action]] [--singular]
@@ -100,9 +111,13 @@ def gen_resource(app, name, *attrs, only="", exclude="", singular=False):
     if singular:
         actions.remove("index")
 
-    ignored_templates = [
-        f"{action}.tmpl.html.jinja" for action in set(ACTIONS).difference(actions)
-    ]
+    ignored_actions = set(ACTIONS).difference(actions)
+    ignored_components = []
+    for action in ignored_actions:
+        action_pascal = inflection.camelize(action)
+        ignored_components.append(
+            f"*{action_pascal}.tmpl.html.jinja",
+        )
 
     attrs_tuples = gen_model(
         app,
@@ -141,7 +156,7 @@ def gen_resource(app, name, *attrs, only="", exclude="", singular=False):
             "singular": singular,
             "form_fields": form_fields,
         },
-        ignore=[ROUTES_TMPL] + ignored_templates,
+        ignore=[ROUTES_TMPL] + ignored_components,
     )
     bp()
 
@@ -149,4 +164,5 @@ def gen_resource(app, name, *attrs, only="", exclude="", singular=False):
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
-    call(f'proper db revision "Create {plural_snake} table"')
+    if migration:
+        call(f'proper db revision "Create {plural_snake} table"')
