@@ -2,6 +2,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 try:
     import brotli
@@ -11,6 +12,9 @@ from proper_cli import echo
 from whitenoise.compress import Compressor
 
 from .helpers import Digestor
+
+if TYPE_CHECKING:
+    from proper import App
 
 
 BUNDLE = "npm run bundle"
@@ -44,7 +48,7 @@ UNCOMPRESSABLE_ENDS = (
 REPLACEABLE_ENDS = (".css", "js", ".html", ".json", ".xml", ".svg")
 
 
-def bundle(app):
+def bundle(app: "App") -> None:
     """Calls `npm run bundle` to bundle the assets in the `static` folder."""
     os.chdir(app.static_path)
     cmd = BUNDLE
@@ -52,7 +56,7 @@ def bundle(app):
     os.system(cmd)
 
 
-def build(app):
+def build(app: "App") -> None:
     """Build/digest/compress the assets in `static` for production."""
     os.chdir(app.static_path)
     cmd = BUNDLE_PROD
@@ -66,7 +70,7 @@ def build(app):
         compress(static)
 
 
-def clean(app):
+def clean(app: "App") -> None:
     """Delete the manifest and all hashed/compressed assets."""
     static = app.static_path
     echo("<bold>-- Removing hashed and/or compressed files --</>")
@@ -79,7 +83,7 @@ def clean(app):
     app.static_manifest_path.unlink()
 
 
-def _digest(root, manifest_path):
+def _digest(root: Path, manifest_path: Path) -> None:
     echo("<bold>-- Hashing files --</>")
     digestor = Digestor(root)
 
@@ -95,7 +99,7 @@ def _digest(root, manifest_path):
     _replace_urls(root, digestor.manifest)
 
 
-def _replace_urls(root, manifest):
+def _replace_urls(root: Path, manifest: dict) -> None:
     """Replace the references to the digested assets with hashed ones
     in CSS and JS files.
 
@@ -120,7 +124,7 @@ def _replace_urls(root, manifest):
         path.write_text(text)
 
 
-def compress(root):
+def compress(root: Path) -> None:
     echo("<bold>-- Compressing files --</bold>")
     compressor = Compressor(use_gzip=True, use_brotli=bool(brotli), quiet=False)
     for dirpath, _, files in os.walk(root):
@@ -131,15 +135,15 @@ def compress(root):
                     pass  # Whitenoise is weird like this
 
 
-def _is_compressed(filename):
+def _is_compressed(filename: str) -> bool:
     return filename.endswith(COMPRESSED_ENDS)
 
 
-def _is_inmutable(filename):
+def _is_inmutable(filename: str) -> bool:
     return bool(RE_INMUTABLES_FILE.match(filename))
 
 
-def _should_digest(filename):
+def _should_digest(filename: str) -> bool:
     if filename.startswith(IGNORE_STARTS):
         return False
     if _is_inmutable(filename):
@@ -147,7 +151,7 @@ def _should_digest(filename):
     return True
 
 
-def _should_compress(filename):
+def _should_compress(filename: str) -> bool:
     if filename.startswith(IGNORE_STARTS):
         return False
     if not _is_inmutable(filename):

@@ -5,8 +5,7 @@ def parse_host(host: str, default_port: int) -> Tuple[str, int]:
     if not host:
         return "", default_port
 
-    sport: str = ""
-
+    sport = ""
     if "]:" in host:
         host, sport = host.split("]:", 1)
         host = host[1:]

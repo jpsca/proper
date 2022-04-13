@@ -4,6 +4,7 @@ Used by proper to serialize the session and available to the user for other thin
 """
 import hashlib
 import json
+from typing import Any
 
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
@@ -24,7 +25,7 @@ class Serializer:
     namespace = "proper.session"
     data_serializer = json
 
-    def __init__(self, secret_key):
+    def __init__(self, secret_key: str) -> None:
         signer_kwargs = {
             "key_derivation": self.key_derivation,
             "digest_method": self.digest_method,
@@ -36,8 +37,8 @@ class Serializer:
             signer_kwargs=signer_kwargs,
         )
 
-    def loads(self, str_value, max_age=None):
+    def loads(self, str_value: str, max_age: "Any") -> dict:
         return self.s.loads(str_value, max_age=max_age)
 
-    def dumps(self, dict_value):
+    def dumps(self, dict_value: dict) -> str:
         return self.s.dumps(dict_value)

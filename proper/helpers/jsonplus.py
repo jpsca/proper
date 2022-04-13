@@ -7,17 +7,17 @@ __all__ = ("dumps", "loads")
 
 
 class CustomEncoder(json.JSONEncoder):
-    def default(self, obj):
+    def default(self, obj: "Any") -> str:
         if isinstance(obj, datetime.date):
             return obj.isoformat()
 
 
 class CustomDecoder(json.JSONDecoder):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(object_hook=self.try_datetime, *args, **kwargs)
 
     @staticmethod
-    def try_datetime(d):
+    def try_datetime(d: dict) -> dict:
         ret = {}
         for key, value in d.items():
             try:
@@ -27,11 +27,11 @@ class CustomDecoder(json.JSONDecoder):
         return ret
 
 
-def dumps(obj: Any, **kwargs):
+def dumps(obj: "Any", **kwargs) -> str:
     kwargs["cls"] = CustomEncoder
     return json.dumps(obj, **kwargs)
 
 
-def loads(s: str, **kwargs):
+def loads(s: str, **kwargs) -> dict:
     kwargs["cls"] = CustomDecoder
     return json.loads(s, **kwargs)

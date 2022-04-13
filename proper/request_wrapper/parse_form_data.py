@@ -1,21 +1,25 @@
 import json
+from typing import TYPE_CHECKING
 
 import multipart
 
 from proper import errors
 from proper.helpers import MultiDict
 
+if TYPE_CHECKING:
+    from typing import IO, Optional
+
 
 __all__ = ("parse_form_data",)
 
 
 def parse_form_data(
-    stream,
-    content_type,
-    content_length,
+    stream: "IO",
+    content_type: str,
+    content_length: int,
     encoding="utf8",
-    max_content_length=None,
-):
+    max_content_length: "Optional[int]" = None,
+) -> MultiDict:
     try:
         return _parse_form_data(
             stream,
@@ -29,12 +33,12 @@ def parse_form_data(
 
 
 def _parse_form_data(
-    stream,
-    content_type,
-    content_length,
-    encoding,
-    max_content_length=None,
-):
+    stream: "IO",
+    content_type: str,
+    content_length: int,
+    encoding: str,
+    max_content_length: "Optional[int]" = None,
+) -> MultiDict:
     validate_max_content_length(content_length, max_content_length)
     content_type, options = multipart.parse_options_header(content_type)
     encoding = options.get("charset", encoding)
@@ -58,12 +62,17 @@ def _parse_form_data(
     raise errors.UnsupportedMediaType("Unsupported Content-Type")
 
 
-def validate_max_content_length(content_length, max_content_length):
+def validate_max_content_length(content_length: int, max_content_length: int) -> None:
     if max_content_length and content_length > max_content_length:
         raise errors.RequestEntityTooLarge("Maximum content length exceeded.")
 
 
-def parse_multipart(stream, content_length, encoding, options):
+def parse_multipart(
+    stream: "IO",
+    content_length: int,
+    encoding: str,
+    options: dict
+) -> MultiDict:
     boundary = get_boundary(options)
     form = MultiDict()
     parser = multipart.MultipartParser(
@@ -77,21 +86,21 @@ def parse_multipart(stream, content_length, encoding, options):
     return form
 
 
-def get_boundary(options):
+def get_boundary(options: dict) -> str:
     boundary = options.get("boundary", "")
     if not boundary:
         raise errors.BadRequest("No boundary for multipart/form-data.")
     return boundary
 
 
-def read_content(stream, max_content_length, encoding):
+def read_content(stream: "IO", max_content_length: int, encoding: str) -> str:
     content = stream.read(max_content_length).decode(encoding)
     if stream.read(1):  # OMG there is still more.
         raise errors.RequestEntityTooLarge("Increase max_content_length.")
     return content
 
 
-def validate_actual_content_length(content, content_length):
+def validate_actual_content_length(content: str, content_length: int) -> None:
     actual_content_length = len(content)
     if actual_content_length > content_length:
         raise errors.BadRequest("Body is bigger than the declared Content-Length.")
@@ -99,7 +108,7 @@ def validate_actual_content_length(content, content_length):
         raise errors.BadRequest("Body is smaller than the declared Content-Length.")
 
 
-def parse_qs(content):
+def parse_qs(content: str) -> MultiDict:
     form = MultiDict()
     data = multipart.parse_qs(content, keep_blank_values=True)
     for key, values in data.items():
@@ -107,7 +116,7 @@ def parse_qs(content):
     return form
 
 
-def parse_json(content):
+def parse_json(content: str) -> MultiDict:
     form = MultiDict()
     data = json.loads(content)
     for key, value in data.items():
@@ -115,7 +124,7 @@ def parse_json(content):
     return form
 
 
-def normalize_newlines(text):
+def normalize_newlines(text: str) -> str:
     r"""A multipart text value can use `\r\n`, `\n`, or `\r` as newlines and
     all three versions are valid.
     This function change `\r\n` or `\r` to just `\n`.

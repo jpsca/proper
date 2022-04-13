@@ -3,7 +3,6 @@ import queue
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 import texteditor
 import yaml
@@ -65,13 +64,12 @@ class Cryptex:
         self.enc_path = path / (ENCRYPTED_FILE % (env,))
         self.key_path = path / MASTER_KEY_FILE
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict:
         if not self.enc_path.exists():
             return {}
         key = self.read_key()
         content = self.read(key)
-        config = self.load_yaml(content)
-        return config or {}
+        return self.load_yaml(content)
 
     def edit(self) -> None:
         """Edit your encrypted credentials in the default text editor."""
@@ -129,7 +127,7 @@ class Cryptex:
         text = yaml.dump(config, Dumper=YamlDumper).strip()
         return "#  " + "\n#  ".join(text.split("\n"))
 
-    def load_yaml(self, content: str) -> Optional[Dict[str, Any]]:
+    def load_yaml(self, content: str) -> dict:
         try:
             return yaml.load(content, Loader=YamlLoader) or {}
         except (TypeError, ValueError):
@@ -137,9 +135,9 @@ class Cryptex:
                 "-- WARNING: The encrypted config has syntax errors and"
                 " is not a valid YAML file."
             )
-            return
+            return {}
 
-    def hide_values(self, config: Dict[str, Any], maxdepth: int = 2) -> Dict[str, Any]:
+    def hide_values(self, config: dict, maxdepth: int = 2) -> dict:
         """Takes a dict and return another with all the non-dict values
         or those deeper than `maxdepth` replaced by `empty`.
         """

@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from proper import App, Request, Response
+
+
 __all__ = (
     "LOCAL_HOSTS",
     "match",
@@ -7,7 +13,7 @@ __all__ = (
 LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")
 
 
-def match(request, response, app):
+def match(request: "Request", response: "Response", app: "App") -> None:
     """Match the request url to a route."""
     host = request.host
     if host in LOCAL_HOSTS:

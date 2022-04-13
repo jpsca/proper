@@ -2,10 +2,13 @@
 Utilities to declare routes in your application.
 
 """
-from typing import Callable, Dict, Optional
+from typing import TYPE_CHECKING
 
 from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, RESTORE
 from .base import BaseRoute
+
+if TYPE_CHECKING:
+    from typing import Callable, Optional
 
 
 __all__ = (
@@ -110,12 +113,12 @@ class Route(BaseRoute):
         method: str,
         path: str,
         *,
-        to: Optional[Callable] = None,
-        name: Optional[str] = None,
-        host: Optional[str] = None,
-        redirect: Optional[str] = None,
-        redirect_status_code: str = "307 Temporary Redirect",
-        defaults: Optional[Dict[str, str]] = None,
+        to: "Optional[Callable]" = None,
+        name: "Optional[str]" = None,
+        host: "Optional[str]" = None,
+        redirect: "Optional[str]" = None,
+        redirect_status_code="307 Temporary Redirect",
+        defaults: "Optional[dict]" = None,
     ) -> None:
         super().__init__()
         self.method = method.upper()
@@ -176,8 +179,8 @@ class Patch(Route):
 class Static(Route):
     """A route for static files."""
 
-    def __init__(self, filepath) -> None:
-        filepath = str(filepath).lstrip("/")
+    def __init__(self, filepath: str) -> None:
+        filepath = filepath.lstrip("/")
         redirect = f"/static/{filepath}"
         super().__init__("GET", filepath, redirect=redirect)
 

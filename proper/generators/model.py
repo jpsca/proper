@@ -1,20 +1,25 @@
 import inflection
+from typing import TYPE_CHECKING
 
 from ..helpers.render import BLUEPRINTS, BlueprintRender, call
+
+if TYPE_CHECKING:
+    from typing import List, Tuple
+    from proper import App
 
 
 MODEL_BLUEPRINT = BLUEPRINTS / "model"
 
 
 def gen_model(
-    app,
-    name,
-    *attrs,
-    singular_pascal=None,
-    singular_snake=None,
-    plural_snake=None,
+    app: "App",
+    name: str,
+    *attrs: str,
+    singular_pascal="",
+    singular_snake="",
+    plural_snake="",
     migration=False,
-):
+) -> "List[Tuple[str, str, str, str]]":
     """Stubs out a new model.
 
     Pass the model name (singular), and an optional list of attribute pairs
@@ -199,7 +204,7 @@ FOREIGN_CONSTRAINT = "foreign"
 CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
 
 
-def _split_attr(attr):
+def _split_attr(attr: str) -> "Tuple[str, str, str, str]":
     # We add "::" to the end so the split doesn't fail when `attr` doesn't
     # specify a field type (meaning, use the default) and/or doesn't
     # have constraints
@@ -217,7 +222,7 @@ def _split_attr(attr):
     return name, ctype, options, constraints
 
 
-def _build_row(plural_snake, *attrs):
+def _build_row(plural_snake: str, *attrs: str) -> str:
     cname, ctype, options, constraints = attrs
     ColumnType = COLUMN_TYPES.get(ctype.lower())
     if ColumnType:
@@ -229,7 +234,7 @@ def _build_row(plural_snake, *attrs):
     return f"{cname} = {col}"
 
 
-def _field(ColumnType, options, constraints):
+def _field(ColumnType: str, options: str, constraints: "List[str]") -> str:
     options = options.replace("-", ", ")
     options = f"({options})" if options else ""
     constraints = _build_constraints(constraints) if constraints else ""
@@ -237,13 +242,13 @@ def _field(ColumnType, options, constraints):
     return f"db.Column(db.{ColumnType}{options}{constraints})"
 
 
-def _build_constraints(constraints):
+def _build_constraints(constraints: "List[str]") -> str:
     return ", ".join(
         [_build_constraint(constraint) for constraint in constraints if constraint]
     )
 
 
-def _build_constraint(constraint):
+def _build_constraint(constraint: str) -> str:
     constraint, value = f"{constraint}-".split("-", 1)
     value = value.rstrip("-")
 
@@ -256,7 +261,7 @@ def _build_constraint(constraint):
         return f"{constraint}={value}"
 
 
-def _relationship(plural_snake, Model, constraints):
+def _relationship(plural_snake: str, Model: str, constraints: "List[str]") -> str:
     constraints.append("select")
     backref = constraints[0]
     lazy = constraints[1]
@@ -264,7 +269,7 @@ def _relationship(plural_snake, Model, constraints):
     return f'db.relationship("{Model}", backref={backref}, lazy="{lazy}")'
 
 
-def _build_backref(plural_snake, backref):
+def _build_backref(plural_snake: str, backref: str) -> str:
     if not backref:
         return f'db.backref("{plural_snake}")'
     backref, lazy = f"{backref}-".split("-", 1)

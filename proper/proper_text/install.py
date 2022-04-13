@@ -1,6 +1,10 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from proper.helpers.render import append_to_file, call, copy_file
+
+if TYPE_CHECKING:
+    from proper import App
 
 
 TRIX_INSTALL = "npm install trix --no-audit --no-fund"
@@ -13,7 +17,7 @@ APPLICATION_JS = "static/src/js/application.js"
 JS_IMPORT = 'import "node_modules/trix/dist/trix.js"\n'
 
 
-def install(app):
+def install(app: "App") -> None:
     """Install WYSIWYG support."""
     call(TRIX_INSTALL)
     root_path = Path(app.root_path.parent)

@@ -12,7 +12,11 @@ the outside world, we sanitize it to a max of 200 chars and alphanumeric and
 dashes only.
 """
 import re
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from proper import App, Request, Response
 
 
 __all__ = ("set_request_id",)
@@ -22,7 +26,7 @@ REQUEST_ID_MAX_LENGTH = 200
 RE_NON_ASCII = re.compile(r"[^\x00-\x7f-]")
 
 
-def set_request_id(request, response, app):
+def set_request_id(request: "Request", response: "Response", app: "App") -> None:
     request_id = request.headers.get(REQUEST_ID_HEADER)
     if request_id:
         request_id = sanitize_request_id(request_id)

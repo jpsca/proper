@@ -1,23 +1,26 @@
 from proper import Dot, is_development_env, is_testing_env, is_staging_or_production_env
 
 
-config = storage_config = Dot()
+storage_config = Dot()
 
-local = config.local = Dot()
+local = Dot()
 local.service = "disk"
 local.root = "storage/"
+storage_config.local = local
 
-test = config.test = Dot()
+test = Dot()
 test.service = "disk"
 test.root = "temp/storage"
+storage_config.test = test
 
 # Replace with your real production service
-amazon = config.amazon = Dot()
+amazon = Dot()
 amazon.service = "s3"
 amazon.access_key_id = ""  # IN CREDENTIALS
 amazon.secret_access_key = ""  # IN CREDENTIALS
 amazon.bucket = "..."
 amazon.region = "..."  # e.g. 'us-east-1'
+storage_config.amazon = amazon
 
 if is_development_env:
     storage_config.service = "local"

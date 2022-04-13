@@ -17,10 +17,10 @@ class StorageAttachment(db.Model):
 
 
 db.Index(
-  "ix_storage_attachments_unique",
-  StorageAttachment.model_type,
-  StorageAttachment.model_id,
-  StorageAttachment.column_name,
-  StorageAttachment.blob_id,
-  unique=True
+    "ix_storage_attachments_unique",
+    StorageAttachment.model_type,
+    StorageAttachment.model_id,
+    StorageAttachment.column_name,
+    StorageAttachment.blob_id,
+    unique=True
 )

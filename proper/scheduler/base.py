@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class BaseScheduler(ABC):
-    def __init__(self, app, **config):
+    def __init__(self, app):
         app.on_dev_start(self.start)
         app.on_dev_shutdown(self.shutdown)
 

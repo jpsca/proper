@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING
+
 from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
+
+if TYPE_CHECKING:
+    from proper import App
 
 
 AUTH_BLUEPRINT = BLUEPRINTS / "auth"
@@ -24,7 +29,7 @@ class AppController(LoadUser, Controller):
 """
 
 
-def install(app, migration=False):
+def install(app: "App", migration=False) -> None:
     """Install user/password authentication support.
     Use `--migration` to generate a migration for creating
     the users table.
@@ -54,6 +59,8 @@ def install(app, migration=False):
     routes_tmpl = AUTH_BLUEPRINT / ROUTES_TMPL
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
+
+    call("pip install argon2-cffi")
 
     if migration:
         call('proper db revision "Create users table"')

@@ -2,7 +2,7 @@
 inherit from. Stores data available to the component.
 """
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING
 
 from ..app import App
 from ..constants import HEAD
@@ -12,15 +12,14 @@ from ..response_wrapper import Response
 from ..status import not_modified, ok
 from .request_forgery_protection import RequestForgeryProtection
 
+if TYPE_CHECKING:
+    from typing import Any, Optional, Union
+
 
 __all__ = ("Controller",)
 
-TStringOrPath = Union[str, Path]
-
 
 class Controller(RequestForgeryProtection):
-    action_name: str
-
     def __before__(self) -> None:
         pass
 
@@ -30,14 +29,15 @@ class Controller(RequestForgeryProtection):
     def __init__(
         self,
         *,
-        request: Optional[Request] = None,
-        response: Optional[Response] = None,
-        app: Optional[App] = None,
+        request: "Optional[Request]" = None,
+        response: "Optional[Response]" = None,
+        app: "Optional[App]" = None,
     ) -> None:
         self.request = request or Request()
         self.response = response or Response()
         self.app = app
         self.redirect_to = self.response.redirect_to
+        self.action_name = ""
 
     @property
     def params(self) -> MultiDict:
@@ -49,11 +49,11 @@ class Controller(RequestForgeryProtection):
 
     def render(
         self,
-        component: Optional[str] = None,
+        component: "Optional[str]" = None,
         *,
-        status: Optional[str] = None,
-        json: Optional[Any] = None,
-        text: Optional[Any] = None,
+        status: "Optional[str]" = None,
+        json: "Optional[Any]" = None,
+        text: "Optional[Any]" = None,
     ) -> str:
         if status is not None:
             self.response.status_code = status
@@ -75,22 +75,22 @@ class Controller(RequestForgeryProtection):
         self,
         data: bytes,
         *,
-        disposition: str = "attachment",
-        status: str = ok,
-        type: str = "application/octet-stream",
+        disposition="attachment",
+        status=ok,
+        type="application/octet-stream",
     ):
         ...
 
     def send_file(
         self,
-        path: TStringOrPath,
+        path: "Union[str, Path]",
         *,
-        disposition: str = "attachment",
-        filename: Optional[str] = None,
-        stream: bool = False,
-        buffer_size: int = 1024,
-        status: str = ok,
-        type: str = "application/octet-stream",
+        disposition="attachment",
+        filename="",
+        stream=False,
+        buffer_size=1024,
+        status=ok,
+        type="application/octet-stream",
     ):
         ...
 

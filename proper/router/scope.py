@@ -86,7 +86,7 @@ class Scope:
         self.mount = "/" + mount.strip("/")
         self.host = host
 
-    def __call__(self, *routes: Iterable) -> List[Route]:
+    def __call__(self, *routes) -> List[Route]:
         _routes = []
         for route in flatten(routes):
             self._mount_route(route)

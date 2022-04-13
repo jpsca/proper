@@ -1,4 +1,8 @@
 from collections import defaultdict
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Callable, List, Optional
 
 
 __all__ = (
@@ -16,15 +20,22 @@ class MultiDict(defaultdict):
     multiple values for the same key and type casting its values.
     """
 
-    def __init__(self, *mapping):
+    def __init__(self, *mapping) -> None:
         super().__init__(list)
         for key, value in mapping or []:
             self[key].append(value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Multidict {self.keys()}>"
 
-    def get(self, key, default=None, *, type=None, index=-1):
+    def get(
+        self,
+        key: str,
+        default: "Any" = None,
+        *,
+        type: "Optional[Callable]" = None,
+        index=-1
+    ) -> "Any":
         """Return the last value of the key of `default` one if the key
         doesn't exist.
 
@@ -68,14 +79,20 @@ class MultiDict(defaultdict):
                 return default
         return value
 
-    def get_or_error(self, key, *, type=None, index=-1):
+    def get_or_error(
+        self,
+        key: str,
+        *,
+        type: "Optional[Callable]" = None,
+        index=-1
+    ) -> "Any":
         """Like `.get()` but raises a `KeyError` if the key doesn't exist."""
         value = self.get(key, default=NoValue, type=type, index=index)
         if value is NoValue:
             raise KeyError(key)
         return value
 
-    def getall(self, key, *, type=None):
+    def getall(self, key: str, *, type: "Optional[Callable]" = None) -> "List":
         """Return the list of items for a given key. If that key is not in the
         `MultiDict`, the return value will be an empty list.
 
@@ -116,7 +133,7 @@ class MultiDict(defaultdict):
 FALSE_STRINGS = ("off", "0", "false", "no")
 
 
-def exbool(value):
+def exbool(value: str) -> bool:
     """Cast a string to boolean considering the empty string as `False`,
     but also the values: `'off'`, `'0'`, `'false'`, `'False'`,
     and `'no'`.

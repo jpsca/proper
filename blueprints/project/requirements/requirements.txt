@@ -1,4 +1,3 @@
-argon2-cffi  # Next-gen hash function for the passwords
 brotli  # To generate brotli-compressed assets
 jinja2  # Template system
 

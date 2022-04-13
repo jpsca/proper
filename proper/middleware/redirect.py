@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from proper import App, Request, Response
+
+
 __all__ = ("redirect",)
 
 
-def redirect(request, response, app):
+def redirect(request: "Request", response: "Response", app: "App") -> None:
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
     """

@@ -1,6 +1,9 @@
 import re
 from string import Template
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 __all__ = ("BaseRoute", "MissingParameter", "BadPlaceholder", "BadFormat")
@@ -21,19 +24,19 @@ RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
 
 
 class MissingParameter(Exception):
-    def __init__(self, name, path):
+    def __init__(self, name: str, path: str) -> None:
         msg = f"missing value for {name} in {path}"
         super().__init__(msg)
 
 
 class BadPlaceholder(Exception):
-    def __init__(self, name, path, rx):
+    def __init__(self, name: str, path: str, rx: str) -> None:
         msg = f"placeholder {name} doesn't have the expected format <{rx}> in {path}"
         super().__init__(msg)
 
 
 class DuplicatedPlaceholder(Exception):
-    def __init__(self, name, path):
+    def __init__(self, name: str, path: str) -> None:
         msg = f"placeholder {name} declared more than once in {path}"
         super().__init__(msg)
 
@@ -48,20 +51,17 @@ class _RouteTemplate(Template):
 
 class BaseRoute:
     __slots__ = (
+        "path",
         "path_re",
         "path_plain",
         "path_placeholders",
     )
 
-    path: str
-    path_re: Optional[re.Pattern]
-    path_plain: Optional[str]
-    path_placeholders: Optional[Dict[str, Any]]
-
     def __init__(self) -> None:
-        self.path_re = None
-        self.path_plain = None
-        self.path_placeholders = None
+        self.path = ""
+        self.path_re: "Optional[re.Pattern]" = None
+        self.path_plain: "Optional[str]" = None
+        self.path_placeholders: "Optional[dict]" = None
 
     def __eq__(self, other) -> bool:
         if getattr(other, "__slots__", None) != self.__slots__:
@@ -115,13 +115,13 @@ class BaseRoute:
         self.path_plain = plain
         self.path_placeholders = placeholders
 
-    def match(self, path: str) -> Optional[re.Match]:
+    def match(self, path: str) -> "Optional[re.Match]":
         if self.path_re is None:
             self.compile_path()
 
         return self.path_re.match(path)
 
-    def format(self, **kwargs: Dict[str, str]) -> str:
+    def format(self, **kwargs) -> str:
         if self.path_plain is None:
             self.compile_path()
 
@@ -138,7 +138,7 @@ class BaseRoute:
 
         return url
 
-    def _get_path_params(self, kwargs) -> Dict[str, Any]:
+    def _get_path_params(self, kwargs: dict) -> dict:
         path_params = {}
 
         for name, rx in self.path_placeholders.items():
@@ -152,7 +152,7 @@ class BaseRoute:
 
         return path_params
 
-    def _get_query_params(self, path_params, kwargs) -> Dict[str, Any]:
+    def _get_query_params(self, path_params: dict, kwargs: dict) -> dict:
         query_params = {}
 
         for name, value in kwargs.items():

@@ -9,5 +9,5 @@ class HeadersDict(Dot):
     to HTTP request headers.
     """
 
-    def _key_encode(self, key):
+    def _key_encode(self, key: str) -> str:
         return str(key).title().replace("_", "-")

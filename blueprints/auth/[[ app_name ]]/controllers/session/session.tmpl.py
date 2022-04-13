@@ -17,8 +17,8 @@ class Session(AppController):
 
     def create(self):
         user = User.authenticate(
-          login=self.params.get("login"),
-          password=self.params.get("password"),
+            login=self.params.get("login"),
+            password=self.params.get("password"),
         )
         if user:
             user.sign_in()

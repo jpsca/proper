@@ -1,10 +1,15 @@
 import socket
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from proper_cli import Cli
 
-from . import auth, generators, proper_text, static
+from . import auth, generators, proper_text, static, storage
+
+if TYPE_CHECKING:
+    from typing import Any, Callable
+    from proper import App
 
 
 UWSGI_DEV_CONFIG = "uwsgi-dev.ini"
@@ -22,7 +27,7 @@ WELCOME = """
 EXAMPLE_COM_IP = "93.184.216.34"
 
 
-def get_app_cli(app):
+def get_app_cli(app: "App") -> "Cli":
     attrs = {
         "__doc__": """
         Application-specific commands.
@@ -44,7 +49,7 @@ def get_app_cli(app):
     return type("AppCli", (Cli,), attrs)
 
 
-def get_run_server(app):
+def get_run_server(app: "App") -> "Callable":
     def run_server(_self):
         """Runs the development server.
 
@@ -68,7 +73,7 @@ def get_run_server(app):
     return run_server
 
 
-def get_routes_cmd(app):
+def get_routes_cmd(app: "App") -> "Callable":
     def routes(_self):
         """Show all registered routes."""
         print(
@@ -108,7 +113,7 @@ def get_routes_cmd(app):
     return routes
 
 
-def get_credentials_cmd(app):
+def get_credentials_cmd(app: "App") -> "Callable":
     def credentials(_self, env="production"):
         """Edit your encrypted credentials.
 
@@ -124,7 +129,7 @@ def get_credentials_cmd(app):
     return credentials
 
 
-def get_generators_cli(app):
+def get_generators_cli(app: "App") -> "Cli":
     attrs = {
         "__doc__": """Generate new code.""",
     }
@@ -135,7 +140,7 @@ def get_generators_cli(app):
     return type("Generators", (Cli,), attrs)
 
 
-def get_static_cli(app):
+def get_static_cli(app: "App") -> "Cli":
     attrs = {
         "__doc__": """Manage static files.""",
     }
@@ -146,16 +151,17 @@ def get_static_cli(app):
     return type("Static", (Cli,), attrs)
 
 
-def get_install_cli(app):
+def get_install_cli(app: "App") -> "Cli":
     attrs = {
         "__doc__": "",
         "auth": _get_cmd(app, auth, "install"),
+        "storage": _get_cmd(app, storage, "install"),
         "text": _get_cmd(app, proper_text, "install"),
     }
     return type("Install", (Cli,), attrs)
 
 
-def welcome(_self, host="0.0.0.0", port=2300):
+def welcome(_self, host="0.0.0.0", port=2300) -> None:
     """Display the welcome message for the development server.
 
     Arguments:
@@ -170,7 +176,7 @@ def welcome(_self, host="0.0.0.0", port=2300):
     print(WELCOME.format(local=local, network=network))
 
 
-def _get_cmd(app, module, name):
+def _get_cmd(app, module: "Any", name: str) -> "Callable":
     func = getattr(module, name)
 
     def cmd(_, *args, **kwargs):
@@ -181,7 +187,7 @@ def _get_cmd(app, module, name):
     return cmd
 
 
-def _get_local_ip():
+def _get_local_ip() -> str:
     ip = socket.gethostbyname(socket.gethostname())
     if not ip.startswith("127."):
         return ip

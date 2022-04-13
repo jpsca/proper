@@ -3,20 +3,14 @@ from sqla_wrapper import BaseModel
 from .attachment import BaseAttachment
 
 
-__all__ = ("Attachable", "AttachableBaseModel")
+__all__ = ("AttachableBase", )
 
 
-class Attachable:
-    def __new__(cls, **kwargs):
-        obj = super().__new__(cls, **kwargs)
-        for key, col in cls.__dict__.items():
-            if isinstance(col, BaseAttachment):
-                col.column_name = key
-                col.obj = obj
-                if key in kwargs:
-                    col.attach(kwargs[key])
+class AttachableBase(BaseModel):
+    def __new__(cls):
+        obj = super().__new__(cls)
+        for key, value in cls.__dict__.items():
+            if isinstance(value, BaseAttachment):
+                value.column_name = key
+                value.obj = obj
         return obj
-
-
-class AttachableBaseModel(Attachable, BaseModel):
-    pass

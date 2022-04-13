@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-
+from typing import Union
 import inflection
 from proper_cli import confirm
 
@@ -11,7 +11,13 @@ from ..helpers import BLUEPRINTS, BlueprintRender, call
 PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 
-def gen_project(path, *, name=None, force=False, _dependencies=True):
+def gen_project(
+    path: "Union[Path, str]",
+    *,
+    name="",
+    force=False,
+    _dependencies=True
+) -> None:
     """Creates a new Proper application at `path`.
 
     The `proper new` command creates a new Proper application with a default
@@ -49,7 +55,7 @@ def gen_project(path, *, name=None, force=False, _dependencies=True):
     _wrap_up(path, deps_installed)
 
 
-def _install_dependencies(path):
+def _install_dependencies(path: Path) -> bool:
     if not confirm(
         f" Install dependencies in a virtualenv at {path.stem}/.venv ?",
         default=True,
@@ -68,7 +74,7 @@ def _install_dependencies(path):
     return True
 
 
-def _wrap_up(path, deps_installed):
+def _wrap_up(path: Path, deps_installed: bool) -> None:
     print("✨ Done! ✨")
     print()
     print(" The following steps are missing:")

@@ -1,5 +1,9 @@
 import re
 from operator import itemgetter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Tuple
 
 
 RX_ACCEPT = re.compile(
@@ -23,7 +27,7 @@ RX_ACCEPT = re.compile(
 )
 
 
-def parse_accept_header(value: str):
+def parse_accept_header(value: str) -> "Tuple[str, int]":
     """Parses an HTTP Accept-* header. Does not implement a complete
     valid algorithm but one that support most cases.
     Returns a list of `(value, quality)` tuples sorted by the quality.

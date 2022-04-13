@@ -5,7 +5,7 @@ from contextvars import ContextVar
 from functools import partial
 from importlib import import_module
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import TYPE_CHECKING
 
 import inflection
 import oot
@@ -33,7 +33,11 @@ from .response_wrapper import Response
 from .router import Router, get
 from .scheduler import HueyScheduler
 from .static import RX_INMUTABLES_FILE
-from .storage import AttachableBaseModel, Storage
+from .storage import AttachableBase, Storage
+
+if TYPE_CHECKING:
+    from typing import Any, Callable, Iterable, List, Optional
+    from .router import Route
 
 
 COMPONENTS_FOLDER = "components"
@@ -54,37 +58,11 @@ class BadSecretKey(Exception):
 
 
 class App:
-    # A lists of functions that are called before, during, and after dispatching
-    # a request.
-    # If one of these functions sets the stop attribute of the response,
-    # the rest is skipped.
-    _on_before_dispatch: Tuple[Callable] = tuple()
-    _on_dispatch: Tuple[Callable] = tuple()
-    _on_after_dispatch: Tuple[Callable] = tuple()
-
-    # A lists of functions that are called if any of the functions in the
-    # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
-    # raises an exception.
-    _on_error: Tuple[Callable] = tuple()
-
-    # A lists of functions that are all *always* called at the end of a request,
-    # even if an exception was raised before.
-    _on_teardown: Tuple[Callable] = tuple()
-
-    # A lists of functions that are called when the development server starts,
-    # and when it shutdown. Useful for running the scheduler on development and
-    # similar tasks.
-    _on_dev_start: Tuple[Callable] = tuple()
-    _on_dev_shutdown: Tuple[Callable] = tuple()
-
-    # A dict of functions to call when an HTTPError is raised.
-    # The keys are any subclasses of Exception, but, not necessarily
-    # subclasses of HTTPError.
-    error_handlers = None
-
-    serializer = None
-
-    def __init__(self, import_name, *, config=None):
+    def __init__(
+        self,
+        import_name: str,
+        config: "Optional[dict]"
+    ) -> None:
         """
         import_name (str):
             The name of the application package. Eg.: `foobar.web`.
@@ -93,9 +71,41 @@ class App:
             Optional dict-like with the config.
 
         """
+        # A lists of functions that are called before, during, and after dispatching
+        # a request.
+        # If one of these functions sets the stop attribute of the response,
+        # the rest is skipped.
+        self._on_before_dispatch = tuple()
+        self._on_dispatch = tuple()
+        self._on_after_dispatch = tuple()
+
+        # A lists of functions that are called if any of the functions in the
+        # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
+        # raises an exception.
+        self._on_error = tuple()
+
+        # A lists of functions that are all *always* called at the end of a request,
+        # even if an exception was raised before.
+        self._on_teardown = tuple()
+
+        # A lists of functions that are called when the development server starts,
+        # and when it shutdown. Useful for running the scheduler on development and
+        # similar tasks.
+        self._on_dev_start = tuple()
+        self._on_dev_shutdown = tuple()
+
+        # A dict of functions to call when an HTTPError is raised.
+        # The keys are any subclasses of Exception, but, not necessarily
+        # subclasses of HTTPError.
+        self.error_handlers = {}
+
+        self.serializer = None
+        self.scheduler = None
+        self.storage = None
         self._wrapped_wsgi = self.wsgi_app
+
         self._setup_paths(import_name)
-        self._setup_config(config)
+        self._setup_config(config or {})
         self._setup_middleware()
         self._setup_router()
         self._setup_serializer()
@@ -108,69 +118,69 @@ class App:
         self._setup_auth()
         self._setup_storage()
 
-    def __call__(self, environ, start_response):
+    def __call__(self, environ: dict, start_response: "Callable") -> "Iterable[bytes]":
         return self._wrapped_wsgi(environ, start_response)
 
     @property
-    def config(self):
+    def config(self) -> Dot:
         return self._config
 
     @property
-    def routes(self):
+    def routes(self) -> "List[Route]":
         return self.router._routes
 
     @routes.setter
-    def routes(self, values):
+    def routes(self, values: "List[Route]") -> None:
         self.router.routes = values
 
     @property
-    def components_path(self):
+    def components_path(self) -> Path:
         return self.root_path / COMPONENTS_FOLDER
 
     @property
-    def static_path(self):
+    def static_path(self) -> Path:
         return self.root_path.parent / STATIC_FOLDER
 
     @property
-    def static_manifest_path(self):
+    def static_manifest_path(self) -> Path:
         return self.static_path / MANIFEST_PATH
 
-    def on_before_dispatch(self, func: Callable) -> Callable:
+    def on_before_dispatch(self, func: "Callable") -> "Callable":
         """Decorator to add a function that runs before a request is dispatched"""
         self._on_before_dispatch = self._on_before_dispatch + (func,)
         return func
 
-    def on_after_dispatch(self, func: Callable) -> Callable:
+    def on_after_dispatch(self, func: "Callable") -> "Callable":
         """Decorator to add a function that runs after a request is dispatched"""
         self._on_after_dispatch = self._on_after_dispatch + (func,)
         return func
 
-    def on_error(self, func: Callable) -> Callable:
+    def on_error(self, func: "Callable") -> "Callable":
         """Decorator to add a function that runs if a request
         raises an exception."""
         self._on_error = self._on_error + (func,)
         return func
 
-    def on_teardown(self, func: Callable) -> Callable:
+    def on_teardown(self, func: "Callable") -> "Callable":
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
         return func
 
-    def on_dev_start(self, func: Callable) -> Callable:
+    def on_dev_start(self, func: "Callable") -> "Callable":
         """Decorator to add a function that runs when the development
         server starts. Useful for running the scheduler on development and
         similar tasks."""
         self._on_dev_start = self._on_dev_start + (func,)
         return func
 
-    def on_dev_shutdown(self, func: Callable) -> Callable:
+    def on_dev_shutdown(self, func: "Callable") -> "Callable":
         """Decorator to add a function that runs when the development
         server is shutdown."""
         self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
-    def wsgi_app(self, environ, start_response):
+    def wsgi_app(self, environ: dict, start_response: "Callable") -> "Iterable[bytes]":
         request = Request(
             max_content_length=self._config.max_content_length,
             max_query_size=self._config.max_query_size,
@@ -220,7 +230,7 @@ class App:
             for func in self._on_teardown:
                 func(request, response)
 
-    def error_handler(self, cls, to):
+    def error_handler(self, cls: Exception, to: "Callable") -> None:
         """Register a controller method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 
@@ -241,31 +251,38 @@ class App:
                 get(f"_{inflection.underscore(cls.__qualname__)}", to=to)
             )
 
-    def url_for(self, name: str, object=None, *, _anchor=None, **kwargs):
+    def url_for(
+        self,
+        name: str,
+        object: "Any" = None,
+        *,
+        _anchor="",
+        **kw
+    ) -> str:
         """Proxy for `self.router.url_for()`."""
-        return self.router.url_for(name, object=object, _anchor=_anchor, **kwargs)
+        return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
 
-    def url_static(self, filename, *, host=None):
+    def url_static(self, filename: str, *, host: "Optional[str]" = None) -> str:
         host = host or self._config.static.host or f"/{STATIC_PREFIX}"
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
         return f"{host}/{filename}"
 
-    def include_static(self, filename):
+    def include_static(self, filename: str) -> str:
         """Read and returns a text file from the `static` folder, to include as-is.
         """
         text = (self.static_path / filename).read_text()
         return Markup(text)
 
-    def edit_credentials(self, env):
+    def edit_credentials(self, env: dict) -> None:
         cryptex = Cryptex(self.credentials_path, env)
-        return cryptex.edit()
+        cryptex.edit()
 
-    def start(self):
+    def start(self) -> None:
         for func in self._on_dev_start:
             func()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         print("\nShutting down")
         for func in self._on_dev_shutdown:
             func()
@@ -273,7 +290,7 @@ class App:
 
     # Private
 
-    def _setup_paths(self, import_name):
+    def _setup_paths(self, import_name: str) -> None:
         module = import_module(import_name)
         path = Path(module.__file__)
         if path.is_file():
@@ -283,7 +300,7 @@ class App:
         self.config_path = self.root_path / "config"
         self.credentials_path = self.config_path / "credentials"
 
-    def _setup_config(self, _config):
+    def _setup_config(self, _config: dict) -> None:
         self.env = get_env()
         config = self._load_config()
         config.update(_config)
@@ -292,7 +309,7 @@ class App:
         config.secret_key = self._validate_secret_key(config.secret_key)
         self._config = config
 
-    def _load_config(self):
+    def _load_config(self) -> Dot:
         config = get_default_config()
         config_file = self.config_path / f"{self.env}.py"
         if config_file.is_file():
@@ -304,11 +321,11 @@ class App:
             logger.warning("%s cannot be imported", config_file)
         return config
 
-    def _load_credentials(self):
+    def _load_credentials(self) -> Dot:
         cryptex = Cryptex(self.credentials_path, self.env)
         return cryptex.load()
 
-    def _validate_secret_key(self, secret_key):
+    def _validate_secret_key(self, secret_key: "Optional[str]") -> str:
         secret_key = str(secret_key or "")
         if len(secret_key) < MIN_SECRET_LENGTH:
             raise BadSecretKey(
@@ -321,7 +338,7 @@ class App:
 
         return secret_key
 
-    def _setup_middleware(self):
+    def _setup_middleware(self) -> None:
         self._on_before_dispatch = (
             partial(middleware.set_request_id, app=self),
             partial(middleware.head_to_get, app=self),
@@ -340,14 +357,14 @@ class App:
 
         self.error_handlers = {}
 
-    def _setup_router(self):
+    def _setup_router(self) -> None:
         self.router = Router()
         self.router._debug = self._config.debug
 
-    def _setup_serializer(self):
+    def _setup_serializer(self) -> None:
         self.serializer = Serializer(self._config.secret_key)
 
-    def _setup_db(self):
+    def _setup_db(self) -> None:
         config = self._config
         self.db = SQLAlchemy(
             dialect=config.database.dialect,
@@ -358,21 +375,21 @@ class App:
             port=config.database.port,
             engine_options=config.database.engine_options,
             session_options=config.database.session_options,
-            base_model_class=AttachableBaseModel,
+            base_model_class=AttachableBase,
         )
         if config.database.migrations:
             self.alembic = Alembic(self.db, config.database.migrations)
         else:
             self.alembic = None
 
-    def _load_static_manifest(self):
+    def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
         if not self._config.debug and path.exists():
             self.static_manifest = json.loads(path.read_text())
         else:
             self.static_manifest = {}
 
-    def _setup_render(self):
+    def _setup_render(self) -> None:
         if not self.components_path.exists():
             self.catalog = None
             return
@@ -392,7 +409,7 @@ class App:
             immutable_file_test=RX_INMUTABLES_FILE,
         )
 
-    def _setup_whitenoise(self):
+    def _setup_whitenoise(self) -> None:
         if not self.static_path.exists():
             return
 
@@ -408,17 +425,17 @@ class App:
             prefix = sp["prefix"].lstrip("/\\")
             self._wrapped_wsgi.add_files(path, prefix=prefix)
 
-    def _setup_cli(self):
+    def _setup_cli(self) -> None:
         Cli = get_app_cli(self)
         self.cli = Cli()
 
-    def _setup_scheduler(self):
+    def _setup_scheduler(self) -> None:
         if not self._config.scheduler:
             self.scheduler = None
             return
         self.scheduler = HueyScheduler(self, **self._config.scheduler)
 
-    def _setup_auth(self):
+    def _setup_auth(self) -> None:
         if not self._config.auth:
             self.auth = None
             return
@@ -431,14 +448,14 @@ class App:
             password_maxlen=config.auth.password_maxlen,
         )
 
-    def _setup_storage(self):
+    def _setup_storage(self) -> None:
         config = self._config
         if not config.storage:
             self.storage = None
             return
-        self.storage = Storage(self, **config)
+        self.storage = Storage(self, config.storage)
 
-    def _handle_app_error(self, request, response):
+    def _handle_app_error(self, request: Request, response: Response) -> None:
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
         """
@@ -447,21 +464,23 @@ class App:
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
         if self._config.debug:
-            return self._default_error_handler(request, response)
+            self._default_error_handler(request, response)
+            return
 
         if self.error_handlers:
             error = response.error
             for cls, handler in self.error_handlers.items():
                 if isinstance(error, cls):
-                    return self._custom_error_handler(request, response, handler)
+                    self._custom_error_handler(request, response, handler)
+                    return
 
         self._default_error_handler(request, response)
 
-    def _set_status_code(self, response):
+    def _set_status_code(self, response: Response) -> None:
         error = response.error
         response.status_code = getattr(error, "status_code", status.server_error)
 
-    def _default_error_handler(self, request, response):
+    def _default_error_handler(self, request: Request, response: Response) -> None:
         self._set_status_code(response)
 
         if not self._config.debug and not self._config.catch_all_errors:
@@ -471,13 +490,13 @@ class App:
         else:
             self._default_error_handler_production(request, response)
 
-    def _default_error_handler_debug(self, request, response):
+    def _default_error_handler_debug(self, request: Request, response: Response) -> None:
         if isinstance(response.error, (MatchNotFound, MethodNotAllowed)):
             debug_not_found_handler(request, response, self)
         else:
             debug_error_handler(request, response, self)
 
-    def _default_error_handler_production(self, request, response):
+    def _default_error_handler_production(self, request: Request, response: Response) -> None:
         if response.status_code in (status.not_found, status.gone):
             fallback_not_found_handler(request, response, self)
         elif response.status_code == status.forbidden:
@@ -485,14 +504,14 @@ class App:
         else:
             fallback_error_handler(request, response, self)
 
-    def _custom_error_handler(self, request, response, handler):
+    def _custom_error_handler(self, request: Request, response: Response, handler) -> None:
         response.component = None
         request.matched_route = Dot({"to": handler})
         request.matched_params = {}
         dispatch(request, response, self)
 
-    def _rollback_db_session(self, request, response):
+    def _rollback_db_session(self, *args, **kw) -> None:
         self.db.s.rollback()
 
-    def _remove_db_session(self, request, response):
+    def _remove_db_session(self, *args, **kw) -> None:
         self.db.s.remove()

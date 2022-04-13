@@ -4,7 +4,7 @@ Request class.
 import mimetypes
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING
 
 from .. import errors
 from ..constants import DELETE, FLASHES_SESSION_KEY, GET, HEAD, PATCH, POST, PUT
@@ -17,6 +17,9 @@ from .parse_form_data import parse_form_data
 from .parse_host import parse_host
 from .parse_http_date import parse_http_date
 from .parse_query_string import parse_query_string
+
+if TYPE_CHECKING:
+    from typing import Any, List, Optional, Union
 
 
 __all__ = ("Request", "make_test_env")
@@ -145,45 +148,33 @@ class Request:
 
     """
 
-    encoding: str
-    max_content_length: Optional[int]
-    max_query_size: Optional[int]
-    env: Dict[str, Any]
-    method: str
-    request_method: str
-    path: str
-    content_type: str
-    protocol: str
-    host: str
-    port: int
-
-    matched_route: Optional[Route] = None
-    matched_params: Optional[Dict[str, Any]] = None
-    matched_action: Optional[str] = None
-    user: Optional[Any] = None
-    csrf_token: Optional[str] = None
-
-    _remote_ip: Optional[str] = None
-    _content_length: Optional[int] = None
-    _headers: Optional[HeadersDict] = None
-    _accepts: Optional[List[str]] = None
-    _format: Optional[str] = None
-    _if_none_match: Optional[List[str]] = None
-    _if_modified_since: Optional[Union[datetime, str]] = None
-    _languages: Optional[List[str]] = None
-    _query: Optional[MultiDict] = None
-    _form: Optional[MultiDict] = None
-    _cookies: Optional[Dict[str, Any]] = None
-    _session: Dict[str, Any]
-
     def __init__(
         self,
         *,
-        encoding: str = "utf8",
-        max_content_length: Optional[int] = None,
-        max_query_size: Optional[int] = None,
+        encoding="utf8",
+        max_content_length: "Optional[int]" = None,
+        max_query_size: "Optional[int]" = None,
         **env,
     ) -> None:
+        self.matched_route: "Optional[Route]" = None
+        self.matched_params: "Optional[dict]" = None
+        self.matched_action: "Optional[str]" = None
+        self.user: "Any" = None
+        self.csrf_token: "Optional[str]" = None
+
+        self._remote_ip: "Optional[str]" = None
+        self._content_length: "Optional[int]" = None
+        self._headers: "Optional[HeadersDict]" = None
+        self._accepts: "Optional[List[str]]" = None
+        self._format: "Optional[str]" = None
+        self._if_none_match: "Optional[List[str]]" = None
+        self._if_modified_since: "Optional[Union[datetime, str]]" = None
+        self._languages: "Optional[List[str]]" = None
+        self._query: "Optional[MultiDict]" = None
+        self._form: "Optional[MultiDict]" = None
+        self._cookies: "Optional[dict]" = None
+        self._session = {}
+
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
@@ -309,7 +300,7 @@ class Request:
         return self._headers
 
     @property
-    def accepts(self) -> List[str]:
+    def accepts(self) -> "List[str]":
         if self._accepts is None:
             value = self.env.get("HTTP_ACCEPT", "")
             _accepts = [mime for mime, q in parse_accept_header(value)]
@@ -334,7 +325,7 @@ class Request:
         return self._format
 
     @property
-    def if_none_match(self) -> List[str]:
+    def if_none_match(self) -> "List[str]":
         """Value of the If-None-Match header, as a parsed list of strings,
         or an empty list if the header is missing or its value is blank.
         """
@@ -344,14 +335,14 @@ class Request:
         return self._if_none_match
 
     @property
-    def if_modified_since(self) -> Union[datetime, str]:
+    def if_modified_since(self) -> "Union[datetime, str]":
         if self._if_modified_since is None:
             header = self.env.get("HTTP_IF_MODIFIED_SINCE", "")
             self._if_modified_since = parse_http_date(header) or ""
         return self._if_modified_since
 
     @property
-    def languages(self) -> List[str]:
+    def languages(self) -> "List[str]":
         if self._languages is None:
             value = self.env.get("HTTP_ACCEPT_LANGUAGES", "")
             self._languages = [
@@ -361,7 +352,7 @@ class Request:
         return self._languages
 
     @property
-    def body(self) -> Any:
+    def body(self) -> "Any":
         return self.env.get("wsgi.input", BytesIO())
 
     @property
@@ -388,22 +379,22 @@ class Request:
         return self._form
 
     @property
-    def cookies(self) -> Dict[str, Any]:
+    def cookies(self) -> dict:
         if self._cookies is None:
             self._cookies = parse_cookies(self.env.get("HTTP_COOKIE"))
         return self._cookies
 
     @property
-    def session(self) -> Dict[str, Any]:
+    def session(self) -> dict:
         return self._session
 
     @property
-    def flashes(self) -> Dict[str, Any]:
+    def flashes(self) -> dict:
         return self._session.get(FLASHES_SESSION_KEY, {})
 
     # Private
 
-    def _validate_content_length(self, length: Union[int, str]) -> int:
+    def _validate_content_length(self, length: "Union[int, str]") -> int:
         try:
             ilength = int(length)
         except ValueError:
@@ -415,7 +406,7 @@ class Request:
         return ilength
 
 
-def make_test_env(path: str = None, **kwargs: Dict[str, Any]) -> Dict[str, str]:
+def make_test_env(path="", **kwargs) -> dict:
     from wsgiref.util import setup_testing_defaults
 
     env = {"REMOTE_ADDR": "127.0.0.1"}

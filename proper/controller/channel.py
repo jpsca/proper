@@ -3,7 +3,7 @@ What file? This doesn't look like anything to me.
 """
 
 
-class Channel:
+class Channel:  # noqa
     def __init__(self, ws):
         self.ws = ws
 

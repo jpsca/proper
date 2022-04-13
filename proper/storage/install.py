@@ -5,7 +5,7 @@ STORAGE_BLUEPRINT = BLUEPRINTS / "storage"
 
 
 def install(app, migration=False):
-    """Install file storage support.
+    """Install storage support for uploaded files.
     Use `--migration` to generate a migration for creating
     the supporting tables.
     """

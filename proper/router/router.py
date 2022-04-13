@@ -1,10 +1,13 @@
 """Router object that holds all routes and match them to urls.
 """
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from proper.errors import MatchNotFound, MethodNotAllowed
 from .route import Route
 from .scope import flatten
+
+if TYPE_CHECKING:
+    from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 __all__ = ("Router", "NameNotFound")
@@ -15,21 +18,19 @@ class NameNotFound(Exception):
 
 
 class Router:
-    _debug: bool
-    _routes: List
-    _routes_by_name = Dict[str, Route]
+    __slots__ = ["_debug", "_routes", "_routes_by_name"]
 
-    def __init__(self, *, _debug: bool = False) -> None:
-        self._routes = []
-        self._routes_by_name = {}
+    def __init__(self, *, _debug=False) -> None:
         self._debug = _debug
+        self._routes = []
+        self._routes_by_name: "Dict[str, Route]" = {}
 
     def match(
         self,
         method: str,
         path: str,
-        host: Optional[str] = None,
-    ) -> Tuple[Route, Dict[str, Any]]:
+        host: "Optional[str]" = None,
+    ) -> "Tuple[Route, dict]":
         """Takes a method and a path, that came from an URL,
         and tries to match them to a existing route
 
@@ -79,11 +80,11 @@ class Router:
             raise MatchNotFound(msg)
 
     @property
-    def routes(self) -> List[Route]:
+    def routes(self) -> "List[Route]":
         return self._routes
 
     @routes.setter
-    def routes(self, values: Iterable) -> None:
+    def routes(self, values: "Iterable") -> None:
         _routes = flatten(values)
         if self._debug:
             assert all(
@@ -94,14 +95,7 @@ class Router:
         self._routes = _routes
         self._routes_by_name = {route.name: route for route in _routes}
 
-    def url_for(
-        self,
-        name: str,
-        object: Optional[Any] = None,
-        *,
-        _anchor: Optional[str] = None,
-        **kwargs: Dict[str, Any],
-    ) -> str:
+    def url_for(self, name: str, object: "Any" = None, *, _anchor="", **kwargs) -> str:
         route = self._routes_by_name.get(name)
         if not route:
             raise NameNotFound(name)

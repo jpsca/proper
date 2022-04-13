@@ -1,8 +1,12 @@
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING
 
 from ..constants import GET, POST, PUT, DELETE, PATCH
 from .route import Route
+
+if TYPE_CHECKING:
+    from typing import Callable, Iterable, List, Optional, Union, Tuple
+    StrOrIter = Union[Iterable[str], str]
 
 
 __all__ = ("resource",)
@@ -43,19 +47,18 @@ ACTIONS = (
     ACTION_UPDATE,
     ACTION_DELETE,
 )
-
-StrOrIter = Union[Iterable[str], str]
+RX_COMMA = re.compile(r",\s*")
 
 
 def resource(
     path: str,
     *,
-    to: Callable,
-    only: StrOrIter = ACTIONS,
-    exclude: Optional[StrOrIter] = None,
-    singular: bool = False,
-    **kwargs: Dict[str, Any],
-) -> List[Route]:
+    to: "Callable",
+    only: "StrOrIter" = ACTIONS,
+    exclude: "Optional[StrOrIter]" = None,
+    singular=False,
+    **kwargs
+) -> "List[Route]":
     """Shortcut to return a list of REST routes for a resource.
 
     You can define a resource that uses only some of the actions
@@ -119,17 +122,14 @@ def resource(
     return routes
 
 
-RX_COMMA = re.compile(r",\s*")
-
-
-def _to_list(iterable):
+def _to_list(iterable: "Iterable") -> "Iterable":
     iterable = iterable or []
     if isinstance(iterable, str):
         return RX_COMMA.split(iterable.strip())
     return iterable
 
 
-def _expand_routes(res, actions, data):
+def _expand_routes(res: Route, actions: "List[str]", data: "Tuple") -> "List[Route]":
     routes = []
     for method, path, action in data:
         if action not in actions:
@@ -139,7 +139,7 @@ def _expand_routes(res, actions, data):
     return routes
 
 
-def _expand_route(res, method, path, action):
+def _expand_route(res: Route, method: str, path: str, action: str):
     base_path = "/" + res.path.lstrip("/")
     route = Route(
         method,
@@ -152,7 +152,7 @@ def _expand_route(res, method, path, action):
     return route
 
 
-def _expand_to(to, action):
+def _expand_to(to: "Union[Callable, str]", action: str) -> str:
     if callable(to):
         return getattr(to, action)
     return to + "." + action

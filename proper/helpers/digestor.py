@@ -1,17 +1,18 @@
 import shutil
 from hashlib import md5
+from pathlib import Path
 
 
 __all__ = ("Digestor",)
 
 
 class Digestor:
-    def __init__(self, root, *, length=12):
+    def __init__(self, root: "Path", *, length=12) -> None:
         self.root = root
         self.length = length
         self.manifest = {}
 
-    def digest(self, path):
+    def digest(self, path: "Path") -> str:
         hash = self.get_hash(path)
         new_path = path.with_suffix(f".{hash}{path.suffix}")
         shutil.copyfile(path, new_path)
@@ -20,7 +21,7 @@ class Digestor:
         self.manifest[rel_path] = rel_new_path
         return rel_new_path
 
-    def get_hash(self, path):
+    def get_hash(self, path: "Path") -> str:
         md5_hash = md5()
         with open(path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):

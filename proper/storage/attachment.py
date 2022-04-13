@@ -1,54 +1,65 @@
 import mimetypes
-from typing import IO
+from typing import TYPE_CHECKING
 
 from .blob import Blob
+
+if TYPE_CHECKING:
+    from typing import IO, Union
+    from multipart import MultipartPart
+    from .services import BaseService
+    from .storage import Storage
 
 
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
-class BaseAttachment:  # noqa
-    column_name = None
-    obj = None
+class BaseAttachment:
+    __slots__ = ["storage", "service_name", "service", "column_name", "obj"]
 
     def __init__(
         self,
-        storage,
+        storage: "Storage",
         *,
-        service_name: str = "",
-    ):
+        service_name: str,
+        service: "BaseService",
+    ) -> None:
         self.storage = storage
         self.service_name = service_name
+        self.service = service
+
+        self.column_name = ""
+        self.obj = None
 
     @property
-    def model_type(self):
-        return self.obj.__clas__.__name__
+    def model_type(self) -> str:
+        return self.obj.__class__.__name__
 
     @property
-    def model_id(self):
+    def model_id(self) -> "Union[str, int]":
         return self.obj.id
 
     def attach(
         self,
-        filesto: IO,
+        filesto: "Union[MultipartPart, IO]",
         *,
-        filename: str = "",
-        content_type: str = "",
+        filename="",
+        content_type="",
         byte_size: int = 0,
-        identify: bool = False,
-    ):
+        analize=True,
+    ) -> None:
         blob = Blob(service_name=self.service_name)
         blob.filename = filename or getattr(filesto, "filename", "")
-        blob.content_type = content_type or getattr(
-            filesto, "content_type", DEFAULT_CONTENT_TYPE
-        )
+        blob.content_type = content_type or getattr(filesto, "content_type", None)
         if blob.filename and not blob.content_type:
             blob.content_type = mimetypes.guess_type(filename)
+        blob.content_type = blob.content_type or DEFAULT_CONTENT_TYPE
         blob.byte_size = byte_size
 
-        service = self.storage.get_service(self.service)
-        blob = service.save(filesto, blob)
-        self.storage.save(blob, identify=identify)
+        blob = self.service.save(filesto, blob)
+        self.storage.save(attachment=self, blob=blob, analize=analize)
+
+        if hasattr(filesto, "close"):
+            filesto.close()
 
     def purge(self):
         pass
@@ -62,13 +73,13 @@ class BaseAttachment:  # noqa
     def show(self):
         pass
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         cls = self.__class__.__name__
         if self.obj is None:
-            return f"<{cls}>"
-        model_id = getattr(self.obj, "id", None)
+            return f"<{cls} {self.column_name}>"
+        model_id = self.obj.id
         model = self.obj.__class__.__name__
-        return f"<{cls} {model}#{model_id}.{self.name}>"
+        return f"<{cls} {model}#{model_id}.{self.column_name}>"
 
 
 class Attachment(BaseAttachment):

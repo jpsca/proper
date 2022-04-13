@@ -1,8 +1,13 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import inflection
 
 from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_file
+
+if TYPE_CHECKING:
+    from typing import List
+    from proper import App
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
@@ -10,7 +15,7 @@ COMPONENT_TMPL = "component.html.jinja"
 ROUTES_TMPL = "routes.tmpl.py"
 
 
-def gen_controller(app, name, *actions):
+def gen_controller(app: "App", name: str, *actions: "List[str]") -> None:
     """Stubs out a new controller and its components.
 
         proper g controller NAME [action ...]

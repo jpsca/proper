@@ -1,18 +1,10 @@
 """
 Response class.
 """
+from collections.abc import Iterable
 from datetime import date
 from hashlib import md5
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING
 
 from .. import status
 from ..helpers import HeadersDict, tunnel_encode
@@ -20,7 +12,17 @@ from ..request_wrapper import Request
 
 from .cookies import CookiesDict, add_cookie
 from .flash_dict import FlashDict
-from .iterable import is_iterable
+
+if TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+        List,
+        Optional,
+        Tuple,
+        Union,
+    )
+    from proper import App
 
 
 __all__ = ("Response",)
@@ -40,53 +42,52 @@ MONTHS = [
     "Nov",
     "Dec",
 ]
+DEFAULT_MAX_COOKIE_SIZE = 4093
+
+
+def is_iterable(obj: "Any") -> bool:
+    return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
 
 class Response:
-    # Set to `True` by the dispatcher to indicate the endpoint was called.
-    dispatched: bool = False
-
-    # Set it to `True` to stop the normal flow and return inmediatly.
-    # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
-    stop: bool = False
-
-    # name of the component
-    component: Optional[str] = None
-
-    # Warn if a cookie header exceeds this size.
-    # The default is 4093 and should be supported by most browsers
-    # (See http://browsercookielimits.squawky.net)
-    # A cookie larger than this size will still be sent, but it may be ignored or
-    # handled incorrectly by some browsers. Set to 0 to disable this check.
-    max_cookie_size: int = 4093
-
-    # Set to True to not set cookies in this response, including any changes to the
-    # session or CSRF token. You might want to use it for some read-only public
-    # endpoints, like a RSS feed.
-    disable_cookies: bool = False
-
-    error: Optional[Exception] = None
-    raw_body: Optional[str] = None
-
-    _app: Any
-    _request: Optional[Request]
-    _session: Dict[str, str]
-    _etag: Optional[str] = None
-    _last_modified: Optional[date] = None
-
     def __init__(
         self,
-        status_code: str = status.ok,
-        content_type: str = "text/html",
-        charset: str = "utf-8",
-        _app: Any = None,
-        _request: Optional[Request] = None,
+        status_code=status.ok,
+        content_type="text/html",
+        charset="utf-8",
+        _app: "Optional[App]" = None,
+        _request: "Optional[Request]" = None,
     ) -> None:
+        # Set to `True` by the dispatcher to indicate the endpoint was called.
+        self.dispatched = False
+
+        # Set it to `True` to stop the normal flow and return inmediatly.
+        # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
+        self.stop = False
+
+        # name of the component
+        self.component: "Optional[str]" = None
+
+        # Warn if a cookie header exceeds this size.
+        # The default is 4093 and should be supported by most browsers
+        # (See http://browsercookielimits.squawky.net)
+        # A cookie larger than this size will still be sent, but it may be ignored or
+        # handled incorrectly by some browsers. Set to 0 to disable this check.
+        self.max_cookie_size = DEFAULT_MAX_COOKIE_SIZE
+
+        # Set to True to not set cookies in this response, including any changes to the
+        # session or CSRF token. You might want to use it for some read-only public
+        # endpoints, like a RSS feed.
+        self.disable_cookies = False
+
+        self.error: "Optional[Exception]" = None
+        self.raw_body: "Optional[str]" = None
+
         self._app = _app
         self._request = _request
         self._session = {}
-        self._etag = None
-        self._last_modified = None
+        self._etag: "Optional[str]" = None
+        self._last_modified: "Optional[date]" = None
 
         self.status_code = status_code
         self.content_type = content_type
@@ -96,7 +97,7 @@ class Response:
         self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 
-    def __call__(self, start_response: Callable) -> Iterable:
+    def __call__(self, start_response: "Callable") -> "Iterable[bytes]":
         body = self.raw_body or ""
         if hasattr(body, "encode"):
             body = body.encode(self.charset)
@@ -117,11 +118,11 @@ class Response:
         return f"<Response “{self._status_code}”>"
 
     @property
-    def body(self) -> Optional[str]:
+    def body(self) -> "Optional[str]":
         return self.raw_body
 
     @body.setter
-    def body(self, content: Any) -> None:
+    def body(self, content: "Any") -> None:
         """Sets the response body content."""
         if isinstance(content, (str, bytes)):
             self.raw_body = content
@@ -133,15 +134,15 @@ class Response:
         return self.raw_body is not None
 
     @property
-    def headers_list(self) -> List[Tuple]:
+    def headers_list(self) -> "List[Tuple]":
         return self._build_regular_headers() + self._build_cookie_headers()
 
-    def _build_regular_headers(self) -> List[Tuple]:
+    def _build_regular_headers(self) -> "List[Tuple]":
         return [
             (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
         ]
 
-    def _build_cookie_headers(self) -> List[Tuple]:
+    def _build_cookie_headers(self) -> "List[Tuple]":
         if self.disable_cookies:
             return []
         return [
@@ -149,7 +150,7 @@ class Response:
         ]
 
     @property
-    def session(self) -> Dict[str, Any]:
+    def session(self) -> dict:
         """Read-only session"""
         return self._session
 
@@ -167,11 +168,11 @@ class Response:
     def redirect_to(
         self,
         url_or_route: str,
-        object: Optional[Any] = None,
+        object: "Any" = None,
         *,
-        flash: Optional[str] = None,
-        flash_type: str = "notice",
-        status_code: str = status.see_other,
+        flash: "Optional[str]" = None,
+        flash_type="notice",
+        status_code=status.see_other,
         **kwargs,
     ) -> None:
         self.status_code = status_code
@@ -196,7 +197,7 @@ class Response:
         if flash:
             self.flash[flash_type] = flash
 
-    def set_cookie(self, key: str, value: str = "", **kwargs) -> None:
+    def set_cookie(self, key: str, value="", **kwargs) -> None:
         """
         Set (add) a cookie for the response. Returns the cookie set.
 
@@ -252,9 +253,7 @@ class Response:
         if name in self.cookies:
             del self.cookies[name]
 
-    def delete_cookie(
-        self, name: str, *, path: str = "/", domain: Optional[str] = None
-    ) -> None:
+    def delete_cookie(self, name: str, *, path="/", domain="") -> None:
         """
         Delete a cookie from the client. Note that path and domain must match
         how the cookie was originally set.
@@ -266,12 +265,12 @@ class Response:
 
     def fresh_when(
         self,
-        objects: Any = None,
+        objects: "Any" = None,
         *,
-        etag: Optional[Union[date, int, float, str]] = None,
-        last_modified: Optional[date] = None,
-        strong: bool = False,
-        public: bool = False,
+        etag: "Union[date, int, float, str, None]" = None,
+        last_modified: "Optional[date]" = None,
+        strong=False,
+        public=False,
     ) -> bool:
         """
         Sets the Etag header, the Last-Modified header, or both.

@@ -1,5 +1,10 @@
+from typing import TYPE_CHECKING
+
 from ..constants import FLASHES_SESSION_KEY
 from ..helpers import BadSignature, Dot, FrozenDict
+
+if TYPE_CHECKING:
+    from proper import App, Request, Response
 
 
 __all__ = (
@@ -8,7 +13,7 @@ __all__ = (
 )
 
 
-def fetch_session(request, response, app):
+def fetch_session(request: "Request", response: "Response", app: "App") -> None:
     """Get the session data from the cookie and puts into the request
     and response.
     """
@@ -22,7 +27,7 @@ def fetch_session(request, response, app):
     response._session.pop(FLASHES_SESSION_KEY, None)
 
 
-def get_session(request, app):
+def get_session(request: "Request", app: "App") -> dict:
     cookie_value = request.cookies.get(app.config.session.cookie.name)
     if cookie_value is None:
         return {}
@@ -32,12 +37,12 @@ def get_session(request, app):
         return {}
 
 
-def put_session(request, response, app):
+def put_session(request: "Request", response: "Response", app: "App") -> None:
     if response.session != request.session:
         update_session_cookie(response, app)
 
 
-def update_session_cookie(response, app):
+def update_session_cookie(response: "Response", app: "App") -> None:
     """Update the session cookie if its needed."""
     config = app.config.session
     session = response.session

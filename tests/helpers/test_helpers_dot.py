@@ -32,6 +32,7 @@ def test_deep_update():
             "users": ["foo", "bar"],
             "a": 1,
             "foo": "bar",
+            "storage": {},
         }
     )
     dot.update(
@@ -40,15 +41,18 @@ def test_deep_update():
             "users": ["lorem", "ipsum"],
             "a": 2,
             "fizz": {"buzz": 3},
+            "storage": {"a": 1, "b": 2},
         }
     )
 
+    print(dot)
     assert dot == {
         "auth": {"hash": "argon2", "rounds": 123},
         "users": ["lorem", "ipsum"],
         "a": 2,
         "foo": "bar",
         "fizz": {"buzz": 3},
+        "storage": {"a": 1, "b": 2},
     }
 
 

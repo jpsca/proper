@@ -4,9 +4,15 @@ import re
 import shutil
 from fnmatch import fnmatch
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import jinja2
 from proper_cli import confirm, echo
+
+if TYPE_CHECKING:
+    from typing import Optional, List, Union
+    from proper import App
+    TStrOrPath = Union[Path, str]
 
 
 __all__ = [
@@ -35,7 +41,7 @@ COLOR_CONFLICT = "red"
 
 
 class Render:
-    def __init__(self, templates, **envops):
+    def __init__(self, templates: "TStrOrPath", **envops) -> None:
         self.loader = jinja2.FileSystemLoader(str(templates))
         self.env = jinja2.Environment(
             loader=self.loader,
@@ -45,44 +51,51 @@ class Render:
         self.env.globals["render"] = self.render
 
     @property
-    def globals(self):
+    def globals(self) -> dict:
         return self.env.globals
 
     @property
-    def filters(self):
+    def filters(self) -> dict:
         return self.env.filters
 
     @property
-    def tests(self):
+    def tests(self) -> dict:
         return self.env.tests
 
-    def __call__(self, relpath, **context):
+    def __call__(self, relpath: "TStrOrPath", **context) -> str:
         return self.render(relpath, **context)
 
-    def string(self, string, **context):
+    def string(self, string: str, **context) -> str:
         tmpl = self.env.from_string(string)
         return tmpl.render(**context)
 
-    def render(self, relpath, **context):
+    def render(self, relpath: "TStrOrPath", **context) -> str:
         tmpl = self.env.get_template(str(relpath))
         return tmpl.render(**context)
 
 
 class BlueprintRender:
     def __init__(
-        self, src, dst, context=None, *, ignore=None, envops=None, force=False
-    ):
+        self,
+        src: "TStrOrPath",
+        dst: "TStrOrPath",
+        context: "Optional[dict]" = None,
+        *,
+        ignore: "Optional[List[str]]" = None,
+        envops: "Optional[dict]" = None,
+        force=False
+    ) -> None:
         self.src = Path(src)
         self.dst = Path(dst)
         self.force = force
         self.render = get_blueprint_render(src, context=context, envops=envops)
         self.ignore = ignore or IGNORE
 
-    def __call__(self):
+    def __call__(self) -> None:
         for folder, _, files in os.walk(self.src):
             self.render_folder(Path(folder), files)
 
-    def render_folder(self, folder, files):
+    def render_folder(self, folder: "TStrOrPath", files: "List[str]") -> None:
         if self._ignore(folder):
             return
         src_relfolder = str(folder).replace(str(self.src), "", 1).lstrip(os.path.sep)
@@ -112,7 +125,7 @@ class BlueprintRender:
                 dst_relpath = dst_relfolder / name
                 copy_file(self.src / src_relpath, self.dst, dst_relpath)
 
-    def _ignore(self, path):
+    def _ignore(self, path: Path) -> bool:
         name = path.name
         for pattern in self.ignore:
             if fnmatch(name, pattern) or fnmatch(path, pattern):
@@ -120,7 +133,7 @@ class BlueprintRender:
         return False
 
 
-def make_folder(root_path, rel_folder):
+def make_folder(root_path: Path, rel_folder: "TStrOrPath") -> None:
     path = root_path / rel_folder
     if path.exists():
         return
@@ -132,7 +145,7 @@ def make_folder(root_path, rel_folder):
         printf(CREATE, display, color=COLOR_OK)
 
 
-def copy_file(src_path, root_path, dst_relpath, *, force=False):
+def copy_file(src_path: Path, root_path: Path, dst_relpath: Path, *, force=False) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         if files_are_identical(src_path, dst_path):
@@ -148,7 +161,7 @@ def copy_file(src_path, root_path, dst_relpath, *, force=False):
     shutil.copy2(str(src_path), str(dst_path))
 
 
-def append_to_file(root_path, dst_relpath, new_content):
+def append_to_file(root_path: Path, dst_relpath: Path, new_content: str) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         curr_content = dst_path.read_text()
@@ -167,7 +180,7 @@ def append_to_file(root_path, dst_relpath, new_content):
     dst_path.write_text(new_content)
 
 
-def save_file(root_path, dst_relpath, content, *, force=False):
+def save_file(root_path: Path, dst_relpath: Path, content: str, *, force=False) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         if contents_are_identical(content, dst_path):
@@ -183,7 +196,12 @@ def save_file(root_path, dst_relpath, content, *, force=False):
     dst_path.write_text(content)
 
 
-def get_blueprint_render(src, context=None, *, envops=None):
+def get_blueprint_render(
+    src: Path,
+    context: "Optional[dict]" = None,
+    *,
+    envops: "Optional[dict]" = None
+) -> Render:
     envops = envops or {}
     envops.setdefault("block_start_string", "[%")
     envops.setdefault("block_end_string", "%]")
@@ -198,26 +216,26 @@ def get_blueprint_render(src, context=None, *, envops=None):
     return render
 
 
-def printf(verb, msg="", color="cyan", indent=10):
+def printf(verb: str, msg="", color="cyan", indent=10) -> None:
     verb = str(verb).rjust(indent, " ")
     verb = f"<fg={color}>{verb}</>"
     echo(f"{verb}  {msg}".rstrip())
 
 
-def call(cmd):
+def call(cmd: str) -> None:
     printf(RUN, cmd, color=COLOR_OK)
     os.system(cmd)
 
 
-def files_are_identical(src_path, dst_path):
+def files_are_identical(src_path: Path, dst_path: Path) -> bool:
     return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
 
 
-def contents_are_identical(content, dst_path):
+def contents_are_identical(content: str, dst_path: Path) -> bool:
     return content == dst_path.read_text()
 
 
-def confirm_overwrite(dst_relpath, *, force=False):
+def confirm_overwrite(dst_relpath: Path, *, force=False) -> bool:
     printf("conflict", dst_relpath, color=COLOR_CONFLICT)
     if force:
         return True
@@ -227,7 +245,7 @@ def confirm_overwrite(dst_relpath, *, force=False):
 RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")
 
 
-def append_routes(app, new_routes):
+def append_routes(app: "App", new_routes: str) -> None:
     routes_path = app.root_path / "routes.py"
     routes = routes_path.read_text()
     if new_routes in routes:

@@ -1,10 +1,15 @@
 import sys
+from typing import TYPE_CHECKING
 
 import huey
 import inflection
 from huey.consumer import Consumer
 
 from .base import BaseScheduler
+
+if TYPE_CHECKING:
+    from typing import Callable
+    from proper import App
 
 
 DEFAULT_HUEY_TYPE = "memory"
@@ -13,7 +18,7 @@ DEFAULT_HUEY_TYPE = "memory"
 class HueyScheduler(BaseScheduler):
     running = False
 
-    def __init__(self, app, **config):
+    def __init__(self, app: "App", **config) -> None:
         self.app = app
 
         consumer_config = config.pop("consumer", {})
@@ -33,18 +38,25 @@ class HueyScheduler(BaseScheduler):
 
         super().__init__(app, **config)
 
-    def task(self, func, retries=0, **kwargs):
-        return self.huey.task(func, retries=retries, **kwargs)
+    def task(self, func: "Callable", retries=0, **kwargs) -> None:
+        kwargs["retries"] = retries
+        return self.huey.task(func, **kwargs)
 
-    def periodic_task(self, func, validate_datetime, retries=0, **kwargs):
+    def periodic_task(
+        self,
+        func: "Callable",
+        validate_datetime: "Callable",
+        retries=0,
+        **kwargs
+    ) -> None:
+        kwargs["retries"] = retries
         return self.huey.periodic_task(
             func,
             validate_datetime=validate_datetime,
-            retries=retries,
             **kwargs,
         )
 
-    def start(self):
+    def start(self) -> None:
         if self.running or not self.consumer:
             return
 
@@ -58,7 +70,7 @@ class HueyScheduler(BaseScheduler):
         self.consumer.start()
         self.running = True
 
-    def shutdown(self, wait=True):
+    def shutdown(self, wait=True) -> None:
         if not self.running:
             return
         print("Stopping scheduler...")

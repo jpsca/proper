@@ -1,12 +1,16 @@
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 import inflection
+
+if TYPE_CHECKING:
+    from proper import App, Request, Response
 
 
 __all__ = ("dispatch",)
 
 
-def dispatch(request, response, app):
+def dispatch(request: "Request", response: "Response", app: "App") -> None:
     route = request.matched_route
     cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
     request.matched_action = action_name

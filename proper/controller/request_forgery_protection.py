@@ -1,9 +1,12 @@
 import base64
 import os
-from typing import List, Optional
+from typing import TYPE_CHECKING
 
 from ..constants import HEAD, GET, OPTIONS
 from ..errors import InvalidCSRFToken, MissingCSRFToken
+
+if TYPE_CHECKING:
+    from typing import List, Optional
 
 
 __all__ = ("CSRF_SESSION_KEY", "CSRF_FORM_KEY", "CSRF_HEADER", "CSRF_TOKEN_LENGTH")
@@ -41,7 +44,7 @@ class RequestForgeryProtection:
             and action not in self.skip_csrf_check_for
         )
 
-    def _handle_verified_request(self):
+    def _handle_verified_request(self) -> None:
         session_token = self.request.session.get(CSRF_SESSION_KEY)
         if not session_token:
             self._handle_invalid_csrf_token()
@@ -55,7 +58,7 @@ class RequestForgeryProtection:
         if not any(session_token == req_token for req_token in req_tokens):
             self._handle_invalid_csrf_token()
 
-    def _get_request_csrf_tokens(self) -> List[str]:
+    def _get_request_csrf_tokens(self) -> "List[str]":
         """Get possible csrf tokens sent in the request."""
         req_tokens = [
             self._csrf_token_in_form() if self.request.content_length else None,
@@ -68,12 +71,12 @@ class RequestForgeryProtection:
             if token and len(token) == expected_length
         ]
 
-    def _csrf_token_in_form(self) -> Optional[str]:
+    def _csrf_token_in_form(self) -> "Optional[str]":
         """Search for a CSRF token in the body data.
         Override to provide your own."""
         return self.request.form.get(CSRF_FORM_KEY)
 
-    def _csrf_token_in_header(self) -> Optional[str]:
+    def _csrf_token_in_header(self) -> "Optional[str]":
         """Search for a CSRF token in a header"""
         return self.request.headers.get(CSRF_HEADER)
 
@@ -90,7 +93,7 @@ class RequestForgeryProtection:
             f"or in a “{CSRF_HEADER}” header."
         )
 
-    def _handle_unverified_request(self):
+    def _handle_unverified_request(self) -> None:
         session_token = self.request.session.get(CSRF_SESSION_KEY)
         if not session_token and self.request.request_method == GET:
             self._set_new_csrf_token()

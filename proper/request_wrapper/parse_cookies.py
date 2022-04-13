@@ -1,7 +1,7 @@
 __all__ = ("parse_cookies",)
 
 
-def parse_cookies(cookie):
+def parse_cookies(cookie: str) -> dict:
     """Parse a cookie header into a dict.
 
     Arguments are:

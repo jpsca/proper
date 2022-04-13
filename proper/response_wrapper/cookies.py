@@ -3,6 +3,10 @@ import time
 import warnings
 from email.utils import formatdate
 from http.cookies import Morsel, SimpleCookie
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 # Monkey-patching the Morsel to add support for samesite for Python version < 3.8
@@ -20,19 +24,19 @@ SECURE_PREFIX = "__Secure-"
 
 
 def add_cookie(
-    cookies,
-    key,
+    cookies: CookiesDict,
+    key: str,
     value="",
     *,
-    max_age=None,
+    max_age: "Optional[int]" = None,
     path="/",
-    domain=None,
+    domain: "Optional[str]" = None,
     secure=False,
     httponly=False,
-    samesite=None,
-    comment=None,
-    max_size=None,
-):
+    samesite: "Optional[str]" = None,
+    comment: "Optional[str]" = None,
+    max_size: "Optional[int]" = None,
+) -> str:
     """Set (add) a cookie for the response.
     Returns the cookie set.
 
@@ -131,11 +135,13 @@ def add_cookie(
     if comment:
         cookies[key]["comment"] = comment
 
-    validate_cookie_size(key, cookies[key].output(), max_size)
+    if max_size is not None:
+        validate_cookie_size(key, cookies[key].output(), max_size)
+
     return cookies[key]
 
 
-def validate_domain(domain):
+def validate_domain(domain: str) -> None:
     if domain and "." not in domain:
         # Chrome doesn't allow names without a '.'
         # This should only come up with something like "localhost"
@@ -147,7 +153,7 @@ def validate_domain(domain):
         )
 
 
-def validate_cookie_size(key, output, max_size):
+def validate_cookie_size(key: str, output: str, max_size: int) -> None:
     cookie_size = len(output)
     if cookie_size > max_size:
         warnings.warn(

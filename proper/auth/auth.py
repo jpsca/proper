@@ -81,6 +81,14 @@ def from36(snumber):
 
 
 class Auth:
+    __slots__ = [
+        "secret_key",
+        "hasher",
+        "_decoy_password",
+        "password_minlen",
+        "password_maxlen",
+    ]
+
     def __init__(
         self,
         secret_key,
@@ -92,6 +100,7 @@ class Auth:
     ):
         self.secret_key = secret_key
         self.set_hasher(hash_name or DEFAULT_HASHER, rounds)
+        self._decoy_password = self.hasher.hash("!")
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
 
@@ -125,10 +134,6 @@ class Auth:
             hash_name + "__default_rounds": rounds,
         }
         self.hasher = CryptContext(**op)
-        self._set_decoy_password()
-
-    def _set_decoy_password(self):
-        self._decoy_password = self.hasher.hash("!")
 
     def hash_password(self, secret):
         if secret is None:

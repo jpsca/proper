@@ -7,12 +7,17 @@ import pkg_resources
 import sys
 import traceback
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import inflection
 from markupsafe import Markup
 
 from .constants import GET
 from .helpers import Render
+
+if TYPE_CHECKING:
+    from typing import Any
+    from proper import App, Request, Response
 
 
 logger = logging.getLogger("proper")
@@ -28,7 +33,7 @@ def _include_raw(name):
 jinja_render.globals["include_raw"] = _include_raw
 
 
-def render(template, **data):
+def render(template: str, **data) -> str:
     if not data:
         return (TEMPLATES / template).read_text()
     try:
@@ -38,7 +43,9 @@ def render(template, **data):
         return render("fallback-error.html")
 
 
-def debug_not_found_handler(request, response, app):
+def debug_not_found_handler(
+    request: "Request", response: "Response", app: "App"
+) -> None:
     if is_index(request):
         return render_default_index(response)
 
@@ -53,11 +60,11 @@ def debug_not_found_handler(request, response, app):
     response.body = render("debug-not-found.html.jinja", **data)
 
 
-def is_index(request):
+def is_index(request: "Request") -> bool:
     return request.method == GET and request.path == "/"
 
 
-def render_default_index(response):
+def render_default_index(response: "Response") -> None:
     data = {
         "proper_version": pkg_resources.get_distribution("proper").version,
         "python_version": sys.version,
@@ -65,7 +72,7 @@ def render_default_index(response):
     response.body = render("default-index.html.jinja", **data)
 
 
-def debug_error_handler(request, response, _app):
+def debug_error_handler(request: "Request", response: "Response", _app: "App") -> None:
     error = response.error
     logger.exception(error)
     excp = traceback.format_exc()
@@ -79,11 +86,11 @@ def debug_error_handler(request, response, _app):
     response.body = render("debug-error.html.jinja", **data)
 
 
-def get_title(error):
+def get_title(error: "Any") -> str:
     return inflection.titleize(error.__class__.__name__)
 
 
-def get_request_data(request):
+def get_request_data(request: "Request") -> dict:
     try:
         request_query = request.query
     except Exception:
@@ -108,14 +115,20 @@ def get_request_data(request):
     }
 
 
-def fallback_not_found_handler(request, response, _app):
+def fallback_not_found_handler(
+    _request: "Request", response: "Response", _app: "App"
+) -> None:
     response.body = render("fallback-not-found.html")
 
 
-def fallback_forbidden_handler(request, response, _app):
+def fallback_forbidden_handler(
+    _request: "Request", response: "Response", _app: "App"
+) -> None:
     response.body = render("fallback-forbidden.html")
 
 
-def fallback_error_handler(request, response, _app):
+def fallback_error_handler(
+    _request: "Request", response: "Response", _app: "App"
+) -> None:
     logger.exception(response.error)
     response.body = render("fallback-error.html")

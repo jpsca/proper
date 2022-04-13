@@ -1,8 +1,13 @@
+from typing import TYPE_CHECKING
+
 import inflection
 
 from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
 from ..router.resource import ACTIONS
 from .model import gen_model
+
+if TYPE_CHECKING:
+    from proper import App
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
@@ -42,14 +47,14 @@ FORM_DEFAULT_INPUT_TYPE = "text"
 
 
 def gen_resource(
-    app,
-    name,
-    *attrs,
+    app: "App",
+    name: str,
+    *attrs: str,
     only="",
     exclude="",
     singular=False,
     migration=False,
-):
+) -> None:
     """Stubs out a new resource
     including a controller, model, migration, components, and a resource route
     in the `routes.py` file.

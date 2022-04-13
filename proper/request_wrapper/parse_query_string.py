@@ -1,3 +1,5 @@
+from typing import Optional
+
 import multipart
 
 from proper import errors
@@ -7,7 +9,10 @@ from proper.helpers import MultiDict
 __all__ = ("parse_query_string",)
 
 
-def parse_query_string(query_string, max_query_size=None):
+def parse_query_string(
+    query_string: str,
+    max_query_size: Optional[int] = None
+) -> MultiDict:
     """Parse a query string into a MultiDict.
 
     Query string parameters are assumed to use standard form-encoding.
@@ -30,7 +35,10 @@ def parse_query_string(query_string, max_query_size=None):
         raise errors.BadRequest()
 
 
-def _parse_query_string(query_string, max_query_size=None):
+def _parse_query_string(
+    query_string: str,
+    max_query_size: Optional[int] = None
+) -> MultiDict:
     query = MultiDict()
     if not query_string:
         return query
