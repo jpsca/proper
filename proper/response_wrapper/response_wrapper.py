@@ -181,13 +181,13 @@ class Response:
         flash: "Optional[str]" = None,
         flash_type: str = "notice",
         status_code: str = status.see_other,
-        **kwargs,
+        **kw,
     ) -> None:
         assert self._app
         self.status_code = status_code
         to = url_or_route
         if not url_or_route.startswith(("/", "http")):
-            to = self._app.url_for(url_or_route, object=object, **kwargs)
+            to = self._app.url_for(url_or_route, object=object, **kw)
 
         self.headers["location"] = to
         self.body = "\n".join(
@@ -205,7 +205,7 @@ class Response:
         if flash:
             self.flash[flash_type] = flash
 
-    def set_cookie(self, key: str, value: str = "", **kwargs) -> "Morsel":
+    def set_cookie(self, key: str, value: str = "", **kw) -> "Morsel":
         """
         Set (add) a cookie for the response. Returns the cookie set.
 
@@ -250,7 +250,7 @@ class Response:
 
         """
         return add_cookie(
-            self.cookies, key, value, max_size=self.max_cookie_size, **kwargs
+            self.cookies, key, value, max_size=self.max_cookie_size, **kw
         )
 
     def unset_cookie(self, name: str) -> None:

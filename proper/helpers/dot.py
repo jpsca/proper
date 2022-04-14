@@ -20,10 +20,10 @@ class Dot(dict):
     def __init__(
         self,
         dict_or_iter: "TDictOrIter" = None,
-        **kwargs
+        **kw
     ) -> None:
         super().__init__()
-        self.update(dict_or_iter, **kwargs)
+        self.update(dict_or_iter, **kw)
 
     def _key_encode(self, key: object) -> object:
         return key

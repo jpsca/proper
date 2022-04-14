@@ -14,8 +14,8 @@ class CustomEncoder(json.JSONEncoder):
 
 
 class CustomDecoder(json.JSONDecoder):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(object_hook=self.try_datetime, *args, **kwargs)
+    def __init__(self, *args, **kw) -> None:
+        super().__init__(object_hook=self.try_datetime, *args, **kw)
 
     @staticmethod
     def try_datetime(d: dict) -> dict:
@@ -28,11 +28,11 @@ class CustomDecoder(json.JSONDecoder):
         return ret
 
 
-def dumps(obj: "Any", **kwargs) -> str:
-    kwargs["cls"] = CustomEncoder
-    return json.dumps(obj, **kwargs)
+def dumps(obj: "Any", **kw) -> str:
+    kw["cls"] = CustomEncoder
+    return json.dumps(obj, **kw)
 
 
-def loads(s: str, **kwargs) -> dict:
-    kwargs["cls"] = CustomDecoder
-    return json.loads(s, **kwargs)
+def loads(s: str, **kw) -> dict:
+    kw["cls"] = CustomDecoder
+    return json.loads(s, **kw)

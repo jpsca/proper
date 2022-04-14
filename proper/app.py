@@ -89,7 +89,8 @@ class App:
     def __init__(
         self,
         import_name: str,
-        config: "Optional[dict]"
+        *,
+        config: "Optional[dict]" = None
     ) -> None:
         """
         import_name (str):

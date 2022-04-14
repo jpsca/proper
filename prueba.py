@@ -28,8 +28,8 @@ def attach_many():
 
 
 class Attachable:
-    def __new__(cls, *args, **kwargs):
-        obj = super().__new__(cls, *args, **kwargs)
+    def __new__(cls, *args, **kw):
+        obj = super().__new__(cls, *args, **kw)
         for key, value in cls.__dict__.items():
             if isinstance(value, BaseAttachment):
                 value.name = key

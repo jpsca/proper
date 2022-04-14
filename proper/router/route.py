@@ -147,33 +147,33 @@ class Route(BaseRoute):
 
 
 class Get(Route):
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(GET, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(GET, path, **kw)
 
 
 class Post(Route):
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(POST, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(POST, path, **kw)
 
 
 class Put(Route):
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(PUT, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(PUT, path, **kw)
 
 
 class Delete(Route):
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(DELETE, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(DELETE, path, **kw)
 
 
 class Options(Route):
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(OPTIONS, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(OPTIONS, path, **kw)
 
 
 class Patch(Route):
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(PATCH, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(PATCH, path, **kw)
 
 
 class Static(Route):
@@ -191,8 +191,8 @@ class Restore(Route):
     A `/restore` is not restful and a PATCH is weird for undoing a DELETE
     So, form the ashes of uncertainty, rises... the RESTORE.
     """
-    def __init__(self, path: str, **kwargs) -> None:
-        super().__init__(RESTORE, path, **kwargs)
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(RESTORE, path, **kw)
 
 
 route = Route

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class DiskService(BaseService):
-    def __init__(self, app: "App", root: str, **kwargs) -> None:
+    def __init__(self, app: "App", root: str, **kw) -> None:
         self.root = app.root_path.parent / root
         self.root.mkdir(parents=True, exist_ok=True)
 

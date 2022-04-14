@@ -183,8 +183,8 @@ def welcome(_self, host="0.0.0.0", port=2300) -> None:
 def _get_cmd(app, module: "Any", name: str) -> "Callable":
     func = getattr(module, name)
 
-    def cmd(_, *args, **kwargs):
-        return func(app, *args, **kwargs)
+    def cmd(_, *args, **kw):
+        return func(app, *args, **kw)
 
     cmd.__name__ = name
     cmd.__doc__ = func.__doc__

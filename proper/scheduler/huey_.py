@@ -42,24 +42,20 @@ class HueyScheduler(BaseScheduler):
         self,
         func: "Callable",
         retries: int = 0,
-        **kwargs
+        **kw
     ) -> "Callable":
-        kwargs["retries"] = retries
-        return self.huey.task(func, **kwargs)
+        kw["retries"] = retries
+        return self.huey.task(func)(**kw)
 
     def periodic_task(
         self,
         func: "Callable",
         validate_datetime: "Callable",
         retries=0,
-        **kwargs
+        **kw
     ) -> "Callable":
-        kwargs["retries"] = retries
-        return self.huey.periodic_task(
-            func,
-            validate_datetime=validate_datetime,
-            **kwargs,
-        )
+        kw["retries"] = retries
+        return self.huey.periodic_task(func, validate_datetime=validate_datetime)(**kw)
 
     def start(self) -> None:
         if self.running or not self.consumer:

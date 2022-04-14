@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class BaseScheduler(ABC):
-    def __init__(self, app: "App") -> None:
+    def __init__(self, app: "App", **kw) -> None:
         app.on_dev_start(self.start)
         app.on_dev_shutdown(self.shutdown)
 

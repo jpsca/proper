@@ -408,7 +408,7 @@ class Request:
         return ilength
 
 
-def make_test_env(path="", **kwargs) -> dict:
+def make_test_env(path="", **kw) -> dict:
     from wsgiref.util import setup_testing_defaults
 
     env = {"REMOTE_ADDR": "127.0.0.1"}
@@ -420,5 +420,5 @@ def make_test_env(path="", **kwargs) -> dict:
             env["QUERY_STRING"] = query
         env["PATH_INFO"] = tunnel_encode(path.strip())
 
-    env.update(**{key: str(value) for key, value in kwargs.items()})
+    env.update(**{key: str(value) for key, value in kw.items()})
     return env

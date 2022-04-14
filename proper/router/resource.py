@@ -57,7 +57,7 @@ def resource(
     only: "StrOrIter" = ACTIONS,
     exclude: "Optional[StrOrIter]" = None,
     singular: bool = False,
-    **kwargs
+    **kw
 ) -> "List[Route]":
     """Shortcut to return a list of REST routes for a resource.
 
@@ -109,7 +109,7 @@ def resource(
     If `undelete` is `True`, an undelete will be added as well.
 
     """
-    res = Route("resource", path, to=to, **kwargs)
+    res = Route("resource", path, to=to, **kw)
     assert res.to
 
     only = _to_list(only)

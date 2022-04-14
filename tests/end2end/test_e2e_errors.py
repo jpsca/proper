@@ -133,7 +133,7 @@ def test_do_not_catch_error(app, Pages, web):
         web.get("/fail/value_error", expect_errors=True)
 
 
-def boom(*args, **kwargs):
+def boom(*args, **kw):
     raise TypeError
 
 

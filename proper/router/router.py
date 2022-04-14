@@ -95,16 +95,16 @@ class Router:
         self._routes = _routes
         self._routes_by_name = {route.name: route for route in _routes}
 
-    def url_for(self, name: str, object: "Any" = None, *, _anchor="", **kwargs) -> str:
+    def url_for(self, name: str, object: "Any" = None, *, _anchor="", **kw) -> str:
         route = self._routes_by_name.get(name)
         if not route:
             raise NameNotFound(name)
 
         if object is not None:
             for key in route.path_placeholders:
-                kwargs.setdefault(key, getattr(object, key))
+                kw.setdefault(key, getattr(object, key))
 
-        url = route.format(**kwargs)
+        url = route.format(**kw)
         if _anchor:
             url += "#" + _anchor
 

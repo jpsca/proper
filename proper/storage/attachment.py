@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from .blob import Blob
 
 if TYPE_CHECKING:
-    from typing import IO, Union
+    from typing import Any, IO, Union
     from multipart import MultipartPart
     from .services import BaseService
     from .storage import Storage
@@ -27,8 +27,8 @@ class BaseAttachment:
         self.service_name = service_name
         self.service = service
 
-        self.column_name = ""
-        self.obj = None
+        self.column_name: str = ""
+        self.obj: "Any" = None
 
     @property
     def model_type(self) -> str:
@@ -55,7 +55,7 @@ class BaseAttachment:
         blob.filename = filename or getattr(filesto, "filename", "")
         blob.content_type = content_type or getattr(filesto, "content_type", None)
         if blob.filename and not blob.content_type:
-            blob.content_type = mimetypes.guess_type(filename)
+            blob.content_type, _ = mimetypes.guess_type(filename, strict=False)
         blob.content_type = blob.content_type or DEFAULT_CONTENT_TYPE
         blob.byte_size = byte_size
 

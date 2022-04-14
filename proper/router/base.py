@@ -122,15 +122,15 @@ class BaseRoute:
         assert self.path_re
         return self.path_re.match(path)
 
-    def format(self, **kwargs) -> str:
+    def format(self, **kw) -> str:
         if self.path_plain is None:
             self.compile_path()
 
         tmpl = _RouteTemplate(self.path_plain or "")
-        path_params = self._get_path_params(kwargs)
+        path_params = self._get_path_params(kw)
         url = tmpl.substitute(dict(path_params)) or "/"
 
-        query_params = self._get_query_params(path_params, kwargs)
+        query_params = self._get_query_params(path_params, kw)
         if query_params:
             params = "&".join(
                 [key + "=" + value for key, value in query_params.items()]

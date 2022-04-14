@@ -9,9 +9,9 @@ if TYPE_CHECKING:
 
 
 class BaseService(ABC):
-    def __init__(self, app: "App", **kwargs) -> None:
+    def __init__(self, app: "App", **kw) -> None:
         self.app = app
-        self.config = kwargs
+        self.config = kw
 
     @abstractmethod
     def save(self, filesto: "IO", blob: "Blob") -> "Blob":
