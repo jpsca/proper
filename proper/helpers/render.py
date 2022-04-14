@@ -88,20 +88,20 @@ class BlueprintRender:
         self.src = Path(src)
         self.dst = Path(dst)
         self.force = force
-        self.render = get_blueprint_render(src, context=context, envops=envops)
+        self.render = get_blueprint_render(self.src, context=context, envops=envops)
         self.ignore = ignore or IGNORE
 
     def __call__(self) -> None:
         for folder, _, files in os.walk(self.src):
             self.render_folder(Path(folder), files)
 
-    def render_folder(self, folder: "TStrOrPath", files: "List[str]") -> None:
+    def render_folder(self, folder: "Path", files: "List[str]") -> None:
         if self._ignore(folder):
             return
-        src_relfolder = str(folder).replace(str(self.src), "", 1).lstrip(os.path.sep)
-        dst_relfolder = self.render.string(src_relfolder)
-        src_relfolder = Path(src_relfolder)
-        dst_relfolder = Path(dst_relfolder)
+        _src_relfolder = str(folder).replace(str(self.src), "", 1).lstrip(os.path.sep)
+        _dst_relfolder = self.render.string(_src_relfolder)
+        src_relfolder = Path(_src_relfolder)
+        dst_relfolder = Path(_dst_relfolder)
 
         make_folder(self.dst, dst_relfolder)
 
@@ -125,15 +125,16 @@ class BlueprintRender:
                 dst_relpath = dst_relfolder / name
                 copy_file(self.src / src_relpath, self.dst, dst_relpath)
 
-    def _ignore(self, path: Path) -> bool:
+    def _ignore(self, path: "Path") -> bool:
         name = path.name
+        str_path = str(path)
         for pattern in self.ignore:
-            if fnmatch(name, pattern) or fnmatch(path, pattern):
+            if fnmatch(name, pattern) or fnmatch(str_path, pattern):
                 return True
         return False
 
 
-def make_folder(root_path: Path, rel_folder: "TStrOrPath") -> None:
+def make_folder(root_path: "Path", rel_folder: "TStrOrPath") -> None:
     path = root_path / rel_folder
     if path.exists():
         return
@@ -145,7 +146,7 @@ def make_folder(root_path: Path, rel_folder: "TStrOrPath") -> None:
         printf(CREATE, display, color=COLOR_OK)
 
 
-def copy_file(src_path: Path, root_path: Path, dst_relpath: Path, *, force=False) -> None:
+def copy_file(src_path: "Path", root_path: "Path", dst_relpath: "TStrOrPath", *, force=False) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         if files_are_identical(src_path, dst_path):
@@ -161,7 +162,7 @@ def copy_file(src_path: Path, root_path: Path, dst_relpath: Path, *, force=False
     shutil.copy2(str(src_path), str(dst_path))
 
 
-def append_to_file(root_path: Path, dst_relpath: Path, new_content: str) -> None:
+def append_to_file(root_path: "Path", dst_relpath: "TStrOrPath", new_content: str) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         curr_content = dst_path.read_text()
@@ -180,7 +181,7 @@ def append_to_file(root_path: Path, dst_relpath: Path, new_content: str) -> None
     dst_path.write_text(new_content)
 
 
-def save_file(root_path: Path, dst_relpath: Path, content: str, *, force=False) -> None:
+def save_file(root_path: "Path", dst_relpath: "TStrOrPath", content: str, *, force=False) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         if contents_are_identical(content, dst_path):
@@ -197,7 +198,7 @@ def save_file(root_path: Path, dst_relpath: Path, content: str, *, force=False) 
 
 
 def get_blueprint_render(
-    src: Path,
+    src: "Path",
     context: "Optional[dict]" = None,
     *,
     envops: "Optional[dict]" = None
@@ -227,15 +228,15 @@ def call(cmd: str) -> None:
     os.system(cmd)
 
 
-def files_are_identical(src_path: Path, dst_path: Path) -> bool:
+def files_are_identical(src_path: "Path", dst_path: "Path") -> bool:
     return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
 
 
-def contents_are_identical(content: str, dst_path: Path) -> bool:
+def contents_are_identical(content: str, dst_path: "Path") -> bool:
     return content == dst_path.read_text()
 
 
-def confirm_overwrite(dst_relpath: Path, *, force=False) -> bool:
+def confirm_overwrite(dst_relpath: "TStrOrPath", *, force=False) -> bool:
     printf("conflict", dst_relpath, color=COLOR_CONFLICT)
     if force:
         return True

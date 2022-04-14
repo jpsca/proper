@@ -1,13 +1,10 @@
 import json
-from typing import TYPE_CHECKING
+from typing import IO
 
 import multipart
 
 from proper import errors
 from proper.helpers import MultiDict
-
-if TYPE_CHECKING:
-    from typing import IO, Optional
 
 
 __all__ = ("parse_form_data",)
@@ -18,7 +15,7 @@ def parse_form_data(
     content_type: str,
     content_length: int,
     encoding="utf8",
-    max_content_length: "Optional[int]" = None,
+    max_content_length: int = -1,
 ) -> MultiDict:
     try:
         return _parse_form_data(
@@ -37,9 +34,10 @@ def _parse_form_data(
     content_type: str,
     content_length: int,
     encoding: str,
-    max_content_length: "Optional[int]" = None,
+    max_content_length: int = -1,
 ) -> MultiDict:
-    validate_max_content_length(content_length, max_content_length)
+    if max_content_length > 0:
+        validate_max_content_length(content_length, max_content_length)
     content_type, options = multipart.parse_options_header(content_type)
     encoding = options.get("charset", encoding)
 

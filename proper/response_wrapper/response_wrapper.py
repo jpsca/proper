@@ -8,21 +8,22 @@ from typing import TYPE_CHECKING
 
 from .. import status
 from ..helpers import HeadersDict, tunnel_encode
-from ..request_wrapper import Request
 
 from .cookies import CookiesDict, add_cookie
 from .flash_dict import FlashDict
 
 if TYPE_CHECKING:
+    from http.cookies import Morsel
     from typing import (
         Any,
         Callable,
+        Dict,
         List,
         Optional,
         Tuple,
         Union,
     )
-    from proper import App
+    from proper import App, Request
 
 
 __all__ = ("Response",)
@@ -50,56 +51,63 @@ def is_iterable(obj: "Any") -> bool:
 
 
 class Response:
+    headers: "HeadersDict"
+    cookies: "CookiesDict"
+    flash: "FlashDict"
+
+    # Set to `True` by the dispatcher to indicate the endpoint was called.
+    dispatched: bool = False
+
+    # Set it to `True` to stop the normal flow and return inmediatly.
+    # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
+    stop: bool = False
+
+    # name of the component
+    component: "Optional[str]" = None
+
+    # Warn if a cookie header exceeds this size.
+    # The default is 4093 and should be supported by most browsers
+    # (See http://browsercookielimits.squawky.net)
+    # A cookie larger than this size will still be sent, but it may be ignored or
+    # handled incorrectly by some browsers. Set to 0 to disable this check.
+    max_cookie_size: int = DEFAULT_MAX_COOKIE_SIZE
+
+    # Set to True to not set cookies in this response, including any changes to the
+    # session or CSRF token. You might want to use it for some read-only public
+    # endpoints, like a RSS feed.
+    disable_cookies: bool = False
+
+    error: "Optional[Exception]" = None
+    raw_body: "Union[str, bytes, None]" = None
+
+    _etag: "Optional[str]" = None
+    _last_modified: "Optional[date]" = None
+    _app: "Optional[App]" = None
+    _request: "Optional[Request]" = None
+    _session: "Dict[str, Any]"
+
     def __init__(
         self,
-        status_code=status.ok,
-        content_type="text/html",
-        charset="utf-8",
+        status_code: str = status.ok,
+        content_type: str = "text/html",
+        charset: str = "utf-8",
         _app: "Optional[App]" = None,
         _request: "Optional[Request]" = None,
     ) -> None:
-        # Set to `True` by the dispatcher to indicate the endpoint was called.
-        self.dispatched = False
-
-        # Set it to `True` to stop the normal flow and return inmediatly.
-        # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
-        self.stop = False
-
-        # name of the component
-        self.component: "Optional[str]" = None
-
-        # Warn if a cookie header exceeds this size.
-        # The default is 4093 and should be supported by most browsers
-        # (See http://browsercookielimits.squawky.net)
-        # A cookie larger than this size will still be sent, but it may be ignored or
-        # handled incorrectly by some browsers. Set to 0 to disable this check.
-        self.max_cookie_size = DEFAULT_MAX_COOKIE_SIZE
-
-        # Set to True to not set cookies in this response, including any changes to the
-        # session or CSRF token. You might want to use it for some read-only public
-        # endpoints, like a RSS feed.
-        self.disable_cookies = False
-
-        self.error: "Optional[Exception]" = None
-        self.raw_body: "Optional[str]" = None
-
-        self._app = _app
-        self._request = _request
-        self._session = {}
-        self._etag: "Optional[str]" = None
-        self._last_modified: "Optional[date]" = None
-
         self.status_code = status_code
         self.content_type = content_type
         self.charset = charset
+        self._app = _app
+        self._request = _request
+        self._session = {}
 
         self.headers = HeadersDict()
         self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 
     def __call__(self, start_response: "Callable") -> "Iterable[bytes]":
-        body = self.raw_body or ""
-        if hasattr(body, "encode"):
+        body: "Union[str, bytes]" = self.raw_body or b""  # type: ignore
+        if isinstance(body, str):
             body = body.encode(self.charset)
 
         content_length = len(body)
@@ -118,7 +126,7 @@ class Response:
         return f"<Response “{self._status_code}”>"
 
     @property
-    def body(self) -> "Optional[str]":
+    def body(self) -> "Union[str, bytes, None]":
         return self.raw_body
 
     @body.setter
@@ -171,12 +179,12 @@ class Response:
         object: "Any" = None,
         *,
         flash: "Optional[str]" = None,
-        flash_type="notice",
-        status_code=status.see_other,
+        flash_type: str = "notice",
+        status_code: str = status.see_other,
         **kwargs,
     ) -> None:
+        assert self._app
         self.status_code = status_code
-
         to = url_or_route
         if not url_or_route.startswith(("/", "http")):
             to = self._app.url_for(url_or_route, object=object, **kwargs)
@@ -197,7 +205,7 @@ class Response:
         if flash:
             self.flash[flash_type] = flash
 
-    def set_cookie(self, key: str, value="", **kwargs) -> None:
+    def set_cookie(self, key: str, value: str = "", **kwargs) -> "Morsel":
         """
         Set (add) a cookie for the response. Returns the cookie set.
 
@@ -253,7 +261,7 @@ class Response:
         if name in self.cookies:
             del self.cookies[name]
 
-    def delete_cookie(self, name: str, *, path="/", domain="") -> None:
+    def delete_cookie(self, name: str, *, path: str = "/", domain: str = "") -> None:
         """
         Delete a cookie from the client. Note that path and domain must match
         how the cookie was originally set.
@@ -269,8 +277,8 @@ class Response:
         *,
         etag: "Union[date, int, float, str, None]" = None,
         last_modified: "Optional[date]" = None,
-        strong=False,
-        public=False,
+        strong: bool = False,
+        public: bool = False,
     ) -> bool:
         """
         Sets the Etag header, the Last-Modified header, or both.

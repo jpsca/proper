@@ -80,9 +80,9 @@ class Scope:
     )
 
     mount: str
-    host: Optional[str]
+    host: "Optional[str]"
 
-    def __init__(self, mount: str, *, host: Optional[str] = None) -> None:
+    def __init__(self, mount: str, *, host: "Optional[str]" = None) -> None:
         self.mount = "/" + mount.strip("/")
         self.host = host
 

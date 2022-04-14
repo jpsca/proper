@@ -26,7 +26,7 @@ class FlashDict:
     def __getattr__(self, name: str) -> str:
         if name in DICT_ATTRS:
             return getattr(self.dict, name)
-        return super().__getattr__(name)
+        raise AttributeError(name)
 
     def __setitem__(self, key: str, value: "Any") -> None:
         self.dict[key] = value

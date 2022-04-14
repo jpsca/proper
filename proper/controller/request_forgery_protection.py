@@ -6,7 +6,8 @@ from ..constants import HEAD, GET, OPTIONS
 from ..errors import InvalidCSRFToken, MissingCSRFToken
 
 if TYPE_CHECKING:
-    from typing import List, Optional
+    from typing import List, Optional, Tuple
+    from proper import Request, Response
 
 
 __all__ = ("CSRF_SESSION_KEY", "CSRF_FORM_KEY", "CSRF_HEADER", "CSRF_TOKEN_LENGTH")
@@ -18,7 +19,10 @@ CSRF_TOKEN_LENGTH = 32
 
 
 class RequestForgeryProtection:
-    skip_csrf_check_for = tuple()
+    action_name: str
+    request: "Request"
+    response: "Response"
+    skip_csrf_check_for: "Tuple[str, ...]" = tuple()
 
     def __before__(self) -> None:
         self.protect_from_forgery(self.action_name)

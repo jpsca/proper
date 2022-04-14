@@ -3,7 +3,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Tuple
+    from typing import List, Tuple
 
 
 RX_ACCEPT = re.compile(
@@ -27,14 +27,14 @@ RX_ACCEPT = re.compile(
 )
 
 
-def parse_accept_header(value: str) -> "Tuple[str, int]":
+def parse_accept_header(value: str) -> "List[Tuple[str, float]]":
     """Parses an HTTP Accept-* header. Does not implement a complete
     valid algorithm but one that support most cases.
     Returns a list of `(value, quality)` tuples sorted by the quality.
 
     https://datatracker.ietf.org/doc/html/rfc7231#section-5.3.2
     """
-    result = []
+    result: "List[Tuple[str, float]]" = []
     if not value:
         return result
 

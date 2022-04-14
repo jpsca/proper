@@ -66,8 +66,12 @@ class Controller(RequestForgeryProtection):
             self.response.content_type = "text/plain"
             return text
 
+        component = component or self.response.component
+        assert component
+        assert self.app and self.app.catalog
+
         return self.app.catalog.render(
-            component or self.response.component,
+            component,
             **vars(self)
         )
 
@@ -85,12 +89,12 @@ class Controller(RequestForgeryProtection):
         self,
         path: "Union[str, Path]",
         *,
-        disposition="attachment",
-        filename="",
-        stream=False,
-        buffer_size=1024,
-        status=ok,
-        type="application/octet-stream",
+        disposition: str = "attachment",
+        filename: str = "",
+        stream: bool = False,
+        buffer_size: int = 1024,
+        status: str = ok,
+        type: str = "application/octet-stream",
     ):
         ...
 

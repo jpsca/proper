@@ -10,6 +10,7 @@ class CustomEncoder(json.JSONEncoder):
     def default(self, obj: "Any") -> str:
         if isinstance(obj, datetime.date):
             return obj.isoformat()
+        return super().default(obj)
 
 
 class CustomDecoder(json.JSONDecoder):

@@ -41,4 +41,7 @@ class Serializer:
         return self.s.loads(str_value, max_age=max_age)
 
     def dumps(self, dict_value: dict) -> str:
-        return self.s.dumps(dict_value)
+        str_value = self.s.dumps(dict_value)
+        if isinstance(str_value, bytes):
+            return str_value.decode("utf8")
+        return str_value

@@ -138,7 +138,7 @@ def get_env(default="development"):
 
 
 env = get_env()
-logger.debug("env is %{env}s", env=env)
+logger.debug("env is %s", env)
 
 is_development_env = is_dev_env = env == "development"
 is_testing_env = env == "testing"

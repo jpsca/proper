@@ -56,7 +56,7 @@ def resource(
     to: "Callable",
     only: "StrOrIter" = ACTIONS,
     exclude: "Optional[StrOrIter]" = None,
-    singular=False,
+    singular: bool = False,
     **kwargs
 ) -> "List[Route]":
     """Shortcut to return a list of REST routes for a resource.
@@ -110,6 +110,7 @@ def resource(
 
     """
     res = Route("resource", path, to=to, **kwargs)
+    assert res.to
 
     only = _to_list(only)
     exclude = _to_list(exclude)
@@ -122,7 +123,7 @@ def resource(
     return routes
 
 
-def _to_list(iterable: "Iterable") -> "Iterable":
+def _to_list(iterable: "Optional[Iterable]") -> "Iterable":
     iterable = iterable or []
     if isinstance(iterable, str):
         return RX_COMMA.split(iterable.strip())
@@ -144,15 +145,9 @@ def _expand_route(res: Route, method: str, path: str, action: str):
     route = Route(
         method,
         base_path.rstrip("/") + path,
-        to=_expand_to(res.to, action),
+        to=getattr(res.to, action),
         defaults=res.defaults,
     )
     route.compile_path()
     route.host = res.host
     return route
-
-
-def _expand_to(to: "Union[Callable, str]", action: str) -> str:
-    if callable(to):
-        return getattr(to, action)
-    return to + "." + action

@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Optional
     from proper import App, Request, Response
 
 
@@ -15,7 +16,7 @@ LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")
 
 def match(request: "Request", response: "Response", app: "App") -> None:
     """Match the request url to a route."""
-    host = request.host
+    host: "Optional[str]" = request.host
     if host in LOCAL_HOSTS:
         host = None
     route, params = app.router.match(request.method, request.path, host)

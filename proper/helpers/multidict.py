@@ -34,7 +34,7 @@ class MultiDict(defaultdict):
         default: "Any" = None,
         *,
         type: "Optional[Callable]" = None,
-        index=-1
+        index: int = -1
     ) -> "Any":
         """Return the last value of the key of `default` one if the key
         doesn't exist.

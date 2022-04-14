@@ -15,11 +15,11 @@ def gen_model(
     app: "App",
     name: str,
     *attrs: str,
-    singular_pascal="",
-    singular_snake="",
-    plural_snake="",
-    migration=False,
-) -> "List[Tuple[str, str, str, str]]":
+    singular_pascal: str = "",
+    singular_snake: str = "",
+    plural_snake: str = "",
+    migration: bool = False,
+) -> "List[Tuple[str, str, str, List[str]]]":
     """Stubs out a new model.
 
     Pass the model name (singular), and an optional list of attribute pairs
@@ -204,16 +204,16 @@ FOREIGN_CONSTRAINT = "foreign"
 CONSTRAINTS = ("unique", "index", "nullable", "default", FOREIGN_CONSTRAINT)
 
 
-def _split_attr(attr: str) -> "Tuple[str, str, str, str]":
+def _split_attr(attr: str) -> "Tuple[str, str, str, List[str]]":
     # We add "::" to the end so the split doesn't fail when `attr` doesn't
     # specify a field type (meaning, use the default) and/or doesn't
     # have constraints
-    name, ctype, constraints = (f"{attr}::").split(":", 2)
+    name, ctype, str_constraints = (f"{attr}::").split(":", 2)
     ctype = ctype or DEFAULT_FIELD_TYPE
 
     # We strip the extra colons here, in case the attr *did* provide a
     # field type and/or constraints
-    constraints = constraints.rstrip(":").split(":")
+    constraints = str_constraints.rstrip(":").split(":")
 
     options = ""
     if "-" in ctype:
@@ -222,8 +222,13 @@ def _split_attr(attr: str) -> "Tuple[str, str, str, str]":
     return name, ctype, options, constraints
 
 
-def _build_row(plural_snake: str, *attrs: str) -> str:
-    cname, ctype, options, constraints = attrs
+def _build_row(
+    plural_snake: str,
+    cname: str,
+    ctype: str,
+    options: str,
+    constraints: "List[str]"
+) -> str:
     ColumnType = COLUMN_TYPES.get(ctype.lower())
     if ColumnType:
         col = _field(ColumnType, options, constraints)
@@ -237,9 +242,9 @@ def _build_row(plural_snake: str, *attrs: str) -> str:
 def _field(ColumnType: str, options: str, constraints: "List[str]") -> str:
     options = options.replace("-", ", ")
     options = f"({options})" if options else ""
-    constraints = _build_constraints(constraints) if constraints else ""
-    constraints = f", {constraints}" if constraints else ""
-    return f"db.Column(db.{ColumnType}{options}{constraints})"
+    str_constraints = _build_constraints(constraints) if constraints else ""
+    str_constraints = f", {str_constraints}" if str_constraints else ""
+    return f"db.Column(db.{ColumnType}{options}{str_constraints})"
 
 
 def _build_constraints(constraints: "List[str]") -> str:
@@ -257,7 +262,7 @@ def _build_constraint(constraint: str) -> str:
         assert value, "Missing column for foreign key. Use `foreign-table.column`"
         return f'db.ForeignKey("{value}")'
     else:
-        value = False if value.lower() == "false" else True
+        value = "False" if value.lower() == "false" else "True"
         return f"{constraint}={value}"
 
 

@@ -1,21 +1,23 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from typing import Callable
+    from proper import App
 
 
 class BaseScheduler(ABC):
-    def __init__(self, app):
+    def __init__(self, app: "App") -> None:
         app.on_dev_start(self.start)
         app.on_dev_shutdown(self.shutdown)
 
     @abstractmethod
-    def task(self, func, *args, **kwargs):
+    def task(self, func: "Callable") -> "Callable":
         pass
 
-    @abstractmethod
-    def periodic_task(self, func, *args, **kwargs):
+    def start(self) -> None:
         pass
 
-    def start(self):
-        pass
-
-    def shutdown(self, wait=True):
+    def shutdown(self) -> None:
         pass

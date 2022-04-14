@@ -11,11 +11,11 @@ if TYPE_CHECKING:
 
 
 class DiskService(BaseService):
-    def __init__(self, app: "App", root: str, **kwargs):
+    def __init__(self, app: "App", root: str, **kwargs) -> None:
         self.root = app.root_path.parent / root
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def save(self, filesto: "Union[MultipartPart, IO]", blob: "Blob") -> None:
+    def save(self, filesto: "Union[MultipartPart, IO]", blob: "Blob") -> "Blob":
         blob.key = str(uuid4().hex)
         if hasattr(filesto, "save_as"):
             self.save_multipart_part(filesto, blob)

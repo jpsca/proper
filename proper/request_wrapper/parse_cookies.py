@@ -1,7 +1,10 @@
+from typing import Optional
+
+
 __all__ = ("parse_cookies",)
 
 
-def parse_cookies(cookie: str) -> dict:
+def parse_cookies(cookie: "Optional[str]") -> dict:
     """Parse a cookie header into a dict.
 
     Arguments are:

@@ -12,6 +12,8 @@ __all__ = ("dispatch",)
 
 def dispatch(request: "Request", response: "Response", app: "App") -> None:
     route = request.matched_route
+    assert route
+    assert route.to
     cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
     request.matched_action = action_name
     module = import_module(route.to.__module__)

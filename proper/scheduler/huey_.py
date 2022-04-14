@@ -38,7 +38,12 @@ class HueyScheduler(BaseScheduler):
 
         super().__init__(app, **config)
 
-    def task(self, func: "Callable", retries=0, **kwargs) -> None:
+    def task(
+        self,
+        func: "Callable",
+        retries: int = 0,
+        **kwargs
+    ) -> "Callable":
         kwargs["retries"] = retries
         return self.huey.task(func, **kwargs)
 
@@ -48,7 +53,7 @@ class HueyScheduler(BaseScheduler):
         validate_datetime: "Callable",
         retries=0,
         **kwargs
-    ) -> None:
+    ) -> "Callable":
         kwargs["retries"] = retries
         return self.huey.periodic_task(
             func,
@@ -76,5 +81,6 @@ class HueyScheduler(BaseScheduler):
         print("Stopping scheduler...")
         if wait:
             print("Waiting until all tasks finish...")
-        self.consumer.stop(graceful=wait)
+        if self.consumer:
+            self.consumer.stop(graceful=wait)
         self.running = False

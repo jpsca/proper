@@ -6,29 +6,28 @@ from typing import Any, Callable, List
 
 __all__ = ("Proxy", )
 
-
 WRAPPED_FUNC = "__wrapped_func__"
 
 
 class Proxy:
     __slots__ = [WRAPPED_FUNC]
 
+    def __init__(self, wrapped_func: "Callable") -> None:
+        object.__setattr__(self, WRAPPED_FUNC, wrapped_func)
+
     @property
     def __wrapped__(self) -> "Any":
         return self.__wrapped_func__()
 
     @property
-    def __doc__(self) -> str:
-        return self.__wrapped__.__doc__
+    def __doc__(self) -> str:  # type: ignore
+        return self.__wrapped__.__doc__ or ""
 
     @property
-    def __dict__(self) -> dict:
+    def __dict__(self) -> dict:  # type: ignore
         """We need __dict__ to be explicit to ensure that
         `vars()` works as expected."""
         return self.__wrapped__.__dict__
-
-    def __init__(self, wrapped_func: "Callable") -> None:
-        object.__setattr__(self, WRAPPED_FUNC, wrapped_func)
 
     @property
     def __name__(self) -> str:
@@ -37,6 +36,10 @@ class Proxy:
     @property
     def __class__(self) -> "Any":
         return self.__wrapped__.__class__
+
+    @__class__.setter
+    def __class__(self, value: "Any") -> None:  # noqa
+        self.__wrapped__.__class__ = value
 
     def __setattr__(self, name: str, value: "Any") -> None:
         if name == WRAPPED_FUNC:

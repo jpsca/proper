@@ -1,7 +1,7 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 
-def parse_host(host: str, default_port: int) -> Tuple[str, int]:
+def parse_host(host: "Optional[str]", default_port: int) -> "Tuple[str, int]":
     if not host:
         return "", default_port
 

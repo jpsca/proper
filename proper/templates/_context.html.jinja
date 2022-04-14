@@ -27,13 +27,6 @@
 </section>
 {%- endif %}
 
-{% if request_files -%}
-<section>
-	<h4>Files:</h4>
-	{{ print_dict(request_files) }}
-</section>
-{%- endif %}
-
 {% if request_headers -%}
 <section>
 	<h4>Environment:</h4>

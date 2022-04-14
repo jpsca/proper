@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 # Monkey-patching the Morsel to add support for samesite for Python version < 3.8
 # https://github.com/python/cpython/pull/6413
-Morsel._reserved["samesite"] = "SameSite"
+Morsel._reserved["samesite"] = "SameSite"  # type: ignore
 
 
 class CookiesDict(SimpleCookie):
@@ -30,13 +30,13 @@ def add_cookie(
     *,
     max_age: "Optional[int]" = None,
     path="/",
-    domain: "Optional[str]" = None,
+    domain="",
     secure=False,
     httponly=False,
     samesite: "Optional[str]" = None,
     comment: "Optional[str]" = None,
     max_size: "Optional[int]" = None,
-) -> str:
+) -> Morsel:
     """Set (add) a cookie for the response.
     Returns the cookie set.
 
@@ -63,7 +63,7 @@ def add_cookie(
             match "/docs/a", "/docs/a/b", etc.
             Therefore, `path="/"` wil match everything.
 
-        domain (str|None):
+        domain (str):
             Specifies those hosts to which the cookie will be sent. If not specified,
             defaults to the host portion of the current document location
             (but not including subdomains).

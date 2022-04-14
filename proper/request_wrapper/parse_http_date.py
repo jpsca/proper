@@ -5,7 +5,7 @@ from typing import Optional
 __all__ = ("parse_http_date",)
 
 
-def parse_http_date(http_date: str) -> Optional[str]:
+def parse_http_date(http_date: str) -> Optional[datetime]:
     """Parse a datetime from a header. Ignores obsoletes formats."""
     if not http_date:
         return None

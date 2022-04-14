@@ -4,6 +4,7 @@ Request class.
 import mimetypes
 from datetime import datetime
 from io import BytesIO
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from .. import errors
@@ -19,7 +20,7 @@ from .parse_http_date import parse_http_date
 from .parse_query_string import parse_query_string
 
 if TYPE_CHECKING:
-    from typing import Any, List, Optional, Union
+    from typing import Any, IO, List, Optional, Union
 
 
 __all__ = ("Request", "make_test_env")
@@ -119,7 +120,7 @@ class Request:
         or an empty list if the header is missing or its value is blank.
 
     - if_modified_since:
-        Value of the "If-Modified-Since" header, or an empty string if the header
+        Value of the "If-Modified-Since" header, or `None` if the header
         is missing or the date cannot be parsed.
 
     - languages:
@@ -147,39 +148,40 @@ class Request:
         deleted form the session.
 
     """
+    request_id: str = ""
+    matched_route: "Optional[Route]" = None
+    matched_params: "Optional[dict]" = None
+    matched_action: "Optional[str]" = None
+    user: "Any" = None
+    csrf_token: "Optional[str]" = None
+
+    _remote_ip: "Optional[str]" = None
+    _content_length: "Optional[int]" = None
+    _headers: "Optional[HeadersDict]" = None
+    _accepts: "Optional[List[str]]" = None
+    _format: "Optional[str]" = None
+    _if_none_match: "Optional[List[str]]" = None
+    _if_modified_since: "Optional[datetime]" = None
+    _languages: "Optional[List[str]]" = None
+    _query: "Optional[MultiDict]" = None
+    _form: "Optional[MultiDict]" = None
+    _cookies: "Optional[dict]" = None
+    _session: "MappingProxyType"
 
     def __init__(
         self,
         *,
-        encoding="utf8",
-        max_content_length: "Optional[int]" = None,
+        encoding: str = "utf8",
+        max_content_length: int = -1,
         max_query_size: "Optional[int]" = None,
         **env,
     ) -> None:
-        self.matched_route: "Optional[Route]" = None
-        self.matched_params: "Optional[dict]" = None
-        self.matched_action: "Optional[str]" = None
-        self.user: "Any" = None
-        self.csrf_token: "Optional[str]" = None
-
-        self._remote_ip: "Optional[str]" = None
-        self._content_length: "Optional[int]" = None
-        self._headers: "Optional[HeadersDict]" = None
-        self._accepts: "Optional[List[str]]" = None
-        self._format: "Optional[str]" = None
-        self._if_none_match: "Optional[List[str]]" = None
-        self._if_modified_since: "Optional[Union[datetime, str]]" = None
-        self._languages: "Optional[List[str]]" = None
-        self._query: "Optional[MultiDict]" = None
-        self._form: "Optional[MultiDict]" = None
-        self._cookies: "Optional[dict]" = None
-        self._session = {}
-
+        env = env or make_test_env()
+        self.env = env
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
-        env = env or make_test_env()
-        self.env = env
+
         self.method = env.get("REQUEST_METHOD", GET).upper()
         self.request_method = self.method
         # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
@@ -190,7 +192,7 @@ class Request:
             "wsgi.url_protocol"
         )
         self.host, self.port = parse_host(self.env.get("HTTP_HOST"), self.default_port)
-        self._session = {}
+        self._session = MappingProxyType({})
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
@@ -288,7 +290,7 @@ class Request:
         return self._content_length
 
     @property
-    def headers(self) -> HeadersDict:
+    def headers(self) -> "HeadersDict":
         if self._headers is None:
             headers = HeadersDict()
             for name, value in self.env.items():
@@ -335,10 +337,10 @@ class Request:
         return self._if_none_match
 
     @property
-    def if_modified_since(self) -> "Union[datetime, str]":
+    def if_modified_since(self) -> "Optional[datetime]":
         if self._if_modified_since is None:
             header = self.env.get("HTTP_IF_MODIFIED_SINCE", "")
-            self._if_modified_since = parse_http_date(header) or ""
+            self._if_modified_since = parse_http_date(header) or None
         return self._if_modified_since
 
     @property
@@ -352,18 +354,18 @@ class Request:
         return self._languages
 
     @property
-    def body(self) -> "Any":
+    def body(self) -> "IO":
         return self.env.get("wsgi.input", BytesIO())
 
     @property
-    def query(self) -> MultiDict:
+    def query(self) -> "MultiDict":
         if self._query is None:
             query_string = self.query_string
             self._query = parse_query_string(query_string, self.max_query_size)
         return self._query
 
     @property
-    def form(self) -> MultiDict:
+    def form(self) -> "MultiDict":
         if self._form is None:
             # GET and HEAD can't have form data.
             if self.method in (GET, HEAD):
@@ -385,7 +387,7 @@ class Request:
         return self._cookies
 
     @property
-    def session(self) -> dict:
+    def session(self) -> "MappingProxyType":
         return self._session
 
     @property

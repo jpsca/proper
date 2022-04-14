@@ -30,14 +30,14 @@ from .helpers import Dot, Serializer
 from .middleware.dispatch import dispatch
 from .request_wrapper import Request
 from .response_wrapper import Response
-from .router import Router, get
+from .router import Router, Route, get
 from .scheduler import HueyScheduler
-from .static import RX_INMUTABLES_FILE
+from .assets import RX_INMUTABLES_FILE
 from .storage import AttachableBase, Storage
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Iterable, List, Optional
-    from .router import Route
+    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+    TException = Type[BaseException]
 
 
 COMPONENTS_FOLDER = "components"
@@ -58,6 +58,34 @@ class BadSecretKey(Exception):
 
 
 class App:
+    # A lists of functions that are called before, during, and after dispatching
+    # a request.
+    # If one of these functions sets the stop attribute of the response,
+    # the rest is skipped.
+    _on_before_dispatch: "Tuple[Callable, ...]" = tuple()
+    _on_dispatch: "Tuple[Callable, ...]" = tuple()
+    _on_after_dispatch: "Tuple[Callable, ...]" = tuple()
+
+    # A lists of functions that are called if any of the functions in the
+    # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
+    # raises an exception.
+    _on_error: "Tuple[Callable, ...]" = tuple()
+
+    # A lists of functions that are all *always* called at the end of a request,
+    # even if an exception was raised before.
+    _on_teardown: "Tuple[Callable, ...]" = tuple()
+
+    # A lists of functions that are called when the development server starts,
+    # and when it shutdown. Useful for running the scheduler on development and
+    # similar tasks.
+    _on_dev_start: "Tuple[Callable, ...]" = tuple()
+    _on_dev_shutdown: "Tuple[Callable, ...]" = tuple()
+
+    # A dict of functions to call when an HTTPError is raised.
+    # The keys are any subclasses of Exception, but, not necessarily
+    # subclasses of HTTPError.
+    error_handlers: "Dict[TException, Any]" = {}
+
     def __init__(
         self,
         import_name: str,
@@ -71,37 +99,7 @@ class App:
             Optional dict-like with the config.
 
         """
-        # A lists of functions that are called before, during, and after dispatching
-        # a request.
-        # If one of these functions sets the stop attribute of the response,
-        # the rest is skipped.
-        self._on_before_dispatch = tuple()
-        self._on_dispatch = tuple()
-        self._on_after_dispatch = tuple()
-
-        # A lists of functions that are called if any of the functions in the
-        # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
-        # raises an exception.
-        self._on_error = tuple()
-
-        # A lists of functions that are all *always* called at the end of a request,
-        # even if an exception was raised before.
-        self._on_teardown = tuple()
-
-        # A lists of functions that are called when the development server starts,
-        # and when it shutdown. Useful for running the scheduler on development and
-        # similar tasks.
-        self._on_dev_start = tuple()
-        self._on_dev_shutdown = tuple()
-
-        # A dict of functions to call when an HTTPError is raised.
-        # The keys are any subclasses of Exception, but, not necessarily
-        # subclasses of HTTPError.
         self.error_handlers = {}
-
-        self.serializer = None
-        self.scheduler = None
-        self.storage = None
         self._wrapped_wsgi = self.wsgi_app
 
         self._setup_paths(import_name)
@@ -122,7 +120,7 @@ class App:
         return self._wrapped_wsgi(environ, start_response)
 
     @property
-    def config(self) -> Dot:
+    def config(self) -> "Dot":
         return self._config
 
     @property
@@ -134,15 +132,15 @@ class App:
         self.router.routes = values
 
     @property
-    def components_path(self) -> Path:
+    def components_path(self) -> "Path":
         return self.root_path / COMPONENTS_FOLDER
 
     @property
-    def static_path(self) -> Path:
+    def static_path(self) -> "Path":
         return self.root_path.parent / STATIC_FOLDER
 
     @property
-    def static_manifest_path(self) -> Path:
+    def static_manifest_path(self) -> "Path":
         return self.static_path / MANIFEST_PATH
 
     def on_before_dispatch(self, func: "Callable") -> "Callable":
@@ -207,8 +205,6 @@ class App:
             # - the body encoding on the `resp(start_response)`.
             response.error = error
             self._default_error_handler(request, response)
-            _request_cv.set(None)
-            _response_cv.set(None)
             return response(start_response)
 
     def run_pipeline(self, request: Request, response: Response) -> None:
@@ -230,7 +226,7 @@ class App:
             for func in self._on_teardown:
                 func(request, response)
 
-    def error_handler(self, cls: Exception, to: "Callable") -> None:
+    def error_handler(self, cls: "TException", to: "Callable") -> None:
         """Register a controller method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 
@@ -241,14 +237,14 @@ class App:
         app.error_handler(Exception, Pages.error)
         ```
         """
-        assert inspect.isclass(cls) and issubclass(
-            cls, Exception
-        ), "`error_handler` takes a subclass of `Exception` as first argument."
+        is_exception = inspect.isclass(cls) and issubclass(cls, BaseException)
+        assert is_exception, "`error_handler` takes a subclass of `Exception` as first argument."
         self.error_handlers[cls] = to
 
         if self._config.debug:
+            qualname = getattr(cls, "__qualname__", "Exception")
             self.router.routes.append(
-                get(f"_{inflection.underscore(cls.__qualname__)}", to=to)
+                get(f"_{inflection.underscore(qualname)}", to=to)
             )
 
     def url_for(
@@ -274,7 +270,7 @@ class App:
         text = (self.static_path / filename).read_text()
         return Markup(text)
 
-    def edit_credentials(self, env: dict) -> None:
+    def edit_credentials(self, env: str) -> None:
         cryptex = Cryptex(self.credentials_path, env)
         cryptex.edit()
 
@@ -292,7 +288,9 @@ class App:
 
     def _setup_paths(self, import_name: str) -> None:
         module = import_module(import_name)
-        path = Path(module.__file__)
+        module_file = module.__file__
+        assert module_file
+        path = Path(module_file)
         if path.is_file():
             path = path.parent
         self.module = module
@@ -309,7 +307,7 @@ class App:
         config.secret_key = self._validate_secret_key(config.secret_key)
         self._config = config
 
-    def _load_config(self) -> Dot:
+    def _load_config(self) -> "Dot":
         config = get_default_config()
         config_file = self.config_path / f"{self.env}.py"
         if config_file.is_file():
@@ -321,9 +319,10 @@ class App:
             logger.warning("%s cannot be imported", config_file)
         return config
 
-    def _load_credentials(self) -> Dot:
+    def _load_credentials(self) -> "Dot":
         cryptex = Cryptex(self.credentials_path, self.env)
-        return cryptex.load()
+        credentials = cryptex.load()
+        return Dot(credentials)
 
     def _validate_secret_key(self, secret_key: "Optional[str]") -> str:
         secret_key = str(secret_key or "")
@@ -413,7 +412,7 @@ class App:
         if not self.static_path.exists():
             return
 
-        self._wrapped_wsgi = WhiteNoise(
+        self._wrapped_wsgi = wn = WhiteNoise(
             self.wsgi_app,
             root=self.static_path,
             prefix=STATIC_PREFIX,
@@ -423,7 +422,7 @@ class App:
         for sp in self._config.static.paths or []:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
-            self._wrapped_wsgi.add_files(path, prefix=prefix)
+            wn.add_files(path, prefix=prefix)
 
     def _setup_cli(self) -> None:
         Cli = get_app_cli(self)
@@ -506,7 +505,10 @@ class App:
 
     def _custom_error_handler(self, request: Request, response: Response, handler) -> None:
         response.component = None
-        request.matched_route = Dot({"to": handler})
+        if request.matched_route:
+            request.matched_route.to = handler
+        else:
+            request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
         dispatch(request, response, self)
 

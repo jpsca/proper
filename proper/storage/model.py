@@ -7,7 +7,7 @@ __all__ = ("AttachableBase", )
 
 
 class AttachableBase(BaseModel):
-    def __new__(cls):
+    def __new__(cls) -> "AttachableBase":
         obj = super().__new__(cls)
         for key, value in cls.__dict__.items():
             if isinstance(value, BaseAttachment):

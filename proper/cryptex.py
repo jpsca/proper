@@ -12,7 +12,7 @@ from proper_cli import confirm
 try:
     from yaml import CLoader as YamlLoader, CDumper as YamlDumper
 except ImportError:  # pragma: no cover
-    from yaml import YamlLoader, YamlDumper
+    from yaml import YamlLoader, YamlDumper  # type: ignore
 
 
 Queue = getattr(queue, "SimpleQueue", queue.Queue)
@@ -58,7 +58,7 @@ HIDDEN_VALUE = "..."
 
 
 class Cryptex:
-    def __init__(self, path: Path, env: str) -> None:
+    def __init__(self, path: "Path", env: str) -> None:
         self.path = path
         self.env = env
         self.enc_path = path / (ENCRYPTED_FILE % (env,))
@@ -88,14 +88,14 @@ class Cryptex:
         self.save(key, new_content)
         print(AFTER_EDIT)
 
-    def read_key(self) -> None:
-        key = None
+    def read_key(self) -> bytes:
+        key = b""
         key_path = self.key_path
         if key_path.is_file():
             key = key_path.read_bytes().strip()
         if not key:
             key = os.getenv(MASTER_KEY_ENV, "").strip().encode("utf8")
-        self.key = key
+        return key
 
     def read(self, key: bytes) -> str:
         if not key:
@@ -141,7 +141,7 @@ class Cryptex:
         """Takes a dict and return another with all the non-dict values
         or those deeper than `maxdepth` replaced by `empty`.
         """
-        dicts = Queue()
+        dicts: "queue.Queue" = Queue()
         hconfig = copy.deepcopy(config)
         dicts.put((0, hconfig))
 

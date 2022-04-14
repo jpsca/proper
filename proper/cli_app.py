@@ -5,10 +5,8 @@ from typing import TYPE_CHECKING
 
 from proper_cli import Cli
 
-from . import auth, generators, proper_text, static, storage
-
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Any, Callable, Dict
     from proper import App
 
 
@@ -28,7 +26,7 @@ EXAMPLE_COM_IP = "93.184.216.34"
 
 
 def get_app_cli(app: "App") -> "Cli":
-    attrs = {
+    attrs: "Dict[str, Any]" = {
         "__doc__": """
         Application-specific commands.
 
@@ -130,7 +128,9 @@ def get_credentials_cmd(app: "App") -> "Callable":
 
 
 def get_generators_cli(app: "App") -> "Cli":
-    attrs = {
+    from . import generators
+
+    attrs: "Dict[str, Any]" = {
         "__doc__": """Generate new code.""",
     }
 
@@ -141,22 +141,26 @@ def get_generators_cli(app: "App") -> "Cli":
 
 
 def get_static_cli(app: "App") -> "Cli":
-    attrs = {
-        "__doc__": """Manage static files.""",
+    from . import assets
+
+    attrs: "Dict[str, Any]" = {
+        "__doc__": """Manage assets.""",
     }
 
     for name in ("bundle", "build", "clean"):
-        attrs[name] = _get_cmd(app, static, name)
+        attrs[name] = _get_cmd(app, assets, name)
 
-    return type("Static", (Cli,), attrs)
+    return type("Assets", (Cli,), attrs)
 
 
 def get_install_cli(app: "App") -> "Cli":
-    attrs = {
+    from . import auth, storage, text
+
+    attrs: "Dict[str, Any]" = {
         "__doc__": "",
         "auth": _get_cmd(app, auth, "install"),
         "storage": _get_cmd(app, storage, "install"),
-        "text": _get_cmd(app, proper_text, "install"),
+        "text": _get_cmd(app, text, "install"),
     }
     return type("Install", (Cli,), attrs)
 

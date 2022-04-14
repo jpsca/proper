@@ -20,9 +20,9 @@ __all__ = (
 )
 
 
-def tunnel_encode(string: str, charset="utf8") -> str:
+def tunnel_encode(string: str, charset: str = "utf8") -> str:
     return string.encode(charset).decode("iso-8859-1")
 
 
-def tunnel_decode(string: str, charset="utf8") -> str:
+def tunnel_decode(string: str, charset: str = "utf8") -> str:
     return string.encode("iso-8859-1").decode(charset, "replace")

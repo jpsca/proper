@@ -20,9 +20,9 @@ class NameNotFound(Exception):
 class Router:
     __slots__ = ["_debug", "_routes", "_routes_by_name"]
 
-    def __init__(self, *, _debug=False) -> None:
+    def __init__(self, *, _debug: bool = False) -> None:
         self._debug = _debug
-        self._routes = []
+        self._routes: "List[Route]" = []
         self._routes_by_name: "Dict[str, Route]" = {}
 
     def match(

@@ -6,7 +6,6 @@ import inflection
 from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_file
 
 if TYPE_CHECKING:
-    from typing import List
     from proper import App
 
 
@@ -15,7 +14,7 @@ COMPONENT_TMPL = "component.html.jinja"
 ROUTES_TMPL = "routes.tmpl.py"
 
 
-def gen_controller(app: "App", name: str, *actions: "List[str]") -> None:
+def gen_controller(app: "App", name: str, *actions: str) -> None:
     """Stubs out a new controller and its components.
 
         proper g controller NAME [action ...]
@@ -33,7 +32,7 @@ def gen_controller(app: "App", name: str, *actions: "List[str]") -> None:
     plural_name = inflection.pluralize(name)
     plural_pascal = inflection.camelize(plural_name)
     plural_snake = inflection.underscore(plural_name)
-    actions = [inflection.underscore(action) for action in actions] or ["index"]
+    actions = tuple([inflection.underscore(action) for action in actions] or ["index"])
     root_path = Path(app.root_path.parent)
 
     bp = BlueprintRender(

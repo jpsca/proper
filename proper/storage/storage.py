@@ -6,7 +6,7 @@ from . import services
 from .attachment import Attachment, AttachmentList
 
 if TYPE_CHECKING:
-    from proper import App
+    from proper import App, Dot
     from .attachment import BaseAttachment
     from .blob import Blob
     from .services import BaseService
@@ -18,7 +18,7 @@ __all__ = ("Storage",)
 class Storage:
     __slots__ = ["app", "config"]
 
-    def __init__(self, app: "App", config) -> None:
+    def __init__(self, app: "App", config: "Dot") -> None:
         self.app = app
         self.config = config
 
@@ -56,7 +56,7 @@ class Storage:
         if analize:
             self.analize_later(blob.id)
 
-    def insert_blob(self, blob: "Blob") -> None:
+    def insert_blob(self, blob: "Blob") -> int:
         table = self.app.db.registry.metadata.tables["storage_blobs"]
         stmt = insert(table).values(
             key=blob.key,
@@ -69,7 +69,7 @@ class Storage:
         result = self.app.db.s.execute(stmt)
         return result.inserted_primary_key[0]
 
-    def insert_attachment(self, attachment: "BaseAttachment", blob: "Blob") -> None:
+    def insert_attachment(self, attachment: "BaseAttachment", blob: "Blob") -> int:
         table = self.app.db.registry.metadata.tables["storage_attachments"]
         stmt = insert(table).values(
             model_type=attachment.model_type,
@@ -83,6 +83,7 @@ class Storage:
 
     def analize_later(self, blob_id: int) -> None:
         # ???
+        assert self.app.scheduler
         self.app.scheduler.task(self.analyze)(blob_id=blob_id)
 
     def analyze(self, blob_id: int) -> None:

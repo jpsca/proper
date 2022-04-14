@@ -3,7 +3,7 @@ from string import Template
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Optional
+    from typing import Any, Optional
 
 
 __all__ = ("BaseRoute", "MissingParameter", "BadPlaceholder", "BadFormat")
@@ -58,12 +58,12 @@ class BaseRoute:
     )
 
     def __init__(self) -> None:
-        self.path = ""
+        self.path: str = ""
         self.path_re: "Optional[re.Pattern]" = None
         self.path_plain: "Optional[str]" = None
-        self.path_placeholders: "Optional[dict]" = None
+        self.path_placeholders: dict = {}
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: "Any") -> bool:
         if getattr(other, "__slots__", None) != self.__slots__:
             return NotImplemented
         return all(
@@ -119,13 +119,14 @@ class BaseRoute:
         if self.path_re is None:
             self.compile_path()
 
+        assert self.path_re
         return self.path_re.match(path)
 
     def format(self, **kwargs) -> str:
         if self.path_plain is None:
             self.compile_path()
 
-        tmpl = _RouteTemplate(self.path_plain)
+        tmpl = _RouteTemplate(self.path_plain or "")
         path_params = self._get_path_params(kwargs)
         url = tmpl.substitute(dict(path_params)) or "/"
 

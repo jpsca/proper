@@ -1,7 +1,8 @@
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from ..constants import FLASHES_SESSION_KEY
-from ..helpers import BadSignature, Dot, FrozenDict
+from ..helpers import BadSignature, Dot
 
 if TYPE_CHECKING:
     from proper import App, Request, Response
@@ -18,11 +19,7 @@ def fetch_session(request: "Request", response: "Response", app: "App") -> None:
     and response.
     """
     session = Dot(get_session(request, app))
-    request._session = FrozenDict(
-        session,
-        "request.session",
-        error="`request.session` is read-only. Update `response.session` instead",
-    )
+    request._session = MappingProxyType(session)
     response._session = session.copy()
     response._session.pop(FLASHES_SESSION_KEY, None)
 

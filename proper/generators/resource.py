@@ -50,10 +50,10 @@ def gen_resource(
     app: "App",
     name: str,
     *attrs: str,
-    only="",
-    exclude="",
-    singular=False,
-    migration=False,
+    only: str = "",
+    exclude: str = "",
+    singular: bool = False,
+    migration: bool = False,
 ) -> None:
     """Stubs out a new resource
     including a controller, model, migration, components, and a resource route
@@ -105,14 +105,14 @@ def gen_resource(
     controller_snake = singular_snake if singular else plural_snake
     controller_pascal = singular_pascal if singular else plural_pascal
 
-    only = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
-    exclude = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
+    only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
+    exclude_list = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
 
     actions = set(ACTIONS)
-    if only:
-        actions = actions.intersection(set(only))
-    elif exclude:
-        actions = actions.difference(set(exclude))
+    if only_list:
+        actions = actions.intersection(set(only_list))
+    elif exclude_list:
+        actions = actions.difference(set(exclude_list))
     if singular:
         actions.remove("index")
 
@@ -155,8 +155,8 @@ def gen_resource(
             "singular_snake": singular_snake,
             "controller_snake": controller_snake,
             "controller_pascal": controller_pascal,
-            "only": only,
-            "exclude": exclude,
+            "only": only_list,
+            "exclude": exclude_list,
             "actions": actions,
             "singular": singular,
             "form_fields": form_fields,

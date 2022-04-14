@@ -100,17 +100,12 @@ def get_request_data(request: "Request") -> dict:
     except Exception:
         request_form = None
     try:
-        request_files = request.files
-    except Exception:
-        request_files = None
-    try:
         request_headers = request.headers
     except Exception:
         request_headers = None
     return {
         "request_query": request_query,
         "request_form": request_form,
-        "request_files": request_files,
         "request_headers": request_headers,
     }
 

@@ -2,8 +2,8 @@ import copy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterable, Optional, Union
-    TDictOrIter = Optional[Union[dict, Iterable]]
+    from typing import Any, Iterable, Optional, Tuple, Union
+    TDictOrIter = Optional[Union[dict, Iterable[Tuple[Any, Any]]]]
 
 __all__ = ("Dot",)
 
@@ -23,13 +23,9 @@ class Dot(dict):
         **kwargs
     ) -> None:
         super().__init__()
+        self.update(dict_or_iter, **kwargs)
 
-        dict_or_iter = dict_or_iter or kwargs
-        if not hasattr(dict_or_iter, "items"):
-            dict_or_iter = dict(dict_or_iter)
-        self.update(dict_or_iter)
-
-    def _key_encode(self, key: str) -> str:
+    def _key_encode(self, key: object) -> object:
         return key
 
     def __setattr__(self, name: str, value: "Any") -> None:
@@ -44,32 +40,38 @@ class Dot(dict):
 
         return self.__getitem__(name)
 
-    def __getitem__(self, key: str) -> "Any":
+    def __getitem__(self, key: object) -> "Any":
         key = self._key_encode(key)
         return super().__getitem__(key)
 
-    def __setitem__(self, key: str, value: "Any") -> None:
+    def __setitem__(self, key: object, value: "Any") -> None:
         key = self._key_encode(key)
         if isinstance(value, dict):
             value = self.__class__(value)
         super().__setitem__(key, value)
 
-    def __delitem__(self, key: str) -> None:
+    def __delitem__(self, key: object) -> None:
         key = self._key_encode(key)
         super().__delitem__(key)
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key: object) -> bool:
         return self._key_encode(key) in super().keys()
 
-    def setdefault(self, key: str, default: "Any" = None) -> None:
+    def setdefault(self, key: object, default: "Any" = None) -> None:
         key = self._key_encode(key)
         return super().setdefault(key, default)
 
-    def get(self, key: str, default: "Any" = None) -> "Any":
+    def get(self, key: object, default: "Any" = None) -> "Any":
         key = self._key_encode(key)
         return super().get(key, default)
 
-    def update(self, src: "TDictOrIter", *, target: "Optional[dict]" = None) -> None:
+    def update(self, dict_or_iter, /, **kw) -> None:  # type: ignore
+        if dict_or_iter:
+            self._update(src=dict(dict_or_iter), target=self)
+        if kw:
+            self._update(src=kw, target=self)
+
+    def _update(self, src: dict, target: dict) -> None:
         """Deep update target dict with src.
 
         For each k,v in src: if k doesn't exist in target, it is deep copied from
@@ -78,11 +80,6 @@ class Dot(dict):
         """
         if not src:
             return
-        if not hasattr(src, "items"):
-            src = dict(src)
-        if target is None:
-            target = self
-
         for key, value in src.items():
             if key not in target:
                 if isinstance(value, dict):
@@ -91,6 +88,6 @@ class Dot(dict):
                     target[key] = copy.copy(value)
             else:
                 if isinstance(target[key], dict) and isinstance(value, dict):
-                    self.update(src=value, target=target[key])
+                    self._update(src=value, target=target[key])
                 else:
                     target[key] = copy.copy(value)

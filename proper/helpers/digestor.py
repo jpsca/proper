@@ -1,16 +1,17 @@
 import shutil
 from hashlib import md5
 from pathlib import Path
+from typing import Dict
 
 
 __all__ = ("Digestor",)
 
 
 class Digestor:
-    def __init__(self, root: "Path", *, length=12) -> None:
+    def __init__(self, root: "Path", *, length: int = 12) -> None:
         self.root = root
         self.length = length
-        self.manifest = {}
+        self.manifest: Dict[str, str] = {}
 
     def digest(self, path: "Path") -> str:
         hash = self.get_hash(path)

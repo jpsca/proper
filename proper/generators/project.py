@@ -14,9 +14,9 @@ PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 def gen_project(
     path: "Union[Path, str]",
     *,
-    name="",
-    force=False,
-    _dependencies=True
+    name: str = "",
+    force: bool = False,
+    _dependencies: bool = True
 ) -> None:
     """Creates a new Proper application at `path`.
 

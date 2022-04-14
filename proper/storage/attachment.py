@@ -32,10 +32,14 @@ class BaseAttachment:
 
     @property
     def model_type(self) -> str:
+        if not self.obj:
+            return ""
         return self.obj.__class__.__name__
 
     @property
     def model_id(self) -> "Union[str, int]":
+        if not self.obj:
+            return 0
         return self.obj.id
 
     def attach(
