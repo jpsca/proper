@@ -1,2 +1,2 @@
-from .base import BaseScheduler  # noqa
+from .scheduler import Scheduler  # noqa
 from .huey_ import HueyScheduler  # noqa

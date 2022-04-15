@@ -1,2 +1,2 @@
-from .base import BaseService  # noqa
+from .service import Service  # noqa
 from .disk import DiskService  # noqa

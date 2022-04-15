@@ -3,24 +3,26 @@ from typing import TYPE_CHECKING
 from sqlalchemy import insert
 
 from . import services
+from .analyzers import ImageAnalyzerVips
 from .attachment import Attachment, AttachmentList
 
 if TYPE_CHECKING:
     from proper import App, Dot
     from .attachment import BaseAttachment
     from .blob import Blob
-    from .services import BaseService
+    from .services import Service
 
 
 __all__ = ("Storage",)
 
 
 class Storage:
-    __slots__ = ["app", "config"]
+    __slots__ = ["app", "config", "analyzers"]
 
     def __init__(self, app: "App", config: "Dot") -> None:
         self.app = app
         self.config = config
+        self.analyzers = [ImageAnalyzerVips]
 
     def attach_one(self, service="") -> Attachment:
         service_name = service or self.config.service
@@ -40,7 +42,7 @@ class Storage:
             service=service,
         )
 
-    def get_service(self, service_name: str) -> "BaseService":
+    def get_service(self, service_name: str) -> "Service":
         service_config = self.config[service_name]
         service_config_name = service_config.service.capitalize()
         service_cls_name = f"{service_config_name}Service"
@@ -82,9 +84,9 @@ class Storage:
         return result.inserted_primary_key[0]
 
     def analize_later(self, blob_id: int) -> None:
-        # ???
         assert self.app.scheduler
-        self.app.scheduler.task(self.analyze)(blob_id=blob_id)
+        analyze = self.app.scheduler.task()(self.analyze)
+        analyze(blob_id=blob_id)
 
     def analyze(self, blob_id: int) -> None:
-        pass
+        print("ANALIZING", blob_id)

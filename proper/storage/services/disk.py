@@ -1,7 +1,7 @@
 from uuid import uuid4
 from typing import TYPE_CHECKING
 
-from .base import BaseService
+from .service import Service
 
 if TYPE_CHECKING:
     from typing import IO, Union
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from ..blob import Blob
 
 
-class DiskService(BaseService):
+class DiskService(Service):
     def __init__(self, app: "App", root: str, **kw) -> None:
         self.root = app.root_path.parent / root
         self.root.mkdir(parents=True, exist_ok=True)

@@ -5,7 +5,7 @@ import huey
 import inflection
 from huey.consumer import Consumer
 
-from .base import BaseScheduler
+from .scheduler import Scheduler
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 DEFAULT_HUEY_TYPE = "memory"
 
 
-class HueyScheduler(BaseScheduler):
+class HueyScheduler(Scheduler):
     running = False
 
     def __init__(self, app: "App", **config) -> None:
@@ -38,24 +38,11 @@ class HueyScheduler(BaseScheduler):
 
         super().__init__(app, **config)
 
-    def task(
-        self,
-        func: "Callable",
-        retries: int = 0,
-        **kw
-    ) -> "Callable":
-        kw["retries"] = retries
-        return self.huey.task(func)(**kw)
+    def task(self, **kw) -> "Callable":
+        return self.huey.task(**kw)
 
-    def periodic_task(
-        self,
-        func: "Callable",
-        validate_datetime: "Callable",
-        retries=0,
-        **kw
-    ) -> "Callable":
-        kw["retries"] = retries
-        return self.huey.periodic_task(func, validate_datetime=validate_datetime)(**kw)
+    def periodic_task(self, validate_datetime: "Callable", **kw) -> "Callable":
+        return self.huey.periodic_task(validate_datetime=validate_datetime, **kw)
 
     def start(self) -> None:
         if self.running or not self.consumer:

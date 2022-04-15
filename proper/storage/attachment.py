@@ -6,7 +6,7 @@ from .blob import Blob
 if TYPE_CHECKING:
     from typing import Any, IO, Union
     from multipart import MultipartPart
-    from .services import BaseService
+    from .services import Service
     from .storage import Storage
 
 
@@ -21,7 +21,7 @@ class BaseAttachment:
         storage: "Storage",
         *,
         service_name: str,
-        service: "BaseService",
+        service: "Service",
     ) -> None:
         self.storage = storage
         self.service_name = service_name
@@ -53,10 +53,13 @@ class BaseAttachment:
     ) -> None:
         blob = Blob(service_name=self.service_name)
         blob.filename = filename or getattr(filesto, "filename", "")
-        blob.content_type = content_type or getattr(filesto, "content_type", None)
-        if blob.filename and not blob.content_type:
-            blob.content_type, _ = mimetypes.guess_type(filename, strict=False)
-        blob.content_type = blob.content_type or DEFAULT_CONTENT_TYPE
+
+        content_type = content_type or getattr(filesto, "content_type", "") or ""
+        if blob.filename and not content_type:
+            guess = mimetypes.guess_type(filename, strict=False)
+            content_type = guess[0] or ""
+        blob.content_type = content_type or DEFAULT_CONTENT_TYPE
+
         blob.byte_size = byte_size
 
         blob = self.service.save(filesto, blob)

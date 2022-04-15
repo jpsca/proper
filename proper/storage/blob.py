@@ -1,10 +1,7 @@
-from typing import Optional, Union
-
-
 class Blob:
     __slots__ = [
-        "key",
         "id",
+        "key",
         "service_name",
         "filename",
         "byte_size",
@@ -14,11 +11,11 @@ class Blob:
     ]
 
     def __init__(self, **kw):
-        self.key: str = kw.get("key", "")
-        self.id: "Union[str, int, None]" = kw.get("id", None)
-        self.service_name: "Optional[str]" = kw.get("service_name", None)
-        self.filename: "Optional[str]" = kw.get("filename", None)
-        self.byte_size: int = kw.get("byte_size", 0)
-        self.content_type: "Optional[str]" = kw.get("content_type", None)
-        self.checksum: "Optional[str]" = kw.get("checksum", None)
-        self.data: "Optional[dict]" = kw.get("data", {})
+        self.id: int = str(kw.get("id", 0))
+        self.key: str = str(kw.get("key", ""))
+        self.service_name: str = str(kw.get("service_name", ""))
+        self.filename: str = str(kw.get("filename", ""))
+        self.byte_size: int = int(kw.get("byte_size", 0))
+        self.content_type: str = str(kw.get("content_type", ""))
+        self.checksum: str = str(kw.get("checksum", ""))
+        self.data: dict = dict(kw.get("data", {}))

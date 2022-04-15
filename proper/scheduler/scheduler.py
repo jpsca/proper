@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 
@@ -7,14 +6,14 @@ if TYPE_CHECKING:
     from proper import App
 
 
-class BaseScheduler(ABC):
+class Scheduler:
     def __init__(self, app: "App", **kw) -> None:
         app.on_dev_start(self.start)
         app.on_dev_shutdown(self.shutdown)
 
-    @abstractmethod
-    def task(self, func: "Callable") -> "Callable":
-        pass
+    # Implement this method in concrete subclasses
+    def task(self, **kw) -> "Callable":
+        raise NotImplementedError
 
     def start(self) -> None:
         pass
