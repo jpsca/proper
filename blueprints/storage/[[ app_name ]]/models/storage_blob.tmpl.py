@@ -11,4 +11,4 @@ class StorageBlob(Timestamped, db.Model):
     byte_size = db.Column(db.Integer, nullable=False)
     content_type = db.Column(db.String(255), nullable=False)
     checksum = db.Column(db.String(255))
-    data = db.Column(db.JSON)
+    data = db.Column(db.JSON, default=dict)

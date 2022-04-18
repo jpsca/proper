@@ -15,5 +15,8 @@ class Service:
         self.app = app
         self.config = kw
 
-    def save(self, filesto: "IO", blob: "Blob") -> "Blob":
+    def upload(self, filesto: "IO", blob: "Blob") -> None:
+        raise NotImplementedError
+
+    def download_blob_to_tempfile(self, blob: "Blob") -> str:
         raise NotImplementedError

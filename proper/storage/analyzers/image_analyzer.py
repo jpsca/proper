@@ -22,10 +22,13 @@ class ImageAnalyzer(Analyzer):
 
     def get_metadata(self) -> dict:
         image = self.read_image()
-        if image.is_rotated:
+        if self.is_rotated(image):
             return {"width": image.height, "height": image.width}
         else:
             return {"width": image.width, "height": image.height}
 
     def read_image(self):
+        raise NotImplementedError
+
+    def is_rotated(self, image):
         raise NotImplementedError

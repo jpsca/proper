@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import inflection
-import oot
+import tcom
 from markupsafe import Markup
 from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
@@ -394,7 +394,7 @@ class App:
             self.catalog = None
             return
 
-        self.catalog = oot.Catalog(
+        self.catalog = tcom.Catalog(
             root_url=COMPONENTS_URL_ROOT,
             globals={
                 "url_for": self.url_for,

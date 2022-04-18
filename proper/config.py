@@ -113,7 +113,12 @@ def get_default_config():
     config.auth.password_maxlen = 1024
     config.auth.token_life = 10800  # 3 hours
 
-    config.storage = Dot()
+    storage = config.storage = Dot()
+
+    # Image content types that can be processed without being converted to
+    # the fallback PNG format. If you want to use WebP or AVIF variants in
+    # your application you can add image/webp or image/avif to this list.
+    storage.web_image_content_types = ["image/png", "image/jpeg", "image/gif"]
 
     return config
 

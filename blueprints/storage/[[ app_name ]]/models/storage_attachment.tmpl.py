@@ -11,7 +11,11 @@ class StorageAttachment(db.Model):
     column_name = db.Column(db.String(255), nullable=False)
     model_id = db.Column(db.Integer, nullable=False)
     blob_id = db.Column(db.Integer, db.ForeignKey("storage_blobs.id"))
-    blob = db.relationship("StorageBlob", backref="attachments")
+    blob = db.relationship(
+        "StorageBlob",
+        backref="attachments",
+        cascade="all, delete-orphan"
+    )
     filename = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

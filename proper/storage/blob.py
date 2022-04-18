@@ -1,21 +1,43 @@
+from sqlalchemy import select, update
+from sqla_wrapper import SQLAlchemy
+
+
 class Blob:
-    __slots__ = [
-        "id",
-        "key",
-        "service_name",
-        "filename",
-        "byte_size",
-        "content_type",
-        "checksum",
-        "data",
-    ]
+    id: int = 0
+    key: str = ""
+    service_name: str = ""
+    filename: str = ""
+    byte_size: int = 0
+    content_type: str = ""
+    checksum: str = ""
+    data: dict
 
     def __init__(self, **kw):
-        self.id: int = str(kw.get("id", 0))
-        self.key: str = str(kw.get("key", ""))
-        self.service_name: str = str(kw.get("service_name", ""))
-        self.filename: str = str(kw.get("filename", ""))
-        self.byte_size: int = int(kw.get("byte_size", 0))
-        self.content_type: str = str(kw.get("content_type", ""))
-        self.checksum: str = str(kw.get("checksum", ""))
-        self.data: dict = dict(kw.get("data", {}))
+        self.data = {}
+        self.update(kw)
+
+    @property
+    def attached(self) -> bool:
+        return self.id > 0
+
+    def update(self, kw):
+        for name, value in kw.items():
+            setattr(self, name, value)
+
+    def load_from_db(self, db: "SQLAlchemy", blob_id: int) -> "Blob":
+        blobs_table = db.registry.metadata.tables["storage_blobs"]
+        row = db.s.execute(
+            select(blobs_table)
+            .where(blobs_table.c.id == blob_id)
+        ).fetchone()
+        return self.update(row._mapping)
+
+    def save_to_db(self, db: "SQLAlchemy") -> None:
+        assert self.id
+        blobs_table = db.registry.metadata.tables["storage_blobs"]
+        db.s.execute(
+            update(blobs_table)
+            .where(blobs_table.c.id == self.id)
+            .values(data=self.data)
+        )
+        db.s.commit()
