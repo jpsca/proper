@@ -33,7 +33,6 @@ from .response_wrapper import Response
 from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .assets import RX_INMUTABLES_FILE
-from .storage import AttachableBase, Storage
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
@@ -115,7 +114,6 @@ class App:
         self._setup_cli()
         self._setup_scheduler()
         self._setup_auth()
-        self._setup_storage()
 
     def __call__(self, environ: dict, start_response: "Callable") -> "Iterable[bytes]":
         return self._wrapped_wsgi(environ, start_response)
@@ -374,7 +372,6 @@ class App:
             port=config.database.port,
             engine_options=config.database.engine_options,
             session_options=config.database.session_options,
-            base_model_class=AttachableBase,
         )
         if config.database.migrations:
             self.alembic = Alembic(self.db, config.database.migrations)
@@ -446,13 +443,6 @@ class App:
             password_minlen=config.auth.password_minlen,
             password_maxlen=config.auth.password_maxlen,
         )
-
-    def _setup_storage(self) -> None:
-        config = self._config
-        if not config.storage:
-            self.storage = None
-            return
-        self.storage = Storage(self, config.storage)
 
     def _handle_app_error(self, request: Request, response: Response) -> None:
         """Call the registered exception handler if exists or the fallback
