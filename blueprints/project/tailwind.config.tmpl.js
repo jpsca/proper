@@ -1,10 +1,6 @@
 module.exports = {
 	content: [
-		"[[ app_name ]]/components/**/*.html.jinja",
+		"[[ app_name ]]/components/**/*.jinja",
 		"static_src/**/*.js",
 	],
-	theme: {
-	},
-	variants: {
-	}
 };

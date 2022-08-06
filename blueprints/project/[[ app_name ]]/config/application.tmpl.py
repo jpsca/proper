@@ -2,6 +2,9 @@ from datetime import timedelta
 
 from proper import Dot
 
+from .database import database_config
+from .scheduler import scheduler_config
+
 
 config = Dot()
 
@@ -49,10 +52,5 @@ config.static.paths = [
 config.mailer = Dot()
 config.mailer.default_from = "hello@example.com"
 
-from .database import database_config
-
 config.database = database_config
-
-from .scheduler import scheduler_config
-
 config.scheduler = scheduler_config

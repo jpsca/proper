@@ -1,10 +1,12 @@
 {#
 title = ''
 description = ''
-#}
+lang = 'en'
+-#}
 {% if title %}{% set title = title + " | DEFAULT" %}{% endif -%}
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
 	<meta charset="utf-8">
 	<title>{{ title }}</title>

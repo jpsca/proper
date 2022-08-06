@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING
 from .service import Service
 
 if TYPE_CHECKING:
-    from typing import Any, IO, Union
+    from typing import Any, IO, Tuple, Union
+
     from multipart import MultipartPart
     from proper import App
-    from ..blob import Blob
+
+    from ..file_data import FileData
 
 
 class DiskService(Service):
@@ -18,22 +20,29 @@ class DiskService(Service):
         self.root = app.root_path.parent / root
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def upload(self, filesto: "Union[MultipartPart, IO]", blob: "Any") -> "Any":
-        blob.key = str(uuid4().hex)
+    def upload(
+        self, filesto: "Union[MultipartPart, IO]", fdata: "FileData"
+    ) -> "FileData":
+        key = str(uuid4().hex)
         if hasattr(filesto, "save_as"):
-            self._save_multipart_part(filesto, blob)
+            byte_size = self._save_multipart_part(filesto, key)
         else:
-            self._save_regular_file(filesto, blob)
-        return blob
+            byte_size = self._save_regular_file(filesto, key)
 
-    def download_blob_to_tempfile(self, blob: "Blob") -> str:
+        fdata.key = key
+        fdata.byte_size = byte_size
+        return fdata
+
+    def download_to_tempfile(self, fdata: "FileData") -> str:
         tfolder = Path(tempfile.mkdtemp())
-        tfile = tfolder / blob.key
-        shutil.copy2(src=self.root / blob.key, dst=tfile)
+        tfile = tfolder / fdata.key
+        shutil.copy2(src=self.root / fdata.key, dst=tfile)
         return str(tfile)
 
-    def _save_multipart_part(self, filesto: "MultipartPart", blob: "Any") -> None:
-        blob.byte_size = filesto.save_as(self.root / blob.key)
+    def _save_multipart_part(self, filesto: "MultipartPart", key: str) -> int:
+        return filesto.save_as(self.root / key)
 
-    def _save_regular_file(self, file: "IO", blob: "Any") -> None:
-        blob.byte_size = (self.root / blob.key).write_bytes(file.read())
+    def _save_regular_file(self, file: "IO", key) -> int:
+        path = self.root / key
+        path.write_bytes(file.read())
+        return path.stat().st_size

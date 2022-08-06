@@ -5,3 +5,4 @@
     [%- if singular %], singular=True[% endif -%]
     ),
 ]
+from .controllers import [[ controller_pascal ]]

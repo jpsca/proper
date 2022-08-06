@@ -12,11 +12,6 @@ html, body {
 	font-family: Helvetica, Arial, sans-serif;
 	overflow-x: hidden;
 }
-
-header h1, .container {
-	max-width: 1280px;
-}
-
 header {
 	background-color: #C52F24;
 	color: #f0f0f0;
@@ -27,19 +22,19 @@ header h1 {
 	line-height: 1.1;
 	font-size: 26px;
 }
-
 .container {
 	padding: 0 30px 150px;
 	margin: 0;
 }
+header h1, .container {
+	max-width: 1280px;
+}
 .scroll-container {
 	width: 100%;
 	height: auto;
-	padding-bottom: 20px;
 	overflow-x: auto;
 }
-
-.container h2, .container h3, .container h4, .container h5, .container h6 {
+.container h2, .container h3, S.container h5, .container h6 {
 	margin: 16px 0 12px;
 	padding: 0;
 }
@@ -49,21 +44,21 @@ header h1 {
 .container h3 {
 	margin-top: 30px;
 }
-
 .container section {
 	border-top: 1px solid #ddd;
 	padding: 8px 0 0;
 	margin-top: 16px;
 }
-section h4 {
-	margin-top: 0;
-}
-
 code, table {
 	font-family: Monaco, "Courier New", Courier;
 	font-size: 15px;
 }
-
+table {
+	border: none;
+	text-align: left;
+	width: 100%;
+	min-width: 640px;
+}
 .table-header {
 	color: #444;
 	background-color: #ddd;
@@ -73,13 +68,7 @@ code, table {
 	font-size: 12px;
 	min-width: 640px;
 }
-table {
-	border: none;
-	text-align: left;
-	width: 100%;
-	min-width: 640px;
-}
-table div {
+table div, table details {
 	padding: 4px;
 	vertical-align: middle;
 }
@@ -91,10 +80,10 @@ table th,
 table td {
 	border-bottom: 1px dotted #ddd;
 }
-table tr:last-child td {
+table tr:last-child > * {
 	border-bottom: none;
 }
-table td {
+table tr > * {
 	overflow-wrap: anywhere;
 	vertical-align: middle;
 }

@@ -1,6 +1,4 @@
-import shutil
 from pathlib import Path
-from tempfile import mkdtemp
 
 import pytest
 from webtest import TestApp
@@ -25,16 +23,6 @@ def web(app):
 
 
 @pytest.fixture()
-def dst(request):
-    """Return a real temporary folder path which is unique to each test
-    function invocation. This folder is deleted after the test has finished.
-    """
-    dst = mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(dst))
-    return Path(dst)
-
-
-@pytest.fixture()
 def assets_path():
     return Path(__file__).parent / "assets"
 
@@ -55,8 +43,8 @@ routes = [
 
 
 @pytest.fixture()
-def scaffold(dst):
-    app_root = Path(dst) / APP_NAME
+def scaffold(tmp_path):
+    app_root = Path(tmp_path) / APP_NAME
     (app_root / "controllers").mkdir(parents=True, exist_ok=True)
     (app_root / "components").mkdir(parents=True, exist_ok=True)
     (app_root / "controllers" / "__init__.py").touch()

@@ -51,6 +51,7 @@ def debug_not_found_handler(
 
     error = response.error
     data = {
+        "config": deepsort_dict(app.config),
         "response": response,
         "title": get_title(error),
         "description": str(error),
@@ -72,11 +73,12 @@ def render_default_index(response: "Response") -> None:
     response.body = render("default-index.html.jinja", **data)
 
 
-def debug_error_handler(request: "Request", response: "Response", _app: "App") -> None:
+def debug_error_handler(request: "Request", response: "Response", app: "App") -> None:
     error = response.error
     logger.exception(error)
     excp = traceback.format_exc()
     data = {
+        "config": deepsort_dict(app.config),
         "response": response,
         "title": get_title(error),
         "description": str(error),
@@ -111,19 +113,33 @@ def get_request_data(request: "Request") -> dict:
 
 
 def fallback_not_found_handler(
-    _request: "Request", response: "Response", _app: "App"
+    _request: "Request", response: "Response", app: "App"
 ) -> None:
     response.body = render("fallback-not-found.html")
 
 
 def fallback_forbidden_handler(
-    _request: "Request", response: "Response", _app: "App"
+    _request: "Request", response: "Response", app: "App"
 ) -> None:
     response.body = render("fallback-forbidden.html")
 
 
 def fallback_error_handler(
-    _request: "Request", response: "Response", _app: "App"
+    _request: "Request", response: "Response", app: "App"
 ) -> None:
     logger.exception(response.error)
     response.body = render("fallback-error.html")
+
+
+def deepsort_dict(dd: dict) -> dict:
+    plain = {}
+    subdicts = {}
+    for key, value in dd.items():
+        if isinstance(value, dict):
+            subdicts[key] = deepsort_dict(value)
+        else:
+            plain[key] = value
+    return {
+        **dict(sorted(plain.items())),
+        **dict(sorted(subdicts.items())),
+    }

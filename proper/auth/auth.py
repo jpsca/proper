@@ -53,7 +53,7 @@ https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
     "\n - ".join(DEPRECATED_HASHERS),
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("proper")
 
 
 class WrongHashAlgorithm(Exception):

@@ -1,7 +1,9 @@
-import mimetypes
 from typing import TYPE_CHECKING
 
-from ..blob import Blob
+try:
+    import pyvips
+except (ImportError, OSError):
+    pyvips = None
 
 if TYPE_CHECKING:
     from typing import Any, IO, Union
@@ -9,7 +11,10 @@ if TYPE_CHECKING:
     from ..storage import Storage
 
 
-DEFAULT_CONTENT_TYPE = "application/octet-stream"
+IMPORT_ERROR = """Missing `libvips` library
+To make a preview you need `libvips` installed
+Please visit https://www.libvips.org/install.html
+for instructions on how to do it in your system."""
 
 
 class Attached:
@@ -45,6 +50,14 @@ class Attached:
             column_name=self.column_name,
         )
 
+    @property
+    def preview(self):
+        if not self.obj:
+            return ""
+        if pyvips is None:
+            raise ImportError(IMPORT_ERROR)
+        # TODO
+
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__} #{id(self)}"
@@ -62,22 +75,12 @@ class Attached:
         content_type: str = "",
         byte_size: int = 0,
     ) -> None:
-        filename = filename or getattr(filesto, "filename", "")
-        content_type = content_type or getattr(filesto, "content_type", "") or ""
-        if filename and not content_type:
-            guess = mimetypes.guess_type(filename, strict=False)
-            content_type = guess[0] or ""
-
-        blob = Blob(
-            service_name=self.service_name,
-            byte_size=byte_size,
-            content_type=content_type or DEFAULT_CONTENT_TYPE,
-        )
-        self.storage.upload(
-            blob=blob,
-            attached=self,
+        return self.storage.upload(
+            self,
             filesto=filesto,
             filename=filename,
+            content_type=content_type,
+            byte_size=byte_size,
         )
 
     def purge(self):
@@ -93,6 +96,3 @@ class Attached:
 
     def dettach_later(self):
         self.storage.dettach_later(self)
-
-    def preview(self, **kw):
-        pass

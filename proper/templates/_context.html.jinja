@@ -1,45 +1,61 @@
 {% macro print_dict(dict) -%}
 	<div class="scroll-container">
-		<table class="config">
+		<table>
 			{%- for name, value in dict.items() %}
 			<tr>
-				<th><div>{{ name }}</div></th>
-				<td><div>{{ value }}</div></td>
+				{% if value is mapping and value -%}
+					<td colspan="2">
+						<details>
+							<summary>{{ name }}</summary>
+							{{ print_dict(value) }}
+						</details>
+					</td>
+				{%- else -%}
+					<th><div>{{ name }}</div></th>
+					<td><div>{{ value }}</div></td>
+				{%- endif %}
 			</tr>
 			{%- endfor %}
 		</table>
 	</div>
 {%- endmacro -%}
 
+<h3>Config</h3>
+
+<details>
+	<summary>Config:</summary>
+	{{ print_dict(config) }}
+</details>
+
 <h3>Request</h3>
 
 {% if request_query -%}
-<section>
-	<h4>Query:</h4>
+<details>
+	<summary>Query:</summary>
 	{{ print_dict(request_query) }}
-</section>
+</details>
 {%- endif %}
 
 {% if request_form -%}
-<section>
-	<h4>Form data:</h4>
+<details>
+	<summary>Form data:</summary>
 	{{ print_dict(request_form) }}
-</section>
+</details>
 {%- endif %}
 
 {% if request_headers -%}
-<section>
-	<h4>Environment:</h4>
+<details>
+	<summary>Environment:</summary>
 	{{ print_dict(request_headers) }}
-</section>
+</details>
 {%- endif %}
 
 
 {% if response.headers -%}
 <h3>Response</h3>
 
-<section>
-	<h4>Headers:</h4>
+<details>
+	<summary>Headers:</summary>
 	<div class="scroll-container">
 		<table class="config">
 			{%- for name, value in response.headers.items() %}
@@ -50,5 +66,5 @@
 			{%- endfor %}
 		</table>
 	</div>
-</section>
+</details>
 {%- endif %}

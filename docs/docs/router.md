@@ -3,7 +3,7 @@
 
 ## 1. Overview
 
-Although they look similar, an URL path like `/hello/world` in Proper (as in most modern frameworks) it doesn't match a `word` file in a `hello` folder. You must connect that URL to some code that will answer that request.
+Although they look similar, an URL path like `/hello/world` in Proper (as in most web  frameworks) doesn't match a `word` file in a `hello` folder. You must connect that URL to some code that will answer that request.
 
 That is what the Proper router does: recognizes URLs and dispatches them to a controller's action; or redirect you to another URL. It can also generate URLs for you from their names, avoiding the need to hardcode strings in your components.
 
@@ -40,8 +40,10 @@ For the route above, its name is "Products.show", but you can also give it anoth
 
 ```python
 app.routes = [
+    ...
     get("/products/:id/:slug", to="Products.show"),
-    get("/products/latest", to="Products.show", name="latest_product"),  # weird but possible
+    get("/products/latest", to="Products.show", name="latest_product"),
+    ...
 ]
 ```
 ```python

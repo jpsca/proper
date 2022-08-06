@@ -47,7 +47,7 @@ STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
 MIN_SECRET_LENGTH = 48
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("proper")
 
 _request_cv = ContextVar("_request_cv", default=Request())
 _response_cv = ContextVar("_response_cv", default=Response())
@@ -241,7 +241,6 @@ class App:
         is_exception = inspect.isclass(cls) and issubclass(cls, BaseException)
         assert is_exception, "`error_handler` takes a subclass of `Exception` as first argument."
         self.error_handlers[cls] = to
-
         if self._config.debug:
             qualname = getattr(cls, "__qualname__", "Exception")
             self.router.routes.append(

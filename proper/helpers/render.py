@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jinja2
+import isort
 from proper_cli import confirm, echo
 
 if TYPE_CHECKING:
@@ -255,7 +256,20 @@ def append_routes(app: "App", new_routes: str) -> None:
     match = RE_CLOSE_ROUTES.search(routes)
     if match:
         routes = routes[: match.start()].rstrip()
-    routes_path.write_text(routes + new_routes)
+
+    code = sort_imports(f"{routes}{new_routes}")
+    routes_path.write_text(code)
 
     display = str(Path(app.root_path.name) / "routes.py")
-    printf(APPEND, display, color=COLOR_WARNING)
+    printf(UPDATE, display, color=COLOR_WARNING)
+
+
+def sort_imports(code: str) -> str:
+    return isort.code(
+        code,
+        float_to_top=True,
+        use_parentheses=True,
+        lines_after_imports=2,
+        combine_star=True,
+        include_trailing_comma=True,
+    )

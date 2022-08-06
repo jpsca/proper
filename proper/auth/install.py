@@ -1,6 +1,12 @@
 from typing import TYPE_CHECKING
 
-from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
+from ..helpers.render import (
+    BLUEPRINTS,
+    BlueprintRender,
+    append_routes,
+    call,
+    sort_imports,
+)
 
 if TYPE_CHECKING:
     from proper import App
@@ -9,6 +15,7 @@ if TYPE_CHECKING:
 AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 ROUTES_TMPL = "routes.tmpl.py"
 APPLICATION_CONTROLLER = "controllers/application.py"
+CONFIG_PATH = "config/application.py"
 
 REPLACE_PRE = """
 
@@ -55,6 +62,10 @@ def install(app: "App", migration=False) -> None:
         ignore=[ROUTES_TMPL],
     )
     bp()
+
+    config_path = app.root_path / CONFIG_PATH
+    code = sort_imports(config_path.read_text())
+    config_path.write_text(code)
 
     routes_tmpl = AUTH_BLUEPRINT / ROUTES_TMPL
     new_routes = bp.render.string(routes_tmpl.read_text())

@@ -47,7 +47,9 @@ Those that doesn't have a "<code>to</code>" property are build-only and never ma
 				<tr>
 			{%- endif %}
 			<td><div>{{ route.method or '—' }}</div></td>
-			<td><div>{{ route.path }}</div></td>
+			<td><div>
+				<a href="{{ route.path }}" target="_blank">{{ route.path }}</a>
+			</div></td>
 			<td><div>
 				{% if route.redirect %}<span role="image" title="redirect">↪️</span>{% endif %}
 				{% if route.to %}{{ route.to.__qualname__ }}

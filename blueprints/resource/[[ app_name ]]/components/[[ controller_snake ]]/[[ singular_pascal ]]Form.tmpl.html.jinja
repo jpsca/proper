@@ -1,9 +1,9 @@
 {#
 action = ''
 method = 'post'
-form = '___'
+form = ...
 #}
-<FormTag method={{ method }} action={{ action }}>
+<Form method={{ method }} action={{ action }}>
   [% for f in form_fields -%]
   <div>
     [% if f.render_as == 'input' -%]
@@ -25,4 +25,4 @@ form = '___'
   [% endfor -%]
 
   {{ content }}
-</FormTag>
+</Form>

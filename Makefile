@@ -5,7 +5,7 @@ lint:
 	flake8 --config=setup.cfg proper tests
 
 coverage:
-	pytest --cov-report html --cov proper --cov tests proper tests
+	pytest --cov-report html --cov proper --cov tests proper
 
 install:
 	pip install -U pip wheel

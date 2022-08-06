@@ -16,7 +16,7 @@ __all__ = (
     "is_staging_or_production_env",
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("proper")
 
 
 def get_default_config():
