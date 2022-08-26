@@ -61,3 +61,6 @@ you can have both!
 	- A configurable and plugganle render and view functions.
 	- Class based views a-la Django, but simpler and completely obvious because is your application code (see (App-code over framework-code)
 	- Saving context varaibles in your controller instance looks much cleaner that building a dictionary and manually calling render and the end of each controller.
+
+
+![Visualization of the codebase](./diagram.svg)
