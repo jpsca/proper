@@ -4,19 +4,19 @@ from proper.status import unprocessable
 from [[ app_name ]].app import config
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
-from ..application import AppController
+from ..app import AppController
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from . import forms
 
 
-class PasswordReset(AppController):
+class PasswordResets(AppController):
     def new(self):
         self.form = forms.PasswordResetForm()
 
     def create(self):
         self.form = forms.PasswordResetForm(self.params)
         if not self.form.validate():
-            return self.render("PasswordResetNew", status=unprocessable)
+            return self.render("PasswordResets.New", status=unprocessable)
 
         login = self.form.save()["login"]
         user = User.by_login(login)
@@ -27,7 +27,7 @@ class PasswordReset(AppController):
         self.pk = self.params["pk"]
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("PasswordResetInvalid", status=unprocessable)
+            return self.render("PasswordResets.Invalid", status=unprocessable)
 
         self.login = user.login
         self.form = forms.PasswordChangeForm()
@@ -37,13 +37,13 @@ class PasswordReset(AppController):
         self.pk = self.params["pk"]
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("PasswordResetInvalid", status=unprocessable)
+            return self.render("PasswordResets.Invalid", status=unprocessable)
 
         self.form = forms.PasswordChangeForm(self.params)
         if not self.form.validate():
             self.login = user.login
             self.password_minlen = config.auth.password_minlen
-            return self.render("PasswordResetEdit", status=unprocessable)
+            return self.render("PasswordResets.Edit", status=unprocessable)
 
         new_password = self.form.save()["password"][0]
         user.set_new_password(new_password)

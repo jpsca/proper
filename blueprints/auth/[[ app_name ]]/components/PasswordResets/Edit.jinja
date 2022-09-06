@@ -4,7 +4,7 @@ pk = ...
 login = ...
 password_minlen = ...
 #}
-<LayoutAuth title="Change your password">
+<Layout.Auth title="Change your password">
   <Form
     action={{ url_for('PasswordReset.update', pk=pk) }}
     method="patch"
@@ -50,4 +50,4 @@ password_minlen = ...
       <button type="submit" class="w-full">Save my password</button>
     </div>
   </Form>
-</LayoutAuth>
+</Layout.Auth>

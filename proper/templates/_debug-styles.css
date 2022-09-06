@@ -49,11 +49,9 @@ header h1, .container {
 	padding: 8px 0 0;
 	margin-top: 16px;
 }
-code, table {
-	font-family: Monaco, "Courier New", Courier;
-	font-size: 15px;
-}
 table {
+	font-family: Monaco, "Courier New", Courier;
+	font-size: 16px;
 	border: none;
 	text-align: left;
 	width: 100%;

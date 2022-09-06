@@ -4,6 +4,8 @@ inherit from. Stores data available to the component.
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import inflection
+
 from ..app import App
 from ..constants import HEAD
 from ..helpers import MultiDict, jsonplus
@@ -103,6 +105,11 @@ class Controller(RequestForgeryProtection):
     def _dispatch(self, action_name: str) -> None:
         self.action_name = action_name
 
+        # Even if we might not use it, let set the inferred component name now
+        # (unless is already set), so the action can overwrite it if they want.
+        if not self.response.component:
+            self.response.component = self._get_component_name()
+
         self._call_mro_method("__before__")
         if self.response.stop:
             return
@@ -111,6 +118,9 @@ class Controller(RequestForgeryProtection):
             self._call()
 
         self._call_mro_method("__after__")
+
+    def _get_component_name(self):
+        return f"{self.__class__.__name__}.{inflection.camelize(self.action_name)}"
 
     def _call_mro_method(self, method_name: str) -> None:
         visited = []

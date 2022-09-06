@@ -26,7 +26,7 @@ class Session(AppController):
 
         self.form = SignInForm(self.params)
         self.form.login.error = ERROR_CREDENTIALS
-        return self.render("SessionNew")
+        return self.render("Session.New")
 
     def delete(self):
         if request.user:

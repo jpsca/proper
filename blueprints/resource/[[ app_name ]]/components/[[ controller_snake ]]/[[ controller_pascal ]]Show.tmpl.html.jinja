@@ -1,7 +1,7 @@
 {#
 [[ singular_snake ]] = ...
 #}
-<LayoutApp title="[[ singular_pascal ]]">
+<Layout.App title="[[ singular_pascal ]]">
   <h1>[[ singular_pascal ]] #{{ [[ singular_snake ]].id }}</h1>
 
   [% for f in form_fields -%]
@@ -17,4 +17,4 @@
       <button type="submit">Delete this [[ singular_snake ]]</button>
     </form>
   </div>
-</LayoutApp>
+</Layout.App>

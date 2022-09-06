@@ -1,7 +1,7 @@
 {#
 form = ...
 #}
-<LayoutAuth title="Reset your password">
+<Layout.Auth title="Reset your password">
   <Form
     action={{ url_for('PasswordReset.create') }}
     class="w-full p-12 bg-white border border-gray-300 shadow-xl rounded-xl"
@@ -36,4 +36,4 @@ form = ...
       Nevermind, go back
     </a>
   </div>
-</LayoutAuth>
+</Layout.Auth>
