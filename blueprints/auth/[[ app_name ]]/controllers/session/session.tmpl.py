@@ -1,7 +1,7 @@
 from proper import request, response
 
 from [[ app_name ]].models import User
-from ..application import AppController
+from ..app import AppController
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import SignInForm
 

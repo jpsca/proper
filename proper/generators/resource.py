@@ -130,6 +130,9 @@ def gen_resource(
         singular_pascal=singular_pascal,
         singular_snake=singular_snake,
         plural_snake=plural_snake,
+        form_class=f"{singular_pascal}Form",
+        load_method=f"_load_{singular_snake}",
+        object=f"self.{singular_snake}",
         *attrs,
     )
     form_fields = [

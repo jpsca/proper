@@ -1,6 +1,6 @@
 from proper import request, response  # noqa
 
-from .application import AppController
+from .app import AppController
 
 
 class Page(AppController):
