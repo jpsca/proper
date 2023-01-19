@@ -62,8 +62,8 @@ Now you can make your changes locally.
 6.  When you're done making changes, check that your changes pass all tests
 
 ```bash
-pytest -x .
-flake8 .
+make test
+make lint
 ```
 
 To have multiple Python versions on the same machine for running `tox`, I recommend
