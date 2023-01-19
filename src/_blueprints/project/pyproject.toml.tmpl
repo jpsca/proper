@@ -12,7 +12,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-proper = "*"
+#proper = ">=0.2"
 # psycopg2-binary = "*"
 
 [tool.poetry.group.dev]
@@ -30,9 +30,6 @@ optional = true
 flake8 = "*"
 flake8-bugbear = "*"
 pytest = "*"
-
-[tool.poetry.scripts]
-proper = "[[ app_name ]].app:app.cli"
 
 
 [tool.black]

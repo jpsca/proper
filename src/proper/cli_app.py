@@ -1,12 +1,11 @@
 import socket
 import subprocess
+import typing as t
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from proper_cli import Cli
 
-if TYPE_CHECKING:
-    from typing import Any, Callable, Dict
+if t.TYPE_CHECKING:
     from proper import App
 
 
@@ -25,8 +24,13 @@ WELCOME = """
 EXAMPLE_COM_IP = "93.184.216.34"
 
 
-def get_app_cli(app: "App") -> "Cli":
-    attrs: "Dict[str, Any]" = {
+def get_app_cli() -> t.Type[Cli] | None:
+    try:
+        from wsgi import app
+    except ImportError:
+        return None
+
+    attrs: dict[str, t.Any] = {
         "__doc__": """
         Application-specific commands.
 
@@ -47,7 +51,7 @@ def get_app_cli(app: "App") -> "Cli":
     return type("AppCli", (Cli,), attrs)
 
 
-def get_run_server(app: "App") -> "Callable":
+def get_run_server(app: "App") -> t.Callable:
     def run_server(_self):
         """Runs the development server.
 
@@ -71,7 +75,7 @@ def get_run_server(app: "App") -> "Callable":
     return run_server
 
 
-def get_routes_cmd(app: "App") -> "Callable":
+def get_routes_cmd(app: "App") -> t.Callable:
     def routes(_self):
         """Show all registered routes."""
         print(
@@ -111,7 +115,7 @@ def get_routes_cmd(app: "App") -> "Callable":
     return routes
 
 
-def get_credentials_cmd(app: "App") -> "Callable":
+def get_credentials_cmd(app: "App") -> t.Callable:
     def credentials(_self, env="production"):
         """Edit your encrypted credentials.
 
@@ -127,10 +131,10 @@ def get_credentials_cmd(app: "App") -> "Callable":
     return credentials
 
 
-def get_generators_cli(app: "App") -> "Cli":
+def get_generators_cli(app: "App") -> t.Type[Cli]:
     from . import generators
 
-    attrs: "Dict[str, Any]" = {
+    attrs: dict[str, t.Any] = {
         "__doc__": """Generate new code.""",
     }
 
@@ -140,10 +144,10 @@ def get_generators_cli(app: "App") -> "Cli":
     return type("Generators", (Cli,), attrs)
 
 
-def get_static_cli(app: "App") -> "Cli":
+def get_static_cli(app: "App") -> t.Type[Cli]:
     from . import assets
 
-    attrs: "Dict[str, Any]" = {
+    attrs: dict[str, t.Any] = {
         "__doc__": """Manage assets.""",
     }
 
@@ -153,10 +157,10 @@ def get_static_cli(app: "App") -> "Cli":
     return type("Assets", (Cli,), attrs)
 
 
-def get_install_cli(app: "App") -> "Cli":
+def get_install_cli(app: "App") -> t.Type[Cli]:
     from . import auth, text
 
-    attrs: "Dict[str, Any]" = {
+    attrs: dict[str, t.Any] = {
         "__doc__": "",
         "auth": _get_cmd(app, auth, "install"),
         "text": _get_cmd(app, text, "install"),
@@ -179,7 +183,7 @@ def welcome(_self, host="0.0.0.0", port=2300) -> None:
     print(WELCOME.format(local=local, network=network))
 
 
-def _get_cmd(app, module: "Any", name: str) -> "Callable":
+def _get_cmd(app, module: t.Any, name: str) -> t.Callable:
     func = getattr(module, name)
 
     def cmd(_, *args, **kw):

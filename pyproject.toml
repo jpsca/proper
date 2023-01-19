@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "proper"
-version = "0.1dev5"
+version = "0.2"
 description = "A web framework optimized for programmer happiness"
 authors = ["Juan-Pablo Scaletti <juanpablo@jpscaletti.com>"]
 license = "MIT"
@@ -76,7 +76,7 @@ optional = true
 [tool.poetry.group.docs.dependencies]
 
 [tool.poetry.scripts]
-proper = "proper.cli_proper:cli"
+proper = "proper.cli:run"
 
 
 [tool.black]

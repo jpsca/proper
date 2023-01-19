@@ -13,7 +13,6 @@ from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
 
 from . import middleware, status
-from .cli_app import get_app_cli
 from .config import get_env, get_default_config, logger
 from .cryptex import Cryptex
 from .error_handlers import (
@@ -105,7 +104,6 @@ class App:
         self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
-        self._setup_cli()
         self._setup_scheduler()
         self._setup_auth()
 
@@ -414,10 +412,6 @@ class App:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
             wn.add_files(path, prefix=prefix)
-
-    def _setup_cli(self) -> None:
-        Cli = get_app_cli(self)
-        self.cli = Cli()
 
     def _setup_scheduler(self) -> None:
         if not self._config.scheduler:

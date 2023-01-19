@@ -1,7 +1,6 @@
 .PHONY: install
 install:
 	poetry install --with dev,test
-	pip install -e .
 	make db
 	npm install --no-audit --no-fund
 

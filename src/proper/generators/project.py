@@ -66,7 +66,9 @@ def _install_dependencies(path: Path) -> bool:
     print()
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
-    call("make install")
+    call(".venv/bin/pip install -U black ipdb uwsgi flake8 flake8-bugbear pytest")
+    call(".venv/bin/pip install -e ../proper/")
+    call(".venv/bin/pip install -e .")
     return True
 
 

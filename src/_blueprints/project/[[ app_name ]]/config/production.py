@@ -1,4 +1,4 @@
-from .app import config
+from .application import config
 
 
 config.debug = False

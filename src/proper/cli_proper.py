@@ -15,4 +15,3 @@ class ProperCli(Cli):
 
 
 ProperCli.new.__doc__ = gen_project.__doc__
-cli = ProperCli()
