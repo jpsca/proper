@@ -6,7 +6,7 @@ from .generators import gen_project
 
 
 class ProperCli(Cli):
-    __doc__ = """<b>Proper</b>
+    __doc__ = """<fg=white;options=bold>Proper</> CLI
 
     This utility provides commands from Proper itself."""
 

@@ -7,11 +7,13 @@ build-backend = "poetry.core.masonry.api"
 name = "[[ app_name ]]"
 version = "1.0"
 description = ""
+authors = ["Lorem Ipsum <lipsum@example.com>"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
 proper = "*"
-psycopg2 = "*"
+# psycopg2-binary = "*"
 
 [tool.poetry.group.dev]
 optional = true
@@ -30,7 +32,7 @@ flake8-bugbear = "*"
 pytest = "*"
 
 [tool.poetry.scripts]
-proper = [[ app_name ]].app:app.cli
+proper = "[[ app_name ]].app:app.cli"
 
 
 [tool.black]
