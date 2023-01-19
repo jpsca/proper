@@ -2,18 +2,16 @@ import filecmp
 import os
 import re
 import shutil
+import typing as t
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import jinja2
 import isort
 from proper_cli import confirm, echo
 
-if TYPE_CHECKING:
-    from typing import Optional, List, Union
+if t.TYPE_CHECKING:
     from proper import App
-    TStrOrPath = Union[Path, str]
 
 
 __all__ = [
@@ -26,7 +24,7 @@ __all__ = [
     "append_routes",
 ]
 
-BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
 IGNORE = [".DS_Store", "__pycache__"]
 
 CREATE = "create"
@@ -42,7 +40,7 @@ COLOR_CONFLICT = "red"
 
 
 class Render:
-    def __init__(self, templates: "TStrOrPath", **envops) -> None:
+    def __init__(self, templates: str | Path, **envops) -> None:
         self.loader = jinja2.FileSystemLoader(str(templates))
         self.env = jinja2.Environment(
             loader=self.loader,
@@ -63,14 +61,14 @@ class Render:
     def tests(self) -> dict:
         return self.env.tests
 
-    def __call__(self, relpath: "TStrOrPath", **context) -> str:
+    def __call__(self, relpath: str | Path, **context) -> str:
         return self.render(relpath, **context)
 
     def string(self, string: str, **context) -> str:
         tmpl = self.env.from_string(string)
         return tmpl.render(**context)
 
-    def render(self, relpath: "TStrOrPath", **context) -> str:
+    def render(self, relpath: str | Path, **context) -> str:
         tmpl = self.env.get_template(str(relpath))
         return tmpl.render(**context)
 
@@ -78,13 +76,13 @@ class Render:
 class BlueprintRender:
     def __init__(
         self,
-        src: "TStrOrPath",
-        dst: "TStrOrPath",
-        context: "Optional[dict]" = None,
+        src: str | Path,
+        dst: str | Path,
+        context: dict | None = None,
         *,
-        ignore: "Optional[List[str]]" = None,
-        envops: "Optional[dict]" = None,
-        force=False
+        ignore: list[str] | None = None,
+        envops: dict | None = None,
+        force=False,
     ) -> None:
         self.src = Path(src)
         self.dst = Path(dst)
@@ -96,7 +94,7 @@ class BlueprintRender:
         for folder, _, files in os.walk(self.src):
             self.render_folder(Path(folder), files)
 
-    def render_folder(self, folder: "Path", files: "List[str]") -> None:
+    def render_folder(self, folder: Path, files: list[str]) -> None:
         if self._ignore(folder):
             return
         _src_relfolder = str(folder).replace(str(self.src), "", 1).lstrip(os.path.sep)
@@ -126,7 +124,7 @@ class BlueprintRender:
                 dst_relpath = dst_relfolder / name
                 copy_file(self.src / src_relpath, self.dst, dst_relpath)
 
-    def _ignore(self, path: "Path") -> bool:
+    def _ignore(self, path: Path) -> bool:
         name = path.name
         str_path = str(path)
         for pattern in self.ignore:
@@ -135,7 +133,7 @@ class BlueprintRender:
         return False
 
 
-def make_folder(root_path: "Path", rel_folder: "TStrOrPath") -> None:
+def make_folder(root_path: Path, rel_folder: str | Path) -> None:
     path = root_path / rel_folder
     if path.exists():
         return
@@ -147,7 +145,9 @@ def make_folder(root_path: "Path", rel_folder: "TStrOrPath") -> None:
         printf(CREATE, display, color=COLOR_OK)
 
 
-def copy_file(src_path: "Path", root_path: "Path", dst_relpath: "TStrOrPath", *, force=False) -> None:
+def copy_file(
+    src_path: Path, root_path: Path, dst_relpath: str | Path, *, force=False
+) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         if files_are_identical(src_path, dst_path):
@@ -163,7 +163,7 @@ def copy_file(src_path: "Path", root_path: "Path", dst_relpath: "TStrOrPath", *,
     shutil.copy2(str(src_path), str(dst_path))
 
 
-def append_to_file(root_path: "Path", dst_relpath: "TStrOrPath", new_content: str) -> None:
+def append_to_file(root_path: Path, dst_relpath: str | Path, new_content: str) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         curr_content = dst_path.read_text()
@@ -182,7 +182,9 @@ def append_to_file(root_path: "Path", dst_relpath: "TStrOrPath", new_content: st
     dst_path.write_text(new_content)
 
 
-def save_file(root_path: "Path", dst_relpath: "TStrOrPath", content: str, *, force=False) -> None:
+def save_file(
+    root_path: Path, dst_relpath: str | Path, content: str, *, force=False
+) -> None:
     dst_path = root_path / dst_relpath
     if dst_path.exists():
         if contents_are_identical(content, dst_path):
@@ -199,10 +201,7 @@ def save_file(root_path: "Path", dst_relpath: "TStrOrPath", content: str, *, for
 
 
 def get_blueprint_render(
-    src: "Path",
-    context: "Optional[dict]" = None,
-    *,
-    envops: "Optional[dict]" = None
+    src: Path, context: dict | None = None, *, envops: dict | None = None
 ) -> Render:
     envops = envops or {}
     envops.setdefault("block_start_string", "[%")
@@ -229,15 +228,15 @@ def call(cmd: str) -> None:
     os.system(cmd)
 
 
-def files_are_identical(src_path: "Path", dst_path: "Path") -> bool:
+def files_are_identical(src_path: Path, dst_path: Path) -> bool:
     return filecmp.cmp(str(src_path), str(dst_path), shallow=False)
 
 
-def contents_are_identical(content: str, dst_path: "Path") -> bool:
+def contents_are_identical(content: str, dst_path: Path) -> bool:
     return content == dst_path.read_text()
 
 
-def confirm_overwrite(dst_relpath: "TStrOrPath", *, force=False) -> bool:
+def confirm_overwrite(dst_relpath: str | Path, *, force=False) -> bool:
     printf("conflict", dst_relpath, color=COLOR_CONFLICT)
     if force:
         return True

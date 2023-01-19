@@ -1,14 +1,14 @@
 import inspect
 import json
 import logging
+import typing as t
 from contextvars import ContextVar
 from functools import partial
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import inflection
-import tcom
+import jinjax
 from markupsafe import Markup
 from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
@@ -34,8 +34,7 @@ from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .assets import RX_INMUTABLES_FILE
 
-if TYPE_CHECKING:
-    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+if t.TYPE_CHECKING:
     TException = Type[BaseException]
 
 
@@ -61,35 +60,35 @@ class App:
     # a request.
     # If one of these functions sets the stop attribute of the response,
     # the rest is skipped.
-    _on_before_dispatch: "Tuple[Callable, ...]" = tuple()
-    _on_dispatch: "Tuple[Callable, ...]" = tuple()
-    _on_after_dispatch: "Tuple[Callable, ...]" = tuple()
+    _on_before_dispatch: tuple[t.Callable, ...] = tuple()
+    _on_dispatch: tuple[t.Callable, ...] = tuple()
+    _on_after_dispatch: tuple[t.Callable, ...] = tuple()
 
     # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
-    _on_error: "Tuple[Callable, ...]" = tuple()
+    _on_error: tuple[t.Callable, ...] = tuple()
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    _on_teardown: "Tuple[Callable, ...]" = tuple()
+    _on_teardown: tuple[t.Callable, ...] = tuple()
 
     # A lists of functions that are called when the development server starts,
     # and when it shutdown. Useful for running the scheduler on development and
     # similar tasks.
-    _on_dev_start: "Tuple[Callable, ...]" = tuple()
-    _on_dev_shutdown: "Tuple[Callable, ...]" = tuple()
+    _on_dev_start: tuple[t.Callable, ...] = tuple()
+    _on_dev_shutdown: tuple[t.Callable, ...] = tuple()
 
     # A dict of functions to call when an HTTPError is raised.
     # The keys are any subclasses of Exception, but, not necessarily
     # subclasses of HTTPError.
-    error_handlers: "Dict[TException, Any]" = {}
+    error_handlers: dict[TException, t.Any] = {}
 
     def __init__(
         self,
         import_name: str,
         *,
-        config: "Optional[dict]" = None
+        config: dict | None = None
     ) -> None:
         """
         import_name (str):
@@ -115,69 +114,69 @@ class App:
         self._setup_scheduler()
         self._setup_auth()
 
-    def __call__(self, environ: dict, start_response: "Callable") -> "Iterable[bytes]":
+    def __call__(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
         return self._wrapped_wsgi(environ, start_response)
 
     @property
-    def config(self) -> "Dot":
+    def config(self) -> Dot:
         return self._config
 
     @property
-    def routes(self) -> "List[Route]":
+    def routes(self) -> list[Route]:
         return self.router._routes
 
     @routes.setter
-    def routes(self, values: "List[Route]") -> None:
+    def routes(self, values: list[Route]) -> None:
         self.router.routes = values
 
     @property
-    def components_path(self) -> "Path":
+    def components_path(self) -> Path:
         return self.root_path / COMPONENTS_FOLDER
 
     @property
-    def static_path(self) -> "Path":
+    def static_path(self) -> Path:
         return self.root_path.parent / STATIC_FOLDER
 
     @property
-    def static_manifest_path(self) -> "Path":
+    def static_manifest_path(self) -> Path:
         return self.static_path / MANIFEST_PATH
 
-    def on_before_dispatch(self, func: "Callable") -> "Callable":
+    def on_before_dispatch(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that runs before a request is dispatched"""
         self._on_before_dispatch = self._on_before_dispatch + (func,)
         return func
 
-    def on_after_dispatch(self, func: "Callable") -> "Callable":
+    def on_after_dispatch(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that runs after a request is dispatched"""
         self._on_after_dispatch = self._on_after_dispatch + (func,)
         return func
 
-    def on_error(self, func: "Callable") -> "Callable":
+    def on_error(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that runs if a request
         raises an exception."""
         self._on_error = self._on_error + (func,)
         return func
 
-    def on_teardown(self, func: "Callable") -> "Callable":
+    def on_teardown(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
         return func
 
-    def on_dev_start(self, func: "Callable") -> "Callable":
+    def on_dev_start(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that runs when the development
         server starts. Useful for running the scheduler on development and
         similar tasks."""
         self._on_dev_start = self._on_dev_start + (func,)
         return func
 
-    def on_dev_shutdown(self, func: "Callable") -> "Callable":
+    def on_dev_shutdown(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that runs when the development
         server is shutdown."""
         self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
-    def wsgi_app(self, environ: dict, start_response: "Callable") -> "Iterable[bytes]":
+    def wsgi_app(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
         request = Request(
             max_content_length=self._config.max_content_length,
             max_query_size=self._config.max_query_size,
@@ -225,7 +224,7 @@ class App:
             for func in self._on_teardown:
                 func(request, response)
 
-    def error_handler(self, cls: "TException", to: "Callable") -> None:
+    def error_handler(self, cls: TException, to: t.Callable) -> None:
         """Register a controller method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 
@@ -248,7 +247,7 @@ class App:
     def url_for(
         self,
         name: str,
-        object: "Any" = None,
+        object: t.Any = None,
         *,
         _anchor="",
         **kw
@@ -256,7 +255,7 @@ class App:
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
 
-    def url_static(self, filename: str, *, host: "Optional[str]" = None) -> str:
+    def url_static(self, filename: str, *, host: str | None = None) -> str:
         host = host or self._config.static.host or f"/{STATIC_PREFIX}"
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
@@ -305,7 +304,7 @@ class App:
         config.secret_key = self._validate_secret_key(config.secret_key)
         self._config = config
 
-    def _load_config(self) -> "Dot":
+    def _load_config(self) -> Dot:
         config = get_default_config()
         config_file = self.config_path / f"{self.env}.py"
         if config_file.is_file():
@@ -317,12 +316,12 @@ class App:
             logger.warning("%s cannot be imported", config_file)
         return config
 
-    def _load_credentials(self) -> "Dot":
+    def _load_credentials(self) -> Dot:
         cryptex = Cryptex(self.credentials_path, self.env)
         credentials = cryptex.load()
         return Dot(credentials)
 
-    def _validate_secret_key(self, secret_key: "Optional[str]") -> str:
+    def _validate_secret_key(self, secret_key: str | None) -> str:
         secret_key = str(secret_key or "")
         if len(secret_key) < MIN_SECRET_LENGTH:
             raise BadSecretKey(
@@ -390,7 +389,7 @@ class App:
             self.catalog = None
             return
 
-        self.catalog = tcom.Catalog(
+        self.catalog = jinjax.Catalog(
             root_url=COMPONENTS_URL_ROOT,
             globals={
                 "url_for": self.url_for,

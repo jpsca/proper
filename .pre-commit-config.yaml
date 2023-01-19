@@ -1,4 +1,4 @@
-exclude: ^(docs|blueprints)/
+exclude: ^(docs)/
 fail_fast: true
 repos:
   - repo: local

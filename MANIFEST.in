@@ -1,4 +1,0 @@
-include MIT-LICENSE
-recursive-exclude tests *
-recursive-include proper *
-recursive-include blueprints *

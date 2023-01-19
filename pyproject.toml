@@ -1,6 +1,119 @@
-[build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+[tool.poetry]
+name = "proper"
+version = "0.1dev5"
+description = "A web framework optimized for programmer happiness"
+authors = ["Juan-Pablo Scaletti <juanpablo@jpscaletti.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://proper.scaletti.dev/"
+repository = "https://github.com/jpsca/proper"
+documentation = "https://proper.scaletti.dev/"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
 ]
-build-backend = "setuptools.build_meta"
+include = [
+    "src/proper/_blueprints/*"
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+cryptography = "^2.9"
+huey = "^2.4"
+image-processing-egg = "*"
+inflection = ">=0.5.1"
+isort = "^5.0"
+itsdangerous = "^1.1"
+jinja2 = "^3.0"
+mailshake = "*"
+markupsafe = "^2.0"
+multipart = ">=0.2.3"
+passlib = "^1.7"
+proper-cli = "^1.0"
+proper-forms = ">=0.5"
+pyyaml = "^5.4"
+sqla-wrapper = "^5.6"
+jinjax = ">=0.19"
+texteditor = ">=1.3"
+whitenoise = "^5.2"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.10"
+ipdb = ">=0.13"
+pyright = "^1.1"
+pre-commit = "^2.20"
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
+flake8 = "*"
+flake8-bugbear = "*"
+pytest = ">=7.2"
+coverage = "*"
+tox = "*"
+webtest = "*"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+
+[tool.poetry.scripts]
+proper = "proper.cli_proper:cli"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+force_single_line = true
+include_trailing_comma=true
+atomic = true
+lines_after_imports = 2
+lines_between_types = 1
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "TYPE_CHECKING",
+    "def __repr__",
+    "def __str__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:"
+]
+
+[tool.pyright]
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"

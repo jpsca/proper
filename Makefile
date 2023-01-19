@@ -1,13 +1,28 @@
+.PHONY: test
 test:
-	pytest -x proper tests
+	poetry run pytest -x -vv src/proper tests
 
+.PHONY: lint
 lint:
-	flake8 --config=setup.cfg proper tests
+	poetry run flake8 src/proper tests
 
+.PHONY: coverage
 coverage:
-	pytest --cov-report html --cov proper --cov tests proper
+	poetry run pytest --cov-config=pyproject.toml --cov-report html --cov proper src/proper tests
 
+.PHONY: types
+types:
+	poetry run pyright src/proper
+
+.PHONY: install
 install:
-	pip install -U pip wheel
-	pip install -e .[dev,test]
-	pre-commit install
+	poetry install --with dev,test
+	poetry run pre-commit install
+
+.PHONY: docs
+docs:
+	cd docs && python docs.py
+
+.PHONY: docs.build
+docs.build:
+	cd docs && python docs.py build
