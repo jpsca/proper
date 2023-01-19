@@ -1,18 +1,17 @@
-.PHONY: setup
-setup:  # Requires an active virtualenv
-	pip install -U pip wheel --quiet
-	pip install -r requirements/dev-requirements.txt
+.PHONY: install
+install:
+	poetry install --with dev,test
 	pip install -e .
 	make db
 	npm install --no-audit --no-fund
 
 .PHONY: test
 test:
-	pytest -x tests
+	poetry run pytest -x [[app_name]] tests
 
 .PHONY: lint
 lint:
-	flake8 --config=setup.cfg [[ app_name ]]
+	poetry run flake8 [[app_name]] tests
 
 .PHONY: db
 db:

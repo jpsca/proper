@@ -1,7 +1,0 @@
-brotli  # To generate brotli-compressed assets
-jinja2  # Template system
-
-# ----------------
-# proper
--e ../proper
-# ----------------

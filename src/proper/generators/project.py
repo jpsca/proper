@@ -66,11 +66,7 @@ def _install_dependencies(path: Path) -> bool:
     print()
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
-    call(".venv/bin/pip install -r requirements/dev-requirements.txt")
-    call(".venv/bin/pip install -e .")
-    call(".venv/bin/proper db create_all")
-    call(".venv/bin/proper db stamp")
-    call("npm install --no-audit --no-fund")
+    call("make install")
     return True
 
 
@@ -85,7 +81,7 @@ def _wrap_up(path: Path, deps_installed: bool) -> None:
     else:
         print("   $ python -m venv .venv")
         print("   $ source .venv/bin/activate")
-        print("   $ make setup")
+        print("   $ make install")
     print()
     print(" Start your Proper app with:")
     print()
