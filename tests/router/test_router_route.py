@@ -45,13 +45,13 @@ def test_route_shortcuts():
 
 
 def test_route_must_have_method_and_path():
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         Route()
 
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         Route(GET)
 
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         get()
 
 

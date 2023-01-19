@@ -2,7 +2,6 @@
 Fallback error handlers
 
 """
-import logging
 import pkg_resources
 import sys
 import traceback
@@ -12,6 +11,7 @@ from typing import TYPE_CHECKING
 import inflection
 from markupsafe import Markup
 
+from .config import logger
 from .constants import GET
 from .helpers import Render
 
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
     from typing import Any
     from proper import App, Request, Response
 
-
-logger = logging.getLogger("proper")
 
 TEMPLATES = (Path(__file__).parent / "templates").absolute()
 jinja_render = Render(TEMPLATES)
@@ -58,7 +56,7 @@ def debug_not_found_handler(
         "routes": app.routes,
     }
     data.update(get_request_data(request))
-    response.body = render("debug-not-found.html.jinja", **data)
+    response.body = render("debug-not-found.jinja", **data)
 
 
 def is_index(request: "Request") -> bool:
@@ -70,7 +68,7 @@ def render_default_index(response: "Response") -> None:
         "proper_version": pkg_resources.get_distribution("proper").version,
         "python_version": sys.version,
     }
-    response.body = render("default-index.html.jinja", **data)
+    response.body = render("default-index.jinja", **data)
 
 
 def debug_error_handler(request: "Request", response: "Response", app: "App") -> None:
@@ -85,7 +83,7 @@ def debug_error_handler(request: "Request", response: "Response", app: "App") ->
         "traceback": excp,
     }
     data.update(get_request_data(request))
-    response.body = render("debug-error.html.jinja", **data)
+    response.body = render("debug-error.jinja", **data)
 
 
 def get_title(error: "Any") -> str:

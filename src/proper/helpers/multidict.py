@@ -1,8 +1,5 @@
+import typing as t
 from collections import defaultdict
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any, Callable, List, Optional
 
 
 __all__ = (
@@ -31,11 +28,11 @@ class MultiDict(defaultdict):
     def get(
         self,
         key: str,
-        default: "Any" = None,
+        default: t.Any = None,
         *,
-        type: "Optional[Callable]" = None,
-        index: int = -1
-    ) -> "Any":
+        type: t.Callable | None = None,
+        index: int = -1,
+    ) -> t.Any:
         """Return the last value of the key of `default` one if the key
         doesn't exist.
 
@@ -80,19 +77,15 @@ class MultiDict(defaultdict):
         return value
 
     def get_or_error(
-        self,
-        key: str,
-        *,
-        type: "Optional[Callable]" = None,
-        index=-1
-    ) -> "Any":
+        self, key: str, *, type: t.Callable | None = None, index=-1
+    ) -> t.Any:
         """Like `.get()` but raises a `KeyError` if the key doesn't exist."""
         value = self.get(key, default=NoValue, type=type, index=index)
         if value is NoValue:
             raise KeyError(key)
         return value
 
-    def getall(self, key: str, *, type: "Optional[Callable]" = None) -> "List":
+    def getall(self, key: str, *, type: t.Callable | None = None) -> list:
         """Return the list of items for a given key. If that key is not in the
         `MultiDict`, the return value will be an empty list.
 
@@ -112,11 +105,11 @@ class MultiDict(defaultdict):
                 by this callable the value will be removed from the list.
 
         """
-        values = defaultdict.__getitem__(self, key)
+        values = defaultdict.__getitem__(self, key)  # type: ignore
         if type is None:
-            return values
+            return values  # type: ignore
         result = []
-        for value in values:
+        for value in values:  # type: ignore
             try:
                 result.append(type(value))
             except ValueError:

@@ -1,10 +1,11 @@
 import hashlib
 import hmac
-import logging
 from time import time
 
 import passlib.hash
 from passlib.context import CryptContext
+
+from proper.config import logger
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")
@@ -52,8 +53,6 @@ https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
     "\n - ".join(VALID_HASHERS),
     "\n - ".join(DEPRECATED_HASHERS),
 )
-
-logger = logging.getLogger("proper")
 
 
 class WrongHashAlgorithm(Exception):
@@ -211,6 +210,8 @@ class Auth:
 
     def update_password_hash(self, secret, user):
         new_hash = self.hash_password(secret)
+        if not new_hash:
+            return
         if new_hash.split("$")[:3] == user.password.split("$")[:3]:
             return
         user.pasword = new_hash
@@ -221,17 +222,17 @@ class Auth:
 
         user = model.by_login(login)
         if not user:
-            logger.debug("User `{login}` not found", extra={"login": login})
+            logger.debug(f"User `{login}` not found")
             self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not user.password:
-            logger.debug("User `{login}` has no password", extra={"login": login})
+            logger.debug(f"User `{login}` has no password")
             self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not self.password_is_valid(password, user.password):
-            logger.debug("Invalid password for user `{login}`", extra={"login": login})
+            logger.debug(f"Invalid password for user `{login}`")
             return None
 
         if update_hash:
@@ -258,10 +259,7 @@ class Auth:
 
         user = model.by_id(user_id)
         if not user:
-            logger.info(
-                "Invalid token. User `{user_id}` not found",
-                extra={"user_id": user_id[:20]},
-            )
+            logger.info(f"Invalid token. User `{user_id[:20]}` not found")
             return None
 
         if self.get_session_token(user) != token:
@@ -280,10 +278,7 @@ class Auth:
 
         user = model.by_id(user_id)
         if not user:
-            logger.info(
-                "Invalid token. User `{user_id}` not found",
-                extra={"user_id": user_id[:20]},
-            )
+            logger.info(f"Invalid token. User `{user_id[:20]}` not found")
             return None
 
         if self.get_timestamped_token(user, timestamp) != token:

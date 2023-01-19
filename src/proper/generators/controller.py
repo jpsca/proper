@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
-COMPONENT_TMPL = "component.html.jinja"
+COMPONENT_TMPL = "component.jinja"
 ROUTES_TMPL = "routes.tmpl.py"
 
 
@@ -55,7 +55,7 @@ def gen_controller(app: "App", name: str, *actions: str) -> None:
         action_pascal = inflection.camelize(action)
         save_file(
             root_path,
-            f"{app.root_path.name}/components/{plural_snake}/{plural_pascal}{action_pascal}.html.jinja",
+            f"{app.root_path.name}/components/{plural_pascal}/{action_pascal}.jinja",
             content
         )
 

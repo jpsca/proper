@@ -1,0 +1,14 @@
+{#def form, [[ singular_snake ]] #}
+
+<Layout.App title="Edit [[ singular_snake ]]">
+	<h1>Edit [[ singular_snake ]]</h1>
+	<[[ controller_pascal ]].Form
+		method="patch"
+		action={url_for('[[ plural_pascal ]].update', pk=[[ singular_snake ]].id)}
+		form={form}
+	>
+		<div class="actions">
+			<button type="submit">Update [[ singular_snake ]]</button>
+		</div>
+	</[[ controller_pascal ]].Form>
+</Layout.App>

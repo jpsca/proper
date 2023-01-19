@@ -98,7 +98,7 @@ class _Pages(AppController):
         self.response.body = (self.response.body or "") + "-index-"
 
     def set_component(self):
-        self.response.component = "FromComtroller"
+        self.response.component = "FromController"
 
     def charset(self):
         self.response.charset = "latin1"

@@ -1,10 +1,10 @@
+import typing as t
 from types import MappingProxyType
-from typing import TYPE_CHECKING
 
 from ..constants import FLASHES_SESSION_KEY
-from ..helpers import BadSignature, Dot
+from ..helpers import BadSignature, Dot  # type: ignore
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from proper import App, Request, Response
 
 

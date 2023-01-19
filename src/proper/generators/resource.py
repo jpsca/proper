@@ -121,19 +121,16 @@ def gen_resource(
     for action in ignored_actions:
         action_pascal = inflection.camelize(action)
         ignored_components.append(
-            f"*{action_pascal}.tmpl.html.jinja",
+            f"*{action_pascal}.tmpl.jinja",
         )
 
     attrs_tuples = gen_model(
         app,
         name,
+        *attrs,
         singular_pascal=singular_pascal,
         singular_snake=singular_snake,
         plural_snake=plural_snake,
-        form_class=f"{singular_pascal}Form",
-        load_method=f"_load_{singular_snake}",
-        object=f"self.{singular_snake}",
-        *attrs,
     )
     form_fields = [
         {
@@ -163,6 +160,9 @@ def gen_resource(
             "actions": actions,
             "singular": singular,
             "form_fields": form_fields,
+            "form_class": f"{singular_pascal}Form",
+            "load_method": f"_load_{singular_snake}",
+            "object": f"self.{singular_snake}",
         },
         ignore=[ROUTES_TMPL] + ignored_components,
     )

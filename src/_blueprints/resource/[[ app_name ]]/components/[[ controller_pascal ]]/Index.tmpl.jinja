@@ -1,0 +1,19 @@
+{#def [[ plural_snake ]] #}
+
+<Layout.App title="[[ plural_pascal ]]">
+  <h1>[[ plural_pascal ]]</h1>
+
+  <div>
+    <ul>
+    {% for [[ singular_snake ]] in [[ plural_snake ]] -%}
+    <li><a href="{{ url_for('[[ plural_pascal ]].show', pk=[[ singular_snake ]].id) }}">
+      [[ singular_pascal ]] #{{ [[ singular_snake ]].id }}
+    </a></li>
+    {% endfor -%}
+    </ul>
+  </div>
+
+  <div class="actions">
+    <a href="{{ url_for('[[ plural_pascal ]].new') }}">New [[ singular_snake ]]</a>
+  </div>
+</Layout.App>

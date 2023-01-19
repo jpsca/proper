@@ -1,0 +1,25 @@
+{#def form, action='', method='post' #}
+
+<Form method={method} action={action}>
+  [% for f in form_fields -%]
+  <div>
+    [% if f.render_as == 'input' -%]
+    {{ form.[[ f.name ]].as_input(
+      label="[[ f.name|title ]]:",
+      type="[[ f.input_type|lower ]]",
+      classes="",
+      error="border-red-500",
+    ) }}
+    [%- else -%]
+    {{ form.[[ f.name ]].as_[[ f.render_as ]](
+      label="[[ f.name|title ]]:",
+      classes="",
+      error="border-red-500",
+    ) }}
+    [%- endif %]
+    {{ form.[[ f.name ]].render_error(classes="text-red") }}
+  </div>
+  [% endfor -%]
+
+  {{ content }}
+</Form>

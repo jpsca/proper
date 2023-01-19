@@ -12,7 +12,7 @@ from proper_cli import confirm
 try:
     from yaml import CLoader as YamlLoader, CDumper as YamlDumper
 except ImportError:  # pragma: no cover
-    from yaml import YamlLoader, YamlDumper  # type: ignore
+    from yaml import Loader as YamlLoader, Dumper as YamlDumper  # type: ignore
 
 
 Queue = getattr(queue, "SimpleQueue", queue.Queue)

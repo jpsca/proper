@@ -48,4 +48,3 @@ exclude =
 	__pycache__,
 	conftest.py,
 	docs,
-	_blueprints,

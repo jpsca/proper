@@ -19,19 +19,19 @@ def test_default_component(app, web):
     app.routes = [get("/", to=DefaultTemplate.rendered)]
     resp = web.get("/")
 
-    assert resp.text == "DefaultTemplateRendered was rendered"
+    assert resp.text == "DefaultTemplate.Rendered was rendered"
 
 
 class CustomTemplate(AppController):
     def set_component(self):
-        self.response.component = "FromComtroller"
+        self.response.component = "FromController"
 
 
 def test_custom_component(app, web):
     app.routes = [get("/", to=CustomTemplate.set_component)]
     resp = web.get("/")
 
-    assert resp.text == "FromComtroller was rendered"
+    assert resp.text == "FromController was rendered"
 
 
 class ETagged(AppController):

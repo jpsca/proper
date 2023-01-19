@@ -24,7 +24,7 @@ __all__ = [
     "append_routes",
 ]
 
-BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent.parent / "_blueprints").resolve()
 IGNORE = [".DS_Store", "__pycache__"]
 
 CREATE = "create"
@@ -217,7 +217,12 @@ def get_blueprint_render(
     return render
 
 
-def printf(verb: str, msg="", color="cyan", indent=10) -> None:
+def printf(
+    verb: str,
+    msg: t.Any = "",
+    color: str = "cyan",
+    indent: int = 10,
+) -> None:
     verb = str(verb).rjust(indent, " ")
     verb = f"<fg={color}>{verb}</>"
     echo(f"{verb}  {msg}".rstrip())

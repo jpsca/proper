@@ -17,6 +17,7 @@ __all__ = (
 )
 
 logger = logging.getLogger("proper")
+logger.setLevel("DEBUG")
 
 
 def get_default_config():
@@ -130,12 +131,12 @@ ENV_FILE = ".APP_ENV"
 def get_env(default="development"):
     env = os.getenv(ENV_VAR)
     if env:
-        logger.debug("%s var found: %s", ENV_VAR, env)
+        logger.debug(f"{ENV_VAR} var found: {env}")
         return env
     envfile = Path(ENV_FILE)
     if envfile.exists():
         env = envfile.read_text().strip()
-        logger.debug("%s file found: %s", ENV_VAR, env)
+        logger.debug(f"{ENV_VAR} file found: {env}")
         return env
 
     logger.debug("Using default environment")
@@ -143,7 +144,7 @@ def get_env(default="development"):
 
 
 env = get_env()
-logger.debug("env is %s", env)
+logger.debug(f"env is {env}")
 
 is_development_env = is_dev_env = env == "development"
 is_testing_env = env == "testing"

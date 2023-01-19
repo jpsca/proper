@@ -5,7 +5,7 @@ import mimetypes
 from datetime import datetime
 from io import BytesIO
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+import typing as t
 
 from .. import errors
 from ..constants import DELETE, FLASHES_SESSION_KEY, GET, HEAD, PATCH, POST, PUT
@@ -18,9 +18,6 @@ from .parse_form_data import parse_form_data
 from .parse_host import parse_host
 from .parse_http_date import parse_http_date
 from .parse_query_string import parse_query_string
-
-if TYPE_CHECKING:
-    from typing import Any, IO, List, Optional, Union
 
 
 __all__ = ("Request", "make_test_env")
@@ -149,31 +146,31 @@ class Request:
 
     """
     request_id: str = ""
-    matched_route: "Optional[Route]" = None
-    matched_params: "Optional[dict]" = None
-    matched_action: "Optional[str]" = None
-    user: "Any" = None
-    csrf_token: "Optional[str]" = None
+    matched_route: Route | None = None
+    matched_params: dict | None = None
+    matched_action: str | None = None
+    user: t.Any = None
+    csrf_token: str | None = None
 
-    _remote_ip: "Optional[str]" = None
-    _content_length: "Optional[int]" = None
-    _headers: "Optional[HeadersDict]" = None
-    _accepts: "Optional[List[str]]" = None
-    _format: "Optional[str]" = None
-    _if_none_match: "Optional[List[str]]" = None
-    _if_modified_since: "Optional[datetime]" = None
-    _languages: "Optional[List[str]]" = None
-    _query: "Optional[MultiDict]" = None
-    _form: "Optional[MultiDict]" = None
-    _cookies: "Optional[dict]" = None
-    _session: "MappingProxyType"
+    _remote_ip: str | None = None
+    _content_length: int | None = None
+    _headers: HeadersDict | None = None
+    _accepts: list[str] | None = None
+    _format: str | None = None
+    _if_none_match: list[str] | None = None
+    _if_modified_since: datetime | None = None
+    _languages: list[str] | None = None
+    _query: MultiDict | None = None
+    _form: MultiDict | None = None
+    _cookies: dict | None = None
+    _session: MappingProxyType
 
     def __init__(
         self,
         *,
         encoding: str = "utf8",
         max_content_length: int = -1,
-        max_query_size: "Optional[int]" = None,
+        max_query_size: int | None = None,
         **env,
     ) -> None:
         env = env or make_test_env()
@@ -290,7 +287,7 @@ class Request:
         return self._content_length
 
     @property
-    def headers(self) -> "HeadersDict":
+    def headers(self) -> HeadersDict:
         if self._headers is None:
             headers = HeadersDict()
             for name, value in self.env.items():
@@ -302,7 +299,7 @@ class Request:
         return self._headers
 
     @property
-    def accepts(self) -> "List[str]":
+    def accepts(self) -> list[str]:
         if self._accepts is None:
             value = self.env.get("HTTP_ACCEPT", "")
             _accepts = [mime for mime, q in parse_accept_header(value)]
@@ -327,7 +324,7 @@ class Request:
         return self._format
 
     @property
-    def if_none_match(self) -> "List[str]":
+    def if_none_match(self) -> list[str]:
         """Value of the If-None-Match header, as a parsed list of strings,
         or an empty list if the header is missing or its value is blank.
         """
@@ -337,14 +334,14 @@ class Request:
         return self._if_none_match
 
     @property
-    def if_modified_since(self) -> "Optional[datetime]":
+    def if_modified_since(self) -> datetime | None:
         if self._if_modified_since is None:
             header = self.env.get("HTTP_IF_MODIFIED_SINCE", "")
             self._if_modified_since = parse_http_date(header) or None
         return self._if_modified_since
 
     @property
-    def languages(self) -> "List[str]":
+    def languages(self) -> list[str]:
         if self._languages is None:
             value = self.env.get("HTTP_ACCEPT_LANGUAGES", "")
             self._languages = [
@@ -354,18 +351,18 @@ class Request:
         return self._languages
 
     @property
-    def body(self) -> "IO":
+    def body(self) -> t.IO:
         return self.env.get("wsgi.input", BytesIO())
 
     @property
-    def query(self) -> "MultiDict":
+    def query(self) -> MultiDict:
         if self._query is None:
             query_string = self.query_string
             self._query = parse_query_string(query_string, self.max_query_size)
         return self._query
 
     @property
-    def form(self) -> "MultiDict":
+    def form(self) -> MultiDict:
         if self._form is None:
             # GET and HEAD can't have form data.
             if self.method in (GET, HEAD):
@@ -387,7 +384,7 @@ class Request:
         return self._cookies
 
     @property
-    def session(self) -> "MappingProxyType":
+    def session(self) -> MappingProxyType:
         return self._session
 
     @property
@@ -396,7 +393,7 @@ class Request:
 
     # Private
 
-    def _validate_content_length(self, length: "Union[int, str]") -> int:
+    def _validate_content_length(self, length: int | str) -> int:
         try:
             ilength = int(length)
         except ValueError:
@@ -408,7 +405,7 @@ class Request:
         return ilength
 
 
-def make_test_env(path="", **kw) -> dict:
+def make_test_env(path: str = "", **kw) -> dict:
     from wsgiref.util import setup_testing_defaults
 
     env = {"REMOTE_ADDR": "127.0.0.1"}

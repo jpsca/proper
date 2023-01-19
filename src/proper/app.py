@@ -1,6 +1,5 @@
 import inspect
 import json
-import logging
 import typing as t
 from contextvars import ContextVar
 from functools import partial
@@ -15,7 +14,7 @@ from whitenoise import WhiteNoise
 
 from . import middleware, status
 from .cli_app import get_app_cli
-from .config import get_env, get_default_config
+from .config import get_env, get_default_config, logger
 from .cryptex import Cryptex
 from .error_handlers import (
     debug_error_handler,
@@ -34,9 +33,6 @@ from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .assets import RX_INMUTABLES_FILE
 
-if t.TYPE_CHECKING:
-    TException = Type[BaseException]
-
 
 COMPONENTS_FOLDER = "components"
 COMPONENTS_URL_ROOT = "/components/"
@@ -44,8 +40,7 @@ STATIC_PREFIX = "static"
 STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
 MIN_SECRET_LENGTH = 48
-
-logger = logging.getLogger("proper")
+TException = t.Type[BaseException]
 
 _request_cv = ContextVar("_request_cv", default=Request())
 _response_cv = ContextVar("_response_cv", default=Response())
@@ -313,7 +308,7 @@ class App:
             ).config
             config.update(env_config)
         else:
-            logger.warning("%s cannot be imported", config_file)
+            logger.warning(f"{config_file} cannot be imported")
         return config
 
     def _load_credentials(self) -> Dot:

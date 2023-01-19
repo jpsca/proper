@@ -1,6 +1,6 @@
 .PHONY: test
 test:
-	poetry run pytest -x -vv src/proper tests
+	poetry run pytest -x src/proper tests
 
 .PHONY: lint
 lint:

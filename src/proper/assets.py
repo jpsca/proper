@@ -4,10 +4,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-try:
-    import brotli
-except ImportError:
-    botli = None
+import brotli
 from proper_cli import echo
 from whitenoise.compress import Compressor
 

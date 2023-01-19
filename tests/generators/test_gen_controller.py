@@ -11,10 +11,10 @@ def test_gen_controller(app, scaffold):
     assert "def index(self):" in products_text
     assert "def show(self):" in products_text
 
-    components = app_root / "components" / "products"
+    components = app_root / "components" / "Products"
     assert components.is_dir()
-    assert (components / "ProductsIndex.html.jinja").exists()
-    assert (components / "ProductsShow.html.jinja").exists()
+    assert (components / "Index.jinja").exists()
+    assert (components / "Show.jinja").exists()
 
 
 def test_routes_updated(app, scaffold):

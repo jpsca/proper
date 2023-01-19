@@ -42,12 +42,12 @@ def _test_model(app_root):
 
 
 def _test_components(app_root):
-    components = app_root / "components" / "products"
+    components = app_root / "components" / "Products"
     assert components.is_dir()
-    assert (components / "ProductsIndex.html.jinja").exists()
-    assert (components / "ProductsNew.html.jinja").exists()
-    assert (components / "ProductsShow.html.jinja").exists()
-    assert (components / "ProductsEdit.html.jinja").exists()
+    assert (components / "Index.jinja").exists()
+    assert (components / "New.jinja").exists()
+    assert (components / "Show.jinja").exists()
+    assert (components / "Edit.jinja").exists()
 
 
 def _test_routes(app_root):
@@ -99,12 +99,12 @@ def _test_model_singular(app_root):
 
 
 def _test_components_singular(app_root):
-    components = app_root / "components" / "profile"
+    components = app_root / "components" / "Profile"
     assert components.is_dir()
-    assert not (components / "ProfileIndex.html.jinja").exists()
-    assert (components / "ProfileNew.html.jinja").exists()
-    assert (components / "ProfileShow.html.jinja").exists()
-    assert (components / "ProfileEdit.html.jinja").exists()
+    assert not (components / "Index.jinja").exists()
+    assert (components / "New.jinja").exists()
+    assert (components / "Show.jinja").exists()
+    assert (components / "Edit.jinja").exists()
 
 
 def _test_routes_singular(app_root):
@@ -141,12 +141,12 @@ def _test_controller_only(app_root):
 
 
 def _test_components_only(app_root):
-    components = app_root / "components" / "persons"
+    components = app_root / "components" / "Persons"
     assert components.is_dir()
-    assert not (components / "PersonsIndex.html.jinja").exists()
-    assert not (components / "PersonsNew.html.jinja").exists()
-    assert not (components / "PersonsShow.html.jinja").exists()
-    assert not (components / "PersonsEdit.html.jinja").exists()
+    assert not (components / "Index.jinja").exists()
+    assert not (components / "New.jinja").exists()
+    assert not (components / "Show.jinja").exists()
+    assert not (components / "Edit.jinja").exists()
 
 
 def _test_routes_only(app_root):
@@ -182,12 +182,12 @@ def _test_controller_exclude(app_root):
 
 
 def _test_components_exclude(app_root):
-    components = app_root / "components" / "persons"
+    components = app_root / "components" / "Persons"
     assert components.is_dir()
-    assert (components / "PersonsIndex.html.jinja").exists()
-    assert (components / "PersonsNew.html.jinja").exists()
-    assert (components / "PersonsShow.html.jinja").exists()
-    assert not (components / "PersonsEdit.html.jinja").exists()
+    assert (components / "Index.jinja").exists()
+    assert (components / "New.jinja").exists()
+    assert (components / "Show.jinja").exists()
+    assert not (components / "Edit.jinja").exists()
 
 
 def _test_routes_exclude(app_root):

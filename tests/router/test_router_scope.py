@@ -28,7 +28,7 @@ def test_scope_repr():
 
 
 def test_scope_must_have_mount():
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         scope()
 
 
