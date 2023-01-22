@@ -70,11 +70,6 @@ coverage = "*"
 tox = "*"
 webtest = "*"
 
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-
 [tool.poetry.scripts]
 proper = "proper.cli:run"
 
@@ -117,6 +112,14 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:"
 ]
+omit = [
+    "src/proper/base_channel.py",
+    "src/proper/cli",
+]
+
+[tool.coverage.html]
+directory = "covreport"
+
 
 
 [tool.pyright]
@@ -133,3 +136,19 @@ reportWildcardImportFromLibrary = false
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
+
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+skipsdist = True
+envlist = py39,py310,py311
+
+[testenv]
+skip_install = true
+commands =
+    pip install -U pip wheel
+    pip install pytest webtest
+    pip install -e .
+    pytest -x src/proper tests
+"""
