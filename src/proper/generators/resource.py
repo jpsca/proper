@@ -138,9 +138,9 @@ def gen_resource(
             "name": name,
             "render_as": FORM_RENDER_AS.get(ftype, FORM_DEFAULT_RENDER_AS),
             "input_type": FORM_INPUT_TYPES.get(ftype, FORM_DEFAULT_INPUT_TYPE),
-            "required": "nullable" not in constraints,
+            "required": "nullable" not in options,
         }
-        for name, ftype, _, constraints in attrs_tuples
+        for name, ftype, options in attrs_tuples
         if ftype in FORM_FIELDS
     ]
 

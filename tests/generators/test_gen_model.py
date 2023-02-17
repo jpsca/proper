@@ -9,9 +9,8 @@ def test_base_model(app, scaffold):
     module.gen_model(app, "Product")
 
     model_text = (app_root / "models" / "product.py").read_text()
-    assert "class Product(Timestamped, db.Model):" in model_text
-    assert '__tablename__ = "products"' in model_text
-    assert "id = db.Column(db.Integer, primary_key=True)" in model_text
+    print(model_text)
+    assert "class Product(BaseModel):" in model_text
     module.call.assert_not_called
 
 
@@ -29,62 +28,41 @@ def test_fields(app, scaffold):
     module.gen_model(
         app,
         "Product",
-        "name:string-30",
-        "description",
-        "price:numeric-10-2",
-        "data:json",
+        "name",
+        "description:text",
+        "stock:int",
     )
 
     model_text = (app_root / "models" / "product.py").read_text()
-    assert "name = db.Column(db.String(30))" in model_text
-    assert "description = db.Column(db.String)" in model_text
-    assert "price = db.Column(db.Numeric(10, 2))" in model_text
-    assert "data = db.Column(db.JSON)" in model_text
+    print(model_text)
+    assert "name = CharField()" in model_text
+    assert "description = TextField()" in model_text
+    assert "stock = IntegerField()" in model_text
 
 
 def test_constraints(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
     module.gen_model(
-        app, "Post", "slug:string:unique:index", "author_id:integer:foreign-users.id"
+        app,
+        "Product",
+        "slug:str,unique,index",
+        'type:str,default:"fruit"',
+        "stock:int,default:0",
     )
 
-    model_text = (app_root / "models" / "post.py").read_text()
-    assert "slug = db.Column(db.String, unique=True, index=True)" in model_text
-    assert 'author_id = db.Column(db.Integer, db.ForeignKey("users.id"))' in model_text
+    model_text = (app_root / "models" / "product.py").read_text()
+    print(model_text)
+    assert "slug = CharField(unique=True, index=True)" in model_text
+    assert 'type = CharField(default="fruit")' in model_text
+    assert "stock = IntegerField(default=0)" in model_text
 
 
-def test_simple_backref(app, scaffold):
+def test_foreign_key(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
-    module.gen_model(
-        app, "Post", "tags:Tag:post:joined"
-    )
+    module.gen_model(app, "Tweet", 'user:fk-User,backref:"tweets"')
 
-    model_text = (app_root / "models" / "post.py").read_text()
-    expected = 'tags = db.relationship("Tag", backref=db.backref("post"), lazy="joined")'
-    assert expected in model_text
-
-
-def test_backref_with_lazy(app, scaffold):
-    app_root = scaffold
-    app.root_path = app_root
-    module.gen_model(
-        app, "Post", "tags:Tag:post-select:joined"
-    )
-
-    model_text = (app_root / "models" / "post.py").read_text()
-    expected = 'tags = db.relationship("Tag", backref=db.backref("post", lazy="select"), lazy="joined")'
-    assert expected in model_text
-
-
-def test_implicit_backref_and_lazy(app, scaffold):
-    app_root = scaffold
-    app.root_path = app_root
-    module.gen_model(
-        app, "Post", "tags:Tag"
-    )
-
-    model_text = (app_root / "models" / "post.py").read_text()
-    expected = 'tags = db.relationship("Tag", backref=db.backref("posts"), lazy="select")'
-    assert expected in model_text
+    model_text = (app_root / "models" / "tweet.py").read_text()
+    print(model_text)
+    assert 'user = ForeignKeyField(User, backref="tweets")' in model_text
