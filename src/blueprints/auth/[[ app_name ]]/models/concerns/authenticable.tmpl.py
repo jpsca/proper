@@ -1,31 +1,20 @@
 import unicodedata
+import typing as t
 
+from peewee import *  # noqa
 from proper import request, response
 
 from [[ app_name ]].app import auth, config, db
 
 
 class Authenticable:
-    __abstract__ = True
+    SESSION_KEY: str = "_user_token"
+    REDIRECT_KEY: str = "_redirect"
+    CLEAR_SESSION_ON_SIGN_OUT: bool = True
 
-    SESSION_KEY = "_user_token"
-    REDIRECT_KEY = "_redirect"
-    CLEAR_SESSION_ON_SIGN_OUT = True
-
-    login = db.Column(db.String(255), nullable=False, unique=True, index=True)
-    nfc_login = db.Column(db.String(255), nullable=False)
-    password = db.Column(db.String(255))
-
-    @db.validates("login")
-    def validate_login(self, _key, login):
-        if login:
-            self.nfc_login = self.normalize_login(login, uform="NFC")
-            return self.normalize_login(login)
-
-    @db.validates("password")
-    def validate_password(self, _key, password):
-        if password:
-            return auth.hash_password(password)
+    login = CharField(255, nullable=False, unique=True, index=True)
+    nfc_login = CharField(255, nullable=False)
+    password = CharField(255)
 
     @staticmethod
     def normalize_login(login="", *, uform="NFKC"):
@@ -33,16 +22,16 @@ class Authenticable:
         return unicodedata.normalize(uform, login)
 
     @classmethod
-    def by_id(cls, pk):
+    def get_by_id(cls, pk: t.Any) -> "self":
         """Modify this code or overwrite in the User class to to include whatever
         scope restriction you need to add to this query.
 
         Required by proper.auth.Auth()
         """
-        return db.s.get(cls, pk)
+        return self.get_or_none(cls.id == pk)
 
     @classmethod
-    def by_login(cls, login):
+    def get_by_login(cls, login: str) -> self | None:
         """Get a user by its username.
         Modify this code or overwrite in the User class to to include whatever
         scope restriction you need to add to this query.
@@ -50,24 +39,46 @@ class Authenticable:
         Required by proper.auth.Auth()
         """
         login = cls.normalize_login(login)
-        return db.s.execute(
-            db.select(cls).where(cls.login == login)
-        ).scalars().first()
+        return self.get_or_none(cls.login == login)
 
     @classmethod
-    def authenticate(cls, login, password, *, update_hash=True):
+    def authenticate(
+        cls,
+        login: str,
+        password: str,
+        *,
+        update_hash: bool = True,
+    ) -> self | None:
         login = cls.normalize_login(login)
         return auth.authenticate(cls, login, password, update_hash=update_hash)
 
     @classmethod
-    def authenticate_timestamped_token(cls, token):
-        return auth.authenticate_timestamped_token(cls, token, config.auth.token_life)
+    def authenticate_timestamped_token(cls, token: str) -> self | None:
+        return auth.authenticate_timestamped_token(
+            cls,
+            token,
+            config.auth.token_life,
+        )
 
     @classmethod
-    def authenticate_session_token(cls, token):
+    def authenticate_session_token(cls, token: str) -> self | None:
         return auth.authenticate_session_token(cls, token)
 
-    def sign_in(self):
+    def set_login(self, login: str) -> None:
+        self.nfc_login = self.normalize_login(login, uform="NFC")
+        self.login = self.normalize_login(login)
+
+    def set_password(self, password: str | None) -> None:
+        if password:
+            self.password = auth.hash_password(password)
+        else:
+            self.password = password
+
+        if request.user == self:
+            # Password has change, so we need to updated the session too
+            self.sign_in()
+
+    def sign_in(self) -> None:
         """Store in the session an unique token for the user, so it can stay
         logged between requests.
         """
@@ -75,7 +86,7 @@ class Authenticable:
         request.user = self
         response.session[self.SESSION_KEY] = auth.get_session_token(request.user)
 
-    def sign_out(self):
+    def sign_out(self) -> None:
         request.user = None
         # The session is shared so, if you have more than
         # one model/user-type signed in at the same time,
@@ -88,9 +99,3 @@ class Authenticable:
             del response.session[self.SESSION_KEY]
         if self.REDIRECT_KEY in response.session:
             del response.session[self.SESSION_KEY]
-
-    def set_new_password(self, new_password):
-        self.password = new_password
-        if request.user == self:
-            # Password has change, so we need to updated the session too
-            self.sign_in()

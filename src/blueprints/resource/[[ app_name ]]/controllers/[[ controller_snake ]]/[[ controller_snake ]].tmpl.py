@@ -2,7 +2,7 @@ from proper import request, response  # noqa
 from proper.errors import NotFound
 from proper.status import unprocessable
 
-from [[ app_name ]].models import [[ singular_pascal ]], db
+from [[ app_name ]].models import [[ singular_pascal ]]
 from ..app import AppController
 from .forms import [[ form_class ]]
 
@@ -11,7 +11,7 @@ class [[ controller_pascal ]](AppController):
     [% if "index" in actions -%]
     def index(self):
         """GET /[[ plural_snake ]]"""
-        self.[[ plural_snake ]] = db.s.all([[ singular_pascal ]])
+        self.[[ plural_snake ]] = singular_pascal.select()
 [% endif %]
     [% if "show" in actions -%]
     def show(self):
@@ -37,8 +37,7 @@ class [[ controller_pascal ]](AppController):
             return self.render("[[ controller_pascal ]].New", status=unprocessable)
 
         [[ singular_snake ]] = self.form.save()
-        db.s.add([[ singular_snake ]])
-        db.s.commit()
+        [[ singular_snake ]].save()
         response.redirect_to(
             "[[ plural_pascal ]].show", pk=[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was created",
@@ -52,8 +51,8 @@ class [[ controller_pascal ]](AppController):
         if not self.form.validate():
             return self.render("[[ controller_pascal ]].Edit", status=unprocessable)
 
-        self.form.save()
-        db.s.commit()
+        [[ singular_snake ]] = self.form.save()
+        [[ singular_snake ]].save()
         response.redirect_to(
             "[[ plural_pascal ]].show", pk=[[ object ]].id,
             flash="[[ singular_pascal ]] was updated",
@@ -64,8 +63,7 @@ class [[ controller_pascal ]](AppController):
         """DELETE /[[ plural_snake ]]/1"""
         self.[[ load_method ]](not_found=False)
         if [[ object ]]:  # deleting twice does not fail
-            db.s.delete([[ object ]])
-            db.s.commit()
+            [[ object ]].delete_instance()
         response.redirect_to(
             "[[ plural_pascal ]].index",
             flash="[[ singular_pascal ]] was deleted",
@@ -81,9 +79,9 @@ class [[ controller_pascal ]](AppController):
 
     def [[ load_method ]](self, not_found=True):
         [% if singular -%]
-        [[ object ]] = db.s.first([[ singular_pascal ]])
+        [[ object ]] = [[ singular_pascal ]].get_or_none()
         [% else -%]
-        [[ object ]] = db.s.get([[ singular_pascal ]], self.params["pk"])
+        [[ object ]] = [[ singular_pascal ]].get_or_none([[ singular_pascal ]].id == self.params["pk"])
         [% endif -%]
         if not_found and not [[ object ]]:
             raise NotFound

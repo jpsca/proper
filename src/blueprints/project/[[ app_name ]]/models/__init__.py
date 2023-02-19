@@ -5,7 +5,7 @@ from inspect import isclass
 from pathlib import Path
 from pkgutil import iter_modules
 
-from ..app import db
+from ..app import app
 
 
 # iterate through the modules in the current package
@@ -17,6 +17,6 @@ for (_, module_name, _) in iter_modules([package_dir]):
     for attribute_name in dir(module):
         attribute = getattr(module, attribute_name)
 
-        if isclass(attribute) and issubclass(attribute, db.Model):
+        if isclass(attribute) and issubclass(attribute, app.db.Model):
             # Add the class to this package's variables
             globals()[attribute_name] = attribute

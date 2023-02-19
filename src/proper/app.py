@@ -9,7 +9,7 @@ from pathlib import Path
 import inflection
 import jinjax
 from markupsafe import Markup
-from sqla_wrapper import Alembic, SQLAlchemy
+from peewee import SqliteDatabase
 from whitenoise import WhiteNoise
 
 from . import middleware, status
@@ -101,6 +101,7 @@ class App:
         self._setup_router()
         self._setup_serializer()
         self._setup_db()
+
         self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
@@ -341,8 +342,8 @@ class App:
             partial(middleware.put_session, app=self),
             partial(middleware.strip_body_if_head, app=self),
         )
-        self._on_error = (self._rollback_db_session,)
-        self._on_teardown = (self._remove_db_session,)
+        self._on_error = tuple()
+        self._on_teardown = tuple()
 
         self.error_handlers = {}
 
@@ -354,21 +355,7 @@ class App:
         self.serializer = Serializer(self._config.secret_key)
 
     def _setup_db(self) -> None:
-        config = self._config
-        self.db = SQLAlchemy(
-            dialect=config.database.dialect,
-            name=config.database.name,
-            user=config.database.user,
-            password=config.database.password,
-            host=config.database.host,
-            port=config.database.port,
-            engine_options=config.database.engine_options,
-            session_options=config.database.session_options,
-        )
-        if config.database.migrations:
-            self.alembic = Alembic(self.db, config.database.migrations)
-        else:
-            self.alembic = None
+        self.db = SqliteDatabase(":memory:")
 
     def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
@@ -489,9 +476,3 @@ class App:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
         dispatch(request, response, self)
-
-    def _rollback_db_session(self, *args, **kw) -> None:
-        self.db.s.rollback()
-
-    def _remove_db_session(self, *args, **kw) -> None:
-        self.db.s.remove()

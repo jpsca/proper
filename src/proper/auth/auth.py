@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import typing as t
 from time import time
 
 import passlib.hash
@@ -15,52 +16,33 @@ DEFAULT_HASHER = "pbkdf2_sha512"
 VALID_HASHERS = [
     "argon2",
     "bcrypt",
+    "bcrypt_sha256",
     "pbkdf2_sha512",
     "pbkdf2_sha256",
     "sha512_crypt",
     "sha256_crypt",
 ]
 
-DEPRECATED_HASHERS = [
-    "django_argon2",
-    "django_bcrypt",
-    "django_bcrypt_sha256",
-    "django_pbkdf2_sha256",
-    "django_pbkdf2_sha1",
-    "django_salted_sha1",
-    "django_salted_md5",
-    "django_des_crypt",
-]
-
 WRONG_HASH_MESSAGE = """Invalid hash format.
-Proper-Auth can *read* many hash methods but, for security reasons,
-only generates hashes with the one you choose form a limited
-subset of them:
+For security reasons, Proper only generates hashes with
+with a limited subset of hash functions:
 
-Readable and writeable formats
--------------------------------
 - {0}
-
-Read-only formats
--------------------------------
-- {1}
 
 Read more about how to choose the right hash method for your
 application here:
 https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
 
-""".format(
-    "\n - ".join(VALID_HASHERS),
-    "\n - ".join(DEPRECATED_HASHERS),
-)
+""".format("\n - ".join(VALID_HASHERS))
 
 
 class WrongHashAlgorithm(Exception):
     pass
 
 
-def to36(number):
-    assert int(number) >= 0, "Must be a positive integer"
+def to36(number: int | str) -> str:
+    number = int(number, 10)  # type: ignore
+    assert number >= 0, "Must be a positive integer"
     alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
     if 0 <= number < len(alphabet):
@@ -74,7 +56,7 @@ def to36(number):
     return base36 or alphabet[0]
 
 
-def from36(snumber):
+def from36(snumber: str) -> int:
     snumber = snumber.upper()
     return int(snumber, 36)
 
@@ -90,20 +72,24 @@ class Auth:
 
     def __init__(
         self,
-        secret_key,
+        secret_key: str,
         *,
-        hash_name=DEFAULT_HASHER,
-        rounds=None,
-        password_minlen=5,
-        password_maxlen=1024,
-    ):
+        hash_name: str = DEFAULT_HASHER,
+        rounds: int | None = None,
+        password_minlen: int = 5,
+        password_maxlen: int = 1024,
+    ) -> None:
         self.secret_key = secret_key
         self.set_hasher(hash_name or DEFAULT_HASHER, rounds)
         self._decoy_password = self.hasher.hash("!")
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
 
-    def set_hasher(self, hash_name, rounds=None):
+    def set_hasher(
+        self,
+        hash_name: str,
+        rounds: int | None = None,
+    ) -> None:
         """Updates the has algorithm and, optionally, the number of rounds
         to use.
 
@@ -127,14 +113,13 @@ class Auth:
         rounds = min(max(rounds or default_rounds, min_rounds), max_rounds)
 
         op = {
-            "schemes": VALID_HASHERS + DEPRECATED_HASHERS,
-            "deprecated": DEPRECATED_HASHERS,
+            "schemes": VALID_HASHERS,
             "default": hash_name,
             hash_name + "__default_rounds": rounds,
         }
         self.hasher = CryptContext(**op)
 
-    def hash_password(self, secret):
+    def hash_password(self, secret: str) -> str | None:
         if secret is None:
             return None
 
@@ -152,7 +137,7 @@ class Auth:
 
         return self.hasher.hash(secret)
 
-    def password_is_valid(self, secret, hashed):
+    def password_is_valid(self, secret: str, hashed: str) -> bool:
         if secret is None or hashed is None:
             return False
         try:
@@ -164,51 +149,40 @@ class Auth:
         except ValueError:
             return False
 
-    def get_session_token(self, user):
-        key = "|".join(
-            [
-                # Includes the secret key, so without access to the source code,
-                # fake tokens cannot be generated even if the database is compromised.
-                self.secret_key,
-                # So the the token is always unique for each user.
-                str(user.id),
-                # By using a snippet of the password hash **salt**,
-                # you can logout from all other devices
-                # just by changing (or re-saving) the password.
-                (user.password or "").rsplit("$", 1)[0][-10:],
-            ]
-        )
+    def get_session_token(self, user: t.Any) -> str:
+        token = self.get_token(user)
+        return f"{user.id}${token}"
 
-        key = key.encode("utf8", "ignore")
-        mac = hmac.new(key, msg=None, digestmod=hashlib.sha512)
-        mac = mac.hexdigest()
-        return f"{user.id}${mac}"
-
-    def get_timestamped_token(self, user, timestamp=None):
+    def get_timestamped_token(
+        self,
+        user: t.Any,
+        timestamp: int | None = None,
+    ) -> str:
         timestamp = int(timestamp or time())
+        token = self.get_token(user, str(timestamp))
+        return f"{user.id}${to36(timestamp)}${token}"
 
-        key = "|".join(
-            [
-                # Includes the secret key, so without access to the source code,
-                # fake tokens cannot be generated even if the database is compromised.
-                self.secret_key,
-                # So the the token is always unique for each user.
-                str(user.id),
-                # By using a snippet of the password hash **salt**,
-                # you can logout from all other devices
-                # just by changing (or re-saving) the password.
-                (user.password or "").rsplit("$", 1)[0][-10:],
-                # So the timestamp cannot be forged
-                str(timestamp),
-            ]
-        )
+    def get_token(self, user: t.Any, timestamp: str = "") -> str:
+        key = "|".join([
+            # Includes the secret key, so without access to the source code,
+            # fake tokens cannot be generated even if the database is compromised.
+            self.secret_key,
 
+            # So the the token is always unique for each user.
+            str(user.id),
+
+            # By using a snippet of the password hash **salt**,
+            # you can logout from all other devices
+            # just by changing (or re-saving) the password.
+            (user.password or "").rsplit("$", 1)[0][-10:],
+
+            # So the timestamp cannot be forged
+            timestamp
+        ])
         key = key.encode("utf8", "ignore")
-        mac = hmac.new(key, msg=None, digestmod=hashlib.sha512)
-        mac = mac.hexdigest()
-        return f"{user.id}${to36(timestamp)}${mac}"
+        return hmac.new(key, msg=None, digestmod=hashlib.sha512).hexdigest()
 
-    def update_password_hash(self, secret, user):
+    def update_password_hash(self, secret: str, user: t.Any) -> None:
         new_hash = self.hash_password(secret)
         if not new_hash:
             return
@@ -216,11 +190,18 @@ class Auth:
             return
         user.pasword = new_hash
 
-    def authenticate(self, model, login, password, *, update_hash=True):
+    def authenticate(
+        self,
+        model: t.Any,
+        login: str,
+        password: str,
+        *,
+        update_hash: bool = True,
+    ) -> t.Any:
         if login is None or password is None:
             return None
 
-        user = model.by_login(login)
+        user = model.get_by_login(login)
         if not user:
             logger.debug(f"User `{login}` not found")
             self.password_is_valid("invalid", self._decoy_password)
@@ -241,7 +222,12 @@ class Auth:
             self.update_password_hash(password, user)
         return user
 
-    def authenticate_token(self, model, token, token_life=None):
+    def authenticate_token(
+        self,
+        model: t.Any,
+        token: str | None,
+        token_life: int | None = None,
+    ) -> t.Any:
         if token is None:
             return None
 
@@ -249,7 +235,11 @@ class Auth:
             return self.authenticate_timestamped_token(model, token, token_life)
         return self.authenticate_session_token(model, token)
 
-    def authenticate_session_token(self, model, token):
+    def authenticate_session_token(
+        self,
+        model: t.Any,
+        token: str | None,
+    ) -> t.Any:
         if token is None:
             return None
         user_id, _ = self.split_session_token(token)
@@ -257,7 +247,7 @@ class Auth:
             logger.info("Invalid token format")
             return None
 
-        user = model.by_id(user_id)
+        user = model.get_by_id(user_id)
         if not user:
             logger.info(f"Invalid token. User `{user_id[:20]}` not found")
             return None
@@ -268,15 +258,20 @@ class Auth:
 
         return user
 
-    def authenticate_timestamped_token(self, model, token, token_life):
+    def authenticate_timestamped_token(
+        self,
+        model: t.Any,
+        token: str | None,
+        token_life: int,
+    ) -> t.Any:
         if token is None:
             return None
         user_id, timestamp = self.split_timestamped_token(token)
-        if not user_id:
+        if user_id is None or timestamp is None:
             logger.info("Invalid token format")
             return None
 
-        user = model.by_id(user_id)
+        user = model.get_by_id(user_id)
         if not user:
             logger.info(f"Invalid token. User `{user_id[:20]}` not found")
             return None
@@ -292,14 +287,14 @@ class Auth:
 
         return user
 
-    def split_session_token(self, token):
+    def split_session_token(self, token: str) -> tuple[str | None, str | None]:
         try:
             uid, mac = token.split("$", 1)
             return uid, mac
         except ValueError:
             return None, None
 
-    def split_timestamped_token(self, token):
+    def split_timestamped_token(self, token: str) -> tuple[str | None, int | None]:
         try:
             uid, t36, mac = token.split("$", 2)
             return uid, from36(t36)

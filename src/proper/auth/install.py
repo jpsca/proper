@@ -71,7 +71,7 @@ def install(app: "App", migration=False) -> None:
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
-    call("pip install argon2-cffi")
+    call("poetry add argon2-cffi")
 
     if migration:
         call('proper db revision "Create users table"')

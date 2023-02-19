@@ -21,7 +21,7 @@ ERROR_PASSWORD_UNCONFIRMED = "Passwords don't match.<br>Remember that are case-s
 def login_exists(values):
     if not values:
         return False, ERROR_LOGIN
-    if not User.by_login(values[0]):
+    if not User.get_by_login(values[0]):
         return False, ERROR_LOGIN
     return True
 

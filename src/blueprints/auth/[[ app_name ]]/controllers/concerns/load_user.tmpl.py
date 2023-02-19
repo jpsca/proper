@@ -26,7 +26,7 @@ class LoadUser:
         """Simulate authentication for testing."""
         user_id = getenv(REMOTE_USER_ENV_VAR)
         if user_id:
-            return User.by_id(user_id)
+            return User.get_by_id(user_id)
 
     def _get_user(self, session):
         token = session.get(USER_SESSION_KEY)

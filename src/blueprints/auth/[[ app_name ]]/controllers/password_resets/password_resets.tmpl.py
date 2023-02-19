@@ -19,7 +19,7 @@ class PasswordResets(AppController):
             return self.render("PasswordResets.New", status=unprocessable)
 
         login = self.form.save()["login"]
-        user = User.by_login(login)
+        user = User.get_by_login(login)
         send_password_reset_email(user)
         self.email = user.email
 
@@ -46,7 +46,8 @@ class PasswordResets(AppController):
             return self.render("PasswordResets.Edit", status=unprocessable)
 
         new_password = self.form.save()["password"][0]
-        user.set_new_password(new_password)
+        user.set_password(new_password)
+        user.save()
         user.sign_in()
         self._go_forward(flash="Password updated")
 

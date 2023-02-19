@@ -3,6 +3,7 @@ import subprocess
 import typing as t
 from pathlib import Path
 
+import peewee
 from proper_cli import Cli
 
 if t.TYPE_CHECKING:
@@ -25,6 +26,7 @@ EXAMPLE_COM_IP = "93.184.216.34"
 
 
 def get_app_cli() -> t.Type[Cli] | None:
+    breakpoint()
     try:
         from wsgi import app
     except ImportError:
@@ -40,8 +42,8 @@ def get_app_cli() -> t.Type[Cli] | None:
         """,
         "run": get_run_server(app),
         "routes": get_routes_cmd(app),
-        "db": app.alembic.get_proper_cli() if app.alembic else None,
         "credentials": get_credentials_cmd(app),
+        "db": get_db_cli(app),
         "static": get_static_cli(app),
         "g": get_generators_cli(app),
         "install": get_install_cli(app),
@@ -142,6 +144,18 @@ def get_generators_cli(app: "App") -> t.Type[Cli]:
         attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
     return type("Generators", (Cli,), attrs)
+
+
+def get_db_cli(app: "App") -> t.Type[Cli]:
+    class DB(Cli):
+        def create_tables(self):
+            """Create tables for all models
+            """
+            models = [peewee.Model.__subclasses__()]
+            with app.db.connection_context():
+                app.db.create_tables(models)
+
+    return DB
 
 
 def get_static_cli(app: "App") -> t.Type[Cli]:

@@ -1,35 +1,36 @@
 
-from .app import app, db
+from .app import app
 from .models import User
 
 
 class AuthCli(Cli):
-    def user(self, login, password):
+    def user(self, login: str, password: str) -> None:
         """
         Adds an user.
 
-        Arguments:
-          - login:    Username
-          - password: Plain-text password (will be encrypted)
+        Args:
+            login:    Username
+            password: Plain-text password (will be encrypted)
+
         """
-        db.s.create(User, login=login, password=password)
-        db.s.commit()
+        User.create(login=login, password=password)
         print("User added")
 
-    def password(self, login, password):
+    def password(self, login: str, password: str) -> None:
         """
-        Set the password of a user.
+        Set the password of a user
 
-        Arguments:
-          - login:    Username
-          - password: Plain-text password (will be encrypted)
+        Args:
+            login:    Username
+            password: Plain-text password (will be encrypted)
+
         """
-        user = User.by_login(login)
+        user = User.get_by_login(login)
         if not user:
             print("User not found")
             return
-        user.password = password
-        db.s.commit()
+        user.set_password(password)
+        user.save()
         print("Password updated")
 
 

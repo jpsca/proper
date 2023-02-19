@@ -1,8 +1,17 @@
-from ..app import db
-from .concerns import Authenticable, Timestamped
+from datetime import datetime
+
+from peewee import *  # noqa
+
+from .base import BaseModel
+from .concerns import Authenticable
 
 
-class User(Authenticable, Timestamped, db.Model):
-    __tablename__ = "users"
+class User(Authenticable, BaseModel):
+    created_at = DateTimeField(default=datetime.utcnow)
 
-    id = db.Column(db.Integer, primary_key=True)
+    def __init__(self, **kwargs):
+        if "login" in kwargs:
+            self.set_login(kwargs.pop("login"))
+        if "password" in kwargs:
+            self.set_password(kwargs.pop("password"))
+        super().__init__(**kwargs)

@@ -33,8 +33,6 @@ class HueyScheduler(Scheduler):
 
         self.pre_execute = self.huey.pre_execute
         self.post_execute = self.huey.post_execute
-        self.pre_execute(app.db.engine.dispose)
-        self.post_execute(app.db.s.remove)
 
         super().__init__(app, **config)
 

@@ -1,6 +1,6 @@
 import inflection
 
-from ..app import db
+from ..app import app
 
 
 def make_table_name(cls):
@@ -9,5 +9,5 @@ def make_table_name(cls):
 
 class BaseModel(Model):
     class Meta:
-        database = db
+        database = app.db
         table_function = make_table_name
