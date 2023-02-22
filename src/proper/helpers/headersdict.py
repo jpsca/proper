@@ -1,10 +1,10 @@
-from .dot import Dot
+from .dotdict import DotDict
 
 
 __all__ = ("HeadersDict",)
 
 
-class HeadersDict(Dot):
+class HeadersDict(DotDict):
     """A `proper.Dot` that provides case-insensitive and underscores-to-dashes
     to HTTP request headers.
     """

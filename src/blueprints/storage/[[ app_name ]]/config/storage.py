@@ -1,20 +1,20 @@
-from proper import Dot, is_development_env, is_testing_env, is_staging_or_production_env
+from proper import DotDict, is_development_env, is_testing_env, is_staging_or_production_env
 
 
-storage_config = Dot()
+storage_config = DotDict()
 
-local = Dot()
+local = DotDict()
 local.service = "disk"
 local.root = "storage/"
 storage_config.local = local
 
-test = Dot()
+test = DotDict()
 test.service = "disk"
 test.root = "temp/storage"
 storage_config.test = test
 
 # Replace with your real production service
-amazon = Dot()
+amazon = DotDict()
 amazon.service = "s3"
 amazon.access_key_id = ""  # IN CREDENTIALS
 amazon.secret_access_key = ""  # IN CREDENTIALS

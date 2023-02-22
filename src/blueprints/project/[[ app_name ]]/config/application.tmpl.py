@@ -1,12 +1,12 @@
 from datetime import timedelta
 
-from proper import Dot
+from proper import DotDict
 
 from .database import database_config
 from .scheduler import scheduler_config
 
 
-config = Dot()
+config = DotDict()
 
 config.debug = False
 config.host = "http://127.0.0.1:2300"
@@ -25,10 +25,10 @@ config.max_content_length = 2**23  # 8 MB
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
 config.max_query_size = 2**20  # 1 MB
 
-config.session = Dot()
+config.session = DotDict()
 config.session.lifetime = timedelta(days=30).total_seconds()
 
-config.session.cookie = Dot()
+config.session.cookie = DotDict()
 config.session.cookie.name = "_session"
 config.session.cookie.domain = None
 config.session.cookie.path = "/"
@@ -36,7 +36,7 @@ config.session.cookie.httponly = True
 config.session.cookie.secure = False
 config.session.cookie.samesite = None  # "Lax", "Strict", or None
 
-config.static = Dot()
+config.static = DotDict()
 config.static.host = None
 
 # When set to False then compressed files will not be created but static files
@@ -49,7 +49,7 @@ config.static.paths = [
     # {"path": "FOLDER_PATH", "prefix": "URL"},
 ]
 
-config.mailer = Dot()
+config.mailer = DotDict()
 config.mailer.default_from = "hello@example.com"
 
 config.database = database_config

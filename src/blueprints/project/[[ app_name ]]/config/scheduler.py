@@ -1,7 +1,7 @@
-from proper import Dot, is_staging_or_production_env
+from proper import DotDict, is_staging_or_production_env
 
 
-scheduler_config = Dot()
+scheduler_config = DotDict()
 
 scheduler_config.type = "redis"
 # If True, run synchronously and ignore the type above
@@ -12,7 +12,7 @@ scheduler_config.store_none = False  # If a task returns None, do not save to re
 scheduler_config.utc = True  # Use UTC for all times internally
 scheduler_config.blocking = True  # Perform blocking pop rather than poll Redis
 
-connection = Dot()
+connection = DotDict()
 connection.host = "localhost"
 connection.port = 6379
 connection.db = 0
@@ -21,7 +21,7 @@ connection.read_timeout = 1  # If not polling (blocking pop), use timeout
 connection.url = None  # Allow Redis config via a DSN
 scheduler_config.connection = connection
 
-consumer = Dot()
+consumer = DotDict()
 consumer.workers = 1
 consumer.worker_type = "thread"
 consumer.initial_delay = 0.1  # Smallest polling interval

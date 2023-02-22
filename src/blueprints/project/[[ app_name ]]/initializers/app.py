@@ -6,11 +6,11 @@ from ..controllers import Page
 
 
 app.db = PostgresqlExtDatabase(
-    name=config.db.name,
-    host=config.db.host,
-    port=config.db.port,
-    user=config.db.user,
-    password=config.db.password,
+    config.database.name,
+    host=config.database.host,
+    port=config.database.port,
+    user=config.database.user,
+    password=config.database.password,
 )
 
 app.on_before_dispatch(app.db.connect)

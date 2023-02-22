@@ -1,7 +1,6 @@
 import os
 import sys
 from pathlib import Path
-from typing import Union
 import inflection
 from proper_cli import confirm
 
@@ -12,7 +11,7 @@ PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 
 def gen_project(
-    path: "Union[Path, str]",
+    path: str | Path,
     *,
     name: str = "",
     force: bool = False,
@@ -33,9 +32,9 @@ def gen_project(
 
     Arguments:
 
-    - path: Where to create the new application.
-    - name [None]: Optional name of the app instead of the one in `path`
-    - force [False]: Overwrite files that already exist, without asking.
+        - path: Where to create the new application.
+        - name [None]: Optional name of the app instead of the one in `path`
+        - force [False]: Overwrite files that already exist, without asking.
 
     """
     path = Path(path).resolve().absolute()

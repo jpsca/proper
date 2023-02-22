@@ -1,14 +1,11 @@
 import copy
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any, Iterable, Optional, Tuple, Union
-    TDictOrIter = Optional[Union[dict, Iterable[Tuple[Any, Any]]]]
-
-__all__ = ("Dot",)
+import typing as t
 
 
-class Dot(dict):
+__all__ = ("DotDict",)
+
+
+class DotDict(dict):
     """A dict that:
 
     1. Allows `obj.foo` in addition to `obj['foo']` and
@@ -19,7 +16,7 @@ class Dot(dict):
 
     def __init__(
         self,
-        dict_or_iter: "TDictOrIter" = None,
+        dict_or_iter: dict | t.Iterable[tuple[t.Any, t.Any]] | None = None,
         **kw
     ) -> None:
         super().__init__()
@@ -28,23 +25,23 @@ class Dot(dict):
     def _key_encode(self, key: object) -> object:
         return key
 
-    def __setattr__(self, name: str, value: "Any") -> None:
+    def __setattr__(self, name: str, value: t.Any) -> None:
         if name.startswith("__"):
             return super().__setattr__(name, value)
 
         return self.__setitem__(name, value)
 
-    def __getattr__(self, name: str) -> "Any":
+    def __getattr__(self, name: str) -> t.Any:
         if name.startswith("__"):
             return super().__getattribute__(name)
 
         return self.__getitem__(name)
 
-    def __getitem__(self, key: object) -> "Any":
+    def __getitem__(self, key: object) -> t.Any:
         key = self._key_encode(key)
         return super().__getitem__(key)
 
-    def __setitem__(self, key: object, value: "Any") -> None:
+    def __setitem__(self, key: object, value: t.Any) -> None:
         key = self._key_encode(key)
         if isinstance(value, dict):
             value = self.__class__(value)
@@ -57,11 +54,11 @@ class Dot(dict):
     def __contains__(self, key: object) -> bool:
         return self._key_encode(key) in super().keys()
 
-    def setdefault(self, key: object, default: "Any" = None) -> None:
+    def setdefault(self, key: object, default: t.Any = None) -> None:
         key = self._key_encode(key)
         return super().setdefault(key, default)
 
-    def get(self, key: object, default: "Any" = None) -> "Any":
+    def get(self, key: object, default: t.Any = None) -> t.Any:
         key = self._key_encode(key)
         return super().get(key, default)
 

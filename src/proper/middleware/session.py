@@ -2,7 +2,7 @@ import typing as t
 from types import MappingProxyType
 
 from ..constants import FLASHES_SESSION_KEY
-from ..helpers import BadSignature, Dot  # type: ignore
+from ..helpers import BadSignature, DotDict  # type: ignore
 
 if t.TYPE_CHECKING:
     from proper import App, Request, Response
@@ -18,7 +18,7 @@ def fetch_session(request: "Request", response: "Response", app: "App") -> None:
     """Get the session data from the cookie and puts into the request
     and response.
     """
-    session = Dot(get_session(request, app))
+    session = DotDict(get_session(request, app))
     request._session = MappingProxyType(session)
     response._session = session.copy()
     response._session.pop(FLASHES_SESSION_KEY, None)

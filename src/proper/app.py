@@ -9,7 +9,7 @@ from pathlib import Path
 import inflection
 import jinjax
 from markupsafe import Markup
-from peewee import SqliteDatabase
+from peewee import Database, SqliteDatabase
 from whitenoise import WhiteNoise
 
 from . import middleware, status
@@ -24,7 +24,7 @@ from .error_handlers import (
 )
 from .auth import Auth
 from .errors import MatchNotFound, MethodNotAllowed
-from .helpers import Dot, Serializer
+from .helpers import DotDict, Serializer
 from .middleware.dispatch import dispatch
 from .request_wrapper import Request
 from .response_wrapper import Response
@@ -78,6 +78,8 @@ class App:
     # subclasses of HTTPError.
     error_handlers: dict[TException, t.Any] = {}
 
+    db: Database
+
     def __init__(
         self,
         import_name: str,
@@ -112,7 +114,7 @@ class App:
         return self._wrapped_wsgi(environ, start_response)
 
     @property
-    def config(self) -> Dot:
+    def config(self) -> DotDict:
         return self._config
 
     @property
@@ -298,7 +300,7 @@ class App:
         config.secret_key = self._validate_secret_key(config.secret_key)
         self._config = config
 
-    def _load_config(self) -> Dot:
+    def _load_config(self) -> DotDict:
         config = get_default_config()
         config_file = self.config_path / f"{self.env}.py"
         if config_file.is_file():
@@ -310,10 +312,10 @@ class App:
             logger.warning(f"{config_file} cannot be imported")
         return config
 
-    def _load_credentials(self) -> Dot:
+    def _load_credentials(self) -> DotDict:
         cryptex = Cryptex(self.credentials_path, self.env)
         credentials = cryptex.load()
-        return Dot(credentials)
+        return DotDict(credentials)
 
     def _validate_secret_key(self, secret_key: str | None) -> str:
         secret_key = str(secret_key or "")

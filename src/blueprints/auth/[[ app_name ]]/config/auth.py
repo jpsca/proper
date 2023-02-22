@@ -1,7 +1,7 @@
-from proper import Dot
+from proper import DotDict
 
 
-auth_config = Dot()
+auth_config = DotDict()
 auth_config.hash_name = "argon2"
 auth_config.rounds = None  # default
 auth_config.password_minlen = 9
