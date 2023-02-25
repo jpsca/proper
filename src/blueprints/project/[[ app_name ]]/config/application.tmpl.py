@@ -3,6 +3,7 @@ from datetime import timedelta
 from proper import DotDict
 
 from .database import database_config
+from .redis import redis_config
 from .scheduler import scheduler_config
 
 
@@ -53,4 +54,5 @@ config.mailer = DotDict()
 config.mailer.default_from = "hello@example.com"
 
 config.database = database_config
+config.redis = redis_config
 config.scheduler = scheduler_config

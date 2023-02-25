@@ -1,52 +1,40 @@
 import sys
-from typing import TYPE_CHECKING
+import typing as t
 
 import huey
-import inflection
 from huey.consumer import Consumer
 
-from .scheduler import Scheduler
 
-if TYPE_CHECKING:
-    from typing import Callable
-    from proper import App
-
-
-DEFAULT_HUEY_TYPE = "memory"
-
-
-class HueyScheduler(Scheduler):
+class HueyScheduler:
     running = False
 
-    def __init__(self, app: "App", **config) -> None:
-        self.app = app
-
+    def __init__(self, **config) -> None:
         consumer_config = config.pop("consumer", {})
-        huey_type = config.pop("type", DEFAULT_HUEY_TYPE)
-        cls = f"{inflection.camelize(huey_type)}Huey"
-        Cls = getattr(huey, cls)
-
+        Cls = getattr(huey, config.pop("type"))
         self.huey = Cls(**config)
         self.consumer = None
         if not config.get("inmediate", True):
             self.consumer = Consumer(self.huey, **consumer_config)
 
-        self.pre_execute = self.huey.pre_execute
-        self.post_execute = self.huey.post_execute
+    @property
+    def pre_execute(self):
+        return self.huey.pre_execute
 
-        super().__init__(app, **config)
+    @property
+    def post_execute(self):
+        return self.huey.post_execute
 
-    def task(self, **kw) -> "Callable":
+    def task(self, **kw) -> "t.Callable":
         return self.huey.task(**kw)
 
-    def periodic_task(self, validate_datetime: "Callable", **kw) -> "Callable":
+    def periodic_task(self, validate_datetime: "t.Callable", **kw) -> "t.Callable":
         return self.huey.periodic_task(validate_datetime=validate_datetime, **kw)
 
     def start(self) -> None:
         if self.running or not self.consumer:
             return
 
-        if sys.version_info >= (3, 8) and sys.platform == "darwin":
+        if sys.platform == "darwin":
             import multiprocessing
 
             try:
@@ -56,7 +44,7 @@ class HueyScheduler(Scheduler):
         self.consumer.start()
         self.running = True
 
-    def shutdown(self, wait=True) -> None:
+    def shutdown(self, wait: bool = True) -> None:
         if not self.running:
             return
         print("Stopping scheduler...")

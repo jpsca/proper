@@ -1,5 +1,7 @@
 from proper import DotDict, is_staging_or_production_env
 
+from .redis import redis_config
+
 
 scheduler_config = DotDict()
 
@@ -13,9 +15,11 @@ scheduler_config.utc = True  # Use UTC for all times internally
 scheduler_config.blocking = True  # Perform blocking pop rather than poll Redis
 
 connection = DotDict()
-connection.host = "localhost"
-connection.port = 6379
-connection.db = 0
+connection.host = redis_config.host
+connection.port = redis_config.port
+connection.user = redis_config.user
+connection.password = redis_config.password
+connection.db = redis_config.db
 connection.connection_pool = None  # Definitely you should use pooling
 connection.read_timeout = 1  # If not polling (blocking pop), use timeout
 connection.url = None  # Allow Redis config via a DSN

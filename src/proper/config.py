@@ -64,48 +64,8 @@ def get_default_config():
         # {"path": "FOLDER_PATH", "prefix": "URL"},
     ]
 
-    config.database = DotDict()
-    config.database.dialect = "sqlite+pysqlite"
-    config.database.name = ":memory:"
-    config.database.host = None
-    config.database.port = None
-    config.database.user = None
-    config.database.password = None
-    config.database.engine_options = None  # default
-    config.database.session_options = {"expire_on_commit": False}
-    config.database.migrations = None
-
     config.mailer = DotDict()
     config.mailer.default_from = "hello@example.com"
-
-    scheduler = config.scheduler = DotDict()
-    scheduler.type = "redis"
-    # If True, run synchronously and ignore the type above
-    scheduler.immediate = True
-
-    scheduler.results = True  # Store return values of tasks
-    scheduler.store_none = False  # If a task returns None, do not save to results
-    scheduler.utc = True  # Use UTC for all times internally
-    scheduler.blocking = True  # Perform blocking pop rather than poll Redis
-
-    scheduler.connection = DotDict()
-    scheduler.connection.host = "localhost"
-    scheduler.connection.port = 6379
-    scheduler.connection.db = 0
-    scheduler.connection.connection_pool = None  # Definitely you should use pooling
-    scheduler.connection.read_timeout = 1  # If not polling (blocking pop), use timeout
-    scheduler.connection.url = None  # Allow Redis config via a DSN
-
-    scheduler.consumer = DotDict()
-    scheduler.consumer.workers = 1
-    scheduler.consumer.worker_type = "thread"
-    scheduler.consumer.initial_delay = 0.1  # Smallest polling interval
-    scheduler.consumer.backoff = 1.15  # Exponential backoff using this rate
-    scheduler.consumer.max_delay = 10.0  # Max possible polling interval
-    scheduler.consumer.scheduler_interval = 1  # Check schedule every second
-    scheduler.consumer.periodic = True  # Enable crontab feature
-    scheduler.consumer.check_worker_health = True  # Enable worker health checks
-    scheduler.consumer.health_check_interval = 1  # Check worker health every second
 
     config.auth = DotDict()
     config.auth.hash_name = None  # default

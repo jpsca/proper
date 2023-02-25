@@ -102,12 +102,14 @@ class App:
         self._setup_middleware()
         self._setup_router()
         self._setup_serializer()
-        self._setup_db()
+
+        # Fallback services
+        self.db = SqliteDatabase(":memory:")
+        self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
 
         self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
-        self._setup_scheduler()
         self._setup_auth()
 
     def __call__(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
@@ -356,9 +358,6 @@ class App:
     def _setup_serializer(self) -> None:
         self.serializer = Serializer(self._config.secret_key)
 
-    def _setup_db(self) -> None:
-        self.db = SqliteDatabase(":memory:")
-
     def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
         if not self._config.debug and path.exists():
@@ -401,12 +400,6 @@ class App:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
             wn.add_files(path, prefix=prefix)
-
-    def _setup_scheduler(self) -> None:
-        if not self._config.scheduler:
-            self.scheduler = None
-            return
-        self.scheduler = HueyScheduler(self, **self._config.scheduler)
 
     def _setup_auth(self) -> None:
         if not self._config.auth:

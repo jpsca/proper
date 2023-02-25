@@ -1,7 +1,8 @@
 import proper
+from proper import HueyScheduler
 from playhouse.postgres_ext import PostgresqlExtDatabase
 
-from ..app import app, config, scheduler
+from ..app import app, config
 from ..controllers import Page
 
 
@@ -13,12 +14,33 @@ app.db = PostgresqlExtDatabase(
     password=config.database.password,
 )
 
-app.on_before_dispatch(app.db.connect)
-app.on_error(app.db.rollback)
-app.on_teardown(app.db.close)
+app.scheduler = HueyScheduler(**config.scheduler)
 
-scheduler.pre_execute(app.db.connect)
-scheduler.post_execute(app.db.close)
+
+@app.on_before_dispatch
+def on_before_dispatch(req, resp):
+    if app.db:
+        app.db.connect()
+
+
+@app.on_error
+def on_error(req, resp):
+    if app.db:
+        app.db.rollback()
+
+
+@app.on_teardown
+def on_teardown(req, resp):
+    if app.db:
+        app.db.close()
+
+
+app.on_dev_start(app.scheduler.start)
+app.on_dev_shutdown(app.scheduler.shutdown)
+
+app.scheduler.pre_execute(app.db.connect)
+app.scheduler.post_execute(app.db.close)
+
 
 # You can call your own views for handling any kind of exception, not
 # only HTTP exceptions but custom ones or even native Python exceptions
@@ -29,4 +51,3 @@ scheduler.post_execute(app.db.close)
 # so you can test their design.
 app.error_handler(proper.errors.NotFound, Page.not_found)  # /_not_found
 app.error_handler(Exception, Page.error)  # /_exception
-

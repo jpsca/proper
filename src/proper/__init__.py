@@ -5,6 +5,7 @@ from .helpers import *  # noqa
 from .request_wrapper import *  # noqa
 from .response_wrapper import *  # noqa
 from .router import *  # noqa
+from .scheduler import HueyScheduler  # noqa
 
 
 request = Proxy(_request_cv.get)
