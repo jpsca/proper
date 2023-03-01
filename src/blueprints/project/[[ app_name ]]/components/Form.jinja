@@ -9,11 +9,12 @@
   {% set real_method = '' -%}
 {% endif -%}
 
-{% do attrs.update(method=method, action=action) -%}
-{% if multipart %}{% do attrs.add("enctype", "multipart/form-data") %}{% endif -%}
-{% if novalidate %}{% do attrs.add("novalidate") %}{% endif -%}
-
-<form {{ attrs.render() }}>
+<form {{ attrs.render(
+  method=method,
+  action=action,
+  enctype="multipart/form-data" if multipart else None,
+  novalidate=novalidate
+) }}>
   {% if method == "post" -%}
     <input type="hidden" name="csrf_token" value="{{ request.csrf_token }}">
   {%- endif %}

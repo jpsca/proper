@@ -18,7 +18,7 @@ APPLICATION_CONTROLLER = "controllers/app.py"
 CONFIG_PATH = "config/app.py"
 
 DEPENDENCIES = [
-    "argon2-cffi"
+    "argon2-cffi",
     "confusable_homoglyphs",
 ]
 

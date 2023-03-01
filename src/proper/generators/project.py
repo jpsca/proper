@@ -38,6 +38,7 @@ def gen_project(
 
     """
     path = Path(path).resolve().absolute()
+    path.mkdir(parents=True, exist_ok=False)
     app_name = inflection.underscore(name or str(path.stem))
 
     BlueprintRender(
@@ -65,7 +66,8 @@ def _install_dependencies(path: Path) -> bool:
     print()
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
-    call("poetry install --with dev,test")
+    call("poetry export --with dev,test -o requirements.txt")
+    call(".venv/bin/pip install -r requirements.txt && rm requirements.txt")
     call("npm install --no-audit --no-fund")
     call(".venv/bin/pip install -e ../proper/")
     return True

@@ -1,12 +1,12 @@
-"""Import all the models in this folder.
+"""Auto-import all the classes in this folder.
 """
 from importlib import import_module
 from inspect import isclass
 from pathlib import Path
 from pkgutil import iter_modules
 
-from ..app import app
 
+modules = {}
 
 # iterate through the modules in the current package
 package_dir = str(Path(__file__).resolve().parent)
@@ -17,6 +17,9 @@ for (_, module_name, _) in iter_modules([package_dir]):
     for attribute_name in dir(module):
         attribute = getattr(module, attribute_name)
 
-        if isclass(attribute) and issubclass(attribute, app.db.Model):
+        if isclass(attribute):
             # Add the class to this package's variables
-            globals()[attribute_name] = attribute
+            modules[attribute_name] = attribute
+
+
+globals().update(modules)
