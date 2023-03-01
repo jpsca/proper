@@ -1,5 +1,5 @@
 from proper import Controller, get, status
-from proper.helpers import Dot
+from proper.helpers import DotDict
 
 
 class AppController(Controller):
@@ -82,7 +82,7 @@ class Redirect(AppController):
         self.response.redirect_to("Redirect.show", id=1, slug="something")
 
     def compact(self):
-        post = Dot({"id": 1, "slug": "something"})
+        post = DotDict({"id": 1, "slug": "something"})
         self.response.redirect_to("Redirect.show", post)
 
 

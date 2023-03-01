@@ -1,7 +1,6 @@
 import os
 import sys
 from pathlib import Path
-from typing import Union
 import inflection
 from proper_cli import confirm
 
@@ -12,7 +11,7 @@ PROJECT_BLUEPRINT = BLUEPRINTS / "project"
 
 
 def gen_project(
-    path: "Union[Path, str]",
+    path: str | Path,
     *,
     name: str = "",
     force: bool = False,
@@ -33,12 +32,13 @@ def gen_project(
 
     Arguments:
 
-    - path: Where to create the new application.
-    - name [None]: Optional name of the app instead of the one in `path`
-    - force [False]: Overwrite files that already exist, without asking.
+        - path: Where to create the new application.
+        - name [None]: Optional name of the app instead of the one in `path`
+        - force [False]: Overwrite files that already exist, without asking.
 
     """
     path = Path(path).resolve().absolute()
+    path.mkdir(parents=True, exist_ok=False)
     app_name = inflection.underscore(name or str(path.stem))
 
     BlueprintRender(
@@ -66,9 +66,10 @@ def _install_dependencies(path: Path) -> bool:
     print()
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
-    call(".venv/bin/pip install -U black ipdb uwsgi flake8 flake8-bugbear pytest")
+    call("poetry export --with dev,test -o requirements.txt")
+    call(".venv/bin/pip install -r requirements.txt && rm requirements.txt")
+    call("npm install --no-audit --no-fund")
     call(".venv/bin/pip install -e ../proper/")
-    call(".venv/bin/pip install -e .")
     return True
 
 
@@ -80,6 +81,7 @@ def _wrap_up(path: Path, deps_installed: bool) -> None:
     print("   $ cd " + path.stem + "")
     if deps_installed:
         print("   $ source .venv/bin/activate")
+        print("   $ make db")
     else:
         print("   $ python -m venv .venv")
         print("   $ source .venv/bin/activate")

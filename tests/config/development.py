@@ -1,4 +1,4 @@
-from proper import Dot
+from proper import DotDict
 
-config = Dot()
+config = DotDict()
 config.lorem = "ipsum"

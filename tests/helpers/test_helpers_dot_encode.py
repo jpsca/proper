@@ -1,7 +1,7 @@
-from proper.helpers import Dot
+from proper.helpers import DotDict
 
 
-class UpperDot(Dot):
+class UpperDot(DotDict):
     def _key_encode(self, key):
         if isinstance(key, str):
             key = key.upper()

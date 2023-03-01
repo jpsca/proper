@@ -9,7 +9,6 @@ from pathlib import Path
 import inflection
 import jinjax
 from markupsafe import Markup
-from sqla_wrapper import Alembic, SQLAlchemy
 from whitenoise import WhiteNoise
 
 from . import middleware, status
@@ -23,8 +22,9 @@ from .error_handlers import (
     fallback_not_found_handler,
 )
 from .auth import Auth
+from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
-from .helpers import Dot, Serializer
+from .helpers import DotDict, Serializer
 from .middleware.dispatch import dispatch
 from .request_wrapper import Request
 from .response_wrapper import Response
@@ -78,6 +78,9 @@ class App:
     # subclasses of HTTPError.
     error_handlers: dict[TException, t.Any] = {}
 
+    db: t.Any
+    scheduler: t.Any
+
     def __init__(
         self,
         import_name: str,
@@ -100,18 +103,21 @@ class App:
         self._setup_middleware()
         self._setup_router()
         self._setup_serializer()
-        self._setup_db()
+
+        # Fallback scheduler
+        self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
+
         self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
-        self._setup_scheduler()
         self._setup_auth()
+        self._setup_cli()
 
     def __call__(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
         return self._wrapped_wsgi(environ, start_response)
 
     @property
-    def config(self) -> Dot:
+    def config(self) -> DotDict:
         return self._config
 
     @property
@@ -297,7 +303,7 @@ class App:
         config.secret_key = self._validate_secret_key(config.secret_key)
         self._config = config
 
-    def _load_config(self) -> Dot:
+    def _load_config(self) -> DotDict:
         config = get_default_config()
         config_file = self.config_path / f"{self.env}.py"
         if config_file.is_file():
@@ -309,10 +315,10 @@ class App:
             logger.warning(f"{config_file} cannot be imported")
         return config
 
-    def _load_credentials(self) -> Dot:
+    def _load_credentials(self) -> DotDict:
         cryptex = Cryptex(self.credentials_path, self.env)
         credentials = cryptex.load()
-        return Dot(credentials)
+        return DotDict(credentials)
 
     def _validate_secret_key(self, secret_key: str | None) -> str:
         secret_key = str(secret_key or "")
@@ -341,8 +347,8 @@ class App:
             partial(middleware.put_session, app=self),
             partial(middleware.strip_body_if_head, app=self),
         )
-        self._on_error = (self._rollback_db_session,)
-        self._on_teardown = (self._remove_db_session,)
+        self._on_error = tuple()
+        self._on_teardown = tuple()
 
         self.error_handlers = {}
 
@@ -352,23 +358,6 @@ class App:
 
     def _setup_serializer(self) -> None:
         self.serializer = Serializer(self._config.secret_key)
-
-    def _setup_db(self) -> None:
-        config = self._config
-        self.db = SQLAlchemy(
-            dialect=config.database.dialect,
-            name=config.database.name,
-            user=config.database.user,
-            password=config.database.password,
-            host=config.database.host,
-            port=config.database.port,
-            engine_options=config.database.engine_options,
-            session_options=config.database.session_options,
-        )
-        if config.database.migrations:
-            self.alembic = Alembic(self.db, config.database.migrations)
-        else:
-            self.alembic = None
 
     def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
@@ -413,15 +402,8 @@ class App:
             prefix = sp["prefix"].lstrip("/\\")
             wn.add_files(path, prefix=prefix)
 
-    def _setup_scheduler(self) -> None:
-        if not self._config.scheduler:
-            self.scheduler = None
-            return
-        self.scheduler = HueyScheduler(self, **self._config.scheduler)
-
     def _setup_auth(self) -> None:
         if not self._config.auth:
-            self.auth = None
             return
         config = self._config
         self.auth = Auth(
@@ -431,6 +413,9 @@ class App:
             password_minlen=config.auth.password_minlen,
             password_maxlen=config.auth.password_maxlen,
         )
+
+    def _setup_cli(self) -> None:
+        self.Cli = get_app_cli(self)
 
     def _handle_app_error(self, request: Request, response: Response) -> None:
         """Call the registered exception handler if exists or the fallback
@@ -489,9 +474,3 @@ class App:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
         dispatch(request, response, self)
-
-    def _rollback_db_session(self, *args, **kw) -> None:
-        self.db.s.rollback()
-
-    def _remove_db_session(self, *args, **kw) -> None:
-        self.db.s.remove()

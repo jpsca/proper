@@ -28,29 +28,51 @@ if TYPE_CHECKING:
 
 __all__ = ("Response",)
 
-DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-MONTHS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-]
-DEFAULT_MAX_COOKIE_SIZE = 4093
-
 
 def is_iterable(obj: "Any") -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
 
 class Response:
+    DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    MONTHS = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+    DEFAULT_MAX_COOKIE_SIZE = 4093
+    TYPES_MAP = {
+        "css": "text/css",
+        "csv": "text/csv",
+        "gif": "image/gif",
+        "heic": "image/heic",
+        "heif": "image/heif",
+        "html": "text/html",
+        "ico": "image/vnd.microsoft.icon",
+        "jpeg": "image/jpeg",
+        "jpg": "image/jpeg",
+        "js": "application/javascript",
+        "json": "application/json",
+        "mp3": "audio/mpeg",
+        "mp4": "video/mp4",
+        "pdf": "application/pdf",
+        "png": "image/png",
+        "svg": "image/svg+xml",
+        "txt": "text/plain",
+        "webm": "video/webm",
+        "webmanifest": "application/manifest+json",
+        "xls": "application/vnd.ms-excel",
+    }
+
     headers: "HeadersDict"
     cookies: "CookiesDict"
     flash: "FlashDict"
@@ -124,6 +146,38 @@ class Response:
 
     def __repr__(self) -> str:
         return f"<Response “{self._status_code}”>"
+
+    # @classmethod
+    # def send_file(
+    #     self,
+    #     filename: str,
+    #     status_code: str = status.http_302,
+    #     content_type: str = ""):
+    #     """Send file contents in a response.
+
+    #     Args:
+    #         filename (str): The filename of the file.
+    #         status_code (str): The 3xx status code to use for the redirect. The
+    #             default is 302.
+    #         content_type (str): The `Content-Type` header to use in the
+    #             response. If omitted, it is generated automatically
+    #             from the file extension.
+
+    #     IMPORTANT: The filename is assumed to be trusted. Never pass filenames
+    #     provided by the user without validating and sanitizing them first.
+    #     """
+    #     if not content_type:
+    #         ext = filename.split(".")[-1].lower()
+    #         if ext in cls.TYPES_MAP:
+    #             content_type = cls.TYPES_MAP[ext]
+    #         else:
+    #             content_type = "application/octet-stream"
+
+    #     self.status_code = status_code
+    #     self.content_type = content_type
+    #     self.headers["Content-Type"] = content_type
+    #     self.start_response(status_code, self.headers_list)
+    #     return open(filename, "rb")
 
     @property
     def body(self) -> "Union[str, bytes, None]":
@@ -249,9 +303,7 @@ class Response:
             is None, no Comment value will be sent in the cookie.
 
         """
-        return add_cookie(
-            self.cookies, key, value, max_size=self.max_cookie_size, **kw
-        )
+        return add_cookie(self.cookies, key, value, max_size=self.max_cookie_size, **kw)
 
     def unset_cookie(self, name: str) -> None:
         """
@@ -321,7 +373,7 @@ class Response:
 
         if last_modified is not None:
             dt = last_modified
-            fmt = f"{DAYS[dt.weekday()]}, %d {MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
+            fmt = f"{self.DAYS[dt.weekday()]}, %d {self.MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
             self._last_modified = dt
             self.headers["Last-Modified"] = dt.strftime(fmt)
 

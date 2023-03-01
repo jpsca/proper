@@ -1,13 +1,25 @@
+import os
+import sys
+
 from proper_cli import *  # noqa
 
-from .cli_app import get_app_cli
 from .cli_proper import ProperCli
 
 
+def get_app():
+    sys.path.append(str(os.getcwd()))
+    try:
+        from wsgi import app
+    except ImportError as err:
+        print("---", err)
+        return None
+    return app
+
+
 def run():
-    app_cli = get_app_cli()
-    if app_cli is None:
+    app = get_app()
+    if app is None:
         cli = ProperCli()
     else:
-        cli = app_cli()
+        cli = app.Cli()
     cli()

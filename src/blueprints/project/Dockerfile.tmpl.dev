@@ -1,0 +1,39 @@
+FROM python:3.11
+
+ENV PATH="/opt/poetry/bin:$PATH"
+ENV PIP_DISABLE_PIP_VERSION_CHECK=on
+ENV PIP_NO_CACHE_DIR=on
+ENV POETRY_CACHE_DIR=/opt/.cache
+ENV POETRY_HOME=/opt/poetry
+ENV POETRY_VERSION=1.3.1
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONPATH=${PYTHONPATH}:${PWD}
+ENV PYTHONUNBUFFERED 1
+
+RUN set -ex &&\
+    apt-get update &&\
+    curl -sSL https://deb.nodesource.com/setup_18.x | bash - &&\
+    apt-get install -y --no-install-recommends \
+        bash nodejs libvips42 &&\
+    curl -sSL https://install.python-poetry.org | python3 - &&\
+    npm install --no-audit --no-fund -g npm@latest &&\
+    mkdir app
+
+WORKDIR app
+
+COPY package*.json pyproject.toml poetry*.lock *.whl ./
+RUN poetry export --with dev,test -o requirements.txt
+RUN npm install --no-audit --no-fund
+RUN pip install -U pip wheel && pip install -r requirements.txt
+
+COPY . .
+
+ENV DATABASE_HOST=db
+ENV DATABASE_NAME=[[ app_name ]]
+ENV DATABASE_USER=postgres
+ENV DATABASE_PASSWORD=postgres
+ENV REDIS_HOST=redis
+
+ENV APP_ENV=development
+
+CMD ["bash"]

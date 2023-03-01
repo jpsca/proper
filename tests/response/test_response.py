@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from proper import Dot, Request, Response
+from proper import DotDict, Request, Response
 
 
 def test_set_etag():
@@ -27,15 +27,15 @@ def test_invalid_etag_value():
 def test_fresh_when_from_objects():
     response = Response()
 
-    obj = Dot({"updated_at": datetime(2020, 11, 24, 17, 17, 0)})
+    obj = DotDict({"updated_at": datetime(2020, 11, 24, 17, 17, 0)})
     response.fresh_when(obj)
     assert response.headers["ETag"] == 'W/"77292437646103d054834b5a9f9cbf5d"'
     assert response.headers["Last-Modified"] == "Tue, 24 Nov 2020 17:17:00 GMT"
 
     response.fresh_when([
-        Dot({"updated_at": datetime(2020, 5, 5)}),
-        Dot({"updated_at": datetime(2020, 11, 24, 17, 17, 0)}),
-        Dot({"updated_at": datetime(2020, 7, 28)}),
+        DotDict({"updated_at": datetime(2020, 5, 5)}),
+        DotDict({"updated_at": datetime(2020, 11, 24, 17, 17, 0)}),
+        DotDict({"updated_at": datetime(2020, 7, 28)}),
     ])
     assert response.headers["ETag"] == 'W/"77292437646103d054834b5a9f9cbf5d"'
     assert response.headers["Last-Modified"] == "Tue, 24 Nov 2020 17:17:00 GMT"

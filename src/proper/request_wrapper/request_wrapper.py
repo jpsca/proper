@@ -103,7 +103,7 @@ class Request:
         The length in bytes, as an integer, of the content sent by the client.
 
     - headers:
-        The complete set of HTTP headers, as a Dot dict.
+        The complete set of HTTP headers, as a NoCaseDict.
 
     - accepts:
         A sorted list of the MIME types in the "Accept" header.

@@ -1,0 +1,10 @@
+// tailwind.config.js
+module.exports = {
+	content: [
+		"[[ app_name ]]/components/**/*.jinja",
+		"static_src/**/*.js",
+	],
+	plugins: [
+    require("@tailwindcss/forms"),
+  ],
+};

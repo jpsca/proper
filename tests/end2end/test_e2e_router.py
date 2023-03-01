@@ -11,7 +11,7 @@ from proper import (
     scope,
     status,
 )
-from proper.helpers import Dot
+from proper.helpers import DotDict
 
 
 class Foo(Controller):
@@ -99,7 +99,7 @@ def test_url_for(app):
 
 def test_url_for_object(app):
     app.routes = TEST_ROUTES
-    object = Dot({"year": 2018, "month": 5})
+    object = DotDict({"year": 2018, "month": 5})
     assert app.url_for("Items.archive", object) == "/api/items/2018/5"
 
 

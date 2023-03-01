@@ -10,8 +10,8 @@ class ProperCli(Cli):
 
     This utility provides commands from Proper itself."""
 
-    def new(self, *args, **kw) -> None:
-        gen_project(*args, **kw)
+    def new(self, path: str, *, name: str = "", force: bool = False) -> None:
+        gen_project(path, name=name, force=force)
 
 
 ProperCli.new.__doc__ = gen_project.__doc__

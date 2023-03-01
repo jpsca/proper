@@ -1,6 +1,7 @@
 import socket
 import subprocess
 import typing as t
+from functools import wraps
 from pathlib import Path
 
 from proper_cli import Cli
@@ -24,12 +25,7 @@ WELCOME = """
 EXAMPLE_COM_IP = "93.184.216.34"
 
 
-def get_app_cli() -> t.Type[Cli] | None:
-    try:
-        from wsgi import app
-    except ImportError:
-        return None
-
+def get_app_cli(app: "App") -> Cli:
     attrs: dict[str, t.Any] = {
         "__doc__": """
         Application-specific commands.
@@ -40,7 +36,6 @@ def get_app_cli() -> t.Type[Cli] | None:
         """,
         "run": get_run_server(app),
         "routes": get_routes_cmd(app),
-        "db": app.alembic.get_proper_cli() if app.alembic else None,
         "credentials": get_credentials_cmd(app),
         "static": get_static_cli(app),
         "g": get_generators_cli(app),
@@ -186,11 +181,10 @@ def welcome(_self, host="0.0.0.0", port=2300) -> None:
 def _get_cmd(app, module: t.Any, name: str) -> t.Callable:
     func = getattr(module, name)
 
+    @wraps(func)
     def cmd(_, *args, **kw):
         return func(app, *args, **kw)
 
-    cmd.__name__ = name
-    cmd.__doc__ = func.__doc__
     return cmd
 
 
