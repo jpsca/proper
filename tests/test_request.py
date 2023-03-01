@@ -2,7 +2,7 @@ import pytest
 
 from proper.constants import FLASHES_SESSION_KEY
 from proper.errors import InvalidHeader
-from proper.helpers import Dot
+from proper.helpers import DotDict
 from proper.request_wrapper import Request
 
 
@@ -160,6 +160,6 @@ def test_parse_invalid_cookies():
 def test_flashes():
     request = Request()
     flashes = {"alert": "flash1", "notice": "flash2"}
-    request._session = Dot({FLASHES_SESSION_KEY: flashes})
+    request._session = DotDict({FLASHES_SESSION_KEY: flashes})
 
     assert request.flashes == request.flashes == flashes

@@ -14,8 +14,13 @@ if TYPE_CHECKING:
 
 AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 ROUTES_TMPL = "routes.tmpl.py"
-APPLICATION_CONTROLLER = "controllers/application.py"
-CONFIG_PATH = "config/application.py"
+APPLICATION_CONTROLLER = "controllers/app.py"
+CONFIG_PATH = "config/app.py"
+
+DEPENDENCIES = [
+    "argon2-cffi"
+    "confusable_homoglyphs",
+]
 
 REPLACE_PRE = """
 
@@ -71,7 +76,8 @@ def install(app: "App", migration=False) -> None:
     new_routes = bp.render.string(routes_tmpl.read_text())
     append_routes(app, new_routes)
 
-    call("poetry add argon2-cffi")
+    for dep_name in DEPENDENCIES:
+        call(f"poetry add {dep_name}")
 
     if migration:
         call('proper db revision "Create users table"')

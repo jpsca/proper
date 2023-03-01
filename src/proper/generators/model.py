@@ -66,8 +66,13 @@ def gen_model(
 
     ## Options
 
-    After the field type, you can add one or more pairs of `option` or `option:value`.
-    If you don't use a value, it defaults to `True`. Use `fk-MODEL` for adding a foreign key
+    After the field type, you can add one or more pairs of `option` or `option:value`,
+    like `unique`, `null`, `default`, `index`, etc.,
+    see http://docs.peewee-orm.com/en/latest/peewee/models.html#field-initialization-arguments
+
+    If you don't use a value, it defaults to `True`.
+
+    Use `fk-MODEL` for adding a foreign key
 
     ## Examples:
 

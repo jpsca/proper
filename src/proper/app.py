@@ -9,7 +9,6 @@ from pathlib import Path
 import inflection
 import jinjax
 from markupsafe import Markup
-from peewee import Database, SqliteDatabase
 from whitenoise import WhiteNoise
 
 from . import middleware, status
@@ -23,6 +22,7 @@ from .error_handlers import (
     fallback_not_found_handler,
 )
 from .auth import Auth
+from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
 from .helpers import DotDict, Serializer
 from .middleware.dispatch import dispatch
@@ -78,7 +78,8 @@ class App:
     # subclasses of HTTPError.
     error_handlers: dict[TException, t.Any] = {}
 
-    db: Database
+    db: t.Any
+    scheduler: t.Any
 
     def __init__(
         self,
@@ -103,14 +104,14 @@ class App:
         self._setup_router()
         self._setup_serializer()
 
-        # Fallback services
-        self.db = SqliteDatabase(":memory:")
+        # Fallback scheduler
         self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
 
         self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
         self._setup_auth()
+        self._setup_cli()
 
     def __call__(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
         return self._wrapped_wsgi(environ, start_response)
@@ -403,7 +404,6 @@ class App:
 
     def _setup_auth(self) -> None:
         if not self._config.auth:
-            self.auth = None
             return
         config = self._config
         self.auth = Auth(
@@ -413,6 +413,9 @@ class App:
             password_minlen=config.auth.password_minlen,
             password_maxlen=config.auth.password_maxlen,
         )
+
+    def _setup_cli(self) -> None:
+        self.Cli = get_app_cli(self)
 
     def _handle_app_error(self, request: Request, response: Response) -> None:
         """Call the registered exception handler if exists or the fallback

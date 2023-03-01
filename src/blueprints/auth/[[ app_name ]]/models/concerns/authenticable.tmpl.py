@@ -1,10 +1,10 @@
 import unicodedata
 import typing as t
 
-from peewee import *  # noqa
+from peewee import *  # type: ignore
 from proper import request, response
 
-from [[ app_name ]].app import auth, config, db
+from [[ app_name ]].app import auth, config
 
 
 class Authenticable:
@@ -12,8 +12,8 @@ class Authenticable:
     REDIRECT_KEY: str = "_redirect"
     CLEAR_SESSION_ON_SIGN_OUT: bool = True
 
-    login = CharField(255, nullable=False, unique=True, index=True)
-    nfc_login = CharField(255, nullable=False)
+    login = CharField(255, null=False, unique=True, index=True)
+    nfc_login = CharField(255, null=False)
     password = CharField(255)
 
     @staticmethod
@@ -22,16 +22,16 @@ class Authenticable:
         return unicodedata.normalize(uform, login)
 
     @classmethod
-    def get_by_id(cls, pk: t.Any) -> "self":
+    def get_by_id(cls, pk: t.Any) -> t.Any:
         """Modify this code or overwrite in the User class to to include whatever
         scope restriction you need to add to this query.
 
         Required by proper.auth.Auth()
         """
-        return self.get_or_none(cls.id == pk)
+        return cls.get_or_none(cls.id == pk)  # type: ignore
 
     @classmethod
-    def get_by_login(cls, login: str) -> self | None:
+    def get_by_login(cls, login: str) -> t.Any:
         """Get a user by its username.
         Modify this code or overwrite in the User class to to include whatever
         scope restriction you need to add to this query.
@@ -39,7 +39,7 @@ class Authenticable:
         Required by proper.auth.Auth()
         """
         login = cls.normalize_login(login)
-        return self.get_or_none(cls.login == login)
+        return cls.get_or_none(cls.login == login)  # type: ignore
 
     @classmethod
     def authenticate(
@@ -48,12 +48,12 @@ class Authenticable:
         password: str,
         *,
         update_hash: bool = True,
-    ) -> self | None:
+    ) -> t.Any:
         login = cls.normalize_login(login)
         return auth.authenticate(cls, login, password, update_hash=update_hash)
 
     @classmethod
-    def authenticate_timestamped_token(cls, token: str) -> self | None:
+    def authenticate_timestamped_token(cls, token: str) -> t.Any:
         return auth.authenticate_timestamped_token(
             cls,
             token,
@@ -61,7 +61,7 @@ class Authenticable:
         )
 
     @classmethod
-    def authenticate_session_token(cls, token: str) -> self | None:
+    def authenticate_session_token(cls, token: str) -> t.Any:
         return auth.authenticate_session_token(cls, token)
 
     def set_login(self, login: str) -> None:
@@ -82,7 +82,7 @@ class Authenticable:
         """Store in the session an unique token for the user, so it can stay
         logged between requests.
         """
-        assert self.id is not None
+        assert self.id is not None  # type: ignore
         request.user = self
         response.session[self.SESSION_KEY] = auth.get_session_token(request.user)
 

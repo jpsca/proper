@@ -65,9 +65,9 @@ def _install_dependencies(path: Path) -> bool:
     print()
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
-    call(".venv/bin/pip install -U black ipdb uwsgi flake8 flake8-bugbear pytest")
+    call("poetry install --with dev,test")
+    call("npm install --no-audit --no-fund")
     call(".venv/bin/pip install -e ../proper/")
-    call(".venv/bin/pip install -e .")
     return True
 
 
@@ -79,6 +79,7 @@ def _wrap_up(path: Path, deps_installed: bool) -> None:
     print("   $ cd " + path.stem + "")
     if deps_installed:
         print("   $ source .venv/bin/activate")
+        print("   $ make db")
     else:
         print("   $ python -m venv .venv")
         print("   $ source .venv/bin/activate")

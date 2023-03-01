@@ -1,5 +1,5 @@
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.3.1"]
 build-backend = "poetry.core.masonry.api"
 
 
@@ -12,15 +12,14 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-#proper = ">=0.2"
 psycopg2-binary = "*"
+proper = { file = "proper-0.2-py3-none-any.whl" }
 
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
 black = "*"
-ipdb = "*"
 uwsgi = "*"
 
 [tool.poetry.group.test]

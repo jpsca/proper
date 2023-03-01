@@ -1,8 +1,8 @@
-from proper.helpers import Dot
+from proper.helpers import DotDict
 
 
 def test_dict_init():
-    dot = Dot({"a": 1, "B": 2, "foo": {"B": {"a": "r"}}})
+    dot = DotDict({"a": 1, "B": 2, "foo": {"B": {"a": "r"}}})
 
     assert dot.a == 1
     assert dot.foo == {"B": {"a": "r"}}
@@ -10,7 +10,7 @@ def test_dict_init():
 
 
 def test_iter_init():
-    dot = Dot([("a", 1), ("B", 2), ("foo", {"B": {"a": "r"}})])
+    dot = DotDict([("a", 1), ("B", 2), ("foo", {"B": {"a": "r"}})])
 
     assert dot.a == 1
     assert dot.foo == {"B": {"a": "r"}}
@@ -18,7 +18,7 @@ def test_iter_init():
 
 
 def test_dunder_attributes_is_not_key():
-    dot = Dot()
+    dot = DotDict()
     dot.__foo = "bar"
 
     assert dot.__foo == "bar"
@@ -26,7 +26,7 @@ def test_dunder_attributes_is_not_key():
 
 
 def test_deep_update():
-    dot = Dot(
+    dot = DotDict(
         {
             "auth": {"hash": "sha1", "rounds": 123},
             "users": ["foo", "bar"],
@@ -57,7 +57,7 @@ def test_deep_update():
 
 
 def test_get():
-    dot = Dot([("a", 1), ("B", 2), ("foo", {"B": {"a": "r"}})])
+    dot = DotDict([("a", 1), ("B", 2), ("foo", {"B": {"a": "r"}})])
 
     assert dot.get("a") == 1
     assert dot.get("B") == 2
@@ -67,7 +67,7 @@ def test_get():
 
 
 def test_dicts_to_dots():
-    dot = Dot()
+    dot = DotDict()
     dot.a = 1
     dot.b = {}
     dot.b.c = 3

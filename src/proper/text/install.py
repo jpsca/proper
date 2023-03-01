@@ -11,9 +11,9 @@ TRIX_INSTALL = "npm install trix --no-audit --no-fund"
 CSS_FROM = "static/node_modules/trix/dist/trix.css"
 CSS_TO = "static/src/css/trix.css"
 
-APPLICATION_CSS = "static/src/css/application.css"
+APPLICATION_CSS = "static/src/css/app.css"
 CSS_IMPORT = '@import "./trix.css";'
-APPLICATION_JS = "static/src/js/application.js"
+APPLICATION_JS = "static/src/js/app.js"
 JS_IMPORT = 'import "node_modules/trix/dist/trix.js"\n'
 
 

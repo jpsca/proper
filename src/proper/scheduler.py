@@ -17,6 +17,10 @@ class HueyScheduler:
             self.consumer = Consumer(self.huey, **consumer_config)
 
     @property
+    def on_startup(self):
+        return self.huey.on_startup
+
+    @property
     def pre_execute(self):
         return self.huey.pre_execute
 

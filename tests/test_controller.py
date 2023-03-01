@@ -3,7 +3,7 @@ import pytest
 from proper import Request, Response
 from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
-from proper.helpers import Dot
+from proper.helpers import DotDict
 from proper.controller import (
     CSRF_HEADER,
     CSRF_FORM_KEY,
@@ -16,7 +16,7 @@ from proper.controller import (
 def get_controller(method):
     request = Request(REQUEST_METHOD=method)
     response = Response()
-    request._session = response._session = Dot()
+    request._session = response._session = DotDict()
     return Controller(request=request, response=response)
 
 
@@ -31,7 +31,7 @@ def test_no_need_to_argue():
 def test_missing_csrf():
     co = get_controller(POST)
     token = "a" * CSRF_TOKEN_LENGTH
-    co.request._session = Dot({CSRF_SESSION_KEY: token})
+    co.request._session = DotDict({CSRF_SESSION_KEY: token})
 
     with pytest.raises(MissingCSRFToken):
         co.protect_from_forgery("action")
@@ -50,9 +50,9 @@ def test_valid_csrf_from_form(method):
     token = "a" * CSRF_TOKEN_LENGTH
     mask = "x" * CSRF_TOKEN_LENGTH
 
-    co.request._form = Dot({CSRF_FORM_KEY: mask + token})
+    co.request._form = DotDict({CSRF_FORM_KEY: mask + token})
     co.request._content_length = 1  # needs to be truthy for this test
-    co.request._session = Dot({CSRF_SESSION_KEY: token})
+    co.request._session = DotDict({CSRF_SESSION_KEY: token})
 
     co.protect_from_forgery("action")
 
@@ -64,9 +64,9 @@ def test_invalid_csrf_from_form(method):
     invalid_token = "b" * CSRF_TOKEN_LENGTH
     mask = "x" * CSRF_TOKEN_LENGTH
 
-    co.request._form = Dot({CSRF_FORM_KEY: mask + invalid_token})
+    co.request._form = DotDict({CSRF_FORM_KEY: mask + invalid_token})
     co.request._content_length = 1  # needs to be truthy for this test
-    co.request._session = Dot({CSRF_SESSION_KEY: token})
+    co.request._session = DotDict({CSRF_SESSION_KEY: token})
 
     with pytest.raises(InvalidCSRFToken):
         co.protect_from_forgery("action")
@@ -79,7 +79,7 @@ def test_valid_csrf_from_header(method):
     mask = "x" * CSRF_TOKEN_LENGTH
 
     co.request.env[CSRF_HEADER] = mask + token
-    co.request._session = Dot({CSRF_SESSION_KEY: token})
+    co.request._session = DotDict({CSRF_SESSION_KEY: token})
 
     co.protect_from_forgery("action")
 
@@ -92,7 +92,7 @@ def test_invalid_csrf_from_header(method):
     mask = "x" * CSRF_TOKEN_LENGTH
 
     co.request.env[CSRF_HEADER] = mask + invalid_token
-    co.request._session = Dot({CSRF_SESSION_KEY: token})
+    co.request._session = DotDict({CSRF_SESSION_KEY: token})
 
     with pytest.raises(InvalidCSRFToken):
         co.protect_from_forgery("action")
@@ -102,9 +102,9 @@ def test_unmasked_csrf_is_ignored():
     co = get_controller(POST)
     token = "a" * CSRF_TOKEN_LENGTH
 
-    co.request._form = Dot({CSRF_FORM_KEY: token})
+    co.request._form = DotDict({CSRF_FORM_KEY: token})
     co.request._content_length = 1  # needs to be truthy for this test
-    co.request._session = Dot({CSRF_SESSION_KEY: token})
+    co.request._session = DotDict({CSRF_SESSION_KEY: token})
 
     with pytest.raises(MissingCSRFToken):
         co.protect_from_forgery("action")
@@ -115,7 +115,7 @@ def test_skip_csrf_check():
     co.skip_csrf_check_for = ["action"]
     co.protect_from_forgery("action")
 
-    co.request._session = Dot({CSRF_SESSION_KEY: "a" * CSRF_TOKEN_LENGTH})
+    co.request._session = DotDict({CSRF_SESSION_KEY: "a" * CSRF_TOKEN_LENGTH})
     co.protect_from_forgery("action")
 
 

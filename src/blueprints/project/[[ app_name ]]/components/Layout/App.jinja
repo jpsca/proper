@@ -9,8 +9,8 @@
 	<title>{{ title }}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<link rel="icon" type="image/x-icon" href="{{ url_static('favicon.ico') }}">
-	<link rel="stylesheet" href="{{ url_static('css/application.css') }}">
-	<script src="{{ url_static('js/application.js') }}" defer></script>
+	<link rel="stylesheet" href="{{ url_static('css/app.css') }}">
+	<script src="{{ url_static('js/app.js') }}" defer></script>
 	{{ catalog.render_assets() }}
 	<script>window.csrf_token = "{{ request.csrf_token }}";</script>
   {% if title %}<meta property="og:title" content="{{ title }}">{% endif %}

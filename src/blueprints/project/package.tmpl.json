@@ -3,19 +3,18 @@
     "private": "true",
     "scripts": {
         "bundle": "concurrently npm:css npm:js",
-        "watch": "concurrently -k npm:css:watch npm:js:watch",
-        "build": "concurrently npm:css:build npm:js:build",
-        "css": "postcss static_src/css/*.* --base static_src --dir static",
+        "watch": "concurrently npm:css:watch npm:js:watch",
+        "css": "tailwindcss -i ./static_src/css/app.css -o ./static/css/app.css",
         "css:watch": "npm run css -- --watch",
-        "css:build": "npm run css -- --env production",
+        "css:build": "npm run css -- --minify",
         "js": "esbuild static_src/js/*.* --bundle --sourcemap --outdir=static/js/",
         "js:watch": "npm run js -- --watch",
         "js:build": "npm run js -- --minify"
     },
     "devDependencies": {
-        // "concurrently": "^7.0.0",
-        // "esbuild": "^0.14.25",
-        // "tailwindcss": "^3.0.23"
+        "concurrently": "^7.6.0",
+        "esbuild": "^0.17.10",
+        "tailwindcss": "^3.2.7"
     },
     "browserslist": "last 2 versions"
 }

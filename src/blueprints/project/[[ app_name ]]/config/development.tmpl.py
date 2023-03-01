@@ -1,5 +1,5 @@
-from .application import config
+from .app import config
 
 
 config.debug = True
-config.secret_key = "---- This is a fake secret key just for development ----"
+config.secret_key = "---- This is a not-secret-secret_key just for development ----"

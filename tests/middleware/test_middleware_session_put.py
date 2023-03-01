@@ -1,6 +1,6 @@
 from proper import Request
 from proper import Response
-from proper.helpers import Dot
+from proper.helpers import DotDict
 from proper.middleware import fetch_session, put_session
 
 
@@ -28,7 +28,7 @@ def test_do_not_set_cookie_if_not_data(app):
 
     fetch_session(request, response, app)
     response.dispatched = True
-    response._session = Dot()
+    response._session = DotDict()
     put_session(request, response, app)
 
     assert app.config.session.cookie.name not in response.cookies

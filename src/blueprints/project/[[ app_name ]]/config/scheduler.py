@@ -5,7 +5,7 @@ from .redis import redis_config
 
 scheduler_config = DotDict()
 
-scheduler_config.type = "redis"
+scheduler_config.type = "RedisHuey"
 # If True, run synchronously and ignore the type above
 scheduler_config.immediate = not is_staging_or_production_env
 
