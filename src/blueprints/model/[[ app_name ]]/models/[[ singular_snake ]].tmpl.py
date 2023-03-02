@@ -1,6 +1,6 @@
 from peewee import *  # noqa
 
-from [[ app_name ]].models.base import BaseModel
+from .base import BaseModel
 
 
 class [[ singular_pascal ]](BaseModel):

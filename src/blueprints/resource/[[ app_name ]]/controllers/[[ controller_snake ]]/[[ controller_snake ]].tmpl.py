@@ -11,7 +11,7 @@ class [[ controller_pascal ]](AppController):
     [% if "index" in actions -%]
     def index(self):
         """GET /[[ plural_snake ]]"""
-        self.[[ plural_snake ]] = singular_pascal.select()
+        self.[[ plural_snake ]] = [[ singular_pascal ]].select()
 [% endif %]
     [% if "show" in actions -%]
     def show(self):

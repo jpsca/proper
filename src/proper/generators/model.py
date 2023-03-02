@@ -122,7 +122,16 @@ def _split_attr(attr: str) -> tuple[str, str, list[str]]:
         name = name_ftype
         ftype = DEFAULT_FIELD_TYPE
 
+    options = [_build_option(option) for option in options]
     return name, ftype, options
+
+
+def _build_option(option: str) -> str:
+    key, value = f"{option}:".split(":", 1)
+    value = value.rstrip(":") or "True"
+    if value.lower() == "false":
+        value = "False"
+    return f"{key}={value}"
 
 
 DEFAULT_FIELD_TYPE = "str"
@@ -166,7 +175,7 @@ def _build_row(name: str, ftype: str, options: list[str]) -> str:
 
 def _foreign(ftype: str, options: list[str]) -> str:
     model = ftype.split("-", 1)[-1]
-    field_options = _build_options(options) if options else ""
+    field_options = ", ".join(options)
     field_options = f", {field_options}" if field_options else ""
     return f"ForeignKeyField({model}{field_options})"
 
@@ -176,19 +185,5 @@ def _field(ftype: str, options: list[str]) -> str:
     if not FieldType:
         raise ValueError(f"Invalid field type `{ftype}`")
 
-    field_options = _build_options(options) if options else ""
+    field_options = ", ".join(options)
     return f"{FieldType}({field_options})"
-
-
-def _build_options(options: list[str]) -> str:
-    return ", ".join(
-        [_build_option(option) for option in options]
-    )
-
-
-def _build_option(option: str) -> str:
-    key, value = f"{option}:".split(":", 1)
-    value = value.rstrip(":") or "True"
-    if value.lower() == "false":
-        value = "False"
-    return f"{key}={value}"

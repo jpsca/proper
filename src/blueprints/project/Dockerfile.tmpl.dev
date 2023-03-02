@@ -6,7 +6,8 @@ ENV PIP_NO_CACHE_DIR=on
 ENV POETRY_CACHE_DIR=/opt/.cache
 ENV POETRY_HOME=/opt/poetry
 ENV POETRY_VERSION=1.3.1
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV POETRY_VIRTUALENVS_IN_PROJECT=false
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 ENV PYTHONUNBUFFERED 1
 
@@ -22,9 +23,8 @@ RUN set -ex &&\
 WORKDIR app
 
 COPY package*.json pyproject.toml poetry*.lock *.whl ./
-RUN poetry export --with dev,test -o requirements.txt
 RUN npm install --no-audit --no-fund
-RUN pip install -U pip wheel && pip install -r requirements.txt
+RUN poetry install --with dev,test
 
 COPY . .
 

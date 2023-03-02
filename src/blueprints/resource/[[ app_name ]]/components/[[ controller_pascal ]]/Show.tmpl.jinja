@@ -10,7 +10,7 @@
   <div class="actions">
     <a href="{{ url_for('[[ plural_pascal ]].edit', pk=[[ singular_snake ]].id) }}">Edit this [[ singular_snake ]]</a>
     <a href="{{ url_for('[[ plural_pascal ]].index') }}">Back to [[ plural_snake ]]</a>
-    <Form method="delete" action="{{ url_for('[[ plural_pascal ]].delete', pk=[[ singular_snake ]].id) }}">
+    <Form method="delete" action={ url_for('[[ plural_pascal ]].delete', pk=[[ singular_snake ]].id) }>
       <button type="submit">Delete this [[ singular_snake ]]</button>
     </Form>
   </div>

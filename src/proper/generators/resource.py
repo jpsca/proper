@@ -13,23 +13,22 @@ if TYPE_CHECKING:
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 ROUTES_TMPL = "routes.tmpl.py"
 FORM_FIELDS = {
-    "binary": "File",
-    "boolean": "Boolean",
+    "blob": "File",
+    "bool": "Boolean",
     "date": "Date",
     "datetime": "DateTime",
     "decimal": "Float",
     "float": "Float",
-    "integer": "Integer",
-    "json": "Text",
-    "numeric": "Float",
-    "string": "Text",
+    "int": "Integer",
+    "decimal": "Float",
+    "str": "Text",
     "text": "Text",
     "time": "Time",
+    "uuid": "Text",
 }
 FORM_RENDER_AS = {
-    "binary": "textarea",
-    "boolean": "checkbox",
-    "json": "textarea",
+    "blob": "textarea",
+    "bool": "checkbox",
     "text": "textarea",
 }
 FORM_DEFAULT_RENDER_AS = "input"
@@ -38,9 +37,7 @@ FORM_INPUT_TYPES = {
     "datetime": "datetime-local",
     "decimal": "number",
     "float": "number",
-    "integer": "number",
-    "interval": "range",
-    "numeric": "number",
+    "int": "number",
     "time": "time",
 }
 FORM_DEFAULT_INPUT_TYPE = "text"
@@ -90,8 +87,8 @@ def gen_resource(
     Examples:
 
         proper g resource Posts
-        proper g resource Posts --only=index,show
-        proper g resource Posts title:string body:text published:boolean
+        proper g resource Posts --only=index,show title:str
+        proper g resource Posts title:str body:text published:bool
         proper g resource Profile --singular
 
     """
@@ -138,7 +135,7 @@ def gen_resource(
             "name": name,
             "render_as": FORM_RENDER_AS.get(ftype, FORM_DEFAULT_RENDER_AS),
             "input_type": FORM_INPUT_TYPES.get(ftype, FORM_DEFAULT_INPUT_TYPE),
-            "required": "null" not in options,
+            "required": None if "null=True" in options else True
         }
         for name, ftype, options in attrs_tuples
         if ftype in FORM_FIELDS
