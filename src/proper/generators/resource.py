@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
-ROUTES_TMPL = "routes.tmpl.py"
+ROUTES_TT = "routes.tt.py"
 FORM_FIELDS = {
     "blob": "File",
     "bool": "Boolean",
@@ -118,7 +118,7 @@ def gen_resource(
     for action in ignored_actions:
         action_pascal = inflection.camelize(action)
         ignored_components.append(
-            f"*{action_pascal}.tmpl.jinja",
+            f"*{action_pascal}.tt.jinja",
         )
 
     attrs_tuples = gen_model(
@@ -161,12 +161,12 @@ def gen_resource(
             "load_method": f"_load_{singular_snake}",
             "object": f"self.{singular_snake}",
         },
-        ignore=[ROUTES_TMPL] + ignored_components,
+        ignore=[ROUTES_TT] + ignored_components,
     )
     bp()
 
-    routes_tmpl = RESOURCE_BLUEPRINT / ROUTES_TMPL
-    new_routes = bp.render.string(routes_tmpl.read_text())
+    routes_tt = RESOURCE_BLUEPRINT / ROUTES_TT
+    new_routes = bp.render.string(routes_tt.read_text())
     append_routes(app, new_routes)
 
     if migration:

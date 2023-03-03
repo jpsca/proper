@@ -10,8 +10,8 @@ if TYPE_CHECKING:
 
 
 CONTROLLER_BLUEPRINT = BLUEPRINTS / "controller"
-COMPONENT_TMPL = "component.jinja"
-ROUTES_TMPL = "routes.tmpl.py"
+COMPONENT_TT = "component.jinja"
+ROUTES_TT = "routes.tt.py"
 
 
 def gen_controller(app: "App", name: str, *actions: str) -> None:
@@ -45,12 +45,12 @@ def gen_controller(app: "App", name: str, *actions: str) -> None:
             "snake_name": plural_snake,
             "actions": actions,
         },
-        ignore=[ROUTES_TMPL, COMPONENT_TMPL],
+        ignore=[ROUTES_TT, COMPONENT_TT],
     )
     bp()
 
-    component_tmpl = CONTROLLER_BLUEPRINT / COMPONENT_TMPL
-    content = component_tmpl.read_text()
+    component_tt = CONTROLLER_BLUEPRINT / COMPONENT_TT
+    content = component_tt.read_text()
     for action in actions:
         action_pascal = inflection.camelize(action)
         save_file(
@@ -59,6 +59,6 @@ def gen_controller(app: "App", name: str, *actions: str) -> None:
             content
         )
 
-    routes_tmpl = CONTROLLER_BLUEPRINT / ROUTES_TMPL
-    new_routes = bp.render.string(routes_tmpl.read_text())
+    routes_tt = CONTROLLER_BLUEPRINT / ROUTES_TT
+    new_routes = bp.render.string(routes_tt.read_text())
     append_routes(app, new_routes)

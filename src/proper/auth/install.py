@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 AUTH_BLUEPRINT = BLUEPRINTS / "auth"
-ROUTES_TMPL = "routes.tmpl.py"
+ROUTES_TT = "routes.tt.py"
 APPLICATION_CONTROLLER = "controllers/app.py"
 CONFIG_PATH = "config/app.py"
 
@@ -64,7 +64,7 @@ def install(app: "App", migration=False) -> None:
         context={
             "app_name": app.root_path.name,
         },
-        ignore=[ROUTES_TMPL],
+        ignore=[ROUTES_TT],
     )
     bp()
 
@@ -72,8 +72,8 @@ def install(app: "App", migration=False) -> None:
     code = sort_imports(config_path.read_text())
     config_path.write_text(code)
 
-    routes_tmpl = AUTH_BLUEPRINT / ROUTES_TMPL
-    new_routes = bp.render.string(routes_tmpl.read_text())
+    routes_tt = AUTH_BLUEPRINT / ROUTES_TT
+    new_routes = bp.render.string(routes_tt.read_text())
     append_routes(app, new_routes)
 
     for dep_name in DEPENDENCIES:

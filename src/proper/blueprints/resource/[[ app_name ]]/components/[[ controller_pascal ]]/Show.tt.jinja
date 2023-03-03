@@ -1,0 +1,42 @@
+{#def [[ singular_snake ]] #}
+
+<Layout.App
+	title="[[ singular_pascal ]]"
+	class="mt-10 mx-auto px-5 max-w-screen-md"
+>
+
+<div class="mx-auto md:w-2/3 w-full flex">
+	<div class="mx-auto">
+		<h1 class="font-bold text-2xl">[[ singular_pascal ]] #{{ [[ singular_snake ]].id }}</h1>
+
+		[% for f in form_fields -%]
+		<p class="my-5">
+			<strong class="font-medium">[[ f.name|title ]]:</strong>
+			{{ [[ singular_snake ]].[[ f.name ]] }}
+		</p>
+		[% endfor -%]
+
+		<div class="mt-6">
+			<a
+				href="{{ url_for('[[ plural_pascal ]].edit', pk=[[ singular_snake ]].id) }}"
+				class="text-xl font-medium border-gray-200 bg-gray-100 hover:bg-gray-200 py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+			>Edit this [[ singular_snake ]]</a>
+
+			<Form
+				method="delete"
+				action={ url_for('[[ plural_pascal ]].delete', pk=[[ singular_snake ]].id) }
+				class="inline-block ml-2"
+			>
+				<button
+					type="submit"
+					class="text-xl font-medium border-red-300 bg-red-200 hover:bg-red-300 py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+				>Delete this [[ singular_snake ]]</button>
+			</Form>
+
+			<a
+				href="{{ url_for('[[ plural_pascal ]].index') }}"
+				class="text-xl font-medium border-gray-200 bg-gray-100 hover:bg-gray-200 py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+			>Back to [[ plural_snake ]]</a>
+		</div>
+	</div>
+</Layout.App>

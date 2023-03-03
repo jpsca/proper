@@ -50,9 +50,18 @@ def gen_project(
         force=force,
     )()
     print()
-    os.chdir(str(path))
+
+    _make_bin_files_executable(path/ "bin")
     deps_installed = _install_dependencies(path) if _dependencies else False
     _wrap_up(path, deps_installed)
+
+
+def _make_bin_files_executable(path: Path) -> None:
+    files = [f for f in path.iterdir() if f.is_file()]
+    for f in files:
+        stat = f.stat().st_mode
+        # equivalent to chmod +x file
+        f.chmod(f.stat().st_mode | 0o111)
 
 
 def _install_dependencies(path: Path) -> bool:
@@ -64,6 +73,7 @@ def _install_dependencies(path: Path) -> bool:
         return False
 
     print()
+    os.chdir(str(path))
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
     call("poetry export --with dev,test -o requirements.txt")

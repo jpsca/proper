@@ -24,7 +24,7 @@ __all__ = [
     "append_routes",
 ]
 
-BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
 IGNORE = [".DS_Store", "__pycache__"]
 
 CREATE = "create"
@@ -110,8 +110,8 @@ class BlueprintRender:
                 continue
             name = self.render.string(name)
 
-            if ".tmpl." in name or name.endswith(".tmpl"):
-                dst_name = name.replace(".tmpl", "")
+            if ".tt." in name or name.endswith(".tt"):
+                dst_name = name.replace(".tt", "")
                 dst_relpath = dst_relfolder / dst_name
                 content = self.render(src_relpath)
                 save_file(self.dst, dst_relpath, content, force=self.force)
