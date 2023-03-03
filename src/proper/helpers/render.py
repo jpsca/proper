@@ -24,7 +24,7 @@ __all__ = [
     "append_routes",
 ]
 
-BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
 IGNORE = [".DS_Store", "__pycache__"]
 
 CREATE = "create"

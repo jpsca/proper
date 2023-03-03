@@ -32,6 +32,9 @@ from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .assets import RX_INMUTABLES_FILE
 
+if t.TYPE_CHECKING:
+    from proper_cli import Cli
+
 
 COMPONENTS_FOLDER = "components"
 COMPONENTS_URL_ROOT = "/components/"
@@ -78,6 +81,7 @@ class App:
     # subclasses of HTTPError.
     error_handlers: dict[TException, t.Any] = {}
 
+    Cli: "t.Type[Cli]"
     db: t.Any
     scheduler: t.Any
 

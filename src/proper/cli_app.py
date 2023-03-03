@@ -25,7 +25,7 @@ WELCOME = """
 EXAMPLE_COM_IP = "93.184.216.34"
 
 
-def get_app_cli(app: "App") -> Cli:
+def get_app_cli(app: "App") -> t.Type[Cli]:
     attrs: dict[str, t.Any] = {
         "__doc__": """
         Application-specific commands.

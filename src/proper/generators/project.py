@@ -51,7 +51,7 @@ def gen_project(
     )()
     print()
 
-    _make_bin_files_executable(path/ "bin")
+    _make_bin_files_executable(path / "bin")
     deps_installed = _install_dependencies(path) if _dependencies else False
     _wrap_up(path, deps_installed)
 
@@ -59,7 +59,6 @@ def gen_project(
 def _make_bin_files_executable(path: Path) -> None:
     files = [f for f in path.iterdir() if f.is_file()]
     for f in files:
-        stat = f.stat().st_mode
         # equivalent to chmod +x file
         f.chmod(f.stat().st_mode | 0o111)
 

@@ -9,7 +9,7 @@ from .cli_proper import ProperCli
 def get_app():
     sys.path.append(str(os.getcwd()))
     try:
-        from wsgi import app
+        from wsgi import app  # noqa
     except ImportError as err:
         print("---", err)
         return None
@@ -22,4 +22,5 @@ def run():
         cli = ProperCli()
     else:
         cli = app.Cli()
-    cli()
+    if cli:
+        cli()

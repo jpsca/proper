@@ -25,7 +25,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 include = [
-    "src/blueprints/*"
+    "src/proper/blueprints/*"
 ]
 
 [tool.poetry.dependencies]
@@ -86,6 +86,7 @@ exclude = '''
   | _build
   | build
   | dist
+  | src/proper/blueprints
 )/
 '''
 
@@ -115,6 +116,7 @@ exclude_lines = [
 omit = [
     "src/proper/base_channel.py",
     "src/proper/cli",
+    "src/proper/blueprints",
 ]
 
 [tool.coverage.html]
@@ -128,8 +130,9 @@ exclude = [
     "**/node_modules",
     "**/__pycache__",
     "**/tests",
+    "**/cli.py",
 ]
-ignore = ["src/blueprints"]
+ignore = ["src/proper/blueprints"]
 reportPrivateImportUsage = false
 reportWildcardImportFromLibrary = false
 
@@ -150,5 +153,5 @@ allowlist_externals = poetry
 commands =
     pip install -U pip wheel
     poetry install --with test
-    pytest -x src/proper tests
+    poetry run pytest -x src/proper tests
 """
