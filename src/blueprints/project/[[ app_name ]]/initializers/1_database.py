@@ -1,18 +1,25 @@
-from playhouse.postgres_ext import PostgresqlExtDatabase
-
 from ..app import app, config
 
 
-app.db = PostgresqlExtDatabase(
-    config.database.name,
-    host=config.database.host,
-    port=config.database.port,
-    user=config.database.user,
-    password=config.database.password,
-    # The connection is managed in the `on_before_dispatch`,
-    # `on_teardown`, and `on_error` hooks
-    autoconnect=False,
-)
+if config.database.engine == "sqlite":
+    from playhouse.sqlite_ext import SqliteExtDatabase
+
+    app.db = SqliteExtDatabase(f"{config.database.name}.sqlite")
+
+elif config.database.engine == "postgres":
+    from playhouse.postgres_ext import PostgresqlExtDatabase
+
+    app.db = PostgresqlExtDatabase(
+        config.database.name,
+        host=config.database.host,
+        port=config.database.port,
+        user=config.database.user,
+        password=config.database.password,
+        # The connection is managed in the `on_before_dispatch`,
+        # `on_teardown`, and `on_error` hooks
+        autoconnect=False,
+    )
+
 
 @app.on_before_dispatch
 def on_before_dispatch(req, resp):

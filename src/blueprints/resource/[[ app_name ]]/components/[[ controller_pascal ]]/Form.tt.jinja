@@ -11,13 +11,13 @@
     {{ form.[[ f.name ]].as_input(
       label="[[ f.name|title ]]",
       type="[[ f.input_type|lower ]]",
-      classes="",
+      classes="form-input",
       error="border-red-500",
     ) }}
     [%- else -%]
     {{ form.[[ f.name ]].as_[[ f.render_as ]](
       label="[[ f.name|title ]]",
-      classes="",
+      classes="form-[[ f.render_as ]]",
       error="border-red-500",
     ) }}
     [%- endif %]
