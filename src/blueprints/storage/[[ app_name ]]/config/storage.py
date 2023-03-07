@@ -32,7 +32,11 @@ elif is_testing_env:
 # Image content types that can be processed without being converted to
 # the fallback PNG format. If you want to use WebP or AVIF variants in
 # your application you can add image/webp or image/avif to this list
-storage_config.web_image_content_types = ["image/png", "image/jpeg", "image/gif"]
+storage_config.web_image_content_types = [
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+]
 
 # List of content types that will always serve as an attachment,
 # rather than inline

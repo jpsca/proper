@@ -30,6 +30,7 @@ from .request_wrapper import Request
 from .response_wrapper import Response
 from .router import Router, Route, get
 from .scheduler import HueyScheduler
+from .storage import Storage
 from .assets import RX_INMUTABLES_FILE
 
 if t.TYPE_CHECKING:
@@ -107,15 +108,13 @@ class App:
         self._setup_middleware()
         self._setup_router()
         self._setup_serializer()
-
-        # Fallback scheduler
-        self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
-
+        self._setup_fallback_scheduler()
         self._load_static_manifest()
         self._setup_render()
         self._setup_whitenoise()
-        self._setup_auth()
         self._setup_cli()
+        self._setup_auth()
+        self._setup_storage()
 
     def __call__(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
         return self._wrapped_wsgi(environ, start_response)
@@ -363,6 +362,9 @@ class App:
     def _setup_serializer(self) -> None:
         self.serializer = Serializer(self._config.secret_key)
 
+    def _setup_fallback_scheduler(self) -> None:
+        self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
+
     def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
         if not self._config.debug and path.exists():
@@ -406,6 +408,9 @@ class App:
             prefix = sp["prefix"].lstrip("/\\")
             wn.add_files(path, prefix=prefix)
 
+    def _setup_cli(self) -> None:
+        self.Cli = get_app_cli(self)
+
     def _setup_auth(self) -> None:
         if not self._config.auth:
             return
@@ -418,8 +423,10 @@ class App:
             password_maxlen=config.auth.password_maxlen,
         )
 
-    def _setup_cli(self) -> None:
-        self.Cli = get_app_cli(self)
+    def _setup_storage(self) -> None:
+        if not self._config.storage:
+            return
+        self.storage = Storage(self, self._config.storage)
 
     def _handle_app_error(self, request: Request, response: Response) -> None:
         """Call the registered exception handler if exists or the fallback
