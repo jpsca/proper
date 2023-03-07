@@ -4,18 +4,18 @@ from proper import DotDict, is_development_env, is_testing_env, is_staging_or_pr
 storage_config = DotDict()
 
 local = DotDict()
-local.service = "disk"
+local.type = "disk"
 local.root = "storage/"
 storage_config.local = local
 
 test = DotDict()
-test.service = "disk"
+test.type = "disk"
 test.root = "temp/storage"
 storage_config.test = test
 
 # Replace with your real production service
 amazon = DotDict()
-amazon.service = "s3"
+amazon.type = "s3"
 amazon.access_key_id = ""  # IN CREDENTIALS
 amazon.secret_access_key = ""  # IN CREDENTIALS
 amazon.bucket = "..."

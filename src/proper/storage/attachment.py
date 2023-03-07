@@ -1,37 +1,65 @@
+import mimetypes
 import typing as t
-from datetime import datetime
+from uuid import uuid4
 
+from inflection import parameterize
 from peewee import *  # noqa
 
 if t.TYPE_CHECKING:
+    from ..helpers import DotDict
     from .storage import Storage
     from .types import TUpload
 
 
-def get_attachment_class(storage: Storage) -> Model:
+DEFAULT_CONTENT_TYPE = "application/octet-stream"
+DEFAULT_SERVICE =
+
+
+def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
     class Attachment(storage.app.db.Model):
-        key = CharField(255, index=True)
-        service_name = CharField(255)
-        byte_size = IntegerField()
-        content_type = CharField(255)
-        checksum = CharField(255, null=True)
-        data = TextField(null=True)
+        key = CharField(32, default=lambda: uuid4().hex, index=True)
+        service_name = CharField(64)
+        byte_size = IntegerField(default=0)
+        content_type = CharField(64, default=DEFAULT_CONTENT_TYPE)
+        checksum = CharField(128, null=True)
         filename = CharField(255, null=True)
-        created_at = DateTimeField(default=datetime.utcnow)
 
         def __init__(
             self,
             filesto: "TUpload",
             *,
+            service_name: str = "",
             filename: str = "",
             content_type: str = "",
             byte_size: int = 0,
+            **kwargs,
         ) -> None:
             self._filesto = filesto
+
+            service_name = service_name or self.config.service or ""
+
+            filename = filename or getattr(filesto, "filename", "")
+            name, ext = filename.split(".", 1)
+            name = parameterize(name)
+            ext = f".{ext}" if ext else ""
+            filename = f"{name}{ext}"
+
+            content_type = content_type or getattr(filesto, "content_type", "") or ""
+            if filename and not content_type:
+                guess = mimetypes.guess_type(filename, strict=False)
+                content_type = guess[0] or ""
+            content_type = content_type or self.DEFAULT_CONTENT_TYPE
+
+            self.service_name = service_name
             self.filename = filename
             self.content_type = content_type
             self.byte_size = byte_size
-            super().__init__()
+
+            super().__init__(**kwargs)
+
+        @property
+        def url_for(self):
+            return storage.url_for(self)
 
         def save(self):
             storage.upload(self._filesto, self)

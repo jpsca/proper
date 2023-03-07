@@ -2,7 +2,8 @@ import shutil
 import tempfile
 import typing as t
 from pathlib import Path
-from uuid import uuid4
+
+from multipart import copy_file
 
 from .service import Service
 
@@ -16,35 +17,22 @@ class DiskService(Service):
     def __init__(self, app: "App", config: DotDict) -> None:
         self.root = app.root_path.parent / config.root
         self.root.mkdir(parents=True, exist_ok=True)
-        super().__init__(config)
+        super().__init__(app, config)
 
-    def upload(
-        self,
-        obj: "TAttachment",
-        filesto: "TUpload",
-        filename: str,
-        content_type: str,
-        byte_size: int,
-    ) -> None:
-        key = str(uuid4().hex)
-        if hasattr(filesto, "save_as"):
-            byte_size = self._save_multipart_part(filesto, key)
-        else:
-            byte_size = self._save_regular_file(filesto, key)
+    def upload(self, filesto: "TUpload", obj: "TAttachment") -> None:
+        file: t.BinaryIO = getattr(filesto, "file", filesto)  # type: ignore
 
-        obj.key = key
-        obj.byte_size = byte_size
+        path = self.root / obj.key
+        with open(path, "wb") as fp:
+            pos = file.tell()
+            try:
+                file.seek(0)
+                obj.byte_size = copy_file(file, fp)
+            finally:
+                file.seek(pos)
 
-    def download_to_tempfile(self, fdata: "FileData") -> str:
+    def download_to_tempfile(self, obj: "TAttachment") -> Path:
         tfolder = Path(tempfile.mkdtemp())
-        tfile = tfolder / fdata.key
-        shutil.copy2(src=self.root / fdata.key, dst=tfile)
-        return str(tfile)
-
-    def _save_multipart_part(self, filesto: "MultipartPart", key: str) -> int:
-        return filesto.save_as(self.root / key)
-
-    def _save_regular_file(self, file: "IO", key) -> int:
-        path = self.root / key
-        path.write_bytes(file.read())
-        return path.stat().st_size
+        tfile = tfolder / obj.key
+        shutil.copy2(src=self.root / obj.key, dst=tfile)
+        return tfile
