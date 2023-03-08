@@ -46,7 +46,7 @@ def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
             name = parameterize(name)
             ext = parameterize(ext)
             ext = f".{ext}" if ext else ""
-            filename = f"{name}{ext}"
+            filename = f"{name}{ext}" or self.key
 
             content_type = content_type or getattr(filesto, "content_type", "") or ""
             if filename and not content_type:

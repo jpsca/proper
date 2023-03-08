@@ -12,4 +12,4 @@ class TAttachment:
     byte_size: int | None
     content_type: str | None
     checksum: str | None
-    filename: str | None
+    filename: str
