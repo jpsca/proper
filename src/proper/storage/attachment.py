@@ -16,12 +16,12 @@ DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
     class Attachment(storage.app.db.Model):
-        key = CharField(32, default=lambda: uuid4().hex, index=True)
+        key = CharField(32, primary_key=True)
         service_name = CharField(64)
         byte_size = IntegerField(default=0)
         content_type = CharField(64, default=DEFAULT_CONTENT_TYPE)
+        filename = CharField(255, default="")
         checksum = CharField(128, null=True)
-        filename = CharField(255, null=True)
 
         def __init__(
             self,
@@ -41,12 +41,13 @@ def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
                     "Missing config.storage.service or service_name argument"
                 )
 
+            key = uuid4().hex
             filename = filename or getattr(filesto, "filename", "")
             name, ext = filename.split(".", 1)
             name = parameterize(name)
             ext = parameterize(ext)
             ext = f".{ext}" if ext else ""
-            filename = f"{name}{ext}" or self.key
+            filename = f"{name}{ext}"
 
             content_type = content_type or getattr(filesto, "content_type", "") or ""
             if filename and not content_type:
@@ -54,8 +55,9 @@ def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
                 content_type = guess[0] or ""
             content_type = content_type or self.DEFAULT_CONTENT_TYPE
 
+            self.key = key
             self.service_name = service_name
-            self.filename = filename
+            self.filename = filename if filename else None
             self.content_type = content_type
             self.byte_size = byte_size
 

@@ -18,6 +18,3 @@ class Service:
 
     def download(self, obj: "TAttachment") -> bytes:
         raise NotImplementedError
-
-    def get_url(self, obj: "TAttachment") -> str:
-        raise NotImplementedError

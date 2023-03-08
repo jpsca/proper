@@ -33,13 +33,9 @@ class DiskService(Service):
         path = self._get_path(obj)
         return path.read_bytes()
 
-    def get_url(self, obj: "TAttachment") -> str:
-        relpath = self._get_relpath(obj)
-        return str(self.config.root / relpath)
-
     def _get_path(self, obj: "TAttachment") -> Path:
         relpath = self._get_relpath(obj)
         return self.root / relpath
 
     def _get_relpath(self, obj: "TAttachment") -> Path:
-        return Path(obj.key[:2]) / obj.key[2:4] / obj.filename
+        return Path(obj.key[:2]) / obj.key[2:4] / (obj.filename or obj.key)
