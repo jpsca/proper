@@ -22,7 +22,7 @@ class DiskService(Service):
     def upload(self, filesto: "TUpload", obj: "TAttachment") -> None:
         file: t.BinaryIO = getattr(filesto, "file", filesto)  # type: ignore
 
-        path = self.root / obj.key
+        path = self._get_path(obj)
         with open(path, "wb") as fp:
             pos = file.tell()
             try:
@@ -31,8 +31,9 @@ class DiskService(Service):
             finally:
                 file.seek(pos)
 
-    def download_to_tempfile(self, obj: "TAttachment") -> Path:
-        tfolder = Path(tempfile.mkdtemp())
-        tfile = tfolder / obj.key
-        shutil.copy2(src=self.root / obj.key, dst=tfile)
-        return tfile
+    def download(self, obj: "TAttachment") -> bytes:
+        path = self._get_path(obj)
+        return path.read_bytes()
+
+    def _get_path(self, obj: "TAttachment") -> Path:
+        return self.root / obj.key[:2] / obj.key[2:4] / obj.filename

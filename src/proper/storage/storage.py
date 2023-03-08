@@ -40,7 +40,7 @@ class Storage:
 
     def get_service(self, service_name: str) -> services.Service:
         config = self.config[service_name]
-        config_name = config.service.capitalize()
+        config_name = config.type.capitalize()
         class_name = f"{config_name}Service"
         Service = getattr(services, class_name)
         return Service(self.app, config)
@@ -56,4 +56,4 @@ class Storage:
 
     def download(self, obj: "TAttachment"):
         service = self.get_service(obj.service_name)
-        return service.download_to_tempfile(obj)
+        return service.download(obj)

@@ -16,5 +16,5 @@ class Service:
     def upload(self, filesto: "TUpload", obj: "TAttachment") -> None:
         raise NotImplementedError
 
-    def download_to_tempfile(self, obj: "TAttachment") -> str:
+    def download(self, obj: "TAttachment") -> bytes:
         raise NotImplementedError

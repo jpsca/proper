@@ -36,10 +36,15 @@ def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
             self._filesto = filesto
 
             service_name = service_name or self.config.service or ""
+            if not service_name:
+                raise ValueError(
+                    "Missing config.storage.service or service_name argument"
+                )
 
             filename = filename or getattr(filesto, "filename", "")
             name, ext = filename.split(".", 1)
             name = parameterize(name)
+            ext = parameterize(ext)
             ext = f".{ext}" if ext else ""
             filename = f"{name}{ext}"
 
