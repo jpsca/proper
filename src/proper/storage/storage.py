@@ -14,10 +14,25 @@ class Storage:
     def __init__(self, app: "App", config: "DotDict") -> None:
         self.app = app
         self.config = config
+        self.signer = app.get_signer("proper.storage")
         self.Attachment = get_attachment_class(self, config)
 
     def url_for(self, obj: "TAttachment") -> str:
-        return f"/storage/{obj.key}/{obj.filename}"
+        signed_pk = self.signer.sign(obj.key)
+        return self.app.url_for(
+            "Storage.show",
+            signed_pk=signed_pk,
+            filename=obj.filename
+        )
+
+    def get_key(self, signed_pk: str) -> str | None:
+        if not self.signer.validate(signed_pk):
+            return None
+        return self.signer.unsign(signed_pk)
+
+    def get_url(self, obj: "TAttachment"):
+        service = self.get_service(obj.service_name)
+        return service.get_url(obj)
 
     def upload(self, filesto: "TUpload", obj: "TAttachment"):
         service = self.get_service(obj.service_name)

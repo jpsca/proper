@@ -5,6 +5,7 @@ from multipart import MultipartPart
 
 TUpload = MultipartPart | t.BinaryIO
 
+
 class TAttachment:
     key: str
     service_name: str

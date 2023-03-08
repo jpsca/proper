@@ -5,7 +5,7 @@ storage_config = DotDict()
 
 local = DotDict()
 local.type = "disk"
-local.root = "storage/"
+local.root = "../static/storage/"
 storage_config.local = local
 
 test = DotDict()
@@ -28,6 +28,7 @@ elif is_staging_or_production_env:
     storage_config.service = "amazon"
 elif is_testing_env:
     storage_config.service = "test"
+
 
 # Image content types that can be processed without being converted to
 # the fallback PNG format. If you want to use WebP or AVIF variants in
@@ -57,7 +58,7 @@ storage_config.allowed_inline_content_types = [
     "image/png",
     "image/gif",
     "image/jpeg",
-    "image/tiff",
-    "image/vnd.adobe.photoshop",
-    "image/vnd.microsoft.icon application/pdf",
+    "image/webp",
+    "application/pdf",
+    "image/vnd.microsoft.icon",
 ]

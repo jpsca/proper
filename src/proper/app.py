@@ -24,7 +24,7 @@ from .error_handlers import (
 from .auth import Auth
 from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
-from .helpers import DotDict, Serializer
+from .helpers import DotDict, Serializer, Signer
 from .middleware.dispatch import dispatch
 from .request_wrapper import Request
 from .response_wrapper import Response
@@ -283,6 +283,20 @@ class App:
             func()
         print("\n✨ Goodbye ✨")
 
+    def get_serializer(self, namespace: str, **kwargs) -> Serializer:
+        return Serializer(
+            self._config.secret_keys,
+            namespace=namespace,
+            **kwargs,
+        )
+
+    def get_signer(self, namespace: str, **kwargs) -> Signer:
+        return Signer(
+            self._config.secret_keys,
+            namespace=namespace,
+            **kwargs,
+        )
+
     # Private
 
     def _setup_paths(self, import_name: str) -> None:
@@ -303,7 +317,7 @@ class App:
         config.update(_config)
         credentials = self._load_credentials()
         config.update(credentials)
-        config.secret_key = self._validate_secret_key(config.secret_key)
+        self._validate_secret_keys(config.secret_keys)
         self._config = config
 
     def _load_config(self) -> DotDict:
@@ -323,18 +337,17 @@ class App:
         credentials = cryptex.load()
         return DotDict(credentials)
 
-    def _validate_secret_key(self, secret_key: str | None) -> str:
-        secret_key = str(secret_key or "")
-        if len(secret_key) < MIN_SECRET_LENGTH:
-            raise BadSecretKey(
-                "Your secret_key, used for verifying the integrity of "
-                "signed cookies, is not secure enough. \n"
-                f"Make sure is at least {MIN_SECRET_LENGTH} characters "
-                "and all random, no regular words or you'll be exposed to "
-                "dictionary attacks."
-            )
-
-        return secret_key
+    def _validate_secret_keys(self, secret_keys: list[str]) -> None:
+        secret_keys = secret_keys or [""]
+        for key in secret_keys:
+            if len(key) < MIN_SECRET_LENGTH:
+                raise BadSecretKey(
+                    "Your secret_key, used for verifying the integrity of "
+                    "signed cookies, is not secure enough. \n"
+                    f"Make sure is at least {MIN_SECRET_LENGTH} characters "
+                    "and all random, no regular words or you'll be exposed to "
+                    "dictionary attacks."
+                )
 
     def _setup_middleware(self) -> None:
         self._on_before_dispatch = (
@@ -360,7 +373,7 @@ class App:
         self.router._debug = self._config.debug
 
     def _setup_serializer(self) -> None:
-        self.serializer = Serializer(self._config.secret_key)
+        self.serializer = self.get_serializer("proper.session")
 
     def _setup_fallback_scheduler(self) -> None:
         self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
@@ -416,7 +429,7 @@ class App:
             return
         config = self._config
         self.auth = Auth(
-            secret_key=config.secret_key,
+            secret_keys=config.secret_keys,
             hash_name=config.auth.hash_name,
             rounds=config.auth.rounds,
             password_minlen=config.auth.password_minlen,

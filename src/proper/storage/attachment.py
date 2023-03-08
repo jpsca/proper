@@ -12,7 +12,6 @@ if t.TYPE_CHECKING:
 
 
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
-DEFAULT_SERVICE =
 
 
 def get_attachment_class(storage: Storage, config: "DotDict") -> Model:

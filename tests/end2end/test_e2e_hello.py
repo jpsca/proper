@@ -52,7 +52,7 @@ def test_load_config(app):
 
 def test_secret_key_too_short(import_name):
     with pytest.raises(BadSecretKey):
-        App(import_name, config={"secret_key": "qwertyuiop"})
+        App(import_name, config={"secret_keys": ["qwertyuiop"]})
 
 
 def test_head(app, Pages, web):

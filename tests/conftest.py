@@ -13,7 +13,7 @@ def import_name():
 
 @pytest.fixture()
 def app(import_name):
-    app = App(import_name, config={"secret_key": "*" * 50, "debug": False})
+    app = App(import_name, config={"secret_keys": ["*" * 50], "debug": False})
     return app
 
 

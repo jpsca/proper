@@ -27,7 +27,7 @@ def get_default_config():
     config.host = None
 
     # Used for verifying the integrity of signed cookies
-    config.secret_key = ""
+    config.secret_keys = [""]
 
     # Turn off to let debugging middleware handle exceptions.
     config.catch_all_errors = True

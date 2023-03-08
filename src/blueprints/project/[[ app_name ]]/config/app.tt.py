@@ -12,8 +12,11 @@ config = DotDict()
 config.debug = False
 config.host = "http://127.0.0.1:2300"
 
-# Used for verifying the integrity of signed cookies
-config.secret_key = ""
+# Used for verifying the integrity of signed cookies, signed URLs, etc.
+# Every key in the list is valid, so you can generate a new key and
+# remove the oldest key periodically to add and extra layer of mitigation
+# against an attacker discovering a secret key
+config.secret_keys = []
 
 # Turn off to let debugging middleware handle exceptions.
 config.catch_all_errors = True

@@ -1,4 +1,3 @@
-import hashlib
 import hmac
 import typing as t
 from time import time
@@ -63,27 +62,30 @@ def from36(snumber: str) -> int:
 
 class Auth:
     __slots__ = [
-        "secret_key",
+        "secret_keys",
         "hasher",
         "_decoy_password",
         "password_minlen",
         "password_maxlen",
+        "digestmod",
     ]
 
     def __init__(
         self,
-        secret_key: str,
+        secret_keys: list[str],
         *,
         hash_name: str = DEFAULT_HASHER,
         rounds: int | None = None,
         password_minlen: int = 5,
         password_maxlen: int = 1024,
+        digestmod: str = "sha512"
     ) -> None:
-        self.secret_key = secret_key
+        self.secret_keys = secret_keys
         self.set_hasher(hash_name or DEFAULT_HASHER, rounds)
         self._decoy_password = self.hasher.hash("!")
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
+        self.digestmod = digestmod
 
     def set_hasher(
         self,
@@ -150,8 +152,8 @@ class Auth:
             return False
 
     def get_session_token(self, user: t.Any) -> str:
-        token = self.get_token(user)
-        return f"{user.id}${token}"
+        digest = self.get_hmac_digest(self.secret_keys[0], user)
+        return f"{user.id}${digest}"
 
     def get_timestamped_token(
         self,
@@ -159,17 +161,14 @@ class Auth:
         timestamp: int | None = None,
     ) -> str:
         timestamp = int(timestamp or time())
-        token = self.get_token(user, str(timestamp))
-        return f"{user.id}${to36(timestamp)}${token}"
+        digest = self.get_hmac_digest(self.secret_keys[0], user, str(timestamp))
+        return f"{user.id}${to36(timestamp)}${digest}"
 
-    def get_token(self, user: t.Any, timestamp: str = "") -> str:
+    def get_hmac_digest(self, secret_key: str, user: t.Any, timestamp: str = "") -> str:
         key = "|".join([
             # Includes the secret key, so without access to the source code,
             # fake tokens cannot be generated even if the database is compromised.
-            self.secret_key,
-
-            # So the the token is always unique for each user.
-            str(user.id),
+            secret_key,
 
             # By using a snippet of the password hash **salt**,
             # you can logout from all other devices
@@ -178,9 +177,10 @@ class Auth:
 
             # So the timestamp cannot be forged
             timestamp
-        ])
-        key = key.encode("utf8", "ignore")
-        return hmac.new(key, msg=None, digestmod=hashlib.sha512).hexdigest()
+        ]).encode("utf8", "ignore")
+        msg = bytes(user.id)
+        digest = self.digestmod
+        return hmac.digest(key, msg, digest).hex()
 
     def update_password_hash(self, secret: str, user: t.Any) -> None:
         new_hash = self.hash_password(secret)
@@ -242,8 +242,8 @@ class Auth:
     ) -> t.Any:
         if token is None:
             return None
-        user_id, _ = self.split_session_token(token)
-        if not user_id:
+        user_id, digest = self.split_session_token(token)
+        if not (user_id and digest):
             logger.info("Invalid token format")
             return None
 
@@ -252,7 +252,9 @@ class Auth:
             logger.info(f"Invalid token. User `{user_id[:20]}` not found")
             return None
 
-        if self.get_session_token(user) != token:
+        ref_token = self.get_session_token(user)
+        _, ref_digest = self.split_session_token(ref_token)
+        if not hmac.compare_digest(digest, ref_digest):
             logger.info("Invalid token")
             return None
 
@@ -266,8 +268,8 @@ class Auth:
     ) -> t.Any:
         if token is None:
             return None
-        user_id, timestamp = self.split_timestamped_token(token)
-        if user_id is None or timestamp is None:
+        user_id, timestamp, digest = self.split_timestamped_token(token)
+        if not (user_id and timestamp and digest):
             logger.info("Invalid token format")
             return None
 
@@ -276,7 +278,9 @@ class Auth:
             logger.info(f"Invalid token. User `{user_id[:20]}` not found")
             return None
 
-        if self.get_timestamped_token(user, timestamp) != token:
+        ref_token = self.get_timestamped_token(user, timestamp)
+        _, _, ref_digest = self.split_timestamped_token(ref_token)
+        if not hmac.compare_digest(digest, ref_digest):
             logger.info("Invalid token")
             return None
 
@@ -287,16 +291,16 @@ class Auth:
 
         return user
 
-    def split_session_token(self, token: str) -> tuple[str | None, str | None]:
+    def split_session_token(self, token: str) -> tuple[str, str]:
         try:
-            uid, mac = token.split("$", 1)
-            return uid, mac
+            uid, digest = token.split("$", 1)
+            return uid, digest
         except ValueError:
-            return None, None
+            return "", ""
 
-    def split_timestamped_token(self, token: str) -> tuple[str | None, int | None]:
+    def split_timestamped_token(self, token: str) -> tuple[str, int, str]:
         try:
-            uid, t36, mac = token.split("$", 2)
-            return uid, from36(t36)
+            uid, t36, digest = token.split("$", 2)
+            return uid, from36(t36), digest
         except ValueError:
-            return None, None
+            return "", 0, ""
