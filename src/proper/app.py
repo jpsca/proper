@@ -342,8 +342,8 @@ class App:
         for key in secret_keys:
             if len(key) < MIN_SECRET_LENGTH:
                 raise BadSecretKey(
-                    "Your secret_key, used for verifying the integrity of "
-                    "signed cookies, is not secure enough. \n"
+                    f"Your secret_key, `{key}` used for verifying the "
+                    "integrity of signed cookies, is not secure enough. \n"
                     f"Make sure is at least {MIN_SECRET_LENGTH} characters "
                     "and all random, no regular words or you'll be exposed to "
                     "dictionary attacks."

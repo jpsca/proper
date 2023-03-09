@@ -18,3 +18,6 @@ class Service:
 
     def download(self, obj: "TAttachment") -> bytes:
         raise NotImplementedError
+
+    def send_file(self, obj: "TAttachment") -> bytes:
+        raise NotImplementedError

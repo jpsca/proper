@@ -16,6 +16,5 @@ class Storage(AppController):
         obj = Attachment.get_or_none(Attachment.key == pk)
         if not obj:
             raise NotFound
-        url = app.storage.get_url(obj)
 
-        response.redirect_to(url)
+        obj.send()

@@ -12,7 +12,7 @@ if t.TYPE_CHECKING:
 
 
 class DiskService(Service):
-    def __init__(self, app: "App", config: DotDict) -> None:
+    def __init__(self, app: "App", config: "DotDict") -> None:
         self.root = app.root_path.parent / config.root
         self.root.mkdir(parents=True, exist_ok=True)
         super().__init__(app, config)
@@ -33,9 +33,10 @@ class DiskService(Service):
         path = self._get_path(obj)
         return path.read_bytes()
 
-    def _get_path(self, obj: "TAttachment") -> Path:
-        relpath = self._get_relpath(obj)
-        return self.root / relpath
+    def send_file(self, obj: "TAttachment") -> bytes:
+        raise NotImplementedError
 
-    def _get_relpath(self, obj: "TAttachment") -> Path:
-        return Path(obj.key[:2]) / obj.key[2:4] / (obj.filename or obj.key)
+    def _get_path(self, obj: "TAttachment") -> Path:
+        filename = obj.filename or obj.key
+        return self.root / obj.key[:2] / obj.key[2:4] / filename
+

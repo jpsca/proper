@@ -14,7 +14,7 @@ if t.TYPE_CHECKING:
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
-def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
+def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
     class Attachment(storage.app.db.Model):
         key = CharField(32, primary_key=True)
         service_name = CharField(64)
@@ -66,6 +66,9 @@ def get_attachment_class(storage: Storage, config: "DotDict") -> Model:
         @property
         def url_for(self):
             return storage.url_for(self)
+
+        def send(self):
+            return storage.send_file(self)
 
         def save(self):
             storage.upload(self._filesto, self)

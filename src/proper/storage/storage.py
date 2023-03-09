@@ -30,9 +30,9 @@ class Storage:
             return None
         return self.signer.unsign(signed_pk)
 
-    def get_url(self, obj: "TAttachment"):
+    def send_file(self, obj: "TAttachment"):
         service = self.get_service(obj.service_name)
-        return service.get_url(obj)
+        return service.send_file(obj)
 
     def upload(self, filesto: "TUpload", obj: "TAttachment"):
         service = self.get_service(obj.service_name)

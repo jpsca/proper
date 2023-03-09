@@ -4,7 +4,8 @@ Response class.
 from collections.abc import Iterable
 from datetime import date
 from hashlib import md5
-from typing import TYPE_CHECKING
+from pathlib import Path
+import typing as t
 
 from .. import status
 from ..helpers import HeadersDict, tunnel_encode
@@ -12,24 +13,15 @@ from ..helpers import HeadersDict, tunnel_encode
 from .cookies import CookiesDict, add_cookie
 from .flash_dict import FlashDict
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from http.cookies import Morsel
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        List,
-        Optional,
-        Tuple,
-        Union,
-    )
     from proper import App, Request
 
 
 __all__ = ("Response",)
 
 
-def is_iterable(obj: "Any") -> bool:
+def is_iterable(obj: t.Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
 
@@ -50,28 +42,6 @@ class Response:
         "Dec",
     ]
     DEFAULT_MAX_COOKIE_SIZE = 4093
-    TYPES_MAP = {
-        "css": "text/css",
-        "csv": "text/csv",
-        "gif": "image/gif",
-        "heic": "image/heic",
-        "heif": "image/heif",
-        "html": "text/html",
-        "ico": "image/vnd.microsoft.icon",
-        "jpeg": "image/jpeg",
-        "jpg": "image/jpeg",
-        "js": "application/javascript",
-        "json": "application/json",
-        "mp3": "audio/mpeg",
-        "mp4": "video/mp4",
-        "pdf": "application/pdf",
-        "png": "image/png",
-        "svg": "image/svg+xml",
-        "txt": "text/plain",
-        "webm": "video/webm",
-        "webmanifest": "application/manifest+json",
-        "xls": "application/vnd.ms-excel",
-    }
 
     headers: "HeadersDict"
     cookies: "CookiesDict"
@@ -85,7 +55,7 @@ class Response:
     stop: bool = False
 
     # name of the component
-    component: "Optional[str]" = None
+    component: str | None = None
 
     # Warn if a cookie header exceeds this size.
     # The default is 4093 and should be supported by most browsers
@@ -99,22 +69,22 @@ class Response:
     # endpoints, like a RSS feed.
     disable_cookies: bool = False
 
-    error: "Optional[Exception]" = None
-    raw_body: "Union[str, bytes, None]" = None
+    error: Exception | None = None
+    raw_body: str | bytes | None = None
 
-    _etag: "Optional[str]" = None
-    _last_modified: "Optional[date]" = None
-    _app: "Optional[App]" = None
-    _request: "Optional[Request]" = None
-    _session: "Dict[str, Any]"
+    _etag: str | None = None
+    _last_modified: date | None = None
+    _app: App | None = None
+    _request: Request | None = None
+    _session: dict[str, t.Any]
 
     def __init__(
         self,
         status_code: str = status.ok,
         content_type: str = "text/html",
         charset: str = "utf-8",
-        _app: "Optional[App]" = None,
-        _request: "Optional[Request]" = None,
+        _app: App | None = None,
+        _request: Request | None = None,
     ) -> None:
         self.status_code = status_code
         self.content_type = content_type
@@ -127,7 +97,7 @@ class Response:
         self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 
-    def __call__(self, start_response: "Callable") -> "Iterable[bytes]":
+    def __call__(self, start_response: t.Callable) -> t.Iterable[bytes]:
         body: "Union[str, bytes]" = self.raw_body or b""  # type: ignore
         if isinstance(body, str):
             body = body.encode(self.charset)
@@ -147,44 +117,12 @@ class Response:
     def __repr__(self) -> str:
         return f"<Response “{self._status_code}”>"
 
-    # @classmethod
-    # def send_file(
-    #     self,
-    #     filename: str,
-    #     status_code: str = status.http_302,
-    #     content_type: str = ""):
-    #     """Send file contents in a response.
-
-    #     Args:
-    #         filename (str): The filename of the file.
-    #         status_code (str): The 3xx status code to use for the redirect. The
-    #             default is 302.
-    #         content_type (str): The `Content-Type` header to use in the
-    #             response. If omitted, it is generated automatically
-    #             from the file extension.
-
-    #     IMPORTANT: The filename is assumed to be trusted. Never pass filenames
-    #     provided by the user without validating and sanitizing them first.
-    #     """
-    #     if not content_type:
-    #         ext = filename.split(".")[-1].lower()
-    #         if ext in cls.TYPES_MAP:
-    #             content_type = cls.TYPES_MAP[ext]
-    #         else:
-    #             content_type = "application/octet-stream"
-
-    #     self.status_code = status_code
-    #     self.content_type = content_type
-    #     self.headers["Content-Type"] = content_type
-    #     self.start_response(status_code, self.headers_list)
-    #     return open(filename, "rb")
-
     @property
-    def body(self) -> "Union[str, bytes, None]":
+    def body(self) -> str | bytes | None:
         return self.raw_body
 
     @body.setter
-    def body(self, content: "Any") -> None:
+    def body(self, content: t.Any) -> None:
         """Sets the response body content."""
         if isinstance(content, (str, bytes)):
             self.raw_body = content
@@ -196,15 +134,15 @@ class Response:
         return self.raw_body is not None
 
     @property
-    def headers_list(self) -> "List[Tuple]":
+    def headers_list(self) -> list[tuple[str, str]]:
         return self._build_regular_headers() + self._build_cookie_headers()
 
-    def _build_regular_headers(self) -> "List[Tuple]":
+    def _build_regular_headers(self) -> list[tuple[str, str]]:
         return [
             (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
         ]
 
-    def _build_cookie_headers(self) -> "List[Tuple]":
+    def _build_cookie_headers(self) -> list[tuple[str, str]]:
         if self.disable_cookies:
             return []
         return [
@@ -230,9 +168,9 @@ class Response:
     def redirect_to(
         self,
         url_or_route: str,
-        object: "Any" = None,
+        object: t.Any = None,
         *,
-        flash: "Optional[str]" = None,
+        flash: str | None = None,
         flash_type: str = "notice",
         status_code: str = status.see_other,
         **kw,
@@ -325,10 +263,10 @@ class Response:
 
     def fresh_when(
         self,
-        objects: "Any" = None,
+        objects: t.Any = None,
         *,
-        etag: "Union[date, int, float, str, None]" = None,
-        last_modified: "Optional[date]" = None,
+        etag: date | int | float | str | None = None,
+        last_modified: date | None = None,
         strong: bool = False,
         public: bool = False,
     ) -> bool:
@@ -397,3 +335,16 @@ class Response:
                 return True
 
         return False
+
+    def send_file(
+        self,
+        path: str | Path,
+        mimetype: str | None = None,
+        as_attachment: bool = False,
+        download_name: str | None = None,
+        conditional: bool = True,
+        etag: bool | str = True,
+        max_age: int | t.Callable | None = None,
+        use_x_sendfile: bool | None = None,
+    ):
+        path = Path(path)

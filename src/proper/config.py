@@ -26,7 +26,10 @@ def get_default_config():
     config.debug = False
     config.host = None
 
-    # Used for verifying the integrity of signed cookies
+    # List of secret keys, **oldest to newest**.
+    # Every key in the list is valid, so you can periodically generate a new key
+    # and remove the oldest one to add and extra layer of mitigation
+    # against an attacker discovering a secret key
     config.secret_keys = [""]
 
     # Turn off to let debugging middleware handle exceptions.

@@ -4,11 +4,12 @@ import json
 from itsdangerous import (
     BadSignature,
     Signer as iSigner,
+    TimestampSigner as iTimestampSigner,
     URLSafeTimedSerializer,
 )
 
 
-__all__ = ("BadSignature", "Serializer", "Signer")
+__all__ = ("BadSignature", "Serializer", "Signer", "TimestampSigner")
 
 
 def decode(value: str | bytes) -> str:
@@ -18,6 +19,25 @@ def decode(value: str | bytes) -> str:
 
 
 class Signer(iSigner):
+    def __init__(
+        self,
+        secret_keys: str | list[str],
+        namespace: str = "proper",
+        **kwargs,
+    ) -> None:
+        kwargs["salt"] = namespace
+        kwargs.setdefault("key_derivation", "hmac")
+        kwargs.setdefault("digest_method", hashlib.sha1)
+        super().__init__(secret_keys, **kwargs)
+
+    def sign(self, value: str | bytes) -> str:
+        return decode(super().sign(value))
+
+    def unsign(self, signed_value: str | bytes) -> str:
+        return decode(super().unsign(signed_value))
+
+
+class TimestampSigner(iTimestampSigner):
     def __init__(
         self,
         secret_keys: str | list[str],
