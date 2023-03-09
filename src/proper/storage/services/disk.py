@@ -11,7 +11,7 @@ if t.TYPE_CHECKING:
     from ..types import TAttachment, TUpload
 
 
-class DiskService(Service):
+class Disk(Service):
     def __init__(self, app: "App", config: "DotDict") -> None:
         self.root = app.root_path.parent / config.root
         self.root.mkdir(parents=True, exist_ok=True)

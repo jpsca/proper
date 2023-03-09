@@ -1,23 +1,24 @@
+import os
 from proper import DotDict, is_development_env, is_testing_env, is_staging_or_production_env
 
 
 storage_config = DotDict()
 
 local = DotDict()
-local.type = "disk"
-local.root = "../static/storage/"
+local.type = "Disk"
+local.root = "storage/"
 storage_config.local = local
 
 test = DotDict()
-test.type = "disk"
+test.type = "Disk"
 test.root = "temp/storage"
 storage_config.test = test
 
 # Replace with your real production service
 amazon = DotDict()
-amazon.type = "s3"
-amazon.access_key_id = ""  # IN CREDENTIALS
-amazon.secret_access_key = ""  # IN CREDENTIALS
+amazon.type = "S3"
+amazon.access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+amazon.secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 amazon.bucket = "..."
 amazon.region = "..."  # e.g. 'us-east-1'
 storage_config.amazon = amazon
@@ -39,26 +40,9 @@ storage_config.web_image_content_types = [
     "image/gif",
 ]
 
-# List of content types that will always serve as an attachment,
-# rather than inline
-storage_config.serve_as_binary_content_types = [
-    "text/html",
-    "image/svg+xml",
-    "application/postscript",
-    "application/x-shockwave-flash",
-    "text/xml",
-    "application/xml",
-    "application/xhtml+xml",
-    "application/mathml+xml",
-    "text/cache-manifest",
-]
-
 # List of content types allowed to be served inline
 storage_config.allowed_inline_content_types = [
-    "image/png",
-    "image/gif",
-    "image/jpeg",
-    "image/webp",
+    "image/",
+    "video/",
     "application/pdf",
-    "image/vnd.microsoft.icon",
 ]

@@ -1,11 +1,14 @@
 """
 Response class.
 """
-from collections.abc import Iterable
-from datetime import date
-from hashlib import md5
-from pathlib import Path
+import unicodedata
 import typing as t
+from collections.abc import Iterable
+from datetime import date, datetime
+from hashlib import sha1
+from mimetypes import guess_type
+from pathlib import Path
+from urllib.parse import quote
 
 from .. import status
 from ..helpers import HeadersDict, tunnel_encode
@@ -102,12 +105,14 @@ class Response:
         if isinstance(body, str):
             body = body.encode(self.charset)
 
-        content_length = len(body)
-        if content_length:
-            self.headers["Content-Length"] = str(content_length)
-            self.headers[
-                "Content-Type"
-            ] = f"{self.content_type}; charset={self.charset}"
+        if "Content-Length" not in self.headers:
+            content_length = len(body)
+            if content_length:
+                self.headers["Content-Length"] = str(content_length)
+
+        if "Content-Type" not in self.headers:
+            content_type = f"{self.content_type}; charset={self.charset}"
+            self.headers["Content-Type"] = content_type
 
         start_response(self.status_code, self.headers_list)
         if not body:
@@ -305,15 +310,10 @@ class Response:
                 last_modified = updated_at
 
         if etag is not None:
-            digest = md5(str(etag).encode()).hexdigest()
-            self._etag = f'"{digest}"' if strong else f'W/"{digest}"'
-            self.headers["ETag"] = self._etag
+            self.set_etag(etag, strong=strong)
 
         if last_modified is not None:
-            dt = last_modified
-            fmt = f"{self.DAYS[dt.weekday()]}, %d {self.MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
-            self._last_modified = dt
-            self.headers["Last-Modified"] = dt.strftime(fmt)
+            self.set_last_modified(last_modified)
 
         self.headers[
             "Cache-Control"
@@ -336,15 +336,99 @@ class Response:
 
         return False
 
+    def set_etag(self, etag: date | int | float | str, *, strong: bool = False) -> None:
+        """
+        Sets the Etag header.
+
+        The Etag can be generated from a date, a string or a number.
+
+        Arguments:
+
+        - strong:
+            By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
+            validator on the response. A strong ETag implies exact equality: the response
+            must match byte for byte. This is necessary for doing range requests within a
+            large file or for compatibility with some CDNs that don’t support weak ETags.
+
+        """
+        assert etag is not None
+        digest = sha1(str(etag).encode()).hexdigest()
+        self._etag = f'"{digest}"' if strong else f'W/"{digest}"'
+        self.headers["ETag"] = self._etag
+
+    def set_last_modified(self, dt: date | float | int) -> None:
+        """
+        Sets the Last-Modified header.
+
+        The Last-Modified can be generated from a timestamp of rom an UTC or naive datetime.
+        """
+        assert dt is not None
+        if isinstance(dt, (float, int)):
+            dt = datetime.utcfromtimestamp(dt)
+        fmt = f"{self.DAYS[dt.weekday()]}, %d {self.MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
+        self._last_modified = dt
+        self.headers["Last-Modified"] = dt.strftime(fmt)
+
     def send_file(
         self,
         path: str | Path,
+        *,
         mimetype: str | None = None,
         as_attachment: bool = False,
         download_name: str | None = None,
-        conditional: bool = True,
-        etag: bool | str = True,
-        max_age: int | t.Callable | None = None,
         use_x_sendfile: bool | None = None,
-    ):
-        path = Path(path)
+    ) -> None:
+        path = Path(path).resolve()
+        download_name = download_name or path.name
+
+        if mimetype is None:
+            mimetype, encoding = guess_type(path)
+            mimetype = mimetype or "application/octet-stream"
+
+            # Don't send encoding for attachments, it causes browsers to
+            # save decompress tar.gz files.
+            if encoding is not None and not as_attachment:
+                self.headers["Content-Encoding"] = encoding
+
+        try:
+            download_name.encode("ascii")
+        except UnicodeEncodeError:
+            simple = unicodedata.normalize("NFKD", download_name)
+            simple = simple.encode("ascii", "ignore").decode("ascii")
+            # safe = RFC 5987 attr-char
+            quoted = quote(download_name, safe="!#$&+-.^_`|~")
+            options = f"; filename={simple}; filename*=UTF-8''{quoted}"
+        else:
+            options = f"; filename={download_name}"
+
+        value = "attachment" if as_attachment else "inline"
+        self.headers["Content-Disposition"] = f"{value}{options}"
+
+        if use_x_sendfile:
+            self.headers["X-Sendfile"] = path
+
+        stat = path.stat()
+        size = stat.st_size
+        mtime = stat.st_mtime
+
+        if size is not None:
+            self.headers["Content-Length"] = str(size)
+        if mtime is not None:
+            self.set_last_modified(mtime)
+
+        self.body = self.wrap_file(path.open("rb"))
+
+    def wrap_file(self, file: t.IO[bytes], buffer_size: int = 8192) -> t.Iterable[bytes]:
+        """Wraps a file using the WSGI server's file wrapper
+
+        More information about file wrappers are available in
+        [PEP 333](https://peps.python.org/pep-0333/).
+
+        Attrs:
+            file: a class file-like object with a `~file.read` method.
+            buffer_size: number of bytes for one iteration.
+
+        """
+        env = self._request.env if self._request is not None else None
+        assert env is not None
+        return env["wsgi.file_wrapper"](file, buffer_size)

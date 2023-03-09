@@ -1,8 +1,9 @@
 import typing as t
 
+from inflection import camelize
 
 from .attachment import get_attachment_class
-from . import services
+from .services import Service
 
 if t.TYPE_CHECKING:
     from ..app import App
@@ -38,12 +39,34 @@ class Storage:
         service = self.get_service(obj.service_name)
         service.upload(filesto, obj)
 
-    def get_service(self, service_name: str) -> services.Service:
+    def get_service(self, service_name: str) -> Service:
+        """To add your own service, subclass `proper.storage.Service`
+        implementing the required methods. Then add a config with the
+        class name as the type.
+
+        For example, if you have a service called "DigitalOcean", add a
+        config like this:
+
+        ```python
+        do = DotDict()
+        do.type = "DigitalOcean"  # must match the class name
+        do.arg1 = "value1"  # any other args you need
+        storage_config.do = do
+
+        ...
+
+        storage_config.service = "do"
+        ```
+        """
         config = self.config[service_name]
-        config_name = config.type.capitalize()
-        class_name = f"{config_name}Service"
-        Service = getattr(services, class_name)
-        return Service(self.app, config)
+        services = {cls.__name__: cls for cls in Service.__subclasses__()}
+        cls = services.get(service_name)
+        if cls is None:
+            raise ValueError(
+                f"Unknown service: {service_name}. "
+                f"Must be one of: {', '.join(services.keys())}"
+            )
+        return cls(self.app, config)
 
     def show(self, obj: "TAttachment"):
         pass
