@@ -14,7 +14,7 @@ class MyController(Controller):
         self.response.headers["req-query"] = "|".join(
             [
                 f"{key}:{','.join(str(val) for val in values)}"
-                for key, values in self.request.query.items()
+                for key, values in self.request.query.dict.items()
             ]
         )
 
@@ -77,4 +77,4 @@ def test_req_query(app, web):
     resp = web.get("/?foo=bar&ok&color=red&color=green&color=blue")
 
     assert resp.status == status.ok
-    assert resp.headers["req-query"] == "foo:bar|ok:True|color:red,green,blue"
+    assert resp.headers["req-query"] == "foo:bar|ok:|color:red,green,blue"

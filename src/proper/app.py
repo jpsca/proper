@@ -26,8 +26,8 @@ from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
 from .helpers import DotDict, Serializer, Signer
 from .middleware.dispatch import dispatch
-from .request_wrapper import Request
-from .response_wrapper import Response
+from .request import Request
+from .response import Response
 from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .storage import Storage
@@ -184,7 +184,11 @@ class App:
             max_query_size=self._config.max_query_size,
             **environ,
         )
-        response = Response(_app=self, _request=request)
+        response = Response(
+            _app=self,
+            _request=request,
+            **environ
+        )
 
         _request_cv.set(request)
         _response_cv.set(response)

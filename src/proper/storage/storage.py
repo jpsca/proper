@@ -1,7 +1,5 @@
 import typing as t
 
-from inflection import camelize
-
 from .attachment import get_attachment_class
 from .services import Service
 

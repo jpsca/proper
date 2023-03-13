@@ -1,7 +1,7 @@
 import typing as t
 from pathlib import Path
 
-from multipart import copy_file
+from proper.request.multipart import copy_file
 
 from .service import Service
 
@@ -39,4 +39,3 @@ class Disk(Service):
     def _get_path(self, obj: "TAttachment") -> Path:
         filename = obj.filename or obj.key
         return self.root / obj.key[:2] / obj.key[2:4] / filename
-

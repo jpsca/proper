@@ -7,15 +7,15 @@ def test_set_etag():
     response = Response()
 
     response.fresh_when(etag=123, public=False)
-    assert response.headers["ETag"] == 'W/"202cb962ac59075b964b07152d234b70"'
+    assert response.headers["ETag"] == 'W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
     assert response.headers["Cache-Control"] == "max-age=0, private, must-revalidate"
 
     response.fresh_when(etag=123, strong=True, public=True)
-    assert response.headers["ETag"] == '"202cb962ac59075b964b07152d234b70"'
+    assert response.headers["ETag"] == '"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
     assert response.headers["Cache-Control"] == "max-age=0, public, must-revalidate"
 
     response.fresh_when(etag=datetime(2020, 11, 24, 17, 17, 0))
-    assert response.headers["ETag"] == 'W/"77292437646103d054834b5a9f9cbf5d"'
+    assert response.headers["ETag"] == 'W/"d55c52d5e5e906167b75eb6fbf36b22e41e17222"'
 
 
 def test_invalid_etag_value():
@@ -29,7 +29,7 @@ def test_fresh_when_from_objects():
 
     obj = DotDict({"updated_at": datetime(2020, 11, 24, 17, 17, 0)})
     response.fresh_when(obj)
-    assert response.headers["ETag"] == 'W/"77292437646103d054834b5a9f9cbf5d"'
+    assert response.headers["ETag"] == 'W/"d55c52d5e5e906167b75eb6fbf36b22e41e17222"'
     assert response.headers["Last-Modified"] == "Tue, 24 Nov 2020 17:17:00 GMT"
 
     response.fresh_when([
@@ -37,21 +37,21 @@ def test_fresh_when_from_objects():
         DotDict({"updated_at": datetime(2020, 11, 24, 17, 17, 0)}),
         DotDict({"updated_at": datetime(2020, 7, 28)}),
     ])
-    assert response.headers["ETag"] == 'W/"77292437646103d054834b5a9f9cbf5d"'
+    assert response.headers["ETag"] == 'W/"d55c52d5e5e906167b75eb6fbf36b22e41e17222"'
     assert response.headers["Last-Modified"] == "Tue, 24 Nov 2020 17:17:00 GMT"
 
 
 def test_is_fresh_by_etag():
     response = Response()
 
-    response._request = Request(HTTP_IF_NONE_MATCH='W/"202cb962ac59075b964b07152d234b70"')
+    response._request = Request(HTTP_IF_NONE_MATCH='W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"')
     assert response.fresh_when(etag=123)
 
-    response._request = Request(HTTP_IF_NONE_MATCH='"abc", W/"202cb962ac59075b964b07152d234b70", W/"meh"')
+    response._request = Request(HTTP_IF_NONE_MATCH='"abc", W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef", W/"meh"')
     assert response.fresh_when(etag=123)
 
     response._request = Request(
-        HTTP_IF_NONE_MATCH='W/"202cb962ac59075b964b07152d234b70"',
+        HTTP_IF_NONE_MATCH='W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"',
         HTTP_IF_MODIFIED_SINCE="Wed, 21 Oct 2015 07:28:00 GMT",
     )
     # If ETag match, Last-Modified is ignored

@@ -1,6 +1,6 @@
 import typing as t
 
-from multipart import MultipartPart
+from proper.request.multipart import MultipartPart
 
 
 TUpload = MultipartPart | t.BinaryIO

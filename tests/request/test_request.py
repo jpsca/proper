@@ -3,7 +3,7 @@ import pytest
 from proper.constants import FLASHES_SESSION_KEY
 from proper.errors import InvalidHeader
 from proper.helpers import DotDict
-from proper.request_wrapper import Request
+from proper.request import Request
 
 
 def test_query():
@@ -12,7 +12,7 @@ def test_query():
     assert request.query
     assert request.query == request.query  # idempotent
     assert request.query.get("foo") == "bar"
-    assert request.query.get("ok") is True
+    assert request.query.get("ok") == ""
     assert request.query.getall("color") == ["red", "green", "blue"]
 
 
@@ -111,8 +111,8 @@ def test_host_with_port():
 
 def test_no_remote_addr_is_127_0_0_1():
     request = Request()
-    if "REMOTE_ADDR" in request.env:
-        del request.env["REMOTE_ADDR"]
+    if "REMOTE_ADDR" in request.environ:
+        del request.environ["REMOTE_ADDR"]
     assert request.remote_ip == "127.0.0.1"
 
 

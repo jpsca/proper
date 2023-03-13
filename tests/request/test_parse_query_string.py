@@ -1,5 +1,5 @@
 from proper.helpers import MultiDict
-from proper.request_wrapper.parse_query_string import parse_query_string
+from proper.request.parse_form_data import parse_query_string
 
 
 def test_parse_empty_query_string():
@@ -17,11 +17,11 @@ def test_parse_query_string():
     md = parse_query_string(query_string)
     assert md["colors"] == ["red", "green", "blue"]
     assert md["foo"] == ["bar"]
-    assert md["empty1"] == [True]
-    assert md["empty2"] == [True]
-    assert md["empty3"] == [True]
-    assert md["empty4"] == [True, True, True]
-    assert md["empty5"] == [True, True, True]
+    assert md["empty1"] == [""]
+    assert md["empty2"] == [""]
+    assert md["empty3"] == [""]
+    assert md["empty4"] == ["", "", ""]
+    assert md["empty5"] == ["", "", ""]
 
 
 def test_parse_encoded_query_string():

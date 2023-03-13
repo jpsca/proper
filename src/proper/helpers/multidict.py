@@ -1,29 +1,69 @@
 import typing as t
-from collections import defaultdict
+
+from collections.abc import KeysView, MutableMapping
 
 
-__all__ = (
-    "MultiDict",
-    "exbool",
-)
+__all__ = ("MultiDict", )
+
+TDictOrIter = dict | t.Iterable[tuple[str, t.Any]]
 
 
-class NoValue:
-    pass
-
-
-class MultiDict(defaultdict):
-    """A `MultiDict` is a defaultdict subclass customized to deal with
+class MultiDict(MutableMapping):
+    """
+    A `MultiDict` is a dict-like type customized to deal with
     multiple values for the same key and type casting its values.
     """
 
-    def __init__(self, *mapping) -> None:
-        super().__init__(list)
-        for key, value in mapping or []:
-            self[key].append(value)
+    def __init__(
+        self,
+        dict_or_iter: TDictOrIter | None = None,
+        **kwargs
+    ) -> None:
+        self.dict = {}
+        self.update(dict_or_iter, **kwargs)
 
-    def __repr__(self) -> str:
-        return f"<Multidict {self.keys()}>"
+    def __len__(self):
+        return len(self.dict)
+
+    def __iter__(self):
+        return iter(self.dict)
+
+    def __contains__(self, key: str):
+        return key in self.dict
+
+    def __delitem__(self, key: str):
+        del self.dict[key]
+
+    def __getitem__(self, key: str):
+        return self.dict[key]
+
+    def __repr__(self):
+        return f"{type(self).__name__}({list(self)!r})"
+
+    def keys(self) -> KeysView:
+        return self.dict.keys()
+
+    def append(self, key: str, value: t.Any) -> None:
+        self.dict.setdefault(key, []).append(value)
+
+    def extend(self, key: str, values: list[t.Any]) -> None:
+        self.dict.setdefault(key, []).extend(values)
+
+    def update(
+        self,
+        dict_or_iter: TDictOrIter | None = None,
+        **kwargs,
+    ) -> None:
+        if dict_or_iter:
+            if isinstance(dict_or_iter, MultiDict):
+                for key, values in dict_or_iter.items():
+                    self.dict.setdefault(key, []).extend(values)
+            else:
+                for key, value in dict(dict_or_iter).items():
+                    self.dict.setdefault(key, []).append(value)
+
+        for key, value in kwargs.items():
+            self.dict.setdefault(key, []).append(value)
 
     def get(
         self,
@@ -41,7 +81,7 @@ class MultiDict(defaultdict):
         possible, so the function cand return the default as if the key was not
         found.
 
-        >>> d = MultiDict(('foo', '42'), ('bar', 'blub'))
+        >>> d = MultiDict([('foo', '42'), ('bar', 'blub')])
         >>> d.get('foo', type=int)
         42
         >>> d.get('bar', -1, type=int)
@@ -54,38 +94,29 @@ class MultiDict(defaultdict):
 
             default (any):
                 The default value to be returned if the key can't
-                be looked up.  If not further specified `None` is returned.
+                be looked up. If not specified, `None` is used.
 
             type (callable):
                 A callable that is used to cast the value in the
-                `MultiDict`.  If a :exc:`ValueError` is raised
-                by this callable the default value is returned.
+                `MultiDict`. If `ValueError` or `TypeError` are raised,
+                the default value is returned.
 
             index (int):
                 Optional. Get this index instead of the first value
 
         """
-        values = self[key]
-        value = values[index] if values else None
-        if value is None:
+        if key not in self.dict:
             return default
+        value = self.dict[key][index]
+
         if type is not None:
             try:
                 return type(value)
-            except ValueError:
+            except (TypeError, ValueError):
                 return default
         return value
 
-    def get_or_error(
-        self, key: str, *, type: t.Callable | None = None, index=-1
-    ) -> t.Any:
-        """Like `.get()` but raises a `KeyError` if the key doesn't exist."""
-        value = self.get(key, default=NoValue, type=type, index=index)
-        if value is NoValue:
-            raise KeyError(key)
-        return value
-
-    def getall(self, key: str, *, type: t.Callable | None = None) -> list:
+    def getall(self, key: str, *, type: t.Callable | None = None,) -> list:
         """Return the list of items for a given key. If that key is not in the
         `MultiDict`, the return value will be an empty list.
 
@@ -101,34 +132,25 @@ class MultiDict(defaultdict):
 
             type (callable):
                 A callable that is used to cast the value in the
-                `MultiDict`.  If a :exc:`ValueError` is raised
-                by this callable the value will be removed from the list.
+                `MultiDict`. If `ValueError` or `TypeError` are raised,
+                the value is not included in the result
 
         """
-        values = defaultdict.__getitem__(self, key)  # type: ignore
+        if key not in self.dict:
+            return []
+        values = self.dict[key]
         if type is None:
-            return values  # type: ignore
+            return values
         result = []
-        for value in values:  # type: ignore
+        for value in values:
             try:
                 result.append(type(value))
-            except ValueError:
+            except (TypeError, ValueError):
                 pass
         return result
 
-    # shallow compatibility with other Request objects
-    # Aliases to mimic other multi-dict APIs (Django, Flask, etc.)
-    getfirst = get
-    getone = get
-    getlist = getall
-
-
-FALSE_STRINGS = ("off", "0", "false", "no")
-
-
-def exbool(value: str) -> bool:
-    """Cast a string to boolean considering the empty string as `False`,
-    but also the values: `'off'`, `'0'`, `'false'`, `'False'`,
-    and `'no'`.
-    """
-    return bool(value and value.lower() not in FALSE_STRINGS)
+    def set(self, key: str, values: list[t.Any]):
+        """Replace all values for the given `key`"""
+        if not isinstance(values, list):
+            values = list(values)
+        self.dict[key] = values

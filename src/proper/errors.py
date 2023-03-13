@@ -1,3 +1,5 @@
+import typing as t
+
 from . import status
 
 
@@ -19,7 +21,12 @@ class HTTPError(Exception):
 
     __slots__ = ("msg", "status_code", "headers")
 
-    def __init__(self, msg="", status_code=None, **headers):
+    def __init__(
+        self,
+        msg: str = "",
+        status_code : str | None = None,
+        **headers: list[str],
+    ):
         self.msg = msg
         self.status_code = getattr(self, "status_code", status_code)
         self.headers = headers
@@ -29,6 +36,10 @@ class HTTPError(Exception):
 
     def __repr__(self):
         return f'{self.__class__.__name__}("{self.msg}")'
+
+    @property
+    def description(self) -> str:
+        return self.__doc__ or ""
 
 
 class BadRequest(HTTPError):
@@ -57,11 +68,32 @@ class ClientDisconnected(BadRequest):
     """
 
 
+class MultipartError(BadRequest):
+    """400 Bad Request.
+
+    The form data cannot be parsed..
+    """
+
+
 class MissingHeader(BadRequest):
     """400 Bad Request.
 
     One of the headers in the request is missing.
     """
+
+
+class BadRequestKeyError(BadRequest, KeyError):
+    """An exception that is used to signal both a KeyError and a
+    BadRequest.
+    """
+
+    def __init__(self, key: str | None = None, *args: t.Any, **kwargs: t.Any):
+        super().__init__(*args, **kwargs)
+
+        if key is None:
+            KeyError.__init__(self)
+        else:
+            KeyError.__init__(self, key)
 
 
 class Unauthorized(HTTPError):

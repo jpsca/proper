@@ -4,6 +4,8 @@ import typing as t
 
 __all__ = ("DotDict",)
 
+TDictOrIter = dict | t.Iterable[tuple[str, t.Any]]
+
 
 class DotDict(dict):
     """A dict that:
@@ -16,14 +18,11 @@ class DotDict(dict):
 
     def __init__(
         self,
-        dict_or_iter: dict | t.Iterable[tuple[t.Any, t.Any]] | None = None,
-        **kw
+        dict_or_iter: TDictOrIter | None = None,
+        **kwargs
     ) -> None:
         super().__init__()
-        self.update(dict_or_iter, **kw)
-
-    def _key_encode(self, key: object) -> object:
-        return key
+        self.update(dict_or_iter, **kwargs)
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         if name.startswith("__"):
@@ -37,36 +36,16 @@ class DotDict(dict):
 
         return self.__getitem__(name)
 
-    def __getitem__(self, key: object) -> t.Any:
-        key = self._key_encode(key)
-        return super().__getitem__(key)
-
     def __setitem__(self, key: object, value: t.Any) -> None:
-        key = self._key_encode(key)
         if isinstance(value, dict):
             value = self.__class__(value)
         super().__setitem__(key, value)
 
-    def __delitem__(self, key: object) -> None:
-        key = self._key_encode(key)
-        super().__delitem__(key)
-
-    def __contains__(self, key: object) -> bool:
-        return self._key_encode(key) in super().keys()
-
-    def setdefault(self, key: object, default: t.Any = None) -> None:
-        key = self._key_encode(key)
-        return super().setdefault(key, default)
-
-    def get(self, key: object, default: t.Any = None) -> t.Any:
-        key = self._key_encode(key)
-        return super().get(key, default)
-
-    def update(self, dict_or_iter, /, **kw) -> None:  # type: ignore
+    def update(self, dict_or_iter, /, **kwargs) -> None:  # type: ignore
         if dict_or_iter:
             self._update(src=dict(dict_or_iter), target=self)
-        if kw:
-            self._update(src=kw, target=self)
+        if kwargs:
+            self._update(src=kwargs, target=self)
 
     def _update(self, src: dict, target: dict) -> None:
         """Deep update target dict with src.

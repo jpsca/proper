@@ -14,6 +14,7 @@ from .. import status
 from ..helpers import HeadersDict, tunnel_encode
 
 from .cookies import CookiesDict, add_cookie
+from .file_wrapper import FileWrapper
 from .flash_dict import FlashDict
 
 if t.TYPE_CHECKING:
@@ -77,8 +78,8 @@ class Response:
 
     _etag: str | None = None
     _last_modified: date | None = None
-    _app: App | None = None
-    _request: Request | None = None
+    _app: "App | None" = None
+    _request: "Request | None" = None
     _session: dict[str, t.Any]
 
     def __init__(
@@ -86,8 +87,10 @@ class Response:
         status_code: str = status.ok,
         content_type: str = "text/html",
         charset: str = "utf-8",
-        _app: App | None = None,
-        _request: Request | None = None,
+        *,
+        _app: "App | None" = None,
+        _request: "Request | None" = None,
+        **environ: t.Any,
     ) -> None:
         self.status_code = status_code
         self.content_type = content_type
@@ -95,13 +98,18 @@ class Response:
         self._app = _app
         self._request = _request
         self._session = {}
+        self.environ = environ
 
         self.headers = HeadersDict()
         self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 
     def __call__(self, start_response: t.Callable) -> t.Iterable[bytes]:
-        body: "Union[str, bytes]" = self.raw_body or b""  # type: ignore
+        if "Content-Type" not in self.headers:
+            content_type = f"{self.content_type}; charset={self.charset}"
+            self.headers["Content-Type"] = content_type
+
+        body = self.raw_body or b""
         if isinstance(body, str):
             body = body.encode(self.charset)
 
@@ -109,10 +117,6 @@ class Response:
             content_length = len(body)
             if content_length:
                 self.headers["Content-Length"] = str(content_length)
-
-        if "Content-Type" not in self.headers:
-            content_type = f"{self.content_type}; charset={self.charset}"
-            self.headers["Content-Type"] = content_type
 
         start_response(self.status_code, self.headers_list)
         if not body:
@@ -144,14 +148,16 @@ class Response:
 
     def _build_regular_headers(self) -> list[tuple[str, str]]:
         return [
-            (key, tunnel_encode(value, "utf-8")) for key, value in self.headers.items()
+            (key, tunnel_encode(value, "utf-8"))
+            for key, value in self.headers.items()
         ]
 
     def _build_cookie_headers(self) -> list[tuple[str, str]]:
         if self.disable_cookies:
             return []
         return [
-            tuple(morsel.output().split(": ", 1)) for morsel in self.cookies.values()
+            tuple(morsel.output().split(": ", 1))
+            for morsel in self.cookies.values()
         ]
 
     @property
@@ -343,12 +349,12 @@ class Response:
         The Etag can be generated from a date, a string or a number.
 
         Arguments:
-
-        - strong:
-            By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
-            validator on the response. A strong ETag implies exact equality: the response
-            must match byte for byte. This is necessary for doing range requests within a
-            large file or for compatibility with some CDNs that don’t support weak ETags.
+            - strong:
+                By default a “weak” Etag is used. Set this to `True` to set a
+                “strong” ETag validator on the response. A strong ETag implies
+                exact equality: the response must match byte for byte.
+                This is necessary for doing range requests within a large file
+                or for compatibility with some CDNs that don’t support weak ETags.
 
         """
         assert etag is not None
@@ -421,14 +427,14 @@ class Response:
     def wrap_file(self, file: t.IO[bytes], buffer_size: int = 8192) -> t.Iterable[bytes]:
         """Wraps a file using the WSGI server's file wrapper
 
-        More information about file wrappers are available in
-        [PEP 333](https://peps.python.org/pep-0333/).
+        More information about file wrappers is available in
+        [PEP 3333](https://peps.python.org/pep-3333/#optional-platform-specific-file-handling).
 
         Attrs:
-            file: a class file-like object with a `~file.read` method.
+            file: a file-like object with a `read` method.
             buffer_size: number of bytes for one iteration.
 
         """
-        env = self._request.env if self._request is not None else None
-        assert env is not None
-        return env["wsgi.file_wrapper"](file, buffer_size)
+        assert self.environ is not None
+        file_wrapper = self.environ.get("wsgi.file_wrapper") or FileWrapper
+        return file_wrapper(file, buffer_size)

@@ -9,8 +9,8 @@ import inflection
 from ..app import App
 from ..constants import HEAD
 from ..helpers import MultiDict, jsonplus
-from ..request_wrapper import Request
-from ..response_wrapper import Response
+from ..request import Request
+from ..response import Response
 from ..status import not_modified, ok
 from .request_forgery_protection import RequestForgeryProtection
 
