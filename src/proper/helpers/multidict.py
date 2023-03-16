@@ -19,35 +19,38 @@ class MultiDict(MutableMapping):
         dict_or_iter: TDictOrIter | None = None,
         **kwargs
     ) -> None:
-        self.dict = {}
+        self.data = {}
         self.update(dict_or_iter, **kwargs)
 
     def __len__(self):
-        return len(self.dict)
+        return len(self.data)
 
     def __iter__(self):
-        return iter(self.dict)
+        return iter(self.data)
 
     def __contains__(self, key: str):
-        return key in self.dict
+        return key in self.data
 
     def __delitem__(self, key: str):
-        del self.dict[key]
+        del self.data[key]
 
     def __getitem__(self, key: str):
-        return self.dict[key]
+        return self.data[key]
+
+    def __setitem__(self, key: str, value: t.Any):
+        return self.append(key, value)
 
     def __repr__(self):
         return f"{type(self).__name__}({list(self)!r})"
 
     def keys(self) -> KeysView:
-        return self.dict.keys()
+        return self.data.keys()
 
     def append(self, key: str, value: t.Any) -> None:
-        self.dict.setdefault(key, []).append(value)
+        self.data.setdefault(key, []).append(value)
 
     def extend(self, key: str, values: list[t.Any]) -> None:
-        self.dict.setdefault(key, []).extend(values)
+        self.data.setdefault(key, []).extend(values)
 
     def update(
         self,
@@ -57,13 +60,13 @@ class MultiDict(MutableMapping):
         if dict_or_iter:
             if isinstance(dict_or_iter, MultiDict):
                 for key, values in dict_or_iter.items():
-                    self.dict.setdefault(key, []).extend(values)
+                    self.data.setdefault(key, []).extend(values)
             else:
                 for key, value in dict(dict_or_iter).items():
-                    self.dict.setdefault(key, []).append(value)
+                    self.data.setdefault(key, []).append(value)
 
         for key, value in kwargs.items():
-            self.dict.setdefault(key, []).append(value)
+            self.data.setdefault(key, []).append(value)
 
     def get(
         self,
@@ -105,9 +108,9 @@ class MultiDict(MutableMapping):
                 Optional. Get this index instead of the first value
 
         """
-        if key not in self.dict:
+        if key not in self.data:
             return default
-        value = self.dict[key][index]
+        value = self.data[key][index]
 
         if type is not None:
             try:
@@ -136,9 +139,9 @@ class MultiDict(MutableMapping):
                 the value is not included in the result
 
         """
-        if key not in self.dict:
+        if key not in self.data:
             return []
-        values = self.dict[key]
+        values = self.data[key]
         if type is None:
             return values
         result = []
@@ -153,4 +156,4 @@ class MultiDict(MutableMapping):
         """Replace all values for the given `key`"""
         if not isinstance(values, list):
             values = list(values)
-        self.dict[key] = values
+        self.data[key] = values

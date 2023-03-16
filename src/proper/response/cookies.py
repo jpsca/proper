@@ -9,11 +9,6 @@ if TYPE_CHECKING:
     from typing import Optional
 
 
-# Monkey-patching the Morsel to add support for samesite for Python version < 3.8
-# https://github.com/python/cpython/pull/6413
-Morsel._reserved["samesite"] = "SameSite"  # type: ignore
-
-
 class CookiesDict(SimpleCookie):
     pass
 

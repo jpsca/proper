@@ -2,11 +2,11 @@ import typing as t
 
 
 class FileLike(t.Protocol):
-    def read(self, size: int = ..., /) -> bytes: ...
-    def close(self) -> None: ...
-    def seekable(self) -> bool: ...
-    def seek(self, *args) -> None: ...
-    def tell(self) -> None: ...
+    def read(self, size: int = ..., /) -> bytes: ...  # noqa
+    def close(self) -> None: ...  # noqa
+    def seekable(self) -> bool: ...  # noqa
+    def seek(self, *args) -> None: ...  # noqa
+    def tell(self) -> None: ...  # noqa
 
 
 class FileWrapper:

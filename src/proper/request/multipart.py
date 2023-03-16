@@ -273,7 +273,7 @@ class MultipartPart:
         self.name: str | None = None
         self.filename: str | None = None
         self.content_type: str | None = None
-        self.encoding= encoding
+        self.encoding = encoding
         self.memfile_limit = memfile_limit
         self.buffer_size = buffer_size
 
@@ -314,7 +314,7 @@ class MultipartPart:
 
         if self.size > self.memfile_limit and isinstance(self.file, BytesIO):
             # TODO: What about non-file uploads that exceed the memfile_limit?
-            self.file, old = TemporaryFile(mode="w+b"), self.file # type: ignore
+            self.file, old = TemporaryFile(mode="w+b"), self.file  # type: ignore
             old.seek(0)
             copy_file(old, self.file, self.size, self.buffer_size)
 

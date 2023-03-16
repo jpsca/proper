@@ -11,9 +11,10 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .. import status
-from ..helpers import HeadersDict, tunnel_encode
+from ..helpers import tunnel_encode
 
 from .cookies import CookiesDict, add_cookie
+from .headers import ResponseHeaders
 from .file_wrapper import FileWrapper
 from .flash_dict import FlashDict
 
@@ -47,7 +48,7 @@ class Response:
     ]
     DEFAULT_MAX_COOKIE_SIZE = 4093
 
-    headers: "HeadersDict"
+    headers: ResponseHeaders
     cookies: "CookiesDict"
     flash: "FlashDict"
 
@@ -100,7 +101,7 @@ class Response:
         self._session = {}
         self.environ = environ
 
-        self.headers = HeadersDict()
+        self.headers = ResponseHeaders()
         self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 

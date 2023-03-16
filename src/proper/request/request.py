@@ -1,22 +1,16 @@
-"""
-Request class.
-"""
 import mimetypes
 import typing as t
-from datetime import datetime
 from io import BytesIO
 from types import MappingProxyType
+from wsgiref.util import request_uri
 
-from .. import errors
-from ..constants import DELETE, FLASHES_SESSION_KEY, GET, HEAD, PATCH, POST, PUT
-from ..helpers import HeadersDict, MultiDict, tunnel_decode, tunnel_encode
-from ..router import Route
-from .parse_accept_header import parse_accept_header
-from .parse_comma_separated import parse_comma_separated
-from .parse_cookies import parse_cookies
+from proper.constants import DELETE, FLASHES_SESSION_KEY, GET, HEAD, PATCH, POST, PUT
+from proper.errors import InvalidHeader
+from proper.helpers import MultiDict, tunnel_decode, tunnel_encode
+from proper.router import Route
+
+from .headers import RequestHeaders
 from .parse_form_data import parse_form_data, parse_query_string
-from .parse_host import parse_host
-from .parse_http_date import parse_http_date
 
 
 __all__ = ("Request", "make_test_env")
@@ -30,86 +24,96 @@ DEFAULT_FORMAT = "html"
 class Request:
     """An HTTP request.
 
-    Arguments:
-        - encoding: Default encoding.
-        - max_content_length
-        - max_query_size
-        - **environ: A WSGI environment dict passed in from the
+    Any attribute not listed here is searched in the headers dict,
+    so, for example, `request.if_modified_since` is the same as
+    `request.headers["if_modified_since"]`.
+
+    Args:
+        encoding: Default encoding.
+        max_content_length
+        max_query_size
+        **env: A WSGI environment dict passed in from the
             server (See also PEP-3333).
 
     Attributes:
-        - request_method:
-            The uppercased request method, like: "GET".
-        - method:
+        env:
+            The WSGI environment dict passed in from the server.
+        body:
+            The request body as a BytesIO stream.
+        content_length:
+            The length in bytes, as an integer, of the content
+            sent by the client.
+        content_type:
+            The MIME content type of the incoming request.
+        cookies:
+            A dict with the cookies sent with the request.
+        default_port:
+            Returns the default port (80 for HTTP, 443 for HTTPS)
+        encoding:
+            From the arguments.
+        flashes:
+            The flashed messages stored in the session cookie.
+            By reading this value it will be stored in the request but
+            deleted form the session.
+        form:
+            A `MultiDict` object containing the parsed body data, like the
+            one sent by a HTML form with a POST, **including** the files.
+        format:
+            Computed based on the value of the "Accept" header, with "html"
+            as a fallback.
+        headers:
+            The complete set of HTTP headers
+        host_with_port:
+            A host:port string for this request. The port is not included
+            if its the default for the protocol.
+        is_get, is_head, is_post, is_put, is_patch, and is_delete:
+            Return True or False based on the request method.
+        is_ssl:
+            Whether the current request was made via a SSL connection.
+        is_xhr:
+            True if current request is an XHR request.
+        max_content_length:
+            From the arguments.
+        max_query_size:
+            From the arguments.
+        method:
             Returns the same value as `request_method` except for HEAD,
             which it returns as GET; or for POST if it has been overrided
             by PATCH, PUT, or DELETE (see `Method override`).
-        - is_get, is_head, is_post, is_put, is_patch, and is_delete:
-            Return True or False based on the request method.
-        - is_xhr:
-            True if current request is an XHR request.
-        - url:
-            Returns the full URL used for the request.
-        - protocol, host, port, path, and query_string:
-            Components of the URL used for the request, based on the pattern:
-            `protocol://host:port/path?query_string`.
-        - host_with_port:
-            A host:port string for this request. The port is not included
-            if its the default for the protocol.
-        - port_string:
-            A `:port` string for the request if the port is not the default for
-            the protocol.
-        - port_is_default
+        port_is_default:
             Returns True or False, depending if the port is the default for
             the protocol.
-        - default_port:
-            Returns the default port (80 for HTTP, 443 for HTTPS)
-        - is_ssl:
-            Whether the current request was made via a SSL connection.
-        - remote_ip:
+        port_string:
+            A `:port` string for the request if the port is not the default for
+            the protocol.
+        protocol, host, port, path, and query_string:
+            Components of the URL used for the request, based on the pattern:
+            `protocol://host:port/path?query_string`.
+        query:
+            A `MultiDict` object containing the query string data.
+        remote_ip:
             IP address of the closest client or proxy to the WSGI server.
             If your application is behind one or more reverse proxies,
             and it doesn't pass forward the IP address of the client,
             you can use the `access_route` attribute to retrieve the real
             IP address of the client.
-        - environ:
-            The WSGI environment dict passed in from the server.
-        - content_type:
-            The MIME content type of the incoming request.
-        - content_length:
-            The length in bytes, as an integer, of the content sent by the client.
-        - headers:
-            The complete set of HTTP headers, as a NoCaseDict.
-        - accepts:
-            A sorted list of the MIME types in the "Accept" header.
-        - format:
-            Computed based on the value of the "Accept" header, with "html"
-            as a fallback.
-        - if_none_match:
-            Value of the "If-None-Match" header, as a parsed list of strings,
-            or an empty list if the header is missing or its value is blank.
-        - if_modified_since:
-            Value of the "If-Modified-Since" header, or `None` if the header
-            is missing or the date cannot be parsed.
-        - languages:
-            A sorted list of the languages from the "Accept-Languages" header.
-        - body:
-            The request body as a BytesIO stream.
-        - query:
-            A `MultiDict` object containing the query string data.
-        - form:
-            A `MultiDict` object containing the parsed body data, like the
-            one sent by a HTML form with a POST, **including** the files.
-        - cookies:
-            All cookies sent with the request.
-        - session:
+        request_method:
+            The uppercased request method, like: "GET".
+        session:
             The session data sent with the request.
-        - flashes:
-            The flashed messages stored in the session cookie.
-            By reading this value it will be stored in the request but
-            deleted form the session.
+        url:
+            Returns the full URL used for the request.
+
+    Extra attributes:
+        request_id:
+        matched_route:
+        matched_params:
+        matched_action:
+        user:
+        csrf_token:
 
     """
+
     request_id: str = ""
     matched_route: Route | None = None
     matched_params: dict | None = None
@@ -117,18 +121,10 @@ class Request:
     user: t.Any = None
     csrf_token: str | None = None
 
-    _remote_ip: str | None = None
-    _content_length: int | None = None
-    _headers: HeadersDict | None = None
-    _accepts: list[str] | None = None
-    _format: str | None = None
-    _if_none_match: list[str] | None = None
-    _if_modified_since: datetime | None = None
-    _languages: list[str] | None = None
-    _query: MultiDict | None = None
+    # Cache attrs
     _form: MultiDict | None = None
-    _cookies: dict | None = None
-    _session: MappingProxyType
+    _format: str | None = None
+    _query: MultiDict | None = None
 
     def __init__(
         self,
@@ -136,71 +132,106 @@ class Request:
         encoding: str = "utf8",
         max_content_length: int = -1,
         max_query_size: int | None = None,
-        **environ,
+        **env,
     ) -> None:
-        environ = environ or make_test_env()
-        self.environ = environ
+        env = env or make_test_env()
+        headers = {}
+        for key in list(env.keys()):
+            if key.startswith("HTTP_"):
+                name = key.strip().lower().replace("-", "_").removeprefix("http_")
+                headers[name] = env.pop(key, None)
+
+        self.env = env
+        self.headers = RequestHeaders(headers)
+
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
 
-        self.method = environ.get("REQUEST_METHOD", GET).upper()
+        self.method = env.get("REQUEST_METHOD", GET).upper()
         self.request_method = self.method
+
         # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
-        # Read the docstring on `support/encoding.py` for more details.
-        self.path = "/" + tunnel_decode(environ.get("PATH_INFO", "").strip("/"))
-        self.content_type = environ.get("CONTENT_TYPE", "")
-        self.protocol = environ.get("HTTP_X_FORWARDED_PROTO") or environ.get(
+        self.path = "/" + tunnel_decode(env.get("PATH_INFO", "").strip("/"))
+
+        self.content_type = env.get("CONTENT_TYPE", "")
+        self.protocol = self.headers["forwarded_proto"] or env.get(
             "wsgi.url_protocol"
         )
-        self.host, self.port = parse_host(environ.get("HTTP_HOST"), self.default_port)
+
+        try:
+            self.content_length = int(env.get("CONTENT_LENGTH", "0"))
+        except ValueError:
+            raise InvalidHeader("The Content-Length header must be a number.")
+        if self.content_length < 0:
+            raise InvalidHeader(
+                "The value of the Content-Length header must be a positive number."
+            )
+
+        host, port = self.headers["host"]
+        self.host = host
+        self.port = port or self.default_port
+
         self._session = MappingProxyType({})
+
+    def __getattribute__(self, key) -> t.Any:
+        return self.headers.get(key)
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
 
     @property
-    def is_get(self) -> bool:
-        return self.method == GET
+    def body(self) -> BytesIO:
+        return self.env.get("wsgi.input") or BytesIO()
 
     @property
-    def is_head(self) -> bool:
-        return self.request_method == HEAD
+    def cookies(self) -> dict:
+        return self.headers["cookie"]
 
     @property
-    def is_post(self) -> bool:
-        return self.method == POST
+    def default_port(self) -> int:
+        return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_HTTP_PORT
 
     @property
-    def is_put(self) -> bool:
-        return self.method == PUT
+    def flashes(self) -> dict:
+        return self._session.get(FLASHES_SESSION_KEY, {})
 
     @property
-    def is_patch(self) -> bool:
-        return self.method == PATCH
+    def form(self) -> MultiDict:
+        if self._form is None:
+            self._form = self._parse_form()
+        return self._form
+
+    def _parse_form(self) -> MultiDict:
+        # GET and HEAD can't have form data.
+        if self.method in (GET, HEAD):
+            return MultiDict()
+
+        return parse_form_data(
+            self.body,
+            self.content_type,
+            self.content_length,
+            encoding=self.encoding,
+            max_content_length=self.max_content_length,
+        )
 
     @property
-    def is_delete(self) -> bool:
-        return self.method == DELETE
+    def format(self) -> str:
+        if self._format is None:
+            self._format = self._parse_format()
+        return self._format
 
-    @property
-    def is_xhr(self) -> bool:
-        if "HTTP_X_REQUESTED_WITH" in self.environ:
-            return self.environ["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
-        return False
+    def _parse_format(self) -> str:
+        format_ = None
+        for mime in self.accept:
+            if mime == MIME_ALL:
+                break
+            ext = mimetypes.guess_extension(mime)
+            if ext:
+                format_ = ext[1:]
+                break
 
-    @property
-    def url(self) -> str:
-        """Returns the current URL."""
-        url_ = f"{self.host_with_port}{self.path}"
-        query_string = self.query_string
-        if query_string:
-            url_ = f"{url_}?{query_string}"
-        return url_
-
-    @property
-    def query_string(self) -> str:
-        return self.environ.get("QUERY_STRING", "")
+        return format_ or DEFAULT_FORMAT
 
     @property
     def host_with_port(self) -> str:
@@ -211,167 +242,82 @@ class Request:
         return f"{self.host}{self.port_string}"
 
     @property
-    def port_string(self) -> str:
-        return "" if self.port_is_default else f":{self.port}"
+    def is_delete(self) -> bool:
+        return self.method == DELETE
 
     @property
-    def port_is_default(self) -> bool:
-        return self.port == self.default_port
+    def is_get(self) -> bool:
+        return self.method == GET
 
     @property
-    def default_port(self) -> int:
-        return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_HTTP_PORT
+    def is_head(self) -> bool:
+        return self.request_method == HEAD
+
+    @property
+    def is_patch(self) -> bool:
+        return self.method == PATCH
+
+    @property
+    def is_post(self) -> bool:
+        return self.method == POST
+
+    @property
+    def is_put(self) -> bool:
+        return self.method == PUT
 
     @property
     def is_ssl(self) -> bool:
         return self.protocol == "https"
 
     @property
-    def remote_ip(self) -> str:
-        """Passed-forward IP address of the client or IP address of the
-        closest proxy to the WSGI server.
-        """
-        if self._remote_ip is None:
-            addr = None
-            if "HTTP_X_FORWARDED_FOR" in self.environ:
-                addr = self.environ["HTTP_X_FORWARDED_FOR"]
-            if "HTTP_X_REAL_IP" in self.environ:
-                addr = self.environ["HTTP_X_REAL_IP"]
-            elif "REMOTE_ADDR" in self.environ:
-                addr = self.environ["REMOTE_ADDR"]
-            addr = addr or "127.0.0.1"
-            self._remote_ip = addr
-        return self._remote_ip
+    def is_xhr(self) -> bool:
+        return self.headers["x_requested_with"] == "XMLHttpRequest"
 
     @property
-    def content_length(self) -> int:
-        """The content_length value as an integer."""
-        if self._content_length is None:
-            length = self.environ.get("CONTENT_LENGTH", "0")
-            self._content_length = self._validate_content_length(length)
-        return self._content_length
+    def port_is_default(self) -> bool:
+        return self.port == self.default_port
 
     @property
-    def headers(self) -> HeadersDict:
-        if self._headers is None:
-            headers = HeadersDict()
-            for name, value in self.environ.items():
-                name = name.upper()
-                if name.startswith(("HTTP_", "HTTP-")):
-                    name = name[5:]
-                headers[name] = value
-            self._headers = headers
-        return self._headers
-
-    @property
-    def accepts(self) -> list[str]:
-        if self._accepts is None:
-            value = self.environ.get("HTTP_ACCEPT", "")
-            _accepts = [mime for mime, q in parse_accept_header(value)]
-            if not _accepts and self.content_type:
-                _accepts = [self.content_type]
-            self._accepts = _accepts
-
-        return self._accepts
-
-    @property
-    def format(self) -> str:
-        if self._format is None:
-            for mime in self.accepts:
-                if mime == MIME_ALL:
-                    break
-                ext = mimetypes.guess_extension(mime)
-                if ext:
-                    self._format = ext[1:]
-                    break
-
-            self._format = self._format or DEFAULT_FORMAT
-        return self._format
-
-    @property
-    def if_none_match(self) -> list[str]:
-        """Value of the If-None-Match header, as a parsed list of strings,
-        or an empty list if the header is missing or its value is blank.
-        """
-        if self._if_none_match is None:
-            header = self.environ.get("HTTP_IF_NONE_MATCH", "")
-            self._if_none_match = parse_comma_separated(header)
-        return self._if_none_match
-
-    @property
-    def if_modified_since(self) -> datetime | None:
-        if self._if_modified_since is None:
-            header = self.environ.get("HTTP_IF_MODIFIED_SINCE", "")
-            self._if_modified_since = parse_http_date(header) or None
-        return self._if_modified_since
-
-    @property
-    def languages(self) -> list[str]:
-        if self._languages is None:
-            value = self.environ.get("HTTP_ACCEPT_LANGUAGES", "")
-            self._languages = [
-                lang.lower().replace("_", "-") for lang, q in parse_accept_header(value)
-            ]
-
-        return self._languages
-
-    @property
-    def body(self) -> BytesIO:
-        return self.environ.get("wsgi.input") or BytesIO()
+    def port_string(self) -> str:
+        return "" if self.port_is_default else f":{self.port}"
 
     @property
     def query(self) -> MultiDict:
         if self._query is None:
-            query_string = self.query_string
-            self._query = parse_query_string(
-                query_string,
-                encoding=self.encoding,
-                max_query_size=self.max_query_size,
-            )
+            self._query = self._parse_query()
         return self._query
 
-    @property
-    def form(self) -> MultiDict:
-        if self._form is None:
-            # GET and HEAD can't have form data.
-            if self.method in (GET, HEAD):
-                self._form = MultiDict()
-            else:
-                self._form = parse_form_data(
-                    self.body,
-                    self.content_type,
-                    self.content_length,
-                    encoding=self.encoding,
-                    max_content_length=self.max_content_length,
-                )
-        return self._form
+    def _parse_query(self) -> MultiDict:
+        return parse_query_string(
+            self.query_string,
+            encoding=self.encoding,
+            max_query_size=self.max_query_size,
+        )
 
     @property
-    def cookies(self) -> dict:
-        if self._cookies is None:
-            self._cookies = parse_cookies(self.environ.get("HTTP_COOKIE"))
-        return self._cookies
+    def query_string(self) -> str:
+        return self.env.get("QUERY_STRING", "")
+
+    @property
+    def remote_ip(self) -> str:
+        """Passed-forward IP address of the client or IP address of the
+        closest proxy to the WSGI server.
+        """
+        return (
+            self.headers["x_forwarded_for"]
+            or self.headers["x_real_ip"]
+            or self.env.get("REMOTE_ADDR")
+            or "127.0.0.1"
+        )
 
     @property
     def session(self) -> MappingProxyType:
         return self._session
 
     @property
-    def flashes(self) -> dict:
-        return self._session.get(FLASHES_SESSION_KEY, {})
-
-    # Private
-
-    def _validate_content_length(self, length: int | str) -> int:
-        try:
-            ilength = int(length)
-        except ValueError:
-            raise errors.InvalidHeader("The Content-Length header must be a number.")
-        if ilength < 0:
-            raise errors.InvalidHeader(
-                "The value of the Content-Length header must be a positive number."
-            )
-        return ilength
+    def url(self) -> str:
+        """Returns the current URL."""
+        return request_uri(self.env, include_query=True)
 
 
 def make_test_env(path: str = "", **kw) -> dict:
@@ -386,5 +332,5 @@ def make_test_env(path: str = "", **kw) -> dict:
             env["QUERY_STRING"] = query
         env["PATH_INFO"] = tunnel_encode(path.strip())
 
-    env.update(**{key: str(value) for key, value in kw.items()})
+    env.update({key: str(value) for key, value in kw.items()})
     return env
