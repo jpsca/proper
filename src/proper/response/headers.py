@@ -8,25 +8,15 @@ from proper.helpers import tunnel_encode
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 MONTHS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ]
 
 
 def enc_name(name: str) -> str:
-    name = name.strip().lower().replace("_", "-").removeprefix("http_")
+    name = name.strip().lower().replace("-", "_").removeprefix("http_")
     if not name.isascii():
-        raise InvalidHeader("A header name must be in ASCII")
+        raise InvalidHeader("A header name must be encodable as ASCII")
     return name
 
 
@@ -53,7 +43,7 @@ class ResponseHeaders(dict):
         exclude = [enc_name(name) for name in exclude or []]
         return [
             (
-                name.encode("ascii"),
+                name.replace("_", "-").encode("ascii"),
                 tunnel_encode(", ".join(values), "utf-8")
             )
             for name, values in self.items()
@@ -65,27 +55,42 @@ class ResponseHeadersMixin:
     """Mixin with the methods related to the response headers.
     """
 
-    # Cache
-    _etag: str | None = None
-    _last_modified: date | None = None
-
     def __init__(self) -> None:
         self._headers = ResponseHeaders()
 
-    def get(self, name: str, default: t.Any = None) -> str:
+    @property
+    def headers(self):
+        return self._headers.copy()
+
+    def get_header(self, name: str, default: t.Any = None) -> str:
         name = enc_name(name)
         return self._headers.get(name, default)
 
-    def set(self, name: str, value: t.Any, **params) -> None:
+    def set_headers(self, headers: t.Iterable[tuple[str, str]]) -> None:
+        for name, coded_value in headers:
+            name = enc_name(name)
+            self.set_header(name, coded_value)
+
+    def set_header(self, name: str, value: t.Any, **params) -> None:
         """Set a response header"""
         name = enc_name(name)
 
-        if name == "etag":
-            self.set_etag(value, **params)
-        elif name == "last-modified":
-            self.set_last_modified(value, **params)
+        callable_setter = getattr(self, f"set_{name}", None)
+        if callable_setter and callable(callable_setter):
+            callable_setter(value, **params)
+        elif hasattr(self, name):
+            setattr(self, name, value)
         else:
-            self._headers[name] = str(value)
+            coded_value = format_generic_header(value, **params)
+            self._headers.set(name, coded_value)
+
+    @property
+    def etag(self) -> str:
+        return self._headers.get("etag")
+
+    @etag.setter
+    def etag(self, etag: date | int | float | str):
+        self.set_etag(etag)
 
     def set_etag(self, etag: date | int | float | str, *, strong: bool = False) -> None:
         """
@@ -105,11 +110,15 @@ class ResponseHeadersMixin:
         assert etag is not None
         # not md5 because is not availabe in some systems
         digest = sha1(str(etag).encode()).hexdigest()
-        value = f'"{digest}"' if strong else f'W/"{digest}"'
-        self._headers["etag"] = value
-        self._etag = value
+        coded_value = f'"{digest}"' if strong else f'W/"{digest}"'
+        self._headers["etag"] = coded_value
 
-    def set_last_modified(self, dt: date | float | int) -> None:
+    @property
+    def last_modified(self) -> str:
+        return self._headers.get("last-modified")
+
+    @last_modified.setter
+    def last_modified(self, dt: date | float | int) -> None:
         """
         Sets the Last-Modified header.
 
@@ -123,50 +132,9 @@ class ResponseHeadersMixin:
         self._headers["last-modified"] = dt.strftime(fmt)
 
 
-    # def _segment_to_str(self, value: str | None, params: dict[str, t.Any]) -> str:
-    #     """Produce a header value and `key=value` parameters separated by semicolons.
-
-    #     If a value contains non-token characters, it will be quoted.
-    #     If a value is `None`, the parameter is skipped.
-    #     In some keys for some headers, a UTF-8 value can be encoded using a special
-    #     `key*=UTF-8''value` form, where `value` is percent encoded. This function will
-    #     not produce that format automatically, but if a given key ends with an asterisk
-    #     `*`, the value is assumed to have that form and will not be quoted further.
-    #     If a key ends with `*`, its value will not be quoted.
-
-    #     """
-    #     segments = []
-    #     if value is not None:
-    #         segments.append(value)
-
-    #     for key, value in params.items():
-    #         if value is None:
-    #             continue
-    #         if key[-1] == "*":
-    #             segments.append(f"{key}={value}")
-    #         else:
-    #             value = self._quote_value(value)
-    #             segments.append(f"{key}={value}")
-
-    #     return ";".join(segments)
-
-    # def _quote_value(self, value: str) -> str:
-    #     """Add double quotes around a header value. If the header contains
-    #     only ASCII token characters, it will be returned unchanged.
-    #     If the header contains ``"`` or ``\\`` characters, they will be escaped
-    #     with an additional ``\\`` character.
-    #     """
-    #     if not value:
-    #         return '""'
-
-    #     if " " in value or "\\" in value or '"' in value:
-    #         value = value.replace("\\", "\\\\").replace('"', '\\"')
-    #         return f'"{value}"'
-
-    #     return value
-
-    # cookies
-    #     return [
-    #         tuple(morsel.output().split(": ", 1))
-    #         for morsel in self.cookies.values()
-    #     ]
+def format_header_value(value, **params) -> str:
+    """Takes a value and a list of parameters and returns a valid header value.
+    """
+    if params:
+        return f"{value}; {'; '.join(f'{k}={v}' for k, v in params.items())}"
+    return str(value)

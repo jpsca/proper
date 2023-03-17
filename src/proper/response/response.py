@@ -293,3 +293,182 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         if self.disable_cookies:
             exclude.append("cookie")
         return self._headers.get_tuples(exclude)
+
+
+
+
+    cache_control = header_property(
+        'Cache-Control',
+        """Set the Cache-Control header.
+        Used to set a list of cache directives to use as the value of the
+        Cache-Control header. The list will be joined with ", " to produce
+        the value for the header.
+        """,
+        format_header_value_list,
+    )
+
+    content_location = header_property(
+        'Content-Location',
+        """Set the Content-Location header.
+        This value will be URI encoded per RFC 3986. If the value that is
+        being set is already URI encoded it should be decoded first or the
+        header should be set manually using the set_header method.
+        """,
+        uri_encode,
+    )
+
+    content_length = header_property(
+        'Content-Length',
+        """Set the Content-Length header.
+        This property can be used for responding to HEAD requests when you
+        aren't actually providing the response body, or when streaming the
+        response. If either the `text` property or the `data` property is set
+        on the response, the framework will force Content-Length to be the
+        length of the given text bytes. Therefore, it is only necessary to
+        manually set the content length when those properties are not used.
+        Note:
+            In cases where the response content is a stream (readable
+            file-like object), Falcon will not supply a Content-Length header
+            to the server unless `content_length` is explicitly set.
+            Consequently, the server may choose to use chunked encoding in this
+            case.
+        """,
+    )
+
+    content_range = header_property(
+        'Content-Range',
+        """A tuple to use in constructing a value for the Content-Range header.
+        The tuple has the form (*start*, *end*, *length*, [*unit*]), where *start* and
+        *end* designate the range (inclusive), and *length* is the
+        total length, or '\\*' if unknown. You may pass ``int``'s for
+        these numbers (no need to convert to ``str`` beforehand). The optional value
+        *unit* describes the range unit and defaults to 'bytes'
+        Note:
+            You only need to use the alternate form, 'bytes \\*/1234', for
+            responses that use the status '416 Range Not Satisfiable'. In this
+            case, raising ``falcon.HTTPRangeNotSatisfiable`` will do the right
+            thing.
+        (See also: RFC 7233, Section 4.2)
+        """,
+        format_range,
+    )
+
+    content_type = header_property(
+        'Content-Type',
+        """Sets the Content-Type header.
+        The ``falcon`` module provides a number of constants for
+        common media types, including ``falcon.MEDIA_JSON``,
+        ``falcon.MEDIA_MSGPACK``, ``falcon.MEDIA_YAML``,
+        ``falcon.MEDIA_XML``, ``falcon.MEDIA_HTML``,
+        ``falcon.MEDIA_JS``, ``falcon.MEDIA_TEXT``,
+        ``falcon.MEDIA_JPEG``, ``falcon.MEDIA_PNG``,
+        and ``falcon.MEDIA_GIF``.
+        """,
+    )
+
+    downloadable_as = header_property(
+        'Content-Disposition',
+        """Set the Content-Disposition header using the given filename.
+        The value will be used for the ``filename`` directive. For example,
+        given ``'report.pdf'``, the Content-Disposition header would be set
+        to: ``'attachment; filename="report.pdf"'``.
+        As per `RFC 6266 <https://tools.ietf.org/html/rfc6266#appendix-D>`_
+        recommendations, non-ASCII filenames will be encoded using the
+        ``filename*`` directive, whereas ``filename`` will contain the US
+        ASCII fallback.
+        """,
+        functools.partial(format_content_disposition, disposition_type='attachment'),
+    )
+
+    viewable_as = header_property(
+        'Content-Disposition',
+        """Set an inline Content-Disposition header using the given filename.
+        The value will be used for the ``filename`` directive. For example,
+        given ``'report.pdf'``, the Content-Disposition header would be set
+        to: ``'inline; filename="report.pdf"'``.
+        As per `RFC 6266 <https://tools.ietf.org/html/rfc6266#appendix-D>`_
+        recommendations, non-ASCII filenames will be encoded using the
+        ``filename*`` directive, whereas ``filename`` will contain the US
+        ASCII fallback.
+        .. versionadded:: 3.1
+        """,
+        functools.partial(format_content_disposition, disposition_type='inline'),
+    )
+
+    etag = header_property(
+        'ETag',
+        """Set the ETag header.
+        The ETag header will be wrapped with double quotes ``"value"`` in case
+        the user didn't pass it.
+        """,
+        format_etag_header,
+    )
+
+    expires = header_property(
+        'Expires',
+        """Set the Expires header. Set to a ``datetime`` (UTC) instance.
+        Note:
+            Falcon will format the ``datetime`` as an HTTP date string.
+        """,
+        dt_to_http,
+    )
+
+    last_modified = header_property(
+        'Last-Modified',
+        """Set the Last-Modified header. Set to a ``datetime`` (UTC) instance.
+        Note:
+            Falcon will format the ``datetime`` as an HTTP date string.
+        """,
+        dt_to_http,
+    )
+
+    location = header_property(
+        'Location',
+        """Set the Location header.
+        This value will be URI encoded per RFC 3986. If the value that is
+        being set is already URI encoded it should be decoded first or the
+        header should be set manually using the set_header method.
+        """,
+        uri_encode,
+    )
+
+    retry_after = header_property(
+        'Retry-After',
+        """Set the Retry-After header.
+        The expected value is an integral number of seconds to use as the
+        value for the header. The HTTP-date syntax is not supported.
+        """,
+        str,
+    )
+
+    vary = header_property(
+        'Vary',
+        """Value to use for the Vary header.
+        Set this property to an iterable of header names. For a single
+        asterisk or field value, simply pass a single-element ``list``
+        or ``tuple``.
+        The "Vary" header field in a response describes what parts of
+        a request message, aside from the method, Host header field,
+        and request target, might influence the origin server's
+        process for selecting and representing this response.  The
+        value consists of either a single asterisk ("*") or a list of
+        header field names (case-insensitive).
+        (See also: RFC 7231, Section 7.1.4)
+        """,
+        format_header_value_list,
+    )
+
+    accept_ranges = header_property(
+        'Accept-Ranges',
+        """Set the Accept-Ranges header.
+        The Accept-Ranges header field indicates to the client which
+        range units are supported (e.g. "bytes") for the target
+        resource.
+        If range requests are not supported for the target resource,
+        the header may be set to "none" to advise the client not to
+        attempt any such requests.
+        Note:
+            "none" is the literal string, not Python's built-in ``None``
+            type.
+        """,
+    )

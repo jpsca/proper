@@ -13,23 +13,21 @@ class AppController(Controller):
     # Private
 
     def _put_security_headers(self):
-        response.headers.update({
-            # It determines if a web page can or cannot be included via <frame>
-            # and <iframe> topics by untrusted domains.
-            # https://developer.mozilla.org/Web/HTTP/Headers/X-Frame-Options
-            "X-Frame-Options": "SAMEORIGIN",
+        # It determines if a web page can or cannot be included via <frame>
+        # and <iframe> topics by untrusted domains.
+        # https://developer.mozilla.org/Web/HTTP/Headers/X-Frame-Options
+        response.set("X-Frame-Options", "SAMEORIGIN")
 
-            # Determine the behavior of the browser in case an XSS attack is
-            # detected. Use Content-Security-Policy without allowing unsafe-inline
-            # scripts instead.
-            # https://developer.mozilla.org/Web/HTTP/Headers/X-XSS-Protection
-            "X-XSS-Protection": "1; mode=block",
+        # Determine the behavior of the browser in case an XSS attack is
+        # detected. Use Content-Security-Policy without allowing unsafe-inline
+        # scripts instead.
+        # https://developer.mozilla.org/Web/HTTP/Headers/X-XSS-Protection
+        response.set("X-XSS-Protection", "1", mode="block")
 
-            # Download files or try to open them in the browser?
-            "X-Download-Options": "noopen",
+        # Download files or try to open them in the browser?
+        response.set("X-Download-Options", "noopen")
 
-            # Set to none to restrict Adobe Flash Player’s access to the web page data.
-            "X-Permitted-Cross-Domain-Policies": "none",
+        # Set to none to restrict Adobe Flash Player’s access to the web page data.
+        response.set("X-Permitted-Cross-Domain-Policies", "none")
 
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-        })
+        response.set("Referrer-Policy", "strict-origin-when-cross-origin")

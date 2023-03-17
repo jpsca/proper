@@ -46,7 +46,7 @@ def update_session_cookie(response: "Response", app: "App") -> None:
 
     # If the session was modified to be empty, remove the cookie.
     if not session:
-        response.delete_cookie(
+        response.unset_cookie(
             config.cookie.name,
             path=config.cookie.path or "/",
             domain=config.cookie.domain,
