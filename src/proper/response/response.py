@@ -4,8 +4,7 @@ Response class.
 import unicodedata
 import typing as t
 from collections.abc import Iterable
-from datetime import date, datetime
-from hashlib import sha1
+from datetime import date
 from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import quote
@@ -13,13 +12,12 @@ from urllib.parse import quote
 from .. import status
 from ..helpers import tunnel_encode
 
-from .cookies import CookiesDict, add_cookie
-from .headers import ResponseHeaders
+from .cookies import ResponseCookiesMixin
+from .headers import ResponseHeadersMixin
 from .file_wrapper import FileWrapper
 from .flash_dict import FlashDict
 
 if t.TYPE_CHECKING:
-    from http.cookies import Morsel
     from proper import App, Request
 
 
@@ -30,26 +28,10 @@ def is_iterable(obj: t.Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
 
-class Response:
-    DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    MONTHS = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ]
-    DEFAULT_MAX_COOKIE_SIZE = 4093
+class Response(ResponseHeadersMixin, ResponseCookiesMixin):
+    """
+    """
 
-    headers: ResponseHeaders
-    cookies: "CookiesDict"
     flash: "FlashDict"
 
     # Set to `True` by the dispatcher to indicate the endpoint was called.
@@ -62,23 +44,9 @@ class Response:
     # name of the component
     component: str | None = None
 
-    # Warn if a cookie header exceeds this size.
-    # The default is 4093 and should be supported by most browsers
-    # (See http://browsercookielimits.squawky.net)
-    # A cookie larger than this size will still be sent, but it may be ignored or
-    # handled incorrectly by some browsers. Set to 0 to disable this check.
-    max_cookie_size: int = DEFAULT_MAX_COOKIE_SIZE
-
-    # Set to True to not set cookies in this response, including any changes to the
-    # session or CSRF token. You might want to use it for some read-only public
-    # endpoints, like a RSS feed.
-    disable_cookies: bool = False
-
     error: Exception | None = None
     raw_body: str | bytes | None = None
 
-    _etag: str | None = None
-    _last_modified: date | None = None
     _app: "App | None" = None
     _request: "Request | None" = None
     _session: dict[str, t.Any]
@@ -101,25 +69,23 @@ class Response:
         self._session = {}
         self.environ = environ
 
-        self.headers = ResponseHeaders()
-        self.cookies = CookiesDict()
         self.flash = FlashDict(self)
 
     def __call__(self, start_response: t.Callable) -> t.Iterable[bytes]:
-        if "Content-Type" not in self.headers:
+        if "Content-Type" not in self._headers:
             content_type = f"{self.content_type}; charset={self.charset}"
-            self.headers["Content-Type"] = content_type
+            self._headers["Content-Type"] = content_type
 
         body = self.raw_body or b""
         if isinstance(body, str):
             body = body.encode(self.charset)
 
-        if "Content-Length" not in self.headers:
+        if "Content-Length" not in self._headers:
             content_length = len(body)
             if content_length:
-                self.headers["Content-Length"] = str(content_length)
+                self._headers["Content-Length"] = str(content_length)
 
-        start_response(self.status_code, self.headers_list)
+        start_response(self.status_code, self._get_headers_tuples())
         if not body:
             return []
         return [body]
@@ -144,24 +110,6 @@ class Response:
         return self.raw_body is not None
 
     @property
-    def headers_list(self) -> list[tuple[str, str]]:
-        return self._build_regular_headers() + self._build_cookie_headers()
-
-    def _build_regular_headers(self) -> list[tuple[str, str]]:
-        return [
-            (key, tunnel_encode(value, "utf-8"))
-            for key, value in self.headers.items()
-        ]
-
-    def _build_cookie_headers(self) -> list[tuple[str, str]]:
-        if self.disable_cookies:
-            return []
-        return [
-            tuple(morsel.output().split(": ", 1))
-            for morsel in self.cookies.values()
-        ]
-
-    @property
     def session(self) -> dict:
         """Read-only session"""
         return self._session
@@ -173,9 +121,6 @@ class Response:
     @status_code.setter
     def status_code(self, value: str) -> None:
         self._status_code = tunnel_encode(value)
-
-    def set_header(self, name: str, value: str) -> None:
-        self.headers[name] = value
 
     def redirect_to(
         self,
@@ -193,7 +138,7 @@ class Response:
         if not url_or_route.startswith(("/", "http")):
             to = self._app.url_for(url_or_route, object=object, **kw)
 
-        self.headers["location"] = to
+        self._headers["location"] = to
         self.body = "\n".join(
             [
                 "<!doctype html>",
@@ -208,70 +153,6 @@ class Response:
 
         if flash:
             self.flash[flash_type] = flash
-
-    def set_cookie(self, key: str, value: str = "", **kw) -> "Morsel":
-        """
-        Set (add) a cookie for the response. Returns the cookie set.
-
-        Arguments are:
-
-        - key:
-            The cookie name.
-
-        - value:
-            The cookie value.
-
-        - max_age:
-            An integer representing a number of seconds, datetime.timedelta,
-            or None. This value is used for the Max-Age and Expires values of
-            the generated cookie (Expires will be set to now + max_age).
-            If this value is None, the cookie will not have a Max-Age value.
-
-        - path:
-            A string representing the cookie Path value. It defaults to `/`.
-
-        - domain:
-            A string representing the cookie Domain, or None. If domain is None,
-            no Domain value will be sent in the cookie.
-
-        - secure:
-            A boolean. If it's True, the secure flag will be sent in the cookie,
-            if it's False, the secure flag will not be sent in the cookie.
-
-        - httponly:
-            A boolean. If it's True, the HttpOnly flag will be sent in the cookie,
-            if it's False, the HttpOnly flag will not be sent in the cookie.
-
-        - samesite:
-            A string representing the SameSite attribute of the cookie or None.
-            If samesite is None no SameSite value will be sent in the cookie.
-            Should only be "Strict" or "Lax".
-            https://www.owasp.org/index.php/SameSite
-
-        - comment:
-            A string representing the cookie Comment value, or None. If comment
-            is None, no Comment value will be sent in the cookie.
-
-        """
-        return add_cookie(self.cookies, key, value, max_size=self.max_cookie_size, **kw)
-
-    def unset_cookie(self, name: str) -> None:
-        """
-        Removes a cookie from this response (before sending it to the client).
-        If the cookie is already on the client, use `delete_cookie()` instead.
-        """
-        if name in self.cookies:
-            del self.cookies[name]
-
-    def delete_cookie(self, name: str, *, path: str = "/", domain: str = "") -> None:
-        """
-        Delete a cookie from the client. Note that path and domain must match
-        how the cookie was originally set.
-
-        This sets the cookie to the empty string, and max_age=0 so that it should
-        expire immediately.
-        """
-        self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
     def fresh_when(
         self,
@@ -322,7 +203,7 @@ class Response:
         if last_modified is not None:
             self.set_last_modified(last_modified)
 
-        self.headers[
+        self._headers[
             "Cache-Control"
         ] = f"max-age=0, {'public' if public else 'private'}, must-revalidate"
         return self.is_fresh
@@ -343,39 +224,6 @@ class Response:
 
         return False
 
-    def set_etag(self, etag: date | int | float | str, *, strong: bool = False) -> None:
-        """
-        Sets the Etag header.
-
-        The Etag can be generated from a date, a string or a number.
-
-        Arguments:
-            - strong:
-                By default a “weak” Etag is used. Set this to `True` to set a
-                “strong” ETag validator on the response. A strong ETag implies
-                exact equality: the response must match byte for byte.
-                This is necessary for doing range requests within a large file
-                or for compatibility with some CDNs that don’t support weak ETags.
-
-        """
-        assert etag is not None
-        digest = sha1(str(etag).encode()).hexdigest()
-        self._etag = f'"{digest}"' if strong else f'W/"{digest}"'
-        self.headers["ETag"] = self._etag
-
-    def set_last_modified(self, dt: date | float | int) -> None:
-        """
-        Sets the Last-Modified header.
-
-        The Last-Modified can be generated from a timestamp of rom an UTC or naive datetime.
-        """
-        assert dt is not None
-        if isinstance(dt, (float, int)):
-            dt = datetime.utcfromtimestamp(dt)
-        fmt = f"{self.DAYS[dt.weekday()]}, %d {self.MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
-        self._last_modified = dt
-        self.headers["Last-Modified"] = dt.strftime(fmt)
-
     def send_file(
         self,
         path: str | Path,
@@ -395,7 +243,7 @@ class Response:
             # Don't send encoding for attachments, it causes browsers to
             # save decompress tar.gz files.
             if encoding is not None and not as_attachment:
-                self.headers["Content-Encoding"] = encoding
+                self._headers["Content-Encoding"] = encoding
 
         try:
             download_name.encode("ascii")
@@ -409,17 +257,17 @@ class Response:
             options = f"; filename={download_name}"
 
         value = "attachment" if as_attachment else "inline"
-        self.headers["Content-Disposition"] = f"{value}{options}"
+        self._headers["Content-Disposition"] = f"{value}{options}"
 
         if use_x_sendfile:
-            self.headers["X-Sendfile"] = path
+            self._headers["X-Sendfile"] = path
 
         stat = path.stat()
         size = stat.st_size
         mtime = stat.st_mtime
 
         if size is not None:
-            self.headers["Content-Length"] = str(size)
+            self._headers["Content-Length"] = str(size)
         if mtime is not None:
             self.set_last_modified(mtime)
 
@@ -439,3 +287,9 @@ class Response:
         assert self.environ is not None
         file_wrapper = self.environ.get("wsgi.file_wrapper") or FileWrapper
         return file_wrapper(file, buffer_size)
+
+    def  _get_headers_tuples(self) -> list[tuple[bytes, str]]:
+        exclude = []
+        if self.disable_cookies:
+            exclude.append("cookie")
+        return self._headers.get_tuples(exclude)

@@ -5,12 +5,113 @@ from email.utils import formatdate
 from http.cookies import Morsel, SimpleCookie
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from typing import Optional
 
 
-class CookiesDict(SimpleCookie):
-    pass
+class ResponseCookies(dict):
+    """Response cookies.
+    """
+
+    def __setitem__(self, name: str, value: t.Any):
+        self.set(name, value)
+
+    def add(self, name: str, value: str):
+        self.setdefault(name, []).append(value)
+
+    def set(self, name: str, value: str):
+        self[name] = [value]
+
+    def get(self, name: str, default: t.Any = None) -> str:
+        values = super().get(name)
+        if values is None:
+            return default
+        return ", ".join(values)
+
+
+class ResponseCookiesMixin:
+    """Mixin with the methods related to the response cookies.
+    """
+
+    # Warn if a cookie header exceeds this size.
+    # The default is 4093 and should be supported by most browsers
+    # (See http://browsercookielimits.squawky.net)
+    # A cookie larger than this size will still be sent, but it may be ignored or
+    # handled incorrectly by some browsers. Set to 0 to disable this check.
+    max_cookie_size: int = 4093
+
+    # Set to True to not set cookies in this response, including any changes to the
+    # session or CSRF token. You might want to use it for some read-only public
+    # endpoints, like a RSS feed.
+    disable_cookies: bool = False
+
+    def __init__(self) -> None:
+        self._cookies = ResponseCookies()
+
+    def set_cookie(self, key: str, value: str = "", **kw) -> "Morsel":
+        """
+        Set (add) a cookie for the response. Returns the cookie set.
+
+        Arguments are:
+
+        - key:
+            The cookie name.
+
+        - value:
+            The cookie value.
+
+        - max_age:
+            An integer representing a number of seconds, datetime.timedelta,
+            or None. This value is used for the Max-Age and Expires values of
+            the generated cookie (Expires will be set to now + max_age).
+            If this value is None, the cookie will not have a Max-Age value.
+
+        - path:
+            A string representing the cookie Path value. It defaults to `/`.
+
+        - domain:
+            A string representing the cookie Domain, or None. If domain is None,
+            no Domain value will be sent in the cookie.
+
+        - secure:
+            A boolean. If it's True, the secure flag will be sent in the cookie,
+            if it's False, the secure flag will not be sent in the cookie.
+
+        - httponly:
+            A boolean. If it's True, the HttpOnly flag will be sent in the cookie,
+            if it's False, the HttpOnly flag will not be sent in the cookie.
+
+        - samesite:
+            A string representing the SameSite attribute of the cookie or None.
+            If samesite is None no SameSite value will be sent in the cookie.
+            Should only be "Strict" or "Lax".
+            https://www.owasp.org/index.php/SameSite
+
+        - comment:
+            A string representing the cookie Comment value, or None. If comment
+            is None, no Comment value will be sent in the cookie.
+
+        """
+        return add_cookie(self.cookies, key, value, max_size=self.max_cookie_size, **kw)
+
+    def unset_cookie(self, name: str) -> None:
+        """
+        Removes a cookie from this response (before sending it to the client).
+        If the cookie is already on the client, use `set_delete_cookie()` instead.
+        """
+        if name in self.cookies:
+            del self.cookies[name]
+
+    def set_delete_cookie(self, name: str, *, path: str = "/", domain: str = "") -> None:
+        """
+        Delete a cookie from the client. Note that path and domain must match
+        how the cookie was originally set.
+
+        This sets the cookie to the empty string, and max_age=0 so that it should
+        expire immediately.
+        """
+        self.set_cookie(name, value="", max_age=0, path=path, domain=domain)
 
 
 RE_FILTER_FROM_COOKIE_NAME = re.compile(r"[^a-zA-Z0-9!*&#$%^'`+_~\.\-]*")
