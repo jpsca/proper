@@ -11,12 +11,12 @@ class MyController(Controller):
         self.response.body = "Hello Callable!"
 
     def echo_query(self):
-        self.response.headers["req-query"] = "|".join(
+        self.response.set_header("req-query", "|".join(
             [
                 f"{key}:{','.join(str(val) for val in values)}"
-                for key, values in self.request.query.dict.items()
+                for key, values in self.request.query.data.items()
             ]
-        )
+        ))
 
 
 def test_hello_world(app, Pages, web):

@@ -14,10 +14,38 @@ does that:
     'olé'
 
 """
+from datetime import datetime
+
+
 __all__ = (
+    "parse_http_date",
+    "format_http_date",
     "tunnel_encode",
     "tunnel_decode",
 )
+
+DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+MONTHS = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+]
+
+
+def parse_http_date(value: str | None) -> datetime | None:
+    """Parse a datetime from a header. Ignores obsoletes formats."""
+    if value is None:
+        return None
+
+    sdate = value.split(",", 1)[-1].strip()
+    try:
+        return datetime.strptime(sdate, "%d %b %Y %H:%M:%S %Z")
+    except Exception:
+        return None
+
+
+def format_http_date(dt: datetime) -> str:
+    fmt = f"{DAYS[dt.weekday()]}, %d {MONTHS[dt.month - 1]} %Y %H:%M:%S GMT"
+    return dt.strftime(fmt)
 
 
 def tunnel_encode(string: str, charset: str = "utf8") -> str:

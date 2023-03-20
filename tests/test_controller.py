@@ -24,7 +24,7 @@ def test_no_need_to_argue():
     co = get_controller(GET)
     co.protect_from_forgery("action")
     assert co.request.csrf_token is not None
-    assert co.request.csrf_token == co.response.headers[CSRF_HEADER]
+    assert co.request.csrf_token == co.response.get_header(CSRF_HEADER)
     assert len(co.request.csrf_token) == CSRF_TOKEN_LENGTH * 2
 
 

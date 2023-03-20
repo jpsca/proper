@@ -124,7 +124,7 @@ http_415 = "415 Unsupported Media Type"
 unsupported_media_type = http_415
 
 http_416 = "416 Range Not Satisfiable"
-requested_range_not_satisfiable = http_416
+range_not_satisfiable = http_416
 
 http_417 = "417 Expectation Failed"
 expectation_failed = http_417

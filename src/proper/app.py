@@ -355,7 +355,6 @@ class App:
 
     def _setup_middleware(self) -> None:
         self._on_before_dispatch = (
-            partial(middleware.set_request_id, app=self),
             partial(middleware.head_to_get, app=self),
             partial(middleware.method_override, app=self),
             partial(middleware.match, app=self),

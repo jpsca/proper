@@ -314,6 +314,29 @@ class UnsupportedMediaType(HTTPError):
     status_code = status.unsupported_media_type
 
 
+class RangeNotSatisfiable(HTTPError):
+    """416 Range Not Satisfiable.
+
+    The server cannot serve the requested ranges. The most likely reason is
+    that the document doesn't contain such ranges, or that the Range header
+    value, though syntactically correct, doesn't make sense.
+
+    The format problem might be due to the request's indicated Content-
+    Type or Content-Encoding, or as a result of inspecting the data
+    directly.
+
+    The 416 response message contains a Content-Range with
+    the current length of the resource, that you need to provide
+    to raise thie exception.
+    """
+
+    status_code = status.range_not_satisfiable
+
+    def __init__(self, msg, length: int | str = "*", **headers):
+        headers.setdefault("Content-Range", f"bytes */{length}")
+        super().__init__(msg, status_code=self.status_code, **headers)
+
+
 class UnprocessableEntity(HTTPError):
     """422 Unprocessable Entity.
 

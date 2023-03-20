@@ -12,4 +12,4 @@ def test_catch_on_teardown_func_error(app, Pages, start_response):
 
     assert b"<title>Error" in body[0]
     assert start_response.status_code == status.server_error
-    assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert start_response.content_type == "text/plain; charset=utf-8"

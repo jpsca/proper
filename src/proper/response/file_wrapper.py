@@ -1,14 +1,6 @@
 import typing as t
 
 
-class FileLike(t.Protocol):
-    def read(self, size: int = ..., /) -> bytes: ...  # noqa
-    def close(self) -> None: ...  # noqa
-    def seekable(self) -> bool: ...  # noqa
-    def seek(self, *args) -> None: ...  # noqa
-    def tell(self) -> None: ...  # noqa
-
-
 class FileWrapper:
     """This class can be used to convert a file-like object into
     an iterable. It yields `buffer_size` blocks until the file is fully read.
@@ -26,7 +18,7 @@ class FileWrapper:
 
     """
 
-    def __init__(self, filelike: FileLike, buffer_size: int = 8192) -> None:
+    def __init__(self, filelike: t.IO[t.Any], buffer_size: int = 8192) -> None:
         self.filelike = filelike
         self.buffer_size = buffer_size
 

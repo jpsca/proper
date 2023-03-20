@@ -11,14 +11,17 @@ class BeforeAndAfterTestCase(Controller):
         self._f2()
 
     def index(self):
-        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-index-"
+        val = self.response.get_header("X-Test", "")
+        self.response.set_header("X-Test", f"{val}-index-")
         self.response.body = ""
 
     def _f1(self):
-        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-f1-"
+        val = self.response.get_header("X-Test", "")
+        self.response.set_header("X-Test", f"{val}-f1-")
 
     def _f2(self):
-        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-f2-"
+        val = self.response.get_header("X-Test", "")
+        self.response.set_header("X-Test", f"{val}-f2-")
 
 
 def test_before_and_after_filters(app, web):
@@ -45,11 +48,13 @@ def test_custom_component_from_cb(app, web):
 
 class StopTestCase(Controller):
     def __before__(self):
-        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-f1-"
+        val = self.response.get_header("X-Test", "")
+        self.response.set_header("X-Test", f"{val}-f1-")
         self.response.stop = True
 
     def index(self):
-        self.response.headers["X-Test"] = self.response.headers.get("X-Test", "") + "-index-"
+        val = self.response.get_header("X-Test", "")
+        self.response.set_header("X-Test", f"{val}-index-")
         self.response.body = ""
 
 

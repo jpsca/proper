@@ -61,11 +61,11 @@ class Controller(RequestForgeryProtection):
             self.response.status_code = status
 
         if json is not None:
-            self.response.content_type = "application/json"
+            self.response.set_content_type("application/json")
             return jsonplus.dumps(json)
 
         if text is not None:
-            self.response.content_type = "text/plain"
+            self.response.set_content_type("text/plain")
             return text
 
         component = component or self.response.component

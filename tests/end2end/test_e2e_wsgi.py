@@ -7,7 +7,7 @@ def test_call(app, Pages, start_response):
 
     assert body == [b"Hello World!"]
     assert start_response.status_code == status.ok
-    assert start_response.headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert start_response.set_content_type("text/plain")
 
 
 def test_return_bytes(app, Pages, start_response):

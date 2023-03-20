@@ -38,7 +38,7 @@ class RequestForgeryProtection:
         masked_token = self._mask_csrf_token(token) if token else None
         self.request.csrf_token = masked_token
         if masked_token:
-            self.response.headers[CSRF_HEADER] = masked_token
+            self.response.set_header(CSRF_HEADER, masked_token)
 
     def _must_check_csrf_token(self, action: str) -> bool:
         """Return wether the csrf token in the request must be checked
