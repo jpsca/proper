@@ -9,6 +9,8 @@ from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
 from proper.helpers import parse_http_date, tunnel_decode
 from proper.errors import InvalidHeader
 
+from .forwarded import Forwarded, parse_forwarded
+
 
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
@@ -108,10 +110,18 @@ class RequestHeadersMixin:
         """
         return self.cookies
 
+    @cached_property
+    def date(self) -> datetime | None:
+        """Parse the `date` header.
+
+        The date and time at which the message originated.
+        """
+        val = self.env.get("HTTP_DATE")
+        return parse_http_date(val)
+
     @property
     def default_port(self) -> int:
-        """
-        """
+        """Returns the default port for the protocol."""
         return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_HTTP_PORT
 
     @cached_property
@@ -130,6 +140,15 @@ class RequestHeadersMixin:
                 break
         return val or self.DEFAULT_FORMAT
 
+    @cached_property
+    def forwarded(self) -> list[dict]:
+        """Parse the `forwarded` header.
+
+        The `Forwarded` header is a comma-separated list of forwarding
+        information from the client to the server on its way through proxies.
+        """
+        return parse_forwarded(self.env.get("HTTP_FORWARDED"))
+
     @property
     def host_with_port(self) -> str:
         """Returns a host:port string for this request, such as “example.com” or
@@ -140,83 +159,82 @@ class RequestHeadersMixin:
 
     @property
     def is_delete(self) -> bool:
+        """True if the method is DELETE."""
         return self.method == DELETE
 
     @property
     def is_get(self) -> bool:
+        """True if the method is GET."""
         return self.method == GET
 
     @property
     def is_head(self) -> bool:
+        """True if the method is HEAD."""
         return self.request_method == HEAD
 
     @property
     def is_patch(self) -> bool:
+        """True if the method is PATCH."""
         return self.method == PATCH
 
     @property
     def is_post(self) -> bool:
+        """True if the method is POST."""
         return self.method == POST
 
     @property
     def is_put(self) -> bool:
+        """True if the method is PUT."""
         return self.method == PUT
 
     @property
     def is_ssl(self) -> bool:
+        """True if the protocol is HTTPS."""
         return self.protocol == "https"
 
     @property
     def is_xhr(self) -> bool:
+        """True if the request was done by JavaScript."""
         return self.env.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
 
     @property
     def port_is_default(self) -> bool:
+        """True if the port is the default port for the protocol."""
         return self.port == self.default_port
 
     @property
     def port_string(self) -> str:
+        """Returns the port as a string, or an empty string if the port is the
+        default port for the protocol."""
         return "" if self.port_is_default else f":{self.port}"
-
-    @cached_property
-    def if_none_match(self) -> list[str]:
-        """Parse the `if-none-match` header.
-        """
-        val = self.env.get("HTTP_IF_NONE_MATCH")
-        return parse_comma_separated(val)
-
-    @cached_property
-    def date(self) -> datetime | None:
-        """Parse the `date` header.
-
-        This header contains the date and time at which the
-        message originated.
-        """
-        val = self.env.get("HTTP_DATE")
-        return parse_http_date(val)
-
-    @cached_property
-    def if_modified_since(self) -> datetime | None:
-        """Parse the `if-modified-since` header.
-        """
-        val = self.env.get("HTTP_IF_MODIFIED_SINCE")
-        return parse_http_date(val)
 
     @property
     def remote_ip(self) -> str:
-        """Passed-forward IP address of the client or IP address of the
-        closest proxy to the WSGI server.
+        """IP address of the closest client or proxy to the WSGI server.
+
+        This will use the `Forwarded` header to try to found the real
+        IP address of the client if your application is behind one or
+        more reverse proxies,
         """
-        return (
-            self.env.get("HTTP_X_FORWARDED_FOR")
-            or self.env.get("HTTP_X_REAL_IP")
-            or self.env.get("REMOTE_ADDR")
-            or "127.0.0.1"
-        )
+        for fw in self.forwarded:
+            if "for" in fw:
+                return fw["for"]
+
+        ff = self.env.get("HTTP_X_FORWARDED_FOR", "").split(",")
+        if ff:
+            return ff[0]
+
+        realip = self.env.get("HTTP_X_REAL_IP")
+        if realip:
+            return realip
+
+        return self.env.get("REMOTE_ADDR", "")
 
     @cached_property
     def request_id(self) -> str | None:
         """Parse the `x-request-id` header.
+
+        This header is used to uniquely identify a request.
         """
         val = self.env.get("HTTP_X_REQUEST_ID")
         return parse_request_id(val)

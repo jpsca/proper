@@ -14,6 +14,22 @@ from .parse_form_data import parse_form_data, parse_query_string
 __all__ = ("Request", "make_test_env")
 
 
+def make_test_env(path: str = "", **kw) -> dict:
+    from wsgiref.util import setup_testing_defaults
+
+    env = {"REMOTE_ADDR": "127.0.0.1"}
+    setup_testing_defaults(env)
+
+    if path:
+        if "?" in path:
+            path, query = path.rsplit("?", 1)
+            env["QUERY_STRING"] = query
+        env["PATH_INFO"] = tunnel_encode(path.strip())
+
+    env.update({key: str(value) for key, value in kw.items()})
+    return env
+
+
 class Request(RequestHeadersMixin):
     """An HTTP request.
 
@@ -36,6 +52,17 @@ class Request(RequestHeadersMixin):
         body:
             The request body as a BytesIO stream.
 
+        accept:
+            Indicates which content types, expressed as MIME types,
+            the client is able to understand.
+
+        accept_encoding:
+            Indicates the content encoding (usually a compression algorithm) that
+            the client can understand.
+
+        accept_language:
+            Indicates the natural language and locale that the client prefers.
+
         content_length:
             The length in bytes, as an integer, of the content
             sent by the client.
@@ -45,6 +72,9 @@ class Request(RequestHeadersMixin):
 
         cookies:
             A dict with the cookies sent with the request.
+
+        date:
+            The date and time at which the message originated.
 
         default_port:
             Returns the default port (80 for HTTP, 443 for HTTPS)
@@ -65,8 +95,15 @@ class Request(RequestHeadersMixin):
             Computed based on the value of the "Accept" header, with "html"
             as a fallback.
 
-        host_with_port:
+        forwarded:
+            A comma-separated list of forwarding information from the client
+            to the server on its way through proxies.
 
+        host, protocol, port, path, and query_string:
+            Components of the URL used for the request, based on the pattern:
+            `protocol://host:port/path?query_string`.
+
+        host_with_port:
             A host:port string for this request. The port is not included
             if its the default for the protocol.
 
@@ -85,6 +122,9 @@ class Request(RequestHeadersMixin):
         max_query_size:
             From the arguments.
 
+        request_method:
+            The uppercased request method, like: "GET".
+
         method:
             Returns the same value as `request_method` except for HEAD,
             which it returns as GET; or for POST if it has been overrided
@@ -98,10 +138,6 @@ class Request(RequestHeadersMixin):
             A `:port` string for the request if the port is not the default for
             the protocol.
 
-        protocol, host, port, path, and query_string:
-            Components of the URL used for the request, based on the pattern:
-            `protocol://host:port/path?query_string`.
-
         query:
             A `MultiDict` object containing the query string data.
 
@@ -112,8 +148,9 @@ class Request(RequestHeadersMixin):
             you can use the `access_route` attribute to retrieve the real
             IP address of the client.
 
-        request_method:
-            The uppercased request method, like: "GET".
+        request_id:
+            Parse the `x-request-id` header for a value that uniquely
+            identify a request.
 
         session:
             The session data sent with the request.
@@ -122,7 +159,6 @@ class Request(RequestHeadersMixin):
             Returns the full URL used for the request.
 
     Extra attributes:
-        request_id:
         matched_route:
         matched_params:
         matched_action:
@@ -216,19 +252,3 @@ class Request(RequestHeadersMixin):
     def url(self) -> str:
         """Returns the current URL."""
         return request_uri(self.env, include_query=True)
-
-
-def make_test_env(path: str = "", **kw) -> dict:
-    from wsgiref.util import setup_testing_defaults
-
-    env = {"REMOTE_ADDR": "127.0.0.1"}
-    setup_testing_defaults(env)
-
-    if path:
-        if "?" in path:
-            path, query = path.rsplit("?", 1)
-            env["QUERY_STRING"] = query
-        env["PATH_INFO"] = tunnel_encode(path.strip())
-
-    env.update({key: str(value) for key, value in kw.items()})
-    return env
