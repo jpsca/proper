@@ -45,7 +45,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     component: str | None = None
 
     error: Exception | None = None
-    raw_body: str | bytes | None = None
+    body: str | bytes | t.Iterable[bytes] | None = None
 
     _app: "App | None" = None
     _request: "Request | None" = None
@@ -68,41 +68,35 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.environ = environ
 
         self.flash = FlashDict(self)
+        super().__init__()
 
     def __call__(self, start_response: t.Callable) -> t.Iterable[bytes]:
-        body = self.raw_body or b""
+        body = self.body
+
+        if not body:
+            body = b""
+
         if isinstance(body, str):
             body = body.encode(self.charset)
+
+        if isinstance(body, bytes):
+            if self.content_length is None:
+                self.set_content_length(len(body))
+            body = [body]
 
         if self.content_type is None:
             self.set_content_type(self.content_type, charset=self.charset)
 
-        if self.content_length is None:
-            self.set_content_length(len(body))
-
-        start_response(self.status_code, self._get_header_tuples())
-        if not body:
-            return []
-        return [body]
+        headers = [*self._get_header_tuples(), self._get_cookie_tuple()]
+        start_response(self.status_code, headers)
+        return body
 
     def __repr__(self) -> str:
         return f"<Response “{self._status_code}”>"
 
     @property
-    def body(self) -> str | bytes | None:
-        return self.raw_body
-
-    @body.setter
-    def body(self, content: t.Any) -> None:
-        """Sets the response body content."""
-        if isinstance(content, (str, bytes)):
-            self.raw_body = content
-        else:
-            self.raw_body = str(content)
-
-    @property
     def has_body(self) -> bool:
-        return self.raw_body is not None
+        return self.body is not None
 
     @property
     def session(self) -> dict:

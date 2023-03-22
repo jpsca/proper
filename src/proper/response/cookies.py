@@ -10,14 +10,6 @@ HOST_PREFIX = "__Host-"
 SECURE_PREFIX = "__Secure-"
 
 
-class ResponseCookies(dict):
-    """Response cookies.
-    """
-
-    def get_tuple(self) -> tuple[bytes, str]:
-        values = [str(morsel) for morsel in self.values()]
-        return (b"Set-Cookie", ", ".join(values))
-
 
 class ResponseCookiesMixin:
     """Mixin with the methods related to the response cookies.
@@ -135,6 +127,10 @@ class ResponseCookiesMixin:
 
         """
         self.set_cookie(name, value="", max_age=0, path=path, domain=domain, samesite=samesite)
+
+    def _get_cookie_tuple(self) -> tuple[bytes, str]:
+        values = [str(morsel) for morsel in self._cookies.values()]
+        return (b"Set-Cookie", ", ".join(values))
 
 
 def validate_domain(domain: str) -> None:

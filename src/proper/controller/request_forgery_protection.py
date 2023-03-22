@@ -1,12 +1,11 @@
 import base64
 import os
-from typing import TYPE_CHECKING
+import typing as t
 
 from ..constants import HEAD, GET, OPTIONS
 from ..errors import InvalidCSRFToken, MissingCSRFToken
 
-if TYPE_CHECKING:
-    from typing import List, Optional, Tuple
+if t.TYPE_CHECKING:
     from proper import Request, Response
 
 
@@ -22,7 +21,7 @@ class RequestForgeryProtection:
     action_name: str
     request: "Request"
     response: "Response"
-    skip_csrf_check_for: "Tuple[str, ...]" = tuple()
+    skip_csrf_check_for: tuple[str, ...] = tuple()
 
     def __before__(self) -> None:
         self.protect_from_forgery(self.action_name)
@@ -62,7 +61,7 @@ class RequestForgeryProtection:
         if not any(session_token == req_token for req_token in req_tokens):
             self._handle_invalid_csrf_token()
 
-    def _get_request_csrf_tokens(self) -> "List[str]":
+    def _get_request_csrf_tokens(self) -> list[str]:
         """Get possible csrf tokens sent in the request."""
         req_tokens = [
             self._csrf_token_in_form() if self.request.content_length else None,
@@ -75,14 +74,14 @@ class RequestForgeryProtection:
             if token and len(token) == expected_length
         ]
 
-    def _csrf_token_in_form(self) -> "Optional[str]":
+    def _csrf_token_in_form(self) -> str | None:
         """Search for a CSRF token in the body data.
         Override to provide your own."""
         return self.request.form.get(CSRF_FORM_KEY)
 
-    def _csrf_token_in_header(self) -> "Optional[str]":
+    def _csrf_token_in_header(self) -> str | None:
         """Search for a CSRF token in a header"""
-        return self.request.headers.get(CSRF_HEADER)
+        return self.request.get_header(CSRF_HEADER)
 
     def _handle_invalid_csrf_token(self) -> None:
         raise InvalidCSRFToken(

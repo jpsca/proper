@@ -188,14 +188,14 @@ class Request(RequestHeadersMixin):
         max_query_size: int | None = None,
         **env,
     ) -> None:
-        env = env or make_test_env()
-        self.env = env
-
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
 
         self._session = MappingProxyType({})
+
+        env = env or make_test_env()
+        super().__init__(env)
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"

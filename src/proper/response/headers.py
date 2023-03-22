@@ -94,7 +94,6 @@ class ResponseHeadersMixin:
         """
         self._set_header("content_encoding", format_comma_list(values))
 
-
     @property
     def content_length(self) -> str | None:
         """Get the `Content-Length` header.
@@ -144,7 +143,8 @@ class ResponseHeadersMixin:
         """
         return self._headers.get("content_range")
 
-    def set_content_range(self,
+    def set_content_range(
+        self,
         unit: str | None = "bytes",
         *,
         start: int | None = None,
@@ -204,11 +204,11 @@ class ResponseHeadersMixin:
         return self._headers.get("content_type")
 
     def set_content_type(
-            self,
-            val: str | None = DEFAULT_CONTENT_TYPE,
-            charset: str = DEFAULT_CHARSET,
-        ) -> None:
-        f"""Set the `Content-Type` header.
+        self,
+        val: str | None = DEFAULT_CONTENT_TYPE,
+        charset: str = DEFAULT_CHARSET,
+    ) -> None:
+        """Set the `Content-Type` header.
 
         The Content-Type header is used to indicate the original media
         type of the resource (prior to any content encoding applied
@@ -467,7 +467,7 @@ class ResponseHeadersMixin:
         return tuples
 
 
-## Formatters -----
+# --- Formatters -----
 
 
 def format_datetime(dt: datetime | float | int | None) -> datetime | None:

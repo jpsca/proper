@@ -9,13 +9,17 @@ from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
 from proper.helpers import parse_http_date, tunnel_decode
 from proper.errors import InvalidHeader
 
-from .forwarded import Forwarded, parse_forwarded
+from .forwarded import MappingProxyType, parse_forwarded
 
 
-DEFAULT_HTTP_PORT = 80
+DEFAULT_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 
 MIME_ALL = "*/*"
+
+
+def enc(name: str) -> str:
+    return name.strip().lower().replace("-", "_").removeprefix("http_")
 
 
 class RequestHeadersMixin:
@@ -26,33 +30,53 @@ class RequestHeadersMixin:
 
     env: dict[str, t.Any]
 
-    def __init__(self):
-        host, port = parse_host(self.env.get("HTTP_HOST"))
+    def __init__(self, env: dict[str, t.Any]):
+        self._nornalize_env(env)
+
+        self.protocol = self.env.get(
+            "forwarded_proto",
+            self.env.get("wsgi.url_protocol")
+        )
+        host, port = parse_host(self.env.get("host"))
         self.host = host
         self.port = port or self.default_port
 
-        self.protocol = self.env.get(
-            "HTTP_FORWARDED_PROTO",
-            self.env.get("wsgi.url_protocol")
-        )
-
-        self.method = self.env.get("REQUEST_METHOD", GET).upper()
+        self.method = self.env.get("request_method", GET).upper()
         self.request_method = self.method
 
         # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
-        path_info = self.env.get("PATH_INFO", "").strip("/")
+        path_info = self.env.get("path_info", "").strip("/")
         self.path = "/" + tunnel_decode(path_info)
 
-        self.content_type = self.env.get("CONTENT_TYPE", "")
+        self.content_type = self.env.get("content_type", "")
 
         try:
-            self.content_length = int(self.env.get("CONTENT_LENGTH", "0"))
+            self.content_length = int(self.env.get("content_length", "0"))
         except ValueError:
             raise InvalidHeader("The Content-Length header must be a number.")
         if self.content_length < 0:
             raise InvalidHeader(
                 "The value of the Content-Length header must be a positive number."
             )
+
+    def _nornalize_env(self, env: dict[str, t.Any]) -> None:
+        environ = {}
+        for name, value in env.items():
+            if not name.startswith(""):
+                environ[enc(name)] = value
+
+        # Normalize header names and remove the 'http_'
+        # prefix, but only if there isn't already a header
+        # with that name.
+        for name, value in env.items():
+            if not name.startswith("HTTP_"):
+                continue
+            name = enc(name)
+            if name in environ:
+                name = f"http_{name}"
+            environ[enc(name)] = value
+
+        self.env = environ
 
     @cached_property
     def accept(self) -> list[str]:
@@ -64,7 +88,7 @@ class RequestHeadersMixin:
         response header.
 
         """
-        return parse_accept(self.env.get("HTTP_ACCEPT"))
+        return parse_accept(self.env.get("accept"))
 
     @cached_property
     def accept_encoding(self) -> list[str]:
@@ -76,7 +100,7 @@ class RequestHeadersMixin:
         response header.
 
         """
-        return parse_accept(self.env.get("HTTP_ACCEPT_ENCODING"))
+        return parse_accept(self.env.get("accept_encoding"))
 
     @cached_property
     def accept_language(self) -> list[str]:
@@ -96,13 +120,13 @@ class RequestHeadersMixin:
         in a language different from the browser language.
 
         """
-        return parse_accept(self.env.get("HTTP_ACCEPT_LANGUAGE"))
+        return parse_accept(self.env.get("accept_language"))
 
     @cached_property
     def cookie(self) -> dict[str, Morsel]:
         """Parse the `cookie` header.
         """
-        return parse_cookie(self.env.get("HTTP_COOKIE"))
+        return parse_cookie(self.env.get("cookie"))
 
     @property
     def cookies(self) -> dict:
@@ -116,13 +140,13 @@ class RequestHeadersMixin:
 
         The date and time at which the message originated.
         """
-        val = self.env.get("HTTP_DATE")
+        val = self.env.get("date")
         return parse_http_date(val)
 
     @property
     def default_port(self) -> int:
         """Returns the default port for the protocol."""
-        return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_HTTP_PORT
+        return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_PORT
 
     @cached_property
     def format(self) -> str:
@@ -141,13 +165,13 @@ class RequestHeadersMixin:
         return val or self.DEFAULT_FORMAT
 
     @cached_property
-    def forwarded(self) -> list[dict]:
+    def forwarded(self) -> list[MappingProxyType]:
         """Parse the `forwarded` header.
 
         The `Forwarded` header is a comma-separated list of forwarding
         information from the client to the server on its way through proxies.
         """
-        return parse_forwarded(self.env.get("HTTP_FORWARDED"))
+        return parse_forwarded(self.env.get("forwarded"))
 
     @property
     def host_with_port(self) -> str:
@@ -195,7 +219,7 @@ class RequestHeadersMixin:
     @property
     def is_xhr(self) -> bool:
         """True if the request was done by JavaScript."""
-        return self.env.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
+        return self.env.get("x_requested_with") == "XMLHttpRequest"
 
     @property
     def port_is_default(self) -> bool:
@@ -220,15 +244,15 @@ class RequestHeadersMixin:
             if "for" in fw:
                 return fw["for"]
 
-        ff = self.env.get("HTTP_X_FORWARDED_FOR", "").split(",")
+        ff = self.env.get("x_forwarded_for", "").split(",")
         if ff:
             return ff[0]
 
-        realip = self.env.get("HTTP_X_REAL_IP")
+        realip = self.env.get("x_real_ip")
         if realip:
             return realip
 
-        return self.env.get("REMOTE_ADDR", "")
+        return self.env.get("remote_addr", "")
 
     @cached_property
     def request_id(self) -> str | None:
@@ -236,20 +260,19 @@ class RequestHeadersMixin:
 
         This header is used to uniquely identify a request.
         """
-        val = self.env.get("HTTP_X_REQUEST_ID")
+        val = self.env.get("x_request_id")
         return parse_request_id(val)
 
     def get_header(self, name: str, default: t.Any = None) -> t.Any:
-        name = name.strip().lower().replace("-", "_").removeprefix("http_")
+        name = enc(name)
         if hasattr(self, name):
             return getattr(self, name, default)
 
-        name = f"HTTP_{name}"
         value = self.env.get(name)
         return default if value is None else value
 
 
-## Parsers -----
+# --- Parsers -----
 
 
 def parse_accept(value: str | None) -> list[str]:
@@ -293,9 +316,10 @@ def parse_cookie(value: str | None) -> dict[str, Morsel]:
 
 
 def parse_host(value: str | None) -> tuple[str, int]:
-    value = value or ""
-    sport = ""
+    if not value:
+        return "", 0
 
+    sport = ""
     if "]:" in value:
         host, sport = value.split("]:", 1)
         host = value[1:]
