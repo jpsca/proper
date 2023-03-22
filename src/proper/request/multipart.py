@@ -1,3 +1,5 @@
+# Based on multipart (0.2.4) by Marcel Hellkamp
+# License: MIT
 """
 Parser for multipart/form-data
 ==============================
@@ -6,11 +8,9 @@ This module provides a parser for the multipart/form-data format. It can read
 from a file, a socket or a WSGI environment. The parser can be used to replace
 cgi.FieldStorage to work around its limitations.
 
-Copied from multipart (0.2.4):
-Author: Marcel Hellkamp
-License: MIT
 """
 import re
+import typing as t
 from io import BytesIO
 from tempfile import TemporaryFile
 from wsgiref.headers import Headers
@@ -18,15 +18,15 @@ from wsgiref.headers import Headers
 from proper.errors import MultipartError
 
 
-def to_bytes(data, enc="utf8"):
+def to_bytes(data: str | bytes, enc: str = "utf8") -> bytes:
     if isinstance(data, str):
         data = data.encode(enc)
 
     return data
 
 
-def copy_file(stream, target, maxread=-1, buffer_size=2 * 16):
-    """ Read from :stream and write to :target until :maxread or EOF. """
+def copy_file(stream: t.IO[bytes], target: t.IO[bytes], maxread: int = -1, buffer_size: int = 2 * 16) -> int:
+    """Read from :stream and write to :target until :maxread or EOF. """
     size, read = 0, stream.read
 
     while True:
@@ -40,43 +40,38 @@ def copy_file(stream, target, maxread=-1, buffer_size=2 * 16):
         size += len(part)
 
 
-_special = re.escape('()<>@,;:"\\/[]?={} \t')
-_re_special = re.compile(r'[%s]' % _special)
-_quoted_string = r'"(?:\\.|[^"])*"'  # Quoted string
-_value = r'(?:[^%s]+|%s)' % (_special, _quoted_string)  # Save or quoted string
-_option = r'(?:;|^)\s*([^%s]+)\s*=\s*(%s)' % (_special, _value)
-_re_option = re.compile(_option)  # key=value part of an Content-Type like header
+RE_SPECIAL = re.escape('()<>@,;:"\\/[]?={} \t')
+RX_SPECIAL = re.compile(r'[%s]' % RE_SPECIAL)
+RE_QUOTED_STRING = r'"(?:\\.|[^"])*"'  # Quoted string
+RE_VALUE = r'(?:[^%s]+|%s)' % (RE_SPECIAL, RE_QUOTED_STRING)  # Save or quoted string
+RE_OPTION = r'(?:;|^)\s*([^%s]+)\s*=\s*(%s)' % (RE_SPECIAL, RE_VALUE)
+RX_OPTION = re.compile(RE_OPTION)  # key=value part of an Content-Type like header
 
 
-def header_quote(val):
-    if not _re_special.search(val):
+def header_quote(val: str) -> str:
+    if not RX_SPECIAL.search(val):
         return val
-
     return '"' + val.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def header_unquote(val):
+def header_unquote(val: str) -> str:
     if val[0] == val[-1] == '"':
         val = val[1:-1]
-
-        if val[1:3] == ":\\" or val[:2] == "\\\\":
-            val = val.split("\\")[-1]  # fix ie6 bug: full path --> filename
-
         return val.replace("\\\\", "\\").replace('\\"', '"')
 
     return val
 
 
-def parse_options_header(header, options=None):
+def parse_options_header(header: str, options: dict[str, str] | None = None) -> tuple[str, dict[str, str]]:
     if ";" not in header:
         return header.lower().strip(), {}
 
     content_type, tail = header.split(";", 1)
     options = options or {}
 
-    for match in _re_option.finditer(tail):
+    for match in RX_OPTION.finditer(tail):
         key = match.group(1).lower()
-        value = header_unquote(match.group(2), key == "filename")
+        value = header_unquote(match.group(2))
         options[key] = value
 
     return content_type, options
@@ -85,21 +80,29 @@ def parse_options_header(header, options=None):
 class MultipartParser:
     def __init__(
         self,
-        stream,
-        boundary,
-        content_length=-1,
-        disk_limit=2 ** 30,
-        mem_limit=2 ** 20,
-        memfile_limit=2 ** 18,
-        buffer_size=2 ** 16,
-        encoding="latin1",
+        stream: t.IO[bytes],
+        boundary: str | bytes,
+        content_length: int = -1,
+        *,
+        disk_limit: int = 2 ** 30,
+        mem_limit: int = 2 ** 20,
+        memfile_limit: int = 2 ** 18,
+        buffer_size: int = 2 ** 16,
+        encoding: str = "latin1",
     ):
-        """ Parse a multipart/form-data byte stream. This object is an iterator
-            over the parts of the message.
+        """Parse a multipart/form-data byte stream. This object is an iterator
+        over the parts of the message.
 
-            :param stream: A file-like stream. Must implement ``.read(size)``.
-            :param boundary: The multipart boundary as a byte string.
-            :param content_length: The maximum number of bytes to read.
+        Args:
+            stream:
+                A file-like stream. Must implement `.read(size)`.
+
+            boundary:
+                The multipart boundary as a byte string.
+
+            content_length:
+                The maximum number of bytes to read.
+
         """
         self.stream = stream
         self.boundary = boundary
@@ -116,8 +119,8 @@ class MultipartParser:
         self._done = []
         self._part_iter = None
 
-    def __iter__(self):
-        """ Iterate over the parts of the multipart message. """
+    def __iter__(self) -> t.Iterator["MultipartPart"]:
+        """Iterate over the parts of the multipart message. """
         if not self._part_iter:
             self._part_iter = self._iterparse()
 
@@ -128,27 +131,28 @@ class MultipartParser:
             self._done.append(part)
             yield part
 
-    def parts(self):
-        """ Returns a list with all parts of the multipart message. """
+    def parts(self) -> list["MultipartPart"]:
+        """Returns a list with all parts of the multipart message. """
         return list(self)
 
-    def get(self, name, default=None):
-        """ Return the first part with that name or a default value (None). """
+    def get(self, name: str, default: t.Any = None) -> t.Any:
+        """Return the first part with that name or a default value (None). """
         for part in self:
             if name == part.name:
                 return part
 
         return default
 
-    def get_all(self, name):
-        """ Return a list of parts with that name. """
+    def get_all(self, name: str) -> list["MultipartPart"]:
+        """Return a list of parts with that name. """
         return [p for p in self if p.name == name]
 
-    def _lineiter(self):
-        """ Iterate over a binary file-like object line by line. Each line is
-            returned as a (line, line_ending) tuple. If the line does not fit
-            into self.buffer_size, line_ending is empty and the rest of the line
-            is returned with the next iteration.
+    def _lineiter(self) -> t.Iterator[t.Tuple[bytes, bytes]]:
+        """Iterate over a binary file-like object line by line.
+
+        Each line is returned as a (line, line_ending) tuple. If the line does not fit
+        into self.buffer_size, line_ending is empty and the rest of the line
+        is returned with the next iteration.
         """
         read = self.stream.read
         maxread, maxbuf = self.content_length, self.buffer_size
@@ -186,7 +190,7 @@ class MultipartParser:
             if not data:
                 break
 
-    def _iterparse(self):
+    def _iterparse(self) -> t.Iterable["MultipartPart"]:
         lines, line = self._lineiter(), ""
         separator = b"--" + to_bytes(self.boundary)
         terminator = b"--" + to_bytes(self.boundary) + b"--"
@@ -266,7 +270,7 @@ class MultipartPart:
     ):
         self.headerlist = []
         self.headers = None
-        self.file: BytesIO = BytesIO()
+        self.file: t.IO[bytes] = BytesIO()
         self.size: int = 0
         self._buf = b""
         self.disposition = None
@@ -277,14 +281,14 @@ class MultipartPart:
         self.memfile_limit = memfile_limit
         self.buffer_size = buffer_size
 
-    def feed(self, line, nl=""):
+    def feed(self, bline: bytes, nl: bytes = b"") -> None:
         if self.file:
-            return self.write_body(line, nl)
+            return self.write_body(bline, nl)
 
-        return self.write_header(line, nl)
+        return self.write_header(bline, nl)
 
-    def write_header(self, line, nl):
-        line = line.decode(self.encoding)
+    def write_header(self, bline: bytes, nl) -> None:
+        line = bline.decode(self.encoding)
 
         if not nl:
             raise MultipartError("Unexpected end of line in header.")
@@ -301,24 +305,23 @@ class MultipartPart:
             name, value = line.split(":", 1)
             self.headerlist.append((name.strip(), value.strip()))
 
-    def write_body(self, line, nl):
-        if not line and not nl:
+    def write_body(self, bline: bytes, nl: bytes) -> None:
+        if not bline and not nl:
             return  # This does not even flush the buffer
 
-        self.size += len(line) + len(self._buf)
-        self.file.write(self._buf + line)
+        self.size += len(bline) + len(self._buf)
+        self.file.write(self._buf + bline)
         self._buf = nl
 
         if self.content_length > 0 and self.size > self.content_length:
             raise MultipartError("Size of body exceeds Content-Length header.")
 
         if self.size > self.memfile_limit and isinstance(self.file, BytesIO):
-            # TODO: What about non-file uploads that exceed the memfile_limit?
             self.file, old = TemporaryFile(mode="w+b"), self.file  # type: ignore
             old.seek(0)
             copy_file(old, self.file, self.size, self.buffer_size)
 
-    def finish_header(self):
+    def finish_header(self) -> None:
         self.file = BytesIO()
         self.headers = Headers(self.headerlist)
         content_disposition = self.headers.get("Content-Disposition", "")
@@ -334,19 +337,19 @@ class MultipartPart:
         self.encoding = options.get("charset") or self.encoding
         self.content_length = int(self.headers.get("Content-Length", "-1"))
 
-    def is_buffered(self):
-        """ Return true if the data is fully buffered in memory."""
+    def is_buffered(self) -> bool:
+        """Return true if the data is fully buffered in memory."""
         return isinstance(self.file, BytesIO)
 
     @property
-    def value(self):
-        """ Data decoded with the specified encoding """
+    def value(self) -> str:
+        """Data decoded with the specified encoding """
 
         return self.raw.decode(self.encoding)
 
     @property
-    def raw(self):
-        """ Data without decoding """
+    def raw(self) -> bytes:
+        """Data without decoding """
         pos = self.file.tell()
         self.file.seek(0)
 
@@ -359,7 +362,7 @@ class MultipartPart:
 
         return val
 
-    def save_as(self, path):
+    def save_as(self, path: str) -> int:
         with open(path, "wb") as fp:
             pos = self.file.tell()
 
@@ -371,7 +374,7 @@ class MultipartPart:
 
         return size
 
-    def close(self):
+    def close(self) -> None:
         if self.file:
             self.file.close()
             self.file = BytesIO()

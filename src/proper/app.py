@@ -93,11 +93,14 @@ class App:
         config: dict | None = None
     ) -> None:
         """
-        import_name (str):
-            The name of the application package. Eg.: `foobar.web`.
+        A Proper app core.
 
-        config (dict):
-            Optional dict-like with the config.
+        Args:
+            import_name:
+                The name of the application package. Eg.: `foobar.web`.
+
+            config:
+                Optional dict-like with the config.
 
         """
         self.error_handlers = {}
@@ -236,7 +239,7 @@ class App:
 
         Example:
 
-        ```
+        ```python
         app.error_handler(errors.NotFound, Pages.not_found)
         app.error_handler(Exception, Pages.error)
         ```

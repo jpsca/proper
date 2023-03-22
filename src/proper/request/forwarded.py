@@ -14,7 +14,6 @@
 # limitations under the License.
 import re
 import string
-from types import MappingProxyType
 
 
 # '-' at the end to prevent interpretation as range in a char class
@@ -44,7 +43,7 @@ RX_QUOTED_PAIR_REPLACE = re.compile(r"\\([\t !-~])")
 RX_FORWARDED_PAIR = re.compile(RE_FORWARDED_PAIR)
 
 
-def parse_forwarded(val: str | None) -> list[MappingProxyType]:
+def parse_forwarded(val: str | None) -> list[dict[str, str]]:
     """Parse a `Forwarded` header.
 
     Makes an effort to parse the header as specified by RFC 7239:
@@ -65,7 +64,8 @@ def parse_forwarded(val: str | None) -> list[MappingProxyType]:
             The raw header value.
 
     Returns:
-        A list of zero or more immutable dicts
+        A list of zero or more dictionaries, each containing the parsed
+        Forwarded parameters for a proxy.
 
     """
     if val is None:
@@ -76,7 +76,7 @@ def parse_forwarded(val: str | None) -> list[MappingProxyType]:
     need_separator = False
     proxies = []
     proxy: dict[str, str] = {}
-    proxies.append(MappingProxyType(proxy))
+    proxies.append(proxy)
 
     while 0 <= pos < length:
         match = RX_FORWARDED_PAIR.match(val, pos)
@@ -99,7 +99,7 @@ def parse_forwarded(val: str | None) -> list[MappingProxyType]:
         elif val[pos] == ",":  # next forwarded-proxy
             need_separator = False
             proxy = {}
-            proxies.append(MappingProxyType(proxy))
+            proxies.append(proxy)
             pos += 1
 
         elif val[pos] == ";":  # next forwarded-pair
@@ -116,4 +116,4 @@ def parse_forwarded(val: str | None) -> list[MappingProxyType]:
             # bad syntax here, skip to next comma
             pos = val.find(",", pos)
 
-    return [MappingProxyType(proxy) for proxy in proxies]
+    return proxies

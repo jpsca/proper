@@ -96,6 +96,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     @property
     def has_body(self) -> bool:
+        """Returns `True` if the response has a body."""
         return self.body is not None
 
     @property
@@ -105,6 +106,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     @property
     def status_code(self) -> str:
+        """The status code of the response."""
         return self._status_code
 
     @status_code.setter
@@ -121,6 +123,18 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         status_code: str = status.see_other,
         **kw,
     ) -> None:
+        """
+        Redirects to the given URL or route.
+
+        Args:
+            url_or_route: The URL or route to redirect to.
+            object: The object to pass to the route.
+            flash: The flash message to set.
+            flash_type: Optional type of the flash message.
+            status_code: The status code to use.
+            **kw: Additional keyword arguments to pass to the route.
+
+        """
         assert self._app
         self.status_code = status_code
         to = url_or_route
@@ -152,25 +166,23 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         strong: bool = False,
         public: bool = False,
     ) -> bool:
-        """
-        Sets the Etag header, the Last-Modified header, or both.
+        """Sets the Etag header, the Last-Modified header, or both.
 
         The Etag can be generated from a date, a string or a number.
         The Last-Modified can be generated from an UTC or naive datetime.
         You can also use an object or a list of objects with an `updated_at` attribute.
         The maximum `updated_at` of that list will be used to set both values.
 
-        Arguments:
+        Args:
+            strong:
+                By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
+                validator on the response. A strong ETag implies exact equality: the response
+                must match byte for byte. This is necessary for doing range requests within a
+                large file or for compatibility with some CDNs that don’t support weak ETags.
 
-        - strong:
-            By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
-            validator on the response. A strong ETag implies exact equality: the response
-            must match byte for byte. This is necessary for doing range requests within a
-            large file or for compatibility with some CDNs that don’t support weak ETags.
-
-        - public:
-            By default the Cache-Control header is private, set this to `True` if you want
-            your application to be cacheable by other devices (proxy caches).
+            public:
+                By default the Cache-Control header is private, set this to `True` if you want
+                your application to be cacheable by other devices (proxy caches).
 
         """
         if objects:
@@ -197,6 +209,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     @property
     def is_fresh(self) -> bool:
+        """Returns `True` if the response is fresh."""
         if self._request is None:
             return False
 
@@ -220,6 +233,16 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         download_name: str | None = None,
         use_x_sendfile: bool | None = None,
     ) -> None:
+        """Sends a file as response.
+
+        Args:
+            path: The path to the file.
+            mimetype: The mimetype of the file.
+            as_attachment: If `True` the file will be sent as attachment.
+            download_name: The name of the file.
+            use_x_sendfile: If `True` the X-Sendfile header will be used.
+
+        """
         path = Path(path).resolve()
         download_name = download_name or path.name
 

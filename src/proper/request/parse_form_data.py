@@ -1,5 +1,5 @@
 import json
-from io import BytesIO
+import typing as t
 from urllib.parse import parse_qs
 
 from proper.errors import (
@@ -17,7 +17,7 @@ from .multipart import (
 
 
 def parse_form_data(
-    stream: BytesIO,
+    stream: t.IO[bytes],
     content_type: str,
     content_length: int,
     *,
@@ -58,7 +58,7 @@ def parse_form_data(
 
 
 def parse_multipart(
-    stream: BytesIO,
+    stream: t.IO[bytes],
     content_length: int,
     options: dict,
     *,
@@ -74,6 +74,9 @@ def parse_multipart(
         for part in MultipartParser(
             stream, boundary, content_length, encoding=encoding,
         ):
+            if not part.name:
+                continue
+
             if part.filename or not part.is_buffered():
                 files.append(part.name, part)
             else:
@@ -135,7 +138,7 @@ def _normalize_newlines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
-def _read_content(stream: BytesIO, max_content_length: int, encoding: str) -> str:
+def _read_content(stream: t.IO[bytes], max_content_length: int, encoding: str) -> str:
     content = stream.read(max_content_length).decode(encoding)
     if stream.read(1):  # OMG there is still more.
         raise RequestEntityTooLarge("Increase max_content_length.")

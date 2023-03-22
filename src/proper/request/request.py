@@ -34,16 +34,10 @@ class Request(RequestHeadersMixin):
     """An HTTP request.
 
     Args:
-        encoding:
-            Default encoding.
-
-        max_content_length:
-
-        max_query_size:
-
-        **env:
-            A WSGI environment dict passed in from the server
-            (See also PEP-3333).
+        encoding: Default encoding.
+        max_content_length: Maximum content length in bytes.
+        max_query_size: Maximum query string size in bytes.
+        **env: A WSGI environment dict passed in from the server (See also PEP-3333).
 
     Attributes:
         env:
@@ -106,6 +100,12 @@ class Request(RequestHeadersMixin):
         host_with_port:
             A host:port string for this request. The port is not included
             if its the default for the protocol.
+
+        if_none_match:
+            A list of ETags provided by the client.
+
+        if_modified_since:
+            The date and time at which the client last modified the resource.
 
         is_get, is_head, is_post, is_put, is_patch, and is_delete:
             Return True or False based on the request method.
@@ -202,14 +202,19 @@ class Request(RequestHeadersMixin):
 
     @property
     def body(self) -> BytesIO:
+        """The request body as a BytesIO stream."""
         return self.env.get("wsgi.input") or BytesIO()
 
     @property
     def flashes(self) -> dict:
+        """The flashed messages stored in the session cookie."""
         return self._session.get(FLASHES_SESSION_KEY, {})
 
     @property
     def form(self) -> MultiDict:
+        """A `MultiDict` object containing the parsed body data, like the
+        one sent by a HTML form with a POST, **including** the files.
+        """
         if self._form is None:
             self._form = self._parse_form()
         return self._form
@@ -229,6 +234,8 @@ class Request(RequestHeadersMixin):
 
     @property
     def query(self) -> MultiDict:
+        """A `MultiDict` object containing the query string data.
+        """
         if self._query is None:
             self._query = self._parse_query()
         return self._query
@@ -242,10 +249,13 @@ class Request(RequestHeadersMixin):
 
     @property
     def query_string(self) -> str:
+        """Returns the query string.
+        """
         return self.env.get("QUERY_STRING", "")
 
     @property
     def session(self) -> MappingProxyType:
+        """The session data sent with the request."""
         return self._session
 
     @property

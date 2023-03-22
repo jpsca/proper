@@ -10,7 +10,6 @@ HOST_PREFIX = "__Host-"
 SECURE_PREFIX = "__Secure-"
 
 
-
 class ResponseCookiesMixin:
     """Mixin with the methods related to the response cookies.
     """
@@ -28,7 +27,7 @@ class ResponseCookiesMixin:
     disable_cookies: bool = False
 
     def __init__(self) -> None:
-        self._cookies = ResponseCookies()
+        self._cookies = {}
 
     def set_cookie(
         self,

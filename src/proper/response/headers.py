@@ -445,6 +445,7 @@ class ResponseHeadersMixin:
         self,
         exclude: list[str] | None = None,
     ) -> list[tuple[bytes, str]]:
+        """Get the list of header tuples."""
         exclude = [enc_name(name) for name in exclude or []]
         tuples = []
 

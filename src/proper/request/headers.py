@@ -9,7 +9,7 @@ from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
 from proper.helpers import parse_http_date, tunnel_decode
 from proper.errors import InvalidHeader
 
-from .forwarded import MappingProxyType, parse_forwarded
+from .forwarded import parse_forwarded
 
 
 DEFAULT_PORT = 80
@@ -60,6 +60,12 @@ class RequestHeadersMixin:
             )
 
     def _nornalize_env(self, env: dict[str, t.Any]) -> None:
+        """Normalize the environment variables.
+
+        Args:
+            env: A WSGI environment dict passed in from the server (See also PEP-3333).
+
+        """
         environ = {}
         for name, value in env.items():
             if not name.startswith(""):
@@ -87,6 +93,18 @@ class RequestHeadersMixin:
         and informs the client of that choice with the `Content-Type`
         response header.
 
+        Some examples of the `accept` header are:
+
+        - text/html
+        - text/html;level=1
+        - text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        - text/html;level=1,application/xhtml+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7
+        - text/html;level=1;q=0.9,application/xhtml+xml;q=0.8,application/xml;q=0.7,*/*;q=0.6
+
+        Returns:
+            A list of MIME types sorted by the quality value (q) in descending order.
+            If no quality value is specified, the default value is 1.0.
+
         """
         return parse_accept(self.env.get("accept"))
 
@@ -98,6 +116,15 @@ class RequestHeadersMixin:
         the client can understand. Your app should select one of the proposals
         and informs the client of that choice with the `Content-Encoding`
         response header.
+
+        Some examples of the `accept-encoding` header are:
+
+        - compress, gzip;q=0.5
+        - deflate, gzip;q=1.0, *;q=0.5
+
+        Returns:
+            A list of encodings sorted by the quality value (q) in descending order.
+            If no quality value is specified, the default value is 1.0.
 
         """
         return parse_accept(self.env.get("accept_encoding"))
@@ -119,18 +146,33 @@ class RequestHeadersMixin:
         (when traveling, for instance) and a user may also want to visit a page
         in a language different from the browser language.
 
+        Some examples of the `accept-language` header are:
+
+        - en-US,en;q=0.5
+        - en-US,en;q=0.8,pt-BR;q=0.5,pt;q=0.3
+
+        Returns:
+            A list of languages sorted by the quality value (q) in descending order.
+            If no quality value is specified, the default value is 1.0.
+
         """
         return parse_accept(self.env.get("accept_language"))
 
     @cached_property
     def cookie(self) -> dict[str, Morsel]:
         """Parse the `cookie` header.
+
+        Returns:
+            A dictionary with the cookies.
+
         """
         return parse_cookie(self.env.get("cookie"))
 
     @property
     def cookies(self) -> dict:
         """Parse the `cookie` header.
+
+        An alias to `cookie`.
         """
         return self.cookies
 
@@ -139,13 +181,18 @@ class RequestHeadersMixin:
         """Parse the `date` header.
 
         The date and time at which the message originated.
+
+        Returns:
+            A datetime object or None if the header is not present.
+
         """
         val = self.env.get("date")
         return parse_http_date(val)
 
     @property
     def default_port(self) -> int:
-        """Returns the default port for the protocol."""
+        """Returns the default port for the protocol of this request.
+        """
         return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_PORT
 
     @cached_property
@@ -153,6 +200,15 @@ class RequestHeadersMixin:
         """Parse the `accept` header and try to return the default extension
         (for example: html, json, etc.) for the first mimetype of the list
         that has one.
+
+        Some examples of the `format` header are:
+
+        - text/html -> html
+        - application/json -> json
+
+        Returns:
+            A string with the extension or the default format.
+
         """
         val = None
         for mime in self.accept:
@@ -165,11 +221,15 @@ class RequestHeadersMixin:
         return val or self.DEFAULT_FORMAT
 
     @cached_property
-    def forwarded(self) -> list[MappingProxyType]:
+    def forwarded(self) -> list[dict[str, str]]:
         """Parse the `forwarded` header.
 
         The `Forwarded` header is a comma-separated list of forwarding
         information from the client to the server on its way through proxies.
+
+        Returns:
+            A list of dictionaries with the forwarding information.
+
         """
         return parse_forwarded(self.env.get("forwarded"))
 
@@ -177,9 +237,47 @@ class RequestHeadersMixin:
     def host_with_port(self) -> str:
         """Returns a host:port string for this request, such as “example.com” or
         “example.com:8080”.
+
         Port is only included if it is not a default port (80 or 443)
         """
         return f"{self.host}{self.port_string}"
+
+    @property
+    def if_none_match(self) -> list[str]:
+        """Parse the `if-none-match` header.
+
+        The `If-None-Match` header makes the request conditional: if the
+        requested variant has not changed since the time specified in this field,
+        an entity will not be returned from the server; instead, a 304 (not
+        modified) response will be returned without any message-body.
+
+        Some examples of the `if-none-match` header values are:
+
+        - "xyzzy"`
+        - "xyzzy", "r2d2xxxx", "c3piozzzz"`
+        - *
+
+        Returns:
+            A list of ETags.
+
+        """
+        return parse_comma_separated(self.env.get("if_none_match"))
+
+    @cached_property
+    def if_modified_since(self) -> datetime | None:
+        """Parse the `if-modified-since` header.
+
+        The `If-Modified-Since` header makes the request conditional: if the
+        requested variant has not been modified since the time specified in this
+        field, an entity will not be returned from the server; instead, a 304
+        (not modified) response will be returned without any message-body.
+
+        Returns:
+            A datetime object or None if the header is not present.
+
+        """
+        val = self.env.get("if_modified_since")
+        return parse_http_date(val)
 
     @property
     def is_delete(self) -> bool:
@@ -239,6 +337,10 @@ class RequestHeadersMixin:
         This will use the `Forwarded` header to try to found the real
         IP address of the client if your application is behind one or
         more reverse proxies,
+
+        Returns:
+            A string with the IP address.
+
         """
         for fw in self.forwarded:
             if "for" in fw:
@@ -259,11 +361,25 @@ class RequestHeadersMixin:
         """Parse the `x-request-id` header.
 
         This header is used to uniquely identify a request.
+
+        Returns:
+            A string with the request ID or None if the header is not present.
+
         """
         val = self.env.get("x_request_id")
         return parse_request_id(val)
 
     def get_header(self, name: str, default: t.Any = None) -> t.Any:
+        """Get a header value.
+
+        Args:
+            name: The header name.
+            default: The default value if the header is not present.
+
+        Returns:
+            The header value or the default value if the header is not present.
+
+        """
         name = enc(name)
         if hasattr(self, name):
             return getattr(self, name, default)
@@ -276,6 +392,12 @@ class RequestHeadersMixin:
 
 
 def parse_accept(value: str | None) -> list[str]:
+    """Parse an `accept`, `accept-encoding`, or a `accept-language` header.
+
+    Returns:
+        A list of values sorted by weight, in descending order.
+
+    """
     if value is None:
         return []
 
@@ -300,6 +422,7 @@ RX_COMMA = re.compile(r",\s*")
 
 
 def parse_comma_separated(value: str | None) -> list[str]:
+    """Parse a comma-separated list of values."""
     if value is None:
         return []
 
@@ -307,6 +430,12 @@ def parse_comma_separated(value: str | None) -> list[str]:
 
 
 def parse_cookie(value: str | None) -> dict[str, Morsel]:
+    """Parse a cookie header.
+
+    Returns:
+        A dictionary of cookies.
+
+    """
     if value is None:
         return {}
 
@@ -316,6 +445,12 @@ def parse_cookie(value: str | None) -> dict[str, Morsel]:
 
 
 def parse_host(value: str | None) -> tuple[str, int]:
+    """Parse a host header.
+
+    Returns:
+        A tuple of (host, port) where port is 0 if not specified.
+
+    """
     if not value:
         return "", 0
 
@@ -343,12 +478,13 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
     (e.g. Accept headers) and returns a list of values and parameters.
     For non-standard or broken input, this implementation may return partial results.
 
-    Arguments:
+    Args:
         header: A header string (e.g. `text/html,text/plain;q=0.9,*/*;q=0.8`)
 
     Return:
         List of (value, params) tuples. The second element is a
         (possibly empty) dict.
+
     """
     values = []
     if '"' not in header:  # INFO: Fast path without regexp (~2x faster)
@@ -382,6 +518,18 @@ RX_NON_ASCII = re.compile(r"[^\x00-\x7f-]")
 
 
 def parse_request_id(val: str | None) -> str | None:
+    """Parse a request ID.
+
+    This function will remove non-ASCII characters and truncate the
+    request ID to 200 characters.
+
+    Args:
+        val: The request ID.
+
+    Returns:
+        The parsed request ID or None if the input is None.
+
+    """
     if val is None:
         return None
     val = str(val)[:REQUEST_ID_MAX_LENGTH]
