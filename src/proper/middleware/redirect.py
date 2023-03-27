@@ -19,7 +19,7 @@ def redirect(request: "Request", response: "Response", app: "App") -> None:
         params = request.matched_params or {}
         response.redirect_to(
             route.redirect.format(**params),
-            status_code=route.redirect_status_code,
+            status=route.redirect_status,
         )
         response.stop = True
         return

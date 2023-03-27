@@ -1,5 +1,7 @@
 import typing as t
 
+from itsdangerous import BadSignature
+
 from .attachment import get_attachment_class
 from .services import Service
 
@@ -9,11 +11,14 @@ if t.TYPE_CHECKING:
     from .types import TAttachment, TUpload
 
 
+ONE_YEAR = 32_000_000  # 60 * 60 * 24 * 365 aprox
+
+
 class Storage:
     def __init__(self, app: "App", config: "DotDict") -> None:
         self.app = app
         self.config = config
-        self.signer = app.get_signer("proper.storage")
+        self.signer = app.get_timestamp_signer("proper.storage")
         self.Attachment = get_attachment_class(self, config)
 
     def url_for(self, obj: "TAttachment") -> str:
@@ -24,10 +29,16 @@ class Storage:
             filename=obj.filename
         )
 
-    def get_key(self, signed_pk: str) -> str | None:
-        if not self.signer.validate(signed_pk):
+    def get_attachment(self, signed_pk: str, max_age: int = ONE_YEAR) -> str | None:
+        max_age = max(max_age, 0) or ONE_YEAR
+        try:
+            bpk = self.signer.unsign(signed_pk, max_age=max_age)
+            pk = bpk.decode()
+            return self.Attachment.get_or_none(pk)
+        except BadSignature:
+            if self.app.config.debug:
+                raise
             return None
-        return self.signer.unsign(signed_pk)
 
     def send_file(self, obj: "TAttachment"):
         service = self.get_service(obj.service_name)
@@ -51,8 +62,6 @@ class Storage:
         do.arg1 = "value1"  # any other args you need
         storage_config.do = do
 
-        ...
-
         storage_config.service = "do"
         ```
         """
@@ -66,14 +75,20 @@ class Storage:
             )
         return cls(self.app, config)
 
-    def show(self, obj: "TAttachment"):
-        pass
-
     def purge(self, obj: "TAttachment", later: bool = False):
-        pass
+        if later:
+            # TODO
+            return
+        service = self.get_service(obj.service_name)
+        service.purge(obj)
+        self.purge_variants(obj)
+        obj.delete_instance()
 
     def purge_variants(self, obj: "TAttachment", later: bool = False):
-        pass
+        if later:
+            # TODO
+            return
+        # TODO
 
     def download(self, obj: "TAttachment"):
         service = self.get_service(obj.service_name)

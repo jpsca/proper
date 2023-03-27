@@ -1,5 +1,4 @@
 import typing as t
-from types import MappingProxyType
 
 from ..constants import FLASHES_SESSION_KEY
 from ..helpers import BadSignature, DotDict  # type: ignore
@@ -19,7 +18,7 @@ def fetch_session(request: "Request", response: "Response", app: "App") -> None:
     and response.
     """
     session = DotDict(get_session(request, app))
-    request._session = MappingProxyType(session)
+    request._session = session
     response._session = session.copy()
     response._session.pop(FLASHES_SESSION_KEY, None)
 

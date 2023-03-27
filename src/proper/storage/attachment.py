@@ -1,5 +1,6 @@
 import mimetypes
 import typing as t
+from datetime import datetime
 from uuid import uuid4
 
 from inflection import parameterize
@@ -22,6 +23,7 @@ def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
         content_type = CharField(64, default=DEFAULT_CONTENT_TYPE)
         filename = CharField(255, default="")
         checksum = CharField(128, null=True)
+        created_at = DateTimeField(default=datetime.utcnow)
 
         def __init__(
             self,
@@ -42,7 +44,7 @@ def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
                 )
 
             key = uuid4().hex
-            filename = filename or getattr(filesto, "filename", "")
+            filename = filename or getattr(filesto, "filename", "") or ""
             name, ext = filename.split(".", 1)
             name = parameterize(name)
             ext = parameterize(ext)
@@ -57,7 +59,7 @@ def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
 
             self.key = key
             self.service_name = service_name
-            self.filename = filename if filename else None
+            self.filename = filename or None
             self.content_type = content_type
             self.byte_size = byte_size
 
@@ -67,7 +69,7 @@ def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
         def url_for(self):
             return storage.url_for(self)
 
-        def send(self):
+        def send_file(self):
             return storage.send_file(self)
 
         def save(self):

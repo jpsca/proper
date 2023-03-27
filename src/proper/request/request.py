@@ -4,11 +4,11 @@ from types import MappingProxyType
 from wsgiref.util import request_uri
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
-from proper.helpers import MultiDict, tunnel_encode
+from proper.helpers import DotDict, MultiDict, tunnel_encode
 from proper.router import Route
 
 from .headers import RequestHeadersMixin
-from .parse_form_data import parse_form_data, parse_query_string
+from .parse_form import parse_form, parse_query_string
 
 
 __all__ = ("Request", "make_test_env")
@@ -41,10 +41,11 @@ class Request(RequestHeadersMixin):
 
     Attributes:
         env:
-            The WSGI environment dict passed in from the server.
+            The WSGI environment dict passed in from the server,
+            with keys normalized to lower-case
 
         body:
-            The request body as a BytesIO stream.
+            The request body as a bytes stream.
 
         accept:
             Indicates which content types, expressed as MIME types,
@@ -158,12 +159,14 @@ class Request(RequestHeadersMixin):
         url:
             Returns the full URL used for the request.
 
-    Extra attributes:
-        matched_route:
-        matched_params:
-        matched_action:
-        user:
+        matched_route, matched_params, and matched_action:
+            Added when the request match a route.
+
         csrf_token:
+            A CSRF (Cross-Site Request Forgery) token.
+
+        user:
+            Added when the request comes from a logged-in user.
 
     """
     method: str
@@ -173,8 +176,8 @@ class Request(RequestHeadersMixin):
     matched_route: Route | None = None
     matched_params: dict | None = None
     matched_action: str | None = None
+    csrf_token: str = ""
     user: t.Any = None
-    csrf_token: str | None = None
 
     # Cache attrs
     _form: MultiDict | None = None
@@ -192,7 +195,7 @@ class Request(RequestHeadersMixin):
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
 
-        self._session = MappingProxyType({})
+        self._session = DotDict()
 
         env = env or make_test_env()
         super().__init__(env)
@@ -224,7 +227,7 @@ class Request(RequestHeadersMixin):
         if self.method in (GET, HEAD):
             return MultiDict()
 
-        return parse_form_data(
+        return parse_form(
             self.body,
             self.content_type,
             self.content_length,
@@ -251,12 +254,12 @@ class Request(RequestHeadersMixin):
     def query_string(self) -> str:
         """Returns the query string.
         """
-        return self.env.get("QUERY_STRING", "")
+        return self.env.get("query_string", "")
 
     @property
     def session(self) -> MappingProxyType:
         """The session data sent with the request."""
-        return self._session
+        return MappingProxyType(self._session)
 
     @property
     def url(self) -> str:

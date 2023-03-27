@@ -19,16 +19,16 @@ class HTTPError(Exception):
 
     """
 
-    __slots__ = ("msg", "status_code", "headers")
+    __slots__ = ("msg", "status", "headers")
 
     def __init__(
         self,
         msg: str = "",
-        status_code : str | None = None,
+        status: str = "500 Error",
         **headers: list[str],
     ):
         self.msg = msg
-        self.status_code = getattr(self, "status_code", status_code)
+        self.status = getattr(self, "status", status)
         self.headers = headers
 
     def __str__(self):
@@ -36,6 +36,10 @@ class HTTPError(Exception):
 
     def __repr__(self):
         return f'{self.__class__.__name__}("{self.msg}")'
+
+    @property
+    def status_code(self) -> int:
+        return int(self.status.split(" ", 1)[0])
 
     @property
     def description(self) -> str:
@@ -51,7 +55,7 @@ class BadRequest(HTTPError):
     routing).
     """
 
-    status_code = status.bad_request
+    status = status.bad_request
 
 
 class InvalidHeader(BadRequest):
@@ -116,7 +120,7 @@ class Unauthorized(HTTPError):
     usually contains relevant diagnostic information.
     """
 
-    status_code = status.unauthorized
+    status = status.unauthorized
 
 
 class Forbidden(HTTPError):
@@ -137,7 +141,7 @@ class Forbidden(HTTPError):
     resource MAY instead respond with a status code of '404 Not Found'.
     """
 
-    status_code = status.forbidden
+    status = status.forbidden
 
 
 class MissingCSRFToken(Forbidden):
@@ -166,7 +170,7 @@ class NotFound(HTTPError):
     is likely to be permanent.
     """
 
-    status_code = status.not_found
+    status = status.not_found
 
 
 class MatchNotFound(NotFound):
@@ -190,11 +194,11 @@ class MethodNotAllowed(HTTPError):
     supported methods.
     """
 
-    status_code = status.method_not_allowed
+    status = status.method_not_allowed
 
     def __init__(self, msg, allowed, **headers):
         headers.setdefault("Allow", ", ".join(allowed))
-        super().__init__(msg, status_code=self.status_code, **headers)
+        super().__init__(msg, status=self.status, **headers)
 
 
 class NotAcceptable(HTTPError):
@@ -206,7 +210,7 @@ class NotAcceptable(HTTPError):
     is unwilling to supply a default representation.
     """
 
-    status_code = status.not_acceptable
+    status = status.not_acceptable
 
 
 class Conflict(HTTPError):
@@ -229,7 +233,7 @@ class Conflict(HTTPError):
     useful for merging the differences based on the revision history.
     """
 
-    status_code = status.conflict
+    status = status.conflict
 
 
 class Gone(HTTPError):
@@ -248,7 +252,7 @@ class Gone(HTTPError):
     remote links to that resource be removed.
     """
 
-    status_code = status.gone
+    status = status.gone
 
 
 class LengthRequired(HTTPError):
@@ -258,7 +262,7 @@ class LengthRequired(HTTPError):
     Length.
     """
 
-    status_code = status.length_required
+    status = status.length_required
 
 
 class PreconditionFailed(HTTPError):
@@ -273,7 +277,7 @@ class PreconditionFailed(HTTPError):
     target resource is in an unexpected state.
     """
 
-    status_code = status.precondition_failed
+    status = status.precondition_failed
 
 
 class RequestEntityTooLarge(HTTPError):
@@ -283,7 +287,7 @@ class RequestEntityTooLarge(HTTPError):
     payload is larger than the server is willing or able to process.
     """
 
-    status_code = status.request_entity_too_large
+    status = status.request_entity_too_large
 
 
 class UriTooLong(HTTPError):
@@ -296,7 +300,7 @@ class UriTooLong(HTTPError):
     or an attack attempt by a client.
     """
 
-    status_code = status.request_uri_too_long
+    status = status.request_uri_too_long
 
 
 class UnsupportedMediaType(HTTPError):
@@ -311,7 +315,7 @@ class UnsupportedMediaType(HTTPError):
     directly.
     """
 
-    status_code = status.unsupported_media_type
+    status = status.unsupported_media_type
 
 
 class RangeNotSatisfiable(HTTPError):
@@ -330,11 +334,11 @@ class RangeNotSatisfiable(HTTPError):
     to raise thie exception.
     """
 
-    status_code = status.range_not_satisfiable
+    status = status.range_not_satisfiable
 
     def __init__(self, msg, length: int | str = "*", **headers):
         headers.setdefault("Content-Range", f"bytes */{length}")
-        super().__init__(msg, status_code=self.status_code, **headers)
+        super().__init__(msg, status=self.status, **headers)
 
 
 class UnprocessableEntity(HTTPError):
@@ -347,7 +351,7 @@ class UnprocessableEntity(HTTPError):
     contained instructions.
     """
 
-    status_code = status.unprocessable_entity
+    status = status.unprocessable_entity
 
 
 class FailedDependency(HTTPError):
@@ -358,7 +362,7 @@ class FailedDependency(HTTPError):
     depended on another action and that action failed.
     """
 
-    status_code = status.failed_dependency
+    status = status.failed_dependency
 
 
 class PreconditionRequired(HTTPError):
@@ -374,7 +378,7 @@ class PreconditionRequired(HTTPError):
     server can assure that clients are working with the correct copies.
     """
 
-    status_code = status.precondition_required
+    status = status.precondition_required
 
 
 class TooManyRequests(HTTPError):
@@ -387,7 +391,7 @@ class TooManyRequests(HTTPError):
     to wait before making a new request.
     """
 
-    status_code = status.too_many_requests
+    status = status.too_many_requests
 
 
 class UnavailableForLegalReasons(HTTPError):
@@ -402,7 +406,7 @@ class UnavailableForLegalReasons(HTTPError):
     classes of person and resource it applies to.
     """
 
-    status_code = status.unavailable_for_legal_reasons
+    status = status.unavailable_for_legal_reasons
 
 
 class InternalServerError(HTTPError):
@@ -412,7 +416,7 @@ class InternalServerError(HTTPError):
     from fulfilling the request.
     """
 
-    status_code = status.internal_server_error
+    status = status.internal_server_error
 
 
 ServerError = InternalServerError
@@ -428,7 +432,7 @@ class NotImplemented(HTTPError):
     request method and is not capable of supporting it for any resource.
     """
 
-    status_code = status.not_implemented
+    status = status.not_implemented
 
 
 class InsufficientStorage(HTTPError):
@@ -443,7 +447,7 @@ class InsufficientStorage(HTTPError):
     action.
     """
 
-    status_code = status.insufficient_storage
+    status = status.insufficient_storage
 
 
 class NetworkAuthenticationRequired(HTTPError):
@@ -453,4 +457,4 @@ class NetworkAuthenticationRequired(HTTPError):
     to gain network access.
     """
 
-    status_code = status.network_authentication_required
+    status = status.network_authentication_required

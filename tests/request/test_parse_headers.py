@@ -4,7 +4,7 @@ from proper import Request, make_test_env
 def parse_whatever():
     env = make_test_env(HTTP_WHATEVER="meh")
     req = Request(**env)
-    assert req.get_header("whatever") == "meh"
+    assert req.get("whatever") == "meh"
 
 
 def test_parse_accept_header():

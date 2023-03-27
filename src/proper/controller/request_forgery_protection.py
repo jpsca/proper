@@ -27,17 +27,16 @@ class RequestForgeryProtection:
         self.protect_from_forgery(self.action_name)
 
     def protect_from_forgery(self, action_name: str) -> None:
-        """"""
         if self._must_check_csrf_token(action_name):
             self._handle_verified_request()
         else:
             self._handle_unverified_request()
 
         token = self.request.session.get(CSRF_SESSION_KEY)
-        masked_token = self._mask_csrf_token(token) if token else None
+        masked_token = self._mask_csrf_token(token) if token else ""
         self.request.csrf_token = masked_token
         if masked_token:
-            self.response.set_header(CSRF_HEADER, masked_token)
+            self.response.headers[CSRF_HEADER] = masked_token
 
     def _must_check_csrf_token(self, action: str) -> bool:
         """Return wether the csrf token in the request must be checked
@@ -64,7 +63,7 @@ class RequestForgeryProtection:
     def _get_request_csrf_tokens(self) -> list[str]:
         """Get possible csrf tokens sent in the request."""
         req_tokens = [
-            self._csrf_token_in_form() if self.request.content_length else None,
+            self._csrf_token_in_form() if self.request.content_length else "",
             self._csrf_token_in_header(),
         ]
         expected_length = CSRF_TOKEN_LENGTH * 2
@@ -74,14 +73,14 @@ class RequestForgeryProtection:
             if token and len(token) == expected_length
         ]
 
-    def _csrf_token_in_form(self) -> str | None:
+    def _csrf_token_in_form(self) -> str:
         """Search for a CSRF token in the body data.
         Override to provide your own."""
-        return self.request.form.get(CSRF_FORM_KEY)
+        return self.request.form.get(CSRF_FORM_KEY, "")
 
-    def _csrf_token_in_header(self) -> str | None:
+    def _csrf_token_in_header(self) -> str:
         """Search for a CSRF token in a header"""
-        return self.request.get_header(CSRF_HEADER)
+        return self.request.get(CSRF_HEADER, "")
 
     def _handle_invalid_csrf_token(self) -> None:
         raise InvalidCSRFToken(

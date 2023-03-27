@@ -1,6 +1,6 @@
 import typing as t
 
-from collections.abc import KeysView, MutableMapping
+from collections.abc import KeysView, ItemsView, MutableMapping
 
 
 __all__ = ("MultiDict", )
@@ -13,14 +13,14 @@ class MultiDict(MutableMapping):
     A `MultiDict` is a dict-like type customized to deal with
     multiple values for the same key and type casting its values.
     """
+    data: dict[str, list[t.Any]]
 
     def __init__(
         self,
         dict_or_iter: TDictOrIter | None = None,
-        **kwargs
     ) -> None:
         self.data = {}
-        self.update(dict_or_iter, **kwargs)
+        self.update(dict_or_iter)
 
     def __len__(self):
         return len(self.data)
@@ -46,27 +46,26 @@ class MultiDict(MutableMapping):
     def keys(self) -> KeysView:
         return self.data.keys()
 
+    def items(self) -> ItemsView:
+        return self.data.items()
+
     def append(self, key: str, value: t.Any) -> None:
         self.data.setdefault(key, []).append(value)
 
     def extend(self, key: str, values: list[t.Any]) -> None:
         self.data.setdefault(key, []).extend(values)
 
-    def update(
-        self,
-        dict_or_iter: TDictOrIter | None = None,
-        **kwargs,
-    ) -> None:
+    def update(self, dict_or_iter: TDictOrIter | None = None) -> None:
         if dict_or_iter:
             if isinstance(dict_or_iter, MultiDict):
                 for key, values in dict_or_iter.items():
                     self.data.setdefault(key, []).extend(values)
-            else:
+            elif hasattr(dict_or_iter, "items"):
                 for key, value in dict(dict_or_iter).items():
                     self.data.setdefault(key, []).append(value)
-
-        for key, value in kwargs.items():
-            self.data.setdefault(key, []).append(value)
+            else:
+                for key, value in dict_or_iter:
+                    self.data.setdefault(key, []).append(value)
 
     def get(
         self,

@@ -21,3 +21,6 @@ class Service:
 
     def send_file(self, obj: "TAttachment") -> bytes:
         raise NotImplementedError
+
+    def purge(self, obj: "TAttachment") -> None:
+        raise NotImplementedError

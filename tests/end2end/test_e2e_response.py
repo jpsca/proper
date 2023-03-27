@@ -51,6 +51,7 @@ def test_if_none_match(app, web):
 def test_set_session(app, web):
     app.router.routes = [get("/", to=AppController.index)]
     resp = web.get("/")
+    print(resp.headers)
     assert "Set-Cookie" in resp.headers
     assert resp.headers["Set-Cookie"].startswith("_session")
 

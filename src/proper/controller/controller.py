@@ -58,14 +58,14 @@ class Controller(RequestForgeryProtection):
         text: "Optional[Any]" = None,
     ) -> str:
         if status is not None:
-            self.response.status_code = status
+            self.response._status = status
 
         if json is not None:
-            self.response.set_content_type("application/json")
+            self.response.content_type = "application/json"
             return jsonplus.dumps(json)
 
         if text is not None:
-            self.response.set_content_type("text/plain")
+            self.response.content_type = "text/plain; charset=utf-8"
             return text
 
         component = component or self.response.component
@@ -76,29 +76,6 @@ class Controller(RequestForgeryProtection):
             component,
             **vars(self)
         )
-
-    def send_data(
-        self,
-        data: bytes,
-        *,
-        disposition="attachment",
-        status=ok,
-        type="application/octet-stream",
-    ):
-        ...
-
-    def send_file(
-        self,
-        path: "Union[str, Path]",
-        *,
-        disposition: str = "attachment",
-        filename: str = "",
-        stream: bool = False,
-        buffer_size: int = 1024,
-        status: str = ok,
-        type: str = "application/octet-stream",
-    ):
-        ...
 
     # Private
 
@@ -142,7 +119,7 @@ class Controller(RequestForgeryProtection):
         ret_value = method()
 
         if response.is_fresh:
-            response.status_code = not_modified
+            response._status = not_modified
             response.body = ""
             return
 

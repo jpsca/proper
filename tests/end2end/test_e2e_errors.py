@@ -64,7 +64,7 @@ def test_debug_error(app, Pages, web):
     assert "<title>Forbidden" in resp.text
 
 
-def test_custom_register_not_an_exception(app, Pages, web):
+def test_custom_register_not_an_exception(app, Pages):
     class NotAnException:
         pass
 
@@ -72,7 +72,7 @@ def test_custom_register_not_an_exception(app, Pages, web):
         app.error_handler(NotAnException, Pages.custom_not_found_handler)
 
 
-def test_custom_register_not_even_a_class(app, Pages, web):
+def test_custom_register_not_even_a_class(app, Pages):
     with pytest.raises(AssertionError):
         app.error_handler(5, Pages.custom_not_found_handler)
 

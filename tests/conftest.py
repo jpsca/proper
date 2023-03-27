@@ -62,7 +62,6 @@ class _Pages(AppController):
     def index(self, *args):
         self.response.body = "Hello World!"
         self.response.content_type = "text/plain"
-        assert self.response.content_type == "text/plain"
 
     def echo(self, *args):
         self.response.raw_body = self.request.body

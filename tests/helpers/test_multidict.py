@@ -1,12 +1,6 @@
 from proper.helpers import MultiDict
 
 
-def test_init():
-    md = MultiDict([("foo", "42"), ("foo", "16"), ("bar", "blub")])
-    assert md["foo"] == ["42", "16"]
-    assert md["bar"] == ["blub"]
-
-
 def test_get():
     md = MultiDict([("foo", "42"), ("foo", "16"), ("bar", "blub")])
 

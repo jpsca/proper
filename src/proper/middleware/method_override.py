@@ -24,7 +24,7 @@ def method_override(request: "Request", response: "Response", app: "App") -> Non
     if request.request_method != POST:
         return
 
-    new_method = request.get_header("x_http_method_override")
+    new_method = request.get("x_http_method_override")
     if not new_method:
         new_method = request.query.get("_method") or request.form.get("_method")
 

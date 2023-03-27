@@ -18,8 +18,8 @@ def test_set_cookie(app):
     put_session(request, response, app)
 
     expected = serialize_cookie(app, {"foo": "bar"})
-    print(response.cookies)
-    assert response.cookies[app.config.session.cookie.name].value == expected
+    cookie = response.cookies["_session"]
+    assert cookie.value == expected
 
 
 def test_do_not_set_cookie_if_not_data(app):
@@ -31,7 +31,7 @@ def test_do_not_set_cookie_if_not_data(app):
     response._session = DotDict()
     put_session(request, response, app)
 
-    assert app.config.session.cookie.name not in response.cookies
+    assert "_session" not in response.cookies
 
 
 def test_set_delete_cookie_if_not_data_and_modified(app):
@@ -39,14 +39,14 @@ def test_set_delete_cookie_if_not_data_and_modified(app):
     response = Response()
 
     expected = serialize_cookie(app, {"foo": "bar"})
-    request.cookies[app.config.session.cookie.name] = expected
+    request.cookies["_session"] = expected
     fetch_session(request, response, app)
 
     response.dispatched = True
     del response.session["foo"]
     put_session(request, response, app)
 
-    cookie_name = app.config.session.cookie.name
+    cookie_name = "_session"
     assert cookie_name in response.cookies
     assert response.cookies[cookie_name].value == ""
     assert response.cookies[cookie_name]["max-age"] == 0

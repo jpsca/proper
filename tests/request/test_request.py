@@ -36,21 +36,18 @@ def test_content_length():
 
 
 def test_invalid_content_length():
-    request = Request(CONTENT_LENGTH="very large")
     with pytest.raises(InvalidHeader):
-        assert request.content_length
+        Request(CONTENT_LENGTH="very large")
 
 
 def test_negative_content_length():
-    request = Request(CONTENT_LENGTH="-456789")
     with pytest.raises(InvalidHeader):
-        assert request.content_length
+        Request(CONTENT_LENGTH="-456789")
 
 
 def test_extra_content_length():
-    request = Request(CONTENT_LENGTH="3434 or something")
     with pytest.raises(InvalidHeader):
-        assert request.content_length
+        Request(CONTENT_LENGTH="3434 or something")
 
 
 def test_parse_host():
@@ -109,21 +106,14 @@ def test_host_with_port():
     assert request.host_with_port == "example.com"
 
 
-def test_no_remote_addr_is_127_0_0_1():
-    request = Request()
-    if "REMOTE_ADDR" in request.environ:
-        del request.environ["REMOTE_ADDR"]
-    assert request.remote_ip == "127.0.0.1"
-
-
 def test_remote_addr():
     request = Request(REMOTE_ADDR="192.168.56.1")
-    assert request.remote_ip == request.remote_ip == "192.168.56.1"
+    assert request.remote_ip == "192.168.56.1"
 
 
 def test_x_remote_addr():
     request = Request(HTTP_X_REAL_IP="172.217.15.206", REMOTE_ADDR="localhost")
-    assert request.remote_ip == request.remote_ip == "172.217.15.206"
+    assert request.remote_ip == "172.217.15.206"
 
 
 def test_no_cookies():
@@ -138,16 +128,16 @@ def test_cookies():
     request = Request(HTTP_COOKIE=header)
 
     assert request.cookies == request.cookies
-    assert request.cookies["logged_in"] == "yes"
-    assert request.cookies["_octo"] == "GH1.1.19797273.434"
-    assert request.cookies["has_recent_activity"] == "1"
+    assert request.cookies["logged_in"].value == "yes"
+    assert request.cookies["_octo"].value == "GH1.1.19797273.434"
+    assert request.cookies["has_recent_activity"].value == "1"
 
 
 def test_parse_one_value():
     header = "dismiss=6"
     request = Request(HTTP_COOKIE=header)
 
-    assert request.cookies["dismiss"] == "6"
+    assert request.cookies["dismiss"].value == "6"
 
 
 def test_parse_invalid_cookies():

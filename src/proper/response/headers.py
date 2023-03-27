@@ -7,25 +7,70 @@ from proper.helpers import format_http_date, tunnel_encode
 
 
 def enc_name(name: str) -> str:
-    name = name.strip().lower().replace("-", "_").removeprefix("http_")
+    name = name.strip().lower().removeprefix("http_").replace("_", "-")
     if not name.isascii():
-        raise InvalidHeader("A header name must be encodable as ASCII")
+        raise InvalidHeader("A header name must be encodable as latin-1")
     return name
 
 
+class ResponseHeadersDict(dict):
+    def __getitem__(self, name: str) -> t.Any:
+        name = enc_name(name)
+        return dict.get(self, name)
+
+    def __setitem__(self, name: str, val: t.Any, **params) -> None:
+        name = enc_name(name)
+        self._set(name, format_header(val, **params))
+
+    def _set(self, name: str, coded_val: t.Any) -> None:
+        if coded_val is None:
+            if name in self:
+                del self[name]
+        else:
+            dict.__setitem__(self, name, coded_val)
+
+    def update(self, *args, **kwargs):
+        for k, v in dict(*args, **kwargs).items():
+            self[k] = v
+
+
 class ResponseHeadersMixin:
-    """Mixin with the methods related to the response headers.
-    """
-    DEFAULT_CONTENT_TYPE = "text/html"
-    DEFAULT_CHARSET = "utf-8"
+    """Mixin with the methods related to the response headers."""
+
+    status_code: int
+    default_content_type = "text/html"
+    default_charset = "utf-8"
+
+    # Header exclude-list for specific response codes
+    # (rfc2616 section 10.2.3 and 10.3.5)
+    exclude_headers = {
+        204: ("content-type", "content-length"),
+        304: (
+            "allow",
+            "content-encoding",
+            "content-language",
+            "content-length",
+            "content-range",
+            "content-type",
+            "content-md5",
+            "last-modified",
+        ),
+    }
+
+    headers: ResponseHeadersDict
 
     def __init__(self) -> None:
-        self._headers: dict[str, t.Any] = {}
+        self.headers = ResponseHeadersDict()
+        super().__init__()
 
     @property
     def accept_ranges(self) -> str | None:
         """Get the `Accept-Ranges` header."""
-        return self._headers.get("accept_ranges")
+        return self.headers.get("accept-ranges")
+
+    @accept_ranges.setter
+    def accept_ranges(self, unit: str | None = "bytes") -> None:
+        self.set_accept_ranges(unit)
 
     def set_accept_ranges(self, unit: str | None = "bytes") -> None:
         """Set the `Accept-Ranges` header.
@@ -46,13 +91,19 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("accept_ranges", unit)
+        self.headers._set("accept-ranges", unit)
 
     @property
-    def cache_control(self) -> str | None:
-        """Get the `Cache-Control` header.
-        """
-        return self._headers.get("cache_control")
+    def cache_control(self) -> list[str] | None:
+        """Get the `Cache-Control` header."""
+        return self.headers.get("cache-control")
+
+    @cache_control.setter
+    def cache_control(self, directives: list[str] | None) -> None:
+        if directives:
+            self.set_cache_control(*directives)
+        else:
+            self.set_cache_control(None)
 
     def set_cache_control(self, *directives: str | None) -> None:
         """Set the `Cache-Control` header.
@@ -67,13 +118,19 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("cache_control", format_comma_list(directives))
+        self.headers._set("cache-control", format_comma_list(directives))
 
     @property
     def content_encoding(self) -> str | None:
-        """Get the `Content-Encoding` header.
-        """
-        return self._headers.get("content_encoding")
+        """Get the `Content-Encoding` header."""
+        return self.headers.get("content-encoding")
+
+    @content_encoding.setter
+    def content_encoding(self, values: list[str] | None) -> None:
+        if values:
+            self.set_content_encoding(*values)
+        else:
+            self.set_content_encoding(None)
 
     def set_content_encoding(self, *values: str | None) -> None:
         """Set the `Content-Encoding` header.
@@ -92,13 +149,16 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("content_encoding", format_comma_list(values))
+        self.headers._set("content-encoding", format_comma_list(values))
 
     @property
     def content_length(self) -> str | None:
-        """Get the `Content-Length` header.
-        """
-        return self._headers.get("content_length")
+        """Get the `Content-Length` header."""
+        return self.headers.get("content-length")
+
+    @content_length.setter
+    def content_length(self, num: int | str | None) -> None:
+        self.set_content_length(num)
 
     def set_content_length(self, num: int | str | None) -> None:
         """Set the `Content-Length` header.
@@ -113,12 +173,16 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("content_length", format_int(num))
+        self.headers._set("content-length", format_int(num))
 
     @property
     def content_location(self) -> str | None:
         """Get the `Content-Location` header."""
-        return self._headers.get("content_location")
+        return self.headers.get("content-location")
+
+    @content_location.setter
+    def content_location(self, url: str | None) -> None:
+        self.set_content_location(url)
 
     def set_content_location(self, url: str | None) -> None:
         """Set the `Content-Location` header.
@@ -135,13 +199,12 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("content_location", url)
+        self.headers._set("content-location", url)
 
     @property
     def content_range(self) -> str | None:
-        """Get the `Content-Range` header.
-        """
-        return self._headers.get("content_range")
+        """Get the `Content-Range` header."""
+        return self.headers.get("content-range")
 
     def set_content_range(
         self,
@@ -195,18 +258,21 @@ class ResponseHeadersMixin:
                 range = f"{start}-{end}"
             val = f"{unit} {range}/{size or '*'}"
 
-        self._set_header("content_range", val)
+        self.headers._set("content-range", val)
 
     @property
     def content_type(self) -> str | None:
-        """Get the `Content-Type` header.
-        """
-        return self._headers.get("content_type")
+        """Get the `Content-Type` header."""
+        return self.headers.get("content-type")
+
+    @content_type.setter
+    def content_type(self, val: str | None) -> None:
+        self.set_content_type(val)
 
     def set_content_type(
         self,
-        val: str | None = DEFAULT_CONTENT_TYPE,
-        charset: str = DEFAULT_CHARSET,
+        val: str | None = default_content_type,
+        charset: str = default_charset,
     ) -> None:
         """Set the `Content-Type` header.
 
@@ -223,12 +289,12 @@ class ResponseHeadersMixin:
                 "utf-8" by default
 
         """
-        self._set_header("content_type", format_header(val, charset=charset))
+        self.headers._set("content-type", format_header(val, charset=charset))
 
     @property
     def etag(self) -> str | None:
         """Get the ETag header."""
-        return self._headers.get("etag")
+        return self.headers.get("etag")
 
     def set_etag(
         self,
@@ -264,13 +330,16 @@ class ResponseHeadersMixin:
             digest = sha1(str(val).encode()).hexdigest()
             coded_val = f'"{digest}"' if strong else f'W/"{digest}"'
 
-        self._set_header("etag", coded_val)
+        self.headers._set("etag", coded_val)
 
     @property
     def expires(self) -> str | None:
-        """Get the `Expires` header.
-        """
-        return self._headers.get("expires")
+        """Get the `Expires` header."""
+        return self.headers.get("expires")
+
+    @expires.setter
+    def expires(self, dt: datetime | float | int | None) -> None:
+        self.set_expires(dt)
 
     def set_expires(self, dt: datetime | float | int | None) -> None:
         """Set the `Expires` header.
@@ -285,13 +354,16 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("expires", format_datetime(dt))
+        self.headers._set("expires", format_datetime(dt))
 
     @property
     def last_modified(self) -> datetime | None:
-        """Get the `Last-Modified` header.
-        """
-        return self._headers.get("last_modified")
+        """Get the `Last-Modified` header."""
+        return self.headers.get("last-modified")
+
+    @last_modified.setter
+    def last_modified(self, dt: datetime | float | int | None) -> None:
+        self.set_last_modified(dt)
 
     def set_last_modified(self, dt: datetime | float | int | None) -> None:
         """Set the `Last-Modified` header.
@@ -316,13 +388,16 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("last_modified", format_datetime(dt))
+        self.headers._set("last-modified", format_datetime(dt))
 
     @property
     def location(self) -> str | None:
-        """Get the `Location` header.
-        """
-        return self._headers.get("location")
+        """Get the `Location` header."""
+        return self.headers.get("location")
+
+    @location.setter
+    def location(self, url: str | None) -> None:
+        self.set_location(url)
 
     def set_location(self, url: str | None) -> None:
         """Set the `Location` header.
@@ -352,13 +427,16 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("location", url)
+        self.headers._set("location", url)
 
     @property
     def retry_after(self) -> str | None:
-        """Get the `Retry-After` header.
-        """
-        return self._headers.get("retry_after")
+        """Get the `Retry-After` header."""
+        return self.headers.get("retry-after")
+
+    @retry_after.setter
+    def retry_after(self, num: int | str | None) -> None:
+        self.set_retry_after(num)
 
     def set_retry_after(self, num: int | str | None) -> None:
         """Set the Retry-After header.
@@ -386,13 +464,19 @@ class ResponseHeadersMixin:
         if num is not None:
             # num=0 is the same as num=None
             num = int(num) or None
-        self._set_header("retry_after", num)
+        self.headers._set("retry-after", num)
 
     @property
     def vary(self) -> str | None:
-        """Get the `Vary` header.
-        """
-        return self._headers.get("vary")
+        """Get the `Vary` header."""
+        return self.headers.get("vary")
+
+    @vary.setter
+    def vary(self, names: list[str] | None) -> None:
+        if names:
+            self.set_vary(*names)
+        else:
+            self.set_vary(None)
 
     def set_vary(self, *names: str | None) -> None:
         """Set the `Vary` header.
@@ -411,45 +495,14 @@ class ResponseHeadersMixin:
                 Use `None` to delete the header.
 
         """
-        self._set_header("vary", format_comma_list(names))
+        self.headers._set("vary", format_comma_list(names))
 
-    def get_header(self, name: str, default: t.Any = None) -> t.Any:
-        """Get a response header by name, or `default` is the header
-        is not set.
-        """
-        name = enc_name(name)
-        return self._headers.get(name, default)
-
-    def set_header(self, name: str, val: t.Any, **params) -> None:
-        """Set a response header"""
-        name = enc_name(name)
-        self._set_header(name, format_header(val, **params))
-
-    def _set_header(self, name: str, coded_val: t.Any) -> None:
-        if coded_val is None:
-            if name in self._headers:
-                del self._headers[name]
-        else:
-            self._headers[name] = str(coded_val)
-
-    def delete_header(self, name: str) -> None:
-        """Deletes a header if present.
-
-        This is equivalent to `set_header(name, None)`
-        """
-        name = enc_name(name)
-        if name in self._headers:
-            del self._headers[name]
-
-    def _get_header_tuples(
-        self,
-        exclude: list[str] | None = None,
-    ) -> list[tuple[bytes, str]]:
+    def _get_header_tuples(self) -> list[tuple[str, str]]:
         """Get the list of header tuples."""
-        exclude = [enc_name(name) for name in exclude or []]
+        exclude = self.exclude_headers.get(self.status_code) or []
         tuples = []
 
-        for name, val in self._headers.items():
+        for name, val in self.headers.items():
             if name in exclude:
                 continue
 
@@ -460,10 +513,12 @@ class ResponseHeadersMixin:
             else:
                 coded_val = str(val)
 
-            tuples.append((
-                name.replace("_", "-").encode("ascii"),
-                tunnel_encode(coded_val, "utf-8"),
-            ))
+            tuples.append(
+                (
+                    tunnel_encode(name),
+                    tunnel_encode(coded_val, "utf-8"),
+                )
+            )
 
         return tuples
 
@@ -499,7 +554,9 @@ def format_header(val: t.Any, **params) -> str | None:
     if val is None:
         return None
 
-    return "; ".join([
-        val,
-        *(f"{k}={v}" for k, v in params.items()),
-    ])
+    return "; ".join(
+        [
+            val,
+            *(f"{k}={v}" for k, v in params.items()),
+        ]
+    )

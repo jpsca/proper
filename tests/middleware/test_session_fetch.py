@@ -14,7 +14,7 @@ def test_fetch_fetch_session(app):
     request = Request()
     response = Response()
     data = {"hello": "world!"}
-    request._cookies = {app.config.session.cookie.name: app.serializer.dumps(data)}
+    request.cookie = {"_session": app.serializer.dumps(data)}
     fetch_session(request, response, app)
 
     assert request.session == response.session == data
@@ -23,7 +23,7 @@ def test_fetch_fetch_session(app):
 def test_fetch_session_bad_cookie(app):
     request = Request()
     response = Response()
-    request._cookies = {app.config.session.cookie.name: "bad cookie"}
+    request.cookie = {"_session": "bad cookie"}  # type: ignore
     fetch_session(request, response, app)
 
     assert request.session == response.session == {}

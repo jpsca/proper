@@ -86,7 +86,7 @@ class Route(BaseRoute):
         Optional. Instead of dispatching to a controller, redirect to this
         other URL.
 
-    redirect_status_code:
+    redirect_status:
         Optional. Which status code to use for the redirect.
         The status "307 Temporary Redirect" is the default.
 
@@ -104,7 +104,7 @@ class Route(BaseRoute):
         "name",
         "host",
         "redirect",
-        "redirect_status_code",
+        "redirect_status",
         "defaults",
     )
 
@@ -117,7 +117,7 @@ class Route(BaseRoute):
         name: "Optional[str]" = None,
         host: "Optional[str]" = None,
         redirect: "Optional[str]" = None,
-        redirect_status_code="307 Temporary Redirect",
+        redirect_status="307 Temporary Redirect",
         defaults: "Optional[dict]" = None,
     ) -> None:
         super().__init__()
@@ -127,7 +127,7 @@ class Route(BaseRoute):
         self.name = name or (to.__qualname__ if callable(to) else to)
         self.host = host
         self.redirect = redirect
-        self.redirect_status_code = redirect_status_code
+        self.redirect_status = redirect_status
         self.defaults = defaults or {}
 
     def __repr__(self) -> str:

@@ -9,7 +9,7 @@ from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import quote
 
-from .. import status
+from .. import status as pstatus
 from ..helpers import tunnel_encode
 
 from .cookies import ResponseCookiesMixin
@@ -53,14 +53,14 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     def __init__(
         self,
-        status_code: str = status.ok,
+        status: str = pstatus.ok,
         *,
         charset: str = "utf-8",
         _app: "App | None" = None,
         _request: "Request | None" = None,
         **environ: t.Any,
     ) -> None:
-        self.status_code = status_code
+        self._status = status
         self.charset = charset
         self._app = _app
         self._request = _request
@@ -80,19 +80,19 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
             body = body.encode(self.charset)
 
         if isinstance(body, bytes):
-            if self.content_length is None:
+            if not self.content_length:
                 self.set_content_length(len(body))
             body = [body]
 
-        if self.content_type is None:
-            self.set_content_type(self.content_type, charset=self.charset)
+        if not self.content_type:
+            self.set_content_type(self.default_content_type, charset=self.charset)
 
-        headers = [*self._get_header_tuples(), self._get_cookie_tuple()]
-        start_response(self.status_code, headers)
+        headers = self.get_headers_list()
+        start_response(self._status, headers)
         return body
 
     def __repr__(self) -> str:
-        return f"<Response “{self._status_code}”>"
+        return f"<Response “{self._status}”>"
 
     @property
     def has_body(self) -> bool:
@@ -105,41 +105,60 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         return self._session
 
     @property
-    def status_code(self) -> str:
-        """The status code of the response."""
-        return self._status_code
+    def status(self) -> str:
+        """The status string of the response."""
+        return self._status
 
-    @status_code.setter
-    def status_code(self, value: str) -> None:
-        self._status_code = tunnel_encode(value)
+    @status.setter
+    def status(self, value: str) -> None:
+        self._status = tunnel_encode(value)
+
+    @property
+    def status_code(self) -> int:
+        """The status code of the response."""
+        return int(self._status.split(" ", 1)[0])
+
+    def get_headers_list(self) -> list[tuple[str, str]]:
+        return [*self._get_header_tuples(), *self._get_cookie_tuples()]
 
     def redirect_to(
         self,
         url_or_route: str,
-        object: t.Any = None,
+        obj: t.Any = None,
         *,
         flash: str | None = None,
         flash_type: str = "notice",
-        status_code: str = status.see_other,
+        status: str = pstatus.see_other,
         **kw,
     ) -> None:
         """
         Redirects to the given URL or route.
 
         Args:
-            url_or_route: The URL or route to redirect to.
-            object: The object to pass to the route.
-            flash: The flash message to set.
-            flash_type: Optional type of the flash message.
-            status_code: The status code to use.
-            **kw: Additional keyword arguments to pass to the route.
+            url_or_route:
+                The URL or route to redirect to.
+
+            obj:
+                The object to build the route
+
+            flash:
+                Optional flash message to set.
+
+            flash_type:
+                Optional type of the flash message.
+
+            status (str):
+                The status code to use, e.g.: "303 See Other"
+
+            **kw:
+                Additional keyword arguments to pass to the route.
 
         """
         assert self._app
-        self.status_code = status_code
+        self._status = status
         to = url_or_route
         if not url_or_route.startswith(("/", "http")):
-            to = self._app.url_for(url_or_route, object=object, **kw)
+            to = self._app.url_for(url_or_route, object=obj, **kw)
 
         self.set_location(to)
         self.body = "\n".join(
@@ -268,10 +287,10 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         value = "attachment" if as_attachment else "inline"
 
-        self.set_header("Content-Disposition", f"{value}{options}")
+        self.headers["content-disposition"] = f"{value}{options}"
 
         if use_x_sendfile:
-            self.set_header("X-Sendfile", path)
+            self.headers["x-dendfile"] = path
 
         stat = path.stat()
         size = stat.st_size
@@ -284,13 +303,17 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         self.body = self.wrap_file(path.open("rb"))
 
-    def wrap_file(self, file: t.IO[t.Any], buffer_size: int = 8192) -> t.Iterable[bytes]:
+    def wrap_file(
+        self,
+        file: t.IO[t.Any],
+        buffer_size: int = 8192,
+    ) -> t.Iterable[bytes]:
         """Wraps a file using the WSGI server's file wrapper
 
         More information about file wrappers is available in
         [PEP 3333](https://peps.python.org/pep-3333/#optional-platform-specific-file-handling).
 
-        Attrs:
+        Args:
             file: a file-like object with a `read` method.
             buffer_size: number of bytes for one iteration.
 

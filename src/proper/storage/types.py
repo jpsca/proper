@@ -13,3 +13,6 @@ class TAttachment:
     content_type: str | None
     checksum: str | None
     filename: str
+
+    def delete_instance(self) -> None:
+        ...

@@ -19,22 +19,22 @@ MIME_ALL = "*/*"
 
 
 def enc(name: str) -> str:
-    return name.strip().lower().replace("-", "_").removeprefix("http_")
+    return name.strip().lower().replace("-", "_")
 
 
 class RequestHeadersMixin:
     """Mixin with the methods related to the request headers.
     """
 
-    DEFAULT_FORMAT = "html"
+    default_format = "html"
 
     env: dict[str, t.Any]
 
     def __init__(self, env: dict[str, t.Any]):
-        self._nornalize_env(env)
+        self._normalize_env(env)
 
         self.protocol = self.env.get(
-            "forwarded_proto",
+            "x_forwarded_proto",
             self.env.get("wsgi.url_protocol")
         )
         host, port = parse_host(self.env.get("host"))
@@ -51,7 +51,7 @@ class RequestHeadersMixin:
         self.content_type = self.env.get("content_type", "")
 
         try:
-            self.content_length = int(self.env.get("content_length", "0"))
+            self.content_length = int(self.env.get("content_length") or "0")
         except ValueError:
             raise InvalidHeader("The Content-Length header must be a number.")
         if self.content_length < 0:
@@ -59,30 +59,44 @@ class RequestHeadersMixin:
                 "The value of the Content-Length header must be a positive number."
             )
 
-    def _nornalize_env(self, env: dict[str, t.Any]) -> None:
+    def _normalize_env(self, env: dict[str, t.Any]) -> None:
         """Normalize the environment variables.
 
         Args:
             env: A WSGI environment dict passed in from the server (See also PEP-3333).
 
         """
-        environ = {}
-        for name, value in env.items():
-            if not name.startswith(""):
-                environ[enc(name)] = value
-
-        # Normalize header names and remove the 'http_'
-        # prefix, but only if there isn't already a header
-        # with that name.
+        self.env = {
+            enc(name): value
+            for name, value in env.items()
+            if not name.startswith("HTTP_")
+        }
         for name, value in env.items():
             if not name.startswith("HTTP_"):
                 continue
-            name = enc(name)
-            if name in environ:
+            name = enc(name).removeprefix("http_")
+            if name in self.env:
                 name = f"http_{name}"
-            environ[enc(name)] = value
+            self.env[name] = value
 
-        self.env = environ
+    def get(self, name: str, default: t.Any = None) -> t.Any:
+        name = enc(name)
+        if name in (
+            "accept",
+            "accept_encoding",
+            "accept_language",
+            "cookie",
+            "cookies",
+            "date",
+            "forwarded",
+            "if_none_match",
+            "if_modified_since",
+            "request_id",
+        ):
+            value = getattr(self, name)
+            return default if value is None else value
+
+        return self.env.get(name, default)
 
     @cached_property
     def accept(self) -> list[str]:
@@ -174,7 +188,7 @@ class RequestHeadersMixin:
 
         An alias to `cookie`.
         """
-        return self.cookies
+        return self.cookie
 
     @cached_property
     def date(self) -> datetime | None:
@@ -218,7 +232,7 @@ class RequestHeadersMixin:
             if ext:
                 val = ext[1:]
                 break
-        return val or self.DEFAULT_FORMAT
+        return val or self.default_format
 
     @cached_property
     def forwarded(self) -> list[dict[str, str]]:
@@ -346,9 +360,9 @@ class RequestHeadersMixin:
             if "for" in fw:
                 return fw["for"]
 
-        ff = self.env.get("x_forwarded_for", "").split(",")
+        ff = self.env.get("x_forwarded_for", "").split(",")[0]
         if ff:
-            return ff[0]
+            return ff
 
         realip = self.env.get("x_real_ip")
         if realip:
@@ -368,24 +382,6 @@ class RequestHeadersMixin:
         """
         val = self.env.get("x_request_id")
         return parse_request_id(val)
-
-    def get_header(self, name: str, default: t.Any = None) -> t.Any:
-        """Get a header value.
-
-        Args:
-            name: The header name.
-            default: The default value if the header is not present.
-
-        Returns:
-            The header value or the default value if the header is not present.
-
-        """
-        name = enc(name)
-        if hasattr(self, name):
-            return getattr(self, name, default)
-
-        value = self.env.get(name)
-        return default if value is None else value
 
 
 # --- Parsers -----
@@ -454,16 +450,16 @@ def parse_host(value: str | None) -> tuple[str, int]:
     if not value:
         return "", 0
 
+    host = value
     sport = ""
+
     if "]:" in value:
-        host, sport = value.split("]:", 1)
-        host = value[1:]
-    elif value[0] == "[":
-        host = value[1:-1]
-    elif ":" in value:
+        host, sport = value.rsplit("]:", 1)
+        host = host[1:]
+    elif host[0] == "[":
+        host = host[1:-1]
+    elif ":" in host:
         host, sport = value.rsplit(":", 1)
-    else:
-        host = ""
 
     port = int(sport) if sport and sport.isdecimal() else 0
     return host, port

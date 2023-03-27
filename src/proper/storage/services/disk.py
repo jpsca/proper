@@ -36,6 +36,9 @@ class Disk(Service):
     def send_file(self, obj: "TAttachment") -> bytes:
         raise NotImplementedError
 
+    def purge(self, obj: "TAttachment") -> None:
+        raise NotImplementedError
+
     def _get_path(self, obj: "TAttachment") -> Path:
         filename = obj.filename or obj.key
         return self.root / obj.key[:2] / obj.key[2:4] / filename

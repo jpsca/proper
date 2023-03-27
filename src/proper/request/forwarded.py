@@ -1,5 +1,5 @@
 # Based on code from the aiohttp project, Copyright aio-libs contributors,
-# with modifications for the Proper project by Juan-Pablo Scaletti.
+# with modifications for the Proper project.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

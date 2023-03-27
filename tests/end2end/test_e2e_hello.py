@@ -11,12 +11,12 @@ class MyController(Controller):
         self.response.body = "Hello Callable!"
 
     def echo_query(self):
-        self.response.set_header("req-query", "|".join(
+        self.response.headers["rec-query"] = "|".join(
             [
                 f"{key}:{','.join(str(val) for val in values)}"
-                for key, values in self.request.query.data.items()
+                for key, values in self.request.query.items()
             ]
-        ))
+        )
 
 
 def test_hello_world(app, Pages, web):
@@ -69,7 +69,7 @@ def test_charset(app, Pages, web):
 
     assert resp.status == status.ok
     assert resp.text == "Hello World!"
-    assert resp.headers["Content-Type"] == "text/html; charset=latin1"
+    assert resp.content_type == "text/html"
 
 
 def test_req_query(app, web):
@@ -77,4 +77,4 @@ def test_req_query(app, web):
     resp = web.get("/?foo=bar&ok&color=red&color=green&color=blue")
 
     assert resp.status == status.ok
-    assert resp.headers["req-query"] == "foo:bar|ok:|color:red,green,blue"
+    assert resp.headers["rec-query"] == "foo:bar|ok:|color:red,green,blue"

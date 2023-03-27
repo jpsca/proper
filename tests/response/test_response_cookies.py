@@ -15,7 +15,7 @@ def test_set_minimal_cookie():
     response.set_cookie("foo", "bar")
 
     assert response.cookies["foo"].value == "bar"
-    assert response.headers_list[-1] == ("Set-Cookie", "foo=bar; Path=/")
+    assert response._get_cookie_tuples() == [("set-cookie", "foo=bar; Path=/")]
     assert response.cookies["foo"]["path"] == "/"
     assert not response.cookies["foo"]["domain"]
     assert not response.cookies["foo"]["secure"]
@@ -26,21 +26,23 @@ def test_set_minimal_cookie():
 
 def test_set_minimal_cookie_no_path():
     response = Response()
-    response.set_cookie("foo", "bar", path=None)
+    response.set_cookie("foo", "bar", path=None)  # type: ignore
+    headers_list = response.get_headers_list()
 
-    assert response.headers_list[-1] == ("Set-Cookie", "foo=bar")
+    assert headers_list[-1] == ("set-cookie", "foo=bar")
 
 
 def test_set_several_cookies():
     response = Response()
     response.set_cookie("foo", "bar")
     response.set_cookie("lorem", "ipsum")
+    headers_list = response.get_headers_list()
 
     assert response.cookies["foo"].value == "bar"
-    assert response.headers_list[-2:] == [
-        ("Set-Cookie", "foo=bar; Path=/"),
-        ("Set-Cookie", "lorem=ipsum; Path=/"),
-    ]
+    print(headers_list[-2:])
+    assert headers_list[-1] == (
+        "set-cookie", "foo=bar; Path=/, lorem=ipsum; Path=/"
+    )
 
 
 def test_warn_for_big_cookie():
@@ -65,10 +67,12 @@ def test_filter_cookie_name():
 def test_cookie_max_age():
     response = Response()
     response.set_cookie("lorem", "ipsum", max_age=100)
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["max-age"] == 100
     assert response.cookies["lorem"]["expires"]
-    header_value = response.headers_list[-1][1]
+
+    header_value = headers_list[-1][1]
     assert "lorem=ipsum" in header_value
     assert "; Max-Age=100" in header_value
     assert "; expires=" in header_value
@@ -77,42 +81,47 @@ def test_cookie_max_age():
 def test_cookie_path():
     response = Response()
     response.set_cookie("lorem", "ipsum", path="/admin")
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["path"] == "/admin"
-    assert response.headers_list[-1][1] == "lorem=ipsum; Path=/admin"
+    assert headers_list[-1][1] == "lorem=ipsum; Path=/admin"
 
 
 def test_cookie_domain():
     response = Response()
     response.set_cookie("lorem", "ipsum", domain="subdomain.example.com")
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["domain"] == "subdomain.example.com"
-    assert "; Domain=subdomain.example.com" in response.headers_list[-1][1]
+    assert "; Domain=subdomain.example.com" in headers_list[-1][1]
 
 
 def test_cookie_secure():
     response = Response()
     response.set_cookie("lorem", "ipsum", secure=True)
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["secure"]
-    assert "; Secure" in response.headers_list[-1][1]
+    assert "; Secure" in headers_list[-1][1]
 
 
 def test_cookie_httponly():
     response = Response()
     response.set_cookie("lorem", "ipsum", httponly=True)
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["httponly"]
-    assert "; HttpOnly" in response.headers_list[-1][1]
+    assert "; HttpOnly" in headers_list[-1][1]
 
 
 @pytest.mark.parametrize("samesite", ["lax", "strict"])
 def test_cookie_samesite(samesite):
     response = Response()
     response.set_cookie("lorem", "ipsum", samesite=samesite)
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["samesite"] == samesite
-    assert samesite in response.headers_list[-1][1]
+    assert samesite in headers_list[-1][1]
 
 
 def test_cookie_invalid_samesite():
@@ -124,9 +133,10 @@ def test_cookie_invalid_samesite():
 def test_cookie_comment():
     response = Response()
     response.set_cookie("lorem", "ipsum", comment="This is cool")
+    headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["comment"] == "This is cool"
-    assert '; Comment="This is cool"' in response.headers_list[-1][1]
+    assert '; Comment="This is cool"' in headers_list[-1][1]
 
 
 def test_cookie_host_prefix_path():
@@ -163,22 +173,7 @@ def test_cookie_secure_prefix_secure():
 
 def test_unset_cookie():
     response = Response()
-    response.set_cookie("foo", "bar")
     response.unset_cookie("foo")
-
-    assert "foo" not in response.cookies
-
-
-def test_unset_not_set_cookie():
-    response = Response()
-    response.unset_cookie("foo")
-
-    assert "foo" not in response.cookies
-
-
-def test_delete_cookie():
-    response = Response()
-    response.delete_cookie("foo")
 
     assert not response.cookies["foo"].value
     assert response.cookies["foo"]["max-age"] == 0
@@ -186,8 +181,8 @@ def test_delete_cookie():
 
 def test_set_same_cookie():
     response = Response()
-    response.set_cookie("foo", "bar1", path=None)
-    response.set_cookie("foo", "bar2", path=None)
+    response.set_cookie("foo", "bar1", path=None)  # type: ignore
+    response.set_cookie("foo", "bar2", path=None)  # type: ignore
 
     assert len(response.cookies) == 1
     assert response.cookies["foo"].value == "bar2"

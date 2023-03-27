@@ -16,7 +16,7 @@ from .multipart import (
 )
 
 
-def parse_form_data(
+def parse_form(
     stream: t.IO[bytes],
     content_type: str,
     content_length: int,
@@ -64,6 +64,10 @@ def parse_multipart(
     *,
     encoding: str,
     strict: bool = True,
+    disk_limit: int = 2 ** 30,
+    mem_limit: int = 2 ** 20,
+    memfile_limit: int = 2 ** 18,
+    buffer_size: int = 2 ** 16,
 ) -> MultiDict:
     boundary = options.get("boundary", "")
     if not boundary:
@@ -71,9 +75,17 @@ def parse_multipart(
 
     form, files = MultiDict(), MultiDict()
     try:
-        for part in MultipartParser(
-            stream, boundary, content_length, encoding=encoding,
-        ):
+        mp = MultipartParser(
+            stream,
+            boundary,
+            content_length,
+            encoding=encoding,
+            disk_limit=disk_limit,
+            mem_limit=mem_limit,
+            memfile_limit=memfile_limit,
+            buffer_size=buffer_size,
+        )
+        for part in mp:
             if not part.name:
                 continue
 
@@ -109,7 +121,7 @@ def parse_query_string(
     try:
         data = parse_qs(query_string, keep_blank_values=True, encoding=encoding)
         for key, values in data.items():
-            form[key] = values
+            form.extend(key, values)
     except ValueError:
         if strict:
             raise

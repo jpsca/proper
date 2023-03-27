@@ -1,3 +1,4 @@
+import hashlib
 import inspect
 import json
 import typing as t
@@ -8,6 +9,11 @@ from pathlib import Path
 
 import inflection
 import jinjax
+from itsdangerous import (
+    Signer,
+    TimestampSigner,
+    URLSafeTimedSerializer,
+)
 from markupsafe import Markup
 from whitenoise import WhiteNoise
 
@@ -24,7 +30,7 @@ from .error_handlers import (
 from .auth import Auth
 from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
-from .helpers import DotDict, Serializer, Signer
+from .helpers import DotDict
 from .middleware.dispatch import dispatch
 from .request import Request
 from .response import Response
@@ -290,19 +296,28 @@ class App:
             func()
         print("\n✨ Goodbye ✨")
 
-    def get_serializer(self, namespace: str, **kwargs) -> Serializer:
-        return Serializer(
-            self._config.secret_keys,
-            namespace=namespace,
-            **kwargs,
-        )
-
     def get_signer(self, namespace: str, **kwargs) -> Signer:
-        return Signer(
-            self._config.secret_keys,
-            namespace=namespace,
-            **kwargs,
-        )
+        kwargs["salt"] = namespace.encode()
+        kwargs.setdefault("key_derivation", "hmac")
+        kwargs.setdefault("digest_method", hashlib.sha1)
+
+        return Signer(self._config.secret_keys, **kwargs)
+
+    def get_timestamp_signer(self, namespace: str, **kwargs) -> TimestampSigner:
+        kwargs["salt"] = namespace.encode()
+        kwargs.setdefault("key_derivation", "hmac")
+        kwargs.setdefault("digest_method", hashlib.sha1)
+
+        return TimestampSigner(self._config.secret_keys, **kwargs)
+
+    def get_serializer(self, namespace: str, **kwargs) -> URLSafeTimedSerializer:
+        kwargs["salt"] = namespace.encode()
+        kwargs.setdefault("serializer", json)
+        kwargs.setdefault("signer_kwargs", {})
+        kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
+        kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
+
+        return URLSafeTimedSerializer(self._config.secret_keys, **kwargs,)
 
     # Private
 
@@ -451,7 +466,7 @@ class App:
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
         """
-        self._set_status_code(response)
+        self._set_status(response)
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
@@ -468,12 +483,12 @@ class App:
 
         self._default_error_handler(request, response)
 
-    def _set_status_code(self, response: Response) -> None:
+    def _set_status(self, response: Response) -> None:
         error = response.error
-        response.status_code = getattr(error, "status_code", status.server_error)
+        response._status = getattr(error, "status", status.server_error)
 
     def _default_error_handler(self, request: Request, response: Response) -> None:
-        self._set_status_code(response)
+        self._set_status(response)
 
         if not self._config.debug and not self._config.catch_all_errors:
             raise
@@ -489,9 +504,9 @@ class App:
             debug_error_handler(request, response, self)
 
     def _default_error_handler_production(self, request: Request, response: Response) -> None:
-        if response.status_code in (status.not_found, status.gone):
+        if response._status in (status.not_found, status.gone):
             fallback_not_found_handler(request, response, self)
-        elif response.status_code == status.forbidden:
+        elif response._status == status.forbidden:
             fallback_forbidden_handler(request, response, self)
         else:
             fallback_error_handler(request, response, self)
