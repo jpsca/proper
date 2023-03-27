@@ -153,12 +153,13 @@ def get_static_cli(app: "App") -> t.Type[Cli]:
 
 
 def get_install_cli(app: "App") -> t.Type[Cli]:
-    from . import auth, text
+    from . import auth, storage
 
     attrs: dict[str, t.Any] = {
         "__doc__": "",
         "auth": _get_cmd(app, auth, "install"),
-        "text": _get_cmd(app, text, "install"),
+        "storage": _get_cmd(app, storage, "install"),
+        # "text": _get_cmd(app, text, "install"),
     }
     return type("Install", (Cli,), attrs)
 

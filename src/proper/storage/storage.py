@@ -32,8 +32,7 @@ class Storage:
     def get_attachment(self, signed_pk: str, max_age: int = ONE_YEAR) -> str | None:
         max_age = max(max_age, 0) or ONE_YEAR
         try:
-            bpk = self.signer.unsign(signed_pk, max_age=max_age)
-            pk = bpk.decode()
+            pk = self.signer.unsign(signed_pk, max_age=max_age).decode()  # type: ignore
             return self.Attachment.get_or_none(pk)
         except BadSignature:
             if self.app.config.debug:
@@ -75,9 +74,14 @@ class Storage:
             )
         return cls(self.app, config)
 
+    def show(self, obj: "TAttachment"):
+        # TODO
+        raise NotImplementedError
+
     def purge(self, obj: "TAttachment", later: bool = False):
         if later:
             # TODO
+            raise NotImplementedError
             return
         service = self.get_service(obj.service_name)
         service.purge(obj)
@@ -87,8 +91,10 @@ class Storage:
     def purge_variants(self, obj: "TAttachment", later: bool = False):
         if later:
             # TODO
+            raise NotImplementedError
             return
         # TODO
+        raise NotImplementedError
 
     def download(self, obj: "TAttachment"):
         service = self.get_service(obj.service_name)

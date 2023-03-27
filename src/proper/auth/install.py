@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+import typing as t
 
 from ..helpers.render import (
     BLUEPRINTS,
@@ -8,7 +8,7 @@ from ..helpers.render import (
     sort_imports,
 )
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from proper import App
 
 

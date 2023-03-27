@@ -30,7 +30,7 @@ from .error_handlers import (
 from .auth import Auth
 from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
-from .helpers import DotDict
+from .helpers import DotDict, jsonplus
 from .middleware.dispatch import dispatch
 from .request import Request
 from .response import Response
@@ -312,7 +312,7 @@ class App:
 
     def get_serializer(self, namespace: str = "proper", **kwargs) -> URLSafeTimedSerializer:
         kwargs["salt"] = namespace.encode()
-        kwargs.setdefault("serializer", json)
+        kwargs.setdefault("serializer", jsonplus)
         kwargs.setdefault("signer_kwargs", {})
         kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
         kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
