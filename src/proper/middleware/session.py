@@ -1,7 +1,9 @@
 import typing as t
 
+from itsdangerous import BadSignature
+
 from ..constants import FLASHES_SESSION_KEY
-from ..helpers import BadSignature, DotDict  # type: ignore
+from ..helpers import DotDict
 
 if t.TYPE_CHECKING:
     from proper import App, Request, Response
@@ -28,7 +30,10 @@ def get_session(request: "Request", app: "App") -> dict:
     if cookie_value is None:
         return {}
     try:
-        return app.serializer.loads(cookie_value, max_age=app.config.session.lifetime)
+        return app.serializer.loads(
+            cookie_value,
+            max_age=app.config.session.lifetime,
+        )  # type: ignore
     except BadSignature:
         return {}
 

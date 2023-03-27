@@ -296,28 +296,28 @@ class App:
             func()
         print("\n✨ Goodbye ✨")
 
-    def get_signer(self, namespace: str, **kwargs) -> Signer:
+    def get_signer(self, namespace: str = "proper", **kwargs) -> Signer:
         kwargs["salt"] = namespace.encode()
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)
 
-        return Signer(self._config.secret_keys, **kwargs)
+        return Signer(self._config.secret_keys[0], **kwargs)
 
-    def get_timestamp_signer(self, namespace: str, **kwargs) -> TimestampSigner:
+    def get_timestamp_signer(self, namespace: str = "proper", **kwargs) -> TimestampSigner:
         kwargs["salt"] = namespace.encode()
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)
 
-        return TimestampSigner(self._config.secret_keys, **kwargs)
+        return TimestampSigner(self._config.secret_keys[0], **kwargs)
 
-    def get_serializer(self, namespace: str, **kwargs) -> URLSafeTimedSerializer:
+    def get_serializer(self, namespace: str = "proper", **kwargs) -> URLSafeTimedSerializer:
         kwargs["salt"] = namespace.encode()
         kwargs.setdefault("serializer", json)
         kwargs.setdefault("signer_kwargs", {})
         kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
         kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
 
-        return URLSafeTimedSerializer(self._config.secret_keys, **kwargs,)
+        return URLSafeTimedSerializer(self._config.secret_keys[0], **kwargs,)
 
     # Private
 
