@@ -1,8 +1,7 @@
 """A base controller class, all other application controllers must
 inherit from. Stores data available to the component.
 """
-from pathlib import Path
-from typing import TYPE_CHECKING
+import typing as t
 
 import inflection
 
@@ -11,11 +10,8 @@ from ..constants import HEAD
 from ..helpers import MultiDict, jsonplus
 from ..request import Request
 from ..response import Response
-from ..status import not_modified, ok
+from ..status import not_modified
 from .request_forgery_protection import RequestForgeryProtection
-
-if TYPE_CHECKING:
-    from typing import Any, Optional, Union
 
 
 __all__ = ("Controller",)
@@ -31,9 +27,9 @@ class Controller(RequestForgeryProtection):
     def __init__(
         self,
         *,
-        request: "Optional[Request]" = None,
-        response: "Optional[Response]" = None,
-        app: "Optional[App]" = None,
+        request: Request | None = None,
+        response: Response | None = None,
+        app: App | None = None,
     ) -> None:
         self.request = request or Request()
         self.response = response or Response()
@@ -51,11 +47,11 @@ class Controller(RequestForgeryProtection):
 
     def render(
         self,
-        component: "Optional[str]" = None,
+        component: str | None = None,
         *,
-        status: "Optional[str]" = None,
-        json: "Optional[Any]" = None,
-        text: "Optional[Any]" = None,
+        status: str | None = None,
+        json: t.Any = None,
+        text: t.Any = None,
     ) -> str:
         if status is not None:
             self.response._status = status
