@@ -2,10 +2,10 @@ from proper import request, response  # noqa
 from proper.errors import NotFound
 
 from [[ app_name ]].app import app
-from ..app import AppController
+from ..app import PrivateController
 
 
-class Storage(AppController):
+class Storage(PrivateController):
     def show(self):
         signed_pk = self.params["pk"]
         obj = app.storage.get_attachment(signed_pk, max_age=None)

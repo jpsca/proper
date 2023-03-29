@@ -14,6 +14,7 @@ def gen_project(
     *,
     name: str = "",
     force: bool = False,
+    _is_a_test: bool = False,
 ) -> None:
     """Creates a new Proper application at `path`.
 
@@ -48,8 +49,9 @@ def gen_project(
     )()
     print()
 
-    _make_bin_files_executable(path / "bin")
-    _install_dependencies(path)
+    if not _is_a_test:
+        _make_bin_files_executable(path / "bin")
+        _install_dependencies(path)
     _wrap_up(path)
 
 
@@ -60,14 +62,13 @@ def _make_bin_files_executable(path: Path) -> None:
         f.chmod(f.stat().st_mode | 0o111)
 
 
-def _install_dependencies(path: Path) -> bool:
+def _install_dependencies(path: Path) -> None:
     os.chdir(str(path))
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
+    call(".venv/bin/pip install -e ../proper/")  # TODO: remove!
     call("poetry install --with dev,test")
     call("npm install --no-audit --no-fund")
-    call(".venv/bin/pip install -e ../proper/")
-    return True
 
 
 def _wrap_up(path: Path) -> None:

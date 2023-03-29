@@ -1,12 +1,7 @@
 from ..app import app, config
 
 
-if config.database.engine == "sqlite":
-    from playhouse.sqlite_ext import SqliteExtDatabase
-
-    app.db = SqliteExtDatabase(f"{config.database.name}.sqlite")
-
-elif config.database.engine == "postgres":
+if config.database.engine == "postgres":
     from playhouse.postgres_ext import PostgresqlExtDatabase
 
     app.db = PostgresqlExtDatabase(
@@ -19,6 +14,11 @@ elif config.database.engine == "postgres":
         # `on_teardown`, and `on_error` hooks
         autoconnect=False,
     )
+
+else:
+    from playhouse.sqlite_ext import SqliteExtDatabase
+
+    app.db = SqliteExtDatabase(f"{config.database.name}.sqlite")
 
 
 @app.on_before_dispatch

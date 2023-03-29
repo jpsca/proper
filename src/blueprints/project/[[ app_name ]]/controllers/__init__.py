@@ -1,5 +1,4 @@
-"""Auto-import all the controllers in this folder.
-"""
+"""Auto-import all the controllers in this folder."""
 from importlib import import_module
 from inspect import isclass
 from pathlib import Path
@@ -8,7 +7,7 @@ from pkgutil import iter_modules
 from proper import Controller
 
 
-modules = {}
+classes = {}
 
 # iterate through the modules in the current package
 package_dir = str(Path(__file__).resolve().parent)
@@ -19,6 +18,6 @@ for (_, module_name, _) in iter_modules([package_dir]):
         attribute = getattr(module, attribute_name)
 
         if isclass(attribute) and issubclass(attribute, Controller):
-            modules[attribute_name] = attribute
+            classes[attribute_name] = attribute
 
-globals().update(modules)
+globals().update(classes)

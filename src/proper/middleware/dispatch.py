@@ -1,5 +1,6 @@
-from importlib import import_module
 from typing import TYPE_CHECKING
+
+from ..helpers import import_string
 
 if TYPE_CHECKING:
     from proper import App, Request, Response
@@ -14,7 +15,7 @@ def dispatch(request: "Request", response: "Response", app: "App") -> None:
     assert route.to
     cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
     request.matched_action = action_name
-    module = import_module(route.to.__module__)
+    module = import_string(route.to.__module__)
     Controller = getattr(module, cls_name)
 
     # We instantiate the controller class so we can have an independent
