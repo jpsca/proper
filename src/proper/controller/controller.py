@@ -11,13 +11,12 @@ from ..helpers import MultiDict, jsonplus
 from ..request import Request
 from ..response import Response
 from ..status import not_modified
-from .request_forgery_protection import RequestForgeryProtection
 
 
 __all__ = ("Controller",)
 
 
-class Controller(RequestForgeryProtection):
+class Controller:
     def __before__(self) -> None:
         pass
 

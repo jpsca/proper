@@ -7,7 +7,7 @@ A web framework optimized for programmer happiness.
 
 ### Requirements
 
-- Python 3.7+
+- Python 3.10+
 
 
 ### Installation

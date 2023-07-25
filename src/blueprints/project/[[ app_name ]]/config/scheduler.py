@@ -1,38 +1,51 @@
-from proper import DotDict, is_staging_or_production_env
+from proper import is_staging_or_production_env
 
-from .redis import redis_config
+from .storage import redis
 
 
-scheduler_config = DotDict()
+config = {
+    # If True, run synchronously and ignore the type above
+    "immediate": not is_staging_or_production_env,
+    # Store return values of tasks
+    "results": True,
+    # If a task returns None, do not save to results
+    "store_none": False,
+    # Use UTC for all times internally
+    "utc": True,
+    # Perform blocking pop rather than poll Redis
+    "blocking": True,
 
-scheduler_config.type = "RedisHuey"
-# If True, run synchronously and ignore the type above
-scheduler_config.immediate = not is_staging_or_production_env
+    "type": "RedisHuey",
+    "connection": {
+        "host": redis["host"],
+        "port": redis["port"],
+        "user": redis["user"],
+        "password": redis["password"],
+        "db": redis["db"],
+        # Definitely you should use pooling
+        "connection_pool": None,
+        # If not polling (blocking pop), use timeout
+        "read_timeout": 1,
+        # Allow Redis config via a DSN
+        "url": None,
+    },
 
-scheduler_config.results = True  # Store return values of tasks
-scheduler_config.store_none = False  # If a task returns None, do not save to results
-scheduler_config.utc = True  # Use UTC for all times internally
-scheduler_config.blocking = True  # Perform blocking pop rather than poll Redis
-
-connection = DotDict()
-connection.host = redis_config.host
-connection.port = redis_config.port
-connection.user = redis_config.user
-connection.password = redis_config.password
-connection.db = redis_config.db
-connection.connection_pool = None  # Definitely you should use pooling
-connection.read_timeout = 1  # If not polling (blocking pop), use timeout
-connection.url = None  # Allow Redis config via a DSN
-scheduler_config.connection = connection
-
-consumer = DotDict()
-consumer.workers = 1
-consumer.worker_type = "thread"
-consumer.initial_delay = 0.1  # Smallest polling interval
-consumer.backoff = 1.15  # Exponential backoff using this rate
-consumer.max_delay = 10.0  # Max possible polling interval
-consumer.scheduler_interval = 1  # Check schedule every second
-consumer.periodic = True  # Enable crontab feature
-consumer.check_worker_health = True  # Enable worker health checks
-consumer.health_check_interval = 1  # Check worker health every second
-scheduler_config.consumer = consumer
+    "consumer": {
+        "workers": 1,
+        "worker_type": "thread",
+        # Smallest polling interval
+        "initial_delay": 0.1,
+        # Exponential backoff using this rate
+        "backoff": 1.15,
+        # Max possible polling interval
+        "max_delay": 10.0,
+        # Check schedule every second
+        "scheduler_interval": 1,
+        # Enable crontab feature
+        "periodic": True,
+        # Enable worker health checks
+        "check_worker_health": True,
+        # Check worker health every second
+        "health_check_interval": 1,
+    },
+}

@@ -3,7 +3,6 @@ import inspect
 import json
 import typing as t
 from contextvars import ContextVar
-from functools import partial
 from importlib import import_module
 from pathlib import Path
 
@@ -17,7 +16,7 @@ from itsdangerous import (
 from markupsafe import Markup
 from whitenoise import WhiteNoise
 
-from . import middleware, status
+from . import pipeline, status
 from .config import get_env, get_default_config, logger
 from .cryptex import Cryptex
 from .error_handlers import (
@@ -31,7 +30,6 @@ from .auth import Auth
 from .cli_app import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
 from .helpers import DotDict, jsonplus
-from .middleware.dispatch import dispatch
 from .request import Request
 from .response import Response
 from .router import Router, Route, get
@@ -60,14 +58,6 @@ class BadSecretKey(Exception):
 
 
 class App:
-    # A lists of functions that are called before, during, and after dispatching
-    # a request.
-    # If one of these functions sets the stop attribute of the response,
-    # the rest is skipped.
-    _on_before_dispatch: tuple[t.Callable, ...] = tuple()
-    _on_dispatch: tuple[t.Callable, ...] = tuple()
-    _on_after_dispatch: tuple[t.Callable, ...] = tuple()
-
     # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
@@ -110,11 +100,13 @@ class App:
 
         """
         self.error_handlers = {}
+        self._on_error = tuple()
+        self._on_teardown = tuple()
+
         self._wrapped_wsgi = self.wsgi_app
 
         self._setup_paths(import_name)
         self._setup_config(config or {})
-        self._setup_middleware()
         self._setup_router()
         self._setup_serializer()
         self._setup_fallback_scheduler()
@@ -151,16 +143,6 @@ class App:
     @property
     def static_manifest_path(self) -> Path:
         return self.static_path / MANIFEST_PATH
-
-    def on_before_dispatch(self, func: t.Callable) -> t.Callable:
-        """Decorator to add a function that runs before a request is dispatched"""
-        self._on_before_dispatch = self._on_before_dispatch + (func,)
-        return func
-
-    def on_after_dispatch(self, func: t.Callable) -> t.Callable:
-        """Decorator to add a function that runs after a request is dispatched"""
-        self._on_after_dispatch = self._on_after_dispatch + (func,)
-        return func
 
     def on_error(self, func: t.Callable) -> t.Callable:
         """Decorator to add a function that runs if a request
@@ -223,9 +205,14 @@ class App:
     def run_pipeline(self, request: Request, response: Response) -> None:
         try:
             for func in (
-                self._on_before_dispatch + self._on_dispatch + self._on_after_dispatch
+                pipeline.head_to_get,
+                pipeline.method_override,
+                pipeline.match,
+                pipeline.redirect,
+                pipeline.dispatch,
+                pipeline.strip_body_if_head,
             ):
-                func(request, response)
+                func(request, response, self)
                 if response.stop:
                     break
 
@@ -371,24 +358,6 @@ class App:
                     "dictionary attacks."
                 )
 
-    def _setup_middleware(self) -> None:
-        self._on_before_dispatch = (
-            partial(middleware.head_to_get, app=self),
-            partial(middleware.method_override, app=self),
-            partial(middleware.match, app=self),
-            partial(middleware.redirect, app=self),
-            partial(middleware.fetch_session, app=self),
-        )
-        self._on_dispatch = (partial(middleware.dispatch, app=self),)
-        self._on_after_dispatch = (
-            partial(middleware.put_session, app=self),
-            partial(middleware.strip_body_if_head, app=self),
-        )
-        self._on_error = tuple()
-        self._on_teardown = tuple()
-
-        self.error_handlers = {}
-
     def _setup_router(self) -> None:
         self.router = Router()
         self.router._debug = self._config.debug
@@ -518,4 +487,4 @@ class App:
         else:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
-        dispatch(request, response, self)
+        pipeline.dispatch(request, response, self)

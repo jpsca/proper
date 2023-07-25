@@ -9,7 +9,13 @@ if t.TYPE_CHECKING:
     from proper import Request, Response
 
 
-__all__ = ("CSRF_SESSION_KEY", "CSRF_FORM_KEY", "CSRF_HEADER", "CSRF_TOKEN_LENGTH")
+__all__ = (
+    "RequestForgeryProtection",
+    "CSRF_SESSION_KEY",
+    "CSRF_FORM_KEY",
+    "CSRF_HEADER",
+    "CSRF_TOKEN_LENGTH",
+)
 
 CSRF_SESSION_KEY = "_csrf_token"
 CSRF_FORM_KEY = "csrf_token"

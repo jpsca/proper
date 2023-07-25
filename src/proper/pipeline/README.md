@@ -1,4 +1,4 @@
-## proper.middleware
+## proper.pipeline
 
 This folder contains the pipeline of funcions used to process a request, dispatch it to a controller, and prost-process the response.
 

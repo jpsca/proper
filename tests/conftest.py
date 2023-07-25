@@ -1,9 +1,11 @@
+import warnings
 from pathlib import Path
 
 import pytest
+warnings.filterwarnings("ignore")
 from webtest import TestApp
 
-from proper import App, Controller, errors
+from proper import App, Controller, RequestForgeryProtection, Session, errors
 
 
 @pytest.fixture()
@@ -53,7 +55,7 @@ def scaffold(tmp_path):
     return app_root
 
 
-class AppController(Controller):
+class AppController(Controller, RequestForgeryProtection, Session):
     def render(self):
         return f"<html>{self.response.component} was rendered</html>"
 

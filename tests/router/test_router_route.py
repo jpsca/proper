@@ -55,17 +55,17 @@ def test_route_must_have_method_and_path():
         get()
 
 
-class TestController:
+class AppController:
     def method(self):
         pass
 
 
 def test_route_name_is_set():
-    r = get("/", to=TestController.method, name="hello")
+    r = get("/", to=AppController.method, name="hello")
     assert r.name == "hello"
 
-    r = get("/", to=TestController.method)
-    assert r.name == "TestController.method"
+    r = get("/", to=AppController.method)
+    assert r.name == "AppController.method"
 
     r = get("/", name="hello", redirect="/blog/")
     assert r.name == "hello"

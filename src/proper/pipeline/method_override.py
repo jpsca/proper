@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 __all__ = ("method_override",)
 
 
-def method_override(request: "Request", response: "Response", app: "App") -> None:
+def method_override(request: "Request", response: "Response", app: "App | None") -> None:
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
     path or in the request body.

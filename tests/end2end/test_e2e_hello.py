@@ -1,9 +1,9 @@
 import pytest
 
-from proper import App, BadSecretKey, Controller, get, status
+from proper import App, BadSecretKey, Controller, RequestForgeryProtection, Session, get, status
 
 
-class MyController(Controller):
+class AppController(Controller, RequestForgeryProtection, Session):
     def render(self):
         return "whatever"
 
@@ -35,7 +35,7 @@ def test_proxied_routes(app, Pages):
 
 
 def test_hello_callable(app, web):
-    app.routes = [get("/", to=MyController.index)]
+    app.routes = [get("/", to=AppController.index)]
     resp = web.get("/")
 
     assert resp.status == status.ok
@@ -73,7 +73,7 @@ def test_charset(app, Pages, web):
 
 
 def test_req_query(app, web):
-    app.routes = [get("/", to=MyController.echo_query)]
+    app.routes = [get("/", to=AppController.echo_query)]
     resp = web.get("/?foo=bar&ok&color=red&color=green&color=blue")
 
     assert resp.status == status.ok

@@ -1,7 +1,7 @@
-from proper import Controller, response
+from proper import Controller, RequestForgeryProtection, Session, response
 
 
-class AppController(Controller):
+class AppController(Controller, RequestForgeryProtection, Session):
     """All other controllers must inherit from this class.
     """
     def __before__(self):

@@ -1,13 +1,22 @@
-from proper import Controller, get, status
-from proper.helpers import DotDict
+from proper import (
+    Controller,
+    DotDict,
+    RequestForgeryProtection,
+    Session,
+    get,
+    status,
+)
 
 
-class AppController(Controller):
+class AppController(RequestForgeryProtection, Session, Controller):
     def render(self):
         return f"{self.response.component} was rendered"
 
     def index(self):
         pass
+
+    def session(self):
+        self.response.session["foo"] = "bar"
 
 
 class DefaultTemplate(AppController):
@@ -49,8 +58,8 @@ def test_if_none_match(app, web):
 
 
 def test_set_session(app, web):
-    app.router.routes = [get("/", to=AppController.index)]
-    resp = web.get("/")
+    app.router.routes = [get("/session", to=AppController.session)]
+    resp = web.get("/session")
     print(resp.headers)
     assert "Set-Cookie" in resp.headers
     assert resp.headers["Set-Cookie"].startswith("_session")

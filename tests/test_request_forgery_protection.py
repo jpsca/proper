@@ -2,18 +2,23 @@ import pytest
 
 from proper import Request, Response
 from proper.constants import DELETE, GET, PATCH, POST, PUT
-from proper.errors import InvalidCSRFToken, MissingCSRFToken
-from proper.helpers import DotDict, MultiDict
 from proper.controller import (
     CSRF_HEADER,
     CSRF_FORM_KEY,
     CSRF_SESSION_KEY,
     CSRF_TOKEN_LENGTH,
     Controller,
+    RequestForgeryProtection
 )
+from proper.errors import InvalidCSRFToken, MissingCSRFToken
+from proper.helpers import DotDict, MultiDict
 
 
 HTTP_CSRF_HEADER = f"HTTP_{CSRF_HEADER}"
+
+
+class AppController(Controller, RequestForgeryProtection):
+    pass
 
 
 def get_controller(method, **env):
@@ -21,7 +26,7 @@ def get_controller(method, **env):
     request = Request(**env)
     response = Response()
     request._session = response._session = DotDict()
-    return Controller(request=request, response=response)
+    return AppController(request=request, response=response)
 
 
 def test_no_need_to_argue():

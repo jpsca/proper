@@ -1,15 +1,30 @@
 import os
 
-from proper import DotDict
 
+config = {
+    "engines": {
+        "sqlite": {
+            "engine": "sqlite",
+            "path": "db/sqlite.db",
+            "pragmas": {},
+        },
+        "postgres": {
+            "engine": "postgres",
+            "name": os.getenv("DB_NAME", "[[ app_name ]]"),
+            "host": os.getenv("DB_HOST", "127.0.0.1"),
+            "port": int(os.getenv("DB_PORT", 5432)),
+            "user": os.getenv("DB_USER", "root"),
+            "password": os.getenv("DB_PASSWORD", ""),
+        },
+        "mysql": {
+            "engine": "mysql",
+            "name": os.getenv("DB_NAME", "[[ app_name ]]"),
+            "host": os.getenv("DB_HOST", "127.0.0.1"),
+            "port": int(os.getenv("DB_PORT", 3306)),
+            "user": os.getenv("DB_USER", "root"),
+            "password": os.getenv("DB_PASSWORD", ""),
+        },
+    },
 
-database_config = DotDict()
-
-database_config.engine = os.getenv("DATABASE_ENGINE", "sqlite")
-# database_config.engine = os.getenv("DATABASE_ENGINE", "postgres")
-
-database_config.name = os.getenv("DATABASE_NAME", "[[ app_name ]]")
-database_config.host = os.getenv("DATABASE_HOST", "localhost")
-database_config.port = os.getenv("DATABASE_PORT", 5432)
-database_config.user = os.getenv("DATABASE_USER", "postgres")
-database_config.password = os.getenv("DATABASE_PASSWORD", "postgres")
+    "default": "postgres",
+}
