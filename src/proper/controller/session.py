@@ -3,7 +3,6 @@ import typing as t
 from itsdangerous import BadSignature
 
 from ..constants import FLASHES_SESSION_KEY
-from ..helpers import DotDict
 
 if t.TYPE_CHECKING:
     from proper import App, Request, Response
@@ -27,20 +26,20 @@ class Session:
         """Get the session data from the cookie and puts into the request
         and response.
         """
-        session = DotDict(self._get_session())
+        session = self._get_session()
         self.request._session = session
         self.response._session = session.copy()
         self.response._session.pop(FLASHES_SESSION_KEY, None)
 
     def _get_session(self) -> dict:
         """Get the session data from the cookie."""
-        cookie_value = self.request.cookies.get(self.app.config.session.cookie.name)
+        cookie_value = self.request.cookies.get(self.app.config.SESSION_COOKIE_NAME)
         if cookie_value is None:
             return {}
         try:
             return self.app.serializer.loads(
                 cookie_value,
-                max_age=self.app.config.session.lifetime,
+                max_age=self.app.config.SESSION_LIFETIME,
             )  # type: ignore
         except BadSignature:
             return {}
@@ -52,15 +51,15 @@ class Session:
 
     def _update_session_cookie(self) -> None:
         """Update the session cookie if its needed."""
-        config = self.app.config.session
+        config = self.app.config
         session = self.response.session
 
         # If the session was modified to be empty, remove the cookie.
         if not session:
             self.response.unset_cookie(
-                config.cookie.name,
-                path=config.cookie.path or "/",
-                domain=config.cookie.domain,
+                config.SESSION_COOKIE_NAME,
+                path=config.SESSION_COOKIE_PATH or "/",
+                domain=config.SESSION_COOKIE_DOMAIN,
             )
             return
 
@@ -69,12 +68,12 @@ class Session:
             cookie_value = cookie_value.decode("utf8")
 
         self.response.set_cookie(
-            config.cookie.name,
+            config.SESSION_COOKIE_NAME,
             cookie_value,
-            max_age=int(config.lifetime) if config.lifetime else None,
-            httponly=config.cookie.httponly,
-            domain=config.cookie.domain,
-            path=config.cookie.path or "/",
-            secure=config.cookie.secure,
-            samesite=config.cookie.samesite,
+            max_age=int(config.SESSION_LIFETIME) if config.SESSION_LIFETIME else None,
+            httponly=config.SESSION_COOKIE_HTTPONLY,
+            domain=config.SESSION_COOKIE_DOMAIN,
+            path=config.SESSION_COOKIE_PATH or "/",
+            secure=config.SESSION_COOKIE_SECURE,
+            samesite=config.SESSION_COOKIE_SAMESITE,
         )

@@ -18,7 +18,7 @@ class LoadUser:
 
     def _load_user(self):
         user = None
-        if config.debug:
+        if config.DEBUG:
             user = self._get_remote_user()
         request.user = user or self._get_user(response.session)
 

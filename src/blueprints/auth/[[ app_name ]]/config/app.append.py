@@ -1,3 +1,2 @@
 
-from .auth import auth_config
-config.auth = auth_config
+from .auth import *  # noqa

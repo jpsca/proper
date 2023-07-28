@@ -1,9 +1,6 @@
-from proper import DotDict
 
-
-auth_config = DotDict()
-auth_config.hash_name = "argon2"
-auth_config.rounds = None  # default
-auth_config.password_minlen = 9
-auth_config.password_maxlen = 1024
-auth_config.token_life = 10800  # 3 hours
+AUTH_HASH_NAME: str = "argon2"
+AUTH_ROUNDS: int|None = None  # default
+AUTH_PASSWORD_MINLEN: int = 9
+AUTH_PASSWORD_MAXLEN: int = 1024
+AUTH_TOKEN_LIFE: int = 10800  # 3 hours

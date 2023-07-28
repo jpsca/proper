@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import json
+import string
 import typing as t
 from contextvars import ContextVar
 from importlib import import_module
@@ -171,8 +172,8 @@ class App:
 
     def wsgi_app(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
         request = Request(
-            max_content_length=self._config.max_content_length,
-            max_query_size=self._config.max_query_size,
+            max_content_length=self._config.MAX_CONTENT_LENGTH,
+            max_query_size=self._config.MAX_QUERY_SIZE,
             **environ,
         )
         response = Response(
@@ -240,7 +241,7 @@ class App:
         is_exception = inspect.isclass(cls) and issubclass(cls, BaseException)
         assert is_exception, "`error_handler` takes a subclass of `Exception` as first argument."
         self.error_handlers[cls] = to
-        if self._config.debug:
+        if self._config.DEBUG:
             qualname = getattr(cls, "__qualname__", "Exception")
             self.router.routes.append(
                 get(f"_{inflection.underscore(qualname)}", to=to)
@@ -258,7 +259,7 @@ class App:
         return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
 
     def url_static(self, filename: str, *, host: str | None = None) -> str:
-        host = host or self._config.static.host or f"/{STATIC_PREFIX}"
+        host = host or self._config.STATIC_HOST or f"/{STATIC_PREFIX}"
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
         return f"{host}/{filename}"
@@ -288,14 +289,14 @@ class App:
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)
 
-        return Signer(self._config.secret_keys[0], **kwargs)
+        return Signer(self._config.SECRET_KEYS[0], **kwargs)
 
     def get_timestamp_signer(self, namespace: str = "proper", **kwargs) -> TimestampSigner:
         kwargs["salt"] = namespace.encode()
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)
 
-        return TimestampSigner(self._config.secret_keys[0], **kwargs)
+        return TimestampSigner(self._config.SECRET_KEYS[0], **kwargs)
 
     def get_serializer(self, namespace: str = "proper", **kwargs) -> URLSafeTimedSerializer:
         kwargs["salt"] = namespace.encode()
@@ -304,7 +305,7 @@ class App:
         kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
         kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
 
-        return URLSafeTimedSerializer(self._config.secret_keys[0], **kwargs,)
+        return URLSafeTimedSerializer(self._config.SECRET_KEYS[0], **kwargs,)
 
     # Private
 
@@ -326,17 +327,21 @@ class App:
         config.update(_config)
         credentials = self._load_credentials()
         config.update(credentials)
-        self._validate_secret_keys(config.secret_keys)
+        self._validate_secret_keys(config.SECRET_KEYS)
         self._config = config
 
     def _load_config(self) -> DotDict:
         config = get_default_config()
-        config_file = self.config_path / f"{self.env}.py"
+        config_file = self.config_path / "app.py"
         if config_file.is_file():
-            env_config = import_module(
-                f".config.{self.env}", self.module.__package__
-            ).config
-            config.update(env_config)
+            module = import_module(
+                f".config.app", self.module.__package__
+            )
+            loaded_config = {
+                name: getattr(module, name) for name in dir(module)
+                if name[0] in string.ascii_uppercase
+            }
+            config.update(loaded_config)
         else:
             logger.warning(f"{config_file} cannot be imported")
         return config
@@ -360,17 +365,17 @@ class App:
 
     def _setup_router(self) -> None:
         self.router = Router()
-        self.router._debug = self._config.debug
+        self.router._debug = self._config.DEBUG
 
     def _setup_serializer(self) -> None:
         self.serializer = self.get_serializer("proper.session")
 
     def _setup_fallback_scheduler(self) -> None:
-        self.scheduler = HueyScheduler(type="MemoryHuey", inmediate=True)
+        self.scheduler = HueyScheduler()
 
     def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
-        if not self._config.debug and path.exists():
+        if not self._config.DEBUG and path.exists():
             self.static_manifest = json.loads(path.read_text())
         else:
             self.static_manifest = {}
@@ -391,7 +396,7 @@ class App:
         self.catalog.add_folder(self.components_path)
         self._wrapped_wsgi = self.catalog.get_middleware(
             self.wsgi_app,
-            autorefresh=self._config.debug,
+            autorefresh=self._config.DEBUG,
             immutable_file_test=RX_INMUTABLES_FILE,
         )
 
@@ -403,10 +408,10 @@ class App:
             self.wsgi_app,
             root=self.static_path,
             prefix=STATIC_PREFIX,
-            autorefresh=self._config.debug,
+            autorefresh=self._config.DEBUG,
             immutable_file_test=RX_INMUTABLES_FILE,
         )
-        for sp in self._config.static.paths or []:
+        for sp in self._config.STATIC_PATHS or []:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
             wn.add_files(path, prefix=prefix)
@@ -415,21 +420,21 @@ class App:
         self.Cli = get_app_cli(self)
 
     def _setup_auth(self) -> None:
-        if not self._config.auth:
+        if not self._config.AUTH_HASH_NAME:
             return
         config = self._config
         self.auth = Auth(
-            secret_keys=config.secret_keys,
-            hash_name=config.auth.hash_name,
-            rounds=config.auth.rounds,
-            password_minlen=config.auth.password_minlen,
-            password_maxlen=config.auth.password_maxlen,
+            secret_keys=config.SECRET_KEYS,
+            hash_name=config.AUTH_HASH_NAME,
+            rounds=config.AUTH_ROUNDS,
+            password_minlen=config.AUTH_PASSWORD_MINLEN,
+            password_maxlen=config.AUTH_PASSWORD_MAXLEN,
         )
 
     def _setup_storage(self) -> None:
-        if not self._config.storage:
+        if "STORAGE" not in self._config:
             return
-        self.storage = Storage(self, self._config.storage)
+        self.storage = Storage(self, self._config)
 
     def _handle_app_error(self, request: Request, response: Response) -> None:
         """Call the registered exception handler if exists or the fallback
@@ -439,7 +444,7 @@ class App:
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
-        if self._config.debug:
+        if self._config.DEBUG:
             self._default_error_handler(request, response)
             return
 
@@ -459,9 +464,9 @@ class App:
     def _default_error_handler(self, request: Request, response: Response) -> None:
         self._set_status(response)
 
-        if not self._config.debug and not self._config.catch_all_errors:
+        if not self._config.DEBUG and not self._config.CATCH_ALL_ERRORS:
             raise
-        if self._config.debug:
+        if self._config.DEBUG:
             self._default_error_handler_debug(request, response)
         else:
             self._default_error_handler_production(request, response)

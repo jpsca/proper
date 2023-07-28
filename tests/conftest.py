@@ -15,7 +15,11 @@ def import_name():
 
 @pytest.fixture()
 def app(import_name):
-    app = App(import_name, config={"secret_keys": ["*" * 50], "debug": False})
+    config = {
+        "SECRET_KEYS": ["*" * 50],
+        "DEBUG": False,
+    }
+    app = App(import_name, config=config)
     return app
 
 

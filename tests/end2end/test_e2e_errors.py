@@ -33,7 +33,7 @@ def test_fallback_error(app, Pages, web):
 
 
 def test_debug_not_found(app, web):
-    app.config["debug"] = True
+    app.config["DEBUG"] = True
     app.router.routes = []
 
     resp = web.get("/qwertyuiop", expect_errors=True)
@@ -43,7 +43,7 @@ def test_debug_not_found(app, web):
 
 
 def test_debug_error(app, Pages, web):
-    app.config["debug"] = True
+    app.config["DEBUG"] = True
     app.router.routes = [
         get("/", to=Pages.index),
         get("fail/not_acceptable", to=Pages.fail_not_acceptable),
@@ -124,7 +124,7 @@ def test_fallback_from_custom_error_handlers(app, Pages, web):
 
 
 def test_do_not_catch_error(app, Pages, web):
-    app.config["catch_all_errors"] = False
+    app.config["CATCH_ALL_ERRORS"] = False
     app.router.routes = [
         get("fail/value_error", to=Pages.fail_value_error)
     ]
@@ -143,7 +143,7 @@ def test_error_when_rendering_the_error_page(app, web):
     original = error_handlers.jinja_render
     error_handlers.jinja_render = boom
 
-    app.config["debug"] = True
+    app.config["DEBUG"] = True
     app.router.routes = []
     resp = web.get("/", expect_errors=True)
 
@@ -155,7 +155,7 @@ def test_error_when_rendering_the_error_page(app, web):
 
 
 def test_register_a_test_error_route_if_in_debug(app, Pages):
-    app.config["debug"] = True
+    app.config["DEBUG"] = True
     app.router.routes = [
         get("fail/value_error", to=Pages.fail_value_error),
     ]
@@ -167,7 +167,7 @@ def test_register_a_test_error_route_if_in_debug(app, Pages):
 
 
 def test_do_not_register_a_test_error_route_if_not_in_debug(app, Pages):
-    app.config["debug"] = False
+    app.config["DEBUG"] = False
     app.router.routes = [
         get("fail/value_error", to=Pages.fail_value_error),
     ]

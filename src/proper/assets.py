@@ -63,7 +63,7 @@ def build(app: "App") -> None:
     static = app.static_path
     _digest(static, app.static_manifest_path)
     print()
-    if app._config.static.compress:
+    if app._config.STATIC_COMPRESS:
         compress(static)
 
 

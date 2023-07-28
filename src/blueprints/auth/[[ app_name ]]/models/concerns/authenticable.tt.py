@@ -83,7 +83,7 @@ class Authenticable(BaseMixin):
         return auth.authenticate_timestamped_token(
             cls,
             token,
-            config.auth.token_life,
+            config.AUTH_TOKEN_LIFE,
         )
 
     @classmethod

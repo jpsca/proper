@@ -43,16 +43,16 @@ def test_hello_callable(app, web):
 
 
 def test_default_config(app):
-    assert app.config.catch_all_errors
+    assert app.config.CATCH_ALL_ERRORS
 
 
 def test_load_config(app):
-    assert app.config.lorem == "ipsum"
+    assert app.config.LOREM == "ipsum"
 
 
 def test_secret_key_too_short(import_name):
     with pytest.raises(BadSecretKey):
-        App(import_name, config={"secret_keys": ["qwertyuiop"]})
+        App(import_name, config={"SECRET_KEYS": ["qwertyuiop"]})
 
 
 def test_head(app, Pages, web):

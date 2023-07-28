@@ -14,8 +14,8 @@ def render_password_reset_email(user):
     reset_url = app.url_for("PasswordResets.new")
     return app.catalog.render(
         "Email.PasswordReset",
-        validate_url=f"{config.host}{validate_url}",
-        reset_url=f"{config.host}{reset_url}",
+        validate_url=f"{config.HOST}{validate_url}",
+        reset_url=f"{config.HOST}{reset_url}",
     )
 
 

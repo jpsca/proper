@@ -1,30 +1,40 @@
 import os
 
+from proper import env, DEV, PROD
 
-config = {
-    "engines": {
-        "sqlite": {
-            "engine": "sqlite",
-            "path": "db/sqlite.db",
-            "pragmas": {},
-        },
-        "postgres": {
-            "engine": "postgres",
-            "name": os.getenv("DB_NAME", "[[ app_name ]]"),
-            "host": os.getenv("DB_HOST", "127.0.0.1"),
-            "port": int(os.getenv("DB_PORT", 5432)),
-            "user": os.getenv("DB_USER", "root"),
-            "password": os.getenv("DB_PASSWORD", ""),
-        },
-        "mysql": {
-            "engine": "mysql",
-            "name": os.getenv("DB_NAME", "[[ app_name ]]"),
-            "host": os.getenv("DB_HOST", "127.0.0.1"),
-            "port": int(os.getenv("DB_PORT", 3306)),
-            "user": os.getenv("DB_USER", "root"),
-            "password": os.getenv("DB_PASSWORD", ""),
-        },
+
+DATABASE_ENGINES = {
+    "sqlite": {
+        "type": "sqlite_ext.SqliteExtDatabase",
+        "database": "db/sqlite.db",
     },
-
-    "default": "postgres",
+    "postgres": {
+        "type": "postgres_ext.PostgresqlExtDatabase",
+        "database": os.getenv("DB_NAME", "[[ app_name ]]"),
+        "host": os.getenv("DB_HOST", "127.0.0.1"),
+        "port": int(os.getenv("DB_PORT", 5432)),
+        "user": os.getenv("DB_USER", "root"),
+        "password": os.getenv("DB_PASSWORD", ""),
+        # The connection is managed in the `controller's `__after__`,
+        # and on the `on_teardown` and `on_error` hooks
+        "autoconnect": False,
+    },
+    "maria": {
+        "type": "mysql_ext.MariaDBConnectorDatabase",
+        "database": os.getenv("DB_NAME", "[[ app_name ]]"),
+        "host": os.getenv("DB_HOST", "127.0.0.1"),
+        "port": int(os.getenv("DB_PORT", 3306)),
+        "user": os.getenv("DB_USER", "root"),
+        "password": os.getenv("DB_PASSWORD", ""),
+        # The connection is managed in the `controller's `__after__`,
+        # and on the `on_teardown` and `on_error` hooks
+        "autoconnect": False
+    },
 }
+
+if env == PROD:
+    DATABASE: str = "postgres"
+elif env == DEV:
+    DATABASE: str = "sqlite"
+else:
+    DATABASE: str = "sqlite"

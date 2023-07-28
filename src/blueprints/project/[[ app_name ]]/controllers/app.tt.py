@@ -1,11 +1,19 @@
 from proper import Controller, RequestForgeryProtection, Session, response
 
 
-class AppController(Controller, RequestForgeryProtection, Session):
+
+class AppController(
+    Controller,
+    RequestForgeryProtection,
+    Session,
+):
     """All other controllers must inherit from this class.
     """
     def __before__(self):
-        pass
+        if self.app.db:
+            if not self.app.db.is_closed():
+                self.app.db.close()
+            self.app.db.connect()
 
     def __after__(self):
         self._put_security_headers()

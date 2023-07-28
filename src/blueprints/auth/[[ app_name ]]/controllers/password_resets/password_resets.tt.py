@@ -31,7 +31,7 @@ class PasswordResets(AppController):
 
         self.login = user.login
         self.form = forms.PasswordChangeForm()
-        self.password_minlen = config.auth.password_minlen
+        self.password_minlen = config.AUTH_PASSWORD_MINLEN
 
     def update(self):
         self.pk = self.params["pk"]
@@ -42,7 +42,7 @@ class PasswordResets(AppController):
         self.form = forms.PasswordChangeForm(self.params)
         if not self.form.validate():
             self.login = user.login
-            self.password_minlen = config.auth.password_minlen
+            self.password_minlen = config.AUTH_PASSWORD_MINLEN
             return self.render("PasswordResets.Edit", status=unprocessable)
 
         new_password = self.form.save()["password"][0]

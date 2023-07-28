@@ -69,7 +69,7 @@ TEST_ROUTES = [
 
 
 def test_match_domain(app, web):
-    app.config["debug"] = True
+    app.config["DEBUG"] = True
     app.routes = [
         scope("/", host="example.com")(
             get("/", to=Foo.bar),

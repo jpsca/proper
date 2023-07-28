@@ -1,32 +1,11 @@
+import playhouse
+
 from ..app import app, config
 
 
-if config.database.engine == "postgres":
-    from playhouse.postgres_ext import PostgresqlExtDatabase
-
-    app.db = PostgresqlExtDatabase(
-        config.database.name,
-        host=config.database.host,
-        port=config.database.port,
-        user=config.database.user,
-        password=config.database.password,
-        # The connection is managed in the `on_before_dispatch`,
-        # `on_teardown`, and `on_error` hooks
-        autoconnect=False,
-    )
-
-else:
-    from playhouse.sqlite_ext import SqliteExtDatabase
-
-    app.db = SqliteExtDatabase(f"{config.database.name}.sqlite")
-
-
-@app.on_before_dispatch
-def on_before_dispatch(req, resp):
-    if app.db:
-        if not app.db.is_closed():
-            app.db.close()
-        app.db.connect()
+db_config = config.DATABASE_ENGINES[config.DATABASE].copy()
+Cls = getattr(playhouse, db_config.pop("type"))
+app.db = Cls(**db_config)
 
 
 @app.on_error

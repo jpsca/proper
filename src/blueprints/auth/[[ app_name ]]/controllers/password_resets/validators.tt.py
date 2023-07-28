@@ -7,7 +7,7 @@ from .pwned import get_pwned_count
 
 ERROR_LOGIN = "We don't recognize that email. Want to try another?"
 
-ERROR_PASSWORD_TOO_SHORT = f"Your password must be at least {config.auth.password_minlen} characters long"
+ERROR_PASSWORD_TOO_SHORT = f"Your password must be at least {config.AUTH_PASSWORD_MINLEN} characters long"
 
 ERROR_PASSWORD_PWNED = (
     "This password may have been compromised on another site.<br>"
@@ -33,5 +33,5 @@ def password_hasnt_been_pwned(values):
     return True
 
 
-password_is_long_enough = f.LongerThan(config.auth.password_minlen, ERROR_PASSWORD_TOO_SHORT)
+password_is_long_enough = f.LongerThan(config.AUTH_PASSWORD_MINLEN, ERROR_PASSWORD_TOO_SHORT)
 password_confirmed = f.Confirmed(ERROR_PASSWORD_UNCONFIRMED)

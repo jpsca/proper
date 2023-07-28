@@ -9,11 +9,16 @@ class HueyScheduler:
     running = False
 
     def __init__(self, **config) -> None:
-        consumer_config = config.pop("consumer", {})
-        Cls = getattr(huey, config.pop("type"))
-        self.huey = Cls(**config)
+        conns = config.get("SCHEDULER_CONNECTIONS", {})
+        conn_name = config.get("SCHEDULER")
+        conn_config = conns.get(conn_name, {"type": "MemoryHuey"})
+
+        Cls = getattr(huey, conn_config.pop("type"))
+        self.huey = Cls(**conn_config)
+
         self.consumer = None
-        if not config.get("inmediate", True):
+        if not config.get("SCHEDULER_IMMEDIATE", True):
+            consumer_config = config.get("SCHEDULER_CONSUMER", {})
             self.consumer = Consumer(self.huey, **consumer_config)
 
     @property

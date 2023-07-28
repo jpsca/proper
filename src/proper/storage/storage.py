@@ -35,7 +35,7 @@ class Storage:
             pk = self.signer.unsign(signed_pk, max_age=max_age).decode()  # type: ignore
             return self.Attachment.get_or_none(pk)
         except BadSignature:
-            if self.app.config.debug:
+            if self.config.DEBUG:
                 raise
             return None
 
@@ -56,15 +56,18 @@ class Storage:
         config like this:
 
         ```python
-        do = DotDict()
-        do.type = "DigitalOcean"  # must match the class name
-        do.arg1 = "value1"  # any other args you need
-        storage_config.do = do
+        STORAGE_SERVICES = {
+            ...
+            "do": {
+                "type": "DigitalOcean"  # must match the class name
+                "arg1": "value1"  # any other args you need
+            }
+        }
 
-        storage_config.service = "do"
+        STORAGE = "do"
         ```
         """
-        config = self.config[service_name]
+        config = self.config.STORAGE_SERVICES[self.config.STORAGE]
         services = {cls.__name__: cls for cls in Service.__subclasses__()}
         cls = services.get(service_name)
         if cls is None:

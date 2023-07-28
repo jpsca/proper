@@ -37,7 +37,7 @@ def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
         ) -> None:
             self._filesto = filesto
 
-            service_name = service_name or self.config.service or ""
+            service_name = service_name or self.config.STORAGE or ""
             if not service_name:
                 raise ValueError(
                     "Missing config.storage.service or service_name argument"
