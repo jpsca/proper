@@ -335,7 +335,7 @@ class App:
         config_file = self.config_path / "app.py"
         if config_file.is_file():
             module = import_module(
-                f".config.app", self.module.__package__
+                ".config.app", self.module.__package__
             )
             loaded_config = {
                 name: getattr(module, name) for name in dir(module)
