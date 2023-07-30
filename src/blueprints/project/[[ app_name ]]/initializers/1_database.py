@@ -1,10 +1,12 @@
-import playhouse
+from importlib import import_module
 
 from ..app import app, config
 
 
 db_config = config.DATABASE_ENGINES[config.DATABASE].copy()
-Cls = getattr(playhouse, db_config.pop("type"))
+mod_name, cls_name = db_config.pop("type").rsplit(".", 1)
+mod = import_module(mod_name)
+Cls = getattr(mod, cls_name)
 app.db = Cls(**db_config)
 
 

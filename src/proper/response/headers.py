@@ -18,9 +18,8 @@ class ResponseHeadersDict(dict):
         name = enc_name(name)
         return dict.get(self, name)
 
-    def __setitem__(self, name: str, val: t.Any, **params) -> None:
-        name = enc_name(name)
-        self._set(name, format_header(val, **params))
+    def __setitem__(self, name: str, val: t.Any) -> None:
+        self.set(name, val)
 
     def _set(self, name: str, coded_val: t.Any) -> None:
         if coded_val is None:
@@ -28,6 +27,10 @@ class ResponseHeadersDict(dict):
                 del self[name]
         else:
             dict.__setitem__(self, name, coded_val)
+
+    def set(self, name: str, val: t.Any, **params) -> None:
+        name = enc_name(name)
+        self._set(name, format_header(val, **params))
 
     def update(self, *args, **kwargs):
         for k, v in dict(*args, **kwargs).items():

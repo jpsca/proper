@@ -5,11 +5,11 @@ from proper import env, DEV, PROD
 
 DATABASE_ENGINES = {
     "sqlite": {
-        "type": "sqlite_ext.SqliteExtDatabase",
+        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
         "database": "db/sqlite.db",
     },
     "postgres": {
-        "type": "postgres_ext.PostgresqlExtDatabase",
+        "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
         "database": os.getenv("DB_NAME", "[[ app_name ]]"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_PORT", 5432)),
@@ -20,7 +20,7 @@ DATABASE_ENGINES = {
         "autoconnect": False,
     },
     "maria": {
-        "type": "mysql_ext.MariaDBConnectorDatabase",
+        "type": "peewee.MySQLDatabase",
         "database": os.getenv("DB_NAME", "[[ app_name ]]"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_PORT", 3306)),

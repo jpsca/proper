@@ -3,7 +3,7 @@ from proper.scheduler import HueyScheduler
 from ..app import app, config
 
 
-app.scheduler = HueyScheduler(**config.scheduler)
+app.scheduler = HueyScheduler(**config)
 
 app.on_dev_start(app.scheduler.start)
 app.on_dev_shutdown(app.scheduler.shutdown)

@@ -23,7 +23,7 @@ SCHEDULER_CONNECTIONS = {
         "url": None,
     },
     "sqlite": {
-        "type": " SqliteHuey",
+        "type": "SqliteHuey",
         "filename": "db/huey.db",
     },
 }

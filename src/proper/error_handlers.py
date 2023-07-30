@@ -49,7 +49,7 @@ def debug_not_found_handler(
 
     error = response.error
     data = {
-        "config": deepsort_dict(app.config),
+        "config": deepsort_dict(redact_sensible_info(app.config)),
         "response": response,
         "title": get_title(error),
         "description": str(error),
@@ -57,6 +57,25 @@ def debug_not_found_handler(
     }
     data.update(get_request_data(request))
     response.body = render("debug-not-found.jinja", **data)
+
+
+def redact_sensible_info(data: dict) -> dict:
+    if "SECRET_KEYS" in data:
+        data["SECRET_KEYS"] = [redact_value(key) for key in data["SECRET_KEYS"]]
+
+    redacted_data = {}
+    for name, value in data.items():
+        if isinstance(value, dict):
+            value = redact_sensible_info(value)
+        elif name.lower() == "password" and value:
+            value = redact_value(value)
+        redacted_data[name] = value
+
+    return redacted_data
+
+
+def redact_value(val: str) -> str:
+    return f"{val[:4]}{'▒' * (len(val) - 4)}"
 
 
 def is_index(request: "Request") -> bool:
