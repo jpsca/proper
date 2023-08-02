@@ -11,8 +11,6 @@ class AppController(
     """
     def __before__(self):
         if self.app.db:
-            if not self.app.db.is_closed():
-                self.app.db.close()
             self.app.db.connect()
 
     def __after__(self):
