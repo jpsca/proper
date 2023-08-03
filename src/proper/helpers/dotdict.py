@@ -4,8 +4,6 @@ import typing as t
 
 __all__ = ("DotDict",)
 
-TDictOrIter = dict | t.Iterable[tuple[str, t.Any]]
-
 
 class DotDict(dict):
     """A dict that:
@@ -18,11 +16,11 @@ class DotDict(dict):
 
     def __init__(
         self,
-        dict_or_iter: TDictOrIter | None = None,
+        *args,
         **kwargs
     ) -> None:
         super().__init__()
-        self.update(dict_or_iter, **kwargs)
+        self.update(*args, **kwargs)
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         if name.startswith("__"):
@@ -41,9 +39,9 @@ class DotDict(dict):
             value = self.__class__(value)
         super().__setitem__(key, value)
 
-    def update(self, dict_or_iter, /, **kwargs) -> None:  # type: ignore
-        if dict_or_iter:
-            self._update(src=dict(dict_or_iter), target=self)
+    def update(self, *args, **kwargs) -> None:  # type: ignore
+        if args:
+            self._update(src=dict(*args), target=self)
         if kwargs:
             self._update(src=kwargs, target=self)
 

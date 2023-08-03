@@ -19,7 +19,7 @@ def test_gen_model_with_migration(app, scaffold):
     app.root_path = app_root
     module.call = Mock()
     module.gen_model(app, "Product", migration=True)
-    module.call.assert_called_once_with('proper db revision "Create products table"')
+    module.call.assert_called_once_with('proper db create "models.Product"')
 
 
 def test_fields(app, scaffold):

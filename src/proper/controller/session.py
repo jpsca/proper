@@ -2,7 +2,8 @@ import typing as t
 
 from itsdangerous import BadSignature
 
-from ..constants import FLASHES_SESSION_KEY
+from proper.constants import FLASHES_SESSION_KEY
+from proper.helpers import DotDict
 
 if t.TYPE_CHECKING:
     from proper import App, Request, Response
@@ -31,18 +32,19 @@ class Session:
         self.response._session = session.copy()
         self.response._session.pop(FLASHES_SESSION_KEY, None)
 
-    def _get_session(self) -> dict:
+    def _get_session(self) -> DotDict:
         """Get the session data from the cookie."""
         cookie_value = self.request.cookies.get(self.app.config.SESSION_COOKIE_NAME)
         if cookie_value is None:
-            return {}
+            return DotDict()
         try:
-            return self.app.serializer.loads(
+            session = self.app.serializer.loads(
                 cookie_value,
                 max_age=self.app.config.SESSION_LIFETIME,
             )  # type: ignore
+            return DotDict(session)
         except BadSignature:
-            return {}
+            return DotDict()
 
     def _put_session(self) -> None:
         """Update the session cookie if its needed."""

@@ -22,24 +22,6 @@ DEPENDENCIES = [
     "confusable_homoglyphs",
 ]
 
-REPLACE_PRE = """
-
-class AppController(Controller"""
-
-WITH_PRE = """
-from .concerns import LoadUser, RequireLogin
-
-
-class AppController(LoadUser, Controller"""
-
-FALLBACK = """from proper import Controller, response
-
-from .concerns import LoadUser, RequireLogin
-
-
-class AppController(LoadUser, Controller):
-"""
-
 
 def install(app: "App", migration=False) -> None:
     """Install user/password authentication support.
@@ -50,13 +32,8 @@ def install(app: "App", migration=False) -> None:
     if not curr_appc.is_file():
         raise ValueError(f"{str(curr_appc)} not found")
 
-    text = curr_appc.read_text()
-    if REPLACE_PRE in text:
-        if WITH_PRE not in text:
-            text = text.replace(REPLACE_PRE, WITH_PRE)
-    elif FALLBACK not in text:
-        text = f"{FALLBACK}{text}"
-    curr_appc.write_text(text)
+    code = sort_imports(curr_appc.read_text())
+    curr_appc.write_text(code)
 
     bp = BlueprintRender(
         AUTH_BLUEPRINT,
@@ -80,4 +57,4 @@ def install(app: "App", migration=False) -> None:
         call(f"poetry add {dep_name}")
 
     if migration:
-        call('proper db revision "Create users table"')
+        call('proper db create "models.User"')

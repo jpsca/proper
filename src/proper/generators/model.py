@@ -108,7 +108,7 @@ def gen_model(
     bp()
 
     if migration:
-        call(f'proper db revision "Create {plural_snake} table"')
+        call(f'proper db create "models.{singular_pascal}"')
 
     return attrs_tuples
 

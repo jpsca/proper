@@ -20,7 +20,7 @@ def test_gen_resource_with_migration(app, scaffold):
     app.root_path = app_root
     module.call = Mock()
     module.gen_resource(app, "Products", migration=True)
-    module.call.assert_called_once_with('proper db revision "Create products table"')
+    module.call.assert_called_once_with('proper db create "models.Product"')
 
 
 def _test_controller(app_root):
@@ -78,7 +78,7 @@ def test_gen_resource_singular_with_migration(app, scaffold):
     app.root_path = app_root
     module.call = Mock()
     module.gen_resource(app, "Profile", singular=True, migration=True)
-    module.call.assert_called_once_with('proper db revision "Create profiles table"')
+    module.call.assert_called_once_with('proper db create "models.Profile"')
 
 
 def _test_controller_singular(app_root):
