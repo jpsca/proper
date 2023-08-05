@@ -19,7 +19,6 @@ from whitenoise import WhiteNoise
 
 from . import pipeline, status
 from .config import get_env, get_default_config, logger
-from .cryptex import Cryptex
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -270,10 +269,6 @@ class App:
         text = (self.static_path / filename).read_text()
         return Markup(text)
 
-    def edit_credentials(self, env: str) -> None:
-        cryptex = Cryptex(self.credentials_path, env)
-        cryptex.edit()
-
     def start(self) -> None:
         for func in self._on_dev_start:
             func()
@@ -319,14 +314,11 @@ class App:
         self.module = module
         self.root_path = path.absolute()
         self.config_path = self.root_path / "config"
-        self.credentials_path = self.config_path / "credentials"
 
     def _setup_config(self, _config: dict) -> None:
         self.env = get_env()
         config = self._load_config()
         config.update(_config)
-        credentials = self._load_credentials()
-        config.update(credentials)
         self._validate_secret_keys(config.SECRET_KEYS)
         self._config = config
 
@@ -345,11 +337,6 @@ class App:
         else:
             logger.warning(f"{config_file} cannot be imported")
         return config
-
-    def _load_credentials(self) -> DotDict:
-        cryptex = Cryptex(self.credentials_path, self.env)
-        credentials = cryptex.load()
-        return DotDict(credentials)
 
     def _validate_secret_keys(self, secret_keys: list[str]) -> None:
         secret_keys = secret_keys or [""]

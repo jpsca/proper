@@ -74,12 +74,11 @@ def get_cli_db(app):
             """
             return manager.revision(name)
 
-        def create(self, modelstr: str = "models") -> bool:
-            """Create a new migration file for an existing model (or all of them).
+        def create(self, modelstr: str) -> bool:
+            """Create a new migration file for an existing model.
 
             Args:
-                modelstr: Optional name of the model, e.g.: 'models.User'.
-                    of "models" for all models.
+                modelstr: Name of the model.
 
             Return:
                 True if migration file was created, otherwise False.

@@ -36,7 +36,6 @@ def get_app_cli(app: "App") -> t.Type[Cli]:
         """,
         "run": get_run_server(app),
         "routes": get_routes_cmd(app),
-        "credentials": get_credentials_cmd(app),
         "static": get_static_cli(app),
         "g": get_generators_cli(app),
         "install": get_install_cli(app),
@@ -108,22 +107,6 @@ def get_routes_cmd(app: "App") -> t.Callable:
         print()
 
     return routes
-
-
-def get_credentials_cmd(app: "App") -> t.Callable:
-    def credentials(_self, env="production"):
-        """Edit your encrypted credentials.
-
-        Arguments:
-
-        - env:
-            Name of the environment (e.g.: "production"). It will be used
-            for finding the encrypted file ("production.enc.yaml").
-
-        """
-        app.edit_credentials(env)
-
-    return credentials
 
 
 def get_generators_cli(app: "App") -> t.Type[Cli]:
