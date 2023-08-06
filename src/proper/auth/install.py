@@ -23,7 +23,7 @@ DEPENDENCIES = [
 ]
 
 
-def install(app: "App", migration=False) -> None:
+def install(app: "App", migration=True) -> None:
     """Install user/password authentication support.
     Use `--migration` to generate a migration for creating
     the users table.
