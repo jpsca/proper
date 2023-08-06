@@ -23,10 +23,8 @@ DEPENDENCIES = [
 ]
 
 
-def install(app: "App", migration=True) -> None:
+def install(app: "App") -> None:
     """Install user/password authentication support.
-    Use `--migration` to generate a migration for creating
-    the users table.
     """
     curr_appc = app.root_path / APPLICATION_CONTROLLER
     if not curr_appc.is_file():
@@ -56,5 +54,4 @@ def install(app: "App", migration=True) -> None:
     for dep_name in DEPENDENCIES:
         call(f"poetry add {dep_name}")
 
-    if migration:
-        call('proper db create "users"')
+    call('proper db create "users"')
