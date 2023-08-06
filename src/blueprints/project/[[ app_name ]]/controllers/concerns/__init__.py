@@ -4,8 +4,6 @@ from inspect import isclass
 from pathlib import Path
 from pkgutil import iter_modules
 
-from proper import Controller
-
 
 classes = {}
 
@@ -17,7 +15,7 @@ for (_, module_name, _) in iter_modules([package_dir]):
     for attribute_name in dir(module):
         attribute = getattr(module, attribute_name)
 
-        if isclass(attribute) and issubclass(attribute, Controller):
+        if isclass(attribute):
             classes[attribute_name] = attribute
 
 globals().update(classes)

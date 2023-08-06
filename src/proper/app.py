@@ -313,6 +313,7 @@ class App:
             path = path.parent
         self.module = module
         self.root_path = path.absolute()
+        self.name = self.root_path.stem
         self.config_path = self.root_path / "config"
 
     def _setup_config(self, _config: dict) -> None:

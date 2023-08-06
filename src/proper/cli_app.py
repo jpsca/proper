@@ -6,6 +6,7 @@ from pathlib import Path
 
 from proper_cli import Cli
 
+from .cli_db import get_db_cli
 if t.TYPE_CHECKING:
     from proper import App
 
@@ -36,6 +37,7 @@ def get_app_cli(app: "App") -> t.Type[Cli]:
         """,
         "run": get_run_server(app),
         "routes": get_routes_cmd(app),
+        "db": get_db_cli(app),
         "static": get_static_cli(app),
         "g": get_generators_cli(app),
         "install": get_install_cli(app),

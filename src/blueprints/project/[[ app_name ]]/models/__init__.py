@@ -1,8 +1,10 @@
-"""Auto-import all the classes in this folder."""
+"""Auto-import all the models in this folder."""
 from importlib import import_module
 from inspect import isclass
 from pathlib import Path
 from pkgutil import iter_modules
+
+from .base import BaseModel
 
 
 classes = {}
@@ -15,7 +17,8 @@ for (_, module_name, _) in iter_modules([package_dir]):
     for attribute_name in dir(module):
         attribute = getattr(module, attribute_name)
 
-        if isclass(attribute):
+        if isclass(attribute) and issubclass(attribute, BaseModel):
             classes[attribute_name] = attribute
 
 globals().update(classes)
+del globals()["BaseModel"]

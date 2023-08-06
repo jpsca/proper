@@ -67,9 +67,9 @@ def _install_dependencies(path: Path) -> None:
     call(f"{sys.executable or 'python'} -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
     call(".venv/bin/pip install -e ../proper/")  # TODO: remove!
-    call(f"poetry env use {path.stem}/.venv/bin/python")
-    call("poetry install --with dev,test")
-    call("npm install --no-audit --no-fund")
+    call("poetry export --without-hashes -f requirements.txt -o requirements.txt --with dev,test")
+    call(".venv/bin/pip install -U -r requirements.txt && rm requirements.txt")
+    call(f"cd {path} && npm install --no-audit --no-fund")
 
 
 def _wrap_up(path: Path) -> None:

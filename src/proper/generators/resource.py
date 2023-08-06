@@ -170,4 +170,4 @@ def gen_resource(
     append_routes(app, new_routes)
 
     if migration:
-        call(f'proper db create "models.{singular_pascal}"')
+        call(f'proper db create "{singular_snake if singular else plural_snake}"')

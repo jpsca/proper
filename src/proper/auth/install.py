@@ -57,4 +57,4 @@ def install(app: "App", migration=False) -> None:
         call(f"poetry add {dep_name}")
 
     if migration:
-        call('proper db create "models.User"')
+        call('proper db create "users"')

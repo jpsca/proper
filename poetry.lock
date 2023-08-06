@@ -1017,6 +1017,22 @@ files = [
 ]
 
 [[package]]
+name = "peewee-migrate"
+version = "1.12.1"
+description = "Support for migrations in Peewee ORM"
+category = "main"
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "peewee_migrate-1.12.1-py3-none-any.whl", hash = "sha256:dd8dbfcdb60238a568962d895d56c9696838a630f25097786f9f576c16e85c52"},
+    {file = "peewee_migrate-1.12.1.tar.gz", hash = "sha256:eabe0e293105e4159da6756169d491aec23508eb7a15873497da70ca379977b8"},
+]
+
+[package.dependencies]
+click = "*"
+peewee = ">=3,<4"
+
+[[package]]
 name = "peewee-moves"
 version = "2.1.0"
 description = "Simple and flexible migration manager for Peewee ORM."
@@ -1647,4 +1663,4 @@ brotli = ["Brotli"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "381020cf62200589a96c1421d94b3d2baa79e9ccab3bf33b57623606005083f3"
+content-hash = "1034b9608ca1db49f10d0f4e31fbdd384d28f57a991dd9e9723581469fd90760"

@@ -1,88 +1,58 @@
-from peewee_moves import DatabaseManager
+from importlib import import_module
+
+from peewee_migrate import Router
 from proper_cli import Cli
 
 
-def get_cli_db(app):
-    manager = DatabaseManager(app.db, directory="db/migrations")
+MIGRATE_DIR = "db/migrations"
 
+
+def get_db_cli(app):
     class DB(Cli):
-        def info(self):
-            """Show the current database.
+        @property
+        def _router(self) -> Router:
+            return Router(app.db, migrate_dir=MIGRATE_DIR)
 
-            Don't include any sensitive information like passwords."""
-            return manager.info()
-
-        def status(self) -> bool:
-            """
-            Show all the migrations and a status for each.
-
-            Return:
-                True if listing was successful, otherwise False.
-            """
-            return manager.status() or False
-
-        def delete(self, migration: str) -> bool:
-            """Delete the migration from filesystem and database.
-
-            As if it never happened.
+        def create(self, name: str = "auto"):
+            """Create a new migration file for all changes in the models.
 
             Args:
-                migration: Name of migration to find (not including extension).
-
-            Return:
-                True if delete was successful, otherwise False.
+                name: Optional name for the migration
             """
-            return manager.delete(migration)
+            module = import_module(f"{app.name}.models")
+            migration = self._router.create(name, auto=module)
+            print("Created migration", f"{MIGRATE_DIR}/{migration}.py")
 
-        def upgrade(self, target: str = "", fake: bool = False) -> bool:
+        def migrate(self, target: str = "", fake: bool = False):
             """Run all the migrations (up to target if specified).
 
             If no target, run all upgrades.
 
             Args:
                 target: Migration target to limit upgrades.
-                fake: Should the migration actually run?.
+                fake: Update migration table but don't run migration.
 
-            Return:
-                True if upgrade was successful, otherwise False.
             """
-            return manager.upgrade(target=target or None, fake=fake)
+            done = self._router.run(name=target or None, fake=fake)
+            for migration in done:
+                print(migration)
 
-        def downgrade(self, target: str = "", fake: bool = False) -> bool:
-            """Run all the migrations (down to target if specified).
+        def rollback(self):
+            """Rollback the latest migration."""
+            self._router.rollback()
 
-            If no target, run one downgrade.
+        def todo(self):
+            """Show all migrations that have not been applied."""
+            for migration in self._router.todo:
+                print(migration)
 
-            Args:
-                target: Migration target to limit downgrades.
-                fake: Should the migration actually run?.
+        def done(self):
+            """Show all migrations that have been applied."""
+            for migration in self._router.done:
+                print(migration)
 
-            Return:
-                True if downgrade was successful, otherwise False.
-            """
-            return manager.downgrade(target=target or None, fake=fake)
-
-        def revision(self, name: str = "auto") -> bool:
-            """Create a single blank migration file with given name
-            or default of 'auto'.
-
-            Args:
-                name: Name of migration to create (default auto migration).
-
-            Return:
-                True if migration file was created, otherwise False.
-            """
-            return manager.revision(name)
-
-        def create(self, modelstr: str) -> bool:
-            """Create a new migration file for an existing model.
-
-            Args:
-                modelstr: Name of the model.
-
-            Return:
-                True if migration file was created, otherwise False.
-            """
-            return manager.create(modelstr)
+        def merge(self, name: str = "initial"):
+            """Merge all migrations into one"""
+            self._router.merge(name)
 
     return DB

@@ -46,6 +46,7 @@ proper-cli = ">=1.2"
 proper-forms = ">=0.5"
 whitenoise = ">=5.2"
 peewee-moves = "^2.1.0"
+peewee-migrate = "^1.12.1"
 
 [tool.poetry.group.dev]
 optional = true
