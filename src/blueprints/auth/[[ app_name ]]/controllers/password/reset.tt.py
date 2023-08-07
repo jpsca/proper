@@ -9,14 +9,14 @@ from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from . import forms
 
 
-class PasswordResets(AppController):
+class PasswordReset(AppController):
     def new(self):
         self.form = forms.PasswordResetForm()
 
     def create(self):
         self.form = forms.PasswordResetForm(self.params)
         if not self.form.validate():
-            return self.render("PasswordResets.New", status=unprocessable)
+            return self.render("PasswordReset.New", status=unprocessable)
 
         login = self.form.save()["login"]
         user = User.get_by_login(login)
@@ -27,7 +27,7 @@ class PasswordResets(AppController):
         self.pk = self.params["pk"]
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("PasswordResets.Invalid", status=unprocessable)
+            return self.render("PasswordReset.Invalid", status=unprocessable)
 
         self.login = user.login
         self.form = forms.PasswordChangeForm()
@@ -37,13 +37,13 @@ class PasswordResets(AppController):
         self.pk = self.params["pk"]
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("PasswordResets.Invalid", status=unprocessable)
+            return self.render("PasswordReset.Invalid", status=unprocessable)
 
         self.form = forms.PasswordChangeForm(self.params)
         if not self.form.validate():
             self.login = user.login
             self.password_minlen = config.AUTH_PASSWORD_MINLEN
-            return self.render("PasswordResets.Edit", status=unprocessable)
+            return self.render("PasswordReset.Edit", status=unprocessable)
 
         new_password = self.form.save()["password"][0]
         user.set_password(new_password)

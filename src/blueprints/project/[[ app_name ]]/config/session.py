@@ -7,7 +7,7 @@ SESSION_LIFETIME: int = int(timedelta(days=30).total_seconds())
 
 SESSION_COOKIE_NAME: str = "_session"
 
-SESSION_COOKIE_DOMAIN: str|None = None
+SESSION_COOKIE_DOMAIN: str | None = None
 
 SESSION_COOKIE_PATH: str = "/"
 

@@ -32,7 +32,7 @@ class Authenticable(BaseMixin):
     def _prepare_data(cls, data) -> dict:
         password = data.get("password")
         if password:
-           data["password"] = auth.hash_password(password)
+            data["password"] = auth.hash_password(password)
         login = data.get("login", "").strip()
         if login:
             data["login"] = cls._normalize_login(login)
@@ -52,7 +52,7 @@ class Authenticable(BaseMixin):
 
         Required by proper.auth.Auth()
         """
-        return cls.get_or_none(cls.id == pk) # type: ignore
+        return cls.get_or_none(cls.id == pk)  # type: ignore
 
     @classmethod
     def get_by_login(cls, login: str) -> t.Any:
@@ -63,7 +63,7 @@ class Authenticable(BaseMixin):
         Required by proper.auth.Auth()
         """
         login = cls._normalize_login(login)
-        return cls.get_or_none(cls.login == login) # type: ignore
+        return cls.get_or_none(cls.login == login)  # type: ignore
 
     @classmethod
     def authenticate(
@@ -102,7 +102,7 @@ class Authenticable(BaseMixin):
         """Store in the session an unique token for the user, so it can stay
         logged between requests.
         """
-        assert self.id is not None # type: ignore
+        assert self.id is not None  # type: ignore
         request.user = self
         response.session[self.SESSION_KEY] = auth.get_session_token(request.user)
 

@@ -10,8 +10,8 @@ __all__ = (
 
 def render_password_reset_email(user):
     token = auth.get_timestamped_token(user)
-    validate_url = app.url_for("PasswordResets.edit", pk=token)
-    reset_url = app.url_for("PasswordResets.new")
+    validate_url = app.url_for("PasswordReset.edit", pk=token)
+    reset_url = app.url_for("PasswordReset.new")
     return app.catalog.render(
         "Email.PasswordReset",
         validate_url=f"{config.HOST}{validate_url}",

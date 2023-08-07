@@ -2,13 +2,8 @@
 install:
 	poetry install --with dev,test
 	pip install -e ../proper
-	make db
 	npm install --no-audit --no-fund
-
-.PHONY: db
-db:
-	bin/proper db create
-	bin/proper db upgrade
+	bin/proper db migrate
 
 .PHONY: test
 test:
@@ -17,4 +12,3 @@ test:
 .PHONY: lint
 lint:
 	flake8 demo tests
-

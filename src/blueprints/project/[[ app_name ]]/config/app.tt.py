@@ -37,7 +37,7 @@ MAX_CONTENT_LENGTH: int = 2**23  # 8 MB
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
 MAX_QUERY_SIZE: int = 2**20  # 1 MB
 
-STATIC_HOST: str|None = None
+STATIC_HOST: str | None = None
 # When set to False then compressed files will not be created but static files
 # will still get md5 tagged.
 
