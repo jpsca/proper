@@ -17,21 +17,11 @@ class Authenticable(BaseMixin):
     REDIRECT_KEY: str = "_redirect"
     CLEAR_SESSION_ON_SIGN_OUT: bool = True
 
-    # username/email for authentication and search
     login = CharField(255, null=False, unique=True, index=True)
-    # username/email for display
-    nfc_login = CharField(255, null=False)
-
     password = CharField(255)
 
-    def __init__(self, **kwargs):
-        password = kwargs.get("password")
-        if password:
-           kwargs["password"] = auth.hash_password(password)
-        super().__init__(**kwargs)
-
-    @staticmethod
-    def _normalize_login(login="", *, uform="NFKC"):
+    @classmethod
+    def _normalize_login(cls, login="", *, uform="NFKC"):
         # This unicode normalization MUST come first
         # https://engineering.atspotify.com/2013/06/creative-usernames/
         login = unicodedata.normalize(uform, login)
@@ -39,13 +29,21 @@ class Authenticable(BaseMixin):
         return RX_SPACES.sub("", login)
 
     @classmethod
-    def _normalize_data(cls, data, kwargs) -> dict:
-        ndata = super()._normalize_data(data, kwargs)
-        if "login" in ndata:
-            login = ndata["login"].strip()
-            ndata["login"] = cls._normalize_login(login)
-            ndata["nfc_login"] = unicodedata.normalize("NFC", login)
-        return ndata
+    def _prepare_data(cls, data) -> dict:
+        password = data.get("password")
+        if password:
+           data["password"] = auth.hash_password(password)
+        login = data.get("login", "").strip()
+        if login:
+            data["login"] = cls._normalize_login(login)
+        return data
+
+    @classmethod
+    def create(cls, **data):
+        data = cls._prepare_data(data)
+        inst = cls(**data)
+        inst.save(force_insert=True)
+        return inst
 
     @classmethod
     def get_by_id(cls, pk: t.Any) -> t.Any:

@@ -14,7 +14,11 @@ class AuthCli(Cli):
             password: Plain-text password (will be encrypted)
 
         """
-        User.create(login=login, password=password)
+        try:
+            User.create(login=login, password=password)
+        except Exception as e:
+            print("ERROR:", e)
+            return
         print("User added")
 
     def password(self, login: str, password: str) -> None:
@@ -30,8 +34,12 @@ class AuthCli(Cli):
         if not user:
             print("User not found")
             return
-        user.set_password(password)
-        user.save()
+        try:
+            user.set_password(password)
+            user.save()
+        except Exception as e:
+            print("ERROR:", e)
+            return
         print("Password updated")
 
 
