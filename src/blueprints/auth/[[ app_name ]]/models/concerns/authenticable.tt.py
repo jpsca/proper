@@ -2,7 +2,7 @@ import re
 import unicodedata
 import typing as t
 
-from peewee import *  # type: ignore
+from peewee import CharField
 from proper import request, response
 
 from [[app_name]].app import auth, config

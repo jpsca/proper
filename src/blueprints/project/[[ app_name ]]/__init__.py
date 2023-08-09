@@ -1,8 +1,6 @@
 # The order of these imports is important
-from . import (
-    app,
-    initializers,
-    routes,
-    models,
-    cli,
-)  # noqa
+from . import app  # noqa
+from . import initializers  # noqa
+from . import routes  # noqa
+from . import models  # noqa
+from . import cli  # noqa

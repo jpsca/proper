@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from peewee import *  # noqa
+from peewee import DateTimeField
 from demo.models.base import BaseMixin
 
 

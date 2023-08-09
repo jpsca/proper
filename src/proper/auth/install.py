@@ -26,13 +26,6 @@ DEPENDENCIES = [
 def install(app: "App") -> None:
     """Install user/password authentication support.
     """
-    curr_appc = app.root_path / APPLICATION_CONTROLLER
-    if not curr_appc.is_file():
-        raise ValueError(f"{str(curr_appc)} not found")
-
-    code = sort_imports(curr_appc.read_text())
-    curr_appc.write_text(code)
-
     bp = BlueprintRender(
         AUTH_BLUEPRINT,
         app.root_path.parent,
@@ -42,6 +35,10 @@ def install(app: "App") -> None:
         ignore=[ROUTES_TT],
     )
     bp()
+
+    curr_appc = app.root_path / APPLICATION_CONTROLLER
+    code = sort_imports(curr_appc.read_text())
+    curr_appc.write_text(code)
 
     config_path = app.root_path / CONFIG_PATH
     code = sort_imports(config_path.read_text())

@@ -1,4 +1,4 @@
-from peewee import *  # noqa
+from peewee import [[ ", ".join(imports) ]]
 
 from .base import BaseModel
 

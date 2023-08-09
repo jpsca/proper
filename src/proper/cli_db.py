@@ -21,7 +21,8 @@ def get_db_cli(app):
             """
             module = import_module(f"{app.name}.models")
             migration = self._router.create(name, auto=module)
-            print("Created migration", f"{MIGRATE_DIR}/{migration}.py")
+            if migration:
+                print(f"{MIGRATE_DIR}/{migration}.py")
 
         def migrate(self, target: str = "", fake: bool = False):
             """Run all the migrations (up to target if specified).
@@ -35,7 +36,7 @@ def get_db_cli(app):
             """
             done = self._router.run(name=target or None, fake=fake)
             for migration in done:
-                print(migration)
+                print(f"{MIGRATE_DIR}/{migration}.py")
 
         def rollback(self):
             """Rollback the latest migration."""
@@ -44,12 +45,12 @@ def get_db_cli(app):
         def todo(self):
             """Show all migrations that have not been applied."""
             for migration in self._router.todo:
-                print(migration)
+                print(f"{MIGRATE_DIR}/{migration}.py")
 
         def done(self):
             """Show all migrations that have been applied."""
             for migration in self._router.done:
-                print(migration)
+                print(f"{MIGRATE_DIR}/{migration}.py")
 
         def merge(self, name: str = "initial"):
             """Merge all migrations into one"""

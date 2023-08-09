@@ -93,6 +93,7 @@ def gen_model(
     plural_snake = plural_snake or inflection.tableize(singular_pascal)
     attrs_tuples = [_split_attr(attr) for attr in attrs]
     rows = _build_rows(attrs_tuples)
+    imports = _get_imports(attrs_tuples)
 
     bp = BlueprintRender(
         MODEL_BLUEPRINT,
@@ -103,6 +104,7 @@ def gen_model(
             "singular_snake": singular_snake,
             "plural_snake": plural_snake,
             "rows": rows or ["pass"],
+            "imports": imports or ["*"],
         },
     )
     bp()
@@ -158,6 +160,16 @@ FIELD_TYPES = {
     "time": "TimeField",
     "uuid": "UUIDField",
 }
+
+
+def _get_imports(attrs: list[tuple[str, str, list[str]]]) -> list[str]:
+    imports = set()
+    for _name, ftype, _options in attrs:
+        if ftype.lower().startswith("fk-"):
+            imports.add("ForeignKeyField")
+        else:
+            imports.add(FIELD_TYPES.get(ftype.lower()))
+    return sorted(imports)
 
 
 def _build_rows(attrs: list[tuple[str, str, list[str]]]) -> list[str]:

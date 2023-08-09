@@ -31,6 +31,7 @@ CREATE = "create"
 UPDATE = "update"
 SKIPPED = "skipped"
 IDENTICAL = "identical"
+PREPEND = "prepend"
 APPEND = "append"
 RUN = "run"
 
@@ -120,6 +121,11 @@ class BlueprintRender:
                 dst_relpath = dst_relfolder / dst_name
                 content = self.render(src_relpath)
                 append_to_file(self.dst, dst_relpath, content)
+            elif ".prepend." in name or name.endswith(".prepend"):
+                dst_name = name.replace(".prepend", "")
+                dst_relpath = dst_relfolder / dst_name
+                content = self.render(src_relpath)
+                prepend_to_file(self.dst, dst_relpath, content)
             else:
                 dst_relpath = dst_relfolder / name
                 copy_file(self.src / src_relpath, self.dst, dst_relpath)
@@ -175,6 +181,25 @@ def append_to_file(root_path: Path, dst_relpath: str | Path, new_content: str) -
             curr_content += "\n"
         new_content = curr_content + new_content
         printf(APPEND, dst_relpath, color=COLOR_WARNING)
+    else:
+        dst_path.touch(exist_ok=True)
+        printf(CREATE, dst_relpath, color=COLOR_OK)
+
+    dst_path.write_text(new_content)
+
+
+def prepend_to_file(root_path: Path, dst_relpath: str | Path, new_content: str) -> None:
+    dst_path = root_path / dst_relpath
+    if dst_path.exists():
+        curr_content = dst_path.read_text()
+        if new_content in curr_content:
+            printf(SKIPPED, dst_relpath, color=COLOR_WARNING)
+            return
+
+        if not new_content.endswith("\n"):
+            new_content += "\n"
+        new_content = new_content + curr_content
+        printf(PREPEND, dst_relpath, color=COLOR_WARNING)
     else:
         dst_path.touch(exist_ok=True)
         printf(CREATE, dst_relpath, color=COLOR_OK)
