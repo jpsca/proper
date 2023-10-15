@@ -11,7 +11,7 @@ if t.TYPE_CHECKING:
     from .types import TAttachment, TUpload
 
 
-ONE_YEAR = 32_000_000  # 60 * 60 * 24 * 365 aprox
+ONE_YEAR = 32_000_000  # 60 * 60 * 24 * 365 (aprox 1 year)
 
 
 class Storage:

@@ -6,10 +6,10 @@ import inflection
 from ..helpers import BLUEPRINTS, BlueprintRender, call
 
 
-PROJECT_BLUEPRINT = BLUEPRINTS / "project"
+APP_BLUEPRINT = BLUEPRINTS / "app"
 
 
-def gen_project(
+def gen_app(
     path: str | Path,
     *,
     name: str = "",
@@ -40,7 +40,7 @@ def gen_project(
     app_name = inflection.underscore(name or str(path.stem))
 
     BlueprintRender(
-        PROJECT_BLUEPRINT,
+        APP_BLUEPRINT,
         path,
         context={
             "app_name": app_name,
