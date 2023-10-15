@@ -27,6 +27,9 @@ classifiers = [
 include = [
     "src/proper/blueprints/*"
 ]
+packages = [
+    { include = "proper", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -143,7 +146,7 @@ addopts = "--doctest-modules"
 legacy_tox_ini = """
 [tox]
 skipsdist = True
-envlist = py310,py311
+envlist = py310,py311,py312
 
 [testenv]
 skip_install = true

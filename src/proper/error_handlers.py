@@ -2,9 +2,9 @@
 Fallback error handlers
 
 """
-import pkg_resources
 import sys
 import traceback
+from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -84,7 +84,7 @@ def is_index(request: "Request") -> bool:
 
 def render_default_index(response: "Response") -> None:
     data = {
-        "proper_version": pkg_resources.get_distribution("proper").version,
+        "proper_version": version("proper"),
         "python_version": sys.version,
     }
     response.body = render("default-index.jinja", **data)
