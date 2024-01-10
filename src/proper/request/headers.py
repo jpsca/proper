@@ -98,6 +98,10 @@ class RequestHeadersMixin:
 
         return self.env.get(name, default)
 
+    @property
+    def headers(self) -> dict[str, t.Any]:
+        return self.env
+
     @cached_property
     def accept(self) -> list[str]:
         """Parse the `accept` header.

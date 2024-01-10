@@ -25,6 +25,8 @@ def parse_form(
     max_content_length: int = -1,
     strict: bool = True,
 ) -> MultiDict:
+    if not content_length:
+        return MultiDict()
 
     if max_content_length > 0 and content_length > max_content_length:
         raise RequestEntityTooLarge("Maximum content length exceeded.")

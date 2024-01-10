@@ -1,3 +1,4 @@
+from typing import Iterable
 from .route import Route
 
 
@@ -7,7 +8,7 @@ __all__ = (
 )
 
 
-def flatten(ll: list) -> list:
+def flatten(ll: Iterable) -> list:
     """
     Flatten a list of lists and items into a list of items, without sublists
     Examples:

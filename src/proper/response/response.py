@@ -20,10 +20,14 @@ from .file_wrapper import FileWrapper
 from .flash_dict import FlashDict
 
 if t.TYPE_CHECKING:
+    from proper.helpers import Proxy
     from proper.request import Request
 
 
-__all__ = ("Response",)
+__all__ = ("Response", "BodyType")
+
+
+BodyType = list[bytes] | bytearray | memoryview | Iterable[bytes]
 
 
 def is_iterable(obj: t.Any) -> bool:
@@ -36,7 +40,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     flash: "FlashDict"
     error: Exception | None = None
-    body: str | bytes | t.Iterable[bytes] | None = None
+    body: BodyType | str | None = None
     session: DotDict
 
     def __init__(
@@ -50,7 +54,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.flash = FlashDict(self)
         super().__init__()
 
-    def __call__(self, start_response: StartResponse) -> t.Iterable[bytes]:
+    def __call__(self, start_response: StartResponse) -> BodyType:
         body = self.prepare_body()
         headers = self.get_headers_list()
         start_response(tunnel_encode(self.status), headers)
@@ -69,7 +73,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         """The status code of the response."""
         return int(self.status.split(" ", 1)[0])
 
-    def prepare_body(self) -> t.Iterable[bytes]:
+    def prepare_body(self) -> BodyType:
         body = self.body
 
         if not body:
@@ -151,7 +155,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         last_modified: datetime | None = None,
         strong: bool = False,
         public: bool = False,
-        request: "Request | None" = None,
+        request: "Request | Proxy | None" = None,
     ) -> bool:
         """Sets the Etag header, the Last-Modified header, or both.
 
@@ -194,7 +198,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         )
         return self.is_fresh(request)
 
-    def is_fresh(self, request: "Request | None" = None) -> bool:
+    def is_fresh(self, request: "Request | Proxy | None" = None) -> bool:
         """Returns `True` if the response is fresh."""
         request = current.request if request is None else request
         if request is None:
@@ -238,9 +242,11 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
             mimetype = mimetype or "application/octet-stream"
 
             # Don't send encoding for attachments, it causes browsers to
-            # save decompress tar.gz files.
-            if not as_attachment:
+            # save decompressed tar.gz files.
+            if encoding and not as_attachment:
                 self.set_content_encoding(encoding)
+            else:
+                self.set_content_encoding()
 
         try:
             download_name.encode("ascii")

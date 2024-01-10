@@ -17,7 +17,7 @@ def method_override() -> None:
     * `RESTORE`
 
     """
-    if request.request_method != POST:
+    if request.method != POST:
         return
 
     new_method = request.get("x_http_method_override")

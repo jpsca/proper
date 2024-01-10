@@ -40,7 +40,6 @@ class ResponseHeadersDict(dict):
 class ResponseHeadersMixin:
     """Mixin with the methods related to the response headers."""
 
-    status_code: int
     default_mimetype = "text/html"
     default_charset = "utf-8"
 
@@ -68,6 +67,10 @@ class ResponseHeadersMixin:
         self._charset = self.default_charset
         self.set_content_type(self.mimetype, charset=self.charset)
         super().__init__()
+
+    @property
+    def status_code(self) -> int:
+        raise NotImplementedError
 
     @property
     def accept_ranges(self) -> str | None:
@@ -109,9 +112,9 @@ class ResponseHeadersMixin:
         if directives:
             self.set_cache_control(*directives)
         else:
-            self.set_cache_control(None)
+            self.set_cache_control()
 
-    def set_cache_control(self, *directives: str | None) -> None:
+    def set_cache_control(self, *directives: str) -> None:
         """Set the `Cache-Control` header.
 
         The Cache-Control HTTP header field holds "directives" (instructions)
@@ -121,10 +124,13 @@ class ResponseHeadersMixin:
             *directives:
                 list of cache directives that are joined with ", "
                 to produce the value for the header.
-                Use `None` to delete the header.
+                Pass zero directives to delete the header.
 
         """
-        self.headers._set("cache-control", format_comma_list(directives))
+        self.headers._set(
+            "cache-control",
+            format_comma_list(*directives) if directives else None,
+        )
 
     @property
     def content_encoding(self) -> str | None:
@@ -136,9 +142,9 @@ class ResponseHeadersMixin:
         if values:
             self.set_content_encoding(*values)
         else:
-            self.set_content_encoding(None)
+            self.set_content_encoding()
 
-    def set_content_encoding(self, *values: str | None) -> None:
+    def set_content_encoding(self, *values: str) -> None:
         """Set the `Content-Encoding` header.
 
         Lists any encodings that have been applied to the body
@@ -152,10 +158,13 @@ class ResponseHeadersMixin:
             *values:
                 Lists any encodings that have been applied to the body
                 in what order
-                Use `None` to delete the header.
+                Pass zero values to delete the header.
 
         """
-        self.headers._set("content-encoding", format_comma_list(values))
+        self.headers._set(
+            "content-encoding",
+            format_comma_list(*values) if values else None,
+        )
 
     @property
     def content_length(self) -> str | None:
@@ -267,16 +276,16 @@ class ResponseHeadersMixin:
         self.headers._set("content-range", val)
 
     @property
-    def mimetype(self) -> str | None:
-        return self._mimetype
+    def mimetype(self) -> str:
+        return self._mimetype or ""
 
     @mimetype.setter
     def mimetype(self, val: str) -> None:
         self.set_content_type(mimetype=val, charset=self._charset)
 
     @property
-    def charset(self) -> str | None:
-        return self._charset
+    def charset(self) -> str:
+        return self._charset or ""
 
     @charset.setter
     def charset(self, val: str) -> None:
@@ -496,9 +505,9 @@ class ResponseHeadersMixin:
         if names:
             self.set_vary(*names)
         else:
-            self.set_vary(None)
+            self.set_vary()
 
-    def set_vary(self, *names: str | None) -> None:
+    def set_vary(self, *names: str) -> None:
         """Set the `Vary` header.
 
         The Vary HTTP response header describes the parts of the request message
@@ -512,10 +521,13 @@ class ResponseHeadersMixin:
         Args:
             *names:
                 One or more header names.
-                Use `None` to delete the header.
+                Pass zero names to delete the header.
 
         """
-        self.headers._set("vary", format_comma_list(names))
+        self.headers._set(
+            "vary",
+            format_comma_list(*names) if names else None,
+        )
 
     def _get_header_tuples(self) -> list[tuple[str, str]]:
         """Get the list of header tuples."""
@@ -556,10 +568,7 @@ def format_datetime(dt: datetime | float | int | None) -> datetime | None:
     return dt
 
 
-def format_comma_list(names: tuple[str | None]) -> list[str] | None:
-    if names is None or names[0] is None:
-        return None
-
+def format_comma_list(*names: str) -> list[str] | None:
     return [str(val) for val in names]
 
 
@@ -577,6 +586,6 @@ def format_header(val: t.Any, **params) -> str | None:
     return "; ".join(
         [
             val,
-            *(f"{k}={v}" for k, v in params.items()),
+            *(f"{k}={v}" for k, v in params.items() if v),
         ]
     )

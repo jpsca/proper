@@ -4,12 +4,13 @@ from ..current import request, response
 
 if TYPE_CHECKING:
     from proper import Response
+    from proper.helpers import Proxy
 
 
 __all__ = ("redirect",)
 
 
-def redirect() -> "Response | None":
+def redirect() -> "Response | Proxy | None":
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
     """

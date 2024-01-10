@@ -2,12 +2,14 @@ import typing as t
 
 from itsdangerous import BadSignature
 
-from ..current import app, request, response
-from ..constants import FLASHES_SESSION_KEY
-from ..helpers import DotDict
+from proper.constants import FLASHES_SESSION_KEY
+from proper.helpers import DotDict
 
 if t.TYPE_CHECKING:
-    from . import Controller
+    from proper.app import App
+    from proper.controller import Controller
+    from proper.request import Request
+    from proper.response import Response
 
 
 __all__ = ("Session", )
@@ -18,19 +20,27 @@ class Session:
         """Get the session data from the cookie and puts into the request
         and response.
         """
-        session = self._get_session()
+        app = controller.app
+        request = controller.request
+        response = controller.response
+
+        session = self._get_session(app, request)
         request.session = session
         response.session = session.copy()
         response.session.pop(FLASHES_SESSION_KEY, None)
 
     def after(self, controller: "Controller") -> None:
         """Update the session cookie if its needed."""
+        app = controller.app
+        request = controller.request
+        response = controller.response
+
         if response.session != request.session:
-            self._update_session_cookie()
+            self._update_session_cookie(app, response)
 
     # Private
 
-    def _get_session(self) -> DotDict:
+    def _get_session(self, app: "App", request: "Request") -> DotDict:
         """Get the session data from the cookie."""
         cookie_value = request.cookies.get(app.config.SESSION_COOKIE_NAME)
         if cookie_value is None:
@@ -44,7 +54,7 @@ class Session:
         except BadSignature:
             return DotDict()
 
-    def _update_session_cookie(self) -> None:
+    def _update_session_cookie(self, app: "App", response: "Response") -> None:
         """Update the session cookie if its needed."""
         config = app.config
         # If the session was modified to be empty, remove the cookie.
@@ -57,8 +67,6 @@ class Session:
             return
 
         cookie_value = app.serializer.dumps(dict(response.session))
-        if isinstance(cookie_value, bytes):
-            cookie_value = cookie_value.decode("utf8")
 
         response.set_cookie(
             config.SESSION_COOKIE_NAME,

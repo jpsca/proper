@@ -1,5 +1,6 @@
 import mimetypes
 import random
+import typing as t
 from io import BytesIO
 from pathlib import Path
 
@@ -7,14 +8,21 @@ from .constants import GET, HEAD, POST, PATCH, PUT, OPTIONS, DELETE, RESTORE
 from .helpers import DotDict
 from .request import make_test_env
 
+if t.TYPE_CHECKING:
+    from wsgiref.types import WSGIEnvironment
+    from .response import Response
 
-def to_bytes(value, charset='latin1'):
+
+def to_bytes(value, charset="latin1"):
     if isinstance(value, str):
         return value.encode(charset)
     return value
 
 
 class AppTest:
+    def do_request(self, environ: "WSGIEnvironment") -> "Response":
+        raise NotImplementedError
+
     def get(
         self,
         url: str,
@@ -56,8 +64,8 @@ class AppTest:
         self,
         url: str,
         *,
-        params: dict | str | bytes | BytesIO | None = None,
-        upload_files: tuple[str, str | Path] = tuple(),
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ) -> DotDict:
         """
@@ -67,59 +75,68 @@ class AppTest:
             url:
                 A full URL or a path
 
-            params:
-                Are put in the body of the request. If params is a dict
+            body:
+                Are put in the body of the request. If body is a dict
                 it will be urlencoded. If it is a string, it will not
                 be encoded, but placed in the body directly.
+                If `upload_files` is also used, `body` must be a dict.
 
             upload_files:
                 It should be a list of `(fieldname, filename)`. The file
-                contents will be read from disk. If the `params` are not dict
-                they will be ignored.
+                contents will be read from disk.
 
             headers:
                 Extra headers to send.
 
         """
-        return self._do_test_request(url, method=POST, params=params, upload_files=upload_files, headers=headers)
+        return self._do_test_request(
+            url, method=POST, body=body, upload_files=upload_files, headers=headers
+        )
 
     def patch(
         self,
         url: str,
         *,
-        params: dict | str | bytes | BytesIO | None = None,
-        upload_files: tuple[str, str | Path] = tuple(),
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ) -> DotDict:
         """
         Do a PATCH request. Similar to `AppTest.post`.
         """
-        return self._do_test_request(url, method=PATCH, params=params, upload_files=upload_files, headers=headers)
+        return self._do_test_request(
+            url, method=PATCH, body=body, upload_files=upload_files, headers=headers
+        )
 
     def put(
         self,
         url: str,
         *,
-        params: dict | str | bytes | BytesIO | None = None,
-        upload_files: tuple[str, str | Path] = tuple(),
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ) -> DotDict:
         """
-        Do a HEAD request. Similar to `AppTest.post`.
+        Do a PUT request. Similar to `AppTest.post`.
         """
-        return self._do_test_request(url, method=PUT, params=params, upload_files=upload_files, headers=headers)
+        return self._do_test_request(
+            url, method=PUT, body=body, upload_files=upload_files, headers=headers
+        )
 
     def query(
         self,
         url: str,
         *,
-        params: dict | str | bytes | BytesIO | None = None,
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ) -> DotDict:
         """
-        Do a HEAD request. Similar to `AppTest.post` but without the capacity to upload files.
+        Do a QUERY request. Similar to `AppTest.post`but.
         """
-        return self._do_test_request(url, method=PUT, params=params, headers=headers)
+        return self._do_test_request(
+            url, method=PUT, body=body, upload_files=upload_files, headers=headers
+        )
 
     def options(
         self,
@@ -131,31 +148,39 @@ class AppTest:
         """
         Do a OPTIONS request. Similar to `AppTest.get`.
         """
-        return self._do_test_request(url, method=OPTIONS, params=params, headers=headers)
+        return self._do_test_request(
+            url, method=OPTIONS, params=params, headers=headers
+        )
 
     def delete(
         self,
         url: str,
         *,
-        params: dict | None = None,
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ) -> DotDict:
         """
-        Do a DELETE request. Similar to `AppTest.get`.
+        Do a DELETE request. Similar to `AppTest.post`.
         """
-        return self._do_test_request(url, method=DELETE, params=params, headers=headers)
+        return self._do_test_request(
+            url, method=DELETE, body=body, upload_files=upload_files, headers=headers
+        )
 
     def restore(
         self,
         url: str,
         *,
-        params: dict | None = None,
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ) -> DotDict:
         """
-        Do a RESTORE request. Similar to `AppTest.get`.
+        Do a RESTORE request. Similar to `AppTest.post`.
         """
-        return self._do_test_request(url, method=RESTORE, params=params, headers=headers)
+        return self._do_test_request(
+            url, method=RESTORE, body=body, upload_files=upload_files, headers=headers
+        )
 
     # PRIVATE
 
@@ -164,8 +189,9 @@ class AppTest:
         url: str,
         *,
         method=GET,
-        params: dict | str | bytes | BytesIO | None = None,
-        upload_files: tuple[str, str | Path] = tuple(),
+        params: dict | None = None,
+        body: dict | str | bytes | BytesIO = b"",
+        upload_files: list[tuple[str, str | Path]] | None = None,
         headers: dict | None = None,
     ):
         if params is None:
@@ -174,12 +200,12 @@ class AppTest:
         headers["REQUEST_METHOD"] = method.upper()
 
         if upload_files:
-            if not isinstance(params, dict):
-                params = dict
-            content_type, params = self._encode_multipart(params, upload_files or ())
+            if not isinstance(body, dict):
+                body = {}
+            content_type, body = self._encode_multipart(params=body, upload_files=upload_files)
             headers["CONTENT_TYPE"] = content_type
 
-        environ = make_test_env(url, params=params, **headers)
+        environ = make_test_env(url, body=body, params=params, **headers)
 
         response = self.do_request(environ)
         response.prepare_body()
@@ -193,8 +219,8 @@ class AppTest:
 
     def _encode_multipart(
         self,
-        params: dict | str | bytes | BytesIO = None,
-        files: tuple[str, str | Path] = tuple(),
+        params: dict | None = None,
+        upload_files: list[tuple[str, str | Path]] | None = None,
     ):
         """
         Encodes a set of parameters (name/value list) and
@@ -202,15 +228,17 @@ class AppTest:
         typical POST body, returning the (content_type, body).
 
         """
-        boundary = to_bytes(str(random.random()))[2:]
+        boundary: bytes = to_bytes(str(random.random()))[2:]
         boundary = b"----------b_o_u_n_d_a_r_y" + boundary + b"$"
         lines = []
 
-        def _append_file(key, filename):
-            if isinstance(key, str):
-                key = key.encode("ascii")
+        def _append_file(skey: str, filename: str | Path):
+            key = skey.encode("ascii")
             filepath = Path(filename)
-            fcontent = mimetypes.guess_type(filename)[0] or b"application/octet-stream"
+
+            ftype = mimetypes.guess_type(filename)[0]
+            ctype = to_bytes(ftype) if ftype else b"application/octet-stream"
+
             lines.extend(
                 [
                     b"--" + boundary,
@@ -218,14 +246,15 @@ class AppTest:
                     + b'name="'
                     + key
                     + b'"; filename="'
-                    + to_bytes(filename)
+                    + to_bytes(str(filename))
                     + b'"',
-                    b"Content-Type: " + fcontent,
+                    b"Content-Type: " + ctype,
                     b"",
                     filepath.read_bytes(),
                 ]
             )
 
+        params = params or {}
         for key, value in params:
             if isinstance(key, str):
                 key = key.encode("ascii")
@@ -250,11 +279,11 @@ class AppTest:
                 ]
             )
 
-        for key, filename in files:
-            _append_file(key, filename)
+        if upload_files:
+            for key, filename in upload_files:
+                _append_file(key, filename)
 
         lines.extend([b"--" + boundary + b"--", b""])
         body = b"\r\n".join(lines)
-        boundary = boundary.decode("ascii")
-        content_type = "multipart/form-data; boundary=%s" % boundary
+        content_type = "multipart/form-data; boundary=%s" % boundary.decode("ascii")
         return content_type, body

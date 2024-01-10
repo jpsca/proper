@@ -20,10 +20,10 @@ def make_test_env(
     url: str = "/",
     *,
     params: dict | None = None,
-    body: dict | bytes | BytesIO = b"",
+    body: dict | str | bytes | BytesIO = b"",
     **kw,
 ) -> WSGIEnvironment:
-    env = {"REMOTE_ADDR": "127.0.0.1"}
+    env: dict[str, t.Any] = {"REMOTE_ADDR": "127.0.0.1"}
     setup_testing_defaults(env)
 
     upa = urlparse(url)
@@ -197,7 +197,6 @@ class Request(RequestHeadersMixin):
     method: str
     path: str
 
-    request_id: str = ""
     matched_route: Route | None = None
     matched_params: dict | None = None
     matched_action: str | None = None

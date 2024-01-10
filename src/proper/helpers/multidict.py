@@ -3,9 +3,9 @@ import typing as t
 from collections.abc import KeysView, ItemsView, MutableMapping
 
 
-__all__ = ("MultiDict", )
+__all__ = ("MultiDict",)
 
-TDictOrIter = dict | t.Iterable[tuple[str, t.Any]]
+TDictOrIter = dict[str, t.Any] | t.Iterable[tuple[str, t.Any]]
 
 
 class MultiDict(MutableMapping):
@@ -13,12 +13,13 @@ class MultiDict(MutableMapping):
     A `MultiDict` is a dict-like type customized to deal with
     multiple values for the same key and type casting its values.
     """
+
     data: dict[str, list[t.Any]]
 
     def __init__(
         self,
-        dict_or_iter: TDictOrIter | None = None,
-    ) -> None:
+        dict_or_iter: TDictOrIter = (),
+    ) -> None:  # type: ignore
         self.data = {}
         self.update(dict_or_iter)
 
@@ -28,7 +29,7 @@ class MultiDict(MutableMapping):
     def __iter__(self):
         return iter(self.data)
 
-    def __contains__(self, key: str):
+    def __contains__(self, key: str):  # type: ignore
         return key in self.data
 
     def __delitem__(self, key: str):
@@ -55,7 +56,7 @@ class MultiDict(MutableMapping):
     def extend(self, key: str, values: list[t.Any]) -> None:
         self.data.setdefault(key, []).extend(values)
 
-    def update(self, dict_or_iter: TDictOrIter | None = None) -> None:
+    def update(self, dict_or_iter: TDictOrIter = ()) -> None:  # type: ignore
         if dict_or_iter:
             if isinstance(dict_or_iter, MultiDict):
                 for key, values in dict_or_iter.items():
@@ -118,7 +119,12 @@ class MultiDict(MutableMapping):
                 return default
         return value
 
-    def getall(self, key: str, *, type: t.Callable | None = None,) -> list:
+    def getall(
+        self,
+        key: str,
+        *,
+        type: t.Callable | None = None,
+    ) -> list:
         """Return the list of items for a given key. If that key is not in the
         `MultiDict`, the return value will be an empty list.
 

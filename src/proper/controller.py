@@ -4,6 +4,7 @@ inherit from. Stores data available to the component.
 import typing as t
 from inspect import isclass
 
+from .app import App
 from .constants import HEAD
 from .helpers import MultiDict, jsonplus
 from .request import Request
@@ -17,7 +18,13 @@ __all__ = ("Controller",)
 class Controller:
     middleware: t.Sequence[t.Any]
 
-    def __init__(self, request: Request, response: Response) -> None:
+    def __init__(
+        self,
+        app: App,
+        request: Request,
+        response: Response,
+    ) -> None:
+        self.app = app
         self.request = request
         self.response = response
         self.middleware = [
@@ -52,7 +59,7 @@ class Controller:
             self.response.mimetype = "text/plain"
             return text
 
-        assert self.app and self.app.catalog
+        assert self.app.catalog
         return self.app.catalog.render(
             name,
             **vars(self)

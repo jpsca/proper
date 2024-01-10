@@ -33,7 +33,7 @@ from .cli import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
 from .helpers import DotDict, jsonplus
 from .request import Request
-from .response import Response
+from .response import Response, BodyType
 from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .storage import Storage
@@ -120,7 +120,7 @@ class App(AppTest):
         self,
         environ: WSGIEnvironment,
         start_response: StartResponse,
-    ) -> t.Iterable[bytes]:
+    ) -> BodyType:
         return self._wrapped_wsgi(environ, start_response)
 
     @property
@@ -172,7 +172,7 @@ class App(AppTest):
         self,
         environ: WSGIEnvironment,
         start_response: StartResponse,
-    ) -> t.Iterable[bytes]:
+    ) -> BodyType:
         current_response = self.do_request(environ)
         return current_response(start_response)
 

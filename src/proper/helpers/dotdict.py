@@ -39,6 +39,9 @@ class DotDict(dict):
             value = self.__class__(value)
         super().__setitem__(key, value)
 
+    def copy(self) -> "DotDict":
+        return self.__class__(super().copy())
+
     def update(self, *args, **kwargs) -> None:  # type: ignore
         if args:
             self._update(src=dict(*args), target=self)

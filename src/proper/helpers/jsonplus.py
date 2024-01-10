@@ -7,10 +7,10 @@ __all__ = ("dumps", "loads")
 
 
 class CustomEncoder(json.JSONEncoder):
-    def default(self, obj: "Any") -> str:
-        if isinstance(obj, datetime.date):
-            return obj.isoformat()
-        return super().default(obj)
+    def default(self, o: "Any") -> str:
+        if isinstance(o, datetime.date):
+            return o.isoformat()
+        return super().default(o)
 
 
 class CustomDecoder(json.JSONDecoder):

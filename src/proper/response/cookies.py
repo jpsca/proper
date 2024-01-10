@@ -36,7 +36,7 @@ class ResponseCookiesMixin:
     def set_cookie(
         self,
         name: str,
-        value: str = "",
+        value: str | bytes = "",
         *,
         max_age: int | None = None,
         path: str = "/",
@@ -90,6 +90,9 @@ class ResponseCookiesMixin:
         """
         name = re.sub(RE_FILTER_FROM_COOKIE_NAME, "", name)
         cookie = self.cookies[name] = Morsel()
+        if isinstance(value, bytes):
+            value = value.decode("utf8")
+        value = str(value)
         cookie.set(name, value, value)
 
         if max_age is not None:

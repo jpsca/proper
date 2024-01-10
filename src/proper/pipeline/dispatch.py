@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from ..helpers import import_string
-from ..current import request, response
+from ..current import app, request, response
 
 if TYPE_CHECKING:
     from proper import Response
@@ -21,5 +21,5 @@ def dispatch() -> "Response | None":
 
     # We instantiate the controller class so we can have an independent
     # container for this request.
-    controller = Controller(request, response)
+    controller = Controller(app, request, response)
     return controller._dispatch(action_name)
