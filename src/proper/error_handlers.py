@@ -12,12 +12,12 @@ import inflection
 from markupsafe import Markup
 
 from .config import logger
+from .current import app, request, response
 from .constants import GET
 from .helpers import Render
 
 if TYPE_CHECKING:
     from typing import Any
-    from proper import App, Request, Response
 
 
 TEMPLATES = (Path(__file__).parent / "templates").absolute()
@@ -41,11 +41,9 @@ def render(template: str, **data) -> str:
         return render("fallback-error.html")
 
 
-def debug_not_found_handler(
-    request: "Request", response: "Response", app: "App"
-) -> None:
-    if is_index(request):
-        return render_default_index(response)
+def debug_not_found_handler() -> None:
+    if is_index():
+        return render_default_index()
 
     error = response.error
     data = {
@@ -55,7 +53,7 @@ def debug_not_found_handler(
         "description": str(error),
         "routes": app.routes,
     }
-    data.update(get_request_data(request))
+    data.update(get_request_data())
     response.body = render("debug-not-found.jinja", **data)
 
 
@@ -78,11 +76,11 @@ def redact_value(val: str) -> str:
     return f"{val[:4]}{'▒' * (len(val) - 4)}"
 
 
-def is_index(request: "Request") -> bool:
+def is_index() -> bool:
     return request.method == GET and request.path == "/"
 
 
-def render_default_index(response: "Response") -> None:
+def render_default_index() -> None:
     data = {
         "proper_version": version("proper"),
         "python_version": sys.version,
@@ -90,7 +88,7 @@ def render_default_index(response: "Response") -> None:
     response.body = render("default-index.jinja", **data)
 
 
-def debug_error_handler(request: "Request", response: "Response", app: "App") -> None:
+def debug_error_handler() -> None:
     error = response.error
     logger.exception(error)
     excp = traceback.format_exc()
@@ -101,7 +99,7 @@ def debug_error_handler(request: "Request", response: "Response", app: "App") ->
         "description": str(error),
         "traceback": excp,
     }
-    data.update(get_request_data(request))
+    data.update(get_request_data())
     response.body = render("debug-error.jinja", **data)
 
 
@@ -109,7 +107,7 @@ def get_title(error: "Any") -> str:
     return inflection.titleize(error.__class__.__name__)
 
 
-def get_request_data(request: "Request") -> dict:
+def get_request_data() -> dict:
     try:
         request_query = request.query
     except Exception:
@@ -129,21 +127,15 @@ def get_request_data(request: "Request") -> dict:
     }
 
 
-def fallback_not_found_handler(
-    _request: "Request", response: "Response", app: "App"
-) -> None:
+def fallback_not_found_handler() -> None:
     response.body = render("fallback-not-found.html")
 
 
-def fallback_forbidden_handler(
-    _request: "Request", response: "Response", app: "App"
-) -> None:
+def fallback_forbidden_handler() -> None:
     response.body = render("fallback-forbidden.html")
 
 
-def fallback_error_handler(
-    _request: "Request", response: "Response", app: "App"
-) -> None:
+def fallback_error_handler() -> None:
     logger.exception(response.error)
     response.body = render("fallback-error.html")
 

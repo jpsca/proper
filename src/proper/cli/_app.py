@@ -6,7 +6,8 @@ from pathlib import Path
 
 from proper_cli import Cli
 
-from .cli_db import get_db_cli
+from ._db import get_db_cli
+
 if t.TYPE_CHECKING:
     from proper import App
 
@@ -112,7 +113,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
 
 
 def get_generators_cli(app: "App") -> t.Type[Cli]:
-    from . import generators
+    from .. import generators
 
     attrs: dict[str, t.Any] = {
         "__doc__": """Generate new code.""",
@@ -125,7 +126,7 @@ def get_generators_cli(app: "App") -> t.Type[Cli]:
 
 
 def get_static_cli(app: "App") -> t.Type[Cli]:
-    from . import assets
+    from .. import assets
 
     attrs: dict[str, t.Any] = {
         "__doc__": """Manage assets.""",
@@ -138,7 +139,7 @@ def get_static_cli(app: "App") -> t.Type[Cli]:
 
 
 def get_install_cli(app: "App") -> t.Type[Cli]:
-    from . import auth, storage
+    from .. import auth, storage
 
     attrs: dict[str, t.Any] = {
         "__doc__": "",

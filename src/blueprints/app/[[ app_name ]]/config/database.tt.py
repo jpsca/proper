@@ -15,7 +15,7 @@ DATABASE_ENGINES = {
         "port": int(os.getenv("DB_PORT", 5432)),
         "user": os.getenv("DB_USER", "root"),
         "password": os.getenv("DB_PASSWORD", ""),
-        # The connection is managed in the `controller's `__after__`,
+        # The connection is managed in the `controller's middleware,
         # and on the `on_teardown` and `on_error` hooks
         "autoconnect": False,
     },
@@ -26,7 +26,7 @@ DATABASE_ENGINES = {
         "port": int(os.getenv("DB_PORT", 3306)),
         "user": os.getenv("DB_USER", "root"),
         "password": os.getenv("DB_PASSWORD", ""),
-        # The connection is managed in the `controller's `__after__`,
+        # The connection is managed in the `controller's middleware,
         # and on the `on_teardown` and `on_error` hooks
         "autoconnect": False
     },

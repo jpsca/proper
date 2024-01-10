@@ -1,5 +1,3 @@
-from typing import Iterable, List, Optional
-
 from .route import Route
 
 
@@ -9,7 +7,7 @@ __all__ = (
 )
 
 
-def flatten(ll: Iterable) -> List:
+def flatten(ll: list) -> list:
     """
     Flatten a list of lists and items into a list of items, without sublists
     Examples:
@@ -80,13 +78,13 @@ class Scope:
     )
 
     mount: str
-    host: "Optional[str]"
+    host: str | None
 
-    def __init__(self, mount: str, *, host: "Optional[str]" = None) -> None:
+    def __init__(self, mount: str, *, host: str | None = None) -> None:
         self.mount = "/" + mount.strip("/")
         self.host = host
 
-    def __call__(self, *routes) -> List[Route]:
+    def __call__(self, *routes) -> list[Route]:
         _routes = []
         for route in flatten(routes):
             self._mount_route(route)

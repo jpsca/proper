@@ -1,6 +1,7 @@
 import pytest
 
 from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
+from proper import Controller
 from proper.router import (
     BadFormat,
     BadPlaceholder,
@@ -15,16 +16,21 @@ from proper.router import (
 )
 
 
-def test_route_defaults(Pages):
-    r = get("foobar", to=Pages.index)
-    assert r.method == GET
-    assert r.path == "/foobar"
-    assert r.to == Pages.index
-    assert r.name == "_Pages.index"
-    assert r.redirect is None
+class Pages(Controller):
+    def index(self):
+        return "Hello World!"
 
-    r = get("foobar/")
-    assert r.path == "/foobar"
+
+def test_route_defaults():
+    ro = get("foobar", to=Pages.index)
+    assert ro.method == GET
+    assert ro.path == "/foobar"
+    assert ro.to == Pages.index
+    assert ro.name == "Pages.index"
+    assert ro.redirect is None
+
+    ro = get("foobar/")
+    assert ro.path == "/foobar"
 
     assert get("foobar/") == get("foobar")
     assert get("foobar") != get("/")
@@ -61,17 +67,17 @@ class AppController:
 
 
 def test_route_name_is_set():
-    r = get("/", to=AppController.method, name="hello")
-    assert r.name == "hello"
+    ro = get("/", to=AppController.method, name="hello")
+    assert ro.name == "hello"
 
-    r = get("/", to=AppController.method)
-    assert r.name == "AppController.method"
+    ro = get("/", to=AppController.method)
+    assert ro.name == "AppController.method"
 
-    r = get("/", name="hello", redirect="/blog/")
-    assert r.name == "hello"
+    ro = get("/", name="hello", redirect="/blog/")
+    assert ro.name == "hello"
 
-    r = get("/")
-    assert r.name is None
+    ro = get("/")
+    assert ro.name is None
 
 
 def test_invalid_route_format():
@@ -84,6 +90,8 @@ def test_default_route_format():
     ro = get(":a")
     ro.compile_path()
     rx = ro.path_re
+
+    assert rx
     assert rx.match("/hola")
     assert rx.match("/h-o.l_a")
     assert rx.match("/1234")
@@ -96,6 +104,8 @@ def test_route_path_pattern():
     ro = get(":a<path>")
     ro.compile_path()
     rx = ro.path_re
+
+    assert rx
     assert rx.match("/hola/mundo")
     assert rx.match("/hola")
     assert rx.match("/hola/../mundo")
@@ -107,6 +117,8 @@ def test_route_int_pattern():
     ro = get(":a<int>")
     ro.compile_path()
     rx = ro.path_re
+
+    assert rx
     assert rx.match("/1")
     assert rx.match("/4567")
     assert not rx.match("/45hola67")
@@ -116,6 +128,8 @@ def test_route_float_pattern():
     ro = get(":a<float>")
     ro.compile_path()
     rx = ro.path_re
+
+    assert rx
     assert rx.match("/3.14159")
     assert rx.match("/0.6")
     assert not rx.match("/1984")

@@ -1,5 +1,3 @@
-from proper import request, response  # noqa
-
 from .app import AppController
 
 

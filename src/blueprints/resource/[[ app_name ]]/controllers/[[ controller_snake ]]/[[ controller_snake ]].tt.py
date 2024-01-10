@@ -1,4 +1,3 @@
-from proper import request, response  # noqa
 from proper.errors import NotFound
 from proper.status import unprocessable
 

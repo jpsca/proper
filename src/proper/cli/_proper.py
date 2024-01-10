@@ -1,11 +1,10 @@
 """Command Line User Interface for Proper itself.
 """
 from proper_cli import Cli
+from proper.generators import gen_app
 
-from .generators import gen_app
 
-
-class ProperCli(Cli):
+class ProperCL(Cli):
     __doc__ = """<fg=white;options=bold>Proper</> CLI
 
     This utility provides commands from Proper itself."""
@@ -14,4 +13,4 @@ class ProperCli(Cli):
         gen_app(path, name=name, force=force)
 
 
-ProperCli.new.__doc__ = gen_app.__doc__
+ProperCL.new.__doc__ = gen_app.__doc__

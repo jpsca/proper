@@ -1,9 +1,6 @@
 import re
 from string import Template
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any, Optional
+from typing import Any
 
 
 __all__ = ("BaseRoute", "MissingParameter", "BadPlaceholder", "BadFormat")
@@ -59,11 +56,11 @@ class BaseRoute:
 
     def __init__(self) -> None:
         self.path: str = ""
-        self.path_re: "Optional[re.Pattern]" = None
-        self.path_plain: "Optional[str]" = None
+        self.path_re: re.Pattern | None = None
+        self.path_plain: str | None = None
         self.path_placeholders: dict = {}
 
-    def __eq__(self, other: "Any") -> bool:
+    def __eq__(self, other: Any) -> bool:
         if getattr(other, "__slots__", None) != self.__slots__:
             return NotImplemented
         return all(
@@ -115,7 +112,7 @@ class BaseRoute:
         self.path_plain = plain
         self.path_placeholders = placeholders
 
-    def match(self, path: str) -> "Optional[re.Match]":
+    def match(self, path: str) -> re.Match | None:
         if self.path_re is None:
             self.compile_path()
 

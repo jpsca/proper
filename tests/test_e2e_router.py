@@ -16,21 +16,21 @@ from proper.helpers import DotDict
 
 class Foo(Controller):
     def bar(self):
-        self.response.body = "Hello World!"
+        return "Hello World!"
 
 
 class Items(Controller):
     def index(self):
-        self.response.body = "index"
+        return "index"
 
     def create(self):
         pass
 
     def show(self):
-        self.response.body = "show"
+        return "show"
 
     def archive(self):
-        self.response.body = "archive"
+        return "archive"
 
     def delete(self):
         pass
@@ -68,25 +68,30 @@ TEST_ROUTES = [
 ]
 
 
-def test_match_domain(app, web):
+def test_proxied_routes(app):
+    app.routes = [get("/", to=Items.index)]
+    assert app.router.routes == app.routes
+
+
+def test_match_domain(app):
     app.config["DEBUG"] = True
     app.routes = [
         scope("/", host="example.com")(
             get("/", to=Foo.bar),
         ),
     ]
-    resp = web.get("http://example.com/")
+    resp = app.get("http://example.com/")
 
     assert resp.status == status.ok
-    assert resp.text == "Hello World!"
+    assert resp.body == "Hello World!"
 
 
-def test_redirect(app, web):
+def test_redirect(app):
     app.routes = [get("/", redirect="http://example.com")]
-    resp = web.get("/")
+    resp = app.get("/")
 
     assert resp.status == status.temporary_redirect
-    assert resp.headers["Location"] == "http://example.com"
+    assert resp.headers["location"] == "http://example.com"
 
 
 def test_url_for(app):

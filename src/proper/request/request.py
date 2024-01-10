@@ -1,7 +1,9 @@
 import typing as t
 from io import BytesIO
-from types import MappingProxyType
-from wsgiref.util import request_uri
+from urllib.parse import quote_plus, urlencode, urlparse
+
+from wsgiref.util import request_uri, setup_testing_defaults
+from wsgiref.types import WSGIEnvironment
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
 from proper.helpers import DotDict, MultiDict, tunnel_encode
@@ -14,17 +16,39 @@ from .parse_form import parse_form, parse_query_string
 __all__ = ("Request", "make_test_env")
 
 
-def make_test_env(path: str = "", **kw) -> dict:
-    from wsgiref.util import setup_testing_defaults
-
+def make_test_env(
+    url: str = "/",
+    *,
+    params: dict | None = None,
+    body: dict | bytes | BytesIO = b"",
+    **kw,
+) -> WSGIEnvironment:
     env = {"REMOTE_ADDR": "127.0.0.1"}
     setup_testing_defaults(env)
 
-    if path:
-        if "?" in path:
-            path, query = path.rsplit("?", 1)
-            env["QUERY_STRING"] = query
-        env["PATH_INFO"] = tunnel_encode(path.strip())
+    upa = urlparse(url)
+    env["wsgi.url_protocol"] = upa.scheme
+    env["PATH_INFO"] = tunnel_encode(upa.path)
+
+    if ":" in upa.netloc:
+        host, port = upa.netloc.split(":")
+    else:
+        host, port = "example.com", "80"
+    env["HTTP_HOST"] = host
+    env["HTTP_PORT"] = port
+
+    if params:
+        query = quote_plus(urlencode(params))
+    else:
+        query = upa.query
+    env["QUERY_STRING"] = query
+
+    if body:
+        if isinstance(body, dict):
+            body = quote_plus(urlencode(body))
+        elif isinstance(body, str):
+            body = body.encode()
+    env["wsgi.input"] = body
 
     env.update({key: str(value) for key, value in kw.items()})
     return env
@@ -169,6 +193,7 @@ class Request(RequestHeadersMixin):
             Added when the request comes from a logged-in user.
 
     """
+
     method: str
     path: str
 
@@ -178,6 +203,7 @@ class Request(RequestHeadersMixin):
     matched_action: str | None = None
     csrf_token: str = ""
     user: t.Any = None
+    session: DotDict
 
     # Cache attrs
     _form: MultiDict | None = None
@@ -194,8 +220,7 @@ class Request(RequestHeadersMixin):
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
-
-        self._session = DotDict()
+        self.session = DotDict()
 
         env = env or make_test_env()
         super().__init__(env)
@@ -211,7 +236,7 @@ class Request(RequestHeadersMixin):
     @property
     def flashes(self) -> dict:
         """The flashed messages stored in the session cookie."""
-        return self._session.get(FLASHES_SESSION_KEY, {})
+        return self.session.get(FLASHES_SESSION_KEY, {})
 
     @property
     def form(self) -> MultiDict:
@@ -237,8 +262,7 @@ class Request(RequestHeadersMixin):
 
     @property
     def query(self) -> MultiDict:
-        """A `MultiDict` object containing the query string data.
-        """
+        """A `MultiDict` object containing the query string data."""
         if self._query is None:
             self._query = self._parse_query()
         return self._query
@@ -252,14 +276,8 @@ class Request(RequestHeadersMixin):
 
     @property
     def query_string(self) -> str:
-        """Returns the query string.
-        """
+        """Returns the query string."""
         return self.env.get("query_string", "")
-
-    @property
-    def session(self) -> MappingProxyType:
-        """The session data sent with the request."""
-        return MappingProxyType(self._session)
 
     @property
     def url(self) -> str:

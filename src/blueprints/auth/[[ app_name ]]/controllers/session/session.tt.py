@@ -1,4 +1,4 @@
-from proper import request, response
+from proper.current import request, response
 
 from [[ app_name ]].models import User
 from ..app import AppController
@@ -14,6 +14,7 @@ class Session(AppController):
         if request.user:
             return self._go_forward()
         self.form = SignInForm()
+        response.redirect_to("/")
 
     def create(self):
         user = User.authenticate(

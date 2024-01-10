@@ -1,4 +1,4 @@
-from proper import request, response
+from proper import Controller
 
 from [[ app_name ]].app import app
 
@@ -7,14 +7,10 @@ REDIRECT_AFTER_LOGIN_KEY = "_redirect"
 
 
 class RequireLogin:
-    def __before__(self):
-        self._require_login()
-
-    # Private
-
-    def _require_login(self):
-        if request.user:
+    def before(self, controller: Controller):
+        if self.request.user:
             return
-        if REDIRECT_AFTER_LOGIN_KEY not in response.session:
-            response.session[REDIRECT_AFTER_LOGIN_KEY] = request.path
-        response.redirect_to(app.url_for("Auth.sign_in"))
+        if REDIRECT_AFTER_LOGIN_KEY not in self.response.session:
+            self.response.session[REDIRECT_AFTER_LOGIN_KEY] = self.request.path
+        self.response.redirect_to(app.url_for("Auth.sign_in"))
+        return self.response

@@ -69,7 +69,6 @@ flake8-bugbear = "*"
 pytest = ">=7.2"
 pytest-cov = "*"
 tox = "*"
-webtest = "*"
 
 [tool.poetry.scripts]
 proper = "proper.cli:run"

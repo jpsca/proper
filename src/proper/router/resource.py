@@ -1,15 +1,12 @@
 import re
-from typing import TYPE_CHECKING
+from typing import Callable, Iterable
 
 from ..constants import GET, POST, PUT, DELETE, PATCH
 from .route import Route
 
-if TYPE_CHECKING:
-    from typing import Callable, Iterable, List, Optional, Union, Tuple
-    StrOrIter = Union[Iterable[str], str]
-
 
 __all__ = ("resource",)
+StrOrIter = Iterable[str] | str
 
 ACTION_INDEX = "index"
 ACTION_NEW = "new"
@@ -55,10 +52,10 @@ def resource(
     *,
     to: "Callable",
     only: "StrOrIter" = ACTIONS,
-    exclude: "Optional[StrOrIter]" = None,
+    exclude: StrOrIter | None = None,
     singular: bool = False,
     **kw
-) -> "List[Route]":
+) -> list[Route]:
     """Shortcut to return a list of REST routes for a resource.
 
     You can define a resource that uses only some of the actions
@@ -123,14 +120,14 @@ def resource(
     return routes
 
 
-def _to_list(iterable: "Optional[Iterable]") -> "Iterable":
+def _to_list(iterable: Iterable | None) -> Iterable:
     iterable = iterable or []
     if isinstance(iterable, str):
         return RX_COMMA.split(iterable.strip())
     return iterable
 
 
-def _expand_routes(res: Route, actions: "List[str]", data: "Tuple") -> "List[Route]":
+def _expand_routes(res: Route, actions: list[str], data: tuple) -> list[Route]:
     routes = []
     for method, path, action in data:
         if action not in actions:

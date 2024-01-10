@@ -1,10 +1,10 @@
-from proper.generators import gen_project
+from proper.generators import gen_app
 
 
-def test_gen_project(tmp_path):
+def test_gen_app(tmp_path):
     name = "app"
     root = tmp_path / name
-    gen_project(root, force=True, _is_a_test=True)
+    gen_app(root, force=True, _is_a_test=True)
     assert (root / name).is_dir()
     assert (root / "static").is_dir()
     assert (root / name / "config").is_dir()
@@ -16,10 +16,10 @@ def test_gen_project(tmp_path):
     assert (root / name / "routes.py").exists()
 
 
-def test_gen_project_custom(tmp_path):
+def test_gen_app_custom(tmp_path):
     name = "app"
     root = tmp_path / "project"
-    gen_project(root, name=name, force=True, _is_a_test=True)
+    gen_app(root, name=name, force=True, _is_a_test=True)
     assert (root / name).is_dir()
     assert (root / "static").is_dir()
     assert (root / name / "config").is_dir()

@@ -1,11 +1,15 @@
-# HTTP methods (minus CONNECT and TRACE)
-GET = "GET"
-HEAD = "HEAD"
-POST = "POST"
-PUT = "PUT"
-DELETE = "DELETE"
-OPTIONS = "OPTIONS"
-PATCH = "PATCH"
-RESTORE = "RESTORE"
+from typing import Final
 
-FLASHES_SESSION_KEY = "_flashes"
+
+# HTTP methods (minus CONNECT and TRACE)
+GET: Final = "GET"
+HEAD: Final = "HEAD"
+POST: Final = "POST"
+PUT: Final = "PUT"
+DELETE: Final = "DELETE"
+OPTIONS: Final = "OPTIONS"
+PATCH: Final = "PATCH"
+RESTORE: Final = "RESTORE"
+QUERY: Final = "QUERY"
+
+FLASHES_SESSION_KEY: Final = "_flashes"

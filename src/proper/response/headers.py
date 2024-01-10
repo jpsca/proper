@@ -41,7 +41,7 @@ class ResponseHeadersMixin:
     """Mixin with the methods related to the response headers."""
 
     status_code: int
-    default_content_type = "text/html"
+    default_mimetype = "text/html"
     default_charset = "utf-8"
 
     # Header exclude-list for specific response codes
@@ -64,6 +64,9 @@ class ResponseHeadersMixin:
 
     def __init__(self) -> None:
         self.headers = ResponseHeadersDict()
+        self._mimetype = self.default_mimetype
+        self._charset = self.default_charset
+        self.set_content_type(self.mimetype, charset=self.charset)
         super().__init__()
 
     @property
@@ -264,19 +267,31 @@ class ResponseHeadersMixin:
         self.headers._set("content-range", val)
 
     @property
+    def mimetype(self) -> str | None:
+        return self._mimetype
+
+    @mimetype.setter
+    def mimetype(self, val: str) -> None:
+        self.set_content_type(mimetype=val, charset=self._charset)
+
+    @property
+    def charset(self) -> str | None:
+        return self._charset
+
+    @charset.setter
+    def charset(self, val: str) -> None:
+        self.set_content_type(mimetype=self.mimetype, charset=val)
+
+    @property
     def content_type(self) -> str | None:
         """Get the `Content-Type` header."""
         return self.headers.get("content-type")
 
     @content_type.setter
-    def content_type(self, val: str | None) -> None:
-        self.set_content_type(val)
+    def content_type(self, val: str) -> None:
+        self.set_content_type(mimetype=val, charset=self._charset)
 
-    def set_content_type(
-        self,
-        val: str | None = default_content_type,
-        charset: str = default_charset,
-    ) -> None:
+    def set_content_type(self, mimetype: str, charset: str) -> None:
         """Set the `Content-Type` header.
 
         The Content-Type header is used to indicate the original media
@@ -292,7 +307,9 @@ class ResponseHeadersMixin:
                 "utf-8" by default
 
         """
-        self.headers._set("content-type", format_header(val, charset=charset))
+        self._mimetype = mimetype
+        self._charset = charset
+        self.headers._set("content-type", format_header(mimetype, charset=charset))
 
     @property
     def etag(self) -> str | None:

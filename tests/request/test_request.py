@@ -150,6 +150,6 @@ def test_parse_invalid_cookies():
 def test_flashes():
     request = Request()
     flashes = {"alert": "flash1", "notice": "flash2"}
-    request._session = DotDict({FLASHES_SESSION_KEY: flashes})
+    request.session = DotDict({FLASHES_SESSION_KEY: flashes})
 
     assert request.flashes == request.flashes == flashes

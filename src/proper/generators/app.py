@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 import inflection
 
@@ -64,7 +63,7 @@ def _make_bin_files_executable(path: Path) -> None:
 
 def _install_dependencies(path: Path) -> None:
     os.chdir(str(path))
-    call(f"{sys.executable or 'python'} -m venv .venv")
+    call("python -m venv .venv")
     call(".venv/bin/pip install -U pip wheel --quiet")
     call(".venv/bin/pip install -e ../proper/")  # TODO: remove!
     call("poetry export --without-hashes -f requirements.txt -o requirements.txt --with dev,test")

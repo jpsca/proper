@@ -17,21 +17,21 @@ from proper.router import (
 
 class Foo(Controller):
     def bar(self):
-        self.response.body = "Hello World!"
+        return "Hello World!"
 
 
 class Items(Controller):
     def index(self):
-        self.response.body = "index"
+        return "index"
 
     def create(self):
         pass
 
     def show(self):
-        self.response.body = "show"
+        return "show"
 
     def archive(self):
-        self.response.body = "archive"
+        return "archive"
 
     def delete(self):
         pass
@@ -39,10 +39,10 @@ class Items(Controller):
 
 class Localized(Controller):
     def index(self):
-        self.response.body = "Localized index"
+        return "Localized index"
 
     def item(self, item_id):
-        self.response.body = f"Localized {item_id}"
+        return f"Localized {item_id}"
 
 
 @pytest.fixture
@@ -225,13 +225,13 @@ def test_url_for_not_found(router):
         router.url_for("wtf")
 
 
-def test_can_only_work_with_routes(Pages):
+def test_can_only_work_with_routes():
     router = Router()
     router._debug = True
-    router.routes = [get("foo", to=Pages.index)]
+    router.routes = [get("foo", to=Items.index)]
 
     with pytest.raises(AssertionError):
         router.routes = [
-            get("foo", to=Pages.index),
+            get("foo", to=Items.index),
             object(),
         ]

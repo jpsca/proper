@@ -1,6 +1,6 @@
 from os import getenv
 
-from proper import request, response
+from proper import Controller
 
 from [[ app_name ]].app import config
 from [[ app_name ]].models import User
@@ -11,16 +11,13 @@ REMOTE_USER_ENV_VAR = "REMOTE_USER"
 
 
 class LoadUser:
-    def __before__(self):
-        self._load_user()
-
-    # Private
-
-    def _load_user(self):
+    def before(self, controller: Controller):
         user = None
         if config.DEBUG:
             user = self._get_remote_user()
-        request.user = user or self._get_user(response.session)
+        self.request.user = user or self._get_user(self.response.session)
+
+    # Private
 
     def _get_remote_user(self):
         """Simulate authentication for testing."""

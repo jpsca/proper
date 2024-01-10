@@ -1,13 +1,10 @@
 """Router object that holds all routes and match them to urls.
 """
-from typing import TYPE_CHECKING
+from typing import Any
 
 from proper.errors import MatchNotFound, MethodNotAllowed
 from .route import Route
 from .scope import flatten
-
-if TYPE_CHECKING:
-    from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 __all__ = ("Router", "NameNotFound")
@@ -22,15 +19,15 @@ class Router:
 
     def __init__(self, *, _debug: bool = False) -> None:
         self._debug = _debug
-        self._routes: "List[Route]" = []
-        self._routes_by_name: "Dict[str, Route]" = {}
+        self._routes: list[Route] = []
+        self._routes_by_name: dict[str, Route] = {}
 
     def match(
         self,
         method: str,
         path: str,
-        host: "Optional[str]" = None,
-    ) -> "Tuple[Route, dict]":
+        host: str | None = None,
+    ) -> tuple[Route, dict]:
         """Takes a method and a path, that came from an URL,
         and tries to match them to a existing route
 
@@ -80,11 +77,11 @@ class Router:
             raise MatchNotFound(msg)
 
     @property
-    def routes(self) -> "List[Route]":
+    def routes(self) -> list[Route]:
         return self._routes
 
     @routes.setter
-    def routes(self, values: "Iterable") -> None:
+    def routes(self, values: list[Route]) -> None:
         _routes = flatten(values)
         if self._debug:
             assert all(
@@ -95,7 +92,14 @@ class Router:
         self._routes = _routes
         self._routes_by_name = {route.name: route for route in _routes}
 
-    def url_for(self, name: str, object: "Any" = None, *, _anchor="", **kw) -> str:
+    def url_for(
+        self,
+        name: str,
+        object: Any = None,
+        *,
+        _anchor: str = "",
+        **kw,
+    ) -> str:
         route = self._routes_by_name.get(name)
         if not route:
             raise NameNotFound(name)

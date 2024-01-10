@@ -1,1 +1,0 @@
-LOREM = "ipsum"

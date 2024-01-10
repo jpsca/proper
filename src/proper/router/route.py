@@ -2,13 +2,10 @@
 Utilities to declare routes in your application.
 
 """
-from typing import TYPE_CHECKING
+from typing import Callable
 
 from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, RESTORE
 from .base import BaseRoute
-
-if TYPE_CHECKING:
-    from typing import Callable, Optional
 
 
 __all__ = (
@@ -113,12 +110,12 @@ class Route(BaseRoute):
         method: str,
         path: str,
         *,
-        to: "Optional[Callable]" = None,
-        name: "Optional[str]" = None,
-        host: "Optional[str]" = None,
-        redirect: "Optional[str]" = None,
-        redirect_status="307 Temporary Redirect",
-        defaults: "Optional[dict]" = None,
+        to: Callable | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = "307 Temporary Redirect",
+        defaults: dict | None = None,
     ) -> None:
         super().__init__()
         self.method = method.upper()

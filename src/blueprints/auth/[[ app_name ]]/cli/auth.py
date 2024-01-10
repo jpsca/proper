@@ -4,7 +4,7 @@ from ..app import app
 from ..models import User
 
 
-class AuthCli(Cli):
+class AuthCL(Cli):
     def user(self, login: str, password: str) -> None:
         """
         Adds an user.
@@ -43,4 +43,4 @@ class AuthCli(Cli):
         print("Password updated")
 
 
-app.Cli.auth = AuthCli
+app.CL.auth = AuthCL

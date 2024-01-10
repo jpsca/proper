@@ -9,4 +9,4 @@ if __name__ == "__main__":
     sys.path.append(root)
 
   from [[ app_name ]].app import app
-  app.Cli()()
+  app.CL()()

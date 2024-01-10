@@ -1,15 +1,16 @@
 from typing import TYPE_CHECKING
 
 from ..helpers import import_string
+from ..current import request, response
 
 if TYPE_CHECKING:
-    from proper import App, Request, Response
+    from proper import Response
 
 
 __all__ = ("dispatch",)
 
 
-def dispatch(request: "Request", response: "Response", app: "App") -> None:
+def dispatch() -> "Response | None":
     route = request.matched_route
     assert route
     assert route.to
@@ -20,6 +21,5 @@ def dispatch(request: "Request", response: "Response", app: "App") -> None:
 
     # We instantiate the controller class so we can have an independent
     # container for this request.
-    controller = Controller(request=request, response=response, app=app)
-    controller._dispatch(action_name)
-    response.dispatched = True
+    controller = Controller(request, response)
+    return controller._dispatch(action_name)

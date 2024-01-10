@@ -1,48 +1,77 @@
 import pytest
 
-from proper import errors, get, status
+from proper import Controller, errors, get, status
 
 
-def test_fallback_not_found(app, web):
+class Pages(Controller):
+    def index(self):
+        return "Hello World!"
+
+    def fail_not_acceptable(self):
+        raise errors.NotAcceptable("Do it again!")
+
+    def fail_not_implemented(self):
+        raise errors.NotImplemented("It will be ready when it will be ready")
+
+    def fail_forbidden(self):
+        raise errors.Forbidden("Go away!")
+
+    def fail_value_error(self):
+        raise ValueError("A non-http exception")
+
+    def custom_not_found_handler(self):
+        return "Custom not found handler"
+
+    def custom_not_acceptable_handler(self):
+        return "Custom not acceptable handler"
+
+    def custom_error_handler(self):
+        return "Custom error handler"
+
+    def custom_value_error_handler(self):
+        return "Custom value error handler"
+
+
+def test_fallback_not_found(app):
     app.router.routes = []
 
-    resp = web.get("/qwertyuiop", expect_errors=True)
+    resp = app.get("/qwertyuiop")
 
     assert resp.status == status.not_found
-    assert "<title>Page Not Found" in resp.text
+    assert "<title>Page Not Found" in resp.body
 
 
-def test_fallback_error(app, Pages, web):
+def test_fallback_error(app):
     app.router.routes = [
         get("fail/not_acceptable", to=Pages.fail_not_acceptable),
         get("fail/not_implemented", to=Pages.fail_not_implemented),
         get("fail/forbidden", to=Pages.fail_forbidden),
     ]
 
-    resp = web.get("/fail/not_acceptable", expect_errors=True)
+    resp = app.get("/fail/not_acceptable")
     assert resp.status == status.not_acceptable
-    assert "<title>Error" in resp.text
+    assert "<title>Error" in resp.body
 
-    resp = web.get("/fail/not_implemented", expect_errors=True)
+    resp = app.get("/fail/not_implemented")
     assert resp.status == status.not_implemented
-    assert "<title>Error" in resp.text
+    assert "<title>Error" in resp.body
 
-    resp = web.get("/fail/forbidden", expect_errors=True)
+    resp = app.get("/fail/forbidden")
     assert resp.status == status.forbidden
-    assert "<title>Access Denied" in resp.text
+    assert "<title>Access Denied" in resp.body
 
 
-def test_debug_not_found(app, web):
+def test_debug_not_found(app):
     app.config["DEBUG"] = True
     app.router.routes = []
 
-    resp = web.get("/qwertyuiop", expect_errors=True)
+    resp = app.get("/qwertyuiop")
 
     assert resp.status == status.not_found
-    assert "<title>Match Not Found" in resp.text
+    assert "<title>Match Not Found" in resp.body
 
 
-def test_debug_error(app, Pages, web):
+def test_debug_error(app):
     app.config["DEBUG"] = True
     app.router.routes = [
         get("/", to=Pages.index),
@@ -51,20 +80,20 @@ def test_debug_error(app, Pages, web):
         get("fail/forbidden", to=Pages.fail_forbidden),
     ]
 
-    resp = web.get("/fail/not_acceptable", expect_errors=True)
+    resp = app.get("/fail/not_acceptable")
     assert resp.status == status.not_acceptable
-    assert "<title>Not Acceptable" in resp.text
+    assert "<title>Not Acceptable" in resp.body
 
-    resp = web.get("/fail/not_implemented", expect_errors=True)
+    resp = app.get("/fail/not_implemented")
     assert resp.status == status.not_implemented
-    assert "<title>Not Implemented" in resp.text
+    assert "<title>Not Implemented" in resp.body
 
-    resp = web.get("/fail/forbidden", expect_errors=True)
+    resp = app.get("/fail/forbidden")
     assert resp.status == status.forbidden
-    assert "<title>Forbidden" in resp.text
+    assert "<title>Forbidden" in resp.body
 
 
-def test_custom_register_not_an_exception(app, Pages):
+def test_custom_register_not_an_exception(app):
     class NotAnException:
         pass
 
@@ -72,12 +101,12 @@ def test_custom_register_not_an_exception(app, Pages):
         app.error_handler(NotAnException, Pages.custom_not_found_handler)
 
 
-def test_custom_register_not_even_a_class(app, Pages):
+def test_custom_register_not_even_a_class(app):
     with pytest.raises(AssertionError):
         app.error_handler(5, Pages.custom_not_found_handler)
 
 
-def test_custom_error_handlers(app, Pages, web):
+def test_custom_error_handlers(app):
     app.router.routes = [
         get("fail/not_acceptable", to=Pages.fail_not_acceptable),
         get("fail/not_implemented", to=Pages.fail_not_implemented),
@@ -90,71 +119,66 @@ def test_custom_error_handlers(app, Pages, web):
     app.error_handler(errors.HTTPError, Pages.custom_error_handler)
     app.error_handler(ValueError, Pages.custom_value_error_handler)
 
-    resp = web.get("/qwertyuiop", expect_errors=True)
+    resp = app.get("/qwertyuiop")
     assert resp.status == status.not_found
-    assert resp.body == b"Custom not found handler"
+    assert resp.body == "Custom not found handler"
 
-    resp = web.get("/fail/not_acceptable", expect_errors=True)
+    resp = app.get("/fail/not_acceptable")
     assert resp.status == status.not_acceptable
-    assert resp.body == b"Custom not acceptable handler"
+    assert resp.body == "Custom not acceptable handler"
 
-    resp = web.get("/fail/not_implemented", expect_errors=True)
+    resp = app.get("/fail/not_implemented")
     assert resp.status == status.not_implemented
-    assert resp.body == b"Custom error handler"
+    assert resp.body == "Custom error handler"
 
-    resp = web.get("/fail/forbidden", expect_errors=True)
+    resp = app.get("/fail/forbidden")
     assert resp.status == status.forbidden
-    assert resp.body == b"Custom error handler"
+    assert resp.body == "Custom error handler"
 
-    resp = web.get("/fail/value_error", expect_errors=True)
+    resp = app.get("/fail/value_error")
     assert resp.status == status.server_error
-    assert resp.body == b"Custom value error handler"
+    assert resp.body == "Custom value error handler"
 
 
-def test_fallback_from_custom_error_handlers(app, Pages, web):
-    app.router.routes = [
-        get("fail/value_error", to=Pages.fail_value_error)
-    ]
+def test_fallback_from_custom_error_handlers(app):
+    app.router.routes = [get("fail/value_error", to=Pages.fail_value_error)]
 
     app.error_handler(errors.HTTPError, Pages.custom_error_handler)
 
-    resp = web.get("/fail/value_error", expect_errors=True)
+    resp = app.get("/fail/value_error")
     assert resp.status == status.server_error
-    assert "<title>Error" in resp.text
+    assert "<title>Error" in resp.body
 
 
-def test_do_not_catch_error(app, Pages, web):
+def test_do_not_catch_error(app):
     app.config["CATCH_ALL_ERRORS"] = False
-    app.router.routes = [
-        get("fail/value_error", to=Pages.fail_value_error)
-    ]
+    app.router.routes = [get("fail/value_error", to=Pages.fail_value_error)]
 
     with pytest.raises(ValueError):
-        web.get("/fail/value_error", expect_errors=True)
+        app.get("/fail/value_error")
 
 
-def boom(*args, **kw):
-    raise TypeError
-
-
-def test_error_when_rendering_the_error_page(app, web):
+def test_error_when_rendering_the_error_page(app):
     from proper import error_handlers
+
+    def boom(*args, **kw):
+        raise TypeError
 
     original = error_handlers.jinja_render
     error_handlers.jinja_render = boom
 
     app.config["DEBUG"] = True
     app.router.routes = []
-    resp = web.get("/", expect_errors=True)
+    resp = app.get("/")
 
     # The original error code is preserved
     assert resp.status == status.not_found
-    assert "<title>Error" in resp.text
+    assert "<title>Error" in resp.body
 
     error_handlers.jinja_render = original
 
 
-def test_register_a_test_error_route_if_in_debug(app, Pages):
+def test_register_a_test_error_route_if_in_debug(app):
     app.config["DEBUG"] = True
     app.router.routes = [
         get("fail/value_error", to=Pages.fail_value_error),
@@ -166,7 +190,7 @@ def test_register_a_test_error_route_if_in_debug(app, Pages):
     assert last_route.to == Pages.custom_value_error_handler
 
 
-def test_do_not_register_a_test_error_route_if_not_in_debug(app, Pages):
+def test_do_not_register_a_test_error_route_if_not_in_debug(app):
     app.config["DEBUG"] = False
     app.router.routes = [
         get("fail/value_error", to=Pages.fail_value_error),

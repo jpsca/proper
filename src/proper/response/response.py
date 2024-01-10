@@ -8,9 +8,11 @@ from datetime import datetime
 from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import quote
+from wsgiref.types import StartResponse
 
-from .. import status as pstatus
-from ..helpers import tunnel_encode
+from proper import current
+from proper import status as pstatus
+from proper.helpers import DotDict, tunnel_encode
 
 from .cookies import ResponseCookiesMixin
 from .headers import ResponseHeadersMixin
@@ -18,7 +20,7 @@ from .file_wrapper import FileWrapper
 from .flash_dict import FlashDict
 
 if t.TYPE_CHECKING:
-    from proper import App, Request
+    from proper.request import Request
 
 
 __all__ = ("Response",)
@@ -33,44 +35,41 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     """
 
     flash: "FlashDict"
-
-    # Set to `True` by the dispatcher to indicate the endpoint was called.
-    dispatched: bool = False
-
-    # Set it to `True` to stop the normal flow and return inmediatly.
-    # Safety not guaranteed. I'm kidding, it was never guaranteed to begin with.
-    stop: bool = False
-
-    # name of the component
-    component: str | None = None
-
     error: Exception | None = None
     body: str | bytes | t.Iterable[bytes] | None = None
-
-    _app: "App | None" = None
-    _request: "Request | None" = None
-    _session: dict[str, t.Any]
+    session: DotDict
 
     def __init__(
         self,
         status: str = pstatus.ok,
-        *,
-        charset: str = "utf-8",
-        _app: "App | None" = None,
-        _request: "Request | None" = None,
         **environ: t.Any,
     ) -> None:
-        self._status = status
-        self.charset = charset
-        self._app = _app
-        self._request = _request
-        self._session = {}
+        self.status = status
         self.environ = environ
-
+        self.session = DotDict()
         self.flash = FlashDict(self)
         super().__init__()
 
-    def __call__(self, start_response: t.Callable) -> t.Iterable[bytes]:
+    def __call__(self, start_response: StartResponse) -> t.Iterable[bytes]:
+        body = self.prepare_body()
+        headers = self.get_headers_list()
+        start_response(tunnel_encode(self.status), headers)
+        return body
+
+    def __repr__(self) -> str:
+        return f"<Response “{self.status}”>"
+
+    @property
+    def has_body(self) -> bool:
+        """Returns `True` if the response has a body."""
+        return self.body is not None
+
+    @property
+    def status_code(self) -> int:
+        """The status code of the response."""
+        return int(self.status.split(" ", 1)[0])
+
+    def prepare_body(self) -> t.Iterable[bytes]:
         body = self.body
 
         if not body:
@@ -84,39 +83,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
                 self.set_content_length(len(body))
             body = [body]
 
-        if not self.content_type:
-            self.set_content_type(self.default_content_type, charset=self.charset)
-
-        headers = self.get_headers_list()
-        start_response(self._status, headers)
         return body
-
-    def __repr__(self) -> str:
-        return f"<Response “{self._status}”>"
-
-    @property
-    def has_body(self) -> bool:
-        """Returns `True` if the response has a body."""
-        return self.body is not None
-
-    @property
-    def session(self) -> dict:
-        """Read-only session"""
-        return self._session
-
-    @property
-    def status(self) -> str:
-        """The status string of the response."""
-        return self._status
-
-    @status.setter
-    def status(self, value: str) -> None:
-        self._status = tunnel_encode(value)
-
-    @property
-    def status_code(self) -> int:
-        """The status code of the response."""
-        return int(self._status.split(" ", 1)[0])
 
     def get_headers_list(self) -> list[tuple[str, str]]:
         return [*self._get_header_tuples(), *self._get_cookie_tuples()]
@@ -154,11 +121,11 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
                 Additional keyword arguments to pass to the route.
 
         """
-        assert self._app
-        self._status = status
+        assert current.app
+        self.status = status
         to = url_or_route
         if not url_or_route.startswith(("/", "http")):
-            to = self._app.url_for(url_or_route, object=obj, **kw)
+            to = current.app.url_for(url_or_route, object=obj, **kw)
 
         self.set_location(to)
         self.body = "\n".join(
@@ -184,6 +151,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         last_modified: datetime | None = None,
         strong: bool = False,
         public: bool = False,
+        request: "Request | None" = None,
     ) -> bool:
         """Sets the Etag header, the Last-Modified header, or both.
 
@@ -224,21 +192,21 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
             "public" if public else "private",
             "must-revalidate",
         )
-        return self.is_fresh
+        return self.is_fresh(request)
 
-    @property
-    def is_fresh(self) -> bool:
+    def is_fresh(self, request: "Request | None" = None) -> bool:
         """Returns `True` if the response is fresh."""
-        if self._request is None:
+        request = current.request if request is None else request
+        if request is None:
             return False
 
         # An ETag has priority over Last-Modified
-        if self.etag and self._request.if_none_match:
-            if self.etag in self._request.if_none_match:
+        if self.etag and request.if_none_match:
+            if self.etag in request.if_none_match:
                 return True
 
-        if self.last_modified and self._request.if_modified_since:
-            if self.last_modified <= self._request.if_modified_since:
+        if self.last_modified and request.if_modified_since:
+            if self.last_modified <= request.if_modified_since:
                 return True
 
         return False

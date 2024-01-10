@@ -3,7 +3,7 @@ import unicodedata
 import typing as t
 
 from peewee import CharField
-from proper import request, response
+from proper.current import request, response
 
 from [[app_name]].app import auth, config
 from [[app_name]].models.base import BaseMixin

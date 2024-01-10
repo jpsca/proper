@@ -3,9 +3,9 @@ import inspect
 import json
 import string
 import typing as t
-from contextvars import ContextVar
 from importlib import import_module
 from pathlib import Path
+from wsgiref.types import StartResponse, WSGIEnvironment
 
 import inflection
 import jinjax
@@ -18,7 +18,9 @@ from markupsafe import Markup
 from whitenoise import WhiteNoise
 
 from . import pipeline, status
+from .app_test import AppTest
 from .config import get_env, get_default_config, logger
+from .current import app, request, response
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -27,7 +29,7 @@ from .error_handlers import (
     fallback_not_found_handler,
 )
 from .auth import Auth
-from .cli_app import get_app_cli
+from .cli import get_app_cli
 from .errors import MatchNotFound, MethodNotAllowed
 from .helpers import DotDict, jsonplus
 from .request import Request
@@ -49,15 +51,12 @@ MANIFEST_PATH = "cache_manifest.json"
 MIN_SECRET_LENGTH = 48
 TException = t.Type[BaseException]
 
-_request_cv = ContextVar("_request_cv", default=Request())
-_response_cv = ContextVar("_response_cv", default=Response())
-
 
 class BadSecretKey(Exception):
     pass
 
 
-class App:
+class App(AppTest):
     # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
@@ -78,7 +77,7 @@ class App:
     # subclasses of HTTPError.
     error_handlers: dict[TException, t.Any] = {}
 
-    Cli: "t.Type[Cli]"
+    CL: "t.Type[Cli]"
     db: t.Any
     scheduler: t.Any
 
@@ -117,12 +116,12 @@ class App:
         self._setup_auth()
         self._setup_storage()
 
-    def __call__(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
+    def __call__(
+        self,
+        environ: WSGIEnvironment,
+        start_response: StartResponse,
+    ) -> t.Iterable[bytes]:
         return self._wrapped_wsgi(environ, start_response)
-
-    @property
-    def config(self) -> DotDict:
-        return self._config
 
     @property
     def routes(self) -> list[Route]:
@@ -169,40 +168,41 @@ class App:
         self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
-    def wsgi_app(self, environ: dict, start_response: t.Callable) -> t.Iterable[bytes]:
-        request = Request(
-            max_content_length=self._config.MAX_CONTENT_LENGTH,
-            max_query_size=self._config.MAX_QUERY_SIZE,
+    def wsgi_app(
+        self,
+        environ: WSGIEnvironment,
+        start_response: StartResponse,
+    ) -> t.Iterable[bytes]:
+        current_response = self.do_request(environ)
+        return current_response(start_response)
+
+    def do_request(self, environ: WSGIEnvironment) -> Response:
+        app._set(self)
+
+        current_request = Request(
+            max_content_length=self.config.MAX_CONTENT_LENGTH,
+            max_query_size=self.config.MAX_QUERY_SIZE,
             **environ,
         )
-        response = Response(
-            _app=self,
-            _request=request,
-            **environ
-        )
+        request._set(current_request)
 
-        _request_cv.set(request)
-        _response_cv.set(response)
-        if self.catalog:
-            self.catalog.jinja_env.globals.update({
-                "request": request,
-                "response": response,
-            })
+        current_response = Response(**environ)
+        response._set(current_response)
 
         try:
-            self.run_pipeline(request, response)
-            return response(start_response)
+            self.run_pipeline()
+            return current_response
 
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
             # - the custom error handlers,
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
-            response.error = error
-            self._default_error_handler(request, response)
-            return response(start_response)
+            current_response.error = error
+            self._default_error_handler()
+            return current_response
 
-    def run_pipeline(self, request: Request, response: Response) -> None:
+    def run_pipeline(self) -> None:
         try:
             for func in (
                 pipeline.head_to_get,
@@ -212,19 +212,20 @@ class App:
                 pipeline.dispatch,
                 pipeline.strip_body_if_head,
             ):
-                func(request, response, self)
-                if response.stop:
-                    break
+                early_response = func()
+                if early_response is not None:
+                    response._set(early_response)
+                    return
 
         except Exception as error:
             response.error = error
             for func in self._on_error:
-                func(request, response)
-            self._handle_app_error(request, response)
+                func()
+            self._handle_app_error()
 
         finally:
             for func in self._on_teardown:
-                func(request, response)
+                func()
 
     def error_handler(self, cls: TException, to: t.Callable) -> None:
         """Register a controller method to handle errors by exception class.
@@ -240,7 +241,7 @@ class App:
         is_exception = inspect.isclass(cls) and issubclass(cls, BaseException)
         assert is_exception, "`error_handler` takes a subclass of `Exception` as first argument."
         self.error_handlers[cls] = to
-        if self._config.DEBUG:
+        if self.config.DEBUG:
             qualname = getattr(cls, "__qualname__", "Exception")
             self.router.routes.append(
                 get(f"_{inflection.underscore(qualname)}", to=to)
@@ -258,7 +259,7 @@ class App:
         return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
 
     def url_static(self, filename: str, *, host: str | None = None) -> str:
-        host = host or self._config.STATIC_HOST or f"/{STATIC_PREFIX}"
+        host = host or self.config.STATIC_HOST or f"/{STATIC_PREFIX}"
         filename = filename.replace("..", ".").strip("/").strip("\\").strip()
         filename = self.static_manifest.get(filename, filename)
         return f"{host}/{filename}"
@@ -284,14 +285,14 @@ class App:
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)
 
-        return Signer(self._config.SECRET_KEYS[0], **kwargs)
+        return Signer(self.config.SECRET_KEYS[0], **kwargs)
 
     def get_timestamp_signer(self, namespace: str = "proper", **kwargs) -> TimestampSigner:
         kwargs["salt"] = namespace.encode()
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)
 
-        return TimestampSigner(self._config.SECRET_KEYS[0], **kwargs)
+        return TimestampSigner(self.config.SECRET_KEYS[0], **kwargs)
 
     def get_serializer(self, namespace: str = "proper", **kwargs) -> URLSafeTimedSerializer:
         kwargs["salt"] = namespace.encode()
@@ -300,7 +301,7 @@ class App:
         kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
         kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
 
-        return URLSafeTimedSerializer(self._config.SECRET_KEYS[0], **kwargs,)
+        return URLSafeTimedSerializer(self.config.SECRET_KEYS[0], **kwargs,)
 
     # Private
 
@@ -321,7 +322,7 @@ class App:
         config = self._load_config()
         config.update(_config)
         self._validate_secret_keys(config.SECRET_KEYS)
-        self._config = config
+        self.config = config
 
     def _load_config(self) -> DotDict:
         config = get_default_config()
@@ -353,7 +354,7 @@ class App:
 
     def _setup_router(self) -> None:
         self.router = Router()
-        self.router._debug = self._config.DEBUG
+        self.router._debug = self.config.DEBUG
 
     def _setup_serializer(self) -> None:
         self.serializer = self.get_serializer("proper.session")
@@ -363,7 +364,7 @@ class App:
 
     def _load_static_manifest(self) -> None:
         path = self.static_manifest_path
-        if not self._config.DEBUG and path.exists():
+        if not self.config.DEBUG and path.exists():
             self.static_manifest = json.loads(path.read_text())
         else:
             self.static_manifest = {}
@@ -384,7 +385,7 @@ class App:
         self.catalog.add_folder(self.components_path)
         self._wrapped_wsgi = self.catalog.get_middleware(
             self.wsgi_app,
-            autorefresh=self._config.DEBUG,
+            autorefresh=self.config.DEBUG,
             immutable_file_test=RX_INMUTABLES_FILE,
         )
 
@@ -396,21 +397,22 @@ class App:
             self.wsgi_app,
             root=self.static_path,
             prefix=STATIC_PREFIX,
-            autorefresh=self._config.DEBUG,
+            autorefresh=self.config.DEBUG,
             immutable_file_test=RX_INMUTABLES_FILE,
         )
-        for sp in self._config.STATIC_PATHS or []:
+        for sp in self.config.STATIC_PATHS or []:
             path = self.root_path.parent / sp["path"].strip("/\\")
             prefix = sp["prefix"].lstrip("/\\")
             wn.add_files(path, prefix=prefix)
 
     def _setup_cli(self) -> None:
-        self.Cli = get_app_cli(self)
+        self.CL = get_app_cli(self)
 
     def _setup_auth(self) -> None:
-        if not self._config.AUTH_HASH_NAME:
+        if not self.config.AUTH_HASH_NAME:
             return
-        config = self._config
+        logger.debug(f"AUTH_HASH_NAME is {self.config.AUTH_HASH_NAME}")
+        config = self.config
         self.auth = Auth(
             secret_keys=config.SECRET_KEYS,
             hash_name=config.AUTH_HASH_NAME,
@@ -420,64 +422,59 @@ class App:
         )
 
     def _setup_storage(self) -> None:
-        if "STORAGE" not in self._config:
+        if "STORAGE" not in self.config:
             return
-        self.storage = Storage(self, self._config)
+        self.storage = Storage(self, self.config)
 
-    def _handle_app_error(self, request: Request, response: Response) -> None:
+    def _handle_app_error(self) -> None:
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
         """
-        self._set_status(response)
+        response.status = getattr(response.error, "status", status.server_error)
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
-        if self._config.DEBUG:
-            self._default_error_handler(request, response)
+        if self.config.DEBUG:
+            self._default_error_handler()
             return
 
         if self.error_handlers:
             error = response.error
             for cls, handler in self.error_handlers.items():
                 if isinstance(error, cls):
-                    self._custom_error_handler(request, response, handler)
+                    self._custom_error_handler(handler)
                     return
 
-        self._default_error_handler(request, response)
+        self._default_error_handler()
 
-    def _set_status(self, response: Response) -> None:
-        error = response.error
-        response._status = getattr(error, "status", status.server_error)
+    def _default_error_handler(self) -> None:
+        response.status = getattr(response.error, "status", status.server_error)
 
-    def _default_error_handler(self, request: Request, response: Response) -> None:
-        self._set_status(response)
-
-        if not self._config.DEBUG and not self._config.CATCH_ALL_ERRORS:
+        if not self.config.DEBUG and not self.config.CATCH_ALL_ERRORS:
             raise
-        if self._config.DEBUG:
-            self._default_error_handler_debug(request, response)
+        if self.config.DEBUG:
+            self._default_error_handler_debug()
         else:
-            self._default_error_handler_production(request, response)
+            self._default_error_handler_production()
 
-    def _default_error_handler_debug(self, request: Request, response: Response) -> None:
+    def _default_error_handler_debug(self) -> None:
         if isinstance(response.error, (MatchNotFound, MethodNotAllowed)):
-            debug_not_found_handler(request, response, self)
+            debug_not_found_handler()
         else:
-            debug_error_handler(request, response, self)
+            debug_error_handler()
 
-    def _default_error_handler_production(self, request: Request, response: Response) -> None:
-        if response._status in (status.not_found, status.gone):
-            fallback_not_found_handler(request, response, self)
-        elif response._status == status.forbidden:
-            fallback_forbidden_handler(request, response, self)
+    def _default_error_handler_production(self) -> None:
+        if response.status in (status.not_found, status.gone):
+            fallback_not_found_handler()
+        elif response.status == status.forbidden:
+            fallback_forbidden_handler()
         else:
-            fallback_error_handler(request, response, self)
+            fallback_error_handler()
 
-    def _custom_error_handler(self, request: Request, response: Response, handler) -> None:
-        response.component = None
+    def _custom_error_handler(self, handler) -> None:
         if request.matched_route:
             request.matched_route.to = handler
         else:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
-        pipeline.dispatch(request, response, self)
+        pipeline.dispatch()

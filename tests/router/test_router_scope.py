@@ -1,5 +1,6 @@
 import pytest
 
+from proper import Controller
 from proper.router import get, scope
 
 
@@ -32,14 +33,19 @@ def test_scope_must_have_mount():
         scope()
 
 
-def test_scope_mount_routes_static(Pages):
+class Pages(Controller):
+    def index(self):
+        return "Hello World!"
+
+
+def test_scope_mount_routes_static():
     routes = scope("/", host="example.com")(get("api", to=Pages.index))
     route = routes[0]
     assert route.path == "/api"
     assert route.host == "example.com"
 
 
-def test_scope_mount_empty_path(Pages):
+def test_scope_mount_empty_path():
     routes = scope("/foobar/")(
         get("", to=Pages.index)
     )
