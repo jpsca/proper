@@ -2,7 +2,7 @@ import base64
 import os
 import typing as t
 
-from proper.constants import HEAD, GET, OPTIONS
+from proper.constants import HEAD, GET, OPTIONS, QUERY
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 
 
@@ -20,6 +20,7 @@ __all__ = (
     "CSRF_TOKEN_LENGTH",
 )
 
+SKIP_FOR_METHODS = (HEAD, GET, OPTIONS, QUERY)
 CSRF_SESSION_KEY = "_csrf_token"
 CSRF_FORM_KEY = "csrf_token"
 CSRF_HEADER = "x_csrf_token"
@@ -58,7 +59,7 @@ class RequestForgeryProtection:
         """Return wether the csrf token in the request must be checked
         for validity."""
         return bool(
-            request.method not in (HEAD, GET, OPTIONS)
+            request.method not in SKIP_FOR_METHODS
             and request.matched_action
             and request.matched_action not in self.skip_for
         )

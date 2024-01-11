@@ -4,7 +4,7 @@ Utilities to declare routes in your application.
 """
 from typing import Callable
 
-from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, RESTORE
+from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, QUERY, RESTORE
 from .base import BaseRoute
 
 
@@ -26,6 +26,7 @@ __all__ = (
     "patch",
     "static",
     "restore",
+    "query",
 )
 
 
@@ -182,11 +183,29 @@ class Static(Route):
         super().__init__("GET", filepath, redirect=redirect)
 
 
+class Query(Route):
+    """A route for the new standard HTTP QUERY method.
+
+    Like GET but with a body (yes, the standard doesn't forbid GET request
+    to have a body, but that ship has sailed a long time ago).
+
+    Must be idempotent because the body WILL be cached. This also means
+    that, like with a GET, the CSRF token will not be checked for QUERY requests.
+    """
+    def __init__(self, path: str, **kw) -> None:
+        super().__init__(QUERY, path, **kw)
+
+
 class Restore(Route):
-    """Yes, it's not standard, but so anything WebDAV, so sue me (better if not)
-    I feel that implementing a RESTful un-delete is ugly and hacky:
+    """A route for the non-standard HTTP RESTORE method.
+
+    Yes, it's not standard, but so anything WebDAV or CalDAV, so sue me
+    (no, better if you don't do it).
+
+    Motivation: I feel that implementing a RESTful un-delete is ugly and hacky.
     A `/restore` is not restful and a PATCH is weird for undoing a DELETE
-    So, form the ashes of uncertainty, rises... the RESTORE.
+    So, form the ashes of uncertainty, rises... the HTTP RESTORE method.
+    Someday it could be a RFC.
     """
     def __init__(self, path: str, **kw) -> None:
         super().__init__(RESTORE, path, **kw)
@@ -200,4 +219,5 @@ delete = Delete
 options = Options
 patch = Patch
 static = Static
+query = Query
 restore = Restore

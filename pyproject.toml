@@ -114,9 +114,10 @@ exclude_lines = [
     "if __name__ == .__main__.:"
 ]
 omit = [
-    "src/proper/base_channel.py",
-    "src/proper/cli",
-    "src/proper/blueprints",
+    "src/proper/app_test.py",
+    "src/proper/cli/*",
+    "src/proper/blueprints/*",
+    "src/proper/storage/*", # TODO
 ]
 
 [tool.coverage.html]
