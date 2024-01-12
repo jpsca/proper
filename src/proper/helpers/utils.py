@@ -193,7 +193,7 @@ def find_modules(
 ) -> t.Iterator[str]:
     """Finds all the modules below a path.
 
-    This can be useful to automatically import all views / controllers so
+    This can be useful to automatically import all views so
     that their metaclasses / function decorators have a chance to register
     themselves on the application.
 

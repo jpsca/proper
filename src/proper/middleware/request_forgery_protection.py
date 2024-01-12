@@ -7,7 +7,7 @@ from proper.errors import InvalidCSRFToken, MissingCSRFToken
 
 
 if t.TYPE_CHECKING:
-    from proper.controller import Controller
+    from proper.view import View
     from proper.request import Request
     from proper.response import Response
 
@@ -34,9 +34,9 @@ class RequestForgeryProtection:
     def __init__(self, *, skip_for: t.Iterable[str] = ()) -> None:
         self.skip_for = skip_for or ()
 
-    def before(self, controller: "Controller") -> None:
-        request = controller.request
-        response = controller.response
+    def before(self, view: "View") -> None:
+        request = view.request
+        response = view.response
 
         if self._must_check_csrf_token(request):
             token = self._handle_verified_request(request)
@@ -50,7 +50,7 @@ class RequestForgeryProtection:
         request.csrf_token = masked_token
         response.headers[CSRF_HEADER] = masked_token
 
-    def after(self, controller: "Controller") -> None:
+    def after(self, view: "View") -> None:
         pass
 
     # Private

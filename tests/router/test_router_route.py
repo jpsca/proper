@@ -1,7 +1,7 @@
 import pytest
 
 from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
-from proper import Controller
+from proper import View
 from proper.router import (
     BadFormat,
     BadPlaceholder,
@@ -16,7 +16,7 @@ from proper.router import (
 )
 
 
-class Pages(Controller):
+class Pages(View):
     def index(self):
         return "Hello World!"
 
@@ -61,17 +61,17 @@ def test_route_must_have_method_and_path():
         get()
 
 
-class AppController:
+class AppView:
     def method(self):
         pass
 
 
 def test_route_name_is_set():
-    ro = get("/", to=AppController.method, name="hello")
+    ro = get("/", to=AppView.method, name="hello")
     assert ro.name == "hello"
 
-    ro = get("/", to=AppController.method)
-    assert ro.name == "AppController.method"
+    ro = get("/", to=AppView.method)
+    assert ro.name == "AppView.method"
 
     ro = get("/", name="hello", redirect="/blog/")
     assert ro.name == "hello"

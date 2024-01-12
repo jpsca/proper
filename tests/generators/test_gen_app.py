@@ -8,7 +8,7 @@ def test_gen_app(tmp_path):
     assert (root / name).is_dir()
     assert (root / "static").is_dir()
     assert (root / name / "config").is_dir()
-    assert (root / name / "controllers").is_dir()
+    assert (root / name / "views").is_dir()
     assert (root / name / "models").is_dir()
     assert (root / name / "components").is_dir()
 
@@ -23,7 +23,7 @@ def test_gen_app_custom(tmp_path):
     assert (root / name).is_dir()
     assert (root / "static").is_dir()
     assert (root / name / "config").is_dir()
-    assert (root / name / "controllers").is_dir()
+    assert (root / name / "views").is_dir()
     assert (root / name / "models").is_dir()
     assert (root / name / "components").is_dir()
 

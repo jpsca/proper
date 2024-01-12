@@ -56,11 +56,11 @@ you can have both!
 
 ### The application code must be beatiful.
 
-- Empty class-based controllers that works!
-- Class-based controllers allows several tricks that make the experience much better:
+- Empty class-based views that works!
+- Class-based views allows several tricks that make the experience much better:
 	- A configurable and plugganle render and view functions.
 	- Class based views a-la Django, but simpler and completely obvious because is your application code (see (App-code over framework-code)
-	- Saving context varaibles in your controller instance looks much cleaner that building a dictionary and manually calling render and the end of each controller.
+	- Saving context varaibles in your view instance looks much cleaner that building a dictionary and manually calling render and the end of each view.
 
 
 ![Visualization of the codebase](./diagram.svg)

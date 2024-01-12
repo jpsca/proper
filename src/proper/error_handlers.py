@@ -12,7 +12,6 @@ import inflection
 from markupsafe import Markup
 
 from .config import logger
-from .current import app, request, response
 from .constants import GET
 from .helpers import Render
 
@@ -41,9 +40,9 @@ def render(template: str, **data) -> str:
         return render("fallback-error.html")
 
 
-def debug_not_found_handler() -> None:
-    if is_index():
-        return render_default_index()
+def debug_not_found_handler(app, request, response) -> None:
+    if is_index(request):
+        return render_default_index(response)
 
     error = response.error
     data = {
@@ -53,7 +52,7 @@ def debug_not_found_handler() -> None:
         "description": str(error),
         "routes": app.routes,
     }
-    data.update(get_request_data())
+    data.update(get_request_data(request))
     response.body = render("debug-not-found.jinja", **data)
 
 
@@ -76,11 +75,11 @@ def redact_value(val: str) -> str:
     return f"{val[:4]}{'▒' * (len(val) - 4)}"
 
 
-def is_index() -> bool:
+def is_index(request) -> bool:
     return request.method == GET and request.path == "/"
 
 
-def render_default_index() -> None:
+def render_default_index(response) -> None:
     data = {
         "proper_version": version("proper"),
         "python_version": sys.version,
@@ -88,7 +87,7 @@ def render_default_index() -> None:
     response.body = render("default-index.jinja", **data)
 
 
-def debug_error_handler() -> None:
+def debug_error_handler(app, request, response) -> None:
     error = response.error
     logger.exception(error)
     excp = traceback.format_exc()
@@ -99,7 +98,7 @@ def debug_error_handler() -> None:
         "description": str(error),
         "traceback": excp,
     }
-    data.update(get_request_data())
+    data.update(get_request_data(request))
     response.body = render("debug-error.jinja", **data)
 
 
@@ -107,7 +106,7 @@ def get_title(error: "Any") -> str:
     return inflection.titleize(error.__class__.__name__)
 
 
-def get_request_data() -> dict:
+def get_request_data(request) -> dict:
     try:
         request_query = request.query
     except Exception:
@@ -127,15 +126,15 @@ def get_request_data() -> dict:
     }
 
 
-def fallback_not_found_handler() -> None:
+def fallback_not_found_handler(response) -> None:
     response.body = render("fallback-not-found.html")
 
 
-def fallback_forbidden_handler() -> None:
+def fallback_forbidden_handler(response) -> None:
     response.body = render("fallback-forbidden.html")
 
 
-def fallback_error_handler() -> None:
+def fallback_error_handler(response) -> None:
     logger.exception(response.error)
     response.body = render("fallback-error.html")
 

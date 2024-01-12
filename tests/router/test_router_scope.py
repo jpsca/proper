@@ -1,6 +1,6 @@
 import pytest
 
-from proper import Controller
+from proper import View
 from proper.router import get, scope
 
 
@@ -33,7 +33,7 @@ def test_scope_must_have_mount():
         scope()
 
 
-class Pages(Controller):
+class Pages(View):
     def index(self):
         return "Hello World!"
 

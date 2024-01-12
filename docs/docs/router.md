@@ -5,7 +5,7 @@
 
 Although they look similar, an URL path like `/hello/world` in Proper (as in most web  frameworks) doesn't match a `word` file in a `hello` folder. You must connect that URL to some code that will answer that request.
 
-That is what the Proper router does: recognizes URLs and dispatches them to a controller's action; or redirect you to another URL. It can also generate URLs for you from their names, avoiding the need to hardcode strings in your components.
+That is what the Proper router does: recognizes URLs and dispatches them to a view's action; or redirect you to another URL. It can also generate URLs for you from their names, avoiding the need to hardcode strings in your components.
 
 ### 1.1 Connecting URLs to Code
 
@@ -15,7 +15,7 @@ When your Proper application receives an incoming request for:
 GET /product/42
 ```
 
-it asks the router to match it to a controller action. If the first matching route is:
+it asks the router to match it to a view action. If the first matching route is:
 
 ```python hl_lines="3"
 app.routes = [
@@ -25,7 +25,7 @@ app.routes = [
 ]
 ```
 
-the request is dispatched to the `Product` controller's `show` method with `id=42` as extra argument.
+the request is dispatched to the `Product` view's `show` method with `id=42` as extra argument.
 
 ### 1.2 Generating URLs
 
@@ -36,7 +36,7 @@ You can also generate an URL from its name.
 /product/36
 ```
 
-For the route above, its name is "Products.show", but you can also give it another name, which is very useful when you use the controller's action for other URLs:
+For the route above, its name is "Products.show", but you can also give it another name, which is very useful when you use the view's action for other URLs:
 
 ```python
 app.routes = [
@@ -92,7 +92,7 @@ The routes is just a regular list of `Route` objects that, as the docstring says
 
 To declare a route, you use the helpers: `get`, `post`, `put`, `patch`, `delete`, and `options`, that correspond to the same HTTP verb. There isn't a `head` helper because a GET route automatically also creates a HEAD route.
 
-### Connecting a route to a controller
+### Connecting a route to a view
 
 
 

@@ -2,7 +2,7 @@ import pytest
 
 from proper import Request, Response, current
 from proper.constants import DELETE, GET, PATCH, POST, PUT
-from proper.controller import Controller
+from proper.view import View
 from proper.middleware import (
     CSRF_HEADER,
     CSRF_FORM_KEY,
@@ -14,7 +14,7 @@ from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
 
 
-class AppController(Controller):
+class AppView(View):
     def action(self):
         return "STOP"
 
@@ -28,7 +28,7 @@ def co(app):
     current.request._set(request)
     response = Response()
     current.response._set(response)
-    return AppController(app, request, response)
+    return AppView(app, request, response)
 
 
 def test_no_need_to_argue(co):

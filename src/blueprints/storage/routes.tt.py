@@ -2,4 +2,4 @@
 
     resource("storage", to=Storage, only="show", singular=True),
 ]
-from .controllers import Storage
+from .views import Storage

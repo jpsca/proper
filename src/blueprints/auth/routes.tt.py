@@ -5,4 +5,4 @@
     delete("sign-out", to=Session.delete),
     resource("password-reset", to=PasswordReset, exclude="index,show,delete"),
 ]
-from .controllers import PasswordReset, Session
+from .views import PasswordReset, Session

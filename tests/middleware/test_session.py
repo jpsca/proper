@@ -2,7 +2,7 @@ import pytest
 
 from proper import Request, Response, current
 from proper.constants import FLASHES_SESSION_KEY
-from proper.controller import Controller
+from proper.view import View
 from proper.middleware import Session
 
 
@@ -12,7 +12,7 @@ def co(app):
     current.request._set(request)
     response = Response()
     current.response._set(response)
-    return Controller(app, request, response)
+    return View(app, request, response)
 
 
 def test_fetch_fetch_session(app, co):

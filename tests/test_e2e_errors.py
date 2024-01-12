@@ -1,9 +1,9 @@
 import pytest
 
-from proper import Controller, errors, get, status
+from proper import View, errors, get, status
 
 
-class Pages(Controller):
+class Pages(View):
     def index(self):
         return "Hello World!"
 

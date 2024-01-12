@@ -49,7 +49,7 @@ class Route(BaseRoute):
         - a regular expression
 
         Note that declaring a format doesn't make type conversions, **all values
-        are passed to the controller as strings**.
+        are passed to the view as strings**.
 
         Examples:
 
@@ -60,11 +60,11 @@ class Route(BaseRoute):
         - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
 
     to:
-        Optional. A reference to the controller that this route is connected to.
+        Optional. A reference to the view that this route is connected to.
 
     name:
         Optional. Overwrites the default name of the route that is the qualified
-        name of the `to` method. eg: `PagesController.show`.
+        name of the `to` method. eg: `PagesView.show`.
         This name can be any unique string eg: "login", "index",
         "something.foobar", etc.
 
@@ -81,7 +81,7 @@ class Route(BaseRoute):
         - :username.localhost:5000
 
     redirect:
-        Optional. Instead of dispatching to a controller, redirect to this
+        Optional. Instead of dispatching to a view, redirect to this
         other URL.
 
     redirect_status:
@@ -89,7 +89,7 @@ class Route(BaseRoute):
         The status "307 Temporary Redirect" is the default.
 
     defaults:
-        Optional. A dict with extra values that will be sent to the controller.
+        Optional. A dict with extra values that will be sent to the view.
 
     """
     __slots__ = (

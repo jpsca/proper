@@ -2,7 +2,7 @@ import pytest
 
 from proper import (
     BadPlaceholder,
-    Controller,
+    View,
     MissingParameter,
     NameNotFound,
     delete,
@@ -14,12 +14,12 @@ from proper import (
 from proper.helpers import DotDict
 
 
-class Foo(Controller):
+class Foo(View):
     def bar(self):
         return "Hello World!"
 
 
-class Items(Controller):
+class Items(View):
     def index(self):
         return "index"
 

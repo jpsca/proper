@@ -17,10 +17,9 @@ from itsdangerous import (
 from markupsafe import Markup
 from whitenoise import WhiteNoise
 
-from . import pipeline, status
+from . import current, pipeline, status
 from .app_test import AppTest
 from .config import get_env, get_default_config, logger
-from .current import app, request, response
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -177,20 +176,20 @@ class App(AppTest):
         return current_response(start_response)
 
     def do_request(self, environ: WSGIEnvironment) -> Response:
-        app._set(self)
+        current.app._set(self)
 
         current_request = Request(
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
             **environ,
         )
-        request._set(current_request)
+        current.request._set(current_request)
 
         current_response = Response(**environ)
-        response._set(current_response)
+        current.response._set(current_response)
 
         try:
-            self.run_pipeline()
+            self.run_pipeline(current_request, current_response)
             return current_response
 
         except Exception as error:
@@ -199,10 +198,10 @@ class App(AppTest):
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
             current_response.error = error
-            self._default_error_handler()
+            self._default_error_handler(current_request, current_response)
             return current_response
 
-    def run_pipeline(self) -> None:
+    def run_pipeline(self, request, response) -> None:
         try:
             for func in (
                 pipeline.head_to_get,
@@ -212,23 +211,23 @@ class App(AppTest):
                 pipeline.dispatch,
                 pipeline.strip_body_if_head,
             ):
-                early_response = func()
+                early_response = func(self, request, response)
                 if early_response is not None:
-                    response._set(early_response)
+                    current.response._set(early_response)
                     return
 
         except Exception as error:
             response.error = error
             for func in self._on_error:
                 func()
-            self._handle_app_error()
+            self._handle_app_error(request, response)
 
         finally:
             for func in self._on_teardown:
                 func()
 
     def error_handler(self, cls: TException, to: t.Callable) -> None:
-        """Register a controller method to handle errors by exception class.
+        """Register a view method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 
         Example:
@@ -426,7 +425,7 @@ class App(AppTest):
             return
         self.storage = Storage(self, self.config)
 
-    def _handle_app_error(self) -> None:
+    def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
         """
@@ -435,46 +434,46 @@ class App(AppTest):
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
         if self.config.DEBUG:
-            self._default_error_handler()
+            self._default_error_handler(request, response)
             return
 
         if self.error_handlers:
             error = response.error
             for cls, handler in self.error_handlers.items():
                 if isinstance(error, cls):
-                    self._custom_error_handler(handler)
+                    self._custom_error_handler(handler, request, response)
                     return
 
-        self._default_error_handler()
+        self._default_error_handler(request, response)
 
-    def _default_error_handler(self) -> None:
+    def _default_error_handler(self, request, response) -> None:
         response.status = getattr(response.error, "status", status.server_error)
 
         if not self.config.DEBUG and not self.config.CATCH_ALL_ERRORS:
             raise
         if self.config.DEBUG:
-            self._default_error_handler_debug()
+            self._default_error_handler_debug(request, response)
         else:
-            self._default_error_handler_production()
+            self._default_error_handler_production(response)
 
-    def _default_error_handler_debug(self) -> None:
+    def _default_error_handler_debug(self, request, response) -> None:
         if isinstance(response.error, (MatchNotFound, MethodNotAllowed)):
-            debug_not_found_handler()
+            debug_not_found_handler(self, request, response)
         else:
-            debug_error_handler()
+            debug_error_handler(self, request, response)
 
-    def _default_error_handler_production(self) -> None:
+    def _default_error_handler_production(self, response) -> None:
         if response.status in (status.not_found, status.gone):
-            fallback_not_found_handler()
+            fallback_not_found_handler(response)
         elif response.status == status.forbidden:
-            fallback_forbidden_handler()
+            fallback_forbidden_handler(response)
         else:
-            fallback_error_handler()
+            fallback_error_handler(response)
 
-    def _custom_error_handler(self, handler) -> None:
+    def _custom_error_handler(self, handler, request, response) -> None:
         if request.matched_route:
             request.matched_route.to = handler
         else:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
-        pipeline.dispatch()
+        pipeline.dispatch(self, request, response)

@@ -1,5 +1,9 @@
+import typing as t
+
 from ..constants import DELETE, PATCH, POST, PUT, QUERY, RESTORE
-from ..current import request
+
+if t.TYPE_CHECKING:
+    from proper import Request
 
 
 __all__ = ("method_override",)
@@ -8,7 +12,7 @@ __all__ = ("method_override",)
 OVERRIDABLE_METHODS = (PUT, PATCH, DELETE, QUERY, RESTORE)
 
 
-def method_override() -> None:
+def method_override(_1, request: "Request", _2) -> None:
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
     path or in the request body.

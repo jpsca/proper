@@ -53,7 +53,7 @@ def gen_resource(
     migration: bool = False,
 ) -> None:
     """Stubs out a new resource
-    including a controller, model, migration, components, and a resource route
+    including a view, model, migration, components, and a resource route
     in the `routes.py` file.
 
     Use `--migration` to also generate a migration for creating the table.
@@ -99,8 +99,8 @@ def gen_resource(
     singular_name = inflection.singularize(name)
     singular_pascal = inflection.camelize(singular_name)
     singular_snake = inflection.underscore(singular_name)
-    controller_snake = singular_snake if singular else plural_snake
-    controller_pascal = singular_pascal if singular else plural_pascal
+    view_snake = singular_snake if singular else plural_snake
+    view_pascal = singular_pascal if singular else plural_pascal
 
     only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
     exclude_list = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
@@ -150,8 +150,8 @@ def gen_resource(
             "plural_snake": plural_snake,
             "singular_pascal": singular_pascal,
             "singular_snake": singular_snake,
-            "controller_snake": controller_snake,
-            "controller_pascal": controller_pascal,
+            "view_snake": view_snake,
+            "view_pascal": view_pascal,
             "only": only_list,
             "exclude": exclude_list,
             "actions": actions,

@@ -1,11 +1,11 @@
 import pytest
 
-from proper import App, BadSecretKey, Controller, get, status
+from proper import App, BadSecretKey, View, get, status
 from proper.current import response
 from proper.middleware import RequestForgeryProtection, Session
 
 
-class Pages(Controller):
+class Pages(View):
     middleware = [RequestForgeryProtection, Session]
 
     def index(self):

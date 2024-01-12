@@ -7,7 +7,7 @@ from proper.helpers import DotDict
 
 if t.TYPE_CHECKING:
     from proper.app import App
-    from proper.controller import Controller
+    from proper.view import View
     from proper.request import Request
     from proper.response import Response
 
@@ -16,24 +16,24 @@ __all__ = ("Session", )
 
 
 class Session:
-    def before(self, controller: "Controller") -> None:
+    def before(self, view: "View") -> None:
         """Get the session data from the cookie and puts into the request
         and response.
         """
-        app = controller.app
-        request = controller.request
-        response = controller.response
+        app = view.app
+        request = view.request
+        response = view.response
 
         session = self._get_session(app, request)
         request.session = session
         response.session = session.copy()
         response.session.pop(FLASHES_SESSION_KEY, None)
 
-    def after(self, controller: "Controller") -> None:
+    def after(self, view: "View") -> None:
         """Update the session cookie if its needed."""
-        app = controller.app
-        request = controller.request
-        response = controller.response
+        app = view.app
+        request = view.request
+        response = view.response
 
         if response.session != request.session:
             self._update_session_cookie(app, response)

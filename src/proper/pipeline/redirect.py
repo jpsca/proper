@@ -1,16 +1,14 @@
-from typing import TYPE_CHECKING
+import typing as t
 
-from ..current import request, response
-
-if TYPE_CHECKING:
-    from proper import Response
+if t.TYPE_CHECKING:
+    from proper import Request, Response
     from proper.helpers import Proxy
 
 
 __all__ = ("redirect",)
 
 
-def redirect() -> "Response | Proxy | None":
+def redirect(_1, request: "Request", response: "Response") -> "Response | Proxy | None":
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
     """

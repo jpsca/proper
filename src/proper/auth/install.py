@@ -14,7 +14,7 @@ if t.TYPE_CHECKING:
 
 AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 ROUTES_TT = "routes.tt.py"
-APPLICATION_CONTROLLER = "controllers/app.py"
+APPLICATION_VIEW = "views/app.py"
 CONFIG_PATH = "config/app.py"
 
 DEPENDENCIES = [
@@ -36,7 +36,7 @@ def install(app: "App") -> None:
     )
     bp()
 
-    curr_appc = app.root_path / APPLICATION_CONTROLLER
+    curr_appc = app.root_path / APPLICATION_VIEW
     code = sort_imports(curr_appc.read_text())
     curr_appc.write_text(code)
 

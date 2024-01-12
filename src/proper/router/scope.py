@@ -51,7 +51,7 @@ class Scope:
         - a regular expression
 
         Note that declaring a format doesn't make type conversions, **all values
-        are passed to the controller as strings**.
+        are passed to the view as strings**.
 
         Examples:
 

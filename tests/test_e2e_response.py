@@ -1,5 +1,5 @@
 from proper import (
-    Controller,
+    View,
     DotDict,
     get,
     status,
@@ -11,7 +11,7 @@ from proper.middleware import Session
 # -- ETAG --
 
 
-class ETagged(Controller):
+class ETagged(View):
     def index(self):
         response.fresh_when(etag=123)
         return "Hello world"
@@ -33,7 +33,7 @@ def test_if_none_match(app):
 # -- SESSION --
 
 
-class Session(Controller):
+class Session(View):
     middleware = [Session]
 
     def update(self):
@@ -51,7 +51,7 @@ def test_set_session(app):
 # -- COOKIE --
 
 
-class DisableCookies(Controller):
+class DisableCookies(View):
     def index(self):
         response.set_cookie("foo", "bar")
         response.disable_cookies = True
@@ -67,7 +67,7 @@ def test_disable_cookies(app):
 # -- REDIRECT --
 
 
-class Redirect(Controller):
+class Redirect(View):
     def show(self, *kwargs):
         pass
 

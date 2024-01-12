@@ -1,4 +1,4 @@
-from proper import Controller, get
+from proper import View, get
 from proper.current import response
 
 
@@ -13,24 +13,26 @@ def _f2(headers):
 
 
 class BeforeMiddleware:
-    def before(self, controller):
+    def before(self, view):
+        response = view.response
         _f1(response.headers)
         _f2(response.headers)
 
-    def after(self, controller):
+    def after(self, view):
         pass
 
 
 class AfterMiddleware:
-    def before(self, controller):
+    def before(self, view):
         pass
 
-    def after(self, controller):
+    def after(self, view):
+        response = view.response
         _f1(response.headers)
         _f2(response.headers)
 
 
-class BeforeAndAfterTestCase(Controller):
+class BeforeAndAfterTestCase(View):
     middleware = [BeforeMiddleware, AfterMiddleware]
 
     def index(self):
@@ -47,15 +49,16 @@ def test_middleware(app):
 
 
 class StopMiddleware:
-    def before(self, controller):
+    def before(self, view):
+        response = view.response
         _f1(response.headers)
         return "STOP"
 
-    def after(self, controller):
+    def after(self, view):
         pass
 
 
-class StopTestCase(Controller):
+class StopTestCase(View):
     middleware = [StopMiddleware]
 
     def index(self):
