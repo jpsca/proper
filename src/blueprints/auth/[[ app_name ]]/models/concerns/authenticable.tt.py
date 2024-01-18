@@ -20,6 +20,10 @@ class Authenticable(BaseMixin):
     login = CharField(255, null=False, unique=True, index=True)
     password = CharField(255)
 
+    @property
+    def email(self):
+        return self.login
+
     @classmethod
     def _normalize_login(cls, login="", *, uform="NFKC"):
         # This unicode normalization MUST come first

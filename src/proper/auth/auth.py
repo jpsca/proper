@@ -42,7 +42,8 @@ class WrongHashAlgorithm(Exception):
 
 
 def to36(number: int | str) -> str:
-    number = int(number, 10)  # type: ignore
+    if isinstance(number, str):
+        number = int(number, 10)
     assert number >= 0, "Must be a positive integer"
     alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -223,7 +224,6 @@ class Auth:
     ) -> t.Any:
         if token is None:
             return None
-
         if token_life:
             return self.authenticate_timestamped_token(model, token, token_life)
         return self.authenticate_session_token(model, token)

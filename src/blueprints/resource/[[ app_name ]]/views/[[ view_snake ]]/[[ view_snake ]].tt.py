@@ -80,7 +80,7 @@ class [[ view_pascal ]](AppView):
         [% if singular -%]
         [[ object ]] = [[ singular_pascal ]].get_or_none()
         [% else -%]
-        [[ object ]] = [[ singular_pascal ]].get_or_none([[ singular_pascal ]].id == self.params["pk"])
+        [[ object ]] = [[ singular_pascal ]].get_or_none([[ singular_pascal ]].id == self.params.get("pk"))
         [% endif -%]
         if not_found and not [[ object ]]:
             raise NotFound

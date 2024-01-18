@@ -1092,14 +1092,14 @@ files = [
 
 [[package]]
 name = "proper-forms"
-version = "0.7"
+version = "0.8"
 description = "A proper flexible Python form library"
 category = "main"
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "proper_forms-0.7-py3-none-any.whl", hash = "sha256:b98d94dd1e5ed2e2bac41ae329f104b20e477862341dded0752e4585fc8afb7a"},
-    {file = "proper_forms-0.7.tar.gz", hash = "sha256:1b79c9d90341a216ea584a5ad7bd5ddfcace8496de584f62b25dc27c951bc1ad"},
+    {file = "proper_forms-0.8-py3-none-any.whl", hash = "sha256:706ada401847613b5dac9a44a1bf22afa8e01a44b3883f1007dab2d894daabca"},
+    {file = "proper_forms-0.8.tar.gz", hash = "sha256:7ca7a06aec0268ef53d15f04f40f60923c15baf8cd2136f42dde871c71dcfe3f"},
 ]
 
 [package.dependencies]

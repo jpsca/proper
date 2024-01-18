@@ -19,8 +19,7 @@ def gen_model(
     plural_snake: str = "",
     migration: bool = False,
 ) -> list[tuple[str, str, list[str]]]:
-    """Stubs a new model based on
-    [Peewee ORM](https://docs.peewee-orm.com)
+    """Stubs a new model based on [Peewee ORM](https://docs.peewee-orm.com)
 
     Pass the model name (singular), and an optional list of attribute pairs
     as arguments.

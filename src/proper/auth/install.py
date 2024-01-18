@@ -51,4 +51,4 @@ def install(app: "App") -> None:
     for dep_name in DEPENDENCIES:
         call(f"poetry add {dep_name}")
 
-    call('proper db create "users"')
+    call('bin/proper db create "users"')

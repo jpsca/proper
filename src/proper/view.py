@@ -61,6 +61,10 @@ class View:
             return text
 
         assert self.app.catalog
+        self.app.catalog.jinja_env.globals.update({
+            "request": self.request,
+            "response": self.response,
+        })
         return self.app.catalog.render(
             name,
             **vars(self)

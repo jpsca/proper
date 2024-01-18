@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from peewee import DateTimeField
-from demo.models.base import BaseMixin
+from [[ app_name ]].models.base import BaseMixin
 
 
 class Timestamped(BaseMixin):

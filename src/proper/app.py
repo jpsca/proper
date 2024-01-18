@@ -189,8 +189,8 @@ class App(AppTest):
         current.response._set(current_response)
 
         try:
-            self.run_pipeline(current_request, current_response)
-            return current_response
+            early_response = self.run_pipeline(current_request, current_response)
+            return early_response or current_response
 
         except Exception as error:
             # We need this other `try...except` for handling any errors on:

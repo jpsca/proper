@@ -1,8 +1,7 @@
-from proper.current import request, response
-
 from [[ app_name ]].models import User
-from ..app import AppView
-from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
+from [[ app_name ]].app import AppView
+
+from .concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import SignInForm
 
 
@@ -11,10 +10,10 @@ ERROR_CREDENTIALS = "Wrong username and/or password"
 
 class Session(AppView):
     def new(self):
-        if request.user:
+        if self.request.user:
             return self._go_forward()
         self.form = SignInForm()
-        response.redirect_to("/")
+        return self.render("Session.New")
 
     def create(self):
         user = User.authenticate(
@@ -30,12 +29,15 @@ class Session(AppView):
         return self.render("Session.New")
 
     def delete(self):
-        if request.user:
-            request.user.sign_out()
-        response.redirect_to("/")
+        msg = ""
+        if self.request.user:
+            msg = f"User {self.request.user.username} deleted"
+            self.request.user.sign_out()
+
+        self.response.redirect_to("/", flash=msg)
 
     # Private
 
     def _go_forward(self, flash=None):
-        next_url = response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
-        response.redirect_to(next_url, flash=flash)
+        next_url = self.response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
+        self.response.redirect_to(next_url, flash=flash)

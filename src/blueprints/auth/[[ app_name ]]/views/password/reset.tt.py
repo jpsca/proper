@@ -1,9 +1,9 @@
-from proper import response
 from proper.status import unprocessable
 
 from [[ app_name ]].app import config
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
+
 from ..app import AppView
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from . import forms
@@ -12,6 +12,7 @@ from . import forms
 class PasswordReset(AppView):
     def new(self):
         self.form = forms.PasswordResetForm()
+        return self.render("PasswordReset.New")
 
     def create(self):
         self.form = forms.PasswordResetForm(self.params)
@@ -22,9 +23,10 @@ class PasswordReset(AppView):
         user = User.get_by_login(login)
         send_password_reset_email(user)
         self.email = user.email
+        return self.render("PasswordReset.Create")
 
     def edit(self):
-        self.pk = self.params["pk"]
+        self.pk = self.params.get("pk")
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
             return self.render("PasswordReset.Invalid", status=unprocessable)
@@ -32,9 +34,10 @@ class PasswordReset(AppView):
         self.login = user.login
         self.form = forms.PasswordChangeForm()
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
+        return self.render("PasswordReset.Edit")
 
     def update(self):
-        self.pk = self.params["pk"]
+        self.pk = self.params.get("pk")
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
             return self.render("PasswordReset.Invalid", status=unprocessable)
@@ -54,5 +57,5 @@ class PasswordReset(AppView):
     # Private
 
     def _go_forward(self, flash=None):
-        next_url = response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
-        response.redirect_to(next_url, flash=flash)
+        next_url = self.response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
+        self.response.redirect_to(next_url, flash=flash)

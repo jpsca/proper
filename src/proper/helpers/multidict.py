@@ -36,7 +36,7 @@ class MultiDict(MutableMapping):
         del self.data[key]
 
     def __getitem__(self, key: str):
-        return self.data[key]
+        return self.data.get(key)
 
     def __setitem__(self, key: str, value: t.Any):
         return self.append(key, value)

@@ -1,5 +1,6 @@
 import socket
 import subprocess
+import sys
 import typing as t
 from functools import wraps
 from pathlib import Path
@@ -63,7 +64,9 @@ def get_run_server(app: "App") -> t.Callable:
         print(cmd)
         app.start()
         try:
-            subprocess.check_call(cmd, shell=True)
+            subprocess.check_call(cmd, shell=True, stderr=sys.stderr)
+        except subprocess.CalledProcessError:
+            pass
         except KeyboardInterrupt:
             raise
         finally:
