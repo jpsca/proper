@@ -1,7 +1,7 @@
 from [[ app_name ]].models import User
-from [[ app_name ]].app import AppView
 
-from .concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
+from ..app import AppView
+from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import SignInForm
 
 

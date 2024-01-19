@@ -19,7 +19,7 @@
 		<div class="mt-6">
 			<a
 				href="{{ url_for('[[ plural_pascal ]].edit', pk=[[ singular_snake ]].id) }}"
-				class="text-xl font-medium border-gray-200 bg-gray-100 hover:bg-gray-200 py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+				class="btn btn-primary-outline btn-sm"
 			>Edit this [[ singular_snake ]]</a>
 
 			<Form
@@ -29,13 +29,13 @@
 			>
 				<button
 					type="submit"
-					class="text-xl font-medium border-red-300 bg-red-200 hover:bg-red-300 py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+					class="btn btn-danger-outline btn-sm"
 				>Delete this [[ singular_snake ]]</button>
 			</Form>
 
 			<a
 				href="{{ url_for('[[ plural_pascal ]].index') }}"
-				class="text-xl font-medium border-gray-200 bg-gray-100 hover:bg-gray-200 py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+				class="link"
 			>Back to [[ plural_snake ]]</a>
 		</div>
 	</div>

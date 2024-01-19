@@ -14,15 +14,21 @@ def gen_model(
     app: "App",
     name: str,
     *attrs: str,
+    migration: bool = False,
     singular_pascal: str = "",
     singular_snake: str = "",
     plural_snake: str = "",
-    migration: bool = False,
 ) -> list[tuple[str, str, list[str]]]:
     """Stubs a new model based on [Peewee ORM](https://docs.peewee-orm.com)
 
-    Pass the model name (singular) and an optional list of attribute pairs
-    as arguments.
+    Arguments:
+
+    - name:
+        The PascalCased model name, always singular.
+    - migration [False]:
+        Generate a migration for creating the table.
+    - attrs:
+        Optional list of columns for the model schema.
 
     You don't have to think up every attribute upfront, but it helps to
     sketch out a few so you can start working with the model immediately.
@@ -80,9 +86,7 @@ def gen_model(
         class Tweet(BaseModel):
             body = TextField()
             created_at = DateTimeField()
-            user = ForeignKeyField(User, backref="tweets")
-
-    Use `--migration` to generate a migration for creating the table.
+            user = ForeignKeyField(User, backref="tweets").
 
     """
     singular_name = inflection.singularize(name)
@@ -108,7 +112,7 @@ def gen_model(
     bp()
 
     if migration:
-        call(f'proper db create "{plural_snake}"')
+        call(f'bin/proper db create "{plural_snake}"')
 
     return attrs_tuples
 

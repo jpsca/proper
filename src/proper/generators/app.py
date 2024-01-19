@@ -86,5 +86,5 @@ def _wrap_up(path: Path) -> None:
     print()
     print(" Start your Proper app with:")
     print()
-    print("   $ proper run")
+    print("   $ bin/proper run")
     print()

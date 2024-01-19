@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+a.link, button.link {
+  @apply
+  text-blue-700
+  cursor-pointer
+  underline
+  underline-offset-2
+  decoration-dotted
+  outline-none
+}
+a.link:hover, button.link:hover,
+a.link:focus, button.link:focus {
+  @apply
+  text-blue-600
+  no-underline
+  outline-none
+}
+button.link {
+  @apply
+  text-center
+  inline-block
+  font-medium
+  py-2.5 px-5
+  me-2 mb-2
+}

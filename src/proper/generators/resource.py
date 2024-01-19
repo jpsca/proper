@@ -72,6 +72,8 @@ def gen_resource(
     - exclude:
         Optional comma-separated list of actions to exclude
         from the full set.
+    - migration [False]:
+        Generate a migration for creating the table.
     - attrs:
         Optional list of columns for the resource schema.
 
@@ -130,6 +132,7 @@ def gen_resource(
         singular_pascal=singular_pascal,
         singular_snake=singular_snake,
         plural_snake=plural_snake,
+        migration=migration,
     )
     form_fields = [
         {
@@ -172,4 +175,4 @@ def gen_resource(
     append_routes(app, new_routes)
 
     if migration:
-        call(f'proper db create "{singular_snake if singular else plural_snake}"')
+        call(f'bin/proper db create "{singular_snake if singular else plural_snake}"')

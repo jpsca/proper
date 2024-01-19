@@ -1,9 +1,2 @@
 @import "./_tailwind";
-
-a.link {
-  color: rgb(37 99 235);
-  cursor: pointer;
-}
-a.link:hover {
-  color: rgb(59 130 246);
-}
+@import "./_buttons";
