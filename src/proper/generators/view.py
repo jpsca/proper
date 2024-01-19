@@ -17,16 +17,18 @@ ROUTES_TT = "routes.tt.py"
 def gen_view(app: "App", name: str, *actions: str) -> None:
     """Stubs out a new view and its components.
 
-        proper g view NAME [action ...]
+        bin/proper g view NAME [action ...]
 
     Arguments:
 
-    - name: The PascalCased view class name (in plural).
-    - actions: Optional list of actions.
+    - name:
+        The PascalCased view class name, in plural.
+    - actions:
+        Optional list of actions.
 
     Example:
 
-        proper g view Articles index show
+        bin/proper g view Articles index show
 
     """
     plural_name = inflection.pluralize(name)

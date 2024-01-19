@@ -21,32 +21,32 @@ def gen_model(
 ) -> list[tuple[str, str, list[str]]]:
     """Stubs a new model based on [Peewee ORM](https://docs.peewee-orm.com)
 
-    Pass the model name (singular), and an optional list of attribute pairs
+    Pass the model name (singular) and an optional list of attribute pairs
     as arguments.
 
-    You don't have to think up every attribute up front, but it helps to
+    You don't have to think up every attribute upfront, but it helps to
     sketch out a few so you can start working with the model immediately.
 
     There are many ways to declare a model. This tool does not cover
-    all but try instead to be simple enough to be easy to use for the most
+    all but tries instead to be simple enough to be easy to use for the most
     common scenarios.
 
     ## Declaring fields
 
-        proper g model NAME [field_name[:type][,option[:value]]...]
+        bin/proper g model NAME [field_name[:type][,option[:value]]...]
 
     Attribute pairs are field_name:type arguments specifying the model's attributes.
     An `id` primary key will be implicit unless you mark a field with `primary_key=True`.
 
     ## Field types
 
-    Just after the field name you can specify a type like text or boolean.
+    Right after the field name, you can specify a type like text or boolean.
     It will generate the column with the associated SQL type. For instance:
 
-        proper g model Post title:str body:text
+        bin/proper g model Post title:str body:text
 
     will generate a title column with a varchar type and a body column with a text
-    type. If no type is specified the string type will be used by default.
+    type. If no type is specified, the string type will be used by default.
     You can use the following types:
 
     - bigint
@@ -66,22 +66,21 @@ def gen_model(
     ## Options
 
     After the field type, you can add one or more pairs of `option` or `option:value`,
-    like `unique`, `null`, `default`, `index`, etc.,
-    see http://docs.peewee-orm.com/en/latest/peewee/models.html#field-initialization-arguments
+    like `unique`, `null`, `default`, `index`, etc.
+    See http://docs.peewee-orm.com/en/latest/peewee/models.html#field-initialization-arguments.
 
     If you don't use a value, it defaults to `True`.
 
-    Use `fk-MODEL` for adding a foreign key
+    Use `fk-MODEL` for adding a foreign key.
 
     ## Examples:
 
-        `proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
+        `bin/proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
 
         class Tweet(BaseModel):
             body = TextField()
             created_at = DateTimeField()
             user = ForeignKeyField(User, backref="tweets")
-
 
     Use `--migration` to generate a migration for creating the table.
 

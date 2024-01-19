@@ -28,10 +28,14 @@ def gen_app(
         `proper new myapp`
         generates a Proper application at `myapp` in the current folder.
 
-    Args:
-        path: Where to create the new application.
-        name: Optional name of the app instead of the one in `path`
-        force: Overwrite files that already exist, without asking.
+    Arguments:
+
+        path:
+            Where to create the new application.
+        name:
+            Optional name of the app instead of the one in `path`
+        force:
+            Overwrite files that already exist, without asking.
 
     """
     path = Path(path).resolve().absolute()

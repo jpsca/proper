@@ -47,49 +47,51 @@ def gen_resource(
     app: "App",
     name: str,
     *attrs: str,
+    singular: bool = False,
     only: str = "",
     exclude: str = "",
-    singular: bool = False,
     migration: bool = False,
 ) -> None:
-    """Stubs out a new resource
-    including a view, model, migration, components, and a resource route
-    in the `routes.py` file.
+    """Stubs out a new resource including a view, model, migration, components
+    and a route in the `routes.py` file.
 
     Use `--migration` to also generate a migration for creating the table.
 
-
-        proper g resource NAME
+        bin/proper g resource NAME
             [--only=action[,action]] [--exclude=action[,action]] [--singular]
 
     Arguments:
 
-    - name: The PascalCased resource name (plural unless is singular).
-    - only: Optional comma-separated list of actions to include,
-        instead of using the full set.)
-    - exclude: Optional comma-separated lists of actions to NOT include
-        from the full set of actions.
-    - singular [False]: Wether the resource is just one.
-    - attrs: Optional list of columns to add to the schema of the resource.
+    - name:
+        The PascalCased resource name, plural unless `--singular` is used.
+    - singular [False]:
+        Whether the resource represents a single entity for the user (like "profile").
+    - only:
+        Optional comma-separated list of actions to include,
+        instead of the full set.
+    - exclude:
+        Optional comma-separated list of actions to exclude
+        from the full set.
+    - attrs:
+        Optional list of columns for the resource schema.
 
-    Attribute pairs are field:type arguments specifying the model's attributes,
-    and follows the same syntax of the model generator.
-    Run `proper g model --help` for instructions.
+    Attribute pairs are `field:type` arguments, specifying the model's attributes,
+    following the syntax of the model generator.
+    For instructions, run `bin/proper g model --help`.
 
-    By default it generates the full set of REST actions ("index", "new", "create",
-    "show", "edit", "update", and "delete"), but you can choose only some of these
-    or to exclude a few by using the optional `only` and `exclude` arguments.
+    By default, it generates the full set of REST actions ("index", "new", "create",
+    "show", "edit", "update", and "delete"). You can opt for a subset of these
+    or exclude specific ones using the `only` and `exclude` arguments.
 
-    Sometimes, you have a resource that clients always look up without
-    referencing an ID. In this case, you can use `singular=True` to build a
-    set of REST routes without `:pk`.
+    For resources that users always look up without an ID, use `singular=True`
+    to create REST routes that do not include `:pk`.
 
     Examples:
 
-        proper g resource Posts
-        proper g resource Posts --only=index,show title:str
-        proper g resource Posts title:str body:text published:bool
-        proper g resource Profile --singular
+        bin/proper g resource Posts
+        bin/proper g resource Posts --only=index,show title:str
+        bin/proper g resource Posts title:str body:text published:bool
+        bin/proper g resource Profile --singular
 
     """
     plural_name = inflection.pluralize(name)
