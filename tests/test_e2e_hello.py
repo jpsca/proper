@@ -1,7 +1,8 @@
 import pytest
 
-from proper import App, BadSecretKey, View, get, status
+from proper import App, View, get, status
 from proper.current import response
+from proper.errors import BadSecretKey
 from proper.middleware import RequestForgeryProtection, Session
 
 

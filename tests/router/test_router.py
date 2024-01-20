@@ -2,11 +2,14 @@ import pytest
 
 from proper import View
 from proper.constants import GET, POST
-from proper.errors import MatchNotFound, MethodNotAllowed
+from proper.errors import (
+    BadRoutePlaceholder,
+    MatchNotFound,
+    MethodNotAllowed,
+    MissingRouteParameter,
+    RouteNotFound,
+)
 from proper.router import (
-    BadPlaceholder,
-    MissingParameter,
-    NameNotFound,
     Router,
     delete,
     get,
@@ -203,12 +206,12 @@ def test_url_for_anchor(router):
 
 
 def test_url_for_missing_param(router):
-    with pytest.raises(MissingParameter):
+    with pytest.raises(MissingRouteParameter):
         router.url_for("Items.archive", year="2018")
 
 
 def test_url_for_bad_param(router):
-    with pytest.raises(BadPlaceholder):
+    with pytest.raises(BadRoutePlaceholder):
         router.url_for("Items.archive", year=18, month=-3)
 
 
@@ -221,7 +224,7 @@ def test_url_for_extra_query(router):
 
 
 def test_url_for_not_found(router):
-    with pytest.raises(NameNotFound):
+    with pytest.raises(RouteNotFound):
         router.url_for("wtf")
 
 

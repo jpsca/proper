@@ -2,10 +2,12 @@ import pytest
 
 from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
 from proper import View
+from proper.errors import (
+    BadRouteFormat,
+    BadRoutePlaceholder,
+    MissingRouteParameter,
+)
 from proper.router import (
-    BadFormat,
-    BadPlaceholder,
-    MissingParameter,
     delete,
     get,
     options,
@@ -81,7 +83,7 @@ def test_route_name_is_set():
 
 
 def test_invalid_route_format():
-    with pytest.raises(BadFormat):
+    with pytest.raises(BadRouteFormat):
         ro = get(":a<{1[>")
         ro.compile_path()
 
@@ -158,13 +160,13 @@ def test_route_format_params_to_strings():
 
 def test_route_format_missing_param():
     route = get(r":year<\d{4}>/:month<\d{1,2}>")
-    with pytest.raises(MissingParameter):
+    with pytest.raises(MissingRouteParameter):
         route.format(year="2018")
 
 
 def test_route_format_bad_placeholder():
     route = get(r":year<\d{4}>/:month<\d{1,2}>")
-    with pytest.raises(BadPlaceholder):
+    with pytest.raises(BadRoutePlaceholder):
         route.format(year="18", month="10")
 
 

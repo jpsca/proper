@@ -1,4 +1,4 @@
-from .app import App, BadSecretKey  # noqa
+from .app import App  # noqa
 from .config import *  # noqa
 from .view import *  # noqa
 from .helpers import *  # noqa

@@ -5,7 +5,6 @@ import string
 import typing as t
 from importlib import import_module
 from pathlib import Path
-from wsgiref.types import StartResponse, WSGIEnvironment
 
 import inflection
 import jinjax
@@ -19,6 +18,9 @@ from whitenoise import WhiteNoise
 
 from . import current, pipeline, status
 from .app_test import AppTest
+from .assets import RX_INMUTABLES_FILE
+from .auth import Auth
+from .cli import get_app_cli
 from .config import get_env, get_default_config, logger
 from .error_handlers import (
     debug_error_handler,
@@ -27,16 +29,21 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
-from .auth import Auth
-from .cli import get_app_cli
-from .errors import MatchNotFound, MethodNotAllowed
+from .errors import BadSecretKey, MatchNotFound, MethodNotAllowed
 from .helpers import DotDict, jsonplus
 from .request import Request
-from .response import Response, BodyType
+from .response import Response
 from .router import Router, Route, get
 from .scheduler import HueyScheduler
 from .storage import Storage
-from .assets import RX_INMUTABLES_FILE
+from .types import (
+    TBody,
+    TException,
+    TEventHandler,
+    TEventHandlers,
+    TStartResponse,
+    TWSGIEnvironment,
+)
 
 if t.TYPE_CHECKING:
     from proper_cli import Cli
@@ -48,28 +55,23 @@ STATIC_PREFIX = "static"
 STATIC_FOLDER = "static"
 MANIFEST_PATH = "cache_manifest.json"
 MIN_SECRET_LENGTH = 48
-TException = t.Type[BaseException]
-
-
-class BadSecretKey(Exception):
-    pass
 
 
 class App(AppTest):
     # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
-    _on_error: tuple[t.Callable, ...] = tuple()
+    _on_error: TEventHandlers = tuple()
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    _on_teardown: tuple[t.Callable, ...] = tuple()
+    _on_teardown: TEventHandlers = tuple()
 
     # A lists of functions that are called when the development server starts,
     # and when it shutdown. Useful for running the scheduler on development and
     # similar tasks.
-    _on_dev_start: tuple[t.Callable, ...] = tuple()
-    _on_dev_shutdown: tuple[t.Callable, ...] = tuple()
+    _on_dev_start: TEventHandlers = tuple()
+    _on_dev_shutdown: TEventHandlers = tuple()
 
     # A dict of functions to call when an HTTPError is raised.
     # The keys are any subclasses of Exception, but, not necessarily
@@ -117,9 +119,9 @@ class App(AppTest):
 
     def __call__(
         self,
-        environ: WSGIEnvironment,
-        start_response: StartResponse,
-    ) -> BodyType:
+        environ: TWSGIEnvironment,
+        start_response: TStartResponse,
+    ) -> TBody:
         return self._wrapped_wsgi(environ, start_response)
 
     @property
@@ -142,26 +144,26 @@ class App(AppTest):
     def static_manifest_path(self) -> Path:
         return self.static_path / MANIFEST_PATH
 
-    def on_error(self, func: t.Callable) -> t.Callable:
+    def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
         raises an exception."""
         self._on_error = self._on_error + (func,)
         return func
 
-    def on_teardown(self, func: t.Callable) -> t.Callable:
+    def on_teardown(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
         return func
 
-    def on_dev_start(self, func: t.Callable) -> t.Callable:
+    def on_dev_start(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs when the development
         server starts. Useful for running the scheduler on development and
         similar tasks."""
         self._on_dev_start = self._on_dev_start + (func,)
         return func
 
-    def on_dev_shutdown(self, func: t.Callable) -> t.Callable:
+    def on_dev_shutdown(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs when the development
         server is shutdown."""
         self._on_dev_shutdown = self._on_dev_shutdown + (func,)
@@ -169,13 +171,13 @@ class App(AppTest):
 
     def wsgi_app(
         self,
-        environ: WSGIEnvironment,
-        start_response: StartResponse,
-    ) -> BodyType:
+        environ: TWSGIEnvironment,
+        start_response: TStartResponse,
+    ) -> TBody:
         current_response = self.do_request(environ)
         return current_response(start_response)
 
-    def do_request(self, environ: WSGIEnvironment) -> Response:
+    def do_request(self, environ: TWSGIEnvironment) -> Response:
         current.app._set(self)
 
         current_request = Request(
@@ -226,7 +228,7 @@ class App(AppTest):
             for func in self._on_teardown:
                 func()
 
-    def error_handler(self, cls: TException, to: t.Callable) -> None:
+    def error_handler(self, cls: TException, to: TEventHandler) -> None:
         """Register a view method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 

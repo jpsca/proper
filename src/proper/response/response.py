@@ -13,6 +13,7 @@ from wsgiref.types import StartResponse
 from proper import current
 from proper import status as pstatus
 from proper.helpers import DotDict, tunnel_encode
+from proper.types import TBody
 
 from .cookies import ResponseCookiesMixin
 from .headers import ResponseHeadersMixin
@@ -24,10 +25,7 @@ if t.TYPE_CHECKING:
     from proper.request import Request
 
 
-__all__ = ("Response", "BodyType")
-
-
-BodyType = list[bytes] | bytearray | memoryview | Iterable[bytes]
+__all__ = ("Response",)
 
 
 def is_iterable(obj: t.Any) -> bool:
@@ -40,7 +38,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     flash: "FlashDict"
     error: Exception | None = None
-    body: BodyType | str | None = None
+    body: TBody | str | None = None
     session: DotDict
 
     def __init__(
@@ -54,7 +52,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.flash = FlashDict(self)
         super().__init__()
 
-    def __call__(self, start_response: StartResponse) -> BodyType:
+    def __call__(self, start_response: StartResponse) -> TBody:
         body = self.prepare_body()
         headers = self.get_headers_list()
         start_response(tunnel_encode(self.status), headers)
@@ -73,7 +71,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         """The status code of the response."""
         return int(self.status.split(" ", 1)[0])
 
-    def prepare_body(self) -> BodyType:
+    def prepare_body(self) -> TBody:
         body = self.body
 
         if not body:

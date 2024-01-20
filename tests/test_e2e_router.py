@@ -1,15 +1,10 @@
 import pytest
 
-from proper import (
-    BadPlaceholder,
-    View,
-    MissingParameter,
-    NameNotFound,
-    delete,
-    get,
-    post,
-    scope,
-    status,
+from proper import View, delete, get, post, scope, status
+from proper.errors import (
+    BadRoutePlaceholder,
+    MissingRouteParameter,
+    RouteNotFound,
 )
 from proper.helpers import DotDict
 
@@ -116,13 +111,13 @@ def test_url_for_anchor(app):
 
 def test_url_for_missing_param(app):
     app.routes = TEST_ROUTES
-    with pytest.raises(MissingParameter):
+    with pytest.raises(MissingRouteParameter):
         app.url_for("Items.archive", year="2018")
 
 
 def test_url_for_bad_placeholder(app):
     app.routes = TEST_ROUTES
-    with pytest.raises(BadPlaceholder):
+    with pytest.raises(BadRoutePlaceholder):
         app.url_for("Items.archive", year=18, month=-3)
 
 
@@ -137,5 +132,5 @@ def test_url_for_extra_query(app):
 
 def test_url_for_not_found(app):
     app.routes = TEST_ROUTES
-    with pytest.raises(NameNotFound):
+    with pytest.raises(RouteNotFound):
         app.url_for("wtf")

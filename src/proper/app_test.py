@@ -9,7 +9,7 @@ from .helpers import DotDict
 from .request import make_test_env
 
 if t.TYPE_CHECKING:
-    from wsgiref.types import WSGIEnvironment
+    from proper.types import TWSGIEnvironment
     from .response import Response
 
 
@@ -20,7 +20,7 @@ def to_bytes(value, charset="latin1"):
 
 
 class AppTest:
-    def do_request(self, environ: "WSGIEnvironment") -> "Response":
+    def do_request(self, environ: "TWSGIEnvironment") -> "Response":
         raise NotImplementedError
 
     def get(

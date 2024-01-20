@@ -3,6 +3,40 @@ import typing as t
 from . import status
 
 
+class BadSecretKey(Exception):
+    pass
+
+
+class MissingRouteParameter(Exception):
+    def __init__(self, name: str, path: str) -> None:
+        msg = f"missing value for {name} in {path}"
+        super().__init__(msg)
+
+
+class BadRoutePlaceholder(Exception):
+    def __init__(self, name: str, path: str, rx: str) -> None:
+        msg = f"placeholder {name} doesn't have the expected format <{rx}> in {path}"
+        super().__init__(msg)
+
+
+class DuplicatedRoutePlaceholder(Exception):
+    def __init__(self, name: str, path: str) -> None:
+        msg = f"placeholder {name} declared more than once in {path}"
+        super().__init__(msg)
+
+
+class BadRouteFormat(Exception):
+    pass
+
+
+class RouteNotFound(Exception):
+    pass
+
+
+class WrongHashAlgorithm(Exception):
+    pass
+
+
 class HTTPError(Exception):
     """A generic HTTP error.
 

@@ -6,6 +6,7 @@ import passlib.hash
 from passlib.context import CryptContext
 
 from proper.config import logger
+from proper.errors import WrongHashAlgorithm
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")
@@ -35,10 +36,6 @@ https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
 """.format(
     "\n - ".join(VALID_HASHERS)
 )
-
-
-class WrongHashAlgorithm(Exception):
-    pass
 
 
 def to36(number: int | str) -> str:

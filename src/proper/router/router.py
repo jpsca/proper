@@ -2,16 +2,12 @@
 """
 from typing import Any
 
-from proper.errors import MatchNotFound, MethodNotAllowed
+from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from .route import Route
 from .scope import flatten
 
 
-__all__ = ("Router", "NameNotFound")
-
-
-class NameNotFound(Exception):
-    pass
+__all__ = ("Router", )
 
 
 class Router:
@@ -102,7 +98,7 @@ class Router:
     ) -> str:
         route = self._routes_by_name.get(name)
         if not route:
-            raise NameNotFound(name)
+            raise RouteNotFound(name)
 
         if object is not None:
             for key in route.path_placeholders:

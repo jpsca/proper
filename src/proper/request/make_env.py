@@ -2,10 +2,10 @@ import typing as t
 from io import BytesIO
 
 from urllib.parse import quote_plus, urlencode, urlparse
-from wsgiref.types import WSGIEnvironment
 from wsgiref.util import setup_testing_defaults
 
 from proper.helpers import tunnel_encode
+from proper.types import TWSGIEnvironment
 
 __all__ = ("make_test_env", )
 
@@ -16,7 +16,7 @@ def make_test_env(
     params: dict | None = None,
     body: dict | str | bytes | BytesIO = b"",
     **kw,
-) -> WSGIEnvironment:
+) -> TWSGIEnvironment:
     env: dict[str, t.Any] = {"REMOTE_ADDR": "127.0.0.1"}
     setup_testing_defaults(env)
 

@@ -2,8 +2,14 @@ import re
 from string import Template
 from typing import Any
 
+from proper.errors import (
+    BadRouteFormat,
+    BadRoutePlaceholder,
+    DuplicatedRoutePlaceholder,
+    MissingRouteParameter,
+)
 
-__all__ = ("BaseRoute", "MissingParameter", "BadPlaceholder", "BadFormat")
+__all__ = ("BaseRoute",)
 
 
 """Formats to be replaced with regular expressions.
@@ -18,28 +24,6 @@ FORMATS = {
 }
 
 RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
-
-
-class MissingParameter(Exception):
-    def __init__(self, name: str, path: str) -> None:
-        msg = f"missing value for {name} in {path}"
-        super().__init__(msg)
-
-
-class BadPlaceholder(Exception):
-    def __init__(self, name: str, path: str, rx: str) -> None:
-        msg = f"placeholder {name} doesn't have the expected format <{rx}> in {path}"
-        super().__init__(msg)
-
-
-class DuplicatedPlaceholder(Exception):
-    def __init__(self, name: str, path: str) -> None:
-        msg = f"placeholder {name} declared more than once in {path}"
-        super().__init__(msg)
-
-
-class BadFormat(Exception):
-    pass
 
 
 class _RouteTemplate(Template):
@@ -90,7 +74,7 @@ class BaseRoute:
 
             name, rx = match.groups()
             if name in placeholders:
-                raise DuplicatedPlaceholder(name, path)
+                raise DuplicatedRoutePlaceholder(name, path)
 
             rx = FORMATS.get(rx, rx)
             placeholders[name] = rx
@@ -106,7 +90,7 @@ class BaseRoute:
         try:
             path_re = re.compile(str_re)
         except Exception as e:
-            raise BadFormat(e)
+            raise BadRouteFormat(e)
 
         self.path_re = path_re
         self.path_plain = plain
@@ -142,10 +126,10 @@ class BaseRoute:
         for name, rx in self.path_placeholders.items():
             value = kwargs.get(name)
             if value is None:
-                raise MissingParameter(name, self.path)
+                raise MissingRouteParameter(name, self.path)
             value = str(value)
             if not re.match(rx, value):
-                raise BadPlaceholder(name, self.path, rx)
+                raise BadRoutePlaceholder(name, self.path, rx)
             path_params[name] = value
 
         return path_params
