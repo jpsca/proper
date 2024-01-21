@@ -159,6 +159,7 @@ def welcome(_self, host="0.0.0.0", port=2300) -> None:
     Arguments:
 
     - host [0.0.0.0]
+
     - port [2300]
 
     """

@@ -30,12 +30,14 @@ def gen_app(
 
     Arguments:
 
-        path:
-            Where to create the new application.
-        name:
-            Optional name of the app instead of the one in `path`
-        force:
-            Overwrite files that already exist, without asking.
+    - path:
+        Where to create the new application.
+
+    - name:
+        Optional name of the app instead of the one in `path`
+
+    - force:
+        Overwrite files that already exist, without asking.
 
     """
     path = Path(path).resolve().absolute()

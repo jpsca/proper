@@ -9,9 +9,13 @@ class AuthCL(Cli):
         """
         Adds an user.
 
-        Args:
-            login:    Username
-            password: Plain-text password (will be encrypted)
+        Arguments:
+
+        - login:
+            Username
+
+        - password:
+            Plain-text password (will be encrypted)
 
         """
         try:
@@ -25,9 +29,13 @@ class AuthCL(Cli):
         """
         Set the password of a user
 
-        Args:
-            login:    Username
-            password: Plain-text password (will be encrypted)
+        Arguments:
+
+        - login:
+            Username
+
+        - password:
+            Plain-text password (will be encrypted)
 
         """
         user = User.get_by_login(login)

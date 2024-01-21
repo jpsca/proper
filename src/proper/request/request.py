@@ -17,140 +17,149 @@ __all__ = ("Request", )
 class Request(RequestHeadersMixin):
     """An HTTP request.
 
-    Args:
-        encoding: Default encoding.
-        max_content_length: Maximum content length in bytes.
-        max_query_size: Maximum query string size in bytes.
-        **env: A WSGI environment dict passed in from the server (See also PEP-3333).
+    Arguments:
+
+    - encoding:
+        Default encoding.
+
+    - max_content_length:
+        Maximum content length in bytes.
+
+    - max_query_size:
+        Maximum query string size in bytes.
+
+    - **env:
+        A WSGI environment dict passed in from the server (See also PEP-3333).
 
     Attributes:
-        env:
-            The WSGI environment dict passed in from the server,
-            with keys normalized to lower-case
 
-        body:
-            The request body as a bytes stream.
+    - env:
+        The WSGI environment dict passed in from the server,
+        with keys normalized to lower-case
 
-        accept:
-            Indicates which content types, expressed as MIME types,
-            the client is able to understand.
+    - body:
+        The request body as a bytes stream.
 
-        accept_encoding:
-            Indicates the content encoding (usually a compression algorithm) that
-            the client can understand.
+    - accept:
+        Indicates which content types, expressed as MIME types,
+        the client is able to understand.
 
-        accept_language:
-            Indicates the natural language and locale that the client prefers.
+    - accept_encoding:
+        Indicates the content encoding (usually a compression algorithm) that
+        the client can understand.
 
-        content_length:
-            The length in bytes, as an integer, of the content
-            sent by the client.
+    - accept_language:
+        Indicates the natural language and locale that the client prefers.
 
-        content_type:
-            The MIME content type of the incoming request.
+    - content_length:
+        The length in bytes, as an integer, of the content
+        sent by the client.
 
-        cookies:
-            A dict with the cookies sent with the request.
+    - content_type:
+        The MIME content type of the incoming request.
 
-        date:
-            The date and time at which the message originated.
+    - cookies:
+        A dict with the cookies sent with the request.
 
-        default_port:
-            Returns the default port (80 for HTTP, 443 for HTTPS)
+    - date:
+        The date and time at which the message originated.
 
-        encoding:
-            From the arguments.
+    - default_port:
+        Returns the default port (80 for HTTP, 443 for HTTPS)
 
-        flashes:
-            The flashed messages stored in the session cookie.
-            By reading this value it will be stored in the request but
-            deleted form the session.
+    - encoding:
+        From the arguments.
 
-        form:
-            A `MultiDict` object containing the parsed body data, like the
-            one sent by a HTML form with a POST, **including** the files.
+    - flashes:
+        The flashed messages stored in the session cookie.
+        By reading this value it will be stored in the request but
+        deleted form the session.
 
-        format:
-            Computed based on the value of the "Accept" header, with "html"
-            as a fallback.
+    - form:
+        A `MultiDict` object containing the parsed body data, like the
+        one sent by a HTML form with a POST, **including** the files.
 
-        forwarded:
-            A comma-separated list of forwarding information from the client
-            to the server on its way through proxies.
+    - format:
+        Computed based on the value of the "Accept" header, with "html"
+        as a fallback.
 
-        host, protocol, port, path, and query_string:
-            Components of the URL used for the request, based on the pattern:
-            `protocol://host:port/path?query_string`.
+    - forwarded:
+        A comma-separated list of forwarding information from the client
+        to the server on its way through proxies.
 
-        host_with_port:
-            A host:port string for this request. The port is not included
-            if its the default for the protocol.
+    - host, protocol, port, path, and query_string:
+        Components of the URL used for the request, based on the pattern:
+        `protocol://host:port/path?query_string`.
 
-        if_none_match:
-            A list of ETags provided by the client.
+    - host_with_port:
+        A host:port string for this request. The port is not included
+        if its the default for the protocol.
 
-        if_modified_since:
-            The date and time at which the client last modified the resource.
+    - if_none_match:
+        A list of ETags provided by the client.
 
-        is_get, is_head, is_post, is_put, is_patch, and is_delete:
-            Return True or False based on the request method.
+    - if_modified_since:
+        The date and time at which the client last modified the resource.
 
-        is_ssl:
-            Whether the current request was made via a SSL connection.
+    - is_get, is_head, is_post, is_put, is_patch, and is_delete:
+        Return True or False based on the request method.
 
-        is_xhr:
-            True if current request is an XHR request.
+    - is_ssl:
+        Whether the current request was made via a SSL connection.
 
-        max_content_length:
-            From the arguments.
+    - is_xhr:
+        True if current request is an XHR request.
 
-        max_query_size:
-            From the arguments.
+    - max_content_length:
+        From the arguments.
 
-        request_method:
-            The uppercased request method, like: "GET".
+    - max_query_size:
+        From the arguments.
 
-        method:
-            Returns the same value as `request_method` except for HEAD,
-            which it returns as GET; or for POST if it has been overrided
-            by PATCH, PUT, or DELETE (see `Method override`).
+    - request_method:
+        The uppercased request method, like: "GET".
 
-        port_is_default:
-            Returns True or False, depending if the port is the default for
-            the protocol.
+    - method:
+        Returns the same value as `request_method` except for HEAD,
+        which it returns as GET; or for POST if it has been overrided
+        by PATCH, PUT, or DELETE (see `Method override`).
 
-        port_string:
-            A `:port` string for the request if the port is not the default for
-            the protocol.
+    - port_is_default:
+        Returns True or False, depending if the port is the default for
+        the protocol.
 
-        query:
-            A `MultiDict` object containing the query string data.
+    - port_string:
+        A `:port` string for the request if the port is not the default for
+        the protocol.
 
-        remote_ip:
-            IP address of the closest client or proxy to the WSGI server.
-            If your application is behind one or more reverse proxies,
-            and it doesn't pass forward the IP address of the client,
-            you can use the `access_route` attribute to retrieve the real
-            IP address of the client.
+    - query:
+        A `MultiDict` object containing the query string data.
 
-        request_id:
-            Parse the `x-request-id` header for a value that uniquely
-            identify a request.
+    - remote_ip:
+        IP address of the closest client or proxy to the WSGI server.
+        If your application is behind one or more reverse proxies,
+        and it doesn't pass forward the IP address of the client,
+        you can use the `access_route` attribute to retrieve the real
+        IP address of the client.
 
-        session:
-            The session data sent with the request.
+    - request_id:
+        Parse the `x-request-id` header for a value that uniquely
+        identify a request.
 
-        url:
-            Returns the full URL used for the request.
+    - session:
+        The session data sent with the request.
 
-        matched_route, matched_params, and matched_action:
-            Added when the request match a route.
+    - url:
+        Returns the full URL used for the request.
 
-        csrf_token:
-            A CSRF (Cross-Site Request Forgery) token.
+    - matched_route, matched_params, and matched_action:
+        Added when the request match a route.
 
-        user:
-            Added when the request comes from a logged-in user.
+    - csrf_token:
+        A CSRF (Cross-Site Request Forgery) token.
+
+    - user:
+        Added when the request comes from a logged-in user.
 
     """
 

@@ -1,8 +1,8 @@
 """
 Response class.
 """
-import unicodedata
 import typing as t
+import unicodedata
 from collections.abc import Iterable
 from datetime import datetime
 from mimetypes import guess_type
@@ -13,7 +13,7 @@ from wsgiref.types import StartResponse
 from proper import current
 from proper import status as pstatus
 from proper.helpers import DotDict, tunnel_encode
-from proper.types import TBody
+from proper.types import TBody, TReadable
 
 from .cookies import ResponseCookiesMixin
 from .headers import ResponseHeadersMixin
@@ -33,8 +33,7 @@ def is_iterable(obj: t.Any) -> bool:
 
 
 class Response(ResponseHeadersMixin, ResponseCookiesMixin):
-    """
-    """
+    """ """
 
     flash: "FlashDict"
     error: Exception | None = None
@@ -103,24 +102,25 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         """
         Redirects to the given URL or route.
 
-        Args:
-            url_or_route:
-                The URL or route to redirect to.
+        Arguments:
 
-            obj:
-                The object to build the route
+        - url_or_route:
+            The URL or route to redirect to.
 
-            flash:
-                Optional flash message to set.
+        - obj:
+            The object to build the route
 
-            flash_type:
-                Optional type of the flash message.
+        - flash:
+            Optional flash message to set.
 
-            status (str):
-                The status code to use, e.g.: "303 See Other"
+        - flash_type:
+            Optional type of the flash message.
 
-            **kw:
-                Additional keyword arguments to pass to the route.
+        - status (str):
+            The status code to use, e.g.: "303 See Other"
+
+        - **kw:
+            Additional keyword arguments to pass to the route.
 
         """
         assert current.app
@@ -150,7 +150,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         objects: t.Any = None,
         *,
         etag: datetime | int | float | str | None = None,
-        last_modified: datetime | None = None,
+        last_modified: datetime | float | int | None = None,
         strong: bool = False,
         public: bool = False,
         request: "Request | Proxy | None" = None,
@@ -162,16 +162,17 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         You can also use an object or a list of objects with an `updated_at` attribute.
         The maximum `updated_at` of that list will be used to set both values.
 
-        Args:
-            strong:
-                By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
-                validator on the response. A strong ETag implies exact equality: the response
-                must match byte for byte. This is necessary for doing range requests within a
-                large file or for compatibility with some CDNs that don’t support weak ETags.
+        Arguments:
 
-            public:
-                By default the Cache-Control header is private, set this to `True` if you want
-                your application to be cacheable by other devices (proxy caches).
+        - strong:
+            By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
+            validator on the response. A strong ETag implies exact equality: the response
+            must match byte for byte. This is necessary for doing range requests within a
+            large file or for compatibility with some CDNs that don’t support weak ETags.
+
+        - public:
+            By default the Cache-Control header is private, set this to `True` if you want
+            your application to be cacheable by other devices (proxy caches).
 
         """
         if objects:
@@ -222,18 +223,40 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         download_name: str | None = None,
         use_x_sendfile: bool | None = None,
     ) -> None:
-        """Sends a file as response.
+        """Sends a file as a response, unless the cache headers
+        indicate it's not necessary.
 
-        Args:
-            path: The path to the file.
-            mimetype: The mimetype of the file.
-            as_attachment: If `True` the file will be sent as attachment.
-            download_name: The name of the file.
-            use_x_sendfile: If `True` the X-Sendfile header will be used.
+        Arguments:
+
+        - path:
+            The path to the file.
+
+        - mimetype:
+            The mimetype of the file.
+
+        - as_attachment:
+            If `True` the file will be sent as attachment.
+
+        - download_name:
+            The name of the file.
+
+        - use_x_sendfile:
+            If `True` the X-Sendfile header will be used.
 
         """
         path = Path(path).resolve()
-        download_name = download_name or path.name
+
+        stat = path.stat()
+        size = stat.st_size
+        mtime = stat.st_mtime
+
+        if size is not None:
+            self.set_content_length(size)
+
+        if mtime is not None:
+            if self.fresh_when(last_modified=mtime):
+                self.body = ""
+                return
 
         if mimetype is None:
             mimetype, encoding = guess_type(path)
@@ -246,6 +269,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
             else:
                 self.set_content_encoding()
 
+        download_name = download_name or path.name
         try:
             download_name.encode("ascii")
         except UnicodeEncodeError:
@@ -262,34 +286,29 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.headers["content-disposition"] = f"{value}{options}"
 
         if use_x_sendfile:
-            self.headers["x-dendfile"] = path
+            self.headers["x-sendfile"] = path
 
-        stat = path.stat()
-        size = stat.st_size
-        mtime = stat.st_mtime
+        self.body = self._wrap_file(path.open("rb"))
 
-        if size is not None:
-            self.set_content_length(size)
-        if mtime is not None:
-            self.set_last_modified(mtime)
-
-        self.body = self.wrap_file(path.open("rb"))
-
-    def wrap_file(
+    def _wrap_file(
         self,
-        file: t.IO[t.Any],
-        buffer_size: int = 8192,
+        file: TReadable,
+        block_size: int = 8192,
     ) -> t.Iterable[bytes]:
         """Wraps a file using the WSGI server's file wrapper
 
         More information about file wrappers is available in
         [PEP 3333](https://peps.python.org/pep-3333/#optional-platform-specific-file-handling).
 
-        Args:
-            file: a file-like object with a `read` method.
-            buffer_size: number of bytes for one iteration.
+        Arguments:
+
+        - file:
+            A file-like object with a `read` method.
+
+        - block_size:
+            Number of bytes for one iteration.
 
         """
         assert self.environ is not None
         file_wrapper = self.environ.get("wsgi.file_wrapper") or FileWrapper
-        return file_wrapper(file, buffer_size)
+        return file_wrapper(file, block_size)

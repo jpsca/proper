@@ -91,12 +91,13 @@ class App(AppTest):
         """
         A Proper app core.
 
-        Args:
-            import_name:
-                The name of the application package. Eg.: `foobar.web`.
+        Arguments:
 
-            config:
-                Optional dict-like with the config.
+        - import_name:
+            The name of the application package. Eg.: `foobar.web`.
+
+        - config:
+            Optional dict-like with the config.
 
         """
         self.error_handlers = {}

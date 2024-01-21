@@ -62,8 +62,10 @@ class RequestHeadersMixin:
     def _normalize_env(self, env: dict[str, t.Any]) -> None:
         """Normalize the environment variables.
 
-        Args:
-            env: A WSGI environment dict passed in from the server (See also PEP-3333).
+        Arguments:
+
+        - env:
+            A WSGI environment dict passed in from the server (See also PEP-3333).
 
         """
         self.env = {
@@ -478,12 +480,15 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
     (e.g. Accept headers) and returns a list of values and parameters.
     For non-standard or broken input, this implementation may return partial results.
 
-    Args:
-        header: A header string (e.g. `text/html,text/plain;q=0.9,*/*;q=0.8`)
+    Arguments:
+
+    - header:
+        A header string (e.g. `text/html,text/plain;q=0.9,*/*;q=0.8`)
 
     Return:
-        List of (value, params) tuples. The second element is a
-        (possibly empty) dict.
+
+    List of (value, params) tuples. The second element is a
+    (possibly empty) dict.
 
     """
     values = []
@@ -523,11 +528,14 @@ def parse_request_id(val: str | None) -> str | None:
     This function will remove non-ASCII characters and truncate the
     request ID to 200 characters.
 
-    Args:
-        val: The request ID.
+    Arguments:
+
+    - val:
+        The request ID.
 
     Returns:
-        The parsed request ID or None if the input is None.
+
+    The parsed request ID or None if the input is None.
 
     """
     if val is None:

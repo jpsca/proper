@@ -73,8 +73,9 @@ def secure_filename(filename: str) -> str:
     to ensure that the filename is unique and that you abort or
     generate a random filename if the function returned an empty one.
 
-    Args:
-        filename: the filename to secure
+    Arguments:
+
+    - filename: the filename to secure
 
     """
     filename = unicodedata.normalize("NFKD", filename)
@@ -152,10 +153,14 @@ def import_string(import_name: str, silent: bool = False) -> t.Any:
 
     If `silent` is True the return value will be `None` if the import fails.
 
-    Args:
-        import_name: the dotted name for the object to import.
-        silent: if set to `True` import errors are ignored and
-            `None` is returned instead.
+    Arguments:
+
+    - import_name:
+        The dotted name for the object to import.
+
+    - silent:
+        If set to `True` import errors are ignored and
+        `None` is returned instead.
 
     """
     import_name = import_name.replace(":", ".")
@@ -201,10 +206,16 @@ def find_modules(
     also recursively list modules but in that case it will import all the
     packages to get the correct load path of that module.
 
-    Args:
-        import_path: the dotted name for the package to find child modules.
-        include_packages: set to `True` if packages should be returned, too.
-        recursive: set to `True` if recursion should happen.
+    Arguments:
+
+    - import_path:
+        The dotted name for the package to find child modules.
+
+    - include_packages:
+        set to `True` if packages should be returned, too.
+
+    - recursive:
+        set to `True` if recursion should happen.
 
     """
     prefix.rstrip(".")

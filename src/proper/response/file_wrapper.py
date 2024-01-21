@@ -1,9 +1,11 @@
 import typing as t
 
+from proper.types import TReadable
+
 
 class FileWrapper:
     """This class can be used to convert a file-like object into
-    an iterable. It yields `buffer_size` blocks until the file is fully read.
+    an iterable. It yields `block_size` blocks until the file is fully read.
     You should not use this class directly but rather use the
     `Request.wrap_file` method that uses the WSGI server's file wrapper
     support if it's available.
@@ -13,14 +15,18 @@ class FileWrapper:
 
 
     Arguments:
-      - file: a `file`-like object with a `read` method.
-      - buffer_size: number of bytes for one iteration.
+
+    - file:
+        a `file`-like object with a `read` method.
+
+    - block_size:
+        number of bytes for one iteration.
 
     """
 
-    def __init__(self, filelike: t.IO[t.Any], buffer_size: int = 8192) -> None:
+    def __init__(self, filelike: TReadable, block_size: int = 8192) -> None:
         self.filelike = filelike
-        self.buffer_size = buffer_size
+        self.block_size = block_size
 
     def close(self) -> None:
         if hasattr(self.filelike, "close"):
@@ -46,7 +52,7 @@ class FileWrapper:
         return self
 
     def __next__(self) -> bytes:
-        data = self.filelike.read(self.buffer_size)
+        data = self.filelike.read(self.block_size)
         if data:
             return data
         raise StopIteration()

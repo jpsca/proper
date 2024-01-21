@@ -132,15 +132,16 @@ class MultipartParser(object):
 
         This object is an iterator over the parts of the message.
 
-        Args:
-            stream:
-                A file-like stream. Must implement `.read(size)`.
+        Arguments:
 
-            boundary:
-                The multipart boundary as a byte string.
+        - stream:
+            A file-like stream. Must implement `.read(size)`.
 
-            content_length:
-                The maximum number of bytes to read.
+        - boundary:
+            The multipart boundary as a byte string.
+
+        - content_length:
+            The maximum number of bytes to read.
 
         """
         self.stream = stream

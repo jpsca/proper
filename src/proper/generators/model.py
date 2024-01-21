@@ -25,8 +25,10 @@ def gen_model(
 
     - name:
         The PascalCased model name, always singular.
+
     - migration [False]:
         Generate a migration for creating the table.
+
     - attrs:
         Optional list of columns for the model schema.
 

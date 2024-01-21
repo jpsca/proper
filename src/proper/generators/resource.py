@@ -64,16 +64,21 @@ def gen_resource(
 
     - name:
         The PascalCased resource name, plural unless `--singular` is used.
+
     - singular [False]:
         Whether the resource represents a single entity for the user (like "profile").
+
     - only:
         Optional comma-separated list of actions to include,
         instead of the full set.
+
     - exclude:
         Optional comma-separated list of actions to exclude
         from the full set.
+
     - migration [False]:
         Generate a migration for creating the table.
+
     - attrs:
         Optional list of columns for the resource schema.
 

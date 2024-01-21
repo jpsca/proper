@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING, Any
+import typing as t
 
 from ..constants import FLASHES_SESSION_KEY
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from ..response import Response
 
 
@@ -16,12 +16,12 @@ class FlashDict:
     def __init__(self, response: "Response"):
         self.response = response
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> t.Any:
         if name in DICT_ATTRS:
             return self.get_dict().get(name)
         raise AttributeError(name)
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: t.Any) -> None:
         self.get_dict()[key] = value
 
     def __delitem__(self, key: str) -> None:
@@ -39,7 +39,7 @@ class FlashDict:
     def notice(self, message: str) -> None:
         self[NOTICE] = message
 
-    def get_dict(self) -> dict[str, Any]:
+    def get_dict(self) -> dict[str, t.Any]:
         if FLASHES_SESSION_KEY not in self.response.session:
             self.response.session[FLASHES_SESSION_KEY] = {}
         return self.response.session[FLASHES_SESSION_KEY]

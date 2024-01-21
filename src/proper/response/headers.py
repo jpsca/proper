@@ -93,11 +93,12 @@ class ResponseHeadersMixin:
         try to resume an interrupted download instead of trying to
         restart the download.
 
-        Args:
-            unit:
-                The default is `'bytes'` - the only range unit formally
-                defined by [RFC 7233](https://datatracker.ietf.org/doc/html/rfc7233).
-                Use `None` to delete the header.
+        Arguments:
+
+        - unit:
+            The default is `'bytes'` - the only range unit formally
+            defined by [RFC 7233](https://datatracker.ietf.org/doc/html/rfc7233).
+            Use `None` to delete the header.
 
         """
         self.headers._set("accept-ranges", unit)
@@ -120,11 +121,12 @@ class ResponseHeadersMixin:
         The Cache-Control HTTP header field holds "directives" (instructions)
         that control caching in browsers and shared caches (e.g. Proxies, CDNs).
 
-        Args:
-            *directives:
-                list of cache directives that are joined with ", "
-                to produce the value for the header.
-                Pass zero directives to delete the header.
+        Arguments:
+
+        - *directives:
+            list of cache directives that are joined with ", "
+            to produce the value for the header.
+            Pass zero directives to delete the header.
 
         """
         self.headers._set(
@@ -154,11 +156,12 @@ class ResponseHeadersMixin:
         Content encoding is mainly used to compress the message data
         without losing information about the origin media type.
 
-        Args:
-            *values:
-                Lists any encodings that have been applied to the body
-                in what order
-                Pass zero values to delete the header.
+        Arguments:
+
+        - *values:
+            Lists any encodings that have been applied to the body
+            in what order
+            Pass zero values to delete the header.
 
         """
         self.headers._set(
@@ -182,10 +185,11 @@ class ResponseHeadersMixin:
         When the response has content, the framework will force
         Content-Length to be the length of the given text bytes.
 
-        Args:
-            num:
-                Number of bytes of the returned content.
-                Use `None` to delete the header.
+        Arguments:
+
+        - num:
+            Number of bytes of the returned content.
+            Use `None` to delete the header.
 
         """
         self.headers._set("content-length", format_int(num))
@@ -209,9 +213,10 @@ class ResponseHeadersMixin:
         Do not mistake this header with `Location`, that is used
         for redirects.
 
-        Args:
-            url:
-                Use `None` to delete the header.
+        Arguments:
+
+        - url:
+            Use `None` to delete the header.
 
         """
         self.headers._set("content-location", url)
@@ -234,21 +239,22 @@ class ResponseHeadersMixin:
         The Content-Range response HTTP header indicates where in a
         full body message a partial message belongs.
 
-        Args:
-            unit:
-                The unit in which ranges are specified,`'bytes'` by default.
-                Use `None` to delete the header.
+        Arguments:
 
-            start:
-                An integer in the given unit indicating the start position
-                (zero-indexed & inclusive) of the request range.
+        - unit:
+            The unit in which ranges are specified,`'bytes'` by default.
+            Use `None` to delete the header.
 
-            end:
-                An integer in the given unit indicating the end position
-                (zero-indexed & inclusive) of the requested range.
+        - start:
+            An integer in the given unit indicating the start position
+            (zero-indexed & inclusive) of the request range.
 
-            size:
-                The total length of the document.
+        - end:
+            An integer in the given unit indicating the end position
+            (zero-indexed & inclusive) of the requested range.
+
+        - size:
+            The total length of the document.
 
         Examples:
 
@@ -307,13 +313,14 @@ class ResponseHeadersMixin:
         type of the resource (prior to any content encoding applied
         for sending).
 
-        Args:
-            val:
-                `text/html` by default
-                Use `None` to delete the header.
+        Arguments:
 
-            charset:
-                "utf-8" by default
+        - val:
+            `text/html` by default
+            Use `None` to delete the header.
+
+        - charset:
+            "utf-8" by default
 
         """
         self._mimetype = mimetype
@@ -338,19 +345,20 @@ class ResponseHeadersMixin:
         save bandwidth, as a web server does not need to resend a full response
         if the content was not changed.
 
-        Args:
-            val:
-                The ETag can be generated from a date, a number or a string that
-                represents the "version" or the content: a date, number, tag, etc.
-                This value is sha1-hashed to generate the final one.
-                Use `None` to delete the header.
+        Arguments:
 
-            strong:
-                By default a “weak” ETag is used. Set this to `True` to set a
-                “strong” ETag validator on the response. A strong ETag implies
-                exact equality: the response must match byte for byte.
-                This is necessary for doing range requests within a large file
-                or for compatibility with some CDNs that don’t support weak ETags.
+        - val:
+            The ETag can be generated from a date, a number or a string that
+            represents the "version" or the content: a date, number, tag, etc.
+            This value is sha1-hashed to generate the final one.
+            Use `None` to delete the header.
+
+        - strong:
+            By default a “weak” ETag is used. Set this to `True` to set a
+            “strong” ETag validator on the response. A strong ETag implies
+            exact equality: the response must match byte for byte.
+            This is necessary for doing range requests within a large file
+            or for compatibility with some CDNs that don’t support weak ETags.
 
         """
         coded_val = None
@@ -376,11 +384,12 @@ class ResponseHeadersMixin:
         The Expires HTTP header contains the datetime after whic
         the response is considered expired.
 
-        Args:
-            dt:
-                The header can be generated from a timestamp or an
-                UTC or naive datetime.
-                Use `None` to delete the header.
+        Arguments:
+
+        - dt:
+            The header can be generated from a timestamp or an
+            UTC or naive datetime.
+            Use `None` to delete the header.
 
         """
         self.headers._set("expires", format_datetime(dt))
@@ -410,11 +419,12 @@ class ResponseHeadersMixin:
         by browsers in heuristic caching, and by content management systems (CMS)
         to display the time the content was last modified.
 
-        Args:
-            dt:
-                The header can be generated from a timestamp or an
-                UTC or naive datetime.
-                Use `None` to delete the header.
+        Arguments:
+
+        - dt:
+            The header can be generated from a timestamp or an
+            UTC or naive datetime.
+            Use `None` to delete the header.
 
         """
         self.headers._set("last-modified", format_datetime(dt))
@@ -450,10 +460,11 @@ class ResponseHeadersMixin:
         In cases of resource creation, it indicates the URL to the newly
         created resource.
 
-        Args:
-            url:
-                The URL of the resource.
-                Use `None` to delete the header.
+        Arguments:
+
+        - url:
+            The URL of the resource.
+            Use `None` to delete the header.
 
         """
         self.headers._set("location", url)
@@ -483,11 +494,12 @@ class ResponseHeadersMixin:
             this indicates the minimum time that the user agent is asked to wait
             before issuing the redirected request.
 
-        Args:
-            num:
-                The expected value is an integral number of seconds.
-                The HTTP-date syntax is not supported.
-                Use `None` to delete the header.
+        Arguments:
+
+        - num:
+            The expected value is an integral number of seconds.
+            The HTTP-date syntax is not supported.
+            Use `None` to delete the header.
 
         """
         if num is not None:
@@ -518,10 +530,11 @@ class ResponseHeadersMixin:
         The same Vary header value should be used on all responses for a given URL
         including 304 Not Modified responses.
 
-        Args:
-            *names:
-                One or more header names.
-                Pass zero names to delete the header.
+        Arguments:
+
+        - *names:
+            One or more header names.
+            Pass zero names to delete the header.
 
         """
         self.headers._set(

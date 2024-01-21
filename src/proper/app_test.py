@@ -34,16 +34,17 @@ class AppTest:
         Do a GET request given the url path.
 
         Arguments:
-            url:
-                A full URL or a path
 
-            params:
-                A dictionary that will be encoded
-                into a query string. You may also include a URL query
-                string on the `url`.
+        - url:
+            A full URL or a path
 
-            headers:
-                Extra headers to send.
+        - params:
+            A dictionary that will be encoded
+            into a query string. You may also include a URL query
+            string on the `url`.
+
+        - headers:
+            Extra headers to send.
 
         """
         return self._do_test_request(url, method=GET, params=params, headers=headers)
@@ -72,21 +73,22 @@ class AppTest:
         Do a POST request given the url path.
 
         Arguments:
-            url:
-                A full URL or a path
 
-            body:
-                Are put in the body of the request. If body is a dict
-                it will be urlencoded. If it is a string, it will not
-                be encoded, but placed in the body directly.
-                If `upload_files` is also used, `body` must be a dict.
+        - url:
+            A full URL or a path
 
-            upload_files:
-                It should be a list of `(fieldname, filename)`. The file
-                contents will be read from disk.
+        - body:
+            Are put in the body of the request. If body is a dict
+            it will be urlencoded. If it is a string, it will not
+            be encoded, but placed in the body directly.
+            If `upload_files` is also used, `body` must be a dict.
 
-            headers:
-                Extra headers to send.
+        - upload_files:
+            It should be a list of `(fieldname, filename)`. The file
+            contents will be read from disk.
+
+        - headers:
+            Extra headers to send.
 
         """
         return self._do_test_request(

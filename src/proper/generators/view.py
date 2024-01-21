@@ -23,6 +23,7 @@ def gen_view(app: "App", name: str, *actions: str) -> None:
 
     - name:
         The PascalCased view class name, in plural.
+
     - actions:
         Optional list of actions.
 

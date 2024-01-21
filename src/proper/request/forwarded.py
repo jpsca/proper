@@ -59,13 +59,15 @@ def parse_forwarded(val: str | None) -> list[dict[str, str]]:
     - It does NOT validate 'host' contents (Host ABNF).
     - It does NOT validate 'proto' contents for valid URI scheme names.
 
-    Args:
-        val:
-            The raw header value.
+    Arguments:
+
+    - val:
+        The raw header value.
 
     Returns:
-        A list of zero or more dictionaries, each containing the parsed
-        Forwarded parameters for a proxy.
+
+    A list of zero or more dictionaries, each containing the parsed
+    Forwarded parameters for a proxy.
 
     """
     if val is None:

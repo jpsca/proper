@@ -16,8 +16,11 @@ def get_db_cli(app):
         def create(self, name: str = "auto"):
             """Create a new migration file for all changes in the models.
 
-            Args:
-                name: Optional name for the migration
+            Arguments:
+
+            - name:
+                Optional name for the migration
+
             """
             module = import_module(f"{app.name}.models")
             migration = self._router.create(name, auto=module)
@@ -29,9 +32,13 @@ def get_db_cli(app):
 
             If no target, run all upgrades.
 
-            Args:
-                target: Migration target to limit upgrades.
-                fake: Update migration table but don't run migration.
+            Arguments:
+
+            - target:
+                Migration target to limit upgrades.
+
+            - fake:
+                Update migration table but don't run migration.
 
             """
             done = self._router.run(name=target or None, fake=fake)
