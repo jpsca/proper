@@ -55,14 +55,14 @@ class RouteTemplate(Template):
 
 class Route:
     r"""
-    Arguments are:
+    Arguments:
 
-    method:
+    - method:
         Usualy, one of the HTTP methods: "get", "post", "put", "delete",
         "options", "patch", or "query"; but it could also be another
         application-specific value.
 
-    path:
+    - path:
         The path of this route. Can contain placeholders like `:name` or
         `:name<format>` where "format" can be:
 
@@ -82,16 +82,16 @@ class Route:
         - `:year<int>/:month<int>/:day<int>/:slug`
         - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
 
-    to:
+    - to:
         Optional. A reference to the view that this route is connected to.
 
-    name:
+    - name:
         Optional. Overwrites the default name of the route that is the qualified
         name of the `to` method. eg: `PagesView.show`.
         This name can be any unique string eg: "login", "index",
         "something.foobar", etc.
 
-    host:
+    - host:
         Optional. Host for this route, including any subdomain
         and an optional port. Examples: "www.example.com", "localhost:5000".
 
@@ -103,15 +103,15 @@ class Route:
         - :lang<en|es|pt>.example.com
         - :username.localhost:5000
 
-    redirect:
+    - redirect:
         Optional. Instead of dispatching to a view, redirect to this
         other URL.
 
-    redirect_status:
+    - redirect_status:
         Optional. Which status code to use for the redirect.
         The status "307 Temporary Redirect" is the default.
 
-    defaults:
+    - defaults:
         Optional. A dict with extra values that will be sent to the view.
 
     """

@@ -7,12 +7,12 @@ app.routes += [
     # Static files
     static(
         "static/:file<path>",
-        root=app.static_folder,
+        root=app.static_path,
         name="static",
     ),
     static(
         f"{app.config.COMPONENTS_URL_ROOT}/:file<path>",
-        root=app.components_folder,
+        root=app.components_path,
         allowed_ext=(".css", ".js"),
     ),
     # Static files that are expected at the root

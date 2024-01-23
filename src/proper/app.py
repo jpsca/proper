@@ -126,6 +126,10 @@ class App(AppTest):
     def components_path(self) -> Path:
         return self.root_path / self.config.COMPONENTS_FOLDER
 
+    @property
+    def static_path(self) -> Path:
+        return self.root_path.parent / "static"
+
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
         raises an exception."""

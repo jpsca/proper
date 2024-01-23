@@ -13,15 +13,45 @@ __all__ = (
 
 
 class Static(Route):
-    """A route for static files."""
+    """A route for static files.
+
+    Arguments:
+
+    - url:
+        The base URL for these static files.
+
+    - root:
+        The absolute path to the folder where the static files are.
+
+    - name:
+        This name can be any unique string eg: "static", "files", "assets", etc.
+
+    - allowed_ext:
+        Optional. If included, only the files with extensions on this list
+        wil be returned. Include `""` for files without any extension.
+
+    - public [True]:
+        By default the Cache-Control header of static files is public, set this to
+        `False` if you want the files to *not* be cacheable by other devices
+        (like proxy caches).
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
 
     def __init__(
         self,
-        path: str,
-        name: str,
+        url: str,
         *,
         root: str | Path,
+        name: str = "",
         allowed_ext: t.Iterable[str] | None,
+        public: bool = True,
         host: str | None = None,
         defaults: dict | None = None,
     ) -> None:
@@ -29,8 +59,10 @@ class Static(Route):
 
         defaults = defaults or {}
         defaults["root"] = root
+        defaults["public"] = public
         if allowed_ext:
             defaults["allowed_ext"] = allowed_ext
+        path = url.strip("/") + "/:file<path>"
 
         super().__init__(
             GET,

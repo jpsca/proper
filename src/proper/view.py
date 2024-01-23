@@ -123,6 +123,7 @@ RX_FINGERPRINT = re.compile("(.*)-([abcdef0-9]{64})")
 class StaticFiles(View):
     def show(self):
         root: Path = self.defaults["root"].lstrip(os.path.sep)
+        public: bool = self.defaults["public"]
 
         filename: str = self.params.get("file", "")
 
@@ -157,6 +158,14 @@ class StaticFiles(View):
         )
 
         if fingerprinted:
-            self.response.set_cache_control("max-age=31536000", "public", "immutable")
+            self.response.set_cache_control(
+                "max-age=31536000",
+                "public" if public else "private",
+                "immutable",
+            )
         else:
-            self.response.set_cache_control("max-age=0", "public", "must-revalidate")
+            self.response.set_cache_control(
+                "max-age=0",
+                "public" if public else "private",
+                "must-revalidate",
+            )
