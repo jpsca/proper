@@ -1,6 +1,5 @@
 import hashlib
 import inspect
-import json
 import string
 import typing as t
 from importlib import import_module
@@ -13,12 +12,9 @@ from itsdangerous import (
     TimestampSigner,
     URLSafeTimedSerializer,
 )
-from markupsafe import Markup
-from whitenoise import WhiteNoise
 
 from . import current, pipeline, status
 from .app_test import AppTest
-from .assets import RX_INMUTABLES_FILE
 from .auth import Auth
 from .cli import get_app_cli
 from .config import get_env, get_default_config, logger
@@ -49,11 +45,6 @@ if t.TYPE_CHECKING:
     from proper_cli import Cli
 
 
-COMPONENTS_FOLDER = "components"
-COMPONENTS_URL_ROOT = "/components/"
-STATIC_PREFIX = "static"
-STATIC_FOLDER = "static"
-MANIFEST_PATH = "cache_manifest.json"
 MIN_SECRET_LENGTH = 48
 
 
@@ -111,9 +102,7 @@ class App(AppTest):
         self._setup_router()
         self._setup_serializer()
         self._setup_fallback_scheduler()
-        self._load_static_manifest()
         self._setup_render()
-        self._setup_whitenoise()
         self._setup_cli()
         self._setup_auth()
         self._setup_storage()
@@ -135,15 +124,7 @@ class App(AppTest):
 
     @property
     def components_path(self) -> Path:
-        return self.root_path / COMPONENTS_FOLDER
-
-    @property
-    def static_path(self) -> Path:
-        return self.root_path.parent / STATIC_FOLDER
-
-    @property
-    def static_manifest_path(self) -> Path:
-        return self.static_path / MANIFEST_PATH
+        return self.root_path / self.config.COMPONENTS_FOLDER
 
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
@@ -260,18 +241,6 @@ class App(AppTest):
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
 
-    def url_static(self, filename: str, *, host: str | None = None) -> str:
-        host = host or self.config.STATIC_HOST or f"/{STATIC_PREFIX}"
-        filename = filename.replace("..", ".").strip("/").strip("\\").strip()
-        filename = self.static_manifest.get(filename, filename)
-        return f"{host}/{filename}"
-
-    def include_static(self, filename: str) -> str:
-        """Read and returns a text file from the `static` folder, to include as-is.
-        """
-        text = (self.static_path / filename).read_text()
-        return Markup(text)
-
     def start(self) -> None:
         for func in self._on_dev_start:
             func()
@@ -315,7 +284,7 @@ class App(AppTest):
         if path.is_file():
             path = path.parent
         self.module = module
-        self.root_path = path.absolute()
+        self.root_path = path.resolve()
         self.name = self.root_path.stem
         self.config_path = self.root_path / "config"
 
@@ -364,48 +333,18 @@ class App(AppTest):
     def _setup_fallback_scheduler(self) -> None:
         self.scheduler = HueyScheduler()
 
-    def _load_static_manifest(self) -> None:
-        path = self.static_manifest_path
-        if not self.config.DEBUG and path.exists():
-            self.static_manifest = json.loads(path.read_text())
-        else:
-            self.static_manifest = {}
-
     def _setup_render(self) -> None:
         if not self.components_path.exists():
             self.catalog = None
             return
 
         self.catalog = jinjax.Catalog(
-            root_url=COMPONENTS_URL_ROOT,
+            root_url=self.config.COMPONENTS_URL_ROOT,
             globals={
                 "url_for": self.url_for,
-                "url_static": self.url_static,
-                "include_static": self.include_static,
             },
         )
         self.catalog.add_folder(self.components_path)
-        self._wrapped_wsgi = self.catalog.get_middleware(
-            self.wsgi_app,
-            autorefresh=self.config.DEBUG,
-            immutable_file_test=RX_INMUTABLES_FILE,
-        )
-
-    def _setup_whitenoise(self) -> None:
-        if not self.static_path.exists():
-            return
-
-        self._wrapped_wsgi = wn = WhiteNoise(
-            self.wsgi_app,
-            root=self.static_path,
-            prefix=STATIC_PREFIX,
-            autorefresh=self.config.DEBUG,
-            immutable_file_test=RX_INMUTABLES_FILE,
-        )
-        for sp in self.config.STATIC_PATHS or []:
-            path = self.root_path.parent / sp["path"].strip("/\\")
-            prefix = sp["prefix"].lstrip("/\\")
-            wn.add_files(path, prefix=prefix)
 
     def _setup_cli(self) -> None:
         self.CL = get_app_cli(self)

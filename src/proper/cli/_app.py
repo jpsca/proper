@@ -40,7 +40,6 @@ def get_app_cli(app: "App") -> t.Type[Cli]:
         "run": get_run_server(app),
         "routes": get_routes_cmd(app),
         "db": get_db_cli(app),
-        "static": get_static_cli(app),
         "g": get_generators_cli(app),
         "install": get_install_cli(app),
         "welcome": welcome,
@@ -126,19 +125,6 @@ def get_generators_cli(app: "App") -> t.Type[Cli]:
         attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
     return type("Generators", (Cli,), attrs)
-
-
-def get_static_cli(app: "App") -> t.Type[Cli]:
-    from .. import assets
-
-    attrs: dict[str, t.Any] = {
-        "__doc__": """Manage assets.""",
-    }
-
-    for name in ("bundle", "build", "clean"):
-        attrs[name] = _get_cmd(app, assets, name)
-
-    return type("Assets", (Cli,), attrs)
 
 
 def get_install_cli(app: "App") -> t.Type[Cli]:

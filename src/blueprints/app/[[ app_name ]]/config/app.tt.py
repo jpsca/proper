@@ -37,17 +37,17 @@ MAX_CONTENT_LENGTH: int = 2**23  # 8 MB
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
 MAX_QUERY_SIZE: int = 2**20  # 1 MB
 
-STATIC_HOST: str | None = None
-# When set to False then compressed files will not be created but static files
-# will still get md5 tagged.
 
-STATIC_COMPRESS: bool = True
-# Everything in the `static` folder is available at `/static/...`
-# You can add other paths/prefixes here
+COMPONENTS_FOLDER = "components"
+COMPONENTS_URL_ROOT = "/components"
 
-STATIC_PATHS: list[dict] = [
-    # {path: "FOLDER_PATH", prefix: "URL"},
-]
+# The name of the header to use to return a file
+# so the proxy or web-server does it instead of our application.
+# Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"
+if env == PROD:
+    STATIC_X_SENDFILE_HEADER = ""
+else:
+    STATIC_X_SENDFILE_HEADER = ""
 
 
 MAILER_DEFAULT_FROM = "hello@example.com"

@@ -1,12 +1,16 @@
 """A base view class, all other application views must
 inherit from. Stores data available to the component.
 """
+import os.path
+import re
 import typing as t
 from inspect import isclass
+from pathlib import Path
 
 from .app import App
 from .constants import HEAD
 from .current import response as c_response
+from .errors import NotFound
 from .helpers import MultiDict, jsonplus
 from .request import Request
 from .response import Response
@@ -40,6 +44,13 @@ class View:
         params.update(self.request.form)
         params.update(self.request.matched_params or {})
         return params
+
+    @property
+    def defaults(self) -> dict:
+        defaults = {}
+        if self.request.matched_route:
+            defaults = self.request.matched_route.defaults
+        return defaults
 
     def render(
         self,
@@ -104,3 +115,48 @@ class View:
 
         if ret_value is not None:
             self.response.body = ret_value
+
+
+RX_FINGERPRINT = re.compile("(.*)-([abcdef0-9]{64})")
+
+
+class StaticFiles(View):
+    def show(self):
+        root: Path = self.defaults["root"].lstrip(os.path.sep)
+
+        filename: str = self.params.get("file", "")
+
+        relpath = Path(filename.lstrip(os.path.sep))
+        ext = "".join(relpath.suffixes)
+
+        allowed_ext: t.Iterable[str] | None = self.defaults.get("allowed_ext")
+        if allowed_ext:
+            if ext not in allowed_ext:
+                raise NotFound("File does not exists")
+
+        # Ignore the fingerprint in the filename
+        # since is only for managing the cache in the client
+        stem = relpath.name.removesuffix(ext)
+        fingerprinted = RX_FINGERPRINT.match(stem)
+        if fingerprinted:
+            stem = fingerprinted.group(1)
+            relpath = relpath.with_name(f"{stem}{ext}")
+
+        filepath: Path = (root / relpath).resolve()
+
+        if root not in filepath.parents:
+            raise NotFound(f"Folder {filepath.parent} does not exists")
+
+        if not filepath.is_file():
+            raise NotFound("File does not exists")
+
+        self.response.send_file(
+            filepath,
+            as_attachment=True,
+            x_sendfile_header=self.app.config.STATIC_X_SENDFILE_HEADER,
+        )
+
+        if fingerprinted:
+            self.response.set_cache_control("max-age=31536000", "public", "immutable")
+        else:
+            self.response.set_cache_control("max-age=0", "public", "must-revalidate")

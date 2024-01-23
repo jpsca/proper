@@ -2,10 +2,17 @@
 Utilities to declare routes in your application.
 
 """
-from typing import Callable
+import re
+import typing as t
+from string import Template
 
+from proper.errors import (
+    BadRouteFormat,
+    BadRoutePlaceholder,
+    DuplicatedRoutePlaceholder,
+    MissingRouteParameter,
+)
 from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, QUERY, RESTORE
-from .base import BaseRoute
 
 
 __all__ = (
@@ -24,19 +31,35 @@ __all__ = (
     "delete",
     "options",
     "patch",
-    "static",
     "restore",
     "query",
 )
 
+"""Formats to be replaced with regular expressions.
+Note that these DOESN'T do any type conversion, just
+validates the section of the route match the regular expression.
+"""
+FORMATS = {
+    None: r"[^\/]+",
+    "path": r".+",
+    "int": r"[0-9]+",
+    "float": r"[0-9]+\.[0-9]+",
+}
 
-class Route(BaseRoute):
+RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
+
+
+class RouteTemplate(Template):
+    delimiter = ":"
+
+
+class Route:
     r"""
     Arguments are:
 
     method:
         Usualy, one of the HTTP methods: "get", "post", "put", "delete",
-        "options", or "patch"; but it could also be another
+        "options", "patch", or "query"; but it could also be another
         application-specific value.
 
     path:
@@ -48,8 +71,8 @@ class Route(BaseRoute):
         - `path`, for matching anything *including* slashes
         - a regular expression
 
-        Note that declaring a format doesn't make type conversions, **all values
-        are passed to the view as strings**.
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
 
         Examples:
 
@@ -93,11 +116,11 @@ class Route(BaseRoute):
 
     """
     __slots__ = (
+        "path",
         "path_re",
         "path_plain",
         "path_placeholders",
         "method",
-        "path",
         "to",
         "name",
         "host",
@@ -111,16 +134,18 @@ class Route(BaseRoute):
         method: str,
         path: str,
         *,
-        to: Callable | None = None,
+        to: t.Callable | None = None,
         name: str | None = None,
         host: str | None = None,
         redirect: str | None = None,
         redirect_status: str = "307 Temporary Redirect",
         defaults: dict | None = None,
     ) -> None:
-        super().__init__()
         self.method = method.upper()
         self.path = "/" + path.strip("/")
+        self.path_re: re.Pattern | None = None
+        self.path_plain: str | None = None
+        self.path_placeholders: dict = {}
         self.to = to
         self.name = name or (to.__qualname__ if callable(to) else to)
         self.host = host
@@ -137,11 +162,110 @@ class Route(BaseRoute):
             + ">"
         )
 
+    def __eq__(self, other: t.Any) -> bool:
+        if getattr(other, "__slots__", None) != self.__slots__:
+            return NotImplemented
+        return all(
+            [
+                getattr(self, attr, None) == getattr(other, attr, None)
+                for attr in self.__slots__
+                if not attr.startswith("_") and not attr.startswith("path_")
+            ]
+        )
+
     @property
     def build_only(self) -> bool:
         """Is this a route only for `url_for()`
         and not for matching?"""
         return not (self.to or self.redirect)
+
+    def compile_path(self) -> None:
+        path = self.path.rstrip("/")
+        parts = []
+        parts_re = []
+        placeholders = {}
+        index = 0
+
+        while True:
+            match = RE_PLACEHOLDERS.search(path, pos=index)
+            if not match:
+                break
+            start, end = match.span()
+            part = path[index:start]
+            parts.append(part)
+            parts_re.append(re.escape(part))
+            index = end
+
+            name, rx = match.groups()
+            if name in placeholders:
+                raise DuplicatedRoutePlaceholder(name, path)
+
+            rx = FORMATS.get(rx, rx)
+            placeholders[name] = rx
+            parts.append(f":{name}")
+            parts_re.append(rf"(?P<{name}>{rx})")
+
+        part = path[index:]
+        parts.append(part)
+        plain = "".join(parts)
+
+        parts_re.append(re.escape(part))
+        str_re = r"".join(parts_re) + r"/?$"
+        try:
+            path_re = re.compile(str_re)
+        except Exception as e:
+            raise BadRouteFormat(e)
+
+        self.path_re = path_re
+        self.path_plain = plain
+        self.path_placeholders = placeholders
+
+    def match(self, path: str) -> re.Match | None:
+        if self.path_re is None:
+            self.compile_path()
+
+        assert self.path_re
+        return self.path_re.match(path)
+
+    def format(self, **kw) -> str:
+        if self.path_plain is None:
+            self.compile_path()
+
+        tmpl = RouteTemplate(self.path_plain or "")
+        path_params = self._get_path_params(kw)
+        url = tmpl.substitute(dict(path_params)) or "/"
+
+        query_params = self._get_query_params(path_params, kw)
+        if query_params:
+            params = "&".join(
+                [key + "=" + value for key, value in query_params.items()]
+            )
+            url = url + "?" + params
+
+        return url
+
+    def _get_path_params(self, kwargs: dict) -> dict:
+        path_params = {}
+
+        for name, rx in self.path_placeholders.items():
+            value = kwargs.get(name)
+            if value is None:
+                raise MissingRouteParameter(name, self.path)
+            value = str(value)
+            if not re.match(rx, value):
+                raise BadRoutePlaceholder(name, self.path, rx)
+            path_params[name] = value
+
+        return path_params
+
+    def _get_query_params(self, path_params: dict, kwargs: dict) -> dict:
+        query_params = {}
+
+        for name, value in kwargs.items():
+            if name not in path_params:
+                query_params[name] = value
+
+        return query_params
 
 
 class Get(Route):
@@ -172,15 +296,6 @@ class Options(Route):
 class Patch(Route):
     def __init__(self, path: str, **kw) -> None:
         super().__init__(PATCH, path, **kw)
-
-
-class Static(Route):
-    """A route for static files."""
-
-    def __init__(self, filepath: str) -> None:
-        filepath = filepath.lstrip("/")
-        redirect = f"/static/{filepath}"
-        super().__init__("GET", filepath, redirect=redirect)
 
 
 class Query(Route):
@@ -218,6 +333,5 @@ put = Put
 delete = Delete
 options = Options
 patch = Patch
-static = Static
 query = Query
 restore = Restore

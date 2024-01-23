@@ -221,7 +221,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         mimetype: str | None = None,
         as_attachment: bool = False,
         download_name: str | None = None,
-        use_x_sendfile: bool | None = None,
+        x_sendfile_header: str = "",
     ) -> None:
         """Sends a file as a response, unless the cache headers
         indicate it's not necessary.
@@ -234,29 +234,35 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         - mimetype:
             The mimetype of the file.
 
-        - as_attachment:
+        - as_attachment [False]:
             If `True` the file will be sent as attachment.
 
         - download_name:
             The name of the file.
 
-        - use_x_sendfile:
-            If `True` the X-Sendfile header will be used.
+        - x_sendfile_header:
+            If not empty, set the filepath in this header and let
+            the proxy/webserver take care of returning the file.
 
         """
         path = Path(path).resolve()
-
         stat = path.stat()
-        size = stat.st_size
-        mtime = stat.st_mtime
-
-        if size is not None:
-            self.set_content_length(size)
+        mtime = stat.st_mtime_ns or stat.st_mtime
 
         if mtime is not None:
-            if self.fresh_when(last_modified=mtime):
-                self.body = ""
-                return
+            self.set_last_modified(mtime)
+            self.set_content_length(0)
+            self.body = ""
+            return
+
+        if x_sendfile_header:
+            self.headers[x_sendfile_header] = path
+            self.set_content_length(0)
+            self.body = ""
+            return
+
+        if stat.st_size is not None:
+            self.set_content_length(stat.st_size)
 
         if mimetype is None:
             mimetype, encoding = guess_type(path)
@@ -268,6 +274,8 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
                 self.set_content_encoding(encoding)
             else:
                 self.set_content_encoding()
+
+        self.content_type = mimetype
 
         download_name = download_name or path.name
         try:
@@ -284,10 +292,6 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         value = "attachment" if as_attachment else "inline"
 
         self.headers["content-disposition"] = f"{value}{options}"
-
-        if use_x_sendfile:
-            self.headers["x-sendfile"] = path
-
         self.body = self._wrap_file(path.open("rb"))
 
     def _wrap_file(

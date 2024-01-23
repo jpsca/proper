@@ -41,6 +41,9 @@ def get_default_config():
     # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
     config.MAX_QUERY_SIZE = 2**20  # 1 MB
 
+    config.COMPONENTS_FOLDER = "components"
+    config.COMPONENTS_URL_ROOT = "/components/"
+
     config.SESSION_LIFETIME = timedelta(days=30).total_seconds()
 
     config.SESSION_COOKIE_NAME = "_session"
@@ -50,17 +53,10 @@ def get_default_config():
     config.SESSION_COOKIE_SECURE = False
     config.SESSION_COOKIE_SAMESITE = None  # "Lax", "Strict", or None
 
-    config.STATIC_HOST = None
-
-    # When set to False then compressed files will not be created but static files
-    # will still get md5 tagged.
-    config.STATIC_COMPRESS = True
-
-    config.STATIC_PATHS = [
-        # Everything in the `static` folder is available at `/static/...`
-        # You can add other paths/prefixes here
-        # {"path": "FOLDER_PATH", "prefix": "URL"},
-    ]
+    # The name of the header to use to return a file
+    # so the proxy or web-server does it instead of our application.
+    # Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"
+    config.STATIC_X_SENDFILE_HEADER = ""
 
     config.MAILER_DEFAULT_FROM = "hello@example.com"
 
