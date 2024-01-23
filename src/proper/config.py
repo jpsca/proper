@@ -42,7 +42,7 @@ def get_default_config():
     config.MAX_QUERY_SIZE = 2**20  # 1 MB
 
     config.COMPONENTS_FOLDER = "components"
-    config.COMPONENTS_URL_ROOT = "/components/"
+    config.COMPONENTS_URL = "/components/"
 
     config.SESSION_LIFETIME = timedelta(days=30).total_seconds()
 
@@ -53,6 +53,8 @@ def get_default_config():
     config.SESSION_COOKIE_SECURE = False
     config.SESSION_COOKIE_SAMESITE = None  # "Lax", "Strict", or None
 
+    config.STATIC_FOLDER = "static"
+    config.STATIC_URL = "/static/"
     # The name of the header to use to return a file
     # so the proxy or web-server does it instead of our application.
     # Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"

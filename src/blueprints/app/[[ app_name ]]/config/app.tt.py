@@ -39,7 +39,7 @@ MAX_QUERY_SIZE: int = 2**20  # 1 MB
 
 
 COMPONENTS_FOLDER = "components"
-COMPONENTS_URL_ROOT = "/components"
+COMPONENTS_URL = "/components"
 
 # The name of the header to use to return a file
 # so the proxy or web-server does it instead of our application.

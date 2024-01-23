@@ -6,12 +6,12 @@ from .app import app
 app.routes += [
     # Static files
     static(
-        "static/:file<path>",
+        app.config.STATIC_URL,
         root=app.static_path,
         name="static",
     ),
     static(
-        f"{app.config.COMPONENTS_URL_ROOT}/:file<path>",
+        app.config.COMPONENTS_URL,
         root=app.components_path,
         allowed_ext=(".css", ".js"),
     ),

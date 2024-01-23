@@ -128,7 +128,7 @@ class App(AppTest):
 
     @property
     def static_path(self) -> Path:
-        return self.root_path.parent / "static"
+        return self.root_path.parent / self.config.STATIC_FOLDER
 
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
@@ -343,7 +343,7 @@ class App(AppTest):
             return
 
         self.catalog = jinjax.Catalog(
-            root_url=self.config.COMPONENTS_URL_ROOT,
+            root_url=self.config.COMPONENTS_URL,
             globals={
                 "url_for": self.url_for,
             },
