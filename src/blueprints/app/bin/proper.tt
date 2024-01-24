@@ -4,9 +4,9 @@ from pathlib import Path
 
 
 if __name__ == "__main__":
-  root = str(Path(__file__).parent / "..")
-  if root not in sys.path:
-    sys.path.append(root)
+    root = str(Path(__file__).parent / "..")
+    if root not in sys.path:
+        sys.path.append(root)
 
-  from [[ app_name ]].app import app
-  app.CL()()
+    from [[ app_name ]].app import app
+    app.CL()()

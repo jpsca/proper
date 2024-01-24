@@ -94,7 +94,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
             else:
                 to = "-"
             name = route.name or "-"
-            defaults = route.defaults or "-"
+            defaults = "{...} " if route.defaults else "-"
             routes.append([method, path, to, name, defaults])
 
         PADDING = 1

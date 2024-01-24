@@ -118,7 +118,7 @@ RX_FINGERPRINT = re.compile("(.*)-([abcdef0-9]{64})")
 
 class StaticFiles(View):
     def show(self):
-        root: Path = self.defaults["root"].lstrip(os.path.sep)
+        root: Path = self.defaults["root"]
         public: bool = self.defaults["public"]
 
         filename: str = self.params.get("file", "")
@@ -142,10 +142,10 @@ class StaticFiles(View):
         filepath: Path = (root / relpath).resolve()
 
         if root not in filepath.parents:
-            raise NotFound(f"Folder {filepath.parent} does not exists")
+            raise NotFound(f"Folder `{filepath.parent}` does not exists")
 
         if not filepath.is_file():
-            raise NotFound("File does not exists")
+            raise NotFound(f"File `{filename}` does not exists")
 
         mtime = filepath.stat().st_mtime
         self.response.last_modified = mtime
@@ -158,7 +158,7 @@ class StaticFiles(View):
         else:
             self.response.send_file(
                 filepath,
-                as_attachment=True,
+                as_attachment=False,
                 x_sendfile_header=self.app.config.STATIC_X_SENDFILE_HEADER,
             )
 

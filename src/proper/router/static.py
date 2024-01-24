@@ -56,7 +56,7 @@ class Static(Route):
         *,
         root: str | Path,
         name: str = "",
-        allowed_ext: t.Iterable[str] | None,
+        allowed_ext: t.Iterable[str] | None = (),
         public: bool = True,
         fingerprint: bool = True,
         host: str | None = None,
@@ -97,8 +97,12 @@ class Static(Route):
 
         ext = "".join(relpath.suffixes)
         stem = relpath.name.removesuffix(ext)
-        parent = relpath.parent
-        kw["file"] = f"{parent}/{stem}-{fingerprint}{ext}"
+        parent = str(relpath.parent)
+        parent = "" if parent == "." else f"{parent}/"
+
+        print("parent", parent)
+        print("stem", stem)
+        kw["file"] = f"{parent}{stem}-{fingerprint}{ext}"
 
         return super().format(**kw)
 
