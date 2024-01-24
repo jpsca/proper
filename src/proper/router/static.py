@@ -35,6 +35,12 @@ class Static(Route):
         `False` if you want the files to *not* be cacheable by other devices
         (like proxy caches).
 
+    - fingerprint [True]:
+        If True, adds, insert a hash of the updated time after the name of the file,
+        but before the extension. This strategy encourages long-term caching while
+        ensuring that new copies are only requested when the content changes, as
+        any modification alters the fingerprint and thus the filename.
+
     - host:
         Optional. Host for this route, including any subdomain
         and an optional port. Examples: "www.example.com", "localhost:5000".
@@ -52,6 +58,7 @@ class Static(Route):
         name: str = "",
         allowed_ext: t.Iterable[str] | None,
         public: bool = True,
+        fingerprint: bool = True,
         host: str | None = None,
         defaults: dict | None = None,
     ) -> None:
@@ -59,7 +66,8 @@ class Static(Route):
 
         defaults = defaults or {}
         defaults["root"] = root
-        defaults["public"] = public
+        defaults["public"] = bool(public)
+        defaults["fingerprint"] = bool(fingerprint)
         if allowed_ext:
             defaults["allowed_ext"] = allowed_ext
         path = url.strip("/") + "/:file<path>"
@@ -74,19 +82,18 @@ class Static(Route):
         )
 
     def format(self, **kw) -> str:
-        filename: str = kw.get("file", "")
-        if not filename:
+        if not self.defaults["fingerprint"]:
             return super().format(**kw)
 
         root = Path(self.defaults["root"])
+        filename: str = kw["file"]
         relpath = Path(filename.lstrip(os.path.sep))
         filepath = root / relpath
         if not filepath.is_file():
             return super().format(**kw)
 
         stat = filepath.stat()
-        mtime = stat.st_mtime_ns or stat.st_mtime
-        fingerprint = sha256(str(mtime).encode()).hexdigest()
+        fingerprint = sha256(str(stat.st_mtime).encode()).hexdigest()
 
         ext = "".join(relpath.suffixes)
         stem = relpath.name.removesuffix(ext)

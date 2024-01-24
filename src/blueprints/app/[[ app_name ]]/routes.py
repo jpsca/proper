@@ -13,7 +13,7 @@ app.routes += [
     static(
         app.config.COMPONENTS_URL,
         root=app.components_path,
-        allowed_ext=(".css", ".js"),
+        allowed_ext=(".css", ".js", ".png", ".jpg"),
     ),
     # Static files that are expected at the root
     get("favicon.ico", redirect="/static/favicon.ico"),

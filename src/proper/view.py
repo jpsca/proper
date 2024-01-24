@@ -1,14 +1,13 @@
 """A base view class, all other application views must
 inherit from. Stores data available to the component.
 """
-import os.path
+import os
 import re
 import typing as t
 from inspect import isclass
 from pathlib import Path
 
 from .app import App
-from .constants import HEAD
 from .current import response as c_response
 from .errors import NotFound
 from .helpers import MultiDict, jsonplus
@@ -110,9 +109,6 @@ class View:
             self.response.body = ""
             return
 
-        if self.request.request_method == HEAD:
-            return
-
         if ret_value is not None:
             self.response.body = ret_value
 
@@ -151,11 +147,20 @@ class StaticFiles(View):
         if not filepath.is_file():
             raise NotFound("File does not exists")
 
-        self.response.send_file(
-            filepath,
-            as_attachment=True,
-            x_sendfile_header=self.app.config.STATIC_X_SENDFILE_HEADER,
-        )
+        mtime = filepath.stat().st_mtime
+        self.response.last_modified = mtime
+
+        last_modified = self.response.last_modified
+        if_modified_since = self.request.if_modified_since
+
+        if last_modified and if_modified_since and last_modified <= if_modified_since:
+            self.response.status = not_modified
+        else:
+            self.response.send_file(
+                filepath,
+                as_attachment=True,
+                x_sendfile_header=self.app.config.STATIC_X_SENDFILE_HEADER,
+            )
 
         if fingerprinted:
             self.response.set_cache_control(

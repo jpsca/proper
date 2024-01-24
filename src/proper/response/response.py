@@ -247,13 +247,8 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         """
         path = Path(path).resolve()
         stat = path.stat()
-        mtime = stat.st_mtime_ns or stat.st_mtime
 
-        if mtime is not None:
-            self.set_last_modified(mtime)
-            self.set_content_length(0)
-            self.body = ""
-            return
+        self.set_last_modified(stat.st_mtime)
 
         if x_sendfile_header:
             self.headers[x_sendfile_header] = path
