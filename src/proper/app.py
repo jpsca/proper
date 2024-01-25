@@ -347,6 +347,7 @@ class App(AppTest):
             globals={
                 "url_for": self.url_for,
             },
+            fingerprint=True,
         )
         self.catalog.add_folder(self.components_path)
 

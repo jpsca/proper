@@ -67,7 +67,7 @@ class Static(Route):
         defaults = defaults or {}
         defaults["root"] = root
         defaults["public"] = bool(public)
-        defaults["fingerprint"] = bool(fingerprint)
+        defaults["fp"] = bool(fingerprint)
         if allowed_ext:
             defaults["allowed_ext"] = allowed_ext
         path = url.strip("/") + "/:file<path>"
@@ -82,7 +82,7 @@ class Static(Route):
         )
 
     def format(self, **kw) -> str:
-        if not self.defaults["fingerprint"]:
+        if not self.defaults["fp"]:
             return super().format(**kw)
 
         root = Path(self.defaults["root"])
@@ -100,8 +100,6 @@ class Static(Route):
         parent = str(relpath.parent)
         parent = "" if parent == "." else f"{parent}/"
 
-        print("parent", parent)
-        print("stem", stem)
         kw["file"] = f"{parent}{stem}-{fingerprint}{ext}"
 
         return super().format(**kw)
