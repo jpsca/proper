@@ -6,7 +6,7 @@ from functools import cached_property
 from http.cookies import Morsel, SimpleCookie
 
 from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
-from proper.helpers import parse_http_date, tunnel_decode
+from proper.helpers import format_locale, parse_http_date, tunnel_decode
 from proper.errors import InvalidHeader
 
 from .forwarded import parse_forwarded
@@ -408,7 +408,7 @@ def parse_accept(value: str | None) -> list[str]:
     ranking = sorted(
         [
             (
-                label.lower().replace("_", "-"),
+                format_locale(label),
                 float(params.get("q", 1.0))
             )
             for label, params in values

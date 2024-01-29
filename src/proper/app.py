@@ -26,6 +26,7 @@ from .error_handlers import (
     fallback_not_found_handler,
 )
 from .errors import BadSecretKey, MatchNotFound, MethodNotAllowed
+from .i18n import I18n
 from .helpers import DotDict, jsonplus
 from .request import Request
 from .response import Response
@@ -105,6 +106,7 @@ class App(AppTest):
         self._setup_render()
         self._setup_cli()
         self._setup_auth()
+        self._setup_i18n()
         self._setup_storage()
 
     def __call__(
@@ -129,6 +131,10 @@ class App(AppTest):
     @property
     def static_path(self) -> Path:
         return self.root_path.parent / self.config.STATIC_FOLDER
+
+    @property
+    def locales_path(self) -> Path:
+        return self.root_path.parent / self.config.LOCALES_FOLDER
 
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
@@ -278,6 +284,11 @@ class App(AppTest):
 
         return URLSafeTimedSerializer(self.config.SECRET_KEYS[0], **kwargs,)
 
+    def get_current_locale(self) -> str | None:
+        if not current.request:
+            return None
+        return current.request.locale
+
     # Private
 
     def _setup_paths(self, import_name: str) -> None:
@@ -365,6 +376,20 @@ class App(AppTest):
             rounds=config.AUTH_ROUNDS,
             password_minlen=config.AUTH_PASSWORD_MINLEN,
             password_maxlen=config.AUTH_PASSWORD_MAXLEN,
+        )
+
+    def _setup_i18n(self) -> None:
+        if not self.config.LOCALES_FOLDER:
+            return
+
+        locales_path = self.locales_path
+        if not locales_path.is_dir():
+            return
+
+        self.i18n = I18n(
+            self.locales_path,
+            get_current_locale=self.get_current_locale,
+            default_locale=self.config.LOCALE_DEFAULT
         )
 
     def _setup_storage(self) -> None:

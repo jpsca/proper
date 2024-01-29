@@ -1,0 +1,10 @@
+en:
+    greeting: "Hello World!"
+    apple:
+        zero: No apples
+        one: One apple
+        other: "{count} apples"
+    with_html: "<b>Hello</b>"
+    sub1:
+      sub2:
+        sub3: Still here

@@ -35,7 +35,6 @@ packages = [
 python = "^3.10"
 brotli = ">=1.0"
 huey = ">=2.4"
-image-processing-egg = "*"
 inflection = ">=0.5.1"
 isort = ">=5.0"
 itsdangerous = ">=1.1"
@@ -68,6 +67,9 @@ flake8-bugbear = "*"
 pytest = ">=7.2"
 pytest-cov = "*"
 tox = "*"
+# To test installable frameworks
+image-processing-egg = "*"
+poyo = "*"
 
 [tool.poetry.scripts]
 proper = "proper.cli:run"
@@ -85,7 +87,7 @@ exclude = '''
   | _build
   | build
   | dist
-  | src/proper/blueprints
+  | src/blueprints
 )/
 '''
 

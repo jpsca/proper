@@ -37,6 +37,16 @@ class WrongHashAlgorithm(Exception):
     pass
 
 
+class TranslationsNotFound(Exception):
+    def __init__(self, locale: str) -> None:
+        if "_" in locale:
+            lang = locale.split("_")[0]
+            msg = f"No translations found for the '{locale}' or '{lang}' locales"
+        else:
+            msg = f"No translations found for the '{locale}' locale"
+        super().__init__(msg)
+
+
 class HTTPError(Exception):
     """A generic HTTP error.
 

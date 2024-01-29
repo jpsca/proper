@@ -22,6 +22,8 @@ __all__ = (
     "format_http_date",
     "tunnel_encode",
     "tunnel_decode",
+    "format_locale",
+    "split_locale",
 )
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -54,3 +56,17 @@ def tunnel_encode(string: str, charset: str = "utf8") -> str:
 
 def tunnel_decode(string: str, charset: str = "utf8") -> str:
     return string.encode("iso-8859-1").decode(charset, "replace")
+
+
+def format_locale(locale: str) -> str:
+    return "_".join(split_locale(locale))
+
+
+def split_locale(locale: str) -> tuple[str] | tuple[str, str]:
+    """Returns a tuple (language, territory) from a string
+    like 'en', 'en-US', 'en_US', etc.
+    """
+    tloc = locale.replace("-", "_").lower().strip().split("_")
+    if len(tloc) > 1:
+        return (tloc[0], tloc[1].upper())
+    return (tloc[0], )

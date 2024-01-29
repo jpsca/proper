@@ -3,7 +3,7 @@ from io import BytesIO
 from wsgiref.util import request_uri
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
-from proper.helpers import DotDict, MultiDict
+from proper.helpers import DotDict, MultiDict, split_locale
 from proper.router import Route
 
 from .make_env import make_test_env
@@ -36,6 +36,12 @@ class Request(RequestHeadersMixin):
     - env:
         The WSGI environment dict passed in from the server,
         with keys normalized to lower-case
+
+    - locale:
+        Set in the `SetLocale` concern
+
+    - language:
+        Just the language part of the locale. So `en_US` -> `en`.
 
     - body:
         The request body as a bytes stream.
@@ -172,6 +178,7 @@ class Request(RequestHeadersMixin):
     csrf_token: str = ""
     user: t.Any = None
     session: DotDict
+    locale: str | None = None
 
     # Cache attrs
     _form: MultiDict | None = None
@@ -195,6 +202,11 @@ class Request(RequestHeadersMixin):
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
+
+    @property
+    def language(self) -> str | None:
+        if self.locale:
+            return split_locale(self.locale)[0]
 
     @property
     def body(self) -> BytesIO:

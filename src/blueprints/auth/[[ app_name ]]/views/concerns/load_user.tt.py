@@ -17,6 +17,9 @@ class LoadUser:
             user = self._get_remote_user()
         view.request.user = user or self._get_user(view.response.session)
 
+    def after(self, view: View):
+        pass
+
     # Private
 
     def _get_remote_user(self):

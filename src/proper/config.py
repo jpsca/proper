@@ -53,6 +53,9 @@ def get_default_config():
     config.SESSION_COOKIE_SECURE = False
     config.SESSION_COOKIE_SAMESITE = None  # "Lax", "Strict", or None
 
+    config.LOCALES_FOLDER = "locales"
+    config.LOCALE_DEFAULT = "en"
+
     config.STATIC_FOLDER = "static"
     config.STATIC_URL = "/static/"
     # The name of the header to use to return a file
