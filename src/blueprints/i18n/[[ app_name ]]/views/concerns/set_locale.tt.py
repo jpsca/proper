@@ -3,7 +3,6 @@ from proper import View
 from [[ app_name ]].app import app
 
 
-
 class SetLocale:
     def before(self, view: View):
         view.request.locale = (
@@ -19,7 +18,7 @@ class SetLocale:
             or app.i18n.negotiate_locale(view.request.accept_language)
 
             # else, fallback to the default locale
-            or app.config.DEFAULT_LOCALE
+            or app.config.LOCALE_DEFAULT
         )
 
     def after(self, view: View):
