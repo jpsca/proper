@@ -3,7 +3,7 @@
 class PrivateView(AppView):
     """User-only views can inherit from this one.
     """
-    middleware = [
+    concerns = [
         DBConnection,
         Session,
         LoadUser,

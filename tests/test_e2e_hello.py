@@ -3,11 +3,11 @@ import pytest
 from proper import App, View, get, status
 from proper.current import response
 from proper.errors import BadSecretKey
-from proper.middleware import RequestForgeryProtection, Session
+from proper.concerns import RequestForgeryProtection, Session
 
 
 class Pages(View):
-    middleware = [RequestForgeryProtection, Session]
+    concerns = [RequestForgeryProtection, Session]
 
     def index(self):
         response.mimetype = "text/plain"

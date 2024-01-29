@@ -12,7 +12,7 @@ def _f2(headers):
     headers["x-test"] = f"{val}-f2-"
 
 
-class BeforeMiddleware:
+class BeforeConcern:
     def before(self, view):
         response = view.response
         _f1(response.headers)
@@ -22,7 +22,7 @@ class BeforeMiddleware:
         pass
 
 
-class AfterMiddleware:
+class AfterConcern:
     def before(self, view):
         pass
 
@@ -33,7 +33,7 @@ class AfterMiddleware:
 
 
 class BeforeAndAfterTestCase(View):
-    middleware = [BeforeMiddleware, AfterMiddleware]
+    concerns = [BeforeConcern, AfterConcern]
 
     def index(self):
         val = response.headers.get("x-test", "")
@@ -41,14 +41,14 @@ class BeforeAndAfterTestCase(View):
         return ""
 
 
-def test_middleware(app):
+def test_concerns(app):
     app.routes = [get("/", to=BeforeAndAfterTestCase.index)]
     resp = app.get("/")
     expected = "-f1--f2--index--f1--f2-"
     assert resp.headers["x-test"] == expected
 
 
-class StopMiddleware:
+class StopConcern:
     def before(self, view):
         response = view.response
         _f1(response.headers)
@@ -59,7 +59,7 @@ class StopMiddleware:
 
 
 class StopTestCase(View):
-    middleware = [StopMiddleware]
+    concerns = [StopConcern]
 
     def index(self):
         val = response.headers.get("x-test", "")
@@ -67,7 +67,7 @@ class StopTestCase(View):
         return ""
 
 
-def test_stop_in_middleware(app):
+def test_stop_in_concerns(app):
     app.routes = [get("/", to=StopTestCase.index)]
     resp = app.get("/")
 

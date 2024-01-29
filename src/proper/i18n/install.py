@@ -17,7 +17,7 @@ FIRST_YAML = """
 """
 I18N_BLUEPRINT = BLUEPRINTS / "i18n"
 APPLICATION_VIEW = "views/app.py"
-ENTRY_POINT = "\n    middleware = ["
+ENTRY_POINT = "\n    concerns = ["
 INSERT = f"{ENTRY_POINT}\n        SetLocale,\n"
 
 DEPENDENCIES = [

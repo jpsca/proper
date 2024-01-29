@@ -20,7 +20,7 @@ __all__ = ("View",)
 
 
 class View:
-    middleware: t.Sequence[t.Any]
+    concerns: t.Sequence[t.Any]
 
     def __init__(
         self,
@@ -31,9 +31,9 @@ class View:
         self.app = app
         self.request = request
         self.response = response
-        self.middleware = [
+        self.concerns = [
             m() if isclass(m) else m
-            for m in getattr(self, "middleware", [])
+            for m in getattr(self, "concerns", [])
         ]
 
     @property
@@ -83,7 +83,7 @@ class View:
     # Private
 
     def _dispatch(self, action_name: str) -> Response | None:
-        for m in self.middleware:
+        for m in self.concerns:
             early_response = m.before(self)
             if early_response is not None:
                 c_response._set(early_response)
@@ -91,7 +91,7 @@ class View:
 
         self._call(action_name)
 
-        for m in self.middleware:
+        for m in self.concerns:
             early_response = m.after(self)
             if early_response is not None:
                 c_response._set(early_response)

@@ -7,7 +7,7 @@ from .concerns.security_headers import SecurityHeaders
 class AppView(View):
     """All other views must inherit from this class.
     """
-    middleware = [
+    concerns = [
         DBConnection,
         SecurityHeaders,
     ]

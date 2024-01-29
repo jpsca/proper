@@ -3,7 +3,7 @@ import pytest
 from proper import Request, Response, current
 from proper.constants import FLASHES_SESSION_KEY
 from proper.view import View
-from proper.middleware import Session
+from proper.concerns import Session
 
 
 @pytest.fixture

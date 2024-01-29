@@ -3,7 +3,7 @@ import pytest
 from proper import Request, Response, current
 from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.view import View
-from proper.middleware import (
+from proper.concerns import (
     CSRF_HEADER,
     CSRF_FORM_KEY,
     CSRF_SESSION_KEY,

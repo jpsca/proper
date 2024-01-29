@@ -5,7 +5,7 @@ from proper import (
     status,
 )
 from proper.current import response
-from proper.middleware import Session
+from proper.concerns import Session
 
 
 # -- ETAG --
@@ -34,7 +34,7 @@ def test_if_none_match(app):
 
 
 class Session(View):
-    middleware = [Session]
+    concerns = [Session]
 
     def update(self):
         response.session["foo"] = "bar"
