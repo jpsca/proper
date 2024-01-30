@@ -74,6 +74,7 @@ class View:
         self.app.catalog.jinja_env.globals.update({
             "request": self.request,
             "response": self.response,
+            "_": self.app.i18n.translate,
         })
         return self.app.catalog.render(
             name,
