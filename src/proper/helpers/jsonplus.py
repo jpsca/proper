@@ -5,11 +5,13 @@ from typing import Any
 
 __all__ = ("dumps", "loads")
 
+DATE_PREFIX = "__dt__"
+
 
 class CustomEncoder(json.JSONEncoder):
-    def default(self, o: "Any") -> str:
+    def default(self, o: Any) -> str:
         if isinstance(o, datetime.date):
-            return o.isoformat()
+            return f"{DATE_PREFIX}{o.isoformat()}"
         return super().default(o)
 
 
@@ -22,14 +24,16 @@ class CustomDecoder(json.JSONDecoder):
     def try_datetime(d: dict) -> dict:
         ret = {}
         for key, value in d.items():
-            try:
-                ret[key] = datetime.datetime.fromisoformat(value)
-            except (ValueError, TypeError):
-                ret[key] = value
+            if isinstance(value, str) and value.startswith(DATE_PREFIX):
+                try:
+                    value = datetime.datetime.fromisoformat(value)
+                except (ValueError, TypeError):
+                    pass
+            ret[key] = value
         return ret
 
 
-def dumps(obj: "Any", **kw) -> str:
+def dumps(obj: Any, **kw) -> str:
     kw["cls"] = CustomEncoder
     return json.dumps(obj, **kw)
 

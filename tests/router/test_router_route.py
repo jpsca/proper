@@ -1,4 +1,5 @@
 import pytest
+
 from proper import View
 from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
 from proper.errors import (

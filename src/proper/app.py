@@ -109,7 +109,7 @@ class App(AppTest):
         self._setup_i18n()
         self._setup_storage()
 
-        self.cache = NoCache(self)
+        self.cache = NoCache()
 
     def __call__(
         self,

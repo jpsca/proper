@@ -1,4 +1,5 @@
 import pytest
+
 from proper import View, delete, get, post, scope, status
 from proper.errors import (
     BadRoutePlaceholder,

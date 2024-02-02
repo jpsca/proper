@@ -1,4 +1,5 @@
 import pytest
+
 from proper.request.forwarded import parse_forwarded
 
 

@@ -1,4 +1,5 @@
 import pytest
+
 from proper import Request, Response, current
 from proper.concerns import (
     CSRF_FORM_KEY,

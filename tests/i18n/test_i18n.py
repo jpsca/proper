@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from markupsafe import Markup
+
 from proper.errors import TranslationsNotFound
 from proper.i18n import I18n
 

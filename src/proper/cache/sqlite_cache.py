@@ -9,10 +9,6 @@ from proper.helpers import jsonplus
 from .base import BaseCache
 
 
-if t.TYPE_CHECKING:
-    from proper import App
-
-
 TWalCheckpoint = (
     t.Literal["PASSIVE"]
     | t.Literal["FULL"]
@@ -42,8 +38,8 @@ class SqliteCache(BaseCache):
     _sql_index = "CREATE INDEX IF NOT EXISTS keyname_index ON cache (key)"
 
     _sql_select = "SELECT val, exp FROM cache WHERE key = ?"
-    _sql_insert = "INSERT INTO cache (key, val, exp) VALUES (?, ?, ?)"
-    _sql_update = "REPLACE INTO cache (key, val, exp) VALUES (?, ?, ?)"
+    _sql_insert = "INSERT INTO cache (key, val, exp) VALUES (?, jsonb(?), ?)"
+    _sql_update = "REPLACE INTO cache (key, val, exp) VALUES (?, jsonb(?), ?)"
     _sql_delete = "DELETE FROM cache WHERE key = ?"
     _sql_expire = "DELETE FROM cache WHERE exp < ?"
 
@@ -52,7 +48,6 @@ class SqliteCache(BaseCache):
 
     def __init__(
         self,
-        app: "App",
         path: str | Path,
         *,
         name: str = "cache.sqlite",
@@ -61,8 +56,6 @@ class SqliteCache(BaseCache):
         vacuum_pages: int = 100,
         **options,
     ):
-        super().__init__(app)
-
         path = Path(path).resolve()
         if path.is_file():
             name = path.name
@@ -87,14 +80,14 @@ class SqliteCache(BaseCache):
             for row in conn.execute(self._sql_select, (key,)):
                 expire = row[1]
                 if expire == 0 or expire > curr_time:
-                    return_value = jsonplus.loads(str(row[0]))["data"]
+                    return_value = jsonplus.loads(str(row[0]))["_"]
                 break
 
         return return_value
 
     def set(self, key: str, value: t.Any, timeout: int | float) -> None:
         expire = time() + timeout
-        value = {"data": value}
+        value = {"_": value}
         data = jsonplus.dumps(value)
 
         with self._get_conn() as conn:

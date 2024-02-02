@@ -1,4 +1,5 @@
 import pytest
+
 from proper import App, View, get, status
 from proper.concerns import RequestForgeryProtection, Session
 from proper.current import response

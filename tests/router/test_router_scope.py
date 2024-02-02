@@ -1,4 +1,5 @@
 import pytest
+
 from proper import View
 from proper.router import get, scope
 

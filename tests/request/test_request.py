@@ -1,4 +1,5 @@
 import pytest
+
 from proper.constants import FLASHES_SESSION_KEY
 from proper.errors import InvalidHeader
 from proper.helpers import DotDict
