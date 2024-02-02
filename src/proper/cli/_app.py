@@ -9,6 +9,7 @@ from proper_cli import Cli
 
 from ._db import get_db_cli
 
+
 if t.TYPE_CHECKING:
     from proper import App
 
@@ -102,13 +103,13 @@ def get_routes_cmd(app: "App") -> t.Callable:
 
         lengths = [len(header) for header in HEADERS]
         for route in routes:
-            lengths = [max(ll, len(text)) for ll, text in zip(lengths, route)]
+            lengths = [max(ll, len(text)) for ll, text in zip(lengths, route, strict=False)]
         lengths = [ll + PADDING for ll in lengths]
 
-        print(*[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths)])
+        print(*[header.ljust(ll, " ") for (header, ll) in zip(HEADERS, lengths, strict=False)])
         print(*["-" * ll for ll in lengths])
         for route in routes:
-            print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths)])
+            print(*[text.ljust(ll, " ") for (text, ll) in zip(route, lengths, strict=False)])
         print()
 
     return routes

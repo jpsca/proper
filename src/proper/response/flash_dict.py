@@ -2,6 +2,7 @@ import typing as t
 
 from ..constants import FLASHES_SESSION_KEY
 
+
 if t.TYPE_CHECKING:
     from ..response import Response
 

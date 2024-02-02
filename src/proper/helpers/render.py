@@ -6,9 +6,10 @@ import typing as t
 from fnmatch import fnmatch
 from pathlib import Path
 
-import jinja2
 import isort
+import jinja2
 from proper_cli import confirm, echo
+
 
 if t.TYPE_CHECKING:
     from proper import App

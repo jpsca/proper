@@ -16,8 +16,9 @@ from itsdangerous import (
 from . import current, pipeline, status
 from .app_test import AppTest
 from .auth import Auth
+from .cache import NoCache
 from .cli import get_app_cli
-from .config import get_env, get_default_config, logger
+from .config import get_default_config, get_env, logger
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -26,21 +27,21 @@ from .error_handlers import (
     fallback_not_found_handler,
 )
 from .errors import BadSecretKey, MatchNotFound, MethodNotAllowed
-from .i18n import I18n
 from .helpers import DotDict, jsonplus
+from .i18n import I18n
 from .request import Request
 from .response import Response
-from .router import Router, Route, get
-from .scheduler import HueyScheduler
+from .router import Route, Router, get
 from .storage import Storage
 from .types import (
     TBody,
-    TException,
     TEventHandler,
     TEventHandlers,
+    TException,
     TStartResponse,
     TWSGIEnvironment,
 )
+
 
 if t.TYPE_CHECKING:
     from proper_cli import Cli
@@ -53,17 +54,17 @@ class App(AppTest):
     # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
-    _on_error: TEventHandlers = tuple()
+    _on_error: TEventHandlers = ()
 
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    _on_teardown: TEventHandlers = tuple()
+    _on_teardown: TEventHandlers = ()
 
     # A lists of functions that are called when the development server starts,
-    # and when it shutdown. Useful for running the scheduler on development and
+    # and when it shutdown. Useful for running a scheduler on development and
     # similar tasks.
-    _on_dev_start: TEventHandlers = tuple()
-    _on_dev_shutdown: TEventHandlers = tuple()
+    _on_dev_start: TEventHandlers = ()
+    _on_dev_shutdown: TEventHandlers = ()
 
     # A dict of functions to call when an HTTPError is raised.
     # The keys are any subclasses of Exception, but, not necessarily
@@ -72,7 +73,7 @@ class App(AppTest):
 
     CL: "t.Type[Cli]"
     db: t.Any
-    scheduler: t.Any
+    cache: t.Any
 
     def __init__(
         self,
@@ -93,8 +94,8 @@ class App(AppTest):
 
         """
         self.error_handlers = {}
-        self._on_error = tuple()
-        self._on_teardown = tuple()
+        self._on_error = ()
+        self._on_teardown = ()
 
         self._wrapped_wsgi = self.wsgi_app
 
@@ -102,12 +103,13 @@ class App(AppTest):
         self._setup_config(config or {})
         self._setup_router()
         self._setup_serializer()
-        self._setup_fallback_scheduler()
         self._setup_render()
         self._setup_cli()
         self._setup_auth()
         self._setup_i18n()
         self._setup_storage()
+
+        self.cache = NoCache(self)
 
     def __call__(
         self,
@@ -150,7 +152,7 @@ class App(AppTest):
 
     def on_dev_start(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs when the development
-        server starts. Useful for running the scheduler on development and
+        server starts. Useful for running a scheduler on development and
         similar tasks."""
         self._on_dev_start = self._on_dev_start + (func,)
         return func
@@ -344,9 +346,6 @@ class App(AppTest):
 
     def _setup_serializer(self) -> None:
         self.serializer = self.get_serializer("proper.session")
-
-    def _setup_fallback_scheduler(self) -> None:
-        self.scheduler = HueyScheduler()
 
     def _setup_render(self) -> None:
         if not self.components_path.exists():

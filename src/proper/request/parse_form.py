@@ -10,6 +10,7 @@ from proper.errors import (
     UriTooLong,
 )
 from proper.helpers import MultiDict
+
 from .multipart import (
     MultipartParser,
     parse_options_header,
@@ -138,7 +139,7 @@ def parse_json(content: str, *, strict: bool = True) -> MultiDict:
         form.update(data)
     except json.JSONDecodeError as err:
         if strict:
-            raise MultipartError(str(err))
+            raise MultipartError(str(err)) from None
 
     return form
 

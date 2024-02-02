@@ -2,6 +2,7 @@ import typing as t
 
 from ..constants import GET, HEAD
 
+
 if t.TYPE_CHECKING:
     from proper import Request, Response
 

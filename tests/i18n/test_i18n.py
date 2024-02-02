@@ -2,9 +2,8 @@ from pathlib import Path
 
 import pytest
 from markupsafe import Markup
-
-from proper.i18n import I18n
 from proper.errors import TranslationsNotFound
+from proper.i18n import I18n
 
 
 HERE = Path(__file__).parent
@@ -142,13 +141,13 @@ def test_for_incomplete_locales():
     }
 
     expected = {
-        "en": set("a b.1".split()),
-        "fr": set("b.1".split()),
+        "en": {"a", "b.1"},
+        "fr": {"b.1"},
     }
     assert i18n.test_for_incomplete_locales() == expected
 
     expected = {
-        "en": set(["a"]),
+        "en": {"a"},
     }
     assert i18n.test_for_incomplete_locales("en", "fr") == expected
 

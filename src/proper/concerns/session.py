@@ -5,11 +5,12 @@ from itsdangerous import BadSignature
 from proper.constants import FLASHES_SESSION_KEY
 from proper.helpers import DotDict
 
+
 if t.TYPE_CHECKING:
     from proper.app import App
-    from proper.view import View
     from proper.request import Request
     from proper.response import Response
+    from proper.view import View
 
 
 __all__ = ("Session", )

@@ -16,9 +16,10 @@ from proper.helpers import DotDict, tunnel_encode
 from proper.types import TBody, TReadable
 
 from .cookies import ResponseCookiesMixin
-from .headers import ResponseHeadersMixin
 from .file_wrapper import FileWrapper
 from .flash_dict import FlashDict
+from .headers import ResponseHeadersMixin
+
 
 if t.TYPE_CHECKING:
     from proper.helpers import Proxy

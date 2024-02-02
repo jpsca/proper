@@ -1,5 +1,4 @@
 import pytest
-
 from proper import View
 from proper.constants import GET, POST
 from proper.errors import (

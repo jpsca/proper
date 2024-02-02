@@ -8,6 +8,7 @@ from ..helpers.render import (
     sort_imports,
 )
 
+
 if t.TYPE_CHECKING:
     from proper import App
 

@@ -6,6 +6,7 @@ from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
 from ..router.resource import ACTIONS
 from .model import gen_model
 
+
 if TYPE_CHECKING:
     from proper import App
 
@@ -20,7 +21,6 @@ FORM_FIELDS = {
     "decimal": "Float",
     "float": "Float",
     "int": "Integer",
-    "decimal": "Float",
     "str": "Text",
     "text": "Text",
     "time": "Time",

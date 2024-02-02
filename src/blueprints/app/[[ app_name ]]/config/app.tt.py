@@ -1,7 +1,6 @@
 from proper import env, DEV, PROD
 
 from .database import *  # noqa
-from .scheduler import *  # noqa
 from .storage import *  # noqa
 from .session import *  # noqa
 

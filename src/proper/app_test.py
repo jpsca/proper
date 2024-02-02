@@ -4,12 +4,14 @@ import typing as t
 from io import BytesIO
 from pathlib import Path
 
-from .constants import GET, HEAD, POST, PATCH, PUT, OPTIONS, DELETE, RESTORE
+from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, RESTORE
 from .helpers import DotDict
 from .request import make_test_env
 
+
 if t.TYPE_CHECKING:
     from proper.types import TWSGIEnvironment
+
     from .response import Response
 
 

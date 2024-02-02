@@ -2,14 +2,14 @@ import base64
 import os
 import typing as t
 
-from proper.constants import HEAD, GET, OPTIONS, QUERY
+from proper.constants import GET, HEAD, OPTIONS, QUERY
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 
 
 if t.TYPE_CHECKING:
-    from proper.view import View
     from proper.request import Request
     from proper.response import Response
+    from proper.view import View
 
 
 __all__ = (
@@ -29,7 +29,7 @@ CSRF_TOKEN_LENGTH = 32
 
 class RequestForgeryProtection:
     action_name: str
-    skip_for: t.Iterable[str] = tuple()
+    skip_for: t.Iterable[str] = ()
 
     def __init__(self, *, skip_for: t.Iterable[str] = ()) -> None:
         self.skip_for = skip_for or ()

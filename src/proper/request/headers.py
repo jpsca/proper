@@ -6,8 +6,8 @@ from functools import cached_property
 from http.cookies import Morsel, SimpleCookie
 
 from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
-from proper.helpers import format_locale, parse_http_date, tunnel_decode
 from proper.errors import InvalidHeader
+from proper.helpers import format_locale, parse_http_date, tunnel_decode
 
 from .forwarded import parse_forwarded
 
@@ -53,7 +53,7 @@ class RequestHeadersMixin:
         try:
             self.content_length = int(self.env.get("content_length") or "0")
         except ValueError:
-            raise InvalidHeader("The Content-Length header must be a number.")
+            raise InvalidHeader("The Content-Length header must be a number.") from None
         if self.content_length < 0:
             raise InvalidHeader(
                 "The value of the Content-Length header must be a positive number."

@@ -1,9 +1,8 @@
 import pytest
-
 from proper import Request, Response, current
+from proper.concerns import Session
 from proper.constants import FLASHES_SESSION_KEY
 from proper.view import View
-from proper.concerns import Session
 
 
 @pytest.fixture

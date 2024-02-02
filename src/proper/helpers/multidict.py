@@ -1,6 +1,5 @@
 import typing as t
-
-from collections.abc import KeysView, ItemsView, MutableMapping
+from collections.abc import ItemsView, KeysView, MutableMapping
 
 
 __all__ = ("MultiDict",)

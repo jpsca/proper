@@ -1,5 +1,4 @@
 import pytest
-
 from proper.router import delete, get, patch, post, put, resource
 
 

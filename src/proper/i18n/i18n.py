@@ -1,11 +1,12 @@
 import typing as t
-
 from pathlib import Path
+
 from markupsafe import Markup
 
-from proper.helpers import format_locale
 from proper.errors import TranslationsNotFound
-from .import plural_rules
+from proper.helpers import format_locale
+
+from . import plural_rules
 from .reader import Reader
 
 

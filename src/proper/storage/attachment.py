@@ -6,6 +6,7 @@ from uuid import uuid4
 from inflection import parameterize
 from peewee import *  # noqa
 
+
 if t.TYPE_CHECKING:
     from ..helpers import DotDict
     from .storage import Storage

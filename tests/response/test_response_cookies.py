@@ -1,5 +1,4 @@
 import pytest
-
 from proper.response import Response
 from proper.response.cookies import HOST_PREFIX, SECURE_PREFIX
 

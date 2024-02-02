@@ -3,11 +3,12 @@
 from typing import Any
 
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
+
 from .route import Route
 from .scope import flatten
 
 
-__all__ = ("Router", )
+__all__ = ("Router",)
 
 
 class Router:
@@ -81,7 +82,7 @@ class Router:
         _routes = flatten(values)
         if self._debug:
             assert all(
-                [isinstance(x, Route) for x in _routes]
+                isinstance(x, Route) for x in _routes
             ), "All routes must be instances of `Route`."
         for route in _routes:
             route.compile_path()

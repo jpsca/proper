@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+
 from proper.generators import resource as module
 
 
@@ -12,7 +13,7 @@ def test_gen_resource(app, scaffold):
     _test_model(app_root)
     _test_components(app_root)
     _test_routes(app_root)
-    module.call.assert_not_called
+    module.call.assert_not_called()
 
 
 def test_gen_resource_with_migration(app, scaffold):
@@ -70,7 +71,7 @@ def test_gen_resource_singular(app, scaffold):
     _test_model_singular(app_root)
     _test_components_singular(app_root)
     _test_routes_singular(app_root)
-    module.call.assert_not_called
+    module.call.assert_not_called()
 
 
 def test_gen_resource_singular_with_migration(app, scaffold):

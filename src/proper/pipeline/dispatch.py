@@ -2,6 +2,7 @@ import typing as t
 
 from ..helpers import import_string
 
+
 if t.TYPE_CHECKING:
     from proper import App, Request, Response
 

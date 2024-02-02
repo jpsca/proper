@@ -4,6 +4,7 @@ from pathlib import Path
 from proper.config import logger
 from proper.helpers import format_locale
 
+
 TPath = str | Path
 
 

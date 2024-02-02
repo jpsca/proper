@@ -1,17 +1,16 @@
 import pytest
-
 from proper import Request, Response, current
-from proper.constants import DELETE, GET, PATCH, POST, PUT
-from proper.view import View
 from proper.concerns import (
-    CSRF_HEADER,
     CSRF_FORM_KEY,
+    CSRF_HEADER,
     CSRF_SESSION_KEY,
     CSRF_TOKEN_LENGTH,
-    RequestForgeryProtection
+    RequestForgeryProtection,
 )
+from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
+from proper.view import View
 
 
 class AppView(View):

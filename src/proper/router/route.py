@@ -12,7 +12,8 @@ from proper.errors import (
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
-from ..constants import GET, POST, PUT, DELETE, OPTIONS, PATCH, QUERY, RESTORE
+
+from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
 
 
 __all__ = (
@@ -166,11 +167,9 @@ class Route:
         if getattr(other, "__slots__", None) != self.__slots__:
             return NotImplemented
         return all(
-            [
-                getattr(self, attr, None) == getattr(other, attr, None)
-                for attr in self.__slots__
-                if not attr.startswith("_") and not attr.startswith("path_")
-            ]
+            getattr(self, attr, None) == getattr(other, attr, None)
+            for attr in self.__slots__
+            if not attr.startswith("_") and not attr.startswith("path_")
         )
 
     @property
@@ -214,7 +213,7 @@ class Route:
         try:
             path_re = re.compile(str_re)
         except Exception as e:
-            raise BadRouteFormat(e)
+            raise BadRouteFormat(e) from e
 
         self.path_re = path_re
         self.path_plain = plain

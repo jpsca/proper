@@ -1,11 +1,11 @@
 from proper import (
-    View,
     DotDict,
+    View,
     get,
     status,
 )
-from proper.current import response
 from proper.concerns import Session
+from proper.current import response
 
 
 # -- ETAG --

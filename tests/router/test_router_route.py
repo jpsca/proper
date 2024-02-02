@@ -1,20 +1,19 @@
 import pytest
-
-from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
 from proper import View
+from proper.constants import DELETE, GET, OPTIONS, PATCH, POST, PUT
 from proper.errors import (
     BadRouteFormat,
     BadRoutePlaceholder,
     MissingRouteParameter,
 )
 from proper.router import (
+    Route,
     delete,
     get,
     options,
     patch,
     post,
     put,
-    Route,
 )
 
 

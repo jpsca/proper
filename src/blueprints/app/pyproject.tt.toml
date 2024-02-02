@@ -1,5 +1,5 @@
 [build-system]
-requires = ["poetry-core>=1.3.1"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 
@@ -11,7 +11,7 @@ authors = ["Lorem Ipsum <lipsum@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 # psycopg2-binary = "*"
 # proper = { file = "proper-0.2-py3-none-any.whl" }
 
@@ -19,41 +19,98 @@ python = "^3.10"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-black = "*"
+ruff = "*"
 uwsgi = "*"
 
 [tool.poetry.group.test]
 optional = true
 
 [tool.poetry.group.test.dependencies]
-flake8 = "*"
-flake8-bugbear = "*"
 pytest = "*"
 
 
-[tool.black]
-line-length = 88
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.tox
-  | \.venv
-  | _build
-  | build
-  | dist
-)/
-'''
+[tool.ruff]
+line-length = 90
+indent-width = 4
+target-version = "py311"
+
+exclude = [
+  ".*",
+]
+include = ["*.py"]
+
+select = [
+	# bugbear
+	"B",
+	# mccabe"", comprehensions, commas
+	"C",
+	# pycodestyle errors
+	"E",
+	# pyflakes
+	"F",
+	# logging format
+	"G",
+	# imports
+	"I",
+	# quotes
+	"Q",
+	# pycodestyle warnings
+	"W",
+]
+
+ignore = [
+	# x is too complex
+	"C901",
+	# whitespace before ':'
+	"E203",
+	"E501",
+	# x defined from star imports
+	"F405",
+	# line break before binary operator
+	"W505",
+	"W605",
+]
+
+fix = true
+fixable = ["ALL"]
 
 
-[tool.isort]
-profile = "black"
-force_single_line = true
-include_trailing_comma=true
-atomic = true
-lines_after_imports = 2
-lines_between_types = 1
+[tool.ruff.isort]
+known-first-party = ["[[ app_name ]]"]
+known-local-folder = ["[[ app_name ]]"]
+
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+
+[tool.ruff.lint.isort]
+# Use two line after imports.
+lines-after-imports = 2
 
 
 [tool.pytest.ini_options]

@@ -5,6 +5,7 @@ from itsdangerous import BadSignature
 from .attachment import get_attachment_class
 from .services import Service
 
+
 if t.TYPE_CHECKING:
     from ..app import App
     from ..helpers import DotDict

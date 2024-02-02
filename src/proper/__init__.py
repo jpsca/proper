@@ -5,4 +5,3 @@ from .helpers import *  # noqa
 from .request import *  # noqa
 from .response import *  # noqa
 from .router import *  # noqa
-from .scheduler import HueyScheduler  # noqa

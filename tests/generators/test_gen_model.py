@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+
 from proper.generators import model as module
 
 
@@ -11,7 +12,7 @@ def test_base_model(app, scaffold):
     model_text = (app_root / "models" / "product.py").read_text()
     print(model_text)
     assert "class Product(BaseModel):" in model_text
-    module.call.assert_not_called
+    module.call.assert_not_called()
 
 
 def test_gen_model_with_migration(app, scaffold):

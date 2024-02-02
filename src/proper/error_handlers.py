@@ -15,6 +15,7 @@ from .config import logger
 from .constants import GET
 from .helpers import Render
 
+
 if TYPE_CHECKING:
     from typing import Any
 

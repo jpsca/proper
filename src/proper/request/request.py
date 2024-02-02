@@ -6,8 +6,8 @@ from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
 from proper.helpers import DotDict, MultiDict, split_locale
 from proper.router import Route
 
-from .make_env import make_test_env
 from .headers import RequestHeadersMixin
+from .make_env import make_test_env
 from .parse_form import parse_form, parse_query_string
 
 

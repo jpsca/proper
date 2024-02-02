@@ -2,6 +2,7 @@ import typing as t
 
 from ..constants import DELETE, PATCH, POST, PUT, QUERY, RESTORE
 
+
 if t.TYPE_CHECKING:
     from proper import Request
 

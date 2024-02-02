@@ -90,17 +90,17 @@ TEST = "test"
 def get_env(default=DEV):
     env = os.getenv(ENV_VAR)
     if env:
-        logger.debug(f"{ENV_VAR} var found: {env}")
+        logger.debug("%s var found: %s", ENV_VAR, env)
         return env
     envfile = Path(ENV_FILE)
     if envfile.exists():
         env = envfile.read_text().strip()
-        logger.debug(f"{ENV_VAR} file found: {env}")
+        logger.debug("%s file found: %s", ENV_VAR, env)
         return env
 
-    logger.debug(f"Using default environment: {default}")
+    logger.debug("Using default environment: %s", default)
     return default
 
 
 env = get_env()
-logger.debug(f"env is {env}")
+logger.debug("env is %s", env)

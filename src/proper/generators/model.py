@@ -1,7 +1,9 @@
-import inflection
 import typing as t
 
+import inflection
+
 from ..helpers.render import BLUEPRINTS, BlueprintRender, call
+
 
 if t.TYPE_CHECKING:
     from proper import App

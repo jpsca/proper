@@ -1,7 +1,7 @@
 import re
 from typing import Callable, Iterable
 
-from ..constants import GET, POST, PUT, DELETE, PATCH
+from ..constants import DELETE, GET, PATCH, POST, PUT
 from .route import Route
 
 

@@ -11,4 +11,4 @@ test:
 
 .PHONY: lint
 lint:
-	flake8 demo tests
+	ruff check .

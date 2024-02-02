@@ -1,8 +1,4 @@
-import warnings
-
 import pytest
-warnings.filterwarnings("ignore")
-
 from proper import App
 
 

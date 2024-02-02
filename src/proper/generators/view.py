@@ -5,6 +5,7 @@ import inflection
 
 from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, save_file
 
+
 if TYPE_CHECKING:
     from proper import App
 

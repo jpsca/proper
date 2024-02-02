@@ -31,10 +31,10 @@ packages = [
     { include = "proper", from = "src" },
 ]
 
+
 [tool.poetry.dependencies]
 python = "^3.10"
 brotli = ">=1.0"
-huey = ">=2.4"
 inflection = ">=0.5.1"
 isort = ">=5.0"
 itsdangerous = ">=1.1"
@@ -49,21 +49,23 @@ proper-forms = ">=0.8"
 peewee-moves = "^2.1.0"
 peewee-migrate = "^1.12.1"
 
+
 [tool.poetry.group.dev]
 optional = true
 
+
 [tool.poetry.group.dev.dependencies]
-black = ">=22.10"
 ipdb = ">=0.13"
 pyright = ">=1.1"
 pre-commit = "*"
+ruff = "^0.2.0"
+
 
 [tool.poetry.group.test]
 optional = true
 
+
 [tool.poetry.group.test.dependencies]
-flake8 = "*"
-flake8-bugbear = "*"
 pytest = ">=7.2"
 pytest-cov = "*"
 tox = "*"
@@ -71,38 +73,14 @@ tox = "*"
 image-processing-egg = "*"
 poyo = "*"
 
+
 [tool.poetry.scripts]
 proper = "proper.cli:run"
 
 
-[tool.black]
-line-length = 88
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.tox
-  | \.venv
-  | _build
-  | build
-  | dist
-  | src/blueprints
-)/
-'''
-
-
-[tool.isort]
-profile = "black"
-force_single_line = true
-include_trailing_comma=true
-atomic = true
-lines_after_imports = 2
-lines_between_types = 1
-
-
 [tool.coverage.run]
 branch = true
+
 
 [tool.coverage.report]
 exclude_lines = [
@@ -123,7 +101,6 @@ omit = [
 
 [tool.coverage.html]
 directory = "covreport"
-
 
 
 [tool.pyright]
@@ -157,3 +134,92 @@ commands =
     poetry install --with test
     poetry run pytest -x src/proper tests
 """
+
+
+[tool.ruff]
+line-length = 90
+indent-width = 4
+target-version = "py311"
+
+exclude = [
+  ".*",
+  "_build",
+  "build",
+  "covreport",
+  "dist",
+  "src/blueprints",
+]
+include = ["*.py"]
+
+select = [
+	# bugbear
+	"B",
+	# mccabe"", comprehensions, commas
+	"C",
+	# pycodestyle errors
+	"E",
+	# pyflakes
+	"F",
+	# logging format
+	"G",
+	# imports
+	"I",
+	# quotes
+	"Q",
+	# pycodestyle warnings
+	"W",
+]
+
+ignore = [
+	# x is too complex
+	"C901",
+	# whitespace before ':'
+	"E203",
+	"E501",
+	# x defined from star imports
+	"F405",
+	# line break before binary operator
+	"W505",
+	"W605",
+]
+
+fix = true
+fixable = ["ALL"]
+
+
+[tool.ruff.isort]
+known-first-party = ["proper"]
+known-local-folder = ["src/proper"]
+
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+
+[tool.ruff.lint.isort]
+# Use two line after imports.
+lines-after-imports = 2

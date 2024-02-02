@@ -5,8 +5,8 @@ from pathlib import Path
 
 from proper_cli import *  # noqa
 
-from ._proper import ProperCL
 from ._app import get_app_cli  # noqa
+from ._proper import ProperCL
 
 
 def run():

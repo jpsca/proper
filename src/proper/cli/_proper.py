@@ -1,6 +1,7 @@
 """Command Line User Interface for Proper itself.
 """
 from proper_cli import Cli
+
 from proper.generators import gen_app
 
 

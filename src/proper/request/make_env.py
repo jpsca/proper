@@ -1,11 +1,11 @@
 import typing as t
 from io import BytesIO
-
 from urllib.parse import quote_plus, urlencode, urlparse
 from wsgiref.util import setup_testing_defaults
 
 from proper.helpers import tunnel_encode
 from proper.types import TWSGIEnvironment
+
 
 __all__ = ("make_test_env", )
 

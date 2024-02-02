@@ -46,10 +46,10 @@ def copy_file(
 
 
 RE_SPECIAL = re.escape('()<>@,;:"\\/[]?={} \t')
-RX_SPECIAL = re.compile(r'[%s]' % RE_SPECIAL)
+RX_SPECIAL = re.compile(r"[%s]" % RE_SPECIAL)
 RE_QUOTED_STRING = r'"(?:\\.|[^"])*"'  # Quoted string
-RE_VALUE = r'(?:[^%s]+|%s)' % (RE_SPECIAL, RE_QUOTED_STRING)  # Save or quoted string
-RE_OPTION = r'(?:;|^)\s*([^%s]+)\s*=\s*(%s)' % (RE_SPECIAL, RE_VALUE)
+RE_VALUE = r"(?:[^%s]+|%s)" % (RE_SPECIAL, RE_QUOTED_STRING)  # Save or quoted string
+RE_OPTION = r"(?:;|^)\s*([^%s]+)\s*=\s*(%s)" % (RE_SPECIAL, RE_VALUE)
 RX_OPTION = re.compile(RE_OPTION)  # key=value part of an Content-Type like header
 
 
