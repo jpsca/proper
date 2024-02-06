@@ -35,12 +35,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-  redis:
-    image: "redis:7"
   static:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: npm run watch
+    command: tailwindcss -i /app/static_src/css/app.css -o /app/static/css/app.css
     volumes:
       - .:/app/

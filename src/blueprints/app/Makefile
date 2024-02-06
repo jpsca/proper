@@ -1,8 +1,8 @@
 .PHONY: install
 install:
 	poetry install --with dev,test
+	tailwindcss_install
 	pip install -e ../proper
-	npm install --no-audit --no-fund
 	bin/proper db migrate
 
 .PHONY: test

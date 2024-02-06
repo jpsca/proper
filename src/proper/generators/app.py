@@ -75,7 +75,7 @@ def _install_dependencies(path: Path) -> None:
     call(".venv/bin/pip install -e ../proper/")  # TODO: remove!
     call("poetry export --without-hashes -f requirements.txt -o requirements.txt --with dev,test")
     call(".venv/bin/pip install -U -r requirements.txt && rm requirements.txt")
-    call(f"cd {path} && npm install --no-audit --no-fund")
+    call(".venv/bin/tailwindcss_install")
 
 
 def _wrap_up(path: Path) -> None:

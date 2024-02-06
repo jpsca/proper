@@ -17,14 +17,13 @@ RUN set -ex &&\
     apt-get install -y --no-install-recommends \
         bash nodejs libvips42 &&\
     curl -sSL https://install.python-poetry.org | python3 - &&\
-    npm install --no-audit --no-fund -g npm@latest &&\
     mkdir app
 
 WORKDIR app
 
 COPY package*.json pyproject.toml poetry*.lock *.whl ./
-RUN npm install --no-audit --no-fund
-RUN poetry install --with dev,test
+RUN poetry install --with dev,test \
+    tailwindcss_install
 
 COPY . .
 

@@ -19,6 +19,7 @@ python = "^3.11"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
+pytailwindcss = ">=0.2.0"
 ruff = "*"
 uwsgi = "*"
 
@@ -29,56 +30,17 @@ optional = true
 pytest = "*"
 
 
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+
+
 [tool.ruff]
 line-length = 90
 indent-width = 4
 target-version = "py311"
 
-exclude = [
-  ".*",
-]
+exclude = [".*"]
 include = ["*.py"]
-
-select = [
-	# bugbear
-	"B",
-	# mccabe"", comprehensions, commas
-	"C",
-	# pycodestyle errors
-	"E",
-	# pyflakes
-	"F",
-	# logging format
-	"G",
-	# imports
-	"I",
-	# quotes
-	"Q",
-	# pycodestyle warnings
-	"W",
-]
-
-ignore = [
-	# x is too complex
-	"C901",
-	# whitespace before ':'
-	"E203",
-	"E501",
-	# x defined from star imports
-	"F405",
-	# line break before binary operator
-	"W505",
-	"W605",
-]
-
-fix = true
-fixable = ["ALL"]
-
-
-[tool.ruff.isort]
-known-first-party = ["[[ app_name ]]"]
-known-local-folder = ["[[ app_name ]]"]
-
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.
@@ -107,11 +69,42 @@ docstring-code-format = false
 # enabled.
 docstring-code-line-length = "dynamic"
 
+[tool.ruff.lint]
+fixable = ["ALL"]
+
+ignore = [
+  # x is too complex
+  "C901",
+  # whitespace before ':'
+  "E203",
+  "E501",
+  # x defined from star imports
+  "F405",
+  # line break before binary operator
+  "W505",
+  "W605",
+]
+select = [
+  # bugbear
+  "B",
+  # mccabe"", comprehensions, commas
+  "C",
+  # pycodestyle errors
+  "E",
+  # pyflakes
+  "F",
+  # logging format
+  "G",
+  # imports
+  "I",
+  # quotes
+  "Q",
+  # pycodestyle warnings
+  "W",
+]
 
 [tool.ruff.lint.isort]
+known-first-party = ["proper"]
+known-local-folder = ["src/proper"]
 # Use two line after imports.
 lines-after-imports = 2
-
-
-[tool.pytest.ini_options]
-addopts = "--doctest-modules"
