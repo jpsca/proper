@@ -43,7 +43,7 @@ def render(template: str, **data) -> str:
 
 def debug_not_found_handler(app, request, response) -> None:
     if is_index(request):
-        return render_default_index(response)
+        return render_default_index(request, response)
 
     error = response.error
     data = {
@@ -80,9 +80,10 @@ def is_index(request) -> bool:
     return request.method == GET and request.path == "/"
 
 
-def render_default_index(response) -> None:
+def render_default_index(request, response) -> None:
     data = {
         "proper_version": version("proper"),
+        "server_software": request.env.get("server_software", ""),
         "python_version": sys.version,
     }
     response.body = render("default-index.jinja", **data)

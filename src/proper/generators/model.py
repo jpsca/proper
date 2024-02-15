@@ -43,7 +43,7 @@ def gen_model(
 
     ## Declaring fields
 
-        bin/proper g model NAME [field_name[:type][,option[:value]]...]
+        proper g model NAME [field_name[:type][,option[:value]]...]
 
     Attribute pairs are field_name:type arguments specifying the model's attributes.
     An `id` primary key will be implicit unless you mark a field with `primary_key=True`.
@@ -53,7 +53,7 @@ def gen_model(
     Right after the field name, you can specify a type like text or boolean.
     It will generate the column with the associated SQL type. For instance:
 
-        bin/proper g model Post title:str body:text
+        proper g model Post title:str body:text
 
     will generate a title column with a varchar type and a body column with a text
     type. If no type is specified, the string type will be used by default.
@@ -85,7 +85,7 @@ def gen_model(
 
     ## Examples:
 
-        `bin/proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
+        `proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
 
         class Tweet(BaseModel):
             body = TextField()
@@ -116,7 +116,7 @@ def gen_model(
     bp()
 
     if migration:
-        call(f'bin/proper db create "{plural_snake}"')
+        call(f'proper db create "{plural_snake}"')
 
     return attrs_tuples
 

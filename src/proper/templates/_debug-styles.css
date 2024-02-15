@@ -73,6 +73,7 @@ table div, table details {
 table th {
 	color: #444;
 	font-size: 14px;
+  white-space: nowrap;
 }
 table th,
 table td {

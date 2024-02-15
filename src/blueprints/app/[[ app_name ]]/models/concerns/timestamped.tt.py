@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from peewee import DateTimeField
+
 from [[ app_name ]].models.base import BaseMixin
 
 

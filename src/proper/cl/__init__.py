@@ -5,8 +5,8 @@ from pathlib import Path
 
 from proper_cli import *  # noqa
 
-from ._app import get_app_cli  # noqa
-from ._proper import ProperCL
+from .app_cl import get_app_cl  # noqa
+from .proper_cl import ProperCL
 
 
 def run():
@@ -19,7 +19,7 @@ def run():
             sys.path.append(str(cwd))
         module = importlib.import_module("wsgi")
         if hasattr(module, "app") and isinstance(module.app, App):
-            appCL = get_app_cli(module.app)
-            return appCL()()
+            appCL = module.app.CL()
+            return appCL()
 
     return ProperCL()()

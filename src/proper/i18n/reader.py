@@ -46,6 +46,8 @@ class Reader:
         paths = []
         for ipath in ipaths:
             path = Path(ipath).resolve()
+            if not path.exists():
+                continue
             if not path.is_dir():
                 path = path.parent
             paths.append(path)

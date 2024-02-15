@@ -20,7 +20,7 @@ def test_gen_model_with_migration(app, scaffold):
     app.root_path = app_root
     module.call = Mock()
     module.gen_model(app, "Product", migration=True)
-    module.call.assert_called_once_with('bin/proper db create "products"')
+    module.call.assert_called_once_with('proper db create "products"')
 
 
 def test_fields(app, scaffold):

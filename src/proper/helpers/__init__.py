@@ -7,3 +7,4 @@ from .multidict import *  # noqa
 from .proxy import *  # noqa
 from .render import *  # noqa
 from .utils import *  # noqa
+from .server import show_welcome  # noqa

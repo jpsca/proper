@@ -3,4 +3,3 @@ from . import app  # noqa
 from . import initializers  # noqa
 from . import routes  # noqa
 from . import models  # noqa
-from . import cli  # noqa

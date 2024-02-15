@@ -7,8 +7,8 @@ from proper_cli import Cli
 MIGRATE_DIR = "db/migrations"
 
 
-def get_db_cli(app):
-    class DB(Cli):
+def get_db_cl(app):
+    class DBCL(Cli):
         @property
         def _router(self) -> Router:
             return Router(app.db, migrate_dir=MIGRATE_DIR)
@@ -63,4 +63,4 @@ def get_db_cli(app):
             """Merge all migrations into one"""
             self._router.merge(name)
 
-    return DB
+    return DBCL

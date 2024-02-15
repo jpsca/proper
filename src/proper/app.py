@@ -1,5 +1,6 @@
 import hashlib
 import inspect
+import os
 import string
 import typing as t
 from importlib import import_module
@@ -17,7 +18,7 @@ from . import current, pipeline, status
 from .app_test import AppTest
 from .auth import Auth
 from .cache import NoCache
-from .cli import get_app_cli
+from .cl import get_app_cl
 from .config import get_default_config, get_env, logger
 from .error_handlers import (
     debug_error_handler,
@@ -59,12 +60,6 @@ class App(AppTest):
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
     _on_teardown: TEventHandlers = ()
-
-    # A lists of functions that are called when the development server starts,
-    # and when it shutdown. Useful for running a scheduler on development and
-    # similar tasks.
-    _on_dev_start: TEventHandlers = ()
-    _on_dev_shutdown: TEventHandlers = ()
 
     # A dict of functions to call when an HTTPError is raised.
     # The keys are any subclasses of Exception, but, not necessarily
@@ -138,6 +133,12 @@ class App(AppTest):
     def locales_path(self) -> Path:
         return self.root_path.parent / self.config.LOCALES_FOLDER
 
+    def get_components_folders(self) -> list[str]:
+        root = self.components_path
+        paths = [str(root)]
+        listdirs(root, paths)
+        return paths
+
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
         raises an exception."""
@@ -148,19 +149,6 @@ class App(AppTest):
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
-        return func
-
-    def on_dev_start(self, func: TEventHandler) -> TEventHandler:
-        """Decorator to add a function that runs when the development
-        server starts. Useful for running a scheduler on development and
-        similar tasks."""
-        self._on_dev_start = self._on_dev_start + (func,)
-        return func
-
-    def on_dev_shutdown(self, func: TEventHandler) -> TEventHandler:
-        """Decorator to add a function that runs when the development
-        server is shutdown."""
-        self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
     def wsgi_app(
@@ -252,16 +240,6 @@ class App(AppTest):
     ) -> str:
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
-
-    def start(self) -> None:
-        for func in self._on_dev_start:
-            func()
-
-    def shutdown(self) -> None:
-        print("\nShutting down")
-        for func in self._on_dev_shutdown:
-            func()
-        print("\n✨ Goodbye ✨")
 
     def get_signer(self, namespace: str = "proper", **kwargs) -> Signer:
         kwargs["salt"] = namespace.encode()
@@ -362,7 +340,7 @@ class App(AppTest):
         self.catalog.add_folder(self.components_path)
 
     def _setup_cli(self) -> None:
-        self.CL = get_app_cli(self)
+        self.CL = get_app_cl(self)
 
     def _setup_auth(self) -> None:
         if not self.config.AUTH_HASH_NAME:
@@ -378,6 +356,8 @@ class App(AppTest):
         )
 
     def _setup_i18n(self) -> None:
+        self.i18n = None
+
         if not self.config.LOCALES_FOLDER:
             return
 
@@ -448,3 +428,10 @@ class App(AppTest):
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
         pipeline.dispatch(self, request, response)
+
+
+def listdirs(rootdir, paths: list[str]):
+    for node in os.scandir(rootdir):
+        if node.is_dir():
+            paths.append(node.path.rstrip("/") + "/")
+            listdirs(node, paths)

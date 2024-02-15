@@ -18,7 +18,7 @@ ROUTES_TT = "routes.tt.py"
 def gen_view(app: "App", name: str, *actions: str) -> None:
     """Stubs out a new view and its components.
 
-        bin/proper g view NAME [action ...]
+        proper g view NAME [action ...]
 
     Arguments:
 
@@ -30,7 +30,7 @@ def gen_view(app: "App", name: str, *actions: str) -> None:
 
     Example:
 
-        bin/proper g view Articles index show
+        proper g view Articles index show
 
     """
     plural_name = inflection.pluralize(name)

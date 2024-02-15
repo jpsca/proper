@@ -3,7 +3,7 @@ install:
 	poetry install --with dev,test
 	tailwindcss_install
 	pip install -e ../proper
-	bin/proper db migrate
+	proper db migrate
 
 .PHONY: test
 test:

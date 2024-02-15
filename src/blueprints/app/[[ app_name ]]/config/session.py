@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from proper import env, PROD
+from proper import PROD, env
 
 
 SESSION_LIFETIME: int = int(timedelta(days=30).total_seconds())

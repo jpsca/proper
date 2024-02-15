@@ -1,35 +1,18 @@
-import socket
 import subprocess
 import sys
 import typing as t
 from functools import wraps
-from pathlib import Path
 
 from proper_cli import Cli
 
-from ._db import get_db_cli
+from .db_cl import get_db_cl
 
 
 if t.TYPE_CHECKING:
     from proper import App
 
 
-UWSGI_DEV_CONFIG = "uwsgi-dev.ini"
-DEFAULT_HOST = "0.0.0.0"
-DEFAULT_PORT = 2300
-WELCOME = """
-   ┌─────────────────────────────────────────────────┐
-   │   Running on:                                   │
-   │   - Your machine:  {local}│
-   │   - Your network:  {network}│
-   │                                                 │
-   │   Press `ctrl+c` to quit.                       │
-   └─────────────────────────────────────────────────┘
-"""
-EXAMPLE_COM_IP = "93.184.216.34"
-
-
-def get_app_cli(app: "App") -> t.Type[Cli]:
+def get_app_cl(app: "App") -> t.Type[Cli]:
     attrs: dict[str, t.Any] = {
         "__doc__": """
         Application-specific commands.
@@ -38,39 +21,26 @@ def get_app_cli(app: "App") -> t.Type[Cli]:
         just run `ipython` or the regular python interpreter and import
         the application, like a regular python package.
         """,
-        "run": get_run_server(app),
+        "run": get_run_server_cmd(app),
         "routes": get_routes_cmd(app),
-        "db": get_db_cli(app),
-        "g": get_generators_cli(app),
-        "install": get_install_cli(app),
-        "welcome": welcome,
+        "db": get_db_cl(app),
+        "g": get_generators_cl(app),
+        "install": get_install_cl(app),
     }
 
-    return type("AppCli", (Cli,), attrs)
+    return type("appCL", (Cli,), attrs)
 
 
-def get_run_server(app: "App") -> t.Callable:
+def get_run_server_cmd(app: "App") -> t.Callable:
     def run_server(_self):
-        """Runs the development server.
+        """Runs the development server with gunicorn
 
-        Read the uWSGI config from `uwsgi-dev.ini`.
+        Read the gunicorn config from `gunicorn.conf.py.
         """
-        if not Path(UWSGI_DEV_CONFIG).exists():
-            print(f"💥 {UWSGI_DEV_CONFIG} not found.")
-            print("💥 Check you are in the root folder of your application.")
-            return
-
-        cmd = f"uwsgi --ini {UWSGI_DEV_CONFIG}"
-        print(cmd)
-        app.start()
         try:
-            subprocess.check_call(cmd, shell=True, stderr=sys.stderr)
+            subprocess.check_call("gunicorn", shell=True, stderr=sys.stderr)
         except subprocess.CalledProcessError:
             pass
-        except KeyboardInterrupt:
-            raise
-        finally:
-            app.shutdown()
 
     return run_server
 
@@ -115,7 +85,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
     return routes
 
 
-def get_generators_cli(app: "App") -> t.Type[Cli]:
+def get_generators_cl(app: "App") -> t.Type[Cli]:
     from .. import generators
 
     attrs: dict[str, t.Any] = {
@@ -128,7 +98,7 @@ def get_generators_cli(app: "App") -> t.Type[Cli]:
     return type("Generators", (Cli,), attrs)
 
 
-def get_install_cli(app: "App") -> t.Type[Cli]:
+def get_install_cl(app: "App") -> t.Type[Cli]:
     from .. import auth, i18n
 
     attrs: dict[str, t.Any] = {
@@ -141,22 +111,6 @@ def get_install_cli(app: "App") -> t.Type[Cli]:
     return type("Install", (Cli,), attrs)
 
 
-def welcome(_self, host="0.0.0.0", port=2300) -> None:
-    """Display the welcome message for the development server.
-
-    Arguments:
-
-    - host [0.0.0.0]
-
-    - port [2300]
-
-    """
-    local = "{:<29}".format(f"http://{host}:{port}")
-    network = "{:<29}".format(f"http://{_get_local_ip()}:{port}")
-
-    print(WELCOME.format(local=local, network=network))
-
-
 def _get_cmd(app, module: t.Any, name: str) -> t.Callable:
     func = getattr(module, name)
 
@@ -165,19 +119,3 @@ def _get_cmd(app, module: t.Any, name: str) -> t.Callable:
         return func(app, *args, **kw)
 
     return cmd
-
-
-def _get_local_ip() -> str:
-    ip = socket.gethostbyname(socket.gethostname())
-    if not ip.startswith("127."):
-        return ip
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        sock.connect((EXAMPLE_COM_IP, 1))
-        ip = sock.getsockname()[0]
-    except Exception:
-        ip = "127.0.0.1"
-    finally:
-        sock.close()
-    return ip

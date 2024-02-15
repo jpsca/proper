@@ -56,16 +56,8 @@ def gen_app(
     print()
 
     if not _is_a_test:
-        _make_bin_files_executable(path / "bin")
         _install_dependencies(path)
     _wrap_up(path)
-
-
-def _make_bin_files_executable(path: Path) -> None:
-    files = [f for f in path.iterdir() if f.is_file()]
-    for f in files:
-        # equivalent to chmod +x file
-        f.chmod(f.stat().st_mode | 0o111)
 
 
 def _install_dependencies(path: Path) -> None:
@@ -89,5 +81,5 @@ def _wrap_up(path: Path) -> None:
     print()
     print(" Start your Proper app with:")
     print()
-    print("   $ bin/proper run")
+    print("   $ proper run")
     print()

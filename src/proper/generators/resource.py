@@ -57,7 +57,7 @@ def gen_resource(
 
     Use `--migration` to also generate a migration for creating the table.
 
-        bin/proper g resource NAME
+        proper g resource NAME
             [--only=action[,action]] [--exclude=action[,action]] [--singular]
 
     Arguments:
@@ -84,7 +84,7 @@ def gen_resource(
 
     Attribute pairs are `field:type` arguments, specifying the model's attributes,
     following the syntax of the model generator.
-    For instructions, run `bin/proper g model --help`.
+    For instructions, run `proper g model --help`.
 
     By default, it generates the full set of REST actions ("index", "new", "create",
     "show", "edit", "update", and "delete"). You can opt for a subset of these
@@ -95,10 +95,10 @@ def gen_resource(
 
     Examples:
 
-        bin/proper g resource Posts
-        bin/proper g resource Posts --only=index,show title:str
-        bin/proper g resource Posts title:str body:text published:bool
-        bin/proper g resource Profile --singular
+        proper g resource Posts
+        proper g resource Posts --only=index,show title:str
+        proper g resource Posts title:str body:text published:bool
+        proper g resource Profile --singular
 
     """
     plural_name = inflection.pluralize(name)
@@ -180,4 +180,4 @@ def gen_resource(
     append_routes(app, new_routes)
 
     if migration:
-        call(f'bin/proper db create "{singular_snake if singular else plural_snake}"')
+        call(f'proper db create "{singular_snake if singular else plural_snake}"')

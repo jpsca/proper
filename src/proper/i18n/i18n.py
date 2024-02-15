@@ -14,7 +14,6 @@ TNumber = plural_rules.TNumber
 
 
 class I18n:
-
     """Internationalization functions.
 
     Arguments:
@@ -36,7 +35,7 @@ class I18n:
         "translations",
     )
 
-    translations: dict[str, t.Any]
+    translations: dict[str, t.Any] | None
 
     def __init__(
         self,
@@ -47,9 +46,9 @@ class I18n:
         self.reader = Reader(*paths)
         self.default_locale = format_locale(default_locale)
         self.get_current_locale = get_current_locale
-        self.translations = {}
+        self.translations = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> t.Any:
         """Calling this instance is a shortcut to calling `self.translate`.
         Useful when translating Sphinx documentation, that pickle the environment
         (a method of an instance isn't pickable, but an instance of a class is).
@@ -86,8 +85,10 @@ class I18n:
         """Find the best match between the locales available and the
         ones in the `accepted` list.
         """
-        if not self.translations:
+        if self.translations is None:
             self._load_translations()
+            assert self.translations is not None
+
         available = self.translations.keys()
         for locale in accepted:
             if locale in available:
@@ -148,8 +149,12 @@ class I18n:
             ''
 
         """
-        if not self.translations:
+        if self.translations is None:
             self._load_translations()
+
+        if not self.translations:
+            # i18n support is not installed
+            return key
 
         locale = locale or self.get_current_locale()
         locale = format_locale(locale) if locale else self.default_locale
@@ -185,8 +190,9 @@ class I18n:
         keys for those locales as values.
 
         """
-        if not self.translations:
+        if self.translations is None:
             self._load_translations()
+            assert self.translations is not None
 
         if not locales:
             locales = self.translations.keys()
@@ -245,6 +251,7 @@ class I18n:
         Raises a `TranslationsNotFound` exception if there are no translations for
         the locale or for the general language.
         """
+        assert self.translations is not None
         trans = []
 
         l_trans = self.translations.get(locale)

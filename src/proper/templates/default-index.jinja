@@ -79,6 +79,9 @@
 
   <ul>
     <li><strong>Proper version:</strong> {{ proper_version }}</li>
+    {% if server_software -%}
+      <li><strong>Server:</strong> {{ server_software }}</li>
+    {%- endif %}
     <li><strong>Python version:</strong> {{ python_version }}</li>
   </ul>
 </body>

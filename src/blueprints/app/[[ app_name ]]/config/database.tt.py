@@ -1,6 +1,6 @@
 import os
 
-from proper import env, DEV, PROD
+from proper import DEV, PROD, env
 
 
 DATABASE_ENGINES = {
