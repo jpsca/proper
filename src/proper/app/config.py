@@ -1,9 +1,8 @@
-import logging
 import os
 from datetime import timedelta
 from pathlib import Path
 
-from proper.helpers import DotDict
+from proper.helpers import DotDict, logger
 
 
 __all__ = (
@@ -13,9 +12,6 @@ __all__ = (
     "PROD",
     "TEST",
 )
-
-logger = logging.getLogger("proper")
-logger.setLevel("DEBUG")
 
 
 def get_default_config():

@@ -159,7 +159,7 @@ def test_do_not_catch_error(app):
 
 
 def test_error_when_rendering_the_error_page(app):
-    from proper import error_handlers
+    from proper.app import error_handlers
 
     def boom(*args, **kw):
         raise TypeError

@@ -11,9 +11,8 @@ from typing import TYPE_CHECKING
 import inflection
 from markupsafe import Markup
 
-from .config import logger
-from .constants import GET
-from .helpers import Render
+from proper.constants import GET
+from proper.helpers import Render, logger
 
 
 if TYPE_CHECKING:

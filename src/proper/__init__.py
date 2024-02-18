@@ -1,5 +1,5 @@
-from .app import App  # noqa
-from .config import *  # noqa
+from .app.app import App  # noqa
+from .app.config import *  # noqa
 from .view import *  # noqa
 from .helpers import *  # noqa
 from .request import *  # noqa

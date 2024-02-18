@@ -5,8 +5,8 @@ from time import time
 import passlib.hash
 from passlib.context import CryptContext
 
-from proper.config import logger
 from proper.errors import WrongHashAlgorithm
+from proper.helpers import logger
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")

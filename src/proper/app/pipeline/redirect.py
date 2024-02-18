@@ -9,7 +9,7 @@ if t.TYPE_CHECKING:
 __all__ = ("redirect",)
 
 
-def redirect(_1, request: "Request", response: "Response") -> "Response | Proxy | None":
+def redirect(_app, request: "Request", response: "Response") -> "Response | Proxy | None":
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
     """

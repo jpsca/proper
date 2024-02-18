@@ -1,10 +1,12 @@
 import typing as t
 
-from ..helpers import import_string
+from proper.helpers import import_string
 
 
 if t.TYPE_CHECKING:
-    from proper import App, Request, Response
+    from proper import Request, Response
+
+    from ..app import App
 
 
 __all__ = ("dispatch",)

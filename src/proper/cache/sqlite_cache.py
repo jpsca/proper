@@ -3,8 +3,7 @@ import typing as t
 from pathlib import Path
 from time import time
 
-from proper.config import logger
-from proper.helpers import jsonplus
+from proper.helpers import jsonplus, logger
 
 from .base import BaseCache
 
