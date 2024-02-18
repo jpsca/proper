@@ -1,20 +1,37 @@
 import socket
 
 
+BANNER = """
+░███████████
+ ░███    ░███
+ ░███    ░███░████████ ░██████ ░████████    ░██████ ░████████
+ ░██████████  ░███ ░██░███ ░███ ░███  ░███ ░███ ░███ ░███ ░██
+ ░███         ░███    ░███ ░███ ░███  ░███ ░███████  ░███
+ ░███         ░███    ░███ ░███ ░███  ░███ ░███      ░███
+░█████       ░█████    ░██████  ░███████    ░██████ ░█████
+                                ░███
+                                ░███
+                               ░█████
+"""
+
 WELCOME = """
-   ┌─────────────────────────────────────────────────┐
-   │   Running on:                                   │
-   │   - Your machine:  {local}│
-   │   - Your network:  {network}│
-   │                                                 │
-   │   Press `ctrl+c` to quit.                       │
-   └─────────────────────────────────────────────────┘
+ ┌─────────────────────────────────────────────────┐
+ │   Running on:                                   │
+ │   - Your machine:  {local}│
+ │   - Your network:  {network}│
+ │                                                 │
+ │   Press `ctrl+c` to quit.                       │
+ └─────────────────────────────────────────────────┘
 """
 
 EXAMPLE_COM_IP = "93.184.216.34"
 
 
-def show_welcome(host, port) -> None:
+def show_banner() -> None:
+    print(BANNER)
+
+
+def show_welcome(host: str = "0.0.0.0", port: str | int = 2300) -> None:
     """Display the welcome message for the development server.
 
     Arguments:

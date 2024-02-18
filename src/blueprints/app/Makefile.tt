@@ -7,7 +7,7 @@ install:
 
 .PHONY: test
 test:
-	pytest -x demo tests
+	pytest -x [[ app_name ]] tests
 
 .PHONY: lint
 lint:

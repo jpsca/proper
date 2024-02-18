@@ -1,4 +1,4 @@
-from demo.app import app
+from [[ app_name ]].app import app
 
 
 class AppCL(app.CL):

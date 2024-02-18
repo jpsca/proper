@@ -1,6 +1,5 @@
 import hashlib
 import inspect
-import os
 import string
 import typing as t
 from importlib import import_module
@@ -60,6 +59,9 @@ class App(AppTest):
     # A lists of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
     _on_teardown: TEventHandlers = ()
+
+    # A lists of functions that are called when the development server starts,
+    _on_dev_start: TEventHandlers = ()
 
     # A dict of functions to call when an HTTPError is raised.
     # The keys are any subclasses of Exception, but, not necessarily
@@ -133,12 +135,6 @@ class App(AppTest):
     def locales_path(self) -> Path:
         return self.root_path.parent / self.config.LOCALES_FOLDER
 
-    def get_components_folders(self) -> list[str]:
-        root = self.components_path
-        paths = [str(root)]
-        listdirs(root, paths)
-        return paths
-
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
         raises an exception."""
@@ -149,6 +145,18 @@ class App(AppTest):
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
+        return func
+
+    def on_dev_start(self, func: TEventHandler) -> TEventHandler:
+        """Decorator to add a function that runs when the development
+        server starts."""
+        self._on_dev_start = self._on_dev_start + (func,)
+        return func
+
+    def on_dev_shutdown(self, func: TEventHandler) -> TEventHandler:
+        """Decorator to add a function that runs when the development
+        server is shutdown."""
+        self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
     def wsgi_app(
@@ -268,6 +276,10 @@ class App(AppTest):
         if not current.request:
             return None
         return current.request.locale
+
+    def dev_start(self) -> None:
+        for func in self._on_dev_start:
+            func()
 
     # Private
 
@@ -428,10 +440,3 @@ class App(AppTest):
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
         pipeline.dispatch(self, request, response)
-
-
-def listdirs(rootdir, paths: list[str]):
-    for node in os.scandir(rootdir):
-        if node.is_dir():
-            paths.append(node.path.rstrip("/") + "/")
-            listdirs(node, paths)
