@@ -17,7 +17,9 @@ def make_test_env(
     body: dict | str | bytes | BytesIO = b"",
     **kw,
 ) -> TWSGIEnvironment:
-    env: dict[str, t.Any] = {"REMOTE_ADDR": "127.0.0.1"}
+    env: dict[str, t.Any] = {
+        "REMOTE_ADDR": "127.0.0.1",
+    }
     setup_testing_defaults(env)
 
     upa = urlparse(url)

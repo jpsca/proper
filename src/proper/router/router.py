@@ -2,6 +2,7 @@
 """
 from typing import Any
 
+from proper import current
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 
 from .route import Route
@@ -97,6 +98,9 @@ class Router:
         _anchor: str = "",
         **kw,
     ) -> str:
+        if name.startswith("/"):
+            return name
+
         route = self._routes_by_name.get(name)
         if not route:
             raise RouteNotFound(name)
@@ -106,7 +110,40 @@ class Router:
                 kw.setdefault(key, getattr(object, key))
 
         url = route.format(**kw)
+
         if _anchor:
             url += "#" + _anchor
 
         return url
+
+    def url_is(
+        self,
+        name: str,
+        object: Any = None,
+        *,
+        curr_url: str = "",
+        **kw,
+    ) -> bool:
+        control = self.url_for(name, object, **kw)
+        if not curr_url and current.request:
+            curr_url = current.request.path
+        return curr_url.rstrip("/") == control.rstrip("/")
+
+    def url_startswith(
+        self,
+        name: str,
+        object: Any = None,
+        *,
+        curr_url: str = "",
+        **kw,
+    ) -> bool:
+        control = self.url_for(name, object, **kw)
+        if not curr_url and current.request:
+            curr_url = current.request.path
+        curr_url = curr_url.rstrip("/")
+
+        if curr_url == control:
+            return True
+        if curr_url.startswith(f"{control}/"):
+            return True
+        return False

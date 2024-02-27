@@ -234,6 +234,7 @@ class App(AppTest):
         is_exception = inspect.isclass(cls) and issubclass(cls, BaseException)
         assert is_exception, "`error_handler` takes a subclass of `Exception` as first argument."
         self.error_handlers[cls] = to
+
         if self.config.DEBUG:
             qualname = getattr(cls, "__qualname__", "Exception")
             self.router.routes.append(
@@ -245,11 +246,33 @@ class App(AppTest):
         name: str,
         object: t.Any = None,
         *,
-        _anchor="",
+        _anchor: str ="",
         **kw
     ) -> str:
         """Proxy for `self.router.url_for()`."""
-        return self.router.url_for(name, object=object, _anchor=_anchor, **kw)
+        return self.router.url_for(name, object, _anchor=_anchor, **kw)
+
+    def url_is(
+        self,
+        name: str,
+        object: t.Any = None,
+        *,
+        curr_url: str ="",
+        **kw
+    ) -> bool:
+        """Proxy for `self.router.url_is()`."""
+        return self.router.url_is(name, object, curr_url=curr_url, **kw)
+
+    def url_startswith(
+        self,
+        name: str,
+        object: t.Any = None,
+        *,
+        curr_url: str ="",
+        **kw
+    ) -> bool:
+        """Proxy for `self.router.url_startswith()`."""
+        return self.router.url_startswith(name, object, curr_url=curr_url, **kw)
 
     def get_signer(self, namespace: str = "proper", **kwargs) -> Signer:
         kwargs["salt"] = namespace.encode()
@@ -348,6 +371,8 @@ class App(AppTest):
             root_url=self.config.COMPONENTS_URL,
             globals={
                 "url_for": self.url_for,
+                "url_is": self.url_is,
+                "url_startswith": self.url_startswith,
             },
             fingerprint=True,
         )

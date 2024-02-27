@@ -135,7 +135,7 @@ class Route:
         method: str,
         path: str,
         *,
-        to: t.Callable | None = None,
+        to: t.Callable[[t.Any], t.Any] | None = None,
         name: str | None = None,
         host: str | None = None,
         redirect: str | None = None,

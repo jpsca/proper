@@ -3,7 +3,7 @@ from datetime import datetime
 from peewee import DateTimeField
 
 from .base import BaseModel
-from .concerns import Authenticable
+from .concerns.authenticable import Authenticable
 
 
 class User(Authenticable, BaseModel):

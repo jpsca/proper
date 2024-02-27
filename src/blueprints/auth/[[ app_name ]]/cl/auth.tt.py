@@ -1,7 +1,6 @@
 from proper_cli import Cli
 
-from ..app import app
-from ..models import User
+from [[ app_name ]].app import app
 
 
 class AuthCL(Cli):
@@ -18,6 +17,8 @@ class AuthCL(Cli):
             Plain-text password (will be encrypted)
 
         """
+        from [[ app_name ]].models.user import User
+
         try:
             User.create(login=login, password=password)
         except Exception as e:
@@ -38,6 +39,8 @@ class AuthCL(Cli):
             Plain-text password (will be encrypted)
 
         """
+        from [[ app_name ]].models.user import User
+
         user = User.get_by_login(login)
         if not user:
             print("User not found")

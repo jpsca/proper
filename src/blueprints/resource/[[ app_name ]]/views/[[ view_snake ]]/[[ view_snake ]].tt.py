@@ -2,6 +2,7 @@ from proper.errors import NotFound
 from proper.status import unprocessable
 
 from [[ app_name ]].models import [[ singular_pascal ]]
+
 from ..app import AppView
 from .forms import [[ form_class ]]
 
@@ -42,7 +43,8 @@ class [[ view_pascal ]](AppView):
         [[ singular_snake ]] = self.form.save()
         [[ singular_snake ]].save()
         self.response.redirect_to(
-            "[[ plural_pascal ]].show", pk=[[ singular_snake ]].id,
+            "[[ plural_pascal ]].show",
+            pk=[[ singular_snake ]].id,
             flash="[[ singular_pascal ]] was created",
         )
 [% endif %]
@@ -57,7 +59,8 @@ class [[ view_pascal ]](AppView):
         [[ singular_snake ]] = self.form.save()
         [[ singular_snake ]].save()
         self.response.redirect_to(
-            "[[ plural_pascal ]].show", pk=[[ object ]].id,
+            "[[ plural_pascal ]].show",
+            pk=[[ object ]].id,
             flash="[[ singular_pascal ]] was updated",
         )
 [% endif %]

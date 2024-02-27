@@ -7,7 +7,7 @@ import typing as t
 from inspect import isclass
 from pathlib import Path
 
-from .app import App
+from .core import App
 from .current import response as c_response
 from .errors import NotFound
 from .helpers import MultiDict, jsonplus

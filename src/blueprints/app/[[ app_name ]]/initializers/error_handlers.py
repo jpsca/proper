@@ -1,7 +1,7 @@
 import proper
 
 from ..app import app
-from ..views import Page
+from ..views.page import Page
 
 
 # You can call your own views for handling any kind of exception, not

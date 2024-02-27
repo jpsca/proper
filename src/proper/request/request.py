@@ -1,6 +1,5 @@
 import typing as t
 from io import BytesIO
-from wsgiref.util import request_uri
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
 from proper.helpers import DotDict, MultiDict, split_locale
@@ -262,4 +261,11 @@ class Request(RequestHeadersMixin):
     @property
     def url(self) -> str:
         """Returns the current URL."""
-        return request_uri(self.env, include_query=True)
+        return self.get_url()
+
+    def get_url(self, include_query: bool = True) -> str:
+        """Returns the current URL, optionally including the query string"""
+        url = self.path
+        if include_query and self.query_string:
+            url = f"{url}?{self.query_string}"
+        return url

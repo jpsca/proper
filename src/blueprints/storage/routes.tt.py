@@ -2,4 +2,4 @@
 
     resource("storage", to=Storage, only="show", singular=True),
 ]
-from .views import Storage
+from .views.storage import Storage

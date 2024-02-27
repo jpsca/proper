@@ -8,5 +8,5 @@ TReadable = t.IO[t.Any]
 TBody = list[bytes] | bytearray | memoryview | t.Iterable[bytes]
 
 TException = t.Type[BaseException]
-TEventHandler = t.Callable[[], None]
+TEventHandler = t.Callable[[t.Any], t.Any]
 TEventHandlers = tuple[TEventHandler, ...]

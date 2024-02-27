@@ -5,4 +5,4 @@
     [%- if singular %], singular=True[% endif -%]
     ),
 ]
-from .views import [[ view_pascal ]]
+from .views.[[ view_snake ]] import [[ view_pascal ]]

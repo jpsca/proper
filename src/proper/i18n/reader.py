@@ -16,7 +16,8 @@ class Reader:
         be searched for the translations.
 
     """
-    __slots__ = ("paths", )
+
+    __slots__ = ("paths",)
 
     def __init__(self, *paths: TPath):
         self.paths = self._process_paths(paths)

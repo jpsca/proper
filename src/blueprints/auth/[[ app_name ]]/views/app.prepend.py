@@ -1,3 +1,4 @@
 from proper.concerns import RequestForgeryProtection, Session
 
-from .concerns import LoadUser, RequireLogin
+from .concerns.load_user import LoadUser
+from .concerns.require_login import RequireLogin

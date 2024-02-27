@@ -2,7 +2,7 @@ import typing as t
 
 import inflection
 
-from ..helpers.render import BLUEPRINTS, BlueprintRender, call
+from ..helpers.render import BLUEPRINTS, BlueprintRender, call, sort_imports_in
 
 
 if t.TYPE_CHECKING:
@@ -10,6 +10,10 @@ if t.TYPE_CHECKING:
 
 
 MODEL_BLUEPRINT = BLUEPRINTS / "model"
+
+SORT_IMPORTS_IN = [
+    "models/__init__.py",
+]
 
 
 def gen_model(
@@ -109,11 +113,14 @@ def gen_model(
             "singular_pascal": singular_pascal,
             "singular_snake": singular_snake,
             "plural_snake": plural_snake,
-            "rows": rows or ["pass"],
-            "imports": imports or ["*"],
+            "rows": rows or ["name = CharField()"],
+            "imports": imports or ["CharField"],
         },
     )
     bp()
+
+    for filename in SORT_IMPORTS_IN:
+        sort_imports_in(app.root_path / filename)
 
     if migration:
         call(f'proper db create "{plural_snake}"')

@@ -19,10 +19,20 @@ __all__ = [
     "BLUEPRINTS",
     "Render",
     "BlueprintRender",
+    "make_folder",
+    "copy_file",
+    "append_to_file",
+    "prepend_to_file",
+    "save_file",
+    "get_blueprint_render",
     "printf",
     "call",
-    "get_blueprint_render",
+    "files_are_identical",
+    "contents_are_identical",
+    "confirm_overwrite",
     "append_routes",
+    "sort_imports",
+    "sort_imports_in",
 ]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
@@ -303,3 +313,8 @@ def sort_imports(code: str) -> str:
         combine_star=True,
         include_trailing_comma=True,
     )
+
+
+def sort_imports_in(path: Path) -> None:
+    code = sort_imports(path.read_text())
+    path.write_text(code)

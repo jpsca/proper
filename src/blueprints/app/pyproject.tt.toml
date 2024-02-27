@@ -104,5 +104,6 @@ select = [
 
 [tool.ruff.lint.isort]
 known-local-folder = ["[[ app_name ]]"]
+known-first-party = ["[[ app_name ]]"]
 # Use two line after imports.
 lines-after-imports = 2
