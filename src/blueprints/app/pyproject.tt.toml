@@ -14,7 +14,7 @@ requires-python = ">=3.11"
 dependencies = [
   "uv",
   # "psycopg2-binary",
-  # proper = {file = "proper-0.2-py3-none-any.whl"},
+  "proper @ file:///home/jps/Code/proper",  # TODO
 ]
 
 [project.optional-dependencies]

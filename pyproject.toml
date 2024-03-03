@@ -125,11 +125,10 @@ envlist = py310,py311,py312
 
 [testenv]
 skip_install = true
-allowlist_externals = poetry
 commands =
-    pip install -U pip wheel
-    poetry install --with test
-    poetry run pytest -x src/proper tests
+    pip install -U uv
+    uv pip install requirements-text.txt
+    pytest -x src/proper tests
 """
 
 

@@ -183,11 +183,14 @@ def copy_file(
 
 
 def add_dependencies(root_path: Path, dependencies: list[str]):
-    pyproject_path = (root_path / "pyproject.toml")
+    pyproject_path = (root_path.parent / "pyproject.toml")
     pyproject = parse(pyproject_path.read_text())
     project = pyproject["project"]
-    project.setdfault("dependencies", [])
-    project["dependencies"] = sorted(*project.dependencies, *dependencies)
+    project.setdefault("dependencies", [])
+    project["dependencies"] = sorted([
+        *project["dependencies"],
+        *dependencies,
+    ])
     pyproject_path.write_text(dumps(pyproject))
 
     pipdeps = [d.replace(" ", "") for d in dependencies]
