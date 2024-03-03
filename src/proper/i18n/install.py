@@ -3,7 +3,7 @@ import typing as t
 from ..helpers.render import (
     BLUEPRINTS,
     BlueprintRender,
-    call,
+    add_dependencies,
     sort_imports,
 )
 
@@ -52,5 +52,4 @@ def install(app: "App") -> None:
         code = code.replace(ENTRY_POINT, INSERT, 1)
     curr_appc.write_text(code)
 
-    for dep_name in DEPENDENCIES:
-        call(f"poetry add {dep_name}")
+    add_dependencies(app.root_path, DEPENDENCIES)

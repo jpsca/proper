@@ -63,11 +63,13 @@ def gen_app(
 def _install_dependencies(path: Path) -> None:
     os.chdir(str(path))
     call("python -m venv .venv")
-    call(".venv/bin/pip install -U pip wheel --quiet")
-    call(".venv/bin/pip install -e ../proper/")  # TODO: remove!
-    call("poetry export --without-hashes -f requirements.txt -o requirements.txt --with dev,test")
-    call(".venv/bin/pip install -U -r requirements.txt && rm requirements.txt")
+    call(".venv/bin/pip install -U uv")
+    call(".venv/bin/uv pip compile --all-extras pyproject.toml -o requirements-dev.txt")
+    call(".venv/bin/uv pip compile --extra=test pyproject.toml -o requirements-test.txt")
+    call(".venv/bin/uv pip compile pyproject.toml -o requirements.txt")
+    call(".venv/bin/uv pip install -r requirements-dev.txt")
     call(".venv/bin/tailwindcss_install")
+    call(".venv/bin/uv pip install -e ../proper")  # TODO: remove!
 
 
 def _wrap_up(path: Path) -> None:

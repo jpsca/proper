@@ -3,8 +3,8 @@ import typing as t
 from ..helpers.render import (
     BLUEPRINTS,
     BlueprintRender,
+    add_dependencies,
     append_routes,
-    call,
     sort_imports,
 )
 
@@ -44,5 +44,4 @@ def install(app: "App") -> None:
     new_routes = bp.render.string(routes_tt.read_text())
     append_routes(app, new_routes)
 
-    for dep_name in DEPENDENCIES:
-        call(f"poetry add {dep_name}")
+    add_dependencies(app.root_path, DEPENDENCIES)

@@ -9,6 +9,7 @@ from pathlib import Path
 import isort
 import jinja2
 from proper_cli import confirm, echo
+from tomlkit import dumps, parse
 
 
 if t.TYPE_CHECKING:
@@ -21,6 +22,7 @@ __all__ = [
     "BlueprintRender",
     "make_folder",
     "copy_file",
+    "add_dependencies",
     "append_to_file",
     "prepend_to_file",
     "save_file",
@@ -178,6 +180,18 @@ def copy_file(
         printf(CREATE, dst_relpath, color=COLOR_OK)
 
     shutil.copy2(str(src_path), str(dst_path))
+
+
+def add_dependencies(root_path: Path, dependencies: list[str]):
+    pyproject_path = (root_path / "pyproject.toml")
+    pyproject = parse(pyproject_path.read_text())
+    project = pyproject["project"]
+    project.setdfault("dependencies", [])
+    project["dependencies"] = sorted(*project.dependencies, *dependencies)
+    pyproject_path.write_text(dumps(pyproject))
+
+    pipdeps = [d.replace(" ", "") for d in dependencies]
+    call(f"uv pip install {' '.join(pipdeps)}")
 
 
 def append_to_file(root_path: Path, dst_relpath: str | Path, new_content: str) -> None:

@@ -1,6 +1,12 @@
+.PHONY: lock
+lock:
+	uv pip compile --all-extras pyproject.toml -o requirements-dev.txt
+	uv pip compile --extra=test pyproject.toml -o requirements-test.txt
+	uv pip compile pyproject.toml -o requirements.txt
+
 .PHONY: install
-install:
-	poetry install --with dev,test
+install: lock
+	uv pip install -r requirements-dev.txt
 	pre-commit install
 
 .PHONY: test

@@ -1,32 +1,29 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools"]
 
 
-[tool.poetry]
+[project]
 name = "[[ app_name ]]"
 version = "1.0"
 description = ""
-authors = ["Lorem Ipsum <lipsum@example.com>"]
+authors = [
+  {name = "Lorem Ipsum", email = "lipsum@example.com"},
+]
 readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  # "psycopg2-binary"
+  # proper = {file = "proper-0.2-py3-none-any.whl"}
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-# psycopg2-binary = "*"
-# proper = { file = "proper-0.2-py3-none-any.whl" }
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-pytailwindcss = ">=0.2.0"
-ruff = "*"
-
-[tool.poetry.group.test]
-optional = true
-
-[tool.poetry.group.test.dependencies]
-pytest = "*"
+[project.optional-dependencies]
+dev = [
+  "pytailwindcss >=0.2.0",
+  "ruff",
+]
+test = [
+  "pytest",
+]
 
 
 [tool.pytest.ini_options]
@@ -104,6 +101,5 @@ select = [
 
 [tool.ruff.lint.isort]
 known-local-folder = ["[[ app_name ]]"]
-known-first-party = ["[[ app_name ]]"]
 # Use two line after imports.
 lines-after-imports = 2
