@@ -29,6 +29,7 @@ from proper.types import (
     TEventHandler,
     TEventHandlers,
     TException,
+    THandler,
     TStartResponse,
     TWSGIEnvironment,
 )
@@ -53,6 +54,19 @@ MIN_SECRET_LENGTH = 48
 
 
 class App(AppTest):
+    """
+    A Proper app core.
+
+    Arguments:
+
+    - import_name:
+        The name of the application package. Eg.: `foobar.web`.
+
+    - config:
+        Optional dict-like with the config.
+
+    """
+
     # A lists of functions that are called if any of the functions in the
     # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
     # raises an exception.
@@ -80,18 +94,6 @@ class App(AppTest):
         *,
         config: dict | None = None
     ) -> None:
-        """
-        A Proper app core.
-
-        Arguments:
-
-        - import_name:
-            The name of the application package. Eg.: `foobar.web`.
-
-        - config:
-            Optional dict-like with the config.
-
-        """
         self.error_handlers = {}
         self._on_error = ()
         self._on_teardown = ()
@@ -220,7 +222,7 @@ class App(AppTest):
             for func in self._on_teardown:
                 func()
 
-    def error_handler(self, cls: TException, to: TEventHandler) -> None:
+    def error_handler(self, cls: TException, to: THandler) -> None:
         """Register a view method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 

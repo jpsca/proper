@@ -1,4 +1,4 @@
-from peewee import *  # noqa
+import peewee as pw
 
 from ..app import app
 from .base import BaseModel

@@ -5,9 +5,6 @@ from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import SignInForm
 
 
-ERROR_CREDENTIALS = "Wrong username and/or password"
-
-
 class Session(AppView):
     def new(self):
         if self.request.user:
@@ -16,25 +13,21 @@ class Session(AppView):
         return self.render("Session.New")
 
     def create(self):
-        user = User.authenticate(
-            login=self.params.get("login"),
-            password=self.params.get("password"),
-        )
-        if user:
-            user.sign_in()
-            return self._go_forward(flash="Welcome back!")
+        self.form = form = SignInForm(self.params)
+        if form.is_invalid:
+            return self.render("Session.New")
 
-        self.form = SignInForm(self.params)
-        self.form.login.error = ERROR_CREDENTIALS
-        return self.render("Session.New")
+        login = form.save()["login"]
+        user = User.get_by_login(login)
+        user.sign_in()
+        return self._go_forward(flash="Welcome back!")
 
     def delete(self):
         msg = ""
         if self.request.user:
-            msg = f"User {self.request.user.username} deleted"
             self.request.user.sign_out()
 
-        self.response.redirect_to("/", flash=msg)
+        self.response.redirect_to("/")
 
     # Private
 

@@ -1,13 +1,12 @@
-import proper.forms as f
+import pydantic
 
 from [[ app_name ]].app import config
 from [[ app_name ]].models import User
+
 from .pwned import get_pwned_count
 
 
-ERROR_LOGIN = "We don't recognize that email. Want to try another?"
-
-ERROR_PASSWORD_TOO_SHORT = f"Your password must be at least {config.AUTH_PASSWORD_MINLEN} characters long"
+ERROR_LOGIN = "We don't recognize that username. Want to try another?"
 
 ERROR_PASSWORD_PWNED = (
     "This password may have been compromised on another site.<br>"
@@ -15,23 +14,22 @@ ERROR_PASSWORD_PWNED = (
     " using something like LastPass or 1Password."
 )
 
-ERROR_PASSWORD_UNCONFIRMED = "Passwords don't match.<br>Remember that are case-sensitive"
+ERROR_PASSWORD_TOO_SHORT = f"Your password must be at least {config.AUTH_PASSWORD_MINLEN} characters long"
 
 
-def login_exists(values):
-    if not values:
-        return False, ERROR_LOGIN
-    if not User.get_by_login(values[0]):
-        return False, ERROR_LOGIN
-    return True
+def login_exists(login: str) -> bool:
+    if not login or not User.get_by_login(login):
+        raise ValueError(ERROR_LOGIN)
+    return login
 
 
-def password_hasnt_been_pwned(values):
-    for value in values:
-        if get_pwned_count(value):
-            return False, ERROR_PASSWORD_PWNED
-    return True
+def password_hasnt_been_pwned(password: str):
+    if get_pwned_count(password):
+        raise ValueError(ERROR_PASSWORD_PWNED)
+    return password
 
 
-password_is_long_enough = f.LongerThan(config.AUTH_PASSWORD_MINLEN, ERROR_PASSWORD_TOO_SHORT)
-password_confirmed = f.Confirmed(ERROR_PASSWORD_UNCONFIRMED)
+password_is_long_enough = pydantic.Field(
+    min_length=config.AUTH_PASSWORD_MINLEN,
+    description=ERROR_PASSWORD_TOO_SHORT
+)

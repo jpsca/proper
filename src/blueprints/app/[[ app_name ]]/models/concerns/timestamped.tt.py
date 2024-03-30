@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from peewee import DateTimeField
+import peewee as pw
 
 from [[ app_name ]].models.base import BaseMixin
 
 
 class Timestamped(BaseMixin):
-    created_at = DateTimeField(default=datetime.utcnow)
-    updated_at = DateTimeField(default=datetime.utcnow)
+    created_at = pw.DateTimeField(default=datetime.utcnow, null=True)
+    updated_at = pw.DateTimeField(default=datetime.utcnow, null=True)
 
     @classmethod
     def update(cls, model, *args, **kwargs):

@@ -1,24 +1,27 @@
 import re
-import unicodedata
 import typing as t
+import unicodedata
 
-from peewee import CharField
-from proper.current import request, response
+import peewee as pw
+import proper
 
-from [[app_name]].app import auth, config
-from [[app_name]].models.base import BaseMixin
+from [[ app_name ]].app import auth, config
+from [[ app_name ]].models.base import BaseMixin
 
 
 RX_SPACES = re.compile(r"\s+")
 
 
 class Authenticable(BaseMixin):
+    request: proper.Request | None = None
+    response: proper.Response | None = None
+
     SESSION_KEY: str = "_user_token"
     REDIRECT_KEY: str = "_redirect"
     CLEAR_SESSION_ON_SIGN_OUT: bool = True
 
-    login = CharField(255, null=False, unique=True, index=True)
-    password = CharField(255)
+    login = pw.CharField(255, null=False, unique=True, index=True)
+    password = pw.CharField(255)
 
     @property
     def email(self):
@@ -98,7 +101,8 @@ class Authenticable(BaseMixin):
         else:
             self.password = password
 
-        if request.user == self:
+        curr_user = (self.request or {}).get("user")
+        if curr_user == self:
             # Password has change, so we need to updated the session too
             self.sign_in()
 
@@ -107,19 +111,24 @@ class Authenticable(BaseMixin):
         logged between requests.
         """
         assert self.id is not None  # type: ignore
-        request.user = self
-        response.session[self.SESSION_KEY] = auth.get_session_token(request.user)
+        assert self.request
+        assert self.response
+        self.request.user = self
+        self.response.session[self.SESSION_KEY] = auth.get_session_token(self.request.user)
 
     def sign_out(self) -> None:
-        request.user = None
+        assert self.request
+        assert self.response
+
+        self.request.user = None
         # The session is shared so, if you have more than
         # one model/user-type signed in at the same time,
         # you don't want to do this.
         if self.CLEAR_SESSION_ON_SIGN_OUT:
-            response.session.clear()
+            self.response.session.clear()
             return
 
-        if self.SESSION_KEY in response.session:
-            del response.session[self.SESSION_KEY]
-        if self.REDIRECT_KEY in response.session:
-            del response.session[self.SESSION_KEY]
+        if self.SESSION_KEY in self.response.session:
+            del self.response.session[self.SESSION_KEY]
+        if self.REDIRECT_KEY in self.response.session:
+            del self.response.session[self.SESSION_KEY]

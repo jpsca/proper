@@ -91,10 +91,12 @@ def gen_model(
 
         `proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
 
+        import peewee as pw
+
         class Tweet(BaseModel):
-            body = TextField()
-            created_at = DateTimeField()
-            user = ForeignKeyField(User, backref="tweets").
+            body = pw.TextField()
+            created_at = pw.DateTimeField()
+            user = pw.ForeignKeyField(User, backref="tweets").
 
     """
     singular_name = inflection.singularize(name)
@@ -103,7 +105,6 @@ def gen_model(
     plural_snake = plural_snake or inflection.tableize(singular_pascal)
     attrs_tuples = [_split_attr(attr) for attr in attrs]
     rows = _build_rows(attrs_tuples)
-    imports = _get_imports(attrs_tuples)
 
     bp = BlueprintRender(
         MODEL_BLUEPRINT,
@@ -113,8 +114,7 @@ def gen_model(
             "singular_pascal": singular_pascal,
             "singular_snake": singular_snake,
             "plural_snake": plural_snake,
-            "rows": rows or ["name = CharField()"],
-            "imports": imports or ["CharField"],
+            "rows": rows or ["name = pw.CharField()"],
         },
     )
     bp()
@@ -175,16 +175,6 @@ FIELD_TYPES = {
 }
 
 
-def _get_imports(attrs: list[tuple[str, str, list[str]]]) -> list[str]:
-    imports = set()
-    for _name, ftype, _options in attrs:
-        if ftype.lower().startswith("fk-"):
-            imports.add("ForeignKeyField")
-        else:
-            imports.add(FIELD_TYPES.get(ftype.lower()))
-    return sorted(imports)
-
-
 def _build_rows(attrs: list[tuple[str, str, list[str]]]) -> list[str]:
     return [_build_row(name, ftype, options) for name, ftype, options in attrs]
 
@@ -202,7 +192,7 @@ def _foreign(ftype: str, options: list[str]) -> str:
     model = ftype.split("-", 1)[-1]
     field_options = ", ".join(options)
     field_options = f", {field_options}" if field_options else ""
-    return f"ForeignKeyField({model}{field_options})"
+    return f"pw.ForeignKeyField({model}{field_options})"
 
 
 def _field(ftype: str, options: list[str]) -> str:
@@ -211,4 +201,4 @@ def _field(ftype: str, options: list[str]) -> str:
         raise ValueError(f"Invalid field type `{ftype}`")
 
     field_options = ", ".join(options)
-    return f"{FieldType}({field_options})"
+    return f"pw.{FieldType}({field_options})"

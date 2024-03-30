@@ -2,16 +2,19 @@
 Utilities to declare routes in your application.
 
 """
+
 import re
 import typing as t
 from string import Template
 
+from proper import status
 from proper.errors import (
     BadRouteFormat,
     BadRoutePlaceholder,
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
+from proper.types import THandler
 
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
 
@@ -116,6 +119,7 @@ class Route:
         Optional. A dict with extra values that will be sent to the view.
 
     """
+
     __slots__ = (
         "path",
         "path_re",
@@ -135,11 +139,11 @@ class Route:
         method: str,
         path: str,
         *,
-        to: t.Callable[[t.Any], t.Any] | None = None,
+        to: THandler | None = None,
         name: str | None = None,
         host: str | None = None,
         redirect: str | None = None,
-        redirect_status: str = "307 Temporary Redirect",
+        redirect_status: str = status.temporary_redirect,
         defaults: dict | None = None,
     ) -> None:
         self.method = method.upper()
@@ -236,9 +240,7 @@ class Route:
 
         query_params = self._get_query_params(path_params, kw)
         if query_params:
-            params = "&".join(
-                [key + "=" + value for key, value in query_params.items()]
-            )
+            params = "&".join([key + "=" + value for key, value in query_params.items()])
             url = url + "?" + params
 
         return url
@@ -268,50 +270,587 @@ class Route:
 
 
 class Get(Route):
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(GET, path, **kw)
+    r"""GET route.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            GET,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Post(Route):
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(POST, path, **kw)
+    r"""POST route.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            POST,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Put(Route):
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(PUT, path, **kw)
+    r"""PUT route.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            PUT,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Delete(Route):
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(DELETE, path, **kw)
+    r"""DELETE route.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            DELETE,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Options(Route):
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(OPTIONS, path, **kw)
+    r"""OPTIONS route.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            OPTIONS,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Patch(Route):
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(PATCH, path, **kw)
+    r"""PATCH route.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
+    """
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            PATCH,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Query(Route):
-    """A route for the new standard HTTP QUERY method.
+    r"""A route for the new standard HTTP QUERY method.
 
     Like GET but with a body (yes, the standard doesn't forbid GET request
     to have a body, but that ship has sailed a long time ago).
 
     Must be idempotent because the body WILL be cached. This also means
     that, like with a GET, the CSRF token will not be checked for QUERY requests.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
     """
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(QUERY, path, **kw)
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            QUERY,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 class Restore(Route):
-    """A route for the non-standard HTTP RESTORE method.
+    r"""A route for the non-standard HTTP RESTORE method.
 
     Yes, it's not standard, but so anything WebDAV or CalDAV, so sue me
     (no, better if you don't do it).
@@ -320,9 +859,84 @@ class Restore(Route):
     A `/restore` is not restful and a PATCH is weird for undoing a DELETE
     So, form the ashes of uncertainty, rises... the HTTP RESTORE method.
     Someday it could be a RFC.
+
+    Arguments:
+
+    - path:
+        The path of this route. Can contain placeholders like `:name` or
+        `:name<format>` where "format" can be:
+
+        - nothing, for matching anything except slashes
+        - `int` or `float`, for matching numbers
+        - `path`, for matching anything *including* slashes
+        - a regular expression
+
+        Note that declaring a format doesn't make type conversions,
+        **all values are passed to the view as strings**.
+
+        Examples:
+
+        - `docs/:lang<en|es|pt>`
+        - `questions/:uuid`
+        - `archive/:url<path>`
+        - `:year<int>/:month<int>/:day<int>/:slug`
+        - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
+
+    - to:
+        Optional. A reference to the view that this route is connected to.
+
+    - name:
+        Optional. Overwrites the default name of the route that is the qualified
+        name of the `to` method. eg: `PagesView.show`.
+        This name can be any unique string eg: "login", "index",
+        "something.foobar", etc.
+
+    - host:
+        Optional. Host for this route, including any subdomain
+        and an optional port. Examples: "www.example.com", "localhost:5000".
+
+        Like `path`, it can contain placeholders like `:name` or `:name<format>`
+        with the same format rules.
+
+        Examples:
+
+        - :lang<en|es|pt>.example.com
+        - :username.localhost:5000
+
+    - redirect:
+        Optional. Instead of dispatching to a view, redirect to this
+        other URL.
+
+    - redirect_status:
+        Optional. Which status code to use for the redirect.
+        The status "307 Temporary Redirect" is the default.
+
+    - defaults:
+        Optional. A dict with extra values that will be sent to the view.
+
     """
-    def __init__(self, path: str, **kw) -> None:
-        super().__init__(RESTORE, path, **kw)
+
+    def __init__(
+        self,
+        path: str,
+        *,
+        to: THandler | None = None,
+        name: str | None = None,
+        host: str | None = None,
+        redirect: str | None = None,
+        redirect_status: str = status.temporary_redirect,
+        defaults: dict | None = None,
+    ) -> None:
+        super().__init__(
+            RESTORE,
+            path,
+            to=to,
+            name=name,
+            host=host,
+            redirect=redirect,
+            redirect_status=redirect_status,
+            defaults=defaults,
+        )
 
 
 route = Route

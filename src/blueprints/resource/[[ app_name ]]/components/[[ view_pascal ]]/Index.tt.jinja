@@ -7,7 +7,8 @@
 	<div class="flex justify-between items-center">
 		<h1 class="font-bold text-2xl">[[ plural_pascal ]]</h1>
 		<a
-			href="{{ url_for('[[ plural_pascal ]].new') }}"
+			href="{{ url_for('[[ plural_pascal ]].new'
+        [%- if parent %], [[ parent_id ]]=[[ parent ]].id[% endif %]) }}"
 			class="btn btn-primary"
 		>New [[ singular_snake ]]</a>
 	</div>
@@ -17,10 +18,11 @@
 		{% for [[ singular_snake ]] in [[ plural_snake ]] -%}
 		<li>
       <a
-        href="{{ url_for('[[ plural_pascal ]].show', pk=[[ singular_snake ]].id) }}"
+        href="{{ url_for('[[ plural_pascal ]].show', pk=[[ object_id ]]
+          [%- if parent %], [[ parent_id ]]=[[ parent ]].id[% endif %]) }}"
         class="link font-semibold"
       >
-        [[ singular_pascal ]] #{{ [[ singular_snake ]].id }}
+        [[ singular_pascal ]] #{{ [[ object_id ]] }}
       </a>
     </li>
 		{% endfor -%}

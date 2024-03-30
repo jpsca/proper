@@ -2,13 +2,14 @@
 Fallback error handlers
 
 """
+
 import sys
-import traceback
 from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import inflection
+import traceback_with_variables as traceback2
 from markupsafe import Markup
 
 from proper.constants import GET
@@ -91,13 +92,13 @@ def render_default_index(request, response) -> None:
 def debug_error_handler(app, request, response) -> None:
     error = response.error
     logger.exception(error)
-    excp = traceback.format_exc()
+    excp = traceback2.format_exc()
     data = {
         "config": deepsort_dict(app.config),
         "response": response,
         "title": get_title(error),
         "description": str(error),
-        "traceback": excp,
+        "traceback": str(excp),
     }
     data.update(get_request_data(request))
     response.body = render("debug-error.jinja", **data)

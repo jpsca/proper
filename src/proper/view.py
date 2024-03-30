@@ -89,7 +89,15 @@ class View:
                 c_response._set(early_response)
                 return early_response
 
+        before = getattr(self, "before", None)
+        if before:
+            before()
+
         self._call(action_name)
+
+        after = getattr(self, "after", None)
+        if after:
+            after()
 
         for m in self.concerns:
             early_response = m.after(self)

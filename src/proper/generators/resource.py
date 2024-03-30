@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import inflection
 
 from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
-from ..router.resource import ACTIONS
+from ..router.resource import ACTION_RESTORE, ACTIONS
 from .model import gen_model
 
 
@@ -14,33 +14,19 @@ if TYPE_CHECKING:
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 ROUTES_TT = "routes.tt.py"
 FORM_FIELDS = {
-    "blob": "File",
-    "bool": "Boolean",
-    "date": "Date",
-    "datetime": "DateTime",
-    "decimal": "Float",
-    "float": "Float",
-    "int": "Integer",
-    "str": "Text",
-    "text": "Text",
-    "time": "Time",
-    "uuid": "Text",
-}
-FORM_RENDER_AS = {
-    "blob": "textarea",
-    "bool": "checkbox",
-    "text": "textarea",
-}
-FORM_DEFAULT_RENDER_AS = "input"
-FORM_INPUT_TYPES = {
+    "bigint": "int",
+    "blob": "bytes",
+    "bool": "bool",
     "date": "date",
-    "datetime": "datetime-local",
-    "decimal": "number",
-    "float": "number",
-    "int": "number",
+    "datetime": "datetime",
+    "decimal": "float",
+    "float": "float",
+    "int": "int",
+    "str": "str",
+    "text": "str",
     "time": "time",
+    "uuid": "str",
 }
-FORM_DEFAULT_INPUT_TYPE = "text"
 
 
 def gen_resource(
@@ -48,6 +34,8 @@ def gen_resource(
     name: str,
     *attrs: str,
     singular: bool = False,
+    restore: bool = False,
+    parent: str = "",
     only: str = "",
     exclude: str = "",
     migration: bool = False,
@@ -67,6 +55,32 @@ def gen_resource(
 
     - singular [False]:
         Whether the resource represents a single entity for the user (like "profile").
+
+    - restore [False]:
+        Whether to include a `RESTORE` action.
+
+    - parent:
+        Optional PascalCased name of the "parent" resource.
+        This will change how the routes and the views are generated.
+        For example:
+
+            proper g resource List
+
+        will generate routes like:
+
+            /lists/
+            /lists/123
+            ...
+
+        but:
+
+            proper g resource Item --parent List
+
+        will generate routes "mounted" on a List resource like:
+
+            /list/123/items
+            /list/123/items/456
+            ...
 
     - only:
         Optional comma-separated list of actions to include,
@@ -108,19 +122,22 @@ def gen_resource(
     singular_name = inflection.singularize(name)
     singular_pascal = inflection.camelize(singular_name)
     singular_snake = inflection.underscore(singular_name)
+
     view_snake = singular_snake if singular else plural_snake
     view_pascal = singular_pascal if singular else plural_pascal
 
     only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
     exclude_list = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
 
-    actions = set(ACTIONS)
+    actions: set[str] = set(ACTIONS)
     if only_list:
         actions = actions.intersection(set(only_list))
     elif exclude_list:
         actions = actions.difference(set(exclude_list))
     if singular:
         actions.remove("index")
+    if restore:
+        actions.add(ACTION_RESTORE)
 
     ignored_actions = set(ACTIONS).difference(actions)
     ignored_components = []
@@ -141,36 +158,59 @@ def gen_resource(
     )
     form_fields = [
         {
-            "fclass": FORM_FIELDS[ftype],
+            "type": FORM_FIELDS[ftype],
             "name": name,
-            "render_as": FORM_RENDER_AS.get(ftype, FORM_DEFAULT_RENDER_AS),
-            "input_type": FORM_INPUT_TYPES.get(ftype, FORM_DEFAULT_INPUT_TYPE),
-            "required": None if "null=True" in options else True
+            "default": None,
         }
-        for name, ftype, options in attrs_tuples
+        for name, ftype, _options in attrs_tuples
         if ftype in FORM_FIELDS
     ]
+
+    context = {
+        "app_name": app.root_path.name,
+        "plural_pascal": plural_pascal,
+        "plural_snake": plural_snake,
+        "singular_pascal": singular_pascal,
+        "singular_snake": singular_snake,
+        "view_snake": view_snake,
+        "view_pascal": view_pascal,
+        "mount_point": view_snake,
+        "only": only_list,
+        "exclude": exclude_list,
+        "actions": actions,
+        "singular": singular,
+        "restore": restore,
+        "form_fields": form_fields,
+        "form_class": f"{singular_pascal}Model",
+        "load_method": f"load_{singular_snake}",
+        "object": f"self.{singular_snake}",
+        "object_id": f"{singular_snake}_id",
+        "parent": None,
+    }
+
+    if parent:
+        parent_plural_name = inflection.pluralize(parent)
+        parent_plural_snake = inflection.underscore(parent_plural_name)
+
+        parent_singular_name = inflection.singularize(parent)
+        parent_singular_pascal = inflection.camelize(parent_singular_name)
+        parent_singular_snake = inflection.underscore(parent_singular_name)
+
+        context.update({
+            "parent_plural_name": parent_plural_name,
+            "parent_plural_snake": parent_plural_snake,
+            "parent_singular_pascal": parent_singular_pascal,
+            "parent_singular_snake": parent_singular_snake,
+            "mount_point": f"{parent_plural_snake}/:{parent_singular_snake}_id/{view_snake}",
+            "load_parent_method": f"load_{parent_singular_snake}",
+            "parent": f"self.{parent_singular_snake}",
+            "parent_id": f"{parent_singular_snake}_id",
+        })
 
     bp = BlueprintRender(
         RESOURCE_BLUEPRINT,
         app.root_path.parent,
-        context={
-            "app_name": app.root_path.name,
-            "plural_pascal": plural_pascal,
-            "plural_snake": plural_snake,
-            "singular_pascal": singular_pascal,
-            "singular_snake": singular_snake,
-            "view_snake": view_snake,
-            "view_pascal": view_pascal,
-            "only": only_list,
-            "exclude": exclude_list,
-            "actions": actions,
-            "singular": singular,
-            "form_fields": form_fields,
-            "form_class": f"{singular_pascal}Form",
-            "load_method": f"_load_{singular_snake}",
-            "object": f"self.{singular_snake}",
-        },
+        context=context,
         ignore=[ROUTES_TT] + ignored_components,
     )
     bp()

@@ -5,8 +5,9 @@ lock:
 	uv pip compile pyproject.toml -o requirements.txt
 
 .PHONY: install
-install: lock
+install:
 	uv pip install -r requirements-dev.txt
+	uv pip install -e .
 	pre-commit install
 
 .PHONY: test

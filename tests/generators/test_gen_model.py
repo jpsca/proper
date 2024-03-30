@@ -36,9 +36,9 @@ def test_fields(app, scaffold):
 
     model_text = (app_root / "models" / "product.py").read_text()
     print(model_text)
-    assert "name = CharField()" in model_text
-    assert "description = TextField()" in model_text
-    assert "stock = IntegerField()" in model_text
+    assert "name = pw.CharField()" in model_text
+    assert "description = pw.TextField()" in model_text
+    assert "stock = pw.IntegerField()" in model_text
 
 
 def test_constraints(app, scaffold):
@@ -54,9 +54,9 @@ def test_constraints(app, scaffold):
 
     model_text = (app_root / "models" / "product.py").read_text()
     print(model_text)
-    assert "slug = CharField(unique=True, index=True)" in model_text
-    assert 'type = CharField(default="fruit")' in model_text
-    assert "stock = IntegerField(default=0)" in model_text
+    assert "slug = pw.CharField(unique=True, index=True)" in model_text
+    assert 'type = pw.CharField(default="fruit")' in model_text
+    assert "stock = pw.IntegerField(default=0)" in model_text
 
 
 def test_foreign_key(app, scaffold):
@@ -66,4 +66,4 @@ def test_foreign_key(app, scaffold):
 
     model_text = (app_root / "models" / "tweet.py").read_text()
     print(model_text)
-    assert 'user = ForeignKeyField(User, backref="tweets")' in model_text
+    assert 'user = pw.ForeignKeyField(User, backref="tweets")' in model_text

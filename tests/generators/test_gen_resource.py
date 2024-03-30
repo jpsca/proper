@@ -198,3 +198,53 @@ def _test_routes_exclude(app_root):
     resource("persons", to=Persons, exclude="edit,update"),
 ]
 """)
+
+
+def test_gen_resource_restore(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_resource(app, "Persons", restore=True)
+
+    _test_view_restore(app_root)
+    _test_routes_restore(app_root)
+
+
+def _test_view_restore(app_root):
+    text = (app_root / "views" / "persons" / "persons.py").read_text()
+    assert "class Persons(AppView):" in text
+    assert "def restore(self):" in text
+
+
+
+def _test_routes_restore(app_root):
+    routes_text = (app_root / "routes.py").read_text()
+    print(routes_text)
+    assert routes_text.endswith("""
+    resource("persons", to=Persons, restore=True),
+]
+""")
+
+
+def test_gen_resource_with_parent(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_resource(app, "Item", parent="List")
+
+    _test_view_with_parent(app_root)
+    _test_routes_with_parent(app_root)
+
+
+def _test_view_with_parent(app_root):
+    text = (app_root / "views" / "items" / "items.py").read_text()
+    print(text)
+    assert "class Items(AppView):" in text
+    assert """def before(self):
+        self.load_list()""" in text
+    assert "def load_list(self):" in text
+
+
+def _test_routes_with_parent(app_root):
+    routes_text = (app_root / "routes.py").read_text()
+    assert """resource("lists/:list_id/items", to=Items)""" in routes_text

@@ -1,4 +1,4 @@
-from peewee import [[ ", ".join(imports) ]]
+import peewee as pw
 
 from .base import BaseModel
 

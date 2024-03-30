@@ -62,12 +62,11 @@ def gen_app(
 
 def _install_dependencies(path: Path) -> None:
     os.chdir(str(path))
-    call('python -m venv --prompt="." .venv')
+    call("uv venv --seed")
     call("uv pip compile --all-extras pyproject.toml -o requirements-dev.txt")
     call("uv pip compile --extra=test pyproject.toml -o requirements-test.txt")
     call("uv pip compile pyproject.toml -o requirements.txt")
     call("uv pip install -r requirements-dev.txt")
-    call("uv pip install -e ../proper")  # TODO: remove!
     call(".venv/bin/tailwindcss_install")
 
 

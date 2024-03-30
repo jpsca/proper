@@ -16,7 +16,7 @@ class PasswordReset(AppView):
 
     def create(self):
         self.form = forms.PasswordResetForm(self.params)
-        if not self.form.validate():
+        if self.form.is_invalid:
             return self.render("PasswordReset.New", status=unprocessable)
 
         login = self.form.save()["login"]
@@ -43,12 +43,12 @@ class PasswordReset(AppView):
             return self.render("PasswordReset.Invalid", status=unprocessable)
 
         self.form = forms.PasswordChangeForm(self.params)
-        if not self.form.validate():
+        if self.form.is_invalid:
             self.login = user.login
             self.password_minlen = config.AUTH_PASSWORD_MINLEN
             return self.render("PasswordReset.Edit", status=unprocessable)
 
-        new_password = self.form.save()["password"][0]
+        new_password = self.form.save()["password1"]
         user.set_password(new_password)
         user.save()
         user.sign_in()

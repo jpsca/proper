@@ -185,7 +185,8 @@ def copy_file(
 def add_dependencies(root_path: Path, dependencies: list[str]):
     pyproject_path = (root_path.parent / "pyproject.toml")
     pyproject = parse(pyproject_path.read_text())
-    project = pyproject["project"]
+    project = pyproject["project"] or {}
+    project = t.cast(dict, project)
     project.setdefault("dependencies", [])
     project["dependencies"] = sorted([
         *project["dependencies"],

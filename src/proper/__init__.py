@@ -5,7 +5,6 @@ from . import (
     constants,  # noqa
     current,  # noqa
     errors,  # noqa
-    forms,  # noqa
     helpers,  # noqa
     router,  # noqa
     status,  # noqa

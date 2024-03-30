@@ -1,7 +1,7 @@
 import re
 from typing import Callable, Iterable
 
-from ..constants import DELETE, GET, PATCH, POST, PUT
+from ..constants import DELETE, GET, PATCH, POST, PUT, RESTORE
 from .route import Route
 
 
@@ -15,6 +15,7 @@ ACTION_SHOW = "show"
 ACTION_EDIT = "edit"
 ACTION_UPDATE = "update"
 ACTION_DELETE = "delete"
+ACTION_RESTORE = "restore"
 
 GROUP_ROUTES = (
     (GET, "/", ACTION_INDEX),
@@ -25,6 +26,7 @@ GROUP_ROUTES = (
     (PATCH, "/:pk", ACTION_UPDATE),
     (PUT, "/:pk", ACTION_UPDATE),
     (DELETE, "/:pk", ACTION_DELETE),
+    (RESTORE, "/:pk", ACTION_RESTORE),
 )
 SINGLE_ROUTES = (
     (GET, "/new", ACTION_NEW),
@@ -34,6 +36,7 @@ SINGLE_ROUTES = (
     (PATCH, "/", ACTION_UPDATE),
     (PUT, "/", ACTION_UPDATE),
     (DELETE, "/", ACTION_DELETE),
+    (RESTORE, "/", ACTION_RESTORE),
 )
 ACTIONS = (
     ACTION_INDEX,
@@ -54,6 +57,7 @@ def resource(
     only: "StrOrIter" = ACTIONS,
     exclude: StrOrIter | None = None,
     singular: bool = False,
+    restore: bool = False,
     **kw
 ) -> list[Route]:
     """Shortcut to return a list of REST routes for a resource.
@@ -101,9 +105,9 @@ def resource(
     typed instead of being about dynamically generated routes.
 
 
-    ## Undelete support
+    ## "Restore" support
 
-    If `undelete` is `True`, an undelete will be added as well.
+    If `restore` is `True`, a restore action will be added as well.
 
     """
     res = Route("resource", path, to=to, **kw)
@@ -115,12 +119,15 @@ def resource(
     _actions = [
         action for action in only if (action in ACTIONS) and (action not in exclude)
     ]
+    if restore:
+        _actions.append(ACTION_RESTORE)
+
     assert _actions, "None of the actions are valid."
     routes = _expand_routes(res, _actions, SINGLE_ROUTES if singular else GROUP_ROUTES)
     return routes
 
 
-def _to_list(iterable: Iterable | None) -> Iterable:
+def _to_list(iterable: Iterable | str | None) -> Iterable:
     iterable = iterable or []
     if isinstance(iterable, str):
         return RX_COMMA.split(iterable.strip())
