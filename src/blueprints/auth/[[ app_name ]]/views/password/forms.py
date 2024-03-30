@@ -1,6 +1,6 @@
 import typing as t
 
-from fodantic import as_form
+from fodantic import formable
 from pydantic import BaseModel, BeforeValidator, model_validator
 
 from .validators import (
@@ -10,8 +10,8 @@ from .validators import (
 )
 
 
-@as_form
-class PasswordResetForm(BaseModel):
+@formable
+class PasswordResetModel(BaseModel):
     login: t.Annotated[str, BeforeValidator(login_exists)]
 
 
@@ -22,8 +22,8 @@ NewPassword = t.Annotated[
 ]
 
 
-@as_form
-class PasswordChangeForm(BaseModel):
+@formable
+class PasswordChangeModel(BaseModel):
     password1: NewPassword
     password2: NewPassword
 

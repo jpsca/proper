@@ -2,18 +2,18 @@ from [[ app_name ]].models import User
 
 from ..app import AppView
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from .forms import SignInForm
+from .forms import SignInModel
 
 
 class Session(AppView):
     def new(self):
         if self.request.user:
             return self._go_forward()
-        self.form = SignInForm()
+        self.form = SignInModel.as_form()
         return self.render("Session.New")
 
     def create(self):
-        self.form = form = SignInForm(self.params)
+        self.form = form = SignInModel.as_form(self.params)
         if form.is_invalid:
             return self.render("Session.New")
 

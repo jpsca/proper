@@ -6,16 +6,16 @@ from [[ app_name ]].models import User
 
 from ..app import AppView
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from . import forms
+from .forms import PasswordResetModel, PasswordChangeModel
 
 
 class PasswordReset(AppView):
     def new(self):
-        self.form = forms.PasswordResetForm()
+        self.form = PasswordResetModel.as_form()
         return self.render("PasswordReset.New")
 
     def create(self):
-        self.form = forms.PasswordResetForm(self.params)
+        self.form = PasswordResetModel.as_form(self.params)
         if self.form.is_invalid:
             return self.render("PasswordReset.New", status=unprocessable)
 
@@ -32,7 +32,7 @@ class PasswordReset(AppView):
             return self.render("PasswordReset.Invalid", status=unprocessable)
 
         self.login = user.login
-        self.form = forms.PasswordChangeForm()
+        self.form = PasswordChangeModel.as_form()
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
         return self.render("PasswordReset.Edit")
 
@@ -42,7 +42,7 @@ class PasswordReset(AppView):
         if not user:
             return self.render("PasswordReset.Invalid", status=unprocessable)
 
-        self.form = forms.PasswordChangeForm(self.params)
+        self.form = PasswordChangeModel.as_form(self.params)
         if self.form.is_invalid:
             self.login = user.login
             self.password_minlen = config.AUTH_PASSWORD_MINLEN

@@ -13,6 +13,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "uv",
+  "fodantic",
   # "psycopg2-binary",
   "proper @ file:///home/jps/Code/proper",  # TODO
 ]

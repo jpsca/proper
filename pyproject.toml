@@ -34,7 +34,6 @@ dependencies = [
   "peewee >= 3.15",
   "peewee-migrate >= 1.12.1, < 2",
   "proper-cli >= 1.2",
-  "fodantic@git+https://github.com/jpsca/fodantic@main",
   "tomlkit >= 0.12.4",
   "traceback-with-variables == 2.0.4",
   "uwsgi >= 2.0",
