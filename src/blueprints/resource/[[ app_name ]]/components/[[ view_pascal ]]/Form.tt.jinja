@@ -1,6 +1,6 @@
 {#def form, action='', method='post' #}
 
-{% set ff = form.fields %}
+{% set f = form.fields %}
 
 <Form
   method={method}
@@ -13,12 +13,12 @@
       <input
         type="text"
         class="block form-input"
-        name="{{ ff.[[ f.name ]].name }}"
-        value="{{ ff.[[ f.name ]].value }}"
+        name="{{ f.[[ f.name ]].name }}"
+        value="{{ f.[[ f.name ]].value }}"
       />
     </label>
-    {% if ff.[[ f.name ]].error -%}
-      <div class="text-red">{{ ff.[[ f.name ]].error.msg }}</div>
+    {% if f.[[ f.name ]].error -%}
+      <div class="text-red-500">{{ f.[[ f.name ]].error.msg }}</div>
     {%- endif %}
   </div>
   [% endfor -%]

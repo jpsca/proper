@@ -1,4 +1,5 @@
 {#def form, pk, login, password_minlen #}
+{% set f = form.fields %}
 
 <Layout.Auth title="Change your password">
   <Form
@@ -19,31 +20,55 @@
       Make sure your new password it's at least {{ password_minlen }} characters long
     </p>
 
+    {% if form.errors -%}
+    <div class="mt-2 mb-3 text-sm font-bold text-center text-red-500">
+      {% for error in form.errors -%}
+        <p>{{ error.msg }}</p>
+      {% endfor -%}
+    </div>
+    {%- endif %}
+
     <div class="mb-4">
-      {{ form.password.as_input(
-        aria_label="Password",
-        value_index=0,
-        type="password",
-        classes="form-input w-full text-lg",
-        error="border-red-500",
+      <input
+        aria-label="Password"
+        type="password1"
+        name="{{ f.password1.name }}"
+        value="{{ f.password1.value }}"
+        class="form-input w-full text-lg
+          {%- if f.password1.error %} border-red-500{% endif %}"
         placeholder="New password"
-      ) }}
+        tabindex="1"
+      />
+      {% if f.password1.error -%}
+      <div class="text-red-500 text-sm font-bold mb-3 mt-2">
+        {{ f.password1.error.msg }}
+      </div>
+      {%- endif %}
     </div>
 
     <div class="mb-4">
-      {{ form.password.as_input(
-        aria_label="Confirm password",
-        value_index=1,
-        type="password",
-        classes="form-input w-full text-lg",
-        error="border-red-500",
+      <input
+        aria-label="Confirm password"
+        type="password2"
+        name="{{ f.password2.name }}"
+        value="{{ f.password2.value }}"
+        class="form-input w-full text-lg
+          {%- if f.password2.error %} border-red-500{% endif %}"
         placeholder="Confirm your new password"
-      ) }}
-      {{ form.password.render_error(classes="text-red-500 text-sm font-bold mb-3 mt-2") }}
+        tabindex="1"
+      />
+      {% if f.password2.error -%}
+      <div class="text-red-500 text-sm font-bold mb-3 mt-2">
+        {{ f.password2.error.msg }}
+      </div>
+      {%- endif %}
     </div>
 
     <div class="mt-6">
-      <button type="submit" class="btn btn-primary btn-md w-full">Save my password</button>
+      <button
+        type="submit"
+        class="btn btn-primary btn-md w-full"
+      >Save my password</button>
     </div>
   </Form>
 </Layout.Auth>

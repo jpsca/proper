@@ -1,4 +1,5 @@
 {#def form #}
+{% set f = form.fields %}
 
 <Layout.Auth title="Sign in">
   <Form class="w-full p-12 bg-white border border-gray-300 shadow-xl rounded-xl">
@@ -8,34 +9,54 @@
       </h2>
     </div>
 
-    {%- if form.login.error or form.password.error %}
+    {% if form.errors -%}
     <div class="mt-2 mb-3 text-sm font-bold text-center text-red-500">
-      {{ form.login.error or form.password.error }}
+      {% for error in form.errors -%}
+        <p>{{ error.msg }}</p>
+      {% endfor -%}
     </div>
-    {% endif -%}
+    {%- endif %}
 
     <div class="mb-1">
-      {{ form.login.as_input(
-        aria_label="Email",
-        classes="form-input w-full text-lg py-3 rounded-none rounded-t-md",
-        error="",
-        placeholder="Email",
+      <input
+        aria-label="Email"
+        type="email"
+        name="{{ f.login.name }}"
+        value="{{ f.login.value }}"
+        class="form-input w-full text-lg py-3 rounded-none rounded-b-md"
+        placeholder="Email"
         tabindex="1"
-      ) }}
+      />
+      {% if f.login.error -%}
+      <div class="text-red-500">
+        {{ f.login.error.msg }}
+      </div>
+      {%- endif %}
     </div>
 
     <div>
-      {{ form.password.as_input(
-        aria_label="Password",
-        classes="form-input w-full text-lg py-3 rounded-none rounded-b-md",
-        error="",
-        placeholder="Password",
-        tabindex="2"
-      ) }}
+      <input
+        aria-label="Password"
+        type="password"
+        name="{{ f.password.name }}"
+        value="{{ f.password.value }}"
+        class="form-input w-full text-lg py-3 rounded-none rounded-b-md"
+        placeholder="Password"
+        tabindex="1"
+      />
+      {% if f.password.error -%}
+      <div class="text-red-500">
+        {{ f.password.error.msg }}
+      </div>
+      {%- endif %}
     </div>
 
     <div class="mt-8">
-      <button type="submit" class="btn btn-primary btn-md w-full" tabindex="3">Sign in</button>
+      <button
+        type="submit"
+        class="btn btn-primary btn-md w-full"
+        tabindex="3"
+      >Sign in</button>
     </div>
   </Form>
 

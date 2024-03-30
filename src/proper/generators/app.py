@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 import inflection
@@ -61,13 +62,17 @@ def gen_app(
 
 
 def _install_dependencies(path: Path) -> None:
+    version_info = sys.version_info
+    py = f"{version_info.major}.{version_info.minor}"
+
     os.chdir(str(path))
-    call("uv venv --seed")
-    call("uv pip compile --all-extras pyproject.toml -o requirements-dev.txt")
-    call("uv pip compile --extra=test pyproject.toml -o requirements-test.txt")
-    call("uv pip compile pyproject.toml -o requirements.txt")
-    call("uv pip install -r requirements-dev.txt")
-    call(".venv/bin/tailwindcss_install")
+    call(f"uv venv --seed -p {py}")
+    os.environ["VIRTUAL_ENV"] = str(path / ".venv")
+    call(f"uv pip compile --all-extras {path}/pyproject.toml -o {path}/requirements-dev.txt")
+    call(f"uv pip compile --extra=test {path}/pyproject.toml -o {path}/requirements-test.txt")
+    call(f"uv pip compile {path}/pyproject.toml -o {path}/requirements.txt")
+    call(f"uv pip install -r {path}/requirements-dev.txt")
+    call("tailwindcss_install")
 
 
 def _wrap_up(path: Path) -> None:

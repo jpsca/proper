@@ -14,17 +14,27 @@
       </div>
 
       <div class="mb-4">
-        {{ form.login.as_input(
-          aria_label="Email",
-          classes="form-input w-full lowercase text-lg py-3",
-          error="border-red-500",
+        <input
+          aria-label="Email"
+          type="email"
+          name="{{ f.login.name }}"
+          value="{{ f.login.value }}"
+          class="form-input w-full rounded lowercase text-lg py-3"
           placeholder="Email"
-        ) }}
-        {{ form.login.render_error(classes="text-red-500 text-sm font-bold mb-3 mt-2") }}
+          tabindex="1"
+        />
+        {% if f.login.error -%}
+        <div class="text-red-500 text-sm font-bold mb-3 mt-2">
+          {{ f.login.error.msg }}
+        </div>
+        {%- endif %}
       </div>
 
       <div class="mt-6">
-        <button type="submit" class="btn btn-primary btn-md w-full">Email reset link</button>
+        <button
+          type="submit"
+          class="btn btn-primary btn-md w-full"
+        >Email reset link</button>
       </div>
   </Form>
 

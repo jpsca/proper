@@ -38,7 +38,7 @@ __all__ = [
 ]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
-IGNORE = [".DS_Store", "__pycache__"]
+IGNORE = [".DS_Store", "__pycache__", "__pycache__/*"]
 
 CREATE = "create"
 UPDATE = "update"
