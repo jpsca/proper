@@ -27,20 +27,20 @@ class [[ view_pascal ]](AppView):
     [% if "new" in actions -%]
     def new(self):
         """GET [% if parent %]/[[ parent_plural_snake ]]/1[% endif %]/[[ plural_snake ]]/new"""
-        self.form = [[ form_class ]]()
+        self.form = [[ form_class ]].as_form()
         return self.render("[[ view_pascal ]].New")
 [% endif %]
     [% if "edit" in actions -%]
     def edit(self):
         """GET [% if parent %]/[[ parent_plural_snake ]]/1[% endif %]/[[ plural_snake ]]/1/edit"""
         self.[[ load_method ]]()
-        self.form = [[ form_class ]](obj=[[ object ]])
+        self.form = [[ form_class ]].as_form(obj=[[ object ]])
         return self.render("[[ view_pascal ]].Edit")
 [% endif %]
     [% if "create" in actions -%]
     def create(self):
         """POST [% if parent %]/[[ parent_plural_snake ]]/1[% endif %]/[[ plural_snake ]]"""
-        self.form = [[ form_class ]](self.params)
+        self.form = [[ form_class ]].as_form(self.params)
         if self.form.is_invalid:
             return self.render("[[ view_pascal ]].New", status=unprocessable)
 
@@ -60,7 +60,7 @@ class [[ view_pascal ]](AppView):
     def update(self):
         """PATCH|PUT [% if parent %]/[[ parent_plural_snake ]]/1[% endif %]/[[ plural_snake ]]/1"""
         self.[[ load_method ]]()
-        self.form = [[ form_class ]](self.params, object=[[ object ]])
+        self.form = [[ form_class ]].as_form(self.params, object=[[ object ]])
         if self.form.is_invalid:
             return self.render("[[ view_pascal ]].Edit", status=unprocessable)
 

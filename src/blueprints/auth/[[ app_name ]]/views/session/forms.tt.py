@@ -2,6 +2,7 @@ import typing as t
 
 from fodantic import formable
 from pydantic import BaseModel, BeforeValidator, SecretStr, model_validator
+from pydantic_core import PydanticCustomError
 
 from ..password.validators import login_exists  # (A)
 from [[ app_name ]].models import User
@@ -22,6 +23,6 @@ class SignInModel(BaseModel):
         password = self.password.get_secret_value()
         user = User.authenticate(login=self.login, password=password)
         if not user:
-            raise ValueError("Wrong password")  # (A)
-            # raise ValueError("Wrong username and/or password")  # (B)
+            raise PydanticCustomError("password", "Wrong password")  # (A)
+            # raise PydanticCustomError("auth", "Wrong username and/or password")  # (B)
         return self

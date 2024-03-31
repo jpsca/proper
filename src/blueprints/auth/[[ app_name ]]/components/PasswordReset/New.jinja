@@ -1,4 +1,6 @@
 {#def form #}
+{% set f = form.fields %}
+
 <Layout.Auth title="Reset your password">
   <Form
     action={url_for('PasswordReset.create')}
@@ -24,7 +26,7 @@
           tabindex="1"
         />
         {% if f.login.error -%}
-        <div class="text-red-500 text-sm font-bold mb-3 mt-2">
+        <div class="text-red-500 text-sm font-bold py-2">
           {{ f.login.error.msg }}
         </div>
         {%- endif %}

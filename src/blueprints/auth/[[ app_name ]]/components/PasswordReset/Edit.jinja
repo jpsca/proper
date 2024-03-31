@@ -40,7 +40,7 @@
         tabindex="1"
       />
       {% if f.password1.error -%}
-      <div class="text-red-500 text-sm font-bold mb-3 mt-2">
+      <div class="text-red-500 text-sm font-bold py-2">
         {{ f.password1.error.msg }}
       </div>
       {%- endif %}
@@ -58,7 +58,7 @@
         tabindex="1"
       />
       {% if f.password2.error -%}
-      <div class="text-red-500 text-sm font-bold mb-3 mt-2">
+      <div class="text-red-500 text-sm font-bold py-2">
         {{ f.password2.error.msg }}
       </div>
       {%- endif %}
