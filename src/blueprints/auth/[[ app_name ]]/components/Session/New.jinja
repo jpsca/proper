@@ -1,5 +1,4 @@
 {#def form #}
-{% set f = form.fields %}
 
 <Layout.Auth title="Sign in">
   <Form class="w-full p-12 bg-white border border-gray-300 shadow-xl rounded-xl">
@@ -9,46 +8,28 @@
       </h2>
     </div>
 
-    {% if form.errors -%}
-    <div class="mt-2 mb-3 text-sm font-bold text-center text-red-500">
-      {% for error in form.errors -%}
-        <p>{{ error.msg }}</p>
-      {% endfor -%}
-    </div>
-    {%- endif %}
+    <FormErrors form={form} />
 
     <div class="mb-1">
-      <input
+      <FormInput
+        field={form.fields.login}
         aria-label="Email"
         type="email"
-        name="{{ f.login.name }}"
-        value="{{ f.login.value }}"
         class="form-input w-full text-lg py-3 rounded-t-md"
         placeholder="Email"
         tabindex="1"
       />
-      {% if f.login.error -%}
-      <div class="text-red-500 text-sm font-bold p-2">
-        {{ f.login.error.msg }}
-      </div>
-      {%- endif %}
     </div>
 
     <div>
-      <input
+      <FormInput
+        field={form.fields.password}
         aria-label="Password"
         type="password"
-        name="{{ f.password.name }}"
-        value="{{ f.password.value }}"
         class="form-input w-full text-lg py-3 rounded-b-md"
         placeholder="Password"
-        tabindex="1"
+        tabindex="2"
       />
-      {% if f.password.error -%}
-      <div class="text-red-500 text-sm font-bold p-2">
-        {{ f.password.error.msg }}
-      </div>
-      {%- endif %}
     </div>
 
     <div class="mt-8">

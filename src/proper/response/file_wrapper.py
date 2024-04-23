@@ -16,11 +16,11 @@ class FileWrapper:
 
     Arguments:
 
-    - file:
-        a `file`-like object with a `read` method.
+        file:
+            a `file`-like object with a `read` method.
 
-    - block_size:
-        number of bytes for one iteration.
+        block_size:
+            number of bytes for one iteration.
 
     """
 

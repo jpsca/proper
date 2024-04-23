@@ -1,6 +1,8 @@
 import typing as t
 
-from itsdangerous import BadSignature
+import itsdangerous
+
+from proper.errors import BadSignature
 
 from .attachment import get_attachment_class
 from .services import Service
@@ -36,9 +38,9 @@ class Storage:
         try:
             pk = self.signer.unsign(signed_pk, max_age=max_age).decode()  # type: ignore
             return self.Attachment.get_or_none(pk)
-        except BadSignature:
+        except itsdangerous.BadSignature as err:
             if self.config.DEBUG:
-                raise
+                raise BadSignature from err
             return None
 
     def send_file(self, obj: "TAttachment"):

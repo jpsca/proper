@@ -1,17 +1,24 @@
 {#def
   field,
-  type="checkbox"
+  type="checkbox",
   label="",
+  value="",
   label_class="",
-  error_class="text-red-500 text-sm font-bold p-2"
+  error_class="text-red-500 text-sm font-bold p-2",
   onerror_class="border-red-500"
 #}
 
-{% if type not in ["checkbox", "radio"] -%}
-  {% do attrs.setdefault(type="checkbox") %}
+{% if type == "radio" -%}
+  {% do attrs.set(class="form-radio") %}
+{% else %}
+  {% do attrs.setdefault(type="checkbox", class="form-checkbox") %}
 {%- endif %}
 
-{% do attrs.set(name=field.name, value=field.value) %}
+{% do attrs.set(
+  name=field.name,
+  value=value,
+  checked=(field.value == value)
+) %}
 
 {% if label -%}
   <label class="{{ label_class }}{% if field.error %} {{ onerror_class }}{% endif %}">

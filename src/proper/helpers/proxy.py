@@ -1,29 +1,33 @@
 """Internal class to proxy the context variables
 for the request and response objects
 """
-from typing import Any, Callable
+from contextvars import ContextVar
+from typing import Any
 
 
 __all__ = ("Proxy", )
 
 
 class Proxy:
-    __slots__ = ["__wrapped_get__", "__wrapped_set__"]
+    __slots__ = ["__contextvar__"]
 
-    def __init__(self, wrapped_get: Callable, wrapped_set: Callable) -> None:
-        object.__setattr__(self, "__wrapped_get__", wrapped_get)
-        object.__setattr__(self, "__wrapped_set__", wrapped_set)
+    def __init__(self, contextvar: ContextVar) -> None:
+        object.__setattr__(self, "__contextvar__", contextvar)
 
     @property
     def __wrapped__(self) -> Any:
-        return self.__wrapped_get__()
+        return self.__contextvar__.get()
 
     @property
-    def __doc__(self) -> str:  # type: ignore
-        return self.__wrapped__.__doc__ or ""
+    def __module__(self) -> str:  # type: ignore
+        return self.__wrapped__.__module__
 
     @property
-    def __dict__(self) -> dict:  # type: ignore
+    def __doc__(self) -> str | None:  # type: ignore
+        return self.__wrapped__.__doc__
+
+    @property
+    def __dict__(self) -> dict[str, Any]:  # type: ignore
         """We need __dict__ to be explicit to ensure that
         `vars()` works as expected."""
         return self.__wrapped__.__dict__
@@ -37,11 +41,11 @@ class Proxy:
         return self.__wrapped__.__class__
 
     @__class__.setter
-    def __class__(self, value: Any) -> None:  # noqa
+    def __class__(self, value: Any) -> None:
         self.__wrapped__.__class__ = value
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name in ("__wrapped_get__", "__wrapped_set__"):
+        if name == "__contextvar__":
             setattr(object, name, value)
         else:
             setattr(self.__wrapped__, name, value)
@@ -74,5 +78,5 @@ class Proxy:
     def __eq__(self, other: Any) -> bool:
         return self.__wrapped__.__eq__(other)
 
-    def _set(self, value: Any):
-        return self.__wrapped_set__(value)
+    def _set(self, value: Any) -> None:
+        self.__contextvar__.set(value)

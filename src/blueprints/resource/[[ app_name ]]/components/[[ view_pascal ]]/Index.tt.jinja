@@ -18,7 +18,7 @@
 		{% for [[ singular_snake ]] in [[ plural_snake ]] -%}
 		<li>
       <a
-        href="{{ url_for('[[ plural_pascal ]].show', pk=[[ object_id ]]
+        href="{{ url_for('[[ plural_pascal ]].show', pk=[[ singular_snake ]].id
           [%- if parent %], [[ parent_id ]]=[[ parent ]].id[% endif %]) }}"
         class="link font-semibold"
       >

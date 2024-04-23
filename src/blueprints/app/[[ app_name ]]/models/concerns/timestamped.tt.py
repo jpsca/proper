@@ -9,7 +9,6 @@ class Timestamped(BaseMixin):
     created_at = pw.DateTimeField(default=datetime.utcnow, null=True)
     updated_at = pw.DateTimeField(default=datetime.utcnow, null=True)
 
-    @classmethod
-    def update(cls, model, *args, **kwargs):
-        model.updated_at = datetime.utcnow()
+    def update(self, *args, **kwargs):
+        self.updated_at = datetime.utcnow()
         return super().update(*args, **kwargs)

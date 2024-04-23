@@ -95,10 +95,10 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - unit:
-            The default is `'bytes'` - the only range unit formally
-            defined by [RFC 7233](https://datatracker.ietf.org/doc/html/rfc7233).
-            Use `None` to delete the header.
+            unit:
+                The default is `'bytes'` - the only range unit formally
+                defined by [RFC 7233](https://datatracker.ietf.org/doc/html/rfc7233).
+                Use `None` to delete the header.
 
         """
         self.headers._set("accept-ranges", unit)
@@ -123,10 +123,10 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - *directives:
-            list of cache directives that are joined with ", "
-            to produce the value for the header.
-            Pass zero directives to delete the header.
+            *directives:
+                list of cache directives that are joined with ", "
+                to produce the value for the header.
+                Pass zero directives to delete the header.
 
         """
         self.headers._set(
@@ -158,10 +158,10 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - *values:
-            Lists any encodings that have been applied to the body
-            in what order
-            Pass zero values to delete the header.
+            *values:
+                Lists any encodings that have been applied to the body
+                in what order
+                Pass zero values to delete the header.
 
         """
         self.headers._set(
@@ -187,9 +187,9 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - num:
-            Number of bytes of the returned content.
-            Use `None` to delete the header.
+            num:
+                Number of bytes of the returned content.
+                Use `None` to delete the header.
 
         """
         self.headers._set("content-length", format_int(num))
@@ -215,8 +215,8 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - url:
-            Use `None` to delete the header.
+            url:
+                Use `None` to delete the header.
 
         """
         self.headers._set("content-location", url)
@@ -241,20 +241,20 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - unit:
-            The unit in which ranges are specified,`'bytes'` by default.
-            Use `None` to delete the header.
+            unit:
+                The unit in which ranges are specified,`'bytes'` by default.
+                Use `None` to delete the header.
 
-        - start:
-            An integer in the given unit indicating the start position
-            (zero-indexed & inclusive) of the request range.
+            start:
+                An integer in the given unit indicating the start position
+                (zero-indexed & inclusive) of the request range.
 
-        - end:
-            An integer in the given unit indicating the end position
-            (zero-indexed & inclusive) of the requested range.
+            end:
+                An integer in the given unit indicating the end position
+                (zero-indexed & inclusive) of the requested range.
 
-        - size:
-            The total length of the document.
+            size:
+                The total length of the document.
 
         Examples:
 
@@ -315,12 +315,12 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - val:
-            `text/html` by default
-            Use `None` to delete the header.
+            val:
+                `text/html` by default
+                Use `None` to delete the header.
 
-        - charset:
-            "utf-8" by default
+            charset:
+                "utf-8" by default
 
         """
         self._mimetype = mimetype
@@ -347,18 +347,18 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - val:
-            The ETag can be generated from a date, a number or a string that
-            represents the "version" or the content: a date, number, tag, etc.
-            This value is sha1-hashed to generate the final one.
-            Use `None` to delete the header.
+            val:
+                The ETag can be generated from a date, a number or a string that
+                represents the "version" or the content: a date, number, tag, etc.
+                This value is sha1-hashed to generate the final one.
+                Use `None` to delete the header.
 
-        - strong:
-            By default a “weak” ETag is used. Set this to `True` to set a
-            “strong” ETag validator on the response. A strong ETag implies
-            exact equality: the response must match byte for byte.
-            This is necessary for doing range requests within a large file
-            or for compatibility with some CDNs that don’t support weak ETags.
+            strong:
+                By default a “weak” ETag is used. Set this to `True` to set a
+                “strong” ETag validator on the response. A strong ETag implies
+                exact equality: the response must match byte for byte.
+                This is necessary for doing range requests within a large file
+                or for compatibility with some CDNs that don’t support weak ETags.
 
         """
         coded_val = None
@@ -386,10 +386,10 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - dt:
-            The header can be generated from a timestamp or an
-            UTC or naive datetime.
-            Use `None` to delete the header.
+            dt:
+                The header can be generated from a timestamp or an
+                UTC or naive datetime.
+                Use `None` to delete the header.
 
         """
         self.headers._set("expires", format_datetime(dt))
@@ -421,10 +421,10 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - dt:
-            The header can be generated from a timestamp or an
-            UTC or naive datetime.
-            Use `None` to delete the header.
+            dt:
+                The header can be generated from a timestamp or an
+                UTC or naive datetime.
+                Use `None` to delete the header.
 
         """
         self.headers._set("last-modified", format_datetime(dt))
@@ -462,9 +462,9 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - url:
-            The URL of the resource.
-            Use `None` to delete the header.
+            url:
+                The URL of the resource.
+                Use `None` to delete the header.
 
         """
         self.headers._set("location", url)
@@ -496,10 +496,10 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - num:
-            The expected value is an integral number of seconds.
-            The HTTP-date syntax is not supported.
-            Use `None` to delete the header.
+            num:
+                The expected value is an integral number of seconds.
+                The HTTP-date syntax is not supported.
+                Use `None` to delete the header.
 
         """
         if num is not None:
@@ -532,9 +532,9 @@ class ResponseHeadersMixin:
 
         Arguments:
 
-        - *names:
-            One or more header names.
-            Pass zero names to delete the header.
+            *names:
+                One or more header names.
+                Pass zero names to delete the header.
 
         """
         self.headers._set(

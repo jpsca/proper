@@ -1,5 +1,4 @@
 {#def form #}
-{% set f = form.fields %}
 
 <Layout.Auth title="Reset your password">
   <Form
@@ -15,21 +14,17 @@
         </p>
       </div>
 
+      <FormErrors form={form} />
+
       <div class="mb-4">
-        <input
+        <FormInput
+          field={form.fields.login}
           aria-label="Email"
           type="email"
-          name="{{ f.login.name }}"
-          value="{{ f.login.value }}"
-          class="form-input w-full rounded lowercase text-lg py-3"
+          class="form-input w-full text-lg py-3 rounded-t-md"
           placeholder="Email"
           tabindex="1"
         />
-        {% if f.login.error -%}
-        <div class="text-red-500 text-sm font-bold py-2">
-          {{ f.login.error.msg }}
-        </div>
-        {%- endif %}
       </div>
 
       <div class="mt-6">

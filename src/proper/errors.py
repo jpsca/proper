@@ -1,5 +1,7 @@
 import typing as t
 
+import itsdangerous
+
 from . import status
 
 
@@ -35,6 +37,11 @@ class RouteNotFound(Exception):
 
 class WrongHashAlgorithm(Exception):
     pass
+
+
+class BadSignature(itsdangerous.BadSignature):
+    def __init__(self, message: str = "Bad signtaure", payload: t.Any = None):
+        super().__init__(message, payload)
 
 
 class TranslationsNotFound(Exception):

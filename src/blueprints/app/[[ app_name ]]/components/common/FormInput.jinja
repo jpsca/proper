@@ -2,11 +2,11 @@
   field,
   label="",
   label_class="",
-  error_class="text-red-500 text-sm font-bold p-2"
+  error_class="text-red-500 text-sm font-bold p-2",
   onerror_class="border-red-500"
 #}
 
-{% do attrs.setdefault(type="text") %}
+{% do attrs.setdefault(type="text", class="form-input block") %}
 {% do attrs.set(name=field.name, value=field.value) %}
 {% if field.error %}
   {% do attrs.set(class=onerror_class) %}

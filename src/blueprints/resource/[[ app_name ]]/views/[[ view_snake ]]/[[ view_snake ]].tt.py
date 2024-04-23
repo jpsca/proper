@@ -34,7 +34,7 @@ class [[ view_pascal ]](AppView):
     def edit(self):
         """GET [% if parent %]/[[ parent_plural_snake ]]/1[% endif %]/[[ plural_snake ]]/1/edit"""
         self.[[ load_method ]]()
-        self.form = [[ form_class ]].as_form(obj=[[ object ]])
+        self.form = [[ form_class ]].as_form(object=[[ object ]])
         return self.render("[[ view_pascal ]].Edit")
 [% endif %]
     [% if "create" in actions -%]

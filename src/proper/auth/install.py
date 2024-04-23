@@ -40,6 +40,7 @@ def install(app: "App") -> None:
         },
         ignore=[ROUTES_TT],
     )
+    breakpoint()
     bp()
 
     for filename in SORT_IMPORTS_IN:

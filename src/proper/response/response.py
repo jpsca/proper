@@ -105,23 +105,23 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         Arguments:
 
-        - url_or_route:
-            The URL or route to redirect to.
+            url_or_route:
+                The URL or route to redirect to.
 
-        - obj:
-            The object to build the route
+            obj:
+                The object to build the route
 
-        - flash:
-            Optional flash message to set.
+            flash:
+                Optional flash message to set.
 
-        - flash_type:
-            Optional type of the flash message.
+            flash_type:
+                Optional type of the flash message.
 
-        - status (str):
-            The status code to use, e.g.: "303 See Other"
+            status (str):
+                The status code to use, e.g.: "303 See Other"
 
-        - **kw:
-            Additional keyword arguments to pass to the route.
+            **kw:
+                Additional keyword arguments to pass to the route.
 
         """
         assert current.app
@@ -165,15 +165,15 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         Arguments:
 
-        - strong:
-            By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
-            validator on the response. A strong ETag implies exact equality: the response
-            must match byte for byte. This is necessary for doing range requests within a
-            large file or for compatibility with some CDNs that don’t support weak ETags.
+            strong:
+                By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
+                validator on the response. A strong ETag implies exact equality: the response
+                must match byte for byte. This is necessary for doing range requests within a
+                large file or for compatibility with some CDNs that don’t support weak ETags.
 
-        - public:
-            By default the Cache-Control header is private, set this to `True` if you want
-            your application to be cacheable by other devices (proxy caches).
+            public:
+                By default the Cache-Control header is private, set this to `True` if you want
+                your application to be cacheable by other devices (proxy caches).
 
         """
         if objects:
@@ -229,21 +229,21 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         Arguments:
 
-        - path:
-            The path to the file.
+            path:
+                The path to the file.
 
-        - mimetype:
-            The mimetype of the file.
+            mimetype:
+                The mimetype of the file.
 
-        - as_attachment [False]:
-            If `True` the file will be sent as attachment.
+            as_attachment [False]:
+                If `True` the file will be sent as attachment.
 
-        - download_name:
-            The name of the file.
+            download_name:
+                The name of the file.
 
-        - x_sendfile_header:
-            If not empty, set the filepath in this header and let
-            the proxy/webserver take care of returning the file.
+            x_sendfile_header:
+                If not empty, set the filepath in this header and let
+                the proxy/webserver take care of returning the file.
 
         """
         path = Path(path).resolve()
@@ -302,11 +302,11 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         Arguments:
 
-        - file:
-            A file-like object with a `read` method.
+            file:
+                A file-like object with a `read` method.
 
-        - block_size:
-            Number of bytes for one iteration.
+            block_size:
+                Number of bytes for one iteration.
 
         """
         assert self.environ is not None

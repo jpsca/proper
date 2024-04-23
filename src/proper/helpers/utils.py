@@ -34,6 +34,7 @@ from pathlib import Path
 
 
 __all__ = (
+    "Undefined",
     "secure_filename",
     "ImportStringError",
     "import_string",
@@ -50,6 +51,12 @@ WINDOWS_DEVICE_FILES = {
     *(f"COM{i}" for i in range(10)),
     *(f"LPT{i}" for i in range(10)),
 }
+
+
+class Undefined:
+    """A default value for when `None` wants to be used as a possible
+    default value"""
+    pass
 
 
 def secure_filename(filename: str) -> str:

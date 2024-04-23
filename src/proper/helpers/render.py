@@ -188,10 +188,11 @@ def add_dependencies(root_path: Path, dependencies: list[str]):
     project = pyproject["project"] or {}
     project = t.cast(dict, project)
     project.setdefault("dependencies", [])
-    project["dependencies"] = sorted([
-        *project["dependencies"],
-        *dependencies,
-    ])
+
+    projdeps = set(project["dependencies"][:])
+    projdeps.update(dependencies)
+    project["dependencies"] = sorted(projdeps)
+
     pyproject_path.write_text(dumps(pyproject))
 
     pipdeps = [d.replace(" ", "") for d in dependencies]

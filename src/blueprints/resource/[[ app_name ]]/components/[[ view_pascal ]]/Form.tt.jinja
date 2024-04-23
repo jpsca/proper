@@ -1,25 +1,21 @@
 {#def form, action='', method='post' #}
 
-{% set f = form.fields %}
-
 <Form
   method={method}
   action={action}
 >
+  <FormErrors form={form} />
+
   [% for f in form_fields -%]
   <div class="my-5">
-    <label>
-      [[ f.name|title ]]
-      <input
-        type="text"
-        class="block form-input"
-        name="{{ f.[[ f.name ]].name }}"
-        value="{{ f.[[ f.name ]].value }}"
-      />
-    </label>
-    {% if f.[[ f.name ]].error -%}
-      <div class="text-red-500">{{ f.[[ f.name ]].error.msg }}</div>
-    {%- endif %}
+    <FormInput
+      field={form.fields.[[ f.name ]]}
+      label="[[ f.name|title ]]"
+      type="text"
+      placeholder=""
+      tabindex="1"
+      class="form-input block"
+    />
   </div>
   [% endfor -%]
 
