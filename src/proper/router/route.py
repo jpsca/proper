@@ -183,7 +183,7 @@ class Route:
         return not (self.to or self.redirect)
 
     def compile_path(self) -> None:
-        path = self.path.rstrip("/")
+        path = self.path
         parts = []
         parts_re = []
         placeholders = {}
@@ -209,10 +209,10 @@ class Route:
             parts_re.append(rf"(?P<{name}>{rx})")
 
         part = path[index:]
-        parts.append(part)
-        plain = "".join(parts)
+        if part:
+            parts.append(part)
+            parts_re.append(re.escape(part))
 
-        parts_re.append(re.escape(part))
         str_re = r"".join(parts_re) + r"/?$"
         try:
             path_re = re.compile(str_re)
@@ -220,7 +220,7 @@ class Route:
             raise BadRouteFormat(e) from e
 
         self.path_re = path_re
-        self.path_plain = plain
+        self.path_plain = "".join(parts)
         self.path_placeholders = placeholders
 
     def match(self, path: str) -> re.Match | None:

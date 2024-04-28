@@ -1,6 +1,18 @@
-from proper.router import *  # noqa
+from proper.router import (
+    delete,  # noqa
+    get,  # noqa
+    options,  # noqa
+    patch,  # noqa
+    post,  # noqa
+    put,  # noqa
+    query,  # noqa
+    resource,  # noqa
+    restore,  # noqa
+    static,  # noqa
+)
 
 from .app import app
+# from .views.page import Page
 
 
 app.routes += [
@@ -19,5 +31,7 @@ app.routes += [
     get("favicon.ico", redirect="/static/favicon.ico"),
     get("robots.txt", redirect="/static/robots.txt"),
     get("humans.txt", redirect="/static/humans.txt"),
+
+    # get("", to=Page.index),
 
 ]
