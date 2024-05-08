@@ -167,7 +167,7 @@ class StaticFiles(View):
             self.response.send_file(
                 filepath,
                 as_attachment=False,
-                x_sendfile_header=self.app.config.STATIC_X_SENDFILE_HEADER,
+                x_sendfile_header=self.defaults.get("sendfile_header", ""),
             )
 
         if fingerprinted:

@@ -44,7 +44,7 @@ COMPONENTS_URL = "/components"
 # so the proxy or web-server does it instead of our application.
 # Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"
 if env == PROD:
-    STATIC_X_SENDFILE_HEADER = ""
+    STATIC_X_SENDFILE_HEADER = "X-Accel-Redirect"
 else:
     STATIC_X_SENDFILE_HEADER = ""
 

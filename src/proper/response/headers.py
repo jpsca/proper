@@ -32,6 +32,11 @@ class ResponseHeadersDict(dict):
         name = enc_name(name)
         self._set(name, format_header(val, **params))
 
+    def setdefault(self, name: str, val: t.Any, **params) -> None:
+        if name in self:
+            return
+        self.set(name, val, **params)
+
     def update(self, *args, **kwargs):
         for k, v in dict(*args, **kwargs).items():
             self[k] = v
