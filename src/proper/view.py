@@ -164,10 +164,11 @@ class StaticFiles(View):
         if last_modified and if_modified_since and last_modified <= if_modified_since:
             self.response.status = not_modified
         else:
+            x_sendfile = self.app.config.get("STATIC_X_SENDFILE_HEADER", "")
             self.response.send_file(
                 filepath,
                 as_attachment=False,
-                x_sendfile_header=self.defaults.get("sendfile_header", ""),
+                x_sendfile_header=x_sendfile,
             )
 
         if fingerprinted:

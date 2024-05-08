@@ -252,7 +252,8 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.set_last_modified(stat.st_mtime)
 
         if x_sendfile_header:
-            self.headers[x_sendfile_header] = path
+            relpath = path.relative_to(current.app.root_path.parent)
+            self.headers[x_sendfile_header] = f"/{relpath}"
             self.set_content_length(0)
             self.body = ""
             return
