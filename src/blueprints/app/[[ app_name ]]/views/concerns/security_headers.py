@@ -2,9 +2,6 @@ from proper import View
 
 
 class SecurityHeaders:
-    def before(self, view: View):
-        pass
-
     def after(self, view: View):
         # It determines if a web page can or cannot be included via <frame>
         # and <iframe> topics by untrusted domains.

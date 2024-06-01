@@ -83,27 +83,25 @@ class View:
     # Private
 
     def _dispatch(self, action_name: str) -> Response | None:
-        for m in self.concerns:
-            early_response = m.before(self)
-            if early_response is not None:
-                c_response._set(early_response)
-                return early_response
-
-        before = getattr(self, "before", None)
-        if before:
-            before()
+        for m in [*self.concerns, self]:
+            early_response = None
+            before = getattr(m, "before", None)
+            if before:
+                early_response = before(self)
+                if early_response is not None:
+                    c_response._set(early_response)
+                    return early_response
 
         self._call(action_name)
 
-        after = getattr(self, "after", None)
-        if after:
-            after()
-
-        for m in self.concerns:
-            early_response = m.after(self)
-            if early_response is not None:
-                c_response._set(early_response)
-                return early_response
+        for m in [self, *self.concerns]:
+            early_response = None
+            after = getattr(m, "after", None)
+            if after:
+                early_response = after(self)
+                if early_response is not None:
+                    c_response._set(early_response)
+                    return early_response
 
     def _call(self, action_name: str) -> None:
         # We call the endpoint but we do not expect a result value.

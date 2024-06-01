@@ -20,6 +20,3 @@ class SetLocale:
             # else, fallback to the default locale
             or app.config.LOCALE_DEFAULT
         )
-
-    def after(self, view: View):
-        pass

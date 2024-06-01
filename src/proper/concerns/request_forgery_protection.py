@@ -50,9 +50,6 @@ class RequestForgeryProtection:
         request.csrf_token = masked_token
         response.headers[CSRF_HEADER] = masked_token
 
-    def after(self, view: "View") -> None:
-        pass
-
     # Private
 
     def _must_check_csrf_token(self, request: "Request") -> bool:

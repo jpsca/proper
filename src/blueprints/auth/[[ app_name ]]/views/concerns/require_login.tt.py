@@ -15,6 +15,3 @@ class RequireLogin:
             view.response.session[REDIRECT_AFTER_LOGIN_KEY] = view.request.path
         view.response.redirect_to(app.url_for("Auth.sign_in"))
         return view.response
-
-    def after(self, view: View):
-        pass
