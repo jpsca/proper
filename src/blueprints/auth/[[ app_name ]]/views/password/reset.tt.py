@@ -1,12 +1,11 @@
 from proper.status import unprocessable
 
-from [[ app_name ]].app import config
-from [[ app_name ]].mailers import send_password_reset_email
-from [[ app_name ]].models import User
-
 from ..app import AppView
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import PasswordResetModel, PasswordChangeModel
+from [[ app_name ]].app import config
+from [[ app_name ]].mailers import send_password_reset_email
+from [[ app_name ]].models import User
 
 
 class PasswordReset(AppView):

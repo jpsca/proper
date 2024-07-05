@@ -311,17 +311,17 @@ class Request(RequestHeadersMixin):
         SignatureExpired: Signature age 1677.3839159 > 60 seconds
         $ request.get_signed_cookie("name", False, max_age=60)
         False
-"""
-        signer = current.app.get_signer(salt)
-        signed_value = self.cookies.get(name)
-        if not signed_value:
+    """
+        serializer = current.app.get_serializer(salt)
+        cookie = self.cookies.get(name)
+        if cookie is None:
             if default is not Undefined:
                 return default
             else:
                 raise ValueError("Cookie not set")
 
         try:
-            value = signer.unsign(signed_value, max_age=max_age)
+            value = serializer.loads(cookie.value, max_age=max_age)
             if isinstance(value, bytes):
                 return value.decode()
             else:

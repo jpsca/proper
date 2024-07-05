@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import sys
 import typing as t
@@ -54,7 +55,7 @@ def get_run_server_cmd(app: "App") -> t.Callable:
         print()
         app.dev_start()
         config = "uwsgi-dev.ini"
-        cmd = f"uwsgi --ini {config}"
+        cmd = f"{shutil.which('uwsgi')} --ini {config}"
         print("Running", f'"{cmd}"')
         show_banner()
         try:

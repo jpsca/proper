@@ -3,7 +3,7 @@ import typing as t
 import unicodedata
 
 import peewee as pw
-import proper
+from proper import current
 
 from [[ app_name ]].app import auth, config
 from [[ app_name ]].models.base import BaseMixin
@@ -13,9 +13,6 @@ RX_SPACES = re.compile(r"\s+")
 
 
 class Authenticable(BaseMixin):
-    request: proper.Request | None = None
-    response: proper.Response | None = None
-
     SESSION_KEY: str = "_user_token"
     REDIRECT_KEY: str = "_redirect"
     CLEAR_SESSION_ON_SIGN_OUT: bool = True
@@ -28,7 +25,12 @@ class Authenticable(BaseMixin):
         return self.login
 
     @classmethod
-    def _normalize_login(cls, login="", *, uform="NFKC"):
+    def _normalize_login(
+        cls,
+        login: str = "",
+        *,
+        uform: t.Literal["NFC", "NFD", "NFKC", "NFKD"] = "NFKC",
+    ):
         # This unicode normalization MUST come first
         # https://engineering.atspotify.com/2013/06/creative-usernames/
         login = unicodedata.normalize(uform, login)
@@ -101,7 +103,7 @@ class Authenticable(BaseMixin):
         else:
             self.password = password
 
-        curr_user = (self.request or {}).get("user")
+        curr_user = (current.request or {}).get("user")
         if curr_user == self:
             # Password has change, so we need to updated the session too
             self.sign_in()
@@ -111,24 +113,19 @@ class Authenticable(BaseMixin):
         logged between requests.
         """
         assert self.id is not None  # type: ignore
-        assert self.request
-        assert self.response
-        self.request.user = self
-        self.response.session[self.SESSION_KEY] = auth.get_session_token(self.request.user)
+        current.request.user = self
+        current.response.session[self.SESSION_KEY] = auth.get_session_token(current.request.user)
 
     def sign_out(self) -> None:
-        assert self.request
-        assert self.response
-
-        self.request.user = None
+        current.request.user = None
         # The session is shared so, if you have more than
         # one model/user-type signed in at the same time,
         # you don't want to do this.
         if self.CLEAR_SESSION_ON_SIGN_OUT:
-            self.response.session.clear()
+            current.response.session.clear()
             return
 
-        if self.SESSION_KEY in self.response.session:
-            del self.response.session[self.SESSION_KEY]
-        if self.REDIRECT_KEY in self.response.session:
-            del self.response.session[self.SESSION_KEY]
+        if self.SESSION_KEY in current.response.session:
+            del current.response.session[self.SESSION_KEY]
+        if self.REDIRECT_KEY in current.response.session:
+            del current.response.session[self.SESSION_KEY]

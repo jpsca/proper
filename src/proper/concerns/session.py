@@ -16,6 +16,9 @@ if t.TYPE_CHECKING:
 __all__ = ("Session", )
 
 
+SESSION_SALT = "session"
+
+
 class Session:
     def before(self, view: "View") -> None:
         """Get the session data from the cookie and puts into the request
@@ -35,7 +38,6 @@ class Session:
         app = view.app
         request = view.request
         response = view.response
-
         if response.session != request.session:
             self._update_session_cookie(app, response)
 
@@ -43,16 +45,20 @@ class Session:
 
     def _get_session(self, app: "App", request: "Request") -> DotDict:
         """Get the session data from the cookie."""
-        cookie_value = request.cookies.get(app.config.SESSION_COOKIE_NAME)
-        if cookie_value is None:
+        cookie = request.cookies.get(app.config.SESSION_COOKIE_NAME)
+        if cookie is None:
             return DotDict()
+
         try:
-            session = app.serializer.loads(
-                cookie_value,
-                max_age=app.config.SESSION_LIFETIME,
-            )  # type: ignore
+            session = request.get_signed_cookie(
+                app.config.SESSION_COOKIE_NAME,
+                salt=SESSION_SALT,
+                max_age=app.config.SESSION_LIFETIME
+            )
+            print(">>>", session)
             return DotDict(session)
         except BadSignature:
+            print(">>>", "BAD SESSION", cookie)
             return DotDict()
 
     def _update_session_cookie(self, app: "App", response: "Response") -> None:
@@ -67,11 +73,11 @@ class Session:
             )
             return
 
-        cookie_value = app.serializer.dumps(dict(response.session))
-
-        response.set_cookie(
+        print(">>>", "SET SESSION", dict(response.session))
+        response.set_signed_cookie(
             config.SESSION_COOKIE_NAME,
-            cookie_value,
+            dict(response.session),
+            salt=SESSION_SALT,
             max_age=int(config.SESSION_LIFETIME) if config.SESSION_LIFETIME else None,
             httponly=config.SESSION_COOKIE_HTTPONLY,
             domain=config.SESSION_COOKIE_DOMAIN,

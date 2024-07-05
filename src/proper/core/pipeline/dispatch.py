@@ -5,6 +5,7 @@ from proper.helpers import import_string
 
 if t.TYPE_CHECKING:
     from proper import Request, Response
+    from proper import View as BaseView
 
     from ..app import App
 
@@ -19,7 +20,7 @@ def dispatch(app: "App", request: "Request", response: "Response") -> "Response 
     cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
     request.matched_action = action_name
     module = import_string(route.to.__module__)
-    View = getattr(module, cls_name)
+    View: t.Type[BaseView] = getattr(module, cls_name)
 
     # We instantiate the view class so we can have an independent
     # container for this request.

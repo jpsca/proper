@@ -13,5 +13,5 @@ class RequireLogin:
 
         if REDIRECT_AFTER_LOGIN_KEY not in view.response.session:
             view.response.session[REDIRECT_AFTER_LOGIN_KEY] = view.request.path
-        view.response.redirect_to(app.url_for("Auth.sign_in"))
+        view.response.redirect_to(app.url_for("Session.new"))
         return view.response

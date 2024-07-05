@@ -1,8 +1,7 @@
-from [[ app_name ]].models import User
-
 from ..app import AppView
 from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import SignInModel
+from [[ app_name ]].models import User
 
 
 class Session(AppView):

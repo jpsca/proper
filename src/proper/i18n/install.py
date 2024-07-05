@@ -49,7 +49,7 @@ def install(app: "App") -> None:
     curr_appc = app.root_path / APPLICATION_VIEW
     code = sort_imports(curr_appc.read_text())
     if ENTRY_POINT in code:
-        code = code.replace(ENTRY_POINT, INSERT, 1)
+        code = code.replace(ENTRY_POINT, INSERT)
     curr_appc.write_text(code)
 
     add_dependencies(app.root_path, DEPENDENCIES)

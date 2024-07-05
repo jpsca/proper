@@ -276,14 +276,7 @@ class App(AppTest):
         """Proxy for `self.router.url_startswith()`."""
         return self.router.url_startswith(name, object, curr_url=curr_url, **kw)
 
-    def get_signer(self, namespace: str = "", **kwargs) -> Signer:
-        kwargs["salt"] = namespace.encode()
-        kwargs.setdefault("key_derivation", "hmac")
-        kwargs.setdefault("digest_method", hashlib.sha1)
-
-        return Signer(self.config.SECRET_KEYS[0], **kwargs)
-
-    def get_timestamp_signer(self, namespace: str = "", **kwargs) -> TimestampSigner:
+    def get_signer(self, namespace: str = "", **kwargs) -> TimestampSigner:
         kwargs["salt"] = namespace.encode()
         kwargs.setdefault("key_derivation", "hmac")
         kwargs.setdefault("digest_method", hashlib.sha1)

@@ -1,5 +1,6 @@
 import re
 import time
+import typing as t
 import warnings
 from email.utils import formatdate
 from http.cookies import Morsel
@@ -37,7 +38,7 @@ class ResponseCookiesMixin:
     def set_cookie(
         self,
         name: str,
-        value: str | bytes = "",
+        value: t.Any = "",
         *,
         max_age: int | None = None,
         path: str = "/",
@@ -103,18 +104,18 @@ class ResponseCookiesMixin:
         """
         name = re.sub(RE_FILTER_FROM_COOKIE_NAME, "", name)
         cookie = self.cookies[name] = Morsel()
-        if not isinstance(value, (str, bytes)):
-            value = str(value)
 
         if signed:
-            signer = current.app.get_timestamp_signer(salt)
-            if isinstance(value, str):
-                value = value.encode("utf8")
-            value = signer.sign(value)
+            serializer = current.app.get_serializer(salt)
+            value = serializer.dumps(value)
+        else:
+            if not isinstance(value, (str, bytes)):
+                value = str(value)
 
         if isinstance(value, bytes):
             value = value.decode("utf8")
-        value = str(value)
+        else:
+            value = str(value)
 
         cookie.set(name, value, value)
 
@@ -204,7 +205,7 @@ class ResponseCookiesMixin:
     def set_signed_cookie(
         self,
         name: str,
-        value: str | bytes = "",
+        value: t.Any = "",
         *,
         max_age: int | None = None,
         path: str = "/",
@@ -213,6 +214,7 @@ class ResponseCookiesMixin:
         httponly: bool = False,
         samesite: str | None = None,
         comment: str | None = None,
+        salt: str = "",
     ) -> None:
         """A shorthand for `.set_cookie(..., signed=True)`"""
         return self.set_cookie(
@@ -226,6 +228,7 @@ class ResponseCookiesMixin:
             samesite=samesite,
             comment=comment,
             signed=True,
+            salt=salt,
         )
 
     def _get_cookie_tuples(self) -> list[tuple[str, str]]:

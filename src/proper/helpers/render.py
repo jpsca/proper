@@ -38,7 +38,7 @@ __all__ = [
 ]
 
 BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
-IGNORE = [".DS_Store", "__pycache__", "__pycache__/*"]
+IGNORE = [".DS_Store", "__pycache__", "*/__pycache__", "*/.DS_Store"]
 
 CREATE = "create"
 UPDATE = "update"
@@ -188,8 +188,8 @@ def add_dependencies(root_path: Path, dependencies: list[str]):
     project = pyproject["project"] or {}
     project = t.cast(dict, project)
     project.setdefault("dependencies", [])
-
-    projdeps = set(project["dependencies"][:])
+    deps = project.get("dependencies") or []
+    projdeps = set(deps)
     projdeps.update(dependencies)
     project["dependencies"] = sorted(projdeps)
 
