@@ -8,7 +8,6 @@ from pathlib import Path
 import inflection
 import jinjax
 from itsdangerous import (
-    Signer,
     TimestampSigner,
     URLSafeTimedSerializer,
 )
@@ -58,12 +57,10 @@ class App(AppTest):
     A Proper app core.
 
     Arguments:
-
-    - import_name:
-        The name of the application package. Eg.: `foobar.web`.
-
-    - config:
-        Optional dict-like with the config.
+        import_name:
+            The name of the application package. Eg.: `foobar.web`.
+        config:
+            Optional dict-like with the config.
 
     """
 
