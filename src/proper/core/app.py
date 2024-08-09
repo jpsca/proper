@@ -103,6 +103,7 @@ class App(AppTest):
         self._setup_serializer()
         self._setup_render()
         self._setup_cli()
+        self._setup_db()
         self._setup_auth()
         self._setup_i18n()
         self._setup_storage()
@@ -372,6 +373,17 @@ class App(AppTest):
 
     def _setup_cli(self) -> None:
         self.CL = get_app_cl(self)
+
+    def _setup_db(self) -> None:
+        engines = self.config.get("DATABASE_ENGINES")
+        engine = self.config.get("DATABASE")
+        if not engines or not engine:
+            return
+        config = engines.get(engine, {}).copy()
+        mod_name, cls_name = config.pop("type").rsplit(".", 1)
+        mod = import_module(mod_name)
+        Database = getattr(mod, cls_name)
+        self.db = Database(**config)
 
     def _setup_auth(self) -> None:
         if not self.config.AUTH_HASH_NAME:
