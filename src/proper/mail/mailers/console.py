@@ -1,6 +1,9 @@
 """
 Mailer that writes messages to console instead of sending them. Ideal
 for development.
+
+Extracted from Django (http://djangoproject.com).
+The original code was BSD licensed (see LICENSE)
 """
 import sys
 import threading

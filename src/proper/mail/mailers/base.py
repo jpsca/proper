@@ -1,3 +1,5 @@
+import typing as t
+
 from ..message import EmailMessage
 
 
@@ -7,7 +9,7 @@ class BaseMailer:
     Subclasses must at least overwrite send_messages().
     """
 
-    def __init__(self, default_from=None, fail_silently=False, *args, **kwargs):
+    def __init__(self, default_from: str | None = None, fail_silently: bool = False):
         self.default_from = default_from or "noreply@example.com"
         self.fail_silently = fail_silently
 
@@ -36,10 +38,11 @@ class BaseMailer:
         """
         pass
 
-    def send(self, *args, **kwargs):
-        return self.send_messages(EmailMessage(*args, **kwargs))
+    def send(self, **kwargs) -> t.Any:
+        kwargs.setdefault("from_email", self.default_from)
+        return self.send_messages(EmailMessage(**kwargs))
 
-    def send_messages(self, *email_messages):
+    def send_messages(self, *email_messages: EmailMessage) -> t.Any:
         """Sends one or more `EmailMessage` objects and returns the number of
         email messages sent.
         """

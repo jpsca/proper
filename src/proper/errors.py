@@ -3,6 +3,7 @@ import typing as t
 import itsdangerous
 
 from . import status
+from .mail.errors import *  # noqa
 
 
 class BadSecretKey(Exception):

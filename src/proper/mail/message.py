@@ -3,14 +3,13 @@ Extracted from Django (http://djangoproject.com).
 The original code was BSD licensed (see LICENSE)
 """
 import mimetypes
-from collections import namedtuple
+import typing as t
 from email import charset as Charset
 from email import encoders as Encoders
 from email import generator, message_from_string
 from email.errors import HeaderParseError
 from email.header import Header
 from email.headerregistry import Address, parser  # type: ignore
-from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.message import MIMEMessage
 from email.mime.multipart import MIMEMultipart
@@ -56,12 +55,20 @@ ADDRESS_HEADERS = {
 }
 
 
-def punycode(domain):
+def to_list(value: str | list[str] | tuple[str, ...] | None) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return list(value)
+
+
+def punycode(domain: str) -> str:
     """Return the Punycode of the given domain if it's non-ASCII."""
     return domain.encode("idna").decode("ascii")
 
 
-def forbid_multi_line_headers(name, val, encoding):
+def forbid_multi_line_headers(name: str, val: str, encoding: str) -> tuple[str, str]:
     """Forbid multi-line headers to prevent header injection."""
     val = str(val)  # val may be lazy
     if "\n" in val or "\r" in val:
@@ -83,12 +90,16 @@ def forbid_multi_line_headers(name, val, encoding):
     return name, val
 
 
-def sanitize_address(addr, encoding):
+def sanitize_address(addr: str | tuple[str, str], encoding: str) -> str:
     """
     Format a pair of (name, address) or an email address string.
     """
-    address = None
-    if not isinstance(addr, tuple):
+    if isinstance(addr, tuple):
+        nm, address = addr
+        if "@" not in address:
+            raise ValueError(f'Invalid address "{address}"')
+        localpart, domain = address.rsplit("@", 1)
+    else:
         addr = force_str(addr)
         try:
             token, rest = parser.get_mailbox(addr)
@@ -103,11 +114,6 @@ def sanitize_address(addr, encoding):
             nm = token.display_name or ""
             localpart = token.local_part
             domain = token.domain or ""
-    else:
-        nm, address = addr
-        if "@" not in address:
-            raise ValueError(f'Invalid address "{address}"')
-        localpart, domain = address.rsplit("@", 1)
 
     address_parts = nm + localpart + domain
     if "\n" in address_parts or "\r" in address_parts:
@@ -165,15 +171,15 @@ class SafeMIMEMessage(MIMEMixin, MIMEMessage):
 
 
 class SafeMIMEText(MIMEMixin, MIMEText):
-    def __init__(self, _text, _subtype="plain", _charset=None):
+    def __init__(self, _text: str, _subtype: str = "plain", _charset: str = "ascii"):
         self.encoding = _charset
         MIMEText.__init__(self, _text, _subtype=_subtype, _charset=_charset)
 
-    def __setitem__(self, name, val):
+    def __setitem__(self, name: str, val: str):
         name, val = forbid_multi_line_headers(name, val, self.encoding)
         MIMEText.__setitem__(self, name, val)
 
-    def set_payload(self, payload, charset=None):
+    def set_payload(self, payload, charset: Charset.Charset | str = "ascii"):
         if charset == "utf-8" and not isinstance(charset, Charset.Charset):
             has_long_lines = any(
                 len(line.encode(errors="surrogateescape"))
@@ -188,89 +194,94 @@ class SafeMIMEText(MIMEMixin, MIMEText):
 
 class SafeMIMEMultipart(MIMEMixin, MIMEMultipart):
     def __init__(
-        self, _subtype="mixed", boundary=None, _subparts=None, encoding=None, **_params
+        self,
+        _subtype: str = "mixed",
+        boundary: str | None = None,
+        _subparts: list[MIMEBase] | None = None,
+        encoding: str = "ascii",
+        **_params,
     ):
         self.encoding = encoding
         MIMEMultipart.__init__(self, _subtype, boundary, _subparts, **_params)
 
-    def __setitem__(self, name, val):
+    def __setitem__(self, name: str, val: str):
         name, val = forbid_multi_line_headers(name, val, self.encoding)
         MIMEMultipart.__setitem__(self, name, val)
 
 
-EmailAlternative = namedtuple("Alternative", ["content", "mimetype"])
-EmailAttachment = namedtuple("Attachment", ["filename", "content", "mimetype"])
+class EmailAlternative(t.TypedDict):
+    mimetype: str
+    content: str
+
+
+class EmailAttachment(t.TypedDict, total=False):
+    filename: str | None
+    content: str | bytes | None
+    mimetype: str | None
 
 
 class EmailMessage:
     """A container for email information."""
 
-    content_subtype = "plain"
-    mixed_subtype = "mixed"
-    encoding: str = "utf-8"
-    use_localtime: bool = False
+    content_subtype: str = "plain"
+    mixed_subtype: str = "mixed"
+    alternative_subtype: str = "alternative"
+
+    encoding: str
+    use_localtime: bool
 
     def __init__(
         self,
         *,
-        from_email,
-        subject="",
-        body="",
-        to=None,
-        bcc=None,
-        attachments=None,
-        headers=None,
-        cc=None,
-        reply_to=None,
+        from_email: str,
+        to: str | list[str] | tuple[str, ...] | None = None,
+        bcc: str | list[str] | tuple[str, ...] | None = None,
+        cc: str | list[str] | tuple[str, ...] | None = None,
+        reply_to: str | list[str] | tuple[str, ...] | None = None,
+        subject: str = "",
+        body: str = "",
+        headers: dict[str, str] | None = None,
+        attachments: list[EmailAttachment | MIMEBase] | None = None,
+        html: bool = False,
         encoding: str = "utf-8",
         use_localtime: bool = False,
+        alternatives: list[EmailAlternative] | None = None,
+        tags: list[str] | None = None,
     ):
         """
         Initialize a single email message (which can be sent to multiple
         recipients).
         """
-        if to:
-            if isinstance(to, str):
-                raise TypeError('"to" argument must be a list or tuple')
-            self.to = list(to)
-        else:
-            self.to = []
-        if cc:
-            if isinstance(cc, str):
-                raise TypeError('"cc" argument must be a list or tuple')
-            self.cc = list(cc)
-        else:
-            self.cc = []
-        if bcc:
-            if isinstance(bcc, str):
-                raise TypeError('"bcc" argument must be a list or tuple')
-            self.bcc = list(bcc)
-        else:
-            self.bcc = []
-        if reply_to:
-            if isinstance(reply_to, str):
-                raise TypeError('"reply_to" argument must be a list or tuple')
-            self.reply_to = list(reply_to)
-        else:
-            self.reply_to = []
-        self.from_email = from_email
-        self.subject = subject
+        self.to = to_list(to)
+        self.cc = to_list(cc)
+        self.bcc = to_list(bcc)
+        self.reply_to = to_list(reply_to)
+
+        self.from_email = from_email or ""
+        self.subject = subject or ""
         self.body = body or ""
+
         self.attachments = []
         if attachments:
             for attachment in attachments:
                 if isinstance(attachment, MIMEBase):
                     self.attach(attachment)
-                else:
-                    self.attach(*attachment)
-        self.extra_headers = headers or {}
+                elif isinstance(attachment, dict):
+                    self.attach(**attachment)
 
+        self.extra_headers = headers or {}
+        if html:
+            self.content_subtype = "html"
         self.encoding = encoding
         self.use_localtime = use_localtime
+        self.alternatives = alternatives or []
+        self.tags = tags or []
 
-    def render(self):
+    def render(self) -> SafeMIMEText | SafeMIMEMultipart:
         msg = SafeMIMEText(self.body, self.content_subtype, self.encoding)
-        msg = self._create_message(msg)
+        msg = self._create_alternatives(msg)
+        msg = self._create_attachments(msg)
+
         msg["Subject"] = self.subject
         msg["From"] = self.extra_headers.get("From", self.from_email)
         self._set_list_header_if_not_empty(msg, "To", self.to)
@@ -290,7 +301,7 @@ class EmailMessage:
 
         if "message-id" not in header_names:
             # Use cached DNS_NAME for performance
-            msg["Message-ID"] = make_msgid(domain=str(DNS_NAME))
+            msg["MIMEBase-ID"] = make_msgid(domain=str(DNS_NAME))
 
         for name, value in self.extra_headers.items():
             # Avoid headers handled above.
@@ -299,14 +310,25 @@ class EmailMessage:
 
         return msg
 
-    def get_recipients(self):
+    def get_recipients(self) -> list[str]:
         """
         Return a list of all recipients of the email (includes direct
         addressees as well as Cc and Bcc entries).
         """
         return [email for email in (self.to + self.cc + self.bcc) if email]
 
-    def attach(self, filename=None, content=None, mimetype=None):
+    def attach_alternative(self, content: str, mimetype: str):
+        """Attach an alternative content representation."""
+        if content is None or mimetype is None:
+            raise ValueError("Both content and mimetype must be provided.")
+        self.alternatives.append(EmailAlternative(content=content, mimetype=mimetype))
+
+    def attach(
+        self,
+        filename: str | MIMEBase | None = None,
+        content: str | bytes | None = None,
+        mimetype: str | None = None,
+    ):
         """
         Attach a file with the given filename and content. The filename can
         be omitted and the mimetype is guessed, if not provided.
@@ -330,10 +352,11 @@ class EmailMessage:
         else:
             mimetype = (
                 mimetype
-                or filename and mimetypes.guess_type(filename)[0]
+                or filename
+                and mimetypes.guess_type(filename)[0]
                 or DEFAULT_ATTACHMENT_MIME_TYPE
             )
-            basetype, subtype = mimetype.split("/", 1)
+            basetype, _subtype = mimetype.split("/", 1)
 
             if basetype == "text":
                 if isinstance(content, bytes):
@@ -344,9 +367,11 @@ class EmailMessage:
                         # actually binary, read() raises a UnicodeDecodeError.
                         mimetype = DEFAULT_ATTACHMENT_MIME_TYPE
 
-            self.attachments.append(EmailAttachment(filename, content, mimetype))
+            self.attachments.append(
+                EmailAttachment(filename=filename, content=content, mimetype=mimetype)
+            )
 
-    def attach_file(self, path, mimetype=None):
+    def attach_file(self, path: str | Path, mimetype: str | None = None):
         """
         Attach a file from the filesystem.
 
@@ -362,28 +387,41 @@ class EmailMessage:
             content = file.read()
             self.attach(path.name, content, mimetype)
 
-    def _create_message(self, msg,):
-        return self._create_attachments(msg,)
+    def _create_attachments(
+        self, body_msg: SafeMIMEText | SafeMIMEMultipart
+    ) -> SafeMIMEText | SafeMIMEMultipart:
+        if not self.attachments:
+            return body_msg
 
-    def _create_attachments(self, msg,):
-        if self.attachments:
-            body_msg = msg
-            msg = SafeMIMEMultipart(_subtype=self.mixed_subtype, encoding=self.encoding)
-            if self.body or body_msg.is_multipart():
-                msg.attach(body_msg)
-            for attachment in self.attachments:
-                if isinstance(attachment, MIMEBase):
-                    msg.attach(attachment)
-                else:
-                    msg.attach(self._create_attachment(*attachment))
+        msg = SafeMIMEMultipart(_subtype=self.mixed_subtype, encoding=self.encoding)
+        if self.body or body_msg.is_multipart():
+            msg.attach(body_msg)
+        for attachment in self.attachments:
+            if isinstance(attachment, MIMEBase):
+                msg.attach(attachment)
+            else:
+                msg.attach(self._create_attachment(*attachment))
         return msg
 
-    def _create_mime_attachment(self, content, mimetype):
+    def _create_alternatives(
+        self, body_msg: SafeMIMEText | SafeMIMEMultipart
+    ) -> SafeMIMEText | SafeMIMEMultipart:
+        if not self.alternatives:
+            return body_msg
+
+        msg = SafeMIMEMultipart(_subtype=self.alternative_subtype, encoding=self.encoding)
+        if self.body:
+            msg.attach(body_msg)
+        for alternative in self.alternatives:
+            msg.attach(self._create_mime_attachment(**alternative))
+        return msg
+
+    def _create_mime_attachment(self, content: str, mimetype: str) -> MIMEBase:
         """
         Convert the content, mimetype pair into a MIME attachment object.
 
         If the mimetype is message/rfc822, content may be an
-        email.Message or EmailMessage object, as well as a str.
+        email.MIMEBase or EmailMessage object, as well as a str.
         """
         basetype, subtype = mimetype.split("/", 1)
         if basetype == "text":
@@ -392,22 +430,22 @@ class EmailMessage:
             # Bug #18967: Per RFC 2046 Section 5.2.1, message/rfc822
             # attachments must not be base64 encoded.
             if isinstance(content, EmailMessage):
-                # convert content into an email.Message first
-                content = content.render()
-            elif not isinstance(content, Message):
-                # For compatibility with existing code, parse the message
-                # into an email.Message object if it is not one already.
-                content = message_from_string(force_str(content))
-
-            attachment = SafeMIMEMessage(content, subtype)
+                # convert content into an email.MIMEBase first
+                msg = content.render()
+            else:
+                msg = message_from_string(force_str(content))
+            attachment = SafeMIMEMessage(msg, subtype)
         else:
             # Encode non-text attachments with base64.
             attachment = MIMEBase(basetype, subtype)
             attachment.set_payload(content)
             Encoders.encode_base64(attachment)
+
         return attachment
 
-    def _create_attachment(self, filename, content, mimetype=None):
+    def _create_attachment(
+        self, filename: str = "", content: str = "", mimetype: str = ""
+    ) -> MIMEBase:
         """
         Convert the filename, content, mimetype triple into a MIME attachment
         object.
@@ -416,14 +454,19 @@ class EmailMessage:
         if filename:
             try:
                 filename.encode("ascii")
+                attachment.add_header(
+                    "Content-Disposition", "attachment", filename=filename
+                )
             except UnicodeEncodeError:
-                filename = ("utf-8", "", filename)
-            attachment.add_header(
-                "Content-Disposition", "attachment", filename=filename
-            )
+                attachment.add_header(
+                    "Content-Disposition", "attachment", filename=("utf-8", "", filename)
+                )
+
         return attachment
 
-    def _set_list_header_if_not_empty(self, msg, header, values):
+    def _set_list_header_if_not_empty(
+        self, msg: MIMEBase, header: str, values: list[str]
+    ) -> None:
         """
         Set msg's header, either from self.extra_headers, if present, or from
         the values argument if not empty.
@@ -433,88 +476,3 @@ class EmailMessage:
         except KeyError:
             if values:
                 msg[header] = ", ".join(str(v) for v in values)
-
-
-class EmailMultiAlternatives(EmailMessage):
-    """
-    A version of EmailMessage that makes it easy to send multipart/alternative
-    messages. For example, including text and HTML versions of the text is
-    made easier.
-    """
-
-    alternative_subtype = "alternative"
-
-    def __init__(
-        self,
-        from_email=None,
-        *,
-        subject="",
-        body="",
-        to=None,
-        bcc=None,
-        attachments=None,
-        headers=None,
-        alternatives=None,
-        cc=None,
-        reply_to=None,
-        encoding: str = "utf-8",
-        use_localtime: bool = False,
-    ):
-        """
-        Initialize a single email message (which can be sent to multiple
-        recipients).
-        """
-        super().__init__(
-            from_email=from_email,
-            subject=subject,
-            body=body,
-            to=to,
-            bcc=bcc,
-            attachments=attachments,
-            headers=headers,
-            cc=cc,
-            reply_to=reply_to,
-            encoding=encoding,
-            use_localtime=use_localtime,
-        )
-        self.alternatives = [
-            EmailAlternative(*alternative) for alternative in (alternatives or [])
-        ]
-
-    def attach_alternative(self, content, mimetype):
-        """Attach an alternative content representation."""
-        if content is None or mimetype is None:
-            raise ValueError("Both content and mimetype must be provided.")
-        self.alternatives.append(EmailAlternative(content, mimetype))
-
-    def _create_message(self, msg):
-        return self._create_attachments(self._create_alternatives(msg))
-
-    def _create_alternatives(self, msg):
-        if self.alternatives:
-            body_msg = msg
-            msg = SafeMIMEMultipart(
-                _subtype=self.alternative_subtype, encoding=self.encoding
-            )
-            if self.body:
-                msg.attach(body_msg)
-            for alternative in self.alternatives:
-                msg.attach(
-                    self._create_mime_attachment(
-                        alternative.content, alternative.mimetype
-                    )
-                )
-        return msg
-
-    def body_contains(self, text):
-        """
-        Checks that ``text`` occurs in the email body and in all attached MIME
-        type text/* alternatives.
-        """
-        if text not in self.body:
-            return False
-
-        for content, mimetype in self.alternatives:
-            if mimetype.startswith("text/") and text not in content:
-                return False
-        return True

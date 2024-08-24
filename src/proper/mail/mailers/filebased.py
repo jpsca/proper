@@ -1,5 +1,8 @@
 """
 Mailer that writes messages to a file.
+
+Extracted from Django (http://djangoproject.com).
+The original code was BSD licensed (see LICENSE)
 """
 import datetime
 import os

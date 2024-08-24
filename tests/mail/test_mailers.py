@@ -1,7 +1,6 @@
 import email
 import os
 import shutil
-import sys
 import tempfile
 from io import StringIO
 
@@ -46,15 +45,14 @@ def test_to_memory_mailer():
     assert mailer.outbox[1] == email2
 
 
-def test_to_console_mailer():
-    __stdout = sys.stdout
-    s = sys.stdout = StringIO()
-
+def test_to_console_mailer(capsys):
     mailer = ToConsoleMailer()
-    mailer.send("Subject", "Content", "from@example.com", "to@example.com")
+    mailer.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
 
-    value = s.getvalue()
-    assert value.startswith(
+    captured = capsys.readouterr()
+    email_str = captured.out
+    print(email_str)
+    assert email_str.startswith(
         'Content-Type: text/plain; charset="utf-8"'
         "\nMIME-Version: 1.0"
         "\nContent-Transfer-Encoding: 7bit"
@@ -67,20 +65,19 @@ def test_to_console_mailer():
 
     mailer.stream = ""
     with pytest.raises(Exception):
-        mailer.send("Subject", "Content", "from@example.com", "to@example.com")
-    mailer.fail_silently = True
-    mailer.send("Subject", "Content", "from@example.com", "to@example.com")
+        mailer.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
 
-    sys.stdout = __stdout
+    mailer.fail_silently = True
+    mailer.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
 
 
 def test_to_console_stream_kwarg():
     """Test that the console backend can be pointed at an arbitrary stream."""
-    s = StringIO()
-    mailer = ToConsoleMailer(stream=s)
-    mailer.send("Subject", "Content", "from@example.com", "to@example.com")
+    stream = StringIO()
+    mailer = ToConsoleMailer(stream=stream)
+    mailer.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
 
-    value = s.getvalue()
+    value = stream.getvalue()
     assert value.startswith(
         'Content-Type: text/plain; charset="utf-8"'
         "\nMIME-Version: 1.0"
@@ -96,7 +93,7 @@ def test_to_file_mailer():
     tmp_dir = tempfile.mkdtemp()
     mailer = ToFileMailer(tmp_dir)
 
-    n = mailer.send("Subject", "Content", "from@example.com", "to@example.com")
+    n = mailer.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
     assert n == 1
     assert len(os.listdir(tmp_dir)) == 1
 
@@ -128,8 +125,8 @@ def test_to_file_mailer_unique_filename():
     tmp_dir = tempfile.mkdtemp()
     mailer1 = ToFileMailer(tmp_dir)
     mailer2 = ToFileMailer(tmp_dir)
-    mailer1.send("Subject", "Content", "from@example.com", "to@example.com")
-    mailer2.send("Subject", "Content", "from@example.com", "to@example.com")
+    mailer1.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
+    mailer2.send(subject="Subject", body="Content", from_email="from@example.com", to="to@example.com")
 
     assert len(os.listdir(tmp_dir)) == 2
 

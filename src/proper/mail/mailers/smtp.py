@@ -47,7 +47,7 @@ class SMTPMailer(BaseMailer):
         password: str | None = None,
         use_tls: bool = False,
         use_ssl: bool = False,
-        timeout: int | None = None,
+        timeout: float | None = None,
         ssl_keyfile: StrOrBytesPath | None = None,
         ssl_certfile: StrOrBytesPath | None = None,
         max_recipients: int = 200,

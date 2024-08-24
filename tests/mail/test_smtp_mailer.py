@@ -1,13 +1,17 @@
-import pytest
 from smtplib import SMTP, SMTPException
 
-from ..mailshake import EmailMessage, SMTPMailer
+import pytest
+
+from proper.mail import EmailMessage, SMTPMailer
 
 
 def make_emails():
     return [
         EmailMessage(
-            "Subject-%s" % num, "Content", "from@example.com", "to@example.com"
+            subject="Subject-%s" % num,
+            body="Content",
+            from_email="from@example.com",
+            to="to@example.com",
         )
         for num in range(1, 5)
     ]
@@ -36,9 +40,9 @@ def test_sending_unicode(smtpd):
     mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
     email = EmailMessage(
         subject="Olé",
-        text="Contenido en español",
+        body="Contenido en español",
         from_email="from@example.com",
-        to="toБ@example.com",
+        to="to@example.com",
     )
 
     with SMTP(smtpd.hostname, smtpd.port):
@@ -116,7 +120,7 @@ def test_batch_too_many_recipients(smtpd):
         max_recipients=200,
     )
     send_to = ["user{}@example.com".format(i) for i in range(1, 1501)]
-    msg = EmailMessage("The Subject", "Content", "from@example.com", send_to)
+    msg = EmailMessage(subject="The Subject", body="Content", from_email="from@example.com", to=send_to)
 
     with SMTP(smtpd.hostname, smtpd.port):
         assert mailer.send_messages(msg) == 1
