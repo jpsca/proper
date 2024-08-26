@@ -4,8 +4,8 @@ from proper import (
     get,
     status,
 )
+from proper import current as curr
 from proper.concerns import Session
-from proper.current import response
 
 
 # -- ETAG --
@@ -13,7 +13,7 @@ from proper.current import response
 
 class ETagged(View):
     def index(self):
-        response.fresh_when(etag=123)
+        curr.response.fresh_when(etag=123)
         return "Hello world"
 
 
@@ -37,7 +37,7 @@ class Session(View):
     concerns = [Session]
 
     def update(self):
-        response.session["foo"] = "bar"
+        curr.response.session["foo"] = "bar"
 
 
 def test_set_session(app):
@@ -53,9 +53,9 @@ def test_set_session(app):
 
 class DisableCookies(View):
     def index(self):
-        response.set_cookie("foo", "bar")
-        response.disable_cookies = True
-        response.set_cookie("lorem", "ipsum")
+        curr.response.set_cookie("foo", "bar")
+        curr.response.disable_cookies = True
+        curr.response.set_cookie("lorem", "ipsum")
 
 
 def test_disable_cookies(app):
@@ -72,17 +72,17 @@ class Redirect(View):
         pass
 
     def external(self):
-        response.redirect_to("http://example.com")
+        curr.response.redirect_to("http://example.com")
 
     def local(self):
-        response.redirect_to("/local/url")
+        curr.response.redirect_to("/local/url")
 
     def verbose(self):
-        response.redirect_to("Redirect.show", id=1, slug="something")
+        curr.response.redirect_to("Redirect.show", id=1, slug="something")
 
     def compact(self):
         post = DotDict({"id": 1, "slug": "something"})
-        response.redirect_to("Redirect.show", post)
+        curr.response.redirect_to("Redirect.show", post)
 
 
 def test_redirect_to(app):

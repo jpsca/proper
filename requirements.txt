@@ -5,23 +5,37 @@ click==8.1.7
 html2text==2024.2.26
     # via mailshake
 inflection==0.5.1
+    # via proper (pyproject.toml)
 isort==5.13.2
-itsdangerous==2.1.2
-jinja2==3.1.3
+    # via proper (pyproject.toml)
+itsdangerous==2.2.0
+    # via proper (pyproject.toml)
+jinja2==3.1.4
     # via jinjax
-jinjax==0.31
+jinjax==0.45
+    # via proper (pyproject.toml)
 mailshake==2.3
+    # via proper (pyproject.toml)
 markupsafe==2.1.5
     # via
+    #   proper (pyproject.toml)
     #   jinja2
     #   jinjax
 passlib==1.7.4
-peewee==3.17.1
-    # via peewee-migrate
-peewee-migrate==1.12.2
-proper-cli==1.4
-tomlkit==0.12.4
+    # via proper (pyproject.toml)
+peewee==3.17.6
+    # via
+    #   proper (pyproject.toml)
+    #   peewee-migrate
+peewee-migrate==1.13.0
+    # via proper (pyproject.toml)
+proper-cli==1.4.1
+    # via proper (pyproject.toml)
+tomlkit==0.13.2
+    # via proper (pyproject.toml)
 traceback-with-variables==2.0.4
-uwsgi==2.0.24
-whitenoise==6.6.0
+    # via proper (pyproject.toml)
+uwsgi==2.0.26
+    # via proper (pyproject.toml)
+whitenoise==6.7.0
     # via jinjax

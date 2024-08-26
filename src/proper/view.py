@@ -8,9 +8,8 @@ from inspect import isclass
 from pathlib import Path
 
 from .core import App
-from .current import response as c_response
 from .errors import NotFound
-from .helpers import MultiDict, jsonplus
+from .helpers import MultiDict, current, jsonplus
 from .request import Request
 from .response import Response
 from .status import not_modified
@@ -89,7 +88,7 @@ class View:
             if before:
                 early_response = before(self)
                 if early_response is not None:
-                    c_response._set(early_response)
+                    current.response = early_response
                     return early_response
 
         self._call(action_name)
@@ -100,7 +99,7 @@ class View:
             if after:
                 early_response = after(self)
                 if early_response is not None:
-                    c_response._set(early_response)
+                    current.response = early_response
                     return early_response
 
     def _call(self, action_name: str) -> None:

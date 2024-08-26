@@ -10,9 +10,8 @@ from pathlib import Path
 from urllib.parse import quote
 from wsgiref.types import StartResponse
 
-from proper import current
 from proper import status as pstatus
-from proper.helpers import DotDict, tunnel_encode
+from proper.helpers import DotDict, current, tunnel_encode
 from proper.types import TBody, TReadable
 
 from .cookies import ResponseCookiesMixin

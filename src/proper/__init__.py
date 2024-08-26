@@ -3,7 +3,6 @@ from . import (
     cache,  # noqa
     concerns,  # noqa
     constants,  # noqa
-    current,  # noqa
     errors,  # noqa
     helpers,  # noqa
     router,  # noqa

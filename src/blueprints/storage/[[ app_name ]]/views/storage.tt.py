@@ -1,4 +1,4 @@
-from proper.current import request, response  # noqa
+from proper import current as curr  # noqa
 from proper.errors import NotFound
 
 from [[ app_name ]].app import app

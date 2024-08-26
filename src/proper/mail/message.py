@@ -4,9 +4,8 @@ The original code was BSD licensed (see LICENSE)
 """
 import mimetypes
 import typing as t
-from email import charset as Charset
-from email import encoders as Encoders
-from email import generator, message_from_string
+from email import encoders, generator, message_from_string
+from email.charset import QP, Charset
 from email.errors import HeaderParseError
 from email.header import Header
 from email.headerregistry import Address, parser  # type: ignore
@@ -21,12 +20,11 @@ from pathlib import Path
 from .utils import DNS_NAME, force_str
 
 
-utf8_charset = Charset.Charset("utf-8")
-utf8_charset.body_encoding = Charset.BASE64
+utf8_charset = Charset("utf-8")
 # Don't BASE64-encode UTF-8 messages so that we avoid unwanted attention from
 # some spam filters.
-utf8_charset_qp = Charset.Charset("utf-8")
-utf8_charset_qp.body_encoding = Charset.QP
+utf8_charset_qp = Charset("utf-8")
+utf8_charset_qp.body_encoding = QP
 
 # Default MIME type to use on attachments (if it is not explicitly given
 # and cannot be guessed).
@@ -179,8 +177,8 @@ class SafeMIMEText(MIMEMixin, MIMEText):
         name, val = forbid_multi_line_headers(name, val, self.encoding)
         MIMEText.__setitem__(self, name, val)
 
-    def set_payload(self, payload, charset: Charset.Charset | str = "ascii"):
-        if charset == "utf-8" and not isinstance(charset, Charset.Charset):
+    def set_payload(self, payload, charset: Charset | str = "ascii"):
+        if charset == "utf-8" and not isinstance(charset, Charset):
             has_long_lines = any(
                 len(line.encode(errors="surrogateescape"))
                 > RFC5322_EMAIL_LINE_LENGTH_LIMIT
@@ -439,7 +437,7 @@ class EmailMessage:
             # Encode non-text attachments with base64.
             attachment = MIMEBase(basetype, subtype)
             attachment.set_payload(content)
-            Encoders.encode_base64(attachment)
+            encoders.encode_base64(attachment)
 
         return attachment
 

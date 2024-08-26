@@ -54,6 +54,7 @@ test = [
   # To test installable frameworks
   "image-processing-egg",
   "poyo",
+  "smtpdfix"
 ]
 
 

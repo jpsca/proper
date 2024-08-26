@@ -12,12 +12,12 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 
-from proper import current, status
+from proper import status
 from proper.auth import Auth
 from proper.cache import NoCache
 from proper.cl import get_app_cl
 from proper.errors import BadSecretKey, MatchNotFound, MethodNotAllowed
-from proper.helpers import DotDict, jsonplus
+from proper.helpers import DotDict, current, jsonplus
 from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
@@ -170,30 +170,27 @@ class App(AppTest):
         return current_response(start_response)
 
     def do_request(self, environ: TWSGIEnvironment) -> Response:
-        current.app._set(self)
+        current.app = self
 
-        current_request = Request(
+        current.request = Request(
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
             **environ,
         )
-        current.request._set(current_request)
-
-        current_response = Response(**environ)
-        current.response._set(current_response)
+        current.response = Response(**environ)
 
         try:
-            early_response = self.run_pipeline(current_request, current_response)
-            return early_response or current_response
+            early_response = self.run_pipeline(current.request, current.response)
+            return early_response or current.response
 
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
             # - the custom error handlers,
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
-            current_response.error = error
-            self._default_error_handler(current_request, current_response)
-            return current_response
+            current.response.error = error
+            self._default_error_handler(current.request, current.response)
+            return current.response
 
     def run_pipeline(self, request, response) -> None:
         try:
@@ -207,7 +204,7 @@ class App(AppTest):
             ):
                 early_response = func(self, request, response)
                 if early_response is not None:
-                    current.response._set(early_response)
+                    current.response = early_response
                     return
 
         except Exception as error:

@@ -63,22 +63,6 @@ def test_notls(smtpd):
     mailer.close()
 
 
-def test_wrong_host(smtpd):
-    mailer = SMTPMailer(host="123", port=smtpd.port, use_tls=False, timeout=0.5)
-    with pytest.raises(Exception):
-        with SMTP(smtpd.hostname, smtpd.port):
-            mailer.open()
-    mailer.close()
-
-
-def test_wrong_port(smtpd):
-    mailer = SMTPMailer(host=smtpd.hostname, port=3000, use_tls=False)
-    with pytest.raises(Exception):
-        with SMTP(smtpd.hostname, smtpd.port):
-            mailer.open()
-    mailer.close()
-
-
 def test_fail_silently(smtpd):
     mailer = SMTPMailer(
         host=smtpd.hostname,

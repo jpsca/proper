@@ -5,8 +5,7 @@ import warnings
 from email.utils import formatdate
 from http.cookies import Morsel
 
-from proper import current
-from proper.helpers import tunnel_encode
+from proper.helpers import current, tunnel_encode
 
 
 RE_FILTER_FROM_COOKIE_NAME = re.compile(r"[^a-zA-Z0-9!*&#$%^'`+_~\.\-]*")

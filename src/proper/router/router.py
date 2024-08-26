@@ -2,8 +2,8 @@
 """
 from typing import Any
 
-from proper import current
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
+from proper.helpers import current
 
 from .route import Route
 from .scope import flatten

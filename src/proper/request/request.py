@@ -3,10 +3,9 @@ from io import BytesIO
 
 import itsdangerous
 
-from proper import current
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
 from proper.errors import BadSignature
-from proper.helpers import DotDict, MultiDict, Undefined, split_locale
+from proper.helpers import DotDict, MultiDict, Undefined, current, split_locale
 from proper.router import Route
 
 from .headers import RequestHeadersMixin

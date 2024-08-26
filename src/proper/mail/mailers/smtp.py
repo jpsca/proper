@@ -51,10 +51,9 @@ class SMTPMailer(BaseMailer):
         ssl_keyfile: StrOrBytesPath | None = None,
         ssl_certfile: StrOrBytesPath | None = None,
         max_recipients: int = 200,
-        *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.host = host
         self.port = port
         self.username = username

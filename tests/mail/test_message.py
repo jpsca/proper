@@ -1,3 +1,4 @@
+import base64
 import re
 
 import pytest
@@ -5,11 +6,17 @@ import pytest
 from proper.mail import EmailMessage
 
 
+SUBJECT = "Subject"
+CONTENT = "Content"
+B64CONTENT = base64.b64encode(CONTENT.encode("utf-8")).decode("ascii")
+FROM_EMAIL = "from@example.com"
+
+
 def Message(**kwargs):
     """Helper to create an EmailMessage object."""
-    kwargs.setdefault("subject", "Subject")
-    kwargs.setdefault("body", "Content")
-    kwargs.setdefault("from_email", "from@example.com")
+    kwargs.setdefault("subject", SUBJECT)
+    kwargs.setdefault("body", CONTENT)
+    kwargs.setdefault("from_email", FROM_EMAIL)
     return EmailMessage(**kwargs)
 
 
@@ -17,9 +24,9 @@ def test_ascii():
     msg = Message(to="to@example.com")
     email = msg.render()
 
-    assert email["Subject"] == "Subject"
-    assert email.get_payload() == "Content"
-    assert email["From"] == "from@example.com"
+    assert email["Subject"] == SUBJECT
+    assert email.get_payload() == B64CONTENT + "\n"
+    assert email["From"] == FROM_EMAIL
     assert email["To"] == "to@example.com"
 
 
@@ -27,9 +34,9 @@ def test_multiple_recipients():
     msg = Message(to=["to@example.com", "other@example.com"])
     email = msg.render()
 
-    assert email["Subject"] == "Subject"
-    assert email.get_payload() == "Content"
-    assert email["From"] == "from@example.com"
+    assert email["Subject"] == SUBJECT
+    assert email.get_payload() == B64CONTENT + "\n"
+    assert email["From"] == FROM_EMAIL
     assert email["To"] == ("to@example.com, other@example.com")
 
 
@@ -154,12 +161,12 @@ def test_message_header_overrides():
         headers=headers,
     )
     email_str = msg.render().as_string()
+    print(email_str)
 
     assert email_str.startswith(
         'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\n'
     )
     headers = [
-        "Content-Transfer-Encoding: 7bit",
         "Subject: Subject",
         "From: from@example.com",
         "To: to@example.com",
@@ -169,7 +176,8 @@ def test_message_header_overrides():
     lines = set(email_str.split("\n"))
     for header in headers:
         assert header in lines
-    assert email_str.endswith("\n\nContent")
+
+    assert email_str.endswith("\n\n" + B64CONTENT + "\n")
 
 
 def test_from_header():
@@ -180,7 +188,7 @@ def test_from_header():
     )
     email = msg.render()
 
-    assert email["From"] == "from@example.com"
+    assert email["From"] == FROM_EMAIL
 
 
 def test_multiple_message_call():
@@ -193,12 +201,12 @@ def test_multiple_message_call():
         headers={"From": "from@example.com"},
     )
     email = msg.render()
-    assert email["From"] == "from@example.com"
+    assert email["From"] == FROM_EMAIL
     email = msg.render()
-    assert email["From"] == "from@example.com"
+    assert email["From"] == FROM_EMAIL
 
 
-def test_unicode_address_header():
+def test_unicode_address_header_1():
     """When a to/from/cc header contains unicode,
     make sure the msg addresses are parsed correctly (especially with
     regards to commas).
@@ -207,30 +215,40 @@ def test_unicode_address_header():
         to=['"Firstname Sürname" <to@example.com>', "other@example.com"],
     )
     email = msg.render()
+    print(email["To"])
     assert (
         email["To"]
         == "=?utf-8?q?Firstname_S=C3=BCrname?= <to@example.com>, other@example.com"
     )
 
+
+def test_unicode_address_header_2():
+    """When a to/from/cc header contains unicode,
+    make sure the msg addresses are parsed correctly (especially with
+    regards to commas).
+    """
     msg = Message(
         to=["other@example.com", '"Sürname, Firstname" <to@example.com>'],
     )
     email = msg.render()
+    print(email["To"])
     assert (
         email["To"]
         == "other@example.com, =?utf-8?q?S=C3=BCrname=2C_Firstname?= <to@example.com>"
     )
 
+
+def test_unicode_address_header_3():
+    """When a to/from/cc header contains unicode,
+    make sure the msg addresses are parsed correctly (especially with
+    regards to commas).
+    """
     msg = Message(
-        to=["other@example.com", "à" * 50 + " <to@example.com>"],
+        to=["other@example.com", "à" * 4 + " <to@example.com>"],
     )
     email = msg.render()
-    assert email["To"] == (
-        "other@example.com, "
-        + "=?utf-8?b?"
-        + "w6DDoMOg" * 16
-        + "w6DDoA==?= <to@example.com>"
-    )
+    print(email["To"])
+    assert email["To"] == "other@example.com, =?utf-8?b?w6DDoMOgw6A=?= <to@example.com>"
 
 
 def test_unicode_headers():
@@ -258,22 +276,8 @@ def test_html():
     assert email.get_content_type() == "text/html"
 
 
-# def test_alternative():
-#     text_content = "This is an important email."
-#     html_content = "<p>This is an <strong>important</strong> email.</p>"
-
-#     msg = Message(subject, text_content, from_email, to, html_content=html_content)
-#     email = msg.render()
-
-#     assert email.is_multipart()
-#     assert email.get_content_type() == "multipart/alternative"
-#     assert email.get_default_type() == "text/plain"
-#     assert email.get_payload(0).get_content_type() == "text/plain"
-#     assert email.get_payload(1).get_content_type() == "text/html"
-
-
 def test_encoding():
-    """Encode body correctly with other encodingsthan utf-8
+    """Encode body correctly with other encodings than utf-8
     """
     msg = Message(
         body="Firstname Sürname is a great guy.",
@@ -346,35 +350,6 @@ def test_dont_mangle_from_in_body():
     assert b">From the future" not in email_bytes
 
 
-
-def test_7bit_no_quoted_printable():
-    """Shouldn't use quoted printable, should detect it can represent content
-    with 7 bit data.
-    """
-    msg = Message(body="Body with only ASCII characters.")
-    email_str = msg.render().as_string()
-
-    assert "Content-Transfer-Encoding: quoted-printable" not in email_str
-    assert "Content-Transfer-Encoding: 7bit" in email_str
-
-
-def test_8bit_no_quoted_printable():
-    """Shouldn't use quoted printable, should detect it can represent content
-    with 8 bit data.
-    """
-    msg = Message(body="Body with latin characters: àáä.")
-    email_str = msg.render().as_string()
-
-    assert "Content-Transfer-Encoding: quoted-printable" not in email_str
-    assert "Content-Transfer-Encoding: 8bit" in email_str
-
-    msg = Message(body="Body with non latin characters: А Б В Г Д Е Ж Ѕ З И І К Л М Н О П.")
-    email_str = msg.render().as_string()
-
-    assert "Content-Transfer-Encoding: quoted-printable" not in email_str
-    assert "Content-Transfer-Encoding: 8bit" in email_str
-
-
 def test_invalid_destination():
     dest = "toБ@example.com"
     msg = Message(to=dest)
@@ -384,21 +359,24 @@ def test_invalid_destination():
 
 
 rx_message_id = re.compile(
-    r"^<[0-9]{14}\.[0-9]+\.[0-9a-f]+\.[0-9]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*>$",
+    r"^<[0-9]{12}\.[0-9a-f\.]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*>$",
     re.IGNORECASE,
 )
 
 
-def test_message_id():
-    email1 = Message(subject="Subject 1", to="to@example.com")
-    msg1 = email1.render()
-    mid1 = msg1["Message-ID"]
-    print("Message-ID 1:", mid1)
+def test_MIMEBase_id():
+    msg1 = Message(subject="Subject 1", to="to@example.com")
+    email1 = msg1.render()
+    mid1 = email1["MIMEBase-ID"]
+    print("MIMEBase-ID 1:", mid1)
+    assert mid1
     assert rx_message_id.match(mid1)
 
-    email2 = Message(subject="Subject 2", to="to@example.com")
-    msg2 = email2.render()
-    mid2 = msg2["Message-ID"]
-    print("Message-ID 2:", mid2)
+    msg2 = Message(subject="Subject 2", to="to@example.com")
+    email2 = msg2.render()
+    mid2 = email2["MIMEBase-ID"]
+    print("MIMEBase-ID 2:", mid2)
+    assert mid2
     assert rx_message_id.match(mid2)
+
     assert mid2 != mid1

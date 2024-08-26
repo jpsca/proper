@@ -12,11 +12,9 @@ from .console import ToConsoleMailer
 
 
 class ToFileMailer(ToConsoleMailer):
-    def __init__(self, path: Path | str, multifile: bool = True, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Since we're using the console-based backend as a base,
-        # force the stream to be initally None, so we don't default to stdout
-        self.stream = None
+    def __init__(self, path: Path | str, multifile: bool = True, **kwargs):
+        kwargs["stream"] = None
+        super().__init__(**kwargs)
 
         path = Path(path).absolute()
         if path.is_file():

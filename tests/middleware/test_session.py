@@ -8,10 +8,11 @@ from proper.view import View
 
 @pytest.fixture
 def co(app):
+    current.app = app
     request = Request()
-    current.request._set(request)
+    current.request = request
     response = Response()
-    current.response._set(response)
+    current.response = response
     return View(app, request, response)
 
 

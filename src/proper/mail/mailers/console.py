@@ -7,14 +7,17 @@ The original code was BSD licensed (see LICENSE)
 """
 import sys
 import threading
+from typing import TextIO
 
 from .base import BaseMailer
 
 
 class ToConsoleMailer(BaseMailer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.stream = kwargs.pop("stream", sys.stdout)
+    stream: TextIO | None = None
+
+    def __init__(self, stream: TextIO | None = sys.stdout, **kwargs):
+        super().__init__(**kwargs)
+        self.stream = stream
         self._lock = threading.RLock()
 
     def send_messages(self, *email_messages):

@@ -3,7 +3,7 @@ import typing as t
 import unicodedata
 
 import peewee as pw
-from proper import current
+from proper.helpers import current
 
 from [[ app_name ]].app import auth, config
 from [[ app_name ]].models.base import BaseMixin

@@ -1,8 +1,8 @@
 import pytest
 
 from proper import App, View, get, status
+from proper import current as curr
 from proper.concerns import RequestForgeryProtection, Session
-from proper.current import response
 from proper.errors import BadSecretKey
 
 
@@ -10,12 +10,12 @@ class Pages(View):
     concerns = [RequestForgeryProtection, Session]
 
     def index(self):
-        response.mimetype = "text/plain"
+        curr.response.mimetype = "text/plain"
         return "Hello World!"
 
     def charset(self):
-        response.mimetype = "text/plain"
-        response.charset = "latin-1"
+        curr.response.mimetype = "text/plain"
+        curr.response.charset = "latin-1"
         return "Hello World!"
 
 
