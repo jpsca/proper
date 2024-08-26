@@ -15,7 +15,7 @@ class LoadUser:
         user = None
         if config.DEBUG:
             user = self._get_remote_user()
-        view.request.user = user or self._get_user(view.response.session)
+        view.request.user = user or self._get_user(view.request.session)
 
     # Private
 

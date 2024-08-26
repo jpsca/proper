@@ -13,7 +13,7 @@ if t.TYPE_CHECKING:
     from proper.view import View
 
 
-__all__ = ("Session", )
+__all__ = ("Session", "SESSION_SALT")
 
 
 SESSION_SALT = "session"
@@ -27,7 +27,6 @@ class Session:
         app = view.app
         request = view.request
         response = view.response
-
         session = self._get_session(app, request)
         request.session = session
         response.session = session.copy()

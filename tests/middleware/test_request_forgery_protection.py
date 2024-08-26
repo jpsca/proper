@@ -1,7 +1,6 @@
 import pytest
 
 from proper import Request, Response
-from proper import current as curr
 from proper.concerns import (
     CSRF_FORM_KEY,
     CSRF_HEADER,
@@ -26,9 +25,7 @@ class AppView(View):
 @pytest.fixture
 def co(app):
     request = Request()
-    curr.request = request
     response = Response()
-    curr.response = response
     return AppView(app, request, response)
 
 

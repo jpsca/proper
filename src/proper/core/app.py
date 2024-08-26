@@ -180,9 +180,7 @@ class App(AppTest):
         current.response = Response(**environ)
 
         try:
-            early_response = self.run_pipeline(current.request, current.response)
-            return early_response or current.response
-
+            self.run_pipeline(current.request, current.response)
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
             # - the custom error handlers,
@@ -190,7 +188,8 @@ class App(AppTest):
             # - the body encoding on the `resp(start_response)`.
             current.response.error = error
             self._default_error_handler(current.request, current.response)
-            return current.response
+
+        return current.response
 
     def run_pipeline(self, request, response) -> None:
         try:

@@ -311,6 +311,7 @@ class Request(RequestHeadersMixin):
         $ request.get_signed_cookie("name", False, max_age=60)
         False
     """
+        assert current.app
         serializer = current.app.get_serializer(salt)
         cookie = self.cookies.get(name)
         if cookie is None:

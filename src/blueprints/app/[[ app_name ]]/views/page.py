@@ -1,7 +1,7 @@
 from .app import AppView
 
 
-class Page(AppView):
+class PageView(AppView):
     def index(self):
         return self.render("Page.Index")
 

@@ -21,7 +21,6 @@ from .headers import ResponseHeadersMixin
 
 
 if t.TYPE_CHECKING:
-    from proper.helpers import Proxy
     from proper.request import Request
 
 
@@ -153,7 +152,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         last_modified: datetime | float | int | None = None,
         strong: bool = False,
         public: bool = False,
-        request: "Request | Proxy | None" = None,
+        request: "Request | None" = None,
     ) -> bool:
         """Sets the Etag header, the Last-Modified header, or both.
 
@@ -197,7 +196,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         )
         return self.is_fresh(request)
 
-    def is_fresh(self, request: "Request | Proxy | None" = None) -> bool:
+    def is_fresh(self, request: "Request | None" = None) -> bool:
         """Returns `True` if the response is fresh."""
         request = current.request if request is None else request
         if request is None:
@@ -251,6 +250,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.set_last_modified(stat.st_mtime)
 
         if x_sendfile_header:
+            assert current.app
             relpath = path.relative_to(current.app.root_path.parent)
             self.headers[x_sendfile_header] = f"/{relpath}"
             self.set_content_length(0)

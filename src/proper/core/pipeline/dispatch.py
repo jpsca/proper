@@ -25,4 +25,4 @@ def dispatch(app: "App", request: "Request", response: "Response") -> "Response 
     # We instantiate the view class so we can have an independent
     # container for this request.
     view = View(app, request, response)
-    return view._dispatch(action_name)
+    view._dispatch(action_name)

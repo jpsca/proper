@@ -12,7 +12,7 @@ from proper.router import (
 )
 
 from .app import app
-# from .views.page import Page
+# from .views.page import PageView
 
 
 app.routes += [
@@ -32,6 +32,6 @@ app.routes += [
     get("robots.txt", redirect="/static/robots.txt"),
     get("humans.txt", redirect="/static/humans.txt"),
 
-    # get("", to=Page.index),
+    # get("", to=PageView.index),
 
 ]

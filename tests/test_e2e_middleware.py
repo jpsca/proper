@@ -1,5 +1,4 @@
 from proper import View, get
-from proper import current as curr
 
 
 def _f1(headers):
@@ -36,8 +35,8 @@ class BeforeAndAfterTestCase(View):
     concerns = [BeforeConcern, AfterConcern]
 
     def index(self):
-        val = curr.response.headers.get("x-test", "")
-        curr.response.headers["x-test"] = f"{val}-index-"
+        val = self.response.headers.get("x-test", "")
+        self.response.headers["x-test"] = f"{val}-index-"
         return ""
 
 
@@ -62,8 +61,8 @@ class StopTestCase(View):
     concerns = [StopConcern]
 
     def index(self):
-        val = curr.response.headers.get("x-test", "")
-        curr.response.headers["x-test"] = f"{val}-index-"
+        val = self.response.headers.get("x-test", "")
+        self.response.headers["x-test"] = f"{val}-index-"
         return ""
 
 

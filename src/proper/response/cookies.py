@@ -105,6 +105,7 @@ class ResponseCookiesMixin:
         cookie = self.cookies[name] = Morsel()
 
         if signed:
+            assert current.app
             serializer = current.app.get_serializer(salt)
             value = serializer.dumps(value)
         else:
