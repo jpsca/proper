@@ -4,7 +4,7 @@ import itsdangerous
 
 from proper.errors import BadSignature
 
-from .attachment import get_attachment_class
+from .attachment import get_attachment_mixin
 from .services import Service
 
 
@@ -22,8 +22,8 @@ class Storage:
     def __init__(self, app: "App", config: "DotDict") -> None:
         self.app = app
         self.config = config
-        self.signer = app.get_timestamp_signer("proper.storage")
-        self.Attachment = get_attachment_class(self, config)
+        self.signer = app.get_signer("proper.storage")
+        self.Attachment = get_attachment_mixin(self)
 
     def url_for(self, obj: "TAttachment") -> str:
         signed_pk = self.signer.sign(obj.key)

@@ -6,41 +6,49 @@ from . import status
 from .mail.errors import *  # noqa
 
 
-class BadSecretKey(Exception):
+class ConfigError(Exception):
     pass
 
 
-class MissingRouteParameter(Exception):
+class BadSecretKey(ConfigError):
+    pass
+
+
+class MissingRouteParameter(ConfigError):
     def __init__(self, name: str, path: str) -> None:
         msg = f"missing value for {name} in {path}"
         super().__init__(msg)
 
 
-class BadRoutePlaceholder(Exception):
+class BadRoutePlaceholder(ConfigError):
     def __init__(self, name: str, path: str, rx: str) -> None:
         msg = f"placeholder {name} doesn't have the expected format <{rx}> in {path}"
         super().__init__(msg)
 
 
-class DuplicatedRoutePlaceholder(Exception):
+class DuplicatedRoutePlaceholder(ConfigError):
     def __init__(self, name: str, path: str) -> None:
         msg = f"placeholder {name} declared more than once in {path}"
         super().__init__(msg)
 
 
-class BadRouteFormat(Exception):
+class StorageConfigError(ConfigError):
     pass
 
 
-class RouteNotFound(Exception):
+class BadRouteFormat(ConfigError):
     pass
 
 
-class WrongHashAlgorithm(Exception):
+class RouteNotFound(ConfigError):
     pass
 
 
-class BadSignature(itsdangerous.BadSignature):
+class WrongHashAlgorithm(ConfigError):
+    pass
+
+
+class BadSignature(ConfigError, itsdangerous.BadSignature):
     def __init__(self, message: str = "Bad signtaure", payload: t.Any = None):
         super().__init__(message, payload)
 

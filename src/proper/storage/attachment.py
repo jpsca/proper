@@ -6,9 +6,10 @@ from uuid import uuid4
 from inflection import parameterize
 from peewee import *  # noqa
 
+from proper.errors import StorageConfigError
+
 
 if t.TYPE_CHECKING:
-    from ..helpers import DotDict
     from .storage import Storage
     from .types import TUpload
 
@@ -16,7 +17,7 @@ if t.TYPE_CHECKING:
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
-def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
+def get_attachment_mixin(storage: "Storage") -> Model:
     class Attachment(storage.app.db.Model):
         key = CharField(32, primary_key=True)
         service_name = CharField(64)
@@ -38,9 +39,9 @@ def get_attachment_class(storage: "Storage", config: "DotDict") -> Model:
         ) -> None:
             self._filesto = filesto
 
-            service_name = service_name or self.config.STORAGE or ""
+            service_name = service_name or storage.config.STORAGE or ""
             if not service_name:
-                raise ValueError(
+                raise StorageConfigError(
                     "Missing config.storage.service or service_name argument"
                 )
 
