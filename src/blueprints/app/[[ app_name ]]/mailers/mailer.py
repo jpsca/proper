@@ -1,4 +1,4 @@
-from mailshake import ToConsoleMailer
+from proper.mail import ToConsoleMailer
 
 from ..app import config
 

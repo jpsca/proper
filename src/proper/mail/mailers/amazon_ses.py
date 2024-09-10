@@ -1,7 +1,7 @@
 """
 Mailer for Amazon Simple Email Server.
 """
-import logging
+from proper.helpers import logger
 
 from ..message import EmailMessage
 from .base import BaseMailer
@@ -35,7 +35,6 @@ class AmazonSESMailer(BaseMailer):
 
     def send_messages(self, *email_messages: EmailMessage) -> list[dict]:
         """ """
-        logger = logging.getLogger("mailshake:AmazonSESMailer")
         if not email_messages:
             logger.debug("No email messages to send")
             return []

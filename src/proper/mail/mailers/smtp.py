@@ -33,9 +33,8 @@ def batched(iterable, n):
 class SMTPMailer(BaseMailer):
     """A wrapper that manages the SMTP network connection.
 
-    `max_recipients`: Number of maximum recipients per mesage
-        Mailshake send several messages instead of one, in order to stay inside
-        that limit.
+    max_recipients:
+        Number of maximum recipients per mesage
 
     """
 

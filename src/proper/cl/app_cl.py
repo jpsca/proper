@@ -6,7 +6,7 @@ from functools import wraps
 
 from proper_cli import Cli
 
-from proper.helpers import show_banner, show_welcome
+from proper.helpers import show_banner
 
 from .db_cl import get_db_cl
 
@@ -24,8 +24,6 @@ def get_app_cl(app: "App") -> t.Type[Cli]:
         just run `ipython` or the regular python interpreter and import
         the application, like a regular python package.
         """,
-        "_show_welcome": get_show_welcome_cmd(app),
-        "run": get_run_server_cmd(app),
         "routes": get_routes_cmd(app),
         "db": get_db_cl(app),
         "g": get_generators_cl(app),
@@ -33,37 +31,6 @@ def get_app_cl(app: "App") -> t.Type[Cli]:
     }
 
     return type("appCL", (Cli,), attrs)
-
-
-def get_show_welcome_cmd(app: "App") -> t.Callable:
-    def cmd(_self, host: str = "0.0.0.0", port: str | int = 2300):
-        """Hidden command to show the welcome msg when
-        the dev-server starts"""
-        show_welcome(host, port)
-
-    return cmd
-
-
-def get_run_server_cmd(app: "App") -> t.Callable:
-    def cmd(_self):
-        """Runs the development server with uwsgi.
-        It replaces the python process with the new one
-        using `os.execl`.
-
-        Read the uwsgi config from `uwsgi-dev.ini` file.
-        """
-        print()
-        app.dev_start()
-        config = "uwsgi-dev.ini"
-        cmd = f"{shutil.which('uwsgi')} --ini {config}"
-        print("Running", f'"{cmd}"')
-        show_banner()
-        try:
-            subprocess.check_call(cmd, shell=True, stderr=sys.stderr)
-        except Exception as err:
-            print(err)
-            sys.exit(1)
-    return cmd
 
 
 def get_routes_cmd(app: "App") -> t.Callable:
