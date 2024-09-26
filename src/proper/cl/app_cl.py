@@ -1,12 +1,7 @@
-import shutil
-import subprocess
-import sys
 import typing as t
 from functools import wraps
 
 from proper_cli import Cli
-
-from proper.helpers import show_banner
 
 from .db_cl import get_db_cl
 
@@ -89,7 +84,7 @@ def get_generators_cl(app: "App") -> t.Type[Cli]:
         "__doc__": """Generate new code.""",
     }
 
-    for name in ("resource", "view", "model"):
+    for name in ("resource", "controller", "model"):
         attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
     return type("Generators", (Cli,), attrs)

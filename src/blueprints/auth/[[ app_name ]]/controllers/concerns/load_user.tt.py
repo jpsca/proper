@@ -1,6 +1,6 @@
 from os import getenv
 
-from proper import View
+from proper import Controller
 
 from [[ app_name ]].app import config
 from [[ app_name ]].models import User
@@ -11,11 +11,11 @@ REMOTE_USER_ENV_VAR = "REMOTE_USER"
 
 
 class LoadUser:
-    def before(self, view: View):
+    def before(self, co: Controller):
         user = None
         if config.DEBUG:
             user = self._get_remote_user()
-        view.request.user = user or self._get_user(view.request.session)
+        co.request.user = user or self._get_user(co.request.session)
 
     # Private
 

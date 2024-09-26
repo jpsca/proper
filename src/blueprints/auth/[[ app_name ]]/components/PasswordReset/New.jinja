@@ -2,7 +2,7 @@
 
 <Layout.Auth title="Reset your password">
   <Form
-    action={url_for('PasswordReset.create')}
+    action={{ url_for('PasswordReset.create') }}
     class="w-full p-12 bg-white border border-gray-300 shadow-xl rounded-xl"
   >
       <div class="mb-8 text-center">
@@ -14,11 +14,11 @@
         </p>
       </div>
 
-      <FormErrors form={form} />
+      <FormErrors form={{ form }} />
 
       <div class="mb-4">
         <FormInput
-          field={form.fields.login}
+          field={{ form.fields.login }}
           aria-label="Email"
           type="email"
           class="form-input w-full text-lg py-3 rounded-t-md"

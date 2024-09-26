@@ -5,68 +5,68 @@ import pytest
 from proper import Request, Response
 from proper.concerns import SESSION_SALT, Session
 from proper.constants import FLASHES_SESSION_KEY
-from proper.view import View
+from proper.controller import Controller
 
 
 @pytest.fixture
-def view(app):
+def cp(app):
     request = Request()
     response = Response()
-    return View(app, request, response)
+    return Controller(app, request, response)
 
 
-def _set_request_cookie(app, view, value):
+def _set_request_cookie(app, co, value):
     cookie_name = app.config.SESSION_COOKIE_NAME
     cookie = Morsel()
     cookie.set(cookie_name, value, 0)
-    view.request.cookie = {cookie_name: cookie}
+    co.request.cookie = {cookie_name: cookie}
 
 
-def test_fetch_session(app, view):
+def test_fetch_session(app, co):
     mid = Session()
     data = {"hello": "world!"}
     _set_request_cookie(app, view, app.serializer.dumps(data, salt=SESSION_SALT))
     mid.before(view)
 
-    assert view.request.session == view.response.session == data
+    assert co.request.session == co.response.session == data
 
 
-def test_do_not_copy_flashes(app, view):
+def test_do_not_copy_flashes(app, co):
     mid = Session()
     data = {"hello": "world!"}
     ext_data = {FLASHES_SESSION_KEY: "...", **data}
-    _set_request_cookie(app, view, app.serializer.dumps(ext_data, salt=SESSION_SALT))
-    mid.before(view)
+    _set_request_cookie(app, co, app.serializer.dumps(ext_data, salt=SESSION_SALT))
+    mid.before(co)
 
-    assert view.request.session == ext_data
-    assert view.response.session == data
+    assert co.request.session == ext_data
+    assert co.response.session == data
 
 
-def test_fetch_session_bad_cookie(app, view):
+def test_fetch_session_bad_cookie(app, co):
     mid = Session()
-    _set_request_cookie(app, view, "bad cookie")
-    mid.before(view)
+    _set_request_cookie(app, co, "bad cookie")
+    mid.before(co)
 
-    assert view.request.session == view.response.session == {}
+    assert co.request.session == co.response.session == {}
 
 
-def test_do_not_set_cookie_if_not_data(app, view):
+def test_do_not_set_cookie_if_not_data(app, co):
     cookie_name = app.config.SESSION_COOKIE_NAME
     mid = Session()
-    view.request.session = {}
-    view.response.session = {}
+    co.request.session = {}
+    co.response.session = {}
     mid.after(view)
 
-    assert cookie_name not in view.response.cookies
+    assert cookie_name not in co.response.cookies
 
 
-def test_set_delete_cookie_if_not_data_and_modified(app, view):
+def test_set_delete_cookie_if_not_data_and_modified(app, co):
     cookie_name = app.config.SESSION_COOKIE_NAME
     mid = Session()
-    view.request.session = {"foo": "bar"}
-    view.response.session = {}
+    co.request.session = {"foo": "bar"}
+    co.response.session = {}
     mid.after(view)
 
-    assert cookie_name in view.response.cookies
-    assert view.response.cookies[cookie_name].value == ""
-    assert view.response.cookies[cookie_name]["max-age"] == 0
+    assert cookie_name in co.response.cookies
+    assert co.response.cookies[cookie_name].value == ""
+    assert co.response.cookies[cookie_name]["max-age"] == 0

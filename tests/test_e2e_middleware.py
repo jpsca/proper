@@ -1,4 +1,4 @@
-from proper import View, get
+from proper import Controller
 
 
 def _f1(headers):
@@ -12,8 +12,8 @@ def _f2(headers):
 
 
 class BeforeConcern:
-    def before(self, view):
-        response = view.response
+    def before(self, co):
+        response = co.response
         _f1(response.headers)
         _f2(response.headers)
 
@@ -22,16 +22,16 @@ class BeforeConcern:
 
 
 class AfterConcern:
-    def before(self, view):
+    def before(self, co):
         pass
 
-    def after(self, view):
-        response = view.response
+    def after(self, co):
+        response = co.response
         _f1(response.headers)
         _f2(response.headers)
 
 
-class BeforeAndAfterTestCase(View):
+class BeforeAndAfterTestCase(Controller):
     concerns = [BeforeConcern, AfterConcern]
 
     def index(self):
@@ -41,23 +41,23 @@ class BeforeAndAfterTestCase(View):
 
 
 def test_concerns(app):
-    app.routes = [get("/", to=BeforeAndAfterTestCase.index)]
+    app.router.get("/")(BeforeAndAfterTestCase.index)
     resp = app.get("/")
     expected = "-f1--f2--index--f1--f2-"
     assert resp.headers["x-test"] == expected
 
 
 class StopConcern:
-    def before(self, view):
-        response = view.response
+    def before(self, co):
+        response = co.response
         _f1(response.headers)
         return "STOP"
 
-    def after(self, view):
+    def after(self, co):
         pass
 
 
-class StopTestCase(View):
+class StopTestCase(Controller):
     concerns = [StopConcern]
 
     def index(self):
@@ -67,7 +67,7 @@ class StopTestCase(View):
 
 
 def test_stop_in_concerns(app):
-    app.routes = [get("/", to=StopTestCase.index)]
+    app.router.get("/")(StopTestCase.index)
     resp = app.get("/")
 
     assert resp.headers["x-test"] == "-f1-"

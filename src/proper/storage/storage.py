@@ -39,7 +39,7 @@ class Storage:
             pk = self.signer.unsign(signed_pk, max_age=max_age).decode()  # type: ignore
             return self.Attachment.get_or_none(pk)
         except itsdangerous.BadSignature as err:
-            if self.config.DEBUG:
+            if self.app.debug:
                 raise BadSignature from err
             return None
 

@@ -1,6 +1,6 @@
 import pytest
 
-from proper import View
+from proper import Controller
 from proper.constants import GET, POST
 from proper.errors import (
     BadRoutePlaceholder,
@@ -9,21 +9,15 @@ from proper.errors import (
     MissingRouteParameter,
     RouteNotFound,
 )
-from proper.router import (
-    Router,
-    delete,
-    get,
-    post,
-    scope,
-)
+from proper.router import Route, Router
 
 
-class Foo(View):
+class FooController(Controller):
     def bar(self):
         return "Hello World!"
 
 
-class Items(View):
+class ItemsController(Controller):
     def index(self):
         return "index"
 
@@ -36,11 +30,8 @@ class Items(View):
     def archive(self):
         return "archive"
 
-    def delete(self):
-        pass
 
-
-class Localized(View):
+class Localized(Controller):
     def index(self):
         return "Localized index"
 
@@ -51,37 +42,28 @@ class Localized(View):
 @pytest.fixture
 def router():
     router = Router()
-    router.routes = [
-        get("", to=Foo.bar, name="index"),
-        get("login", to=Foo.bar, name="login"),
+    router.get("", name="index")(FooController.bar)
+    router.get("login", name="login")(FooController.bar)
 
-        scope("/api/")(
-            get("items", to=Items.index),
-            post("/items", to=Items.create),
-            get("items/:item_id<int>", to=Items.show),
-            get(r"items/:year<\d{4}>/:month<\d{1,2}>", to=Items.archive),
-            delete("/items/:item_id<int>", to=Items.delete),
-        ),
+    router.get("foobar")(FooController.bar)
+    router.get("foobar/foo")(FooController.bar)
+    router.get("foobar/bar")(FooController.bar)
+    router.get("foobar/:catchall<path>")(FooController.bar)
+    router.get("foobar/foo", host="blog.example.com")(FooController.bar)
 
-        scope("/foobar/")(
-            get("", to=Foo.bar),
-            get("foo", to=Foo.bar),
-            get("bar", to=Foo.bar),
-        ),
+    router.get("admin")(FooController.bar)
+    router.get("admin", host="blog.example.com")(FooController.bar)
 
-        get("foobar/:catchall<path>", to=Foo.bar),
-        get("admin", to=Foo.bar),
+    router.get("api/items")(ItemsController.index)
+    router.post("api/items")(ItemsController.create)
+    router.get("api/items/:item_id<int>")(ItemsController.show)
+    router.get(r"api/items/:year<\d{4}>/:month<\d{1,2}>")(ItemsController.archive)
 
-        scope("/", host="blog.example.com")(
-            get("admin", to=Foo.bar),
-            get("foobar/foo", to=Foo.bar),
-        ),
+    router.get(":locale<en|es>")(Localized.index)
+    router.get(":locale<en|es>/:item_id<int>")(Localized.item)
 
-        scope("/:locale<en|es>/")(
-            get("", to=Localized.index),
-            get(":item_id<int>", to=Localized.item),
-        ),
-    ]
+    for route in router.routes:
+        print(route)
     return router
 
 
@@ -133,10 +115,10 @@ def test_try_with_the_next_scope(router):
 
 
 def test_match_host(router):
-    router.routes = [
-        get("meh", to=Foo.bar, name="com_host", host="example.com"),
-        get("meh", to=Foo.bar, name="org_host", host="example.org"),
-        get("meh", to=Foo.bar, name="default_host"),
+    router._routes = [
+        Route(method=GET, path="meh", to=FooController.bar, name="com_host", host="example.com"),
+        Route(method=GET, path="meh", to=FooController.bar, name="org_host", host="example.org"),
+        Route(method=GET, path="meh", to=FooController.bar, name="default_host"),
     ]
 
     ro, params = router.match(GET, "/meh")
@@ -150,9 +132,9 @@ def test_match_host(router):
 
 
 def test_route_without_host_match_any_host(router):
-    router.routes = [
-        get("a", to=Foo.bar, name="a"),
-        get("b", to=Foo.bar, name="b"),
+    router._routes = [
+        Route(method=GET, path="a", to=FooController.bar, name="a"),
+        Route(method=GET, path="b", to=FooController.bar, name="b"),
     ]
 
     ro, params = router.match(GET, "/a", "jpscaletti.com")
@@ -170,22 +152,22 @@ def test_match_scope_placeholder(router):
 
 
 def test_match_mixed_paths(router):
-    router.routes = [
-        get("books/:section<path>/:title", to=Foo.bar)
+    router._routes = [
+        Route(method=GET, path="books/:section<path>/:title", to=FooController.bar)
     ]
     _, params = router.match(GET, "/books/some/section/last-words")
     assert params["section"] == "some/section"
     assert params["title"] == "last-words"
 
-    router.routes = [
-        get(":this<path>/is/:madness<path>", to=Foo.bar)
+    router._routes = [
+        Route(method=GET, path=":this<path>/is/:madness<path>", to=FooController.bar)
     ]
     _, params = router.match(GET, "/a/b/c/d/is/e/f/g")
     assert params["this"] == "a/b/c/d"
     assert params["madness"] == "e/f/g"
 
-    router.routes = [
-        get(":super<path>/:bad<path>", to=Foo.bar)
+    router._routes = [
+        Route(method=GET, path=":super<path>/:bad<path>", to=FooController.bar)
     ]
     _, params = router.match(GET, "/a/b/c/d/e/f/g")
     assert params["super"] == "a/b/c/d/e/f"
@@ -193,10 +175,10 @@ def test_match_mixed_paths(router):
 
 
 def test_url_for(router):
-    assert router.url_for("Items.index") == "/api/items"
-    assert router.url_for("Items.create") == "/api/items"
-    assert router.url_for("Items.show", item_id=3) == "/api/items/3"
-    url = router.url_for("Items.archive", year=2018, month=5)
+    assert router.url_for("ItemsController.index") == "/api/items"
+    assert router.url_for("ItemsController.create") == "/api/items"
+    assert router.url_for("ItemsController.show", item_id=3) == "/api/items/3"
+    url = router.url_for("ItemsController.archive", year=2018, month=5)
     assert url == "/api/items/2018/5"
 
 
@@ -207,34 +189,22 @@ def test_url_for_anchor(router):
 
 def test_url_for_missing_param(router):
     with pytest.raises(MissingRouteParameter):
-        router.url_for("Items.archive", year="2018")
+        router.url_for("ItemsController.archive", year="2018")
 
 
 def test_url_for_bad_param(router):
     with pytest.raises(BadRoutePlaceholder):
-        router.url_for("Items.archive", year=18, month=-3)
+        router.url_for("ItemsController.archive", year=18, month=-3)
 
 
 def test_url_for_extra_query(router):
-    url = router.url_for("Items.index", foo="bar")
+    url = router.url_for("ItemsController.index", foo="bar")
     assert url == "/api/items?foo=bar"
 
-    url = router.url_for("Items.archive", year=2018, month=5, foo="bar")
+    url = router.url_for("ItemsController.archive", year=2018, month=5, foo="bar")
     assert url == "/api/items/2018/5?foo=bar"
 
 
 def test_url_for_not_found(router):
     with pytest.raises(RouteNotFound):
         router.url_for("wtf")
-
-
-def test_can_only_work_with_routes():
-    router = Router()
-    router._debug = True
-    router.routes = [get("foo", to=Items.index)]
-
-    with pytest.raises(AssertionError):
-        router.routes = [
-            get("foo", to=Items.index),
-            object(),
-        ]

@@ -8,11 +8,11 @@
       </h2>
     </div>
 
-    <FormErrors form={form} />
+    <FormErrors form={{ form }} />
 
     <div class="mb-1">
       <FormInput
-        field={form.fields.login}
+        field={{ form.fields.login }}
         aria-label="Email"
         type="email"
         class="form-input w-full text-lg py-3 rounded-t-md"
@@ -23,7 +23,7 @@
 
     <div>
       <FormInput
-        field={form.fields.password}
+        field={{ form.fields.password }}
         aria-label="Password"
         type="password"
         class="form-input w-full text-lg py-3 rounded-b-md"

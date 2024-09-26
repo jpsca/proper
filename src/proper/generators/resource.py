@@ -2,9 +2,12 @@ from typing import TYPE_CHECKING
 
 import inflection
 
-from ..helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
-from ..router.resource import ACTION_RESTORE, ACTIONS
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
+
 from .model import gen_model
+
+
+# from proper.router import ACTION_RESTORE, ACTIONS
 
 
 if TYPE_CHECKING:

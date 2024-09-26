@@ -25,9 +25,12 @@ def test_gen_resource_with_migration(app, scaffold):
 
 
 def _test_view(app_root):
-    products_text = (app_root / "views" / "products" / "products.py").read_text()
+    products_text = (app_root / "controllers" / "products" / "products.py").read_text()
     print(products_text)
-    assert "class Products(AppView):" in products_text
+    assert """
+    @router.resource("products")
+    class ProductsController(AppController):
+    """ in products_text
     assert "def index(self):" in products_text
     assert "def new(self):" in products_text
     assert "def create(self):" in products_text
@@ -49,16 +52,6 @@ def _test_components(app_root):
     assert (components / "New.jinja").exists()
     assert (components / "Show.jinja").exists()
     assert (components / "Edit.jinja").exists()
-
-
-def _test_routes(app_root):
-    routes_text = (app_root / "routes.py").read_text()
-    print(routes_text)
-    assert routes_text.endswith("""routes = [
-    get("", to=Pages.index),
-    resource("products", to=Products),
-]
-""")
 
 
 def test_gen_resource_singular(app, scaffold):
@@ -83,8 +76,8 @@ def test_gen_resource_singular_with_migration(app, scaffold):
 
 
 def _test_view_singular(app_root):
-    products_text = (app_root / "views" / "profile" / "profile.py").read_text()
-    assert "class Profile(AppView):" in products_text
+    products_text = (app_root / "controllers" / "profile" / "profile.py").read_text()
+    assert "class Profile(AppController):" in products_text
     assert "def index(self):" not in products_text
     assert "def new(self):" in products_text
     assert "def create(self):" in products_text
@@ -130,8 +123,8 @@ def test_gen_resource_only(app, scaffold):
 
 
 def _test_view_only(app_root):
-    text = (app_root / "views" / "persons" / "persons.py").read_text()
-    assert "class Persons(AppView):" in text
+    text = (app_root / "controllers" / "persons" / "persons.py").read_text()
+    assert "class Persons(AppController):" in text
     assert "def index(self):" not in text
     assert "def new(self):" not in text
     assert "def create(self):" in text
@@ -171,8 +164,8 @@ def test_gen_resource_exclude(app, scaffold):
 
 
 def _test_view_exclude(app_root):
-    text = (app_root / "views" / "persons" / "persons.py").read_text()
-    assert "class Persons(AppView):" in text
+    text = (app_root / "controllers" / "persons" / "persons.py").read_text()
+    assert "class Persons(AppController):" in text
     assert "def index(self):" in text
     assert "def new(self):" in text
     assert "def create(self):" in text
@@ -211,8 +204,8 @@ def test_gen_resource_restore(app, scaffold):
 
 
 def _test_view_restore(app_root):
-    text = (app_root / "views" / "persons" / "persons.py").read_text()
-    assert "class Persons(AppView):" in text
+    text = (app_root / "controllers" / "persons" / "persons.py").read_text()
+    assert "class Persons(AppController):" in text
     assert "def restore(self):" in text
 
 
@@ -237,9 +230,9 @@ def test_gen_resource_with_parent(app, scaffold):
 
 
 def _test_view_with_parent(app_root):
-    text = (app_root / "views" / "items" / "items.py").read_text()
+    text = (app_root / "controllers" / "items" / "items.py").read_text()
     print(text)
-    assert "class Items(AppView):" in text
+    assert "class Items(AppController):" in text
     assert """def before(self):
         self.load_list()""" in text
     assert "def load_list(self):" in text

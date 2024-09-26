@@ -2,7 +2,7 @@
 
 <Layout.Auth title="Change your password">
   <Form
-    action={url_for('PasswordReset.update', pk=pk)}
+    action={{ url_for('PasswordReset.update', pk=pk) }}
     method="patch"
     class="w-full p-12 bg-white border border-gray-300 shadow-xl rounded-xl"
   >
@@ -19,11 +19,11 @@
       Make sure your new password it's at least {{ password_minlen }} characters long
     </p>
 
-    <FormErrors form={form} />
+    <FormErrors form={{ form }} />
 
     <div class="mb-4">
       <FormInput
-        field={form.fields.password1}
+        field={{ form.fields.password1 }}
         aria-label="Password"
         type="password"
         class="form-input w-full text-lg py-3 rounded-b-md"
@@ -34,7 +34,7 @@
 
     <div class="mb-4">
       <FormInput
-        field={form.fields.password2}
+        field={{ form.fields.password2 }}
         aria-label="Confirm password"
         type="password"
         class="form-input w-full text-lg py-3 rounded-b-md"

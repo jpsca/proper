@@ -1,14 +1,14 @@
 from proper.status import unprocessable
 
-from ..app import AppView
-from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from .forms import PasswordResetModel, PasswordChangeModel
 from [[ app_name ]].app import config
+from [[ app_name ]].controllers.app import AppController
+from [[ app_name ]].controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
 
 
-class PasswordReset(AppView):
+class PasswordResetsController(AppController):
     def new(self):
         self.form = PasswordResetModel.as_form()
         return self.render("PasswordReset.New")

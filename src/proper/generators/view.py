@@ -15,7 +15,7 @@ COMPONENT_TT = "component.jinja"
 ROUTES_TT = "routes.tt.py"
 
 
-def gen_view(app: "App", name: str, *actions: str) -> None:
+def gen_controller(app: "App", name: str, *actions: str) -> None:
     """Stubs out a new view and its components.
 
         proper g view NAME [action ...]

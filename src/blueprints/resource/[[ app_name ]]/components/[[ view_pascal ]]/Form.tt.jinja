@@ -1,15 +1,15 @@
 {#def form, action='', method='post' #}
 
 <Form
-  method={method}
-  action={action}
+  method={{ method }}
+  action={{ action }}
 >
-  <FormErrors form={form} />
+  <FormErrors form={{ form }} />
 
   [% for f in form_fields -%]
   <div class="my-5">
     <FormInput
-      field={form.fields.[[ f.name ]]}
+      field={{ form.fields.[[ f.name ]] }}
       label="[[ f.name|title ]]"
       type="text"
       placeholder=""

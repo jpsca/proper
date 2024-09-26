@@ -4,7 +4,7 @@ from inspect import isclass
 from pathlib import Path
 from pkgutil import iter_modules
 
-from proper import View
+from proper import Controller
 
 
 classes = {}

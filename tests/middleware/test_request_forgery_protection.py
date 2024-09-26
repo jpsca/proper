@@ -9,12 +9,12 @@ from proper.concerns import (
     RequestForgeryProtection,
 )
 from proper.constants import DELETE, GET, PATCH, POST, PUT
+from proper.controller import Controller
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
-from proper.view import View
 
 
-class AppView(View):
+class AppController(Controller):
     def action(self):
         return "STOP"
 
@@ -26,7 +26,7 @@ class AppView(View):
 def co(app):
     request = Request()
     response = Response()
-    return AppView(app, request, response)
+    return AppController(app, request, response)
 
 
 def test_no_need_to_argue(co):

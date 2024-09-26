@@ -1,16 +1,15 @@
 import typing as t
 
+from proper import Controller
 from proper.helpers import import_string
 
 
 if t.TYPE_CHECKING:
-    from proper import Request, Response
-    from proper import View as BaseView
-
-    from ..app import App
+    from proper import App, Request, Response
 
 
 __all__ = ("dispatch",)
+TController = t.Type[Controller]
 
 
 def dispatch(app: "App", request: "Request", response: "Response") -> "Response | None":
@@ -20,9 +19,9 @@ def dispatch(app: "App", request: "Request", response: "Response") -> "Response 
     cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
     request.matched_action = action_name
     module = import_string(route.to.__module__)
-    View: t.Type[BaseView] = getattr(module, cls_name)
+    Controller: TController = getattr(module, cls_name)
 
     # We instantiate the view class so we can have an independent
     # container for this request.
-    view = View(app, request, response)
-    view._dispatch(action_name)
+    co = Controller(app, request, response)
+    co._dispatch(action_name)

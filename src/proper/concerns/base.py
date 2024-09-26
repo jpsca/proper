@@ -2,13 +2,13 @@ import typing as t
 
 
 if t.TYPE_CHECKING:
-    from proper.view import View
+    from proper.controller import Controller
 
 
 class Concern:
-    def before(self, view: "View") -> t.Any:
+    def before(self, co: "Controller") -> t.Any:
         pass
 
-    def after(self, view: "View") -> t.Any:
+    def after(self, co: "Controller") -> t.Any:
         pass
 

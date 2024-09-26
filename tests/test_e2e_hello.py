@@ -1,11 +1,11 @@
 import pytest
 
-from proper import App, View, get, status
+from proper import App, Controller, status
 from proper.concerns import RequestForgeryProtection, Session
 from proper.errors import BadSecretKey
 
 
-class Pages(View):
+class Pages(Controller):
     concerns = [RequestForgeryProtection, Session]
 
     def index(self):
@@ -19,7 +19,7 @@ class Pages(View):
 
 
 def test_hello_world(app):
-    app.routes = [get("/", to=Pages.index)]
+    app.router.get("/")(Pages.index)
     resp = app.get("/")
 
     assert resp.status == status.ok
@@ -29,7 +29,7 @@ def test_hello_world(app):
 
 
 def test_charset(app):
-    app.routes = [get("/charset", to=Pages.charset)]
+    app.router.get("/charset")(Pages.charset)
     resp = app.get("/charset")
     assert resp.content_type == "text/plain; charset=latin-1"
 
@@ -44,7 +44,7 @@ def test_secret_key_too_short(import_name):
 
 
 def test_head(app):
-    app.routes = [get("/", to=Pages.index)]
+    app.router.get("/")(Pages.index)
     resp = app.head("/")
 
     assert resp.status == status.ok

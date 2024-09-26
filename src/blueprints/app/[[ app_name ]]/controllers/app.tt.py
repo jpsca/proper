@@ -1,4 +1,4 @@
-from proper import View
+from proper import Controller
 from proper.concerns import Session
 
 from .concerns.db_connection import DBConnection

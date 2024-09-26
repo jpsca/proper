@@ -1,11 +1,9 @@
 import hashlib
-import inspect
 import string
 import typing as t
 from importlib import import_module
 from pathlib import Path
 
-import inflection
 import jinjax
 from itsdangerous import (
     TimestampSigner,
@@ -21,14 +19,12 @@ from proper.helpers import DotDict, current, jsonplus
 from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
-from proper.router import Route, Router, get
+from proper.router import Route, Router
 from proper.storage import Storage
 from proper.types import (
     TBody,
     TEventHandler,
     TEventHandlers,
-    TException,
-    THandler,
     TStartResponse,
     TWSGIEnvironment,
 )
@@ -76,11 +72,6 @@ class App(AppTest):
     # A lists of functions that are called when the development server starts,
     _on_dev_start: TEventHandlers = ()
 
-    # A dict of functions to call when an HTTPError is raised.
-    # The keys are any subclasses of Exception, but, not necessarily
-    # subclasses of HTTPError.
-    error_handlers: dict[TException, t.Any] = {}
-
     CL: "t.Type[Cli]"
     db: t.Any
     cache: t.Any
@@ -91,15 +82,15 @@ class App(AppTest):
         *,
         config: dict | None = None
     ) -> None:
-        self.error_handlers = {}
+        self._debug = False
         self._on_error = ()
         self._on_teardown = ()
 
         self._wrapped_wsgi = self.wsgi_app
 
         self._setup_paths(import_name)
-        self._setup_config(config or {})
         self._setup_router()
+        self._setup_config(config or {})
         self._setup_serializer()
         self._setup_render()
         self._setup_cli()
@@ -121,10 +112,6 @@ class App(AppTest):
     def routes(self) -> list[Route]:
         return self.router._routes
 
-    @routes.setter
-    def routes(self, values: list[Route]) -> None:
-        self.router.routes = values
-
     @property
     def components_path(self) -> Path:
         return self.root_path / self.config.COMPONENTS_FOLDER
@@ -136,6 +123,15 @@ class App(AppTest):
     @property
     def locales_path(self) -> Path:
         return self.root_path.parent / self.config.LOCALES_FOLDER
+
+    @property
+    def debug(self) -> bool:
+        return self._debug
+
+    @debug.setter
+    def debug(self, value: bool) -> None:
+        self._debug = value
+        self.router.debug = value
 
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
@@ -216,27 +212,6 @@ class App(AppTest):
             for func in self._on_teardown:
                 func()
 
-    def error_handler(self, cls: TException, to: THandler) -> None:
-        """Register a view method to handle errors by exception class.
-        If debug=True, it also adds a route to preview that page.
-
-        Example:
-
-        ```python
-        app.error_handler(errors.NotFound, Pages.not_found)
-        app.error_handler(Exception, Pages.error)
-        ```
-        """
-        is_exception = inspect.isclass(cls) and issubclass(cls, BaseException)
-        assert is_exception, "`error_handler` takes a subclass of `Exception` as first argument."
-        self.error_handlers[cls] = to
-
-        if self.config.DEBUG:
-            qualname = getattr(cls, "__qualname__", "Exception")
-            self.router.routes.append(
-                get(f"_{inflection.underscore(qualname)}", to=to)
-            )
-
     def url_for(
         self,
         name: str,
@@ -309,12 +284,16 @@ class App(AppTest):
         self.name = self.root_path.stem
         self.config_path = self.root_path / "config"
 
+    def _setup_router(self) -> None:
+        self.router = Router()
+
     def _setup_config(self, _config: dict) -> None:
         self.env = get_env()
         config = self._load_config()
         config.update(_config)
         self._validate_secret_keys(config.SECRET_KEYS)
         self.config = config
+        self.debug = config.DEBUG
 
     def _load_config(self) -> DotDict:
         config = get_default_config()
@@ -343,10 +322,6 @@ class App(AppTest):
                     "and all random, no regular words or you'll be exposed to "
                     "dictionary attacks."
                 )
-
-    def _setup_router(self) -> None:
-        self.router = Router()
-        self.router._debug = self.config.DEBUG
 
     def _setup_serializer(self) -> None:
         self.serializer = self.get_serializer("proper.session")
@@ -423,14 +398,15 @@ class App(AppTest):
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
-        if self.config.DEBUG:
+        if self.debug:
             self._default_error_handler(request, response)
             return
 
-        if self.error_handlers:
+        error_handlers = self.router.error_handlers
+        if error_handlers:
             error = response.error
-            for cls, handler in self.error_handlers.items():
-                if isinstance(error, cls):
+            for error_cls, handler in error_handlers.items():
+                if isinstance(error, error_cls):
                     self._custom_error_handler(handler, request, response)
                     return
 
@@ -439,9 +415,9 @@ class App(AppTest):
     def _default_error_handler(self, request, response) -> None:
         response.status = getattr(response.error, "status", status.server_error)
 
-        if not self.config.DEBUG and not self.config.CATCH_ALL_ERRORS:
+        if not self.debug and not self.config.CATCH_ALL_ERRORS:
             raise
-        if self.config.DEBUG:
+        if self.debug:
             self._default_error_handler_debug(request, response)
         else:
             self._default_error_handler_production(response)

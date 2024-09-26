@@ -1,23 +1,18 @@
-from proper import (
-    DotDict,
-    View,
-    get,
-    status,
-)
+from proper import Controller, DotDict, status
 from proper.concerns import Session
 
 
 # -- ETAG --
 
 
-class ETagged(View):
+class ETaggedController(Controller):
     def index(self):
         self.response.fresh_when(etag=123)
         return "Hello world"
 
 
 def test_if_none_match(app):
-    app.routes = [get("/", to=ETagged.index)]
+    app.router.get("/")(ETaggedController.index)
 
     resp = app.get("/")
     assert resp.status == status.ok
@@ -32,7 +27,7 @@ def test_if_none_match(app):
 # -- SESSION --
 
 
-class Session(View):
+class SessionController(Controller):
     concerns = [Session]
 
     def update(self):
@@ -40,7 +35,7 @@ class Session(View):
 
 
 def test_set_session(app):
-    app.router.routes = [get("/session", to=Session.update)]
+    app.router.get("/session")(SessionController.update)
     resp = app.get("/session")
     print(resp.headers)
     assert "set-cookie" in resp.headers
@@ -50,7 +45,7 @@ def test_set_session(app):
 # -- COOKIE --
 
 
-class DisableCookies(View):
+class DisableCookiesController(Controller):
     def index(self):
         self.response.set_cookie("foo", "bar")
         self.response.disable_cookies = True
@@ -58,7 +53,7 @@ class DisableCookies(View):
 
 
 def test_disable_cookies(app):
-    app.router.routes = [get("/", to=DisableCookies.index)]
+    app.router.get("/")(DisableCookiesController.index)
     resp = app.get("/")
     assert "set-cookie" not in resp.headers
 
@@ -66,7 +61,7 @@ def test_disable_cookies(app):
 # -- REDIRECT --
 
 
-class Redirect(View):
+class RedirectController(Controller):
     def show(self, *kwargs):
         pass
 
@@ -77,21 +72,19 @@ class Redirect(View):
         self.response.redirect_to("/local/url")
 
     def verbose(self):
-        self.response.redirect_to("Redirect.show", id=1, slug="something")
+        self.response.redirect_to("RedirectController.show", id=1, slug="something")
 
     def compact(self):
         post = DotDict({"id": 1, "slug": "something"})
-        self.response.redirect_to("Redirect.show", post)
+        self.response.redirect_to("RedirectController.show", post)
 
 
 def test_redirect_to(app):
-    app.routes = [
-        get("/posts/:id<int>/:slug", to=Redirect.show, name="Redirect.show"),
-        get("/external", to=Redirect.external),
-        get("/local", to=Redirect.local),
-        get("/verbose", to=Redirect.verbose),
-        get("/compact", to=Redirect.compact),
-    ]
+    app.router.get("/posts/:id<int>/:slug")(RedirectController.show)
+    app.router.get("/external")(RedirectController.external)
+    app.router.get("/local")(RedirectController.local)
+    app.router.get("/verbose")(RedirectController.verbose)
+    app.router.get("/compact")(RedirectController.compact)
 
     resp = app.get("/external")
     assert resp.status == status.see_other

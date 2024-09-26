@@ -7,25 +7,27 @@ import typing as t
 from inspect import isclass
 from pathlib import Path
 
-from .core import App
 from .errors import NotFound
 from .helpers import MultiDict, jsonplus
-from .request import Request
-from .response import Response
 from .status import not_modified
 
 
-__all__ = ("View",)
+if t.TYPE_CHECKING:
+    from .core import App
+    from .request import Request
+    from .response import Response
+
+__all__ = ("Controller",)
 
 
-class View:
+class Controller:
     concerns: t.Sequence[t.Any]
 
     def __init__(
         self,
-        app: App,
-        request: Request,
-        response: Response,
+        app: "App",
+        request: "Request",
+        response: "Response",
     ) -> None:
         self.app = app
         self.request = request
@@ -81,7 +83,7 @@ class View:
 
     # Private
 
-    def _dispatch(self, action_name: str) -> Response | None:
+    def _dispatch(self, action_name: str) -> "Response | None":
         for m in [*self.concerns, self]:
             early_response = None
             before = getattr(m, "before", None)
@@ -119,7 +121,7 @@ class View:
 RX_FINGERPRINT = re.compile("(.*)-([abcdef0-9]{64})")
 
 
-class StaticFiles(View):
+class StaticFilesController(Controller):
     def show(self):
         root: Path = self.defaults["root"]
         public: bool = self.defaults["public"]

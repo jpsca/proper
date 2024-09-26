@@ -23,7 +23,7 @@ DEPENDENCIES = [
 ]
 
 SORT_IMPORTS_IN = [
-    "views/app.py",
+    "controllers/app.py",
     "config/app.py",
     "cl/__init__.py",
 ]

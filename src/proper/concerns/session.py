@@ -7,10 +7,10 @@ from proper.helpers import DotDict
 
 
 if t.TYPE_CHECKING:
+    from proper.controller import Controller
     from proper.core import App
     from proper.request import Request
     from proper.response import Response
-    from proper.view import View
 
 
 __all__ = ("Session", "SESSION_SALT")
@@ -20,23 +20,23 @@ SESSION_SALT = "session"
 
 
 class Session:
-    def before(self, view: "View") -> None:
+    def before(self, co: "Controller") -> None:
         """Get the session data from the cookie and puts into the request
         and response.
         """
-        app = view.app
-        request = view.request
-        response = view.response
+        app = co.app
+        request = co.request
+        response = co.response
         session = self._get_session(app, request)
         request.session = session
         response.session = session.copy()
         response.session.pop(FLASHES_SESSION_KEY, None)
 
-    def after(self, view: "View") -> None:
+    def after(self, co: "Controller") -> None:
         """Update the session cookie if its needed."""
-        app = view.app
-        request = view.request
-        response = view.response
+        app = co.app
+        request = co.request
+        response = co.response
         if response.session != request.session:
             self._update_session_cookie(app, response)
 
