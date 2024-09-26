@@ -163,23 +163,3 @@ def test_error_when_rendering_the_error_page(app):
     assert "<title>Error" in resp.body
 
     error_handlers.jinja_render = original
-
-
-def test_register_a_test_error_route_if_in_debug(app):
-    app.debug = True
-    app.router.get("fail/value_error")(Pages.fail_value_error),
-    app.router.error(ValueError)(Pages.custom_value_error_handler)
-
-    last_route = app.router.routes[-1]
-    assert last_route.path == "/_value_error"
-    assert last_route.to == Pages.custom_value_error_handler
-
-
-def test_do_not_register_a_test_error_route_if_not_in_debug(app):
-    app.config["DEBUG"] = False
-    app.router.get("fail/value_error")(Pages.fail_value_error)
-    app.router.error(ValueError)(Pages.custom_value_error_handler)
-
-    last_route = app.router.routes[-1]
-    assert last_route.path != "_value_error"
-    assert last_route.to != Pages.custom_value_error_handler

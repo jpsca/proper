@@ -2,10 +2,7 @@
 """
 import inspect
 import typing as t
-from functools import wraps
 from pathlib import Path
-
-import inflection
 
 from proper import status
 from proper.controller import Controller
@@ -916,11 +913,7 @@ class BaseRouter:
         def _decorator(to) -> t.Callable:
             route.to = to
             self.add_route(route)
-
-            @wraps(to)
-            def _impl(self, *args, **kwargs):
-                return to(self, *args, **kwargs)
-            return _impl
+            return to
 
         return _decorator
 
@@ -937,11 +930,7 @@ class Router(BaseRouter):
     def add_error_handler(self, error_cls: TException, to: THandler) -> None:
         is_exception = inspect.isclass(error_cls) and issubclass(error_cls, BaseException)
         assert is_exception, "`error_cls` must a subclass of `Exception`"
-
         self.error_handlers[error_cls] = to
-        if self.debug:
-            qualname = getattr(error_cls, "__qualname__", "Exception")
-            self.get(f"_{inflection.underscore(qualname)}")(to)
 
     def error(self, error_cls: TException) -> None:
         """Decorator to register a controller method to handle errors by exception class.
@@ -960,11 +949,7 @@ class Router(BaseRouter):
         """
         def _decorator(to) -> t.Callable:
             self.add_error_handler(error_cls, to)
-
-            @wraps(to)
-            def _impl(self, *args, **kwargs):
-                return to(self, *args, **kwargs)
-            return _impl
+            return to
 
         return _decorator
 

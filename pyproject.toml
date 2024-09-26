@@ -65,6 +65,10 @@ poyo = "*"
 smtpdfix = "*"
 
 
+
+[tool.poetry.group.test.dependencies]
+pytest-smtpd = "^0.1.0"
+
 [tool.poetry.scripts]
 proper = "proper.cl:run"
 

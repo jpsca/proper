@@ -9,7 +9,7 @@ from proper.controller import Controller
 
 
 @pytest.fixture
-def cp(app):
+def co(app):
     request = Request()
     response = Response()
     return Controller(app, request, response)
@@ -25,8 +25,8 @@ def _set_request_cookie(app, co, value):
 def test_fetch_session(app, co):
     mid = Session()
     data = {"hello": "world!"}
-    _set_request_cookie(app, view, app.serializer.dumps(data, salt=SESSION_SALT))
-    mid.before(view)
+    _set_request_cookie(app, co, app.serializer.dumps(data, salt=SESSION_SALT))
+    mid.before(co)
 
     assert co.request.session == co.response.session == data
 
@@ -55,7 +55,7 @@ def test_do_not_set_cookie_if_not_data(app, co):
     mid = Session()
     co.request.session = {}
     co.response.session = {}
-    mid.after(view)
+    mid.after(co)
 
     assert cookie_name not in co.response.cookies
 
@@ -65,7 +65,7 @@ def test_set_delete_cookie_if_not_data_and_modified(app, co):
     mid = Session()
     co.request.session = {"foo": "bar"}
     co.response.session = {}
-    mid.after(view)
+    mid.after(co)
 
     assert cookie_name in co.response.cookies
     assert co.response.cookies[cookie_name].value == ""

@@ -1,0 +1,12 @@
+{#def form #}
+
+<Layout.App
+	title="New [[ singular_snake ]]"
+>
+	<[[ singular_pascal ]].Form
+		action={{ url_for('[[ plural_pascal ]].create') }}
+		form={{ form }}
+	>
+		<button type="submit">Create [[ singular_snake ]]</button>
+	</[[ singular_pascal ]].Form>
+</Layout.App>

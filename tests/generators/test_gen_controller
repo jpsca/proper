@@ -1,0 +1,99 @@
+from unittest.mock import Mock
+
+from proper.generators import controller as module
+
+
+def test_gen_controller(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_controller(app, "Products")
+
+    _test_controller(app_root)
+    _test_model(app_root)
+    _test_components(app_root)
+    module.call.assert_not_called()
+
+
+def test_gen_controller_with_migration(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_controller(app, "Products", migration=True)
+    module.call.assert_called_once_with('proper db create "products"')
+
+
+def _test_controller(app_root):
+    products_text = (app_root / "controllers" / "products.py").read_text()
+    print(products_text)
+    assert """
+    @router.controller("products")
+    class ProductsController(AppController):
+    """ in products_text
+    assert "def index(self):" in products_text
+    assert "def new(self):" in products_text
+    assert "def create(self):" in products_text
+    assert "def show(self):" in products_text
+    assert "def edit(self):" in products_text
+    assert "def update(self):" in products_text
+    assert "def delete(self):" in products_text
+
+
+def _test_model(app_root):
+    model_text = (app_root / "models" / "product.py").read_text()
+    assert "class Product(BaseModel):" in model_text
+
+
+def _test_components(app_root):
+    components = app_root / "components" / "Products"
+    assert components.is_dir()
+    assert (components / "Index.jinja").exists()
+    assert (components / "New.jinja").exists()
+    assert (components / "Show.jinja").exists()
+    assert (components / "Edit.jinja").exists()
+
+
+def test_gen_controller_singular(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_controller(app, "Profile", singular=True)
+
+    _test_controller_singular(app_root)
+    _test_model_singular(app_root)
+    _test_components_singular(app_root)
+    module.call.assert_not_called()
+
+
+def test_gen_controller_singular_with_migration(app, scaffold):
+    app_root = scaffold
+    app.root_path = app_root
+    module.call = Mock()
+    module.gen_controller(app, "Profile", singular=True, migration=True)
+    module.call.assert_called_once_with('proper db create "profile"')
+
+
+def _test_controller_singular(app_root):
+    products_text = (app_root / "controllers" / "profile" / "profile.py").read_text()
+    assert "class Profile(AppController):" in products_text
+    assert "def index(self):" not in products_text
+    assert "def new(self):" in products_text
+    assert "def create(self):" in products_text
+    assert "def show(self):" in products_text
+    assert "def edit(self):" in products_text
+    assert "def update(self):" in products_text
+    assert "def delete(self):" in products_text
+
+
+def _test_model_singular(app_root):
+    model_text = (app_root / "models" / "profile.py").read_text()
+    assert "class Profile(BaseModel):" in model_text
+
+
+def _test_components_singular(app_root):
+    components = app_root / "components" / "Profile"
+    assert components.is_dir()
+    assert not (components / "Index.jinja").exists()
+    assert (components / "New.jinja").exists()
+    assert (components / "Show.jinja").exists()
+    assert (components / "Edit.jinja").exists()
