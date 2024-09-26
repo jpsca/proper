@@ -1,6 +1,6 @@
 
 
-class PrivateView(AppView):
+class PrivateView(AppController):
     """User-only views can inherit from this one.
     """
     concerns = [

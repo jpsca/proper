@@ -1,7 +1,8 @@
 import typing as t
 
 from fodantic import formable
-from pydantic import BaseModel, BeforeValidator, SecretStr, model_validator
+from pydantic import BaseModel as Schema
+from pydantic import BeforeValidator, SecretStr, model_validator
 
 from .validators import (
     login_exists,
@@ -12,12 +13,12 @@ from .validators import (
 
 
 @formable
-class PasswordResetModel(BaseModel):
+class PasswordResetSchema(Schema):
     login: t.Annotated[str, BeforeValidator(login_exists)]
 
 
 @formable
-class PasswordChangeModel(BaseModel):
+class PasswordChangeSchema(Schema):
     password1: t.Annotated[
         SecretStr,
         BeforeValidator(password_is_long_enough),

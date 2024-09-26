@@ -1,10 +1,11 @@
 import typing as t
 
 from fodantic import formable
-from pydantic import BaseModel, BeforeValidator, SecretStr, model_validator
+from pydantic import BaseModel as Schema
+from pydantic import BeforeValidator, SecretStr, model_validator
 from pydantic_core import PydanticCustomError
 
-from ..password.validators import login_exists  # (A)
+from [[ app_name ]].controllers.password_resets import login_exists  # (A)
 from [[ app_name ]].models import User
 
 
@@ -13,7 +14,7 @@ from [[ app_name ]].models import User
 # comment the (A) lines and un-comment the (B) lines
 
 @formable
-class SignInModel(BaseModel):
+class SignInSchema(Schema):
     login: t.Annotated[str, BeforeValidator(login_exists)]  # (A)
     # login: str  # (B)
     password: SecretStr

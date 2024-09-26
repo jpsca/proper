@@ -1,20 +1,22 @@
 from proper.status import unprocessable
 
-from .forms import PasswordResetModel, PasswordChangeModel
 from [[ app_name ]].app import config
 from [[ app_name ]].controllers.app import AppController
 from [[ app_name ]].controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
+from [[ app_name ]].forms.password_resets import PasswordChangeSchema, PasswordResetSchema
 from [[ app_name ]].mailers import send_password_reset_email
 from [[ app_name ]].models import User
+from [[ app_name ]].router import auth_router
 
 
+@auth_router.resource("password-resets")
 class PasswordResetsController(AppController):
     def new(self):
-        self.form = PasswordResetModel.as_form()
+        self.form = PasswordResetSchema.as_form()
         return self.render("PasswordReset.New")
 
     def create(self):
-        self.form = PasswordResetModel.as_form(self.params)
+        self.form = PasswordResetSchema.as_form(self.params)
         if self.form.is_invalid:
             return self.render("PasswordReset.New", status=unprocessable)
 
@@ -31,7 +33,7 @@ class PasswordResetsController(AppController):
             return self.render("PasswordReset.Invalid", status=unprocessable)
 
         self.login = user.login
-        self.form = PasswordChangeModel.as_form()
+        self.form = PasswordChangeSchema.as_form()
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
         return self.render("PasswordReset.Edit")
 
@@ -41,7 +43,7 @@ class PasswordResetsController(AppController):
         if not user:
             return self.render("PasswordReset.Invalid", status=unprocessable)
 
-        self.form = PasswordChangeModel.as_form(self.params)
+        self.form = PasswordChangeSchema.as_form(self.params)
         if self.form.is_invalid:
             self.login = user.login
             self.password_minlen = config.AUTH_PASSWORD_MINLEN

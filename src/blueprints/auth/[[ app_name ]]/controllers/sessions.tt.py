@@ -1,18 +1,21 @@
-from ..app import AppView
-from ..concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from .forms import SignInModel
+from [[ app_name ]].controllers.app import AppController
+from [[ app_name ]].controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
+from [[ app_name ]].forms.sessions import SignInSchema
 from [[ app_name ]].models import User
+from [[ app_name ]].router import auth_router
 
 
-class Session(AppView):
+class SessionsController(AppController):
+    @auth_router.get("sign-in")
     def new(self):
         if self.request.user:
             return self._go_forward()
-        self.form = SignInModel.as_form()
+        self.form = SignInSchema.as_form()
         return self.render("Session.New")
 
+    @auth_router.post("sign-in")
     def create(self):
-        self.form = form = SignInModel.as_form(self.params)
+        self.form = form = SignInSchema.as_form(self.params)
         if form.is_invalid:
             return self.render("Session.New")
 
@@ -21,8 +24,8 @@ class Session(AppView):
         user.sign_in()
         return self._go_forward(flash="Welcome back!")
 
+    @auth_router.delete("sign-out")
     def delete(self):
-        msg = ""
         if self.request.user:
             self.request.user.sign_out()
 
@@ -31,5 +34,5 @@ class Session(AppView):
     # Private
 
     def _go_forward(self, flash=None):
-        next_url = self.response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
+        next_url = self.response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/c"
         self.response.redirect_to(next_url, flash=flash)
