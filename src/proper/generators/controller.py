@@ -32,7 +32,7 @@ FORM_FIELDS = {
 }
 
 
-def gen_resource(
+def gen_controller(
     app: "App",
     name: str,
     *attrs: str,
@@ -43,7 +43,7 @@ def gen_resource(
     exclude: str = "",
     migration: bool = False,
 ) -> None:
-    """Stubs out a new resource including a view, model, migration, components
+    """Stubs out a new controller including a view, model, migration, views
     and a route in the `routes.py` file.
 
     Use `--migration` to also generate a migration for creating the table.
@@ -143,10 +143,10 @@ def gen_resource(
         actions.add(ACTION_RESTORE)
 
     ignored_actions = set(ACTIONS).difference(actions)
-    ignored_components = []
+    ignored_views = []
     for action in ignored_actions:
         action_pascal = inflection.camelize(action)
-        ignored_components.append(
+        ignored_views.append(
             f"*{action_pascal}.tt.jinja",
         )
 
@@ -214,7 +214,7 @@ def gen_resource(
         RESOURCE_BLUEPRINT,
         app.root_path.parent,
         context=context,
-        ignore=[ROUTES_TT] + ignored_components,
+        ignore=[ROUTES_TT] + ignored_views,
     )
     bp()
 

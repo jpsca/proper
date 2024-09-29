@@ -73,7 +73,7 @@ class Route:
 
     - name:
         Optional. Overwrites the default name of the route that is the qualified
-        name of the `to` method. eg: `PagesController.show`.
+        name of the `to` method. eg: `Pages.show`.
         This name can be any unique string eg: "login", "index",
         "something.foobar", etc.
 
@@ -149,7 +149,8 @@ class Route:
     def to(self, value: THandler | None):
         self._to = value
         if not self.name and value and callable(value):
-            self.name = value.__qualname__
+            cls, method = value.__qualname__.rsplit(".")
+            self.name = f"{cls.removesuffix("Controller")}.{method}"
 
     def __repr__(self) -> str:
         return (

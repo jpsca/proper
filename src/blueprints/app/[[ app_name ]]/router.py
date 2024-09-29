@@ -8,8 +8,8 @@ router = app.router
 # the controllers are imported
 router.static(app.config.STATIC_URL, root=app.static_path, name="static")
 router.static(
-    app.config.COMPONENTS_URL,
-    root=app.components_path,
+    app.config.VIEWS_ASSETS_URL,
+    root=app.views_path,
     allowed_ext=(".css", ".js", ".png", ".jpg"),
 )
 router.get("favicon.ico", redirect="/static/favicon.ico"),

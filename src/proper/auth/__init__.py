@@ -1,2 +1,1 @@
-from .auth import *  # noqa
-from .install import install  # noqa
+from .install import install

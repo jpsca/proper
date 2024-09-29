@@ -37,9 +37,6 @@ def get_default_config():
     # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
     config.MAX_QUERY_SIZE = 2**20  # 1 MB
 
-    config.COMPONENTS_FOLDER = "components"
-    config.COMPONENTS_URL = "/components/"
-
     config.SESSION_LIFETIME = timedelta(days=30).total_seconds()
 
     config.SESSION_COOKIE_NAME = "_session"
@@ -54,6 +51,8 @@ def get_default_config():
 
     config.STATIC_FOLDER = "static"
     config.STATIC_URL = "/static/"
+    config.VIEWS_ASSETS_URL = "/static/v/"
+
     # The name of the header to use to return a file
     # so the proxy or web-server does it instead of our application.
     # Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"

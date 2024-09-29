@@ -11,7 +11,7 @@ def test_gen_app(tmp_path):
     assert (root / name / "controllers").is_dir()
     assert (root / name / "forms").is_dir()
     assert (root / name / "models").is_dir()
-    assert (root / name / "components").is_dir()
+    assert (root / name / "views").is_dir()
 
     assert (root / name / "app.py").exists()
     assert (root / name / "router.py").exists()
@@ -27,7 +27,7 @@ def test_gen_app_custom(tmp_path):
     assert (root / name / "controllers").is_dir()
     assert (root / name / "forms").is_dir()
     assert (root / name / "models").is_dir()
-    assert (root / name / "components").is_dir()
+    assert (root / name / "views").is_dir()
 
     assert (root / name / "app.py").exists()
     assert (root / name / "router.py").exists()

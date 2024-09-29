@@ -1,5 +1,5 @@
 @tailwind base;
-@tailwind components;
+@tailwind views;
 @tailwind utilities;
 
 a.link, button.link {

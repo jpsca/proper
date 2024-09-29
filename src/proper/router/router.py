@@ -217,7 +217,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -295,7 +295,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -371,7 +371,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -434,7 +434,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -497,7 +497,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -560,7 +560,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -629,7 +629,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -700,7 +700,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method. eg: `PagesController.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -844,7 +844,7 @@ class BaseRouter:
         valid_routes = SINGLE_ROUTES if singular else GROUP_ROUTES
 
         def class_decorator(Controller: t.Type[Controller]) -> t.Type[Controller]:
-            c_name = Controller.__name__
+            c_name = Controller.__name__.removesuffix("Controller")
 
             for http_method, action_path, action in valid_routes:
                 method = getattr(Controller, action, None)
@@ -864,7 +864,7 @@ class BaseRouter:
 
         return class_decorator
 
-    def scope(self, prefix: str, *, host: str | None = None) -> "ScopedRouter":
+    def scope(self, prefix: str = "", *, host: str | None = None) -> "ScopedRouter":
         r"""
         Creates another router that set a prefix and a host to its routes.
 
@@ -1024,7 +1024,7 @@ class ScopedRouter(BaseRouter):
             route.host = self.host
         self._parent.add_route(route)
 
-    def scope(self, prefix: str, *, host: str | None = None) -> "ScopedRouter":
+    def scope(self, prefix: str = "", *, host: str | None = None) -> "ScopedRouter":
         r"""
         Creates another router that set a prefix and a host to its routes.
         The prefix is appended to the current prefix.

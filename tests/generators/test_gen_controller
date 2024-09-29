@@ -11,7 +11,7 @@ def test_gen_controller(app, scaffold):
 
     _test_controller(app_root)
     _test_model(app_root)
-    _test_components(app_root)
+    _test_views(app_root)
     module.call.assert_not_called()
 
 
@@ -44,13 +44,13 @@ def _test_model(app_root):
     assert "class Product(BaseModel):" in model_text
 
 
-def _test_components(app_root):
-    components = app_root / "components" / "Products"
-    assert components.is_dir()
-    assert (components / "Index.jinja").exists()
-    assert (components / "New.jinja").exists()
-    assert (components / "Show.jinja").exists()
-    assert (components / "Edit.jinja").exists()
+def _test_views(app_root):
+    views = app_root / "views" / "Products"
+    assert views.is_dir()
+    assert (views / "Index.jinja").exists()
+    assert (views / "New.jinja").exists()
+    assert (views / "Show.jinja").exists()
+    assert (views / "Edit.jinja").exists()
 
 
 def test_gen_controller_singular(app, scaffold):
@@ -61,7 +61,7 @@ def test_gen_controller_singular(app, scaffold):
 
     _test_controller_singular(app_root)
     _test_model_singular(app_root)
-    _test_components_singular(app_root)
+    _test_views_singular(app_root)
     module.call.assert_not_called()
 
 
@@ -90,10 +90,10 @@ def _test_model_singular(app_root):
     assert "class Profile(BaseModel):" in model_text
 
 
-def _test_components_singular(app_root):
-    components = app_root / "components" / "Profile"
-    assert components.is_dir()
-    assert not (components / "Index.jinja").exists()
-    assert (components / "New.jinja").exists()
-    assert (components / "Show.jinja").exists()
-    assert (components / "Edit.jinja").exists()
+def _test_views_singular(app_root):
+    views = app_root / "views" / "Profile"
+    assert views.is_dir()
+    assert not (views / "Index.jinja").exists()
+    assert (views / "New.jinja").exists()
+    assert (views / "Show.jinja").exists()
+    assert (views / "Edit.jinja").exists()

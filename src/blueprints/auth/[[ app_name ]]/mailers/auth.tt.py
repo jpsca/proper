@@ -1,4 +1,4 @@
-from ..app import app, auth, config
+from [[ app_name ]].app import app, auth, config
 from .mailer import send_email
 
 
@@ -14,8 +14,8 @@ def render_password_reset_email(user):
     reset_url = app.url_for("PasswordResets.new")
     return app.catalog.render(
         "Emails.PasswordResets",
-        validate_url=f"{config.HOST}{validate_url}",
-        reset_url=f"{config.HOST}{reset_url}",
+        validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
+        reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
     )
 
 

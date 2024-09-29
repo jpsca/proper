@@ -175,10 +175,10 @@ def test_match_mixed_paths(router):
 
 
 def test_url_for(router):
-    assert router.url_for("ItemsController.index") == "/api/items"
-    assert router.url_for("ItemsController.create") == "/api/items"
-    assert router.url_for("ItemsController.show", item_id=3) == "/api/items/3"
-    url = router.url_for("ItemsController.archive", year=2018, month=5)
+    assert router.url_for("Items.index") == "/api/items"
+    assert router.url_for("Items.create") == "/api/items"
+    assert router.url_for("Items.show", item_id=3) == "/api/items/3"
+    url = router.url_for("Items.archive", year=2018, month=5)
     assert url == "/api/items/2018/5"
 
 
@@ -189,19 +189,19 @@ def test_url_for_anchor(router):
 
 def test_url_for_missing_param(router):
     with pytest.raises(MissingRouteParameter):
-        router.url_for("ItemsController.archive", year="2018")
+        router.url_for("Items.archive", year="2018")
 
 
 def test_url_for_bad_param(router):
     with pytest.raises(BadRoutePlaceholder):
-        router.url_for("ItemsController.archive", year=18, month=-3)
+        router.url_for("Items.archive", year=18, month=-3)
 
 
 def test_url_for_extra_query(router):
-    url = router.url_for("ItemsController.index", foo="bar")
+    url = router.url_for("Items.index", foo="bar")
     assert url == "/api/items?foo=bar"
 
-    url = router.url_for("ItemsController.archive", year=2018, month=5, foo="bar")
+    url = router.url_for("Items.archive", year=2018, month=5, foo="bar")
     assert url == "/api/items/2018/5?foo=bar"
 
 

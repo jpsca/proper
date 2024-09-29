@@ -20,7 +20,7 @@ def test_route_defaults():
     assert ro.method == GET
     assert ro.path == "/foobar"
     assert ro.to == PagesController.index
-    assert ro.name == "PagesController.index"
+    assert ro.name == "Pages.index"
     assert ro.redirect is None
 
     ro = Route(GET, "foobar/")
@@ -55,17 +55,13 @@ def test_route_must_have_method_and_path():
         Route(GET, )
 
 
-class AppView:
-    def method(self):
-        pass
-
 
 def test_route_name_is_set():
-    ro = Route(GET, "/", to=AppView.method, name="hello")
+    ro = Route(GET, "/", to=PagesController.index, name="hello")
     assert ro.name == "hello"
 
-    ro = Route(GET, "/", to=AppView.method)
-    assert ro.name == "AppView.method"
+    ro = Route(GET, "/", to=PagesController.index)
+    assert ro.name == "Pages.index"
 
     ro = Route(GET, "/", name="hello", redirect="/blog/")
     assert ro.name == "hello"

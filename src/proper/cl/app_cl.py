@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import typing as t
 from functools import wraps
 
@@ -10,6 +12,12 @@ if t.TYPE_CHECKING:
     from proper import App
 
 
+def run(_self):
+    """Run the server with the `gunicorn.dev.py` config"""
+    cmd = ["gunicorn", "-c", "gunicorn.dev.py"]
+    subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
+
+
 def get_app_cl(app: "App") -> t.Type[Cli]:
     attrs: dict[str, t.Any] = {
         "__doc__": """
@@ -19,6 +27,7 @@ def get_app_cl(app: "App") -> t.Type[Cli]:
         just run `ipython` or the regular python interpreter and import
         the application, like a regular python package.
         """,
+        "run": run,
         "routes": get_routes_cmd(app),
         "db": get_db_cl(app),
         "g": get_generators_cl(app),
@@ -48,11 +57,11 @@ def get_routes_cmd(app: "App") -> t.Callable:
             else:
                 to = "-"
             name = route.name or "-"
-            defaults = "{...} " if route.defaults else "-"
-            routes.append([method, path, to, name, defaults])
+            host = route.host or "-"
+            routes.append([method, path, to, name, host])
 
         PADDING = 1
-        HEADERS = ["", "PATH", "TO", "NAME", "DEFAULTS"]
+        HEADERS = ["", "PATH", "TO", "NAME", "HOST"]
 
         lengths = [len(header) for header in HEADERS]
         for route in routes:

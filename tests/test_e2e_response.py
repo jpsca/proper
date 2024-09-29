@@ -72,11 +72,11 @@ class RedirectController(Controller):
         self.response.redirect_to("/local/url")
 
     def verbose(self):
-        self.response.redirect_to("RedirectController.show", id=1, slug="something")
+        self.response.redirect_to("Redirect.show", id=1, slug="something")
 
     def compact(self):
         post = DotDict({"id": 1, "slug": "something"})
-        self.response.redirect_to("RedirectController.show", post)
+        self.response.redirect_to("Redirect.show", post)
 
 
 def test_redirect_to(app):

@@ -12,7 +12,7 @@ from .views.page import Page
 app.CL = AppCL
 
 if app.catalog:
-    app.catalog.add_folder(app.components_path / "common")
+    app.catalog.add_folder(app.views_path / "common")
 
 
 # ---- Database ----

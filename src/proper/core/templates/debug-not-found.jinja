@@ -41,7 +41,7 @@ Those that doesn't have a "<code>to</code>" property are build-only and never ma
 			<th><div>PATH</div></th>
 			<th><div>TO</div></th>
 			<th><div>NAME</div></th>
-			<th><div>DEFAULTS</div></th>
+			<th><div>HOST</div></th>
 		</tr>
 		{%- for route in routes %}
 			{% if route.build_only -%}
@@ -65,10 +65,10 @@ Those that doesn't have a "<code>to</code>" property are build-only and never ma
 			</div></td>
 			<td><div>{{ route.name or '—' }}</div></td>
 			<td>
-        {%- if route.defaults -%}
-        <div class="defaults" title="{{ route.defaults }}">{...}</div>
+        {%- if route.host -%}
+        <div class="host">{{ route.host }}</div>
         {%- else -%}
-        <div class="defaults">—</div>
+        <div class="host">—</div>
         {%- endif -%}
       </td>
 		</tr>

@@ -2,7 +2,6 @@ from proper import env, DEV, PROD
 
 from .database import *  # noqa
 from .session import *  # noqa
-from .storage import *  # noqa
 
 
 DEBUG: bool = env == DEV
@@ -36,9 +35,7 @@ MAX_CONTENT_LENGTH: int = 2**23  # 8 MB
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
 MAX_QUERY_SIZE: int = 2**20  # 1 MB
 
-
-COMPONENTS_FOLDER = "components"
-COMPONENTS_URL = "/components"
+VIEWS_ASSETS_URL = "/v"
 
 # The name of the header to use to return a file
 # so the proxy or web-server does it instead of our application.

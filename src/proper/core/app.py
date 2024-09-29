@@ -11,7 +11,6 @@ from itsdangerous import (
 )
 
 from proper import status
-from proper.auth import Auth
 from proper.cache import NoCache
 from proper.cl import get_app_cl
 from proper.errors import BadSecretKey, MatchNotFound, MethodNotAllowed
@@ -95,7 +94,6 @@ class App(AppTest):
         self._setup_render()
         self._setup_cli()
         self._setup_db()
-        self._setup_auth()
         self._setup_i18n()
         self._setup_storage()
 
@@ -113,8 +111,8 @@ class App(AppTest):
         return self.router._routes
 
     @property
-    def components_path(self) -> Path:
-        return self.root_path / self.config.COMPONENTS_FOLDER
+    def views_path(self) -> Path:
+        return self.root_path / "views"
 
     @property
     def static_path(self) -> Path:
@@ -327,12 +325,8 @@ class App(AppTest):
         self.serializer = self.get_serializer("proper.session")
 
     def _setup_render(self) -> None:
-        if not self.components_path.exists():
-            self.catalog = None
-            return
-
         self.catalog = jinjax.Catalog(
-            root_url=self.config.COMPONENTS_URL,
+            root_url=self.config.VIEWS_ASSETS_URL,
             globals={
                 "url_for": self.url_for,
                 "url_is": self.url_is,
@@ -340,7 +334,7 @@ class App(AppTest):
             },
             fingerprint=True,
         )
-        self.catalog.add_folder(self.components_path)
+        self.catalog.add_folder(self.views_path)
 
     def _setup_cli(self) -> None:
         self.CL = get_app_cl(self)
@@ -355,19 +349,6 @@ class App(AppTest):
         mod = import_module(mod_name)
         Database = getattr(mod, cls_name)
         self.db = Database(**config)
-
-    def _setup_auth(self) -> None:
-        if not self.config.AUTH_HASH_NAME:
-            return
-        logger.debug(f"AUTH_HASH_NAME is {self.config.AUTH_HASH_NAME}")
-        config = self.config
-        self.auth = Auth(
-            secret_keys=config.SECRET_KEYS,
-            hash_name=config.AUTH_HASH_NAME,
-            rounds=config.AUTH_ROUNDS,
-            password_minlen=config.AUTH_PASSWORD_MINLEN,
-            password_maxlen=config.AUTH_PASSWORD_MAXLEN,
-        )
 
     def _setup_i18n(self) -> None:
         self.i18n = None

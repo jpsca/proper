@@ -1,5 +1,5 @@
-"""A base view class, all other application views must
-inherit from. Stores data available to the component.
+"""A base controller class, all other application controllers
+must inherit from. Stores data available to the views.
 """
 import os
 import re

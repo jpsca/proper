@@ -1,7 +1,7 @@
 // tailwind.config.js
 module.exports = {
 	content: [
-		"[[ app_name ]]/components/**/*.jinja",
+		"[[ app_name ]]/views/**/*.jinja",
 		"static_src/**/*.js",
 	],
 	plugins: [
