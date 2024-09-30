@@ -46,12 +46,23 @@ def get_default_config():
     config.SESSION_COOKIE_SECURE = False
     config.SESSION_COOKIE_SAMESITE = None  # "Lax", "Strict", or None
 
-    config.LOCALES_FOLDER = "locales"
     config.LOCALE_DEFAULT = "en"
-
-    config.STATIC_FOLDER = "static"
     config.STATIC_URL = "/static/"
     config.VIEWS_ASSETS_URL = "/static/v/"
+
+    config.DATABASE = {
+        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "database": "storage/app.sqlite3",
+        "migrations": "db/migrations",
+    }
+
+    config.CACHE = {
+        "type": "proper.cache.SqliteCache",
+        "database": "storage/app_cache.sqlite3",
+        "sync_mode": "normal",
+        "wal_checkpoint": "full",
+        "vacuum_pages": 100,
+    }
 
     # The name of the header to use to return a file
     # so the proxy or web-server does it instead of our application.

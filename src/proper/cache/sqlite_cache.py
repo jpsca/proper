@@ -9,14 +9,14 @@ from .base import BaseCache
 
 
 TWalCheckpoint = (
-    t.Literal["PASSIVE"]
-    | t.Literal["FULL"]
-    | t.Literal["RESTART"]
-    | t.Literal["TRUNCATE"]
+    t.Literal["passive"]
+    | t.Literal["full"]
+    | t.Literal["restart"]
+    | t.Literal["truncate"]
 )
 
 TSyncMode = (
-    t.Literal["EXTRA"] | t.Literal["FULL"] | t.Literal["NORMAL"] | t.Literal["OFF"]
+    t.Literal["extra"] | t.Literal["full"] | t.Literal["normal"] | t.Literal["off"]
 )
 
 
@@ -24,136 +24,137 @@ class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
 
     # prepared queries for cache operations
-    _pragma_wal = "PRAGMA journal_mode = WAL"
     _pragma_vacuum = "PRAGMA auto_vacuum = incremental;"
-    _pragma_sync = "PRAGMA synchronous = ?"
-    _pragma_checkpoint = "PRAGMA wal_checkpoint(?)"
-    _pragma_incr_vacuum = "PRAGMA incremental_vacuum(?)"
+    _pragma_wal = "PRAGMA journal_mode = WAL;"
+    _pragma_sync = "PRAGMA synchronous = ?;"
+    _pragma_checkpoint = "PRAGMA wal_checkpoint(?);"
+    _pragma_incr_vacuum = "PRAGMA incremental_vacuum(?);"
 
     _sql_create = (
-        "CREATE TABLE IF NOT EXISTS cache "
-        "( key TEXT PRIMARY KEY, val TEXT, exp FLOAT )"
+        "CREATE TABLE IF NOT EXISTS cache ("
+        " key TEXT PRIMARY KEY,"
+        " val TEXT,"
+        " ts FLOAT,"
+        " exp FLOAT"
+        " );"
     )
-    _sql_index = "CREATE INDEX IF NOT EXISTS keyname_index ON cache (key)"
+    _sql_index = "CREATE INDEX IF NOT EXISTS keyname_index ON cache (key);"
 
-    _sql_select = "SELECT val, exp FROM cache WHERE key = ?"
-    _sql_insert = "INSERT INTO cache (key, val, exp) VALUES (?, jsonb(?), ?)"
-    _sql_update = "REPLACE INTO cache (key, val, exp) VALUES (?, jsonb(?), ?)"
-    _sql_delete = "DELETE FROM cache WHERE key = ?"
-    _sql_expire = "DELETE FROM cache WHERE exp < ?"
+    _sql_select = "SELECT val, ts, exp FROM cache WHERE key = ?;"
+    _sql_insert = "INSERT INTO cache (key, val, ts, exp) VALUES (?, jsonb(?), ?, ?);"
+    _sql_update = "REPLACE INTO cache (key, val, ts, exp) VALUES (?, jsonb(?), ?, ?);"
+    _sql_delete = "DELETE FROM cache WHERE key = ?;"
+    _sql_expire = "DELETE FROM cache WHERE exp < ?;"
 
     # other properties
     connection = None
 
     def __init__(
         self,
-        path: str | Path,
+        database: str = "storage/app_cache.sqlite",
         *,
-        name: str = "cache.sqlite",
-        sync_mode: TSyncMode = "NORMAL",
-        wal_checkpoint: TWalCheckpoint = "FULL",
+        sync_mode: TSyncMode = "normal",
+        wal_checkpoint: TWalCheckpoint = "full",
         vacuum_pages: int = 100,
         **options,
     ):
-        path = Path(path).resolve()
-        if path.is_file():
-            name = path.name
-            path = path.parent
+        database = Path(database).resolve()
+        database.parent.mkdir(exist_ok=True, parents=True)
+        self.database = database
 
-        path.mkdir(exist_ok=True, parents=True)
-        self.path = str(path / name)
-        logger.debug("Created/Verified the storage path for %s", self.path)
-
-        self.sync_mode = sync_mode
-        self.wal_checkpoint = wal_checkpoint
+        self.sync_mode = sync_mode.lower()
+        self.wal_checkpoint = wal_checkpoint.lower()
         self.vacuum_pages = vacuum_pages
-
         options.setdefault("timeout", 60)
         self.options = options
+
+        if not self.database.is_file():
+            self._init_schema()
 
     def get(self, key: str) -> t.Any:
         curr_time = time()
         return_value = None
 
-        with self._get_conn() as conn:
-            for row in conn.execute(self._sql_select, (key,)):
-                expire = row[1]
-                if expire == 0 or expire > curr_time:
-                    return_value = jsonplus.loads(str(row[0]))["_"]
-                break
+        conn = self._get_connection()
+        for row in conn.execute(self._sql_select, (key,)):
+            expire = row[-1]
+            if expire == 0 or expire > curr_time:
+                return_value = jsonplus.loads(str(row[0]))["_"]
+            break
 
         return return_value
 
     def set(self, key: str, value: t.Any, timeout: int | float) -> None:
-        expire = time() + timeout
+        ts = time()
+        expire = ts + timeout
         value = {"_": value}
         data = jsonplus.dumps(value)
 
-        with self._get_conn() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(self._sql_insert, (key, data, expire))
-            except sqlite3.IntegrityError:
-                logger.debug("Key %s exists. Falling back to update", key)
-                cursor.execute(self._sql_update, (key, data, expire))
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(self._sql_insert, (key, data, ts, expire))
+        except sqlite3.IntegrityError:
+            logger.debug("Key %s exists. Falling back to update", key)
+            cursor.execute(self._sql_update, (key, data, ts, expire))
 
-            cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
+        cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
 
     def update(self, key: str, value: t.Any, timeout: int | float) -> None:
-        expire = time() + timeout
+        ts = time()
+        expire = ts + timeout
         value = {"data": value}
         data = jsonplus.dumps(value)
 
-        with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(self._sql_update, (key, data, expire))
-            cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(self._sql_update, (key, data, ts, expire))
+        cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
 
     def delete(self, key: str) -> None:
-        with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(self._sql_delete, (key,))
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(self._sql_delete, (key,))
 
     def delete_expired(self) -> None:
         curr_time = time()
-        with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(self._sql_expire, (curr_time,))
-            cursor.execute(self._pragma_incr_vacuum, (self.vacuum_pages,))
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(self._sql_expire, (curr_time,))
+        cursor.execute(self._pragma_incr_vacuum, (self.vacuum_pages,))
 
     # Private
 
-    def _get_conn(self):
+    def _init_schema(self):
+        conn = sqlite3.Connection(self.database, **self.options)
+        cursor = conn.cursor()
+
+        logger.debug("Activating incremental auto-vacuum")
+        cursor.execute(self._pragma_vacuum)
+
+        logger.debug("Running the create SQL script")
+        cursor.execute(self._sql_create)
+        cursor.execute(self._sql_index)
+
+    def _get_connection(self):
         """Returns a Sqlite connection"""
         if self.connection:
             return self.connection
 
         # setup the connection
-        conn = sqlite3.Connection(self.path, **self.options)
-        logger.debug("Connected to %s", self.path)
+        self.connection = sqlite3.Connection(self.database, **self.options)
+        logger.debug("Connected to %s", self.database)
 
-        # Running the PRAGMAS
-        with conn:
-            cursor = conn.cursor()
-            cursor.execute(self._pragma_wal)
-            mode = cursor.fetchone()[0].lower()
-            if mode != "wal":
-                logger.warning("Unable to activate the WAL journal mode")
-            else:
-                logger.debug("Activated WAL journal mode")
+        # Non-persistent PRAGMAs
+        cursor = self.connection.cursor()
 
-            cursor.execute(self._pragma_sync, (self.sync_mode,))
-            logger.debug("Activated %s sync mode", self.sync_mode)
+        logger.debug("Activating WAL journal mode")
+        cursor.execute(self._pragma_wal)
+        mode = cursor.fetchone()[0].lower()
+        if mode != "wal":
+            logger.warning("Unable to activate the WAL journal mode")
 
-            cursor.execute(self._pragma_vacuum)
-            logger.debug("Activated incremental auto-vacuum")
+        logger.debug("Activating %s sync mode", self.sync_mode)
+        cursor.execute(self._pragma_sync, (self.sync_mode,))
 
-        # ensure that the table schema is available
-        with conn:
-            cursor = conn.cursor()
-            cursor.execute(self._sql_create)
-            cursor.execute(self._sql_index)
-            logger.debug("Ran the create SQL script")
-
-        self.connection = conn
         return self.connection

@@ -14,7 +14,7 @@ from proper import status
 from proper.cache import NoCache
 from proper.cl import get_app_cl
 from proper.errors import BadSecretKey, MatchNotFound, MethodNotAllowed
-from proper.helpers import DotDict, current, jsonplus
+from proper.helpers import DotDict, current, get_instance, jsonplus
 from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
@@ -94,6 +94,7 @@ class App(AppTest):
         self._setup_render()
         self._setup_cli()
         self._setup_db()
+        self._setup_cache()
         self._setup_i18n()
         self._setup_storage()
 
@@ -109,18 +110,6 @@ class App(AppTest):
     @property
     def routes(self) -> list[Route]:
         return self.router._routes
-
-    @property
-    def views_path(self) -> Path:
-        return self.root_path / "views"
-
-    @property
-    def static_path(self) -> Path:
-        return self.root_path.parent / self.config.STATIC_FOLDER
-
-    @property
-    def locales_path(self) -> Path:
-        return self.root_path.parent / self.config.LOCALES_FOLDER
 
     @property
     def debug(self) -> bool:
@@ -280,7 +269,12 @@ class App(AppTest):
         self.module = module
         self.root_path = path.resolve()
         self.name = self.root_path.stem
+
         self.config_path = self.root_path / "config"
+        self.views_path = self.root_path / "views"
+        self.static_path = self.root_path.parent / "static"
+        self.locales_path = self.root_path.parent / "locales"
+        self.storage_path = self.root_path.parent / "storage"
 
     def _setup_router(self) -> None:
         self.router = Router()
@@ -340,24 +334,23 @@ class App(AppTest):
         self.CL = get_app_cl(self)
 
     def _setup_db(self) -> None:
-        engines = self.config.get("DATABASE_ENGINES")
-        engine = self.config.get("DATABASE")
-        if not engines or not engine:
+        config = (self.config.get("DATABASE") or {}).copy()
+        if not config:
             return
-        config = engines.get(engine, {}).copy()
-        mod_name, cls_name = config.pop("type").rsplit(".", 1)
-        mod = import_module(mod_name)
-        Database = getattr(mod, cls_name)
-        self.db = Database(**config)
+        if "migrations" in config:
+            del config["migrations"]
+        self.db = get_instance(**config)
+
+    def _setup_cache(self) -> None:
+        config = (self.config.get("CACHE") or {})
+        if not config:
+            return
+        self.cache = get_instance(**config)
 
     def _setup_i18n(self) -> None:
         self.i18n = None
 
-        if not self.config.LOCALES_FOLDER:
-            return
-
-        locales_path = self.locales_path
-        if not locales_path.is_dir():
+        if not self.locales_path.is_dir():
             return
 
         self.i18n = I18n(

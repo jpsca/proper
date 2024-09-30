@@ -1,4 +1,5 @@
 import hmac
+import logging
 import typing as t
 from time import time
 
@@ -6,10 +7,11 @@ import passlib.hash
 from passlib.context import CryptContext
 
 from proper.errors import WrongHashAlgorithm
-from proper.helpers import logger
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")
+
+logger = logging.getLogger()
 
 DEFAULT_HASHER = "pbkdf2_sha512"
 

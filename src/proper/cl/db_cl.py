@@ -1,17 +1,18 @@
 from importlib import import_module
 
-from peewee_migrate import Router
+from peewee_migrate import Router as PWRouter
 from proper_cli import Cli
 
-
-MIGRATE_DIR = "db/migrations"
+from proper.helpers import get_instance
 
 
 def get_db_cl(app):
     class DBCL(Cli):
-        @property
-        def _router(self) -> Router:
-            return Router(app.db, migrate_dir=MIGRATE_DIR)
+        def _get_router(self) -> PWRouter:
+            config = app.config["DATABASE"].copy()
+            migrate_dir = config.pop("migrations", "db/migrations")
+            db = get_instance(**config)
+            return PWRouter(db, migrate_dir=migrate_dir)
 
         def create(self, name: str = "auto"):
             """Create a new migration file for all changes in the models.
@@ -23,9 +24,10 @@ def get_db_cl(app):
 
             """
             module = import_module(f"{app.name}.models")
-            migration = self._router.create(name, auto=module)
+            router = self._get_router()
+            migration = router.create(name, auto=module)
             if migration:
-                print(f"{MIGRATE_DIR}/{migration}.py")
+                print(f"{router.migrate_dir}/{migration}.py")
 
         def migrate(self, target: str = "", fake: bool = False):
             """Run all the migrations (up to target if specified).
@@ -41,26 +43,31 @@ def get_db_cl(app):
                 Update migration table but don't run migration.
 
             """
-            done = self._router.run(name=target or None, fake=fake)
+            router = self._get_router()
+            done = router.run(name=target or None, fake=fake)
             for migration in done:
-                print(f"{MIGRATE_DIR}/{migration}.py")
+                print(f"{router.migrate_dir}/{migration}.py")
 
         def rollback(self):
             """Rollback the latest migration."""
-            self._router.rollback()
+            router = self._get_router()
+            router.rollback()
 
         def todo(self):
             """Show all migrations that have not been applied."""
-            for migration in self._router.todo:
-                print(f"{MIGRATE_DIR}/{migration}.py")
+            router = self._get_router()
+            for migration in router.todo:
+                print(f"{router.migrate_dir}/{migration}.py")
 
         def done(self):
             """Show all migrations that have been applied."""
-            for migration in self._router.done:
-                print(f"{MIGRATE_DIR}/{migration}.py")
+            router = self._get_router()
+            for migration in router.done:
+                print(f"{router.migrate_dir}/{migration}.py")
 
         def merge(self, name: str = "initial"):
             """Merge all migrations into one"""
-            self._router.merge(name)
+            router = self._get_router()
+            router.merge(name)
 
     return DBCL

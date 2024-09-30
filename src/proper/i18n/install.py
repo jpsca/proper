@@ -28,9 +28,6 @@ DEPENDENCIES = [
 
 def install(app: "App") -> None:
     """Install internationalization (i18n) support."""
-    if not app.config.LOCALES_FOLDER:
-        raise ValueError("The LOCALES_FOLDER config is not defined")
-
     app.locales_path.mkdir(exist_ok=True)
     first_locale = app.config.LOCALE_DEFAULT or "en"
     first_yaml = f"{first_locale}.yml"

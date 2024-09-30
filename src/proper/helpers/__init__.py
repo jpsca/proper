@@ -9,6 +9,7 @@ from .multidict import *  # noqa
 from .proxy import current  # noqa
 from .render import *  # noqa
 from .server import *  # noqa
+from .setup import *  # noqa
 from .utils import *  # noqa
 
 
