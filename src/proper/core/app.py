@@ -79,8 +79,13 @@ class App(AppTest):
         self,
         import_name: str,
         *,
-        config: dict | None = None
+        config: dict | None = None,
+        request_cls: type[object] = Request,
+        response_cls: type[object] = Response,
     ) -> None:
+        self.Request = request_cls
+        self.Response = response_cls
+
         self._debug = False
         self._on_error = ()
         self._on_teardown = ()
@@ -155,12 +160,12 @@ class App(AppTest):
     def do_request(self, environ: TWSGIEnvironment) -> Response:
         current.app = self
 
-        current.request = Request(
+        current.request = self.Request(
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
             **environ,
         )
-        current.response = Response(**environ)
+        current.response = self.Response(**environ)
 
         try:
             self.run_pipeline(current.request, current.response)

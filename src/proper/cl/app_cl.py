@@ -15,7 +15,8 @@ if t.TYPE_CHECKING:
 def run(_self):
     """Run the server with the `gunicorn.dev.py` config"""
     cmd = ["gunicorn", "-c", "gunicorn.dev.py"]
-    subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
+    with subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr):
+        pass
 
 
 def get_app_cl(app: "App") -> t.Type[Cli]:

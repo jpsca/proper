@@ -237,7 +237,7 @@ class ResponseCookiesMixin:
 
         values = [morsel.OutputString() for morsel in self.cookies.values()]
         return [(
-            "set-cookie",
+            "Set-Cookie",
             tunnel_encode(", ".join(values))
         )]
 
