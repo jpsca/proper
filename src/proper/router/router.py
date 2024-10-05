@@ -14,8 +14,6 @@ from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
 from .route import Route, StaticRoute
 
 
-__all__ = ("Router",)
-
 ACTION_INDEX = "index"
 ACTION_NEW = "new"
 ACTION_CREATE = "create"

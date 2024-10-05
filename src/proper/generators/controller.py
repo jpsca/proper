@@ -3,11 +3,18 @@ from typing import TYPE_CHECKING
 import inflection
 
 from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
+from proper.router import (
+    ACTION_CREATE,
+    ACTION_DELETE,
+    ACTION_EDIT,
+    ACTION_INDEX,
+    ACTION_NEW,
+    ACTION_RESTORE,
+    ACTION_SHOW,
+    ACTION_UPDATE,
+)
 
 from .model import gen_model
-
-
-# from proper.router import ACTION_RESTORE, ACTIONS
 
 
 if TYPE_CHECKING:
@@ -30,6 +37,17 @@ FORM_FIELDS = {
     "time": "time",
     "uuid": "str",
 }
+
+ACTIONS = (
+    ACTION_CREATE,
+    ACTION_DELETE,
+    ACTION_EDIT,
+    ACTION_INDEX,
+    ACTION_NEW,
+    ACTION_RESTORE,
+    ACTION_SHOW,
+    ACTION_UPDATE,
+)
 
 
 def gen_controller(

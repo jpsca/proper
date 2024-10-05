@@ -51,7 +51,7 @@ class SqliteCache(BaseCache):
 
     def __init__(
         self,
-        database: str = "storage/app_cache.sqlite",
+        database: str | Path = "storage/app_cache.sqlite",
         *,
         sync_mode: TSyncMode = "normal",
         wal_checkpoint: TWalCheckpoint = "full",
@@ -97,7 +97,6 @@ class SqliteCache(BaseCache):
         except sqlite3.IntegrityError:
             logger.debug("Key %s exists. Falling back to update", key)
             cursor.execute(self._sql_update, (key, data, ts, expire))
-
         cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
 
     def update(self, key: str, value: t.Any, timeout: int | float) -> None:
