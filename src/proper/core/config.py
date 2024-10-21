@@ -64,6 +64,14 @@ def get_default_config():
         "vacuum_pages": 100,
     }
 
+    config.CACHE = {
+        "type": "proper.queue.SqlQueue",
+        "database": "storage/app_queue.sqlite3",
+        "sync_mode": "normal",
+        "wal_checkpoint": "full",
+        "vacuum_pages": 100,
+    }
+
     # The name of the header to use to return a file
     # so the proxy or web-server does it instead of our application.
     # Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"

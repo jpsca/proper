@@ -386,6 +386,20 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.6.1)", "diff-cover (>=9.2)", "p
 typing = ["typing-extensions (>=4.12.2)"]
 
 [[package]]
+name = "huey"
+version = "2.5.2"
+description = "huey, a little task queue"
+optional = false
+python-versions = "*"
+files = [
+    {file = "huey-2.5.2.tar.gz", hash = "sha256:df33db474c05414ed40ee2110e9df692369871734da22d74ffb035a4bd74047f"},
+]
+
+[package.extras]
+backends = ["redis (>=3.0.0)"]
+redis = ["redis (>=3.0.0)"]
+
+[[package]]
 name = "identify"
 version = "2.6.1"
 description = "File identification library for Python"
@@ -554,7 +568,7 @@ i18n = ["Babel (>=2.7)"]
 [[package]]
 name = "jinjax"
 version = "0.46"
-description = "Replace your HTML templates with Python server-Side views"
+description = "Replace your HTML templates with Python server-Side components"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
@@ -845,7 +859,7 @@ wcwidth = "*"
 [[package]]
 name = "proper-cli"
 version = "1.4.1"
-description = "Replace your HTML templates with Python server-Side views"
+description = "Replace your HTML templates with Python server-Side components"
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
@@ -1247,6 +1261,17 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,<8.2)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
+name = "types-peewee"
+version = "3.17.7.20241017"
+description = "Typing stubs for peewee"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-peewee-3.17.7.20241017.tar.gz", hash = "sha256:d9ee1808155cb97e4010f9c526fff2dce82728339cb0365cd5e96303bed8cc09"},
+    {file = "types_peewee-3.17.7.20241017-py3-none-any.whl", hash = "sha256:e134c7cfdd098d559f2c085b7c1b9ffafbd8965057234cb9a211a74abbde4d5d"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -1305,4 +1330,4 @@ brotli = ["brotli"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "705ff35a5ab4a82cbdd857d3887d2a4ede2fe2410627a83bfc6b4e17e2c6f0ec"
+content-hash = "57cd969b607deafa36684f4e583f94d57f8f873a3d7b3f9af80fdedf18b60bd3"

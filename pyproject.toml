@@ -46,6 +46,8 @@ peewee-migrate =">=1.12.1,< 2"
 proper-cli ="^1.2"
 tomlkit = ">=0.12.4"
 traceback-with-variables = "^2.0.4"
+huey = "^2.5.2"
+types-peewee = "^3.17.7.20241017"
 
 
 [tool.poetry.group.dev.dependencies]

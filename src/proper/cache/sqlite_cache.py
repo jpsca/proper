@@ -3,6 +3,9 @@ import typing as t
 from pathlib import Path
 from time import time
 
+import peewee as pw
+from playhouse.db_url import connect as db_url_connect
+
 from proper.helpers import jsonplus, logger
 
 from .base import BaseCache
@@ -23,22 +26,14 @@ TSyncMode = (
 class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
 
+    Cache: type[pw.Model]
+
     # prepared queries for cache operations
     _pragma_vacuum = "PRAGMA auto_vacuum = incremental;"
     _pragma_wal = "PRAGMA journal_mode = WAL;"
     _pragma_sync = "PRAGMA synchronous = ?;"
     _pragma_checkpoint = "PRAGMA wal_checkpoint(?);"
     _pragma_incr_vacuum = "PRAGMA incremental_vacuum(?);"
-
-    _sql_create = (
-        "CREATE TABLE IF NOT EXISTS cache ("
-        " key TEXT PRIMARY KEY,"
-        " val TEXT,"
-        " ts FLOAT,"
-        " exp FLOAT"
-        " );"
-    )
-    _sql_index = "CREATE INDEX IF NOT EXISTS keyname_index ON cache (key);"
 
     _sql_select = "SELECT val, ts, exp FROM cache WHERE key = ?;"
     _sql_insert = "INSERT INTO cache (key, val, ts, exp) VALUES (?, jsonb(?), ?, ?);"
@@ -58,18 +53,50 @@ class SqliteCache(BaseCache):
         vacuum_pages: int = 100,
         **options,
     ):
-        database = Path(database).resolve()
-        database.parent.mkdir(exist_ok=True, parents=True)
-        self.database = database
-
         self.sync_mode = sync_mode.lower()
         self.wal_checkpoint = wal_checkpoint.lower()
         self.vacuum_pages = vacuum_pages
         options.setdefault("timeout", 60)
         self.options = options
 
-        if not self.database.is_file():
-            self._init_schema()
+        database = Path(database).resolve()
+        database.parent.mkdir(exist_ok=True, parents=True)
+        self.database = db_url_connect(database)
+
+        self.create_models()
+        self.create_tables()
+
+    def create_models(self) -> tuple:  # type: ignore
+        class Base(pw.Model):
+            class Meta:
+                database = self.database
+
+        class Cache(Base):
+            key = pw.TextField(primary_key=True)
+            val = pw.TextField()
+            ts = pw.FloatField()
+            exp = pw.FloatField(index=True)
+
+            class Meta:
+                table_name = "proper_cache"
+
+        self.Cache = Cache
+
+    def create_tables(self):
+        with self.database:
+            self.database.create_tables([self.Cache])
+
+    def drop_tables(self):
+        with self.database:
+            self.database.drop_tables([self.Cache])
+
+    def close(self):
+        return self.database.close()
+
+    def check_conn(self):
+        if not self.database.is_connection_usable():
+            self.database.close()
+            self.database.connect()
 
     def get(self, key: str) -> t.Any:
         curr_time = time()
