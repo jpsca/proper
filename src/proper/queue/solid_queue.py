@@ -3,14 +3,14 @@ import typing as t
 from huey.api import Huey, Result, ResultGroup
 
 from .consumer import Consumer
-from .sql_storage import SqlStorage
+from .solid_storage import SolidStorage
 
 
 SIGNAL_CREATED = "created"
 
 
-class SqlQueue(Huey):
-    storage_class = SqlStorage
+class SolidQueue(Huey):
+    storage_class = SolidStorage
 
     def enqueue(self, task, signal: str = SIGNAL_CREATED):
         if task.expires:

@@ -14,10 +14,12 @@ from peewee import (
 
 class BytesBlobField(BlobField):
     def python_value(self, value):
+        if value is None:
+            return None
         return value if isinstance(value, bytes) else bytes(value)
 
 
-class SqlStorage(HueySqlStorage):
+class SolidStorage(HueySqlStorage):
     KV : type[Model]
     Schedule : type[Model]
     Task : type[Model]

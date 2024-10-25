@@ -1,14 +1,10 @@
-import sqlite3
 import typing as t
 from pathlib import Path
 from time import time
 
 import peewee as pw
-from playhouse.db_url import connect as db_url_connect
 
-from proper.helpers import jsonplus, logger
-
-from .base import BaseCache
+from .base import BaseCache, Serializer
 
 
 TWalCheckpoint = (
@@ -26,24 +22,6 @@ TSyncMode = (
 class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
 
-    Cache: type[pw.Model]
-
-    # prepared queries for cache operations
-    _pragma_vacuum = "PRAGMA auto_vacuum = incremental;"
-    _pragma_wal = "PRAGMA journal_mode = WAL;"
-    _pragma_sync = "PRAGMA synchronous = ?;"
-    _pragma_checkpoint = "PRAGMA wal_checkpoint(?);"
-    _pragma_incr_vacuum = "PRAGMA incremental_vacuum(?);"
-
-    _sql_select = "SELECT val, ts, exp FROM cache WHERE key = ?;"
-    _sql_insert = "INSERT INTO cache (key, val, ts, exp) VALUES (?, jsonb(?), ?, ?);"
-    _sql_update = "REPLACE INTO cache (key, val, ts, exp) VALUES (?, jsonb(?), ?, ?);"
-    _sql_delete = "DELETE FROM cache WHERE key = ?;"
-    _sql_expire = "DELETE FROM cache WHERE exp < ?;"
-
-    # other properties
-    connection = None
-
     def __init__(
         self,
         database: str | Path = "storage/app_cache.sqlite",
@@ -51,18 +29,23 @@ class SqliteCache(BaseCache):
         sync_mode: TSyncMode = "normal",
         wal_checkpoint: TWalCheckpoint = "full",
         vacuum_pages: int = 100,
+        serializer_cls: type[Serializer] | None = None,
         **options,
     ):
-        self.sync_mode = sync_mode.lower()
-        self.wal_checkpoint = wal_checkpoint.lower()
-        self.vacuum_pages = vacuum_pages
-        options.setdefault("timeout", 60)
-        self.options = options
+        super().__init__(serializer_cls=serializer_cls)
 
+        self.wal_checkpoint = wal_checkpoint.lower()
+
+        options.setdefault("timeout", 60)
+        options["pragmas"] = {
+            "auto_vacuum": "incremental",
+            "synchronous": sync_mode.lower(),
+            "journal_mode": "wal",
+            "incremental_vacuum": vacuum_pages,
+        }
         database = Path(database).resolve()
         database.parent.mkdir(exist_ok=True, parents=True)
-        self.database = db_url_connect(database)
-
+        self.database = pw.SqliteDatabase(database, **options)
         self.create_models()
         self.create_tables()
 
@@ -73,9 +56,8 @@ class SqliteCache(BaseCache):
 
         class Cache(Base):
             key = pw.TextField(primary_key=True)
-            val = pw.TextField()
-            ts = pw.FloatField()
-            exp = pw.FloatField(index=True)
+            value = pw.BlobField()
+            exp = pw.IntegerField(index=True)
 
             class Meta:
                 table_name = "proper_cache"
@@ -99,88 +81,36 @@ class SqliteCache(BaseCache):
             self.database.connect()
 
     def get(self, key: str) -> t.Any:
-        curr_time = time()
-        return_value = None
+        self.check_conn()
 
-        conn = self._get_connection()
-        for row in conn.execute(self._sql_select, (key,)):
-            expire = row[-1]
-            if expire == 0 or expire > curr_time:
-                return_value = jsonplus.loads(str(row[0]))["_"]
-            break
+        with self.database.atomic():
+            row = (
+                self.Cache.select(self.Cache.value, self.Cache.exp)
+                .tuples().get_or_none(self.Cache.key == key)
+            )
+            if row is None:
+                return None
 
-        return return_value
+            value, expire = row
+            if expire != 0 and expire > time():
+                self.Cache.delete_by_id(key).execute()
+                return None
 
-    def set(self, key: str, value: t.Any, timeout: int | float) -> None:
-        ts = time()
-        expire = ts + timeout
-        value = {"_": value}
-        data = jsonplus.dumps(value)
+        return self.deserialize(value)
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(self._sql_insert, (key, data, ts, expire))
-        except sqlite3.IntegrityError:
-            logger.debug("Key %s exists. Falling back to update", key)
-            cursor.execute(self._sql_update, (key, data, ts, expire))
-        cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
+    def set(self, key: str, value: t.Any, timeout: int) -> None:
+        self.check_conn()
 
-    def update(self, key: str, value: t.Any, timeout: int | float) -> None:
-        ts = time()
-        expire = ts + timeout
-        value = {"data": value}
-        data = jsonplus.dumps(value)
-
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(self._sql_update, (key, data, ts, expire))
-        cursor.execute(self._pragma_checkpoint, (self.wal_checkpoint,))
+        expire = int(time()) + timeout
+        data = self.serialize(value)
+        self.Cache.replace(key=key, value=data, expire=expire).execute()
+        self.database.pragma("wal_checkpoint", self.wal_checkpoint)
 
     def delete(self, key: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(self._sql_delete, (key,))
+        self.check_conn()
+        self.Cache.delete_by_id(key).execute()
 
     def delete_expired(self) -> None:
-        curr_time = time()
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(self._sql_expire, (curr_time,))
-        cursor.execute(self._pragma_incr_vacuum, (self.vacuum_pages,))
-
-    # Private
-
-    def _init_schema(self):
-        conn = sqlite3.Connection(self.database, **self.options)
-        cursor = conn.cursor()
-
-        logger.debug("Activating incremental auto-vacuum")
-        cursor.execute(self._pragma_vacuum)
-
-        logger.debug("Running the create SQL script")
-        cursor.execute(self._sql_create)
-        cursor.execute(self._sql_index)
-
-    def _get_connection(self):
-        """Returns a Sqlite connection"""
-        if self.connection:
-            return self.connection
-
-        # setup the connection
-        self.connection = sqlite3.Connection(self.database, **self.options)
-        logger.debug("Connected to %s", self.database)
-
-        # Non-persistent PRAGMAs
-        cursor = self.connection.cursor()
-
-        logger.debug("Activating WAL journal mode")
-        cursor.execute(self._pragma_wal)
-        mode = cursor.fetchone()[0].lower()
-        if mode != "wal":
-            logger.warning("Unable to activate the WAL journal mode")
-
-        logger.debug("Activating %s sync mode", self.sync_mode)
-        cursor.execute(self._pragma_sync, (self.sync_mode,))
-
-        return self.connection
+        self.check_conn()
+        curr_time = int(time())
+        self.Cache.delete().where(self.Cache.exp < curr_time).execute()
