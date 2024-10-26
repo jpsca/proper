@@ -26,6 +26,7 @@ class SqliteCache(BaseCache):
         self,
         database: str | Path = "storage/app_cache.sqlite",
         *,
+        timeout: int = 60 * 60 * 24 * 5,  # 5 days
         sync_mode: TSyncMode = "normal",
         wal_checkpoint: TWalCheckpoint = "full",
         vacuum_pages: int = 100,
@@ -33,9 +34,9 @@ class SqliteCache(BaseCache):
         **options,
     ):
         super().__init__(serializer_cls=serializer_cls)
+        self.timeout = timeout
 
         self.wal_checkpoint = wal_checkpoint.lower()
-
         options.setdefault("timeout", 60)
         options["pragmas"] = {
             "auto_vacuum": "incremental",
@@ -57,7 +58,7 @@ class SqliteCache(BaseCache):
         class Cache(Base):
             key = pw.TextField(primary_key=True)
             value = pw.BlobField()
-            exp = pw.IntegerField(index=True)
+            expire = pw.IntegerField(index=True)
 
             class Meta:
                 table_name = "proper_cache"
@@ -84,23 +85,22 @@ class SqliteCache(BaseCache):
         self.check_conn()
 
         with self.database.atomic():
-            row = (
-                self.Cache.select(self.Cache.value, self.Cache.exp)
-                .tuples().get_or_none(self.Cache.key == key)
-            )
+            row = self.Cache.get_or_none(self.Cache.key == key)
             if row is None:
                 return None
 
-            value, expire = row
-            if expire != 0 and expire > time():
-                self.Cache.delete_by_id(key).execute()
+            curr_time = int(time())
+            if row.expire < curr_time:
+                self.Cache.delete_by_id(key)
                 return None
 
-        return self.deserialize(value)
+            return self.deserialize(row.value)
 
-    def set(self, key: str, value: t.Any, timeout: int) -> None:
+    def set(self, key: str, value: t.Any, timeout: int | None = None) -> None:
         self.check_conn()
 
+        if timeout is None:
+            timeout = self.timeout
         expire = int(time()) + timeout
         data = self.serialize(value)
         self.Cache.replace(key=key, value=data, expire=expire).execute()
@@ -108,9 +108,11 @@ class SqliteCache(BaseCache):
 
     def delete(self, key: str) -> None:
         self.check_conn()
-        self.Cache.delete_by_id(key).execute()
+        self.Cache.delete_by_id(key)
+        self.database.pragma("wal_checkpoint", self.wal_checkpoint)
 
     def delete_expired(self) -> None:
         self.check_conn()
         curr_time = int(time())
-        self.Cache.delete().where(self.Cache.exp < curr_time).execute()
+        self.Cache.delete().where(self.Cache.expire < curr_time).execute()
+        self.database.pragma("wal_checkpoint", self.wal_checkpoint)
