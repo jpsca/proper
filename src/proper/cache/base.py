@@ -1,5 +1,16 @@
 import pickle
 import typing as t
+from abc import abstractmethod
+
+
+class SerializerProtocol(t.Protocol):
+    @abstractmethod
+    def serialize(self, value: t.Any) -> bytes:
+        raise NotImplementedError
+
+    @abstractmethod
+    def deserialize(self, value: bytes) -> t.Any:
+        raise NotImplementedError
 
 
 class Serializer:
@@ -16,9 +27,10 @@ class Serializer:
 class BaseCache:
     serializer_cls = Serializer
 
-    def __init__(self, serializer_cls: type[Serializer] | None):
-        Serializer = serializer_cls or self.serializer_cls
-        self.serializer = Serializer()
+    def __init__(self, serializer: SerializerProtocol | None):
+        if serializer is None:
+             serializer = Serializer()
+        self.serializer = serializer
 
     def get(self, key: str) -> t.Any:
         raise NotImplementedError

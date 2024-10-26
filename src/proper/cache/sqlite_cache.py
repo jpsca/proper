@@ -4,7 +4,7 @@ from time import time
 
 import peewee as pw
 
-from .base import BaseCache, Serializer
+from .base import BaseCache, SerializerProtocol
 
 
 TWalCheckpoint = (
@@ -26,14 +26,14 @@ class SqliteCache(BaseCache):
         self,
         database: str | Path = "storage/app_cache.sqlite",
         *,
-        timeout: int = 60 * 60 * 24 * 5,  # 5 days
+        timeout: int = 60 * 60 * 24 * 2,  # 2 days
         sync_mode: TSyncMode = "normal",
         wal_checkpoint: TWalCheckpoint = "full",
         vacuum_pages: int = 100,
-        serializer_cls: type[Serializer] | None = None,
+        serializer: SerializerProtocol | None = None,
         **options,
     ):
-        super().__init__(serializer_cls=serializer_cls)
+        super().__init__(serializer=serializer)
         self.timeout = timeout
 
         self.wal_checkpoint = wal_checkpoint.lower()
@@ -116,3 +116,6 @@ class SqliteCache(BaseCache):
         curr_time = int(time())
         self.Cache.delete().where(self.Cache.expire < curr_time).execute()
         self.database.pragma("wal_checkpoint", self.wal_checkpoint)
+
+    def count(self):
+        return self.Cache.select(pw.fn.COUNT(self.Cache.key)).scalar()
