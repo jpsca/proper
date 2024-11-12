@@ -32,10 +32,10 @@ class BaseCache:
              serializer = Serializer()
         self.serializer = serializer
 
-    def get(self, key: str) -> t.Any:
+    def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
         raise NotImplementedError
 
-    def set(self, key: str, value: t.Any, timeout: int) -> None:
+    def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
         raise NotImplementedError
 
     update = set
@@ -43,7 +43,7 @@ class BaseCache:
     def delete(self, key: str) -> None:
         raise NotImplementedError
 
-    def delete_expired(self) -> None:
+    def delete_expired(self, expires_in: int | None = None) -> None:
         pass
 
     def serialize(self, value: t.Any) -> bytes:
@@ -54,10 +54,10 @@ class BaseCache:
 
 
 class NoCache(BaseCache):
-    def get(self, key: str) -> t.Any:
+    def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
         pass
 
-    def set(self, key: str, value: t.Any, timeout: int | float) -> None:
+    def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
         pass
 
     def delete(self, key: str) -> None:

@@ -1,10 +1,8 @@
-version: "3"
-
 services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     command:
       - /bin/sh
       - -c
@@ -23,22 +21,10 @@ services:
       - "2300:2300"
     volumes:
       - .:/app/
-  db:
-    image: "postgres:15.2"
-    environment:
-      - POSTGRES_DB=[[ app_name ]]
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
   static:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     command: tailwindcss -i /app/static_src/css/app.css -o /app/static/css/app.css
     volumes:
       - .:/app/
