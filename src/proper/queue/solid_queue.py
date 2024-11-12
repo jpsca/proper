@@ -1,7 +1,8 @@
 import typing as t
 
-from huey.api import Huey, Result, ResultGroup
+from huey.api import Result, ResultGroup
 
+from .base import BaseQueue
 from .consumer import Consumer
 from .solid_storage import SolidStorage
 
@@ -9,10 +10,10 @@ from .solid_storage import SolidStorage
 SIGNAL_CREATED = "created"
 
 
-class SolidQueue(Huey):
+class SolidQueue(BaseQueue):
     storage_class = SolidStorage
 
-    def enqueue(self, task, signal: str = SIGNAL_CREATED):
+    def enqueue(self, task):
         if task.expires:
             task.resolve_expires(self.utc)
 
@@ -20,7 +21,7 @@ class SolidQueue(Huey):
             self.execute(task)
         else:
             self.storage.enqueue(task, self.serialize_task(task))
-            self._emit(signal, task)
+            self._emit(SIGNAL_CREATED, task)
 
         if not self.results:
             return

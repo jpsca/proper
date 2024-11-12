@@ -19,7 +19,7 @@ def test_if_none_match(app):
     assert resp.body == "Hello world"
 
     print(resp.headers)
-    resp = app.get("/", headers={"HTTP_IF_NONE_MATCH": resp.headers["etag"]})
+    resp = app.get("/", headers={"HTTP_IF_NONE_MATCH": resp.headers.get("ETag")})
     assert resp.status == status.not_modified
     assert resp.body == ""
 
@@ -38,8 +38,8 @@ def test_set_session(app):
     app.router.get("/session")(SessionController.update)
     resp = app.get("/session")
     print(resp.headers)
-    assert "set-cookie" in resp.headers
-    assert resp.headers["set-cookie"].startswith("_session")
+    assert "Set-Cookie" in resp.headers
+    assert resp.headers.get("Set-Cookie").startswith("_session")
 
 
 # -- COOKIE --
@@ -55,7 +55,7 @@ class DisableCookiesController(Controller):
 def test_disable_cookies(app):
     app.router.get("/")(DisableCookiesController.index)
     resp = app.get("/")
-    assert "set-cookie" not in resp.headers
+    assert "Set-Cookie" not in resp.headers
 
 
 # -- REDIRECT --
@@ -88,13 +88,13 @@ def test_redirect_to(app):
 
     resp = app.get("/external")
     assert resp.status == status.see_other
-    assert resp.headers["location"] == "http://example.com"
+    assert resp.headers.get("Location") == "http://example.com"
 
     resp = app.get("/local")
-    assert resp.headers["location"] == "/local/url"
+    assert resp.headers.get("Location") == "/local/url"
 
     resp = app.get("/verbose")
-    assert resp.headers["location"] == "/posts/1/something"
+    assert resp.headers.get("Location") == "/posts/1/something"
 
     resp = app.get("/compact")
-    assert resp.headers["location"] == "/posts/1/something"
+    assert resp.headers.get("Location") == "/posts/1/something"

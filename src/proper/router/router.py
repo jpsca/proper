@@ -61,7 +61,8 @@ class BaseRouter:
 
     def add_route(self, route: Route) -> None:
         self._routes.append(route)
-        self._routes_by_name[route.name] = route
+        if route.name:
+            self._routes_by_name[route.name] = route
 
     def match(
         self,
@@ -930,7 +931,7 @@ class Router(BaseRouter):
         assert is_exception, "`error_cls` must a subclass of `Exception`"
         self.error_handlers[error_cls] = to
 
-    def error(self, error_cls: TException) -> None:
+    def error(self, error_cls: TException) -> t.Callable[[t.Callable], t.Callable]:
         """Decorator to register a controller method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 
@@ -1000,7 +1001,7 @@ class ScopedRouter(BaseRouter):
         prefix: str = "",
         *,
         host: str | None = None,
-        parent: Router | None = None,
+        parent: BaseRouter | None = None,
         debug: bool = False,
     ) -> None:
         self.prefix = prefix.strip("/")
@@ -1020,7 +1021,8 @@ class ScopedRouter(BaseRouter):
             route.path = f"{self.prefix}{route.path}"
         if self.host:
             route.host = self.host
-        self._parent.add_route(route)
+        if self._parent:
+            self._parent.add_route(route)
 
     def scope(self, prefix: str = "", *, host: str | None = None) -> "ScopedRouter":
         r"""

@@ -34,7 +34,7 @@ class SolidStorage(HueySqlStorage):
             key = CharField()
             value = BytesBlobField()
 
-            class Meta:
+            class Meta:  # type: ignore
                 primary_key = CompositeKey("queue", "key")
                 table_name = "proper_kv"
 
@@ -45,7 +45,7 @@ class SolidStorage(HueySqlStorage):
             data = BytesBlobField()
             timestamp = TimestampField(resolution=1000)
 
-            class Meta:
+            class Meta:  # type: ignore
                 table_name = "proper_schedule"
 
         Schedule.add_index(Schedule.queue, Schedule.timestamp, unique=False)
@@ -57,10 +57,10 @@ class SolidStorage(HueySqlStorage):
             data = BytesBlobField()
             priority = FloatField(default=0.0)
 
-            class Meta:
+            class Meta:  # type: ignore
                 table_name = "proper_task"
 
-        Task.add_index(Task.priority.desc(), Task.id)
+        Task.add_index(Task.priority.desc(), Task.id)  # type: ignore
         self.Task = Task
 
         return (KV, Schedule, Task)
@@ -77,8 +77,8 @@ class SolidStorage(HueySqlStorage):
     def dequeue(self, callback: t.Callable):  # type: ignore
         self.check_conn()
         query = (
-            self.tasks(self.Task.id, self.Task.data)
-            .order_by(self.Task.priority.desc(), self.Task.id)
+            self.tasks(self.Task.id, self.Task.data)  # type: ignore
+            .order_by(self.Task.priority.desc(), self.Task.id)  # type: ignore
             .limit(1)
         )
         if self.database.for_update:
@@ -87,8 +87,8 @@ class SolidStorage(HueySqlStorage):
         with self.database.atomic():
             try:
                 task = query.get()
-            except self.Task.DoesNotExist:
+            except self.Task.DoesNotExist:  # type: ignore
                 return
 
             callback(task.data)
-            self.Task.delete().where(self.Task.id == task.id).execute()
+            self.Task.delete().where(self.Task.id == task.id).execute()  # type: ignore

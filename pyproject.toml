@@ -107,6 +107,7 @@ exclude = [
     "**/node_modules",
     "**/__pycache__",
     "**/tests",
+    "**/proper/mail"
 ]
 ignore = ["src/blueprints"]
 reportPrivateImportUsage = false

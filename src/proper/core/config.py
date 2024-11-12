@@ -57,19 +57,11 @@ def get_default_config():
     }
 
     config.CACHE = {
-        "type": "proper.cache.SqliteCache",
-        "database": "storage/app_cache.sqlite3",
-        "sync_mode": "normal",
-        "wal_checkpoint": "full",
-        "vacuum_pages": 100,
+        "type": "proper.cache.NoCache",
     }
 
-    config.CACHE = {
-        "type": "proper.queue.SqlQueue",
-        "database": "storage/app_queue.sqlite3",
-        "sync_mode": "normal",
-        "wal_checkpoint": "full",
-        "vacuum_pages": 100,
+    config.QUEUE = {
+        "type": "proper.queue.NoQueue",
     }
 
     # The name of the header to use to return a file

@@ -13,6 +13,14 @@ class SerializerProtocol(t.Protocol):
         raise NotImplementedError
 
 
+class NoSerializer:
+    def serialize(self, value: t.Any) -> bytes:
+        raise NotImplementedError
+
+    def deserialize(self, value: bytes) -> t.Any:
+        raise NotImplementedError
+
+
 class Serializer:
     def __init__(self, protocol=pickle.HIGHEST_PROTOCOL):
         self.protocol = protocol or pickle.HIGHEST_PROTOCOL
@@ -27,9 +35,9 @@ class Serializer:
 class BaseCache:
     serializer_cls = Serializer
 
-    def __init__(self, serializer: SerializerProtocol | None):
+    def __init__(self, *, serializer: SerializerProtocol | None = None):
         if serializer is None:
-             serializer = Serializer()
+            serializer = self.serializer_cls()
         self.serializer = serializer
 
     def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
@@ -54,6 +62,8 @@ class BaseCache:
 
 
 class NoCache(BaseCache):
+    serializer_cls = NoSerializer
+
     def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
         pass
 

@@ -18,15 +18,17 @@ Header = namedtuple("Header", "name value")
 
 
 class ResponseHeadersDict(dict):
-    def __contains__(self, name: str) -> bool:
+    def __contains__(self, name: str) -> bool:  # type: ignore
         key = enc_name(name).lower()
-        return dict.__contains__(self, key)
+        return super().__contains__(key)
 
     def __getitem__(self, name: str) -> t.Any:
+        """Returns the header as a namedtuple."""
         key = enc_name(name).lower()
-        return dict.get(self, key)
+        return super().get(key)
 
     def __setitem__(self, name: str, val: t.Any) -> None:
+        """Sets the VALUE of a header. If `val` is None, it deleted the header."""
         self.set(name, val)
 
     def _set(self, name: str, coded_val: t.Any) -> None:
@@ -36,22 +38,25 @@ class ResponseHeadersDict(dict):
             if key in self:
                 del self[key]
         else:
-            dict.__setitem__(self, key, Header(name, coded_val))
+            super().__setitem__(key, Header(name, coded_val))
 
     def get(self, name: str, default: t.Any = None) -> t.Any:
+        """Returns the VALUE of a header."""
         key = enc_name(name).lower()
-        header = dict.get(self, key)
+        header = super().get(key)
         if header is None:
             return default
         return header.value
 
     def set(self, name: str, val: t.Any, **params) -> None:
+        """Formats and sets the value of a header.
+        Depending of the header, this formatting can take some `params`."""
         self._set(name, format_header(val, **params))
 
-    def setdefault(self, name: str, val: t.Any, **params) -> None:
+    def setdefault(self, name: str, default: t.Any, **params) -> None:  # type: ignore
         if name in self:
             return
-        self.set(name, val, **params)
+        self.set(name, default, **params)
 
     def update(self, *args, **kwargs):
         for name, value in dict(*args, **kwargs).items():

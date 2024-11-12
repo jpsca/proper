@@ -11,7 +11,6 @@ from itsdangerous import (
 )
 
 from proper import status
-from proper.cache import NoCache
 from proper.cl import get_app_cl
 from proper.errors import BadSecretKey, MatchNotFound, MethodNotAllowed
 from proper.helpers import DotDict, current, get_instance, jsonplus
@@ -74,18 +73,17 @@ class App(AppTest):
     CL: "t.Type[Cli]"
     db: t.Any
     cache: t.Any
+    queue: t.Any
+
+    request_cls: t.Type[Request] = Request
+    response_cls: t.Type[Response] = Response
 
     def __init__(
         self,
         import_name: str,
         *,
         config: dict | None = None,
-        request_cls: type[object] = Request,
-        response_cls: type[object] = Response,
     ) -> None:
-        self.Request = request_cls
-        self.Response = response_cls
-
         self._debug = False
         self._on_error = ()
         self._on_teardown = ()
@@ -100,10 +98,9 @@ class App(AppTest):
         self._setup_cli()
         self._setup_db()
         self._setup_cache()
+        self._setup_queue()
         self._setup_i18n()
         self._setup_storage()
-
-        self.cache = NoCache()
 
     def __call__(
         self,
@@ -160,12 +157,12 @@ class App(AppTest):
     def do_request(self, environ: TWSGIEnvironment) -> Response:
         current.app = self
 
-        current.request = self.Request(
+        current.request = self.request_cls(
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
             **environ,
         )
-        current.response = self.Response(**environ)
+        current.response = self.response_cls(**environ)
 
         try:
             self.run_pipeline(current.request, current.response)
@@ -347,10 +344,16 @@ class App(AppTest):
         self.db = get_instance(**config)
 
     def _setup_cache(self) -> None:
-        config = (self.config.get("CACHE") or {})
+        config = (self.config.get("CACHE") or {}).copy()
         if not config:
             return
         self.cache = get_instance(**config)
+
+    def _setup_queue(self) -> None:
+        config = (self.config.get("QUEUE") or {}).copy()
+        if not config:
+            return
+        self.queue = get_instance(**config)
 
     def _setup_i18n(self) -> None:
         self.i18n = None

@@ -15,7 +15,7 @@ def test_set_minimal_cookie():
     response.set_cookie("foo", "bar")
 
     assert response.cookies["foo"].value == "bar"
-    assert response._get_cookie_tuples() == [("set-cookie", "foo=bar; Path=/")]
+    assert response._get_cookie_tuples() == [("Set-Cookie", "foo=bar; Path=/")]
     assert response.cookies["foo"]["path"] == "/"
     assert not response.cookies["foo"]["domain"]
     assert not response.cookies["foo"]["secure"]
@@ -29,7 +29,7 @@ def test_set_minimal_cookie_no_path():
     response.set_cookie("foo", "bar", path=None)  # type: ignore
     headers_list = response.get_headers_list()
 
-    assert headers_list[-1] == ("set-cookie", "foo=bar")
+    assert headers_list[-1] == ("Set-Cookie", "foo=bar")
 
 
 def test_set_several_cookies():
@@ -41,7 +41,7 @@ def test_set_several_cookies():
     assert response.cookies["foo"].value == "bar"
     print(headers_list[-2:])
     assert headers_list[-1] == (
-        "set-cookie", "foo=bar; Path=/, lorem=ipsum; Path=/"
+        "Set-Cookie", "foo=bar; Path=/, lorem=ipsum; Path=/"
     )
 
 

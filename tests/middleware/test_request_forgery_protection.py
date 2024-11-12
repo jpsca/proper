@@ -40,7 +40,7 @@ def test_no_need_to_argue(co):
 
     assert request.csrf_token is not None
     assert len(request.csrf_token) == CSRF_TOKEN_LENGTH * 2
-    assert request.csrf_token == response.headers[CSRF_HEADER]
+    assert request.csrf_token == response.headers.get(CSRF_HEADER)
     assert request.csrf_token[CSRF_TOKEN_LENGTH:] == response.session[CSRF_SESSION_KEY]
 
 

@@ -42,7 +42,7 @@ def test_redirect(app):
 
     resp = app.get("/")
     assert resp.status == status.temporary_redirect
-    assert resp.headers["location"] == "http://example.com"
+    assert resp.headers.get("Location") == "http://example.com"
 
 
 def test_url_for(app):
