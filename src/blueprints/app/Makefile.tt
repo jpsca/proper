@@ -1,15 +1,7 @@
-.PHONY: lock
-lock:
-	uv pip compile --all-extras pyproject.toml -o requirements-dev.txt
-	uv pip compile --extra=test pyproject.toml -o requirements-test.txt
-	uv pip compile pyproject.toml -o requirements.txt
-
 .PHONY: install
 install:
-	make lock
-	uv pip install -r requirements-dev.txt
-	tailwindcss_install
-	uv pip install -e ../proper
+	poetry install
+	# tailwindcss_install
 	proper db migrate
 
 .PHONY: test

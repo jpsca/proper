@@ -68,11 +68,9 @@ def _install_dependencies(path: Path) -> None:
     os.chdir(str(path))
     call(f"uv venv --seed -p {py}")
     os.environ["VIRTUAL_ENV"] = str(path / ".venv")
-    call(f"uv pip compile --all-extras {path}/pyproject.toml -o {path}/requirements-dev.txt")
-    call(f"uv pip compile --extra=test {path}/pyproject.toml -o {path}/requirements-test.txt")
-    call(f"uv pip compile {path}/pyproject.toml -o {path}/requirements.txt")
-    call(f"uv pip install -r {path}/requirements-dev.txt")
-    call("tailwindcss_install")
+    call("poetry config virtualenvs.in-project true")
+    call("poetry install")
+    # call("tailwindcss_install")
 
 
 def _wrap_up(path: Path) -> None:

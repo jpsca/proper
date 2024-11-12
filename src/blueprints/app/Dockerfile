@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.2
 
 # `python-base` sets up all our shared environment variables.
-FROM python:3.12-slim as python-base
+FROM python:3.12 as python-base
 
 ENV \
     # All configurations are included in the following environment variables.

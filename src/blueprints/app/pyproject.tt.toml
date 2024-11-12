@@ -1,31 +1,32 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 
-[project]
+[tool.poetry]
 name = "[[ app_name ]]"
 version = "1.0"
 description = ""
-authors = [
-  {name = "Lorem Ipsum", email = "lipsum@example.com"},
-]
+authors = ["Lorem Ipsum <lorem.ipsum@example.com>"]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-  "uv",
-  "fodantic",
-  # "psycopg2-binary",
-  "proper @ file:///home/jps/Code/proper",  # TODO
-]
 
-[project.optional-dependencies]
-dev = [
-  "pytailwindcss >=0.2.0",
-  "ruff",
-]
-test = [
-  "pytest",
-]
+[tool.poetry.dependencies]
+python = ">=3.12,<4.dev0"
+fodantic = "*"
+# psycopg2-binary = "*"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+ruff = ">=0.2.0"
+# pytailwindcss = ">=0.2.0"
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
+pytest = ">=7.2.0"
 
 
 [tool.pytest.ini_options]
@@ -35,7 +36,7 @@ addopts = "--doctest-modules"
 [tool.ruff]
 line-length = 90
 indent-width = 4
-target-version = "py311"
+target-version = "py312"
 
 exclude = [".*"]
 include = ["*.py"]
@@ -103,5 +104,8 @@ select = [
 
 [tool.ruff.lint.isort]
 known-local-folder = ["[[ app_name ]]"]
+known-third-party = []
+no-lines-before = ["local-folder"]
+relative-imports-order = "furthest-to-closest"
 # Use two line after imports.
 lines-after-imports = 2

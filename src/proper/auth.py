@@ -19,7 +19,7 @@ ROUTES_TT = "routes.tt.py"
 
 DEPENDENCIES = [
     "argon2-cffi",
-    "confusable_homoglyphs",
+    "confusable-homoglyphs",
 ]
 
 SORT_IMPORTS_IN = [
