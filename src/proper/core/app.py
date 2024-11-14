@@ -10,7 +10,7 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 
-from proper import status
+from proper import cache, status
 from proper.cl import get_app_cl
 from proper.errors import BadSecretKey, MatchNotFound, MethodNotAllowed
 from proper.helpers import DotDict, current, get_instance, jsonplus
@@ -94,11 +94,11 @@ class App(AppTest):
         self._setup_router()
         self._setup_config(config or {})
         self._setup_serializer()
-        self._setup_render()
         self._setup_cli()
         self._setup_db()
         self._setup_cache()
         self._setup_queue()
+        self._setup_render()
         self._setup_i18n()
         self._setup_storage()
 
@@ -320,18 +320,6 @@ class App(AppTest):
     def _setup_serializer(self) -> None:
         self.serializer = self.get_serializer("proper.session")
 
-    def _setup_render(self) -> None:
-        self.catalog = jinjax.Catalog(
-            root_url=self.config.VIEWS_ASSETS_URL,
-            globals={
-                "url_for": self.url_for,
-                "url_is": self.url_is,
-                "url_startswith": self.url_startswith,
-            },
-            fingerprint=True,
-        )
-        self.catalog.add_folder(self.views_path)
-
     def _setup_cli(self) -> None:
         self.CL = get_app_cl(self)
 
@@ -354,6 +342,22 @@ class App(AppTest):
         if not config:
             return
         self.queue = get_instance(**config)
+
+    def _setup_render(self) -> None:
+        self.catalog = jinjax.Catalog(
+            root_url=self.config.VIEWS_ASSETS_URL,
+            globals={
+                "url_for": self.url_for,
+                "url_is": self.url_is,
+                "url_startswith": self.url_startswith,
+            },
+            extensions=[
+                cache.FragmentCacheExtension,
+            ],
+            fingerprint=True,
+        )
+        self.catalog.add_folder(self.views_path)
+        self.catalog.jinja_env.extend(app_cache=self.cache)
 
     def _setup_i18n(self) -> None:
         self.i18n = None
