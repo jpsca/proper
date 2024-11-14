@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import inflection
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, append_routes, call
+from proper.helpers.render import BLUEPRINTS, BlueprintRender, call
 from proper.router import (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
-ROUTES_TT = "routes.tt.py"
 FORM_FIELDS = {
     "bigint": "int",
     "blob": "bytes",
@@ -232,13 +231,9 @@ def gen_controller(
         RESOURCE_BLUEPRINT,
         app.root_path.parent,
         context=context,
-        ignore=[ROUTES_TT] + ignored_views,
+        ignore=ignored_views,
     )
     bp()
-
-    routes_tt = RESOURCE_BLUEPRINT / ROUTES_TT
-    new_routes = bp.render.string(routes_tt.read_text())
-    append_routes(app, new_routes)
 
     if migration:
         call(f'proper db create "{singular_snake if singular else plural_snake}"')

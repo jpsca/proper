@@ -1,32 +1,5 @@
 {% extends 'layout.jinja' %}
 
-{% block styles %}
-<style>
-table.routes {
-	border: none;
-	margin-top: 20px;
-}
-table.routes th,
-table.routes td {
-	vertical-align: middle;
-}
-table.routes div {
-	padding: 1px 4px;
-	min-height: 27px;
-}
-table.routes [role] {
-	cursor: default;
-}
-table.routes tr.build-only {
-	background-color: #eee;
-	cursor: not-allowed;
-}
-table.routes .defaults {
-  cursor: default;
-}
-</style>
-{% endblock %}
-
 {% block title %}{{ title }}{% endblock %}
 
 {% block body %}

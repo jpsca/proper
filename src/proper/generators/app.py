@@ -62,14 +62,16 @@ def gen_app(
 
 
 def _install_dependencies(path: Path) -> None:
-    version_info = sys.version_info
-    py = f"{version_info.major}.{version_info.minor}"
-
-    os.chdir(str(path))
-    call(f"uv venv --seed -p {py}")
-    os.environ["VIRTUAL_ENV"] = str(path / ".venv")
-    call("poetry config virtualenvs.in-project true")
-    call("poetry install")
+    os.chdir(path)
+    venv_path = str(path / ".venv")
+    os.environ["VIRTUAL_ENV"] = venv_path
+    call(f"""cd {str(path)} \\
+            && poetry config virtualenvs.create true \\
+            && poetry config virtualenvs.in-project true \\
+            && poetry config virtualenvs.prompt . \\
+            && poetry config virtualenvs.path "{venv_path}" \\
+            && poetry install
+    """)
     # call("tailwindcss_install")
 
 

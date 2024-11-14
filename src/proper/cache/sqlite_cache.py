@@ -4,31 +4,9 @@ from time import time
 
 import peewee as pw
 
+from proper.types import TPwJournalMode, TPwSyncMode, TPwWalCheckpoint
+
 from .base import BaseCache, SerializerProtocol
-
-
-TWalCheckpoint = (
-    t.Literal["passive"]
-    | t.Literal["full"]
-    | t.Literal["restart"]
-    | t.Literal["truncate"]
-)
-
-TSyncMode = (
-    t.Literal["extra"]
-    | t.Literal["full"]
-    | t.Literal["normal"]
-    | t.Literal["off"]
-)
-
-TJournalMode = (
-    t.Literal["delete"]
-    | t.Literal["truncate"]
-    | t.Literal["persist"]
-    | t.Literal["memory"]
-    | t.Literal["wal"]
-    | t.Literal["off"]
-)
 
 
 class SqliteCache(BaseCache):
@@ -39,29 +17,25 @@ class SqliteCache(BaseCache):
         database: str | Path = "storage/app_cache.sqlite",
         *,
         expires_in: int = 60 * 60 * 24 * 2,  # 2 days
-        sync_mode: TSyncMode = "normal",
-        journal_mode: TJournalMode = "wal",
-        wal_checkpoint: TWalCheckpoint = "full",
-        vacuum_pages: int = 100,
+        wal_checkpoint: TPwWalCheckpoint = "full",
         serializer: SerializerProtocol | None = None,
-        **options,
+        sync_mode: TPwSyncMode = "normal",
+        journal_mode: TPwJournalMode = "wal",
+        vacuum_pages: int = 100,
+        timeout: int = 5,
+        **pragmas,
     ):
         super().__init__(serializer=serializer)
         self.expires_in = expires_in
         self.wal_checkpoint = wal_checkpoint.lower()
-
-        options.setdefault("timeout", 60)
-        options["pragmas"] = {
-            "auto_vacuum": "incremental",
-            "synchronous": sync_mode.lower(),
-            "journal_mode": journal_mode.lower(),
-            "incremental_vacuum": vacuum_pages,
-        }
-        database = Path(database).resolve()
-        database.parent.mkdir(exist_ok=True, parents=True)
-        self.database = pw.SqliteDatabase(database, **options)
+        pragmas.setdefault("auto_vacuum", "incremental")
+        pragmas.setdefault("synchronous", sync_mode.lower())
+        pragmas.setdefault("journal_mode", journal_mode.lower())
+        pragmas.setdefault("incremental_vacuum", vacuum_pages)
+        self.database = pw.SqliteDatabase(database, timeout=timeout, pragmas=pragmas)
         self.create_models()
         self.create_tables()
+        # TODO: migrations
 
     def create_models(self) -> tuple:  # type: ignore
         class Base(pw.Model):

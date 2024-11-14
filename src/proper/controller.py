@@ -54,7 +54,7 @@ class Controller:
 
     def render(
         self,
-        name: str,
+        name: str = "",
         *,
         status: str | None = None,
         json: t.Any = None,

@@ -33,6 +33,7 @@ header h1, .container {
 	width: 100%;
 	height: auto;
 	overflow-x: auto;
+	margin-top: 5px;
 }
 .container h2, .container h3, S.container h5, .container h6 {
 	margin: 16px 0 12px;
@@ -51,11 +52,17 @@ header h1, .container {
 }
 table {
 	font-family: Monaco, "Courier New", Courier;
-	font-size: 16px;
 	border: none;
 	text-align: left;
 	width: 100%;
 	min-width: 640px;
+	font-size: 14px;
+}
+details table {
+	font-size: 14px;
+}
+table summary {
+	padding: 2px 0;
 }
 .table-header {
 	color: #444;
@@ -63,21 +70,25 @@ table {
 	padding: 8px 6px;
 	border-radius: 4px 4px 0 0;
 	font-weight: bold;
-	font-size: 12px;
 	min-width: 640px;
 }
 table div, table details {
-	padding: 4px;
+	padding: 1px 4px;
 	vertical-align: middle;
+}
+table details {
+	margin-top: 4px;
 }
 table th {
 	color: #444;
-	font-size: 14px;
   white-space: nowrap;
 }
 table th,
 table td {
 	border-bottom: 1px dotted #ddd;
+}
+table table th {
+	width: 40%;
 }
 table tr:last-child > * {
 	border-bottom: none;
@@ -85,4 +96,28 @@ table tr:last-child > * {
 table tr > * {
 	overflow-wrap: anywhere;
 	vertical-align: middle;
+}
+table.routes {
+	border: none;
+}
+table.routes th {
+	font-size: 14px;
+}
+table.routes th,
+table.routes td {
+	vertical-align: middle;
+}
+table.routes div {
+	padding: 1px 4px;
+	min-height: 27px;
+}
+table.routes [role] {
+	cursor: default;
+}
+table.routes tr.build-only {
+	background-color: #eee;
+	cursor: not-allowed;
+}
+table.routes .defaults {
+  cursor: default;
 }

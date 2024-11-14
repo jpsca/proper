@@ -13,6 +13,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.12,<4.dev0"
 fodantic = "*"
+gunicorn = "^23.0.0"
+proper = { path = "../proper/", develop = true }
 # psycopg2-binary = "*"
 
 [tool.poetry.group.dev]

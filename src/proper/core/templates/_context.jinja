@@ -58,7 +58,7 @@
 	<summary>Headers:</summary>
 	<div class="scroll-container">
 		<table class="config">
-			{%- for name, value in response.headers.items() %}
+			{%- for name, value in response.get_header_tuples() %}
 			<tr>
 				<th><div>{{ name }}</div></th>
 				<td><div>{{ value }}</div></td>

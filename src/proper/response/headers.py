@@ -568,7 +568,7 @@ class ResponseHeadersMixin:
             format_comma_list(*names) if names else None,
         )
 
-    def _get_header_tuples(self) -> list[tuple[str, str]]:
+    def get_header_tuples(self) -> list[tuple[str, str]]:
         """Get the list of header tuples."""
         exclude = self.exclude_headers.get(self.status_code) or []
         tuples = []

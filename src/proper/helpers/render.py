@@ -1,6 +1,5 @@
 import filecmp
 import os
-import re
 import shutil
 import typing as t
 from fnmatch import fnmatch
@@ -10,10 +9,6 @@ import isort
 import jinja2
 from proper_cli import confirm, echo
 from tomlkit import dumps, parse
-
-
-if t.TYPE_CHECKING:
-    from proper import App
 
 
 __all__ = [
@@ -32,7 +27,6 @@ __all__ = [
     "files_are_identical",
     "contents_are_identical",
     "confirm_overwrite",
-    "append_routes",
     "sort_imports",
     "sort_imports_in",
 ]
@@ -301,26 +295,6 @@ def confirm_overwrite(dst_relpath: str | Path, *, force=False) -> bool:
     if force:
         return True
     return confirm(" Overwrite?")
-
-
-RE_CLOSE_ROUTES = re.compile(r",?[\s\n]*][\s\n]*$")
-
-
-def append_routes(app: "App", new_routes: str) -> None:
-    routes_path = app.root_path / "routes.py"
-    routes = routes_path.read_text()
-    if new_routes in routes:
-        return
-
-    match = RE_CLOSE_ROUTES.search(routes)
-    if match:
-        routes = routes[: match.start()].rstrip()
-
-    code = sort_imports(f"{routes}{new_routes}")
-    routes_path.write_text(code)
-
-    display = str(Path(app.root_path.name) / "routes.py")
-    printf(UPDATE, display, color=COLOR_WARNING)
 
 
 def sort_imports(code: str) -> str:

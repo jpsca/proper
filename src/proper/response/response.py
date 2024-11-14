@@ -86,7 +86,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         return body
 
     def get_headers_list(self) -> list[tuple[str, str]]:
-        return [*self._get_header_tuples(), *self._get_cookie_tuples()]
+        return [*self.get_header_tuples(), *self._get_cookie_tuples()]
 
     def redirect_to(
         self,

@@ -1,12 +1,5 @@
-import subprocess
-import sys
-from importlib import import_module
-
-import proper
-
-from .app import app, config
+from .app import app
 from .cl import AppCL
-from .views.page import Page
 
 
 app.CL = AppCL
@@ -31,18 +24,18 @@ def on_teardown():
 
 # ---- Development ----
 
-@app.on_dev_start
-def compile_tailwind():
-    from pytailwindcss import get_bin_path
+# @app.on_dev_start
+# def compile_tailwind():
+#     from pytailwindcss import get_bin_path
 
-    cmd = [
-        str(get_bin_path()),
-        "-i",
-        "static_src/css/app.css",
-        "-o",
-        "static/css/app.css",
-        "--watch",
-    ]
-    scmd = " ".join(cmd)
-    print("Running",f'"{scmd}"')
-    subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
+#     cmd = [
+#         str(get_bin_path()),
+#         "-i",
+#         "static_src/css/app.css",
+#         "-o",
+#         "static/css/app.css",
+#         "--watch",
+#     ]
+#     scmd = " ".join(cmd)
+#     print("Running",f'"{scmd}"')
+#     subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)

@@ -11,3 +11,27 @@ TException = t.Type[BaseException]
 THandler = t.Callable[[t.Any], t.Any]
 TEventHandler = t.Callable[[], t.Any]
 TEventHandlers = tuple[TEventHandler, ...]
+
+
+TPwWalCheckpoint = (
+    t.Literal["passive"]
+    | t.Literal["full"]
+    | t.Literal["restart"]
+    | t.Literal["truncate"]
+)
+
+TPwSyncMode = (
+    t.Literal["extra"]
+    | t.Literal["full"]
+    | t.Literal["normal"]
+    | t.Literal["off"]
+)
+
+TPwJournalMode = (
+    t.Literal["delete"]
+    | t.Literal["truncate"]
+    | t.Literal["persist"]
+    | t.Literal["memory"]
+    | t.Literal["wal"]
+    | t.Literal["off"]
+)
