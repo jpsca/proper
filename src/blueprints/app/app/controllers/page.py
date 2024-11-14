@@ -1,7 +1,7 @@
 from proper import errors
 
 from .app import AppController
-from [[app_name]].router import router
+from app.router import router
 
 
 class PagesController(AppController):

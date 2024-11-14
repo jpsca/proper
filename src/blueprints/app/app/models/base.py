@@ -1,7 +1,7 @@
 import inflection
 import peewee as pw
 
-from ..app import app
+from app.main import app
 
 
 def make_table_name(cls):

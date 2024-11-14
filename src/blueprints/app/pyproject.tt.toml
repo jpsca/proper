@@ -9,6 +9,15 @@ version = "1.0"
 description = ""
 authors = ["Lorem Ipsum <lorem.ipsum@example.com>"]
 readme = "README.md"
+packages = [
+    {include = "app"}
+]
+include = [
+  "*.*",
+  "config",
+  "db",
+  "static",
+]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.dev0"
@@ -39,7 +48,6 @@ addopts = "--doctest-modules"
 line-length = 90
 indent-width = 4
 target-version = "py312"
-
 exclude = [".*"]
 include = ["*.py"]
 

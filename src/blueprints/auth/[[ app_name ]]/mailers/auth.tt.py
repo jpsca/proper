@@ -1,4 +1,4 @@
-from [[ app_name ]].app import app, auth, config
+from app.main import app, auth, config
 from .mailer import send_email
 
 

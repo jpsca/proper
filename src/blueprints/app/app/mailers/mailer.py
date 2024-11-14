@@ -1,6 +1,6 @@
 from proper.mail import ToConsoleMailer
 
-from ..app import config
+from app.main import config
 
 
 mailer = ToConsoleMailer()

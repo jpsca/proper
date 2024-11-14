@@ -1,6 +1,6 @@
 from proper import Controller
 
-from [[ app_name ]].app import app
+from app.main import app
 
 
 class SetLocale:

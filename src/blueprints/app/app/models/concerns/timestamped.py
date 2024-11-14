@@ -2,7 +2,7 @@ from datetime import datetime
 
 import peewee as pw
 
-from [[ app_name ]].models.base import BaseMixin
+from app.models.base import BaseMixin
 
 
 class Timestamped(BaseMixin):

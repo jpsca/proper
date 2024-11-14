@@ -1,6 +1,6 @@
 from proper.errors import NotFound
 
-from [[ app_name ]].app import app
+from app.main import app
 from ..app import PrivateView
 
 
