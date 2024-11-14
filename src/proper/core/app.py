@@ -272,11 +272,12 @@ class App(AppTest):
         self.root_path = path.resolve()
         self.name = self.root_path.stem
 
-        self.config_path = self.root_path / "config"
+        parent_path = self.root_path.parent
         self.views_path = self.root_path / "views"
-        self.static_path = self.root_path.parent / "static"
-        self.locales_path = self.root_path.parent / "locales"
-        self.storage_path = self.root_path.parent / "storage"
+        self.config_path = parent_path / "config"
+        self.static_path = parent_path / "static"
+        self.locales_path = parent_path / "locales"
+        self.storage_path = parent_path / "storage"
 
     def _setup_router(self) -> None:
         self.router = Router()
