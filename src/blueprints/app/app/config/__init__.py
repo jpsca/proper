@@ -1,6 +1,6 @@
 import os
 
-from proper import DEV, PROD, env
+from proper import DEV, MB, PROD, env
 
 from .storage import *  # noqa
 from .session import *  # noqa
@@ -31,11 +31,11 @@ CATCH_ALL_ERRORS: bool = True
 
 # Limits the total content length (in bytes).
 # Raises a RequestEntityTooLarge exception if this value is exceeded.
-MAX_CONTENT_LENGTH: int = 2**23  # 8 MB
+MAX_CONTENT_LENGTH: int = 8 * MB
 
 # Limits the content length (in bytes) of the query string.
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
-MAX_QUERY_SIZE: int = 2**20  # 1 MB
+MAX_QUERY_SIZE: int = 1 * MB
 
 STATIC_URL = "/static/"
 VIEWS_ASSETS_URL = "/static/v/"

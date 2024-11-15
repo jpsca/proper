@@ -7,7 +7,7 @@ from .service import Service
 
 
 if t.TYPE_CHECKING:
-    from proper.core import App
+    from proper.core.app import App
     from proper.helpers import DotDict
 
     from ..types import TAttachment, TUpload

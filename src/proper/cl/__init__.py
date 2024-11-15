@@ -10,7 +10,7 @@ from .proper_cl import ProperCL
 
 
 def run():
-    from proper import App
+    from proper.core.app import App
 
     cwd = Path(os.getcwd())
     wsgi_py = cwd / "wsgi.py"

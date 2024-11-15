@@ -11,7 +11,8 @@ from urllib.parse import quote
 from wsgiref.types import StartResponse
 
 from proper import status as pstatus
-from proper.helpers import DotDict, current, tunnel_encode
+from proper.core.current import current
+from proper.helpers import DotDict, tunnel_encode
 from proper.types import TBody, TReadable
 
 from .cookies import ResponseCookiesMixin

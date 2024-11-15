@@ -13,7 +13,7 @@ from .status import not_modified
 
 
 if t.TYPE_CHECKING:
-    from .core import App
+    from .core.app import App
     from .request import Request
     from .response import Response
 

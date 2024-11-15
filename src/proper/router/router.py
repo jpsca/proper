@@ -6,8 +6,8 @@ from pathlib import Path
 
 from proper import status
 from proper.controller import Controller
+from proper.core.current import current
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
-from proper.helpers import current
 from proper.types import TException, THandler
 
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE

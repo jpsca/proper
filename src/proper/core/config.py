@@ -1,13 +1,18 @@
 import inspect
 import os
 import typing as t
-from datetime import timedelta
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+)
 
 from proper.errors import BadSecretKey, ConfigError
-from proper.helpers import logger
+from proper.helpers import DAYS, HOURS, MB, logger
 
 
 ENV_VAR = "APP_ENV"
@@ -39,17 +44,17 @@ against an attacker discovering a secret key""",
     MAX_CONTENT_LENGTH: int = Field(
         description="""Limits the total content length (in bytes).
 Raises a `RequestEntityTooLarge` exception if this value is exceeded.""",
-        default=2**23,  # 8 MB
+        default=8 * MB
     )
     MAX_QUERY_SIZE: int = Field(
         description="""Limits the content length (in bytes) of the query string.
 Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.""",
-        default=2**20,  # 1 MB
+        default=1 * MB
     )
 
     SESSION_LIFETIME: int = Field(
         description="""Number of seconds before a non-used session key expires.""",
-        default=to_seconds(days=30),
+        default=30 * DAYS,
     )
     SESSION_COOKIE_NAME: str = "_session"
     SESSION_COOKIE_DOMAIN: str | None = None
@@ -73,15 +78,15 @@ Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect""",
     MAILER_DEFAULT_FROM: str = "hello@example.com"
 
     AUTH_HASH_NAME: str | None = None
-    AUTH_ROUNDS: int | None = None
+    AUTH_ROUNDS: int | None = Field(description="`None` means using the default number for the hash", default=None)
     AUTH_PASSWORD_MINLEN: int = 9
     AUTH_PASSWORD_MAXLEN: int = 1024
     AUTH_TOKEN_LIFE: int = Field(
         description="Nmber of seconds before a reset-password token expires",
-        default=to_seconds(hours=3),
+        default=3 * HOURS,
     )
 
-    STORAGE_WEB_IMAGE_CONTENT_TYPES: list[str] | tuple[str] = Field(
+    STORAGE_WEB_IMAGE_CONTENT_TYPES: list[str] | tuple[str, ...] = Field(
         description="""Image content types that can be processed without being converted to
 the fallback PNG format. If you want to use WebP or AVIF variants in
 your application you can add image/webp or image/avif to this list.""",
@@ -118,10 +123,6 @@ your application you can add image/webp or image/avif to this list.""",
                     "dictionary attacks."
                 )
         return value
-
-
-def to_seconds(**kwargs) -> int:
-    return int(timedelta(**kwargs).total_seconds())
 
 
 def validate_config(dict_or_module: t.Any) -> dict[str, t.Any]:

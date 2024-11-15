@@ -14,6 +14,6 @@ def app(import_name):
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
     }
-    app = App(import_name, config=config)
+    app = App(import_name, config)
     current.app = app
     return app

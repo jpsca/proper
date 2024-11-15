@@ -12,6 +12,7 @@ from . import (
 from .controller import *  # noqa
 from .core.app import App  # noqa
 from .core.config import *  # noqa
+from .core.current import current  # noqa
 from .helpers import *  # noqa
 from .request import *  # noqa
 from .response import *  # noqa

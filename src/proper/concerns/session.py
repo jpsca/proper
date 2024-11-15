@@ -8,7 +8,7 @@ from proper.helpers import DotDict
 
 if t.TYPE_CHECKING:
     from proper.controller import Controller
-    from proper.core import App
+    from proper.core.app import App
     from proper.request import Request
     from proper.response import Response
 

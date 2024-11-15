@@ -1,5 +1,5 @@
-# Based on code from the Werkzeug project, Copyright 2007 Pallets,
-# with modifications for the Proper project.
+# Many of these functions are based on code from the Werkzeug project,
+# Copyright 2007 Pallets, with modifications for the Proper project.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,6 +30,7 @@ import re
 import sys
 import typing as t
 import unicodedata
+from importlib import import_module
 from pathlib import Path
 
 
@@ -239,3 +240,10 @@ def find_modules(
                 yield from find_modules(modpath, include_packages, True, prefix=prefix)
         else:
             yield f"{prefix}.{modname}"
+
+
+def get_storage_instance(**config):
+    mod_name, cls_name = config.pop("type").rsplit(".", 1)
+    mod = import_module(mod_name)
+    StorageClass = getattr(mod, cls_name)
+    return StorageClass(**config)

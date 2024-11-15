@@ -9,7 +9,7 @@ from ..helpers.render import (
 
 
 if t.TYPE_CHECKING:
-    from proper import App
+    from proper.core.app import App
 
 
 STORAGE_BLUEPRINT = BLUEPRINTS / "storage"

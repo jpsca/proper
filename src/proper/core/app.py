@@ -12,7 +12,8 @@ from itsdangerous import (
 from proper import cache, status
 from proper.cl import get_app_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
-from proper.helpers import DotDict, current, get_instance, jsonplus
+from proper.helpers import DotDict, jsonplus
+from proper.helpers.utils import get_storage_instance
 from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
@@ -29,6 +30,7 @@ from proper.types import (
 from . import pipeline
 from .app_test import AppTest
 from .config import get_env, validate_config
+from .current import current
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -295,19 +297,19 @@ class App(AppTest):
             return
         if "migrations" in config:
             del config["migrations"]
-        self.db = get_instance(**config)
+        self.db = get_storage_instance(**config)
 
     def _setup_cache(self) -> None:
         config = (self.config.get("CACHE") or {}).copy()
         if not config:
             return
-        self.cache = get_instance(**config)
+        self.cache = get_storage_instance(**config)
 
     def _setup_queue(self) -> None:
         config = (self.config.get("QUEUE") or {}).copy()
         if not config:
             return
-        self.queue = get_instance(**config)
+        self.queue = get_storage_instance(**config)
 
     def _setup_render(self) -> None:
         self.catalog = jinjax.Catalog(

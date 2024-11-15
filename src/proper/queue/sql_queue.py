@@ -62,11 +62,11 @@ class SqlQueue(BaseQueue):
             return
 
         if task.on_complete:
-            current = task
+            current_task = task
             results = []
-            while current is not None:
-                results.append(Result(self, current))
-                current = current.on_complete
+            while current_task is not None:
+                results.append(Result(self, current_task))
+                current_task = current_task.on_complete
             return ResultGroup(results)
         else:
             return Result(self, task)

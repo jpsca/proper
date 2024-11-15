@@ -3,7 +3,7 @@ from importlib import import_module
 from peewee_migrate import Router as PWRouter
 from proper_cli import Cli
 
-from proper.helpers import get_instance
+from proper.helpers.utils import get_storage_instance
 
 
 def get_db_cl(app):
@@ -11,7 +11,7 @@ def get_db_cl(app):
         def _get_router(self) -> PWRouter:
             config = app.config["DATABASE"].copy()
             migrate_dir = config.pop("migrations", "db/migrations")
-            db = get_instance(**config)
+            db = get_storage_instance(**config)
             return PWRouter(db, migrate_dir=migrate_dir)
 
         def create(self, name: str = "auto"):

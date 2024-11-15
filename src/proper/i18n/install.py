@@ -9,7 +9,8 @@ from ..helpers.render import (
 
 
 if t.TYPE_CHECKING:
-    from proper import App
+    from proper.core.app import App
+
 
 FIRST_YAML = """
 {locale}:

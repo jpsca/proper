@@ -18,7 +18,7 @@ from .model import gen_model
 
 
 if TYPE_CHECKING:
-    from proper import App
+    from proper.core.app import App
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"

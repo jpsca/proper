@@ -5,7 +5,9 @@ from proper.helpers import import_string
 
 
 if t.TYPE_CHECKING:
-    from proper import App, Request, Response
+    from proper.core.app import App
+    from proper.request import Request
+    from proper.response import Response
 
 
 __all__ = ("dispatch",)

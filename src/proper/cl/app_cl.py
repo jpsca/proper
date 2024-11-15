@@ -9,7 +9,7 @@ from .db_cl import get_db_cl
 
 
 if t.TYPE_CHECKING:
-    from proper import App
+    from proper.core.app import App
 
 
 def run(_self):
