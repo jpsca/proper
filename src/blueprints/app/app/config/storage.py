@@ -1,6 +1,6 @@
 import os
 
-from proper import PROD, TEST, onfig, env
+from proper import PROD, TEST, Config, env
 
 
 config = Config()
@@ -22,14 +22,14 @@ config.QUEUE = {
 }
 
 
-# Override config for testing
+# --- Override config for testing ---
 if env == TEST:
     config.QUEUE = {
         "type": "proper.queue.NoQueue",
     }
 
 
-# Override config for production
+# --- Override config for production ---
 if env == PROD:
     config.DATABASE = {
         "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
@@ -38,7 +38,7 @@ if env == PROD:
         "port": int(os.getenv("DB_PORT", 5432)),
         "user": os.getenv("DB_USER", "root"),
         "password": os.getenv("DB_PASSWORD", ""),
-        # The connection is managed in a concern of the view,
+        # The connection is managed in a concern of the controllers,
         # and on the `on_teardown` and `on_error` hooks
         "autoconnect": False,
     }

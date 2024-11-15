@@ -48,7 +48,6 @@ tomlkit = ">=0.12.4"
 traceback-with-variables = "^2.0.4"
 huey = "^2.5.2"
 types-peewee = "^3.17.7.20241017"
-pydantic = "^2.9.2"
 
 
 [tool.poetry.group.dev.dependencies]

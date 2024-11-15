@@ -1,7 +1,6 @@
 import os
 import typing as t
 from pathlib import Path
-from typing import Annotated
 
 from proper.errors import BadSecretKey
 from proper.helpers import DAYS, HOURS, MB, logger
@@ -44,73 +43,46 @@ class Config(BaseConfig):
     DEBUG: bool = False
     PROTOCOL: str = "http"
     HOST: str = "localhost:2300"
-    SECRET_KEYS: Annotated[
-        list[str] | tuple[str, ...],
-        """List of secret keys, **oldest to newest**.
-Every key in the list is valid, so you can periodically generate a new key
-and remove the oldest one to add and extra layer of mitigation
-against an attacker discovering a secret key""",
-    ]
-    CATCH_ALL_ERRORS: Annotated[
-        bool, "Turn off to let debugging middleware handle exceptions.",
-    ] = True
 
-    MAX_CONTENT_LENGTH: Annotated[
-        int,
-        """Limits the total content length (in bytes).
-Raises a `RequestEntityTooLarge` exception if this value is exceeded.""",
-    ] = 8 * MB
+    # List of secret keys, **oldest to newest**.
+    # Every key in the list is valid, so you can periodically generate a new key
+    # and remove the oldest one to add and extra layer of mitigation
+    # against an attacker discovering a secret key.
+    SECRET_KEYS: list[str] | tuple[str, ...]
 
-    MAX_QUERY_SIZE: Annotated[
-        int,
-        """Limits the content length (in bytes) of the query string.
-Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.""",
-    ] = 1 * MB
+    # Turn off to let debugging middleware handle exceptions.
+    CATCH_ALL_ERRORS: bool = True
 
-    SESSION_LIFETIME: Annotated[
-        int, """Number of seconds before a non-used session key expires.""",
-    ] = 30 * DAYS
+    # Limits the total content length (in bytes).
+    # Raises a `RequestEntityTooLarge` exception if this value is exceeded.
+    MAX_CONTENT_LENGTH: int = 8 * MB
+
+    # Limits the content length (in bytes) of the query string.
+    # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
+    MAX_QUERY_SIZE: int = 1 * MB
+
+    STATIC_URL: str = "/static/"
+    VIEWS_ASSETS_URL: str = "/static/v/"
+
+    # The name of the header to use to `return a file
+    # so the proxy or web-server does it instead of our application.
+    # Lighttpd uses "X-Sendfile" while `NGINX uses "X-Accel-Redirect""",
+    STATIC_X_SENDFILE_HEADER: str = ""
+
+    # Number of seconds before a non-used session key expires.
+    SESSION_LIFETIME: int = 30 * DAYS
     SESSION_COOKIE_NAME: str = "_session"
     SESSION_COOKIE_DOMAIN: str | None = None
     SESSION_COOKIE_PATH: str = "/"
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SECURE: bool = False
-    SESSION_COOKIE_SAMESITE: Annotated[
-        t.Literal["Lax"] | t.Literal["Strict"] | None,
-        """Modern browsers place restriction on cookies without the "same-site" cookie attribute set.
-To that end this attribute is set to `"Lax"` by default."""
-    ] = "Lax"
+    # Modern browsers place restriction on cookies without the "same-site" cookie attribute set.
+    # To that end this attribute is set to `"Lax"` by default.
+    SESSION_COOKIE_SAMESITE: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax"
 
     LOCALE_DEFAULT: str = "en"
 
-    STATIC_URL: str = "/static/"
-    VIEWS_ASSETS_URL: str = "/static/v/"
-
-    STATIC_X_SENDFILE_HEADER: Annotated[
-        str,
-        """The name of the header to use to return a file
-so the proxy or web-server does it instead of our application.
-Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect""",
-    ] = ""
-
     MAILER_DEFAULT_FROM: str = "hello@example.com"
-
-    AUTH_HASH_NAME: str | None = None
-    AUTH_ROUNDS: Annotated[
-        int | None, "`None` means using the default number for the hash",
-    ] = None
-    AUTH_PASSWORD_MINLEN: int = 9
-    AUTH_PASSWORD_MAXLEN: int = 1024
-    AUTH_TOKEN_LIFE: Annotated[
-        int, "Number of seconds before a reset-password token expires",
-    ] = 3 * HOURS
-
-    STORAGE_WEB_IMAGE_CONTENT_TYPES: Annotated[
-        list[str] | tuple[str, ...],
-        """Image content types that can be processed without being converted to
-the fallback PNG format. If you want to use WebP or AVIF variants in
-your application you can add image/webp or image/avif to this list.""",
-    ] = ("image/png", "image/jpeg", "image/gif")
 
     DATABASE: dict[str, t.Any] = {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
@@ -126,7 +98,18 @@ your application you can add image/webp or image/avif to this list.""",
         "database": ":memory:",
     }
 
-    STORAGE: dict[str, t.Any] | None = None
+    AUTH_HASH_NAME: str | None = None
+    # `None` means using the default number for the hash".
+    AUTH_ROUNDS: int | None = None
+    AUTH_PASSWORD_MINLEN: int = 9
+    AUTH_PASSWORD_MAXLEN: int = 1024
+    # Number of seconds before a reset-password token expires.
+    AUTH_TOKEN_LIFE: int = 3 * HOURS
+
+    # Image content types that can be processed without being converted to
+    # the fallback PNG format. If you want to use WebP or AVIF variants in
+    # your application you can add image/webp or image/avif to this list.
+    STORAGE_WEB_IMAGE_CONTENT_TYPES: list[str] | tuple[str, ...] = ("image/png", "image/jpeg", "image/gif")
 
     def validate(self):
         for key in self.SECRET_KEYS:

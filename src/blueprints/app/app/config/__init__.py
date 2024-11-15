@@ -2,7 +2,7 @@ import os
 
 from proper import DEV, MB, PROD, Config, env
 
-from . import storage, session
+from . import session, storage
 
 
 config = Config()
@@ -16,10 +16,10 @@ else:
     config.PROTOCOL = "http"
     config.HOST = "localhost:2300"
 
-# List of secret keys, **OLDEST TO NEWEST**.
+# List of secret keys, **oldest to newest**.
 # Every key in the list is valid, so you can periodically generate a new key
 # and remove the oldest one to add and extra layer of mitigation
-# against a improbable discovery of the current secret key
+# against an attacker discovering a secret key.
 if env == PROD:
     config.SECRET_KEYS = os.getenv("SECRET_KEYS", "").split(",")
 else:
