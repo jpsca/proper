@@ -1,17 +1,20 @@
 import os
+import typing as t
 from datetime import timedelta
 from pathlib import Path
 
+from proper.errors import BadSecretKey
 from proper.helpers import DotDict, logger
 
 
-__all__ = (
-    "get_env",
-    "env",
-    "DEV",
-    "PROD",
-    "TEST",
-)
+ENV_VAR = "APP_ENV"
+ENV_FILE = ".APP_ENV"
+
+DEV = "dev"
+PROD = "prod"
+TEST = "test"
+
+MIN_SECRET_LENGTH = 48
 
 
 def get_default_config():
@@ -85,14 +88,6 @@ def get_default_config():
     return config
 
 
-ENV_VAR = "APP_ENV"
-ENV_FILE = ".APP_ENV"
-
-DEV = "dev"
-PROD = "prod"
-TEST = "test"
-
-
 def get_env(default=DEV):
     env = os.getenv(ENV_VAR)
     if env:
@@ -106,6 +101,23 @@ def get_env(default=DEV):
 
     logger.debug("Using default environment: %s", default)
     return default
+
+
+def validate_config(config: dict[str, t.Any]):
+    validate_secret_keys(config["SECRET_KEYS"])
+
+
+def validate_secret_keys(secret_keys: list[str]) -> None:
+    secret_keys = secret_keys or [""]
+    for key in secret_keys:
+        if len(key) < MIN_SECRET_LENGTH:
+            raise BadSecretKey(
+                f"Your secret_key, `{key}` used for verifying the "
+                "integrity of signed cookies, is not secure enough. \n"
+                f"Make sure is at least {MIN_SECRET_LENGTH} characters "
+                "and all random, no regular words or you'll be exposed to "
+                "dictionary attacks."
+            )
 
 
 env = get_env()

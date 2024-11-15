@@ -1,5 +1,5 @@
 import hashlib
-import string
+import inspect
 import typing as t
 from importlib import import_module
 from pathlib import Path
@@ -12,7 +12,7 @@ from itsdangerous import (
 
 from proper import cache, status
 from proper.cl import get_app_cl
-from proper.errors import BadSecretKey, MatchNotFound, MethodNotAllowed
+from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import DotDict, current, get_instance, jsonplus
 from proper.i18n import I18n
 from proper.request import Request
@@ -29,7 +29,7 @@ from proper.types import (
 
 from . import pipeline
 from .app_test import AppTest
-from .config import get_default_config, get_env, logger
+from .config import get_default_config, get_env, validate_config
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -41,9 +41,6 @@ from .error_handlers import (
 
 if t.TYPE_CHECKING:
     from proper_cli import Cli
-
-
-MIN_SECRET_LENGTH = 48
 
 
 class App(AppTest):
@@ -81,8 +78,7 @@ class App(AppTest):
     def __init__(
         self,
         import_name: str,
-        *,
-        config: dict | None = None,
+        config: t.Any = None,
     ) -> None:
         self._debug = False
         self._on_error = ()
@@ -91,8 +87,8 @@ class App(AppTest):
         self._wrapped_wsgi = self.wsgi_app
 
         self._setup_paths(import_name)
-        self._setup_router()
         self._setup_config(config or {})
+        self._setup_router()
         self._setup_serializer()
         self._setup_cli()
         self._setup_db()
@@ -279,44 +275,27 @@ class App(AppTest):
         self.locales_path = parent_path / "locales"
         self.storage_path = parent_path / "storage"
 
-    def _setup_router(self) -> None:
-        self.router = Router()
-
-    def _setup_config(self, _config: dict) -> None:
+    def _setup_config(self, config: t.Any) -> None:
         self.env = get_env()
-        config = self._load_config()
-        config.update(_config)
-        self._validate_secret_keys(config.SECRET_KEYS)
-        self.config = config
-        self.debug = config.DEBUG
+        config = self._load_config(config)
+        validate_config(config)
+        self.debug = config["DEBUG"]
+        self.config = DotDict(config)
 
-    def _load_config(self) -> DotDict:
+    def _load_config(self, config_: t.Any) -> dict[str, t.Any]:
         config = get_default_config()
-        config_file = self.config_path / "app.py"
-        if config_file.is_file():
-            module = import_module(
-                ".config.app", self.module.__package__
-            )
-            loaded_config = {
-                name: getattr(module, name) for name in dir(module)
-                if name[0] in string.ascii_uppercase
-            }
-            config.update(loaded_config)
+        if isinstance(config_, dict):
+            dconfig = config_
         else:
-            logger.warning(f"{config_file} cannot be imported")
+            dconfig = {
+                name: value for name, value in vars(config_).items()
+                if not (name.startswith("_") or inspect.ismodule(value))
+            }
+        config.update(dconfig)
         return config
 
-    def _validate_secret_keys(self, secret_keys: list[str]) -> None:
-        secret_keys = secret_keys or [""]
-        for key in secret_keys:
-            if len(key) < MIN_SECRET_LENGTH:
-                raise BadSecretKey(
-                    f"Your secret_key, `{key}` used for verifying the "
-                    "integrity of signed cookies, is not secure enough. \n"
-                    f"Make sure is at least {MIN_SECRET_LENGTH} characters "
-                    "and all random, no regular words or you'll be exposed to "
-                    "dictionary attacks."
-                )
+    def _setup_router(self) -> None:
+        self.router = Router()
 
     def _setup_serializer(self) -> None:
         self.serializer = self.get_serializer("proper.session")

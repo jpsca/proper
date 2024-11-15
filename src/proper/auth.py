@@ -23,7 +23,7 @@ DEPENDENCIES = [
 SORT_IMPORTS_IN = [
     "app.py",
     "controllers/app.py",
-    "config/app.py",
+    "config/__init__.py",
     "cl/__init__.py",
 ]
 
