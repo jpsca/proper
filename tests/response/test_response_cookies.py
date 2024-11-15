@@ -15,13 +15,19 @@ def test_set_minimal_cookie():
     response.set_cookie("foo", "bar")
 
     assert response.cookies["foo"].value == "bar"
-    assert response._get_cookie_tuples() == [("Set-Cookie", "foo=bar; Path=/")]
+    assert response._get_cookie_tuples() == [("Set-Cookie", "foo=bar; Path=/; SameSite=Lax")]
     assert response.cookies["foo"]["path"] == "/"
+    assert response.cookies["foo"]["samesite"] == "Lax"
     assert not response.cookies["foo"]["domain"]
     assert not response.cookies["foo"]["secure"]
     assert not response.cookies["foo"]["httponly"]
     assert not response.cookies["foo"]["comment"]
-    assert not response.cookies["foo"]["samesite"]
+
+
+def test_invalid_samesite():
+    response = Response()
+    with pytest.raises(ValueError):
+        response.set_cookie("foo", "bar", samesite="lol")  # type: ignore
 
 
 def test_set_minimal_cookie_no_path():
@@ -29,7 +35,7 @@ def test_set_minimal_cookie_no_path():
     response.set_cookie("foo", "bar", path=None)  # type: ignore
     headers_list = response.get_headers_list()
 
-    assert headers_list[-1] == ("Set-Cookie", "foo=bar")
+    assert headers_list[-1] == ("Set-Cookie", "foo=bar; SameSite=Lax")
 
 
 def test_set_several_cookies():
@@ -41,7 +47,7 @@ def test_set_several_cookies():
     assert response.cookies["foo"].value == "bar"
     print(headers_list[-2:])
     assert headers_list[-1] == (
-        "Set-Cookie", "foo=bar; Path=/, lorem=ipsum; Path=/"
+        "Set-Cookie", "foo=bar; Path=/; SameSite=Lax, lorem=ipsum; Path=/; SameSite=Lax"
     )
 
 
@@ -84,7 +90,7 @@ def test_cookie_path():
     headers_list = response.get_headers_list()
 
     assert response.cookies["lorem"]["path"] == "/admin"
-    assert headers_list[-1][1] == "lorem=ipsum; Path=/admin"
+    assert headers_list[-1][1] == "lorem=ipsum; Path=/admin; SameSite=Lax"
 
 
 def test_cookie_domain():

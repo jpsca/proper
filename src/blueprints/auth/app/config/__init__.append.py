@@ -1,2 +1,4 @@
 
-from .auth import *  # noqa
+from . import auth
+
+config.update(auth.config)

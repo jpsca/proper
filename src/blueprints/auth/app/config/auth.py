@@ -1,9 +1,10 @@
-from proper import HOURS
+from proper import HOURS, Config
 
 
-AUTH_HASH_NAME: str = "argon2"
-AUTH_ROUNDS: int | None = None  # default
-AUTH_PASSWORD_MINLEN: int = 9
-AUTH_PASSWORD_MAXLEN: int = 1024
-AUTH_TOKEN_LIFE: int = 3 * HOURS
+config = Config()
 
+config.AUTH_HASH_NAME = "argon2"
+config.AUTH_ROUNDS = None  # =default
+config.AUTH_PASSWORD_MINLEN = 9
+config.AUTH_PASSWORD_MAXLEN = 1024
+config.AUTH_TOKEN_LIFE = 3 * HOURS

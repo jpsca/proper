@@ -12,13 +12,12 @@ from itsdangerous import (
 from proper import cache, status
 from proper.cl import get_app_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
-from proper.helpers import DotDict, jsonplus
+from proper.helpers import jsonplus
 from proper.helpers.utils import get_storage_instance
 from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
 from proper.router import Route, Router
-from proper.storage import Storage
 from proper.types import (
     TBody,
     TEventHandler,
@@ -29,7 +28,7 @@ from proper.types import (
 
 from . import pipeline
 from .app_test import AppTest
-from .config import get_env, validate_config
+from .config import Config, get_env
 from .current import current
 from .error_handlers import (
     debug_error_handler,
@@ -276,11 +275,13 @@ class App(AppTest):
         self.locales_path = parent_path / "locales"
         self.storage_path = parent_path / "storage"
 
-    def _setup_config(self, config: t.Any) -> None:
+    def _setup_config(self, user_config: t.Any) -> None:
         self.env = get_env()
-        config = validate_config(config)
-        self.debug = config["DEBUG"]
-        self.config = DotDict(config)
+        config = Config()
+        config.update(user_config)
+        config.validate()
+        self.debug = config.DEBUG
+        self.config = config
 
     def _setup_router(self) -> None:
         self.router = Router()
@@ -292,24 +293,24 @@ class App(AppTest):
         self.CL = get_app_cl(self)
 
     def _setup_db(self) -> None:
-        config = (self.config.get("DATABASE") or {}).copy()
-        if not config:
+        db_config = self.config.DATABASE.copy()
+        if not db_config:
             return
-        if "migrations" in config:
-            del config["migrations"]
-        self.db = get_storage_instance(**config)
+        if "migrations" in db_config:
+            del db_config["migrations"]
+        self.db = get_storage_instance(**db_config)
 
     def _setup_cache(self) -> None:
-        config = (self.config.get("CACHE") or {}).copy()
-        if not config:
+        cache_config = self.config.CACHE.copy()
+        if not cache_config:
             return
-        self.cache = get_storage_instance(**config)
+        self.cache = get_storage_instance(**cache_config)
 
     def _setup_queue(self) -> None:
-        config = (self.config.get("QUEUE") or {}).copy()
-        if not config:
+        q_config = self.config.QUEUE.copy()
+        if not q_config:
             return
-        self.queue = get_storage_instance(**config)
+        self.queue = get_storage_instance(**q_config)
 
     def _setup_render(self) -> None:
         self.catalog = jinjax.Catalog(
@@ -340,9 +341,10 @@ class App(AppTest):
         )
 
     def _setup_storage(self) -> None:
-        if "STORAGE" not in self.config:
-            return
-        self.storage = Storage(self, self.config)
+        pass
+        # if not self.config.STORAGE:
+        #     return
+        # self.storage = Storage(self, self.config.STORAGE)
 
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback

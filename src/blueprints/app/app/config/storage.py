@@ -1,20 +1,22 @@
 import os
 
-from proper import PROD, TEST, env
+from proper import PROD, TEST, onfig, env
 
 
-DATABASE = {
+config = Config()
+
+config.DATABASE = {
     "type": "playhouse.sqlite_ext.SqliteExtDatabase",
     "database": "storage/app.sqlite3",
     "migrations": "db/migrations",
 }
 
-CACHE = {
+config.CACHE = {
     "type": "proper.cache.SqliteCache",
     "database": ":memory:",
 }
 
-QUEUE = {
+config.QUEUE = {
     "type": "proper.queue.SqliteQueue",
     "database": ":memory:",
 }
@@ -22,14 +24,14 @@ QUEUE = {
 
 # Override config for testing
 if env == TEST:
-    QUEUE = {
+    config.QUEUE = {
         "type": "proper.queue.NoQueue",
     }
 
 
 # Override config for production
 if env == PROD:
-    DATABASE = {
+    config.DATABASE = {
         "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
         "database": os.getenv("DB_NAME", "dbname"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
@@ -41,12 +43,12 @@ if env == PROD:
         "autoconnect": False,
     }
 
-    CACHE = {
+    config.CACHE = {
         "type": "proper.cache.SqliteCache",
         "database": "storage/app_cache.sqlite3",
     }
 
-    QUEUE = {
+    config.QUEUE = {
         "type": "proper.queue.PostgresQueue",
         "database": os.getenv("DB_NAME", "dbname"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),

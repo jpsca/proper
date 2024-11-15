@@ -42,10 +42,10 @@ class ResponseCookiesMixin:
         *,
         max_age: int | None = None,
         path: str = "/",
-        domain: str = "",
+        domain: str | None = None,
         secure: bool = False,
         httponly: bool = False,
-        samesite: str | None = None,
+        samesite: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax",
         comment: str | None = None,
         signed: bool = False,
         salt: str = "",
@@ -85,8 +85,13 @@ class ResponseCookiesMixin:
             samesite:
                 A string representing the SameSite attribute of the cookie or None.
                 If samesite is None no SameSite value will be sent in the cookie.
-                Should only be "Strict" or "Lax".
+                Should only be `"Lax"`, `"Strict"`, or `None`.
                 See: https://www.owasp.org/index.php/SameSite
+
+                **Note**: Modern browsers place restriction on cookies without the
+                "same-site" cookie attribute set. To that end this attribute
+                is set to `"Lax"` by default.
+
 
             comment:
                 A string representing the cookie Comment value, or None. If comment
@@ -143,7 +148,7 @@ class ResponseCookiesMixin:
 
         if samesite:
             if str(samesite).lower() not in ("lax", "strict"):
-                raise ValueError("`samesite` must be “lax” or “strict”.")
+                raise ValueError('`samesite` must be `"Lax"`, `"Strict"` or `None`')
             cookie["samesite"] = samesite
 
         if comment:
@@ -157,8 +162,7 @@ class ResponseCookiesMixin:
         name: str,
         *,
         path: str = "/",
-        domain: str = "",
-        samesite: str = "lax",
+        domain: str | None = None,
     ) -> None:
         """Unset a cookie in the response.
 
@@ -166,11 +170,6 @@ class ResponseCookiesMixin:
         immediately expire its own copy of the cookie**.
 
         Note that **path and domain must match how the cookie was originally set**.
-
-        Note:
-            Modern browsers place restriction on cookies without the
-            "same-site" cookie attribute set. To that end this attribute
-            is set to `'lax'` by this method.
 
         Arguments:
 
@@ -184,12 +183,6 @@ class ResponseCookiesMixin:
                 A string representing the cookie Domain, or None. If domain is None,
                 no Domain value will be sent in the cookie.
 
-            samesite:
-                A string representing the SameSite attribute of the cookie or None.
-                If samesite is None no SameSite value will be sent in the cookie.
-                Should only be "Strict" or "Lax".
-                See: https://www.owasp.org/index.php/SameSite
-
         """
         if name in self.cookies:
             del self.cookies[name]
@@ -200,7 +193,6 @@ class ResponseCookiesMixin:
             max_age=0,
             path=path,
             domain=domain,
-            samesite=samesite,
         )
 
     def set_signed_cookie(
@@ -210,10 +202,10 @@ class ResponseCookiesMixin:
         *,
         max_age: int | None = None,
         path: str = "/",
-        domain: str = "",
+        domain: str | None = None,
         secure: bool = False,
         httponly: bool = False,
-        samesite: str | None = None,
+        samesite: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax",
         comment: str | None = None,
         salt: str = "",
     ) -> None:
@@ -243,7 +235,7 @@ class ResponseCookiesMixin:
         )]
 
 
-def validate_domain(domain: str) -> None:
+def validate_domain(domain: str | None) -> None:
     if domain and "." not in domain:
         # Chrome doesn't allow names without a '.'
         # This should only come up with something like "localhost"

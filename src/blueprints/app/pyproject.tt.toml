@@ -29,6 +29,7 @@ proper = { path = "../proper/", develop = true }
 optional = true
 
 [tool.poetry.group.dev.dependencies]
+ipython = "*"
 ruff = ">=0.2.0"
 # pytailwindcss = ">=0.2.0"
 

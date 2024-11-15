@@ -1,6 +1,6 @@
 from proper import App
 
-from . import config
+from .config import config
 
 
 app = App(__name__, config)

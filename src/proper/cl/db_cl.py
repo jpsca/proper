@@ -9,9 +9,9 @@ from proper.helpers.utils import get_storage_instance
 def get_db_cl(app):
     class DBCL(Cli):
         def _get_router(self) -> PWRouter:
-            config = app.config["DATABASE"].copy()
-            migrate_dir = config.pop("migrations", "db/migrations")
-            db = get_storage_instance(**config)
+            db_config = app.config.DATABASE.copy()
+            migrate_dir = db_config.pop("migrations", "db/migrations")
+            db = get_storage_instance(**db_config)
             return PWRouter(db, migrate_dir=migrate_dir)
 
         def create(self, name: str = "auto"):

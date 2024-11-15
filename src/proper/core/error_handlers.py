@@ -46,8 +46,9 @@ def debug_not_found_handler(app, request, response) -> None:
         return render_default_index(request, response)
 
     error = response.error
+    config_dict = app.config.to_dict()
     data = {
-        "config": deepsort_dict(redact_sensible_info(app.config)),
+        "config": redact_sensible_info(config_dict),
         "response": response,
         "title": get_title(error),
         "description": str(error),
@@ -93,8 +94,9 @@ def debug_error_handler(app, request, response) -> None:
     error = response.error
     logger.exception(error)
     excp = traceback2.format_exc()
+    config_dict = app.config.to_dict()
     data = {
-        "config": deepsort_dict(app.config),
+        "config": redact_sensible_info(config_dict),
         "response": response,
         "title": get_title(error),
         "description": str(error),
@@ -139,17 +141,3 @@ def fallback_forbidden_handler(response) -> None:
 def fallback_error_handler(response) -> None:
     logger.exception(response.error)
     response.body = render("fallback-error.html")
-
-
-def deepsort_dict(dd: dict) -> dict:
-    plain = {}
-    subdicts = {}
-    for key, value in dd.items():
-        if isinstance(value, dict):
-            subdicts[key] = deepsort_dict(value)
-        else:
-            plain[key] = value
-    return {
-        **dict(sorted(plain.items())),
-        **dict(sorted(subdicts.items())),
-    }

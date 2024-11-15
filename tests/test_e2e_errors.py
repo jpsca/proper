@@ -139,7 +139,7 @@ def test_fallback_from_custom_error_handlers(app):
 
 
 def test_do_not_catch_error(app):
-    app.config["CATCH_ALL_ERRORS"] = False
+    app.config.CATCH_ALL_ERRORS = False
     app.router.get("fail/value_error")(Pages.fail_value_error)
 
     with pytest.raises(ValueError):
