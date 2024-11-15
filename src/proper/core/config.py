@@ -1,10 +1,13 @@
+import inspect
 import os
 import typing as t
 from datetime import timedelta
 from pathlib import Path
 
-from proper.errors import BadSecretKey
-from proper.helpers import DotDict, logger
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from proper.errors import BadSecretKey, ConfigError
+from proper.helpers import logger
 
 
 ENV_VAR = "APP_ENV"
@@ -17,75 +20,126 @@ TEST = "test"
 MIN_SECRET_LENGTH = 48
 
 
-def get_default_config():
-    config = DotDict()
+class ConfigSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
 
-    config.DEBUG = False
-    config.HOST = None
+    DEBUG: bool = False
+    PROTOCOL: str = "http"
+    HOST: str = "localhost:2300"
+    SECRET_KEYS: list[str] | tuple[str, ...] = Field(
+        description="""List of secret keys, **oldest to newest**.
+Every key in the list is valid, so you can periodically generate a new key
+and remove the oldest one to add and extra layer of mitigation
+against an attacker discovering a secret key""",
+    )
+    CATCH_ALL_ERRORS: bool = Field(
+        description="Turn off to let debugging middleware handle exceptions.",
+        default=True,
+    )
+    MAX_CONTENT_LENGTH: int = Field(
+        description="""Limits the total content length (in bytes).
+Raises a `RequestEntityTooLarge` exception if this value is exceeded.""",
+        default=2**23,  # 8 MB
+    )
+    MAX_QUERY_SIZE: int = Field(
+        description="""Limits the content length (in bytes) of the query string.
+Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.""",
+        default=2**20,  # 1 MB
+    )
 
-    # List of secret keys, **oldest to newest**.
-    # Every key in the list is valid, so you can periodically generate a new key
-    # and remove the oldest one to add and extra layer of mitigation
-    # against an attacker discovering a secret key
-    config.SECRET_KEYS = [""]
+    SESSION_LIFETIME: int = Field(
+        description="""Number of seconds before a non-used session key expires.""",
+        default=to_seconds(days=30),
+    )
+    SESSION_COOKIE_NAME: str = "_session"
+    SESSION_COOKIE_DOMAIN: str | None = None
+    SESSION_COOKIE_PATH: str = "/"
+    SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_SAMESITE: t.Literal["Lax"] | t.Literal["Strict"] | None = None
 
-    # Turn off to let debugging middleware handle exceptions.
-    config.CATCH_ALL_ERRORS = True
+    LOCALE_DEFAULT: str = "en"
 
-    # Limits the total content length (in bytes).
-    # Raises a RequestEntityTooLarge exception if this value is exceeded.
-    config.MAX_CONTENT_LENGTH = 2**23  # 8 MB
+    STATIC_URL: str = "/static/"
+    VIEWS_ASSETS_URL: str = "/static/v/"
 
-    # Limits the content length (in bytes) of the query string.
-    # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
-    config.MAX_QUERY_SIZE = 2**20  # 1 MB
+    STATIC_X_SENDFILE_HEADER: str = Field(
+        description="""The name of the header to use to return a file
+so the proxy or web-server does it instead of our application.
+Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect""",
+        default="",
+    )
 
-    config.SESSION_LIFETIME = timedelta(days=30).total_seconds()
+    MAILER_DEFAULT_FROM: str = "hello@example.com"
 
-    config.SESSION_COOKIE_NAME = "_session"
-    config.SESSION_COOKIE_DOMAIN = None
-    config.SESSION_COOKIE_PATH = "/"
-    config.SESSION_COOKIE_HTTPONLY = True
-    config.SESSION_COOKIE_SECURE = False
-    config.SESSION_COOKIE_SAMESITE = None  # "Lax", "Strict", or None
+    AUTH_HASH_NAME: str | None = None
+    AUTH_ROUNDS: int | None = None
+    AUTH_PASSWORD_MINLEN: int = 9
+    AUTH_PASSWORD_MAXLEN: int = 1024
+    AUTH_TOKEN_LIFE: int = Field(
+        description="Nmber of seconds before a reset-password token expires",
+        default=to_seconds(hours=3),
+    )
 
-    config.LOCALE_DEFAULT = "en"
-    config.STATIC_URL = "/static/"
-    config.VIEWS_ASSETS_URL = "/static/v/"
+    STORAGE_WEB_IMAGE_CONTENT_TYPES: list[str] | tuple[str] = Field(
+        description="""Image content types that can be processed without being converted to
+the fallback PNG format. If you want to use WebP or AVIF variants in
+your application you can add image/webp or image/avif to this list.""",
+        default=("image/png", "image/jpeg", "image/gif"),
+    )
 
-    config.DATABASE = {
+    DATABASE: dict[str, t.Any] = {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
         "database": "storage/app.sqlite3",
         "migrations": "db/migrations",
     }
-
-    config.CACHE = {
-        "type": "proper.cache.NoCache",
+    CACHE: dict[str, t.Any] = {
+        "type": "proper.cache.SqliteCache",
+        "database": ":memory:",
+    }
+    QUEUE: dict[str, t.Any] = {
+        "type": "proper.queue.SqliteQueue",
+        "database": ":memory:",
     }
 
-    config.QUEUE = {
-        "type": "proper.queue.NoQueue",
-    }
+    @field_validator("SECRET_KEYS")
+    @classmethod
+    def validate_secret_keys(
+        cls, value: list[str] | tuple[str, ...]
+    ) -> list[str] | tuple[str, ...]:
+        secret_keys = value or [""]
+        for key in secret_keys:
+            if len(key) < MIN_SECRET_LENGTH:
+                raise BadSecretKey(
+                    f"Your secret_key, `{key}` used for verifying the "
+                    "integrity of signed cookies, is not secure enough. \n"
+                    f"Make sure is at least {MIN_SECRET_LENGTH} characters "
+                    "and all random, no regular words or you'll be exposed to "
+                    "dictionary attacks."
+                )
+        return value
 
-    # The name of the header to use to return a file
-    # so the proxy or web-server does it instead of our application.
-    # Lighttpd uses "X-Sendfile" while NGINX uses "X-Accel-Redirect"
-    config.STATIC_X_SENDFILE_HEADER = ""
 
-    config.MAILER_DEFAULT_FROM = "hello@example.com"
+def to_seconds(**kwargs) -> int:
+    return int(timedelta(**kwargs).total_seconds())
 
-    config.AUTH_HASH_NAME = None  # default
-    config.AUTH_ROUNDS = None  # default
-    config.AUTH_PASSWORD_MINLEN = 9
-    config.AUTH_PASSWORD_MAXLEN = 1024
-    config.AUTH_TOKEN_LIFE = 10800  # 3 hours
 
-    # Image content types that can be processed without being converted to
-    # the fallback PNG format. If you want to use WebP or AVIF variants in
-    # your application you can add image/webp or image/avif to this list.
-    config.STORAGE_WEB_IMAGE_CONTENT_TYPES = ["image/png", "image/jpeg", "image/gif"]
+def validate_config(dict_or_module: t.Any) -> dict[str, t.Any]:
+    if isinstance(dict_or_module, dict):
+        data = dict_or_module
+    else:
+        data = {
+            name: value for name, value in vars(dict_or_module).items()
+            if not (name.startswith("_") or inspect.ismodule(value))
+        }
+    try:
+        m = ConfigSchema(**data)
+    except ValidationError as e:
+        raise ConfigError() from e
 
-    return config
+    config_dict = m.model_dump()
+    config_dict.update(m.__pydantic_extra__ or {})
+    return config_dict
 
 
 def get_env(default=DEV):
@@ -101,23 +155,6 @@ def get_env(default=DEV):
 
     logger.debug("Using default environment: %s", default)
     return default
-
-
-def validate_config(config: dict[str, t.Any]):
-    validate_secret_keys(config["SECRET_KEYS"])
-
-
-def validate_secret_keys(secret_keys: list[str]) -> None:
-    secret_keys = secret_keys or [""]
-    for key in secret_keys:
-        if len(key) < MIN_SECRET_LENGTH:
-            raise BadSecretKey(
-                f"Your secret_key, `{key}` used for verifying the "
-                "integrity of signed cookies, is not secure enough. \n"
-                f"Make sure is at least {MIN_SECRET_LENGTH} characters "
-                "and all random, no regular words or you'll be exposed to "
-                "dictionary attacks."
-            )
 
 
 env = get_env()

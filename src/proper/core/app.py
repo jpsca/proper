@@ -1,5 +1,4 @@
 import hashlib
-import inspect
 import typing as t
 from importlib import import_module
 from pathlib import Path
@@ -29,7 +28,7 @@ from proper.types import (
 
 from . import pipeline
 from .app_test import AppTest
-from .config import get_default_config, get_env, validate_config
+from .config import get_env, validate_config
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -87,8 +86,8 @@ class App(AppTest):
         self._wrapped_wsgi = self.wsgi_app
 
         self._setup_paths(import_name)
-        self._setup_config(config or {})
         self._setup_router()
+        self._setup_config(config or {})
         self._setup_serializer()
         self._setup_cli()
         self._setup_db()
@@ -277,22 +276,9 @@ class App(AppTest):
 
     def _setup_config(self, config: t.Any) -> None:
         self.env = get_env()
-        config = self._load_config(config)
-        validate_config(config)
+        config = validate_config(config)
         self.debug = config["DEBUG"]
         self.config = DotDict(config)
-
-    def _load_config(self, config_: t.Any) -> dict[str, t.Any]:
-        config = get_default_config()
-        if isinstance(config_, dict):
-            dconfig = config_
-        else:
-            dconfig = {
-                name: value for name, value in vars(config_).items()
-                if not (name.startswith("_") or inspect.ismodule(value))
-            }
-        config.update(dconfig)
-        return config
 
     def _setup_router(self) -> None:
         self.router = Router()
