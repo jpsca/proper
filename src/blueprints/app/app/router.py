@@ -12,6 +12,7 @@ router.static(
     root=app.views_path,
     allowed_ext=(".css", ".js", ".png", ".jpg"),
 )
-router.get("favicon.ico", redirect="/static/favicon.ico"),
-router.get("robots.txt", redirect="/static/robots.txt"),
-router.get("humans.txt", redirect="/static/humans.txt"),
+_ = router.get("favicon.ico", redirect="/static/favicon.ico"),
+_ = router.get("robots.txt", redirect="/static/robots.txt"),
+_ = router.get("humans.txt", redirect="/static/humans.txt"),
+

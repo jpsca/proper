@@ -44,7 +44,6 @@ passlib = "^1.7"
 peewee = "^3.15"
 peewee-migrate =">=1.12.1,< 2"
 proper-cli ="^1.2"
-tomlkit = ">=0.12.4"
 traceback-with-variables = "^2.0.4"
 huey = "^2.5.2"
 types-peewee = "^3.17.7.20241017"
@@ -107,7 +106,8 @@ exclude = [
     "**/node_modules",
     "**/__pycache__",
     "**/tests",
-    "**/proper/mail"
+    "**/proper/mail",
+    "**/proper/storage",
 ]
 ignore = ["src/blueprints"]
 reportPrivateImportUsage = false

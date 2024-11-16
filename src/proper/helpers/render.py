@@ -8,7 +8,6 @@ from pathlib import Path
 import isort
 import jinja2
 from proper_cli import confirm, echo
-from tomlkit import dumps, parse
 
 
 __all__ = [
@@ -176,21 +175,18 @@ def copy_file(
     shutil.copy2(str(src_path), str(dst_path))
 
 
+PACKAGE_MANAGERS = {
+    ("poetry.lock", "poetry add"),
+    ("uv.lock", "uv add"),
+}
+
 def add_dependencies(root_path: Path, dependencies: list[str]):
-    pyproject_path = (root_path.parent / "pyproject.toml")
-    pyproject = parse(pyproject_path.read_text())
-    project = pyproject["project"] or {}
-    project = t.cast(dict, project)
-    project.setdefault("dependencies", [])
-    deps = project.get("dependencies") or []
-    projdeps = set(deps)
-    projdeps.update(dependencies)
-    project["dependencies"] = sorted(projdeps)
+    cmd = "pip install"
+    for lockfile, pm in PACKAGE_MANAGERS:
+        if (root_path / lockfile).exists():
+            cmd = pm
 
-    pyproject_path.write_text(dumps(pyproject))
-
-    pipdeps = [d.replace(" ", "") for d in dependencies]
-    call(f"uv pip install {' '.join(pipdeps)}")
+    call(f"{cmd} {' '.join(dependencies)}")
 
 
 def append_to_file(root_path: Path, dst_relpath: str | Path, new_content: str) -> None:

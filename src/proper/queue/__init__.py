@@ -1,5 +1,5 @@
 from huey.api import crontab  # noqa
-from .base import NoQueue  # noqa
+from .base import BaseQueue, NoQueue  # noqa
 from .consumer import Consumer, Worker  # noqa
 from .sql_queue import (
   SIGNAL_CREATED,  # noqa

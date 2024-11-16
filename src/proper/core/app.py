@@ -9,7 +9,8 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 
-from proper import cache, status
+from proper import status
+from proper.cache import FragmentCacheExtension
 from proper.cl import get_app_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import jsonplus
@@ -40,7 +41,11 @@ from .error_handlers import (
 
 
 if t.TYPE_CHECKING:
+    import peewee
     from proper_cli import Cli
+
+    from proper.cache import BaseCache
+    from proper.queue import BaseQueue
 
 
 class App(AppTest):
@@ -67,10 +72,23 @@ class App(AppTest):
     # A lists of functions that are called when the development server starts,
     _on_dev_start: TEventHandlers = ()
 
+    name: str
+    parent_path: Path
+    root_path: Path
+    views_path: Path
+    config_path: Path
+    static_path: Path
+    locales_path: Path
+    storage_path: Path
+
+    router: Router
+    config: Config
     CL: "t.Type[Cli]"
-    db: t.Any
-    cache: t.Any
-    queue: t.Any
+    db: "peewee.Database"
+    cache: "BaseCache"
+    queue: "BaseQueue"
+    catalog: jinjax.Catalog
+    i18n: I18n | None
 
     request_cls: t.Type[Request] = Request
     response_cls: t.Type[Response] = Response
@@ -321,7 +339,7 @@ class App(AppTest):
                 "url_startswith": self.url_startswith,
             },
             extensions=[
-                cache.FragmentCacheExtension,
+                FragmentCacheExtension,
             ],
             fingerprint=True,
         )

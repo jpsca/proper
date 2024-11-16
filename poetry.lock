@@ -1193,17 +1193,6 @@ pure-eval = "*"
 tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
-name = "tomlkit"
-version = "0.13.2"
-description = "Style preserving TOML library"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "tomlkit-0.13.2-py3-none-any.whl", hash = "sha256:7a974427f6e119197f670fbbbeae7bef749a6c14e793db934baefc1b5f03efde"},
-    {file = "tomlkit-0.13.2.tar.gz", hash = "sha256:fff5fe59a87295b278abd31bec92c15d9bc4a06885ab12bcea52c71119392e79"},
-]
-
-[[package]]
 name = "tox"
 version = "4.23.2"
 description = "tox is a generic virtualenv management and test command line tool"
@@ -1310,4 +1299,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "57cd969b607deafa36684f4e583f94d57f8f873a3d7b3f9af80fdedf18b60bd3"
+content-hash = "f964647f648a7477c3a319a6b8b33e4cdd73eadc031f416bff4efcf618bdf049"

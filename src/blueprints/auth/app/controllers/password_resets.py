@@ -1,10 +1,10 @@
 from proper.status import unprocessable
 
-from app.main import config
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from app.forms.password_resets import PasswordChangeSchema, PasswordResetSchema
 from app.mailers import send_password_reset_email
+from app.main import config
 from app.models import User
 from app.router import auth_router
 

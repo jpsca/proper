@@ -45,6 +45,8 @@ SINGLE_ROUTES = (
     (RESTORE, "/", ACTION_RESTORE),
 )
 
+TDecorator = t.Callable[[t.Callable], t.Callable]
+
 
 class BaseRouter:
     """
@@ -189,7 +191,7 @@ class BaseRouter:
         redirect: str | None = None,
         redirect_status: str = status.temporary_redirect,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Function or method decorator to register a GET route.
 
         Arguments:
@@ -255,7 +257,6 @@ class BaseRouter:
         )
         if redirect:
             self.add_route(route)
-            return route
         return self._get_route_decorator(route)
 
     def options(
@@ -267,7 +268,7 @@ class BaseRouter:
         redirect: str | None = None,
         redirect_status: str = status.temporary_redirect,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Function or method decorator to register a OPTIONS route.
 
         Arguments:
@@ -333,7 +334,6 @@ class BaseRouter:
         )
         if redirect:
             self.add_route(route)
-            return route
         return self._get_route_decorator(route)
 
     def post(
@@ -343,7 +343,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Method decorator to register a POST route.
 
         Arguments:
@@ -406,7 +406,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Method decorator to register a PUT route.
 
         Arguments:
@@ -469,7 +469,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Method decorator to register a DELETE route.
 
         Arguments:
@@ -532,7 +532,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Method decorator to register a PATCH route.
 
         Arguments:
@@ -595,7 +595,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Method decorator to register a QUERY route.
 
         A QUERY is like GET but with a body (although the HTTP standard doesn't
@@ -664,7 +664,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> TDecorator:
         r"""Method decorator to register a non-standard HTTP RESTORE route.
 
         Yes, it's not standard, but so anything WebDAV or CalDAV, so sue me
@@ -739,7 +739,7 @@ class BaseRouter:
         fingerprint: bool = True,
         host: str | None = None,
         defaults: dict | None = None,
-    ):
+    ) -> Route:
         """A route for static files.
 
         Arguments:
@@ -908,7 +908,7 @@ class BaseRouter:
 
     # Private
 
-    def _get_route_decorator(self, route: Route) -> t.Callable:
+    def _get_route_decorator(self, route: Route) -> TDecorator:
         def _decorator(to) -> t.Callable:
             route.to = to
             self.add_route(route)
