@@ -1,15 +1,11 @@
-import re
 import typing as t
-import unicodedata
 
 import peewee as pw
+from passlib.utils import saslprep
 from proper import current
 
 from app.main import auth, config
 from app.models.base import BaseMixin
-
-
-RX_SPACES = re.compile(r"\s+")
 
 
 class Authenticable(BaseMixin):
@@ -25,17 +21,10 @@ class Authenticable(BaseMixin):
         return self.login
 
     @classmethod
-    def _normalize_login(
-        cls,
-        login: str = "",
-        *,
-        uform: t.Literal["NFC", "NFD", "NFKC", "NFKD"] = "NFKC",
-    ):
-        # This unicode normalization MUST come first
+    def _normalize_login(cls, login: str = ""):
         # https://engineering.atspotify.com/2013/06/creative-usernames/
-        login = unicodedata.normalize(uform, login)
-        login = login.casefold()
-        return RX_SPACES.sub("", login)
+        login = saslprep(login).casefold()
+        return login.replace(" ", "")
 
     @classmethod
     def _prepare_data(cls, data) -> dict:

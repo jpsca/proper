@@ -5,7 +5,7 @@ from time import time
 
 import passlib.hash
 from passlib.context import CryptContext
-
+from passlib.utils import saslprep
 from proper.errors import WrongHashAlgorithm
 
 
@@ -126,6 +126,10 @@ class Auth:
     def hash_password(self, secret: str) -> str | None:
         if secret is None:
             return None
+
+        # Passlib recommends normalizing the unicode strings
+        # used as passwords
+        secret = saslprep(secret, param="password")
 
         len_secret = len(secret)
         if len_secret < self.password_minlen:

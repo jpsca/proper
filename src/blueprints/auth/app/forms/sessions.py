@@ -6,7 +6,7 @@ from pydantic import BeforeValidator, SecretStr, model_validator
 from pydantic_core import PydanticCustomError
 
 from app.models import User
-from .password_resets import login_exists  # (A)
+from .password_resets.validators import login_exists  # (A)
 
 
 # The form tells the user if the login doesn't exists or the password is wrong
