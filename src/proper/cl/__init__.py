@@ -13,11 +13,11 @@ def run():
     from proper.core.app import App
 
     cwd = Path(os.getcwd())
-    wsgi_py = cwd / "wsgi.py"
-    if wsgi_py.is_file():
+    main_py = cwd / "app" / "main.py"
+    if main_py.is_file():
         if cwd not in sys.path:
             sys.path.append(str(cwd))
-        module = importlib.import_module("wsgi")
+        module = importlib.import_module("app.main")
         if hasattr(module, "app") and isinstance(module.app, App):
             appCL = module.app.CL()
             return appCL()

@@ -4,7 +4,8 @@ from ..helpers.render import (
     BLUEPRINTS,
     BlueprintRender,
     add_dependencies,
-    sort_imports,
+    append_to_concerns,
+    sort_imports_in,
 )
 
 
@@ -19,8 +20,7 @@ FIRST_YAML = """
 """
 I18N_BLUEPRINT = BLUEPRINTS / "i18n"
 APPLICATION_CONTROLLER = "controllers/app.py"
-ENTRY_POINT = "\n    concerns = ["
-INSERT = f"{ENTRY_POINT}\n        SetLocale,\n"
+CONCERNS = ["SetLocale"]
 
 DEPENDENCIES = [
     "poyo",
@@ -38,16 +38,11 @@ def install(app: "App") -> None:
     bp = BlueprintRender(
         I18N_BLUEPRINT,
         app.root_path.parent,
-        context={
-            "app_name": app.root_path.name,
-        },
+        context={},
     )
     bp()
 
-    curr_appc = app.root_path / APPLICATION_CONTROLLER
-    code = sort_imports(curr_appc.read_text())
-    if ENTRY_POINT in code:
-        code = code.replace(ENTRY_POINT, INSERT)
-    curr_appc.write_text(code)
-
+    appc = app.root_path / APPLICATION_CONTROLLER
+    sort_imports_in(appc)
+    append_to_concerns(appc, CONCERNS)
     add_dependencies(app.root_path, DEPENDENCIES)

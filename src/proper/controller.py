@@ -21,7 +21,7 @@ __all__ = ("Controller",)
 
 
 class Controller:
-    concerns: t.Sequence[t.Any]
+    concerns: list[t.Any]
 
     def __init__(
         self,

@@ -19,7 +19,7 @@ ENV \
     \
     # Poetry:
     # https://python-poetry.org/docs/configuration/#using-environment-variables
-    POETRY_VERSION=1.8.2 \
+    POETRY_VERSION=1.8.4 \
     # Install packages in this directory.
     POETRY_HOME="/opt/poetry" \
     # Enable poetry to set up the virtual environment in the project's root directory

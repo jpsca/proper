@@ -15,16 +15,16 @@ if t.TYPE_CHECKING:
 
 AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 
-DEPENDENCIES = [
-    "argon2-cffi",
-    "confusable-homoglyphs",
-]
-
 SORT_IMPORTS_IN = [
     "main.py",
     "controllers/app.py",
     "config/__init__.py",
     "cl/__init__.py",
+]
+
+DEPENDENCIES = [
+    "argon2-cffi",
+    "confusable-homoglyphs",
 ]
 
 
@@ -34,9 +34,7 @@ def install(app: "App") -> None:
     bp = BlueprintRender(
         AUTH_BLUEPRINT,
         app.root_path.parent,
-        context={
-            "app_name": app.root_path.name,
-        },
+        context={},
     )
     bp()
 
