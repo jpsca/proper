@@ -18,7 +18,7 @@ FIRST_YAML = """
 
 """
 I18N_BLUEPRINT = BLUEPRINTS / "i18n"
-APPLICATION_VIEW = "views/app.py"
+APPLICATION_CONTROLLER = "controllers/app.py"
 ENTRY_POINT = "\n    concerns = ["
 INSERT = f"{ENTRY_POINT}\n        SetLocale,\n"
 
@@ -44,7 +44,7 @@ def install(app: "App") -> None:
     )
     bp()
 
-    curr_appc = app.root_path / APPLICATION_VIEW
+    curr_appc = app.root_path / APPLICATION_CONTROLLER
     code = sort_imports(curr_appc.read_text())
     if ENTRY_POINT in code:
         code = code.replace(ENTRY_POINT, INSERT)

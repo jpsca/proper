@@ -69,9 +69,6 @@ class App(AppTest):
     # even if an exception was raised before.
     _on_teardown: TEventHandlers = ()
 
-    # A lists of functions that are called when the development server starts,
-    _on_dev_start: TEventHandlers = ()
-
     name: str
     parent_path: Path
     root_path: Path
@@ -87,8 +84,8 @@ class App(AppTest):
     db: "peewee.Database"
     cache: "BaseCache"
     queue: "BaseQueue"
-    catalog: jinjax.Catalog
     i18n: I18n | None
+    catalog: jinjax.Catalog
 
     request_cls: t.Type[Request] = Request
     response_cls: t.Type[Response] = Response
@@ -98,10 +95,6 @@ class App(AppTest):
         import_name: str,
         config: t.Any = None,
     ) -> None:
-        self._debug = False
-        self._on_error = ()
-        self._on_teardown = ()
-
         self._wrapped_wsgi = self.wsgi_app
 
         self._setup_paths(import_name)
@@ -112,9 +105,9 @@ class App(AppTest):
         self._setup_db()
         self._setup_cache()
         self._setup_queue()
-        self._setup_render()
         self._setup_i18n()
         self._setup_storage()
+        self._setup_render()
 
     def __call__(
         self,
@@ -129,11 +122,11 @@ class App(AppTest):
 
     @property
     def debug(self) -> bool:
-        return self._debug
+        return self.config.DEBUG
 
     @debug.setter
     def debug(self, value: bool) -> None:
-        self._debug = value
+        self.config.DEBUG = value
         self.router.debug = value
 
     def on_error(self, func: TEventHandler) -> TEventHandler:
@@ -146,18 +139,6 @@ class App(AppTest):
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
-        return func
-
-    def on_dev_start(self, func: TEventHandler) -> TEventHandler:
-        """Decorator to add a function that runs when the development
-        server starts."""
-        self._on_dev_start = self._on_dev_start + (func,)
-        return func
-
-    def on_dev_shutdown(self, func: TEventHandler) -> TEventHandler:
-        """Decorator to add a function that runs when the development
-        server is shutdown."""
-        self._on_dev_shutdown = self._on_dev_shutdown + (func,)
         return func
 
     def wsgi_app(
@@ -269,10 +250,6 @@ class App(AppTest):
             return None
         return current.request.locale
 
-    def dev_start(self) -> None:
-        for func in self._on_dev_start:
-            func()
-
     # Private
 
     def _setup_paths(self, import_name: str) -> None:
@@ -282,7 +259,6 @@ class App(AppTest):
         path = Path(module_file)
         if path.is_file():
             path = path.parent
-        self.module = module
         self.root_path = path.resolve()
         self.name = self.root_path.stem
 
@@ -298,7 +274,6 @@ class App(AppTest):
         config = Config()
         config.update(user_config)
         config.validate()
-        self.debug = config.DEBUG
         self.config = config
 
     def _setup_router(self) -> None:
@@ -330,22 +305,6 @@ class App(AppTest):
             return
         self.queue = get_storage_instance(**q_config)
 
-    def _setup_render(self) -> None:
-        self.catalog = jinjax.Catalog(
-            root_url=self.config.VIEWS_ASSETS_URL,
-            globals={
-                "url_for": self.url_for,
-                "url_is": self.url_is,
-                "url_startswith": self.url_startswith,
-            },
-            extensions=[
-                FragmentCacheExtension,
-            ],
-            fingerprint=True,
-        )
-        self.catalog.add_folder(self.views_path)
-        self.catalog.jinja_env.extend(app_cache=self.cache)
-
     def _setup_i18n(self) -> None:
         self.i18n = None
 
@@ -364,6 +323,25 @@ class App(AppTest):
         #     return
         # self.storage = Storage(self, self.config.STORAGE)
 
+    def _setup_render(self) -> None:
+        self.catalog = jinjax.Catalog(
+            root_url=self.config.VIEWS_ASSETS_URL,
+            globals={
+                "url_for": self.url_for,
+                "url_is": self.url_is,
+                "url_startswith": self.url_startswith,
+            },
+            extensions=[
+                FragmentCacheExtension,
+            ],
+            fingerprint=True,
+        )
+        self.catalog.add_folder(self.views_path)
+        self.catalog.jinja_env.extend(app_cache=self.cache)
+
+        if self.i18n:
+            self.catalog.jinja_env.globals["_"] = self.i18n.translate
+
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
@@ -372,7 +350,7 @@ class App(AppTest):
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.
-        if self.debug:
+        if self.config.DEBUG:
             self._default_error_handler(request, response)
             return
 
@@ -389,12 +367,12 @@ class App(AppTest):
     def _default_error_handler(self, request, response) -> None:
         response.status = getattr(response.error, "status", status.server_error)
 
-        if not self.debug and not self.config.CATCH_ALL_ERRORS:
-            raise
-        if self.debug:
+        if self.config.DEBUG:
             self._default_error_handler_debug(request, response)
-        else:
+        elif self.config.CATCH_ALL_ERRORS:
             self._default_error_handler_production(response)
+        else:
+            raise
 
     def _default_error_handler_debug(self, request, response) -> None:
         if isinstance(response.error, (MatchNotFound, MethodNotAllowed)):
