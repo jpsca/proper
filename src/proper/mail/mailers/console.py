@@ -13,14 +13,14 @@ from .base import BaseMailer
 
 
 class ToConsoleMailer(BaseMailer):
-    stream: TextIO | None = None
+    stream: TextIO
 
-    def __init__(self, stream: TextIO | None = sys.stdout, **kwargs):
+    def __init__(self, stream: TextIO = sys.stdout, **kwargs):
         super().__init__(**kwargs)
         self.stream = stream
         self._lock = threading.RLock()
 
-    def send_messages(self, *email_messages):
+    def send_emails(self, *email_messages):
         """Write all messages to the stream in a thread-safe way."""
         if not email_messages:
             return

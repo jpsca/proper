@@ -22,9 +22,9 @@ def test_sending(smtpd):
     email1, email2, email3, email4 = make_emails()
 
     with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_messages(email1) == 1
-        assert mailer.send_messages(email2, email3) == 2
-        assert mailer.send_messages(email4) == 1
+        assert mailer.send_emails(email1) == 1
+        assert mailer.send_emails(email2, email3) == 2
+        assert mailer.send_emails(email4) == 1
 
     assert len(smtpd.messages) == 4
 
@@ -46,7 +46,7 @@ def test_sending_unicode(smtpd):
     )
 
     with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_messages(email)
+        assert mailer.send_emails(email)
 
     assert len(smtpd.messages) == 1
     message = smtpd.messages[0]
@@ -107,7 +107,7 @@ def test_batch_too_many_recipients(smtpd):
     msg = EmailMessage(subject="The Subject", body="Content", from_email="from@example.com", to=send_to)
 
     with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_messages(msg) == 1
+        assert mailer.send_emails(msg) == 1
 
     assert len(smtpd.messages) == 8
     assert len(smtpd.messages[0].get("to").split(",")) == 200

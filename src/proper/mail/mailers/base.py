@@ -6,7 +6,7 @@ from ..message import EmailMessage
 class BaseMailer:
     """Base class for mailers implementations.
 
-    Subclasses must at least overwrite send_messages().
+    Subclasses must at least overwrite send_emails().
     """
 
     def __init__(self, default_from: str | None = None, fail_silently: bool = False):
@@ -40,9 +40,9 @@ class BaseMailer:
 
     def send(self, **kwargs) -> t.Any:
         kwargs.setdefault("from_email", self.default_from)
-        return self.send_messages(EmailMessage(**kwargs))
+        return self.send_emails(EmailMessage(**kwargs))
 
-    def send_messages(self, *email_messages: EmailMessage) -> t.Any:
+    def send_emails(self, *email_messages: EmailMessage) -> t.Any:
         """Sends one or more `EmailMessage` objects and returns the number of
         email messages sent.
         """

@@ -137,7 +137,7 @@ class SMTPMailer(BaseMailer):
         finally:
             self.connection = None
 
-    def send_messages(self, *messages: EmailMessage):
+    def send_emails(self, *messages: EmailMessage):
         """
         Send one or more EmailMessage objects and return the number of email
         messages sent.

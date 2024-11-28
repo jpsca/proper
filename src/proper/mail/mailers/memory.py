@@ -17,7 +17,7 @@ class ToMemoryMailer(BaseMailer):
         super().__init__(**kwargs)
         self.outbox = []
 
-    def send_messages(self, *email_messages):
+    def send_emails(self, *email_messages):
         """Redirect messages to the dummy outbox."""
         self.outbox.extend(email_messages)
         return len(email_messages)

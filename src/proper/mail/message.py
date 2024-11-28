@@ -17,7 +17,7 @@ from email.utils import formataddr, formatdate, getaddresses, make_msgid
 from io import BytesIO, StringIO
 from pathlib import Path
 
-from .utils import DNS_NAME, force_str
+from .utils import DNS_NAME
 
 
 utf8_charset = Charset("utf-8")
@@ -53,7 +53,36 @@ ADDRESS_HEADERS = {
 }
 
 
-def to_list(value: str | list[str] | tuple[str, ...] | None) -> list[str]:
+def force_str(s, encoding="utf-8", errors="strict"):
+    """
+    Force a string to be the native type.
+
+    Args:
+        s: The string or bytes to be converted.
+        encoding: The encoding to use if `s` is bytes. Defaults to "utf-8".
+        errors: The error handling scheme to use for encoding errors. Defaults to "strict".
+
+    Returns:
+        The converted string.
+
+    """
+    """Force a string to be the native type"""
+    if isinstance(s, str):
+        return s
+    return str(s, encoding, errors)
+
+
+def to_list(value: t.Sequence | None) -> list:
+    """
+    Convert a sequence or `None` to a list.
+
+    Args:
+        value: The input value to convert.
+
+    Returns:
+        A list. If the input is None, returns an empty list.
+
+    """
     if value is None:
         return []
     if isinstance(value, str):
@@ -67,7 +96,9 @@ def punycode(domain: str) -> str:
 
 
 def forbid_multi_line_headers(name: str, val: str, encoding: str) -> tuple[str, str]:
-    """Forbid multi-line headers to prevent header injection."""
+    """
+    Forbid multi-line headers to prevent header injection.
+    """
     val = str(val)  # val may be lazy
     if "\n" in val or "\r" in val:
         raise BadHeaderError(
@@ -244,7 +275,8 @@ class EmailMessage:
         encoding: str = "utf-8",
         use_localtime: bool = False,
         alternatives: list[EmailAlternative] | None = None,
-        tags: list[str] | None = None,
+        tags: dict[str, str] | None = None,
+        **extra_data,
     ):
         """
         Initialize a single email message (which can be sent to multiple
@@ -267,13 +299,14 @@ class EmailMessage:
                 elif isinstance(attachment, dict):
                     self.attach(**attachment)
 
-        self.extra_headers = headers or {}
+        self.headers = headers or {}
         if html:
             self.content_subtype = "html"
         self.encoding = encoding
         self.use_localtime = use_localtime
         self.alternatives = alternatives or []
-        self.tags = tags or []
+        self.tags = tags
+        self.extra_data = extra_data
 
     def render(self) -> SafeMIMEText | SafeMIMEMultipart:
         msg = SafeMIMEText(self.body, self.content_subtype, self.encoding)
@@ -281,14 +314,14 @@ class EmailMessage:
         msg = self._create_attachments(msg)
 
         msg["Subject"] = self.subject
-        msg["From"] = self.extra_headers.get("From", self.from_email)
+        msg["From"] = self.headers.get("From", self.from_email)
         self._set_list_header_if_not_empty(msg, "To", self.to)
         self._set_list_header_if_not_empty(msg, "Cc", self.cc)
         self._set_list_header_if_not_empty(msg, "Reply-To", self.reply_to)
 
         # Email header names are case-insensitive (RFC 2045), so we have to
         # accommodate that when doing comparisons.
-        header_names = [key.lower() for key in self.extra_headers]
+        header_names = [key.lower() for key in self.headers]
 
         if "date" not in header_names:
             # formatdate() uses stdlib methods to format the date, which use
@@ -301,7 +334,7 @@ class EmailMessage:
             # Use cached DNS_NAME for performance
             msg["MIMEBase-ID"] = make_msgid(domain=str(DNS_NAME))
 
-        for name, value in self.extra_headers.items():
+        for name, value in self.headers.items():
             # Avoid headers handled above.
             if name.lower() not in {"from", "to", "cc", "reply-to"}:
                 msg[name] = value
@@ -466,11 +499,11 @@ class EmailMessage:
         self, msg: MIMEBase, header: str, values: list[str]
     ) -> None:
         """
-        Set msg's header, either from self.extra_headers, if present, or from
+        Set msg's header, either from self.headers, if present, or from
         the values argument if not empty.
         """
         try:
-            msg[header] = self.extra_headers[header]
+            msg[header] = self.headers[header]
         except KeyError:
             if values:
                 msg[header] = ", ".join(str(v) for v in values)

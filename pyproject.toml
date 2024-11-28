@@ -56,19 +56,17 @@ pre-commit = "*"
 ruff = ">=0.2.0"
 
 
-[tool.poetry.group.tests.dependencies]
+[tool.poetry.group.test.dependencies]
 pytest = ">=7.2"
 pytest-cov = "*"
 tox = "*"
 # To test installable frameworks
+boto3 = "^1.35.71"
 image-processing-egg = "*"
 poyo = "*"
+pytest-smtpd = "^0.1.0"
 smtpdfix = "*"
 
-
-
-[tool.poetry.group.test.dependencies]
-pytest-smtpd = "^0.1.0"
 
 [tool.poetry.scripts]
 proper = "proper.cl:run"
