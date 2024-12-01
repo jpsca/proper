@@ -43,7 +43,7 @@ def test_amazon_ses_mailer_send_text_emails(text_message):
         aws_access_key_id="fake_access_key",
         aws_secret_access_key="fake_secret_key",
         region_name="us-east-1",
-        return_path="feedback@example.com",
+        feedback_email="feedback@example.com",
     )
 
     mailer.client = MagicMock()
@@ -83,7 +83,7 @@ def test_amazon_ses_mailer_send_html_emails(html_message):
         aws_access_key_id="fake_access_key",
         aws_secret_access_key="fake_secret_key",
         region_name="us-east-1",
-        return_path="feedback@example.com",
+        feedback_email="feedback@example.com",
     )
 
     mailer.client = MagicMock()

@@ -242,7 +242,7 @@ def find_modules(
             yield f"{prefix}.{modname}"
 
 
-def get_storage_instance(**config):
+def get_instance(**config):
     mod_name, cls_name = config.pop("type").rsplit(".", 1)
     mod = import_module(mod_name)
     StorageClass = getattr(mod, cls_name)

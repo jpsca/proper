@@ -10,7 +10,7 @@ class BaseMailer:
     """
 
     def __init__(self, default_from: str | None = None, fail_silently: bool = False):
-        self.default_from = default_from or "noreply@example.com"
+        self.default_from = default_from or "hello@example.com"
         self.fail_silently = fail_silently
 
     def open(self):

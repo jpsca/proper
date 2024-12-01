@@ -82,8 +82,6 @@ class Config(BaseConfig):
 
     LOCALE_DEFAULT: str = "en"
 
-    MAILER_DEFAULT_FROM: str = "hello@example.com"
-
     DATABASE: dict[str, t.Any] = {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
         "database": "storage/app.sqlite3",
@@ -96,6 +94,11 @@ class Config(BaseConfig):
     QUEUE: dict[str, t.Any] = {
         "type": "proper.queue.SqliteQueue",
         "database": ":memory:",
+    }
+
+    MAILER: dict[str, t.Any] = {
+        "type": "proper.mail.ConsoleMailer",
+        "default_from": "hello@example.com",
     }
 
     AUTH_HASH_NAME: str | None = None

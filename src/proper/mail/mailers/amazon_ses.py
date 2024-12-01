@@ -17,7 +17,7 @@ class AmazonSESMailer(BaseMailer):
         aws_access_key_id: str,
         aws_secret_access_key: str,
         region_name: str = "us-east-1",
-        return_path: str | None = None,
+        feedback_email: str | None = None,
         **kwargs
     ):
         """ """
@@ -31,7 +31,7 @@ class AmazonSESMailer(BaseMailer):
             region_name=region_name,
         )
         assert self.client
-        self.return_path = return_path
+        self.feedback_email = feedback_email
 
     def send_emails(self, *email_messages: EmailMessage) -> list[dict]:
         """ """
@@ -56,8 +56,8 @@ class AmazonSESMailer(BaseMailer):
             if msg.reply_to:
                 data["ReplyToAddresses"] = msg.reply_to
 
-            if self.return_path:
-                data["ReturnPath"] = self.return_path
+            if self.feedback_email:
+                data["ReturnPath"] = self.feedback_email
 
             body = {"Data": msg.body, "Charset": msg.encoding}
             if msg.content_subtype == "html":

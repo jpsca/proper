@@ -14,7 +14,7 @@ from proper.cache import FragmentCacheExtension
 from proper.cl import get_app_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import jsonplus
-from proper.helpers.utils import get_storage_instance
+from proper.helpers.utils import get_instance
 from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
@@ -105,6 +105,7 @@ class App(AppTest):
         self._setup_db()
         self._setup_cache()
         self._setup_queue()
+        self._setup_mailer()
         self._setup_i18n()
         self._setup_storage()
         self._setup_render()
@@ -291,19 +292,25 @@ class App(AppTest):
             return
         if "migrations" in db_config:
             del db_config["migrations"]
-        self.db = get_storage_instance(**db_config)
+        self.db = get_instance(**db_config)
 
     def _setup_cache(self) -> None:
         cache_config = self.config.CACHE.copy()
         if not cache_config:
             return
-        self.cache = get_storage_instance(**cache_config)
+        self.cache = get_instance(**cache_config)
 
     def _setup_queue(self) -> None:
         q_config = self.config.QUEUE.copy()
         if not q_config:
             return
-        self.queue = get_storage_instance(**q_config)
+        self.queue = get_instance(**q_config)
+
+    def _setup_mailer(self) -> None:
+        mailer_config = self.config.MAILER.copy()
+        if not mailer_config:
+            return
+        self.mailer = get_instance(**mailer_config)
 
     def _setup_i18n(self) -> None:
         self.i18n = None

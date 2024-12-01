@@ -1,10 +1,10 @@
 from proper.status import unprocessable
 
+from app import tasks
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
 from app.forms.password_resets import PasswordChangeSchema, PasswordResetSchema
-from app.mailers import send_password_reset_email
-from app.main import config
+from app.main import app, config
 from app.models import User
 from app.router import auth_router
 
@@ -60,3 +60,21 @@ class PasswordResetsController(AppController):
     def _go_forward(self, flash=None):
         next_url = self.response.session.pop(REDIRECT_AFTER_LOGIN_KEY, None) or "/"
         self.response.redirect_to(next_url, flash=flash)
+
+
+def send_password_reset_email(user):
+    token = auth.get_timestamped_token(user)
+    validate_url = app.url_for("PasswordResets.edit", pk=token)
+    reset_url = app.url_for("PasswordResets.new")
+    html = app.catalog.render(
+        "Emails.PasswordResets",
+        validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
+        reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
+    )
+
+    tasks.send_email(
+        to=user.email,
+        subject="Reset your password",
+        body=html,
+        html=True,
+    )

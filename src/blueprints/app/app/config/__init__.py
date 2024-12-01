@@ -1,6 +1,6 @@
 import os
 
-from proper import DEV, MB, PROD, Config, env
+from proper import DEV, MB, PROD, TEST, Config, env
 
 from . import session, storage
 
@@ -49,7 +49,27 @@ if env == PROD:
 else:
     config.STATIC_X_SENDFILE_HEADER = ""
 
-config.MAILER_DEFAULT_FROM = "hello@example.com"
+
+config.MAILER = {
+    "type": "proper.mail.ConsoleMailer",
+    "default_from": "hello@example.com",
+}
+
+if env == TEST:
+    config.MAILER = {
+        "type": "proper.mail.MemoryMailer",
+    }
+
+# if env == PROD:
+#     config.MAILER = {
+#         "type": "proper.mail.SMTPMailer",
+#         "host": "smtp.example.com",
+#         "port": 587,
+#         "username": os.getenv("SMTP_USERNAME"),
+#         "password": os.getenv("SMTP_PASSWORD"),
+#         "use_tls": True,
+#         "default_from": config.MAILER["default_from"],
+#     }
 
 
 config.update(storage.config)
