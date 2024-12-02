@@ -183,6 +183,7 @@ PACKAGE_MANAGERS = {
 
 
 def add_dependencies(root_path: Path, dependencies: list[str]):
+    root_path = root_path.parent
     cmd = "pip install"
     for lockfile, pm in PACKAGE_MANAGERS:
         if (root_path / lockfile).exists():
