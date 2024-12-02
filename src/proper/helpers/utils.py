@@ -243,7 +243,14 @@ def find_modules(
 
 
 def get_instance(**config):
-    mod_name, cls_name = config.pop("type").rsplit(".", 1)
-    mod = import_module(mod_name)
-    StorageClass = getattr(mod, cls_name)
-    return StorageClass(**config)
+    cls_name = config.pop("type")
+    if isinstance(cls_name, str):
+        mod_name, cls_name = cls_name.rsplit(".", 1)
+        mod = import_module(mod_name)
+        Class = getattr(mod, cls_name)
+    elif isinstance(cls_name, type):
+        Class = cls_name
+    else:
+        raise TypeError("`type` must be a string or a class.")
+
+    return Class(**config)

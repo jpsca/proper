@@ -97,7 +97,7 @@ class Config(BaseConfig):
     }
 
     MAILER: dict[str, t.Any] = {
-        "type": "proper.mail.ConsoleMailer",
+        "type": "proper.mail.ToConsoleMailer",
         "default_from": "hello@example.com",
     }
 

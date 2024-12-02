@@ -51,7 +51,7 @@ else:
 
 
 config.MAILER = {
-    "type": "proper.mail.ConsoleMailer",
+    "type": "proper.mail.ToConsoleMailer",
     "default_from": "hello@example.com",
 }
 
