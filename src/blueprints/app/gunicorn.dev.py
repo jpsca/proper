@@ -5,7 +5,7 @@ host = "0.0.0.0"
 port = 2300
 
 
-wsgi_app = "wsgi:app"
+wsgi_app = "app.main:app"
 
 # The socket to bind.
 # A string of the form: 'HOST', 'HOST:PORT', 'unix:PATH'.
