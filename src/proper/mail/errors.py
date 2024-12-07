@@ -1,2 +1,2 @@
-class BadHeaderError(ValueError):
+class InvalidEmailHeader(ValueError):
     pass

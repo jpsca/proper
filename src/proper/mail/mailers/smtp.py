@@ -72,11 +72,11 @@ class SMTPMailer(BaseMailer):
         self._lock = threading.RLock()
 
     @property
-    def connection_class(self):
+    def connection_class(self) -> type[smtplib.SMTP]:
         return smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
 
     @cached_property
-    def ssl_context(self):
+    def ssl_context(self) -> ssl.SSLContext:
         if self.ssl_certfile:
             ssl_context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
             ssl_context.load_cert_chain(self.ssl_certfile, self.ssl_keyfile)
@@ -84,7 +84,7 @@ class SMTPMailer(BaseMailer):
         else:
             return ssl.create_default_context()
 
-    def open(self, local_hostname: str = ""):
+    def open(self, local_hostname: str = "") -> bool:
         """Ensures we have a connection to the email server. Returns whether or
         not a new connection was required (True or False).
         """
@@ -113,10 +113,12 @@ class SMTPMailer(BaseMailer):
                 self.connection.starttls(context=self.ssl_context)
             if self.username and self.password:
                 self.connection.login(self.username, self.password)
-            return True
         except OSError:
-            if not self.fail_silently:
-                raise
+            if self.fail_silently:
+                return False
+            raise
+
+        return True
 
     def close(self):
         """Close the connection to the email server."""
@@ -137,7 +139,7 @@ class SMTPMailer(BaseMailer):
         finally:
             self.connection = None
 
-    def send_emails(self, *messages: EmailMessage):
+    def send_emails(self, *messages: EmailMessage) -> int:
         """
         Send one or more EmailMessage objects and return the number of email
         messages sent.
@@ -161,7 +163,7 @@ class SMTPMailer(BaseMailer):
                     self.close()
         return num_sent
 
-    def _send(self, message: EmailMessage):
+    def _send(self, message: EmailMessage) -> bool:
         """A helper method that does the actual sending."""
 
         recipients = message.get_recipients()
@@ -190,6 +192,6 @@ class SMTPMailer(BaseMailer):
 
             return True
         except Exception:
-            if not self.fail_silently:
-                raise
-            return False
+            if self.fail_silently:
+                return False
+            raise

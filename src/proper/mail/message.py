@@ -17,6 +17,7 @@ from email.utils import formataddr, formatdate, getaddresses, make_msgid
 from io import BytesIO, StringIO
 from pathlib import Path
 
+from .errors import InvalidEmailHeader
 from .utils import DNS_NAME
 
 
@@ -31,11 +32,6 @@ utf8_charset_qp.body_encoding = QP
 DEFAULT_ATTACHMENT_MIME_TYPE = "application/octet-stream"
 
 RFC5322_EMAIL_LINE_LENGTH_LIMIT = 998
-
-
-class BadHeaderError(ValueError):
-    pass
-
 
 # Header names that contain structured address data (RFC 5322).
 ADDRESS_HEADERS = {
@@ -101,7 +97,7 @@ def forbid_multi_line_headers(name: str, val: str, encoding: str) -> tuple[str, 
     """
     val = str(val)  # val may be lazy
     if "\n" in val or "\r" in val:
-        raise BadHeaderError(
+        raise InvalidEmailHeader(
             "Header values can't contain newlines (got %r for header %r)" % (val, name)
         )
     try:

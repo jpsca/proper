@@ -8,12 +8,14 @@ class BaseMailer:
 
     Subclasses must at least overwrite send_emails().
     """
+    default_from: str
+    fail_silently: bool
 
-    def __init__(self, default_from: str | None = None, fail_silently: bool = False):
-        self.default_from = default_from or "hello@example.com"
+    def __init__(self, default_from: str = "", fail_silently: bool = False):
+        self.default_from = default_from or "noreply@example.com"
         self.fail_silently = fail_silently
 
-    def open(self):
+    def open(self, *args, **kwargs) -> bool:
         """Open a network connection.
 
         This method can be overwritten by mailer implementations to
@@ -29,9 +31,9 @@ class BaseMailer:
 
         The default implementation does nothing.
         """
-        pass
+        return False
 
-    def close(self):
+    def close(self) -> None:
         """Close a network connection.
 
         Like `open()`, the default implementation does nothing.

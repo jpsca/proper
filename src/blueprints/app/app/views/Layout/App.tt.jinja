@@ -16,10 +16,8 @@
   {% if title %}<meta property="og:title" content="{{ title }}">{% endif %}
   {% if description -%}<meta property="og:description" content="{{ description }}">{% endif -%}
 </head>
-<body>
-	<main {{ attrs.render() }}>
-		<Flashes />
-		{{ content }}
-	</main>
+<body {{ attrs.render() }}>
+	<Flashes />
+	{{ content }}
 </body>
 </html>

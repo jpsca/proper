@@ -56,9 +56,7 @@ config.MAILER = {
 }
 
 if env == TEST:
-    config.MAILER = {
-        "type": "proper.mail.MemoryMailer",
-    }
+    config.MAILER["type"] = "proper.mail.ToMemoryMailer"
 
 # if env == PROD:
 #     config.MAILER = {

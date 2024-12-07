@@ -43,7 +43,7 @@ def test_amazon_ses_mailer_send_text_emails(text_message):
         aws_access_key_id="fake_access_key",
         aws_secret_access_key="fake_secret_key",
         region_name="us-east-1",
-        feedback_email="feedback@example.com",
+        return_email="return@example.com",
     )
 
     mailer.client = MagicMock()
@@ -66,7 +66,7 @@ def test_amazon_ses_mailer_send_text_emails(text_message):
             },
         },
         "ReplyToAddresses": ["reply@example.com"],
-        "ReturnPath": "feedback@example.com",
+        "ReturnPath": "return@example.com",
         "Tags": [
             {"Name": "tag1", "Value": "value1"},
             {"Name": "tag2", "Value": "value2"},
@@ -83,7 +83,7 @@ def test_amazon_ses_mailer_send_html_emails(html_message):
         aws_access_key_id="fake_access_key",
         aws_secret_access_key="fake_secret_key",
         region_name="us-east-1",
-        feedback_email="feedback@example.com",
+        return_email="return@example.com",
     )
 
     mailer.client = MagicMock()
@@ -106,7 +106,7 @@ def test_amazon_ses_mailer_send_html_emails(html_message):
             },
         },
         "ReplyToAddresses": ["reply@example.com"],
-        "ReturnPath": "feedback@example.com",
+        "ReturnPath": "return@example.com",
         "Tags": [
             {"Name": "tag1", "Value": "value1"},
             {"Name": "tag2", "Value": "value2"},
@@ -121,7 +121,7 @@ def test_amazon_ses2_mailer_send_text_emails(text_message):
         aws_access_key_id="fake_access_key",
         aws_secret_access_key="fake_secret_key",
         region_name="us-east-1",
-        feedback_email="feedback@example.com",
+        return_email="return@example.com",
     )
 
     mailer.client = MagicMock()
@@ -138,7 +138,7 @@ def test_amazon_ses2_mailer_send_text_emails(text_message):
             "BccAddresses": ["bcc@example.com"],
         },
         "ReplyToAddresses": ["reply@example.com"],
-        "FeedbackForwardingEmailAddress": "feedback@example.com",
+        "FeedbackForwardingEmailAddress": "return@example.com",
         "Content": {
             "Simple": {
                 "Subject": {"Data": "Test Subject", "Charset": "utf-8"},
@@ -168,7 +168,7 @@ def test_amazon_ses2_mailer_send_html_emails(html_message):
         aws_access_key_id="fake_access_key",
         aws_secret_access_key="fake_secret_key",
         region_name="us-east-1",
-        feedback_email="feedback@example.com",
+        return_email="return@example.com",
     )
 
     mailer.client = MagicMock()
@@ -185,7 +185,7 @@ def test_amazon_ses2_mailer_send_html_emails(html_message):
             "BccAddresses": ["bcc@example.com"],
         },
         "ReplyToAddresses": ["reply@example.com"],
-        "FeedbackForwardingEmailAddress": "feedback@example.com",
+        "FeedbackForwardingEmailAddress": "return@example.com",
         "Content": {
             "Simple": {
                 "Subject": {"Data": "Test Subject", "Charset": "utf-8"},

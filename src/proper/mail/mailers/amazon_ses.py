@@ -17,7 +17,7 @@ class AmazonSESMailer(BaseMailer):
         aws_access_key_id: str,
         aws_secret_access_key: str,
         region_name: str = "us-east-1",
-        feedback_email: str | None = None,
+        return_email: str | None = None,
         **kwargs
     ):
         """ """
@@ -31,7 +31,7 @@ class AmazonSESMailer(BaseMailer):
             region_name=region_name,
         )
         assert self.client
-        self.feedback_email = feedback_email
+        self.return_email = return_email
 
     def send_emails(self, *email_messages: EmailMessage) -> list[dict]:
         """ """
@@ -44,7 +44,8 @@ class AmazonSESMailer(BaseMailer):
         for msg in email_messages:
             data = {**msg.extra_data}
 
-            data["Source"] = msg.from_email
+            from_email = msg.from_email or self.default_from
+            data["Source"] = from_email
 
             destination_data = {"ToAddresses": msg.to}
             if msg.cc:
@@ -56,8 +57,8 @@ class AmazonSESMailer(BaseMailer):
             if msg.reply_to:
                 data["ReplyToAddresses"] = msg.reply_to
 
-            if self.feedback_email:
-                data["ReturnPath"] = self.feedback_email
+            if self.return_email:
+                data["ReturnPath"] = self.return_email
 
             body = {"Data": msg.body, "Charset": msg.encoding}
             if msg.content_subtype == "html":
@@ -76,11 +77,20 @@ class AmazonSESMailer(BaseMailer):
                     for key, value in msg.tags.items()
                 ]
 
-            logger.debug("Sending email from %s to %s", msg.from_email, msg.to)
-            response = self.client.send_email(**data)
+            logger.debug("Sending email from %s to %s", from_email, msg.to)
+            response = self._send_email(data)
             responses.append(response)
 
         return responses
+
+    def _send_email(self, data: dict) -> dict:
+        try:
+            response = self.client.send_email(**data)
+        except Exception:
+            if not self.fail_silently:
+                raise
+            return {}
+        return response
 
 
 class AmazonSES2Mailer(BaseMailer):
@@ -93,7 +103,7 @@ class AmazonSES2Mailer(BaseMailer):
         aws_access_key_id: str,
         aws_secret_access_key: str,
         region_name: str = "us-east-1",
-        feedback_email: str | None = None,
+        return_email: str | None = None,
         **kwargs
     ):
         """ """
@@ -107,7 +117,7 @@ class AmazonSES2Mailer(BaseMailer):
             region_name=region_name,
         )
         assert self.client
-        self.feedback_email = feedback_email
+        self.return_email = return_email
 
     def send_emails(self, *email_messages: EmailMessage) -> list[dict]:
         """ """
@@ -120,7 +130,8 @@ class AmazonSES2Mailer(BaseMailer):
         for msg in email_messages:
             data = {**msg.extra_data}
 
-            data["FromEmailAddress"] = msg.from_email
+            from_email = msg.from_email or self.default_from
+            data["FromEmailAddress"] = from_email
 
             destination_data = {"ToAddresses": msg.to}
             if msg.cc:
@@ -132,8 +143,8 @@ class AmazonSES2Mailer(BaseMailer):
             if msg.reply_to:
                 data["ReplyToAddresses"] = msg.reply_to
 
-            if self.feedback_email:
-                data["FeedbackForwardingEmailAddress"] = self.feedback_email
+            if self.return_email:
+                data["FeedbackForwardingEmailAddress"] = self.return_email
 
             body = {"Data": msg.body, "Charset": msg.encoding}
             if msg.content_subtype == "html":
@@ -160,8 +171,17 @@ class AmazonSES2Mailer(BaseMailer):
                     for key, value in msg.tags.items()
                 ]
 
-            logger.debug("Sending email from %s to %s", msg.from_email, msg.to)
-            response = self.client.send_email(**data)
+            logger.debug("Sending email from %s to %s", from_email, msg.to)
+            response = self._send_email(data)
             responses.append(response)
 
         return responses
+
+    def _send_email(self, data: dict) -> dict:
+        try:
+            response = self.client.send_email(**data)
+        except Exception:
+            if not self.fail_silently:
+                raise
+            return {}
+        return response

@@ -45,6 +45,7 @@ if t.TYPE_CHECKING:
     from proper_cli import Cli
 
     from proper.cache import BaseCache
+    from proper.mail import EmailMessage
     from proper.queue import BaseQueue
 
 
@@ -245,6 +246,14 @@ class App(AppTest):
         kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
 
         return URLSafeTimedSerializer(self.config.SECRET_KEYS[0], **kwargs,)
+
+    def send_email(self, later: bool = False, *args, **kwargs) -> t.Any:
+        # TODO: later
+        return self.mailer.send(*args, **kwargs)
+
+    def send_emails(self, later: bool = False, *messages: "EmailMessage") -> t.Any:
+        # TODO: later
+        return self.mailer.send_emails(*messages)
 
     def get_current_locale(self) -> str | None:
         if not current.request:
