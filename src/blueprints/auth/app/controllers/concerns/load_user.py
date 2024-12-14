@@ -7,21 +7,21 @@ from app.models import User
 
 
 USER_SESSION_KEY = "_user_token"
-REMOTE_USER_ENV_VAR = "REMOTE_USER"
+TEST_USER_ENV_VAR = "TEST_USER"
 
 
-class LoadUser:
+class RestoreSession:
     def before(self, co: Controller):
         user = None
         if config.DEBUG:
-            user = self._get_remote_user()
+            user = self._get_test_user()
         co.request.user = user or self._get_user(co.request.session)
 
     # Private
 
-    def _get_remote_user(self):
+    def _get_test_user(self):
         """Simulate authentication for testing."""
-        user_id = getenv(REMOTE_USER_ENV_VAR)
+        user_id = getenv(TEST_USER_ENV_VAR)
         if user_id:
             return User.get_by_id(user_id)
 

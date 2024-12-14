@@ -6,7 +6,7 @@ class PrivateView(AppController):
     concerns = [
         DBConnection,
         Session,
-        LoadUser,
+        RestoreSession,
         RequireLogin,
         RequestForgeryProtection,
         SecurityHeaders,
