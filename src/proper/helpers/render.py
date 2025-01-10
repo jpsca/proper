@@ -31,7 +31,7 @@ __all__ = [
     "append_to_concerns",
 ]
 
-BLUEPRINTS = (Path(__file__).parent.parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
 IGNORE = [".DS_Store", "__pycache__", "*/__pycache__", "*/.DS_Store"]
 
 CREATE = "create"

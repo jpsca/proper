@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
 
 
 [project]
@@ -20,7 +21,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 requires-python = ">=3.12,<4"
@@ -48,41 +48,38 @@ documentation = "https://proper.scaletti.dev/"
 proper = "proper.cl:run"
 
 
-[dependency-groups]
-dev = [
-    "ipdb >= 0.13",
-    "pyright >= 1.1",
-    "pre-commit",
-    "ruff >= 0.2.0",
-    "tox-uv",
+[tool.poetry]
+packages = [
+    { include = "proper", from = "src" },
 ]
-test = [
-    "pytest >= 7.2",
-    "pytest-cov",
-    # To test installable frameworks
-    "boto3 >= 1.35.71",
-    "image-processing-egg",
-    "poyo",
-    "pytest-smtpd",
-    "smtpdfix",
+include = [
+  { path = "src/blueprints/*" },
+  { path = "src/proper/core/templates/*" },
 ]
 
+[tool.poetry.group.dev]
+optional = true
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.poetry.group.dev.dependencies]
+ipdb = ">= 0.13"
+pyright = ">= 1.1"
+pre-commit = "*"
+ruff = ">= 0.2.0"
 
-[tool.setuptools.package-data]
-proper = [
-    "blueprints/**/*",
-    "blueprints/**/.*",
-    "core/templates/**/*",
-]
-[tool.setuptools.exclude-package-data]
-"*" = [
-    "**/__pycache__",
-    "*.pyc",
-    "*.pyo",
-]
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
+pytest = ">= 7.2"
+pytest-cov = "*"
+tox = "*"
+# To test installable frameworks
+boto3 = ">= 1.35.71"
+image-processing-egg = "*"
+poyo = "*"
+pytest-smtpd = "*"
+smtpdfix = "*"
+
 
 [tool.coverage.run]
 branch = true
@@ -98,7 +95,7 @@ exclude_lines = [
     "if __name__ == .__main__.:"
 ]
 omit = [
-    "src/proper/blueprints/*",
+    "src/blueprints/*",
     "src/proper/app_test.py",
     "src/proper/cl/*",
     "src/proper/storage/*", # TODO
@@ -117,7 +114,7 @@ exclude = [
     "**/proper/mail",
     "**/proper/storage",
 ]
-ignore = ["src/proper/blueprints"]
+ignore = ["src/blueprints"]
 reportPrivateImportUsage = false
 reportWildcardImportFromLibrary = false
 
@@ -149,7 +146,7 @@ exclude = [
   "build",
   "covreport",
   "dist",
-  "src/proper/blueprints/*",
+  "src/blueprints/*",
 ]
 include = ["*.py"]
 

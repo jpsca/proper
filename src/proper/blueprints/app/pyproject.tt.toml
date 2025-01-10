@@ -1,16 +1,28 @@
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
 
 
-[tool.poetry]
+[project]
 name = "[[ app_name ]]"
 version = "1.0"
 description = ""
-authors = ["Lorem Ipsum <lorem.ipsum@example.com>"]
+authors = [
+  { name = "Lorem Ipsum", email = "lorem.ipsum@example.com" },
+]
 readme = "README.md"
+requires-python = ">=3.12,<4"
+dependencies = [
+  "fodantic",
+  "gunicorn~=23.0.0",
+  # "proper",
+  # "psycopg2-binary",
+]
+
+
+[tool.poetry]
 packages = [
-    {include = "app"}
+  { include = "app" }
 ]
 include = [
   "*.*",
@@ -19,11 +31,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4.dev0"
-fodantic = "*"
-gunicorn = "^23.0.0"
 proper = { path = "../proper/", develop = true }
-# psycopg2-binary = "*"
 
 [tool.poetry.group.dev]
 optional = true

@@ -1,6 +1,6 @@
 .PHONY: install
 install:
-	poetry install --with dev,test
+	uv sync --group dev --group test
 	pip install -e .
 	pre-commit install
 
