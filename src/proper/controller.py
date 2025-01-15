@@ -126,9 +126,8 @@ class StaticFilesController(Controller):
         root: Path = self.defaults["root"]
         public: bool = self.defaults["public"]
 
-        filename: str = self.params.get("file", "")
-
-        relpath = Path(filename.lstrip(os.path.sep))
+        file: str = self.params.get("file", "")
+        relpath = Path(file.lstrip(os.path.sep))
         ext = "".join(relpath.suffixes)
 
         allowed_ext: t.Iterable[str] | None = self.defaults.get("allowed_ext")
@@ -150,7 +149,7 @@ class StaticFilesController(Controller):
             raise NotFound(f"Folder `{filepath.parent}` does not exists")
 
         if not filepath.is_file():
-            raise NotFound(f"File `{filename}` does not exists")
+            raise NotFound(f"File `{file}` does not exists")
 
         mtime = filepath.stat().st_mtime
         self.response.last_modified = mtime

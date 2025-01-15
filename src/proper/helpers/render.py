@@ -177,8 +177,8 @@ def copy_file(
 
 
 PACKAGE_MANAGERS = {
-    ("poetry.lock", "poetry add"),
     ("uv.lock", "uv add"),
+    ("poetry.lock", "poetry add"),
 }
 
 

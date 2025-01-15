@@ -1,6 +1,6 @@
 .PHONY: install
 install:
-	poetry install
+	uv sync --group dev --group test
 	# tailwindcss_install
 	proper db migrate
 

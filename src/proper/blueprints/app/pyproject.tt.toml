@@ -1,6 +1,10 @@
 [build-system]
-requires = ["poetry-core>=2.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools"]
+
+
+# TEMP
+[tool.uv.sources]
+proper = { path = "../proper", editable = true }
 
 
 [project]
@@ -15,37 +19,35 @@ requires-python = ">=3.12,<4"
 dependencies = [
   "fodantic",
   "gunicorn~=23.0.0",
-  # "proper",
+  "proper",
   # "psycopg2-binary",
 ]
 
-
-[tool.poetry]
-packages = [
-  { include = "app" }
+[dependency-groups]
+dev = [
+    "ipdb >= 0.13",
+    "ruff >= 0.2.0",
 ]
-include = [
+test = [
+    "pytest >= 7.2",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+[tool.setuptools.package-data]
+"*" = [
   "*.*",
-  "db",
-  "static",
+  "db/**/*",
+  "static/**/*",
 ]
-
-[tool.poetry.dependencies]
-proper = { path = "../proper/", develop = true }
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-ipython = "*"
-ruff = ">=0.2.0"
-# pytailwindcss = ">=0.2.0"
-
-[tool.poetry.group.test]
-optional = true
-
-[tool.poetry.group.test.dependencies]
-pytest = ">=7.2.0"
+[tool.setuptools.exclude-package-data]
+"*" = [
+    "**/__pycache__",
+    "*.pyc",
+    "*.pyo",
+]
 
 
 [tool.pytest.ini_options]
@@ -121,7 +123,7 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-local-folder = ["[[ app_name ]]"]
+known-local-folder = ["app"]
 known-third-party = []
 no-lines-before = ["local-folder"]
 relative-imports-order = "furthest-to-closest"

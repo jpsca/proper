@@ -318,12 +318,13 @@ class StaticRoute(Route):
         from proper.controller import StaticFilesController
 
         defaults = defaults or {}
+        defaults["url"] = url
         defaults["root"] = root
         defaults["public"] = bool(public)
         defaults["fp"] = bool(fingerprint)
         if allowed_ext:
             defaults["allowed_ext"] = allowed_ext
-        path = url.strip("/") + "/:file<path>"
+        path = f"{url.strip("/")}/:file<path>"
 
         super().__init__(
             GET,

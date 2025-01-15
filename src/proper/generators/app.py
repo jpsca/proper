@@ -64,13 +64,9 @@ def _install_dependencies(path: Path) -> None:
     os.chdir(path)
     venv_path = str(path / ".venv")
     os.environ["VIRTUAL_ENV"] = venv_path
-    prompt = "{project_name}"
     call(f"""cd {str(path)} \\
-            && poetry config virtualenvs.create true \\
-            && poetry config virtualenvs.in-project true \\
-            && poetry config virtualenvs.prompt "{prompt}" \\
-            && poetry config virtualenvs.path "{venv_path}" \\
-            && poetry install
+            && uv venv \\
+            && uv sync --group dev
     """)
     # call("tailwindcss_install")
 
