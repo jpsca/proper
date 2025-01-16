@@ -17,24 +17,13 @@ ENV \
     # Disable pip version check.
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     \
-    # Poetry:
-    # https://python-poetry.org/docs/configuration/#using-environment-variables
-    POETRY_VERSION=1.8.4 \
-    # Install packages in this directory.
-    POETRY_HOME="/opt/poetry" \
-    # Enable poetry to set up the virtual environment in the project's root directory
-    # with the venv directory named `.venv`.
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    # Disable interactive questions.
-    POETRY_NO_INTERACTION=1 \
-    \
     # Paths:
     # This is where the requirements and virtual environment will live.
     WORKDIR="/app" \
-    VENV_PATH="/app/.venv"
+    VIRTUAL_ENV="/app/.venv"
 
 # Prepend poetry and venv to path.
-ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 
 
@@ -48,19 +37,18 @@ RUN apt-get update -y \
     && apt-get clean \
     && rm -r /var/lib/apt/lists
 
-# Install poetry. It respects $POETRY_VERSION & $POETRY_HOME.
+# Install uv
 RUN --mount=type=cache,target=/root/.cache \
-    curl -sSL https://install.python-poetry.org | python -
+    curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Copy project requirement files here to ensure they will be cached.
 WORKDIR $WORKDIR
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-# Install runtime dependencies, where it uses $POETRY_VIRTUALENVS_IN_PROJECT internally.
+# Install runtime dependencies
 RUN --mount=type=cache,target=/root/.cache \
     # --no-root: Do not install the root package (your project).
-    poetry install --no-root --only main
-
+    uv sync --group dev --group test
 
 
 # `production` image used for runtime
@@ -73,11 +61,10 @@ RUN apt-get update -y \
     && apt-get clean \
     && rm -r /var/lib/apt/lists
 
-COPY --from=builder-base $POETRY_HOME $POETRY_HOME
-COPY --from=builder-base $VENV_PATH $VENV_PATH
+COPY --from=builder-base $VIRTUAL_ENV $VIRTUAL_ENV
 
 WORKDIR $WORKDIR
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
 # For external API.
 EXPOSE 8080

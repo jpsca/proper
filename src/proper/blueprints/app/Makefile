@@ -1,8 +1,8 @@
 .PHONY: install
 install:
 	uv sync --group dev --group test
-	# tailwindcss_install
 	proper db migrate
+	# tailwindcss_install
 
 .PHONY: test
 test:

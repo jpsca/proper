@@ -21,6 +21,13 @@ from proper.errors import (
 from proper.types import THandler
 
 
+__all__ = (
+    "FORMATS",
+    "RouteTemplate",
+    "Route",
+    "StaticRoute",
+)
+
 """Formats to be replaced with regular expressions.
 Note that these DOESN'T do any type conversion, just
 validates the section of the route match the regular expression.
