@@ -5,9 +5,10 @@ from app.router import router
 
 
 class PagesController(AppController):
-    @router.get("")
-    def index(self):
-        return self.render("Page.Index")
+    # Uncomment to add a home page
+    # @router.get("")
+    # def index(self):
+    #     return self.render("Page.Index")
 
     @router.error(errors.NotFound)
     @router.get("_not_found")

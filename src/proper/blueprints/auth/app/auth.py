@@ -74,9 +74,9 @@ class Auth:
 
     def __init__(
         self,
-        secret_keys: list[str],
+        secret_keys: list[str] | tuple[str, ...],
         *,
-        hash_name: str = DEFAULT_HASHER,
+        hash_name: str | None = DEFAULT_HASHER,
         rounds: int | None = None,
         password_minlen: int = 5,
         password_maxlen: int = 1024,

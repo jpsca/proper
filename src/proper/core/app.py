@@ -49,6 +49,9 @@ if t.TYPE_CHECKING:
     from proper.queue import BaseQueue
 
 
+__all__ = ("App", )
+
+
 class App(AppTest):
     """
     A Proper app core.
