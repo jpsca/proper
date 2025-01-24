@@ -94,7 +94,7 @@ def get_generators_cl(app: "App") -> t.Type[Cli]:
         "__doc__": """Generate new code.""",
     }
 
-    for name in ("controller", "model"):
+    for name in ("resource", "model"):
         attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
     return type("Generators", (Cli,), attrs)

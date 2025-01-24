@@ -7,6 +7,10 @@ install:
 test:
 	pytest -x src/proper tests
 
+.PHONY: tests
+tests:
+	make test
+
 .PHONY: lint
 lint:
 	ruff check src/proper tests

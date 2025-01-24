@@ -78,7 +78,6 @@ def _wrap_up(path: Path) -> None:
     print()
     print("   $ cd " + path.stem + "")
     print("   $ source .venv/bin/activate")
-    print("   $ make db")
     print()
     print(" Start your Proper app with:")
     print()

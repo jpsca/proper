@@ -1,13 +1,13 @@
 from unittest.mock import Mock
 
-from proper.generators import controller as module
+from proper.generators import resource as module
 
 
-def test_gen_controller(app, scaffold):
+def test_gen_resource(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
     module.call = Mock()
-    module.gen_controller(app, "Products")
+    module.gen_resource(app, "Products")
 
     _test_controller(app_root)
     _test_model(app_root)
@@ -15,11 +15,11 @@ def test_gen_controller(app, scaffold):
     module.call.assert_not_called()
 
 
-def test_gen_controller_with_migration(app, scaffold):
+def test_gen_resource_with_migration(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
     module.call = Mock()
-    module.gen_controller(app, "Products", migration=True)
+    module.gen_resource(app, "Products", migration=True)
     module.call.assert_called_once_with('proper db create "products"')
 
 
@@ -53,11 +53,11 @@ def _test_views(app_root):
     assert (views / "Edit.jinja").exists()
 
 
-def test_gen_controller_singular(app, scaffold):
+def test_gen_resource_singular(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
     module.call = Mock()
-    module.gen_controller(app, "Profile", singular=True)
+    module.gen_resource(app, "Profile", singular=True)
 
     _test_controller_singular(app_root)
     _test_model_singular(app_root)
@@ -65,11 +65,11 @@ def test_gen_controller_singular(app, scaffold):
     module.call.assert_not_called()
 
 
-def test_gen_controller_singular_with_migration(app, scaffold):
+def test_gen_resource_singular_with_migration(app, scaffold):
     app_root = scaffold
     app.root_path = app_root
     module.call = Mock()
-    module.gen_controller(app, "Profile", singular=True, migration=True)
+    module.gen_resource(app, "Profile", singular=True, migration=True)
     module.call.assert_called_once_with('proper db create "profile"')
 
 

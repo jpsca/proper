@@ -49,7 +49,7 @@ ACTIONS = (
 )
 
 
-def gen_controller(
+def gen_resource(
     app: "App",
     name: str,
     *attrs: str,
@@ -60,8 +60,7 @@ def gen_controller(
     exclude: str = "",
     migration: bool = False,
 ) -> None:
-    """Stubs out a new controller including a view, model, migration, views
-    and a route in the `routes.py` file.
+    """Stubs out a new controller including a view, model, migration, and views
 
     Use `--migration` to also generate a migration for creating the table.
 

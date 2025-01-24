@@ -1,10 +1,9 @@
 import mimetypes
 import typing as t
-from datetime import datetime
 from uuid import uuid4
 
+import peewee as pw
 from inflection import parameterize
-from peewee import *  # noqa
 
 from proper.errors import StorageConfigError
 
@@ -17,15 +16,15 @@ if t.TYPE_CHECKING:
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
-def get_attachment_mixin(storage: "Storage") -> Model:
+def get_attachment_mixin(storage: "Storage") -> pw.Model:
     class Attachment(storage.app.db.Model):
-        key = CharField(32, primary_key=True)
-        service_name = CharField(64)
-        byte_size = IntegerField(default=0)
-        content_type = CharField(64, default=DEFAULT_CONTENT_TYPE)
-        filename = CharField(255, default="")
-        checksum = CharField(128, null=True)
-        created_at = DateTimeField(default=datetime.utcnow)
+        key = pw.CharField(32, primary_key=True)
+        service_name = pw.CharField(64)
+        byte_size = pw.IntegerField(default=0)
+        content_type = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)
+        filename = pw.CharField(255, default="")
+        checksum = pw.CharField(128, null=True)
+        created_at = pw.DateTimeField(default=pw.utcnow)
 
         def __init__(
             self,
