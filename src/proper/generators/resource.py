@@ -60,7 +60,7 @@ def gen_resource(
     exclude: str = "",
     migration: bool = False,
 ) -> None:
-    """Stubs out a new controller including a view, model, migration, and views
+    """Stubs out a new resource including a controller, model, and views.
 
     Use `--migration` to also generate a migration for creating the table.
 
