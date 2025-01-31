@@ -16,6 +16,8 @@ if t.TYPE_CHECKING:
     from .core.app import App
     from .request import Request
     from .response import Response
+    from .types import TIterable
+
 
 __all__ = ("Controller",)
 
@@ -130,10 +132,17 @@ class StaticFilesController(Controller):
         relpath = Path(file.lstrip(os.path.sep))
         ext = "".join(relpath.suffixes)
 
-        allowed_ext: t.Iterable[str] | None = self.defaults.get("allowed_ext")
+        allowed_ext: TIterable[str] | None = self.defaults.get("allowed_ext")
         if allowed_ext:
             if ext not in allowed_ext:
                 raise NotFound("File does not exists")
+
+        print("----")
+        print("root:", root)
+        print("file:", file)
+        print("relpath:", relpath)
+        print("ext:", ext)
+        print("---------")
 
         # Ignore the fingerprint in the filename
         # since is only for managing the cache in the client

@@ -12,14 +12,6 @@ class AppController(Controller):
     concerns = [
         DBConnection,
         Session,
-        SecurityHeaders,
-    ]
-
-
-class PrivateController(AppController):
-    """User-only controllers can inherit from this one.
-    """
-    # The order matters
-    concerns = AppController.concerns + [
         RequestForgeryProtection,
+        SecurityHeaders,
     ]

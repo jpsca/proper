@@ -1,11 +1,12 @@
 import typing as t
+from collections.abc import Iterable as TIterable  # noqa
 from wsgiref.types import StartResponse as TStartResponse  # noqa
 from wsgiref.types import WSGIEnvironment as TWSGIEnvironment  # noqa
 
 
 TReadable = t.IO[t.Any]
 
-TBody = list[bytes] | bytearray | memoryview | t.Iterable[bytes]
+TBody = list[bytes] | bytearray | memoryview | TIterable[bytes]
 
 TException = t.Type[BaseException]
 THandler = t.Callable[[t.Any], t.Any]

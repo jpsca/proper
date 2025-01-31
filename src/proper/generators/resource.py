@@ -54,17 +54,18 @@ def gen_resource(
     name: str,
     *attrs: str,
     singular: bool = False,
-    restore: bool = False,
-    parent: str = "",
     only: str = "",
     exclude: str = "",
+    restore: bool = False,
     migration: bool = False,
+    parent: str = "",
 ) -> None:
     """Stubs out a new resource including a controller, model, and views.
 
     Use `--migration` to also generate a migration for creating the table.
 
         proper g resource NAME
+            [attrs...]
             [--only=action[,action]] [--exclude=action[,action]] [--singular]
 
     Arguments:
@@ -72,11 +73,26 @@ def gen_resource(
     - name:
         The PascalCased resource name, plural unless `--singular` is used.
 
+    - attrs:
+        Optional list of `field:type` columns for the model schema.
+        Run `proper g model --help` for more information.
+
     - singular [False]:
         Whether the resource represents a single entity for the user (like "profile").
 
+    - only:
+        Optional comma-separated list of actions to include,
+        instead of the full set.
+
+    - exclude:
+        Optional comma-separated list of actions to exclude
+        from the full set.
+
     - restore [False]:
-        Whether to include a `RESTORE` action.
+        Whether to include a `RESTORE` action in the default list of actions.
+
+    - migration [False]:
+        Generate a migration for creating the table.
 
     - parent:
         Optional PascalCased name of the "parent" resource.
@@ -100,24 +116,6 @@ def gen_resource(
             /list/123/items
             /list/123/items/456
             ...
-
-    - only:
-        Optional comma-separated list of actions to include,
-        instead of the full set.
-
-    - exclude:
-        Optional comma-separated list of actions to exclude
-        from the full set.
-
-    - migration [False]:
-        Generate a migration for creating the table.
-
-    - attrs:
-        Optional list of columns for the resource schema.
-
-    Attribute pairs are `field:type` arguments, specifying the model's attributes,
-    following the syntax of the model generator.
-    For instructions, run `proper g model --help`.
 
     By default, it generates the full set of REST actions ("index", "new", "create",
     "show", "edit", "update", and "delete"). You can opt for a subset of these

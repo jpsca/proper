@@ -1,9 +1,10 @@
 from proper.errors import NotFound
 from proper.status import unprocessable
 
+from .app import AppController
 from app.models import [[ singular_pascal ]]
 from app.forms.[[ plural_snake ]] import [[ form_class ]]
-from .app import AppController
+from app.router import router
 
 
 @router.resource("[[ plural_snake ]]")

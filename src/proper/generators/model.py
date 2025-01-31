@@ -89,14 +89,14 @@ def gen_model(
 
     ## Examples:
 
-        `proper g model Tweet body:text created_at:datetime user:fk-User,backref:'tweets'`
-
+        `proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
+backref
         import peewee as pw
 
         class Tweet(BaseModel):
             body = pw.TextField()
             created_at = pw.DateTimeField()
-            user = pw.ForeignKeyField(User, backref='tweets').
+            user = pw.ForeignKeyField(User, backref="tweets").
 
     """
     singular_name = inflection.singularize(name)

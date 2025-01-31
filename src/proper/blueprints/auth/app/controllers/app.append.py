@@ -1,12 +1,12 @@
 
 
-class PrivateView(AppController):
-    """User-only views can inherit from this one.
+class PrivateController(AppController):
+    """User-only controllers can inherit from this one.
     """
     concerns = [
         DBConnection,
         Session,
-        RestoreSession,
+        RestoreUser,
         RequireLogin,
         RequestForgeryProtection,
         SecurityHeaders,

@@ -4,12 +4,14 @@ import typing as t
 
 from proper.constants import GET, HEAD, OPTIONS, QUERY
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
+from proper.types import TIterable
 
 
 if t.TYPE_CHECKING:
     from proper.controller import Controller
     from proper.request import Request
     from proper.response import Response
+    from proper.types import TIterable
 
 
 __all__ = (
@@ -29,9 +31,9 @@ CSRF_TOKEN_LENGTH = 32
 
 class RequestForgeryProtection:
     action_name: str
-    skip_for: t.Iterable[str] = ()
+    skip_for: TIterable[str] = ()
 
-    def __init__(self, *, skip_for: t.Iterable[str] = ()) -> None:
+    def __init__(self, *, skip_for: TIterable[str] = ()) -> None:
         self.skip_for = skip_for or ()
 
     def before(self, co: "Controller") -> None:

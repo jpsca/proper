@@ -8,7 +8,7 @@ from proper import status
 from proper.controller import Controller
 from proper.core.current import current
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
-from proper.types import TException, THandler
+from proper.types import TException, THandler, TIterable
 
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
 from .route import Route, StaticRoute
@@ -750,8 +750,8 @@ class BaseRouter:
         url: str = "",
         *,
         root: str | Path,
-        name: str = "",
-        allowed_ext: t.Iterable[str] | None = (),
+        name: str | None = None,
+        allowed_ext: TIterable[str] | None = (),
         public: bool = True,
         fingerprint: bool = True,
         host: str | None = None,

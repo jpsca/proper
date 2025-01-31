@@ -1,10 +1,10 @@
 import typing as t
-from collections.abc import ItemsView, KeysView, MutableMapping
+from collections.abc import ItemsView, Iterable, KeysView, MutableMapping
 
 
 __all__ = ("MultiDict",)
 
-TDictOrIter = dict[str, t.Any] | t.Iterable[tuple[str, t.Any]]
+TDictOrIter = dict[str, t.Any] | Iterable[tuple[str, t.Any]]
 
 
 class MultiDict(MutableMapping):

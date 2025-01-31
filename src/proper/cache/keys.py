@@ -1,6 +1,7 @@
 import typing as t
-from collections.abc import Iterable
 from datetime import datetime
+
+from proper.types import TIterable
 
 
 class HasUpdatedAt(t.Protocol):
@@ -8,7 +9,7 @@ class HasUpdatedAt(t.Protocol):
 
 
 TObject = HasUpdatedAt
-TCollection = Iterable[TObject]
+TCollection = TIterable[TObject]
 
 
 def key_for_object(
@@ -63,7 +64,7 @@ def key_for(
     if isinstance(key_context, str):
         return key_context.lower()
 
-    if isinstance(key_context, Iterable):
+    if isinstance(key_context, TIterable):
         if isinstance(key_context, (dict, bytes, bytearray)):
             raise ValueError("key must be either  a string, an object or a collection")
         return key_for_collection(prefix, key_context, version=version)

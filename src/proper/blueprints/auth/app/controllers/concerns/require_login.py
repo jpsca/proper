@@ -14,5 +14,5 @@ class RequireLogin:
         if REDIRECT_AFTER_LOGIN_KEY not in co.response.session:
             co.response.session[REDIRECT_AFTER_LOGIN_KEY] = co.request.path
 
-        co.response.redirect_to(app.url_for("Session.new"))
+        co.response.redirect_to(app.url_for("Sessions.new"))
         return co.response

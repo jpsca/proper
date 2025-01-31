@@ -4,10 +4,12 @@ Plural rules generated from the CLDR data
 import decimal
 import typing as t
 
+from proper.types import TIterable
+
 
 D = decimal.Decimal
 TNumber = int | float | D
-TRangeList = t.Iterable[tuple[int, int]]
+TRangeList = TIterable[tuple[int, int]]
 
 
 def plural_am(count: TNumber) -> str | None:

@@ -10,7 +10,7 @@ USER_SESSION_KEY = "_user_token"
 TEST_USER_ENV_VAR = "TEST_USER"
 
 
-class RestoreSession:
+class RestoreUser:
     def before(self, co: Controller):
         user = None
         if config.DEBUG:

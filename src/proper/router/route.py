@@ -18,7 +18,7 @@ from proper.errors import (
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
-from proper.types import THandler
+from proper.types import THandler, TIterable
 
 
 __all__ = (
@@ -315,8 +315,8 @@ class StaticRoute(Route):
         url: str,
         *,
         root: str | Path,
-        name: str = "",
-        allowed_ext: t.Iterable[str] | None = (),
+        name: str | None = None,
+        allowed_ext: TIterable[str] | None = (),
         public: bool = True,
         fingerprint: bool = True,
         host: str | None = None,

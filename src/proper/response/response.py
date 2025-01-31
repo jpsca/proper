@@ -3,7 +3,6 @@ Response class.
 """
 import typing as t
 import unicodedata
-from collections.abc import Iterable
 from datetime import datetime
 from mimetypes import guess_type
 from pathlib import Path
@@ -13,7 +12,7 @@ from wsgiref.types import StartResponse
 from proper import status as pstatus
 from proper.core.current import current
 from proper.helpers import DotDict, tunnel_encode
-from proper.types import TBody, TReadable
+from proper.types import TBody, TIterable, TReadable
 
 from .cookies import ResponseCookiesMixin
 from .file_wrapper import FileWrapper
@@ -29,7 +28,7 @@ __all__ = ("Response",)
 
 
 def is_iterable(obj: t.Any) -> bool:
-    return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
+    return isinstance(obj, TIterable) and not isinstance(obj, (str, dict))
 
 
 class Response(ResponseHeadersMixin, ResponseCookiesMixin):
@@ -295,7 +294,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self,
         file: TReadable,
         block_size: int = 8192,
-    ) -> t.Iterable[bytes]:
+    ) -> TIterable[bytes]:
         """Wraps a file using the WSGI server's file wrapper
 
         More information about file wrappers is available in
