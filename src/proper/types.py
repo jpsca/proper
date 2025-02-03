@@ -6,7 +6,7 @@ from wsgiref.types import WSGIEnvironment as TWSGIEnvironment  # noqa
 
 TReadable = t.IO[t.Any]
 
-TBody = list[bytes] | bytearray | memoryview | TIterable[bytes]
+TBody = bytes | bytearray | memoryview | TIterable[bytes]
 
 TException = t.Type[BaseException]
 THandler = t.Callable[[t.Any], t.Any]

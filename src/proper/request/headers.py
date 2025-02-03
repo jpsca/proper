@@ -22,6 +22,11 @@ def enc(name: str) -> str:
     return name.strip().lower().replace("-", "_")
 
 
+class NormalizedEnv(dict):
+    def __setitem__(self, key, value):
+        super().__setitem__(enc(key), value)
+
+
 class RequestHeadersMixin:
     """Mixin with the methods related to the request headers.
     """
@@ -31,7 +36,7 @@ class RequestHeadersMixin:
     env: dict[str, t.Any]
 
     def __init__(self, env: dict[str, t.Any]):
-        self._normalize_env(env)
+        self.env = self._normalize_env(env)
 
         self.protocol = self.env.get(
             "x_forwarded_proto",
@@ -59,7 +64,7 @@ class RequestHeadersMixin:
                 "The value of the Content-Length header must be a positive number."
             )
 
-    def _normalize_env(self, env: dict[str, t.Any]) -> None:
+    def _normalize_env(self, env: dict[str, t.Any]) -> NormalizedEnv:
         """Normalize the environment variables.
 
         Arguments:
@@ -68,18 +73,27 @@ class RequestHeadersMixin:
             A WSGI environment dict passed in from the server (See also PEP-3333).
 
         """
-        self.env = {
+        # Add all the keys that do not start with "HTTP_"
+        normal_env = {
             enc(name): value
             for name, value in env.items()
             if not name.startswith("HTTP_")
         }
+
+        # Add all the rest of the keys but without the  "HTTP_" prefix
+        # unless the un-prefixed key already exists. In that case, keep it.
         for name, value in env.items():
             if not name.startswith("HTTP_"):
                 continue
-            name = enc(name).removeprefix("http_")
-            if name in self.env:
-                name = f"http_{name}"
-            self.env[name] = value
+
+            name = enc(name)
+            unprefixed = name.removeprefix("http_")
+            if unprefixed in normal_env:
+                normal_env[name] = value
+            else:
+                normal_env[unprefixed] = value
+
+        return NormalizedEnv(normal_env)
 
     def get(self, name: str, default: t.Any = None) -> t.Any:
         name = enc(name)

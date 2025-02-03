@@ -25,7 +25,7 @@ __all__ = (
 SKIP_FOR_METHODS = (HEAD, GET, OPTIONS, QUERY)
 CSRF_SESSION_KEY = "_csrf_token"
 CSRF_FORM_KEY = "csrf_token"
-CSRF_HEADER = "x_csrf_token"
+CSRF_HEADER = "X-CSRF-Token"
 CSRF_TOKEN_LENGTH = 32
 
 

@@ -3,6 +3,9 @@ import typing as t
 from proper.types import TReadable
 
 
+__all__ = ("FileWrapper",)
+
+
 class FileWrapper:
     """This class can be used to convert a file-like object into
     an iterable. It yields `block_size` blocks until the file is fully read.

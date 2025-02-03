@@ -99,8 +99,6 @@ class App(AppTest):
         import_name: str,
         config: t.Any = None,
     ) -> None:
-        self._wrapped_wsgi = self.wsgi_app
-
         self._setup_paths(import_name)
         self._setup_router()
         self._setup_config(config or {})
@@ -119,7 +117,7 @@ class App(AppTest):
         environ: TWSGIEnvironment,
         start_response: TStartResponse,
     ) -> TBody:
-        return self._wrapped_wsgi(environ, start_response)
+        return self.wsgi_app(environ, start_response)
 
     @property
     def routes(self) -> list[Route]:

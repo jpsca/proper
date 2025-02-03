@@ -62,7 +62,7 @@ class Config(BaseConfig):
     MAX_QUERY_SIZE: int = 1 * MB
 
     STATIC_URL: str = "/static/"
-    VIEWS_ASSETS_URL: str = "/static/v/"
+    VIEWS_ASSETS_URL: str = "/static_v/"
 
     # The name of the header to use to `return a file
     # so the proxy or web-server does it instead of our application.

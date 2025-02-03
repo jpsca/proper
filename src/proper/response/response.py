@@ -78,10 +78,11 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         if isinstance(body, str):
             body = body.encode(self.charset)
 
-        if isinstance(body, bytes):
-            if not self.content_length:
-                self.set_content_length(len(body))
-            body = [body]
+        if not self.content_length:
+            if hasattr(body, "__len__"):
+                self.set_content_length(len(body))  # type: ignore
+            else:
+                raise ValueError("Content-Length is required for iterable responses")
 
         return body
 

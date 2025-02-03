@@ -1,7 +1,7 @@
 .PHONY: install
 install:
 	uv sync --group dev --group test
-	pre-commit install
+	uv run pre-commit install
 
 .PHONY: test
 test:

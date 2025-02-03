@@ -76,6 +76,7 @@ class Controller:
         assert self.app.catalog
         self.app.catalog.jinja_env.globals.update(
             {
+                "app": self.app,
                 "request": self.request,
                 "response": self.response,
             }
