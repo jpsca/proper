@@ -33,7 +33,7 @@ jobs:
       - name: "Installs dependencies"
         run: |
           pip install -U uv
-          uv pip install -r requirements-test.txt
+          uv sync --group test
 
       - name: "Test"
         run: make test
