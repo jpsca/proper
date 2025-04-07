@@ -36,7 +36,7 @@ class RequestForgeryProtection:
     def __init__(self, *, skip_for: TIterable[str] = ()) -> None:
         self.skip_for = skip_for or ()
 
-    def before(self, co: "Controller") -> None:
+    def __call__(self, co: "Controller") -> None:
         request = co.request
         response = co.response
 

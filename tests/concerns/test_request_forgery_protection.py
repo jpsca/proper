@@ -36,7 +36,7 @@ def test_no_need_to_argue(co):
 
     request.method = GET
     request.matched_action = "action"
-    concern.before(co)
+    concern(co)
 
     assert request.csrf_token is not None
     assert len(request.csrf_token) == CSRF_TOKEN_LENGTH * 2
@@ -54,7 +54,7 @@ def test_missing_csrf(co):
     request.session = {CSRF_SESSION_KEY: token}
 
     with pytest.raises(MissingCSRFToken):
-        concern.before(co)
+        concern(co)
 
 
 def test_skip_csrf_check(co):
@@ -66,7 +66,7 @@ def test_skip_csrf_check(co):
     request.matched_action = "skipped"
     request.session = {CSRF_SESSION_KEY: token}
 
-    concern.before(co)
+    concern(co)
 
 
 def test_invalid_csrf_if_not_set(co):
@@ -78,7 +78,7 @@ def test_invalid_csrf_if_not_set(co):
     request.session = {}
 
     with pytest.raises(InvalidCSRFToken):
-        concern.before(co)
+        concern(co)
 
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -94,7 +94,7 @@ def test_valid_csrf_from_form(co, method):
     request.session = {CSRF_SESSION_KEY: token}
     request._form = MultiDict({CSRF_FORM_KEY: mask + token})
 
-    concern.before(co)
+    concern(co)
 
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -112,7 +112,7 @@ def test_invalid_csrf_from_form(co, method):
     request._form = MultiDict({CSRF_FORM_KEY: mask + invalid_token})
 
     with pytest.raises(InvalidCSRFToken):
-        concern.before(co)
+        concern(co)
 
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -128,7 +128,7 @@ def test_valid_csrf_from_header(co, method):
     request.session = {CSRF_SESSION_KEY: token}
     request.env[CSRF_HEADER] = mask + token
 
-    concern.before(co)
+    concern(co)
 
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -146,7 +146,7 @@ def test_invalid_csrf_from_header(co, method):
     request.env[CSRF_HEADER] = mask + invalid_token
 
     with pytest.raises(InvalidCSRFToken):
-        concern.before(co)
+        concern(co)
 
 
 def test_ignore_unmasked_tokens(co):
@@ -161,7 +161,7 @@ def test_ignore_unmasked_tokens(co):
     request._form = MultiDict({CSRF_FORM_KEY: token})
 
     with pytest.raises(MissingCSRFToken):
-        concern.before(co)
+        concern(co)
 
 
 def test_masking_is_random(co):
@@ -172,11 +172,11 @@ def test_masking_is_random(co):
     request.method = GET
     request.matched_action = "action"
 
-    concern.before(co)
+    concern(co)
     token1 = request.csrf_token
 
     request.session = response.session.copy()
-    concern.before(co)
+    concern(co)
     token2 = request.csrf_token
 
     assert token1 != token2

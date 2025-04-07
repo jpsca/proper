@@ -9,8 +9,8 @@ from app.models import User
 from app.router import auth_router
 
 
-@auth_router.resource("password-resets")
-class PasswordResetsController(AppController):
+@auth_router.resource("password-reset")
+class PasswordResetController(AppController):
     def new(self):
         self.form = PasswordResetSchema.as_form()
         return self.render("PasswordReset.New")
@@ -64,10 +64,10 @@ class PasswordResetsController(AppController):
 
 def send_password_reset_email(user):
     token = auth.get_timestamped_token(user)
-    validate_url = app.url_for("PasswordResets.edit", pk=token)
-    reset_url = app.url_for("PasswordResets.new")
+    validate_url = app.url_for("PasswordReset.edit", pk=token)
+    reset_url = app.url_for("PasswordReset.new")
     html = app.catalog.render(
-        "Emails.PasswordResets",
+        "Emails.PasswordReset",
         validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
         reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
     )

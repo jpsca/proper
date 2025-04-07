@@ -235,7 +235,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -312,7 +312,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -387,7 +387,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -450,7 +450,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -513,7 +513,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -576,7 +576,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -645,7 +645,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -716,7 +716,7 @@ class BaseRouter:
 
         - name:
             Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Pages.show`.
+            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
             This name can be any unique string eg: "login", "index",
             "something.foobar", etc.
 
@@ -959,8 +959,8 @@ class Router(BaseRouter):
             @app.router.error(errors.NotFound)
             def not_found(self):
                 ...
-        , Pages.not_found)
-        app.error_handler(Exception, Pages.error)
+        , Page.not_found)
+        app.error_handler(Exception, Page.error)
         ```
         """
         def _decorator(to) -> t.Callable:

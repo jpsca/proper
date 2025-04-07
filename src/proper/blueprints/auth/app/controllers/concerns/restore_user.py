@@ -11,7 +11,7 @@ TEST_USER_ENV_VAR = "TEST_USER"
 
 
 class RestoreUser:
-    def before(self, co: Controller):
+    def __call__(self, co: Controller):
         user = None
         if config.DEBUG:
             user = self._get_test_user()

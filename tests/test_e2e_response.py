@@ -1,5 +1,5 @@
 from proper import Controller, DotDict, status
-from proper.concerns import Session
+from proper.concerns import RestoreSession, UpdateSessionCookie
 
 
 # -- ETAG --
@@ -28,7 +28,8 @@ def test_if_none_match(app):
 
 
 class SessionController(Controller):
-    concerns = [Session]
+    before = [RestoreSession()]
+    after = [UpdateSessionCookie()]
 
     def update(self):
         self.response.session["foo"] = "bar"

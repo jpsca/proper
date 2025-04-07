@@ -4,6 +4,7 @@ must inherit from. Stores data available to the views.
 import os
 import re
 import typing as t
+from collections.abc import Iterable
 from inspect import isclass
 from pathlib import Path
 
@@ -23,7 +24,8 @@ __all__ = ("Controller",)
 
 
 class Controller:
-    concerns: list[t.Any]
+    before: Iterable[t.Callable]
+    after: Iterable[t.Callable]
 
     def __init__(
         self,
@@ -34,9 +36,13 @@ class Controller:
         self.app = app
         self.request = request
         self.response = response
-        self.concerns = [
-            m() if isclass(m) else m
-            for m in getattr(self, "concerns", [])
+        self.before = [
+            item() if isclass(item) else item
+            for item in (getattr(self, "before", None) or [])
+        ]
+        self.after = [
+            item() if isclass(item) else item
+            for item in (getattr(self, "after", None) or [])
         ]
 
     @property
@@ -81,29 +87,22 @@ class Controller:
                 "response": self.response,
             }
         )
-
         return self.app.catalog.render(name, **vars(self))
 
     # Private
 
     def _dispatch(self, action_name: str) -> "Response | None":
-        for m in [*self.concerns, self]:
-            early_response = None
-            before = getattr(m, "before", None)
-            if before:
-                early_response = before(self)
-                if early_response is not None:
-                    return early_response
+        for before in self.before:
+            early_response = before(self)
+            if early_response is not None:
+                return early_response
 
         self._call(action_name)
 
-        for m in [self, *self.concerns]:
-            early_response = None
-            after = getattr(m, "after", None)
-            if after:
-                early_response = after(self)
-                if early_response is not None:
-                    return early_response
+        for after in self.after:
+            early_response = after(self)
+            if early_response is not None:
+                return early_response
 
     def _call(self, action_name: str) -> None:
         # We call the endpoint but we do not expect a result value.
@@ -137,13 +136,6 @@ class StaticFilesController(Controller):
         if allowed_ext:
             if ext not in allowed_ext:
                 raise NotFound("File does not exists")
-
-        print("----")
-        print("root:", root)
-        print("file:", file)
-        print("relpath:", relpath)
-        print("ext:", ext)
-        print("---------")
 
         # Ignore the fingerprint in the filename
         # since is only for managing the cache in the client

@@ -4,7 +4,7 @@ from .app import AppController
 from app.router import router
 
 
-class PagesController(AppController):
+class PageController(AppController):
     # Uncomment to add a home page
     # @router.get("")
     # def index(self):

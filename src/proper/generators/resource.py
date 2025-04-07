@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import inflection
+from jinjax.utils import kebab_case
 
 from proper.helpers.render import BLUEPRINTS, BlueprintRender, call
 from proper.router import (
@@ -71,7 +72,7 @@ def gen_resource(
     Arguments:
 
     - name:
-        The PascalCased resource name, plural unless `--singular` is used.
+        The PascalCased resource name.
 
     - attrs:
         Optional list of `field:type` columns for the model schema.
@@ -103,8 +104,8 @@ def gen_resource(
 
         will generate routes like:
 
-            /lists/
-            /lists/123
+            /list/
+            /list/123
             ...
 
         but:
@@ -126,22 +127,16 @@ def gen_resource(
 
     Examples:
 
-        proper g resource Posts
-        proper g resource Posts --only=index,show title:str
-        proper g resource Posts title:str body:text published:bool
+        proper g resource Post
+        proper g resource Post --only=index,show title:str
+        proper g resource Post title:str body:text published:bool
         proper g resource Profile --singular
 
     """
-    plural_name = inflection.pluralize(name)
-    plural_pascal = inflection.camelize(plural_name)
-    plural_snake = inflection.underscore(plural_name)
-
-    singular_name = inflection.singularize(name)
-    singular_pascal = inflection.camelize(singular_name)
-    singular_snake = inflection.underscore(singular_name)
-
-    view_snake = singular_snake if singular else plural_snake
-    view_pascal = singular_pascal if singular else plural_pascal
+    name_pascal = inflection.camelize(name)
+    name_snake = inflection.underscore(name)
+    name_kebab = kebab_case(name)
+    plural_snake = inflection.pluralize(name_snake)
 
     only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
     exclude_list = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
@@ -159,18 +154,16 @@ def gen_resource(
     ignored_actions = set(ACTIONS).difference(actions)
     ignored_views = []
     for action in ignored_actions:
-        action_pascal = inflection.camelize(action)
         ignored_views.append(
-            f"*{action_pascal}.tt.jinja",
+            f"*{kebab_case(action)}.tt.jinja",
         )
 
     attrs_tuples = gen_model(
         app,
         name,
         *attrs,
-        singular_pascal=singular_pascal,
-        singular_snake=singular_snake,
-        plural_snake=plural_snake,
+        name_pascal=name_pascal,
+        name_snake=name_snake,
         migration=migration,
     )
     form_fields = [
@@ -185,43 +178,29 @@ def gen_resource(
 
     context = {
         "app_name": app.root_path.name,
-        "plural_pascal": plural_pascal,
+        "name_pascal": name_pascal,
+        "name_snake": name_snake,
+        "name_kebab": name_kebab,
         "plural_snake": plural_snake,
-        "singular_pascal": singular_pascal,
-        "singular_snake": singular_snake,
-        "view_snake": view_snake,
-        "view_pascal": view_pascal,
-        "mount_point": view_snake,
         "only": only_list,
         "exclude": exclude_list,
         "actions": actions,
         "singular": singular,
         "restore": restore,
         "form_fields": form_fields,
-        "form_class": f"{singular_pascal}Model",
-        "load_method": f"load_{singular_snake}",
-        "object": f"self.{singular_snake}",
-        "object_id": f"{singular_snake}_id",
+        "form_class": f"{name_pascal}Schema",
+        "load_method": f"load_{name_snake}",
+        "object": f"self.{name_snake}",
+        "object_id": f"{name_snake}_id",
         "parent": None,
     }
 
     if parent:
-        parent_plural_name = inflection.pluralize(parent)
-        parent_plural_snake = inflection.underscore(parent_plural_name)
-
-        parent_singular_name = inflection.singularize(parent)
-        parent_singular_pascal = inflection.camelize(parent_singular_name)
-        parent_singular_snake = inflection.underscore(parent_singular_name)
-
+        parent_name_snake = inflection.underscore(parent)
         context.update({
-            "parent_plural_name": parent_plural_name,
-            "parent_plural_snake": parent_plural_snake,
-            "parent_singular_pascal": parent_singular_pascal,
-            "parent_singular_snake": parent_singular_snake,
-            "mount_point": f"{parent_plural_snake}/:{parent_singular_snake}_id/{view_snake}",
-            "load_parent_method": f"load_{parent_singular_snake}",
-            "parent": f"self.{parent_singular_snake}",
-            "parent_id": f"{parent_singular_snake}_id",
+            "parent_name_snake": parent_name_snake,
+            "parent": f"self.{parent_name_snake}",
+            "parent_id": f"{parent_name_snake}_id",
         })
 
     bp = BlueprintRender(
@@ -233,4 +212,4 @@ def gen_resource(
     bp()
 
     if migration:
-        call(f'proper db create "{singular_snake if singular else plural_snake}"')
+        call(f'proper db create "{name_snake}"')

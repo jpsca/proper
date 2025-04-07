@@ -4,7 +4,7 @@ from app.main import app
 
 
 class SetLocale:
-    def before(self, co: Controller):
+    def __call__(self, co: Controller):
         assert app.i18n
         co.request.locale = (
             # Always prefer the locale from the URL

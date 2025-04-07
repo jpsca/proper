@@ -1,5 +1,5 @@
 from proper import Controller
-from proper.concerns import RequestForgeryProtection, Session
+from proper.concerns import RequestForgeryProtection, RestoreSession, UpdateSessionCookie
 
 from .concerns.db_connection import DBConnection
 from .concerns.security_headers import SecurityHeaders
@@ -8,10 +8,13 @@ from .concerns.security_headers import SecurityHeaders
 class AppController(Controller):
     """All other controllers must inherit from this class.
     """
-    # The order matters
-    concerns = [
-        DBConnection,
-        Session,
-        RequestForgeryProtection,
-        SecurityHeaders,
+    # Note: The order might matter
+    before = [
+        DBConnection(),
+        RestoreSession(),
+        RequestForgeryProtection(),
+    ]
+    after = [
+        UpdateSessionCookie(),
+        SecurityHeaders(),
     ]

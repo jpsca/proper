@@ -1,12 +1,13 @@
 import pytest
 
 from proper import App, Controller, status
-from proper.concerns import RequestForgeryProtection, Session
+from proper.concerns import RequestForgeryProtection, RestoreSession, UpdateSessionCookie
 from proper.errors import BadSecretKey
 
 
 class Pages(Controller):
-    concerns = [RequestForgeryProtection, Session]
+    before = [RequestForgeryProtection(), RestoreSession()]
+    after = [UpdateSessionCookie()]
 
     def index(self):
         self.response.mimetype = "text/plain"

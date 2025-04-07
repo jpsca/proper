@@ -13,14 +13,14 @@ if t.TYPE_CHECKING:
     from proper.response import Response
 
 
-__all__ = ("Session", "SESSION_SALT")
+__all__ = ("RestoreSession", "UpdateSessionCookie", "SESSION_SALT")
 
 
 SESSION_SALT = "session"
 
 
-class Session:
-    def before(self, co: "Controller") -> None:
+class RestoreSession:
+    def __call__(self, co: "Controller") -> None:
         """Get the session data from the cookie and puts into the request
         and response.
         """
@@ -31,14 +31,6 @@ class Session:
         request.session = session
         response.session = session.copy()
         response.session.pop(FLASHES_SESSION_KEY, None)
-
-    def after(self, co: "Controller") -> None:
-        """Update the session cookie if its needed."""
-        app = co.app
-        request = co.request
-        response = co.response
-        if response.session != request.session:
-            self._update_session_cookie(app, response)
 
     # Private
 
@@ -59,6 +51,18 @@ class Session:
         except BadSignature:
             print(">>>", "BAD SESSION", cookie)
             return DotDict()
+
+
+class UpdateSessionCookie:
+    def __call__(self, co: "Controller") -> None:
+        """Update the session cookie if its needed."""
+        app = co.app
+        request = co.request
+        response = co.response
+        if response.session != request.session:
+            self._update_session_cookie(app, response)
+
+    # Private
 
     def _update_session_cookie(self, app: "App", response: "Response") -> None:
         """Update the session cookie if its needed."""

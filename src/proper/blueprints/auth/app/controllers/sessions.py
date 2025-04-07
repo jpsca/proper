@@ -5,7 +5,7 @@ from app.models import User
 from app.router import auth_router
 
 
-class SessionsController(AppController):
+class SessionController(AppController):
     @auth_router.get("sign-in")
     def new(self):
         if self.request.user:

@@ -3,7 +3,7 @@ from http.cookies import Morsel
 import pytest
 
 from proper import Request, Response
-from proper.concerns import SESSION_SALT, Session
+from proper.concerns import SESSION_SALT, RestoreSession, UpdateSessionCookie
 from proper.constants import FLASHES_SESSION_KEY
 from proper.controller import Controller
 
@@ -23,49 +23,49 @@ def _set_request_cookie(app, co, value):
 
 
 def test_fetch_session(app, co):
-    mid = Session()
+    concern = RestoreSession()
     data = {"hello": "world!"}
     _set_request_cookie(app, co, app.serializer.dumps(data, salt=SESSION_SALT))
-    mid.before(co)
+    concern(co)
 
     assert co.request.session == co.response.session == data
 
 
 def test_do_not_copy_flashes(app, co):
-    mid = Session()
+    concern = RestoreSession()
     data = {"hello": "world!"}
     ext_data = {FLASHES_SESSION_KEY: "...", **data}
     _set_request_cookie(app, co, app.serializer.dumps(ext_data, salt=SESSION_SALT))
-    mid.before(co)
+    concern(co)
 
     assert co.request.session == ext_data
     assert co.response.session == data
 
 
 def test_fetch_session_bad_cookie(app, co):
-    mid = Session()
+    concern = RestoreSession()
     _set_request_cookie(app, co, "bad cookie")
-    mid.before(co)
+    concern(co)
 
     assert co.request.session == co.response.session == {}
 
 
 def test_do_not_set_cookie_if_not_data(app, co):
     cookie_name = app.config.SESSION_COOKIE_NAME
-    mid = Session()
+    concern = UpdateSessionCookie()
     co.request.session = {}
     co.response.session = {}
-    mid.after(co)
+    concern(co)
 
     assert cookie_name not in co.response.cookies
 
 
 def test_set_delete_cookie_if_not_data_and_modified(app, co):
     cookie_name = app.config.SESSION_COOKIE_NAME
-    mid = Session()
+    concern = UpdateSessionCookie()
     co.request.session = {"foo": "bar"}
     co.response.session = {}
-    mid.after(co)
+    concern(co)
 
     assert cookie_name in co.response.cookies
     assert co.response.cookies[cookie_name].value == ""

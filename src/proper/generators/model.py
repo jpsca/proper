@@ -21,9 +21,8 @@ def gen_model(
     name: str,
     *attrs: str,
     migration: bool = False,
-    singular_pascal: str = "",
-    singular_snake: str = "",
-    plural_snake: str = "",
+    name_snake: str = "",
+    name_pascal: str = "",
 ) -> list[tuple[str, str, list[str]]]:
     """Stubs a new model based on [Peewee ORM](https://docs.peewee-orm.com)
 
@@ -99,10 +98,8 @@ backref
             user = pw.ForeignKeyField(User, backref="tweets").
 
     """
-    singular_name = inflection.singularize(name)
-    singular_pascal = singular_pascal or inflection.camelize(singular_name)
-    singular_snake = singular_snake or inflection.underscore(singular_name)
-    plural_snake = plural_snake or inflection.tableize(singular_pascal)
+    name_pascal = name_pascal or inflection.camelize(name)
+    name_snake = name_snake or inflection.underscore(name)
     attrs_tuples = [_split_attr(attr) for attr in attrs]
     rows = _build_rows(attrs_tuples)
 
@@ -111,9 +108,8 @@ backref
         app.root_path.parent,
         context={
             "app_name": app.root_path.name,
-            "singular_pascal": singular_pascal,
-            "singular_snake": singular_snake,
-            "plural_snake": plural_snake,
+            "name_snake": name_snake,
+            "name_pascal": name_pascal,
             "rows": rows or ["name = pw.CharField()"],
         },
     )
@@ -123,7 +119,7 @@ backref
         sort_imports_in(app.root_path / filename)
 
     if migration:
-        call(f'proper db create "{plural_snake}"')
+        call(f'proper db create "{name_snake}"')
 
     return attrs_tuples
 

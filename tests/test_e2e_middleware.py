@@ -11,28 +11,21 @@ def _f2(headers):
     headers["x-test"] = f"{val}-f2-"
 
 
-class BeforeConcern:
-    def before(self, co):
-        response = co.response
-        _f1(response.headers)
-        _f2(response.headers)
-
-    def after(self, view):
-        pass
+def before_concern(co):
+    response = co.response
+    _f1(response.headers)
+    _f2(response.headers)
 
 
-class AfterConcern:
-    def before(self, co):
-        pass
-
-    def after(self, co):
-        response = co.response
-        _f1(response.headers)
-        _f2(response.headers)
+def after_concern(co):
+    response = co.response
+    _f1(response.headers)
+    _f2(response.headers)
 
 
 class BeforeAndAfterTestCase(Controller):
-    concerns = [BeforeConcern, AfterConcern]
+    before = [before_concern]
+    after = [after_concern]
 
     def index(self):
         val = self.response.headers.get("x-test", "")
@@ -47,18 +40,14 @@ def test_concerns(app):
     assert resp.headers["x-test"] == expected
 
 
-class StopConcern:
-    def before(self, co):
-        response = co.response
-        _f1(response.headers)
-        return "STOP"
-
-    def after(self, co):
-        pass
+def stop_concern(co):
+    response = co.response
+    _f1(response.headers)
+    return "STOP"
 
 
 class StopTestCase(Controller):
-    concerns = [StopConcern]
+    before = [stop_concern]
 
     def index(self):
         val = self.response.headers.get("x-test", "")

@@ -1,13 +1,13 @@
 import datetime
 
 from fodantic import formable
-from pydantic import BaseModel
+from pydantic import BaseModel as Schema
 
-from app.models import [[ singular_pascal ]]
+from app.models import [[ name_pascal ]]
 
 
-@formable(orm=[[ singular_pascal ]])
-class [[ form_class ]](BaseModel):
+@formable(orm=[[ name_pascal ]])
+class [[ form_class ]](Schema):
     [% for f in form_fields %]
     [% if f.type in ["date", "datetime"] -%]
         [[ f.name ]]: datetime.[[ f.type ]][% if f.default %] = [[ f.default ]][% endif %]
