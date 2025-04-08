@@ -3,7 +3,7 @@ from proper.status import unprocessable
 from app import tasks
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from app.forms.password_resets import PasswordChangeSchema, PasswordResetSchema
+from app.forms.password_resets import PasswordChangeSchema, PasswordResetchema
 from app.main import app, config
 from app.models import User
 from app.router import auth_router
@@ -12,11 +12,11 @@ from app.router import auth_router
 @auth_router.resource("password-reset")
 class PasswordResetController(AppController):
     def new(self):
-        self.form = PasswordResetSchema.as_form()
+        self.form = PasswordResetchema.as_form()
         return self.render("PasswordReset.New")
 
     def create(self):
-        self.form = PasswordResetSchema.as_form(self.params)
+        self.form = PasswordResetchema.as_form(self.params)
         if self.form.is_invalid:
             return self.render("PasswordReset.New", status=unprocessable)
 
@@ -67,7 +67,7 @@ def send_password_reset_email(user):
     validate_url = app.url_for("PasswordReset.edit", pk=token)
     reset_url = app.url_for("PasswordReset.new")
     html = app.catalog.render(
-        "Emails.PasswordReset",
+        "Email.PasswordReset",
         validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
         reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
     )

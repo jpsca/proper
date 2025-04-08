@@ -1,23 +1,8 @@
-{#def
-  field,
-  label="",
-  label_class="",
-  error_class="text-red-500 text-sm font-bold p-2",
-  onerror_class="border-red-500"
-#}
+{#def field #}
 
-{% do attrs.setdefault(type="text", class="form-input block") %}
 {% do attrs.set(name=field.name, value=field.value) %}
 {% if field.error %}
-  {% do attrs.set(class=onerror_class) %}
-{%- endif %}
+  {% do attrs.set(invalid=field.error.msg) %}
+{% endif %}
 
-{% if label -%}
-  <label class="{{ label_class }}">{{ label }}</label>
-{%- endif %}
-<input {{ attrs.render() }}/>
-{% if field.error -%}
-<div class="{{ error_class }}">
-  {{ field.error.msg }}
-</div>
-{%- endif %}
+<ui.Input __attrs={{attrs}} />

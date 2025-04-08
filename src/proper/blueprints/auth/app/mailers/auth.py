@@ -14,7 +14,7 @@ def render_password_reset_email(user):
     validate_url = app.url_for("PasswordReset.edit", pk=token)
     reset_url = app.url_for("PasswordReset.new")
     return app.catalog.render(
-        "Emails.PasswordResets",
+        "Emails.PasswordReset",
         validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
         reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
     )

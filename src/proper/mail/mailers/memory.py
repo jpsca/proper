@@ -5,7 +5,7 @@ from .base import BaseMailer
 
 
 class ToMemoryMailer(BaseMailer):
-    """A mailer for use during test sessions.
+    """A mailer for use during test Session.
 
     The test connection stores email messages in a dummy outbox,
     rather than sending them out on the wire.

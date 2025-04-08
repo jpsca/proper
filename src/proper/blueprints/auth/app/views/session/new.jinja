@@ -1,0 +1,49 @@
+{#def form #}
+
+<Layout.Auth title="Sign in">
+  <Form
+    class="auth-panel"
+    action={{ url_for('Session.new') }}
+  >
+    <div class="auth-header">
+      <h2 class="auth-title">Sign in</h2>
+    </div>
+
+    <Form.Errors form={{form}} />
+
+    <div class="auth-field">
+      <Form.Input
+        field={{ form.fields.login }}
+        label="Email"
+        placeholder="Email"
+        tabindex="1"
+      />
+    </div>
+
+    <div class="auth-field">
+      <Form.Input
+        field={{ form.fields.password }}
+        label="Password"
+        type="password"
+        placeholder="Password"
+        tabindex="2"
+      />
+    </div>
+
+    <div class="auth-footer">
+        <ui.Button
+          type="submit"
+          variant="primary"
+          tabindex="3"
+          block
+        >Sign in</ui.Button>
+    </div>
+  </Form>
+
+  <div class="auth-back">
+    <a class="link"
+      href="{{ url_for('PasswordReset.new') }}"
+      tabindex="4"
+    >Forgot your password?</a>
+  </div>
+</Layout.Auth>

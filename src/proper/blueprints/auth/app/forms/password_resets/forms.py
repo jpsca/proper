@@ -13,7 +13,7 @@ from .validators import (
 
 
 @formable
-class PasswordResetSchema(Schema):
+class PasswordResetchema(Schema):
     login: t.Annotated[str, BeforeValidator(login_exists)]
 
 

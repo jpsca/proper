@@ -1,6 +1,6 @@
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from app.forms.sessions import SignInSchema
+from app.forms.Session import SignInSchema
 from app.models import User
 from app.router import auth_router
 

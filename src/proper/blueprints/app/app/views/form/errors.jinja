@@ -1,9 +1,9 @@
 {#def form #}
 
 {% if form.errors -%}
-<div class="mt-2 mb-3 text-sm font-bold text-center text-red-500">
-  {% for error in form.errors -%}
-    <p>{{ error.msg }}</p>
-  {% endfor -%}
+<div class="form-errors">
+{% for error in form.errors -%}
+  <p>{{ error.msg }}</p>
+{% endfor -%}
 </div>
 {%- endif %}

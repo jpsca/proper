@@ -1,23 +1,8 @@
-{#def
-  field,
-  label="",
-  label_class="",
-  error_class="text-red-500 text-sm font-bold p-2",
-  onerror_class="border-red-500"
-#}
+{#def field #}
 
-{% do attrs.setdefault(class="form-textarea block") %}
 {% do attrs.set(name=field.name) %}
 {% if field.error %}
-  {% do attrs.set(class=onerror_class) %}
-{%- endif %}
+  {% do attrs.set(invalid=field.error.msg) %}
+{% endif %}
 
-{% if label -%}
-  <label class="{{ label_class }}">{{ label }}</label>
-{%- endif %}
-<textarea {{ attrs.render() }}>{{ field.value }}</textarea>
-{% if field.error -%}
-<div class="{{ error_class }}">
-  {{ field.error.msg }}
-</div>
-{%- endif %}
+<ui.Textarea __attrs={{attrs}}>{{ field.value }}</ui.Textarea>

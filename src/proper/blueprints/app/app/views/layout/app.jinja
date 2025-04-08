@@ -18,8 +18,8 @@
 	{% if description -%}<meta property="og:description" content="{{ description }}">{% endif -%}
 </head>
 <body {{ attrs.render() }}>
-	<Flashes />
-	<SignInOut />
+	<common.Flashes />
+	<common.SignInOut />
 	{{ content }}
 </body>
 </html>

@@ -1,24 +1,11 @@
-{#def
-  field,
-  options,
-  label="",
-  label_class="",
-  error_class="text-red-500 text-sm font-bold p-2",
-  onerror_class="border-red-500"
-#}
+{#def field, options #}
 
-{% do attrs.setdefault(class="form-select block") %}
-{% do attrs.set(name=field.name, multiple=field.is_multiple) %}
-
+{% do attrs.set(name=field.name, value=field.value) %}
 {% if field.error %}
-  {% do attrs.set(class=onerror_class) %}
-{%- endif %}
+  {% do attrs.set(invalid=field.error.msg) %}
+{% endif %}
 
-{% if label -%}
-  <label class="{{ label_class }}">{{ label }}</label>
-{% endif -%}
-
-<select {{ attrs.render() }}>
+<ui.Select __attrs={{attrs}}>
 {%- for opval, oplabel in options %}
   <option value="{{ opval }}"
   {% if
@@ -27,10 +14,4 @@
   %} checked{% endif -%}
   >{{ oplabel }} </option>
 {%- endfor %}
-</select>
-
-{%- if field.error %}
-<div class="{{ error_class }}">
-  {{ field.error.msg }}
-</div>
-{%- endif %}
+</ui.Select>
