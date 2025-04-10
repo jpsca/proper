@@ -21,6 +21,31 @@ config.QUEUE = {
     "database": ":memory:",
 }
 
+config.QUEUE_CONSUMER = {
+    # Number of worker to spawn.
+    "workers": 1,
+    # Enable periodic task scheduler?
+    "periodic": True,
+    # Default queue polling interval.
+    "initial_delay": 0.1,
+    # Exponential backoff factor when queue empty.
+    "backoff": 1.15,
+    # Maximum interval between polling events.
+    "max_delay": 10.0,
+    # Interval for the scheduler. Must be between 1 and 60s
+    "scheduler_interval": 1,
+    # Type of worker to use ("thread", "process", or "greenlet").
+    "worker_type": "thread",
+    # Whether to check worker health.
+    "check_worker_health": True,
+    # Interval for health checks.
+    "health_check_interval": 10,
+    # Whether to flush locks.
+    "flush_locks": False,
+    # Comma-separated extra locks to use.
+    "extra_locks": "",
+}
+
 
 # --- Override config for testing ---
 if env == TEST:

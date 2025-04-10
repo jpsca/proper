@@ -91,6 +91,8 @@ class Config(BaseConfig):
         "type": "proper.queue.SqliteQueue",
         "database": "storage/app.sqlite3",
     }
+    QUEUE_CONSUMER: dict[str, t.Any] = {}
+
     CACHE: dict[str, t.Any] = {
         "type": "proper.cache.SqliteCache",
         "database": ":memory:",
