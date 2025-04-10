@@ -200,17 +200,17 @@ class Auth:
 
         user = model.get_by_login(login)
         if not user:
-            logger.debug(f"User `{login}` not found")
+            logger.debug("User `%s` not found", login)
             self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not user.password:
-            logger.debug(f"User `{login}` has no password")
+            logger.debug("User `%s` has no password", login)
             self.password_is_valid("invalid", self._decoy_password)
             return None
 
         if not self.password_is_valid(password, user.password):
-            logger.debug(f"Invalid password for user `{login}`")
+            logger.debug("Invalid password for user `%s`", login)
             return None
 
         if update_hash:
@@ -245,7 +245,7 @@ class Auth:
 
         user = model.get_by_id(user_id)
         if not user:
-            logger.info(f"Invalid token. User `{user_id[:20]}` not found")
+            logger.info("Invalid token. User `%s` not found", user_id[:20])
             return None
 
         for secret_key in self.secret_keys:
@@ -272,7 +272,7 @@ class Auth:
 
         user = model.get_by_id(user_id)
         if not user:
-            logger.info(f"Invalid token. User `{user_id[:20]}` not found")
+            logger.info("Invalid token. User `%s` not found", user_id[:20])
             return None
 
         expired = timestamp + token_life < int(time())

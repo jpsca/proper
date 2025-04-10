@@ -20,7 +20,6 @@ for prefix, loader in app.catalog.prefixes.items():
     url_prefix = get_url_prefix(prefix)
     url = f"{app.config.VIEWS_ASSETS_URL}{url_prefix}"
     for root in loader.searchpath[::-1]:
-        print(url, root)
         router.static(
             url,
             root=root,

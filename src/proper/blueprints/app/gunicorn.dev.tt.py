@@ -1,5 +1,7 @@
 from proper import show_banner, show_welcome
 
+from workers import run_consumer_proc
+
 
 debug = True
 host = "0.0.0.0"
@@ -74,6 +76,7 @@ proc_name = "[[ app_name ]]"
 
 def on_starting(server):
     show_banner()
+    run_consumer_proc()
 
 
 def when_ready(server):

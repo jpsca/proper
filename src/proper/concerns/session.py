@@ -3,7 +3,7 @@ import typing as t
 from itsdangerous import BadSignature
 
 from proper.constants import FLASHES_SESSION_KEY
-from proper.helpers import DotDict
+from proper.helpers import DotDict, logger
 
 
 if t.TYPE_CHECKING:
@@ -46,10 +46,10 @@ class RestoreSession:
                 salt=SESSION_SALT,
                 max_age=app.config.SESSION_LIFETIME
             )
-            print(">>>", session)
+            logger.debug(">>> %", session)
             return DotDict(session)
         except BadSignature:
-            print(">>>", "BAD SESSION", cookie)
+            logger.debug(">>> BAD SESSION %", cookie)
             return DotDict()
 
 
@@ -76,7 +76,7 @@ class UpdateSessionCookie:
             )
             return
 
-        print(">>>", "SET SESSION", dict(response.session))
+        logger.debug(">>> SET SESSION %s", dict(response.session))
         response.set_signed_cookie(
             config.SESSION_COOKIE_NAME,
             dict(response.session),
