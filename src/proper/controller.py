@@ -125,7 +125,7 @@ RX_FINGERPRINT = re.compile("(.*)-([abcdef0-9]{64})")
 
 class StaticFilesController(Controller):
     def show(self):
-        root: Path = self.defaults["root"]
+        root: Path = Path(self.defaults["root"])
         public: bool = self.defaults["public"]
 
         file: str = self.params.get("file", "")
@@ -146,9 +146,6 @@ class StaticFilesController(Controller):
             relpath = relpath.with_name(f"{stem}{ext}")
 
         filepath: Path = (root / relpath).resolve()
-
-        if root not in filepath.parents:
-            raise NotFound(f"Folder `{filepath.parent}` does not exists")
 
         if not filepath.is_file():
             raise NotFound(f"File `{file}` does not exists")

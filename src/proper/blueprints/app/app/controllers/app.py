@@ -1,8 +1,11 @@
 from proper import Controller
-from proper.concerns import RequestForgeryProtection, RestoreSession, UpdateSessionCookie
+from proper.concerns import (
+    RequestForgeryProtection,
+    RestoreSession,
+    UpdateSessionCookie,
+)
 
-from .concerns.db_connection import DBConnection
-from .concerns.security_headers import SecurityHeaders
+from .concerns.security_headers import SetSecurityHeaders
 
 
 class AppController(Controller):
@@ -10,11 +13,10 @@ class AppController(Controller):
     """
     # Note: The order might matter
     before = [
-        DBConnection(),
         RestoreSession(),
         RequestForgeryProtection(),
     ]
     after = [
         UpdateSessionCookie(),
-        SecurityHeaders(),
+        SetSecurityHeaders(),
     ]

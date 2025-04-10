@@ -1,11 +1,12 @@
+import jinjax_ui
+
 from .cl import AppCL
 from .main import app
 
 
 app.CL = AppCL
 
-if app.catalog:
-    app.catalog.add_folder(app.views_path / "common")
+app.catalog.add_folder(jinjax_ui.components_path, prefix="ui")
 
 
 # ---- Database ----

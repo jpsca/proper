@@ -1,5 +1,4 @@
 import typing as t
-from pathlib import Path
 
 import peewee as pw
 from huey.contrib.sql_huey import SqlStorage as HueySqlStorage
@@ -16,61 +15,74 @@ class BytesBlobField(pw.BlobField):
 
 
 class SqlStorage(HueySqlStorage):
+    database: pw.Database
     KV : type[pw.Model]
     Schedule : type[pw.Model]
     Task : type[pw.Model]
 
     def __init__(self, name: str, database: str | pw.Database, **kwargs):
+        self.ready = False
         self.name = name
         if isinstance(database, pw.Database):
             self.database = database
         else:
             # Treat the database argument as a URL connection string.
             self.database = db_url_connect(database, **kwargs)
-        self.create_models()
-        self.create_tables()
-        # TODO: migrations
 
-    def create_models(self) -> tuple:  # type: ignore
+        assert isinstance(self.database, pw.Database)
+
+    def check_conn(self):
+        if not self.database.is_connection_usable():
+            self.database.close()
+            self.database.connect()
+
+        if not self.ready:
+            self.create_models()
+            self.create_tables()
+            self.ready = True
+
+    def create_models(self) -> None:  # type: ignore
         class Base(pw.Model):
             class Meta:
                 database = self.database
 
-        class KV(Base):
+        class QueueKV(Base):
             queue = pw.CharField()
             key = pw.CharField()
             value = BytesBlobField()
 
             class Meta:  # type: ignore
                 primary_key = pw.CompositeKey("queue", "key")
-                table_name = "proper_kv"
+                table_name = "queue_kv"
 
-        self.KV = KV
+        self.KV = QueueKV
 
-        class Schedule(Base):
+        class QueueSchedule(Base):
             queue = pw.CharField()
             data = BytesBlobField()
             timestamp = pw.TimestampField(resolution=1000)
 
             class Meta:  # type: ignore
-                table_name = "proper_schedule"
+                table_name = "queue_schedule"
 
-        Schedule.add_index(Schedule.queue, Schedule.timestamp, unique=False)
-        self.Schedule = Schedule
+        QueueSchedule.add_index(QueueSchedule.queue, QueueSchedule.timestamp, unique=False)
+        self.Schedule = QueueSchedule
 
-        class Task(Base):
+        class QueueTask(Base):
             queue = pw.CharField()
             uuid = pw.UUIDField(index=True)
             data = BytesBlobField()
             priority = pw.FloatField(default=0.0)
 
             class Meta:  # type: ignore
-                table_name = "proper_task"
+                table_name = "queue_task"
 
-        Task.add_index(Task.priority.desc(), Task.id)  # type: ignore
-        self.Task = Task
+        QueueTask.add_index(QueueTask.priority.desc(), QueueTask.id)  # type: ignore
+        self.Task = QueueTask
 
-        return (KV, Schedule, Task)
+    def create_tables(self):
+        with self.database:
+            self.database.create_tables([self.KV, self.Schedule, self.Task])
 
     def enqueue(self, task, data):  # type: ignore
         self.check_conn()
@@ -106,7 +118,7 @@ class SqliteStorage(SqlStorage):
         self,
         name: str,
         *,
-        database: str | Path = "storage/app_cache.sqlite",
+        database: str,
         timeout: int = 5,
         sync_mode: TPwSyncMode = "off",
         **pragmas,
@@ -125,7 +137,7 @@ class PostgresStorage(SqlStorage):
         self,
         name: str,
         *,
-        database: str | Path = "storage/app_cache.sqlite",
+        database: str,
         **options,
     ):
         options.setdefault("timeout", 10)

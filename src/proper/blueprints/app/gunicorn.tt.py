@@ -72,7 +72,7 @@ access_log_format = "%(r)s | %(B)s bytes in %(M)s ms"
 #A base to use with setproctitle to change the way
 # that Gunicorn processes are reported in the system process
 # table. This affects things like 'ps' and 'top'.
-proc_name = "hoa"
+proc_name = "[[ app_name ]]"
 
 
 def on_starting(server):

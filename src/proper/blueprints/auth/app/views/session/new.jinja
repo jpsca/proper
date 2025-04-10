@@ -7,6 +7,7 @@
   >
     <div class="auth-header">
       <h2 class="auth-title">Sign in</h2>
+      <p class="auth-text">Enter your email and password below to sign in to your&nbsp;account.</p>
     </div>
 
     <Form.Errors form={{form}} />
@@ -17,6 +18,8 @@
         label="Email"
         placeholder="Email"
         tabindex="1"
+        size="large"
+        block
       />
     </div>
 
@@ -27,23 +30,23 @@
         type="password"
         placeholder="Password"
         tabindex="2"
+        size="large"
+        block
       />
     </div>
 
     <div class="auth-footer">
         <ui.Button
           type="submit"
-          variant="primary"
+          var="primary"
           tabindex="3"
+          size="large"
           block
         >Sign in</ui.Button>
     </div>
   </Form>
 
   <div class="auth-back">
-    <a class="link"
-      href="{{ url_for('PasswordReset.new') }}"
-      tabindex="4"
-    >Forgot your password?</a>
+    <a class="link" href="{{ url_for('PasswordReset.new') }}" tabindex="4">Forgot your password?</a>
   </div>
 </Layout.Auth>

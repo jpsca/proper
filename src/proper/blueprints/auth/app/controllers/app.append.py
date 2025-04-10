@@ -4,7 +4,6 @@ class PrivateController(AppController):
     """User-only controllers can inherit from this one.
     """
     before = [
-        DBConnection(),
         RestoreSession(),
         RestoreUser(),
         RequireLogin(),
@@ -12,5 +11,5 @@ class PrivateController(AppController):
     ]
     after = [
         UpdateSessionCookie(),
-        SecurityHeaders(),
+        SetSecurityHeaders(),
     ]

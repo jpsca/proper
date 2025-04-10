@@ -1,5 +1,6 @@
 import typing as t
 
+import peewee as pw
 from huey.api import Result, ResultGroup
 
 from .base import BaseQueue
@@ -29,7 +30,7 @@ class SqlQueue(BaseQueue):
     def __init__(
         self,
         *,
-        database: str,
+        database: str | pw.Database,
         results: bool = True,
         store_none: bool = False,
         utc: bool = True,
@@ -47,6 +48,12 @@ class SqlQueue(BaseQueue):
             immediate_use_memory=immediate_use_memory,
             **storage_kwargs
         )
+
+    @property
+    def database(self) -> pw.Database | None:
+        if not self.storage:
+            raise RuntimeError("Storage not initialized.")
+        return getattr(self.storage, "database", None)
 
     def enqueue(self, task):
         if task.expires:

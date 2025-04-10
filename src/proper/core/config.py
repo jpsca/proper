@@ -87,12 +87,12 @@ class Config(BaseConfig):
         "database": "storage/app.sqlite3",
         "migrations": "db/migrations",
     }
-    CACHE: dict[str, t.Any] = {
-        "type": "proper.cache.SqliteCache",
-        "database": ":memory:",
-    }
     QUEUE: dict[str, t.Any] = {
         "type": "proper.queue.SqliteQueue",
+        "database": "storage/app.sqlite3",
+    }
+    CACHE: dict[str, t.Any] = {
+        "type": "proper.cache.SqliteCache",
         "database": ":memory:",
     }
 

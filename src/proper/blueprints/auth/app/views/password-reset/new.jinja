@@ -20,22 +20,22 @@
           label="Email"
           placeholder="Email"
           tabindex="1"
+          size="large"
+          block
         />
       </div>
 
       <div class="auth-footer">
         <ui.Button
           type="submit"
-          variant="primary"
+          var="primary"
+          size="large"
           block
         >Email reset link</ui.Button>
       </div>
   </Form>
 
   <div class="auth-back">
-    <a class="link"
-      href="{{ url_for('Session.new') }}">
-      Nevermind, go back
-    </a>
+    <a class="link" href="{{ url_for('Session.new') }}">Nevermind, go back</a>
   </div>
 </Layout.Auth>

@@ -1,6 +1,8 @@
+from proper.status import unprocessable
+
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from app.forms.Session import SignInSchema
+from app.forms.session import SignInSchema
 from app.models import User
 from app.router import auth_router
 
@@ -17,7 +19,7 @@ class SessionController(AppController):
     def create(self):
         self.form = form = SignInSchema.as_form(self.params)
         if form.is_invalid:
-            return self.render("Session.New")
+            return self.render("Session.New", status=unprocessable)
 
         login = form.save()["login"]
         user = User.get_by_login(login)

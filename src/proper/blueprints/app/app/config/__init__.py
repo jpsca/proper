@@ -39,7 +39,7 @@ config.MAX_CONTENT_LENGTH = 8 * MB
 config.MAX_QUERY_SIZE = 1 * MB
 
 config.STATIC_URL = "/static/"
-config.VIEWS_ASSETS_URL = "/static_v/"
+config.VIEWS_ASSETS_URL = "/assets/"
 
 # The name of the header to use to return a file
 # so the proxy or web-server does it instead of our application.

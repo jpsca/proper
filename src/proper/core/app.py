@@ -163,6 +163,7 @@ class App(AppTest):
         current.response = self.response_cls(**environ)
 
         try:
+            self._db_connect()
             self.run_pipeline(current.request, current.response)
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
@@ -171,8 +172,11 @@ class App(AppTest):
             # - the body encoding on the `resp(start_response)`.
             current.response.error = error
             self._default_error_handler(current.request, current.response)
+        finally:
+            self._db_close()
 
         return current.response
+
 
     def run_pipeline(self, request, response) -> None:
         try:
@@ -304,17 +308,19 @@ class App(AppTest):
             del db_config["migrations"]
         self.db = get_instance(**db_config)
 
+    def _setup_queue(self) -> None:
+        q_config = self.config.QUEUE.copy()
+        if not q_config:
+            return
+        if "migrations" in q_config:
+            del q_config["migrations"]
+        self.queue = get_instance(**q_config)
+
     def _setup_cache(self) -> None:
         cache_config = self.config.CACHE.copy()
         if not cache_config:
             return
         self.cache = get_instance(**cache_config)
-
-    def _setup_queue(self) -> None:
-        q_config = self.config.QUEUE.copy()
-        if not q_config:
-            return
-        self.queue = get_instance(**q_config)
 
     def _setup_mailer(self) -> None:
         mailer_config = self.config.MAILER.copy()
@@ -412,3 +418,15 @@ class App(AppTest):
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
         pipeline.dispatch(self, request, response)
+
+    def _db_connect(self) -> None:
+        if self.db:
+            self.db.connect()
+        if self.queue is not None and hasattr(self.queue, "database"):
+            self.queue.database.connect()
+
+    def _db_close(self) -> None:
+        if self.db and not self.db.is_closed():
+            self.db.close()
+        if self.queue is not None and hasattr(self.queue, "database") and not self.queue.database.is_closed():
+            self.queue.database.close()

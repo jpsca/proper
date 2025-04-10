@@ -15,6 +15,10 @@ tests:
 lint:
 	ruff check src/proper tests
 
+.PHONY: lintfix
+lintfix:
+	ruff check src/proper tests --fix
+
 .PHONY: coverage
 coverage:
 	pytest --cov-config=pyproject.toml --cov-report html --cov proper src/proper tests
