@@ -1,20 +1,15 @@
-from proper.queue.consumer import Consumer
-
 from app.main import app
 
 
 def get_config():
-    if app.queue is None:
-        raise RuntimeError("Queue not initialized.")
-
-    config = app.config.get("QUEUE_CONSUMER", {}).copy()
-    config["queue"] = app.queue
-    return config
+    return app.config.get("QUEUE_CONSUMER", {}).copy()
 
 
 def run_consumer(config):
+    if app.queue is None:
+        raise RuntimeError("Queue not initialized.")
     print("Starting background workers...")
-    consumer = Consumer(**config)
+    consumer = app.queue.create_consumer(**config)
     consumer.run()
 
 

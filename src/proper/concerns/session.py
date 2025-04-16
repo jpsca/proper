@@ -2,7 +2,6 @@ import typing as t
 
 from itsdangerous import BadSignature
 
-from proper.constants import FLASHES_SESSION_KEY
 from proper.helpers import DotDict, logger
 
 
@@ -24,13 +23,9 @@ class RestoreSession:
         """Get the session data from the cookie and puts into the request
         and response.
         """
-        app = co.app
-        request = co.request
-        response = co.response
-        session = self._get_session(app, request)
-        request.session = session
-        response.session = session.copy()
-        response.session.pop(FLASHES_SESSION_KEY, None)
+        session = self._get_session(co.app, co.request)
+        co.request.session = session.copy()
+        co.response.session = session.copy()
 
     # Private
 
@@ -56,24 +51,17 @@ class RestoreSession:
 class UpdateSessionCookie:
     def __call__(self, co: "Controller") -> None:
         """Update the session cookie if its needed."""
-        app = co.app
-        request = co.request
-        response = co.response
-        if response.session != request.session:
-            self._update_session_cookie(app, response)
+        if co.response.session != co.request.session:
+            self._update_session_cookie(co.app, co.request, co.response)
 
     # Private
 
-    def _update_session_cookie(self, app: "App", response: "Response") -> None:
+    def _update_session_cookie(self, app: "App", request: "Request", response: "Response") -> None:
         """Update the session cookie if its needed."""
         config = app.config
         # If the session was modified to be empty, remove the cookie.
         if not response.session:
-            response.unset_cookie(
-                config.SESSION_COOKIE_NAME,
-                path=config.SESSION_COOKIE_PATH or "/",
-                domain=config.SESSION_COOKIE_DOMAIN,
-            )
+            response.unset_cookie(config.SESSION_COOKIE_NAME)
             return
 
         logger.debug(">>> SET SESSION %s", dict(response.session))
@@ -85,6 +73,6 @@ class UpdateSessionCookie:
             httponly=config.SESSION_COOKIE_HTTPONLY,
             domain=config.SESSION_COOKIE_DOMAIN,
             path=config.SESSION_COOKIE_PATH or "/",
-            secure=config.SESSION_COOKIE_SECURE,
+            secure=request.is_secure,
             samesite=config.SESSION_COOKIE_SAMESITE,
         )

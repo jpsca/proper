@@ -1,4 +1,8 @@
-from huey.api import Huey as BaseQueue
+from huey.api import Huey
+
+
+class BaseQueue(Huey):
+    pass
 
 
 class NoQueue(BaseQueue):

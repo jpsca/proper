@@ -75,7 +75,6 @@ class Config(BaseConfig):
     SESSION_COOKIE_DOMAIN: str | None = None
     SESSION_COOKIE_PATH: str = "/"
     SESSION_COOKIE_HTTPONLY: bool = True
-    SESSION_COOKIE_SECURE: bool = False
     # Modern browsers place restriction on cookies without the "same-site" cookie attribute set.
     # To that end this attribute is set to `"Lax"` by default.
     SESSION_COOKIE_SAMESITE: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax"

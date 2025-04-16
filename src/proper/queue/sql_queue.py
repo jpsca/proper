@@ -53,7 +53,7 @@ class SqlQueue(BaseQueue):
     def database(self) -> pw.Database | None:
         if not self.storage:
             raise RuntimeError("Storage not initialized.")
-        return getattr(self.storage, "database", None)
+        return self.storage.database  # type: ignore
 
     def enqueue(self, task):
         if task.expires:
@@ -82,6 +82,7 @@ class SqlQueue(BaseQueue):
         self.storage.dequeue(callback)  # type: ignore
 
     def create_consumer(self, **options):
+        self.storage.check_conn()  # type: ignore
         return Consumer(self, **options)
 
 

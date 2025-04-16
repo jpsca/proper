@@ -37,20 +37,17 @@ class RequestForgeryProtection:
         self.skip_for = skip_for or ()
 
     def __call__(self, co: "Controller") -> None:
-        request = co.request
-        response = co.response
-
-        if self._must_check_csrf_token(request):
-            token = self._handle_verified_request(request)
+        if self._must_check_csrf_token(co.request):
+            token = self._handle_verified_request(co.request)
         else:
-            token = self._handle_unverified_request(request, response)
+            token = self._handle_unverified_request(co.request, co.response)
 
         if not token:
             return
 
         masked_token = self._mask_csrf_token(token)
-        request.csrf_token = masked_token
-        response.headers[CSRF_HEADER] = masked_token
+        co.request.csrf_token = masked_token
+        co.response.headers[CSRF_HEADER] = masked_token
 
     # Private
 

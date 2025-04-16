@@ -113,8 +113,8 @@ class Request(RequestHeadersMixin):
         is_get, is_head, is_post, is_put, is_patch, and is_delete:
             Return True or False based on the request method.
 
-        is_ssl:
-            Whether the current request was made via a SSL connection.
+        is_secure/is_ssl:
+            Whether the current request was made via a HTTPS connection.
 
         is_xhr:
             True if current request is an XHR request.

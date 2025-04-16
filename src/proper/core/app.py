@@ -171,6 +171,7 @@ class App(AppTest):
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
             current.response.error = error
+            self._db_rollback()
             self._default_error_handler(current.request, current.response)
         finally:
             self._db_close()
@@ -420,13 +421,17 @@ class App(AppTest):
         pipeline.dispatch(self, request, response)
 
     def _db_connect(self) -> None:
-        if self.db:
+        if self.db is not None:
             self.db.connect()
         if self.queue is not None and hasattr(self.queue, "database"):
             self.queue.database.connect()
 
     def _db_close(self) -> None:
-        if self.db and not self.db.is_closed():
+        if self.db is not None and not self.db.is_closed():
             self.db.close()
         if self.queue is not None and hasattr(self.queue, "database") and not self.queue.database.is_closed():
             self.queue.database.close()
+
+    def _db_rollback(self):
+        if self.db is not None and not self.db.is_closed():
+            self.db.rollback()

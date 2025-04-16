@@ -31,7 +31,6 @@ class SqlStorage(BaseStorage):
     for_update = True
 
     def __init__(self, name: str, database: str | pw.Database, **kwargs):
-        self.ready = False
         self.name = name
         if isinstance(database, pw.Database):
             self.database = database
@@ -40,16 +39,13 @@ class SqlStorage(BaseStorage):
             self.database = db_url_connect(database, **kwargs)
 
         assert isinstance(self.database, pw.Database)
+        self.create_models()
 
     def check_conn(self):
         if not self.database.is_connection_usable():
             self.database.close()
             self.database.connect()
-
-        if not self.ready:
-            self.create_models()
             self.create_tables()
-            self.ready = True
 
     def create_models(self) -> None:  # type: ignore
         class Base(pw.Model):
@@ -146,9 +142,11 @@ class SqlStorage(BaseStorage):
             self.Task.delete().where(self.Task.id == task.id).execute()  # type: ignore
 
     def queue_size(self):
+        self.check_conn()
         return self.tasks().count()
 
     def enqueued_items(self, limit=None):
+        self.check_conn()
         query = (
             self.tasks(self.Task.data)  # type: ignore
             .order_by(self.Task.priority.desc(), self.Task.id)  # type: ignore
@@ -158,6 +156,7 @@ class SqlStorage(BaseStorage):
         return list(map(operator.itemgetter(0), query.tuples()))
 
     def flush_queue(self):
+        self.check_conn()
         (
             self.Task.delete()
             .where(self.Task.queue == self.name)  # type: ignore
@@ -192,9 +191,11 @@ class SqlStorage(BaseStorage):
             return list(data)
 
     def schedule_size(self):
+        self.check_conn()
         return self.schedule().count()
 
     def scheduled_items(self, limit: int | None = None):
+        self.check_conn()
         tasks = (
             self.schedule(self.Schedule.data)  # type: ignore
             .order_by(self.Schedule.timestamp)  # type: ignore
@@ -204,6 +205,7 @@ class SqlStorage(BaseStorage):
         return list(map(operator.itemgetter(0), tasks))
 
     def flush_schedule(self):
+        self.check_conn()
         (
             self.Schedule.delete()
             .where(self.Schedule.queue == self.name)  # type: ignore
@@ -263,13 +265,16 @@ class SqlStorage(BaseStorage):
             return True
 
     def result_store_size(self):
+        self.check_conn()
         return self.kv().count()
 
     def result_items(self):
+        self.check_conn()
         query = self.kv(self.KV.key, self.KV.value).tuples()  # type: ignore
         return dict(query.iterator())
 
     def flush_results(self):
+        self.check_conn()
         (
             self.KV.delete()
             .where(self.KV.queue == self.name)  # type: ignore

@@ -344,9 +344,11 @@ class RequestHeadersMixin:
         return self.method == PUT
 
     @property
-    def is_ssl(self) -> bool:
+    def is_secure(self) -> bool:
         """True if the protocol is HTTPS."""
         return self.protocol == "https"
+
+    is_ssl = is_secure
 
     @property
     def is_xhr(self) -> bool:

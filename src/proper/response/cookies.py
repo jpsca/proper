@@ -46,7 +46,7 @@ class ResponseCookiesMixin:
         secure: bool = False,
         httponly: bool = False,
         samesite: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax",
-        comment: str | None = None,
+        comment: str = "",
         signed: bool = False,
         salt: str = "",
     ) -> None:
@@ -135,9 +135,8 @@ class ResponseCookiesMixin:
         if path is not None:
             cookie["path"] = path
 
-        validate_domain(domain)
-
         if domain is not None and not name.startswith(HOST_PREFIX):
+            validate_domain(domain)
             cookie["domain"] = domain
 
         if secure or name.startswith((SECURE_PREFIX, HOST_PREFIX)):
@@ -151,49 +150,25 @@ class ResponseCookiesMixin:
                 raise ValueError('`samesite` must be `"Lax"`, `"Strict"` or `None`')
             cookie["samesite"] = samesite
 
-        if comment:
-            cookie["comment"] = comment
+        cookie["comment"] = comment
 
         if self.max_cookie_size > 0:
             validate_cookie_size(name, cookie.output(), self.max_cookie_size)
 
-    def unset_cookie(
-        self,
-        name: str,
-        *,
-        path: str = "/",
-        domain: str | None = None,
-    ) -> None:
+        self.cookies[name] = cookie
+
+    def unset_cookie(self, name: str) -> None:
         """Unset a cookie in the response.
 
         Clears the contents of the cookie, **and instructs the user agent to
         immediately expire its own copy of the cookie**.
 
-        Note that **path and domain must match how the cookie was originally set**.
-
         Arguments:
 
             name:
                 The cookie name.
-
-            path:
-                A string representing the cookie Path value. It defaults to `/`.
-
-            domain:
-                A string representing the cookie Domain, or None. If domain is None,
-                no Domain value will be sent in the cookie.
-
         """
-        if name in self.cookies:
-            del self.cookies[name]
-
-        self.set_cookie(
-            name,
-            value="",
-            max_age=0,
-            path=path,
-            domain=domain,
-        )
+        self.set_cookie(name, value=" ", max_age=0, comment="")
 
     def set_signed_cookie(
         self,
@@ -206,7 +181,7 @@ class ResponseCookiesMixin:
         secure: bool = False,
         httponly: bool = False,
         samesite: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax",
-        comment: str | None = None,
+        comment: str = "",
         salt: str = "",
     ) -> None:
         """A shorthand for `.set_cookie(..., signed=True)`"""
@@ -225,7 +200,7 @@ class ResponseCookiesMixin:
         )
 
     def _get_cookie_tuples(self) -> list[tuple[str, str]]:
-        if self.disable_cookies:
+        if self.disable_cookies or not self.cookies:
             return []
 
         values = [morsel.OutputString() for morsel in self.cookies.values()]

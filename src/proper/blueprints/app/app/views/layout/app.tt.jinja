@@ -1,6 +1,6 @@
 {#def title = '', description='', lang='en' #}
 
-{% if title %}{% set title = title + " | journal" %}{% endif -%}
+{% if title %}{% set title = title + " | [[ app_name.title() ]]" %}{% endif -%}
 
 <!DOCTYPE html>
 <html lang="{{ lang }}">
@@ -18,8 +18,6 @@
 	{% if description -%}<meta property="og:description" content="{{ description }}">{% endif -%}
 </head>
 <body {{ attrs.render() }}>
-	<common.Flashes />
-	<common.SignInOut />
 	{{ content }}
 </body>
 </html>

@@ -38,5 +38,3 @@ _ = router.get("favicon.ico", redirect="/static/favicon.ico"),
 _ = router.get("robots.txt", redirect="/static/robots.txt"),
 _ = router.get("humans.txt", redirect="/static/humans.txt"),
 
-
-auth_router = router.scope("")

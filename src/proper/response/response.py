@@ -16,7 +16,7 @@ from proper.types import TBody, TIterable, TReadable
 
 from .cookies import ResponseCookiesMixin
 from .file_wrapper import FileWrapper
-from .flash_dict import FlashDict
+from .flash_messages import FlashMessages
 from .headers import ResponseHeadersMixin
 
 
@@ -34,7 +34,7 @@ def is_iterable(obj: t.Any) -> bool:
 class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     """ """
 
-    flash: "FlashDict"
+    flash: FlashMessages
     error: Exception | None = None
     body: TBody | str | None = None
     session: DotDict
@@ -47,7 +47,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.status = status
         self.environ = environ
         self.session = DotDict()
-        self.flash = FlashDict(self)
+        self.flash = FlashMessages(self)
         super().__init__()
 
     def __call__(self, start_response: StartResponse) -> TBody:
@@ -97,7 +97,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         obj: t.Any = None,
         *,
         flash: str | None = None,
-        flash_type: str = "notice",
+        flash_type: str = "info",
         status: str = pstatus.see_other,
         **kw,
     ) -> None:
@@ -145,7 +145,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         )
 
         if flash:
-            self.flash[flash_type] = flash
+            self.flash.message(flash_type, flash)
 
     def fresh_when(
         self,

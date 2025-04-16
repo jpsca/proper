@@ -13,12 +13,12 @@ from app.router import auth_router
 class PasswordResetController(AppController):
     def new(self):
         self.form = PasswordResetchema.as_form()
-        return self.render("PasswordReset.New")
+        return self.render("password-reset.new")
 
     def create(self):
         self.form = PasswordResetchema.as_form(self.params)
         if self.form.is_invalid:
-            return self.render("PasswordReset.New", status=unprocessable)
+            return self.render("password-reset.new", status=unprocessable)
 
         login = self.form.save()["login"]
         user = User.get_by_login(login)
@@ -29,30 +29,30 @@ class PasswordResetController(AppController):
     @auth_router.get("password-reset/email")
     def email(self):
         self.email = self.response.session.get("email", "")
-        return self.render("PasswordReset.Create")
+        return self.render("password-reset.create")
 
     def edit(self):
         self.pk = self.params.get("pk")
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("PasswordReset.Invalid", status=unprocessable)
+            return self.render("password-reset.invalid", status=unprocessable)
 
         self.login = user.login
         self.form = PasswordChangeSchema.as_form()
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
-        return self.render("PasswordReset.Edit")
+        return self.render("password-reset.edit")
 
     def update(self):
         self.pk = self.params.get("pk")
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("PasswordReset.Invalid", status=unprocessable)
+            return self.render("password-reset.invalid", status=unprocessable)
 
         self.form = PasswordChangeSchema.as_form(self.params)
         if self.form.is_invalid:
             self.login = user.login
             self.password_minlen = config.AUTH_PASSWORD_MINLEN
-            return self.render("PasswordReset.Edit", status=unprocessable)
+            return self.render("password-reset.edit", status=unprocessable)
 
         new_password = self.form.save()["password1"]
         user.set_password(new_password)
@@ -72,7 +72,7 @@ def send_password_reset_email(user):
     validate_url = app.url_for("PasswordReset.edit", pk=token)
     reset_url = app.url_for("PasswordReset.new")
     html = app.catalog.render(
-        "Email.PasswordReset",
+        "email.password-reset",
         validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
         reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
     )

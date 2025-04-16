@@ -1,6 +1,8 @@
 {#def title='' #}
 
-<Layout.App title={{title}} class="auth">
+{% do attrs.set(title=title, class="auth")%}
+
+<Layout.App __attrs={{attrs}}>
 	<div class="auth__wrapper">
   {{ content }}
 	</div>

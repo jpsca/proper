@@ -5,7 +5,7 @@
   {% do attrs.set(invalid=field.error.msg) %}
 {% endif %}
 
-<ui.Select __attrs={{attrs}}>
+<ui:Select __attrs={{attrs}}>
 {%- for opval, oplabel in options %}
   <option value="{{ opval }}"
   {% if
@@ -14,4 +14,4 @@
   %} checked{% endif -%}
   >{{ oplabel }} </option>
 {%- endfor %}
-</ui.Select>
+</ui:Select>
