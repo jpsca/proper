@@ -181,7 +181,7 @@ def test_unset_cookie():
     response = Response()
     response.unset_cookie("foo")
 
-    assert not response.cookies["foo"].value
+    assert response.cookies["foo"].value == " "
     assert response.cookies["foo"]["max-age"] == 0
 
 

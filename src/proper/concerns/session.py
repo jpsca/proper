@@ -41,10 +41,10 @@ class RestoreSession:
                 salt=SESSION_SALT,
                 max_age=app.config.SESSION_LIFETIME
             )
-            logger.debug(">>> %", session)
+            logger.debug(">>> %s", session or "")
             return DotDict(session)
         except BadSignature:
-            logger.debug(">>> BAD SESSION %", cookie)
+            logger.debug(">>> BAD SESSION %s", cookie)
             return DotDict()
 
 

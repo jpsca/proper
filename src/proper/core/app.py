@@ -85,9 +85,9 @@ class App(AppTest):
     router: Router
     config: Config
     CL: "t.Type[Cli]"
-    db: "peewee.Database"
-    cache: "BaseCache"
-    queue: "BaseQueue"
+    db: "peewee.Database | None"
+    cache: "BaseCache | None"
+    queue: "BaseQueue | None"
     i18n: I18n | None
     catalog: jinjax.Catalog
 
@@ -304,6 +304,7 @@ class App(AppTest):
     def _setup_db(self) -> None:
         db_config = self.config.DATABASE.copy()
         if not db_config:
+            self.db = None
             return
         if "migrations" in db_config:
             del db_config["migrations"]
@@ -312,6 +313,7 @@ class App(AppTest):
     def _setup_queue(self) -> None:
         q_config = self.config.QUEUE.copy()
         if not q_config:
+            self.queue = None
             return
         if "migrations" in q_config:
             del q_config["migrations"]
@@ -320,6 +322,7 @@ class App(AppTest):
     def _setup_cache(self) -> None:
         cache_config = self.config.CACHE.copy()
         if not cache_config:
+            self.cache = None
             return
         self.cache = get_instance(**cache_config)
 
@@ -423,14 +426,30 @@ class App(AppTest):
     def _db_connect(self) -> None:
         if self.db is not None:
             self.db.connect()
-        if self.queue is not None and hasattr(self.queue, "database"):
-            self.queue.database.connect()
+
+        if self.queue is not None:
+            qdb = getattr(self.queue, "database", None)
+            if qdb is not None:
+                qdb.connect()
+
+        if self.cache is not None:
+            cdb = getattr(self.cache, "database", None)
+            if cdb is not None:
+                cdb.connect()
 
     def _db_close(self) -> None:
         if self.db is not None and not self.db.is_closed():
             self.db.close()
-        if self.queue is not None and hasattr(self.queue, "database") and not self.queue.database.is_closed():
-            self.queue.database.close()
+
+        if self.queue is not None:
+            qdb = getattr(self.queue, "database", None)
+            if qdb is not None and not qdb.is_closed():
+                qdb.close()
+
+        if self.cache is not None:
+            cdb = getattr(self.cache, "database", None)
+            if cdb is not None and not cdb.is_closed():
+                cdb.close()
 
     def _db_rollback(self):
         if self.db is not None and not self.db.is_closed():

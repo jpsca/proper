@@ -83,12 +83,12 @@ class Config(BaseConfig):
 
     DATABASE: dict[str, t.Any] = {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-        "database": "storage/app.sqlite3",
+        "database": ":memory:",
         "migrations": "db/migrations",
     }
     QUEUE: dict[str, t.Any] = {
         "type": "proper.queue.SqliteQueue",
-        "database": "storage/app.sqlite3",
+        "database": ":memory:",
     }
     QUEUE_CONSUMER: dict[str, t.Any] = {}
 

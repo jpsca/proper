@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from proper import DotDict, Request, Response
+from proper.constants import FLASHES_SESSION_KEY
 
 
 def test_set_etag():
@@ -79,3 +80,12 @@ def test_is_fresh_by_etag():
 
     request = Request(HTTP_IF_MODIFIED_SINCE="Wed, 21 Oct 2015 07:28:00 GMT")
     assert not response.fresh_when(last_modified=datetime(2020, 11, 24), request=request)
+
+
+def test_flash():
+    response = Response()
+    response.flash.message("info", "Welcome back!")
+
+    flashes = response.session.get(FLASHES_SESSION_KEY)
+    assert flashes == [("info", "Welcome back!")]
+
