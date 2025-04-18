@@ -19,6 +19,7 @@ from proper.i18n import I18n
 from proper.request import Request
 from proper.response import Response
 from proper.router import Route, Router
+from proper.storage import Storage
 from proper.types import (
     TBody,
     TEventHandler,
@@ -89,6 +90,7 @@ class App(AppTest):
     cache: "BaseCache | None"
     queue: "BaseQueue | None"
     i18n: I18n | None
+    storage: Storage | None
     catalog: jinjax.Catalog
 
     request_cls: t.Type[Request] = Request
@@ -345,10 +347,12 @@ class App(AppTest):
         )
 
     def _setup_storage(self) -> None:
-        pass
-        # if not self.config.STORAGE:
-        #     return
-        # self.storage = Storage(self, self.config.STORAGE)
+        if self.config.STORAGE is None:
+            self.storage = None
+            return
+        assert self.config.STORAGE_SERVICES
+        config = self.config.STORAGE_SERVICES[self.config.STORAGE]
+        self.storage = Storage(self, config.copy())
 
     def _setup_render(self) -> None:
         self.catalog = jinjax.Catalog(

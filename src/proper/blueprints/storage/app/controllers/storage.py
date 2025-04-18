@@ -2,10 +2,10 @@ from proper.errors import NotFound
 
 from app.main import app
 
-from .app import PrivateView
+from .app import PrivateController
 
 
-class Storage(PrivateView):
+class StorageController(PrivateController):
     def show(self):
         signed_pk = self.params.get("pk")
         obj = app.storage.get_attachment(signed_pk, max_age=None)

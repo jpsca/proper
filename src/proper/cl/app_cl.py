@@ -101,13 +101,13 @@ def get_generators_cl(app: "App") -> t.Type[Cli]:
 
 
 def get_install_cl(app: "App") -> t.Type[Cli]:
-    from .. import auth, i18n
+    from proper.install import auth, i18n, storage
 
     attrs: dict[str, t.Any] = {
         "__doc__": "",
         "auth": _get_cmd(app, auth, "install"),
         "i18n": _get_cmd(app, i18n, "install"),
-        # "storage": _get_cmd(app, storage, "install"),
+        "storage": _get_cmd(app, storage, "install"),
         # "text": _get_cmd(app, text, "install"),
     }
     return type("Install", (Cli,), attrs)

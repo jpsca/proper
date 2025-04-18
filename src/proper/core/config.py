@@ -110,10 +110,32 @@ class Config(BaseConfig):
     # Number of seconds before a reset-password token expires.
     AUTH_TOKEN_LIFE: int = 3 * HOURS
 
-    # Image content types that can be processed without being converted to
+    # Available storage services
+    STORAGE_SERVICES = {
+        "local": {
+            "type": "Disk",
+            "root": "storage/",
+        }
+    }
+    # The storage service to use for storing files.
+    # `None` to disable
+    STORAGE = "local"
+
+    # Image content types that can be processed without being converted to
     # the fallback PNG format. If you want to use WebP or AVIF variants in
-    # your application you can add image/webp or image/avif to this list.
-    STORAGE_WEB_IMAGE_CONTENT_TYPES: list[str] | tuple[str, ...] = ("image/png", "image/jpeg", "image/gif")
+    # your application you can add image/webp or image/avif to this list
+    STORAGE_WEB_IMAGE_CONTENT_TYPES: list[str] | tuple[str, ...] = (
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+    )
+
+    # List of content types allowed to be served inline
+    STORAGE_ALLOWED_INLINE_CONTENT_TYPES: list[str] | tuple[str, ...] = (
+        "image/",
+        "video/",
+        "application/pdf",
+    )
 
     def validate(self):
         for key in self.SECRET_KEYS:

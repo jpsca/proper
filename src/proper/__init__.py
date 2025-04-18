@@ -1,5 +1,4 @@
 from . import (
-    auth,  # noqa
     cache,  # noqa
     concerns,  # noqa
     constants,  # noqa

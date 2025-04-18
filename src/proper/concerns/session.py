@@ -2,6 +2,7 @@ import typing as t
 
 from itsdangerous import BadSignature
 
+from proper.constants import FLASHES_SESSION_KEY
 from proper.helpers import DotDict, logger
 
 
@@ -24,8 +25,10 @@ class RestoreSession:
         and response.
         """
         session = self._get_session(co.app, co.request)
-        co.request.session = session.copy()
+        co.request.session = session
         co.response.session = session.copy()
+        if FLASHES_SESSION_KEY in co.response.session:
+            del co.response.session[FLASHES_SESSION_KEY]
 
     # Private
 

@@ -1,6 +1,4 @@
 import os
-from proper import is_development_env, is_testing_env, is_staging_or_production_env
-
 
 STORAGE_SERVICES = {
     "local": {
@@ -23,11 +21,10 @@ STORAGE_SERVICES = {
     }
 }
 
-if is_development_env:
-    STORAGE = "local"
-elif is_staging_or_production_env:
+STORAGE = "local"
+if env == PROD:
     STORAGE = "amazon"
-elif is_testing_env:
+elif env == TEST:
     STORAGE = "test"
 
 

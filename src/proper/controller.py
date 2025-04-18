@@ -4,7 +4,6 @@ must inherit from. Stores data available to the views.
 import os
 import re
 import typing as t
-from collections.abc import Iterable
 from inspect import isclass
 from pathlib import Path
 
@@ -24,8 +23,8 @@ __all__ = ("Controller",)
 
 
 class Controller:
-    before: Iterable[t.Callable]
-    after: Iterable[t.Callable]
+    before: "TIterable[t.Callable]"
+    after: "TIterable[t.Callable]"
 
     def __init__(
         self,

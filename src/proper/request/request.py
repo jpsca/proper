@@ -217,9 +217,9 @@ class Request(RequestHeadersMixin):
         return self.env.get("wsgi.input") or BytesIO()
 
     @property
-    def flashes(self) -> dict:
+    def flashes(self) -> list[tuple[str, str]]:
         """The flashed messages stored in the session cookie."""
-        return self.session.get(FLASHES_SESSION_KEY, {})
+        return self.session.get(FLASHES_SESSION_KEY, [])
 
     @property
     def form(self) -> MultiDict:

@@ -1,10 +1,11 @@
 import typing as t
 
-from ..helpers.render import (
+from proper.helpers.render import (
     BLUEPRINTS,
     BlueprintRender,
     add_dependencies,
-    sort_imports,
+    call,
+    sort_imports_in,
 )
 
 
@@ -13,7 +14,10 @@ if t.TYPE_CHECKING:
 
 
 STORAGE_BLUEPRINT = BLUEPRINTS / "storage"
-CONFIG_PATH = "config/app.py"
+
+SORT_IMPORTS_IN = [
+    "config/storage.py",
+]
 
 DEPENDENCIES = [
     "image-processing-egg",
@@ -21,20 +25,16 @@ DEPENDENCIES = [
 
 
 def install(app: "App") -> None:
-    """Install storage support.
-    """
-
+    """Install storage support."""
     bp = BlueprintRender(
         STORAGE_BLUEPRINT,
         app.root_path.parent,
-        context={
-            "app_name": app.root_path.name,
-        },
+        context={},
     )
     bp()
 
-    config_path = app.root_path / CONFIG_PATH
-    code = sort_imports(config_path.read_text())
-    config_path.write_text(code)
+    for filename in SORT_IMPORTS_IN:
+        sort_imports_in(app.root_path / filename)
 
     add_dependencies(app.root_path, DEPENDENCIES)
+    call('proper db create "storage"')

@@ -15,7 +15,11 @@ class FlashMessages:
 
     @property
     def flashes(self) -> list[tuple[str, str]]:
-        return self.response.session[FLASHES_SESSION_KEY]
+        return self.response.session.get(FLASHES_SESSION_KEY, [])
+
+    @flashes.setter
+    def flashes(self, value: list[tuple[str, str]]) -> None:
+        self.response.session[FLASHES_SESSION_KEY] = value
 
     def __getitem__(self, index: int) -> t.Any:
         return self.flashes.__getitem__(index)
@@ -27,4 +31,4 @@ class FlashMessages:
         return len(self.flashes)
 
     def message(self, type: str, message: str) -> None:
-        self.flashes.append((type, message))
+        self.flashes = [*self.flashes, (type, message)]

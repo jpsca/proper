@@ -377,15 +377,15 @@ wheels = [
 
 [[package]]
 name = "jinjax"
-version = "0.48"
+version = "0.55"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
     { name = "markupsafe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/b2/54eb5f5d1db6764abf80ad499f81b5f84a798187e638fb60ffabda706d57/jinjax-0.48.tar.gz", hash = "sha256:689847fb095846ebd7ce1c254ae407698689a4b33300c461ff337f79194b69bc", size = 15551 }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/69/dd643c35ff1e4bda38f3d4d8499c901e116acdcfac4a06d09b1b99be4a9e/jinjax-0.55.tar.gz", hash = "sha256:6cb75b42d4c0eb58ad2638daaa0389bf515dda7edac032b4ca51c744ef968f34", size = 28719 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/ee/08c15d61fb46bbb9c53e28ca46ccdb1051d87cdb7116152efa2d36a1e7cf/jinjax-0.48-py3-none-any.whl", hash = "sha256:c556e7e73d9d9a9b7dd6f590bdca37bf9c514ca1af83ee94059dc727a66bd69b", size = 16721 },
+    { url = "https://files.pythonhosted.org/packages/c9/7c/7499c47aea84a7376192ac9770d5f0538e4a6a06174419ea00382ae7ae3a/jinjax-0.55-py3-none-any.whl", hash = "sha256:2a4cbba14276971b32bc5b0efe4b2a198f8b11e27f1aba74b7d0b26b98e9144a", size = 18637 },
 ]
 
 [[package]]
@@ -515,15 +515,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pkgconfig"
-version = "1.5.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c4/e0/e05fee8b5425db6f83237128742e7e5ef26219b687ab8f0d41ed0422125e/pkgconfig-1.5.5.tar.gz", hash = "sha256:deb4163ef11f75b520d822d9505c1f462761b4309b1bb713d08689759ea8b899", size = 6082 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/af/89487c7bbf433f4079044f3dc32f9a9f887597fe04614a37a292e373e16b/pkgconfig-1.5.5-py3-none-any.whl", hash = "sha256:d20023bbeb42ee6d428a0fac6e0904631f545985a10cdd71a20aa58bc47a4209", size = 6732 },
-]
-
-[[package]]
 name = "platformdirs"
 version = "4.3.6"
 source = { registry = "https://pypi.org/simple" }
@@ -633,7 +624,7 @@ requires-dist = [
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },
     { name = "itsdangerous", specifier = "~=1.1" },
-    { name = "jinjax", specifier = ">=0.40" },
+    { name = "jinjax", specifier = ">=0.55" },
     { name = "markupsafe", specifier = ">=2.0" },
     { name = "passlib", specifier = "~=1.7" },
     { name = "peewee", specifier = "~=3.15" },
@@ -805,7 +796,6 @@ version = "2.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
-    { name = "pkgconfig" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7b/88/f73dae807ec68b228fba72507105e3ba80a561dc0bade0004ce24fd118fc/pyvips-2.2.3.tar.gz", hash = "sha256:43bceced0db492654c93008246a58a508e0373ae1621116b87b322f2ac72212f", size = 56626 }
 

@@ -10,20 +10,18 @@ from .services import Service
 
 if t.TYPE_CHECKING:
     from proper.core.app import App
-    from proper.helpers import DotDict
-
-    from .types import TAttachment, TUpload
+    from proper.types import TAttachment, TUpload
 
 
 ONE_YEAR = 32_000_000  # 60 * 60 * 24 * 365 (aprox 1 year)
 
 
 class Storage:
-    def __init__(self, app: "App", config: "DotDict") -> None:
+    def __init__(self, app: "App", config: dict[str, t.Any]) -> None:
         self.app = app
         self.config = config
         self.signer = app.get_signer("proper.storage")
-        self.Attachment = get_attachment_mixin(self)
+        self.Attachment = get_attachment_mixin(self, config.get("STORAGE", ""))
 
     def url_for(self, obj: "TAttachment") -> str:
         signed_pk = self.signer.sign(obj.key)
@@ -71,7 +69,6 @@ class Storage:
         STORAGE = "do"
         ```
         """
-        config = self.config.STORAGE_SERVICES[self.config.STORAGE]
         services = {cls.__name__: cls for cls in Service.__subclasses__()}
         cls = services.get(service_name)
         if cls is None:
@@ -79,7 +76,7 @@ class Storage:
                 f"Unknown service: {service_name}. "
                 f"Must be one of: {', '.join(services.keys())}"
             )
-        return cls(self.app, config)
+        return cls(self.app, self.config)
 
     def show(self, obj: "TAttachment"):
         # TODO

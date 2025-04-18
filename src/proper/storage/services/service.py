@@ -3,15 +3,13 @@ import typing as t
 
 if t.TYPE_CHECKING:
     from proper.core.app import App
-    from proper.helpers import DotDict
-
-    from ..types import TAttachment, TUpload
+    from proper.types import TAttachment, TUpload
 
 
 class Service:
     """Abstract class serving as an interface for concrete services."""
 
-    def __init__(self, app: "App", config: "DotDict") -> None:
+    def __init__(self, app: "App", config: dict[str, t.Any]) -> None:
         self.config = config
 
     def upload(self, filesto: "TUpload", obj: "TAttachment") -> None:

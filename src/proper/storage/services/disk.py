@@ -8,14 +8,12 @@ from .service import Service
 
 if t.TYPE_CHECKING:
     from proper.core.app import App
-    from proper.helpers import DotDict
-
-    from ..types import TAttachment, TUpload
+    from proper.types import TAttachment, TUpload
 
 
 class Disk(Service):
-    def __init__(self, app: "App", config: "DotDict") -> None:
-        self.root = app.root_path.parent / config.root
+    def __init__(self, app: "App", config: dict[str, t.Any]) -> None:
+        self.root = app.root_path.parent / config["root"]
         self.root.mkdir(parents=True, exist_ok=True)
         super().__init__(app, config)
 

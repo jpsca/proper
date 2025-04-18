@@ -9,15 +9,16 @@ from proper.errors import StorageConfigError
 
 
 if t.TYPE_CHECKING:
+    from proper.types import TIterable, TUpload
+
     from .storage import Storage
-    from .types import TUpload
 
 
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
-def get_attachment_mixin(storage: "Storage") -> pw.Model:
-    class Attachment(storage.app.db.Model):
+def get_attachment_mixin(storage: "Storage", default_name: str = "") -> type[pw.Model]:
+    class Attachment(pw.Model):
         key = pw.CharField(32, primary_key=True)
         service_name = pw.CharField(64)
         byte_size = pw.IntegerField(default=0)
@@ -38,7 +39,7 @@ def get_attachment_mixin(storage: "Storage") -> pw.Model:
         ) -> None:
             self._filesto = filesto
 
-            service_name = service_name or storage.config.STORAGE or ""
+            service_name = service_name or default_name
             if not service_name:
                 raise StorageConfigError(
                     "Missing config.storage.service or service_name argument"
@@ -56,7 +57,7 @@ def get_attachment_mixin(storage: "Storage") -> pw.Model:
             if filename and not content_type:
                 guess = mimetypes.guess_type(filename, strict=False)
                 content_type = guess[0] or ""
-            content_type = content_type or self.DEFAULT_CONTENT_TYPE
+            content_type = content_type or DEFAULT_CONTENT_TYPE
 
             self.key = key
             self.service_name = service_name
@@ -73,9 +74,9 @@ def get_attachment_mixin(storage: "Storage") -> pw.Model:
         def send_file(self):
             return storage.send_file(self)
 
-        def save(self):
+        def save(self, force_insert: bool = False, only: "TIterable | None" = None):
             storage.upload(self._filesto, self)
-            return super().save()
+            return super().save(force_insert=force_insert, only=only)
 
         def show(self):
             return storage.show(self)

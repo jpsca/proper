@@ -1,6 +1,6 @@
 import typing as t
 
-from ..helpers.render import (
+from proper.helpers.render import (
     BLUEPRINTS,
     BlueprintRender,
     add_dependencies,

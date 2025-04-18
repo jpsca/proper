@@ -45,7 +45,6 @@ class SqlStorage(BaseStorage):
         if not self.database.is_connection_usable():
             self.database.close()
             self.database.connect()
-            self.create_tables()
 
     def create_models(self) -> None:  # type: ignore
         class Base(pw.Model):
