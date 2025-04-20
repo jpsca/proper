@@ -1,4 +1,0 @@
-mkdocs ~=1.2
-mkdocs-material ~=7.2
-mkautodoc
-pygments-github-lexers

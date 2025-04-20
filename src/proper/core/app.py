@@ -351,8 +351,7 @@ class App(AppTest):
             self.storage = None
             return
         assert self.config.STORAGE_SERVICES
-        config = self.config.STORAGE_SERVICES[self.config.STORAGE]
-        self.storage = Storage(self, config.copy())
+        self.storage = Storage(self)
 
     def _setup_render(self) -> None:
         self.catalog = jinjax.Catalog(

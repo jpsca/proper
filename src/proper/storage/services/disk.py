@@ -1,3 +1,4 @@
+import os
 import typing as t
 from pathlib import Path
 
@@ -12,10 +13,10 @@ if t.TYPE_CHECKING:
 
 
 class Disk(Service):
-    def __init__(self, app: "App", config: dict[str, t.Any]) -> None:
+    def __init__(self, app: "App", **config: t.Any) -> None:
         self.root = app.root_path.parent / config["root"]
         self.root.mkdir(parents=True, exist_ok=True)
-        super().__init__(app, config)
+        super().__init__(app, **config)
 
     def upload(self, filesto: "TUpload", obj: "TAttachment") -> None:
         file: t.BinaryIO = getattr(filesto, "file", filesto)  # type: ignore
@@ -37,8 +38,18 @@ class Disk(Service):
         raise NotImplementedError
 
     def purge(self, obj: "TAttachment") -> None:
-        raise NotImplementedError
+        path = self._get_path(obj)
+        parent = path.parent
+        path.unlink(missing_ok=True)
+        if parent.is_dir() and is_dir_empty(parent):
+            parent.rmdir()
 
     def _get_path(self, obj: "TAttachment") -> Path:
-        filename = obj.filename or obj.key
-        return self.root / obj.key[:2] / obj.key[2:4] / filename
+        key = str(obj.id)
+        filename = obj.filename or key
+        return self.root / key[:2] / key[2:4] / filename
+
+
+def is_dir_empty(path):
+    with os.scandir(path) as scan:
+        return next(scan, None) is None

@@ -1,5 +1,7 @@
+import datetime
 import typing as t
 from collections.abc import Iterable as TIterable  # noqa
+from uuid import UUID
 from wsgiref.types import StartResponse as TStartResponse  # noqa
 from wsgiref.types import WSGIEnvironment as TWSGIEnvironment  # noqa
 
@@ -42,11 +44,13 @@ TUpload = t.Type["MultipartPart | t.BinaryIO"]
 
 
 class TAttachment:
-    key: str
+    id: UUID
     service_name: str
-    byte_size: int | None
-    content_type: str | None
-    checksum: str | None
+    byte_size: int
+    content_type: str
     filename: str
+    public: bool
+    created_at: datetime.datetime
+    metadata: dict[str, t.Any] | None
 
     def delete_instance(self) -> None: ...

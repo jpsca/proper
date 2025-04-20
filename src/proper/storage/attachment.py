@@ -6,6 +6,7 @@ import peewee as pw
 from inflection import parameterize
 
 from proper.errors import StorageConfigError
+from proper.helpers import JSONField
 
 
 if t.TYPE_CHECKING:
@@ -17,15 +18,18 @@ if t.TYPE_CHECKING:
 DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
-def get_attachment_mixin(storage: "Storage", default_name: str = "") -> type[pw.Model]:
+def get_attachment_mixin(storage: "Storage", default_service_name: str = "") -> type[pw.Model]:
     class Attachment(pw.Model):
-        key = pw.CharField(32, primary_key=True)
+        id = pw.UUIDField(default=uuid4, primary_key=True)
         service_name = pw.CharField(64)
-        byte_size = pw.IntegerField(default=0)
-        content_type = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)
         filename = pw.CharField(255, default="")
-        checksum = pw.CharField(128, null=True)
+        content_type = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)
+        byte_size = pw.IntegerField(default=0)
+        public = pw.BooleanField(default=False)
         created_at = pw.DateTimeField(default=pw.utcnow)
+        metadata = JSONField(null=True)
+
+        _filesto: "TUpload | None" = None
 
         def __init__(
             self,
@@ -35,17 +39,17 @@ def get_attachment_mixin(storage: "Storage", default_name: str = "") -> type[pw.
             filename: str = "",
             content_type: str = "",
             byte_size: int = 0,
+            public: bool = False,
             **kwargs,
         ) -> None:
             self._filesto = filesto
 
-            service_name = service_name or default_name
+            service_name = service_name or default_service_name
             if not service_name:
                 raise StorageConfigError(
-                    "Missing config.storage.service or service_name argument"
+                    "Missing config.storage.SERVICE or service_name argument"
                 )
 
-            key = uuid4().hex
             filename = filename or getattr(filesto, "filename", "") or ""
             name, ext = filename.split(".", 1)
             name = parameterize(name)
@@ -59,11 +63,11 @@ def get_attachment_mixin(storage: "Storage", default_name: str = "") -> type[pw.
                 content_type = guess[0] or ""
             content_type = content_type or DEFAULT_CONTENT_TYPE
 
-            self.key = key
             self.service_name = service_name
             self.filename = filename or None
             self.content_type = content_type
             self.byte_size = byte_size
+            self.public = public
 
             super().__init__(**kwargs)
 
@@ -75,7 +79,8 @@ def get_attachment_mixin(storage: "Storage", default_name: str = "") -> type[pw.
             return storage.send_file(self)
 
         def save(self, force_insert: bool = False, only: "TIterable | None" = None):
-            storage.upload(self._filesto, self)
+            if self._filesto:
+                storage.upload(self._filesto, self)
             return super().save(force_insert=force_insert, only=only)
 
         def show(self):

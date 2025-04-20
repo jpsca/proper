@@ -83,7 +83,6 @@ class SqlQueue(BaseQueue):
 
     def create_consumer(self, **options):
         self.storage.check_conn()  # type: ignore
-        self.storage.create_tables()  # type: ignore
         return Consumer(self, **options)
 
 

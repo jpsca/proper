@@ -162,9 +162,9 @@ def gen_resource(
         app,
         name,
         *attrs,
-        name_pascal=name_pascal,
-        name_snake=name_snake,
         migration=migration,
+        __name_pascal=name_pascal,
+        __name_snake=name_snake,
     )
     form_fields = [
         {

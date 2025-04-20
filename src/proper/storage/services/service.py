@@ -9,7 +9,7 @@ if t.TYPE_CHECKING:
 class Service:
     """Abstract class serving as an interface for concrete services."""
 
-    def __init__(self, app: "App", config: dict[str, t.Any]) -> None:
+    def __init__(self, app: "App", **config: t.Any) -> None:
         self.config = config
 
     def upload(self, filesto: "TUpload", obj: "TAttachment") -> None:
