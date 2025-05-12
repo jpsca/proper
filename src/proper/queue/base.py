@@ -1,8 +1,11 @@
+import typing as t
+
 from huey.api import Huey
 
 
 class BaseQueue(Huey):
-    pass
+    def dequeue(self, callback: t.Callable):  # type: ignore
+        self.storage.dequeue(callback)  # type: ignore
 
 
 class NoQueue(BaseQueue):

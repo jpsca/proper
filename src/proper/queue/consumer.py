@@ -1,5 +1,4 @@
-import typing as t
-
+from huey.constants import WORKER_THREAD
 from huey.consumer import Consumer as HueyConsumer
 from huey.consumer import Worker as HueyWorker
 
@@ -17,12 +16,23 @@ class Worker(HueyWorker):
                 "Unhandled error during execution of task %s.", task.id
             )
 
-    def loop(self, *args, **kw):
+    def loop(self, now=None):
         try:
-            self.huey.dequeue(self.callback)
+            task = self.huey.dequeue(self.callback)
         except Exception:
             self._logger.exception("Error reading from queue")
-        self.sleep()
+            self.sleep()
+        else:
+            if task is not None:
+                self.delay = self.default_delay
+                try:
+                    self.huey.execute(task, now)
+                except Exception:
+                    self._logger.exception(
+                        "Unhandled error during execution " "of task %s.", task.id
+                    )
+            elif not self.huey.storage.blocking:
+                self.sleep()
 
 
 class Consumer(HueyConsumer):
@@ -33,11 +43,11 @@ class Consumer(HueyConsumer):
         queue: BaseQueue,
         workers: int = 1,
         periodic: bool = True,
-        initial_delay: int | float = 0.1,
-        backoff: int | float = 1.15,
-        max_delay: int | float = 10.0,
+        initial_delay: float = 0.1,
+        backoff: float = 1.15,
+        max_delay: float = 10.0,
         scheduler_interval: int = 1,
-        worker_type: t.Literal["thread"] | t.Literal["greenlet"] | t.Literal["process"] = "thread",
+        worker_type: str = WORKER_THREAD,
         check_worker_health: bool = True,
         health_check_interval: int = 10,
         flush_locks: bool = False,

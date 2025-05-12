@@ -9,10 +9,11 @@ import typing as t
 
 import peewee as pw
 from huey.constants import EmptyData
-from huey.storage import BaseStorage
 from playhouse.db_url import connect as db_url_connect
 
 from proper.types import TPwSyncMode
+
+from .base import BaseStorage
 
 
 class BytesBlobField(pw.BlobField):
@@ -30,7 +31,13 @@ class SqlStorage(BaseStorage):
 
     for_update = True
 
-    def __init__(self, name: str, database: str | pw.Database, **kwargs):
+    def __init__(
+            self,
+            name: str,
+            database: str | pw.Database,
+            delete_finished: bool = False,
+            **kwargs
+        ):
         self.name = name
         if isinstance(database, pw.Database):
             self.database = database
@@ -40,6 +47,7 @@ class SqlStorage(BaseStorage):
 
         assert isinstance(self.database, pw.Database)
         self.create_models()
+        self.delete_finished = delete_finished
 
     def check_conn(self):
         if not self.database.is_connection_usable():
@@ -76,9 +84,10 @@ class SqlStorage(BaseStorage):
             uuid = pw.UUIDField(index=True)
             data = BytesBlobField()
             priority = pw.FloatField(default=0.0)
+            done = pw.BooleanField(default=False)
 
             class Meta:  # type: ignore
-                indexes = [(("priority", "id"), False)]
+                indexes = [(("done", "priority", "id"), False)]
 
         self.QueueTask = QueueTask
 
@@ -116,10 +125,11 @@ class SqlStorage(BaseStorage):
             priority=task.priority or 0,
         )
 
-    def dequeue(self, callback: t.Callable):  # type: ignore
+    def dequeue(self, callback: t.Callable | None = None):
         self.check_conn()
         query = (
             self.tasks(self.QueueTask.id, self.QueueTask.data)  # type: ignore
+            .where(not self.QueueTask.done)  # type: ignore
             .order_by(self.QueueTask.priority.desc(), self.QueueTask.id)  # type: ignore
             .limit(1)
         )
@@ -132,8 +142,18 @@ class SqlStorage(BaseStorage):
             except self.QueueTask.DoesNotExist:  # type: ignore
                 return
 
-            callback(task.data)
-            self.QueueTask.delete().where(self.QueueTask.id == task.id).execute()  # type: ignore
+            if callback:
+                callback(task.data)
+
+            if self.delete_finished:
+                (
+                    self.QueueTask.delete()
+                    .where(self.QueueTask.id == task.id)  # type: ignore
+                    .execute()
+                )
+            else:
+                task.done = True
+                task.save()
 
     def queue_size(self):
         self.check_conn()
@@ -143,6 +163,7 @@ class SqlStorage(BaseStorage):
         self.check_conn()
         query = (
             self.tasks(self.QueueTask.data)  # type: ignore
+            .where(not self.QueueTask.done)  # type: ignore
             .order_by(self.QueueTask.priority.desc(), self.QueueTask.id)  # type: ignore
         )
         if limit is not None:

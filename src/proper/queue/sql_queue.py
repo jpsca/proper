@@ -1,11 +1,9 @@
-import typing as t
-
 import peewee as pw
 from huey.api import Result, ResultGroup
+from storage.sql import PostgresStorage, SqliteStorage, SqlStorage
 
 from .base import BaseQueue
 from .consumer import Consumer
-from .sql_storage import PostgresStorage, SqliteStorage, SqlStorage
 
 
 SIGNAL_CREATED = "created"
@@ -78,11 +76,8 @@ class SqlQueue(BaseQueue):
         else:
             return Result(self, task)
 
-    def dequeue(self, callback: t.Callable):  # type: ignore
-        self.storage.dequeue(callback)  # type: ignore
-
-    def create_consumer(self, **options):
-        self.storage.check_conn()  # type: ignore
+    def create_consumer(self, **options) -> Consumer:  # type: ignore
+        self.storage.check_conn()
         return Consumer(self, **options)
 
 
