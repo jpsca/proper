@@ -72,7 +72,10 @@ def get_db_cl(app):
             else:
                 # Run all migrations for all databases
                 for name, db in app.db.items():
-                    if db is None:
+                    if (
+                        db is None
+                        or app.config.DATABASES[name].get("database") == ":memory:"
+                    ):
                         continue
                     router = PWRouter(db, migrate_dir=f"db/{name}")
                     if not router.todo:
