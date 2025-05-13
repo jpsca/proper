@@ -42,7 +42,7 @@ from .error_handlers import (
 
 
 if t.TYPE_CHECKING:
-    import peewee
+    import peewee as pw
     from proper_cli import Cli
 
     from proper.cache import BaseCache
@@ -86,7 +86,7 @@ class App(AppTest):
     router: Router
     config: Config
     CL: "t.Type[Cli]"
-    db: "peewee.Database | None"
+    db: "dict[str, pw.Database]"
     cache: "BaseCache | None"
     queue: "BaseQueue | None"
     i18n: I18n | None
@@ -106,7 +106,7 @@ class App(AppTest):
         self._setup_config(config or {})
         self._setup_serializer()
         self._setup_cli()
-        self._setup_db()
+        self._setup_databases()
         self._setup_cache()
         self._setup_queue()
         self._setup_mailer()
@@ -165,7 +165,7 @@ class App(AppTest):
         current.response = self.response_cls(**environ)
 
         try:
-            self._db_connect()
+            self._dbs_connect()
             self.run_pipeline(current.request, current.response)
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
@@ -173,10 +173,10 @@ class App(AppTest):
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
             current.response.error = error
-            self._db_rollback()
+            self._dbs_rollback()
             self._default_error_handler(current.request, current.response)
         finally:
-            self._db_close()
+            self._dbs_close()
 
         return current.response
 
@@ -303,30 +303,43 @@ class App(AppTest):
     def _setup_cli(self) -> None:
         self.CL = get_app_cl(self)
 
-    def _setup_db(self) -> None:
-        db_config = self.config.DATABASE.copy()
-        if not db_config:
-            self.db = None
+    def _setup_databases(self) -> None:
+        self.db = {}
+        if not self.config.DATABASES:
             return
-        if "migrations" in db_config:
-            del db_config["migrations"]
-        self.db = get_instance(**db_config)
+
+        for name, config in self.config.DATABASES.items():
+            if config is None:
+                continue
+            self.db[name] = get_instance(**config)
 
     def _setup_queue(self) -> None:
-        q_config = self.config.QUEUE.copy()
-        if not q_config:
+        if not self.config.QUEUE:
             self.queue = None
             return
-        if "migrations" in q_config:
-            del q_config["migrations"]
-        self.queue = get_instance(**q_config)
+
+        config = self.config.QUEUE.copy()
+        if "db" in config:
+            db_name = config.pop("db")
+            database = self.db.get(db_name)
+            if not database:
+                raise ValueError(f"Database '{db_name}' not found.")
+            config["database"] = self.db[db_name]
+        self.queue = get_instance(**config)
 
     def _setup_cache(self) -> None:
-        cache_config = self.config.CACHE.copy()
-        if not cache_config:
+        if not self.config.CACHE:
             self.cache = None
             return
-        self.cache = get_instance(**cache_config)
+
+        config = self.config.CACHE.copy()
+        if "db" in config:
+            db_name = config.pop("db")
+            database = self.db.get(db_name)
+            if not database:
+                raise ValueError(f"Database '{db_name}' not found.")
+            config["database"] = self.db[db_name]
+        self.cache = get_instance(**config)
 
     def _setup_mailer(self) -> None:
         mailer_config = self.config.MAILER.copy()
@@ -426,34 +439,17 @@ class App(AppTest):
         request.matched_params = {}
         pipeline.dispatch(self, request, response)
 
-    def _db_connect(self) -> None:
-        if self.db is not None:
-            self.db.connect()
+    def _dbs_connect(self) -> None:
+        for db in self.db.values():
+            if db and not db.autoconnect and db.is_closed():
+                db.connect()
 
-        if self.queue is not None:
-            qdb = getattr(self.queue, "database", None)
-            if qdb is not None:
-                qdb.connect()
+    def _dbs_close(self) -> None:
+        for db in self.db.values():
+            if db and not db.autoconnect and not db.is_closed():
+                db.close()
 
-        if self.cache is not None:
-            cdb = getattr(self.cache, "database", None)
-            if cdb is not None:
-                cdb.connect()
-
-    def _db_close(self) -> None:
-        if self.db is not None and not self.db.is_closed():
-            self.db.close()
-
-        if self.queue is not None:
-            qdb = getattr(self.queue, "database", None)
-            if qdb is not None and not qdb.is_closed():
-                qdb.close()
-
-        if self.cache is not None:
-            cdb = getattr(self.cache, "database", None)
-            if cdb is not None and not cdb.is_closed():
-                cdb.close()
-
-    def _db_rollback(self):
-        if self.db is not None and not self.db.is_closed():
-            self.db.rollback()
+    def _dbs_rollback(self):
+        for db in self.db.values():
+            if db and not db.autoconnect and not db.is_closed():
+                db.rollback()

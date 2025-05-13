@@ -1,9 +1,9 @@
 import peewee as pw
 from huey.api import Result, ResultGroup
-from storage.sql import PostgresStorage, SqliteStorage, SqlStorage
 
 from .base import BaseQueue
 from .consumer import Consumer
+from .storage.sql import PostgresStorage, SqliteStorage, SqlStorage
 
 
 SIGNAL_CREATED = "created"
@@ -13,7 +13,7 @@ class SqlQueue(BaseQueue):
     """
     Arguments:
 
-    - database: connection string
+    - database: database instance to use.
     - results: whether to store task results.
     - store_none: whether to store `None` in the result store
     - utc: use UTC internally by converting from local time.
@@ -28,7 +28,7 @@ class SqlQueue(BaseQueue):
     def __init__(
         self,
         *,
-        database: str | pw.Database,
+        database: pw.Database,
         results: bool = True,
         store_none: bool = False,
         utc: bool = True,
@@ -46,6 +46,12 @@ class SqlQueue(BaseQueue):
             immediate_use_memory=immediate_use_memory,
             **storage_kwargs
         )
+
+    @property
+    def models(self) -> list[type[pw.Model]] | None:
+        if not self.storage:
+            raise RuntimeError("Storage not initialized.")
+        return getattr(self.storage, "models", None)
 
     @property
     def database(self) -> pw.Database | None:
@@ -77,7 +83,8 @@ class SqlQueue(BaseQueue):
             return Result(self, task)
 
     def create_consumer(self, **options) -> Consumer:  # type: ignore
-        self.storage.check_conn()
+        if hasattr(self.storage, "check_conn"):
+            self.storage.check_conn()   # type: ignore
         return Consumer(self, **options)
 
 

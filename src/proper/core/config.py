@@ -81,20 +81,29 @@ class Config(BaseConfig):
 
     LOCALE_DEFAULT: str = "en"
 
-    DATABASE: dict[str, t.Any] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-        "database": ":memory:",
-        "migrations": "db/migrations",
+    DATABASES: dict[str, dict[str, t.Any]] = {
+        "main": {
+            "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+            "database": ":memory:",
+        },
+        "queue": {
+            "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+            "database": ":memory:",
+        },
+        "cache": {
+            "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+            "database": ":memory:",
+        },
     }
     QUEUE: dict[str, t.Any] = {
         "type": "proper.queue.SqliteQueue",
-        "database": ":memory:",
+        "db": "queue",
     }
     QUEUE_CONSUMER: dict[str, t.Any] = {}
 
     CACHE: dict[str, t.Any] = {
         "type": "proper.cache.SqliteCache",
-        "database": ":memory:",
+        "db": "cache",
     }
 
     MAILER: dict[str, t.Any] = {

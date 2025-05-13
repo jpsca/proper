@@ -7,7 +7,7 @@ from .sql_queue import (
   SqliteQueue,  # noqa
   PostgreQueue,  # noqa
 )
-from storage.sql import (
+from .storage.sql import (
   BytesBlobField,  # noqa
   SqlStorage,  # noqa
   SqliteStorage,  # noqa

@@ -1,24 +1,29 @@
 from time import time
 
+from playhouse.sqlite_ext import SqliteExtDatabase
+
 from proper.cache import SqliteCache
 
 
 def test_set_get(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite")
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database)
 
     cache.set("key", "value")
     assert "value" == cache.get("key")
 
 
 def test_get_not_found(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite")
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database)
 
     cache.set("key", "value")
     assert cache.get("foo") is None
 
 
 def test_set_replaces(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite")
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database)
 
     cache.set("key", "value")
     cache.set("key", "value2")
@@ -27,7 +32,8 @@ def test_set_replaces(tmp_path):
 
 
 def test_get_expired_is_deleted(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite")
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database)
 
     cache.set("key", "value")
     assert cache._count() == 1
@@ -37,7 +43,8 @@ def test_get_expired_is_deleted(tmp_path):
 
 
 def test_get_expired_is_deleted_with_default(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite", expires_in=-1)
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database, expires_in=-1)
 
     cache.set("key", "value")
     assert cache._count() == 1
@@ -47,7 +54,8 @@ def test_get_expired_is_deleted_with_default(tmp_path):
 
 
 def test_delete(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite")
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database)
 
     cache.set("key", "value")
     assert cache._count() == 1
@@ -57,7 +65,8 @@ def test_delete(tmp_path):
 
 
 def test_delete_expired(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite")
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database)
 
     cache.set("key1", "value1")
     cache.set("key2", "value2")
@@ -73,7 +82,8 @@ def test_delete_expired(tmp_path):
 
 
 def test_delete_expired_with_default(tmp_path):
-    cache = SqliteCache(tmp_path / "cache.sqlite", expires_in=-1)
+    database = SqliteExtDatabase(tmp_path / "cache.sqlite")
+    cache = SqliteCache(database, expires_in=-1)
 
     cache.set("key1", "value1")
     cache.set("key2", "value2")
