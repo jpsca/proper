@@ -41,8 +41,8 @@ class SqliteCache(BaseCache):
         pragmas.setdefault("synchronous", sync_mode.lower())
         pragmas.setdefault("journal_mode", journal_mode.lower())
         pragmas.setdefault("incremental_vacuum", vacuum_pages)
-        database.init(database, pragmas=pragmas, timeout=timeout)
-        database.autoconnect = True
+        database._pragmas = list(pragmas.items())
+        database._timeout = timeout
         self.database = database
         for model in self.models:
             model.bind(database)
@@ -57,6 +57,11 @@ class SqliteCache(BaseCache):
     def check_conn(self):
         if not self.database.is_connection_usable():
             self.database.connect()
+
+    def create_tables(self):
+        self.check_conn()
+        with self.database.atomic():
+            self.database.create_tables(self.models, safe=True)
 
     def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
         self.check_conn()

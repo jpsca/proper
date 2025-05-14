@@ -76,6 +76,11 @@ class SqlStorage(BaseStorage):
             self.database.close()
             self.database.connect()
 
+    def create_tables(self):
+        self.check_conn()
+        with self.database.atomic():
+            self.database.create_tables(self.models, safe=True)
+
     def close(self):
         self.database.close()
 
