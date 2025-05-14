@@ -5,7 +5,7 @@ from pydantic import BaseModel as Schema
 from pydantic import BeforeValidator, SecretStr, model_validator
 from pydantic_core import PydanticCustomError
 
-from .password_reset.validators import login_exists  # (A)
+from .auth.validators import login_exists  # (A)
 from app.models import User
 
 

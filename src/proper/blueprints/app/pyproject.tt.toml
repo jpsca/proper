@@ -19,8 +19,9 @@ requires-python = ">=3.12,<4"
 dependencies = [
   "fodantic",
   "gunicorn~=23.0.0",
+  "jinjax_ui",
   "proper",
-  # "psycopg2-binary",
+  # "psycopg[binary,pool]",
 ]
 
 [dependency-groups]

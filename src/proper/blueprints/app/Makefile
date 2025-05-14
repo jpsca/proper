@@ -2,7 +2,6 @@
 install:
 	uv sync --group dev --group test
 	proper db migrate
-	# tailwindcss_install
 
 .PHONY: test
 test:
@@ -11,3 +10,7 @@ test:
 .PHONY: lint
 lint:
 	ruff check .
+
+.PHONY: lintfix
+lintfix:
+	ruff check . --fix

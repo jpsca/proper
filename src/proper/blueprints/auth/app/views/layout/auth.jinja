@@ -3,7 +3,8 @@
 {% do attrs.set(title=title, class="auth")%}
 
 <Layout.App __attrs={{attrs}}>
+	<Common.Flashes />
 	<div class="auth__wrapper">
-  {{ content }}
+		{{ content }}
 	</div>
 </Layout.App>

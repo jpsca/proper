@@ -4,7 +4,7 @@ from fodantic import formable
 from pydantic import BaseModel as Schema
 from pydantic import BeforeValidator, SecretStr, model_validator
 
-from .validators import (
+from .auth.validators import (
     login_exists,
     password_hasnt_been_pwned,
     password_is_long_enough,

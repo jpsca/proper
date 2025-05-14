@@ -1,21 +1,25 @@
 from pydantic_core import PydanticCustomError
 
+from .pwned import get_pwned_count
 from app.main import config
 from app.models import User
-from .pwned import get_pwned_count
 
 
 ERROR_LOGIN = "We don't recognize that username. Want to try&nbsp;another?"
 
-ERROR_PASSWORD_PWNED = (
-    "This password may have been compromised on another&nbsp;site.<br>"
-    "For your own safety, we recommend you create a new, unique password,"
-    " ideally using something like 1Password or&nbsp;LastPass."
+ERROR_NEW_PASSWORD_PWNED = (
+    "This password is too easy to guess and cannot be&nbsp;used.<br>"
+    "Please choose a new, unique&nbsp;password."
+)
+
+ERROR_CURRENT_PASSWORD_PWNED = (
+    "This password has become too easy to guess and can no longer be&nbsp;used.<br>"
+    "Please choose a new, unique&nbsp;password."
 )
 
 ERROR_PASSWORD_TOO_SHORT = "Your password must be at least {minlen} characters&nbsp;long"
 
-ERROR_PASSWORDS_MISMATCH = "Passwords don't match.<br>Remember that are case-sensitive"
+ERROR_PASSWORDS_MISMATCH = "Passwords don't match.<br>Remember that arecase-sensitive"
 
 
 def login_exists(login: str) -> str:
@@ -34,9 +38,13 @@ def password_is_long_enough(password: str) -> str:
     return password
 
 
+def password_has_been_pwned(password: str) -> bool:
+    return get_pwned_count(password) > 0
+
+
 def password_hasnt_been_pwned(password: str) -> str:
-    if get_pwned_count(password):
-        raise PydanticCustomError("password-pwned", ERROR_PASSWORD_PWNED)
+    if password_has_been_pwned(password):
+        raise PydanticCustomError("password-pwned", ERROR_NEW_PASSWORD_PWNED)
     return password
 
 

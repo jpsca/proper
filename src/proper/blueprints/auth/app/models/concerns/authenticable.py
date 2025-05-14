@@ -92,8 +92,7 @@ class Authenticable(BaseMixin):
         else:
             self.password = password
 
-        curr_user = (current.request or {}).get("user")
-        if curr_user == self:
+        if current.request.user == self:
             # Password has change, so we need to updated the session too
             self.sign_in()
 
@@ -103,7 +102,7 @@ class Authenticable(BaseMixin):
         """
         assert self.id is not None  # type: ignore
         current.request.user = self
-        current.response.session[self.SESSION_KEY] = auth.get_session_token(current.request.user)
+        current.response.session[self.SESSION_KEY] = auth.get_session_token(self)
 
     def sign_out(self) -> None:
         current.request.user = None

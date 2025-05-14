@@ -1,9 +1,12 @@
 .form-errors {
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
+  margin: 0;
   padding: 0.5rem;
   font-size: 0.875rem;
   font-weight: bold;
   text-align: center;
-  color: #e53e3e; /* red-500 */
+  color: #e53e3e;
+}
+.form-errors p {
+  margin: 0;
+  padding: 0;
 }

@@ -30,7 +30,7 @@ HTTP_OK = 200
 logger = logging.getLogger(__name__)
 
 
-def get_pwned_count(passwm: str, timeout: int = 1) -> int:
+def get_pwned_count(password: str, timeout: int = 1) -> int:
     """
     Get the number of times a password has been pwned using the
     "Have I been pwned?" API.
@@ -40,7 +40,7 @@ def get_pwned_count(passwm: str, timeout: int = 1) -> int:
     of known compromised passwords.
 
     Arguments:
-        - passwm: The password to check
+        - password: The password to check
         - timeout: The timeout for the request.
 
     Return:
@@ -48,14 +48,14 @@ def get_pwned_count(passwm: str, timeout: int = 1) -> int:
 
     """
     # The API works with the first 5 characters of the SHA1 hash
-    hash = sha1(passw.encode("utf8")).hexdigest().upper()
+    hash = sha1(password.encode("utf8")).hexdigest().upper()
     hprefix = hash[:5]
     hsuffix = hash[5:]
-    resp = query_api(hprefix. timeout=timeout)
+    resp = query_api(hprefix, timeout=timeout)
     if resp is None:
         # The API is down or the network is slow
         logger.warning("Unreachable 'Have I been pwned?' API")
-        return 1 if passw in FALLBACK_LIST else 0
+        return 1 if password.lower() in FALLBACK_LIST else 0
 
     for row in resp:
         suffix, num = row.split(":")

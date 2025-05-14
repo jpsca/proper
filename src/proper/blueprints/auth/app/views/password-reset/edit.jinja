@@ -1,6 +1,6 @@
 {#def form, pk, login, password_minlen #}
 
-<Layout.Auth title="Change your password">
+<Layout.Auth title="Change your password" data_turbo="false">
   <Form
     class="auth-panel"
     action={{ url_for('PasswordReset.update', pk=pk) }}
@@ -13,10 +13,6 @@
       </p>
     </div>
 
-    <p class="auth-help">
-      Make sure your new password it's at least {{ password_minlen }} characters long
-    </p>
-
     <Form.Errors form={{form}} />
 
     <div class="auth-field">
@@ -25,6 +21,11 @@
         label="Password"
         type="password"
         placeholder="New password"
+        caption={{ [
+          "Make sure your new password it's at least ",
+          password_minlen,
+          " characters long."
+        ] | join }}
         tabindex="1"
         size="large"
         block
@@ -37,6 +38,7 @@
         label="Confirm password"
         type="password"
         placeholder="Confirm your new password"
+        caption="Repeat your new password"
         tabindex="2"
         size="large"
         block
