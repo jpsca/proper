@@ -2,20 +2,68 @@ import sys
 from importlib import import_module
 from pathlib import Path
 
+import peewee as pw
 from peewee_migrate import Router as PWRouter
 from proper_cli import Cli
 
 
+QUEUE = "proper_queue"
+CACHE = "proper_cache"
+
+
 def get_db_cl(app):
     class DBCL(Cli):
-        def _get_router(self, name: str) -> PWRouter:
-            db = app.db.get(name) or None
+        def _get_db(self, name: str, validate: bool = True) -> pw.Database | None:
+            """Get the database instance for the given name.
+
+            If the database is not found, it will print an error message (unless `validate` is False)
+            and return None.
+            """
+            log = print if validate is True else (lambda *args, **kwargs: None)
+
+            if name == QUEUE:
+                if app.queue is None:
+                    log("Queue not initialized.")
+                    return
+                dburi = app.config.QUEUE.get("database")
+                if dburi is None:
+                    log("Queue database not found in QUEUE config.")
+                    return
+                db = app.queue.database
+
+            elif name == CACHE:
+                if app.cache is None:
+                    log("Cache not initialized.")
+                    return
+                dburi = app.config.CACHE.get("database")
+                if dburi is None:
+                    log("Cache database not found in CACHE config.")
+                    return
+                db = app.cache.database
+
+            else:
+                db = app.db.get(name)
+                if db is None:
+                    log(f"Database '{name}' not found in DATABASES config.")
+                    return
+                dburi = app.config.DATABASES[name].get("database")
+                if dburi is None:
+                    log("Invalid database config.")
+                    return
+
+            if dburi == ":memory:":
+                log(f"{name}: Cannot run migrations on in-memory database.")
+                return
+
+            return db
+
+        def _get_router(self, name: str, validate: bool = True) -> PWRouter | None:
+            db = self._get_db(name, validate=validate)
             if db is None:
-                print(f"Database '{name}' not found in DATABASES config.")
-                sys.exit(0)
-            if app.config.DATABASES[name].get("database") == ":memory:":
-                print("Cannot run migrations on in-memory database.")
-                sys.exit(0)
+                if validate:
+                    sys.exit(0)
+                return
+
             migrate_dir = Path("db", name)
             migrate_dir.mkdir(exist_ok=True)
             return PWRouter(db, migrate_dir=migrate_dir)
@@ -31,9 +79,9 @@ def get_db_cl(app):
                 Database name to create the migration for. Default is "main".
 
             """
-            if (app.config["QUEUE"] or {}).get("db") == db:
+            if QUEUE == db:
                 models = getattr(app.queue, "models", None)
-            elif (app.config["CACHE"] or {}).get("db") == db:
+            elif CACHE == db:
                 models = getattr(app.cache, "models", None)
             else:
                 models = import_module("app.models")
@@ -41,7 +89,9 @@ def get_db_cl(app):
             if not models:
                 print("No models found.")
                 sys.exit(0)
+
             router = self._get_router(db)
+            assert router
             migration = router.create(name, auto=models)
             if migration:
                 print(f"{router.migrate_dir}/{migration}.py")
@@ -64,27 +114,27 @@ def get_db_cl(app):
             if db:
                 # Run all migrations for the specified database
                 router = self._get_router(db)
+                assert router
                 if not router.todo:
                     return
                 done = router.run(fake=fake)
                 for migration in done:
                     print(f"{router.migrate_dir}/{migration}.py")
+                return
+
+            # Run all migrations for all databases
+            for name in [*app.config.DATABASES.keys(), QUEUE, CACHE]:
+                router = self._get_router(name, validate=False)
+                if router is None or not router.diff:
+                    continue
+
+                print(f"Running migrations for '{name}':")
+                done = router.run(fake=fake)
+                for migration in done:
+                    print(f"{router.migrate_dir}/{migration}.py")
+                print()
             else:
-                # Run all migrations for all databases
-                for name, db in app.db.items():
-                    if (
-                        db is None
-                        or app.config.DATABASES[name].get("database") == ":memory:"
-                    ):
-                        continue
-                    router = PWRouter(db, migrate_dir=f"db/{name}")
-                    if not router.todo:
-                        continue
-                    print(f"Running migrations for '{name}':")
-                    done = router.run(fake=fake)
-                    for migration in done:
-                        print(f"{router.migrate_dir}/{migration}.py")
-                    print()
+                print("No pending migrations found.")
 
         def migrate_to(self, target: str, fake: bool = False, db: str = "main"):
             """Run/emulate all the pending migrations up to `target`.
@@ -100,6 +150,7 @@ def get_db_cl(app):
 
             """
             router = self._get_router(db)
+            assert router
             done = router.run(name=target, fake=fake)
             for migration in done:
                 print(f"{router.migrate_dir}/{migration}.py")
@@ -114,6 +165,7 @@ def get_db_cl(app):
 
             """
             router = self._get_router(db)
+            assert router
             router.rollback()
 
         def merge(self, name: str = "initial", db: str = "main"):
@@ -126,6 +178,7 @@ def get_db_cl(app):
 
             """
             router = self._get_router(db)
+            assert router
             router.merge(name)
 
         def todo(self, db: str = "main"):
@@ -138,6 +191,7 @@ def get_db_cl(app):
 
             """
             router = self._get_router(db)
+            assert router
             for migration in router.todo:
                 print(f"{router.migrate_dir}/{migration}.py")
 
@@ -151,6 +205,7 @@ def get_db_cl(app):
 
             """
             router = self._get_router(db)
+            assert router
             for migration in router.done:
                 print(f"{router.migrate_dir}/{migration}.py")
 

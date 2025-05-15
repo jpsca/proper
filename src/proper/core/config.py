@@ -86,24 +86,14 @@ class Config(BaseConfig):
             "type": "playhouse.sqlite_ext.SqliteExtDatabase",
             "database": ":memory:",
         },
-        "queue": {
-            "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-            "database": ":memory:",
-        },
-        "cache": {
-            "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-            "database": ":memory:",
-        },
     }
     QUEUE: dict[str, t.Any] = {
-        "type": "proper.queue.SqliteQueue",
-        "db": "queue",
+        "type": "proper.queue.NoQueue",
     }
     QUEUE_CONSUMER: dict[str, t.Any] = {}
 
     CACHE: dict[str, t.Any] = {
-        "type": "proper.cache.SqliteCache",
-        "db": "cache",
+        "type": "proper.cache.NoCache",
     }
 
     MAILER: dict[str, t.Any] = {

@@ -1,7 +1,3 @@
 <div>
-  {% if request.user -%}
-		<a href="{{ url_for('Session.delete') }}" data-turbo-method="delete">Sign out</a>
-	{%- else -%}
-    <a href="{{ url_for('Session.new') }}">Sign in</a>
-	{%- endif %}
+	<a href="{{ url_for('Session.new') }}">Sign in</a>
 </div>

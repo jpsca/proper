@@ -2,8 +2,7 @@ import typing as t
 from time import time
 
 import peewee as pw
-
-from proper.types import TPwJournalMode, TPwSyncMode, TPwWalCheckpoint
+from playhouse.sqlite_ext import SqliteExtDatabase
 
 from .base import BaseCache, SerializerProtocol
 
@@ -20,32 +19,33 @@ class Cache(pw.Model):
 class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
     models = [Cache]
+    db_class: type[pw.Database] = SqliteExtDatabase
+    memory_based: bool = False
 
     def __init__(
         self,
-        database: pw.SqliteDatabase,
+        database: str,
         *,
         expires_in: int = 60 * 60 * 24 * 2,  # 2 days
-        wal_checkpoint: TPwWalCheckpoint = "full",
         serializer: SerializerProtocol | None = None,
-        sync_mode: TPwSyncMode = "normal",
-        journal_mode: TPwJournalMode = "wal",
-        vacuum_pages: int = 100,
         timeout: int = 5,
         **pragmas,
     ):
         super().__init__(serializer=serializer)
         self.expires_in = expires_in
-        self.wal_checkpoint = wal_checkpoint.lower()
+
+        # WAL mode allows one or more readers to continue reading
+        # while another connection writes to the database.
+        pragmas["journal_mode"] = "wal"
+        pragmas.setdefault("wal_checkpoint", "full")
+        pragmas.setdefault("synchronous", "normal")
         pragmas.setdefault("auto_vacuum", "incremental")
-        pragmas.setdefault("synchronous", sync_mode.lower())
-        pragmas.setdefault("journal_mode", journal_mode.lower())
-        pragmas.setdefault("incremental_vacuum", vacuum_pages)
-        database._pragmas = list(pragmas.items())
-        database._timeout = timeout
-        self.database = database
+        pragmas.setdefault("incremental_vacuum", 100)
+
+        self.memory_based = database == ":memory:"
+        self.database = self.db_class(database, pragmas=pragmas, timeout=timeout)
         for model in self.models:
-            model.bind(database)
+            model.bind(self.database)
 
     def reset(self):
         # TBD: implement reset
@@ -69,7 +69,6 @@ class SqliteCache(BaseCache):
         data = self.serialize(value)
         timestamp = int(time()) if timestamp is None else timestamp
         Cache.replace(key=key, value=data, timestamp=timestamp).execute()
-        self.database.pragma("wal_checkpoint", self.wal_checkpoint)
 
     def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
         self.check_conn()
@@ -92,7 +91,6 @@ class SqliteCache(BaseCache):
         self.check_conn()
 
         Cache.delete_by_id(key)
-        self.database.pragma("wal_checkpoint", self.wal_checkpoint)
 
     def delete_expired(self, expires_in: int | None = None) -> None:
         self.check_conn()
@@ -101,7 +99,6 @@ class SqliteCache(BaseCache):
             expires_in = self.expires_in
         expires_at = int(time()) - expires_in
         Cache.delete().where(Cache.timestamp < expires_at).execute()  # type: ignore
-        self.database.pragma("wal_checkpoint", self.wal_checkpoint)
 
     def _count(self):
         return Cache.select(pw.fn.COUNT(Cache.key)).scalar()

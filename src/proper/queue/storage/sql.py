@@ -9,8 +9,8 @@ import typing as t
 
 import peewee as pw
 from huey.constants import EmptyData
-
-from proper.types import TPwSyncMode
+from playhouse.postgres_ext import PostgresqlExtDatabase
+from playhouse.sqlite_ext import SqliteExtDatabase
 
 from .base import BaseStorage
 
@@ -53,23 +53,24 @@ class QueueTask(pw.Model):
 
 class SqlStorage(BaseStorage):
     database: pw.Database
+    db_class: type[pw.Database]
     models = [QueueKV, QueueSchedule, QueueTask]
 
-    for_update = True
+    for_update: bool = True
+    memory_based: bool = False
 
     def __init__(
             self,
             name: str,
-            database: pw.Database,
+            database: str,
             delete_finished: bool = False,
-            **kwargs
+            **options,
         ):
         self.name = name
-        self.database = database
-        assert isinstance(self.database, pw.Database)
         self.delete_finished = delete_finished
+        self.database = self.db_class(database, **options)
         for model in self.models:
-            model.bind(database)
+            model.bind(self.database)
 
     def check_conn(self):
         if not self.database.is_connection_usable():
@@ -284,6 +285,7 @@ class SqlStorage(BaseStorage):
 
 
 class SqliteStorage(SqlStorage):
+    db_class = SqliteExtDatabase
     for_update = False
 
     def __init__(
@@ -291,20 +293,22 @@ class SqliteStorage(SqlStorage):
         name: str,
         *,
         database: str,
+        delete_finished: bool = False,
         timeout: int = 5,
-        sync_mode: TPwSyncMode = "off",
         **pragmas,
     ):
-        # This is required.
         # WAL mode allows one or more readers to continue reading
         # while another connection writes to the database.
         pragmas["journal_mode"] = "wal"
-        pragmas.setdefault("synchronous", sync_mode.lower())
-        db = pw.SqliteDatabase(database, timeout=timeout, pragmas=pragmas)
-        super().__init__(name, database=db)
+        pragmas.setdefault("wal_checkpoint", "full")
+        pragmas.setdefault("synchronous", "off")
+
+        self.memory_based = database == ":memory:"
+        super().__init__(name, database=database, delete_finished=delete_finished, pragmas=pragmas, timeout=timeout)
 
 
 class PostgresStorage(SqlStorage):
+    db_class = PostgresqlExtDatabase
     for_update = True
 
     def __init__(
@@ -312,11 +316,10 @@ class PostgresStorage(SqlStorage):
         name: str,
         *,
         database: str,
-        **options,
+        delete_finished: bool = False,
+        timeout: int = 5,
     ):
-        options.setdefault("timeout", 10)
-        db = pw.PostgresqlDatabase(database, **options)
-        super().__init__(name, database=db)
+        super().__init__(name, database=database, delete_finished=delete_finished, timeout=timeout)
 
     def put_data(self, key, value, is_result=False):
         self.check_conn()

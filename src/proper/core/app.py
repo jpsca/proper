@@ -317,35 +317,18 @@ class App(AppTest):
         if not self.config.QUEUE:
             self.queue = None
             return
-
-        config = self.config.QUEUE.copy()
-        if "db" in config:
-            db_name = config.pop("db")
-            database = self.db.get(db_name)
-            if not database:
-                raise ValueError(f"Database '{db_name}' not found.")
-            config["database"] = self.db[db_name]
-        self.queue = get_instance(**config)
+        self.queue = get_instance(**self.config.QUEUE)
 
     def _setup_cache(self) -> None:
         if not self.config.CACHE:
             self.cache = None
             return
-
-        config = self.config.CACHE.copy()
-        if "db" in config:
-            db_name = config.pop("db")
-            database = self.db.get(db_name)
-            if not database:
-                raise ValueError(f"Database '{db_name}' not found.")
-            config["database"] = self.db[db_name]
-        self.cache = get_instance(**config)
+        self.cache = get_instance(**self.config.CACHE)
 
     def _setup_mailer(self) -> None:
-        mailer_config = self.config.MAILER.copy()
-        if not mailer_config:
+        if not self.config.MAILER:
             return
-        self.mailer = get_instance(**mailer_config)
+        self.mailer = get_instance(**self.config.MAILER)
 
     def _setup_i18n(self) -> None:
         self.i18n = None

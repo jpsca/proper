@@ -10,19 +10,12 @@ config.DATABASES = {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
         "database": "storage/app.sqlite3",
     },
-    "queue": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-        "database": "storage/queue.sqlite3",
-    },
-    "cache": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-        "database": ":memory:",
-    },
 }
+
 
 config.QUEUE = {
     "type": "proper.queue.SqliteQueue",
-    "db": "queue",
+    "database": "storage/queue.sqlite3",
 }
 config.QUEUE_CONSUMER = {
     # Number of worker to spawn.
@@ -51,47 +44,8 @@ config.QUEUE_CONSUMER = {
 
 config.CACHE = {
     "type": "proper.cache.SqliteCache",
-    "db": "cache",
+    "database": ":memory:",
 }
-
-STORAGE_SERVICES = {
-    "local": {
-        "type": "Disk",
-        "root": "storage/",
-    },
-
-    "test": {
-        "type": "Disk",
-        "root": "temp/storage",
-    },
-
-    # Replace with your real production service
-    "amazon": {
-        "type": "S3",
-        "access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
-        "bucket": "...",
-        "region": "...",  # e.g. 'us-east-1'
-    }
-}
-
-STORAGE = "local"
-
-# Image content types that can be processed without being converted to
-# the fallback PNG format. If you want to use WebP or AVIF variants in
-# your application you can add image/webp or image/avif to this list
-STORAGE_WEB_IMAGE_CONTENT_TYPES = [
-    "image/png",
-    "image/jpeg",
-    "image/gif",
-]
-
-# List of content types allowed to be served inline
-STORAGE_ALLOWED_INLINE_CONTENT_TYPES = [
-    "image/",
-    "video/",
-    "application/pdf",
-]
 
 
 # --- Override config for testing ---
@@ -101,12 +55,10 @@ if env == TEST:
         "database": ":memory:",
     }
 
-    config.DATABASES["queue"] = None
     config.QUEUE = {
         "type": "proper.queue.NoQueue",
     }
 
-    config.DATABASES["cache"] = None
     config.CACHE = {
         "type": "proper.cache.NoCache",
     }
@@ -126,8 +78,8 @@ if env == PROD:
         "autoconnect": False,
     }
 
-    config.DATABASES["queue"] = {
-        "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
+    config.QUEUE = {
+        "type": "proper.queue.PostgresQueue",
         "database": os.getenv("DB_QUEUE_NAME", "[[app_name]]_queue"),
         "host": os.getenv("DB_QUEUE_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_QUEUE_PORT", 5432)),
@@ -137,16 +89,8 @@ if env == PROD:
         # and on the `on_teardown` and `on_error` hooks
         "autoconnect": False,
     }
-    config.QUEUE = {
-        "type": "proper.queue.PostgresQueue",
-        "db": "queue",
-    }
 
-    config.DATABASES["cache"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
-        "database": ":memory:",
-    }
     config.CACHE = {
         "type": "proper.cache.SqliteCache",
-        "db": "cache",
+        "database": "storage/cache.sqlite3",
     }
