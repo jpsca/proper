@@ -64,6 +64,8 @@ def get_db_cl(app):
                     sys.exit(0)
                 return
 
+            if db.is_closed():
+                db.connect()
             migrate_dir = Path("db", name)
             migrate_dir.mkdir(exist_ok=True)
             return PWRouter(db, migrate_dir=migrate_dir)
@@ -115,7 +117,8 @@ def get_db_cl(app):
                 # Run all migrations for the specified database
                 router = self._get_router(db)
                 assert router
-                if not router.todo:
+                if not router.diff:
+                    print("No pending migrations found.")
                     return
                 done = router.run(fake=fake)
                 for migration in done:
@@ -123,17 +126,20 @@ def get_db_cl(app):
                 return
 
             # Run all migrations for all databases
+            found = False
             for name in [*app.config.DATABASES.keys(), QUEUE, CACHE]:
                 router = self._get_router(name, validate=False)
                 if router is None or not router.diff:
                     continue
 
+                found = True
                 print(f"Running migrations for '{name}':")
                 done = router.run(fake=fake)
                 for migration in done:
                     print(f"{router.migrate_dir}/{migration}.py")
                 print()
-            else:
+
+            if not found:
                 print("No pending migrations found.")
 
         def migrate_to(self, target: str, fake: bool = False, db: str = "main"):

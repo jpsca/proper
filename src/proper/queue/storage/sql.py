@@ -10,6 +10,7 @@ import typing as t
 import peewee as pw
 from huey.constants import EmptyData
 from playhouse.postgres_ext import PostgresqlExtDatabase
+from playhouse.psycopg3_ext import Psycopg3Database
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 from .base import BaseStorage
@@ -308,7 +309,7 @@ class SqliteStorage(SqlStorage):
 
 
 class PostgresStorage(SqlStorage):
-    db_class = PostgresqlExtDatabase
+    db_class = Psycopg3Database
     for_update = True
 
     def __init__(
@@ -318,7 +319,10 @@ class PostgresStorage(SqlStorage):
         database: str,
         delete_finished: bool = False,
         timeout: int = 5,
+        psycopg2: bool = False
     ):
+        if psycopg2:
+            self.db_class = PostgresqlExtDatabase
         super().__init__(name, database=database, delete_finished=delete_finished, timeout=timeout)
 
     def put_data(self, key, value, is_result=False):
