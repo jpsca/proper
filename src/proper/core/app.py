@@ -10,12 +10,13 @@ from itsdangerous import (
 )
 
 from proper import status
-from proper.cache import FragmentCacheExtension
+from proper.cache import BaseCache, FragmentCacheExtension, NoCache
 from proper.cl import get_app_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import jsonplus
 from proper.helpers.utils import get_instance
 from proper.i18n import I18n
+from proper.queue import BaseQueue, NoQueue
 from proper.request import Request
 from proper.response import Response
 from proper.router import Route, Router
@@ -45,12 +46,10 @@ if t.TYPE_CHECKING:
     import peewee as pw
     from proper_cli import Cli
 
-    from proper.cache import BaseCache
     from proper.mail import EmailMessage
-    from proper.queue import BaseQueue
 
 
-__all__ = ("App", )
+__all__ = ("App",)
 
 
 class App(AppTest):
@@ -180,7 +179,6 @@ class App(AppTest):
 
         return current.response
 
-
     def run_pipeline(self, request, response) -> None:
         try:
             for func in (
@@ -206,35 +204,18 @@ class App(AppTest):
             for func in self._on_teardown:
                 func()
 
-    def url_for(
-        self,
-        name: str,
-        object: t.Any = None,
-        *,
-        _anchor: str ="",
-        **kw
-    ) -> str:
+    def url_for(self, name: str, object: t.Any = None, *, _anchor: str = "", **kw) -> str:
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object, _anchor=_anchor, **kw)
 
     def url_is(
-        self,
-        name: str,
-        object: t.Any = None,
-        *,
-        curr_url: str ="",
-        **kw
+        self, name: str, object: t.Any = None, *, curr_url: str = "", **kw
     ) -> bool:
         """Proxy for `self.router.url_is()`."""
         return self.router.url_is(name, object, curr_url=curr_url, **kw)
 
     def url_startswith(
-        self,
-        name: str,
-        object: t.Any = None,
-        *,
-        curr_url: str ="",
-        **kw
+        self, name: str, object: t.Any = None, *, curr_url: str = "", **kw
     ) -> bool:
         """Proxy for `self.router.url_startswith()`."""
         return self.router.url_startswith(name, object, curr_url=curr_url, **kw)
@@ -253,7 +234,10 @@ class App(AppTest):
         kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
         kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
 
-        return URLSafeTimedSerializer(self.config.SECRET_KEYS[0], **kwargs,)
+        return URLSafeTimedSerializer(
+            self.config.SECRET_KEYS[0],
+            **kwargs,
+        )
 
     def send_email(self, later: bool = False, *args, **kwargs) -> t.Any:
         # TODO: later
@@ -315,15 +299,19 @@ class App(AppTest):
 
     def _setup_queue(self) -> None:
         if not self.config.QUEUE:
-            self.queue = None
+            self.queue = NoQueue()
             return
         self.queue = get_instance(**self.config.QUEUE)
+        if db := getattr(self.queue, "database", None):
+            self.db["proper_queue"] = db
 
     def _setup_cache(self) -> None:
         if not self.config.CACHE:
-            self.cache = None
+            self.cache = NoCache()
             return
         self.cache = get_instance(**self.config.CACHE)
+        if db := getattr(self.cache, "database", None):
+            self.db["proper_cache"] = db
 
     def _setup_mailer(self) -> None:
         if not self.config.MAILER:
@@ -339,7 +327,7 @@ class App(AppTest):
         self.i18n = I18n(
             self.locales_path,
             get_current_locale=self.get_current_locale,
-            default_locale=self.config.LOCALE_DEFAULT
+            default_locale=self.config.LOCALE_DEFAULT,
         )
 
     def _setup_storage(self) -> None:

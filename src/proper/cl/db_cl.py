@@ -21,35 +21,17 @@ def get_db_cl(app):
             """
             log = print if validate is True else (lambda *args, **kwargs: None)
 
+            db = app.db.get(name)
+            if db is None:
+                log(f"Database '{name}' not found.")
+                return
+
             if name == QUEUE:
-                if app.queue is None:
-                    log("Queue not initialized.")
-                    return
                 dburi = app.config.QUEUE.get("database")
-                if dburi is None:
-                    log("Queue database not found in QUEUE config.")
-                    return
-                db = app.queue.database
-
             elif name == CACHE:
-                if app.cache is None:
-                    log("Cache not initialized.")
-                    return
                 dburi = app.config.CACHE.get("database")
-                if dburi is None:
-                    log("Cache database not found in CACHE config.")
-                    return
-                db = app.cache.database
-
             else:
-                db = app.db.get(name)
-                if db is None:
-                    log(f"Database '{name}' not found in DATABASES config.")
-                    return
-                dburi = app.config.DATABASES[name].get("database")
-                if dburi is None:
-                    log("Invalid database config.")
-                    return
+                dburi = app.config.DATABASES.get(name, {}).get("database")
 
             if dburi == ":memory:":
                 log(f"{name}: Cannot run migrations on in-memory database.")
