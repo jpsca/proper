@@ -1,13 +1,11 @@
-from huey.api import crontab  # noqa
-from .base import BaseQueue, NoQueue  # noqa
-from .consumer import Consumer, Worker  # noqa
+from .base import BaseQueue, NoQueue, crontab  # noqa
 from .sql_queue import (
   SIGNAL_CREATED,  # noqa
   SqlQueue,  # noqa
   SqliteQueue,  # noqa
   PostgreQueue,  # noqa
 )
-from .storage.sql import (
+from .sql_storage import (
   BytesBlobField,  # noqa
   SqlStorage,  # noqa
   SqliteStorage,  # noqa

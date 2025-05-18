@@ -84,10 +84,10 @@ class App(AppTest):
 
     router: Router
     config: Config
-    CL: "t.Type[Cli]"
+    CL: "type[Cli]"
     db: "dict[str, pw.Database]"
-    cache: "BaseCache | None"
-    queue: "BaseQueue | None"
+    cache: BaseCache
+    queue: BaseQueue
     i18n: I18n | None
     storage: Storage | None
     catalog: jinjax.Catalog

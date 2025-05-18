@@ -1,9 +1,9 @@
 import peewee as pw
 from huey.api import Result, ResultGroup
+from huey.consumer import Consumer
 
 from .base import BaseQueue
-from .consumer import Consumer
-from .storage.sql import PostgresStorage, SqliteStorage, SqlStorage
+from .sql_storage import PostgresStorage, SqliteStorage, SqlStorage
 
 
 SIGNAL_CREATED = "created"
@@ -85,7 +85,9 @@ class SqlQueue(BaseQueue):
     def create_consumer(self, **options) -> Consumer:  # type: ignore
         if hasattr(self.storage, "check_conn"):
             self.storage.check_conn()   # type: ignore
-        return Consumer(self, **options)
+        print("Creating consumer", options)
+        consumer = Consumer(self, **options)
+        return consumer
 
 
 class SqliteQueue(SqlQueue):

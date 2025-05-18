@@ -5,15 +5,13 @@ Used with permission under the MIT license.
 """
 
 import operator
-import typing as t
 
 import peewee as pw
 from huey.constants import EmptyData
+from huey.storage import BaseStorage
 from playhouse.postgres_ext import PostgresqlExtDatabase
 from playhouse.psycopg3_ext import Psycopg3Database
 from playhouse.sqlite_ext import SqliteExtDatabase
-
-from .base import BaseStorage
 
 
 class BytesBlobField(pw.BlobField):
@@ -113,35 +111,36 @@ class SqlStorage(BaseStorage):
             priority=task.priority or 0,
         )
 
-    def dequeue(self, callback: t.Callable | None = None):
+    def dequeue(self):
         self.check_conn()
         query = (
             self.tasks(QueueTask.id, QueueTask.data)  # type: ignore
-            .where(not QueueTask.done)  # type: ignore
+            .where(~QueueTask.done)  # type: ignore
             .order_by(QueueTask.priority.desc(), QueueTask.id)  # type: ignore
             .limit(1)
         )
         if self.for_update:
             query = query.for_update("FOR UPDATE SKIP LOCKED")
 
-        with self.database.atomic():
-            try:
-                task = query.get()
-            except QueueTask.DoesNotExist:  # type: ignore
-                return
+        try:
+            task = query.get()
+        except QueueTask.DoesNotExist:  # type: ignore
 
-            if callback:
-                callback(task.data)
+            return
 
-            if self.delete_finished:
-                (
-                    QueueTask.delete()
-                    .where(QueueTask.id == task.id)  # type: ignore
-                    .execute()
-                )
-            else:
-                task.done = True
-                task.save()
+        data = task.data
+
+        if self.delete_finished:
+            (
+                QueueTask.delete()
+                .where(QueueTask.id == task.id)  # type: ignore
+                .execute()
+            )
+        else:
+            task.done = True
+            task.save()
+
+        return data
 
     def queue_size(self):
         self.check_conn()
@@ -305,7 +304,14 @@ class SqliteStorage(SqlStorage):
         pragmas.setdefault("synchronous", "off")
 
         self.memory_based = database == ":memory:"
-        super().__init__(name, database=database, delete_finished=delete_finished, pragmas=pragmas, timeout=timeout)
+        super().__init__(
+            name,
+            database=database,
+            delete_finished=delete_finished,
+            pragmas=pragmas,
+            timeout=timeout,
+            thread_safe=True,
+        )
 
 
 class PostgresStorage(SqlStorage):
