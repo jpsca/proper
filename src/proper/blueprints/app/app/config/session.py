@@ -1,7 +1,8 @@
-from proper import DAYS, PROD, Config, env
+from proper import DAYS, PROD, Config, get_env
 
 
 config = Config()
+env = get_env()
 
 # Number of seconds before a non-used session key expires.
 config.SESSION_LIFETIME = 30 * DAYS

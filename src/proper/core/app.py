@@ -4,6 +4,7 @@ from importlib import import_module
 from pathlib import Path
 
 import jinjax
+from huey import Huey, MemoryHuey
 from itsdangerous import (
     TimestampSigner,
     URLSafeTimedSerializer,
@@ -16,7 +17,6 @@ from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import jsonplus
 from proper.helpers.utils import get_instance
 from proper.i18n import I18n
-from proper.queue import BaseQueue, NoQueue
 from proper.request import Request
 from proper.response import Response
 from proper.router import Route, Router
@@ -87,7 +87,7 @@ class App(AppTest):
     CL: "type[Cli]"
     db: "dict[str, pw.Database]"
     cache: BaseCache
-    queue: BaseQueue
+    queue: Huey
     i18n: I18n | None
     storage: Storage | None
     catalog: jinjax.Catalog
@@ -299,10 +299,16 @@ class App(AppTest):
 
     def _setup_queue(self) -> None:
         if not self.config.QUEUE:
-            self.queue = NoQueue()
+            self.queue = MemoryHuey(inmediate=True, immediate_use_memory=True)
             return
-        self.queue = get_instance(**self.config.QUEUE)
-        if db := getattr(self.queue, "database", None):
+
+        config = self.config.QUEUE.copy()
+        if config.get("type") == "huey.SqliteHuey":
+            if "database" in config:
+                config["filename"] = config.pop("database")
+
+        self.queue = get_instance(**config)
+        if db := getattr(self.queue, "database", getattr(self.queue, "db", None)):
             self.db["proper_queue"] = db
 
     def _setup_cache(self) -> None:

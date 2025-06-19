@@ -200,7 +200,7 @@ class Route:
 
         query_params = self._get_query_params(path_params, kw)
         if query_params:
-            params = "&".join([key + "=" + value for key, value in query_params.items()])
+            params = "&".join([f"{key}={value}" for key, value in query_params.items()])
             url = url + "?" + params
 
         return url
@@ -345,6 +345,9 @@ class StaticRoute(Route):
     def format(self, **kw) -> str:
         if not self.defaults["fp"]:
             return super().format(**kw)
+
+        if "file" not in kw:
+            raise MissingRouteParameter("file", self.path)
 
         root = Path(self.defaults["root"])
         filename: str = kw["file"]

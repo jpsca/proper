@@ -1,9 +1,10 @@
 import os
 
-from proper import PROD, TEST, Config, env
+from proper import PROD, TEST, Config, get_env
 
 
 config = Config()
+env = get_env()
 
 config.DATABASES = {
     "main": {
@@ -14,7 +15,7 @@ config.DATABASES = {
 
 
 config.QUEUE = {
-    "type": "proper.queue.SqliteQueue",
+    "type": "huey.SqliteHuey",
     "database": "storage/queue.sqlite3",
 }
 config.QUEUE_CONSUMER = {
@@ -56,7 +57,9 @@ if env == TEST:
     }
 
     config.QUEUE = {
-        "type": "proper.queue.NoQueue",
+        "type": "huey.MemoryHuey",
+        "immediate": True,
+        "immediate_use_memory": True,
     }
 
     config.CACHE = {
@@ -79,7 +82,7 @@ if env == PROD:
     }
 
     config.QUEUE = {
-        "type": "proper.queue.PostgresQueue",
+        "type": "huey.contrib.sql_huey.SqlHuey",
         "database": os.getenv("DB_QUEUE_NAME", "[[app_name]]_queue"),
         "host": os.getenv("DB_QUEUE_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_QUEUE_PORT", 5432)),

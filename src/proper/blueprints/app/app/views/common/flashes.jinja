@@ -1,5 +1,5 @@
 {% for mtype, msg in request.flashes %}
-<ui:Alert var={{mtype}} dismissable>
-	<ui:AlertDescription>{{ msg | safe }}</ui:AlertDescription>
+<ui:Alert var={{mtype}} dismissible>
+	<ui:Alert.Description>{{ msg | safe }}</ui:Alert.Description>
 </ui:Alert>
 {%- endfor %}

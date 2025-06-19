@@ -1,11 +1,12 @@
 import os
 
-from proper import DEV, MB, PROD, TEST, Config, env
+from proper import DEV, MB, PROD, TEST, Config, get_env
 
 from . import session, storage
 
 
 config = Config()
+env = get_env()
 
 config.DEBUG = env == DEV
 

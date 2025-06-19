@@ -88,7 +88,9 @@ class Config(BaseConfig):
         },
     }
     QUEUE: dict[str, t.Any] = {
-        "type": "proper.queue.NoQueue",
+        "type": "heuey.MemoryHuey",
+        "immediate": True,
+        "immediate_use_memory": True,
     }
     QUEUE_CONSUMER: dict[str, t.Any] = {}
 

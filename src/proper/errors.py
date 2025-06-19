@@ -4,7 +4,6 @@ import itsdangerous
 
 from . import status
 from .mail.errors import *  # noqa
-from .queue.errors import *  # noqa
 
 
 class ConfigError(Exception):

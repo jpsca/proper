@@ -1,7 +1,8 @@
-from proper import HOURS, Config
+from proper import HOURS, Config, get_env
 
 
 config = Config()
+env = get_env()
 
 config.AUTH_HASH_NAME = "argon2"
 # `None` means using the default number for the hash".

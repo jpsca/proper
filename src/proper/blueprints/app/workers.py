@@ -1,3 +1,4 @@
+from huey.consumer import Consumer
 from app.main import app
 
 
@@ -9,7 +10,7 @@ def run_consumer(config):
     if app.queue is None:
         raise RuntimeError("Queue not initialized.")
     print("Starting background workers...")
-    consumer = app.queue.create_consumer(**config)
+    consumer = Consumer(app.queue, **options)
     consumer.run()
 
 

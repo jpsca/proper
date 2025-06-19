@@ -47,6 +47,7 @@ class MultiDict(MutableMapping):
         return self.data.keys()
 
     def items(self) -> ItemsView:
+        """Return a list of (key, values) pairs, where values is the list of all values associated with the key."""
         return self.data.items()
 
     def append(self, key: str, value: t.Any) -> None:

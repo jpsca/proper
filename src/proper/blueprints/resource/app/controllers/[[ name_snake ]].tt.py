@@ -12,29 +12,29 @@ class [[ name_pascal ]]Controller(AppController):
     [% if "index" in actions -%]
     def index(self):
         self.[[ name_snake ]] = [[ name_pascal ]].select()
-        return self.render("[[ name_pascal ]].Index")
+        return self.render("[[ name_pascal ]].index")
 [% endif %]
     [% if "show" in actions -%]
     def show(self):
         self.[[ load_method ]]()
-        return self.render("[[ name_pascal ]].Show")
+        return self.render("[[ name_pascal ]].show")
 [% endif %]
     [% if "new" in actions -%]
     def new(self):
         self.form = [[ form_class ]].as_form()
-        return self.render("[[ name_pascal ]].New")
+        return self.render("[[ name_pascal ]].new")
 [% endif %]
     [% if "edit" in actions -%]
     def edit(self):
         self.[[ load_method ]]()
         self.form = [[ form_class ]].as_form(object=[[ object ]])
-        return self.render("[[ name_pascal ]].Edit")
+        return self.render("[[ name_pascal ]].edit")
 [% endif %]
     [% if "create" in actions -%]
     def create(self):
         self.form = [[ form_class ]].as_form(self.params)
         if self.form.is_invalid:
-            return self.render("[[ name_pascal ]].New", status=unprocessable)
+            return self.render("[[ name_pascal ]].new", status=unprocessable)
 
         [[ name_snake ]] = self.form.save()
         [% if parent %]
@@ -52,7 +52,7 @@ class [[ name_pascal ]]Controller(AppController):
         self.[[ load_method ]]()
         self.form = [[ form_class ]].as_form(self.params, object=[[ object ]])
         if self.form.is_invalid:
-            return self.render("[[ name_pascal ]].Edit", status=unprocessable)
+            return self.render("[[ name_pascal ]].edit", status=unprocessable)
 
         [[ name_snake ]] = self.form.save()
         [[ name_snake ]].save()
@@ -101,9 +101,7 @@ class [[ name_pascal ]]Controller(AppController):
         [% else -%]
         [[ object_id ]] = self.params.get("pk")
 
-        [[ object ]] = [[ name_pascal ]].get_or_none(
-            [[ name_pascal ]].id == [[ object_id ]]
-        )
+        [[ object ]] = [[ name_pascal ]].get_or_none([[ object_id ]])
         [% endif -%]
         if not_found and not [[ object ]]:
             raise NotFound
