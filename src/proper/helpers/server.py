@@ -15,13 +15,15 @@ BANNER = """
 """
 
 WELCOME = """
- ┌─────────────────────────────────────────────────┐
- │   Running on:                                   │
- │   - Your machine:  {local}│
- │   - Your network:  {network}│
- │                                                 │
- │   Press `ctrl+c` to quit.                       │
- └─────────────────────────────────────────────────┘
+ ┌──────────────────────────{border}┐
+ │                          {space}│
+ │   Running on:            {space}│
+ │   - Your machine:  {local}   │
+ │   - Your network:  {network}   │
+ │                          {space}│
+ │   Press `ctrl+c` to quit.{space}│
+ │                          {space}│
+ └──────────────────────────{border}┘
 """
 
 EXAMPLE_COM_IP = "93.184.216.34"
@@ -41,10 +43,16 @@ def show_welcome(host: str = "0.0.0.0", port: str | int = 2300) -> None:
     - port [2300]
 
     """
-    local = "{:<29}".format(f"http://{host}:{port}")
-    network = "{:<29}".format(f"http://{_get_local_ip()}:{port}")
+    local_value = f"http://{host}:{port}"
+    network_value = f"http://{_get_local_ip()}:{port}"
+    size = max(len(local_value), len(network_value))
 
-    print(WELCOME.format(local=local, network=network))
+    local = f"{local_value}{' ' * (size - len(local_value))}"
+    network = f"{network_value}{' ' * (size - len(network_value))}"
+    border = "─" * (size - 3)
+    space = " " * (size - 3)
+
+    print(WELCOME.format(local=local, network=network, border=border, space=space))
 
 
 

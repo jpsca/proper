@@ -306,10 +306,19 @@ class App(AppTest):
         if config.get("type") == "huey.SqliteHuey":
             if "database" in config:
                 config["filename"] = config.pop("database")
+        elif config.get("type") == "huey.contrib.sql_huey.SqlHuey":
+            if "dbtype" in config:
+                config["database"] = get_instance(
+                    type=config.pop("dbtype"),
+                    database=config.pop("database", None),
+                    host=config.pop("host", None),
+                    port=config.pop("port", None),
+                    user=config.pop("user", None),
+                    password=config.pop("password", None),
+                )
+                self.db["proper_queue"] = config["database"]
 
         self.queue = get_instance(**config)
-        if db := getattr(self.queue, "database", getattr(self.queue, "db", None)):
-            self.db["proper_queue"] = db
 
     def _setup_cache(self) -> None:
         if not self.config.CACHE:
