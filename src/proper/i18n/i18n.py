@@ -19,20 +19,18 @@ TNumber = plural_rules.TNumber
 class I18n(BabelMixin):
     __slots__ = (
         "reader",
-        "translations",
+        "_translations",
         "_get_current_locale",
         "_get_current_timezone",
         "default_locale",
         "default_timezone"
     )
 
-    translations: dict[str, t.Any] | None
-
     def __init__(
         self,
         *paths: Path | str,
-        get_current_locale: t.Callable[[], str],
-        get_current_timezone: t.Callable[[], str | datetime.tzinfo],
+        get_current_locale: t.Callable[[], str | None],
+        get_current_timezone: t.Callable[[], str | datetime.tzinfo | None],
         default_locale: str = "en",
         default_timezone: str = "UTC",
     ):
@@ -53,7 +51,7 @@ class I18n(BabelMixin):
 
         """
         self.reader = Reader(*paths)
-        self.translations = None
+        self._translations = None
 
         self._get_current_locale = get_current_locale
         self._get_current_timezone = get_current_timezone
@@ -64,6 +62,15 @@ class I18n(BabelMixin):
         """Calling this instance is a shortcut to calling `self.translate`.
         """
         return self.translate(*args, **kwargs)
+
+    @property
+    def translations(self) -> dict[str, t.Any]:
+        return self._translations or {}
+
+    @translations.setter
+    def translations(self, value: dict[str, t.Any]) -> None:
+        """Set the translations directly, bypassing the reader."""
+        self._translations = value
 
     @property
     def paths(self) -> list[Path]:
@@ -102,11 +109,11 @@ class I18n(BabelMixin):
         """Find the best match between the locales available and the
         ones in the `accepted` list.
         """
-        if self.translations is None:
+        if self._translations is None:
             self._load_translations()
-            assert self.translations is not None
+            assert self._translations is not None
 
-        available = self.translations.keys()
+        available = self._translations.keys()
         for locale in accepted:
             if locale in available:
                 return locale
@@ -148,24 +155,24 @@ class I18n(BabelMixin):
 
         Examples:
 
-            >>>> translate('hello_world')
+            >> translate('hello_world')
             'hello {what}'
-            >>>> translate('hello_world', what='Susan')
+            >> translate('hello_world', what='Susan')
             'hello Susan'
-            >>>> translate('a_list', what='world')
+            >> translate('a_list', what='world')
             ['a', 'b', 'c']
-            >>>> translate({1: 'an apple', 'n': '{count} apples'}, count=1)
+            >> translate({1: 'an apple', 'n': '{count} apples'}, count=1)
             'an apple'
-            >>>> translate({1: 'an apple', 'n': '{count} apples'}, count=2)
+            >> translate({1: 'an apple', 'n': '{count} apples'}, count=2)
             '2 apples'
-            >>>> translate({1: 'an apple', 2: '{count} apples'}, count=42)
+            >> translate({1: 'an apple', 2: '{count} apples'}, count=42)
             ''
 
         """
-        if self.translations is None:
+        if self._translations is None:
             self._load_translations()
 
-        if not self.translations:
+        if not self._translations:
             # i18n support is not installed
             return key
 
@@ -200,12 +207,12 @@ class I18n(BabelMixin):
             keys for those locales as values.
 
         """
-        if self.translations is None:
+        if self._translations is None:
             self._load_translations()
-            assert self.translations is not None
+            assert self._translations is not None
 
         if not locales:
-            locales = self.translations.keys()
+            locales = self._translations.keys()
 
         locales = [format_locale(locale) for locale in locales]
 
@@ -229,7 +236,7 @@ class I18n(BabelMixin):
     # Private
 
     def _load_translations(self):
-        self.translations = self.reader.load()
+        self._translations = self.reader.load()
 
     def _key_lookup(self, locale: str, key: str) -> str | dict | None:
         """Return the value of the translation for the given key using the
@@ -261,16 +268,16 @@ class I18n(BabelMixin):
         Raises a `TranslationsNotFound` exception if there are no translations for
         the locale or for the general language.
         """
-        assert self.translations is not None
+        assert self._translations is not None
         trans = []
 
-        l_trans = self.translations.get(locale)
+        l_trans = self._translations.get(locale)
         if l_trans:
             trans.append(l_trans)
 
         if "_" in locale:
             language = get_language(locale)
-            g_trans = self.translations.get(language)
+            g_trans = self._translations.get(language)
             if g_trans:
                 trans.append(g_trans)
 
@@ -324,7 +331,7 @@ def flatten(dic):
 
     Example:
 
-    >>>> dic = {
+    >> dic = {
         'a': 1,
         'c': {
             'a': 2,
@@ -335,7 +342,7 @@ def flatten(dic):
         },
         'd': [1, 2, 3],
     }
-    >>>> flatten(dic)
+    >> flatten(dic)
     {'a': 1, 'c.a': 2, 'c.b.x': 5, 'c.b.y': 10, 'd': [1, 2, 3]}
 
     """

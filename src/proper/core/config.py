@@ -89,7 +89,7 @@ class Config(BaseConfig):
         },
     }
     QUEUE: dict[str, t.Any] = {
-        "type": "heuey.MemoryHuey",
+        "type": "huey.MemoryHuey",
         "immediate": True,
         "immediate_use_memory": True,
     }

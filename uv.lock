@@ -42,6 +42,15 @@ wheels = [
 ]
 
 [[package]]
+name = "babel"
+version = "2.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/6b/d52e42361e1aa00709585ecc30b3f9684b3ab62530771402248b1b1d6240/babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d", size = 9951852 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/b8/3fe70c75fe32afc4bb507f75563d39bc5642255d1d94f1f23604725780bf/babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2", size = 10182537 },
+]
+
+[[package]]
 name = "boto3"
 version = "1.35.97"
 source = { registry = "https://pypi.org/simple" }
@@ -595,6 +604,7 @@ name = "proper"
 version = "0.3"
 source = { editable = "." }
 dependencies = [
+    { name = "babel" },
     { name = "huey" },
     { name = "inflection" },
     { name = "isort" },
@@ -629,6 +639,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "babel", specifier = ">=2.17.0" },
     { name = "huey", specifier = "~=2.5.2" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },

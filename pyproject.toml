@@ -38,6 +38,7 @@ dependencies = [
     "traceback-with-variables ~= 2.0.4",
     "huey ~= 2.5.2",
     "types-peewee ~= 3.17.7.20241017",
+    "babel>=2.17.0",
 ]
 
 [project.urls]
