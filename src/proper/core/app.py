@@ -252,6 +252,11 @@ class App(AppTest):
             return None
         return current.request.locale
 
+    def get_current_timezone(self) -> str | None:
+        if not current.request:
+            return None
+        return current.request.timezone
+
     # Private
 
     def _setup_paths(self, import_name: str) -> None:
@@ -341,8 +346,10 @@ class App(AppTest):
 
         self.i18n = I18n(
             self.locales_path,
+            get_current_timezone=self.get_current_timezone,
             get_current_locale=self.get_current_locale,
             default_locale=self.config.LOCALE_DEFAULT,
+            default_timezone=self.config.TIMEZONE_DEFAULT,
         )
 
     def _setup_storage(self) -> None:
@@ -369,7 +376,21 @@ class App(AppTest):
         self.catalog.jinja_env.extend(app_cache=self.cache)
 
         if self.i18n:
-            self.catalog.jinja_env.globals["_"] = self.i18n.translate
+            self.catalog.jinja_env.globals["_"] = self.i18n
+            self.catalog.jinja_env.filters.update({
+                "format_datetime": self.i18n.format_datetime,
+                "format_date": self.i18n.format_date,
+                "format_time": self.i18n.format_time,
+                "format_timedelta": self.i18n.format_timedelta,
+                "format_skeleton": self.i18n.format_skeleton,
+                "format_list": self.i18n.format_list,
+                "format_decimal": self.i18n.format_decimal,
+                "format_compact_decimal": self.i18n.format_compact_decimal,
+                "format_currency": self.i18n.format_currency,
+                "format_compact_currency": self.i18n.format_compact_currency,
+                "format_percent": self.i18n.format_percent,
+                "format_scientific": self.i18n.format_scientific,
+            })
 
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback

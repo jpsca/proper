@@ -1,38 +1,29 @@
+import datetime
 import typing as t
 from pathlib import Path
 
+import babel.dates as babel_dates
 from markupsafe import Markup
 
 from proper.errors import TranslationsNotFound
 from proper.helpers import format_locale
 
 from . import plural_rules
+from .babel_mixin import BabelMixin
 from .reader import Reader
 
 
 TNumber = plural_rules.TNumber
 
 
-class I18n:
-    """Internationalization functions.
-
-    Arguments:
-
-    - *paths:
-        paths that will be searched for the translations.
-
-    - get_locale:
-        a callable that returns the current locale
-
-    - default_locale:
-        This value will be accepted without checking if it's available.
-
-    """
+class I18n(BabelMixin):
     __slots__ = (
         "reader",
-        "default_locale",
-        "get_current_locale",
         "translations",
+        "_get_current_locale",
+        "_get_current_timezone",
+        "default_locale",
+        "default_timezone"
     )
 
     translations: dict[str, t.Any] | None
@@ -40,18 +31,37 @@ class I18n:
     def __init__(
         self,
         *paths: Path | str,
-        get_current_locale: t.Callable,
+        get_current_locale: t.Callable[[], str],
+        get_current_timezone: t.Callable[[], str | datetime.tzinfo],
         default_locale: str = "en",
+        default_timezone: str = "UTC",
     ):
+        """Internationalization and localization functions.
+
+        Arguments:
+            *paths:
+                paths that will be searched for the translations.
+            get_current_locale:
+                a callable that returns the current locale.
+            get_current_timezone:
+                a callable that returns the current timezone.
+            default_locale:
+                Fallback locale if the current one is undefined or not available.
+                This value will be accepted without checking if it's available.
+            default_timezone:
+                Fallback timezone if the current one is undefined.
+
+        """
         self.reader = Reader(*paths)
-        self.default_locale = format_locale(default_locale)
-        self.get_current_locale = get_current_locale
         self.translations = None
+
+        self._get_current_locale = get_current_locale
+        self._get_current_timezone = get_current_timezone
+        self.default_locale = format_locale(default_locale)
+        self.default_timezone = babel_dates.get_timezone(default_timezone)
 
     def __call__(self, *args, **kwargs) -> t.Any:
         """Calling this instance is a shortcut to calling `self.translate`.
-        Useful when translating Sphinx documentation, that pickle the environment
-        (a method of an instance isn't pickable, but an instance of a class is).
         """
         return self.translate(*args, **kwargs)
 
@@ -80,6 +90,13 @@ class I18n:
                 return translate(*self.args, **self.kwargs)
 
         return LazyWrapper
+
+    def get_current_locale(self) -> str:
+        """Get the current locale from the request context."""
+        return self._get_current_locale() or self.default_locale
+
+    def get_current_timezone(self) -> str | datetime.tzinfo:
+        return self._get_current_timezone() or self.default_timezone
 
     def negotiate_locale(self, accepted: list[str]) -> str | None:
         """Find the best match between the locales available and the
@@ -117,35 +134,31 @@ class I18n:
         If the value isn't a dictionary or a string, is returned as is.
 
         Arguments:
-
-        - key:
-            The ID of the looked up translation
-
-        - count:
-            If the value is a dictionary, and `count` is defined,
-            uses the value whose key is that number. If that key doesn't exist,
-            a 'n' key is tried instead. If that doesn't exits either, an
-            empty string is returned.
-
-        - locale:
-            must be a :class:`babel.Locale` instance or a string.
-
-        - **kwargs:
-            Values for string interpolation of the translation.
+            key:
+                The ID of the looked up translation
+            count:
+                If the value is a dictionary, and `count` is defined,
+                uses the value whose key is that number. If that key doesn't exist,
+                a 'n' key is tried instead. If that doesn't exits either, an
+                empty string is returned.
+            locale:
+                must be a :class:`babel.Locale` instance or a string.
+            **kwargs:
+                Values for string interpolation of the translation.
 
         Examples:
 
-            >> translate('hello_world')
+            >>>> translate('hello_world')
             'hello {what}'
-            >> translate('hello_world', what='Susan')
+            >>>> translate('hello_world', what='Susan')
             'hello Susan'
-            >> translate('a_list', what='world')
+            >>>> translate('a_list', what='world')
             ['a', 'b', 'c']
-            >> translate({1: 'an apple', 'n': '{count} apples'}, count=1)
+            >>>> translate({1: 'an apple', 'n': '{count} apples'}, count=1)
             'an apple'
-            >> translate({1: 'an apple', 'n': '{count} apples'}, count=2)
+            >>>> translate({1: 'an apple', 'n': '{count} apples'}, count=2)
             '2 apples'
-            >> translate({1: 'an apple', 2: '{count} apples'}, count=42)
+            >>>> translate({1: 'an apple', 2: '{count} apples'}, count=42)
             ''
 
         """
@@ -156,8 +169,7 @@ class I18n:
             # i18n support is not installed
             return key
 
-        locale = locale or self.get_current_locale()
-        locale = format_locale(locale) if locale else self.default_locale
+        locale = format_locale(locale) if locale else self.get_current_locale()
 
         key = str(key)
         value = self._key_lookup(locale, key)
@@ -179,15 +191,13 @@ class I18n:
         the other.
 
         Arguments:
-
-        - locales:
-            Two or more locales as strings. If not provided, all
-            of the available locales are tested.
+            locales:
+                Two or more locales as strings. If not provided, all
+                of the available locales are tested.
 
         Return:
-
-        A dictionary with string locales as keys and sets of missing
-        keys for those locales as values.
+            A dictionary with string locales as keys and sets of missing
+            keys for those locales as values.
 
         """
         if self.translations is None:
@@ -314,7 +324,7 @@ def flatten(dic):
 
     Example:
 
-    >> dic = {
+    >>>> dic = {
         'a': 1,
         'c': {
             'a': 2,
@@ -325,7 +335,7 @@ def flatten(dic):
         },
         'd': [1, 2, 3],
     }
-    >> flatten(dic)
+    >>>> flatten(dic)
     {'a': 1, 'c.a': 2, 'c.b.x': 5, 'c.b.y': 10, 'd': [1, 2, 3]}
 
     """

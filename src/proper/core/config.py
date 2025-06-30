@@ -80,6 +80,7 @@ class Config(BaseConfig):
     SESSION_COOKIE_SAMESITE: t.Literal["Lax"] | t.Literal["Strict"] | None = "Lax"
 
     LOCALE_DEFAULT: str = "en"
+    TIMEZONE_DEFAULT: str = "UTC"
 
     DATABASES: dict[str, dict[str, t.Any]] = {
         "main": {

@@ -21,3 +21,14 @@ class SetLocale:
             # else, fallback to the default locale
             or app.config.LOCALE_DEFAULT
         )
+        co.request.tzinfo = (
+            # Always prefer the timezone from the URL
+            co.params.get("tzinfo")
+
+            # else, use the user-defined locale
+            # (delete or modify to fit your user model)
+            or co.request.user and getattr(co.request.user, "tzinfo", None)
+
+            # else, fallback to the default locale
+            or app.config.TIMEZONE_DEFAULT
+        )

@@ -23,12 +23,13 @@ APPLICATION_CONTROLLER = "controllers/app.py"
 CONCERNS = ["SetLocale"]
 
 DEPENDENCIES = [
+    "babel",
     "poyo",
 ]
 
 
 def install(app: "App") -> None:
-    """Install internationalization (i18n) support."""
+    """Install internationalization and localization support."""
     app.locales_path.mkdir(exist_ok=True)
     first_locale = app.config.LOCALE_DEFAULT or "en"
     first_yaml = f"{first_locale}.yml"
