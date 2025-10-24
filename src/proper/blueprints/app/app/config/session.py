@@ -1,14 +1,14 @@
-from proper import DAYS, PROD, Config, get_env
+import os
+
+from proper.units import DAYS
 
 
-config = Config()
-env = get_env()
+env = os.getenv("APP_ENV", "dev")
 
-# Number of seconds before a non-used session key expires.
-config.SESSION_LIFETIME = 30 * DAYS
-config.SESSION_COOKIE_NAME = "_session"
-config.SESSION_COOKIE_DOMAIN = None
-config.SESSION_COOKIE_PATH = "/"
-config.SESSION_COOKIE_HTTPONLY = True
-config.SESSION_COOKIE_SECURE = (env == PROD)
-config.SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_LIFETIME = 30 * DAYS  # Seconds to expire an unused session.
+SESSION_COOKIE_NAME = "_session"
+SESSION_COOKIE_DOMAIN = None
+SESSION_COOKIE_PATH = "/"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = (env == "prod")
+SESSION_COOKIE_SAMESITE = "Lax"

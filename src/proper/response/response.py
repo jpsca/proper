@@ -10,7 +10,7 @@ from urllib.parse import quote
 from wsgiref.types import StartResponse
 
 from proper import status as pstatus
-from proper.core.current import current
+from proper.core.global_context import g
 from proper.helpers import DotDict, tunnel_encode
 from proper.types import TBody, TIterable, TReadable
 
@@ -21,6 +21,7 @@ from .headers import ResponseHeadersMixin
 
 
 if t.TYPE_CHECKING:
+    from proper.core.app import App
     from proper.request import Request
 
 
@@ -42,12 +43,14 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     def __init__(
         self,
         status: str = pstatus.ok,
+        app: "App | None" = None,
         **environ: t.Any,
     ) -> None:
         self.status = status
         self.environ = environ
         self.session = DotDict()
         self.flash = FlashMessages(self)
+        self.app = app
         super().__init__()
 
     def __call__(self, start_response: StartResponse) -> TBody:
@@ -125,11 +128,11 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
                 Additional keyword arguments to pass to the route.
 
         """
-        assert current.app
         self.status = status
         to = url_or_route
         if not url_or_route.startswith(("/", "http")):
-            to = current.app.url_for(url_or_route, object=obj, **kw)
+            assert self.app
+            to = self.app.url_for(url_or_route, object=obj, **kw)
 
         self.set_location(to)
         self.body = "\n".join(
@@ -201,7 +204,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     def is_fresh(self, request: "Request | None" = None) -> bool:
         """Returns `True` if the response is fresh."""
-        request = current.request if request is None else request
+        request = g.request if request is None else request
         if request is None:
             return False
 
@@ -253,8 +256,8 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.set_last_modified(stat.st_mtime)
 
         if x_sendfile_header:
-            assert current.app
-            relpath = path.relative_to(current.app.root_path.parent)
+            assert self.app
+            relpath = path.relative_to(self.app.root_path.parent)
             self.headers[x_sendfile_header] = f"/{relpath}"
             self.set_content_length(0)
             self.body = ""

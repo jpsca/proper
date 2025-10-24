@@ -1,19 +1,16 @@
 .PHONY: install
 install:
 	uv sync --group dev --group test
-	uv run pre-commit install
+	pre-commit install
 
 .PHONY: test
 test:
 	pytest -x src/proper tests
 
-.PHONY: tests
-tests:
-	make test
-
 .PHONY: lint
 lint:
 	ruff check src/proper tests
+	ty check
 
 .PHONY: lintfix
 lintfix:
@@ -23,6 +20,14 @@ lintfix:
 coverage:
 	pytest --cov-config=pyproject.toml --cov-report html --cov proper src/proper tests
 
-.PHONY: types
-types:
-	pyright src/proper
+.PHONY: docs
+docs:
+	cd docs && python docs.py
+
+.PHONY: docs-build
+docs-build:
+	cd docs && python docs.py build
+
+.PHONY: docs-deploy
+docs-deploy:
+	cd docs && sh deploy.sh

@@ -1,0 +1,26 @@
+from proper.helpers.utils import get_instance
+
+
+NAME = "CACHE"
+DEFAULT_CONFIG = {
+    "type": "proper.cache.NoCache",
+}
+
+def setup(app):
+    config = app.config.get(NAME, DEFAULT_CONFIG)
+    validate_config(config)
+    app.config[NAME] = config
+
+    app.cache = get_instance(**config)
+    if db := getattr(app.cache, "database", None):
+        app.db["proper_cache"] = db
+
+
+def validate_config(config):
+    if not isinstance(config, dict):
+        raise ValueError(f"{NAME} config must be a dictionary")
+
+    if "type" not in config:
+        raise ValueError(f"{NAME} config must have a 'type' key")
+    if not isinstance(config["type"], (str | type)):
+        raise ValueError(f"{NAME}['type'] must be a string or a class")

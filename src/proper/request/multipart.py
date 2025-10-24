@@ -253,13 +253,11 @@ class MultipartParser(object):
         mem_used, disk_used = 0, 0  # Track used resources to prevent DoS
         is_tail = False  # True if the last line was incomplete (cutted)
 
-        opts = {
-            "buffer_size": self.buffer_size,
-            "memfile_limit": self.memfile_limit,
-            "encoding": self.encoding,
-        }
-
-        part = MultipartPart(**opts)
+        part = MultipartPart(
+            buffer_size=self.buffer_size,
+            memfile_limit=self.memfile_limit,
+            encoding=self.encoding,
+        )
 
         for line, nl in lines:
             if line == terminator and not is_tail:
@@ -278,7 +276,11 @@ class MultipartParser(object):
                     part.file.seek(0)
                 yield part
 
-                part = MultipartPart(**opts)
+                part = MultipartPart(
+                    buffer_size=self.buffer_size,
+                    memfile_limit=self.memfile_limit,
+                    encoding=self.encoding,
+                )
 
             else:
                 is_tail = not nl  # The next line continues this one
@@ -362,8 +364,9 @@ class MultipartPart(object):
 
         if self.size > self.memfile_limit and isinstance(self.file, BytesIO):
             # TODO: What about non-file uploads that exceed the memfile_limit?
-            self.file, old = TemporaryFile(mode="w+b"), self.file
+            self.file, old = TemporaryFile(mode="w+b"), self.file  # type: ignore
             old.seek(0)
+            assert self.file
             copy_file(old, self.file, self.size, self.buffer_size)
 
     def finish_header(self) -> None:

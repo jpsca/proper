@@ -1,12 +1,14 @@
+
 import typing as t
 from datetime import datetime
 
 from proper.types import TIterable
 
 
+T = t.TypeVar("T", bound="HasUpdatedAt")
+
 class HasUpdatedAt(t.Protocol):
     updated_at: datetime | None
-
 
 TObject = HasUpdatedAt
 TCollection = TIterable[TObject]
@@ -67,6 +69,7 @@ def key_for(
     if isinstance(key_context, TIterable):
         if isinstance(key_context, (dict, bytes, bytearray)):
             raise ValueError("key must be either  a string, an object or a collection")
+        key_context = t.cast(TCollection, key_context)
         return key_for_collection(prefix, key_context, version=version)
 
     return key_for_object(prefix, key_context, version=version)

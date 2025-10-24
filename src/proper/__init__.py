@@ -1,4 +1,5 @@
 from . import (
+    auth,  # noqa
     cache,  # noqa
     concerns,  # noqa
     constants,  # noqa
@@ -7,11 +8,11 @@ from . import (
     router,  # noqa
     status,  # noqa
     types,  # noqa
+    units,  # noqa
 )
 from .controller import *  # noqa
 from .core.app import *  # noqa
-from .core.config import *  # noqa
-from .core.current import current  # noqa
+from .core.global_context import g  # noqa
 from .helpers import *  # noqa
 from .request import *  # noqa
 from .response import *  # noqa

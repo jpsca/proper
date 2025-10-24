@@ -14,10 +14,10 @@ class BabelMixin:
     """Mixin class to provide Babel integration for l10n."""
 
     def get_current_locale(self) -> str:
-        ...
+        return "en"
 
     def get_current_timezone(self) -> str | datetime.tzinfo:
-        ...
+        return "UTC"
 
     def format_datetime(
         self,

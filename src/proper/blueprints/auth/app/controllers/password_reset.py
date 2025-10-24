@@ -3,7 +3,7 @@ from proper.status import unprocessable
 from app import tasks
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from app.forms.password_reset import PasswordChangeSchema, PasswordResetchema
+from app.forms.password_reset import PasswordChangeForm, PasswordResetForm
 from app.main import app, auth, config
 from app.models import User
 from app.router import auth_router
@@ -12,13 +12,13 @@ from app.router import auth_router
 @auth_router.resource("password-reset")
 class PasswordResetController(AppController):
     def new(self):
-        self.form = PasswordResetchema.as_form()
-        return self.render("password-reset.new")
+        self.form = PasswordResetForm()
+        return self.render("pages/password-reset/new.jinja")
 
     def create(self):
-        self.form = PasswordResetchema.as_form(self.params)
+        self.form = PasswordResetForm.as_form(self.params)
         if self.form.is_invalid:
-            return self.render("password-reset.new", status=unprocessable)
+            return self.render("pages/password-reset/new.jinja", status=unprocessable)
 
         login = self.form.save()["login"]
         user = User.get_by_login(login)
@@ -29,30 +29,30 @@ class PasswordResetController(AppController):
     @auth_router.get("password-reset/email")
     def email(self):
         self.email = self.response.session.get("email", "")
-        return self.render("password-reset.create")
+        return self.render("pages/password-reset/create.jinja")
 
     def edit(self):
         self.pk = self.params.get("pk")
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("password-reset.invalid", status=unprocessable)
+            return self.render("pages/password-reset/invalid.jinja", status=unprocessable)
 
         self.login = user.login
-        self.form = PasswordChangeSchema.as_form()
+        self.form = PasswordChangeForm()
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
-        return self.render("password-reset.edit")
+        return self.render("pages/password-reset/edit.jinja")
 
     def update(self):
         self.pk = self.params.get("pk")
         user = User.authenticate_timestamped_token(self.pk)
         if not user:
-            return self.render("password-reset.invalid", status=unprocessable)
+            return self.render("pages/password-reset/invalid.jinja", status=unprocessable)
 
-        self.form = PasswordChangeSchema.as_form(self.params)
+        self.form = PasswordChangeForm(self.params)
         if self.form.is_invalid:
             self.login = user.login
             self.password_minlen = config.AUTH_PASSWORD_MINLEN
-            return self.render("password-reset.edit", status=unprocessable)
+            return self.render("pages/password-reset/edit.jinja", status=unprocessable)
 
         new_password = self.form.save()["password1"]
         user.set_password(new_password)
@@ -72,7 +72,7 @@ def send_password_reset_email(user):
     validate_url = app.url_for("PasswordReset.edit", pk=token)
     reset_url = app.url_for("PasswordReset.new")
     html = app.catalog.render(
-        "email.password-reset",
+        "emails/password-reset.jinja",
         validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
         reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
     )

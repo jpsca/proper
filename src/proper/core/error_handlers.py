@@ -10,10 +10,11 @@ from typing import TYPE_CHECKING
 
 import inflection
 import traceback_with_variables as traceback2
+from hecto import JinjaRender
 from markupsafe import Markup
 
 from proper.constants import GET
-from proper.helpers import Render, logger
+from proper.helpers import logger
 
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 
 
 TEMPLATES = (Path(__file__).parent / "templates").absolute()
-jinja_render = Render(TEMPLATES)
+jinja_render = JinjaRender(TEMPLATES)
 
 
 def _include_raw(name):

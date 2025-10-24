@@ -1,6 +1,6 @@
 import typing as t
 from collections import namedtuple
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from hashlib import sha1
 
 from proper.errors import InvalidHeader
@@ -603,7 +603,7 @@ def format_datetime(dt: datetime | float | int | None) -> datetime | None:
         return None
 
     if isinstance(dt, (float, int)):
-        dt = datetime.utcfromtimestamp(dt)
+        dt = datetime.fromtimestamp(dt, timezone.utc)
 
     return dt
 

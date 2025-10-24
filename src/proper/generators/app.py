@@ -3,7 +3,7 @@ from pathlib import Path
 
 import inflection
 
-from ..helpers import BLUEPRINTS, BlueprintRender, call
+from ..helpers import BLUEPRINTS, call, render_blueprint
 
 
 APP_BLUEPRINT = BLUEPRINTS / "app"
@@ -45,14 +45,14 @@ def gen_app(
     path.mkdir(parents=True, exist_ok=False)
     app_name = inflection.underscore(name or str(path.stem))
 
-    BlueprintRender(
+    render_blueprint(
         APP_BLUEPRINT,
         path,
         context={
             "app_name": app_name,
         },
         force=force,
-    )()
+    )
     print()
 
     if not _is_a_test:

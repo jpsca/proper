@@ -1,10 +1,10 @@
 import typing as t
 
+from proper.helpers import BLUEPRINTS
 from proper.helpers.render import (
-    BLUEPRINTS,
-    BlueprintRender,
     add_dependencies,
     append_to_concerns,
+    render_blueprint,
     sort_imports_in,
 )
 
@@ -36,12 +36,11 @@ def install(app: "App") -> None:
     first_content = FIRST_YAML.format(locale=first_locale)
     (app.locales_path / first_yaml).write_text(first_content)
 
-    bp = BlueprintRender(
+    render_blueprint(
         I18N_BLUEPRINT,
         app.root_path.parent,
         context={},
     )
-    bp()
 
     appc = app.root_path / APPLICATION_CONTROLLER
     sort_imports_in(appc)

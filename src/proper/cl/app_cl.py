@@ -1,5 +1,3 @@
-import subprocess
-import sys
 import typing as t
 from functools import wraps
 
@@ -12,13 +10,6 @@ if t.TYPE_CHECKING:
     from proper.core.app import App
 
 
-def run(_self):
-    """Run the server with the `gunicorn.dev.py` config"""
-    cmd = ["gunicorn", "-c", "gunicorn.dev.py"]
-    with subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr):
-        pass
-
-
 def get_app_cl(app: "App") -> t.Type[Cli]:
     attrs: dict[str, t.Any] = {
         "__doc__": """
@@ -28,7 +19,6 @@ def get_app_cl(app: "App") -> t.Type[Cli]:
         just run `ipython` or the regular python interpreter and import
         the application, like a regular python package.
         """,
-        "run": run,
         "routes": get_routes_cmd(app),
         "db": get_db_cl(app),
         "g": get_generators_cl(app),

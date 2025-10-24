@@ -8,10 +8,8 @@ __all__ = ("DotDict",)
 class DotDict(dict):
     """A dict that:
 
-    1. Allows `obj.foo` in addition to `obj['foo']` and
-       `obj.foo.bar` in addition to `obj['foo']['bar']`.
-    2. Can normalize keys with the optional methods `_key_encode`.
-    3. Improved `update()` method for deep updating and key normalization.
+    - Allows `obj.foo` in addition to `obj['foo']`
+    - Improves `update()` method for deep updating.
     """
 
     def __init__(

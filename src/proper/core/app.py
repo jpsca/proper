@@ -3,20 +3,17 @@ import typing as t
 from importlib import import_module
 from pathlib import Path
 
-import jinjax
-from huey import Huey, MemoryHuey
+import jx
 from itsdangerous import (
     TimestampSigner,
     URLSafeTimedSerializer,
 )
 
 from proper import status
-from proper.cache import BaseCache, FragmentCacheExtension, NoCache
+from proper.cache import FragmentCacheExtension
 from proper.cl import get_app_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
-from proper.helpers import jsonplus
-from proper.helpers.utils import get_instance
-from proper.i18n import I18n
+from proper.helpers import DotDict, jsonplus
 from proper.request import Request
 from proper.response import Response
 from proper.router import Route, Router
@@ -29,10 +26,9 @@ from proper.types import (
     TWSGIEnvironment,
 )
 
-from . import pipeline
+from . import pipeline, tools
 from .app_test import AppTest
-from .config import Config, get_env
-from .current import current
+from .config import load_config
 from .error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -40,13 +36,17 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from .global_context import g
 
 
 if t.TYPE_CHECKING:
     import peewee as pw
+    from huey import Huey
     from proper_cli import Cli
 
-    from proper.mail import EmailMessage
+    from proper.cache import BaseCache
+    from proper.i18n import I18n
+    from proper.mail import EmailMessage, Mailer
 
 
 __all__ = ("App",)
@@ -83,14 +83,26 @@ class App(AppTest):
     storage_path: Path
 
     router: Router
-    config: Config
+    config: DotDict
     CL: "type[Cli]"
+    catalog: jx.Catalog
+
+    tools: tuple[t.Any, ...] = (
+        tools.db,  # must be first
+        tools.queue,
+        tools.cache,
+        tools.mailer,
+        tools.i18n,
+        tools.auth,
+        tools.storage,
+    )
+
     db: "dict[str, pw.Database]"
-    cache: BaseCache
-    queue: Huey
-    i18n: I18n | None
-    storage: Storage | None
-    catalog: jinjax.Catalog
+    queue: "Huey"
+    cache: "BaseCache"
+    mailer: "Mailer"
+    i18n: "I18n | None"
+    storage: "Storage | None"
 
     request_cls: t.Type[Request] = Request
     response_cls: t.Type[Response] = Response
@@ -98,20 +110,15 @@ class App(AppTest):
     def __init__(
         self,
         import_name: str,
-        config: t.Any = None,
+        config: dict[str, t.Any] | type | None = None,
     ) -> None:
+        self.config = load_config(config or {})
         self._setup_paths(import_name)
         self._setup_router()
-        self._setup_config(config or {})
         self._setup_serializer()
         self._setup_cli()
-        self._setup_databases()
-        self._setup_cache()
-        self._setup_queue()
-        self._setup_mailer()
-        self._setup_i18n()
-        self._setup_storage()
-        self._setup_render()
+        self._setup_tools()
+        self._setup_catalog()  # MUST be after tool setup
 
     def __call__(
         self,
@@ -130,8 +137,10 @@ class App(AppTest):
 
     @debug.setter
     def debug(self, value: bool) -> None:
+        value = bool(value)
         self.config.DEBUG = value
         self.router.debug = value
+        self.catalog.auto_reload = value
 
     def on_error(self, func: TEventHandler) -> TEventHandler:
         """Decorator to add a function that runs if a request
@@ -154,30 +163,31 @@ class App(AppTest):
         return current_response(start_response)
 
     def do_request(self, environ: TWSGIEnvironment) -> Response:
-        current.app = self
+        g.app = self
 
-        current.request = self.request_cls(
+        g.request = request = self.request_cls(
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
+            app=self,
             **environ,
         )
-        current.response = self.response_cls(**environ)
+        g.response = response = self.response_cls(app=self, **environ)
 
         try:
             self._dbs_connect()
-            self.run_pipeline(current.request, current.response)
+            self.run_pipeline(request, response)
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
             # - the custom error handlers,
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
-            current.response.error = error
+            response.error = error
             self._dbs_rollback()
-            self._default_error_handler(current.request, current.response)
+            self._default_error_handler(request, response)
         finally:
             self._dbs_close()
 
-        return current.response
+        return response
 
     def run_pipeline(self, request, response) -> None:
         try:
@@ -191,7 +201,7 @@ class App(AppTest):
             ):
                 early_response = func(self, request, response)
                 if early_response is not None:
-                    current.response = early_response
+                    g.response = early_response
                     return
 
         except Exception as error:
@@ -248,14 +258,14 @@ class App(AppTest):
         return self.mailer.send_emails(*messages)
 
     def get_current_locale(self) -> str | None:
-        if not current.request:
+        if not g.request:
             return None
-        return current.request.locale
+        return g.request.locale
 
     def get_current_timezone(self) -> str | None:
-        if not current.request:
+        if not g.request:
             return None
-        return current.request.timezone
+        return g.request.tzinfo
 
     # Private
 
@@ -276,13 +286,6 @@ class App(AppTest):
         self.locales_path = parent_path / "locales"
         self.storage_path = parent_path / "storage"
 
-    def _setup_config(self, user_config: t.Any) -> None:
-        self.env = get_env()
-        config = Config()
-        config.update(user_config)
-        config.validate()
-        self.config = config
-
     def _setup_router(self) -> None:
         self.router = Router()
 
@@ -292,92 +295,21 @@ class App(AppTest):
     def _setup_cli(self) -> None:
         self.CL = get_app_cl(self)
 
-    def _setup_databases(self) -> None:
-        self.db = {}
-        if not self.config.DATABASES:
-            return
+    def _setup_tools(self) -> None:
+        for tool_module in self.tools:
+            tool_module.setup(self)
 
-        for name, config in self.config.DATABASES.items():
-            if config is None:
-                continue
-            self.db[name] = get_instance(**config)
-
-    def _setup_queue(self) -> None:
-        if not self.config.QUEUE:
-            self.queue = MemoryHuey(inmediate=True, immediate_use_memory=True)
-            return
-
-        config = self.config.QUEUE.copy()
-        if config.get("type") == "huey.SqliteHuey":
-            if "database" in config:
-                config["filename"] = config.pop("database")
-        elif config.get("type") == "huey.contrib.sql_huey.SqlHuey":
-            if "dbtype" in config:
-                config["database"] = get_instance(
-                    type=config.pop("dbtype"),
-                    database=config.pop("database", None),
-                    host=config.pop("host", None),
-                    port=config.pop("port", None),
-                    user=config.pop("user", None),
-                    password=config.pop("password", None),
-                )
-                self.db["proper_queue"] = config["database"]
-
-        self.queue = get_instance(**config)
-
-    def _setup_cache(self) -> None:
-        if not self.config.CACHE:
-            self.cache = NoCache()
-            return
-        self.cache = get_instance(**self.config.CACHE)
-        if db := getattr(self.cache, "database", None):
-            self.db["proper_cache"] = db
-
-    def _setup_mailer(self) -> None:
-        if not self.config.MAILER:
-            return
-        self.mailer = get_instance(**self.config.MAILER)
-
-    def _setup_i18n(self) -> None:
-        self.i18n = None
-
-        if not self.locales_path.is_dir():
-            return
-
-        self.i18n = I18n(
-            self.locales_path,
-            get_current_timezone=self.get_current_timezone,
-            get_current_locale=self.get_current_locale,
-            default_locale=self.config.LOCALE_DEFAULT,
-            default_timezone=self.config.TIMEZONE_DEFAULT,
-        )
-
-    def _setup_storage(self) -> None:
-        if self.config.STORAGE is None:
-            self.storage = None
-            return
-        assert self.config.STORAGE_SERVICES
-        self.storage = Storage(self)
-
-    def _setup_render(self) -> None:
-        self.catalog = jinjax.Catalog(
-            root_url=self.config.VIEWS_ASSETS_URL,
-            globals={
-                "url_for": self.url_for,
-                "url_is": self.url_is,
-                "url_startswith": self.url_startswith,
-            },
-            extensions=[
-                FragmentCacheExtension,
-            ],
-            fingerprint=True,
-        )
-        self.catalog.add_folder(self.views_path)
-        self.catalog.jinja_env.extend(app_cache=self.cache)
+    def _setup_catalog(self):
+        jglobals: dict[str, t.Any] = {
+            "url_for": self.url_for,
+            "url_is": self.url_is,
+            "url_startswith": self.url_startswith,
+        }
+        jfilters = {}
 
         if self.i18n:
-            self.catalog.jinja_env.globals["_"] = self.i18n
-            self.catalog.jinja_env.filters.update({
+            jglobals["_"] = self.i18n
+            jfilters.update({
                 "format_datetime": self.i18n.format_datetime,
                 "format_date": self.i18n.format_date,
                 "format_time": self.i18n.format_time,
@@ -391,6 +323,18 @@ class App(AppTest):
                 "format_percent": self.i18n.format_percent,
                 "format_scientific": self.i18n.format_scientific,
             })
+
+        self.catalog = jx.Catalog(
+            self.views_path,
+            auto_reload=self.config.DEBUG,
+            filters=jfilters,
+            extensions=[
+                FragmentCacheExtension,
+            ],
+            **jglobals,
+        )
+        self.catalog.jinja_env.extend(app_cache=self.cache)
+
 
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback

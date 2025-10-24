@@ -6,7 +6,7 @@ from pathlib import Path
 
 from proper import status
 from proper.controller import Controller
-from proper.core.current import current
+from proper.core.global_context import g
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from proper.types import TException, THandler, TIterable
 
@@ -176,8 +176,8 @@ class BaseRouter:
         **kw,
     ) -> bool:
         control = self.url_for(name, object, **kw)
-        if not curr_url and current.request:
-            curr_url = current.request.path
+        if not curr_url and g.request:
+            curr_url = g.request.path
         return curr_url.rstrip("/") == control.rstrip("/")
 
     def url_startswith(
@@ -189,8 +189,8 @@ class BaseRouter:
         **kw,
     ) -> bool:
         control = self.url_for(name, object, **kw)
-        if not curr_url and current.request:
-            curr_url = current.request.path
+        if not curr_url and g.request:
+            curr_url = g.request.path
         curr_url = curr_url.rstrip("/")
 
         if curr_url == control:

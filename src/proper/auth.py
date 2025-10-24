@@ -1,17 +1,17 @@
 import hmac
-import logging
 import typing as t
 from time import time
 
 import passlib.hash
 from passlib.context import CryptContext
 from passlib.utils import saslprep
+
 from proper.errors import WrongHashAlgorithm
+from proper.helpers import logger
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")
 
-logger = logging.getLogger()
 
 DEFAULT_HASHER = "pbkdf2_sha512"
 
@@ -114,7 +114,7 @@ class Auth:
         default_rounds = getattr(hasher, "default_rounds", 1)
         min_rounds = getattr(hasher, "min_rounds", 1)
         max_rounds = getattr(hasher, "max_rounds", float("inf"))
-        rounds = min(max(rounds or default_rounds, min_rounds), max_rounds)
+        rounds = int(min(max(rounds or default_rounds, min_rounds), max_rounds))
 
         op = {
             "schemes": VALID_HASHERS,

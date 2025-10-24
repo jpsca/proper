@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 import inflection
-from jinjax.utils import kebab_case
 
-from proper.helpers.render import BLUEPRINTS, BlueprintRender, call
+from proper.helpers import BLUEPRINTS
+from proper.helpers.render import call, render_blueprint
 from proper.router import (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -135,7 +135,6 @@ def gen_resource(
     """
     name_pascal = inflection.camelize(name)
     name_snake = inflection.underscore(name)
-    name_kebab = kebab_case(name)
     plural_snake = inflection.pluralize(name_snake)
 
     only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
@@ -155,7 +154,7 @@ def gen_resource(
     ignored_views = []
     for action in ignored_actions:
         ignored_views.append(
-            f"*{kebab_case(action)}.tt.jinja",
+            f"*{action}.tt.jinja",
         )
 
     attrs_tuples = gen_model(
@@ -180,7 +179,6 @@ def gen_resource(
         "app_name": app.root_path.name,
         "name_pascal": name_pascal,
         "name_snake": name_snake,
-        "name_kebab": name_kebab,
         "plural_snake": plural_snake,
         "only": only_list,
         "exclude": exclude_list,
@@ -203,13 +201,12 @@ def gen_resource(
             "parent_id": f"{parent_name_snake}_id",
         })
 
-    bp = BlueprintRender(
+    render_blueprint(
         RESOURCE_BLUEPRINT,
         app.root_path.parent,
         context=context,
         ignore=ignored_views,
     )
-    bp()
 
     if migration:
         call(f'proper db create "{name_snake}"')

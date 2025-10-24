@@ -2,7 +2,7 @@ from proper.status import unprocessable
 
 from app.controllers.app import AppController
 from app.controllers.concerns.require_login import REDIRECT_AFTER_LOGIN_KEY
-from app.forms.session import SignInSchema
+from app.forms.session import SignInForm
 from app.models import User
 from app.router import auth_router
 
@@ -12,14 +12,14 @@ class SessionController(AppController):
     def new(self):
         if self.request.user:
             return self._go_forward()
-        self.form = SignInSchema.as_form()
-        return self.render("session.new")
+        self.form = SignInForm()
+        return self.render("pages/session/new.jinja")
 
     @auth_router.post("sign-in")
     def create(self):
-        self.form = form = SignInSchema.as_form(self.params)
+        self.form = form = SignInForm(self.params)
         if form.is_invalid:
-            return self.render("session.new", status=unprocessable)
+            return self.render("pages/session/new.jinja", status=unprocessable)
 
         login = form.save()["login"]
         user = User.get_by_login(login)

@@ -2,7 +2,8 @@ import typing as t
 
 import inflection
 
-from ..helpers.render import BLUEPRINTS, BlueprintRender, call, sort_imports_in
+from ..helpers import BLUEPRINTS
+from ..helpers.render import call, render_blueprint, sort_imports_in
 
 
 if t.TYPE_CHECKING:
@@ -103,7 +104,7 @@ backref
     attrs_tuples = [_split_attr(attr) for attr in attrs]
     rows = _build_rows(attrs_tuples)
 
-    bp = BlueprintRender(
+    render_blueprint(
         MODEL_BLUEPRINT,
         app.root_path.parent,
         context={
@@ -113,7 +114,6 @@ backref
             "rows": rows or ["name = pw.CharField()"],
         },
     )
-    bp()
 
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)

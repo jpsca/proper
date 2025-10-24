@@ -1,10 +1,10 @@
 import typing as t
 
+from proper.helpers import BLUEPRINTS
 from proper.helpers.render import (
-    BLUEPRINTS,
-    BlueprintRender,
     add_dependencies,
     call,
+    render_blueprint,
     sort_imports_in,
 )
 
@@ -26,12 +26,11 @@ DEPENDENCIES = [
 
 def install(app: "App") -> None:
     """Install storage support."""
-    bp = BlueprintRender(
+    render_blueprint(
         STORAGE_BLUEPRINT,
         app.root_path.parent,
         context={},
     )
-    bp()
 
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)

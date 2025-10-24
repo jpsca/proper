@@ -4,7 +4,6 @@ from io import BytesIO
 import itsdangerous
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
-from proper.core.current import current
 from proper.errors import BadSignature
 from proper.helpers import DotDict, MultiDict, Undefined, split_locale
 from proper.router import Route
@@ -12,6 +11,10 @@ from proper.router import Route
 from .headers import RequestHeadersMixin
 from .make_env import make_test_env
 from .parse_form import parse_form, parse_query_string
+
+
+if t.TYPE_CHECKING:
+    from proper.core.app import App
 
 
 __all__ = ("Request", )
@@ -182,6 +185,7 @@ class Request(RequestHeadersMixin):
     user: t.Any = None
     session: DotDict
     locale: str | None = None
+    tzinfo: str | None = None
 
     # Cache attrs
     _form: MultiDict | None = None
@@ -193,12 +197,14 @@ class Request(RequestHeadersMixin):
         encoding: str = "utf8",
         max_content_length: int = -1,
         max_query_size: int | None = None,
+        app: "App | None" = None,
         **env,
     ) -> None:
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
         self.session = DotDict()
+        self.app = app
 
         env = env or make_test_env()
         super().__init__(env)
@@ -312,8 +318,8 @@ class Request(RequestHeadersMixin):
         $ request.get_signed_cookie("name", False, max_age=60)
         False
     """
-        assert current.app
-        serializer = current.app.get_serializer(salt)
+        assert self.app
+        serializer = self.app.get_serializer(salt)
         cookie = self.cookies.get(name)
         if cookie is None:
             if default is not Undefined:

@@ -5,7 +5,7 @@ import warnings
 from email.utils import formatdate
 from http.cookies import Morsel
 
-from proper.core.current import current
+from proper.core.global_context import g
 from proper.helpers import tunnel_encode
 
 
@@ -111,8 +111,8 @@ class ResponseCookiesMixin:
         cookie = self.cookies[name] = Morsel()
 
         if signed:
-            assert current.app
-            serializer = current.app.get_serializer(salt)
+            assert g.app
+            serializer = g.app.get_serializer(salt)
             value = serializer.dumps(value)
         else:
             if not isinstance(value, (str, bytes)):

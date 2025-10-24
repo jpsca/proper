@@ -11,30 +11,30 @@ from app.router import router
 class [[ name_pascal ]]Controller(AppController):
     [% if "index" in actions -%]
     def index(self):
-        self.[[ name_snake ]] = [[ name_pascal ]].select()
-        return self.render("[[ name_pascal ]].index")
+        self.[[ name_snake ]] = [[ name_pascal ]]/select()
+        return self.render("pages/[[ name_snake ]]/index.jinja")
 [% endif %]
     [% if "show" in actions -%]
     def show(self):
         self.[[ load_method ]]()
-        return self.render("[[ name_pascal ]].show")
+        return self.render("pages/[[ name_snake ]]/show.jinja")
 [% endif %]
     [% if "new" in actions -%]
     def new(self):
         self.form = [[ form_class ]].as_form()
-        return self.render("[[ name_pascal ]].new")
+        return self.render("pages/[[ name_snake ]]/new.jinja")
 [% endif %]
     [% if "edit" in actions -%]
     def edit(self):
         self.[[ load_method ]]()
         self.form = [[ form_class ]].as_form(object=[[ object ]])
-        return self.render("[[ name_pascal ]].edit")
+        return self.render("pages/[[ name_snake ]]/edit.jinja")
 [% endif %]
     [% if "create" in actions -%]
     def create(self):
         self.form = [[ form_class ]].as_form(self.params)
         if self.form.is_invalid:
-            return self.render("[[ name_pascal ]].new", status=unprocessable)
+            return self.render("pages/[[ name_snake ]]/new.jinja", status=unprocessable)
 
         [[ name_snake ]] = self.form.save()
         [% if parent %]
@@ -52,7 +52,7 @@ class [[ name_pascal ]]Controller(AppController):
         self.[[ load_method ]]()
         self.form = [[ form_class ]].as_form(self.params, object=[[ object ]])
         if self.form.is_invalid:
-            return self.render("[[ name_pascal ]].edit", status=unprocessable)
+            return self.render("pages/[[ name_snake ]]/edit.jinja", status=unprocessable)
 
         [[ name_snake ]] = self.form.save()
         [[ name_snake ]].save()
@@ -90,18 +90,18 @@ class [[ name_pascal ]]Controller(AppController):
     -%]
     def [[ load_method ]](self, not_found=True):
         [% if singular -%]
-        [[ object ]] = [[ name_pascal ]].get_or_none()
+        [[ object ]] = [[ name_pascal ]]/get_or_none()
         [% elif parent -%]
         [[ object_id ]] = self.params.get("pk")
 
-        [[ object ]] = [[ name_pascal ]].get_or_none(
-            ([[ name_pascal ]].[[ parent_id ]] == [[ parent ]].id) &
-            ([[ name_pascal ]].id == [[ object_id ]])
+        [[ object ]] = [[ name_pascal ]]/get_or_none(
+            ([[ name_pascal ]]/[[ parent_id ]] == [[ parent ]].id) &
+            ([[ name_pascal ]]/id == [[ object_id ]])
         )
         [% else -%]
         [[ object_id ]] = self.params.get("pk")
 
-        [[ object ]] = [[ name_pascal ]].get_or_none([[ object_id ]])
+        [[ object ]] = [[ name_pascal ]]/get_or_none([[ object_id ]])
         [% endif -%]
         if not_found and not [[ object ]]:
             raise NotFound

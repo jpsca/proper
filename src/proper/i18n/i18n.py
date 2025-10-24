@@ -1,5 +1,6 @@
 import datetime
 import typing as t
+from collections.abc import Callable
 from pathlib import Path
 
 import babel.dates as babel_dates
@@ -26,11 +27,13 @@ class I18n(BabelMixin):
         "default_timezone"
     )
 
+    _translations: dict[str, t.Any] | None
+
     def __init__(
         self,
         *paths: Path | str,
-        get_current_locale: t.Callable[[], str | None],
-        get_current_timezone: t.Callable[[], str | datetime.tzinfo | None],
+        get_current_locale: Callable[[], str | None],
+        get_current_timezone: Callable[[], str | datetime.tzinfo | None],
         default_locale: str = "en",
         default_timezone: str = "UTC",
     ):
@@ -65,6 +68,8 @@ class I18n(BabelMixin):
 
     @property
     def translations(self) -> dict[str, t.Any]:
+        if self._translations is None:
+            self._translations = self.reader.load()
         return self._translations or {}
 
     @translations.setter
@@ -109,11 +114,7 @@ class I18n(BabelMixin):
         """Find the best match between the locales available and the
         ones in the `accepted` list.
         """
-        if self._translations is None:
-            self._load_translations()
-            assert self._translations is not None
-
-        available = self._translations.keys()
+        available = self.translations.keys()
         for locale in accepted:
             if locale in available:
                 return locale
@@ -169,10 +170,7 @@ class I18n(BabelMixin):
             ''
 
         """
-        if self._translations is None:
-            self._load_translations()
-
-        if not self._translations:
+        if not self.translations:
             # i18n support is not installed
             return key
 
@@ -207,12 +205,8 @@ class I18n(BabelMixin):
             keys for those locales as values.
 
         """
-        if self._translations is None:
-            self._load_translations()
-            assert self._translations is not None
-
         if not locales:
-            locales = self._translations.keys()
+            locales = self.translations.keys()
 
         locales = [format_locale(locale) for locale in locales]
 
@@ -234,9 +228,6 @@ class I18n(BabelMixin):
         return missing_keys
 
     # Private
-
-    def _load_translations(self):
-        self._translations = self.reader.load()
 
     def _key_lookup(self, locale: str, key: str) -> str | dict | None:
         """Return the value of the translation for the given key using the

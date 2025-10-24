@@ -1,12 +1,10 @@
 import os
+import typing as t
 
-from proper import PROD, TEST, Config, get_env
 
+env = os.getenv("APP_ENV", "dev")
 
-config = Config()
-env = get_env()
-
-config.DATABASES = {
+DATABASES: dict[str, t.Any] = {
     "main": {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
         "database": "storage/app.sqlite3",
@@ -14,11 +12,11 @@ config.DATABASES = {
 }
 
 
-config.QUEUE = {
+QUEUE = {
     "type": "huey.SqliteHuey",
     "database": "storage/queue.sqlite3",
 }
-config.QUEUE_CONSUMER = {
+QUEUE_CONSUMER = {
     # Number of worker to spawn.
     "workers": 1,
     # Enable periodic task scheduler?
@@ -43,33 +41,33 @@ config.QUEUE_CONSUMER = {
     "extra_locks": "",
 }
 
-config.CACHE = {
+CACHE = {
     "type": "proper.cache.SqliteCache",
     "database": ":memory:",
 }
 
 
 # --- Override config for testing ---
-if env == TEST:
-    config.DATABASES["main"] = {
+if env == "test":
+    DATABASES["main"] = {
         "type": "playhouse.sqlite_ext.SqliteExtDatabase",
         "database": ":memory:",
     }
 
-    config.QUEUE = {
+    QUEUE = {
         "type": "huey.MemoryHuey",
         "immediate": True,
         "immediate_use_memory": True,
     }
 
-    config.CACHE = {
+    CACHE = {
         "type": "proper.cache.NoCache",
     }
 
 
 # --- Override config for production ---
-if env == PROD:
-    config.DATABASES["main"] = {
+if env == "prod":
+    DATABASES["main"] = {
         "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
         "database": os.getenv("DB_NAME", "[[app_name]]"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
@@ -81,7 +79,7 @@ if env == PROD:
         "autoconnect": False,
     }
 
-    config.QUEUE = {
+    QUEUE = {
         "type": "huey.contrib.sql_huey.SqlHuey",
         "database": os.getenv("DB_QUEUE_NAME", "[[app_name]]_queue"),
         "host": os.getenv("DB_QUEUE_HOST", "127.0.0.1"),
@@ -93,7 +91,7 @@ if env == PROD:
         "autoconnect": False,
     }
 
-    config.CACHE = {
+    CACHE = {
         "type": "proper.cache.SqliteCache",
         "database": "storage/cache.sqlite3",
     }

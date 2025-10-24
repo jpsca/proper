@@ -40,6 +40,8 @@ __all__ = (
     "ImportStringError",
     "import_string",
     "find_modules",
+    "get_instance",
+    "get_class",
 )
 
 RX_FILENAME_ASCII_STRIP = re.compile(r"[^A-Za-z0-9_.-]")
@@ -244,13 +246,13 @@ def find_modules(
 
 def get_instance(**config):
     cls_name = config.pop("type")
+    Class = get_class(cls_name)
+    return Class(**config)
+
+
+def get_class(cls_name: str | type):
     if isinstance(cls_name, str):
         mod_name, cls_name = cls_name.rsplit(".", 1)
         mod = import_module(mod_name)
-        Class = getattr(mod, cls_name)
-    elif isinstance(cls_name, type):
-        Class = cls_name
-    else:
-        raise TypeError("`type` must be a string or a class.")
-
-    return Class(**config)
+        return getattr(mod, cls_name)
+    return cls_name

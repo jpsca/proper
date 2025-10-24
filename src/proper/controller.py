@@ -178,7 +178,7 @@ class StaticFilesController(Controller):
                 "must-revalidate",
             )
 
-        # Eensures that things still work as expected when
+        # Ensures that things still work as expected when
         # your static files are served from a CDN, rather than
         # your primary domain.
         self.response.headers.set("Access-Control-Allow-Origin", "*")
