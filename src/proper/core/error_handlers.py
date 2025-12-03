@@ -47,9 +47,8 @@ def debug_not_found_handler(app, request, response) -> None:
         return render_default_index(request, response)
 
     error = response.error
-    config_dict = app.config.to_dict()
     data = {
-        "config": redact_sensible_info(config_dict),
+        "config": redact_sensible_info(app.config),
         "response": response,
         "title": get_title(error),
         "description": str(error),
@@ -95,9 +94,8 @@ def debug_error_handler(app, request, response) -> None:
     error = response.error
     logger.exception(error)
     excp = traceback2.format_exc()
-    config_dict = app.config.to_dict()
     data = {
-        "config": redact_sensible_info(config_dict),
+        "config": redact_sensible_info(app.config),
         "response": response,
         "title": get_title(error),
         "description": str(error),

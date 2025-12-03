@@ -3,7 +3,6 @@ import typing as t
 
 if t.TYPE_CHECKING:
     from proper import Request, Response
-
     from ..app import App
 
 

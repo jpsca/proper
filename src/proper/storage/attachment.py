@@ -11,7 +11,6 @@ from proper.helpers import JSONField
 
 if t.TYPE_CHECKING:
     from proper.types import TIterable, TUpload
-
     from .storage import Storage
 
 

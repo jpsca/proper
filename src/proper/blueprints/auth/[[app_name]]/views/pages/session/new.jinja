@@ -1,0 +1,33 @@
+{#def form #}
+{#import "layouts/auth.jinja" as Layout #}
+{#import "form.jinja" as Form #}
+
+<Layout title="Sign in" data_turbo="false">
+  <Form class="auth-panel" action={{ url_for('Session.new') }}>
+    <div class="auth-header">
+      <h2 class="auth-title">Sign in</h2>
+      <p class="auth-text">Enter your email and password below to sign in to your&nbsp;account.</p>
+    </div>
+
+    <div class="auth-field">
+      {{ form.login.label("Email") }}
+      {{ form.login.text_input(placeholder="Email", tabindex="1") }}
+      {{ form.login.error_tag() }}
+    </div>
+
+    <div class="auth-field">
+      {{ form.password.label("Password") }}
+      {{ form.password.password_input(placeholder="Password", tabindex="2") }}
+      {{ form.password.error_tag() }}
+    </div>
+
+    <div class="auth-footer">
+      <button type="submit" class="btn btn--primary btn--block btn--large"
+      >Sign in</button>
+    </div>
+  </Form>
+
+  <div class="auth-back">
+    <a class="link" href="{{ url_for('PasswordReset.new') }}" tabindex="4">Forgot your password?</a>
+  </div>
+</Layout>

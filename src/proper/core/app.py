@@ -11,7 +11,7 @@ from itsdangerous import (
 
 from proper import status
 from proper.cache import FragmentCacheExtension
-from proper.cl import get_app_cl
+from proper.cl.app_cl import get_cl
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import DotDict, jsonplus
 from proper.request import Request
@@ -25,7 +25,6 @@ from proper.types import (
     TStartResponse,
     TWSGIEnvironment,
 )
-
 from . import pipeline, tools
 from .app_test import AppTest
 from .config import load_config
@@ -104,8 +103,8 @@ class App(AppTest):
     i18n: "I18n | None"
     storage: "Storage | None"
 
-    request_cls: t.Type[Request] = Request
-    response_cls: t.Type[Response] = Response
+    request_cls: type[Request] = Request
+    response_cls: type[Response] = Response
 
     def __init__(
         self,
@@ -293,7 +292,7 @@ class App(AppTest):
         self.serializer = self.get_serializer("proper.session")
 
     def _setup_cli(self) -> None:
-        self.CL = get_app_cl(self)
+        self.CL = get_cl(self)
 
     def _setup_tools(self) -> None:
         for tool_module in self.tools:
@@ -326,15 +325,14 @@ class App(AppTest):
 
         self.catalog = jx.Catalog(
             self.views_path,
-            auto_reload=self.config.DEBUG,
-            filters=jfilters,
             extensions=[
                 FragmentCacheExtension,
             ],
+            filters=jfilters,
+            auto_reload=self.config.DEBUG,
             **jglobals,
         )
         self.catalog.jinja_env.extend(app_cache=self.cache)
-
 
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback

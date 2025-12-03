@@ -14,7 +14,7 @@ TReadable = t.IO[t.Any]
 
 TBody = bytes | bytearray | memoryview | TIterable[bytes]
 
-TException = t.Type[BaseException]
+TException = type[BaseException]
 THandler = t.Callable[[t.Any], t.Any]
 TEventHandler = t.Callable[[], t.Any]
 TEventHandlers = tuple[TEventHandler, ...]
@@ -40,7 +40,7 @@ TPwJournalMode = (
     | t.Literal["off"]
 )
 
-TUpload = t.Type["MultipartPart | t.BinaryIO"]
+TUpload = type["MultipartPart | t.BinaryIO"]
 
 
 class TAttachment:

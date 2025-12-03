@@ -29,7 +29,7 @@ def install(app: "App") -> None:
     render_blueprint(
         STORAGE_BLUEPRINT,
         app.root_path.parent,
-        context={},
+        context={"app_name": app.name},
     )
 
     for filename in SORT_IMPORTS_IN:

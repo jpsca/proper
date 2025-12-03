@@ -1,9 +1,0 @@
-{#def form #}
-
-{% if form.errors -%}
-<div class="form-errors">
-{% for error in form.errors -%}
-  <p>{{ error.msg }}</p>
-{% endfor -%}
-</div>
-{%- endif %}

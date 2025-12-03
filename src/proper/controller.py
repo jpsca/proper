@@ -7,6 +7,8 @@ import typing as t
 from inspect import isclass
 from pathlib import Path
 
+import inflection
+
 from .errors import NotFound
 from .helpers import MultiDict, jsonplus
 from .status import not_modified
@@ -104,7 +106,6 @@ class Controller:
                 return early_response
 
     def _call(self, action_name: str) -> None:
-        # We call the endpoint but we do not expect a result value.
         # All the side effects of this call should be stored in the same
         # view and in `resp`.
         method = getattr(self, action_name)
@@ -117,6 +118,13 @@ class Controller:
 
         if ret_value is not None:
             self.response.body = ret_value
+            return
+
+        if not self.response.body:
+            cls_name = inflection.underscore(self.__class__.__name__.removesuffix("Controller"))
+            infered_view = f"pages/{cls_name}/{action_name}.jinja"
+            self.response.body = self.render(infered_view)
+            return
 
 
 RX_FINGERPRINT = re.compile("(.*)-([abcdef0-9]{64})")
@@ -154,7 +162,6 @@ class StaticFilesController(Controller):
 
         last_modified = self.response.last_modified
         if_modified_since = self.request.if_modified_since
-
         if last_modified and if_modified_since and last_modified <= if_modified_since:
             self.response.status = not_modified
         else:

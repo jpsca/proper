@@ -5,8 +5,6 @@ from datetime import datetime
 from proper.types import TIterable
 
 
-T = t.TypeVar("T", bound="HasUpdatedAt")
-
 class HasUpdatedAt(t.Protocol):
     updated_at: datetime | None
 

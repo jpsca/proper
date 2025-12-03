@@ -68,7 +68,7 @@ def get_db_cl(app):
             elif CACHE == db:
                 models = getattr(app.cache, "models", None)
             else:
-                models = import_module("app.models")
+                models = import_module(f"{app.name}.models")
 
             if not models:
                 print("No models found.")

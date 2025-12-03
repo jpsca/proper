@@ -28,15 +28,14 @@ def gen_model(
     """Stubs a new model based on [Peewee ORM](https://docs.peewee-orm.com)
 
     Arguments:
+        name:
+            The PascalCased model name, always singular.
 
-    - name:
-        The PascalCased model name, always singular.
+        migration [False]:
+            Generate a migration for creating the table.
 
-    - migration [False]:
-        Generate a migration for creating the table.
-
-    - attrs:
-        Optional list of columns for the model schema.
+        attrs:
+            Optional list of columns for the model schema.
 
     You don't have to think up every attribute upfront, but it helps to
     sketch out a few so you can start working with the model immediately.
@@ -87,16 +86,22 @@ def gen_model(
 
     Use `fk-MODEL` for adding a foreign key.
 
-    ## Examples:
+    ## Example:
 
-        `proper g model Tweet body:text created_at:datetime user:fk-User,backref:"tweets"`
-backref
-        import peewee as pw
+    ```
+    proper g model Tweet body:text created_at:datetime user:fk-User,backref:tweets
+    ```
 
-        class Tweet(BaseModel):
-            body = pw.TextField()
-            created_at = pw.DateTimeField()
-            user = pw.ForeignKeyField(User, backref="tweets").
+    Will generate a model like this:
+
+    ```python
+    import peewee as pw
+
+    class Tweet(BaseModel):
+        body = pw.TextField()
+        created_at = pw.DateTimeField()
+        user = pw.ForeignKeyField(User, backref="tweets").
+    ```
 
     """
     __name_pascal = __name_pascal or inflection.camelize(name)
@@ -108,7 +113,7 @@ backref
         MODEL_BLUEPRINT,
         app.root_path.parent,
         context={
-            "app_name": app.root_path.name,
+            "app_name": app.name,
             "name_snake": __name_snake,
             "name_pascal": __name_pascal,
             "rows": rows or ["name = pw.CharField()"],
@@ -142,6 +147,11 @@ def _build_option(option: str) -> str:
     value = value.rstrip(":") or "True"
     if value.lower() == "false":
         value = "False"
+    if key == "backref":
+        if value.startswith("'") and value.endswith("'"):
+            value = f'"{value[1:-1]}"'
+        else:
+            value = f'"{value}"'
     return f"{key}={value}"
 
 

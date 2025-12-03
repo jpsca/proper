@@ -1,0 +1,41 @@
+{#def form, pk, login, password_minlen #}
+{#import "layouts/auth.jinja" as Layout #}
+{#import "form.jinja" as Form #}
+
+<Layout title="Change your password" data_turbo="false">
+  <Form
+    class="auth-panel"
+    action={{ url_for('PasswordReset.update', pk=pk) }}
+    method="patch"
+  >
+    <div class="auth-header">
+      <h2 class="auth-title">Change your password</h2>
+      <p class="auth-text">
+        Your email is “<strong><em>{{ login }}</em></strong>”.
+      </p>
+    </div>
+
+    <div class="auth-field">
+      {{ form.password1.label("Password") }}
+      {{ form.password1.password_input(placeholder="New password", tabindex="1") }}
+      <div class="auth-help">
+        Make sure your new password it's at least {{ password_minlen }} characters long.
+      </div>
+      {{ form.password1.error_tag() }}
+    </div>
+
+    <div class="auth-field">
+      {{ form.password2.label("Confirm password") }}
+      {{ form.password2.password_input(placeholder="Confirm your new password", tabindex="2") }}
+      <div class="auth-help">
+        Repeat your new password.
+      </div>
+      {{ form.password2.error_tag() }}
+    </div>
+
+    <div class="auth-footer">
+      <button type="submit" class="btn btn--primary btn--block btn--large"
+      >Save my password</button>
+    </div>
+  </Form>
+</Layout>

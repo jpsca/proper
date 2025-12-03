@@ -5,10 +5,11 @@ from datetime import datetime
 from functools import cached_property
 from http.cookies import Morsel, SimpleCookie
 
+from dateutil.parser import parse as dtparse
+
 from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
 from proper.errors import InvalidHeader
-from proper.helpers import format_locale, parse_http_date, tunnel_decode
-
+from proper.helpers import format_locale, tunnel_decode
 from .forwarded import parse_forwarded
 
 
@@ -221,7 +222,7 @@ class RequestHeadersMixin:
 
         """
         val = self.env.get("date")
-        return parse_http_date(val)
+        return dtparse(val) if val else None
 
     @property
     def default_port(self) -> int:
@@ -311,7 +312,7 @@ class RequestHeadersMixin:
 
         """
         val = self.env.get("if_modified_since")
-        return parse_http_date(val)
+        return dtparse(val) if val else None
 
     @property
     def is_delete(self) -> bool:

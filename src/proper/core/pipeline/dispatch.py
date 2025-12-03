@@ -11,7 +11,7 @@ if t.TYPE_CHECKING:
 
 
 __all__ = ("dispatch",)
-TController = t.Type[Controller]
+TController = type[Controller]
 
 
 def dispatch(app: "App", request: "Request", response: "Response") -> "Response | None":

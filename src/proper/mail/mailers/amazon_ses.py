@@ -2,7 +2,6 @@
 Mailer for Amazon Simple Email Server (SES) v1 & v2.
 """
 from proper.helpers import logger
-
 from ..message import EmailMessage
 from .base import BaseMailer
 

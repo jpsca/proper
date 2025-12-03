@@ -8,7 +8,6 @@ from markupsafe import Markup
 
 from proper.errors import TranslationsNotFound
 from proper.helpers import format_locale
-
 from . import plural_rules
 from .babel_mixin import BabelMixin
 from .reader import Reader

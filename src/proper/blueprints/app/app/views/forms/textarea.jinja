@@ -1,8 +1,0 @@
-{#def field #}
-
-{% do attrs.set(name=field.name) %}
-{% if field.error %}
-  {% do attrs.set(invalid=field.error.msg) %}
-{% endif %}
-
-<ui:Textarea __attrs={{attrs}}>{{ field.value }}</ui:Textarea>

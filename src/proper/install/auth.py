@@ -17,12 +17,12 @@ AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 
 SORT_IMPORTS_IN = [
     "main.py",
-    "controllers/app.py",
-    "config/__init__.py",
+    "controllers/base.py",
     "cl/__init__.py",
 ]
 
 DEPENDENCIES = [
+    "passlib",
     "argon2-cffi",
     "confusable-homoglyphs",
 ]
@@ -34,7 +34,7 @@ def install(app: "App") -> None:
     render_blueprint(
         AUTH_BLUEPRINT,
         app.root_path.parent,
-        context={},
+        context={"app_name": app.name},
     )
 
     for filename in SORT_IMPORTS_IN:

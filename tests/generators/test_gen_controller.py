@@ -13,7 +13,7 @@ def test_gen_resource(app, scaffold):
 
     product_text = (app_root / "controllers" / "product.py").read_text()
     print(product_text)
-    assert """@router.resource("product")\nclass ProductController(AppController):""" in product_text
+    assert """@router.resource("product")\nclass ProductController(BaseController):""" in product_text
     assert "def index(self):" in product_text
     assert "def new(self):" in product_text
     assert "def create(self):" in product_text
@@ -50,7 +50,7 @@ def test_gen_resource_singular(app, scaffold):
     module.call.assert_not_called()
 
     product_text = (app_root / "controllers" / "profile.py").read_text()
-    assert "class ProfileController(AppController):" in product_text
+    assert "class ProfileController(BaseController):" in product_text
     assert "def index(self):" not in product_text
     assert "def new(self):" in product_text
     assert "def create(self):" in product_text

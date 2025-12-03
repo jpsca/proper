@@ -1,6 +1,6 @@
 import typing as t
 
-from proper.errors import BadSecretKey
+from proper.errors import BadSecretKey, ConfigError
 from proper.helpers import DotDict
 from proper.units import DAYS, MB
 
@@ -24,15 +24,17 @@ default_config = {
     "MAX_CONTENT_LENGTH": 8 * MB,
 
     # Limits the content length (in bytes) of the query string.
-    # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
+    # Raises a `RequestEntityTooLarge` or an `UriTooLong` if this value is exceeded.
     "MAX_QUERY_SIZE": 1 * MB,
 
     "STATIC_URL": "/static/",
     "VIEWS_ASSETS_URL": "/static_v/",
 
-    # The name of the header to use to `return a file
+    # The name of the header to use to return a file
     # so the proxy or web-server does it instead of our application.
-    # Lighttpd uses "X-Sendfile" while `NGINX uses "X-Accel-Redirect""",
+    # NGINX and Caddy uses "X-Accel-Redirect",
+    # Apache and Lighttpd uses "X-Sendfile".
+    # Leave empty to disable.
     "STATIC_X_SENDFILE_HEADER": "",
 
     # Number of seconds before a non-used session key expires.
@@ -42,13 +44,18 @@ default_config = {
     "SESSION_COOKIE_PATH": "/",
     "SESSION_COOKIE_HTTPONLY": True,
     # Modern browsers place restriction on cookies without the "same-site" cookie attribute set.
-    # To that end this attribute is set to `"Lax"` by default.
+    # To that end this attribute is set to "Lax" by default.
     "SESSION_COOKIE_SAMESITE": "Lax",  # Lax | Strict | None
 }
 
 
 def normalize_config(config: DotDict) -> DotDict:
     MIN_SECRET_LENGTH = 48
+    if not config.SECRET_KEYS:
+        raise ConfigError(
+            "SECRET_KEYS list is empty. Please provide at least one secret key."
+        )
+
     for key in config.SECRET_KEYS:
         if len(key) < MIN_SECRET_LENGTH:
             raise BadSecretKey(
@@ -60,7 +67,7 @@ def normalize_config(config: DotDict) -> DotDict:
             )
 
     if config.SESSION_COOKIE_SAMESITE not in ("Lax", "Strict", "None"):
-        raise ValueError(
+        raise ConfigError(
             "SESSION_COOKIE_SAMESITE must be one of: 'Lax', 'Strict', or 'None'."
         )
 

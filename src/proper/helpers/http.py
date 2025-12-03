@@ -2,7 +2,6 @@ from datetime import datetime
 
 
 __all__ = (
-    "parse_http_date",
     "format_http_date",
     "format_locale",
     "split_locale",
@@ -15,18 +14,6 @@ MONTHS = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ]
-
-
-def parse_http_date(value: str | None) -> datetime | None:
-    """Parse a datetime from a header. Ignores obsoletes formats."""
-    if value is None:
-        return None
-
-    sdate = value.split(",", 1)[-1].strip()
-    try:
-        return datetime.strptime(sdate, "%d %b %Y %H:%M:%S %Z")
-    except Exception:
-        return None
 
 
 def format_http_date(dt: datetime) -> str:

@@ -1,3 +1,4 @@
+from proper.errors import ConfigError
 from proper.storage import Storage
 
 
@@ -45,4 +46,4 @@ def setup(app):
 
 def validate_config(config):
     if not isinstance(config.get("STORAGE_SERVICES"), dict):
-        raise ValueError("STORAGE_SERVICES config must be a dictionary")
+        raise ConfigError("STORAGE_SERVICES config must be a dictionary")

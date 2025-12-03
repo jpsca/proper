@@ -1,3 +1,4 @@
+from proper.errors import ConfigError
 from proper.helpers import get_class
 from proper.units import HOURS
 
@@ -32,22 +33,22 @@ def setup(app):
 
 def validate_config(config):
     if not isinstance(config.AUTH_CLASS, (str, type)):
-        raise ValueError("'AUTH_CLASS' must be a string or a class")
+        raise ConfigError("'AUTH_CLASS' must be a string or a class")
 
     if config.AUTH_HASH_NAME is not None and not isinstance(config.AUTH_HASH_NAME, str):
-        raise ValueError("'AUTH_HASH_NAME' must be a string or None")
+        raise ConfigError("'AUTH_HASH_NAME' must be a string or None")
 
     if (
         config.AUTH_ROUNDS is not None
         and (not isinstance(config.AUTH_ROUNDS, int) or config.AUTH_ROUNDS < 1)
     ):
-        raise ValueError("'AUTH_ROUNDS' must be a positive integer or None")
+        raise ConfigError("'AUTH_ROUNDS' must be a positive integer or None")
 
     if not isinstance(config.AUTH_PASSWORD_MINLEN, int) or config.AUTH_PASSWORD_MINLEN < 1:
-        raise ValueError("'AUTH_PASSWORD_MINLEN' must be a positive integer")
+        raise ConfigError("'AUTH_PASSWORD_MINLEN' must be a positive integer")
 
     if not isinstance(config.AUTH_PASSWORD_MAXLEN, int) or config.AUTH_PASSWORD_MAXLEN < 1:
-        raise ValueError("'AUTH_PASSWORD_MAXLEN' must be a positive integer")
+        raise ConfigError("'AUTH_PASSWORD_MAXLEN' must be a positive integer")
 
     if not isinstance(config.AUTH_TOKEN_LIFE, int) or config.AUTH_TOKEN_LIFE < 1:
-        raise ValueError("'AUTH_TOKEN_LIFE' must be a positive integer")
+        raise ConfigError("'AUTH_TOKEN_LIFE' must be a positive integer")

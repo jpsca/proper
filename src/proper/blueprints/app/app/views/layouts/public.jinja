@@ -1,9 +1,0 @@
-{#def title='' #}
-
-{% do attrs.set(title=title, class="public")%}
-
-<Layout.App __attrs={{attrs}}>
-  <Common.PublicNav />
-  <Common.Flashes />
-  {{ content }}
-</Layout.App>

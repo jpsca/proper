@@ -1,3 +1,4 @@
+from proper.errors import ConfigError
 from proper.helpers.utils import get_instance
 
 
@@ -26,23 +27,23 @@ def setup(app):
 
 def validate_config(config):
     if not isinstance(config, dict):
-        raise ValueError(f"{NAME} config must be a dictionary")
+        raise ConfigError(f"{NAME} config must be a dictionary")
 
     for name, db_config in config.items():
         if not db_config:
             continue
         if not isinstance(db_config, dict):
-            raise ValueError(
+            raise ConfigError(
                 f"{NAME}['{name}'] config must be a dictionary or None"
             )
 
         if "type" not in db_config:
-            raise ValueError(f"{NAME}['{name}'] config must have a 'type' key")
+            raise ConfigError(f"{NAME}['{name}'] config must have a 'type' key")
         if not isinstance(db_config["type"], (str | type)):
-            raise ValueError(f"{NAME}['{name}']['type'] must be a string or a class")
+            raise ConfigError(f"{NAME}['{name}']['type'] must be a string or a class")
 
         if "database" not in db_config:
-            raise ValueError(f"{NAME}['{name}'] config must have a 'database' key")
+            raise ConfigError(f"{NAME}['{name}'] config must have a 'database' key")
 
         if not isinstance(db_config["database"], str):
-            raise ValueError(f"{NAME}['{name}']['database'] must be a string")
+            raise ConfigError(f"{NAME}['{name}']['database'] must be a string")

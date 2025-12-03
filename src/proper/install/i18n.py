@@ -19,7 +19,11 @@ FIRST_YAML = """
 
 """
 I18N_BLUEPRINT = BLUEPRINTS / "i18n"
-APPLICATION_CONTROLLER = "controllers/app.py"
+
+SORT_IMPORTS_IN = [
+    "controllers/base.py",
+]
+
 CONCERNS = ["SetLocale"]
 
 DEPENDENCIES = [
@@ -31,7 +35,7 @@ DEPENDENCIES = [
 def install(app: "App") -> None:
     """Install internationalization and localization support."""
     app.locales_path.mkdir(exist_ok=True)
-    first_locale = app.config.LOCALE_DEFAULT or "en"
+    first_locale = app.config.get("LOCALE_DEFAULT", "en")
     first_yaml = f"{first_locale}.yml"
     first_content = FIRST_YAML.format(locale=first_locale)
     (app.locales_path / first_yaml).write_text(first_content)
@@ -39,10 +43,13 @@ def install(app: "App") -> None:
     render_blueprint(
         I18N_BLUEPRINT,
         app.root_path.parent,
-        context={},
+        context={"app_name": app.name},
     )
 
-    appc = app.root_path / APPLICATION_CONTROLLER
-    sort_imports_in(appc)
+    for filename in SORT_IMPORTS_IN:
+        sort_imports_in(app.root_path / filename)
+
+    appc = app.root_path / "controllers/base.py"
     append_to_concerns(appc, CONCERNS)
+
     add_dependencies(app.root_path, DEPENDENCIES)

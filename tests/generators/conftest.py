@@ -12,7 +12,7 @@ class PagesController(Controller):
         pass
 """
 
-SCAFF_ROUTES = """
+SCAF_ROUTES = """
 routes = [
     get("", to=PagesController.index),
 ]
@@ -27,5 +27,5 @@ def scaffold(tmp_path):
     (app_root / "views").mkdir(parents=True, exist_ok=True)
     (app_root / "controllers" / "__init__.py").touch()
     (app_root / "controllers" / "pages.py").write_text(SCAF_VIEW)
-    (app_root / "routes.py").write_text(SCAFF_ROUTES)
+    (app_root / "routes.py").write_text(SCAF_ROUTES)
     return app_root

@@ -7,7 +7,6 @@ from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
 from proper.errors import BadSignature
 from proper.helpers import DotDict, MultiDict, Undefined, split_locale
 from proper.router import Route
-
 from .headers import RequestHeadersMixin
 from .make_env import make_test_env
 from .parse_form import parse_form, parse_query_string

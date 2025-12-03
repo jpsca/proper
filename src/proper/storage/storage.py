@@ -3,7 +3,6 @@ import typing as t
 import itsdangerous
 
 from proper.errors import BadSignature
-
 from .attachment import get_attachment_mixin
 from .services import Service
 

@@ -1,0 +1,14 @@
+{#def form #}
+{#import "layouts/app.jinja" as Layout #}
+{#import "./form.jinja" as Form #}
+
+<Layout
+	title="New [[ name_snake ]]"
+>
+	<Form
+		action={{ url_for('[[ name_pascal ]].create') }}
+		form={{ form }}
+	>
+		<button type="submit">Create [[ name_snake ]]</button>
+	</Form>
+</Layout>

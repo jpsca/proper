@@ -266,14 +266,14 @@ wheels = [
 
 [[package]]
 name = "hecto"
-version = "2.0.1"
+version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/18/0e/035340c471120bb3375d9dea4549e3944d3f4ce962637ebc3d551ef911b6/hecto-2.0.1.tar.gz", hash = "sha256:8a0f17fd60af786f768070ba0a431493c5870c36a2f252ce77a04537717c67c2", size = 9837 }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/47/3dc6e185e29e2b2fa9e1400016856a90661652c64cb66360485b62a55bec/hecto-2.0.3.tar.gz", hash = "sha256:5667e552d4e6f9298432856b560bdff1b13671ab1921ee5d5b7515380c10dca6", size = 9809 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/42/274a87c90bd25587daeeaf6d321386b4eb00af7db76a49cc289c390fd809/hecto-2.0.1-py3-none-any.whl", hash = "sha256:9a4e5c69b2e393d0b1cc9f38ad9dbe1838ae3c387173672629d70437c5c9f364", size = 8437 },
+    { url = "https://files.pythonhosted.org/packages/40/e0/451ee169fe045b2ddb345d742dc211fcc7ea4671798c7d22fbd19e804eac/hecto-2.0.3-py3-none-any.whl", hash = "sha256:a97a1d60c52730dcb54a585508e70165154d2df9d61af1cefc19113be1d8a326", size = 8433 },
 ]
 
 [[package]]
@@ -537,15 +537,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pkgconfig"
-version = "1.5.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c4/e0/e05fee8b5425db6f83237128742e7e5ef26219b687ab8f0d41ed0422125e/pkgconfig-1.5.5.tar.gz", hash = "sha256:deb4163ef11f75b520d822d9505c1f462761b4309b1bb713d08689759ea8b899", size = 6082 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/af/89487c7bbf433f4079044f3dc32f9a9f887597fe04614a37a292e373e16b/pkgconfig-1.5.5-py3-none-any.whl", hash = "sha256:d20023bbeb42ee6d428a0fac6e0904631f545985a10cdd71a20aa58bc47a4209", size = 6732 },
-]
-
-[[package]]
 name = "platformdirs"
 version = "4.3.6"
 source = { registry = "https://pypi.org/simple" }
@@ -612,27 +603,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/6a/fd08d94654f7e67c52ca30523a178b3f8ccc4237fce4be90d39c938a831a/prompt_toolkit-3.0.48-py3-none-any.whl", hash = "sha256:f49a827f90062e411f1ce1f854f2aedb3c23353244f8108b89283587397ac10e", size = 386595 },
 ]
 
-[[package]]
-name = "proper"
-version = "0.3"
-source = { editable = "." }
-dependencies = [
-    { name = "babel" },
-    { name = "hecto" },
-    { name = "huey" },
-    { name = "inflection" },
-    { name = "isort" },
-    { name = "itsdangerous" },
-    { name = "jx" },
-    { name = "markupsafe" },
-    { name = "passlib" },
-    { name = "peewee" },
-    { name = "peewee-migrate" },
-    { name = "proper-cli" },
-    { name = "traceback-with-variables" },
-    { name = "types-peewee" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "ipdb" },
@@ -654,7 +624,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "babel", specifier = ">=2.17.0" },
-    { name = "hecto", specifier = ">=2.0.1" },
+    { name = "hecto", specifier = ">=2.0.3" },
     { name = "huey", specifier = "~=2.5.2" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },
@@ -665,6 +635,7 @@ requires-dist = [
     { name = "peewee", specifier = "~=3.15" },
     { name = "peewee-migrate", specifier = ">=1.12.1,<2" },
     { name = "proper-cli", specifier = "~=1.2" },
+    { name = "python-dateutil", specifier = "~=2.9.0" },
     { name = "traceback-with-variables", specifier = "~=2.0.4" },
     { name = "types-peewee", specifier = "~=3.17.7.20241017" },
 ]
@@ -818,7 +789,6 @@ version = "2.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
-    { name = "pkgconfig" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7b/88/f73dae807ec68b228fba72507105e3ba80a561dc0bade0004ce24fd118fc/pyvips-2.2.3.tar.gz", hash = "sha256:43bceced0db492654c93008246a58a508e0373ae1621116b87b322f2ac72212f", size = 56626 }
 

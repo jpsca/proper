@@ -16,8 +16,6 @@ classifiers = [
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -25,29 +23,27 @@ classifiers = [
 ]
 requires-python = ">=3.12,<4"
 dependencies = [
+    "babel >= 2.17.0",
+    "hecto >= 2.0.3",
+    "huey ~= 2.5.2",
     "inflection >= 0.5.1",
     "isort ~= 5.0",
     "itsdangerous ~= 1.1",
+    "jx >= 0.5.1",
     "markupsafe >= 2.0",
     "passlib ~= 1.7",
     "peewee ~= 3.15",
     "peewee-migrate >=1.12.1,< 2",
     "proper-cli ~= 1.2",
+    "python-dateutil ~= 2.9.0",
     "traceback-with-variables ~= 2.0.4",
-    "huey ~= 2.5.2",
     "types-peewee ~= 3.17.7.20241017",
-    "babel>=2.17.0",
-    "hecto>=2.0.1",
-    "jx>=0.2.0",
 ]
 
 [project.urls]
 homepage = "https://proper.scaletti.dev/"
 repository = "https://github.com/jpsca/proper"
 documentation = "https://proper.scaletti.dev/"
-
-[project.scripts]
-proper = "proper.cl:run"
 
 
 [dependency-groups]
@@ -75,9 +71,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 proper = [
-    "blueprints/**/*",
-    "blueprints/**/.*",
-    "core/templates/**/*",
+    "blueprints",
+    "core/templates",
 ]
 [tool.setuptools.exclude-package-data]
 "*" = [
@@ -220,6 +215,7 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["proper"]
 known-local-folder = ["src/proper"]
-
+no-lines-before = ["local-folder"]
+relative-imports-order = "furthest-to-closest"
 # Use two line after imports.
 lines-after-imports = 2

@@ -9,7 +9,6 @@ from proper.controller import Controller
 from proper.core.global_context import g
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from proper.types import TException, THandler, TIterable
-
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
 from .route import Route, StaticRoute
 
@@ -859,7 +858,7 @@ class BaseRouter:
         path = path.strip("/")
         valid_routes = SINGLE_ROUTES if singular else GROUP_ROUTES
 
-        def class_decorator(Controller: t.Type[Controller]) -> t.Type[Controller]:
+        def class_decorator(Controller: type[Controller]) -> type[Controller]:
             c_name = Controller.__name__.removesuffix("Controller")
 
             for http_method, action_path, action in valid_routes:

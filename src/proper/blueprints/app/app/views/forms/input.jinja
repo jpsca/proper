@@ -1,8 +1,0 @@
-{#def field #}
-
-{% do attrs.set(name=field.name, value=field.value) %}
-{% if field.error %}
-  {% do attrs.set(invalid=field.error.msg) %}
-{% endif %}
-
-<ui:Input __attrs={{attrs}} />

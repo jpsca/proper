@@ -14,7 +14,6 @@ from proper.router import (
     ACTION_SHOW,
     ACTION_UPDATE,
 )
-
 from .model import gen_model
 
 
@@ -24,18 +23,17 @@ if TYPE_CHECKING:
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
 FORM_FIELDS = {
-    "bigint": "int",
-    "blob": "bytes",
-    "bool": "bool",
-    "date": "date",
-    "datetime": "datetime",
-    "decimal": "float",
-    "float": "float",
-    "int": "int",
-    "str": "str",
-    "text": "str",
-    "time": "time",
-    "uuid": "str",
+    "bigint": "IntegerField",
+    "bool": "BooleanField",
+    "date": "DateField",
+    "datetime": "DateTimeField",
+    "decimal": "FloatField",
+    "float": "FloatField",
+    "int": "IntegerField",
+    "str": "TextField",
+    "text": "TextField",
+    "time": "TimeField",
+    "uuid": "TextField",
 }
 
 ACTIONS = (
@@ -70,53 +68,52 @@ def gen_resource(
             [--only=action[,action]] [--exclude=action[,action]] [--singular]
 
     Arguments:
+        name:
+            The PascalCased resource name.
 
-    - name:
-        The PascalCased resource name.
+        attrs:
+            Optional list of `field:type` columns for the model schema.
+            Run `proper g model --help` for more information.
 
-    - attrs:
-        Optional list of `field:type` columns for the model schema.
-        Run `proper g model --help` for more information.
+        singular [False]:
+            Whether the resource represents a single entity for the user (like "profile").
 
-    - singular [False]:
-        Whether the resource represents a single entity for the user (like "profile").
+        only:
+            Optional comma-separated list of actions to include,
+            instead of the full set.
 
-    - only:
-        Optional comma-separated list of actions to include,
-        instead of the full set.
+        exclude:
+            Optional comma-separated list of actions to exclude
+            from the full set.
 
-    - exclude:
-        Optional comma-separated list of actions to exclude
-        from the full set.
+        restore [False]:
+            Whether to include a `RESTORE` action in the default list of actions.
 
-    - restore [False]:
-        Whether to include a `RESTORE` action in the default list of actions.
+        migration [False]:
+            Generate a migration for creating the table.
 
-    - migration [False]:
-        Generate a migration for creating the table.
+        parent:
+            Optional PascalCased name of the "parent" resource.
+            This will change how the routes and the views are generated.
+            For example:
 
-    - parent:
-        Optional PascalCased name of the "parent" resource.
-        This will change how the routes and the views are generated.
-        For example:
+                proper g resource List
 
-            proper g resource List
+            will generate routes like:
 
-        will generate routes like:
+                /list/
+                /list/123
+                ...
 
-            /list/
-            /list/123
-            ...
+            but:
 
-        but:
+                proper g resource Item --parent List
 
-            proper g resource Item --parent List
+            will generate routes "mounted" on a List resource like:
 
-        will generate routes "mounted" on a List resource like:
-
-            /list/123/items
-            /list/123/items/456
-            ...
+                /list/123/items
+                /list/123/items/456
+                ...
 
     By default, it generates the full set of REST actions ("index", "new", "create",
     "show", "edit", "update", and "delete"). You can opt for a subset of these
@@ -167,7 +164,7 @@ def gen_resource(
     )
     form_fields = [
         {
-            "type": FORM_FIELDS[ftype],
+            "type": FORM_FIELDS.get(ftype) or "TextField",
             "name": name,
             "default": None,
         }
@@ -176,7 +173,7 @@ def gen_resource(
     ]
 
     context = {
-        "app_name": app.root_path.name,
+        "app_name": app.name,
         "name_pascal": name_pascal,
         "name_snake": name_snake,
         "plural_snake": plural_snake,
@@ -186,7 +183,7 @@ def gen_resource(
         "singular": singular,
         "restore": restore,
         "form_fields": form_fields,
-        "form_class": f"{name_pascal}Schema",
+        "form_class": f"{name_pascal}Form",
         "load_method": f"load_{name_snake}",
         "object": f"self.{name_snake}",
         "object_id": f"{name_snake}_id",

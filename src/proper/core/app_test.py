@@ -11,7 +11,6 @@ from proper.request import make_test_env
 
 if t.TYPE_CHECKING:
     from proper.types import TWSGIEnvironment
-
     from ..response import Response
 
 

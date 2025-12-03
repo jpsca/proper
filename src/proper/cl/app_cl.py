@@ -1,3 +1,4 @@
+import os
 import typing as t
 from functools import wraps
 
@@ -10,7 +11,7 @@ if t.TYPE_CHECKING:
     from proper.core.app import App
 
 
-def get_app_cl(app: "App") -> t.Type[Cli]:
+def get_cl(app: "App") -> type[Cli]:
     attrs: dict[str, t.Any] = {
         "__doc__": """
         Application-specific commands.
@@ -19,6 +20,7 @@ def get_app_cl(app: "App") -> t.Type[Cli]:
         just run `ipython` or the regular python interpreter and import
         the application, like a regular python package.
         """,
+        "run": run,
         "routes": get_routes_cmd(app),
         "db": get_db_cl(app),
         "g": get_generators_cl(app),
@@ -28,8 +30,19 @@ def get_app_cl(app: "App") -> t.Type[Cli]:
     return type("appCL", (Cli,), attrs)
 
 
+def run(self, config="gunicorn.dev.py"):
+    """Run the development server using the Gunicorn config file.
+
+    Arguments:
+        config ["gunicorn.dev.py"]:
+            The Gunicorn config file to use.
+
+    """
+    os.system(f"gunicorn -c {config}")
+
+
 def get_routes_cmd(app: "App") -> t.Callable:
-    def routes(_self):
+    def routes(self):
         """Show all registered routes."""
         print(
             "\nRoutes match in priority from top to bottom.\n"
@@ -77,7 +90,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
     return routes
 
 
-def get_generators_cl(app: "App") -> t.Type[Cli]:
+def get_generators_cl(app: "App") -> type[Cli]:
     from .. import generators
 
     attrs: dict[str, t.Any] = {
@@ -90,7 +103,7 @@ def get_generators_cl(app: "App") -> t.Type[Cli]:
     return type("Generators", (Cli,), attrs)
 
 
-def get_install_cl(app: "App") -> t.Type[Cli]:
+def get_install_cl(app: "App") -> type[Cli]:
     from proper.install import auth, i18n, storage
 
     attrs: dict[str, t.Any] = {

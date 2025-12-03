@@ -1,0 +1,13 @@
+{#def title='' #}
+{# css "css/auth.css" #}
+{#import "./app.jinja" as Layout #}
+{#import "common/flashes.jinja" as Flashes #}
+
+{% do attrs.set(title=title, class="auth")%}
+
+<Layout __attrs={{attrs}}>
+	<Flashes />
+	<div class="auth__wrapper">
+		{{ content }}
+	</div>
+</Layout>
