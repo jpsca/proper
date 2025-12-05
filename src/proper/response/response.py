@@ -47,7 +47,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     ) -> None:
         self.status = status
         self.environ = environ
-        self.session = DotDict()
+        self._session = DotDict()
         self.flash = FlashMessages(self)
         self.app = app
         super().__init__()
@@ -60,6 +60,14 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     def __repr__(self) -> str:
         return f"<Response “{self.status}”>"
+
+    @property
+    def session(self) -> DotDict:
+        return self._session
+
+    @session.setter
+    def session(self, value: dict | DotDict) -> None:
+        self._session = DotDict(value)
 
     @property
     def has_body(self) -> bool:

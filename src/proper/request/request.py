@@ -4,8 +4,7 @@ from io import BytesIO
 import itsdangerous
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
-from proper.errors import BadSignature
-from proper.helpers import DotDict, MultiDict, Undefined, split_locale
+from proper.helpers import DotDict, MultiDict, logger, split_locale
 from proper.router import Route
 from .headers import RequestHeadersMixin
 from .make_env import make_test_env
@@ -170,7 +169,7 @@ class Request(RequestHeadersMixin):
             A CSRF (Cross-Site Request Forgery) token.
 
         user:
-            Added when the request comes from a logged-in user.
+            Available when the request comes from an authenticated user.
 
     """
 
@@ -182,9 +181,8 @@ class Request(RequestHeadersMixin):
     matched_action: str | None = None
     csrf_token: str = ""
     user: t.Any = None
-    session: DotDict
     locale: str | None = None
-    tzinfo: str | None = None
+    timezone: str | None = None
 
     # Cache attrs
     _form: MultiDict | None = None
@@ -202,7 +200,7 @@ class Request(RequestHeadersMixin):
         self.encoding = encoding
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
-        self.session = DotDict()
+        self._session = DotDict()
         self.app = app
 
         env = env or make_test_env()
@@ -210,6 +208,14 @@ class Request(RequestHeadersMixin):
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
+
+    @property
+    def session(self) -> DotDict:
+        return self._session
+
+    @session.setter
+    def session(self, value: dict | DotDict) -> None:
+        self._session = DotDict(value)
 
     @property
     def language(self) -> str | None:
@@ -279,21 +285,38 @@ class Request(RequestHeadersMixin):
             url = f"{url}?{self.query_string}"
         return url
 
+    def get_cookie(self, name: str, default: str | None = None) -> str | None:
+        """
+        Returns a cookie value for the given cookie name, or the default value
+        if there is no cookie with that name.
+
+        For example:
+
+        $ request.get_cookie("name")
+        'Jon'
+        $ request.get_cookie("nonexistent-cookie")
+        None
+        $ request.get_cookie("nonexistent-cookie", False)
+        False
+    """
+        cookie = self.cookies.get(name)
+        if cookie is None:
+            return default
+        return cookie.value
+
     def get_signed_cookie(
             self,
             name: str,
-            default: t.Any = Undefined,
+            default: str | None = None,
             *,
             salt: str = "",
             max_age: int | None = None,
         ) -> str | t.Any:
         """
-        Returns a cookie value for a signed cookie, or raises a `ValueError` if
-        there is no cookie with that name, or a `proper.errors.BadSignature`
-        exception if the signature is no longer valid.
+        Returns a cookie value for a signed cookie.
 
-        If you provide the `default` argument the exceptions will be suppressed and
-        that default value will be returned instead.
+        Returns the default value if there is no cookie with that name or
+        if the signature is no longer valid.
 
         The optional salt argument can be used to provide extra protection against
         brute force attacks on your secret key. If supplied, the `max_age` argument
@@ -307,33 +330,27 @@ class Request(RequestHeadersMixin):
         $ request.get_signed_cookie("name", salt="name-salt")
         'Jon' # assuming cookie was set using the same salt
         $ request.get_signed_cookie("nonexistent-cookie")
-        KeyError: 'nonexistent-cookie'
+        None
         $ request.get_signed_cookie("nonexistent-cookie", False)
         False
         $ request.get_signed_cookie("cookie-that-was-tampered-with")
-        BadSignature: ...
+        None
         $ request.get_signed_cookie("name", max_age=60)
-        SignatureExpired: Signature age 1677.3839159 > 60 seconds
-        $ request.get_signed_cookie("name", False, max_age=60)
-        False
+        None
     """
         assert self.app
         serializer = self.app.get_serializer(salt)
-        cookie = self.cookies.get(name)
-        if cookie is None:
-            if default is not Undefined:
-                return default
-            else:
-                raise ValueError("Cookie not set")
+        cookie_value = self.get_cookie(name)
+        if cookie_value is None:
+            return default
 
         try:
-            value = serializer.loads(cookie.value, max_age=max_age)
+            value = serializer.loads(cookie_value, max_age=max_age)
             if isinstance(value, bytes):
                 return value.decode()
             else:
                 return value
 
-        except itsdangerous.BadSignature as err:
-            if default is not Undefined:
-                return default
-            raise BadSignature() from err
+        except itsdangerous.BadSignature:
+            logger.exception("Bad signed cookie: %s", name)
+            return default

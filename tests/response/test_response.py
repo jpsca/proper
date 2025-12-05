@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from proper import DotDict, Request, Response
 from proper.constants import FLASHES_SESSION_KEY
@@ -31,7 +31,7 @@ def test_fresh_when_from_objects():
     obj = DotDict({"updated_at": datetime(2020, 11, 24, 17, 17, 0)})
     response.fresh_when(obj)
     assert response.etag == 'W/"d55c52d5e5e906167b75eb6fbf36b22e41e17222"'
-    assert response.last_modified == datetime(2020, 11, 24, 17, 17, 0)
+    assert response.last_modified == datetime(2020, 11, 24, 17, 17, 0, tzinfo=timezone.utc)
 
     response.fresh_when(
         [
@@ -41,7 +41,7 @@ def test_fresh_when_from_objects():
         ]
     )
     assert response.etag == 'W/"d55c52d5e5e906167b75eb6fbf36b22e41e17222"'
-    assert response.last_modified == datetime(2020, 11, 24, 17, 17, 0)
+    assert response.last_modified == datetime(2020, 11, 24, 17, 17, 0, tzinfo=timezone.utc)
 
 
 def test_is_fresh_by_etag():

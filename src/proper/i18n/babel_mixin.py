@@ -24,7 +24,7 @@ class BabelMixin:
         datetime: datetime.datetime | None = None,
         format: str = "medium",
         *,
-        tzinfo: str | None = None,
+        timezone: str | None = None,
         locale: str | None = None,
     ) -> str:
         """Return a date formatted according to the given pattern.
@@ -36,7 +36,7 @@ class BabelMixin:
         If you don't want to use the locale default formats, you can specify a
         custom date pattern:
 
-        >> format_datetime(dt, "yyyy.MM.dd G 'at' HH:mm:ss zzz", tzinfo='US/Eastern', locale='en')
+        >> format_datetime(dt, "yyyy.MM.dd G 'at' HH:mm:ss zzz", timezone='US/Eastern', locale='en')
         '2007.04.01 AD at 11:30:00 EDT'
 
         Arguments:
@@ -44,7 +44,7 @@ class BabelMixin:
                 the `datetime` object; if `None`, the current date and time is used.
             format:
                 "full", "long", "medium", "short", or a custom date/time pattern.
-            tzinfo:
+            timezone:
                 force the timezone to use for formatting.
             locale:
                 force the locale to use for formatting.
@@ -53,7 +53,7 @@ class BabelMixin:
         return babel_dates.format_datetime(
             datetime,
             format=format,
-            tzinfo=babel_dates.get_timezone(tzinfo or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 
@@ -98,7 +98,7 @@ class BabelMixin:
         time: datetime.time | datetime.datetime | float | None = None,
         format: str = "medium",
         *,
-        tzinfo: str | None = None,
+        timezone: str | None = None,
         locale: str | None = None,
     ) -> str:
         """Return a time formatted according to the given pattern.
@@ -119,14 +119,14 @@ class BabelMixin:
         timezone has to be specified explicitly:
 
         >> t = datetime(2007, 4, 1, 15, 30).astimezone(get_timezone('Europe/Paris'))
-        >> format_time(t, format='full', tzinfo='Europe/Paris', locale='fr_FR')
+        >> format_time(t, format='full', timezone='Europe/Paris', locale='fr_FR')
         '15:30:00 heure d’été d’Europe centrale'
-        >> format_time(t, "hh 'o''clock' a, zzzz", tzinfo='US/Eastern', locale='en')
+        >> format_time(t, "hh 'o''clock' a, zzzz", timezone='US/Eastern', locale='en')
         "09 o'clock AM, Eastern Daylight Time"
 
         As that example shows, when this function gets passed a
         `datetime.datetime` value, the actual time in the formatted string is
-        adjusted to the timezone specified by the `tzinfo` parameter. If the
+        adjusted to the timezone specified by the `timezone` parameter. If the
         `datetime` is "naive" (i.e. it has no associated timezone information),
         it is assumed to be in UTC.
 
@@ -134,13 +134,13 @@ class BabelMixin:
         `datetime.time`, as without date information there's no way to determine
         what a given time would translate to in a different timezone without
         information about whether daylight savings time is in effect or not. This
-        means that time values are left as-is, and the value of the `tzinfo`
+        means that time values are left as-is, and the value of the `timezone`
         parameter is only used to display the timezone name if needed:
 
         >> t = time(15, 30)
-        >> format_time(t, format='full', tzinfo='Europe/Paris', locale='fr_FR')
+        >> format_time(t, format='full', timezone='Europe/Paris', locale='fr_FR')
         '15:30:00 heure normale d\u2019Europe centrale'
-        >> format_time(t, format='full', tzinfo='US/Eastern', locale='en_US')
+        >> format_time(t, format='full', timezone='US/Eastern', locale='en_US')
         '3:30:00\u202fPM Eastern Standard Time'
 
         Arguments:
@@ -150,7 +150,7 @@ class BabelMixin:
             format:
                 either "full", "long", "medium", or "short", or a custom
                 date/time pattern.
-            tzinfo:
+            timezone:
                 force the timezone to use for formatting.
             locale:
                 force the locale to use for formatting.
@@ -159,7 +159,7 @@ class BabelMixin:
         return babel_dates.format_time(
             time,
             format=format,
-            tzinfo=babel_dates.get_timezone(tzinfo or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 
@@ -255,7 +255,7 @@ class BabelMixin:
         skeleton: str = "yMMMd",
         *,
         fuzzy: bool = True,
-        tzinfo: str | None = None,
+        timezone: str | None = None,
         locale: str | None = None,
     ) -> str:
         """Return a time and/or date formatted according to the given pattern.
@@ -299,7 +299,7 @@ class BabelMixin:
             fuzzy:
                 If the skeleton is not found, allow choosing a skeleton that's close enough to it.
                 If there is no close match, a `KeyError` is thrown.
-            tzinfo:
+            timezone:
                 force the timezone to use for formatting.
             locale:
                 force the locale to use for formatting.
@@ -309,7 +309,7 @@ class BabelMixin:
             skeleton=skeleton,
             datetime=datetime,
             fuzzy=fuzzy,
-            tzinfo=babel_dates.get_timezone(tzinfo or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 
@@ -320,7 +320,7 @@ class BabelMixin:
         skeleton: str | None = None,
         *,
         fuzzy: bool = True,
-        tzinfo: str | None = None,
+        timezone: str | None = None,
         locale: str | None = None,
     ) -> str:
         """
@@ -364,7 +364,7 @@ class BabelMixin:
                 The "skeleton format" to use for formatting.
             fuzzy:
                 If the skeleton is not found, allow choosing a skeleton that's close enough to it.
-            tzinfo:
+            timezone:
                 force the timezone to use for formatting, if none is already attached.
             locale:
                 force the locale to use for formatting.
@@ -375,7 +375,7 @@ class BabelMixin:
             end=end,
             skeleton=skeleton,
             fuzzy=fuzzy,
-            tzinfo=babel_dates.get_timezone(tzinfo or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 

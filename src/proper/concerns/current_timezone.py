@@ -1,0 +1,32 @@
+from .concern import Concern
+
+
+__all__ = ("CurrentTimezone", )
+
+
+class CurrentTimezone(Concern):
+    @property
+    def etag(self):
+        return f"{super().etag}-{self._get_timezone()}".strip("-")
+
+    def before(self):
+        self.request.timezone = self._get_timezone()
+        super().before()
+
+    # Private
+
+    def _get_timezone(self):
+        return (
+            # Always prefer the timezone from the URL
+            self.params.get("timezone")
+
+            # else, get it from a cookie
+            or self.request.get_cookie("timezone")
+
+            # else, use the user-defined locale
+            # (delete or modify to fit your user model)
+            or (self.request.user is not None and getattr(self.request.user, "timezone", None))
+
+            # else, fallback to the default locale
+            or self.app.config.TIMEZONE_DEFAULT
+        )

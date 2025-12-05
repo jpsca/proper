@@ -10,6 +10,7 @@ from . import (
     types,  # noqa
     units,  # noqa
 )
+from .concerns.concern import Concern  # noqa
 from .controller import *  # noqa
 from .core.app import *  # noqa
 from .core.global_context import g  # noqa

@@ -5,11 +5,11 @@ from ..models import [[ name_pascal ]]
 from ..forms.[[ name_snake ]] import [[ form_class ]]
 from ..router import router
 
-from .base import BaseController
+from .app_controller import AppController
 
 
 @router.resource("[[ name_snake ]]")
-class [[ name_pascal ]]Controller(BaseController):
+class [[ name_pascal ]]Controller(AppController):
     [% if "index" in actions -%]
     def index(self):
         self.[[ plural_snake ]] = [[ name_pascal ]].select()

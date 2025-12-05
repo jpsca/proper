@@ -1,14 +1,11 @@
 import pytest
 
 from proper import App, Controller, status
-from proper.concerns import RequestForgeryProtection, RestoreSession, UpdateSessionCookie
+from proper.concerns import RequestForgeryProtection
 from proper.errors import BadSecretKey
 
 
-class Pages(Controller):
-    before = [RequestForgeryProtection(), RestoreSession()]
-    after = [UpdateSessionCookie()]
-
+class Pages(Controller, RequestForgeryProtection):
     def index(self):
         self.response.mimetype = "text/plain"
         return "Hello World!"

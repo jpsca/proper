@@ -1,5 +1,6 @@
 import datetime
 import typing as t
+from collections.abc import Callable as TCallable  # noqa
 from collections.abc import Iterable as TIterable  # noqa
 from uuid import UUID
 from wsgiref.types import StartResponse as TStartResponse  # noqa
@@ -15,8 +16,8 @@ TReadable = t.IO[t.Any]
 TBody = bytes | bytearray | memoryview | TIterable[bytes]
 
 TException = type[BaseException]
-THandler = t.Callable[[t.Any], t.Any]
-TEventHandler = t.Callable[[], t.Any]
+THandler = TCallable[[t.Any], t.Any]
+TEventHandler = TCallable[[], t.Any]
 TEventHandlers = tuple[TEventHandler, ...]
 
 

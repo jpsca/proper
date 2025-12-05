@@ -4,7 +4,6 @@ must inherit from. Stores data available to the views.
 import os
 import re
 import typing as t
-from inspect import isclass
 from pathlib import Path
 
 import inflection
@@ -23,10 +22,8 @@ if t.TYPE_CHECKING:
 
 __all__ = ("Controller",)
 
-
 class Controller:
-    before: "TIterable[t.Callable]"
-    after: "TIterable[t.Callable]"
+    etag = ""
 
     def __init__(
         self,
@@ -37,14 +34,6 @@ class Controller:
         self.app = app
         self.request = request
         self.response = response
-        self.before = [
-            item() if isclass(item) else item
-            for item in (getattr(self, "before", None) or [])
-        ]
-        self.after = [
-            item() if isclass(item) else item
-            for item in (getattr(self, "after", None) or [])
-        ]
 
     @property
     def params(self) -> MultiDict:
@@ -60,6 +49,12 @@ class Controller:
         if self.request.matched_route:
             defaults = self.request.matched_route.defaults
         return defaults
+
+    def before(self):
+        getattr(super(), "before", lambda: None)()
+
+    def after(self):
+        getattr(super(), "after", lambda: None)()
 
     def render(
         self,
@@ -93,17 +88,11 @@ class Controller:
     # Private
 
     def _dispatch(self, action_name: str) -> "Response | None":
-        for before in self.before:
-            early_response = before(self)
-            if early_response is not None:
-                return early_response
-
+        self.before()
+        if self.response.body:
+            return
         self._call(action_name)
-
-        for after in self.after:
-            early_response = after(self)
-            if early_response is not None:
-                return early_response
+        self.after()
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same

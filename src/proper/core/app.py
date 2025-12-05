@@ -191,12 +191,14 @@ class App(AppTest):
     def run_pipeline(self, request, response) -> None:
         try:
             for func in (
+                pipeline.copy_session,
                 pipeline.head_to_get,
                 pipeline.method_override,
                 pipeline.match,
                 pipeline.redirect,
                 pipeline.dispatch,
                 pipeline.strip_body_if_head,
+                pipeline.update_session_cookie,
             ):
                 early_response = func(self, request, response)
                 if early_response is not None:
@@ -264,7 +266,7 @@ class App(AppTest):
     def get_current_timezone(self) -> str | None:
         if not g.request:
             return None
-        return g.request.tzinfo
+        return g.request.timezone
 
     # Private
 

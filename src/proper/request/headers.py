@@ -406,6 +406,21 @@ class RequestHeadersMixin:
         val = self.env.get("x_request_id")
         return parse_request_id(val)
 
+    @cached_property
+    def user_agent(self) -> str | None:
+        """Get the `user-agent` header.
+
+        The `User-Agent` header contains a characteristic string that
+        allows the network protocol peers to identify the application type,
+        operating system, software vendor or software version of the requesting
+        software user agent.
+
+        Returns:
+            A string with the user agent or None if the header is not present.
+
+        """
+        return self.env.get("user_agent", "")
+
 
 # --- Parsers -----
 

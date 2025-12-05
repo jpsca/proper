@@ -25,7 +25,7 @@ def get_attachment_mixin(storage: "Storage", default_service_name: str = "") -> 
         content_type = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)
         byte_size = pw.IntegerField(default=0)
         public = pw.BooleanField(default=False)
-        created_at = pw.DateTimeField(default=pw.utcnow)
+        created_at = pw.DateTimeField(default=pw.utcnow)  # type: ignore
         metadata = JSONField(null=True)
 
         _filesto: "TUpload | None" = None

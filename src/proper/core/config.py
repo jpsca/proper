@@ -38,8 +38,7 @@ default_config = {
     "STATIC_X_SENDFILE_HEADER": "",
 
     # Number of seconds before a non-used session key expires.
-    "SESSION_LIFETIME": 30 * DAYS,
-    "SESSION_COOKIE_NAME": "_session",
+    "SESSION_COOKIE_LIFETIME": 30 * DAYS,
     "SESSION_COOKIE_DOMAIN": None,  # str | None
     "SESSION_COOKIE_PATH": "/",
     "SESSION_COOKIE_HTTPONLY": True,
@@ -77,7 +76,7 @@ def normalize_config(config: DotDict) -> DotDict:
 
     config.MAX_CONTENT_LENGTH = int(config.MAX_CONTENT_LENGTH)
     config.MAX_QUERY_SIZE = int(config.MAX_QUERY_SIZE)
-    config.SESSION_LIFETIME = int(config.SESSION_LIFETIME)
+    config.SESSION_COOKIE_LIFETIME = int(config.SESSION_COOKIE_LIFETIME)
 
     config.PROTOCOL = str(config.PROTOCOL)
     config.HOST = str(config.HOST)

@@ -603,7 +603,11 @@ def format_datetime(dt: datetime | float | int | None) -> datetime | None:
         return None
 
     if isinstance(dt, (float, int)):
-        dt = datetime.fromtimestamp(dt, timezone.utc)
+        dt = datetime.fromtimestamp(dt)
+
+    # Set timezone to UTC if naive
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
 
     return dt
 
