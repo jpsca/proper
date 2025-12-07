@@ -48,6 +48,9 @@ class BaseCache:
 
     update = set
 
+    def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        raise NotImplementedError
+
     def delete(self, key: str) -> None:
         raise NotImplementedError
 
@@ -69,6 +72,9 @@ class NoCache(BaseCache):
 
     def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
         pass
+
+    def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        return 0
 
     def delete(self, key: str) -> None:
         pass

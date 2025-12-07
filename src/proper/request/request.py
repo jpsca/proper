@@ -147,10 +147,9 @@ class Request(RequestHeadersMixin):
 
         remote_ip:
             IP address of the closest client or proxy to the WSGI server.
-            If your application is behind one or more reverse proxies,
-            and it doesn't pass forward the IP address of the client,
-            you can use the `access_route` attribute to retrieve the real
-            IP address of the client.
+            This will use the `Forwarded` header to try to found the real
+            IP address of the client if your application is behind one or
+            more reverse proxies,
 
         request_id:
             Parse the `x-request-id` header for a value that uniquely

@@ -109,6 +109,7 @@ directory = "covreport"
 exclude = [
     "**/__pycache__",
     "**/tests/",
+    "blueprint",
     "src/proper/cl/app_cl.py",
     "src/proper/mail/",
     "src/proper/storage/",
@@ -147,6 +148,7 @@ exclude = [
   "build",
   "covreport",
   "dist",
+  "blueprint",
   "src/proper/blueprints/*",
 ]
 include = ["*.py"]

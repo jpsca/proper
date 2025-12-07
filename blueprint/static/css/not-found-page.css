@@ -1,0 +1,27 @@
+.not-found-page {
+  padding-bottom: 16rem;
+}
+.not-found-page__header {
+  margin: 2rem 0;
+  text-align: center;
+}
+.not-found-page__header h1 {
+  padding-bottom: 0.75rem;
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1.25;
+}
+.not-found-page__content {
+  max-width: 48rem;
+  margin: 0 auto;
+  font-size: 1.5rem;
+  line-height: 2.5rem;
+  text-align: center;
+}
+.not-found-page__footer {
+  margin-top: 2rem;
+  text-align: center;
+}
+.not-found-page__content a.link {
+  font-weight: 600;
+}

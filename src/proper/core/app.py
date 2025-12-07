@@ -243,7 +243,7 @@ class App(AppTest):
         kwargs.setdefault("serializer", jsonplus)
         kwargs.setdefault("signer_kwargs", {})
         kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
-        kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha1)
+        kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha256)
 
         return URLSafeTimedSerializer(
             self.config.SECRET_KEYS[0],

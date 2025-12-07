@@ -3,6 +3,7 @@ import typing as t
 from proper.helpers import BLUEPRINTS
 from proper.helpers.render import (
     add_dependencies,
+    add_to_concerns,
     call,
     render_blueprint,
     sort_imports_in,
@@ -17,7 +18,7 @@ AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 
 SORT_IMPORTS_IN = [
     "main.py",
-    "controllers/base.py",
+    "controllers/app_controller.py",
     "cl/__init__.py",
 ]
 
@@ -35,6 +36,10 @@ def install(app: "App") -> None:
         AUTH_BLUEPRINT,
         app.root_path.parent,
         context={"app_name": app.name},
+    )
+    add_to_concerns(
+        app.root_path / "controllers" / "app_controller.py",
+        "Authentication",
     )
 
     for filename in SORT_IMPORTS_IN:

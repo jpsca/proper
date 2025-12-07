@@ -45,6 +45,9 @@ default_config = {
     # Modern browsers place restriction on cookies without the "same-site" cookie attribute set.
     # To that end this attribute is set to "Lax" by default.
     "SESSION_COOKIE_SAMESITE": "Lax",  # Lax | Strict | None
+
+    "LOCALE_DEFAULT": "en",
+    "TIMEZONE_DEFAULT": "UTC",
 }
 
 

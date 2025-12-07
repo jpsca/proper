@@ -1,0 +1,5 @@
+{% for mtype, msg in request.flashes %}
+<div class="alert {{ mtype }}" dismissible>
+	<p>{{ msg | safe }}</p>
+</div>
+{%- endfor %}

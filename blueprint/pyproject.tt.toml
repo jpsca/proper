@@ -1,0 +1,123 @@
+[build-system]
+requires = ["setuptools"]
+
+
+# TEMP
+[tool.uv.sources]
+proper = { path = "../proper", editable = true }
+
+
+[project]
+name = "[[ app_name ]]"
+version = "1.0"
+description = ""
+authors = [
+  { name = "Lorem Ipsum", email = "lorem.ipsum@example.com" },
+]
+readme = "README.md"
+requires-python = ">=3.12,<4"
+dependencies = [
+	"huey",
+	"itsdangerous",
+	"jx",
+	"peewee-migrate",
+	"peewee",
+	"proper-cli",
+  "formidable",
+  "gunicorn~=23.0.0",
+  "proper",
+  # "psycopg[binary,pool]",
+]
+
+[project.scripts]
+proper = "[[ app_name ]].cl:run"
+
+
+[dependency-groups]
+dev = [
+  "inotify;sys_platform=='linux'",
+  "ipdb",
+	[% if use_tailwindcss -%]
+  "pytailwindcss>=0.3.0",
+  "pywatchman>=3.0.0",
+	[% endif -%]
+  "ruff",
+  "ty",
+]
+test = [
+  "pytest",
+]
+
+
+[tool.setuptools]
+packages = ["[[ app_name ]]"]
+
+
+[tool.ty.src]
+exclude = [
+    "**/__pycache__",
+    "tests/**",
+]
+
+
+[tool.ruff]
+line-length = 90
+indent-width = 4
+target-version = "py314"
+exclude = [
+  ".*",
+  "_build",
+  "build",
+  "dist",
+]
+include = ["*.py"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+ignore = [
+	# x is too complex
+	"C901",
+	# whitespace before ':'
+	"E203",
+	"E501",
+	# x defined from star imports
+	"F405",
+	# line break before binary operator
+	"W505",
+	"W605",
+]
+select = [
+	# bugbear
+	"B",
+	# mccabe"", comprehensions, commas
+	"C",
+	# pycodestyle errors
+	"E",
+	# pyflakes
+	"F",
+	# logging format
+	"G",
+	# imports
+	"I",
+	# quotes
+	"Q",
+	# pycodestyle warnings
+	"W",
+]
+
+[tool.ruff.lint.isort]
+known-third-party = []
+no-lines-before = ["local-folder"]
+relative-imports-order = "furthest-to-closest"
+# Use two line after imports.
+lines-after-imports = 2

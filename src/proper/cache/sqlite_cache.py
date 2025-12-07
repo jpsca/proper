@@ -87,6 +87,27 @@ class SqliteCache(BaseCache):
 
             return self.deserialize(row.value)
 
+    def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        self.check_conn()
+
+        with self.database.atomic():
+            row = Cache.get_or_none(Cache.key == key)
+            curr_time = int(time())
+            if expires_in is None:
+                expires_in = self.expires_in
+
+            if row is None:
+                new_value = value
+            elif (row.timestamp + expires_in) < curr_time:
+                new_value = value
+            else:
+                current_value = self.deserialize(row.value)
+                new_value = current_value + value
+
+            data = self.serialize(new_value)
+            Cache.replace(key=key, value=data, timestamp=curr_time).execute()
+            return new_value
+
     def delete(self, key: str) -> None:
         self.check_conn()
 

@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #3082f6;
+  --accent-hover: #1266e2;
+  --accent-fg: #f5f7ff;
+  --error: var(--color-red-600);
+  --disabled: var(--color-gray-200);
+  --border-radius: 0.5rem;
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.link:hover, .link:focus {
+  text-decoration: underline;
+  color: var(--accent-hover);
+}
+
+.btn {
+  --btn-fg: #090909;
+  --btn-bg: #f5f5f5;
+  --btn-shadow: 1px 1px 2px 2px rgba(0, 0, 0, 0.1);
+  --btn-outline: color-mix(in srgb, #a4a4a4 80%, transparent);
+  --btn-outline-focus: color-mix(in srgb, var(--accent) 25%, transparent);
+  --btn-bg-hover: color-mix(in srgb, var(--btn-bg), #000 4%);
+  --btn-bg-active: color-mix(in srgb, var(--btn-bg), #000 7%);
+  --btn-border-active: color-mix(in srgb, var(--btn-bg), #000 14%);
+  --btn-shadow-active: inset 1px 2px 4px rgba(30, 30, 30, 0.2), 1px 1px 2px rgba(0, 0, 0, 0.05);
+}
+.btn {
+  align-items: center;
+  appearance: button;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  font-family: inherit;
+  justify-content: center;
+  line-height: 1;
+  min-inline-size: min-content;
+  overflow: hidden;
+  pointer-events: auto;
+  position: relative;
+  text-align: center;
+  text-decoration: none !important;
+  touch-action: manipulation;
+  user-select: none;
+  transition-duration: 100ms;
+  transition-property: color, background-color, box-shadow, outline;
+  transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  vertical-align: middle;
+  white-space: nowrap;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  color: var(--btn-fg);
+  background-color: var(--btn-bg);
+  border: none;
+  outline-width: 1px;
+  outline-style: solid;
+  outline-color: var(--btn-outline);
+  outline-offset: 0;
+  box-shadow: var(--btn-shadow);
+}
+.btn:is(:hover,:focus-visible):not([disabled],[data-disabled]) {
+  background-color: var(--btn-bg-hover, var(--btn-bg));
+  outline-color: var(--btn-outline-hover, var(--btn-outline));
+  box-shadow: var(--btn-shadow-hover, var(--btn-shadow));
+  text-decoration: none;
+}
+.btn:focus-visible:not([disabled],[data-disabled]) {
+  isolation: isolate;
+  outline-color: var(--btn-outline-focus, var(--btn-outline));
+  outline-width: 4px;
+}
+.btn:is(:active,[data-active]):not([disabled],[data-disabled]) {
+  background-color: var(--btn-bg-active, var(--btn-bg));
+  outline-color: var(--btn-border-active, var(--btn-border));
+  box-shadow: var(--btn-shadow-active, var(--btn-shadow));
+  translate: 0 1px;
+  text-decoration: none;
+  outline-width: 1px;
+}
+.btn.btn--primary {
+  --btn-fg: var(--accent-fg);
+  --btn-bg: var(--accent);
+  --btn-outline: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.field {
+  margin-bottom: 0.5rem;
+}
+.field label {
+  display: block;
+  font-weight: 600;
+  color: #374151; /* gray-700 */
+}
+.field :is(input, textarea) {
+  cursor: text;
+  outline: none;
+  font-size: 1rem;
+  color: #262626;
+  background-color: #fcfcfc;
+  border: 1px solid #a4a4a4; /* gray-400 */
+  border-radius: 0.25rem;
+  box-shadow: inset 0 1px 0 rgba(210, 216, 222, 0.2);
+  overflow: hidden;
+  padding: 0.5rem;
+  position: relative;
+  transition-duration: 100ms;
+  transition-property: color, background-color, box-shadow, outline;
+  transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+.field-error {
+  color: var(--error);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}

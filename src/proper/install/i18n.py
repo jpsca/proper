@@ -3,7 +3,7 @@ import typing as t
 from proper.helpers import BLUEPRINTS
 from proper.helpers.render import (
     add_dependencies,
-    append_to_concerns,
+    add_to_concerns,
     render_blueprint,
     sort_imports_in,
 )
@@ -21,11 +21,8 @@ FIRST_YAML = """
 I18N_BLUEPRINT = BLUEPRINTS / "i18n"
 
 SORT_IMPORTS_IN = [
-    "controllers/base.py",
+    "controllers/app_controller.py",
 ]
-
-CONCERNS = ["SetLocale"]
-
 DEPENDENCIES = [
     "babel",
     "poyo",
@@ -49,7 +46,11 @@ def install(app: "App") -> None:
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
 
-    appc = app.root_path / "controllers/base.py"
-    append_to_concerns(appc, CONCERNS)
+    add_to_concerns(
+        app.root_path / "controllers/app_controller.py",
+        "CurrentLocale,",
+        "CurrentTimezone,",
+        after="Authentication",
+    )
 
     add_dependencies(app.root_path, DEPENDENCIES)

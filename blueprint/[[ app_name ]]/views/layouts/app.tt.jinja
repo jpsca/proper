@@ -1,0 +1,34 @@
+{#def title = '', description='', lang='en' #}
+
+{% if title %}{% set title = title + " | [[ app_name.title() ]]" %}{% endif -%}
+
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+	<meta charset="utf-8">
+	<title>{{ title }}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<link rel="icon" type="image/x-icon" href="{{ url_for('static', file='favicon.ico') }}">
+	[% if use_tailwindcss -%]
+	<link rel="stylesheet" href="{{ url_for('static', file='css/styles.css') }}">
+	[%- else -%]
+	<link rel="stylesheet" href="{{ url_for('static', file='css/app.css') }}">
+	[% endif -%]
+	{% for url in assets.collect_css() -%}
+		<link rel="stylesheet" href="{{ url_for('static', file=url) }}">
+	{% endfor -%}
+	<script src="{{ url_for('static', file='js/turbo.es2017-umd.js') }}" type="module"></script>
+	<script src="{{ url_for('static', file='js/app.js') }}" type="module"></script>
+	{% for url in assets.collect_js() -%}
+		<script src="{{ url_for('static', file=url) }}" type="module"></script>
+	{% endfor -%}
+	{% if title %}<meta property="og:title" content="{{ title }}">
+	{% endif -%}
+	{% if description -%}<meta property="og:description" content="{{ description }}">
+	{% endif -%}
+	<script>window.csrf_token = "{{ request.csrf_token }}";</script>
+</head>
+<body {{ attrs.render() }}>
+	{{ content }}
+</body>
+</html>

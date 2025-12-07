@@ -2,17 +2,12 @@ import typing as t
 
 import peewee as pw
 from passlib.utils import saslprep
-from proper import g
 
 from ...main import auth, config
 from ...models.base import BaseMixin
 
 
 class Authenticable(BaseMixin):
-    SESSION_KEY: str = "_user_token"
-    REDIRECT_KEY: str = "_redirect"
-    CLEAR_SESSION_ON_SIGN_OUT: bool = True
-
     login = pw.CharField(255, null=False, unique=True, index=True)
     password = pw.CharField(255)
 
@@ -23,7 +18,7 @@ class Authenticable(BaseMixin):
     @classmethod
     def _normalize_login(cls, login: str = ""):
         # https://engineering.atspotify.com/2013/06/creative-usernames/
-        login = saslprep(login).casefold()
+        login = saslprep(login.strip()).casefold()
         return login.replace(" ", "")
 
     @classmethod
@@ -75,45 +70,15 @@ class Authenticable(BaseMixin):
         return auth.authenticate(cls, login, password, update_hash=update_hash)
 
     @classmethod
-    def authenticate_timestamped_token(cls, token: str) -> t.Any:
-        return auth.authenticate_timestamped_token(
+    def check_token(cls, token: str) -> t.Any:
+        return auth.check_token(
             cls,
             token,
             config.AUTH_TOKEN_LIFE,
         )
 
-    @classmethod
-    def authenticate_session_token(cls, token: str) -> t.Any:
-        return auth.authenticate_session_token(cls, token)
+    def get_token(self) -> str:
+        return auth.get_token(self)
 
     def set_password(self, password: str | None) -> None:
-        if password:
-            self.password = auth.hash_password(password)
-        else:
-            self.password = password
-
-        if g.request.user == self:
-            # Password has change, so we need to updated the session too
-            self.sign_in()
-
-    def sign_in(self) -> None:
-        """Store in the session an unique token for the user, so it can stay
-        logged between requests.
-        """
-        assert self.id is not None  # type: ignore
-        g.request.user = self
-        g.response.session[self.SESSION_KEY] = auth.get_session_token(self)
-
-    def sign_out(self) -> None:
-        g.request.user = None
-        # The session is shared so, if you have more than
-        # one model/user-type signed in at the same time,
-        # you don't want to do this.
-        if self.CLEAR_SESSION_ON_SIGN_OUT:
-            g.response.session.clear()
-            return
-
-        if self.SESSION_KEY in g.response.session:
-            del g.response.session[self.SESSION_KEY]
-        if self.REDIRECT_KEY in g.response.session:
-            del g.response.session[self.SESSION_KEY]
+        self.password = auth.hash_password(password) if password else password

@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import isort
@@ -16,7 +17,7 @@ __all__ = [
     "sort_imports_in",
     "sort_imports",
     "add_dependencies",
-    "append_to_concerns",
+    "add_to_concerns",
 ]
 
 
@@ -41,92 +42,54 @@ def add_dependencies(root_path: Path, dependencies: list[str]):
     call(f"{cmd} {' '.join(dependencies)}")
 
 
-def append_to_concerns(filepath: Path, items: list[str]):
-    """Insert a new item at the end of each concerns list in the file.
+def add_to_concerns(filepath: Path, *items: str, after: str|None = None) -> None:
+    """Insert a new item at the start of the concerns list.
 
     Arguments:
         filepath:
             Path to the Python file
         items:
             List of items to insert into the concerns lists
+        after:
+            If provided, insert after this item in the concerns list
+            if it can be found.
 
     """
     content = filepath.read_text()
 
-    new_content = content
-    current_pos = 0
+    # Format items and filter existing ones
+    fitems = []
+    for item in items:
+        item = item.strip()
+        if "," not in item:
+            item = f"{item},"
+        if item not in content:
+            fitems.append(item)
+
+    if not fitems:
+        return
     tab = " " * 4
-    new_item = f",\n{tab * 2}".join(items)
-    new_item = f"\n{tab * 2}{new_item},\n{tab}"
+    insert = f"\n{tab * 2}" + f"\n{tab * 2}".join(fitems) + f"\n{tab}"
 
-    while True:
-        start, end = _find_concerns_bounds(new_content, current_pos)
-        if start is None:
-            break
+    # Find the class definition
+    match = re.search(
+        r"class AppController\(\n?\s*(Controller,)?",
+        content
+    )
+    if not match:
+        print("Could not find AppController class definition.")
+        return
+    insert_pos = match.end()
 
-        # Extract the current list content
-        list_content = new_content[start:end]
+    # Adjust insert position if 'after' is provided
+    if after:
+        after_match = re.search(rf"{after},?", content[insert_pos:])
+        if after_match:
+            insert_pos = insert_pos + after_match.end()
 
-        # If the list is empty or only contains whitespace
-        if list_content.strip() == "[]":
-            new_list_content = f"[{new_item}]"
-        else:
-            # Remove trailing whitespace and closing bracket
-            list_content = list_content[:-1].rstrip()
-
-            # Add the new item
-            if list_content.strip().endswith(","):
-                new_list_content = f"{list_content}{new_item}]"
-            else:
-                new_list_content = f"{list_content},{new_item}]"
-
-        # Replace the old list with the new one
-        new_content = new_content[:start] + new_list_content + new_content[end:]
-        current_pos = start + len(new_list_content)
-
+    # Insert the new items
+    new_content = f"{content[:insert_pos]}{insert}{content[insert_pos:]}"
     filepath.write_text(new_content)
-
-
-def _find_concerns_bounds(
-    content: str,
-    start_pos: int = 0,
-) -> tuple[int, int] | tuple[None, None]:
-    """Find the start and end positions of the next concerns list.
-
-    Arguments:
-        content:
-            The file content
-        start_pos:
-            Position to start searching from
-
-    Returns:
-        (start_pos, end_pos) tuple of the concerns list, or (None, None) if not found
-
-    """
-    ENTRYPOINT = "concerns = ["
-
-    # Find the start of concerns list
-    start = content.find(ENTRYPOINT, start_pos)
-    if start == -1:
-        return None, None
-    else:
-        start = start + len(ENTRYPOINT) - 1
-
-    # Find the matching closing bracket
-    bracket_depth = 0
-    pos = start
-
-    while pos < len(content):
-        char = content[pos]
-        if char == "[":
-            bracket_depth += 1
-        elif char == "]":
-            bracket_depth -= 1
-            if bracket_depth == 0:
-                return start, pos + 1
-        pos += 1
-
-    return None, None
 
 
 def sort_imports(code: str) -> str:

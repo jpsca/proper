@@ -7,6 +7,20 @@ from .keys import key_for
 
 
 class FragmentCacheExtension(Extension):
+    """A Jinja2 extension that adds fragment caching capabilities.
+
+    Usage:
+        ```html+jinja
+        {% cache key_context [expires_in=seconds] [version=version] [name=cache_name] %}
+            ... expensive rendering ...
+        {% endcache %}
+        ```
+
+    Examples:
+        ```html+jinja
+        ```
+
+    """
     # a set of names that trigger the extension.
     tags = {"cache"}
 

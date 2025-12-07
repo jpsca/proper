@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import hmac
 import typing as t
 from time import time
@@ -40,6 +42,15 @@ https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
 )
 
 
+def force_bytes(s, encoding="utf-8", errors="strict"):
+    if isinstance(s, bytes):
+        if encoding == "utf-8":
+            return s
+        else:
+            return s.decode("utf-8", errors).encode(encoding, errors)
+    return str(s).encode(encoding, errors)
+
+
 def to36(number: int | str) -> str:
     if isinstance(number, str):
         number = int(number, 10)
@@ -62,6 +73,20 @@ def from36(snumber: str) -> int:
     return int(snumber, 36)
 
 
+def urlsafe_base64_encode(s: str) -> str:
+    sb = s.encode()
+    return base64.urlsafe_b64encode(sb).rstrip(b"\n=").decode("ascii")
+
+
+def urlsafe_base64_decode(s: str) -> str:
+    """
+    Decode a base64 encoded string. Add back any trailing equal signs that
+    might have been stripped.
+    """
+    sb = s.encode()
+    return base64.urlsafe_b64decode(sb.ljust(len(sb) + len(sb) % 4, b"=")).decode("ascii")
+
+
 class Auth:
     __slots__ = [
         "secret_keys",
@@ -72,6 +97,8 @@ class Auth:
         "digestmod",
     ]
 
+    key_salt = "proper.auth"
+
     def __init__(
         self,
         secret_keys: list[str] | tuple[str, ...],
@@ -80,16 +107,16 @@ class Auth:
         rounds: int | None = None,
         password_minlen: int = 5,
         password_maxlen: int = 1024,
-        digestmod: str = "sha256",
+        digestmod: str = "sha1",
     ) -> None:
         self.secret_keys = secret_keys
-        self.set_hasher(hash_name or DEFAULT_HASHER, rounds)
+        self._set_hasher(hash_name or DEFAULT_HASHER, rounds)
         self._decoy_password = self.hasher.hash("!")
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
         self.digestmod = digestmod
 
-    def set_hasher(
+    def _set_hasher(
         self,
         hash_name: str,
         rounds: int | None = None,
@@ -157,36 +184,6 @@ class Auth:
         except ValueError:
             return False
 
-    def get_session_token(
-        self,
-        user: t.Any,
-        *,
-        secret_key: str | None = None,
-    ) -> str:
-        secret_key = secret_key or self.secret_keys[-1]
-        digest = self._get_hmac_digest(secret_key, user)
-        return f"{user.id}${digest}"
-
-    def get_timestamped_token(
-        self,
-        user: t.Any,
-        timestamp: int | None = None,
-        *,
-        secret_key: str | None = None,
-    ) -> str:
-        timestamp = int(timestamp or time())
-        secret_key = secret_key or self.secret_keys[-1]
-        digest = self._get_hmac_digest(secret_key, user, str(timestamp))
-        return f"{user.id}${to36(timestamp)}${digest}"
-
-    def update_password_hash(self, secret: str, user: t.Any) -> None:
-        new_hash = self.hash_password(secret)
-        if not new_hash:
-            return
-        if new_hash.split("$")[:3] == user.password.split("$")[:3]:
-            return
-        user.pasword = new_hash
-
     def authenticate(
         self,
         model: t.Any,
@@ -219,45 +216,38 @@ class Auth:
             self.update_password_hash(password, user)
         return user
 
-    def authenticate_token(
+    def update_password_hash(self, secret: str, user: t.Any) -> None:
+        new_hash = self.hash_password(secret)
+        if not new_hash:
+            return
+        if new_hash.split("$")[:3] == user.password.split("$")[:3]:
+            return
+        user.pasword = new_hash
+
+    def get_token(
         self,
-        model: t.Any,
-        token: str | None,
-        token_life: int | None = None,
-    ) -> t.Any:
-        if token is None:
-            return None
-        if token_life:
-            return self.authenticate_timestamped_token(model, token, token_life)
-        return self.authenticate_session_token(model, token)
+        user: t.Any,
+        *,
+        timestamp: int | None = None,
+        secret_key: str | None = None,
+    ) -> str:
+        u64 = urlsafe_base64_encode(str(user.id))
+        timestamp = int(timestamp or time())
+        digest = self._salted_hmac(
+            secret_key or self.secret_keys[-1],
+            user,
+            str(timestamp)
+        )
+        return f"{u64}${to36(timestamp)}${digest}"
 
-    def authenticate_session_token(
-        self,
-        model: t.Any,
-        token: str | None,
-    ) -> t.Any:
-        if token is None:
-            return None
-        user_id, digest = self._split_session_token(token)
-        if not (user_id and digest):
-            logger.info("Invalid token format")
-            return None
+    def split_token(self, token: str) -> tuple[str, int, str]:
+        try:
+            u64, t36, digest = token.split("$", 2)
+            return urlsafe_base64_decode(u64), from36(t36), digest
+        except ValueError:
+            return "", 0, ""
 
-        user = model.get_by_id(user_id)
-        if not user:
-            logger.info("Invalid token. User `%s` not found", user_id[:20])
-            return None
-
-        for secret_key in self.secret_keys:
-            ref_token = self.get_session_token(user, secret_key=secret_key)
-            _, ref_digest = self._split_session_token(ref_token)
-            if hmac.compare_digest(digest, ref_digest):
-                return user
-
-        logger.info("Invalid token")
-        return None
-
-    def authenticate_timestamped_token(
+    def check_token(
         self,
         model: t.Any,
         token: str | None,
@@ -265,7 +255,7 @@ class Auth:
     ) -> t.Any:
         if token is None:
             return None
-        user_id, timestamp, digest = self._split_timestamped_token(token)
+        user_id, timestamp, digest = self.split_token(token)
         if not (user_id and timestamp and digest):
             logger.info("Invalid token format")
             return None
@@ -281,10 +271,8 @@ class Auth:
             return None
 
         for secret_key in self.secret_keys:
-            ref_token = self.get_timestamped_token(
-                user, timestamp, secret_key=secret_key
-            )
-            _, _, ref_digest = self._split_timestamped_token(ref_token)
+            ref_token = self.get_token(user, timestamp=timestamp, secret_key=secret_key)
+            _, _, ref_digest = self.split_token(ref_token)
             if hmac.compare_digest(digest, ref_digest):
                 return user
 
@@ -293,39 +281,30 @@ class Auth:
 
     # Private
 
-    def _get_hmac_digest(
+    def _salted_hmac(
         self,
         secret_key: str,
         user: t.Any,
         timestamp: str = "",
     ) -> str:
-        key = "|".join(
+        hmac_hasher = getattr(hashlib, self.digestmod)
+
+        # If len(key_salt + secret) > block size of the hash algorithm, the above
+        # line is redundant and could be replaced by key = key_salt + secret, since
+        # the hmac module does the same thing for keys longer than the block size.
+        # However, we need to ensure that we *always* do this.
+        key = hmac_hasher(force_bytes(self.key_salt) + force_bytes(secret_key)).digest()
+
+        value = "|".join(
             [
-                # Includes the secret key, so without access to the source code,
-                # fake tokens cannot be generated even if the database is compromised.
-                secret_key,
-                # By using a snippet of the password hash **salt**,
-                # you can logout from all other devices
-                # just by changing (or re-saving) the password.
-                (user.password or "").rsplit("$", 1)[0][-10:],
+                # So the user.id cannot be forged
+                str(user.id),
+                # By using the password hash this token will be invalidated
+                # automatically just by changing (or re-saving) the password.
+                (user.password or "")[::2],
                 # So the timestamp cannot be forged
                 timestamp,
             ]
         ).encode("utf8", "ignore")
-        msg = bytes(user.id)
-        digest = self.digestmod
-        return hmac.digest(key, msg, digest).hex()
 
-    def _split_session_token(self, token: str) -> tuple[str, str]:
-        try:
-            uid, digest = token.split("$", 1)
-            return uid, digest
-        except ValueError:
-            return "", ""
-
-    def _split_timestamped_token(self, token: str) -> tuple[str, int, str]:
-        try:
-            uid, t36, digest = token.split("$", 2)
-            return uid, from36(t36), digest
-        except ValueError:
-            return "", 0, ""
+        return hmac.new(key, force_bytes(value), digestmod=hmac_hasher).hexdigest()
