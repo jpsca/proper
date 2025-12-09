@@ -3,10 +3,12 @@ from proper.errors import NotFound
 from ..main import app
 from ..router import router
 
-from .base import BaseController, PrivateController
+from .app_controller import AppController
 
 
-class PublicStorageController(BaseController):
+class PublicStorageController(AppController):
+    skip_authentication = True
+
     @router.get("/storage/public/<pk>")
     def show(self):
         pk = self.params.get("pk")
@@ -16,7 +18,7 @@ class PublicStorageController(BaseController):
         obj.send_file()
 
 
-class StorageController(PrivateController):
+class StorageController(AppController):
     @router.get("/storage/<pk>")
     def show(self):
         signed_pk = self.params.get("pk")

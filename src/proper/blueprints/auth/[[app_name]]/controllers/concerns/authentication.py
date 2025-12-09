@@ -1,4 +1,4 @@
-from proper import Concern, g
+from proper import Concern, current
 
 from ...main import app
 from ...models import Session, User
@@ -9,7 +9,6 @@ class Authentication(Concern):
 
     def before(self):
         self.require_authentication()
-        super().before()
 
     def require_authentication(self):
         if self.skip_authentication or self.is_authenticated():
@@ -18,7 +17,7 @@ class Authentication(Concern):
             self._request_authentication()
 
     def is_authenticated(self):
-        return g.session is not None
+        return current.auth_session is not None
 
     def new_session_for(self, user: User):
         session = Session.create_for_user(
@@ -29,11 +28,10 @@ class Authentication(Concern):
         return self._set_current_session(session)
 
     def terminate_session(self):
-        if g.session:
-            g.session.delete_instance()
-            g.session = None
-
-        self.request.user = None
+        if current.auth_session:
+            current.auth_session.delete_instance()
+            current.auth_session = None
+        current.user = None
         self.response.set_signed_cookie("_auth", "", max_age=0)
         # Clear the session on logout to avoid leaking data between users
         self.response.session.clear()
@@ -59,8 +57,8 @@ class Authentication(Concern):
             return Session.find_by_token(token)
 
     def _set_current_session(self, session):
-        g.session = session
-        self.request.user = session.user
+        current.auth_session = session
+        current.user = session.user
         self.response.set_signed_cookie(
             "_auth",
             session.token,

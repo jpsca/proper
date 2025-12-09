@@ -1,6 +1,6 @@
 import pytest
 
-from proper import App, g
+from proper import App, current
 
 
 @pytest.fixture()
@@ -15,5 +15,5 @@ def app(import_name):
         "DEBUG": False,
     }
     app = App(import_name, config)
-    g.app = app
+    current.app = app
     return app

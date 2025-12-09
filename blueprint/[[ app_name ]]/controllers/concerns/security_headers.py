@@ -3,8 +3,6 @@ from proper import Concern
 
 class SecurityHeaders(Concern):
     def after(self):
-        super().after()
-
         # It determines if a web page can or cannot be included via <frame>
         # and <iframe> topics by untrusted domains.
         # https://developer.mozilla.org/Web/HTTP/Headers/X-Frame-Options

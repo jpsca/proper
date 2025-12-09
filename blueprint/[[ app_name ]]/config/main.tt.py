@@ -12,7 +12,7 @@ if env == "prod":
     HOST = "YOUR-DOMAIN.com"
 else:
     PROTOCOL = "http"
-    HOST = "localhost:2300"
+    HOST = "[[ app_name ]].localhost:2300"
 
 # List of secret keys, **oldest to newest**.
 # Every key in the list is valid, so you can periodically generate a new key

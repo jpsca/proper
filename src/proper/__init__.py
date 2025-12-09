@@ -13,7 +13,7 @@ from . import (
 from .concerns.concern import Concern  # noqa
 from .controller import *  # noqa
 from .core.app import *  # noqa
-from .core.global_context import g  # noqa
+from .core.global_context import current  # noqa
 from .helpers import *  # noqa
 from .request import *  # noqa
 from .response import *  # noqa

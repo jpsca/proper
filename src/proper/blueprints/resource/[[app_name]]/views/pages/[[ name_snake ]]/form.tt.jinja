@@ -1,5 +1,6 @@
-{#def form, action='', method='post' #}
 {#import "form.jinja" as Form #}
+
+{#def form, action='', method='post' #}
 
 <Form method={{ method }} action={{ action }}>
   [% for f in form_fields -%]

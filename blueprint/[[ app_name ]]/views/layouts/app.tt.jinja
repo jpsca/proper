@@ -1,3 +1,7 @@
+{#import "./app.jinja" as Layout #}
+{#import "common/nav.jinja" as Nav #}
+{#import "common/flashes.jinja" as Flashes #}
+
 {#def title = '', description='', lang='en' #}
 
 {% if title %}{% set title = title + " | [[ app_name.title() ]]" %}{% endif -%}
@@ -26,9 +30,11 @@
 	{% endif -%}
 	{% if description -%}<meta property="og:description" content="{{ description }}">
 	{% endif -%}
-	<script>window.csrf_token = "{{ request.csrf_token }}";</script>
+	<script>window.csrf_token = "{{ current.csrf_token }}";</script>
 </head>
 <body {{ attrs.render() }}>
-	{{ content }}
+  <Nav />
+  <Flashes />
+  {{ content }}
 </body>
 </html>

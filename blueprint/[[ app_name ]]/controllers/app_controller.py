@@ -4,14 +4,14 @@ from proper.concerns import (
     RequestForgeryProtection,
 )
 
-from .concerns.security_headers import SetSecurityHeaders
+from .concerns.security_headers import SecurityHeaders
 
 
 class AppController(
     Controller,
     RateLimiting,
     RequestForgeryProtection,
-    SetSecurityHeaders,
+    SecurityHeaders,
 ):
     """All other controllers must inherit from this class.
     """

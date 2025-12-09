@@ -9,7 +9,7 @@ description = "A python web framework optimized for programmer happiness"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
 ]
-license = { "file" = "MIT-LICENSE" }
+license = "MIT"
 readme = "README.md"
 classifiers = [
     "Development Status :: 4 - Beta",

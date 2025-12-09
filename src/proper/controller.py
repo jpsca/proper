@@ -6,8 +6,6 @@ import re
 import typing as t
 from pathlib import Path
 
-import inflection
-
 from .errors import NotFound
 from .helpers import MultiDict, jsonplus
 from .status import not_modified
@@ -50,12 +48,6 @@ class Controller:
             defaults = self.request.matched_route.defaults
         return defaults
 
-    def before(self):
-        getattr(super(), "before", lambda: None)()
-
-    def after(self):
-        getattr(super(), "after", lambda: None)()
-
     def render(
         self,
         name: str = "",
@@ -76,23 +68,26 @@ class Controller:
             return text
 
         assert self.app.catalog
-        self.app.catalog.jinja_env.globals.update(
-            {
-                "app": self.app,
-                "request": self.request,
-                "response": self.response,
-            }
-        )
         return self.app.catalog.render(name, **vars(self))
 
     # Private
 
     def _dispatch(self, action_name: str) -> "Response | None":
-        self.before()
-        if self.response.body:
-            return
+        mro = type(self).mro()
+
+        for cls in mro:
+            before = cls.__dict__.get("before", None)
+            if before:
+                before(self)
+                if self.response.has_body:
+                    return
+
         self._call(action_name)
-        self.after()
+
+        for cls in mro[::-1]:
+            after = cls.__dict__.get("after", None)
+            if after:
+                after(self)
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same
@@ -109,9 +104,11 @@ class Controller:
             self.response.body = ret_value
             return
 
-        if not self.response.body:
-            cls_name = inflection.underscore(self.__class__.__name__.removesuffix("Controller"))
-            infered_view = f"pages/{cls_name}/{action_name}.jinja"
+        if not self.response.has_body:
+            cmod = self.__class__.__module__.split(".", 2)[-1]
+            cmod = cmod.removesuffix("_controller")
+            cmod = cmod.replace(".", "/")
+            infered_view = f"pages/{cmod}/{action_name}.jinja"
             self.response.body = self.render(infered_view)
             return
 

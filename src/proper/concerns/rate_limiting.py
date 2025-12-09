@@ -103,14 +103,8 @@ class RateLimiting(Concern):
     def before(self):
         options = getattr(self, "rate_limit", None)
         if options:
-            action = self.request.matched_action
-            only = options.pop("only", None)
-            if not only or action in make_list(only):
-                ignore = options.pop("ignore", None)
-                if not ignore or action not in make_list(ignore):
-                    self._rate_limiting(**options)
-
-        super().before()
+            for opts in make_list(options):
+                self._set_rate_limit(opts.copy())
 
     def reset_rate_limit(
         self,
@@ -120,12 +114,25 @@ class RateLimiting(Concern):
         name: str | None = None
     ) -> None:
         store = self.app.cache
-        by = get_str_value(self, by) if by else self.request.remote_ip
+        if not store:
+            return
+        by = by or self.request.remote_ip
         scope = scope or self.__class__.__module__
         name = name or ""
 
         cache_key = ":".join(["rate-limit", scope, name, by]).strip(":")
-        store.set(cache_key, 0)
+        store.delete(cache_key)
+
+    def _set_rate_limit(self, options: dict[str, t.Any]) -> None:
+        action = self.request.matched_action
+        only = options.get("only", None)
+        ignore = options.get("ignore", None)
+
+        if only and action not in make_list(only):
+            return
+        if ignore and action in make_list(ignore):
+            return
+        self._rate_limiting(**options)
 
     def _rate_limiting(
         self,
@@ -136,8 +143,11 @@ class RateLimiting(Concern):
         react_with: str | TCallable[[Concern], None] | None = None,
         scope: str | None = None,
         name: str | None = None,
+        **kwargs,
     ):
         store = self.app.cache
+        if not store:
+            return
         to = get_int_value(self, to)
         within = get_int_value(self, within)
         by = get_str_value(self, by) if by else self.request.remote_ip

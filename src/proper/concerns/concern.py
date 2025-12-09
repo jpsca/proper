@@ -19,9 +19,3 @@ class Concern:
     response: "Response"
 
     etag = ""
-
-    def before(self):
-        getattr(super(), "before", lambda: None)()
-
-    def after(self):
-        getattr(super(), "after", lambda: None)()

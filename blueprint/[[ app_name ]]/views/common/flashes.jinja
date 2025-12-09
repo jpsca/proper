@@ -1,5 +1,11 @@
-{% for mtype, msg in request.flashes %}
-<div class="alert {{ mtype }}" dismissible>
-	<p>{{ msg | safe }}</p>
+{% set flashes = current.request.flashes %}
+
+{%- if flashes %}
+<div class="container mx-auto my-1 text-center">
+	{% for mtype, msg in flashes -%}
+	<div class="alert alert--{{ mtype }}">
+		<p>{{ msg | safe }}</p>
+	</div>
+	{% endfor -%}
 </div>
-{%- endfor %}
+{%- endif %}

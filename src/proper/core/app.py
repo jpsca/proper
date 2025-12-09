@@ -35,7 +35,7 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
-from .global_context import g
+from .global_context import current
 
 
 if t.TYPE_CHECKING:
@@ -63,9 +63,8 @@ class App(AppTest):
 
     """
 
-    # A lists of functions that are called if any of the functions in the
-    # _on_before_dispatch, _on_dispatch, or _on_after_dispatch tuples
-    # raises an exception.
+    # A lists of functions that are called if a request
+    # raises an exception
     _on_error: TEventHandlers = ()
 
     # A lists of functions that are all *always* called at the end of a request,
@@ -162,15 +161,15 @@ class App(AppTest):
         return current_response(start_response)
 
     def do_request(self, environ: TWSGIEnvironment) -> Response:
-        g.app = self
+        current.app = self
 
-        g.request = request = self.request_cls(
+        current.request = request = self.request_cls(
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
             app=self,
             **environ,
         )
-        g.response = response = self.response_cls(app=self, **environ)
+        current.response = response = self.response_cls(app=self, **environ)
 
         try:
             self._dbs_connect()
@@ -202,7 +201,7 @@ class App(AppTest):
             ):
                 early_response = func(self, request, response)
                 if early_response is not None:
-                    g.response = early_response
+                    current.response = early_response
                     return
 
         except Exception as error:
@@ -258,16 +257,6 @@ class App(AppTest):
         # TODO: later
         return self.mailer.send_emails(*messages)
 
-    def get_current_locale(self) -> str | None:
-        if not g.request:
-            return None
-        return g.request.locale
-
-    def get_current_timezone(self) -> str | None:
-        if not g.request:
-            return None
-        return g.request.timezone
-
     # Private
 
     def _setup_paths(self, import_name: str) -> None:
@@ -302,6 +291,7 @@ class App(AppTest):
 
     def _setup_catalog(self):
         jglobals: dict[str, t.Any] = {
+            "current": current,
             "url_for": self.url_for,
             "url_is": self.url_is,
             "url_startswith": self.url_startswith,

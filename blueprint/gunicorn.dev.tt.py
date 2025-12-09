@@ -2,7 +2,7 @@ from proper import show_banner, show_welcome
 
 
 debug = True
-host = "0.0.0.0"
+host = "[[ app_name ]].localhost"
 port = 2300
 
 

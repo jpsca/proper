@@ -7,9 +7,10 @@ from .app_controller import AppController
 class PublicController(AppController):
     skip_authentication = True
 
-    @router.get("")
-    def index(self):
-        pass
+    # Uncomment to have an index page
+    # @router.get("")
+    # def index(self):
+    #     pass
 
     @router.error(errors.NotFound)
     @router.get("_not_found")

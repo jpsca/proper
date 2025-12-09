@@ -4,7 +4,7 @@ from io import BytesIO
 import itsdangerous
 
 from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
-from proper.helpers import DotDict, MultiDict, logger, split_locale
+from proper.helpers import DotDict, MultiDict, logger
 from proper.router import Route
 from .headers import RequestHeadersMixin
 from .make_env import make_test_env
@@ -40,12 +40,6 @@ class Request(RequestHeadersMixin):
         env:
             The WSGI environment dict passed in from the server,
         with keys normalized to lower-case
-
-        locale:
-            Set in the `SetLocale` concern
-
-        language:
-            Just the language part of the locale. So `en_US` -> `en`.
 
         body:
             The request body as a bytes stream.
@@ -164,12 +158,6 @@ class Request(RequestHeadersMixin):
         matched_route, matched_params, and matched_action:
             Added when the request match a route.
 
-        csrf_token:
-            A CSRF (Cross-Site Request Forgery) token.
-
-        user:
-            Available when the request comes from an authenticated user.
-
     """
 
     method: str
@@ -178,10 +166,6 @@ class Request(RequestHeadersMixin):
     matched_route: Route | None = None
     matched_params: dict | None = None
     matched_action: str | None = None
-    csrf_token: str = ""
-    user: t.Any = None
-    locale: str | None = None
-    timezone: str | None = None
 
     # Cache attrs
     _form: MultiDict | None = None
@@ -215,11 +199,6 @@ class Request(RequestHeadersMixin):
     @session.setter
     def session(self, value: dict | DotDict) -> None:
         self._session = DotDict(value)
-
-    @property
-    def language(self) -> str | None:
-        if self.locale:
-            return split_locale(self.locale)[0]
 
     @property
     def body(self) -> BytesIO:
@@ -351,5 +330,5 @@ class Request(RequestHeadersMixin):
                 return value
 
         except itsdangerous.BadSignature:
-            logger.exception("Bad signed cookie: %s", name)
+            logger.info("Bad signed cookie: %s", name)
             return default

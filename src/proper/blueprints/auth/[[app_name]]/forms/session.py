@@ -24,7 +24,7 @@ class SignInForm(f.Form):
         v.login_exists(value)  # (A)
         return value
 
-    def on_after_validation(self) -> bool:
+    def after_validate(self) -> bool:
         login = self.login.value
         password = self.password.value
         user = User.authenticate(login=login, password=password)

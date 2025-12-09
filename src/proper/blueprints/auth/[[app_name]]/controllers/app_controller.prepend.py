@@ -1,1 +1,1 @@
-from .concerns import Authentication
+from .concerns.authentication import Authentication

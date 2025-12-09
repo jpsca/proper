@@ -96,6 +96,7 @@ def debug_error_handler(app, request, response) -> None:
     excp = traceback2.format_exc()
     data = {
         "config": redact_sensible_info(app.config),
+        "request": request,
         "response": response,
         "title": get_title(error),
         "description": str(error),

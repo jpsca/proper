@@ -926,7 +926,7 @@ En el template del formulario:
 
 ```jinja
 <form method="post">
-    <input type="hidden" name="csrf_token" value="{{ request.csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ current.csrf_token }}">
     {# ... #}
 </form>
 ```

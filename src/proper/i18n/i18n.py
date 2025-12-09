@@ -1,11 +1,11 @@
 import datetime
 import typing as t
-from collections.abc import Callable
 from pathlib import Path
 
 import babel.dates as babel_dates
 from markupsafe import Markup
 
+from proper.core.global_context import current
 from proper.errors import TranslationsNotFound
 from proper.helpers import format_locale
 from . import plural_rules
@@ -20,8 +20,6 @@ class I18n(BabelMixin):
     __slots__ = (
         "reader",
         "_translations",
-        "_get_current_locale",
-        "_get_current_timezone",
         "default_locale",
         "default_timezone"
     )
@@ -31,8 +29,6 @@ class I18n(BabelMixin):
     def __init__(
         self,
         *paths: Path | str,
-        get_current_locale: Callable[[], str | None],
-        get_current_timezone: Callable[[], str | datetime.tzinfo | None],
         default_locale: str = "en",
         default_timezone: str = "UTC",
     ):
@@ -41,10 +37,6 @@ class I18n(BabelMixin):
         Arguments:
             *paths:
                 paths that will be searched for the translations.
-            get_current_locale:
-                a callable that returns the current locale.
-            get_current_timezone:
-                a callable that returns the current timezone.
             default_locale:
                 Fallback locale if the current one is undefined or not available.
                 This value will be accepted without checking if it's available.
@@ -54,9 +46,6 @@ class I18n(BabelMixin):
         """
         self.reader = Reader(*paths)
         self._translations = None
-
-        self._get_current_locale = get_current_locale
-        self._get_current_timezone = get_current_timezone
         self.default_locale = format_locale(default_locale)
         self.default_timezone = babel_dates.get_timezone(default_timezone)
 
@@ -104,10 +93,10 @@ class I18n(BabelMixin):
 
     def get_current_locale(self) -> str:
         """Get the current locale from the request context."""
-        return self._get_current_locale() or self.default_locale
+        return current.locale or self.default_locale
 
     def get_current_timezone(self) -> str | datetime.tzinfo:
-        return self._get_current_timezone() or self.default_timezone
+        return current.timezone or self.default_timezone
 
     def negotiate_locale(self, accepted: list[str]) -> str | None:
         """Find the best match between the locales available and the

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from markupsafe import Markup
 
+from proper import current
 from proper.errors import TranslationsNotFound
 from proper.i18n import I18n
 
@@ -13,19 +14,9 @@ LOCALES2 = HERE / "locales2"
 LOCALES_PATHS = [LOCALES1, LOCALES2]
 
 
-def get_current_locale():
-    return None
-
-
-def get_current_timezone():
-    return None
-
-
 def test_default_locale():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-pe",
     )
     assert i18n.default_locale == "es_PE"
@@ -35,8 +26,6 @@ def test_default_locale():
 def test_load_translations():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
     )
     i18n._load_translations()
     print(i18n.translations)
@@ -47,13 +36,10 @@ def test_load_translations():
 
 
 def test_get_current_locale():
-    def get_current_locale():
-        return "en"
+    current.locale = "en"
 
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-pe",
     )
     assert i18n.translate("greeting") == "Hello World!"
@@ -63,8 +49,6 @@ def test_get_current_locale():
 def test_translate():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-PE",
     )
 
@@ -79,8 +63,6 @@ def test_translate():
 def test_key_not_found():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-PE",
     )
     assert i18n.translate("bla", locale="es") == "<missing:bla/>"
@@ -89,8 +71,6 @@ def test_key_not_found():
 def test_language_not_found():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-PE",
     )
     with pytest.raises(TranslationsNotFound):
@@ -100,8 +80,6 @@ def test_language_not_found():
 def test_translate_pluralize():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-PE",
     )
 
@@ -113,8 +91,6 @@ def test_translate_pluralize():
 def test_lazy_translate():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es_PE",
     )
 
@@ -130,8 +106,6 @@ def test_lazy_translate():
 def test_lazy_key_not_found():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-PE",
     )
     lazy = i18n.lazy_translate("bla", locale="es")
@@ -141,8 +115,6 @@ def test_lazy_key_not_found():
 def test_lazy_language_not_found():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
         default_locale="es-PE",
     )
     lazy = i18n.lazy_translate("greeting", locale="fr")
@@ -153,8 +125,6 @@ def test_lazy_language_not_found():
 def test_for_incomplete_locales():
     i18n = I18n(
         *LOCALES_PATHS,
-        get_current_locale=get_current_locale,
-        get_current_timezone=get_current_timezone,
     )
     assert i18n.test_for_incomplete_locales()
 

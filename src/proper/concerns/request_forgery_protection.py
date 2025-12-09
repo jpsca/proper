@@ -30,6 +30,8 @@ class RequestForgeryProtection(Concern):
     skip_csrf_for: TIterable[str] = ()
 
     def before(self) -> None:
+        from proper import current
+
         if self._must_check_csrf_token():
             token = self._handle_verified_request()
         else:
@@ -37,10 +39,9 @@ class RequestForgeryProtection(Concern):
 
         if token:
             masked_token = self._mask_csrf_token(token)
-            self.request.csrf_token = masked_token
+            current.csrf_token = masked_token
             self.response.headers[CSRF_HEADER] = masked_token
 
-        super().before()
 
     # Private
 
@@ -121,9 +122,8 @@ class RequestForgeryProtection(Concern):
         return token[:CSRF_TOKEN_LENGTH].decode()
 
     def _mask_csrf_token(self, token: str) -> str:
-        """Creates a masked version of the CSRF token that varies
-        on each self.request. The masking is used to mitigate SSL attacks
-        like BREACH.
+        """Creates a masked version of the CSRF token that varies on each self.request.
+        The masking is used to mitigate SSL attacks like BREACH.
         """
         random_prefix = self._generate_csrf_token()
         return f"{random_prefix}{token}"

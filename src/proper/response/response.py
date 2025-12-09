@@ -10,7 +10,7 @@ from urllib.parse import quote
 from wsgiref.types import StartResponse
 
 from proper import status as pstatus
-from proper.core.global_context import g
+from proper.core.global_context import current
 from proper.helpers import DotDict, tunnel_encode
 from proper.types import TBody, TIterable, TReadable
 from .cookies import ResponseCookiesMixin
@@ -211,7 +211,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     def is_fresh(self, request: "Request | None" = None) -> bool:
         """Returns `True` if the response is fresh."""
-        request = g.request if request is None else request
+        request = current.request if request is None else request
         if request is None:
             return False
 

@@ -38,7 +38,7 @@ class PasswordChangeForm(f.Form):
         v.password_hasnt_been_pwned(value)
         return value
 
-    def after_validation(self) -> bool:
+    def after_validate(self) -> bool:
         password1 = self.password1.value
         password2 = self.password2.value
         if password1 != password2:

@@ -1,4 +1,5 @@
 from proper.status import unprocessable
+from proper.units import MINUTES
 
 from .. import tasks
 from ..forms.password_reset import PasswordChangeForm, PasswordResetForm
@@ -11,6 +12,12 @@ from .app_controller import AppController
 @auth_router.resource("password-reset")
 class PasswordResetController(AppController):
     skip_authentication = True
+    rate_limit = {
+        "to": 10,
+        "within": 15 * MINUTES,
+        "only": "create",
+        "react_with": "_too_may_requests",
+    }
 
     def new(self):
         self.form = PasswordResetForm()
@@ -23,7 +30,13 @@ class PasswordResetController(AppController):
         login = self.form.save()["login"]
         user = User.get_by_login(login)
         send_password_reset_email(user)
-        self.email = user.email
+        self.response.session["email"] = user.email
+        self.response.redirect_to("PasswordReset.email")
+
+    @auth_router.get("password_reset/email")
+    def email(self):
+        self.email = self.response.session.get("email", "")
+        return self.render("pages/password_reset/create.jinja")
 
     def edit(self):
         self.pk = self.params.get("pk")
@@ -51,6 +64,13 @@ class PasswordResetController(AppController):
         user.set_password(new_password)
         user.save()
         self.redirect_after_authentication(flash="Password updated")
+
+    def _too_may_requests(self):
+        self.response.redirect_to(
+            "PasswordReset.new",
+            flash="Too many requests. Try again in a few minutes.",
+            flash_type="error",
+        )
 
 
 def send_password_reset_email(user):

@@ -1,6 +1,7 @@
-{#def form, pk, login, password_minlen #}
 {#import "layouts/auth.jinja" as Layout #}
 {#import "form.jinja" as Form #}
+
+{#def form, pk, login, password_minlen #}
 
 <Layout title="Change your password" data_turbo="false">
   <Form
@@ -34,7 +35,7 @@
     </div>
 
     <div class="auth-footer">
-      <button type="submit" class="btn btn--primary btn--block btn--large"
+      <button type="submit" class="btn btn--primary"
       >Save my password</button>
     </div>
   </Form>

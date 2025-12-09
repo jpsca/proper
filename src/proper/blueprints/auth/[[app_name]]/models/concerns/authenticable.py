@@ -16,7 +16,7 @@ class Authenticable(BaseMixin):
         return self.login
 
     @classmethod
-    def _normalize_login(cls, login: str = ""):
+    def normalize_login(cls, login: str = ""):
         # https://engineering.atspotify.com/2013/06/creative-usernames/
         login = saslprep(login.strip()).casefold()
         return login.replace(" ", "")
@@ -28,7 +28,7 @@ class Authenticable(BaseMixin):
             data["password"] = auth.hash_password(password)
         login = data.get("login", "").strip()
         if login:
-            data["login"] = cls._normalize_login(login)
+            data["login"] = cls.normalize_login(login)
         return data
 
     @classmethod
@@ -55,7 +55,7 @@ class Authenticable(BaseMixin):
 
         Required by proper.auth.Auth()
         """
-        login = cls._normalize_login(login)
+        login = cls.normalize_login(login)
         return cls.get_or_none(cls.login == login)  # type: ignore
 
     @classmethod
@@ -66,7 +66,7 @@ class Authenticable(BaseMixin):
         *,
         update_hash: bool = True,
     ) -> t.Any:
-        login = cls._normalize_login(login)
+        login = cls.normalize_login(login)
         return auth.authenticate(cls, login, password, update_hash=update_hash)
 
     @classmethod

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from proper import status
 from proper.controller import Controller
-from proper.core.global_context import g
+from proper.core.global_context import current
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from proper.types import TException, THandler, TIterable
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
@@ -151,6 +151,7 @@ class BaseRouter:
         if name.startswith("/"):
             return name
 
+        name = name.removesuffix("Controller")
         route = self._routes_by_name.get(name)
         if not route:
             raise RouteNotFound(name)
@@ -175,8 +176,8 @@ class BaseRouter:
         **kw,
     ) -> bool:
         control = self.url_for(name, object, **kw)
-        if not curr_url and g.request:
-            curr_url = g.request.path
+        if not curr_url and current.request:
+            curr_url = current.request.path
         return curr_url.rstrip("/") == control.rstrip("/")
 
     def url_startswith(
@@ -188,8 +189,8 @@ class BaseRouter:
         **kw,
     ) -> bool:
         control = self.url_for(name, object, **kw)
-        if not curr_url and g.request:
-            curr_url = g.request.path
+        if not curr_url and current.request:
+            curr_url = current.request.path
         curr_url = curr_url.rstrip("/")
 
         if curr_url == control:

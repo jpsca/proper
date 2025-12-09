@@ -46,6 +46,8 @@ class SqliteCache(BaseCache):
         self.database = self.db_class(database, pragmas=pragmas, timeout=timeout)
         for model in self.models:
             model.bind(self.database)
+        if self.memory_based:
+            self.create_tables()
 
     def reset(self):
         # TBD: implement reset

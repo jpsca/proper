@@ -17,8 +17,6 @@ def setup(app):
 
     app.i18n = I18n(
         app.locales_path,
-        get_current_timezone=app.get_current_timezone,
-        get_current_locale=app.get_current_locale,
         default_locale=app.config.LOCALE_DEFAULT,
         default_timezone=app.config.TIMEZONE_DEFAULT,
     )

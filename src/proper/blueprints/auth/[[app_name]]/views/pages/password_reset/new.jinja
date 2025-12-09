@@ -1,6 +1,7 @@
-{#def form #}
 {#import "layouts/auth.jinja" as Layout #}
 {#import "form.jinja" as Form #}
+
+{#def form #}
 
 <Layout title="Reset your password" data_turbo="false">
   <Form class="auth-panel" action={{ url_for('PasswordReset.create') }}>
@@ -18,7 +19,7 @@
     </div>
 
     <div class="auth-footer">
-      <button type="submit" class="btn btn--primary btn--block btn--large"
+      <button type="submit" class="btn btn--primary"
       >Email reset link</button>
     </div>
   </Form>
