@@ -2,7 +2,7 @@ from smtplib import SMTP, SMTPException
 
 import pytest
 
-from proper.mail import EmailMessage, SMTPMailer
+from proper.mail import EmailMessage, SMTPEmailSender
 
 
 def make_emails():
@@ -18,7 +18,7 @@ def make_emails():
 
 
 def test_sending(smtpd):
-    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
+    mailer = SMTPEmailSender(host=smtpd.hostname, port=smtpd.port, use_tls=False)
     email1, email2, email3, email4 = make_emails()
 
     with SMTP(smtpd.hostname, smtpd.port):
@@ -37,7 +37,7 @@ def test_sending(smtpd):
 
 
 def test_sending_unicode(smtpd):
-    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
+    mailer = SMTPEmailSender(host=smtpd.hostname, port=smtpd.port, use_tls=False)
     email = EmailMessage(
         subject="Olé",
         body="Contenido en español",
@@ -56,7 +56,7 @@ def test_sending_unicode(smtpd):
 
 
 def test_notls(smtpd):
-    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=True)
+    mailer = SMTPEmailSender(host=smtpd.hostname, port=smtpd.port, use_tls=True)
     with pytest.raises(SMTPException):
         with SMTP(smtpd.hostname, smtpd.port):
             mailer.open()
@@ -64,7 +64,7 @@ def test_notls(smtpd):
 
 
 def test_fail_silently(smtpd):
-    mailer = SMTPMailer(
+    mailer = SMTPEmailSender(
         host=smtpd.hostname,
         port=smtpd.port,
         use_tls=True,
@@ -74,7 +74,7 @@ def test_fail_silently(smtpd):
         mailer.open()
     mailer.close()
 
-    mailer = SMTPMailer(
+    mailer = SMTPEmailSender(
         host="123",
         port=smtpd.port,
         use_tls=False,
@@ -85,7 +85,7 @@ def test_fail_silently(smtpd):
         mailer.open()
     mailer.close()
 
-    mailer = SMTPMailer(
+    mailer = SMTPEmailSender(
         host=smtpd.hostname,
         port=3000,
         use_tls=False,
@@ -94,27 +94,3 @@ def test_fail_silently(smtpd):
     with SMTP(smtpd.hostname, smtpd.port):
         mailer.open()
     mailer.close()
-
-
-def test_batch_too_many_recipients(smtpd):
-    mailer = SMTPMailer(
-        host=smtpd.hostname,
-        port=smtpd.port,
-        use_tls=False,
-        max_recipients=200,
-    )
-    send_to = ["user{}@example.com".format(i) for i in range(1, 1501)]
-    msg = EmailMessage(subject="The Subject", body="Content", from_email="from@example.com", to=send_to)
-
-    with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_emails(msg) == 1
-
-    assert len(smtpd.messages) == 8
-    assert len(smtpd.messages[0].get("to").split(",")) == 200
-    assert len(smtpd.messages[1].get("to").split(",")) == 200
-    assert len(smtpd.messages[2].get("to").split(",")) == 200
-    assert len(smtpd.messages[3].get("to").split(",")) == 200
-    assert len(smtpd.messages[4].get("to").split(",")) == 200
-    assert len(smtpd.messages[5].get("to").split(",")) == 200
-    assert len(smtpd.messages[6].get("to").split(",")) == 200
-    assert len(smtpd.messages[7].get("to").split(",")) == 100

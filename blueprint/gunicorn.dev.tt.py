@@ -2,7 +2,7 @@ from proper import show_banner, show_welcome
 
 
 debug = True
-host = "[[ app_name ]].localhost"
+host = "0.0.0.0"
 port = 2300
 
 
@@ -77,8 +77,8 @@ def on_starting(server):
 
 
 def when_ready(server):
-    show_welcome(host, port)
+    show_welcome("[[ app_name ]].localhost", port)
 
 
 def pre_exec(server):
-    show_welcome(host, port)
+    show_welcome("[[ app_name ]].localhost", port)

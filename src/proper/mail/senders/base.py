@@ -3,8 +3,8 @@ import typing as t
 from ..message import EmailMessage
 
 
-class BaseMailer:
-    """Base class for mailers implementations.
+class BaseEmailSender:
+    """Base class for email senders implementations.
 
     Subclasses must at least overwrite send_emails().
     """
@@ -26,7 +26,7 @@ class BaseMailer:
 
         This method can be called by applications to force a single
         network connection to be used when sending mails. See the
-        `send()` method of the `SMTPMailer` for a reference
+        `_send()` method of the `SMTPEmailSender` for a reference
         implementation.
 
         The default implementation does nothing.
@@ -40,11 +40,11 @@ class BaseMailer:
         """
         pass
 
-    def send(self, **kwargs) -> t.Any:
+    def send_email(self, **kwargs) -> t.Any:
         kwargs.setdefault("from_email", self.default_from)
         return self.send_emails(EmailMessage(**kwargs))
 
-    def send_emails(self, *email_messages: EmailMessage) -> t.Any:
+    def send_emails(self, *messages: EmailMessage) -> t.Any:
         """Sends one or more `EmailMessage` objects and returns the number of
         email messages sent.
         """

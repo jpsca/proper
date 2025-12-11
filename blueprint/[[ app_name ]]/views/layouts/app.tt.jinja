@@ -12,19 +12,19 @@
 	<meta charset="utf-8">
 	<title>{{ title }}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<link rel="icon" type="image/x-icon" href="{{ url_for('static', file='favicon.ico') }}">
+	<link rel="icon" type="image/x-icon" href="{{ url_for('assets', file='favicon.ico') }}">
 	[% if use_tailwindcss -%]
-	<link rel="stylesheet" href="{{ url_for('static', file='css/styles.css') }}">
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/styles.css') }}">
 	[%- else -%]
-	<link rel="stylesheet" href="{{ url_for('static', file='css/app.css') }}">
-	[% endif -%]
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/app.css') }}">
+	[% endif %]
 	{% for url in assets.collect_css() -%}
-		<link rel="stylesheet" href="{{ url_for('static', file=url) }}">
+		<link rel="stylesheet" href="{{ url_for('assets', file=url) }}">
 	{% endfor -%}
-	<script src="{{ url_for('static', file='js/turbo.es2017-umd.js') }}" type="module"></script>
-	<script src="{{ url_for('static', file='js/app.js') }}" type="module"></script>
+	<script src="{{ url_for('assets', file='javascript/turbo.es2017-umd.javascript') }}" type="module"></script>
+	<script src="{{ url_for('assets', file='javascript/app.js') }}" type="module"></script>
 	{% for url in assets.collect_js() -%}
-		<script src="{{ url_for('static', file=url) }}" type="module"></script>
+		<script src="{{ url_for('assets', file=url) }}" type="module"></script>
 	{% endfor -%}
 	{% if title %}<meta property="og:title" content="{{ title }}">
 	{% endif -%}

@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-proper = "[[ app_name ]].cl:run"
+proper = "[[ app_name ]].cli:run"
 
 
 [dependency-groups]

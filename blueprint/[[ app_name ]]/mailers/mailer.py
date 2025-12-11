@@ -1,11 +1,11 @@
-from proper.mail import ToConsoleMailer
+from proper.mail import ToConsoleEmailSender
 
 from ..main import config
 
 
-mailer = ToConsoleMailer()
+mailer = ToConsoleEmailSender()
 
 
 def send_email(to, subject, **kw):
     kw.setdefault("from_email", config.MAILER_DEFAULT_FROM)
-    mailer.send(to=to, subject=subject, **kw)
+    mailer.send_email(to=to, subject=subject, **kw)

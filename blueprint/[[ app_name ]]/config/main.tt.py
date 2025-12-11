@@ -36,8 +36,7 @@ MAX_CONTENT_LENGTH = 8 * MB
 # Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
 MAX_QUERY_SIZE = 1 * MB
 
-STATIC_URL = "/static/"
-VIEWS_ASSETS_URL = "/assets/"
+ASSETS_URL = "/assets/"
 
 # The name of the header to use to return a file
 # so the proxy or web-server does it instead of our application.
@@ -49,16 +48,16 @@ else:
 
 
 MAILER = {
-    "type": "proper.mail.ToConsoleMailer",
+    "type": "proper.mail.ToConsoleEmailSender",
     "default_from": "hello@example.com",
 }
 
 if env == "test":
-    MAILER["type"] = "proper.mail.ToMemoryMailer"
+    MAILER["type"] = "proper.mail.ToMemoryEmailSender"
 
 # if env == "prod":
 #     MAILER = {
-#         "type": "proper.mail.SMTPMailer",
+#         "type": "proper.mail.SMTPEmailSender",
 #         "host": "smtp.example.com",
 #         "port": 587,
 #         "username": os.getenv("SMTP_USERNAME"),

@@ -1,2 +1,0 @@
-class InvalidEmailHeader(ValueError):
-    pass

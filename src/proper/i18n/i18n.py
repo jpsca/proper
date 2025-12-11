@@ -93,10 +93,10 @@ class I18n(BabelMixin):
 
     def get_current_locale(self) -> str:
         """Get the current locale from the request context."""
-        return current.locale or self.default_locale
+        return format_locale(current.locale) or self.default_locale
 
-    def get_current_timezone(self) -> str | datetime.tzinfo:
-        return current.timezone or self.default_timezone
+    def get_current_timezone(self) -> datetime.tzinfo:
+        return babel_dates.get_timezone(current.timezone) or self.default_timezone
 
     def negotiate_locale(self, accepted: list[str]) -> str | None:
         """Find the best match between the locales available and the

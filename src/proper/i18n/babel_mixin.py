@@ -16,8 +16,8 @@ class BabelMixin:
     def get_current_locale(self) -> str:
         return "en"
 
-    def get_current_timezone(self) -> str | datetime.tzinfo:
-        return "UTC"
+    def get_current_timezone(self) -> datetime.tzinfo:
+        return babel_dates.get_timezone("UTC")
 
     def format_datetime(
         self,
@@ -53,7 +53,7 @@ class BabelMixin:
         return babel_dates.format_datetime(
             datetime,
             format=format,
-            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 
@@ -159,7 +159,7 @@ class BabelMixin:
         return babel_dates.format_time(
             time,
             format=format,
-            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 
@@ -309,7 +309,7 @@ class BabelMixin:
             skeleton=skeleton,
             datetime=datetime,
             fuzzy=fuzzy,
-            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 
@@ -375,7 +375,7 @@ class BabelMixin:
             end=end,
             skeleton=skeleton,
             fuzzy=fuzzy,
-            tzinfo=babel_dates.get_timezone(timezone or self.get_current_timezone()),
+            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
             locale=format_locale(locale) if locale else self.get_current_locale(),
         )
 

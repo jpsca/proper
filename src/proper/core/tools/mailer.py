@@ -4,7 +4,7 @@ from proper.helpers.utils import get_instance
 
 NAME = "MAILER"
 DEFAULT_CONFIG = {
-    "type": "proper.mail.ToConsoleMailer",
+    "type": "proper.mail.ToConsoleEmailSender",
     "default_from": "hello@example.com",
 }
 

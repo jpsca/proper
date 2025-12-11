@@ -27,8 +27,7 @@ default_config = {
     # Raises a `RequestEntityTooLarge` or an `UriTooLong` if this value is exceeded.
     "MAX_QUERY_SIZE": 1 * MB,
 
-    "STATIC_URL": "/static/",
-    "VIEWS_ASSETS_URL": "/static_v/",
+    "ASSETS_URL": "/assets/",
 
     # The name of the header to use to return a file
     # so the proxy or web-server does it instead of our application.
@@ -83,7 +82,7 @@ def normalize_config(config: DotDict) -> DotDict:
 
     config.PROTOCOL = str(config.PROTOCOL)
     config.HOST = str(config.HOST)
-    config.STATIC_URL = str(config.STATIC_URL)
+    config.ASSETS_URL = str(config.ASSETS_URL)
 
     return config
 

@@ -169,7 +169,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
 
     # Static files
-    STATIC_URL = "/static/"
+    ASSETS_URL = "/static/"
 
     # Auth
     AUTH_PASSWORD_MINLEN = 9
@@ -415,7 +415,7 @@ def subdomain_index(self):
 ```python
 # En router.py
 router.static(
-    app.config.STATIC_URL,  # "/static/"
+    app.config.ASSETS_URL,  # "/static/"
     root=app.static_path,
     name="static"
 )
@@ -782,7 +782,7 @@ myapp/views/
 <head>
     <meta charset="utf-8">
     <title>{% block title %}My App{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', file='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', file='styles/app.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>

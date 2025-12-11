@@ -4,13 +4,13 @@ import subprocess
 from ..main import app
 
 
-class AppCL(app.CL):
+class AppCLI(app.CLI):
     """Custom commands for this application"""
     def run(self):
         subprocess.Popen([
             "tailwindcss",
-            "-i", "static/css/_input.css",
-            "-o", "static/css/styles.css",
+            "-i", "[[app_name]]/assets/styles/_input.css",
+            "-o", "[[app_name]]/assets/styles/styles.css",
             "--watch",
         ], process_group=0)
         super().run()   # type: ignore
@@ -19,7 +19,7 @@ class AppCL(app.CL):
 from ..main import app
 
 
-class AppCL(app.CL):
+class AppCLI(app.CLI):
     """Custom commands for this application"""
     pass
 [% endif %]

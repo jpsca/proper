@@ -11,7 +11,7 @@ from itsdangerous import (
 
 from proper import status
 from proper.cache import FragmentCacheExtension
-from proper.cl.app_cl import get_cl
+from proper.cli.app_cli import get_cli
 from proper.errors import MatchNotFound, MethodNotAllowed
 from proper.helpers import DotDict, jsonplus
 from proper.request import Request
@@ -45,7 +45,7 @@ if t.TYPE_CHECKING:
 
     from proper.cache import BaseCache
     from proper.i18n import I18n
-    from proper.mail import EmailMessage, Mailer
+    from proper.mail import BaseEmailSender, EmailMessage
 
 
 __all__ = ("App",)
@@ -76,7 +76,7 @@ class App(AppTest):
     root_path: Path
     views_path: Path
     config_path: Path
-    static_path: Path
+    assets_path: Path
     locales_path: Path
     storage_path: Path
 
@@ -98,7 +98,7 @@ class App(AppTest):
     db: "dict[str, pw.Database]"
     queue: "Huey"
     cache: "BaseCache"
-    mailer: "Mailer"
+    mailer: "BaseEmailSender"
     i18n: "I18n | None"
     storage: "Storage | None"
 
@@ -251,7 +251,7 @@ class App(AppTest):
 
     def send_email(self, later: bool = False, *args, **kwargs) -> t.Any:
         # TODO: later
-        return self.mailer.send(*args, **kwargs)
+        return self.mailer.send_email(*args, **kwargs)
 
     def send_emails(self, later: bool = False, *messages: "EmailMessage") -> t.Any:
         # TODO: later
@@ -269,12 +269,11 @@ class App(AppTest):
         self.root_path = path.resolve()
         self.name = self.root_path.stem
 
-        parent_path = self.root_path.parent
         self.views_path = self.root_path / "views"
-        self.config_path = parent_path / "config"
-        self.static_path = parent_path / "static"
-        self.locales_path = parent_path / "locales"
-        self.storage_path = parent_path / "storage"
+        self.config_path = self.root_path / "config"
+        self.assets_path = self.root_path / "assets"
+        self.locales_path = self.config_path / "locales"
+        self.storage_path = self.root_path.parent / "storage"
 
     def _setup_router(self) -> None:
         self.router = Router()
@@ -283,7 +282,7 @@ class App(AppTest):
         self.serializer = self.get_serializer("proper.session")
 
     def _setup_cli(self) -> None:
-        self.CL = get_cl(self)
+        self.CLI = get_cli(self)
 
     def _setup_tools(self) -> None:
         for tool_module in self.tools:

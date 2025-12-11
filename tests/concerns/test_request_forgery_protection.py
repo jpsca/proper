@@ -1,6 +1,6 @@
 import pytest
 
-from proper import Request, Response
+from proper import Request, Response, current
 from proper.concerns import (
     CSRF_FORM_KEY,
     CSRF_HEADER,
@@ -36,10 +36,11 @@ def test_no_need_to_argue(co):
     co.request.matched_action = "action"
     co.before()
 
-    assert co.request.csrf_token is not None
-    assert len(co.request.csrf_token) == CSRF_TOKEN_LENGTH * 2
-    assert co.request.csrf_token == co.response.headers.get(CSRF_HEADER)
-    assert co.request.csrf_token[CSRF_TOKEN_LENGTH:] == co.response.session[CSRF_SESSION_KEY]
+    csrf_token = current.csrf_token
+    assert csrf_token is not None
+    assert len(csrf_token) == CSRF_TOKEN_LENGTH * 2
+    assert csrf_token == co.response.headers.get(CSRF_HEADER)
+    assert csrf_token[CSRF_TOKEN_LENGTH:] == co.response.session[CSRF_SESSION_KEY]
 
 
 def test_missing_csrf(co):
@@ -141,11 +142,11 @@ def test_masking_is_random(co):
     co.request.matched_action = "action"
 
     co.before()
-    token1 = co.request.csrf_token
+    token1 = current.csrf_token
 
     co.request.session = co.response.session.copy()
     co.before()
-    token2 = co.request.csrf_token
+    token2 = current.csrf_token
 
     assert token1 != token2
     assert token1[CSRF_TOKEN_LENGTH:] == token2[CSRF_TOKEN_LENGTH:]

@@ -1,9 +1,9 @@
-from proper_cli import Cli
+from proper_cli import Cli as CLI
 
 from ..main import app
 
 
-class AuthCL(Cli):
+class AuthCLI(CLI):
     def user(self, login: str, password: str) -> None:
         """
         Adds an user.
@@ -54,4 +54,4 @@ class AuthCL(Cli):
         print("Password updated")
 
 
-app.CL.auth = AuthCL
+app.CLI.auth = AuthCLI

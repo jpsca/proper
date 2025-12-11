@@ -4,14 +4,14 @@ from functools import wraps
 
 from proper_cli import Cli
 
-from .db_cl import get_db_cl
+from .db_cli import get_db_cli
 
 
 if t.TYPE_CHECKING:
     from proper.core.app import App
 
 
-def get_cl(app: "App") -> type[Cli]:
+def get_cli(app: "App") -> type[Cli]:
     attrs: dict[str, t.Any] = {
         "__doc__": """
         Application-specific commands.
@@ -22,12 +22,12 @@ def get_cl(app: "App") -> type[Cli]:
         """,
         "run": run,
         "routes": get_routes_cmd(app),
-        "db": get_db_cl(app),
-        "g": get_generators_cl(app),
-        "install": get_install_cl(app),
+        "db": get_db_cli(app),
+        "g": get_generators_cli(app),
+        "install": get_install_cli(app),
     }
 
-    return type("appCL", (Cli,), attrs)
+    return t.cast(type[Cli], type("appCL", (Cli,), attrs))
 
 
 def run(self, config="gunicorn.dev.py"):
@@ -90,7 +90,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
     return routes
 
 
-def get_generators_cl(app: "App") -> type[Cli]:
+def get_generators_cli(app: "App") -> type[Cli]:
     from .. import generators
 
     attrs: dict[str, t.Any] = {
@@ -100,10 +100,10 @@ def get_generators_cl(app: "App") -> type[Cli]:
     for name in ("resource", "model"):
         attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
-    return type("Generators", (Cli,), attrs)
+    return t.cast(type[Cli], type("Generators", (Cli,), attrs))
 
 
-def get_install_cl(app: "App") -> type[Cli]:
+def get_install_cli(app: "App") -> type[Cli]:
     from proper.install import auth, i18n, storage
 
     attrs: dict[str, t.Any] = {
@@ -113,7 +113,7 @@ def get_install_cl(app: "App") -> type[Cli]:
         "storage": _get_cmd(app, storage, "install"),
         # "text": _get_cmd(app, text, "install"),
     }
-    return type("Install", (Cli,), attrs)
+    return t.cast(type[Cli], type("Install", (Cli,), attrs))
 
 
 def _get_cmd(app, module: t.Any, name: str) -> t.Callable:

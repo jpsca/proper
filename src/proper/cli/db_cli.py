@@ -11,8 +11,8 @@ QUEUE = "proper_queue"
 CACHE = "proper_cache"
 
 
-def get_db_cl(app):
-    class DBCL(Cli):
+def get_db_cli(app) -> type[Cli]:
+    class DBCLI(Cli):
         def _get_db(self, name: str, validate: bool = True) -> pw.Database | None:
             """Get the database instance for the given name.
 
@@ -197,4 +197,4 @@ def get_db_cl(app):
             for migration in router.done:
                 print(f"{router.migrate_dir}/{migration}.py")
 
-    return DBCL
+    return DBCLI
