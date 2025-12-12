@@ -1,9 +1,9 @@
 from proper.status import unprocessable
 from proper.units import MINUTES
 
-from .. import tasks
+from ..emails.password_reset_email import PasswordResetEmail
 from ..forms.password_reset import PasswordChangeForm, PasswordResetForm
-from ..main import app, config
+from ..main import config
 from ..models import User
 from ..router import auth_router
 from .app_controller import AppController
@@ -29,7 +29,7 @@ class PasswordResetController(AppController):
 
         login = self.form.save()["login"]
         user = User.get_by_login(login)
-        send_password_reset_email(user)
+        PasswordResetEmail(user).send_later(to=user.email)
         self.response.session["email"] = user.email
         self.response.redirect_to("PasswordReset.email")
 
@@ -71,21 +71,3 @@ class PasswordResetController(AppController):
             flash="Too many requests. Try again in a few minutes.",
             flash_type="error",
         )
-
-
-def send_password_reset_email(user):
-    token = user.get_token()
-    validate_url = app.url_for("PasswordReset.edit", pk=token)
-    reset_url = app.url_for("PasswordReset.new")
-    html = app.catalog.render(
-        "emails/password_reset.jinja",
-        validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
-        reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
-    )
-
-    tasks.email.send_email(
-        to=user.email,
-        subject="Reset your password",
-        body=html,
-        html=True,
-    )

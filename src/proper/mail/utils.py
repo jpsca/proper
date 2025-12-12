@@ -1,6 +1,6 @@
 import socket
 import typing as t
-from collections.abc import Sequence
+from collections.abc import Iterable
 
 
 def punycode(domain: str) -> str:
@@ -49,7 +49,7 @@ def force_bytes(s: t.Any, encoding="utf-8", strings_only=False, errors="strict")
     return str(s).encode(encoding, errors)
 
 
-def to_list(value: Sequence[str] | None) -> list[str]:
+def to_list(value: Iterable[str] | None) -> list[str]:
     """
     Convert a sequence or `None` to a list.
 

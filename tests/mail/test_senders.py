@@ -3,10 +3,10 @@ from io import StringIO
 import pytest
 
 from proper.mail import (
-    BaseEmailSender,
+    BaseSender,
     EmailMessage,
-    ToConsoleEmailSender,
-    ToMemoryEmailSender,
+    ToConsoleSender,
+    ToMemorySender,
 )
 
 
@@ -17,13 +17,11 @@ def make_emails():
             subject="Subject",
             to="to@example.com",
             body=f"Content #{content}",
-        )
-        for content in range(1, 5)
-    ]
+        ).serialize() for content in range(1, 5)]
 
 
 def test_base_mailer():
-    mailer = BaseEmailSender()
+    mailer = BaseSender()
     mailer.open()
     mailer.close()
     with pytest.raises(NotImplementedError):
@@ -31,23 +29,23 @@ def test_base_mailer():
 
 
 def test_to_memory_mailer():
-    mailer = ToMemoryEmailSender()
+    mailer = ToMemorySender()
     email1, email2, email3, email4 = make_emails()
 
-    assert mailer.send_emails(email1) == 1
-    assert mailer.send_emails(email2, email3, email4) == 3
+    assert mailer.send_email(email1) == 1
+    assert mailer.send_email(email2, email3, email4) == 3
     assert len(mailer.outbox) == 4
 
 
 def test_to_console_mailer():
     stream = StringIO()
-    mailer = ToConsoleEmailSender(stream=stream)
-    mailer.send_email(
+    mailer = ToConsoleSender(stream=stream)
+    mailer.send_email(EmailMessage(
         subject="Subject",
         body="Content",
         from_email="from@example.com",
         to="to@example.com",
-    )
+    ).serialize())
 
     value = stream.getvalue().strip()
     print(value)
@@ -59,6 +57,6 @@ MIME-Version: 1.0
 Subject: Subject
 From: from@example.com
 To: to@example.com
-Date:""".strip())
+""".strip())
 
     assert "\nContent\n" in value

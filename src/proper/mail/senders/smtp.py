@@ -12,19 +12,20 @@ from email.headerregistry import Address, AddressHeader
 from functools import cached_property
 from os import PathLike
 
-from ..message import EmailMessage
+from ..message import EmailMessageDict
 from ..utils import DNS_NAME, force_str, punycode
-from .base import BaseEmailSender
+from .base import BaseSender
 
 
 StrOrBytesPath: t.TypeAlias = str | bytes | PathLike[str] | PathLike[bytes]
 
 
-class SMTPEmailSender(BaseEmailSender):
+class SMTPSender(BaseSender):
     """
     An email sender that manages the SMTP network connection.
     """
 
+    policy = email.policy.SMTP
     connection: smtplib.SMTP_SSL | smtplib.SMTP | None = None
 
     def __init__(
@@ -127,7 +128,7 @@ class SMTPEmailSender(BaseEmailSender):
         finally:
             self.connection = None
 
-    def send_emails(self, *messages: EmailMessage) -> int:
+    def send_email(self, *messages: EmailMessageDict) -> int:
         """
         Send one or more EmailMessage objects and return the number of email
         messages sent.
@@ -151,15 +152,15 @@ class SMTPEmailSender(BaseEmailSender):
                     self.close()
         return num_sent
 
-    def _send(self, message: EmailMessage) -> bool:
+    def _send(self, message: EmailMessageDict) -> bool:
         """A helper method that does the actual sending."""
         assert self.connection is not None
-        recipients = message.get_recipients()
+        recipients = [email for email in (message["to"] + message["cc"] + message["bcc"]) if email]
         if not recipients:
             return False
-        from_email = self.prep_address(message.from_email)
+        from_email = self.prep_address(message["from_email"])
         recipients = [self.prep_address(addr) for addr in recipients]
-        email_message = message.message(policy=email.policy.SMTP)
+        email_message = self.render(message)
         try:
             self.connection.sendmail(from_email, recipients, email_message.as_bytes())
         except smtplib.SMTPException:

@@ -1,10 +1,10 @@
 import copy
 
-from ..message import EmailMessage
-from .base import BaseEmailSender
+from ..message import EmailMessageDict
+from .base import BaseSender
 
 
-class ToMemoryEmailSender(BaseEmailSender):
+class ToMemorySender(BaseSender):
     """An email sender for use during test Session.
 
     The test connection stores email messages in a dummy outbox,
@@ -17,9 +17,9 @@ class ToMemoryEmailSender(BaseEmailSender):
         super().__init__(**kwargs)
         self.outbox = []
 
-    def send_emails(self, *messages: EmailMessage):
+    def send_email(self, *messages: EmailMessageDict):
         """Redirect messages to the dummy outbox."""
-        for msg in messages:
-            email_message = msg.message()
+        for message in messages:
+            email_message = self.render(message)
             self.outbox.append(copy.deepcopy(email_message))
         return len(messages)

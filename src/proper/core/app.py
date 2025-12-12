@@ -45,7 +45,7 @@ if t.TYPE_CHECKING:
 
     from proper.cache import BaseCache
     from proper.i18n import I18n
-    from proper.mail import BaseEmailSender, EmailMessage
+    from proper.mail import BaseSender
 
 
 __all__ = ("App",)
@@ -98,7 +98,7 @@ class App(AppTest):
     db: "dict[str, pw.Database]"
     queue: "Huey"
     cache: "BaseCache"
-    mailer: "BaseEmailSender"
+    mailer: "BaseSender"
     i18n: "I18n | None"
     storage: "Storage | None"
 
@@ -248,14 +248,6 @@ class App(AppTest):
             self.config.SECRET_KEYS[0],
             **kwargs,
         )
-
-    def send_email(self, later: bool = False, *args, **kwargs) -> t.Any:
-        # TODO: later
-        return self.mailer.send_email(*args, **kwargs)
-
-    def send_emails(self, later: bool = False, *messages: "EmailMessage") -> t.Any:
-        # TODO: later
-        return self.mailer.send_emails(*messages)
 
     # Private
 
