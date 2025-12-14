@@ -54,4 +54,4 @@ class AuthCLI(CLI):
         print("Password updated")
 
 
-app.CLI.auth = AuthCLI
+app.CLI.auth = AuthCLI  # type: ignore

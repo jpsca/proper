@@ -120,7 +120,6 @@ class StaticFilesController(Controller):
     def show(self):
         root: Path = Path(self.defaults["root"])
         public: bool = self.defaults["public"]
-
         file: str = self.params.get("file", "")
         relpath = Path(file.lstrip(os.path.sep))
         ext = "".join(relpath.suffixes)

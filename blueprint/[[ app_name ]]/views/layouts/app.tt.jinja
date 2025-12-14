@@ -21,7 +21,7 @@
 	{% for url in assets.collect_css() -%}
 		<link rel="stylesheet" href="{{ url_for('assets', file=url) }}">
 	{% endfor -%}
-	<script src="{{ url_for('assets', file='javascript/turbo.es2017-umd.javascript') }}" type="module"></script>
+	<script src="{{ url_for('assets', file='javascript/turbo.es2017-umd.js') }}" type="module"></script>
 	<script src="{{ url_for('assets', file='javascript/app.js') }}" type="module"></script>
 	{% for url in assets.collect_js() -%}
 		<script src="{{ url_for('assets', file=url) }}" type="module"></script>

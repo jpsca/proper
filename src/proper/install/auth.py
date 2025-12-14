@@ -19,7 +19,7 @@ AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 SORT_IMPORTS_IN = [
     "main.py",
     "controllers/app_controller.py",
-    "cl/__init__.py",
+    "cli/__init__.py",
 ]
 
 DEPENDENCIES = [

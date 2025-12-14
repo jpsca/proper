@@ -1682,7 +1682,7 @@ proper generate resource ResourceName   # Generar recurso completo
 ### Comandos Personalizados
 
 ```python
-# myapp/cl/my_commands.py
+# myapp/cli/my_commands.py
 from proper_cli import Arg, argument
 
 def cleanup(app):
@@ -1700,7 +1700,7 @@ def greet(app, name: Arg[str]):
 Registrar:
 
 ```python
-# myapp/cl/__init__.py
+# myapp/cli/__init__.py
 from . import my_commands
 
 def register(CL):

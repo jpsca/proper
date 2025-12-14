@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from ..core.global_context import current
+from ..helpers import textify
 from .utils import to_list
 
 
@@ -45,11 +46,11 @@ class EmailMessage:
     from_email: str = ""
     subject: str = ""
     body: str = ""
-    to: str | Iterable[str] | None = None
-    bcc: str | Iterable[str] | None = None
-    cc: str | Iterable[str] | None = None
-    reply_to: str | Iterable[str] | None = None
-    headers: dict[str, t.Any] | None = None
+    to: list[str] = None  # type: ignore
+    bcc: list[str] = None  # type: ignore
+    cc: list[str] = None  # type: ignore
+    reply_to: list[str] = None  # type: ignore
+    headers: dict[str, t.Any] = None  # type: ignore
 
     def __init__(
         self,
@@ -106,6 +107,10 @@ class EmailMessage:
             raise ValueError("Both content and mimetype must be provided.")
         self.alternatives.append(EmailAlternative(content=content, mimetype=mimetype))
 
+    def generate_text_alt(self):
+        text_content = textify(self.body)
+        self.attach_alternative(text_content, "text/plain")
+
     def update(
         self,
         from_email: str | None = None,
@@ -116,7 +121,7 @@ class EmailMessage:
         headers: dict[str, t.Any] | None = None,
     ):
         """Serialize the email message to a dictionary."""
-        self.from_email = from_email if from_email else self.from_email
+        self.from_email = from_email or self.from_email
         self.to = to_list(to) if to else self.to
         self.bcc = to_list(bcc) if bcc else self.bcc
         self.cc = to_list(cc) if cc else self.cc

@@ -42,11 +42,7 @@ class ToConsoleSender(BaseSender):
     def write_message(self, message: EmailMessageDict):
         email_message = self.render(message)
         msg_data = email_message.as_bytes()
-        charset = "utf-8"
-        em_charset = email_message.get_charset()
-        if em_charset:
-            charset = em_charset if isinstance(em_charset, str) else em_charset.get_output_charset()
-        msg_data = msg_data.decode(charset or "utf-8")
+        msg_data = msg_data.decode(message["charset"], errors="replace")
         self.stream.write("%s\n" % msg_data)
         self.stream.write("-" * 79)
         self.stream.write("\n")

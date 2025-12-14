@@ -97,7 +97,7 @@ exclude_lines = [
 omit = [
     "src/proper/blueprints/*",
     "src/proper/app_test.py",
-    "src/proper/cl/*",
+    "src/proper/cli/*",
     "src/proper/storage/*", # TODO
 ]
 
@@ -110,7 +110,7 @@ exclude = [
     "**/__pycache__",
     "**/tests/",
     "blueprint",
-    "src/proper/cl/app_cl.py",
+    "src/proper/cli/app_cl.py",
     "src/proper/mail/",
     "src/proper/storage/",
     "src/proper/blueprints/",

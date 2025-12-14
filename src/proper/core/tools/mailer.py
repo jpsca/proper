@@ -14,7 +14,7 @@ def setup(app):
     validate_config(config)
 
     app.config.setdefault("MAILER_DEFAULT_OPTIONS", MAILER_DEFAULT_OPTIONS)
-    app.email_sender = get_instance(**config)
+    app.mailer = get_instance(**config)
 
 
 def validate_config(config):
