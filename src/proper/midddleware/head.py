@@ -1,10 +1,11 @@
 import typing as t
 
-from proper.constants import GET, HEAD
+from ..constants import GET, HEAD
 
 
 if t.TYPE_CHECKING:
-    from proper import Request, Response
+    from ..request import Request
+    from ..response import Response
 
 
 __all__ = ("head_to_get", "strip_body_if_head")

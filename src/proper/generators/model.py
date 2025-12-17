@@ -7,7 +7,7 @@ from ..helpers.render import call, render_blueprint, sort_imports_in
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
+    from ..app import App
 
 
 MODEL_BLUEPRINT = BLUEPRINTS / "model"

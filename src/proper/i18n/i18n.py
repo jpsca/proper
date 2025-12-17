@@ -5,9 +5,9 @@ from pathlib import Path
 import babel.dates as babel_dates
 from markupsafe import Markup
 
-from proper.core.global_context import current
-from proper.errors import TranslationsNotFound
-from proper.helpers import format_locale
+from ..errors import TranslationsNotFound
+from ..global_context import current
+from ..helpers import format_locale
 from . import plural_rules
 from .babel_mixin import BabelMixin
 from .reader import Reader

@@ -2,7 +2,7 @@ import typing as t
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
+    from proper.app import App
     from proper.types import TAttachment, TUpload
 
 

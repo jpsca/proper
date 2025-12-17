@@ -1,12 +1,13 @@
 import typing as t
 
-from proper.constants import FLASHES_SESSION_KEY, HEAD, OPTIONS
-from proper.helpers import DotDict, logger
+from ..constants import FLASHES_SESSION_KEY, HEAD, OPTIONS
+from ..helpers import DotDict, logger
 
 
 if t.TYPE_CHECKING:
-    from proper import Request, Response
     from ..app import App
+    from ..request import Request
+    from ..response import Response
 
 
 __all__ = ("copy_session", "update_session_cookie")

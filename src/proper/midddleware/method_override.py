@@ -1,10 +1,10 @@
 import typing as t
 
-from proper.constants import DELETE, PATCH, POST, PUT, QUERY, RESTORE
+from ..constants import DELETE, PATCH, POST, PUT, QUERY, RESTORE
 
 
 if t.TYPE_CHECKING:
-    from proper import Request
+    from ..request import Request
 
 
 __all__ = ("method_override",)

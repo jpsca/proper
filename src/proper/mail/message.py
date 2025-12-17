@@ -3,7 +3,7 @@ import typing as t
 from collections.abc import Iterable
 from pathlib import Path
 
-from ..core.global_context import current
+from ..global_context import current
 from ..helpers import textify
 from .utils import to_list
 

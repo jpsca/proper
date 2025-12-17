@@ -13,8 +13,8 @@ import traceback_with_variables as traceback2
 from hecto import JinjaRender
 from markupsafe import Markup
 
-from proper.constants import GET
-from proper.helpers import logger
+from .constants import GET
+from .helpers import logger
 
 
 if TYPE_CHECKING:

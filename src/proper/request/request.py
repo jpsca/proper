@@ -3,16 +3,16 @@ from io import BytesIO
 
 import itsdangerous
 
-from proper.constants import FLASHES_SESSION_KEY, GET, HEAD
-from proper.helpers import DotDict, MultiDict, logger
-from proper.router import Route
+from ..constants import FLASHES_SESSION_KEY, GET, HEAD
+from ..helpers import DotDict, MultiDict, logger
+from ..router import Route
 from .headers import RequestHeadersMixin
 from .make_env import make_test_env
 from .parse_form import parse_form, parse_query_string
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
+    from ..app import App
 
 
 __all__ = ("Request", )

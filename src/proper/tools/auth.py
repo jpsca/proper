@@ -1,6 +1,6 @@
-from proper.errors import ConfigError
-from proper.helpers import get_class
-from proper.units import HOURS
+from ..errors import ConfigError
+from ..helpers import get_class
+from ..units import HOURS
 
 
 DEFAULT_CONFIG = {

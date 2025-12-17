@@ -4,12 +4,12 @@ import inspect
 import typing as t
 from pathlib import Path
 
-from proper import status
-from proper.controller import Controller
-from proper.core.global_context import current
-from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
-from proper.types import TException, THandler, TIterable
+from .. import status
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
+from ..controller import Controller
+from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound
+from ..global_context import current
+from ..types import TException, THandler, TIterable
 from .route import Route, StaticRoute
 
 

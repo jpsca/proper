@@ -8,8 +8,8 @@ from .services import Service
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
-    from proper.types import TAttachment, TUpload
+    from ..app import App
+    from ..types import TAttachment, TUpload
 
 
 ONE_YEAR = 32_000_000  # 60 * 60 * 24 * 365 (aprox 1 year)

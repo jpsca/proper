@@ -1,3 +1,4 @@
+from ..global_context import current
 from .concern import Concern
 
 
@@ -9,18 +10,14 @@ class CurrentTimezone(Concern):
 
     @property
     def etag(self):
-        from proper import current
         return f"{super().etag}-{current.timezone}".strip("-")
 
     # Private
 
     def _set_timezone(self):
-        from proper import current
         current.timezone = self._get_timezone()
 
     def _get_timezone(self):
-        from proper import current
-
         return (
             # Always prefer the timezone from the URL
             self.params.get("timezone")

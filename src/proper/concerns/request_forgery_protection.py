@@ -2,9 +2,10 @@ import base64
 import os
 import typing as t
 
-from proper.constants import GET, HEAD, OPTIONS, QUERY
-from proper.errors import InvalidCSRFToken, MissingCSRFToken
-from proper.types import TIterable
+from ..constants import GET, HEAD, OPTIONS, QUERY
+from ..errors import InvalidCSRFToken, MissingCSRFToken
+from ..global_context import current
+from ..types import TIterable
 from .concern import Concern
 
 
@@ -33,8 +34,6 @@ class RequestForgeryProtection(Concern):
     # Private
 
     def _check_csrf_token(self) -> None:
-        from proper import current
-
         if self._must_check_csrf_token():
             token = self._handle_verified_request()
         else:

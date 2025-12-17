@@ -8,8 +8,8 @@ import passlib.hash
 from passlib.context import CryptContext
 from passlib.utils import saslprep
 
-from proper.errors import WrongHashAlgorithm
-from proper.helpers import logger
+from .errors import WrongHashAlgorithm
+from .helpers import logger
 
 
 __all__ = ("DEFAULT_HASHER", "VALID_HASHERS", "WrongHashAlgorithm", "Auth")

@@ -9,10 +9,10 @@ from pathlib import Path
 from urllib.parse import quote
 from wsgiref.types import StartResponse
 
-from proper import status as pstatus
-from proper.core.global_context import current
-from proper.helpers import DotDict, tunnel_encode
-from proper.types import TBody, TIterable, TReadable
+from .. import status as pstatus
+from ..global_context import current
+from ..helpers import DotDict, tunnel_encode
+from ..types import TBody, TIterable, TReadable
 from .cookies import ResponseCookiesMixin
 from .file_wrapper import FileWrapper
 from .flash_messages import FlashMessages
@@ -20,8 +20,8 @@ from .headers import ResponseHeadersMixin
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
-    from proper.request import Request
+    from ..app import App
+    from ..request import Request
 
 
 __all__ = ("Response",)
@@ -37,7 +37,6 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     flash: FlashMessages
     error: Exception | None = None
     body: TBody | str | None = None
-    session: DotDict
 
     def __init__(
         self,

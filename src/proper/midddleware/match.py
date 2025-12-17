@@ -2,8 +2,9 @@ import typing as t
 
 
 if t.TYPE_CHECKING:
-    from proper import Request, Response
     from ..app import App
+    from ..request import Request
+    from ..response import Response
 
 
 __all__ = (

@@ -15,8 +15,8 @@ from io import BytesIO
 from tempfile import TemporaryFile
 from wsgiref.headers import Headers
 
-from proper.errors import MultipartError
-from proper.types import TIterable
+from ..errors import MultipartError
+from ..types import TIterable
 
 
 def to_bytes(data: str | bytes, enc: str = "utf8") -> bytes:

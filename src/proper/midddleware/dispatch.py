@@ -1,13 +1,13 @@
 import typing as t
 
-from proper import Controller
-from proper.helpers import import_string
+from ..controller import Controller
+from ..helpers import import_string
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
-    from proper.request import Request
-    from proper.response import Response
+    from ..app import App
+    from ..request import Request
+    from ..response import Response
 
 
 __all__ = ("dispatch",)

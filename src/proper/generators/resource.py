@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING
 
 import inflection
 
-from proper.helpers import BLUEPRINTS
-from proper.helpers.render import call, render_blueprint
-from proper.router import (
+from ..helpers import BLUEPRINTS
+from ..helpers.render import call, render_blueprint
+from ..router import (
     ACTION_CREATE,
     ACTION_DELETE,
     ACTION_EDIT,
@@ -18,7 +18,7 @@ from .model import gen_model
 
 
 if TYPE_CHECKING:
-    from proper.core.app import App
+    from ..app import App
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"

@@ -3,8 +3,8 @@ from collections import namedtuple
 from datetime import date, datetime, timezone
 from hashlib import sha1
 
-from proper.errors import InvalidHeader
-from proper.helpers import format_http_date, tunnel_encode
+from ..errors import InvalidHeader
+from ..helpers import format_http_date, tunnel_encode
 
 
 def enc_name(name: str) -> str:

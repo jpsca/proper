@@ -1,5 +1,5 @@
-from proper.errors import ConfigError
-from proper.storage import Storage
+from ..errors import ConfigError
+from ..storage import Storage
 
 
 DEFAULT_CONFIG = {

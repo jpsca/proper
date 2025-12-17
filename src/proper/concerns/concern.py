@@ -4,10 +4,10 @@ import typing as t
 if t.TYPE_CHECKING:
     from collections.abc import Callable
 
-    from proper.core.app import App
-    from proper.helpers import MultiDict
-    from proper.request import Request
-    from proper.response import Response
+    from ..app import App
+    from ..helpers import MultiDict
+    from ..request import Request
+    from ..response import Response
 
 
 class Concern:

@@ -1,5 +1,5 @@
-from proper.errors import ConfigError
-from proper.helpers.utils import get_instance
+from ..errors import ConfigError
+from ..helpers.utils import get_instance
 
 
 NAME = "DATABASES"

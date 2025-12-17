@@ -7,9 +7,9 @@ from http.cookies import Morsel, SimpleCookie
 
 from dateutil.parser import parse as dtparse
 
-from proper.constants import DELETE, GET, HEAD, PATCH, POST, PUT
-from proper.errors import InvalidHeader
-from proper.helpers import format_locale, tunnel_decode
+from ..constants import DELETE, GET, HEAD, PATCH, POST, PUT
+from ..errors import InvalidHeader
+from ..helpers import format_locale, tunnel_decode
 from .forwarded import parse_forwarded
 
 

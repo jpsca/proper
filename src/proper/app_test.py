@@ -4,14 +4,14 @@ import typing as t
 from io import BytesIO
 from pathlib import Path
 
-from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, RESTORE
-from proper.helpers import DotDict
-from proper.request import make_test_env
+from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, RESTORE
+from .helpers import DotDict
+from .request import make_test_env
 
 
 if t.TYPE_CHECKING:
-    from proper.types import TWSGIEnvironment
-    from ..response import Response
+    from .response import Response
+    from .types import TWSGIEnvironment
 
 
 def to_bytes(value, charset="latin1"):

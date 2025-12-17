@@ -5,12 +5,12 @@ from uuid import uuid4
 import peewee as pw
 from inflection import parameterize
 
-from proper.errors import StorageConfigError
-from proper.helpers import JSONField
+from ..errors import StorageConfigError
+from ..helpers import JSONField
 
 
 if t.TYPE_CHECKING:
-    from proper.types import TIterable, TUpload
+    from ..types import TIterable, TUpload
     from .storage import Storage
 
 
@@ -72,32 +72,32 @@ def get_attachment_mixin(storage: "Storage", default_service_name: str = "") -> 
 
         @property
         def url_for(self):
-            return storage.url_for(self)
+            return storage.url_for(self)  # type: ignore
 
         def send_file(self):
-            return storage.send_file(self)
+            return storage.send_file(self)  # type: ignore
 
         def save(self, force_insert: bool = False, only: "TIterable | None" = None):
             if self._filesto:
-                storage.upload(self._filesto, self)
+                storage.upload(self._filesto, self)  # type: ignore
             return super().save(force_insert=force_insert, only=only)
 
         def show(self):
-            return storage.show(self)
+            return storage.show(self)  # type: ignore
 
         def purge(self):
-            return storage.purge(self)
+            return storage.purge(self)  # type: ignore
 
         def purge_later(self):
-            return storage.purge(self, later=True)
+            return storage.purge(self, later=True)  # type: ignore
 
         def purge_variants(self):
-            return storage.purge_variants(self)
+            return storage.purge_variants(self)  # type: ignore
 
         def purge_variants_later(self):
-            return storage.purge_variants(self, later=True)
+            return storage.purge_variants(self, later=True)  # type: ignore
 
         def download(self):
-            return storage.download(self)
+            return storage.download(self)  # type: ignore
 
     return Attachment

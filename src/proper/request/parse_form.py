@@ -2,14 +2,14 @@ import json
 import typing as t
 from urllib.parse import parse_qs
 
-from proper.errors import (
+from ..errors import (
     BadRequest,
     MultipartError,
     RequestEntityTooLarge,
     UnsupportedMediaType,
     UriTooLong,
 )
-from proper.helpers import MultiDict
+from ..helpers import MultiDict
 from .multipart import (
     MultipartParser,
     parse_options_header,

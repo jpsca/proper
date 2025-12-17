@@ -8,7 +8,7 @@ from .db_cli import get_db_cli
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
+    from ..app import App
 
 
 def get_cli(app: "App") -> type[Cli]:

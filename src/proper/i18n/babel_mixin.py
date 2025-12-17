@@ -7,7 +7,7 @@ import babel.dates as babel_dates
 import babel.lists as babel_lists
 import babel.numbers as babel_numbers
 
-from proper.helpers import format_locale
+from ..helpers import format_locale
 
 
 class BabelMixin:

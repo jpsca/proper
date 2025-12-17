@@ -2,7 +2,8 @@ import typing as t
 
 
 if t.TYPE_CHECKING:
-    from proper import Request, Response
+    from ..request import Request
+    from ..response import Response
 
 
 __all__ = ("redirect",)

@@ -1,8 +1,8 @@
 import typing as t
 
-from proper.errors import TooManyRequests
-from proper.helpers import make_list
-from proper.types import TCallable
+from ..errors import TooManyRequests
+from ..helpers import make_list
+from ..types import TCallable
 from .concern import Concern
 
 

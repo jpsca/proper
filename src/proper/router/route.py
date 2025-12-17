@@ -10,15 +10,15 @@ from hashlib import sha256
 from pathlib import Path
 from string import Template
 
-from proper import status
-from proper.constants import GET
-from proper.errors import (
+from .. import status
+from ..constants import GET
+from ..errors import (
     BadRouteFormat,
     BadRoutePlaceholder,
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
-from proper.types import THandler, TIterable
+from ..types import THandler, TIterable
 
 
 __all__ = (

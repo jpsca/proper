@@ -9,24 +9,10 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 
-from proper import status
-from proper.cache import FragmentCacheExtension
-from proper.cli.app_cli import get_cli
-from proper.errors import MatchNotFound, MethodNotAllowed
-from proper.helpers import DotDict, jsonplus
-from proper.request import Request
-from proper.response import Response
-from proper.router import Route, Router
-from proper.storage import Storage
-from proper.types import (
-    TBody,
-    TEventHandler,
-    TEventHandlers,
-    TStartResponse,
-    TWSGIEnvironment,
-)
-from . import midddleware, tools
+from . import midddleware, status, tools
 from .app_test import AppTest
+from .cache import FragmentCacheExtension
+from .cli.app_cli import get_cli
 from .config import load_config
 from .error_handlers import (
     debug_error_handler,
@@ -35,7 +21,20 @@ from .error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
+from .helpers import DotDict, jsonplus
+from .request import Request
+from .response import Response
+from .router import Route, Router
+from .storage import Storage
+from .types import (
+    TBody,
+    TEventHandler,
+    TEventHandlers,
+    TStartResponse,
+    TWSGIEnvironment,
+)
 
 
 if t.TYPE_CHECKING:
@@ -43,9 +42,9 @@ if t.TYPE_CHECKING:
     from huey import Huey
     from proper_cli import Cli
 
-    from proper.cache import BaseCache
-    from proper.i18n import I18n
-    from proper.mail import BaseSender
+    from .cache import BaseCache
+    from .i18n import I18n
+    from .mail import BaseSender
 
 
 __all__ = ("App",)

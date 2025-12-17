@@ -1,3 +1,4 @@
+from ..global_context import current
 from .concern import Concern
 
 
@@ -9,18 +10,14 @@ class CurrentLocale(Concern):
 
     @property
     def etag(self):
-        from proper import current
         return f"{super().etag}-{current.locale}".strip("-")
 
     # Private
 
     def _set_locale(self):
-        from proper import current
         current.locale = self._get_locale()
 
     def _get_locale(self):
-        from proper import current
-
         return (
             # Always prefer the locale from the URL
             self.params.get("locale")

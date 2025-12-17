@@ -1,7 +1,7 @@
 import typing as t
 
-from proper.helpers import BLUEPRINTS
-from proper.helpers.render import (
+from ..helpers import BLUEPRINTS
+from ..helpers.render import (
     add_dependencies,
     add_to_concerns,
     render_blueprint,
@@ -10,7 +10,7 @@ from proper.helpers.render import (
 
 
 if t.TYPE_CHECKING:
-    from proper.core.app import App
+    from ..app import App
 
 
 I18N_BLUEPRINT = BLUEPRINTS / "i18n"
