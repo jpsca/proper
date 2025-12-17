@@ -31,12 +31,11 @@ class PasswordResetController(AppController):
         user = User.get_by_login(login)
         PasswordResetEmail(user).send_later(to=user.email)
         self.response.session["email"] = user.email
-        self.response.redirect_to("PasswordReset.email")
+        self.response.redirect_to("PasswordReset.show")
 
-    @auth_router.get("password_reset/email")
-    def email(self):
+    def show(self):
         self.email = self.response.session.get("email", "")
-        return self.render("pages/password_reset/create.jinja")
+        return self.render("pages/password_reset/show.jinja")
 
     def edit(self):
         self.pk = self.params.get("pk")

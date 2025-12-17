@@ -5,16 +5,18 @@ __all__ = ("CurrentLocale", )
 
 
 class CurrentLocale(Concern):
+    before = {"do": "_set_locale"}
+
     @property
     def etag(self):
         from proper import current
         return f"{super().etag}-{current.locale}".strip("-")
 
-    def before(self):
+    # Private
+
+    def _set_locale(self):
         from proper import current
         current.locale = self._get_locale()
-
-    # Private
 
     def _get_locale(self):
         from proper import current

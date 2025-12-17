@@ -27,9 +27,12 @@ CSRF_TOKEN_LENGTH = 32
 
 
 class RequestForgeryProtection(Concern):
+    before = {"do": "_check_csrf_token"}
     skip_csrf_for: TIterable[str] = ()
 
-    def before(self) -> None:
+    # Private
+
+    def _check_csrf_token(self) -> None:
         from proper import current
 
         if self._must_check_csrf_token():
@@ -41,9 +44,6 @@ class RequestForgeryProtection(Concern):
             masked_token = self._mask_csrf_token(token)
             current.csrf_token = masked_token
             self.response.headers[CSRF_HEADER] = masked_token
-
-
-    # Private
 
     def _must_check_csrf_token(self) -> bool:
         """Return wether the csrf token in the request must be checked

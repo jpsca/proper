@@ -5,16 +5,8 @@ from ...models import Session, User
 
 
 class Authentication(Concern):
+    before = {"do": "_require_authentication"}
     skip_authentication = False
-
-    def before(self):
-        self.require_authentication()
-
-    def require_authentication(self):
-        if self.skip_authentication or self.is_authenticated():
-            return
-        if not self._resume_session():
-            self._request_authentication()
 
     def is_authenticated(self):
         return current.auth_session is not None
@@ -41,6 +33,12 @@ class Authentication(Concern):
         self.response.redirect_to(redirect_path, flash=flash)
 
     # Private
+
+    def _require_authentication(self):
+        if self.skip_authentication or self.is_authenticated():
+            return
+        if not self._resume_session():
+            self._request_authentication()
 
     def _request_authentication(self):
         self.response.session.setdefault("_redirect", self.request.path)

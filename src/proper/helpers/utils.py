@@ -1,4 +1,4 @@
-# Many of these functions are based on code from the Werkzeug project,
+# Several of these functions are based on code from the Werkzeug project,
 # Copyright 2007 Pallets, with modifications for the Proper project.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ __all__ = (
     "find_modules",
     "get_instance",
     "get_class",
+    "make_list",
 )
 
 RX_FILENAME_ASCII_STRIP = re.compile(r"[^A-Za-z0-9_.-]")
@@ -256,3 +257,9 @@ def get_class(cls_name: str | type):
         mod = import_module(mod_name)
         return getattr(mod, cls_name)
     return cls_name
+
+
+def make_list(value: t.Any) -> list[t.Any]:
+    if isinstance(value, list):
+        return value
+    return [value]

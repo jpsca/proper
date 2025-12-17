@@ -7,7 +7,7 @@ import typing as t
 from pathlib import Path
 
 from .errors import NotFound
-from .helpers import MultiDict, jsonplus
+from .helpers import MultiDict, jsonplus, make_list
 from .status import not_modified
 
 
@@ -72,22 +72,39 @@ class Controller:
 
     # Private
 
+    def _should_run_concern(self, options: dict[str, t.Any]) -> bool:
+        if not options:
+            return True
+        action = self.request.matched_action
+        only = options.get("only", None)
+        except_ = options.get("except", None)
+
+        if only and action not in make_list(only):
+            return False
+        if except_ and action in make_list(except_):
+            return False
+        return True
+
     def _dispatch(self, action_name: str) -> "Response | None":
         mro = type(self).mro()
 
         for cls in mro:
             before = cls.__dict__.get("before", None)
-            if before:
-                before(self)
-                if self.response.has_body:
-                    return
+            if before and self._should_run_concern(before):
+                for action in make_list(getattr(self, before["do"])):
+                    action()
+                    if self.response.has_body:
+                        return
 
         self._call(action_name)
 
         for cls in mro[::-1]:
             after = cls.__dict__.get("after", None)
-            if after:
-                after(self)
+            if after and self._should_run_concern(after):
+                for action in make_list(getattr(self, after["do"])):
+                    action()
+                    if self.response.has_body:
+                        return
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same

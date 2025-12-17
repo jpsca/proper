@@ -15,3 +15,4 @@ class PasswordResetEmail(EmailMessage):
             validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
             reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
         )
+        self.generate_text_alternative()

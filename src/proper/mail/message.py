@@ -107,7 +107,7 @@ class EmailMessage:
             raise ValueError("Both content and mimetype must be provided.")
         self.alternatives.append(EmailAlternative(content=content, mimetype=mimetype))
 
-    def generate_text_alt(self):
+    def generate_text_alternative(self):
         text_content = textify(self.body)
         self.attach_alternative(text_content, "text/plain")
 

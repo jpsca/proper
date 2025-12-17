@@ -2,6 +2,8 @@ import typing as t
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from proper.core.app import App
     from proper.helpers import MultiDict
     from proper.request import Request
@@ -11,11 +13,12 @@ if t.TYPE_CHECKING:
 class Concern:
     """Base class for concerns."""
 
+    etag = ""
+
     # Declare attributes to avoid typing errors
     params: "MultiDict"
     defaults: dict
     app: "App"
     request: "Request"
     response: "Response"
-
-    etag = ""
+    _should_run_concern: "Callable[[dict[str, t.Any]], bool]"

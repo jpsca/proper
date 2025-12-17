@@ -1,6 +1,7 @@
 import typing as t
 
 from proper.errors import TooManyRequests
+from proper.helpers import make_list
 from proper.types import TCallable
 from .concern import Concern
 
@@ -11,7 +12,7 @@ __all__ = ("RateLimiting", )
 class RateLimiting(Concern):
     """
     Applies a rate limit to all actions or those specified by the
-    filters with `only` and `ignore`.
+    filters with `only` and `except`.
 
     The maximum number of requests allowed is specified by `to` and constrained to
     the window of time given by `within`.
@@ -56,6 +57,12 @@ class RateLimiting(Concern):
         name:
             Optional. A name to identify this rate limit when multiple rate limits are defined
             for the same controller with the same `scope` and `by` values.
+        only:
+            Optional. An action name or a list of action names to which this rate limit applies.
+            If not provided, the rate limit applies to all actions.
+        except:
+            Optional. An action name or a list of action names to which this rate limit does not
+            apply. If not provided, the rate limit applies to all actions.
 
     Examples:
 
@@ -100,11 +107,7 @@ class RateLimiting(Concern):
         ```
 
     """
-    def before(self):
-        options = getattr(self, "rate_limit", None)
-        if options:
-            for opts in make_list(options):
-                self._set_rate_limit(opts.copy())
+    before = {"do": "_set_rate_limit"}
 
     def reset_rate_limit(
         self,
@@ -123,16 +126,12 @@ class RateLimiting(Concern):
         cache_key = ":".join(["rate-limit", scope, name, by]).strip(":")
         store.delete(cache_key)
 
-    def _set_rate_limit(self, options: dict[str, t.Any]) -> None:
-        action = self.request.matched_action
-        only = options.get("only", None)
-        ignore = options.get("ignore", None)
-
-        if only and action not in make_list(only):
-            return
-        if ignore and action in make_list(ignore):
-            return
-        self._rate_limiting(**options)
+    def _set_rate_limit(self):
+        options = getattr(self, "rate_limit", None)
+        if options:
+            for opts in make_list(options):
+                if self._should_run_concern(opts):
+                    self._rate_limiting(**opts)
 
     def _rate_limiting(
         self,
@@ -148,9 +147,9 @@ class RateLimiting(Concern):
         store = self.app.cache
         if not store:
             return
-        to = get_int_value(self, to)
-        within = get_int_value(self, within)
-        by = get_str_value(self, by) if by else self.request.remote_ip
+        to = int(self.__get_value(to))
+        within = int(self.__get_value(within))
+        by = str(self.__get_value(by)) if by else self.request.remote_ip
         scope = scope or self.__class__.__module__
         name = name or ""
 
@@ -158,39 +157,18 @@ class RateLimiting(Concern):
         count = store.increment(cache_key, 1, expires_in=within)
         if count and count > to:
             if react_with:
-                get_value(self, react_with)
+                self.__get_value(react_with)
             else:
                 raise TooManyRequests()
 
-
-def make_list(value: t.Any) -> list[t.Any]:
-    if isinstance(value, list):
+    def __get_value(
+        self,
+        value: t.Any | TCallable[[Concern], t.Any],
+    ) -> t.Any:
+        if value is None:
+            return None
+        if callable(value):
+            return value(self)
+        if isinstance(value, str):
+            return getattr(self, value)()
         return value
-    return [value]
-
-
-def get_value(
-    controller: Concern,
-    value: t.Any | TCallable[[Concern], t.Any],
-) -> t.Any:
-    if value is None:
-        return None
-    if callable(value):
-        return value(controller)
-    if isinstance(value, str):
-        return getattr(controller, value)()
-    return value
-
-
-def get_int_value(
-    controller: Concern,
-    value: int | str | TCallable[[Concern], int],
-) -> int:
-    return int(get_value(controller, value))
-
-
-def get_str_value(
-    controller: Concern,
-    value: str | TCallable[[Concern], t.Any],
-) -> str:
-    return str(get_value(controller, value))

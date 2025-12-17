@@ -5,16 +5,18 @@ __all__ = ("CurrentTimezone", )
 
 
 class CurrentTimezone(Concern):
+    before = {"do": "_set_timezone"}
+
     @property
     def etag(self):
         from proper import current
         return f"{super().etag}-{current.timezone}".strip("-")
 
-    def before(self):
+    # Private
+
+    def _set_timezone(self):
         from proper import current
         current.timezone = self._get_timezone()
-
-    # Private
 
     def _get_timezone(self):
         from proper import current
