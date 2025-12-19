@@ -20,6 +20,7 @@ SORT_IMPORTS_IN = [
     "main.py",
     "controllers/app_controller.py",
     "cli/__init__.py",
+    "emails/__init__.py",
 ]
 
 DEPENDENCIES = [

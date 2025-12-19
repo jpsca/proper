@@ -1,8 +1,8 @@
 from ..main import app, config
-from .email_message import EmailMessage
+from .base_email import BaseEmail
 
 
-class PasswordResetEmail(EmailMessage):
+class PasswordResetEmail(BaseEmail):
     subject = "Reset your password"
 
     def __init__(self, user, **kwargs):
