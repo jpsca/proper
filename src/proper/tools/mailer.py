@@ -3,7 +3,7 @@ from ..helpers.imports import get_instance
 
 
 MAILER = {
-    "type": "proper.mail.ToConsoleSender",
+    "type": "proper.emails.ToConsoleMailer",
 }
 MAILER_DEFAULT_OPTIONS = {
     "from": "no-reply@example.com",

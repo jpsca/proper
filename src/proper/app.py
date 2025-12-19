@@ -43,8 +43,8 @@ if t.TYPE_CHECKING:
     from proper_cli import Cli
 
     from .cache import BaseCache
+    from .emails import BaseMailer
     from .i18n import I18n
-    from .mail import BaseSender
 
 
 __all__ = ("App",)
@@ -97,7 +97,7 @@ class App(AppTest):
     db: "dict[str, pw.Database]"
     queue: "Huey"
     cache: "BaseCache"
-    mailer: "BaseSender"
+    mailer: "BaseMailer"
     i18n: "I18n | None"
     storage: "Storage | None"
 

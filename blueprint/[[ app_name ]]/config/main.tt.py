@@ -47,17 +47,17 @@ else:
     STATIC_X_SENDFILE_HEADER = ""
 
 
-MAILER = {"type": "proper.mail.ToConsoleSender"}
+MAILER = {"type": "proper.emails.ToConsoleMailer"}
 MAILER_DEFAULT_OPTIONS = {
     "from": "no-reply@example.com",
 }
 
 if env == "test":
-    MAILER = {"type": "proper.mail.ToMemorySender"}
+    MAILER = {"type": "proper.emails.ToMemoryMailer"}
 
 if env == "prod":
     MAILER = {
-        "type": "proper.mail.SMTPSender",
+        "type": "proper.emails.SMTPMailer",
         "host": "smtp.example.com",
         "port": 587,
         "username": os.getenv("SMTP_USERNAME"),

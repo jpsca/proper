@@ -2,11 +2,11 @@ from io import StringIO
 
 import pytest
 
-from proper.mail import (
-    BaseSender,
+from proper.emails import (
+    BaseMailer,
     EmailMessage,
-    ToConsoleSender,
-    ToMemorySender,
+    ToConsoleMailer,
+    ToMemoryMailer,
 )
 
 
@@ -21,26 +21,26 @@ def make_emails():
 
 
 def test_base_mailer():
-    mailer = BaseSender()
+    mailer = BaseMailer()
     mailer.open()
     mailer.close()
     with pytest.raises(NotImplementedError):
-        mailer.send_email()
+        mailer.send_now()
 
 
 def test_to_memory_mailer():
-    mailer = ToMemorySender()
+    mailer = ToMemoryMailer()
     email1, email2, email3, email4 = make_emails()
 
-    assert mailer.send_email(email1) == 1
-    assert mailer.send_email(email2, email3, email4) == 3
+    assert mailer.send_now(email1) == 1
+    assert mailer.send_now(email2, email3, email4) == 3
     assert len(mailer.outbox) == 4
 
 
 def test_to_console_mailer():
     stream = StringIO()
-    mailer = ToConsoleSender(stream=stream)
-    mailer.send_email(EmailMessage(
+    mailer = ToConsoleMailer(stream=stream)
+    mailer.send_now(EmailMessage(
         subject="Subject",
         body="Content",
         from_email="from@example.com",

@@ -8,6 +8,13 @@ from ..helpers import html2text
 from .utils import to_list
 
 
+__all__ = (
+  "EmailAttachment",
+  "EmailAlternative",
+  "EmailMessageDict",
+  "EmailMessage",
+)
+
 # Default MIME type to use on attachments (if it is not explicitly given
 # and cannot be guessed).
 DEFAULT_ATTACHMENT_MIME_TYPE = "application/octet-stream"
@@ -131,7 +138,7 @@ class EmailMessage:
     def send(self, **options):
         """Send the email message immediately."""
         self.update(**options)
-        current.app.mailer.send_email(
+        current.app.mailer.send_now(
             self.serialize()
         )
 

@@ -6,10 +6,10 @@ import sys
 import threading
 
 from ..message import EmailMessageDict
-from .base import BaseSender
+from .base import BaseMailer
 
 
-class ToConsoleSender(BaseSender):
+class ToConsoleMailer(BaseMailer):
     """
     An email sender that writes messages to console instead of sending them.
     Ideal for development.
@@ -20,7 +20,7 @@ class ToConsoleSender(BaseSender):
         self._lock = threading.RLock()
         super().__init__(*args, **kwargs)
 
-    def send_email(self, *messages: EmailMessageDict):
+    def send_now(self, *messages: EmailMessageDict):
         """Write all messages to the stream in a thread-safe way."""
         if not messages:
             return

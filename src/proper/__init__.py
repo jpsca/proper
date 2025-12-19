@@ -13,9 +13,9 @@ from . import (
 from .app import *  # noqa
 from .concerns.concern import Concern  # noqa
 from .controller import *  # noqa
+from .emails import *  # noqa
 from .global_context import current  # noqa
 from .helpers import *  # noqa
-from .mail import *  # noqa
 from .request import *  # noqa
 from .response import *  # noqa
 from .router import *  # noqa

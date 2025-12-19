@@ -2,7 +2,7 @@ from smtplib import SMTP, SMTPException
 
 import pytest
 
-from proper.mail import EmailMessage, SMTPSender
+from proper.emails import EmailMessage, SMTPMailer
 
 
 def make_emails():
@@ -18,13 +18,13 @@ def make_emails():
 
 
 def test_sending(smtpd):
-    mailer = SMTPSender(host=smtpd.hostname, port=smtpd.port, use_tls=False)
+    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
     email1, email2, email3, email4 = make_emails()
 
     with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_email(email1) == 1
-        assert mailer.send_email(email2, email3) == 2
-        assert mailer.send_email(email4) == 1
+        assert mailer.send_now(email1) == 1
+        assert mailer.send_now(email2, email3) == 2
+        assert mailer.send_now(email4) == 1
 
     assert len(smtpd.messages) == 4
 
@@ -37,7 +37,7 @@ def test_sending(smtpd):
 
 
 def test_sending_unicode(smtpd):
-    mailer = SMTPSender(host=smtpd.hostname, port=smtpd.port, use_tls=False)
+    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
     email = EmailMessage(
         subject="Olé",
         body="Contenido en español",
@@ -46,7 +46,7 @@ def test_sending_unicode(smtpd):
     ).serialize()
 
     with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_email(email)
+        assert mailer.send_now(email)
 
     assert len(smtpd.messages) == 1
     message = smtpd.messages[0]
@@ -56,7 +56,7 @@ def test_sending_unicode(smtpd):
 
 
 def test_notls(smtpd):
-    mailer = SMTPSender(host=smtpd.hostname, port=smtpd.port, use_tls=True)
+    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=True)
     with pytest.raises(SMTPException):
         with SMTP(smtpd.hostname, smtpd.port):
             mailer.open()
@@ -64,7 +64,7 @@ def test_notls(smtpd):
 
 
 def test_fail_silently(smtpd):
-    mailer = SMTPSender(
+    mailer = SMTPMailer(
         host=smtpd.hostname,
         port=smtpd.port,
         use_tls=True,
@@ -74,7 +74,7 @@ def test_fail_silently(smtpd):
         mailer.open()
     mailer.close()
 
-    mailer = SMTPSender(
+    mailer = SMTPMailer(
         host="123",
         port=smtpd.port,
         use_tls=False,
@@ -85,7 +85,7 @@ def test_fail_silently(smtpd):
         mailer.open()
     mailer.close()
 
-    mailer = SMTPSender(
+    mailer = SMTPMailer(
         host=smtpd.hostname,
         port=3000,
         use_tls=False,

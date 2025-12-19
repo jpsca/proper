@@ -1463,12 +1463,12 @@ if __name__ == "__main__":
 ```python
 # Desarrollo (imprime en consola)
 MAILER = {
-    "type": "proper.mail.mailers.Console",
+    "type": "proper.emails.mailers.Console",
 }
 
 # SMTP
 MAILER = {
-    "type": "proper.mail.mailers.SMTP",
+    "type": "proper.emails.mailers.SMTP",
     "host": "smtp.gmail.com",
     "port": 587,
     "username": "user@example.com",
@@ -1478,7 +1478,7 @@ MAILER = {
 
 # Amazon SES
 MAILER = {
-    "type": "proper.mail.mailers.AmazonSES",
+    "type": "proper.emails.mailers.AmazonSES",
     "region": "us-east-1",
     "access_key_id": "...",
     "secret_access_key": "...",
@@ -1491,7 +1491,7 @@ EMAIL_FROM = "noreply@example.com"
 
 ```python
 # mailers/mailer.py
-from proper.mail import EmailMessage
+from proper.emails import EmailMessage
 from ..main import app
 
 class Mailer:
@@ -1523,9 +1523,9 @@ class Mailer:
 Mailer.welcome(user).send()
 
 # Enviar en background (con queue)
-from ..tasks.email import send_email
+from ..tasks.email import send_now
 
-send_email.schedule(args=(Mailer.welcome(user),))
+send_now.schedule(args=(Mailer.welcome(user),))
 ```
 
 ### Templates de Email

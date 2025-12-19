@@ -29,10 +29,10 @@ ADDRESS_HEADERS = {
 }
 
 
-class BaseSender:
+class BaseMailer:
     """Base class for email senders implementations.
 
-    Subclasses must at least overwrite `send_email()`.
+    Subclasses must at least overwrite `send_now()`.
     """
 
     # Undocumented charset to use for text/* message bodies and attachments.
@@ -58,7 +58,7 @@ class BaseSender:
 
         This method can be called by applications to force a single
         network connection to be used when sending mails. See the
-        `_send()` method of the `SMTPSender` for a reference
+        `_send()` method of the `SMTPMailer` for a reference
         implementation.
 
         The default implementation does nothing.
@@ -72,7 +72,7 @@ class BaseSender:
         """
         pass
 
-    def send_email(self, *messages: EmailMessageDict) -> t.Any:
+    def send_now(self, *messages: EmailMessageDict) -> t.Any:
         """Sends one or more `EmailMessage` objects and returns the number of
         email messages sent.
         """

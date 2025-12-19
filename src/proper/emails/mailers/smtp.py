@@ -14,13 +14,13 @@ from os import PathLike
 
 from ..message import EmailMessageDict
 from ..utils import DNS_NAME, force_str, punycode
-from .base import BaseSender
+from .base import BaseMailer
 
 
 StrOrBytesPath: t.TypeAlias = str | bytes | PathLike[str] | PathLike[bytes]
 
 
-class SMTPSender(BaseSender):
+class SMTPMailer(BaseMailer):
     """
     An email sender that manages the SMTP network connection.
     """
@@ -128,7 +128,7 @@ class SMTPSender(BaseSender):
         finally:
             self.connection = None
 
-    def send_email(self, *messages: EmailMessageDict) -> int:
+    def send_now(self, *messages: EmailMessageDict) -> int:
         """
         Send one or more EmailMessage objects and return the number of email
         messages sent.
