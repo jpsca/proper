@@ -345,10 +345,6 @@ class PostController(BaseController):
         # Eliminar post
         pass
 
-    # RESTORE /posts/:pk (no estándar, pero útil)
-    def restore(self):
-        # Restaurar post eliminado
-        pass
 ```
 
 ### Recurso Singular

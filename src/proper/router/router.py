@@ -2,10 +2,13 @@
 """
 import inspect
 import typing as t
+from collections.abc import Callable
 from pathlib import Path
 
+import inflection
+
 from .. import status
-from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY, RESTORE
+from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY
 from ..controller import Controller
 from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from ..global_context import current
@@ -21,7 +24,6 @@ __all__ = (
     "ACTION_EDIT",
     "ACTION_UPDATE",
     "ACTION_DELETE",
-    "ACTION_RESTORE",
     "GROUP_ROUTES",
     "SINGLE_ROUTES",
     "TDecorator",
@@ -37,7 +39,6 @@ ACTION_SHOW = "show"
 ACTION_EDIT = "edit"
 ACTION_UPDATE = "update"
 ACTION_DELETE = "delete"
-ACTION_RESTORE = "restore"
 
 GROUP_ROUTES = (
     (GET, "/", ACTION_INDEX),
@@ -48,7 +49,6 @@ GROUP_ROUTES = (
     (PATCH, "/:pk", ACTION_UPDATE),
     (PUT, "/:pk", ACTION_UPDATE),
     (DELETE, "/:pk", ACTION_DELETE),
-    (RESTORE, "/:pk", ACTION_RESTORE),
 )
 SINGLE_ROUTES = (
     (GET, "/new", ACTION_NEW),
@@ -58,10 +58,9 @@ SINGLE_ROUTES = (
     (PATCH, "/", ACTION_UPDATE),
     (PUT, "/", ACTION_UPDATE),
     (DELETE, "/", ACTION_DELETE),
-    (RESTORE, "/", ACTION_RESTORE),
 )
 
-TDecorator = t.Callable[[t.Callable], t.Callable]
+TDecorator = Callable[[Callable], Callable]
 
 
 class BaseRouter:
@@ -674,77 +673,6 @@ class BaseRouter:
         )
         return self._get_route_decorator(route)
 
-    def restore(
-        self,
-        path: str = "",
-        *,
-        name: str | None = None,
-        host: str | None = None,
-        defaults: dict | None = None,
-    ) -> TDecorator:
-        r"""Method decorator to register a non-standard HTTP RESTORE route.
-
-        Yes, it's not standard, but so anything WebDAV or CalDAV, so sue me
-        (it's a figure of speech, best if you don't do it).
-
-        Motivation: I feel that implementing a RESTful un-delete is ugly and hacky.
-        A `/restore` is not restful and a PATCH is weird for undoing a DELETE
-        So, form the ashes of uncertainty, rises... the HTTP RESTORE method.
-        Someday it could be a RFC.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
-        """
-        route = Route(
-            method=RESTORE,
-            path=path,
-            name=name,
-            host=host,
-            defaults=defaults,
-        )
-        return self._get_route_decorator(route)
-
     def static(
         self,
         url: str = "",
@@ -811,7 +739,8 @@ class BaseRouter:
         path: str = "",
         *,
         singular: bool = False,
-    ) -> t.Callable:
+        pk: str = "",
+    ) -> Callable:
         """Class decorator to add REST routes for a resource.
 
         Only the actions present in the class will be added.
@@ -820,17 +749,16 @@ class BaseRouter:
 
         Example: `@router.resource("photos")`
 
-        HTTP     PATH                ACTION   USED FOR
-        -------- ------------------- -------- -------------------------------
-        GET      /photos             index    a list of all photos
-        GET      /photos/new         new      form for creating a new photo
-        POST     /photos             create   create a new photo
-        GET      /photos/:pk         show     show a specific photo
-        GET      /photos/:pk/edit    edit     form for editing a specific photo
-        PATCH    /photos/:pk         update   update a specific photo
-        PUT      /photos/:pk         update   replace a specific photo
-        DELETE   /photos/:pk         delete   delete a specific photo
-        RESTORE  /photos/:pk         restore  restore a specific photo
+        HTTP     PATH                   ACTION   USED FOR
+        -------- -------------------    -------- -------------------------------
+        GET      /photos                index    a list of all photos
+        GET      /photos/new            new      form for creating a new photo
+        POST     /photos                create   create a new photo
+        GET      /photos/:photo_id      show     show a specific photo
+        GET      /photos/:photo_id/edit edit     form for editing a specific photo
+        PATCH    /photos/:photo_id      update   update a specific photo
+        PUT      /photos/:photo_id      update   replace a specific photo
+        DELETE   /photos/:photo_id      delete   delete a specific photo
 
         Note that both PATCH and PUT are routed to the `update` method.
 
@@ -850,7 +778,6 @@ class BaseRouter:
         PATCH    /profile            update   update the profile
         PUT      /profile            update   replace the profile
         DELETE   /profile            delete   delete the profile
-        RESTORE  /profile            restore  restore the profile
 
         In both scenarios, we validate the arguments first so we can show errors about what the user has
         typed instead of being about dynamically generated routes.
@@ -858,15 +785,18 @@ class BaseRouter:
         """
         path = path.strip("/")
         valid_routes = SINGLE_ROUTES if singular else GROUP_ROUTES
+        pk = pk.strip().strip(":")
 
         def class_decorator(Controller: type[Controller]) -> type[Controller]:
             c_name = Controller.__name__.removesuffix("Controller")
+            pk_ = f":{pk}" if pk else f":{inflection.underscore(c_name)}_id"
 
             for http_method, action_path, action in valid_routes:
                 method = getattr(Controller, action, None)
                 if method is None:
                     continue
 
+                action_path = action_path.replace(":pk", pk_)
                 route = Route(
                     method=http_method,
                     path=f"{path}{action_path}",
@@ -926,7 +856,7 @@ class BaseRouter:
     # Private
 
     def _get_route_decorator(self, route: Route) -> TDecorator:
-        def _decorator(to) -> t.Callable:
+        def _decorator(to) -> Callable:
             route.to = to
             self.add_route(route)
             return to
@@ -948,7 +878,7 @@ class Router(BaseRouter):
         assert is_exception, "`error_cls` must a subclass of `Exception`"
         self.error_handlers[error_cls] = to
 
-    def error(self, error_cls: TException) -> t.Callable[[t.Callable], t.Callable]:
+    def error(self, error_cls: TException) -> Callable[[Callable], Callable]:
         """Decorator to register a controller method to handle errors by exception class.
         If debug=True, it also adds a route to preview that page.
 
@@ -963,7 +893,7 @@ class Router(BaseRouter):
         app.error_handler(Exception, Page.error)
         ```
         """
-        def _decorator(to) -> t.Callable:
+        def _decorator(to) -> Callable:
             self.add_error_handler(error_cls, to)
             return to
 

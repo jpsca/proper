@@ -4,7 +4,7 @@ import typing as t
 from io import BytesIO
 from pathlib import Path
 
-from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, RESTORE
+from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
 from .helpers import DotDict
 from .request import make_test_env
 
@@ -168,21 +168,6 @@ class AppTest:
         """
         return self._do_test_request(
             url, method=DELETE, body=body, upload_files=upload_files, headers=headers
-        )
-
-    def restore(
-        self,
-        url: str,
-        *,
-        body: dict | str | bytes | BytesIO = b"",
-        upload_files: list[tuple[str, str | Path]] | None = None,
-        headers: dict | None = None,
-    ) -> DotDict:
-        """
-        Do a RESTORE request. Similar to `AppTest.post`.
-        """
-        return self._do_test_request(
-            url, method=RESTORE, body=body, upload_files=upload_files, headers=headers
         )
 
     # PRIVATE

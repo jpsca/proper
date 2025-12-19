@@ -1,6 +1,6 @@
 import typing as t
 
-from ..constants import DELETE, PATCH, POST, PUT, QUERY, RESTORE
+from ..constants import DELETE, PATCH, POST, PUT, QUERY
 
 
 if t.TYPE_CHECKING:
@@ -10,7 +10,7 @@ if t.TYPE_CHECKING:
 __all__ = ("method_override",)
 
 
-OVERRIDABLE_METHODS = (PUT, PATCH, DELETE, QUERY, RESTORE)
+OVERRIDABLE_METHODS = (PUT, PATCH, DELETE, QUERY)
 
 
 def method_override(_app, request: "Request", _response) -> None:
@@ -23,7 +23,6 @@ def method_override(_app, request: "Request", _response) -> None:
     * `PATCH`
     * `DELETE`
     * `QUERY`
-    * `RESTORE`
 
     """
     if request.method != POST:

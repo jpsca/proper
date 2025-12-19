@@ -1,23 +1,21 @@
-"""Auto-import all the views in this folder."""
-from importlib import import_module
+"""Auto-import all the controllers in this folder and subfolders."""
 from inspect import isclass
-from pathlib import Path
-from pkgutil import iter_modules
 
-from proper import Controller
+from proper import Controller, iter_modules_recursive
 
 
 classes = {}
 
-# iterate through the modules in the current package
-package_dir = str(Path(__file__).resolve().parent)
-for (_, module_name, _) in iter_modules([package_dir]):
-    # import the module and iterate through its attributes
-    module = import_module(f"{__name__}.{module_name}")
+for module in iter_modules_recursive(__file__, __name__, exclude=("concerns", )):
     for attribute_name in dir(module):
+        if not attribute_name[0].isupper():
+            continue
         attribute = getattr(module, attribute_name)
-
-        if isclass(attribute) and issubclass(attribute, Controller):
+        if (
+            isclass(attribute)
+            and issubclass(attribute, Controller)
+            and attribute is not Controller
+        ):
             classes[attribute_name] = attribute
 
 globals().update(classes)

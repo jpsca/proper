@@ -1,5 +1,5 @@
 from ..errors import ConfigError
-from ..helpers.utils import get_instance
+from ..helpers.imports import get_instance
 
 
 NAME = "CACHE"
@@ -12,9 +12,11 @@ def setup(app):
     validate_config(config)
     app.config[NAME] = config
 
-    app.cache = get_instance(**config)
+    app.cache = cache = get_instance(**config)
     if db := getattr(app.cache, "database", None):
         app.db["proper_cache"] = db
+
+    app.catalog.jinja_env.extend(app_cache=cache)
 
 
 def validate_config(config):

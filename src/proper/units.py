@@ -17,6 +17,10 @@ __all__ = (
     "DAYS",
     "WEEK",
     "WEEKS",
+    "MONTH",
+    "MONTHS",
+    "YEAR",
+    "YEARS",
     "to_seconds",
 )
 
@@ -36,6 +40,10 @@ DAY: int = 24 * HOURS
 DAYS: int = DAY
 WEEK: int = 7 * DAYS
 WEEKS: int = WEEK
+MONTH: int = 30 * DAYS  # approx
+MONTHS: int = MONTH
+YEAR: int = 365 * DAYS  # approx
+YEARS: int = YEAR
 
 
 def to_seconds(**kwargs) -> int:

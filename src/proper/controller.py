@@ -77,11 +77,11 @@ class Controller:
             return True
         action = self.request.matched_action
         only = options.get("only", None)
-        except_ = options.get("except", None)
+        exclude = options.get("exclude", None)
 
         if only and action not in make_list(only):
             return False
-        if except_ and action in make_list(except_):
+        if exclude and action in make_list(exclude):
             return False
         return True
 

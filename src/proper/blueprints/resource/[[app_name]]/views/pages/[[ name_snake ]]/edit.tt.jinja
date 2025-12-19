@@ -6,7 +6,7 @@
 <Layout title="Edit [[ name_snake ]]">
 	<Form
 		method="patch"
-		action={{ url_for('[[ name_pascal ]].update', pk=[[ name_snake ]].id) }}
+		action={{ url_for('[[ name_pascal ]].update', [[ object_id ]]=[[ name_snake ]].id) }}
 		form={{ form }}
 	>
 		<button type="submit">Update [[ name_snake ]]</button>

@@ -39,9 +39,7 @@
   color: #4b5563;  /* gray-600 */
 }
 .auth-help {
-  margin-bottom: 1rem;
   font-size: 0.875rem;
-  text-align: center;
   color: #6b7280; /* gray-500 */
 }
 
@@ -75,7 +73,6 @@
 .auth-field .field-error {
   color: #dc2626; /* red-600 */
   font-size: 0.875rem;
-  margin-top: 0.25rem;
 }
 
 .auth-footer {

@@ -12,7 +12,7 @@ __all__ = ("RateLimiting", )
 class RateLimiting(Concern):
     """
     Applies a rate limit to all actions or those specified by the
-    filters with `only` and `except`.
+    filters with `only` and `exclude`.
 
     The maximum number of requests allowed is specified by `to` and constrained to
     the window of time given by `within`.
@@ -60,7 +60,7 @@ class RateLimiting(Concern):
         only:
             Optional. An action name or a list of action names to which this rate limit applies.
             If not provided, the rate limit applies to all actions.
-        except:
+        exclude:
             Optional. An action name or a list of action names to which this rate limit does not
             apply. If not provided, the rate limit applies to all actions.
 

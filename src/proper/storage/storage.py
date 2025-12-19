@@ -2,7 +2,8 @@ import typing as t
 
 import itsdangerous
 
-from proper.errors import BadSignature
+from ..errors import BadSignature
+from ..units import YEAR
 from .attachment import get_attachment_mixin
 from .services import Service
 
@@ -10,9 +11,6 @@ from .services import Service
 if t.TYPE_CHECKING:
     from ..app import App
     from ..types import TAttachment, TUpload
-
-
-ONE_YEAR = 32_000_000  # 60 * 60 * 24 * 365 (aprox 1 year)
 
 
 class Storage:
@@ -25,15 +23,15 @@ class Storage:
     def url_for(self, obj: "TAttachment") -> str:
         signed_pk = self.signer.sign(obj.id)
         if obj.public:
-            return self.app.url_for("PublicStorage.show", pk=obj.id)
+            return self.app.url_for("PublicAttachment.show", pk=obj.id)
         else:
-            return self.app.url_for("Storage.show", signed_pk=signed_pk)
+            return self.app.url_for("Attachment.show", signed_pk=signed_pk)
 
     def get_public_attachment(self, pk: str) -> "TAttachment | None":
         return self.Attachment.get(pk=pk, public=True)
 
-    def get_attachment(self, signed_pk: str, max_age: int = ONE_YEAR) -> "TAttachment | None":
-        max_age = max(max_age, 0) or ONE_YEAR
+    def get_attachment(self, signed_pk: str, max_age: int = YEAR) -> "TAttachment | None":
+        max_age = max(max_age, 0) or YEAR
         try:
             pk = self.signer.unsign(signed_pk, max_age=max_age).decode()  # type: ignore
             return self.Attachment.get_or_none(pk)

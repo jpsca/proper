@@ -6,10 +6,10 @@ from ..router import router
 from .app_controller import AppController
 
 
-class PublicStorageController(AppController):
+@router.resource("storage/public", pk="pk")
+class PublicAttachmentController(AppController):
     skip_authentication = True
 
-    @router.get("/storage/public/<pk>")
     def show(self):
         pk = self.params.get("pk")
         obj = app.storage.get_public_attachment(pk)
@@ -18,8 +18,8 @@ class PublicStorageController(AppController):
         obj.send_file()
 
 
-class StorageController(AppController):
-    @router.get("/storage/<pk>")
+@router.resource("storage", pk="pk")
+class AttachmentController(AppController):
     def show(self):
         signed_pk = self.params.get("pk")
         obj = app.storage.get_attachment(signed_pk, max_age=None)

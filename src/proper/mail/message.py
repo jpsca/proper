@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from ..global_context import current
-from ..helpers import textify
+from ..helpers import html2text
 from .utils import to_list
 
 
@@ -108,7 +108,7 @@ class EmailMessage:
         self.alternatives.append(EmailAlternative(content=content, mimetype=mimetype))
 
     def generate_text_alternative(self):
-        text_content = textify(self.body)
+        text_content = html2text(self.body)
         self.attach_alternative(text_content, "text/plain")
 
     def update(

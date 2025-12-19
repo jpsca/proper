@@ -43,6 +43,7 @@ class ToConsoleSender(BaseSender):
         email_message = self.render(message)
         msg_data = email_message.as_bytes()
         msg_data = msg_data.decode(message["charset"], errors="replace")
+        msg_data = msg_data.replace("=\n", "")
         self.stream.write("%s\n" % msg_data)
         self.stream.write("-" * 79)
         self.stream.write("\n")

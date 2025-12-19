@@ -10,7 +10,6 @@ from ..router import (
     ACTION_EDIT,
     ACTION_INDEX,
     ACTION_NEW,
-    ACTION_RESTORE,
     ACTION_SHOW,
     ACTION_UPDATE,
 )
@@ -42,7 +41,6 @@ ACTIONS = (
     ACTION_EDIT,
     ACTION_INDEX,
     ACTION_NEW,
-    ACTION_RESTORE,
     ACTION_SHOW,
     ACTION_UPDATE,
 )
@@ -55,9 +53,8 @@ def gen_resource(
     singular: bool = False,
     only: str = "",
     exclude: str = "",
-    restore: bool = False,
     migration: bool = False,
-    parent: str = "",
+    pk: str = "",
 ) -> None:
     """Stubs out a new resource including a controller, model, and views.
 
@@ -86,41 +83,20 @@ def gen_resource(
             Optional comma-separated list of actions to exclude
             from the full set.
 
-        restore [False]:
-            Whether to include a `RESTORE` action in the default list of actions.
-
         migration [False]:
             Generate a migration for creating the table.
 
-        parent:
-            Optional PascalCased name of the "parent" resource.
-            This will change how the routes and the views are generated.
-            For example:
-
-                proper g resource List
-
-            will generate routes like:
-
-                /list/
-                /list/123
-                ...
-
-            but:
-
-                proper g resource Item --parent List
-
-            will generate routes "mounted" on a List resource like:
-
-                /list/123/items
-                /list/123/items/456
-                ...
+        pk:
+            Optional name for the `:object_id` parameter
+            (defaults to empty, so `[name_snakecased]_id` will be used
+            in the generated URLs).
 
     By default, it generates the full set of REST actions ("index", "new", "create",
     "show", "edit", "update", and "delete"). You can opt for a subset of these
     or exclude specific ones using the `only` and `exclude` arguments.
 
     For resources that users always look up without an ID, use `singular=True`
-    to create REST routes that do not include `:pk`.
+    to create REST routes that do not include `:object_id`.
 
     Examples:
 
@@ -144,8 +120,6 @@ def gen_resource(
         actions = actions.difference(set(exclude_list))
     if singular:
         actions.remove("index")
-    if restore:
-        actions.add(ACTION_RESTORE)
 
     ignored_actions = set(ACTIONS).difference(actions)
     ignored_views = []
@@ -181,22 +155,13 @@ def gen_resource(
         "exclude": exclude_list,
         "actions": actions,
         "singular": singular,
-        "restore": restore,
         "form_fields": form_fields,
         "form_class": f"{name_pascal}Form",
-        "load_method": f"load_{name_snake}",
+        "load_method": f"set_{name_snake}",
         "object": f"self.{name_snake}",
-        "object_id": f"{name_snake}_id",
-        "parent": None,
+        "object_id": pk or f"{name_snake}_id",
+        "pk": pk,
     }
-
-    if parent:
-        parent_name_snake = inflection.underscore(parent)
-        context.update({
-            "parent_name_snake": parent_name_snake,
-            "parent": f"self.{parent_name_snake}",
-            "parent_id": f"{parent_name_snake}_id",
-        })
 
     render_blueprint(
         RESOURCE_BLUEPRINT,

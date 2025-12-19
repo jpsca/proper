@@ -9,14 +9,15 @@ from ..router import auth_router
 from .app_controller import AppController
 
 
-@auth_router.resource("password-reset")
+@auth_router.resource("password-reset", pk="token")
 class PasswordResetController(AppController):
+    before = {"do": "set_token", "only": ["edit", "update"]}
     skip_authentication = True
     rate_limit = {
         "to": 10,
         "within": 15 * MINUTES,
         "only": "create",
-        "react_with": "_too_may_requests",
+        "reat_with": "too_many_requests",
     }
 
     def new(self):
@@ -31,15 +32,14 @@ class PasswordResetController(AppController):
         user = User.get_by_login(login)
         PasswordResetEmail(user).send_later(to=user.email)
         self.response.session["email"] = user.email
-        self.response.redirect_to("PasswordReset.show")
+        self.response.redirect_to("PasswordReset.show", token="sent")
 
     def show(self):
         self.email = self.response.session.get("email", "")
         return self.render("pages/password_reset/show.jinja")
 
     def edit(self):
-        self.pk = self.params.get("pk")
-        user = User.check_token(self.pk)
+        user = User.check_token(self.token)
         if not user:
             return self.render("pages/password_reset/invalid.jinja", status=unprocessable)
 
@@ -48,8 +48,7 @@ class PasswordResetController(AppController):
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
 
     def update(self):
-        self.pk = self.params.get("pk")
-        user = User.check_token(self.pk)
+        user = User.check_token(self.token)
         if not user:
             return self.render("pages/password_reset/invalid.jinja", status=unprocessable)
 
@@ -62,9 +61,13 @@ class PasswordResetController(AppController):
         new_password = self.form.save()["password1"]
         user.set_password(new_password)
         user.save()
-        self.redirect_after_authentication(flash="Password updated")
+        self.new_session_for(user)
+        self.redirect_after_authentication(flash="Password successfully updated")
 
-    def _too_may_requests(self):
+    def set_token(self):
+        self.token = self.params.get("token")
+
+    def too_may_requests(self):
         self.response.redirect_to(
             "PasswordReset.new",
             flash="Too many requests. Try again in a few minutes.",

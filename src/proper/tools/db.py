@@ -1,5 +1,5 @@
 from ..errors import ConfigError
-from ..helpers.utils import get_instance
+from ..helpers.imports import get_instance
 
 
 NAME = "DATABASES"

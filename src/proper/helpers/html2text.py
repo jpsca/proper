@@ -4,7 +4,7 @@ import re
 from html.entities import name2codepoint
 
 
-__all__ = ["textify"]
+__all__ = ["html2text"]
 
 rx_body = re.compile(r".*<body[^>]*>(.*)</body>", re.IGNORECASE | re.DOTALL)
 rx_comments = re.compile(r"<!--(.*?)-->", re.DOTALL)
@@ -163,7 +163,7 @@ def remove_extra_newlines(text):
     return text.strip()
 
 
-def textify(html):
+def html2text(html):
     """Convert HTML to plain text."""
     html = get_body(html)
     html = remove_comments(html)

@@ -15,7 +15,7 @@ class SessionController(AppController):
             "within": 15 * MINUTES,
             "only": "create",
             "by": lambda self: self.login_param,
-            "react_with": "_too_many_retries",
+            "react_with": "too_many_retries",
         },
         {"to": 50, "within": 1 * HOUR, "only": "create"},
     ]
@@ -52,7 +52,7 @@ class SessionController(AppController):
         self.terminate_session()
         self.response.redirect_to("/")
 
-    def _too_many_retries(self):
+    def too_many_retries(self):
         self.response.redirect_to(
             "Session.new",
             flash="Try again in a few minutes or reset your password.",

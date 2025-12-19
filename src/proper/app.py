@@ -114,8 +114,12 @@ class App(AppTest):
         self._setup_router()
         self._setup_serializer()
         self._setup_cli()
-        self._setup_tools()
-        self._setup_catalog()  # MUST be after tool setup
+        self._setup_catalog()
+        self._setup_tools()  # MUST be last
+
+        # This will pre-load all templates in the views folder
+        # so any Jinja extension need to be setup before this line.
+        self.catalog.add_folder(self.views_path)
 
     def __call__(
         self,
@@ -275,46 +279,22 @@ class App(AppTest):
     def _setup_cli(self) -> None:
         self.CLI = get_cli(self)
 
+    def _setup_catalog(self):
+        self.catalog = jx.Catalog(
+            extensions=[
+                FragmentCacheExtension,
+                *self.config.get("JINJA_EXTENSIONS", []),
+            ],
+            auto_reload=self.config.DEBUG,
+            current=current,
+            url_for=self.url_for,
+            url_is=self.url_is,
+            url_startswith=self.url_startswith,
+        )
+
     def _setup_tools(self) -> None:
         for tool_module in self.tools:
             tool_module.setup(self)
-
-    def _setup_catalog(self):
-        jglobals: dict[str, t.Any] = {
-            "current": current,
-            "url_for": self.url_for,
-            "url_is": self.url_is,
-            "url_startswith": self.url_startswith,
-        }
-        jfilters = {}
-
-        if self.i18n:
-            jglobals["_"] = self.i18n
-            jfilters.update({
-                "format_datetime": self.i18n.format_datetime,
-                "format_date": self.i18n.format_date,
-                "format_time": self.i18n.format_time,
-                "format_timedelta": self.i18n.format_timedelta,
-                "format_skeleton": self.i18n.format_skeleton,
-                "format_list": self.i18n.format_list,
-                "format_decimal": self.i18n.format_decimal,
-                "format_compact_decimal": self.i18n.format_compact_decimal,
-                "format_currency": self.i18n.format_currency,
-                "format_compact_currency": self.i18n.format_compact_currency,
-                "format_percent": self.i18n.format_percent,
-                "format_scientific": self.i18n.format_scientific,
-            })
-
-        self.catalog = jx.Catalog(
-            self.views_path,
-            extensions=[
-                FragmentCacheExtension,
-            ],
-            filters=jfilters,
-            auto_reload=self.config.DEBUG,
-            **jglobals,
-        )
-        self.catalog.jinja_env.extend(app_cache=self.cache)
 
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback

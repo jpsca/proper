@@ -1,4 +1,4 @@
-from proper.constants import DELETE, GET, PATCH, POST, PUT, RESTORE
+from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.controller import Controller
 from proper.router import Route
 
@@ -33,9 +33,6 @@ class FullController(Controller):
     def delete(self):
         pass
 
-    def restore(self):
-        pass
-
 
 def test_resource(app):
     app.router.resource("posts")(FullController)
@@ -44,12 +41,11 @@ def test_resource(app):
         Route(GET, "posts/", to=FullController.index),
         Route(GET, "posts/new", to=FullController.new),
         Route(POST, "posts/", to=FullController.create),
-        Route(GET, "posts/:pk", to=FullController.show),
-        Route(GET, "posts/:pk/edit", to=FullController.edit),
-        Route(PATCH, "posts/:pk", to=FullController.update),
-        Route(PUT, "posts/:pk", to=FullController.update),
-        Route(DELETE, "posts/:pk", to=FullController.delete),
-        Route(RESTORE, "posts/:pk", to=FullController.restore),
+        Route(GET, "posts/:full_id", to=FullController.show),
+        Route(GET, "posts/:full_id/edit", to=FullController.edit),
+        Route(PATCH, "posts/:full_id", to=FullController.update),
+        Route(PUT, "posts/:full_id", to=FullController.update),
+        Route(DELETE, "posts/:full_id", to=FullController.delete),
     ]
     for route in app.router.routes:
         print(route)
@@ -63,7 +59,7 @@ def test_partial_resource(app):
 
     expected = [
         Route(GET, "posts/", to=PartialController.index),
-        Route(GET, "posts/:pk", to=PartialController.show),
+        Route(GET, "posts/:partial_id", to=PartialController.show),
     ]
     for route in app.router.routes:
         print(route)
@@ -83,7 +79,6 @@ def test_resource_singular(app):
         Route(PATCH, "profile", to=FullController.update),
         Route(PUT, "profile", to=FullController.update),
         Route(DELETE, "profile", to=FullController.delete),
-        Route(RESTORE, "profile", to=FullController.restore),
     ]
     for route in app.router.routes:
         print(route)

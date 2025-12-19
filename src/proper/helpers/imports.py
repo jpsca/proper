@@ -1,4 +1,5 @@
-# Several of these functions are based on code from the Werkzeug project,
+# The following functions are based on code from the Werkzeug project:
+# `secure_filename`, `import_string`, and `find_modules`.
 # Copyright 2007 Pallets, with modifications for the Proper project.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,8 +31,10 @@ import re
 import sys
 import typing as t
 import unicodedata
+from collections.abc import Generator, Iterable
 from importlib import import_module
 from pathlib import Path
+from types import ModuleType
 
 
 __all__ = (
@@ -39,10 +42,9 @@ __all__ = (
     "secure_filename",
     "ImportStringError",
     "import_string",
-    "find_modules",
     "get_instance",
     "get_class",
-    "make_list",
+    "iter_modules_recursive",
 )
 
 RX_FILENAME_ASCII_STRIP = re.compile(r"[^A-Za-z0-9_.-]")
@@ -200,51 +202,6 @@ def import_string(import_name: str, silent: bool = False) -> t.Any:
     return None
 
 
-def find_modules(
-    import_path: str | Path,
-    include_packages: bool = False,
-    recursive: bool = False,
-    *,
-    prefix: str = ""
-) -> t.Iterator[str]:
-    """Finds all the modules below a path.
-
-    This can be useful to automatically import all views so
-    that their metaclasses / function decorators have a chance to register
-    themselves on the application.
-
-    Packages are not returned unless `include_packages` is `True`. This can
-    also recursively list modules but in that case it will import all the
-    packages to get the correct load path of that module.
-
-    Arguments:
-
-    - import_path:
-        The dotted name for the package to find child modules.
-
-    - include_packages:
-        set to `True` if packages should be returned, too.
-
-    - recursive:
-        set to `True` if recursion should happen.
-
-    """
-    prefix.rstrip(".")
-    import_path = Path(import_path).resolve()
-    if import_path.is_file():
-        import_path = import_path.parent
-
-    for _, modname, ispkg in pkgutil.iter_modules([str(import_path)]):
-        if ispkg:
-            if include_packages:
-                yield modname
-            if recursive:
-                modpath = import_path / prefix / modname
-                yield from find_modules(modpath, include_packages, True, prefix=prefix)
-        else:
-            yield f"{prefix}.{modname}"
-
-
 def get_instance(**config):
     cls_name = config.pop("type")
     Class = get_class(cls_name)
@@ -259,7 +216,33 @@ def get_class(cls_name: str | type):
     return cls_name
 
 
-def make_list(value: t.Any) -> list[t.Any]:
-    if isinstance(value, list):
-        return value
-    return [value]
+def iter_modules_recursive(
+    pkpath: str | Path,
+    pkname: str,
+    exclude: Iterable[str] = (),
+) -> Generator[ModuleType, None, None]:
+    """Finds and return all the modules below a path.
+
+    This can be useful to automatically import all views so
+    that their metaclasses / function decorators have a chance to register
+    themselves on the application.
+
+    Modules are not returned if their name is present in the `exclude` list.
+    """
+    pkpath = Path(pkpath).resolve().parent
+    exclude = tuple(f"{pkname}.{e}" for e in exclude)
+    return _iter_modules_recursive(pkpath, pkname, exclude)
+
+
+def _iter_modules_recursive(
+    pkpath: Path, pkname: str, exclude: tuple[str, ...]
+) -> Generator[ModuleType, None, None]:
+    for _finder, name, ispkg in pkgutil.iter_modules([pkpath]):
+        full_name = f"{pkname}.{name}"
+        if full_name in exclude or any(full_name.startswith(f"{e}.") for e in exclude):
+            continue
+        module_path = Path(pkpath) / name
+        if ispkg:
+            yield from _iter_modules_recursive(module_path, full_name, exclude)
+        else:
+            yield import_module(full_name)

@@ -1,22 +1,32 @@
+[% set show_load_method = "show" in actions or "edit" in actions or "update" in actions or "delete" in actions -%]
 from proper.errors import NotFound
 from proper.status import unprocessable
 
-from ..models import [[ name_pascal ]]
 from ..forms.[[ name_snake ]] import [[ form_class ]]
+from ..models import [[ name_pascal ]]
 from ..router import router
-
 from .app_controller import AppController
 
 
-@router.resource("[[ name_snake ]]")
+@router.resource("[[ plural_snake ]]"[% if pk %], pk="[[ pk ]]"[% endif -%])
 class [[ name_pascal ]]Controller(AppController):
-    [% if "index" in actions -%]
+    [% if show_load_method -%]
+    before = {"do": "[[ load_method ]]"
+    [%- if "index" in actions or "new" in actions or "create" in actions -%]
+    , "exclude": (
+        [%- if "index" in actions %]"index", [% endif -%]
+        [%- if "new" in actions %]"new", [% endif -%]
+        [%- if "create" in actions %]"create", [% endif -%]
+    )[% endif %]}
+
+    [% endif -%]
+[% if "index" in actions -%]
     def index(self):
         self.[[ plural_snake ]] = [[ name_pascal ]].select()
 [% endif %]
     [% if "show" in actions -%]
     def show(self):
-        self.[[ load_method ]]()
+        pass
 [% endif %]
     [% if "new" in actions -%]
     def new(self):
@@ -24,7 +34,6 @@ class [[ name_pascal ]]Controller(AppController):
 [% endif %]
     [% if "edit" in actions -%]
     def edit(self):
-        self.[[ load_method ]]()
         self.form = [[ form_class ]](object=[[ object ]])
 [% endif %]
     [% if "create" in actions -%]
@@ -34,19 +43,15 @@ class [[ name_pascal ]]Controller(AppController):
             return self.render("pages/[[ name_snake ]]/new.jinja", status=unprocessable)
 
         [[ name_snake ]] = self.form.save()
-        [% if parent %]
-        [[ name_snake ]].[[ parent_name_snake ]] = [[ parent ]]
-        [% endif -%]
         [[ name_snake ]].save()
         self.response.redirect_to(
             "[[ name_pascal ]].show",
-            pk=[[ name_snake ]].id,
+            [[ object_id ]]=[[ name_snake ]].id,
             flash="[[ name_pascal ]] was created",
         )
 [% endif %]
     [% if "update" in actions -%]
     def update(self):
-        self.[[ load_method ]]()
         self.form = [[ form_class ]](self.params, object=[[ object ]])
         if self.form.is_invalid:
             return self.render("pages/[[ name_snake ]]/edit.jinja", status=unprocessable)
@@ -55,13 +60,12 @@ class [[ name_pascal ]]Controller(AppController):
         [[ name_snake ]].save()
         self.response.redirect_to(
             "[[ name_pascal ]].show",
-            pk=[[ object ]].id,
+            [[ object_id ]]=[[ object ]].id,
             flash="[[ name_pascal ]] was updated",
         )
 [% endif %]
     [% if "delete" in actions -%]
     def delete(self):
-        self.[[ load_method ]](not_found=False)
         if [[ object ]]:  # deleting twice does not fail
             [[ object ]].delete_instance()
         self.response.redirect_to(
@@ -69,37 +73,14 @@ class [[ name_pascal ]]Controller(AppController):
             flash="[[ name_pascal ]] was deleted",
         )
 [% endif %]
-    [% if "restore" in actions -%]
-    def restore(self):
-        self.[[ load_method ]]()
-        self.response.redirect_to(
-            "[[ name_pascal ]].index",
-            flash="[[ name_pascal ]] was restored",
-        )
-[% endif %]
-    # Private
-
-    [% if
-      "show" in actions
-      or "edit" in actions
-      or "update" in actions
-      or "delete" in actions
-    -%]
-    def [[ load_method ]](self, not_found=True):
+    [% if show_load_method -%]
+    def [[ load_method ]](self):
         [% if singular -%]
         [[ object ]] = [[ name_pascal ]].get_or_none()
-        [% elif parent -%]
-        [[ object_id ]] = self.params.get("pk")
-
-        [[ object ]] = [[ name_pascal ]].get_or_none(
-            ([[ name_pascal ]]/[[ parent_id ]] == [[ parent ]].id) &
-            ([[ name_pascal ]]/id == [[ object_id ]])
-        )
         [% else -%]
-        [[ object_id ]] = self.params.get("pk")
-
+        [[ object_id ]] = self.params.get("[[ object_id ]]")
         [[ object ]] = [[ name_pascal ]].get_or_none([[ object_id ]])
         [% endif -%]
-        if not_found and not [[ object ]]:
+        if self.request.matched_action != "delete" and not [[ object ]]:
             raise NotFound
 [%- endif %]

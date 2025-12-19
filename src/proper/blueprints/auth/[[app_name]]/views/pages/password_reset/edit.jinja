@@ -1,12 +1,12 @@
 {#import "layouts/auth.jinja" as Layout #}
 {#import "form.jinja" as Form #}
 
-{#def form, pk, login, password_minlen #}
+{#def form, token, login, password_minlen #}
 
 <Layout title="Change your password" data_turbo="false">
   <Form
     class="auth-panel"
-    action={{ url_for('PasswordReset.update', pk=pk) }}
+    action={{ url_for('PasswordReset.update', token=token) }}
     method="patch"
   >
     <div class="auth-header">
