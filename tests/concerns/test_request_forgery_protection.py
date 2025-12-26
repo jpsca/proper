@@ -15,13 +15,8 @@ from proper.helpers import MultiDict
 
 
 class TestController(Controller, RequestForgeryProtection):
-    skip_csrf_for = ["skipped"]
-
     def action(self):
         return "STOP"
-
-    def skipped(self):
-        return "SKIPPED"
 
 
 @pytest.fixture
@@ -50,14 +45,6 @@ def test_missing_csrf(co):
 
     with pytest.raises(MissingCSRFToken):
         co._dispatch("action")
-
-
-def test_skip_csrf_check(co):
-    co.request.method = POST
-    co.request.matched_action = "skipped"
-    co.request.session = {CSRF_SESSION_KEY: "a" * CSRF_TOKEN_LENGTH}
-
-    co._dispatch("skipped")
 
 
 def test_invalid_csrf_if_not_set(co):
