@@ -69,7 +69,7 @@ def add_to_concerns(filepath: Path, *items: str, after: str|None = None) -> None
     if not fitems:
         return
     tab = " " * 4
-    insert = f"\n{tab * 2}" + f"\n{tab * 2}".join(fitems) + f"\n{tab}"
+    insert = "\n" + f"\n{tab * 2}".join(fitems) + f"\n{tab}"
 
     # Find the class definition
     match = re.search(

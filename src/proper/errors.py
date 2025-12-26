@@ -217,6 +217,12 @@ class InvalidCSRFToken(Forbidden):
     """
 
 
+class InvalidOrigin(Forbidden):
+    """403 Forbidden.
+
+    The request did not come from the same site or an allowed origin.
+    """
+
 class NotFound(HTTPError):
     """404 Not Found.
 

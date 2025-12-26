@@ -1,16 +1,10 @@
 import base64
 import os
-import typing as t
 
 from ..constants import GET, HEAD, OPTIONS, QUERY
 from ..errors import InvalidCSRFToken, MissingCSRFToken
 from ..global_context import current
-from ..types import TIterable
 from .concern import Concern
-
-
-if t.TYPE_CHECKING:
-    from proper.types import TIterable
 
 
 __all__ = (
@@ -28,13 +22,17 @@ CSRF_TOKEN_LENGTH = 32
 
 
 class RequestForgeryProtection(Concern):
-    before = {"do": "_check_csrf_token"}
-    skip_csrf_for: TIterable[str] = ()
+    """Token-based Cross-Site Request Forgery protection for state-changing requests
+    (POST, PATCH, PUT, and DELETE).
 
-    # Private
+    For modern browser-based applications (post 2020), you probably DON'T want to use
+    this concern, and should instead use the `OriginProtection` concern.
 
-    def _check_csrf_token(self) -> None:
-        if self._must_check_csrf_token():
+    """
+    before = {"do": "check_csrf_token"}
+
+    def check_csrf_token(self) -> None:
+        if self.request.method not in SKIP_FOR_METHODS:
             token = self._handle_verified_request()
         else:
             token = self._handle_unverified_request()
@@ -44,14 +42,7 @@ class RequestForgeryProtection(Concern):
             current.csrf_token = masked_token
             self.response.headers[CSRF_HEADER] = masked_token
 
-    def _must_check_csrf_token(self) -> bool:
-        """Return wether the csrf token in the request must be checked
-        for validity."""
-        return bool(
-            self.request.method not in SKIP_FOR_METHODS
-            and self.request.matched_action
-            and self.request.matched_action not in self.skip_csrf_for
-        )
+    # Private
 
     def _handle_verified_request(self) -> None:
         session_token = self.request.session.get(CSRF_SESSION_KEY)
