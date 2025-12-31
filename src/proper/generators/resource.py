@@ -50,9 +50,9 @@ def gen_resource(
     app: "App",
     name: str,
     *attrs: str,
-    singular: bool = False,
     only: str = "",
     exclude: str = "",
+    singular: bool = False,
     migration: bool = False,
     pk: str = "",
 ) -> None:
@@ -62,7 +62,8 @@ def gen_resource(
 
         proper g resource NAME
             [attrs...]
-            [--only=action[,action]] [--exclude=action[,action]] [--singular]
+            [--only=action[,action]] [--exclude=action[,action]]
+            [--pk=object_id] [--singular] [--migration]
 
     Arguments:
         name:
@@ -72,9 +73,6 @@ def gen_resource(
             Optional list of `field:type` columns for the model schema.
             Run `proper g model --help` for more information.
 
-        singular [False]:
-            Whether the resource represents a single entity for the user (like "profile").
-
         only:
             Optional comma-separated list of actions to include,
             instead of the full set.
@@ -83,13 +81,16 @@ def gen_resource(
             Optional comma-separated list of actions to exclude
             from the full set.
 
+        singular [False]:
+            Whether the resource represents a single entity for the user (like "profile").
+
         migration [False]:
             Generate a migration for creating the table.
 
         pk:
             Optional name for the `:object_id` parameter
             (defaults to empty, so `[name_snakecased]_id` will be used
-            in the generated URLs).
+            in the generated URLs). Ignored if `singular` is `True`.
 
     By default, it generates the full set of REST actions ("index", "new", "create",
     "show", "edit", "update", and "delete"). You can opt for a subset of these
@@ -106,6 +107,8 @@ def gen_resource(
         proper g resource Profile --singular
 
     """
+    pk = pk.strip().strip(":")
+
     name_pascal = inflection.camelize(name)
     name_snake = inflection.underscore(name)
     plural_snake = inflection.pluralize(name_snake)

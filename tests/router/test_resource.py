@@ -69,7 +69,7 @@ def test_partial_resource(app):
 
 
 def test_resource_singular(app):
-    app.router.resource("profile", singular=True)(FullController)
+    app.router.resource("profile", pk=None)(FullController)
 
     expected = [
         Route(GET, "profile/new", to=FullController.new),

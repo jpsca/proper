@@ -738,8 +738,7 @@ class BaseRouter:
         self,
         path: str = "",
         *,
-        singular: bool = False,
-        pk: str = "",
+        pk: str | None = "",
     ) -> Callable:
         """Class decorator to add REST routes for a resource.
 
@@ -762,12 +761,12 @@ class BaseRouter:
 
         Note that both PATCH and PUT are routed to the `update` method.
 
-        ## Singular resource
+        ## No ID
 
         Sometimes, you have a resource that clients always look up without referencing an ID.
-        In this case, you can use `singular=True` to build a set of REST routes without `:pk`.
+        In this case, you can use `pk=None` to build a set of REST routes without `:obj_id`.
 
-        Example: `@router.resource("profile", singular=True)`
+        Example: `@router.resource("profile", pk=None)`
 
         HTTP     PATH                ACTION   USED FOR
         -------- ------------------- -------- -------------------------------
@@ -784,19 +783,25 @@ class BaseRouter:
 
         """
         path = path.strip("/")
-        valid_routes = SINGLE_ROUTES if singular else GROUP_ROUTES
-        pk = pk.strip().strip(":")
 
         def class_decorator(Controller: type[Controller]) -> type[Controller]:
             c_name = Controller.__name__.removesuffix("Controller")
-            pk_ = f":{pk}" if pk else f":{inflection.underscore(c_name)}_id"
+
+            if pk is None:
+                pk_ = ""
+                valid_routes = SINGLE_ROUTES
+            else:
+                pk_ = pk.strip().strip(":")
+                pk_ = f":{pk}" if pk else f":{inflection.underscore(c_name)}_id"
+                valid_routes = GROUP_ROUTES
 
             for http_method, action_path, action in valid_routes:
                 method = getattr(Controller, action, None)
                 if method is None:
                     continue
 
-                action_path = action_path.replace(":pk", pk_)
+                if pk_:
+                    action_path = action_path.replace(":pk", pk_)
                 route = Route(
                     method=http_method,
                     path=f"{path}{action_path}",

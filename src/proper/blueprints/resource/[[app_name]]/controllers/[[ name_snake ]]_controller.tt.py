@@ -8,7 +8,11 @@ from ..router import router
 from .app_controller import AppController
 
 
-@router.resource("[[ plural_snake ]]"[% if pk %], pk="[[ pk ]]"[% endif -%])
+@router.resource("[[ plural_snake ]]"
+    [%- if singular %], pk=None
+    [%- elif pk %], pk="[[ pk ]]"
+    [%- endif -%]
+)
 class [[ name_pascal ]]Controller(AppController):
     [% if show_load_method -%]
     before = {"do": "[[ load_method ]]"
