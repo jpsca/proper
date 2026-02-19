@@ -72,7 +72,7 @@ class Controller:
 
     # Private
 
-    def _should_run_concern(self, options: dict[str, t.Any]) -> bool:
+    def _should_run_callback(self, options: dict[str, t.Any]) -> bool:
         if not options:
             return True
         action = self.request.matched_action
@@ -90,7 +90,7 @@ class Controller:
 
         for cls in mro:
             before = cls.__dict__.get("before", None)
-            if before and self._should_run_concern(before):
+            if before and self._should_run_callback(before):
                 for action in make_list(getattr(self, before["do"])):
                     action()
                     if self.response.has_body:
@@ -100,11 +100,9 @@ class Controller:
 
         for cls in mro[::-1]:
             after = cls.__dict__.get("after", None)
-            if after and self._should_run_concern(after):
+            if after and self._should_run_callback(after):
                 for action in make_list(getattr(self, after["do"])):
                     action()
-                    if self.response.has_body:
-                        return
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same

@@ -1,12 +1,23 @@
+from collections.abc import Sequence
+
 from proper import Concern, current
 
-from ...main import app
 from ...models import Session, User
 
 
 class Authentication(Concern):
-    before = {"do": "_require_authentication"}
-    skip_authentication = False
+    before = {"do": "require_authentication"}
+    skip_authentication: bool | Sequence = ()
+
+    def require_authentication(self):
+        if (
+            self.skip_authentication is True
+            or self.is_authenticated()
+            or self.request.matched_action in self.skip_authentication
+        ):
+            return
+        if not self._resume_session():
+            self._request_authentication()
 
     def is_authenticated(self):
         return current.auth_session is not None
@@ -34,15 +45,9 @@ class Authentication(Concern):
 
     # Private
 
-    def _require_authentication(self):
-        if self.skip_authentication or self.is_authenticated():
-            return
-        if not self._resume_session():
-            self._request_authentication()
-
     def _request_authentication(self):
         self.response.session.setdefault("_redirect", self.request.path)
-        self.response.redirect_to(app.url_for("Session.new"))
+        self.response.redirect_to("Session.new")
 
     def _resume_session(self):
         if session := self._find_session_by_cookie():

@@ -156,8 +156,13 @@ class BaseRouter:
             raise RouteNotFound(name)
 
         if object is not None:
+            id_placeholder = inflection.underscore(name) + "_id"
             for key in route.path_placeholders:
-                kw.setdefault(key, getattr(object, key))
+                if key == id_placeholder:
+                    # So `post_id` will be filled with `post.id` if `post.post_id` doesn't.
+                    kw.setdefault(key, getattr(object, key, getattr(object, "id", None)))
+                else:
+                    kw.setdefault(key, getattr(object, key))
 
         url = route.format(**kw)
 
@@ -740,7 +745,7 @@ class BaseRouter:
         *,
         pk: str | None = "",
     ) -> Callable:
-        """Class decorator to add REST routes for a resource.
+        """Class decorator to add CRUD routes for a resource.
 
         Only the actions present in the class will be added.
 
@@ -748,23 +753,23 @@ class BaseRouter:
 
         Example: `@router.resource("photos")`
 
-        HTTP     PATH                   ACTION   USED FOR
-        -------- -------------------    -------- -------------------------------
-        GET      /photos                index    a list of all photos
-        GET      /photos/new            new      form for creating a new photo
-        POST     /photos                create   create a new photo
-        GET      /photos/:photo_id      show     show a specific photo
-        GET      /photos/:photo_id/edit edit     form for editing a specific photo
-        PATCH    /photos/:photo_id      update   update a specific photo
-        PUT      /photos/:photo_id      update   replace a specific photo
-        DELETE   /photos/:photo_id      delete   delete a specific photo
+        | HTTP     | PATH                  | ACTION   | USED FOR
+        | -------- | -------------------   | -------- | -------------------------------
+        | GET      | /photos                | index    | a list of all photos
+        | GET      | /photos/new            | new      | form for creating a new photo
+        | POST     | /photos                | create   | create a new photo
+        | GET      | /photos/:photo_id      | show     | show a specific photo
+        | GET      | /photos/:photo_id/edit | edit     | form for editing a specific photo
+        | PATCH    | /photos/:photo_id      | update   | update a specific photo
+        | PUT      | /photos/:photo_id      | update   | replace a specific photo
+        | DELETE   | /photos/:photo_id      | delete   | delete a specific photo
 
         Note that both PATCH and PUT are routed to the `update` method.
 
         ## No ID
 
         Sometimes, you have a resource that clients always look up without referencing an ID.
-        In this case, you can use `pk=None` to build a set of REST routes without `:obj_id`.
+        In this case, you can use `pk=None` to build a set of CRUD routes without `:obj_id`.
 
         Example: `@router.resource("profile", pk=None)`
 

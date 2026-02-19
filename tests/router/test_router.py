@@ -57,6 +57,7 @@ def router():
     router.get("api/items")(ItemsController.index)
     router.post("api/items")(ItemsController.create)
     router.get("api/items/:item_id<int>")(ItemsController.show)
+    router.get("api/items/:item_id<int>/:slug")(ItemsController.show_alt)
     router.get(r"api/items/:year<\d{4}>/:month<\d{1,2}>")(ItemsController.archive)
 
     router.get(":locale<en|es>")(Localized.index)
@@ -208,3 +209,14 @@ def test_url_for_extra_query(router):
 def test_url_for_not_found(router):
     with pytest.raises(RouteNotFound):
         router.url_for("wtf")
+
+
+def test_url_for_object(router):
+    class Post:
+        slug = "my-awesome-post"
+        def __init__(self, id):
+            self.id = id
+
+    post = Post(3)
+    url = router.url_for("Items.show", object=post)
+    assert url == "/api/items/3"
