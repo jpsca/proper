@@ -13,13 +13,10 @@ This spec covers:
 - Multiple callbacks and inheritance
 - Controller concerns
 """
-import pytest
 
-from proper import Request, Response, status
 from proper.concerns import Concern
 from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.controller import Controller
-from proper.errors import NotFound
 from proper.router import Route
 
 

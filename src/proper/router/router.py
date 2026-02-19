@@ -156,17 +156,17 @@ class BaseRouter:
             raise RouteNotFound(name)
 
         if object is not None:
-            prefix = inflection.underscore(name.split(".")[0])
+            if route.to:
+                # Find the prefix for the placeholders of this route so if, for example, the route is
+                # for `ItemController.action`, the placeholders `:item_id` and `:item_slug`,
+                # are also searched as `id` and `slug` in the object attributes.
+                cname = route.to.__qualname__.split(".")[0].removesuffix("Controller")
+                cprefix = inflection.underscore(cname) + "_"
+            else:
+                cprefix = ""
+
             for key in route.path_placeholders:
-                # So `post_id` will be filled with `post.id` if `post.post_id` doesn't.
-                kw.setdefault(
-                    key,
-                    getattr(
-                        object,
-                        key,
-                        getattr(object, f"{prefix}_{key}", None)
-                    )
-                )
+                kw.setdefault(key, getattr(object, key, getattr(object, key.removeprefix(cprefix), None)))
 
         url = route.format(**kw)
 
