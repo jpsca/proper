@@ -78,7 +78,7 @@ class BaseRouter:
 
     def add_route(self, route: Route) -> None:
         self._routes.append(route)
-        if route.name:
+        if route.name and route.name not in self._routes_by_name:
             self._routes_by_name[route.name] = route
 
     def match(
@@ -156,13 +156,17 @@ class BaseRouter:
             raise RouteNotFound(name)
 
         if object is not None:
-            id_placeholder = inflection.underscore(name) + "_id"
+            prefix = inflection.underscore(name.split(".")[0])
             for key in route.path_placeholders:
-                if key == id_placeholder:
-                    # So `post_id` will be filled with `post.id` if `post.post_id` doesn't.
-                    kw.setdefault(key, getattr(object, key, getattr(object, "id", None)))
-                else:
-                    kw.setdefault(key, getattr(object, key))
+                # So `post_id` will be filled with `post.id` if `post.post_id` doesn't.
+                kw.setdefault(
+                    key,
+                    getattr(
+                        object,
+                        key,
+                        getattr(object, f"{prefix}_{key}", None)
+                    )
+                )
 
         url = route.format(**kw)
 
