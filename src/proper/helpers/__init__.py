@@ -20,6 +20,6 @@ BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
 
 
 def make_list(value: t.Any) -> list[t.Any]:
-    if isinstance(value, list):
-        return value
+    if isinstance(value, (list, tuple)):
+        return list(value)
     return [value]

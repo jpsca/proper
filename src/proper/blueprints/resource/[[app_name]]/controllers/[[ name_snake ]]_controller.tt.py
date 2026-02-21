@@ -82,8 +82,10 @@ class [[ name_pascal ]]Controller(AppController):
         [% if singular -%]
         [[ object ]] = [[ name_pascal ]].get_or_none()
         [% else -%]
-        [[ object_id ]] = self.params.get("[[ object_id ]]")
-        [[ object ]] = [[ name_pascal ]].get_or_none([[ object_id ]])
+        [[ object_id ]] = self.params.get("[[ object_id ]]", "")
+        if not [[ object_id ]].isdigit():
+            raise NotFound
+        [[ object ]] = [[ name_pascal ]].get_or_none(int([[ object_id ]]))
         [% endif -%]
         if self.request.matched_action != "delete" and not [[ object ]]:
             raise NotFound

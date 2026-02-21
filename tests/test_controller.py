@@ -343,6 +343,62 @@ class TestDispatch:
         co._dispatch("index")
         assert called == ["index"]
 
+    def test_before_callback_skipped_by_exclude_tuple(self):
+        called = []
+
+        class MyController(Controller):
+            before = {"do": "set_post", "exclude": ("index", "new", "create")}
+
+            def set_post(self):
+                called.append("before")
+
+            def index(self):
+                called.append("index")
+                return "ok"
+
+            def show(self):
+                called.append("show")
+                return "ok"
+
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["index"]
+
+        called.clear()
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "show"
+        co._dispatch("show")
+        assert called == ["before", "show"]
+
+    def test_before_callback_skipped_by_exclude_list(self):
+        called = []
+
+        class MyController(Controller):
+            before = {"do": "set_post", "exclude": ["index", "new", "create"]}
+
+            def set_post(self):
+                called.append("before")
+
+            def index(self):
+                called.append("index")
+                return "ok"
+
+            def show(self):
+                called.append("show")
+                return "ok"
+
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["index"]
+
+        called.clear()
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "show"
+        co._dispatch("show")
+        assert called == ["before", "show"]
+
     def test_before_and_after_with_inheritance(self):
         called = []
 
