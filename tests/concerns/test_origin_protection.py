@@ -7,7 +7,7 @@ from proper.controller import Controller
 from proper.errors import InvalidOrigin
 
 
-class TestController(Controller, OriginProtection):
+class _TestController(Controller, OriginProtection):
     def action(self):
         return "OK"
 
@@ -16,7 +16,7 @@ class TestController(Controller, OriginProtection):
 def co(app):
     request = Request()
     response = Response()
-    return TestController(app, request, response)
+    return _TestController(app, request, response)
 
 
 # Allow all safe methods (GET, HEAD, OPTIONS, QUERY)

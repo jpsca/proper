@@ -215,9 +215,9 @@ def validate_domain(domain: str | None) -> None:
         # Chrome doesn't allow names without a '.'
         # This should only come up with something like "localhost"
         warnings.warn(
-            "For some browser, like Chrome, “{domain}” is not a valid cookie domain, "
-            "because it must contain a “.”. Add an entry to your hosts file, "
-            "for example “{domain}.localdomain”, and use that instead.",
+            f"For some browser, like Chrome, \u201c{domain}\u201d is not a valid cookie domain, "
+            f"because it must contain a \u201c.\u201d. Add an entry to your hosts file, "
+            f"for example \u201c{domain}.localdomain\u201d, and use that instead.",
             stacklevel=2,
         )
 
@@ -226,8 +226,8 @@ def validate_cookie_size(name: str, output: str, max_size: int) -> None:
     cookie_size = len(output)
     if cookie_size > max_size:
         warnings.warn(
-            f"The “{name}” cookie is too large. The cookie final size "
-            "is {cookie_size} bytes but the limit is {max_size} bytes. "
-            "Browsers may silently ignore cookies larger than the limit.",
+            f"The \u201c{name}\u201d cookie is too large. The cookie final size "
+            f"is {cookie_size} bytes but the limit is {max_size} bytes. "
+            f"Browsers may silently ignore cookies larger than the limit.",
             stacklevel=2,
         )

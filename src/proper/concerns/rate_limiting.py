@@ -94,10 +94,10 @@ class RateLimiting(Concern):
             ]
 
             def max_requests(self):
-                1000 if current.user.premium? else 100
+                return 1000 if current.user.premium else 100
 
             def time_window(self):
-                1 * HOUR if current.user.premium? else 1 * MINUTE
+                return 1 * HOUR if current.user.premium else 1 * MINUTE
 
         class SessionsController(AppController):
             rate_limit = [
@@ -130,7 +130,7 @@ class RateLimiting(Concern):
         options = getattr(self, "rate_limit", None)
         if options:
             for opts in make_list(options):
-                if self._should_run_concern(opts):
+                if self._should_run_callback(opts):
                     self._rate_limiting(**opts)
 
     def _rate_limiting(

@@ -21,4 +21,4 @@ class Concern:
     app: "App"
     request: "Request"
     response: "Response"
-    _should_run_concern: "Callable[[dict[str, t.Any]], bool]"
+    _should_run_callback: "Callable[[dict[str, t.Any]], bool]"

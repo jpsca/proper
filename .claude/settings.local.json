@@ -3,7 +3,14 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(python -m pytest:*)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "Bash(git stash:*)",
+      "Bash(ls:*)",
+      "Bash(pip show:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(which proper:*)"
     ],
     "deny": [],
     "ask": []

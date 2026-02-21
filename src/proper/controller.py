@@ -90,19 +90,23 @@ class Controller:
 
         for cls in mro:
             before = cls.__dict__.get("before", None)
-            if before and self._should_run_callback(before):
-                for action in make_list(getattr(self, before["do"])):
-                    action()
-                    if self.response.has_body:
-                        return
+            if before:
+                for cb in make_list(before):
+                    if self._should_run_callback(cb):
+                        for action in make_list(getattr(self, cb["do"])):
+                            action()
+                            if self.response.has_body:
+                                return
 
         self._call(action_name)
 
         for cls in mro[::-1]:
             after = cls.__dict__.get("after", None)
-            if after and self._should_run_callback(after):
-                for action in make_list(getattr(self, after["do"])):
-                    action()
+            if after:
+                for cb in make_list(after):
+                    if self._should_run_callback(cb):
+                        for action in make_list(getattr(self, cb["do"])):
+                            action()
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same

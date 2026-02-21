@@ -4,7 +4,7 @@ import typing as t
 from io import BytesIO
 from pathlib import Path
 
-from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from .helpers import DotDict
 from .request import make_test_env
 
@@ -135,10 +135,10 @@ class AppTest:
         headers: dict | None = None,
     ) -> DotDict:
         """
-        Do a QUERY request. Similar to `AppTest.post`but.
+        Do a QUERY request. Similar to `AppTest.post`.
         """
         return self._do_test_request(
-            url, method=PUT, body=body, upload_files=upload_files, headers=headers
+            url, method=QUERY, body=body, upload_files=upload_files, headers=headers
         )
 
     def options(
@@ -243,7 +243,7 @@ class AppTest:
             )
 
         params = params or {}
-        for key, value in params:
+        for key, value in params.items():
             if isinstance(key, str):
                 key = key.encode("ascii")
 

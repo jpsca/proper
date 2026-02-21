@@ -1,0 +1,492 @@
+"""Tests for the src/proper/tools/ setup & validation modules."""
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from proper import App
+from proper.errors import ConfigError
+from proper.helpers import DotDict
+from proper.tools import auth, cache, db, i18n, mailer, queue, storage
+
+
+# ── helpers ─────────────────────────────────────────────────────────
+
+
+def _make_app(**overrides):
+    config = {
+        "SECRET_KEYS": ["*" * 50],
+        "DEBUG": False,
+        **overrides,
+    }
+    return App("tests", config)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.auth
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestAuthSetup:
+    def test_sets_defaults(self):
+        app = _make_app()
+        assert app.config.AUTH_PASSWORD_MINLEN == 9
+        assert app.config.AUTH_PASSWORD_MAXLEN == 1024
+        assert app.config.AUTH_HASH_NAME is None
+        assert app.config.AUTH_ROUNDS is None
+
+    def test_creates_auth_instance(self):
+        app = _make_app()
+        assert hasattr(app, "auth")
+        assert app.auth is not None
+
+    def test_user_overrides_preserved(self):
+        app = _make_app(AUTH_PASSWORD_MINLEN=12)
+        assert app.config.AUTH_PASSWORD_MINLEN == 12
+
+
+class TestAuthValidateConfig:
+    def test_valid_config_passes(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "SECRET_KEYS": ["*" * 50]})
+        auth.validate_config(config)  # should not raise
+
+    def test_auth_class_must_be_str_or_type(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_CLASS": 42})
+        with pytest.raises(ConfigError, match="AUTH_CLASS"):
+            auth.validate_config(config)
+
+    def test_auth_hash_name_must_be_str_or_none(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_HASH_NAME": 42})
+        with pytest.raises(ConfigError, match="AUTH_HASH_NAME"):
+            auth.validate_config(config)
+
+    def test_auth_hash_name_none_is_valid(self):
+        config = DotDict({**auth.DEFAULT_CONFIG})
+        config.AUTH_HASH_NAME = None
+        auth.validate_config(config)
+
+    def test_auth_rounds_must_be_positive_int_or_none(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_ROUNDS": -1})
+        with pytest.raises(ConfigError, match="AUTH_ROUNDS"):
+            auth.validate_config(config)
+
+    def test_auth_rounds_zero_is_invalid(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_ROUNDS": 0})
+        with pytest.raises(ConfigError, match="AUTH_ROUNDS"):
+            auth.validate_config(config)
+
+    def test_auth_rounds_string_is_invalid(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_ROUNDS": "10"})
+        with pytest.raises(ConfigError, match="AUTH_ROUNDS"):
+            auth.validate_config(config)
+
+    def test_auth_rounds_none_is_valid(self):
+        config = DotDict({**auth.DEFAULT_CONFIG})
+        config.AUTH_ROUNDS = None
+        auth.validate_config(config)
+
+    def test_password_minlen_must_be_positive_int(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_PASSWORD_MINLEN": 0})
+        with pytest.raises(ConfigError, match="AUTH_PASSWORD_MINLEN"):
+            auth.validate_config(config)
+
+    def test_password_maxlen_must_be_positive_int(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_PASSWORD_MAXLEN": -5})
+        with pytest.raises(ConfigError, match="AUTH_PASSWORD_MAXLEN"):
+            auth.validate_config(config)
+
+    def test_token_life_must_be_positive_int(self):
+        config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_TOKEN_LIFE": 0})
+        with pytest.raises(ConfigError, match="AUTH_TOKEN_LIFE"):
+            auth.validate_config(config)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.cache
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestCacheSetup:
+    def test_default_nocache(self):
+        app = _make_app()
+        from proper.cache import NoCache
+
+        assert isinstance(app.cache, NoCache)
+
+    def test_cache_attached_to_catalog(self):
+        app = _make_app()
+        assert app.catalog.jinja_env.app_cache is app.cache
+
+    def test_cache_db_registered_if_present(self):
+        """If the cache instance has a .database attr, it is added to app.db."""
+        mock_db = MagicMock()
+
+        with patch("proper.tools.cache.get_instance") as mock_get:
+            mock_cache = MagicMock()
+            mock_cache.database = mock_db
+            mock_get.return_value = mock_cache
+
+            app = _make_app(CACHE={"type": "proper.cache.NoCache"})
+
+        assert app.db.get("proper_cache") is mock_db
+
+
+class TestCacheValidateConfig:
+    def test_valid_config(self):
+        cache.validate_config({"type": "proper.cache.NoCache"})
+
+    def test_must_be_dict(self):
+        with pytest.raises(ConfigError, match="CACHE config must be a dictionary"):
+            cache.validate_config("not a dict")
+
+    def test_must_have_type(self):
+        with pytest.raises(ConfigError, match="must have a 'type' key"):
+            cache.validate_config({})
+
+    def test_type_must_be_str_or_class(self):
+        with pytest.raises(ConfigError, match="must be a string or a class"):
+            cache.validate_config({"type": 42})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.db
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestDbSetup:
+    def test_default_sqlite_memory(self):
+        app = _make_app()
+        assert "main" in app.db
+        assert app.db["main"] is not None
+
+    def test_none_db_config_skipped(self):
+        app = _make_app(DATABASES={"main": None})
+        assert "main" not in app.db
+
+    def test_custom_db_config(self):
+        app = _make_app(DATABASES={
+            "main": {
+                "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                "database": ":memory:",
+            },
+            "secondary": {
+                "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                "database": ":memory:",
+            },
+        })
+        assert "main" in app.db
+        assert "secondary" in app.db
+
+
+class TestDbValidateConfig:
+    def test_valid_config(self):
+        db.validate_config({
+            "main": {
+                "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                "database": ":memory:",
+            }
+        })
+
+    def test_must_be_dict(self):
+        with pytest.raises(ConfigError, match="DATABASES config must be a dictionary"):
+            db.validate_config("not a dict")
+
+    def test_entry_must_be_dict_or_none(self):
+        with pytest.raises(ConfigError, match="must be a dictionary or None"):
+            db.validate_config({"main": "sqlite:///db.sqlite3"})
+
+    def test_entry_must_have_type(self):
+        with pytest.raises(ConfigError, match="must have a 'type' key"):
+            db.validate_config({"main": {"database": ":memory:"}})
+
+    def test_entry_type_must_be_str_or_class(self):
+        with pytest.raises(ConfigError, match="must be a string or a class"):
+            db.validate_config({"main": {"type": 42, "database": ":memory:"}})
+
+    def test_entry_must_have_database(self):
+        with pytest.raises(ConfigError, match="must have a 'database' key"):
+            db.validate_config({
+                "main": {"type": "playhouse.sqlite_ext.SqliteExtDatabase"}
+            })
+
+    def test_entry_database_must_be_str(self):
+        with pytest.raises(ConfigError, match="must be a string"):
+            db.validate_config({
+                "main": {
+                    "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                    "database": 42,
+                }
+            })
+
+    def test_none_entry_passes(self):
+        db.validate_config({"main": None})
+
+    def test_falsy_entry_passes(self):
+        """Empty dict / 0 / False are all falsy — skipped."""
+        db.validate_config({"main": {}})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.i18n
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestI18nSetup:
+    def test_no_locales_dir_sets_none(self):
+        app = _make_app()
+        # tests/ has no locales dir, so i18n should be None
+        assert app.i18n is None
+
+    def test_sets_defaults_when_locales_exist(self, tmp_path):
+        """When locales_path exists, default config values are applied."""
+        locales_dir = tmp_path / "locales"
+        locales_dir.mkdir()
+        (locales_dir / "en.yml").write_text("hello: Hello")
+
+        app = _make_app()
+        # Manually call setup after patching locales_path
+        app.locales_path = locales_dir
+        i18n.setup(app)
+
+        assert app.config.LOCALE_DEFAULT == "en"
+        assert app.config.TIMEZONE_DEFAULT == "UTC"
+        assert app.i18n is not None
+
+    def test_registers_jinja_filters(self, tmp_path):
+        locales_dir = tmp_path / "locales"
+        locales_dir.mkdir()
+        (locales_dir / "en.yml").write_text("hello: Hello")
+
+        app = _make_app()
+        app.locales_path = locales_dir
+        i18n.setup(app)
+
+        filters = app.catalog.jinja_env.filters
+        assert "format_datetime" in filters
+        assert "format_date" in filters
+        assert "format_currency" in filters
+
+    def test_registers_jinja_global(self, tmp_path):
+        locales_dir = tmp_path / "locales"
+        locales_dir.mkdir()
+        (locales_dir / "en.yml").write_text("hello: Hello")
+
+        app = _make_app()
+        app.locales_path = locales_dir
+        i18n.setup(app)
+
+        assert "_" in app.catalog.jinja_env.globals
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.mailer
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestMailerSetup:
+    def test_default_to_console_mailer(self):
+        app = _make_app()
+        from proper.emails import ToConsoleMailer
+
+        assert isinstance(app.mailer, ToConsoleMailer)
+
+    def test_mailer_default_options_set(self):
+        app = _make_app()
+        opts = app.config.MAILER_DEFAULT_OPTIONS
+        assert opts["from"] == "no-reply@example.com"
+
+
+class TestMailerValidateConfig:
+    def test_valid_config(self):
+        mailer.validate_config({"type": "proper.emails.ToConsoleMailer"})
+
+    def test_must_be_dict(self):
+        with pytest.raises(ConfigError, match="MAILER config must be a dictionary"):
+            mailer.validate_config("not a dict")
+
+    def test_must_have_type(self):
+        with pytest.raises(ConfigError, match="must have a 'type' key"):
+            mailer.validate_config({})
+
+    def test_type_must_be_str_or_class(self):
+        with pytest.raises(ConfigError, match="must be a string or a class"):
+            mailer.validate_config({"type": 42})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.queue
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestQueueSetup:
+    def test_default_memory_huey(self):
+        app = _make_app()
+        from huey import MemoryHuey
+
+        assert isinstance(app.queue, MemoryHuey)
+
+    def test_consumer_config_defaults_applied(self):
+        app = _make_app()
+        consumer = app.config.QUEUE_CONSUMER
+        assert consumer["workers"] == 1
+        assert consumer["periodic"] is True
+        assert consumer["worker_type"] == "thread"
+
+    def test_consumer_config_user_override(self):
+        app = _make_app(QUEUE_CONSUMER={"workers": 4})
+        assert app.config.QUEUE_CONSUMER["workers"] == 4
+        # Other defaults are still present
+        assert app.config.QUEUE_CONSUMER["periodic"] is True
+
+    def test_sqlite_huey_renames_database_to_filename(self):
+        with patch("proper.tools.queue.get_instance") as mock_get:
+            mock_get.return_value = MagicMock()
+            _make_app(QUEUE={
+                "type": "huey.SqliteHuey",
+                "database": "/tmp/test.db",
+            })
+            call_kwargs = mock_get.call_args[1]
+            assert "filename" in call_kwargs
+            assert "database" not in call_kwargs
+            assert call_kwargs["filename"] == "/tmp/test.db"
+
+    def test_sqlite_huey_without_database_key(self):
+        with patch("proper.tools.queue.get_instance") as mock_get:
+            mock_get.return_value = MagicMock()
+            _make_app(QUEUE={"type": "huey.SqliteHuey"})
+            call_kwargs = mock_get.call_args[1]
+            assert "filename" not in call_kwargs
+            assert "database" not in call_kwargs
+
+    def test_sql_huey_with_dbtype(self):
+        mock_db = MagicMock()
+        with patch("proper.tools.queue.get_instance") as mock_get:
+            # First call: get_instance for the dbtype → returns mock_db
+            # Second call: get_instance for the queue itself → returns mock queue
+            mock_get.side_effect = [mock_db, MagicMock()]
+            app = _make_app(QUEUE={
+                "type": "huey.contrib.sql_huey.SqlHuey",
+                "dbtype": "peewee.SqliteDatabase",
+                "database": ":memory:",
+                "host": "localhost",
+                "port": 5432,
+                "user": "admin",
+                "password": "secret",
+            })
+            # The db instance is registered on app.db
+            assert app.db["proper_queue"] is mock_db
+            # First get_instance call was for the dbtype
+            first_call = mock_get.call_args_list[0]
+            assert first_call[1]["type"] == "peewee.SqliteDatabase"
+            assert first_call[1]["database"] == ":memory:"
+
+    def test_sql_huey_without_dbtype(self):
+        with patch("proper.tools.queue.get_instance") as mock_get:
+            mock_get.return_value = MagicMock()
+            _make_app(QUEUE={"type": "huey.contrib.sql_huey.SqlHuey"})
+            # Only one get_instance call (for the queue itself), no db setup
+            assert mock_get.call_count == 1
+
+
+class TestQueueValidateConfig:
+    def test_valid_config(self):
+        queue.validate_config({"type": "huey.MemoryHuey"})
+
+    def test_must_be_dict(self):
+        with pytest.raises(ConfigError, match="QUEUE config must be a dictionary"):
+            queue.validate_config("not a dict")
+
+    def test_must_have_type(self):
+        with pytest.raises(ConfigError, match="must have a 'type' key"):
+            queue.validate_config({})
+
+    def test_type_must_be_str_or_class(self):
+        with pytest.raises(ConfigError, match="must be a string or a class"):
+            queue.validate_config({"type": 42})
+
+    def test_dbtype_must_be_str_or_class(self):
+        with pytest.raises(ConfigError, match="dbtype"):
+            queue.validate_config({"type": "huey.MemoryHuey", "dbtype": 42})
+
+    def test_dbtype_string_is_valid(self):
+        queue.validate_config({
+            "type": "huey.contrib.sql_huey.SqlHuey",
+            "dbtype": "peewee.SqliteDatabase",
+        })
+
+
+# ═══════════════════════════════════════════════════════════════════
+# tools.storage
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestStorageSetup:
+    def test_disabled_by_default(self):
+        """No STORAGE key in config means storage is disabled."""
+        app = _make_app()
+        assert app.storage is None
+
+    def test_enabled_when_storage_set(self):
+        from proper.storage import Storage as StorageCls
+
+        app = _make_app(STORAGE="local")
+        assert isinstance(app.storage, StorageCls)
+
+    def test_disabled_when_storage_none(self):
+        app = _make_app(STORAGE=None)
+        assert app.storage is None
+
+    def test_disabled_when_storage_empty_string(self):
+        app = _make_app(STORAGE="")
+        assert app.storage is None
+
+    def test_default_config_values_set(self):
+        app = _make_app(STORAGE="local")
+        assert "STORAGE_SERVICES" in app.config
+        assert isinstance(app.config.STORAGE_SERVICES, dict)
+        assert "local" in app.config.STORAGE_SERVICES
+
+    def test_web_image_content_types_default(self):
+        app = _make_app(STORAGE="local")
+        types = app.config.STORAGE_WEB_IMAGE_CONTENT_TYPES
+        assert "image/png" in types
+        assert "image/jpeg" in types
+
+
+class TestStorageValidateConfig:
+    def test_valid_config(self):
+        config = DotDict({
+            "STORAGE_SERVICES": {"local": {"type": "Disk", "root": "/tmp"}},
+        })
+        storage.validate_config(config)
+
+    def test_storage_services_must_be_dict(self):
+        config = DotDict({"STORAGE_SERVICES": "not a dict"})
+        with pytest.raises(ConfigError, match="STORAGE_SERVICES"):
+            storage.validate_config(config)
+
+    def test_storage_services_none_is_invalid(self):
+        config = DotDict({"STORAGE_SERVICES": None})
+        with pytest.raises(ConfigError, match="STORAGE_SERVICES"):
+            storage.validate_config(config)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Integration — full App init wires all tools
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestToolsIntegration:
+    def test_all_tools_attached_after_init(self):
+        app = _make_app()
+        assert hasattr(app, "auth")
+        assert hasattr(app, "cache")
+        assert hasattr(app, "db")
+        assert hasattr(app, "mailer")
+        assert hasattr(app, "queue")
+        assert hasattr(app, "i18n")
+        assert hasattr(app, "storage")
+
+    def test_db_is_dict(self):
+        app = _make_app()
+        assert isinstance(app.db, dict)

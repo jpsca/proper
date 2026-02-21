@@ -156,7 +156,7 @@ class Route:
     def to(self, value: THandler | None):
         self._to = value
         if not self.name and value and callable(value):
-            cls, method = value.__qualname__.rsplit(".")
+            cls, method = value.__qualname__.rsplit(".", 1)
             self.name = f"{cls.removesuffix("Controller")}.{method}"
 
     def __repr__(self) -> str:

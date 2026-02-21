@@ -103,8 +103,8 @@ class RequestForgeryProtection(Concern):
     def _handle_missing_csrf_token(self) -> None:
         raise MissingCSRFToken(
             "Missing CSRF (Cross-Site Request Forgery) token. "
-            f"You must provide the token value as a “{CSRF_FORM_KEY}” form field "
-            f"or in a “{CSRF_HEADER}” header."
+            f'You must provide the token value as a "{CSRF_FORM_KEY}" form field '
+            f'or in a "{CSRF_HEADER}" header.'
         )
 
     def _generate_csrf_token(self) -> str:

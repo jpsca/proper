@@ -101,8 +101,9 @@ def parse_multipart(
 
     except MultipartError:
         if strict:
-            for part in files.values():
-                part.close()
+            for parts in files.values():
+                for part in parts:
+                    part.close()
             raise
 
     form.update(files)
@@ -124,7 +125,7 @@ def parse_query_string(
         data = parse_qs(query_string, keep_blank_values=True, encoding=encoding)
         for key, values in data.items():
             form.extend(key, values)
-    except ValueError:
+    except ValueError:  # pragma: no cover
         if strict:
             raise
 

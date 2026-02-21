@@ -9,7 +9,7 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 
-from . import midddleware, status, tools
+from . import middleware, status, tools
 from .app_test import AppTest
 from .cache import FragmentCacheExtension
 from .cli.app_cli import get_cli
@@ -193,14 +193,14 @@ class App(AppTest):
     def run_pipeline(self, request, response) -> None:
         try:
             for func in (
-                midddleware.copy_session,
-                midddleware.head_to_get,
-                midddleware.method_override,
-                midddleware.match,
-                midddleware.redirect,
-                midddleware.dispatch,
-                midddleware.strip_body_if_head,
-                midddleware.update_session_cookie,
+                middleware.copy_session,
+                middleware.head_to_get,
+                middleware.method_override,
+                middleware.match,
+                middleware.redirect,
+                middleware.dispatch,
+                middleware.strip_body_if_head,
+                middleware.update_session_cookie,
             ):
                 early_response = func(self, request, response)
                 if early_response is not None:
@@ -348,7 +348,7 @@ class App(AppTest):
         else:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
-        midddleware.dispatch(self, request, response)
+        middleware.dispatch(self, request, response)
 
     def _dbs_connect(self) -> None:
         for db in self.db.values():

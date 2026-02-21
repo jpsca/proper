@@ -1,558 +1,616 @@
-"""
-Tests for Controller functionality as documented in docs/controllers.md
+"""Tests for proper.controller — Controller and StaticFilesController."""
 
-This spec covers:
-- Router resource decorator and CRUD action mapping
-- ID parameter naming conventions
-- Singular resources (pk=None)
-- Custom pk argument
-- Manual route decorators
-- Controller params (query string, POST, and URL parameters)
-- Controller callbacks (before/after)
-- Callback options (only/exclude)
-- Multiple callbacks and inheritance
-- Controller concerns
-"""
+from unittest.mock import MagicMock
 
-from proper.concerns import Concern
-from proper.constants import DELETE, GET, PATCH, POST, PUT
-from proper.controller import Controller
-from proper.router import Route
+import pytest
 
+from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
+from proper.errors import NotFound
+from proper.helpers import DotDict, MultiDict
+from proper.request import Request
+from proper.response import Response
+from proper.status import not_modified
 
-# =============================================================================
-# Router Resource Decorator - CRUD Action Mapping
-# =============================================================================
 
+# ── helpers ──────────────────────────────────────────────────────────
 
-class CardController(Controller):
-    """Full CRUD controller for testing resource routing."""
 
-    def index(self):
-        return "index"
+def _make_controller(cls=Controller, **request_kw):
+    app = MagicMock()
+    app.config = {}
+    request = Request(**request_kw)
+    response = Response()
+    return cls(app, request, response)
 
-    def new(self):
-        return "new"
 
-    def create(self):
-        return "create"
+# ── Controller basics ────────────────────────────────────────────────
 
-    def show(self):
-        return "show"
 
-    def edit(self):
-        return "edit"
+class TestControllerInit:
+    def test_stores_app_request_response(self):
+        app = MagicMock()
+        request = Request()
+        response = Response()
+        co = Controller(app, request, response)
+        assert co.app is app
+        assert co.request is request
+        assert co.response is response
 
-    def update(self):
-        return "update"
+    def test_default_etag(self):
+        assert Controller.etag == ""
 
-    def delete(self):
-        return "delete"
 
+# ── params ───────────────────────────────────────────────────────────
 
-def test_resource_maps_all_crud_actions(app):
-    """router.resource maps index, new, create, show, edit, update, delete to URLs."""
-    app.router.resource("cards")(CardController)
 
-    expected = [
-        Route(GET, "cards/", to=CardController.index),
-        Route(GET, "cards/new", to=CardController.new),
-        Route(POST, "cards/", to=CardController.create),
-        Route(GET, "cards/:card_id", to=CardController.show),
-        Route(GET, "cards/:card_id/edit", to=CardController.edit),
-        Route(PATCH, "cards/:card_id", to=CardController.update),
-        Route(PUT, "cards/:card_id", to=CardController.update),
-        Route(DELETE, "cards/:card_id", to=CardController.delete),
-    ]
-    for i, route in enumerate(app.router.routes):
-        expected[i].defaults = route.defaults
-        assert route == expected[i]
+class TestParams:
+    def test_merges_query_form_and_matched_params(self):
+        co = _make_controller(QUERY_STRING="a=1")
+        co.request._form = MultiDict([("b", "2")])
+        co.request.matched_params = {"c": "3"}
+        params = co.params
+        assert params.get("a") == "1"
+        assert params.get("b") == "2"
+        assert params.get("c") == "3"
 
+    def test_matched_params_none(self):
+        co = _make_controller()
+        co.request.matched_params = None
+        params = co.params
+        assert isinstance(params, MultiDict)
 
-class PartialCardController(Controller):
-    """Controller with only some CRUD methods."""
+    def test_returns_new_multidict_each_time(self):
+        co = _make_controller()
+        assert co.params is not co.params
 
-    def index(self):
-        return "index"
 
-    def show(self):
-        return "show"
+# ── defaults ─────────────────────────────────────────────────────────
 
 
-def test_resource_only_maps_existing_methods(app):
-    """router.resource only creates routes for methods that exist."""
-    app.router.resource("cards")(PartialCardController)
+class TestDefaults:
+    def test_from_matched_route(self):
+        co = _make_controller()
+        route = MagicMock()
+        route.defaults = {"root": "/static", "public": True}
+        co.request.matched_route = route
+        assert co.defaults == {"root": "/static", "public": True}
 
-    expected = [
-        Route(GET, "cards/", to=PartialCardController.index),
-        Route(GET, "cards/:partial_card_id", to=PartialCardController.show),
-    ]
-    for i, route in enumerate(app.router.routes):
-        expected[i].defaults = route.defaults
-        assert route == expected[i]
+    def test_no_matched_route(self):
+        co = _make_controller()
+        co.request.matched_route = None
+        assert co.defaults == {}
 
 
-# =============================================================================
-# ID Parameter Naming
-# =============================================================================
+# ── render ───────────────────────────────────────────────────────────
 
 
-class UserPhotoController(Controller):
-    def show(self):
-        return "show"
+class TestRender:
+    def test_render_json(self):
+        co = _make_controller()
+        result = co.render(json={"key": "value"})
+        assert '"key"' in result
+        assert '"value"' in result
+        assert co.response.mimetype == "application/json"
 
+    def test_render_text(self):
+        co = _make_controller()
+        result = co.render(text="hello world")
+        assert result == "hello world"
+        assert co.response.mimetype == "text/plain"
 
-def test_id_param_derived_from_controller_name(app):
-    """ID parameter is derived from snake-cased controller name."""
-    # CardController -> card_id
-    app.router.resource("cards")(CardController)
+    def test_render_with_status(self):
+        co = _make_controller()
+        co.render(text="ok", status="201 Created")
+        assert co.response.status == "201 Created"
+
+    def test_render_template(self):
+        co = _make_controller()
+        co.app.catalog.render.return_value = "<html>rendered</html>"
+        result = co.render("my_template.jinja")
+        co.app.catalog.render.assert_called_once()
+        assert result == "<html>rendered</html>"
+
+    def test_render_json_takes_priority_over_text(self):
+        co = _make_controller()
+        co.render(json={"a": 1}, text="ignored")
+        assert co.response.mimetype == "application/json"
+
+
+# ── _should_run_callback ─────────────────────────────────────────────
+
+
+class TestShouldRunCallback:
+    def test_empty_options(self):
+        co = _make_controller()
+        assert co._should_run_callback({}) is True
+
+    def test_only_matches(self):
+        co = _make_controller()
+        co.request.matched_action = "show"
+        assert co._should_run_callback({"only": "show"}) is True
+
+    def test_only_no_match(self):
+        co = _make_controller()
+        co.request.matched_action = "index"
+        assert co._should_run_callback({"only": "show"}) is False
+
+    def test_only_list(self):
+        co = _make_controller()
+        co.request.matched_action = "edit"
+        assert co._should_run_callback({"only": ["show", "edit"]}) is True
+
+    def test_exclude_matches(self):
+        co = _make_controller()
+        co.request.matched_action = "destroy"
+        assert co._should_run_callback({"exclude": "destroy"}) is False
+
+    def test_exclude_no_match(self):
+        co = _make_controller()
+        co.request.matched_action = "show"
+        assert co._should_run_callback({"exclude": "destroy"}) is True
+
+    def test_exclude_list(self):
+        co = _make_controller()
+        co.request.matched_action = "edit"
+        assert co._should_run_callback({"exclude": ["edit", "destroy"]}) is False
+
+    def test_only_none_exclude_none(self):
+        co = _make_controller()
+        co.request.matched_action = "show"
+        assert co._should_run_callback({"only": None, "exclude": None}) is True
+
+
+# ── _call ────────────────────────────────────────────────────────────
+
+
+class TestCall:
+    def test_return_value_sets_body(self):
+        class MyController(Controller):
+            def index(self):
+                return "Hello"
+
+        co = _make_controller(cls=MyController)
+        co._call("index")
+        assert co.response.body == "Hello"
+
+    def test_fresh_response_sets_not_modified(self):
+        class MyController(Controller):
+            def index(self):
+                self.response.set_etag(123)
+                return "Hello"
+
+        etag = 'W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
+        co = _make_controller(cls=MyController, HTTP_IF_NONE_MATCH=etag)
+        co._call("index")
+        assert co.response.status == not_modified
+        assert co.response.body == ""
+
+    def test_no_return_infers_template(self):
+        class MyController(Controller):
+            def show(self):
+                pass
+
+        co = _make_controller(cls=MyController)
+        co.app.catalog.render.return_value = "<html/>"
+        co._call("show")
+        assert co.response.body == "<html/>"
+        # Check the inferred template name
+        call_args = co.app.catalog.render.call_args
+        template_name = call_args[0][0]
+        assert template_name.endswith("/show.jinja")
+
+    def test_no_return_body_already_set(self):
+        class MyController(Controller):
+            def index(self):
+                self.response.body = "already set"
+
+        co = _make_controller(cls=MyController)
+        co._call("index")
+        assert co.response.body == "already set"
+
+    def test_inferred_view_strips_controller_suffix(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.users_controller"
+
+            def edit(self):
+                pass
+
+        co = _make_controller(cls=MyController)
+        co.app.catalog.render.return_value = ""
+        co._call("edit")
+        template = co.app.catalog.render.call_args[0][0]
+        # "myapp.pages.users_controller".split(".", 2) -> ["myapp", "pages", "users_controller"]
+        # take [-1] -> "users_controller", removesuffix -> "users", replace "." -> "users"
+        assert template == "pages/users/edit.jinja"
+
+    def test_inferred_view_module_path(self):
+        # split(".", 2) on "myapp.web.admin.dashboard" -> ["myapp", "web", "admin.dashboard"]
+        # [-1] -> "admin.dashboard", replace "." -> "admin/dashboard"
+        class MyController(Controller):
+            __module__ = "myapp.web.admin.dashboard"
+
+            def index(self):
+                pass
+
+        co = _make_controller(cls=MyController)
+        co.app.catalog.render.return_value = ""
+        co._call("index")
+        template = co.app.catalog.render.call_args[0][0]
+        assert template == "pages/admin/dashboard/index.jinja"
+
 
-    routes_with_id = [r for r in app.router.routes if ":card_id" in r.path]
-    assert len(routes_with_id) > 0
+# ── _dispatch ────────────────────────────────────────────────────────
+
+
+class TestDispatch:
+    def test_simple_dispatch(self):
+        class MyController(Controller):
+            def index(self):
+                return "dispatched"
+
+        co = _make_controller(cls=MyController)
+        co._dispatch("index")
+        assert co.response.body == "dispatched"
+
+    def test_before_callback(self):
+        called = []
 
+        class MyController(Controller):
+            before = {"do": "check_auth", "only": "index"}
 
-def test_id_param_for_compound_names(app):
-    """Compound controller names produce compound ID params."""
-    # UserPhotoController -> user_photo_id
-    app.router.resource("photos")(UserPhotoController)
+            def check_auth(self):
+                called.append("before")
 
-    routes_with_id = [r for r in app.router.routes if ":user_photo_id" in r.path]
-    assert len(routes_with_id) == 1
+            def index(self):
+                called.append("index")
+                return "ok"
 
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["before", "index"]
 
-# =============================================================================
-# Custom pk Argument
-# =============================================================================
+    def test_before_callback_skipped_by_only(self):
+        called = []
 
+        class MyController(Controller):
+            before = {"do": "check_auth", "only": "create"}
 
-def test_custom_pk_argument(app):
-    """pk argument overrides the default ID parameter name."""
-    app.router.resource("cards", pk="object")(CardController)
+            def check_auth(self):
+                called.append("before")
 
-    routes_with_object_id = [r for r in app.router.routes if ":object_id" in r.path]
-    routes_with_card_id = [r for r in app.router.routes if ":card_id" in r.path]
+            def index(self):
+                called.append("index")
+                return "ok"
 
-    assert len(routes_with_object_id) > 0
-    assert len(routes_with_card_id) == 0
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["index"]
 
+    def test_before_sets_body_stops_dispatch(self):
+        called = []
 
-# =============================================================================
-# Singular Resources (pk=None)
-# =============================================================================
+        class MyController(Controller):
+            before = {"do": "block"}
 
+            def block(self):
+                self.response.body = "blocked"
 
-class ProfileController(Controller):
-    """Singular resource - no ID needed."""
+            def index(self):
+                called.append("index")
+                return "should not reach"
 
-    def new(self):
-        return "new"
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert co.response.body == "blocked"
+        assert called == []
 
-    def create(self):
-        return "create"
+    def test_after_callback(self):
+        called = []
 
-    def show(self):
-        return "show"
+        class MyController(Controller):
+            after = {"do": "log_it"}
 
-    def edit(self):
-        return "edit"
+            def log_it(self):
+                called.append("after")
 
-    def update(self):
-        return "update"
+            def index(self):
+                called.append("index")
+                return "ok"
 
-    def delete(self):
-        return "delete"
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["index", "after"]
 
+    def test_after_callback_skipped_by_exclude(self):
+        called = []
 
-def test_singular_resource_no_id_in_urls(app):
-    """pk=None creates routes without ID parameters."""
-    app.router.resource("profile", pk=None)(ProfileController)
+        class MyController(Controller):
+            after = {"do": "log_it", "exclude": "index"}
 
-    expected = [
-        Route(GET, "profile/new", to=ProfileController.new),
-        Route(POST, "profile/", to=ProfileController.create),
-        Route(GET, "profile", to=ProfileController.show),
-        Route(GET, "profile/edit", to=ProfileController.edit),
-        Route(PATCH, "profile", to=ProfileController.update),
-        Route(PUT, "profile", to=ProfileController.update),
-        Route(DELETE, "profile", to=ProfileController.delete),
-    ]
-    for i, route in enumerate(app.router.routes):
-        expected[i].defaults = route.defaults
-        assert route == expected[i]
+            def log_it(self):
+                called.append("after")
 
+            def index(self):
+                called.append("index")
+                return "ok"
 
-class ProfileWithIndexController(Controller):
-    """Singular resource that also has an index method."""
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["index"]
 
-    def index(self):
-        return "index"
+    def test_before_and_after_with_inheritance(self):
+        called = []
 
-    def show(self):
-        return "show"
+        class BaseController(Controller):
+            before = {"do": "base_before"}
 
+            def base_before(self):
+                called.append("base_before")
+
+        class ChildController(BaseController):
+            after = {"do": "child_after"}
 
-def test_singular_resource_ignores_index(app):
-    """pk=None ignores the index method since it doesn't make sense."""
-    app.router.resource("profile", pk=None)(ProfileWithIndexController)
+            def child_after(self):
+                called.append("child_after")
 
-    index_routes = [r for r in app.router.routes if r.to == ProfileWithIndexController.index]
-    assert len(index_routes) == 0
+            def index(self):
+                called.append("index")
+                return "ok"
 
+        co = _make_controller(cls=ChildController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert "base_before" in called
+        assert "index" in called
+        assert "child_after" in called
 
-# =============================================================================
-# Manual Route Decorators
-# =============================================================================
+    def test_before_with_list_of_callbacks(self):
+        called = []
 
+        class MyController(Controller):
+            before = {"do": "checks"}
 
-class PublicController(Controller):
-    def index(self):
-        return "home"
+            @property
+            def checks(self):
+                return [self.check_a, self.check_b]
 
-    def about(self):
-        return "about"
+            def check_a(self):
+                called.append("a")
 
+            def check_b(self):
+                called.append("b")
 
-def test_manual_get_route(app):
-    """router.get creates a GET route for a method."""
-    app.router.get("")(PublicController.index)
+            def index(self):
+                called.append("index")
+                return "ok"
 
-    route, params = app.router.match(GET, "/")
-    assert route.to == PublicController.index
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert called == ["a", "b", "index"]
 
+    def test_before_as_list_of_dicts(self):
+        called = []
 
-def test_manual_post_route(app):
-    """router.post creates a POST route for a method."""
-    app.router.post("submit")(PublicController.index)
+        class MyController(Controller):
+            before = [
+                {"do": "load_resource"},
+                {"do": "check_access", "only": "edit"},
+            ]
 
-    route, params = app.router.match(POST, "/submit")
-    assert route.to == PublicController.index
+            def load_resource(self):
+                called.append("load")
 
+            def check_access(self):
+                called.append("access")
 
-def test_manual_patch_route(app):
-    """router.patch creates a PATCH route for a method."""
-    app.router.patch("update")(PublicController.index)
+            def edit(self):
+                called.append("edit")
+                return "ok"
 
-    route, params = app.router.match(PATCH, "/update")
-    assert route.to == PublicController.index
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "edit"
+        co._dispatch("edit")
+        assert called == ["load", "access", "edit"]
 
+    def test_before_list_only_filter(self):
+        called = []
 
-def test_manual_delete_route(app):
-    """router.delete creates a DELETE route for a method."""
-    app.router.delete("remove")(PublicController.index)
+        class MyController(Controller):
+            before = [
+                {"do": "load_resource"},
+                {"do": "check_access", "only": "edit"},
+            ]
 
-    route, params = app.router.match(DELETE, "/remove")
-    assert route.to == PublicController.index
+            def load_resource(self):
+                called.append("load")
 
+            def check_access(self):
+                called.append("access")
 
-# =============================================================================
-# Controller Parameters
-# =============================================================================
+            def index(self):
+                called.append("index")
+                return "ok"
 
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        # check_access should be skipped for "index"
+        assert called == ["load", "index"]
 
-class ParamsController(Controller):
-    def index(self):
-        return f"status={self.params.get('status')}"
+    def test_after_as_list_of_dicts(self):
+        called = []
 
-    def show(self):
-        return f"card_id={self.params.get('card_id')}"
+        class MyController(Controller):
+            after = [
+                {"do": "log_action"},
+                {"do": "notify", "only": "create"},
+            ]
 
-    def create(self):
-        return f"name={self.params.get('name')}"
+            def log_action(self):
+                called.append("log")
 
+            def notify(self):
+                called.append("notify")
 
-def test_query_string_params(app):
-    """Query string parameters are available in self.params."""
-    app.router.get("items")(ParamsController.index)
+            def create(self):
+                called.append("create")
+                return "ok"
 
-    resp = app.get("/items?status=activated")
-    assert resp.body == "status=activated"
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "create"
+        co._dispatch("create")
+        assert called == ["create", "log", "notify"]
 
+    def test_before_list_early_return_stops_all(self):
+        called = []
 
-def test_url_params(app):
-    """URL parameters (e.g., :card_id) are available in self.params."""
-    app.router.get("cards/:card_id")(ParamsController.show)
+        class MyController(Controller):
+            before = [
+                {"do": "block"},
+                {"do": "second"},
+            ]
 
-    resp = app.get("/cards/42")
-    assert resp.body == "card_id=42"
+            def block(self):
+                self.response.body = "blocked"
 
+            def second(self):
+                called.append("second")
 
-def test_form_params(app):
-    """POST form parameters are available in self.params."""
-    app.router.post("items")(ParamsController.create)
+            def index(self):
+                called.append("index")
+                return "ok"
 
-    resp = app.post("/items", data={"name": "Test Card"})
-    assert resp.body == "name=Test Card"
+        co = _make_controller(cls=MyController)
+        co.request.matched_action = "index"
+        co._dispatch("index")
+        assert co.response.body == "blocked"
+        assert called == []
+
 
+# ── RX_FINGERPRINT ───────────────────────────────────────────────────
 
-# =============================================================================
-# Controller Callbacks - Before
-# =============================================================================
-
-
-class BeforeCallbackController(Controller):
-    before = {"do": "set_message"}
-
-    def set_message(self):
-        self.message = "before was called"
-
-    def index(self):
-        return self.message
-
-
-def test_before_callback_runs_before_action(app):
-    """Before callbacks run before the action."""
-    app.router.get("items")(BeforeCallbackController.index)
-
-    resp = app.get("/items")
-    assert resp.body == "before was called"
-
-
-class BeforeCallbackHaltController(Controller):
-    before = {"do": "redirect_away"}
-
-    def redirect_away(self):
-        self.response.body = "redirected"
-
-    def index(self):
-        return "should not reach here"
-
-
-def test_before_callback_can_halt_request(app):
-    """Before callbacks can halt the request by setting a body or redirect."""
-    app.router.get("items")(BeforeCallbackHaltController.index)
-
-    resp = app.get("/items")
-    assert resp.body == "redirected"
-
-
-# =============================================================================
-# Controller Callbacks - After
-# =============================================================================
-
-
-class AfterCallbackController(Controller):
-    after = {"do": "add_header"}
-
-    def add_header(self):
-        self.response.headers.set("X-Custom", "after-called")
-
-    def index(self):
-        return "index"
-
-
-def test_after_callback_runs_after_action(app):
-    """After callbacks run after the action."""
-    app.router.get("items")(AfterCallbackController.index)
-
-    resp = app.get("/items")
-    assert resp.headers.get("X-Custom") == "after-called"
-
-
-# =============================================================================
-# Callback Options - only/exclude
-# =============================================================================
-
-
-class OnlyCallbackController(Controller):
-    before = {"do": "set_card", "only": ["show", "edit"]}
-
-    def set_card(self):
-        self.card = "loaded"
-
-    def index(self):
-        return f"card={getattr(self, 'card', 'not loaded')}"
-
-    def show(self):
-        return f"card={self.card}"
-
-
-def test_callback_only_runs_for_specified_actions(app):
-    """Callbacks with 'only' option only run for listed actions."""
-    app.router.resource("cards")(OnlyCallbackController)
-
-    # index is not in 'only', so set_card should not run
-    resp = app.get("/cards")
-    assert resp.body == "card=not loaded"
-
-    # show is in 'only', so set_card should run
-    resp = app.get("/cards/1")
-    assert resp.body == "card=loaded"
-
-
-class ExcludeCallbackController(Controller):
-    before = {"do": "set_card", "exclude": ["index", "new"]}
-
-    def set_card(self):
-        self.card = "loaded"
-
-    def index(self):
-        return f"card={getattr(self, 'card', 'not loaded')}"
-
-    def show(self):
-        return f"card={self.card}"
-
-
-def test_callback_exclude_skips_specified_actions(app):
-    """Callbacks with 'exclude' option skip listed actions."""
-    app.router.resource("cards")(ExcludeCallbackController)
-
-    # index is excluded, so set_card should not run
-    resp = app.get("/cards")
-    assert resp.body == "card=not loaded"
-
-    # show is not excluded, so set_card should run
-    resp = app.get("/cards/1")
-    assert resp.body == "card=loaded"
-
-
-# =============================================================================
-# Multiple Callbacks
-# =============================================================================
-
-
-class MultipleCallbacksController(Controller):
-    before = [
-        {"do": "first_callback"},
-        {"do": "second_callback", "only": ["show"]},
-    ]
-
-    def first_callback(self):
-        self.first = True
-
-    def second_callback(self):
-        self.second = True
-
-    def index(self):
-        first = getattr(self, "first", False)
-        second = getattr(self, "second", False)
-        return f"first={first},second={second}"
-
-    def show(self):
-        return f"first={self.first},second={self.second}"
-
-
-def test_multiple_callbacks_execute_in_order(app):
-    """Multiple callbacks execute in order with their own options."""
-    app.router.resource("items")(MultipleCallbacksController)
-
-    # index: first runs, second doesn't (only: show)
-    resp = app.get("/items")
-    assert resp.body == "first=True,second=False"
-
-    # show: both run
-    resp = app.get("/items/1")
-    assert resp.body == "first=True,second=True"
-
-
-# =============================================================================
-# Callback Inheritance
-# =============================================================================
-
-
-class BaseController(Controller):
-    before = {"do": "base_callback"}
-
-    def base_callback(self):
-        self.base = True
-
-
-class ChildController(BaseController):
-    before = {"do": "child_callback"}
-
-    def child_callback(self):
-        self.child = True
-
-    def index(self):
-        return f"base={self.base},child={self.child}"
-
-
-def test_callbacks_inherited_from_parent(app):
-    """Callbacks from parent classes are inherited and run first."""
-    app.router.get("items")(ChildController.index)
-
-    resp = app.get("/items")
-    assert resp.body == "base=True,child=True"
-
-
-# =============================================================================
-# Controller Concerns
-# =============================================================================
-
-
-class SecurityHeaders(Concern):
-    """A concern that adds security headers."""
-
-    after = {"do": "set_security_headers"}
-
-    def set_security_headers(self):
-        self.response.headers.set("X-Security", "enabled")
-
-
-class ConcernController(SecurityHeaders, Controller):
-    def index(self):
-        return "index"
-
-
-def test_concern_adds_callbacks(app):
-    """Concerns add their callbacks to the controller."""
-    app.router.get("items")(ConcernController.index)
-
-    resp = app.get("/items")
-    assert resp.headers.get("X-Security") == "enabled"
-
-
-class CardScoped(Concern):
-    """Concern that loads a card from the card_id param."""
-
-    before = {"do": "set_card"}
-
-    def set_card(self):
-        card_id = self.params.get("card_id")
-        if card_id:
-            # Simulate loading a card
-            self.card = {"id": card_id, "title": "Test Card"}
-
-
-class CardClosureController(CardScoped, Controller):
-    """Controller that uses the CardScoped concern."""
-
-    def create(self):
-        return f"closing card {self.card['id']}"
-
-    def delete(self):
-        return f"reopening card {self.card['id']}"
-
-
-def test_concern_with_before_callback(app):
-    """Concerns can define before callbacks that load data."""
-    app.router.resource("cards/:card_id/closure", pk=None)(CardClosureController)
-
-    resp = app.post("/cards/42/closure")
-    assert resp.body == "closing card 42"
-
-    resp = app.delete("/cards/42/closure")
-    assert resp.body == "reopening card 42"
-
-
-# =============================================================================
-# Nested Resources (Everything is CRUD)
-# =============================================================================
-
-
-def test_nested_resource_routing(app):
-    """Nested resources use parent ID in the URL path."""
-
-    class CommentController(Controller):
-        def index(self):
-            return f"comments for card {self.params.get('card_id')}"
-
-        def create(self):
-            return f"create comment on card {self.params.get('card_id')}"
-
-    app.router.resource("cards/:card_id/comments")(CommentController)
-
-    resp = app.get("/cards/42/comments")
-    assert resp.body == "comments for card 42"
-
-    resp = app.post("/cards/42/comments")
-    assert resp.body == "create comment on card 42"
+
+class TestRxFingerprint:
+    def test_matches_fingerprinted_name(self):
+        fingerprint = "a" * 64
+        m = RX_FINGERPRINT.match(f"app-{fingerprint}")
+        assert m is not None
+        assert m.group(1) == "app"
+        assert m.group(2) == fingerprint
+
+    def test_no_match_without_fingerprint(self):
+        assert RX_FINGERPRINT.match("app") is None
+
+    def test_no_match_short_hash(self):
+        assert RX_FINGERPRINT.match("app-abc123") is None
+
+    def test_match_with_dots_in_stem(self):
+        fingerprint = "b" * 64
+        m = RX_FINGERPRINT.match(f"app.min-{fingerprint}")
+        assert m is not None
+        assert m.group(1) == "app.min"
+
+
+# ── StaticFilesController ────────────────────────────────────────────
+
+
+class TestStaticFilesController:
+    def _make(self, tmp_path, filename="hello.txt", content="Hello",
+              file_param=None, public=True, allowed_ext=None,
+              if_modified_since=None, x_sendfile=""):
+        filepath = tmp_path / filename
+        filepath.write_text(content)
+
+        request_kw = {}
+        if if_modified_since:
+            request_kw["HTTP_IF_MODIFIED_SINCE"] = if_modified_since
+
+        co = _make_controller(cls=StaticFilesController, **request_kw)
+
+        route = MagicMock()
+        defaults = DotDict({"root": str(tmp_path), "public": public})
+        if allowed_ext is not None:
+            defaults["allowed_ext"] = allowed_ext
+        route.defaults = defaults
+        co.request.matched_route = route
+
+        query = MultiDict([("file", file_param or filename)])
+        co.request._query = query
+
+        co.app.config = DotDict({"STATIC_X_SENDFILE_HEADER": x_sendfile})
+
+        return co, filepath
+
+    def test_serves_file(self, tmp_path):
+        co, filepath = self._make(tmp_path)
+        co.show()
+        assert co.response.body is not None
+        assert "hello.txt" in co.response.headers.get("content-disposition")
+
+    def test_file_not_found(self, tmp_path):
+        co, _ = self._make(tmp_path, file_param="nonexistent.txt")
+        with pytest.raises(NotFound, match="does not exists"):
+            co.show()
+
+    def test_allowed_ext_blocks(self, tmp_path):
+        co, _ = self._make(tmp_path, filename="data.exe", allowed_ext=[".txt", ".css"])
+        with pytest.raises(NotFound, match="does not exists"):
+            co.show()
+
+    def test_allowed_ext_passes(self, tmp_path):
+        co, _ = self._make(tmp_path, filename="style.css", allowed_ext=[".css", ".js"])
+        co.show()
+        assert co.response.body is not None
+
+    def test_fingerprinted_file(self, tmp_path):
+        fingerprint = "a" * 64
+        # The actual file without fingerprint
+        (tmp_path / "app.js").write_text("js content")
+
+        co, _ = self._make(tmp_path, file_param=f"app-{fingerprint}.js")
+        co.show()
+        # Should have immutable cache control
+        assert co.response.cache_control == [
+            "max-age=31536000", "public", "immutable",
+        ]
+
+    def test_non_fingerprinted_cache_control(self, tmp_path):
+        co, _ = self._make(tmp_path)
+        co.show()
+        assert co.response.cache_control == [
+            "max-age=0", "public", "must-revalidate",
+        ]
+
+    def test_private_cache_control(self, tmp_path):
+        co, _ = self._make(tmp_path, public=False)
+        co.show()
+        assert "private" in co.response.cache_control
+
+    def test_cors_header_set(self, tmp_path):
+        co, _ = self._make(tmp_path)
+        co.show()
+        assert co.response.headers.get("Access-Control-Allow-Origin") == "*"
+
+    def test_not_modified_when_fresh(self, tmp_path):
+        co, filepath = self._make(
+            tmp_path,
+            if_modified_since="Thu, 01 Jan 2099 00:00:00 GMT",
+        )
+        co.show()
+        assert co.response.status == not_modified
+
+    def test_sets_last_modified(self, tmp_path):
+        co, filepath = self._make(tmp_path)
+        co.show()
+        assert co.response.last_modified is not None
+
+    def test_leading_slash_stripped_from_file(self, tmp_path):
+        co, _ = self._make(tmp_path, file_param="/hello.txt")
+        co.show()
+        assert co.response.body is not None

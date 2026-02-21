@@ -1,6 +1,6 @@
 import typing as t
 from io import BytesIO
-from urllib.parse import quote_plus, urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 from wsgiref.util import setup_testing_defaults
 
 from ..helpers import tunnel_encode
@@ -23,7 +23,7 @@ def make_test_env(
     setup_testing_defaults(env)
 
     upa = urlparse(url)
-    env["wsgi.url_protocol"] = upa.scheme
+    env["wsgi.url_protocol"] = upa.scheme or "http"
     env["PATH_INFO"] = tunnel_encode(upa.path)
 
     if ":" in upa.netloc:
@@ -34,16 +34,18 @@ def make_test_env(
     env["HTTP_PORT"] = port
 
     if params:
-        query = quote_plus(urlencode(params))
+        query = urlencode(params)
     else:
         query = upa.query
     env["QUERY_STRING"] = query
 
     if body:
         if isinstance(body, dict):
-            body = quote_plus(urlencode(body))
+            body = urlencode(body).encode()
         elif isinstance(body, str):
             body = body.encode()
+    if not isinstance(body, BytesIO):
+        body = BytesIO(body)
     env["wsgi.input"] = body
 
     env.update({key: str(value) for key, value in kw.items()})

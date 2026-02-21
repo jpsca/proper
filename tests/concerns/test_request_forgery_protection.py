@@ -14,7 +14,7 @@ from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
 
 
-class TestController(Controller, RequestForgeryProtection):
+class _TestController(Controller, RequestForgeryProtection):
     def action(self):
         return "STOP"
 
@@ -23,7 +23,7 @@ class TestController(Controller, RequestForgeryProtection):
 def co(app):
     request = Request()
     response = Response()
-    return TestController(app, request, response)
+    return _TestController(app, request, response)
 
 
 def test_no_need_to_argue(co):

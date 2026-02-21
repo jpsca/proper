@@ -135,13 +135,14 @@ class ClientController(AppController):
     # at the URL "/clients?status=activated"
     def index(self):
         if self.params.get("status") == "activated":
-        self.clients = Client.get_activated()
-    else:
-        self.clients = Client.get_inactivated()
+            self.clients = Client.get_activated()
+        else:
+            self.clients = Client.get_inactivated()
 
-  # This action receives parameters from a POST request to "/clients" URL with  form data in the request body.
-  # The `CardForm` is a concept we will explore later.
-  def create(self):
+    # This action receives parameters from a POST request to "/clients" URL
+    # with form data in the request body.
+    # The `CardForm` is a concept we will explore later.
+    def create(self):
         self.form = CardForm(self.params)
         if self.form.is_invalid:
             return self.render("new", status=unprocessable)
@@ -250,7 +251,7 @@ class CardController(AppController):
 ```
 
 In this example, there is no point of trying to load a card in the "index" or "new" actions, there is not even a "card_id" parameter available.
-The `only` option run the callback only for the listed actions; there is also an `ignore` option which works the other way.
+The `only` option run the callback only for the listed actions; there is also an `exclude` option which works the other way.
 
 ### `after` callback
 

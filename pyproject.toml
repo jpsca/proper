@@ -38,6 +38,7 @@ dependencies = [
     "python-dateutil ~= 2.9.0",
     "traceback-with-variables ~= 2.0.4",
     "types-peewee ~= 3.17.7.20241017",
+    "tzdata>=2025.3",
 ]
 
 [project.urls]
@@ -119,6 +120,9 @@ exclude = [
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --ignore=src/proper/blueprints"
+filterwarnings = [
+    "ignore::DeprecationWarning:itsdangerous",
+]
 
 
 [tool.tox]
