@@ -113,7 +113,7 @@ class BaseRouter:
             if route.host is not None and route.host != host:
                 continue
             match = route.match(path)
-            if not match:
+            if match is None:
                 continue
             if route.method != method:
                 allowed.add(route.method)
@@ -124,7 +124,7 @@ class BaseRouter:
                 continue
 
             params = route.defaults.copy() or {}
-            params.update(match.groupdict())
+            params.update(match)
 
             return route, params
 

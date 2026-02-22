@@ -328,13 +328,13 @@ class TestRouteMatch:
         r = Route("GET", "/photos/:id")
         m = r.match("/photos/42")
         assert m is not None
-        assert m.group("id") == "42"
+        assert m["id"] == "42"
 
     def test_match_placeholder_any_string(self):
         r = Route("GET", "/photos/:id")
         m = r.match("/photos/hello-world")
         assert m is not None
-        assert m.group("id") == "hello-world"
+        assert m["id"] == "hello-world"
 
     def test_placeholder_no_slash(self):
         r = Route("GET", "/photos/:id")
@@ -354,7 +354,7 @@ class TestRouteMatch:
         r = Route("GET", "/files/:path<path>")
         m = r.match("/files/a/b/c.txt")
         assert m is not None
-        assert m.group("path") == "a/b/c.txt"
+        assert m["path"] == "a/b/c.txt"
 
     def test_match_custom_regex(self):
         r = Route("GET", "/docs/:lang<en|es|pt>")
@@ -365,9 +365,9 @@ class TestRouteMatch:
         r = Route("GET", "/:year<int>/:month<int>/:slug")
         m = r.match("/2024/01/hello-world")
         assert m is not None
-        assert m.group("year") == "2024"
-        assert m.group("month") == "01"
-        assert m.group("slug") == "hello-world"
+        assert m["year"] == 2024
+        assert m["month"] == 1
+        assert m["slug"] == "hello-world"
 
     def test_match_root(self):
         r = Route("GET", "/")
@@ -381,6 +381,7 @@ class TestRouteMatch:
         r = Route("GET", "/:year<\\d{4}>/:month<\\d{2}>")
         m = r.match("/2024/01")
         assert m is not None
+        assert m["year"] == "2024"
         assert r.match("/24/1") is None
 
     def test_match_literal_special_chars_in_path(self):

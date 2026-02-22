@@ -64,8 +64,8 @@ class Route:
         - `path`, for matching anything *including* slashes
         - a regular expression
 
-        Note that declaring a format doesn't make type conversions,
-        **all values are passed to the view as strings**.
+        The `int` and `float` formats also cast the matched value
+        to the corresponding Python type.
 
         Examples:
 
@@ -189,9 +189,16 @@ class Route:
         and not for matching?"""
         return not (self.to or self.redirect)
 
-    def match(self, path: str) -> re.Match | None:
+    def match(self, path: str) -> dict | None:
         assert self.path_re
-        return self.path_re.match(path)
+        m = self.path_re.match(path)
+        if m is None:
+            return None
+        params = m.groupdict()
+        for name, caster in self.path_casters.items():
+            if name in params:
+                params[name] = caster(params[name])
+        return params
 
     def format(self, **kw) -> str:
         tmpl = RouteTemplate(self.path_plain or "")
@@ -212,6 +219,7 @@ class Route:
         parts = []
         parts_re = []
         placeholders = {}
+        casters = {}
         index = 0
 
         while True:
@@ -224,11 +232,16 @@ class Route:
             parts_re.append(re.escape(part))
             index = end
 
-            name, rx = match.groups()
+            name, fmt = match.groups()
             if name in placeholders:
                 raise DuplicatedRoutePlaceholder(name, path)
 
-            rx = FORMATS.get(rx, rx)
+            if fmt == "int":
+                casters[name] = int
+            elif fmt == "float":
+                casters[name] = float
+
+            rx = FORMATS.get(fmt, fmt)
             placeholders[name] = rx
             parts.append(f":{name}")
             parts_re.append(rf"(?P<{name}>{rx})")
@@ -247,6 +260,7 @@ class Route:
         self.path_re = path_re
         self.path_plain = "".join(parts)
         self.path_placeholders = placeholders
+        self.path_casters = casters
 
     def _get_path_params(self, kwargs: dict) -> dict:
         path_params = {}

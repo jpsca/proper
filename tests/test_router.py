@@ -253,7 +253,14 @@ class TestMatch:
         r = Route("GET", "/photos/:id<int>", to=Handlers.action)
         router.add_route(r)
         matched, params = router.match("GET", "/photos/42")
-        assert params["id"] == "42"  # still a string
+        assert params["id"] == 42
+
+    def test_match_float_format_param(self):
+        router = BaseRouter()
+        r = Route("GET", "/celsius/:temp<float>", to=Handlers.action)
+        router.add_route(r)
+        matched, params = router.match("GET", "/celsius/36.6")
+        assert params["temp"] == 36.6
 
     def test_match_int_format_rejects_non_int(self):
         router = BaseRouter()
@@ -824,7 +831,7 @@ class TestEdgeCases:
 
         matched, params = router.match("GET", url)
         assert matched is r
-        assert params["id"] == "42"
+        assert params["id"] == 42
 
     def test_url_for_with_query_and_match(self):
         router = BaseRouter()
@@ -897,8 +904,8 @@ class TestEdgeCases:
         assert url == "/2024/1/hello"
 
         matched, params = router.match("GET", "/2024/01/hello-world")
-        assert params["year"] == "2024"
-        assert params["month"] == "01"
+        assert params["year"] == 2024
+        assert params["month"] == 1
         assert params["slug"] == "hello-world"
 
     def test_url_for_object_with_multiple_placeholders(self):
