@@ -20,7 +20,7 @@ SORT_IMPORTS_IN = [
 ]
 
 DEPENDENCIES = [
-    "image-processing-egg",
+    "pyvips >= 2.2.3",
 ]
 
 

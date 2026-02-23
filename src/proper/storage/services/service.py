@@ -18,7 +18,7 @@ class Service:
     def download(self, obj: "TAttachment") -> bytes:
         raise NotImplementedError
 
-    def send_file(self, obj: "TAttachment") -> bytes:
+    def send_file(self, obj: "TAttachment", response, as_attachment: bool = False) -> None:
         raise NotImplementedError
 
     def purge(self, obj: "TAttachment") -> None:

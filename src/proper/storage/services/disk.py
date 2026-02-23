@@ -21,6 +21,7 @@ class Disk(Service):
         file: t.BinaryIO = getattr(filesto, "file", filesto)  # type: ignore
 
         path = self._get_path(obj)
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as fp:
             pos = file.tell()
             try:
@@ -33,8 +34,14 @@ class Disk(Service):
         path = self._get_path(obj)
         return path.read_bytes()
 
-    def send_file(self, obj: "TAttachment") -> bytes:
-        raise NotImplementedError
+    def send_file(self, obj: "TAttachment", response, as_attachment: bool = False) -> None:
+        path = self._get_path(obj)
+        response.send_file(
+            path,
+            mimetype=obj.content_type,
+            as_attachment=as_attachment,
+            download_name=obj.filename,
+        )
 
     def purge(self, obj: "TAttachment") -> None:
         path = self._get_path(obj)
