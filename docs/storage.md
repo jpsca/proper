@@ -415,7 +415,7 @@ attachment.variant(sepia=(1.0, 0.85, 0.6))     # warmer
 attachment.variant(sepia=(0.9, 0.9, 0.8))      # subtle, cooler
 ```
 
-**`blur`** — Apply a Gaussian blur. The sigma value (minimum standard deviation) is required. Options are forwarded to [`vips_blur()`](https://www.libvips.org/API/current/method.Image.blur.html).
+**`blur`** — Apply a Gaussian blur. The sigma value (minimum standard deviation) is required. Options are forwarded to [`vips_gaussblur()`](https://www.libvips.org/API/current/method.Image.gaussblur.html).
 
 ```python
 attachment.variant(blur=(1.5,))

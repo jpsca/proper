@@ -42,11 +42,14 @@ def transform_image(
         if op is None:
             raise ValueError(f"Invalid transformation: {name}")
 
-        args = ()
-        kw = {}
+        if not isinstance(values, (list, tuple)):
+            values = (values,)
         if values and isinstance(values[-1], dict):
             kw = values[-1]
             args = values[:-1]
+        else:
+            args = values
+            kw = {}
 
         image = op(image, *args, **kw)
 
@@ -64,9 +67,9 @@ def resize_to_limit(
     while retaining the original aspect ratio.
 
     ```python
-    pipeline = ImageProcessing(image) # 600x800
+    pipeline = ImageProcessing(image)  # 600x800
     result = pipeline.resize_to_limit(400, 400).run()
-    pyvips.Image.new_from_file(result.path).size #=> [300, 400]
+    pyvips.Image.new_from_file(result.path).size  # [300, 400]
     ```
 
     It's possible to omit one dimension, in which case the image will be resized
@@ -81,7 +84,7 @@ def resize_to_limit(
     Any other options are forwarded to `pyvips.Image.thumbnail_image()`:
 
     ```python
-    pipeline.resize_to_limit(400, 400, linear: true)
+    pipeline.resize_to_limit(400, 400, linear=True)
     ```
 
     See [vips_thumbnail()](https://www.libvips.org/API/current/ctor.Image.thumbnail.html)
@@ -100,9 +103,9 @@ def resize_to_fit(
     specified dimensions or upsize if it's smaller.
 
     ```python
-    pipeline = ImageProcessing(image) # 600x800
+    pipeline = ImageProcessing(image)  # 600x800
     result = pipeline.resize_to_fit(400, 400).run()
-    pyvips.Image.new_from_file(result.path).size #=> [300, 400]
+    pyvips.Image.new_from_file(result.path).size  # [300, 400]
     ```
 
     It's possible to omit one dimension, in which case the image will be resized
@@ -117,7 +120,7 @@ def resize_to_fit(
     Any other options are forwarded to `pyvips.Image.thumbnail_image()`:
 
     ```python
-    pipeline.resize_to_fit(400, 400, linear: true)
+    pipeline.resize_to_fit(400, 400, linear=True)
     ```
 
     See [vips_thumbnail()](https://www.libvips.org/API/current/ctor.Image.thumbnail.html)
@@ -134,9 +137,9 @@ def resize_to_fill(image: "Image", width: int, height: int, **options) -> "Image
     larger dimension.
 
     ```python
-    pipeline = ImageProcessing(image) # 600x800
+    pipeline = ImageProcessing(image)  # 600x800
     result = pipeline.resize_to_fill(400, 400).run()
-    pyvips.Image.new_from_file(result.path).size #=> [400, 400]
+    pyvips.Image.new_from_file(result.path).size # [400, 400]
     ```
 
     Any other options are forwarded to `pyvips.Image.thumbnail_image()`:
@@ -169,9 +172,9 @@ def resize_and_pad(
     transparent color if source image has alpha channel, black otherwise.
 
     ```python
-    pipeline = ImageProcessing(image) # 600x800
+    pipeline = ImageProcessing(image)  # 600x800
     result = pipeline.resize_and_pad(400, 400).run()
-    pyvips.Image.new_from_file(result.path).size #=> [400, 400]
+    pyvips.Image.new_from_file(result.path).size  # [400, 400]
     ```
 
     If you're converting from a format that doesn't support transparent
@@ -390,12 +393,12 @@ def grayscale(
     return image
 
 
-def blur(image: "Image", sigma: float, **options) -> "Image":
+def blur(image: "Image", sigma: float = 4.0, **options) -> "Image":
     """Apply a Gaussian blur.
 
     ```python
-    attachment.variant(blur=(1.5,))
-    attachment.variant(blur=(3.0, {"precision": "integer"}))
+    attachment.variant(blur=(2.5,))
+    attachment.variant(blur=(5.0, {"precision": "integer"}))
     ```
     """
     return image.gaussblur(sigma, **options)
