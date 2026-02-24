@@ -60,9 +60,9 @@ test = [
     "pytest-cov",
     # To test installable frameworks
     "boto3 >= 1.35.71",
-    "image-processing-egg",
     "poyo",
     "pytest-smtpd",
+    "pyvips >= 2.0.0",
     "smtpdfix",
 ]
 

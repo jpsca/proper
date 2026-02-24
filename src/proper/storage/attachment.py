@@ -9,7 +9,7 @@ from inflection import parameterize
 
 from ..errors import StorageConfigError
 from ..helpers import JSONField
-from .transforms import transform_image
+from .imageops import transform_image
 
 
 if t.TYPE_CHECKING:
@@ -119,12 +119,16 @@ def get_attachment_mixin(storage: "Storage", default_service_name: str = "") -> 
         }
 
         @staticmethod
-        def _variant_key(**transformations) -> str:
-            blob = json.dumps(transformations, default=str)
+        def _variant_key(**ops) -> str:
+            load = json.dumps(ops.pop("load", {}), default=str, sort_keys=True)
+            save = json.dumps(ops.pop("save", {}), default=str, sort_keys=True)
+            ops["load"] = load
+            ops["save"] = save
+            blob = json.dumps(ops, default=str, sort_keys=False)
             return hashlib.sha256(blob.encode()).hexdigest()
 
-        def variant(self, **transformations):
-            key = self._variant_key(**transformations)
+        def variant(self, **ops):
+            key = self._variant_key(**ops)
             existing = self.__class__.get_or_none(
                 self.__class__.parent == self,
                 self.__class__.variant_key == key,
@@ -135,19 +139,19 @@ def get_attachment_mixin(storage: "Storage", default_service_name: str = "") -> 
             for prefix, method_name in self.SUPPORTED_VARIANT_TYPES.items():
                 if self.content_type.startswith(prefix):
                     method = getattr(self, method_name)
-                    filesto = method(self.download(), **transformations)
+                    filesto = method(self.download(), **ops)
                     return self.create_variant(
                         filesto,
                         variant_key=key,
-                        metadata={"transformations": transformations},
+                        metadata={"ops": ops},
                     )
 
             raise ValueError(
                 f"Variants are not supported for content type '{self.content_type}'"
             )
 
-        def transform_image(self, source, **transformations):
-            return transform_image(source, **transformations)
+        def transform_image(self, source, **ops):
+            return transform_image(source, **ops)
 
         def create_variant(self, filesto: "TUpload", **kwargs):
             kwargs.setdefault("service_name", self.service_name)

@@ -10,6 +10,7 @@ from proper import App
 from proper.errors import StorageConfigError
 from proper.storage import Storage
 from proper.storage.attachment import DEFAULT_CONTENT_TYPE, get_attachment_mixin
+from proper.storage.imageops import blur, grayscale, sepia
 from proper.storage.services import Disk
 
 
@@ -494,7 +495,7 @@ class TestVariant:
 
         assert v1.id != v2.id
 
-    def test_stores_transformations_in_metadata(self, Attachment, db):
+    def test_stores_ops_in_metadata(self, Attachment, db):
         parent = Attachment(
             _make_file(b"img", "photo.jpg"), content_type="image/jpeg"
         )
@@ -502,8 +503,8 @@ class TestVariant:
         transformed = _make_file(b"thumb", "thumb.jpg")
         with patch.object(parent, "transform_image", return_value=transformed):
             v = parent.variant(resize=(100, 100), quality=80)
-        assert v.metadata["transformations"]["resize"] == (100, 100)
-        assert v.metadata["transformations"]["quality"] == 80
+        assert v.metadata["ops"]["resize"] == (100, 100)
+        assert v.metadata["ops"]["quality"] == 80
 
     def test_stores_variant_key(self, Attachment, db):
         parent = Attachment(
@@ -552,11 +553,13 @@ class TestTransformDelegation:
         mock.assert_called_once_with(b"img", resize=(100, 100))
         assert result == b"result"
 
-    def test_default_transform_functions_raise(self, Attachment, db):
-        att = Attachment(_make_file(b"x", "photo.jpg"), content_type="image/jpeg")
+    def test_transform_image_delegates_to_imageops(self, Attachment, db):
+        att = Attachment(_make_file(b"img", "photo.jpg"), content_type="image/jpeg")
         att.save(force_insert=True)
-        with pytest.raises(NotImplementedError):
-            att.transform_image(b"x", resize=(100, 100))
+        with patch("proper.storage.attachment.transform_image") as mock:
+            mock.return_value = b"transformed"
+            att.transform_image("/path/to/image.jpg", resize_to_limit=(400, 400))
+        mock.assert_called_once_with("/path/to/image.jpg", resize_to_limit=(400, 400))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -609,6 +612,97 @@ class TestCustomVariantTypes:
             v = parent.variant(resize=(100, 100))
         mock.assert_called_once_with(b"extracted-image", resize=(100, 100))
         assert v.download() == b"processed"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# imageops — sepia and grayscale filters
+# ═══════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture()
+def rgb_image():
+    """Create a simple 2x2 RGB pyvips image."""
+    pyvips = pytest.importorskip("pyvips")
+    # 2x2 red image (255, 0, 0) in sRGB
+    image = pyvips.Image.black(2, 2, bands=3).add([255, 0, 0]).cast("uchar")
+    return image.copy(interpretation=pyvips.Interpretation.SRGB)
+
+
+@pytest.fixture()
+def rgba_image(rgb_image):
+    """Create a 2x2 RGBA image with full opacity."""
+    return rgb_image.addalpha()
+
+
+class TestSepia:
+    def test_returns_3_band_image(self, rgb_image):
+        result = sepia(rgb_image)
+        assert result.bands == 3
+
+    def test_preserves_alpha(self, rgba_image):
+        result = sepia(rgba_image)
+        assert result.bands == 4
+        assert result.hasalpha()
+
+    def test_default_produces_warm_tones(self, rgb_image):
+        result = sepia(rgb_image)
+        # For a pure red input, R channel should be brightest
+        pixel = result(0, 0)
+        assert pixel[0] > pixel[1] > pixel[2]
+
+    def test_custom_tone(self, rgb_image):
+        # Equal multipliers should produce identical channels (grayscale)
+        result = sepia(rgb_image, 1.0, 1.0, 1.0)
+        pixel = result(0, 0)
+        assert pixel[0] == pixel[1] == pixel[2]
+
+    def test_registered_in_valid_ops(self):
+        from proper.storage.imageops import VALID_OPS
+        assert "sepia" in VALID_OPS
+
+
+class TestGrayscale:
+    def test_returns_3_band_image(self, rgb_image):
+        result = grayscale(rgb_image)
+        assert result.bands == 3
+
+    def test_all_channels_equal(self, rgb_image):
+        result = grayscale(rgb_image)
+        pixel = result(0, 0)
+        assert pixel[0] == pixel[1] == pixel[2]
+
+    def test_preserves_alpha(self, rgba_image):
+        result = grayscale(rgba_image)
+        assert result.bands == 4
+        assert result.hasalpha()
+
+    def test_custom_weights(self, rgb_image):
+        # Only red channel contributes → pure red input → bright gray
+        bright = grayscale(rgb_image, 1.0, 0.0, 0.0)
+        # Only green channel contributes → pure red input → black
+        dark = grayscale(rgb_image, 0.0, 1.0, 0.0)
+        assert bright(0, 0)[0] > dark(0, 0)[0]
+
+    def test_registered_in_valid_ops(self):
+        from proper.storage.imageops import VALID_OPS
+        assert "grayscale" in VALID_OPS
+
+
+class TestGaussblur:
+    def test_returns_image(self, rgb_image):
+        result = blur(rgb_image, 1.5)
+        assert result.width == rgb_image.width
+        assert result.height == rgb_image.height
+        assert result.bands == rgb_image.bands
+
+    def test_preserves_alpha(self, rgba_image):
+        result = blur(rgba_image, 1.5)
+        assert result.bands == 4
+        assert result.hasalpha()
+
+    def test_registered_in_valid_ops(self):
+        from proper.storage.imageops import VALID_OPS
+        assert "blur" in VALID_OPS
 
 
 # ═══════════════════════════════════════════════════════════════════

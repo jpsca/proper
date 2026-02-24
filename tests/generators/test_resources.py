@@ -50,67 +50,53 @@ def _views_dir(app, name_snake: str):
 # ---------------------------------------------------------------------------
 
 
-class TestGeneratedFiles:
-    def test_creates_controller(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        assert (app_in_tmp.root_path / "controllers" / "product_controller.py").exists()
+def test_generated_files(app_in_tmp):
+    gen_resource(app_in_tmp, "Product")
 
-    def test_creates_model(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        assert (app_in_tmp.root_path / "models" / "product.py").exists()
+    # creates_controller
+    assert (app_in_tmp.root_path / "controllers" / "product_controller.py").exists()
 
-    def test_creates_form(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        assert (app_in_tmp.root_path / "forms" / "product.py").exists()
+    # creates_model
+    assert (app_in_tmp.root_path / "models" / "product.py").exists()
 
-    def test_creates_views(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        views = _views_dir(app_in_tmp, "product")
-        assert (views / "index.jinja").exists()
-        assert (views / "new.jinja").exists()
-        assert (views / "show.jinja").exists()
-        assert (views / "edit.jinja").exists()
-        assert (views / "form.jinja").exists()
+    # creates_form
+    assert (app_in_tmp.root_path / "forms" / "product.py").exists()
 
+    # creates_views
+    views = _views_dir(app_in_tmp, "product")
+    assert (views / "index.jinja").exists()
+    assert (views / "new.jinja").exists()
+    assert (views / "show.jinja").exists()
+    assert (views / "edit.jinja").exists()
+    assert (views / "form.jinja").exists()
 
-# ---------------------------------------------------------------------------
-# Controller content
-# ---------------------------------------------------------------------------
+    # class_definition
+    text = _controller_text(app_in_tmp, "product")
+    assert "class ProductController(AppController):" in text
 
+    # resource_decorator
+    text = _controller_text(app_in_tmp, "product")
+    assert '@router.resource("products")' in text
 
-class TestController:
-    def test_class_definition(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        text = _controller_text(app_in_tmp, "product")
-        assert "class ProductController(AppController):" in text
+    # all_default_actions
+    text = _controller_text(app_in_tmp, "product")
+    assert "def index(self):" in text
+    assert "def show(self):" in text
+    assert "def new(self):" in text
+    assert "def edit(self):" in text
+    assert "def create(self):" in text
+    assert "def update(self):" in text
+    assert "def delete(self):" in text
 
-    def test_resource_decorator(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        text = _controller_text(app_in_tmp, "product")
-        assert '@router.resource("products")' in text
+    # load_method
+    text = _controller_text(app_in_tmp, "product")
+    assert "def set_product(self):" in text
 
-    def test_all_default_actions(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        text = _controller_text(app_in_tmp, "product")
-        assert "def index(self):" in text
-        assert "def show(self):" in text
-        assert "def new(self):" in text
-        assert "def edit(self):" in text
-        assert "def create(self):" in text
-        assert "def update(self):" in text
-        assert "def delete(self):" in text
-
-    def test_load_method(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        text = _controller_text(app_in_tmp, "product")
-        assert "def set_product(self):" in text
-
-    def test_imports(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        text = _controller_text(app_in_tmp, "product")
-        assert "from ..models import Product" in text
-        assert "from ..forms.product import ProductForm" in text
-        assert "from ..router import router" in text
+    # imports
+    text = _controller_text(app_in_tmp, "product")
+    assert "from ..models import Product" in text
+    assert "from ..forms.product import ProductForm" in text
+    assert "from ..router import router" in text
 
 
 # ---------------------------------------------------------------------------

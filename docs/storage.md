@@ -1,13 +1,11 @@
 title: Proper Storage
-description: Overview
+description: Proper Storage gives your app the power to handle file uploads without complications
 ----
-
-## 1. What is Proper Storage?
 
 Proper Storage gives your app the power to handle file uploads without complications. It speaks fluently with Amazon S3 (and S3-compatible services like DigitalOcean Spaces or MinIO) and your local disk. You set a foreign key to the Attachment model, and Proper takes care of the rest.
 
 
-## 2. Setup
+## 1. Setup
 
 ```bash
 $  proper install storage
@@ -22,7 +20,8 @@ The installer creates three files:
 - `controllers/storage_controller.py` — controllers for serving files
 - `config/storage.py` — service configuration
 
-### 2.1 The Attachment model
+
+### 1.1 The Attachment model
 
 The generated model uses the `app.storage.Attachment` mixin, which provides all the storage fields automatically (you don't need to add any columns yourself):
 
@@ -54,7 +53,8 @@ Field            | Type                   | Description
 `parent`         | ForeignKeyField(self)  | Parent attachment for variants (nullable)
 `variant_key`    | CharField(64)          | SHA-256 digest of the variant's transformations
 
-### 2.2 Configuring services
+
+### 1.2 Configuring services
 
 Declare storage services in `config/storage.py`. For each service your application uses, provide a name and its configuration. The example below declares three services named `local`, `test`, and `amazon`:
 
@@ -102,9 +102,10 @@ You probably want to use the `env` value in the bucket names to further reduce t
 ```
 
 
-## 3. Built-in Services
+## 2. Built-in Services
 
-### 3.1. Disk service
+
+### 2.1. Disk service
 
 Stores files on the local filesystem. Files are organized using a two-level directory sharding based on the attachment UUID: `{root}/{id[:2]}/{id[2:4]}/{filename}`.
 
@@ -117,7 +118,8 @@ Stores files on the local filesystem. Files are organized using a two-level dire
 
 The `root` path is relative to your application's root directory. The directory is created automatically if it doesn't exist.
 
-### 3.2. S3 Service (Amazon S3 and S3-compatible APIs)
+
+### 2.2. S3 Service (Amazon S3 and S3-compatible APIs)
 
 Stores files in Amazon S3 or any S3-compatible object storage.
 
@@ -149,7 +151,7 @@ To connect to an S3-compatible object storage API such as DigitalOcean Spaces or
 ```
 
 
-## 4. Attaching Files to Models
+## 3. Attaching Files to Models
 
 To attach files to a model, add a `ForeignKeyField` pointing to your Attachment model:
 
@@ -170,7 +172,7 @@ class Article(BaseModel):
     cover_image = pw.ForeignKeyField(Attachment, null=True)
 ```
 
-### 4.1. Creating attachments from uploads
+### 3.1. Creating attachments from uploads
 
 In a controller, create an Attachment from the uploaded file and assign it:
 
@@ -194,7 +196,7 @@ The `Attachment` constructor accepts a file object (a `MultipartPart` from a for
 
 When `save()` is called, the file is uploaded to the configured service and then the database record is persisted. If `save()` is called again later (e.g., to update metadata), the file is not re-uploaded.
 
-### 4.2. Constructor options
+### 3.2. Constructor options
 
 All options are keyword-only:
 
@@ -209,11 +211,12 @@ attachment = Attachment(
 ```
 
 
-## 5. Serving Files
+## 4. Serving Files
 
 The `proper install storage` command creates two controllers for serving files:
 
-### 5.1. Private files (signed URLs)
+
+### 4.1. Private files (signed URLs)
 
 Private files are served through signed, time-limited URLs. The `url_for` property on an attachment generates the appropriate URL:
 
@@ -238,7 +241,8 @@ class AttachmentController(AppController):
 
 Signed URLs expire after one year by default. You can pass a custom `max_age` (in seconds) to `get_attachment()`.
 
-### 5.2. Public files
+
+### 4.2. Public files
 
 Public files don't require signing. Set `public=True` when creating the attachment:
 
@@ -265,7 +269,8 @@ class PublicAttachmentController(AppController):
         obj.send_file()
 ```
 
-### 5.3. Content disposition
+
+### 4.3. Content disposition
 
 When serving files, Proper Storage automatically decides whether to serve them inline or as a download based on the `STORAGE_ALLOWED_INLINE_CONTENT_TYPES` config:
 
@@ -280,7 +285,7 @@ STORAGE_ALLOWED_INLINE_CONTENT_TYPES = [
 Content types matching any of these prefixes are served inline (displayed in the browser). All other types are served as attachments (triggering a download).
 
 
-## 6. Downloading Files
+## 5. Downloading Files
 
 To get the raw bytes of an attachment:
 
@@ -289,7 +294,7 @@ data = attachment.download()
 ```
 
 
-## 7. Removing Files
+## 6. Removing Files
 
 To delete an attachment and its file from storage:
 
@@ -300,66 +305,163 @@ attachment.purge()
 This deletes both the file from the storage service and the database record.
 
 
-## 8. Variants
+## 7. Variants
 
 Variants are transformed versions of an attachment — thumbnails, resized images, format conversions, etc. They are stored as regular Attachment records with a foreign key back to the parent, so they get the full Attachment API (upload, download, send_file, purge, url_for) for free.
 
-Variants are identified by a hash of their transformations, so calling `variant()` with the same arguments is idempotent — it returns the existing variant instead of creating a duplicate. The transformations are also stored unhashed in the variant's `metadata["transformations"]` for introspection.
+Variants are identified by a hash of their transformations, so calling `variant()` with the same arguments is idempotent — it returns the existing variant instead of creating a duplicate. The transformations are also stored unhashed in the variant's `metadata["ops"]` for introspection.
 
-### 8.1. Using `variant()`
+> **Prerequisite:** Image variants require [libvips](https://www.libvips.org/install.html) to be installed on your system. On Debian/Ubuntu: `apt install libvips-dev`. On macOS: `brew install vips`. The `pyvips` Python package is also required: `pip install pyvips`.
 
-Call `variant(**transformations)` on any saved attachment. The content type is checked and the appropriate transform method is called:
 
-| Content type | Method called |
-|---|---|
-| `image/*` | `transform_image(**transformations)` |
+### 7.1. Using `variant()`
+
+Call `variant(**ops)` on any saved attachment. The content type is checked and the appropriate transform method is called:
 
 ```python
-thumb = attachment.variant(resize=(100, 100))
+thumb = attachment.variant(resize_to_fill=(400, 400))
 thumb.url_for
 ```
 
 Calling it again with the same transformations returns the existing variant:
 
 ```python
-attachment.variant(resize=(100, 100))  # returns same variant, no reprocessing
+attachment.variant(resize_to_fill=(400, 400))  # returns same variant, no reprocessing
+```
+
+You can chain multiple operations. They are applied in order:
+
+```python
+attachment.variant(
+    resize_to_limit=(800, 800),
+    rotate=(45,),
+)
 ```
 
 You can inspect what transformations produced a variant via its metadata:
 
 ```python
-thumb.metadata["transformations"]  # {"resize": [100, 100]}
+thumb.metadata["ops"]  # {"resize_to_fill": [400, 400]}
 ```
 
 If the content type is not supported, a `ValueError` is raised.
 
-### 8.2. Implementing transforms
 
-The transform methods are intentionally left unimplemented — override them in your Attachment subclass:
+### 7.2. Available transformations
+
+#### Resize operations
+
+All resize operations preserve the aspect ratio and apply a mild sharpening to the result. Options are forwarded to [`vips_thumbnail()`](https://www.libvips.org/API/current/ctor.Image.thumbnail.html).
+
+**`resize_to_limit`** — Shrink the image so it fits within the given dimensions. Never upsizes. Either dimension can be `None` to constrain only the other.
 
 ```python
-from io import BytesIO
-from PIL import Image
-
-from ..main import app
-from .base import BaseModel
-
-
-class Attachment(app.storage.Attachment, BaseModel):
-    def transform_image(self, **transformations):
-        data = self.download()
-        img = Image.open(BytesIO(data))
-        if "resize" in transformations:
-            img = img.resize(transformations["resize"])
-        buf = BytesIO()
-        img.save(buf, format=img.format)
-        buf.seek(0)
-        return buf
+attachment.variant(resize_to_limit=(400, 400))  # 600x800 => 300x400
+attachment.variant(resize_to_limit=(400, None))  # constrain width only
 ```
 
-Each transform method receives the keyword arguments passed to `variant()` and must return a file-like object.
+**`resize_to_fit`** — Resize the image to fit within the given dimensions. Will upsize if the image is smaller.
 
-### 8.3. Adding support for other content types
+```python
+attachment.variant(resize_to_fit=(400, 400))  # 600x800 => 300x400
+```
+
+**`resize_to_fill`** — Resize and crop to fill the exact dimensions. Crops from the center by default.
+
+```python
+attachment.variant(resize_to_fill=(400, 400))             # center crop
+attachment.variant(resize_to_fill=(400, 400, "attention")) # smart crop
+```
+
+**`resize_and_pad`** — Resize to fit, then pad the remaining area. Pads with black by default (or transparent if the source has an alpha channel).
+
+```python
+attachment.variant(resize_and_pad=(400, 400))
+attachment.variant(resize_and_pad=(400, 400, {"gravity": "north-west"}))
+attachment.variant(resize_and_pad=(400, 400, {"alpha": True, "background": [255, 255, 255]}))
+```
+
+#### Orientation
+
+**`rotate`** — Rotate by an arbitrary angle in degrees. For non-90-degree rotations, a background color fills the corners (defaults to black).
+
+```python
+attachment.variant(rotate=(90,))
+attachment.variant(rotate=(45, {"background": [255, 255, 255]}))
+```
+
+**`fliphor`**, **`flipver`** — Flip horizontally or vertically, no arguments needed.
+
+```python
+attachment.variant(fliphor=())
+attachment.variant(flipver=())
+```
+
+#### Color filters
+
+**`grayscale`** — Convert to grayscale. The three optional values control how much each source channel (R, G, B) contributes to the result. Defaults to BT.601 perceptual luminance weights.
+
+```python
+attachment.variant(grayscale=())                       # standard
+attachment.variant(grayscale=(0.333, 0.333, 0.334))    # equal weight
+attachment.variant(grayscale=(0.0, 1.0, 0.0))          # green channel only
+```
+
+**`sepia`** — Apply a sepia tone. The three optional values are per-channel multipliers applied after converting to grayscale. Defaults produce a classic warm sepia.
+
+```python
+attachment.variant(sepia=())                   # classic sepia
+attachment.variant(sepia=(1.0, 0.85, 0.6))     # warmer
+attachment.variant(sepia=(0.9, 0.9, 0.8))      # subtle, cooler
+```
+
+**`blur`** — Apply a Gaussian blur. The sigma value (minimum standard deviation) is required. Options are forwarded to [`vips_blur()`](https://www.libvips.org/API/current/method.Image.blur.html).
+
+```python
+attachment.variant(blur=(1.5,))
+attachment.variant(blur=(3.0, {"precision": "integer"}))
+```
+
+#### Compositing
+
+**`composite`** — Blend one or more images over the current one (e.g. watermark). The overlay must be a file path.
+
+```python
+attachment.variant(composite=("watermark.png",))
+attachment.variant(composite=("watermark.png", {"gravity": "south-east", "offset": [10, 10]}))
+attachment.variant(composite=(["logo1.png", "logo2.png"],))
+```
+
+
+### 7.3. `load` and `save` options
+
+The optional `load` dict is forwarded to `pyvips.Image.new_from_file()` for controlling how the source image is loaded. By default, EXIF auto-rotation is applied (`autorot=True`); pass `autorot=False` to disable it.
+
+```python
+attachment.variant(
+    resize_to_limit=(800, 800),
+    load={"autorot": False},
+)
+```
+
+The optional `save` dict is forwarded to `pyvips.Image.write_to_buffer()` for controlling the output format and encoding. Use the `format` key to set the output file extension (defaults to `".jpg"`).
+
+```python
+attachment.variant(
+    resize_to_fill=(400, 400),
+    save={"format": ".webp", "Q": 80},
+)
+
+attachment.variant(
+    resize_to_limit=(1200, 1200),
+    save={"format": ".png", "compression": 6},
+)
+```
+
+See the [pyvips documentation](https://www.libvips.org/API/current/) for the full list of loader and saver options.
+
+
+### 7.4. Adding support for other content types
 
 Only `image/*` is supported out of the box. To create variants from other file types (videos, PDFs, ePubs, etc.), extend `SUPPORTED_VARIANT_TYPES` and add the corresponding method in your Attachment subclass:
 
@@ -367,21 +469,51 @@ Only `image/*` is supported out of the box. To create variants from other file t
 class Attachment(app.storage.Attachment, BaseModel):
     SUPPORTED_VARIANT_TYPES = {
         **app.storage.Attachment.SUPPORTED_VARIANT_TYPES,
-        "application/pdf": "transform_pdf",
+        "application/pdf": "preview_pdf",
+        "video/", "preview_video",
     }
 
-    def transform_pdf(self, source, **transformations):
+    def preview_pdf(self, source, page=0, **ops):
         # Extract page as image, then delegate to transform_image
-        page = transformations.pop("page", 0)
         image_bytes = pdf_to_image(source, page)  # your extraction logic
-        return self.transform_image(image_bytes, **transformations)
+        return self.transform_image(image_bytes, **ops)
+    
+    def preview_video(self, source, **ops):
+        # Extract frame as image, then delegate to transform_image
+        image_bytes = extract_frame(source)  # your extraction logic
+        return self.transform_image(image_bytes, **ops)
+
 ```
 
-The keys are content-type prefixes matched against the attachment's `content_type`. The values are method names called with `(source, **transformations)`.
+The keys are content-type prefixes matched against the attachment's `content_type`. The values are method names called with `(source, **ops)`.
 
-Custom transform methods can call `self.transform_image(source, **transformations)` to delegate image processing (resize, format conversion, etc.) after extracting an image from their source format.
+Custom transform methods can call `self.transform_image(source, **ops)` to delegate image processing (resize, format conversion, etc.) after extracting an image from their source format.
 
-### 8.4. Low-level variant creation
+
+### 7.4. Iterating variants
+
+```python
+for v in attachment.variants:
+    print(v.variant_key, v.url_for)
+```
+
+
+### 7.5. Purging variants
+
+Purging a parent attachment automatically purges all its variants first:
+
+```python
+attachment.purge()  # removes variants, then the parent
+```
+
+You can also purge only the variants, keeping the parent:
+
+```python
+attachment.purge_variants()
+```
+
+
+### 7.6. Low-level variant creation
 
 For full control, use `create_variant(filesto)` directly. It inherits `service_name` and `public` from the parent by default:
 
@@ -399,29 +531,8 @@ webp = attachment.create_variant(
 )
 ```
 
-### 8.5. Iterating variants
 
-```python
-for v in attachment.variants:
-    print(v.variant_key, v.url_for)
-```
-
-### 8.6. Purging variants
-
-Purging a parent attachment automatically purges all its variants first:
-
-```python
-attachment.purge()  # removes variants, then the parent
-```
-
-You can also purge only the variants, keeping the parent:
-
-```python
-attachment.purge_variants()
-```
-
-
-## 9. Custom Services
+## 8. Custom Services
 
 To add your own storage service, subclass `proper.storage.Service` and implement the four required methods:
 

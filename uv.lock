@@ -292,18 +292,6 @@ wheels = [
 ]
 
 [[package]]
-name = "image-processing-egg"
-version = "0.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyvips" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/65/46/9617bc6b83b2eb7aa294c460daa0d34d3469ca6acbd8f786b40207977ff8/image-processing-egg-0.3.tar.gz", hash = "sha256:87da9da97d05f993443be8c74def26a3823ceb80fdb4b492373348da466ff563", size = 10020 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/cf/e41396cf0193beabfd367cb2824eebaa9bf91e8f7ccf11b7cbe33aa4a5a4/image_processing_egg-0.3-py3-none-any.whl", hash = "sha256:a00c119c0638243d1acfa91d1469dba02194f88eae6668a5a3fdebb0344ee0b8", size = 8906 },
-]
-
-[[package]]
 name = "inflection"
 version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -643,11 +631,11 @@ dev = [
 ]
 test = [
     { name = "boto3" },
-    { name = "image-processing-egg" },
     { name = "poyo" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
+    { name = "pyvips" },
     { name = "smtpdfix" },
 ]
 
@@ -681,11 +669,11 @@ dev = [
 ]
 test = [
     { name = "boto3", specifier = ">=1.35.71" },
-    { name = "image-processing-egg" },
     { name = "poyo" },
     { name = "pytest", specifier = ">=7.2" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
+    { name = "pyvips", specifier = ">=2.0.0" },
     { name = "smtpdfix" },
 ]
 
