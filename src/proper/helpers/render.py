@@ -39,7 +39,8 @@ def add_dependencies(root_path: Path, dependencies: list[str]):
         if (root_path / lockfile).exists():
             cmd = pm
 
-    call(f"{cmd} {' '.join(dependencies)}")
+    quoted = [f'"{dep}"' for dep in dependencies]
+    call(f"{cmd} {' '.join(quoted)}")
 
 
 def add_to_concerns(filepath: Path, *items: str, after: str|None = None) -> None:
