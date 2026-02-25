@@ -3,6 +3,7 @@ __pycache__
 *.py[cod]
 *$py.class
 *.so
+.claude
 
 # Distribution / packaging
 .Python
