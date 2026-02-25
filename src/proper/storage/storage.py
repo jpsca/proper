@@ -97,9 +97,9 @@ class Storage:
 
     def purge(self, obj: "TAttachment", later: bool = False):
         if later:
-            # TODO
-            raise NotImplementedError
+            self._enqueue(self.purge, obj)
             return
+
         service = self.get_service(obj.service_name)
         service.purge(obj)
         self.purge_variants(obj)
@@ -107,12 +107,17 @@ class Storage:
 
     def purge_variants(self, obj: "TAttachment", later: bool = False):
         if later:
-            # TODO
-            raise NotImplementedError
+            self._enqueue(self.purge_variants, obj)
+            return
+
         for variant in obj.variants:
             service = self.get_service(variant.service_name)
             service.purge(variant)
             variant.delete_instance()
+
+    def _enqueue(self, fn, *args, **kwargs):
+        task = self.app.queue.task()(fn)
+        task(*args, **kwargs)
 
     def download(self, obj: "TAttachment"):
         service = self.get_service(obj.service_name)

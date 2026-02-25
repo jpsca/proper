@@ -41,7 +41,8 @@ class S3(Service):
                 ExtraArgs={"ContentType": obj.content_type},
             )
         finally:
-            file.seek(pos)
+            if not file.closed:
+                file.seek(pos)
 
     def download(self, obj: "TAttachment") -> bytes:
         resp = self.client.get_object(

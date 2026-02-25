@@ -407,6 +407,7 @@ def blur(image: "Image", sigma: float = 4.0, **options) -> "Image":
 VALID_OPS = {
     "resize_to_limit": resize_to_limit,
     "resize_to_fit": resize_to_fit,
+    "resize": resize_to_fit,
     "resize_to_fill": resize_to_fill,
     "resize_and_pad": resize_and_pad,
     "rotate": rotate,

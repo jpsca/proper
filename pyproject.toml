@@ -99,7 +99,7 @@ omit = [
     "src/proper/blueprints/*",
     "src/proper/app_test.py",
     "src/proper/cli/*",
-    "src/proper/storage/*", # TODO
+    "src/proper/helpers/server.py",
 ]
 
 [tool.coverage.html]
@@ -122,6 +122,7 @@ exclude = [
 addopts = "--doctest-modules --ignore=src/proper/blueprints"
 filterwarnings = [
     "ignore::DeprecationWarning:itsdangerous",
+    "ignore::DeprecationWarning:botocore",
 ]
 
 

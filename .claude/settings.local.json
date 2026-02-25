@@ -10,7 +10,9 @@
       "Bash(ls:*)",
       "Bash(pip show:*)",
       "Bash(uv run pytest:*)",
-      "Bash(which proper:*)"
+      "Bash(which proper:*)",
+      "Bash(head:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": [],
     "ask": []
