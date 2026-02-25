@@ -302,6 +302,99 @@ def test_different_services_are_independent(app):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Storage.url_for
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_url_for_private(app, Attachment, db):
+    att = Attachment(_make_file(b"x", "f.txt"), public=False)
+    att.save(force_insert=True)
+    with patch.object(app, "url_for", return_value="/att/signed") as mock:
+        url = app.storage.url_for(att)
+    assert url == "/att/signed"
+    assert mock.call_args[0][0] == "Attachment.show"
+    assert "signed_pk" in mock.call_args[1]
+
+
+def test_url_for_public(app, Attachment, db):
+    att = Attachment(_make_file(b"x", "f.txt"), public=True)
+    att.save(force_insert=True)
+    with patch.object(app, "url_for", return_value="/pub/123") as mock:
+        url = app.storage.url_for(att)
+    assert url == "/pub/123"
+    mock.assert_called_once_with("PublicAttachment.show", pk=att.id)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Storage.get_public_attachment / get_attachment
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_get_public_attachment(app, Attachment, db):
+    att = Attachment(_make_file(b"x", "f.txt"), public=True)
+    att.save(force_insert=True)
+    found = app.storage.get_public_attachment(att.id)
+    assert found.id == att.id
+
+
+def test_get_attachment_valid_signature(app, Attachment, db):
+    att = Attachment(_make_file(b"x", "f.txt"))
+    att.save(force_insert=True)
+    signed_pk = app.storage.signer.sign(str(att.id))
+    found = app.storage.get_attachment(signed_pk)
+    assert found.id == att.id
+
+
+def test_get_attachment_invalid_signature(app, Attachment, db):
+    result = app.storage.get_attachment("bad.signature.value")
+    assert result is None
+
+
+def test_get_attachment_invalid_signature_debug_raises(tmp_path, Attachment, db):
+    config = {
+        "SECRET_KEYS": ["*" * 50],
+        "DEBUG": True,
+        "STORAGE": "local",
+        "STORAGE_SERVICES": STORAGE_SERVICES,
+    }
+    from proper.errors import BadSignature
+    debug_app = App("tests", config)
+    debug_app.root_path = tmp_path / "debug_app"
+    debug_app.root_path.mkdir(parents=True, exist_ok=True)
+    debug_app.storage = Storage(debug_app)
+    with pytest.raises(BadSignature):
+        debug_app.storage.get_attachment("bad.signature.value")
+
+
+def test_get_attachment_zero_max_age_uses_default(app, Attachment, db):
+    att = Attachment(_make_file(b"x", "f.txt"))
+    att.save(force_insert=True)
+    signed_pk = app.storage.signer.sign(str(att.id))
+    found = app.storage.get_attachment(signed_pk, max_age=0)
+    assert found.id == att.id
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Storage.send_file
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_send_file_delegates_to_service(app, Attachment, db):
+    att = Attachment(
+        _make_file(b"data", "photo.png"),
+        content_type="image/png",
+    )
+    att.save(force_insert=True)
+    mock_response = MagicMock()
+    with patch("proper.storage.storage.current") as mock_current:
+        mock_current.response = mock_response
+        app.storage.send_file(att)
+    _service = app.storage.get_service("local")
+    # Verify send_file was invoked on the response (Disk.send_file calls response.send_file)
+    mock_response.send_file.assert_called_once()
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Storage._is_inline_content_type
 # ═══════════════════════════════════════════════════════════════════
 

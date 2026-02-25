@@ -23,20 +23,23 @@ class Storage:
         self.Attachment = get_attachment_mixin(self, service_name)
 
     def url_for(self, obj: "TAttachment") -> str:
-        signed_pk = self.signer.sign(obj.id)
+        signed_pk = self.signer.sign(str(obj.id))
         if obj.public:
             return self.app.url_for("PublicAttachment.show", pk=obj.id)
         else:
             return self.app.url_for("Attachment.show", signed_pk=signed_pk)
 
     def get_public_attachment(self, pk: str) -> "TAttachment | None":
-        return self.Attachment.get(pk=pk, public=True)
+        return self.Attachment.get_or_none(
+            self.Attachment.id == pk,
+            self.Attachment.public == True,  # noqa: E712
+        )
 
     def get_attachment(self, signed_pk: str, max_age: int = YEAR) -> "TAttachment | None":
         max_age = max(max_age, 0) or YEAR
         try:
             pk = self.signer.unsign(signed_pk, max_age=max_age).decode()  # type: ignore
-            return self.Attachment.get_or_none(pk)
+            return self.Attachment.get_or_none(self.Attachment.id == pk)
         except itsdangerous.BadSignature as err:
             if self.app.debug:
                 raise BadSignature from err
