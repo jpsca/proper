@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import inflection
 
 from ..helpers import BLUEPRINTS
-from ..helpers.render import call, render_blueprint
+from ..helpers.render import call, render_blueprint, sort_imports_in
 from ..router import (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 
 RESOURCE_BLUEPRINT = BLUEPRINTS / "resource"
+
+SORT_IMPORTS_IN = [
+    "controllers/__init__.py",
+]
+
 FORM_FIELDS = {
     "bigint": "IntegerField",
     "bool": "BooleanField",
@@ -172,6 +177,9 @@ def gen_resource(
         context=context,
         ignore=ignored_views,
     )
+
+    for filename in SORT_IMPORTS_IN:
+        sort_imports_in(app.root_path / filename)
 
     if migration:
         call(f'proper db create "{name_snake}"')

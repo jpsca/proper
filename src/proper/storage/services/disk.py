@@ -2,6 +2,7 @@ import os
 import typing as t
 from pathlib import Path
 
+from proper.helpers.imports import secure_filename
 from proper.request.multipart import copy_file
 from .service import Service
 
@@ -52,7 +53,7 @@ class Disk(Service):
 
     def _get_path(self, obj: "TAttachment") -> Path:
         key = str(obj.id)
-        filename = obj.filename or key
+        filename = secure_filename(obj.filename or key)
         return self.root / key[:2] / key[2:4] / filename
 
 

@@ -18,6 +18,9 @@ def app_in_tmp(tmp_path, app):
     for d in ("models", "controllers", "forms", "views/pages"):
         (app_root / d).mkdir(parents=True)
     (app_root / "models" / "__init__.py").write_text("")
+    (app_root / "controllers" / "__init__.py").write_text("")
+    (app_root / "forms" / "__init__.py").write_text("")
+    (app_root / "views" / "pages" / "__init__.py").write_text("")
 
     app.root_path = app_root
     app.name = APP_NAME
@@ -27,6 +30,10 @@ def app_in_tmp(tmp_path, app):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _init_text(app) -> str:
+    return (app.root_path / "controllers" / "__init__.py").read_text()
 
 
 def _controller_text(app, name_snake: str) -> str:
@@ -52,6 +59,10 @@ def _views_dir(app, name_snake: str):
 
 def test_generated_files(app_in_tmp):
     gen_resource(app_in_tmp, "Product")
+
+    # appends_to_init
+    init = _init_text(app_in_tmp)
+    assert "from .product_controller import ProductController" in init
 
     # creates_controller
     assert (app_in_tmp.root_path / "controllers" / "product_controller.py").exists()

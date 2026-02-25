@@ -11,13 +11,13 @@ from hecto import (
 
 
 __all__ = [
+    "add_dependencies",
+    "add_to_concerns",
     "call",
     "printf",
     "render_blueprint",
     "sort_imports_in",
     "sort_imports",
-    "add_dependencies",
-    "add_to_concerns",
 ]
 
 

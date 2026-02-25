@@ -67,7 +67,7 @@ All steps are logged at DEBUG level with the `proper` logger (prefix `[pipeline]
 ### File Location and Naming
 
 - Controllers live in `myapp/controllers/`
-- File: `things_controller.py`, class: `ThingController`
+- File: `thing_controller.py`, class: `ThingController`
 - All controllers in the folder are auto-imported by `controllers/__init__.py`
 
 ### Inheritance
@@ -85,13 +85,23 @@ class ThingController(AppController):
         pass
 ```
 
+### Template Variables
+
+All instance attributes set on the controller are passed to the template:
+
+```python
+def show(self):
+    self.photo = Photo.get_by_id(self.params["photo_id"])
+    # {{ photo }} is now available in the template
+```
+
 ### Implicit Template Rendering
 
 If an action method returns `None` and doesn't set `response.body`, the framework
 **automatically infers a template** from the controller's module path:
 
-- `myapp.controllers.things_controller` → `pages/controllers/things/{action}.jinja`
-- `myapp.controllers.admin.users_controller` → `pages/controllers/admin/users/{action}.jinja`
+- `myapp.controllers.thing_controller` → `pages/controllers/thing/{action}.jinja`
+- `myapp.controllers.admin.user_controller` → `pages/controllers/admin/user/{action}.jinja`
 
 The inferred template is logged at DEBUG level: `[Controller.action] rendering inferred template: ...`
 

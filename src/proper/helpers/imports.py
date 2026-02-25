@@ -26,25 +26,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 import os
-import pkgutil
 import re
 import sys
 import typing as t
 import unicodedata
-from collections.abc import Generator, Iterable
 from importlib import import_module
-from pathlib import Path
-from types import ModuleType
 
 
 __all__ = (
-    "Undefined",
-    "secure_filename",
     "ImportStringError",
-    "import_string",
-    "get_instance",
+    "Undefined",
     "get_class",
-    "iter_modules_recursive",
+    "get_instance",
+    "import_string",
+    "secure_filename",
 )
 
 RX_FILENAME_ASCII_STRIP = re.compile(r"[^A-Za-z0-9_.-]")
@@ -214,35 +209,3 @@ def get_class(cls_name: str | type):
         mod = import_module(mod_name)
         return getattr(mod, cls_name)
     return cls_name
-
-
-def iter_modules_recursive(
-    pkpath: str | Path,
-    pkname: str,
-    exclude: Iterable[str] = (),
-) -> Generator[ModuleType, None, None]:
-    """Finds and return all the modules below a path.
-
-    This can be useful to automatically import all views so
-    that their metaclasses / function decorators have a chance to register
-    themselves on the application.
-
-    Modules are not returned if their name is present in the `exclude` list.
-    """
-    pkpath = Path(pkpath).resolve().parent
-    exclude = tuple(f"{pkname}.{e}" for e in exclude)
-    return _iter_modules_recursive(pkpath, pkname, exclude)
-
-
-def _iter_modules_recursive(
-    pkpath: Path, pkname: str, exclude: tuple[str, ...]
-) -> Generator[ModuleType, None, None]:
-    for _finder, name, ispkg in pkgutil.iter_modules([pkpath]):
-        full_name = f"{pkname}.{name}"
-        if full_name in exclude or any(full_name.startswith(f"{e}.") for e in exclude):
-            continue
-        module_path = Path(pkpath) / name
-        if ispkg:
-            yield from _iter_modules_recursive(module_path, full_name, exclude)
-        else:
-            yield import_module(full_name)
