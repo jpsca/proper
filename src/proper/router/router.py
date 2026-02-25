@@ -294,60 +294,7 @@ class BaseRouter:
         redirect_status: str = status.temporary_redirect,
         defaults: dict | None = None,
     ) -> TDecorator:
-        r"""Function or method decorator to register a OPTIONS route.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-                    - redirect:
-            Optional. Instead of dispatching to a view, redirect to this
-            other URL.
-
-        - redirect_status:
-            Optional. Which status code to use for the redirect.
-            The status "307 Temporary Redirect" is the default.
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
-        """
+        """Decorator to register an OPTIONS route. See `get()` for argument details."""
         route = Route(
             method=OPTIONS,
             path=path,
@@ -369,52 +316,7 @@ class BaseRouter:
         host: str | None = None,
         defaults: dict | None = None,
     ) -> TDecorator:
-        r"""Method decorator to register a POST route.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
-        """
+        """Decorator to register a POST route. See `get()` for argument details."""
         route = Route(
             method=POST,
             path=path,
@@ -432,52 +334,7 @@ class BaseRouter:
         host: str | None = None,
         defaults: dict | None = None,
     ) -> TDecorator:
-        r"""Method decorator to register a PUT route.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
-        """
+        """Decorator to register a PUT route. See `get()` for argument details."""
         route = Route(
             method=PUT,
             path=path,
@@ -495,52 +352,7 @@ class BaseRouter:
         host: str | None = None,
         defaults: dict | None = None,
     ) -> TDecorator:
-        r"""Method decorator to register a DELETE route.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
-        """
+        """Decorator to register a DELETE route. See `get()` for argument details."""
         route = Route(
             method=DELETE,
             path=path,
@@ -558,52 +370,7 @@ class BaseRouter:
         host: str | None = None,
         defaults: dict | None = None,
     ) -> TDecorator:
-        r"""Method decorator to register a PATCH route.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
-        """
+        """Decorator to register a PATCH route. See `get()` for argument details."""
         route = Route(
             method=PATCH,
             path=path,
@@ -621,57 +388,13 @@ class BaseRouter:
         host: str | None = None,
         defaults: dict | None = None,
     ) -> TDecorator:
-        r"""Method decorator to register a QUERY route.
+        """Decorator to register a QUERY route. See `get()` for argument details.
 
         A QUERY is like GET but with a body (although the HTTP standard doesn't
         forbid GET requests to have a body, that ship has sailed a long time ago).
 
         Must be idempotent because the body WILL be cached. This also means
         that, like with a GET, the CSRF token will not be checked for QUERY requests.
-
-        Arguments:
-
-        - path:
-            The path of this route. Can contain placeholders like `:name` or
-            `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions,
-            **all values are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `archive/:url<path>`
-            - `:year<int>/:month<int>/:day<int>/:slug`
-            - `:year<\d{4}>/:month<\d{2}>/:day<\d{2}>/:slug`
-
-        - name:
-            Optional. Overwrites the default name of the route that is the qualified
-            name of the `to` method minus the "Controller" suffix, eg: `Page.show`.
-            This name can be any unique string eg: "login", "index",
-            "something.foobar", etc.
-
-        - host:
-            Optional. Host for this route, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `path`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        - defaults:
-            Optional. A dict with extra values that will be sent to the view.
-
         """
         route = Route(
             method=QUERY,
@@ -986,45 +709,8 @@ class ScopedRouter(BaseRouter):
             self._parent.add_route(route)
 
     def scope(self, prefix: str = "", *, host: str | None = None) -> "ScopedRouter":
-        r"""
-        Creates another router that set a prefix and a host to its routes.
-        The prefix is appended to the current prefix.
-        The host is replaced if defined, otherwise the parent host is used.
-
-        Arguments are:
-
-        prefix (str):
-            Prefix for all routes under this scope. Can contain placeholders
-            like `:name` or `:name<format>` where "format" can be:
-
-            - nothing, for matching anything except slashes
-            - `int` or `float`, for matching numbers
-            - `path`, for matching anything *including* slashes
-            - a regular expression
-
-            Note that declaring a format doesn't make type conversions, **all values
-            are passed to the view as strings**.
-
-            Examples:
-
-            - `docs/:lang<en|es|pt>`
-            - `questions/:uuid`
-            - `:year<int>/:month<int>`
-            - `:year<\d{4}>/:month<\d{2}>`
-
-        host (str):
-            Optional. Host for all routes under this scope, including any subdomain
-            and an optional port. Examples: "www.example.com", "localhost:5000".
-
-            Like `mount`, it can contain placeholders like `:name` or `:name<format>`
-            with the same format rules.
-
-            Examples:
-
-            - :lang<en|es|pt>.example.com
-            - :username.localhost:5000
-
-        """
+        """Like `BaseRouter.scope()`, but appends to the current prefix
+        and inherits the parent host if not overridden."""
         prefix = f"{self.prefix}/{prefix.strip('/')}"
         host = host or self.host
         return ScopedRouter(prefix, host=host, parent=self._parent, debug=self.debug)
