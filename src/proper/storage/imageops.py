@@ -27,7 +27,7 @@ def transform_image(
     source: str,
     load: dict | None = None,
     save: dict | None = None,
-    **ops: tuple[t.Any],
+    **ops: t.Any,
 ) -> bytes:
     load = load or {}
     save = save or {}
@@ -57,41 +57,6 @@ def transform_image(
     if not format.startswith("."):
         format = "." + format
     return image.write_to_buffer(format, **save)
-
-
-def resize_to_limit(
-    image: "Image", width: int | None = None, height: int | None = None, **options
-) -> "Image":
-    """
-    Resizes the image to not be larger than the specified dimensions,
-    while retaining the original aspect ratio.
-
-    ```python
-    pipeline = ImageProcessing(image)  # 600x800
-    result = pipeline.resize_to_limit(400, 400).run()
-    pyvips.Image.new_from_file(result.path).size  # [300, 400]
-    ```
-
-    It's possible to omit one dimension, in which case the image will be resized
-    only by the provided dimension.
-
-    ```python
-    pipeline.resize_to_limit(400, None)
-    # or
-    pipeline.resize_to_limit(None, 400)
-    ```
-
-    Any other options are forwarded to `pyvips.Image.thumbnail_image()`:
-
-    ```python
-    pipeline.resize_to_limit(400, 400, linear=True)
-    ```
-
-    See [vips_thumbnail()](https://www.libvips.org/API/current/ctor.Image.thumbnail.html)
-    for more details.
-    """
-    iwidth, iheight = _default_dimensions(width, height)
-    return _thumbnail(image, iwidth, iheight, size=pyvips.Size.DOWN, **options)
 
 
 def resize_to_fit(
@@ -287,7 +252,7 @@ def composite(
     .composite(overlay, premultiplied=True)
     ```
 
-    See [vips_composite()](http://libvips.github.io/libvips/API/current/libvips-conversion.html#vips-composite)
+    See [vips_composite()](https://www.libvips.org/API/current/type_func.Image.composite.html)
     for more details.
     """
     sources = overlay if isinstance(overlay, list) else [overlay]
@@ -405,7 +370,6 @@ def blur(image: "Image", sigma: float = 4.0, **options) -> "Image":
 
 
 VALID_OPS = {
-    "resize_to_limit": resize_to_limit,
     "resize_to_fit": resize_to_fit,
     "resize": resize_to_fit,
     "resize_to_fill": resize_to_fill,

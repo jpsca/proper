@@ -1,5 +1,5 @@
 # The following functions are based on code from the Werkzeug project:
-# `secure_filename`, `import_string`, and `find_modules`.
+# `secure_filename` and `import_string`.
 # Copyright 2007 Pallets, with modifications for the Proper project.
 #
 # Redistribution and use in source and binary forms, with or without

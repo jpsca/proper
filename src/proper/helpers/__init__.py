@@ -3,7 +3,6 @@ import typing as t
 from pathlib import Path
 
 from . import jsonplus  # noqa
-from .digestor import *  # noqa
 from .dotdict import *  # noqa
 from .html2text import *  # noqa
 from .http import *  # noqa
