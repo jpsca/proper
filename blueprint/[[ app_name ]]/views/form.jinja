@@ -15,9 +15,6 @@
   enctype="multipart/form-data" if multipart else None,
   novalidate=novalidate
 ) }}>
-  {% if method == "post" -%}
-    <input type="hidden" name="csrf_token" value="{{ current.csrf_token }}">
-  {%- endif %}
   {% if real_method -%}
     <input type="hidden" name="_method" value="{{ real_method }}">
   {%- endif %}

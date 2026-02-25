@@ -30,7 +30,6 @@
 	{% endif -%}
 	{% if description -%}<meta property="og:description" content="{{ description }}">
 	{% endif -%}
-	<script>window.csrf_token = "{{ current.csrf_token }}";</script>
 </head>
 <body {{ attrs.render() }}>
   <Nav />

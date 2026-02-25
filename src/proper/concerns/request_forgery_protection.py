@@ -22,7 +22,7 @@ CSRF_TOKEN_LENGTH = 32
 
 
 class RequestForgeryProtection(Concern):
-    """Token-based Cross-Site Request Forgery protection for state-changing requests
+    """Legacy token-based Cross-Site Request Forgery protection for state-changing requests
     (POST, PATCH, PUT, and DELETE).
 
     For modern browser-based applications (post 2020), you probably DON'T want to use

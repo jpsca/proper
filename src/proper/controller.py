@@ -7,7 +7,7 @@ import typing as t
 from pathlib import Path
 
 from .errors import NotFound
-from .helpers import MultiDict, jsonplus, make_list
+from .helpers import MultiDict, jsonplus, logger, make_list
 from .status import not_modified
 
 
@@ -87,6 +87,7 @@ class Controller:
 
     def _dispatch(self, action_name: str) -> "Response | None":
         mro = type(self).mro()
+        c_name = type(self).__name__
 
         for cls in mro:
             before = cls.__dict__.get("before", None)
@@ -94,8 +95,16 @@ class Controller:
                 for cb in make_list(before):
                     if self._should_run_callback(cb):
                         for action in make_list(getattr(self, cb["do"])):
+                            logger.debug(
+                                "[%s.%s] before: %s (from %s)",
+                                c_name, action_name, cb["do"], cls.__name__,
+                            )
                             action()
                             if self.response.has_body:
+                                logger.debug(
+                                    "[%s.%s] halted by before callback: %s",
+                                    c_name, action_name, cb["do"],
+                                )
                                 return
 
         self._call(action_name)
@@ -106,6 +115,10 @@ class Controller:
                 for cb in make_list(after):
                     if self._should_run_callback(cb):
                         for action in make_list(getattr(self, cb["do"])):
+                            logger.debug(
+                                "[%s.%s] after: %s (from %s)",
+                                c_name, action_name, cb["do"], cls.__name__,
+                            )
                             action()
 
     def _call(self, action_name: str) -> None:
@@ -128,6 +141,10 @@ class Controller:
             cmod = cmod.removesuffix("_controller")
             cmod = cmod.replace(".", "/")
             infered_view = f"pages/{cmod}/{action_name}.jinja"
+            logger.debug(
+                "[%s.%s] rendering inferred template: %s",
+                self.__class__.__name__, action_name, infered_view,
+            )
             self.response.body = self.render(infered_view)
             return
 

@@ -23,7 +23,7 @@ from .error_handlers import (
 )
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
-from .helpers import DotDict, jsonplus
+from .helpers import DotDict, jsonplus, logger
 from .request import Request
 from .response import Response
 from .router import Route, Router
@@ -182,6 +182,10 @@ class App(AppTest):
             # - the custom error handlers,
             # - the functions in the `_on_teardown` or `_on_error` lists, or
             # - the body encoding on the `resp(start_response)`.
+            logger.exception(
+                "[do_request] unhandled error: %s: %s",
+                type(error).__name__, error,
+            )
             response.error = error
             self._dbs_rollback()
             self._default_error_handler(request, response)
@@ -202,13 +206,25 @@ class App(AppTest):
                 middleware.strip_body_if_head,
                 middleware.update_session_cookie,
             ):
+                logger.debug(
+                    "[pipeline] %s %s -> %s",
+                    request.request_method, request.path, func.__name__,
+                )
                 early_response = func(self, request, response)
                 if early_response is not None:
+                    logger.debug(
+                        "[pipeline] %s returned early response",
+                        func.__name__,
+                    )
                     current.response = early_response
                     return
 
         except Exception as error:
             response.error = error
+            logger.debug(
+                "[pipeline] error in %s: %s: %s",
+                func.__name__, type(error).__name__, error,
+            )
             for func in self._on_error:
                 func()
             self._handle_app_error(request, response)
@@ -301,6 +317,11 @@ class App(AppTest):
         handlers if there isn't one for this error.
         """
         response.status = getattr(response.error, "status", status.server_error)
+        logger.error(
+            "[error] %s %s -> %s: %s",
+            request.request_method, request.path,
+            type(response.error).__name__, response.error,
+        )
 
         # Do not call the custom error handlers while in DEBUG
         # Otherwise you would never see the debug pages.

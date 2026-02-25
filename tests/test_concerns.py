@@ -121,7 +121,7 @@ class TestOriginProtection:
             co._dispatch("action")
 
 
-# ── RequestForgeryProtection ─────────────────────────────────────────
+# ── Legacy RequestForgeryProtection ─────────────────────────────────────────
 
 class CsrfCtrl(RequestForgeryProtection, Controller):
     def action(self):
