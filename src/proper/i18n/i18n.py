@@ -2,18 +2,15 @@ import datetime
 import typing as t
 from pathlib import Path
 
+import babel
 import babel.dates as babel_dates
 from markupsafe import Markup
 
 from ..errors import TranslationsNotFound
 from ..global_context import current
 from ..helpers import format_locale
-from . import plural_rules
 from .babel_mixin import BabelMixin
 from .reader import Reader
-
-
-TNumber = plural_rules.TNumber
 
 
 class I18n(BabelMixin):
@@ -77,7 +74,7 @@ class I18n(BabelMixin):
             def __init__(
                 self,
                 key: str,
-                count: TNumber = 1,
+                count: int = 1,
                 *,
                 locale: str | None = None,
                 **kwargs,
@@ -111,7 +108,7 @@ class I18n(BabelMixin):
     def translate(
         self,
         key: str,
-        count: TNumber = 1,
+        count: int = 1,
         *,
         locale: str | None = None,
         **kwargs,
@@ -265,7 +262,7 @@ class I18n(BabelMixin):
 
         return trans
 
-    def _pluralize(self, dic: dict, *, locale: str, count: TNumber = 1):
+    def _pluralize(self, dic: dict, *, locale: str, count: int = 1):
         """Takes a dictionary, a locale, and a number, and return the value
         whose key in the dictionary is either
 
@@ -292,12 +289,8 @@ class I18n(BabelMixin):
             if plural is not None:
                 return plural
 
-        locale = get_language(locale)
-        language = get_language(locale)
-        pluralize = getattr(plural_rules, f"plural_{language}", None)
-        tag = "other"
-        if pluralize:
-            tag = pluralize(count) or "other"
+        babel_locale = babel.Locale(locale)
+        tag = babel_locale.plural_form(count) or "other"
         return dic.get(tag, "")
 
 
