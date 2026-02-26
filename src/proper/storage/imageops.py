@@ -6,7 +6,7 @@ from pathlib import Path
 try:
     import pyvips
 except ImportError:
-    pyvips = None
+    pyvips = None  # type: ignore
 
 
 if t.TYPE_CHECKING:
@@ -29,6 +29,9 @@ def transform_image(
     save: dict | None = None,
     **ops: t.Any,
 ) -> bytes:
+    if pyvips is None:
+        raise ImportError("pyvips is required to use the image processing features.")
+
     load = load or {}
     save = save or {}
 

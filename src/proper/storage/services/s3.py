@@ -1,6 +1,10 @@
 import typing as t
 
-import boto3
+
+try:
+    import boto3
+except ImportError:
+    boto3 = None  # type: ignore
 
 from .service import Service
 
@@ -12,6 +16,8 @@ if t.TYPE_CHECKING:
 
 class S3(Service):
     def __init__(self, app: "App", **config: t.Any) -> None:
+        if boto3 is None:
+            raise ImportError("boto3 is required to use the S3 storage service.")
         self.bucket_name = config.pop("bucket")
         self.client = boto3.client(
             "s3",

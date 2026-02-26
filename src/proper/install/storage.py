@@ -16,6 +16,7 @@ if t.TYPE_CHECKING:
 STORAGE_BLUEPRINT = BLUEPRINTS / "storage"
 
 SORT_IMPORTS_IN = [
+    "controllers/__init__.py",
     "config/storage.py",
 ]
 

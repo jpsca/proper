@@ -2,14 +2,17 @@ title: Proper Storage
 description: Proper Storage gives your app the power to handle file uploads without complications
 ----
 
-Proper Storage gives your app the power to handle file uploads without complications. It speaks fluently with Amazon S3 (and S3-compatible services like DigitalOcean Spaces or MinIO) and your local disk. You set a foreign key to the Attachment model, and Proper takes care of the rest.
+# Proper Storage
 
+Proper Storage is an installable addon that gives your app the power to handle file uploads without complications. It speaks fluently with Amazon S3 (and S3-compatible services like DigitalOcean Spaces or MinIO) and your local disk. You set a foreign key to the Attachment model, and Proper takes care of the rest.
 
 ## 1. Setup
 
+Install the storage blueprint with:
+
 ```bash
-$  proper install storage
-$  proper db migrate
+proper install storage
+proper db migrate
 ```
 
 This sets up configuration in your application, creates the Attachment model, the serving controllers, and the `attachment` table Proper Storage needs.
