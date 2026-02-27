@@ -151,7 +151,8 @@ class MultipartParser(object):
         self.disk_limit = disk_limit
         self.memfile_limit = memfile_limit
         self.mem_limit = min(mem_limit, self.disk_limit)
-        self.buffer_size = min(buffer_size, self.mem_limit)
+        # Must be big enough to hold at least the header
+        self.buffer_size = max(256, min(buffer_size, self.mem_limit))
         self.encoding = encoding
 
         if self.buffer_size - 6 < len(boundary):  # "--boundary--\r\n"
@@ -363,7 +364,8 @@ class MultipartPart(object):
             raise MultipartError("Size of body exceeds Content-Length header.")
 
         if self.size > self.memfile_limit and isinstance(self.file, BytesIO):
-            # TODO: What about non-file uploads that exceed the memfile_limit?
+            if not self.filename:
+                raise MultipartError("Non-file field exceeds memory limit.")
             self.file, old = TemporaryFile(mode="w+b"), self.file  # type: ignore
             old.seek(0)
             assert self.file

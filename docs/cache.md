@@ -1,9 +1,9 @@
-title: Cache
+title: Caching
 ----
 
-# Cache
+# Caching
 
-Proper provides a server-side key-value cache backed by SQLite. It's used for fragment caching in templates, rate limiting, and storing any data that's expensive to compute. The cache is available as `app.cache` from anywhere in the application.
+Proper provides a server-side key-value cache backed by SQLite or Redis. It's used for fragment caching in templates, rate limiting, and storing any data that's expensive to compute. The cache is available as `app.cache` from anywhere in the application.
 
 
 ## 1. Configuration
@@ -112,9 +112,46 @@ The TTL is set at write time. Every call to `set` computes an `expires_at` times
 
 On `get`, the cache checks if the stored `expires_at` has passed. If the value has expired, it is deleted and `None` is returned.
 
-### 2.2 Increment
+### 2.2 Get or Set
 
-The `increment` method atomically increments a counter. If the key doesn't exist or has expired, it starts from the given value:
+`get_or_set` fetches a value from the cache. On a miss, it computes and stores a default. The default can be a plain value or a callable:
+
+```python
+# With a plain value
+stats = cache.get_or_set("stats:daily", compute_stats())
+
+# With a callable — only invoked on a cache miss
+stats = cache.get_or_set("stats:daily", lambda: compute_stats(), expires_in=3600)
+```
+
+#### Preventing Thundering Herd with `race_condition_ttl`
+
+When a popular cache key expires and many requests arrive simultaneously, they all see a miss and all recompute the same expensive value. This is called the thundering herd problem.
+
+`race_condition_ttl` prevents this. When the first caller finds an expired key within the race window, it extends the stale entry's TTL so that other callers continue serving the old value while the first caller recomputes:
+
+```python
+stats = cache.get_or_set(
+    "stats:daily",
+    lambda: Stats.compute(),
+    expires_in=300,            # logical expiry: 5 minutes
+    race_condition_ttl=10,     # serve stale data for up to 10s while recomputing
+)
+```
+
+The sequence:
+
+1. Key expires
+2. Request A sees the miss, **extends the stale entry by 10 seconds**, starts recomputing
+3. Requests B through N arrive, find the extended (stale) entry, return it immediately
+4. Request A finishes, stores the fresh value
+5. All subsequent requests get the new value
+
+Without `race_condition_ttl`, all N requests would compute simultaneously.
+
+### 2.3 Increment and Decrement
+
+The `increment` and `decrement` methods atomically modify a counter. If the key doesn't exist or has expired, it starts from the given value:
 
 ```python
 # Increment by 1 (default)
@@ -125,11 +162,15 @@ count = cache.increment("api:bytes:user-7", 1024)
 
 # With a custom TTL
 count = cache.increment("page:views:42", expires_in=3600)
+
+# Decrement
+count = cache.decrement("quota:remaining:user-7")
+count = cache.decrement("quota:remaining:user-7", 5)
 ```
 
-This is used internally by the rate limiting system.
+`increment` is used internally by the rate limiting system.
 
-### 2.3 Batch Operations
+### 2.4 Batch Operations
 
 Use `read_multi` and `write_multi` to operate on multiple keys at once. With the Redis backend, these map to `MGET` and pipelined `SET` commands — a single round-trip instead of N:
 
@@ -148,7 +189,17 @@ cache.write_multi({
 
 With the SQLite backend, `read_multi` uses a single `WHERE key IN (...)` query and `write_multi` runs inside a single transaction.
 
-### 2.4 Cleanup
+### 2.5 Clear
+
+Remove all entries from the cache:
+
+```python
+cache.clear()
+```
+
+With SQLite, this deletes all rows from the cache table. With Redis, it calls `FLUSHDB`.
+
+### 2.6 Cleanup
 
 Expired entries are deleted lazily on read (when a `get` or `increment` finds an expired key). To bulk-delete all expired entries, call `delete_expired`:
 
@@ -171,9 +222,34 @@ Fragment caching stores rendered HTML blocks so expensive template rendering is 
 
 On the first render, the block is rendered and stored in the cache under the key `"sidebar"`. On subsequent requests, the cached HTML is returned directly without re-rendering.
 
-### 3.1 Caching Model Objects
+The full syntax is:
 
-Pass a model object or collection instead of a string key. The cache key is derived from the object's class name and ID:
+```html+jinja
+{% cache key [, expires_in=seconds] [, version=string] [, race_condition_ttl=seconds] %}
+  ...
+{% endcache %}
+```
+
+| Argument             | Type             | Description                                                                                               |
+|----------------------|------------------|-----------------------------------------------------------------------------------------------------------|
+| `key`                | string, object, or collection | **Required.** A string cache key, a model object, or a collection of model objects. See [section 3.1](#31-cache-key). |
+| `expires_in`         | int              | TTL in seconds. If omitted, uses the cache backend's default (2 days).                                    |
+| `version`            | string or int    | Manual version tag appended to the key. When changed, the old entry is effectively invalidated.           |
+| `race_condition_ttl` | int              | Seconds to extend a stale entry while one request re-renders. Prevents the thundering herd problem.       |
+
+### 3.1 Cache Key
+
+The first argument to `{% cache %}` determines how the cache key is generated:
+
+**String** — used as-is (lowercased). Good for fragments that aren't tied to a specific record:
+
+```html+jinja
+{% cache "sidebar" %}
+  ...
+{% endcache %}
+```
+
+**Model object** — the key is derived from the object's class name, ID, and `updated_at` timestamp. When the record is updated, `updated_at` changes, which changes the key and automatically invalidates the cached fragment:
 
 ```html+jinja
 {% cache card %}
@@ -184,7 +260,7 @@ Pass a model object or collection instead of a string key. The cache key is deri
 {% endcache %}
 ```
 
-For collections:
+**Collection** — the key is derived from the class name, the count of objects, and the maximum `updated_at` across the collection. The fragment invalidates when any object is added, removed, or updated:
 
 ```html+jinja
 {% cache cards %}
@@ -196,16 +272,85 @@ For collections:
 
 ### 3.2 Expiration and Versioning
 
-Set a TTL with `expires_in` (in seconds) or a manual version:
+Set a TTL with `expires_in` (in seconds). The fragment will be re-rendered after the TTL expires, regardless of whether the underlying data changed:
 
 ```html+jinja
 {% cache "sidebar", expires_in=3600 %}
   ... refreshed every hour ...
 {% endcache %}
+```
 
+Use `version` to manually invalidate a fragment. This is useful when the template markup changes but the data hasn't — bumping the version forces a re-render:
+
+```html+jinja
 {% cache card, version="v2" %}
   ... invalidated when version changes ...
 {% endcache %}
+```
+
+When caching model objects, `version` is normally unnecessary because `updated_at` handles invalidation automatically. Use it when you change the template itself and need to bust stale HTML.
+
+### 3.3 Preventing Thundering Herd
+
+For heavily-trafficked fragments, use `race_condition_ttl` to prevent many requests from re-rendering the same block simultaneously when the cache expires:
+
+```html+jinja
+{% cache "sidebar", expires_in=300, race_condition_ttl=10 %}
+  ... expensive rendering ...
+{% endcache %}
+```
+
+When the first request finds the fragment expired, it extends the stale entry by 10 seconds and re-renders. Other requests arriving during that window continue serving the stale HTML until the fresh version is stored. See [section 2.2](#22-get-or-set) for details on how this works.
+
+### 3.4 Russian Doll Caching
+
+Russian doll caching nests cached fragments inside other cached fragments. When an inner record changes, only it and its ancestors need re-rendering — sibling fragments remain cached.
+
+The template side uses nested `{% cache %}` blocks:
+
+```html+jinja
+{% cache post %}
+  <article>
+    <h1>{{ post.title }}</h1>
+    {% for comment in post.comments %}
+      {% cache comment %}
+        <div class="comment">
+          {{ comment.body }}
+        </div>
+      {% endcache %}
+    {% endfor %}
+  </article>
+{% endcache %}
+```
+
+The challenge: when a comment changes, its own fragment invalidates (its `updated_at` changed), but the outer `{% cache post %}` fragment still has the old `post.updated_at` and keeps serving stale HTML.
+
+The fix is to declare `touches` on the child model. Use the `RussianDollCached` mixin (found in `models/concerns/russian_doll_cached.py`):
+
+```python {title="models/comment.py"}
+class Comment(RussianDollCached, BaseModel):
+    post = pw.ForeignKeyField(Post, backref="comments")
+    body = pw.TextField()
+
+    touches = ("post",)
+```
+
+Now when a comment is saved or deleted, it automatically bumps its post's `updated_at`, which invalidates the outer fragment. The post fragment re-renders, but since only one comment changed, all the other `{% cache comment %}` fragments are still cached and served from the store.
+
+Touches cascade through multiple levels. If replies touch comments and comments touch posts, saving a reply invalidates all three layers:
+
+```python {title="models/reply.py"}
+class Reply(RussianDollCached, BaseModel):
+    comment = pw.ForeignKeyField(Comment, backref="replies")
+    body = pw.TextField()
+
+    touches = ("comment",)
+```
+
+You can also bump a record's `updated_at` manually with `touch()`:
+
+```python
+post.touch()
 ```
 
 
@@ -274,11 +419,11 @@ A dispatcher that generates a cache key based on the type of input:
 
 ```python
 key_for("view", "sidebar")          # "sidebar"
-key_for("view", card)               # "view:0/card/42"
-key_for("view", cards)              # "view:0/card/col/5"
+key_for("view", card)               # "view:1735689600.0/card/42"
+key_for("view", cards)              # "view:1735689600.0/card/col/5"
 ```
 
-- **String**: returned as-is, lowercased
+- **String**: returned as-is, lowercased. The `prefix` and `version` parameters are ignored.
 - **Object**: delegates to `key_for_object`
 - **List/tuple**: delegates to `key_for_collection`
 - **Dict, bytes, bytearray**: raises `ValueError`
@@ -288,20 +433,20 @@ key_for("view", cards)              # "view:0/card/col/5"
 Generates a key from a model object:
 
 ```python
-key_for_object("view", card)        # "view:0/card/42"
+key_for_object("view", card)        # "view:1735689600.0/card/42"
 ```
 
-The key format is `"{prefix}:{version}/{class_name}/{id}"`, all lowercased.
+The key format is `"{prefix}:{version}/{class_name}/{id}"`, all lowercased. If no explicit `version` is given, the object's `updated_at` timestamp is used automatically. This is the mechanism that makes fragment and Russian doll caching work — when a record is updated, its `updated_at` changes, which changes the cache key, effectively invalidating the old entry.
 
 ### 5.3 key_for_collection
 
 Generates a key from a collection of objects:
 
 ```python
-key_for_collection("view", cards)   # "view:0/card/col/5"
+key_for_collection("view", cards)   # "view:1735689600.0/card/col/5"
 ```
 
-The key format is `"{prefix}:{version}/{class_name}/col/{count}"`, all lowercased.
+The key format is `"{prefix}:{version}/{class_name}/col/{count}"`, all lowercased. If no explicit `version` is given, the maximum `updated_at` across all objects in the collection is used. This means the cache key changes whenever any object in the collection is updated.
 
 
 ## 6. Custom Cache Backends
@@ -337,8 +482,18 @@ class MemcachedCache(BaseCache):
             return value
         return result
 
+    def decrement(self, key, value=1, *, expires_in=None):
+        result = self.client.decr(key, value)
+        if result is None:
+            self.set(key, -value, expires_in=expires_in)
+            return -value
+        return result
+
     def delete(self, key):
         self.client.delete(key)
+
+    def clear(self):
+        self.client.flush_all()
 ```
 
 Register it in your config:

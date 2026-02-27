@@ -48,7 +48,26 @@ class BaseCache:
 
     update = set
 
+    def get_or_set(
+        self,
+        key: str,
+        default: t.Any,
+        *,
+        expires_in: int | None = None,
+        race_condition_ttl: int | None = None,
+    ) -> t.Any:
+        value = self.get(key)
+        if value is None:
+            if callable(default):
+                default = default()
+            self.set(key, default, expires_in=expires_in)
+            return default
+        return value
+
     def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        raise NotImplementedError
+
+    def decrement(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
         raise NotImplementedError
 
     def read_multi(self, *keys: str) -> dict[str, t.Any]:
@@ -64,6 +83,9 @@ class BaseCache:
             self.set(key, value, expires_in=expires_in)
 
     def delete(self, key: str) -> None:
+        raise NotImplementedError
+
+    def clear(self) -> None:
         raise NotImplementedError
 
     def delete_expired(self) -> None:
@@ -88,6 +110,9 @@ class NoCache(BaseCache):
     def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
         return 0
 
+    def decrement(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        return 0
+
     def read_multi(self, *keys: str) -> dict[str, t.Any]:
         return {}
 
@@ -95,4 +120,7 @@ class NoCache(BaseCache):
         pass
 
     def delete(self, key: str) -> None:
+        pass
+
+    def clear(self) -> None:
         pass

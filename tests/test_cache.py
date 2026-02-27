@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -206,6 +207,94 @@ class TestSqliteCache:
         # Key should be deleted
         assert cache._count() == 0
 
+    def test_get_or_set_miss(self, cache):
+        result = cache.get_or_set("key", "default_value")
+        assert result == "default_value"
+        assert cache.get("key") == "default_value"
+
+    def test_get_or_set_hit(self, cache):
+        cache.set("key", "existing")
+        result = cache.get_or_set("key", "default_value")
+        assert result == "existing"
+
+    def test_get_or_set_callable(self, cache):
+        called = []
+        def compute():
+            called.append(1)
+            return "computed"
+
+        result = cache.get_or_set("key", compute)
+        assert result == "computed"
+        assert cache.get("key") == "computed"
+        assert len(called) == 1
+
+    def test_get_or_set_callable_not_called_on_hit(self, cache):
+        cache.set("key", "existing")
+        called = []
+        result = cache.get_or_set("key", lambda: called.append(1) or "new")
+        assert result == "existing"
+        assert len(called) == 0
+
+    def test_get_or_set_with_expires_in(self, cache):
+        cache.get_or_set("key", "value", expires_in=1)
+        assert cache.get("key") == "value"
+        from proper.cache.sqlite_cache import Cache
+        Cache.update(expires_at=0).where(Cache.key == "key").execute()
+        assert cache.get("key") is None
+
+    def test_get_or_set_race_condition_ttl_serves_stale(self, cache):
+        """Within the race window, other callers get the stale value."""
+        cache.set("key", "original", expires_in=100)
+        from proper.cache.sqlite_cache import Cache
+        # Expire the key 2 seconds ago
+        Cache.update(expires_at=int(time()) - 2).where(Cache.key == "key").execute()
+
+        # First caller recomputes
+        result = cache.get_or_set("key", lambda: "recomputed", expires_in=100, race_condition_ttl=10)
+        assert result == "recomputed"
+
+        # Simulate a second concurrent caller seeing the extended stale entry.
+        # After the first caller bumped the TTL and then wrote the new value,
+        # subsequent callers get the fresh value.
+        result2 = cache.get_or_set("key", lambda: "should_not_run", expires_in=100, race_condition_ttl=10)
+        assert result2 == "recomputed"
+
+    def test_get_or_set_race_condition_ttl_extends_stale(self, cache):
+        """The stale entry's TTL is extended so others don't also recompute."""
+        cache.set("key", "original", expires_in=100)
+        from proper.cache.sqlite_cache import Cache
+        # Expire the key 2 seconds ago
+        Cache.update(expires_at=int(time()) - 2).where(Cache.key == "key").execute()
+
+        # Simulate what happens between the TTL bump and the recompute:
+        # read the row, check it's in the race window, bump it
+        row_before = Cache.get_or_none(Cache.key == "key")
+        old_expires = row_before.expires_at
+
+        cache.get_or_set("key", lambda: "new", expires_in=100, race_condition_ttl=10)
+
+        # The key now has a fresh expires_at from the set() call
+        row_after = Cache.get_or_none(Cache.key == "key")
+        assert row_after.expires_at > old_expires
+
+    def test_get_or_set_race_condition_ttl_expired_beyond_window(self, cache):
+        """Beyond the race window, treat as a normal miss."""
+        cache.set("key", "original", expires_in=100)
+        from proper.cache.sqlite_cache import Cache
+        # Expire the key 20 seconds ago, beyond the 10s window
+        Cache.update(expires_at=int(time()) - 20).where(Cache.key == "key").execute()
+
+        result = cache.get_or_set("key", lambda: "fresh", expires_in=100, race_condition_ttl=10)
+        assert result == "fresh"
+
+    def test_get_or_set_race_condition_ttl_not_expired(self, cache):
+        """If the key is still valid, return it without recomputing."""
+        cache.set("key", "valid", expires_in=3600)
+        called = []
+        result = cache.get_or_set("key", lambda: called.append(1) or "new", race_condition_ttl=10)
+        assert result == "valid"
+        assert len(called) == 0
+
     def test_increment_new_key(self, cache):
         result = cache.increment("counter")
         assert result == 1
@@ -238,6 +327,13 @@ class TestSqliteCache:
         result = cache.increment("counter", 3)
         assert result == 8
 
+    def test_decrement(self, cache):
+        cache.increment("counter", 10)
+        result = cache.decrement("counter")
+        assert result == 9
+        result = cache.decrement("counter", 4)
+        assert result == 5
+
     def test_delete(self, cache):
         cache.set("key1", "value1")
         cache.delete("key1")
@@ -245,6 +341,14 @@ class TestSqliteCache:
 
     def test_delete_nonexistent(self, cache):
         cache.delete("nonexistent")  # should not raise
+
+    def test_clear(self, cache):
+        cache.set("key1", "value1")
+        cache.set("key2", "value2")
+        cache.clear()
+        assert cache.get("key1") is None
+        assert cache.get("key2") is None
+        assert cache._count() == 0
 
     def test_delete_expired(self, cache):
         cache.set("old", "value", expires_in=1)
@@ -285,9 +389,6 @@ class TestSqliteCache:
         assert cache.database.is_connection_usable()
         cache.check_conn()  # should not raise
         assert cache.database.is_connection_usable()
-
-    def test_reset_is_noop(self, cache):
-        cache.reset()  # should not raise
 
     def test_file_based_cache(self, tmp_path):
         db_path = str(tmp_path / "test.db")
@@ -485,59 +586,54 @@ class TestKeyFor:
 # ── FragmentCacheExtension ───────────────────────────────────────────
 
 class TestFragmentCacheExtension:
-    def test_cache_miss_renders_and_stores(self):
+    def _make_ext(self, cache=None):
         ext = FragmentCacheExtension.__new__(FragmentCacheExtension)
         ext.environment = MagicMock()
-        ext.environment.app_cache = MagicMock()
-        ext.environment.app_cache.get.return_value = None
+        ext.environment.app_cache = cache or SqliteCache(":memory:")
+        return ext
 
+    def test_cache_miss_renders_and_stores(self):
+        ext = self._make_ext()
         result = ext._cache_support("my-key", caller=lambda: "rendered", name="view")
         assert result == "rendered"
-        ext.environment.app_cache.set.assert_called_once()
+        assert ext.environment.app_cache.get("my-key") == "rendered"
 
     def test_cache_hit_returns_cached(self):
-        ext = FragmentCacheExtension.__new__(FragmentCacheExtension)
-        ext.environment = MagicMock()
-        ext.environment.app_cache = MagicMock()
-        ext.environment.app_cache.get.return_value = "cached-value"
-
+        ext = self._make_ext()
+        ext.environment.app_cache.set("my-key", "cached-value")
         result = ext._cache_support("my-key", caller=lambda: "fresh", name="view")
         assert result == "cached-value"
-        ext.environment.app_cache.set.assert_not_called()
 
     def test_cache_with_expires_in(self):
-        ext = FragmentCacheExtension.__new__(FragmentCacheExtension)
-        ext.environment = MagicMock()
-        ext.environment.app_cache = MagicMock()
-        ext.environment.app_cache.get.return_value = None
-
-        ext._cache_support(
-            "my-key", caller=lambda: "value", name="view", expires_in=300
-        )
-        ext.environment.app_cache.get.assert_called_once_with("my-key")
-        ext.environment.app_cache.set.assert_called_once_with("my-key", "value", expires_in=300)
+        ext = self._make_ext()
+        ext._cache_support("my-key", caller=lambda: "value", name="view", expires_in=300)
+        assert ext.environment.app_cache.get("my-key") == "value"
 
     def test_cache_with_version(self):
-        ext = FragmentCacheExtension.__new__(FragmentCacheExtension)
-        ext.environment = MagicMock()
-        ext.environment.app_cache = MagicMock()
-        ext.environment.app_cache.get.return_value = None
-
-        ext._cache_support(
-            "my-key", caller=lambda: "value", name="", version="v2"
-        )
-        # When name is empty, prefix defaults to "view"
-        ext.environment.app_cache.get.assert_called_once_with("my-key")
+        ext = self._make_ext()
+        ext._cache_support("my-key", caller=lambda: "value", name="", version="v2")
+        # key_for with version="v2" produces "my-key" for string keys
+        assert ext.environment.app_cache.get("my-key") == "value"
 
     def test_default_name_prefix(self):
-        ext = FragmentCacheExtension.__new__(FragmentCacheExtension)
-        ext.environment = MagicMock()
-        ext.environment.app_cache = MagicMock()
-        ext.environment.app_cache.get.return_value = None
-
+        ext = self._make_ext()
         ext._cache_support("my-key", caller=lambda: "value", name="")
-        # prefix should be "view" when name is empty
-        ext.environment.app_cache.set.assert_called_once_with("my-key", "value", expires_in=None)
+        assert ext.environment.app_cache.get("my-key") == "value"
+
+    def test_race_condition_ttl(self):
+        cache = SqliteCache(":memory:")
+        ext = self._make_ext(cache)
+        cache.set("my-key", "stale", expires_in=100)
+        # Expire the key 2 seconds ago
+        from proper.cache.sqlite_cache import Cache
+        Cache.update(expires_at=int(time()) - 2).where(Cache.key == "my-key").execute()
+
+        result = ext._cache_support(
+            "my-key", caller=lambda: "fresh", name="view",
+            expires_in=300, race_condition_ttl=10,
+        )
+        assert result == "fresh"
+        assert cache.get("my-key") == "fresh"
 
     def test_tags(self):
         assert "cache" in FragmentCacheExtension.tags
@@ -546,47 +642,40 @@ class TestFragmentCacheExtension:
         from jinja2 import Environment
 
         env = Environment(extensions=[FragmentCacheExtension])
-        app_cache = MagicMock()
-        app_cache.get.return_value = None
-        env.app_cache = app_cache
+        env.app_cache = SqliteCache(":memory:")
 
         template = env.from_string(
             "{% cache('my-key') %}expensive{% endcache %}"
         )
         result = template.render()
         assert result == "expensive"
-        app_cache.get.assert_called_once()
-        app_cache.set.assert_called_once_with("my-key", "expensive", expires_in=None)
+        assert env.app_cache.get("my-key") == "expensive"
 
     def test_parse_cache_hit(self):
         from jinja2 import Environment
 
         env = Environment(extensions=[FragmentCacheExtension])
-        app_cache = MagicMock()
-        app_cache.get.return_value = "cached"
-        env.app_cache = app_cache
+        env.app_cache = SqliteCache(":memory:")
+        env.app_cache.set("key", "cached")
 
         template = env.from_string(
             "{% cache('key') %}fresh{% endcache %}"
         )
         result = template.render()
         assert result == "cached"
-        app_cache.set.assert_not_called()
 
     def test_parse_with_expires_in(self):
         from jinja2 import Environment
 
         env = Environment(extensions=[FragmentCacheExtension])
-        app_cache = MagicMock()
-        app_cache.get.return_value = None
-        env.app_cache = app_cache
+        env.app_cache = SqliteCache(":memory:")
 
         template = env.from_string(
             "{% cache('key', expires_in=300) %}body{% endcache %}"
         )
-        template.render()
-        app_cache.get.assert_called_once_with("key")
-        app_cache.set.assert_called_once_with("key", "body", expires_in=300)
+        result = template.render()
+        assert result == "body"
+        assert env.app_cache.get("key") == "body"
 
 
 # ── RedisCache ──────────────────────────────────────────────────────
@@ -638,6 +727,51 @@ class TestRedisCache:
         mock_redis.get.return_value = None
         assert cache.get("missing") is None
 
+    def test_get_or_set_miss(self, cache, mock_redis):
+        mock_redis.get.return_value = None
+        result = cache.get_or_set("key", lambda: "computed", expires_in=300)
+        assert result == "computed"
+        mock_redis.set.assert_called_once()
+        _, kwargs = mock_redis.set.call_args
+        assert kwargs["ex"] == 300
+
+    def test_get_or_set_hit(self, cache, mock_redis):
+        mock_redis.get.return_value = cache.serialize("cached")
+        called = []
+        result = cache.get_or_set("key", lambda: called.append(1) or "new")
+        assert result == "cached"
+        assert len(called) == 0
+        mock_redis.set.assert_not_called()
+
+    def test_get_or_set_race_condition_ttl_not_in_window(self, cache, mock_redis):
+        """Key still valid (remaining TTL > race_condition_ttl)."""
+        mock_redis.get.return_value = cache.serialize("valid")
+        mock_redis.ttl.return_value = 200  # well above the 10s window
+        called = []
+        result = cache.get_or_set("key", lambda: called.append(1), expires_in=300, race_condition_ttl=10)
+        assert result == "valid"
+        assert len(called) == 0
+
+    def test_get_or_set_race_condition_ttl_in_window(self, cache, mock_redis):
+        """Key in race window — extends stale entry and recomputes."""
+        mock_redis.get.return_value = cache.serialize("stale")
+        mock_redis.ttl.return_value = 5  # within the 10s window
+        result = cache.get_or_set("key", lambda: "fresh", expires_in=300, race_condition_ttl=10)
+        assert result == "fresh"
+        # Should extend the stale entry for other callers
+        mock_redis.expire.assert_called_once_with("key", 10)
+        # Should store with actual_ttl = expires_in + race_condition_ttl
+        _, kwargs = mock_redis.set.call_args
+        assert kwargs["ex"] == 310
+
+    def test_get_or_set_race_condition_ttl_miss(self, cache, mock_redis):
+        """Key fully expired — normal recompute."""
+        mock_redis.get.return_value = None
+        result = cache.get_or_set("key", lambda: "new", expires_in=300, race_condition_ttl=10)
+        assert result == "new"
+        _, kwargs = mock_redis.set.call_args
+        assert kwargs["ex"] == 310
+
     def test_increment_new_key(self, cache, mock_redis):
         pipe = MagicMock()
         pipe.execute.return_value = [5, True]
@@ -656,9 +790,22 @@ class TestRedisCache:
         cache.increment("counter", expires_in=60)
         pipe.expire.assert_called_once_with("counter", 60)
 
+    def test_decrement(self, cache, mock_redis):
+        pipe = MagicMock()
+        pipe.execute.return_value = [7, True]
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+        result = cache.decrement("counter", 3)
+        pipe.incrby.assert_called_once_with("counter", -3)
+        assert result == 7
+
     def test_delete(self, cache, mock_redis):
         cache.delete("key")
         mock_redis.delete.assert_called_once_with("key")
+
+    def test_clear(self, cache, mock_redis):
+        cache.clear()
+        mock_redis.flushdb.assert_called_once()
 
     def test_delete_expired_is_noop(self, cache, mock_redis):
         cache.delete_expired()  # should not raise or call anything

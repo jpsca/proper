@@ -64,16 +64,12 @@ class FragmentCacheExtension(Extension):
         name: str,
         expires_in: int | None = None,
         version: str | int | None = None,
+        race_condition_ttl: int | None = None,
     ):
         prefix = name or "view"
         key = key_for(prefix=prefix, key_context=key_context, version=version)
         app_cache = self.environment.app_cache  # type: ignore
-
-        value = app_cache.get(key)
-        if value is not None:
-            return value
-
-        value = caller()
-        app_cache.set(key, value, expires_in=expires_in)
-        return value
+        return app_cache.get_or_set(
+            key, caller, expires_in=expires_in, race_condition_ttl=race_condition_ttl,
+        )
 

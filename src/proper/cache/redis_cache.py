@@ -40,6 +40,33 @@ class RedisCache(BaseCache):
             return None
         return self.deserialize(data)
 
+    def get_or_set(
+        self,
+        key: str,
+        default: t.Any,
+        *,
+        expires_in: int | None = None,
+        race_condition_ttl: int | None = None,
+    ) -> t.Any:
+        if expires_in is None:
+            expires_in = self.expires_in
+
+        data = self.client.get(key)
+        if data is not None:
+            if not race_condition_ttl:
+                return self.deserialize(data)
+            remaining = self.client.ttl(key)
+            if remaining < 0 or remaining > race_condition_ttl:
+                return self.deserialize(data)
+            # In race window — extend stale entry for other callers
+            self.client.expire(key, race_condition_ttl)
+
+        if callable(default):
+            default = default()
+        actual_ttl = expires_in + race_condition_ttl if race_condition_ttl else expires_in
+        self.client.set(key, self.serialize(default), ex=actual_ttl)
+        return default
+
     def increment(
         self, key: str, value: int = 1, *, expires_in: int | None = None
     ) -> int:
@@ -51,6 +78,9 @@ class RedisCache(BaseCache):
             result, _ = pipe.execute()
 
         return result
+
+    def decrement(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        return self.increment(key, -value, expires_in=expires_in)
 
     def read_multi(self, *keys: str) -> dict[str, t.Any]:
         values = self.client.mget(keys)
@@ -71,6 +101,9 @@ class RedisCache(BaseCache):
 
     def delete(self, key: str) -> None:
         self.client.delete(key)
+
+    def clear(self) -> None:
+        self.client.flushdb()
 
     def delete_expired(self) -> None:
         # Redis handles expiration automatically via TTL.

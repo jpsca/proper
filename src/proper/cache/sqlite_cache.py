@@ -49,10 +49,6 @@ class SqliteCache(BaseCache):
         if self.memory_based:
             self.create_tables()
 
-    def reset(self):
-        # TBD: implement reset
-        pass
-
     def close(self):
         return self.database.close()
 
@@ -88,6 +84,38 @@ class SqliteCache(BaseCache):
 
             return self.deserialize(row.value)
 
+    def get_or_set(
+        self,
+        key: str,
+        default: t.Any,
+        *,
+        expires_in: int | None = None,
+        race_condition_ttl: int | None = None,
+    ) -> t.Any:
+        self.check_conn()
+        if expires_in is None:
+            expires_in = self.expires_in
+
+        with self.database.atomic():
+            row = Cache.get_or_none(Cache.key == key)
+            curr_time = int(time())
+
+            if row is not None:
+                if row.expires_at >= curr_time:
+                    return self.deserialize(row.value)
+
+                if race_condition_ttl and curr_time < row.expires_at + race_condition_ttl:
+                    # Expired but within race window — extend stale entry
+                    # so other callers return the old value while we recompute.
+                    Cache.update(expires_at=curr_time + race_condition_ttl).where(
+                        Cache.key == key
+                    ).execute()
+
+        if callable(default):
+            default = default()
+        self.set(key, default, expires_in=expires_in)
+        return default
+
     def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
         self.check_conn()
 
@@ -109,6 +137,9 @@ class SqliteCache(BaseCache):
             data = self.serialize(new_value)
             Cache.replace(key=key, value=data, expires_at=expires_at).execute()
             return new_value
+
+    def decrement(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
+        return self.increment(key, -value, expires_in=expires_in)
 
     def read_multi(self, *keys: str) -> dict[str, t.Any]:
         self.check_conn()
@@ -146,6 +177,10 @@ class SqliteCache(BaseCache):
         self.check_conn()
 
         Cache.delete_by_id(key)
+
+    def clear(self) -> None:
+        self.check_conn()
+        Cache.delete().execute()
 
     def delete_expired(self) -> None:
         self.check_conn()

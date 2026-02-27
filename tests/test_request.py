@@ -1065,9 +1065,9 @@ class TestMultipartParser:
         assert items[1].value == "two"
 
     def test_boundary_too_large_raises(self):
-        big_boundary = "x" * 200
+        big_boundary = "x" * 300
         with pytest.raises(MultipartError, match="Boundary does not fit"):
-            MultipartParser(BytesIO(b""), big_boundary, buffer_size=100)
+            MultipartParser(BytesIO(b""), big_boundary, buffer_size=256)
 
     def test_no_boundary_in_stream_raises(self):
         mp = MultipartParser(BytesIO(b"no boundary here"), "testboundary")
@@ -1237,9 +1237,9 @@ class TestMultipartPart:
             part.feed(b"too much data here", b"\r\n")
 
     def test_spill_to_disk(self):
-        """When body exceeds memfile_limit, it spills to a TemporaryFile."""
+        """File uploads that exceed memfile_limit spill to a TemporaryFile."""
         part = MultipartPart(memfile_limit=10)
-        part.feed(b'Content-Disposition: form-data; name="big"', b"\r\n")
+        part.feed(b'Content-Disposition: form-data; name="big"; filename="f.bin"', b"\r\n")
         part.feed(b"", b"\r\n")
         assert part.is_buffered() is True
         # Feed enough data to exceed the limit
@@ -1247,6 +1247,14 @@ class TestMultipartPart:
         assert part.is_buffered() is False
         # Data should still be accessible
         assert b"x" * 20 in part.raw
+
+    def test_non_file_field_exceeding_memfile_limit(self):
+        """Non-file fields that exceed memfile_limit raise an error."""
+        part = MultipartPart(memfile_limit=10)
+        part.feed(b'Content-Disposition: form-data; name="big"', b"\r\n")
+        part.feed(b"", b"\r\n")
+        with pytest.raises(MultipartError):
+            part.feed(b"x" * 20, b"\r\n")
 
 
 # ── Additional coverage for headers.py ──────────────────────────────
@@ -1381,10 +1389,10 @@ class TestMultipartParserEdgeCases:
 
     def test_disk_limit_exceeded(self):
         """Line 294: disk_limit check for non-buffered parts."""
-        # Create a part large enough to spill to disk, then exceed disk_limit
+        # Create a file upload large enough to spill to disk, then exceed disk_limit
         big_data = "x" * 500
         body = _build_multipart([
-            {"name": "big", "value": big_data},
+            {"name": "big", "filename": "big.bin", "value": big_data},
         ])
         mp = MultipartParser(
             BytesIO(body), "testboundary", len(body),
