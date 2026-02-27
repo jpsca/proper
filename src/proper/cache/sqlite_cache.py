@@ -10,7 +10,7 @@ from .base import BaseCache, SerializerProtocol
 class Cache(pw.Model):
     key = pw.TextField(primary_key=True)
     value = pw.BlobField()
-    timestamp = pw.IntegerField(index=True)
+    expires_at = pw.IntegerField(index=True)
 
     class Meta:
         table_name = "proper_cache"
@@ -65,14 +65,16 @@ class SqliteCache(BaseCache):
         with self.database.atomic():
             self.database.create_tables(self.models, safe=True)
 
-    def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
+    def set(self, key: str, value: t.Any, *, expires_in: int | None = None) -> None:
         self.check_conn()
 
         data = self.serialize(value)
-        timestamp = int(time()) if timestamp is None else timestamp
-        Cache.replace(key=key, value=data, timestamp=timestamp).execute()
+        if expires_in is None:
+            expires_in = self.expires_in
+        expires_at = int(time()) + expires_in
+        Cache.replace(key=key, value=data, expires_at=expires_at).execute()
 
-    def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
+    def get(self, key: str) -> t.Any:
         self.check_conn()
 
         with self.database.atomic():
@@ -80,10 +82,7 @@ class SqliteCache(BaseCache):
             if row is None:
                 return None
 
-            if expires_in is None:
-                expires_in = self.expires_in
-            curr_time = int(time())
-            if (row.timestamp + expires_in) < curr_time:
+            if row.expires_at < int(time()):
                 Cache.delete_by_id(key)
                 return None
 
@@ -100,28 +99,59 @@ class SqliteCache(BaseCache):
 
             if row is None:
                 new_value = value
-            elif (row.timestamp + expires_in) < curr_time:
+            elif row.expires_at < curr_time:
                 new_value = value
             else:
                 current_value = self.deserialize(row.value)
                 new_value = current_value + value
 
+            expires_at = curr_time + expires_in
             data = self.serialize(new_value)
-            Cache.replace(key=key, value=data, timestamp=curr_time).execute()
+            Cache.replace(key=key, value=data, expires_at=expires_at).execute()
             return new_value
+
+    def read_multi(self, *keys: str) -> dict[str, t.Any]:
+        self.check_conn()
+
+        result = {}
+        curr_time = int(time())
+        expired_keys = []
+
+        with self.database.atomic():
+            rows = Cache.select().where(Cache.key << keys)
+            for row in rows:
+                if row.expires_at < curr_time:
+                    expired_keys.append(row.key)
+                else:
+                    result[row.key] = self.deserialize(row.value)
+
+            if expired_keys:
+                Cache.delete().where(Cache.key << expired_keys).execute()
+
+        return result
+
+    def write_multi(self, mapping: dict[str, t.Any], *, expires_in: int | None = None) -> None:
+        self.check_conn()
+
+        if expires_in is None:
+            expires_in = self.expires_in
+        expires_at = int(time()) + expires_in
+
+        with self.database.atomic():
+            for key, value in mapping.items():
+                data = self.serialize(value)
+                Cache.replace(key=key, value=data, expires_at=expires_at).execute()
 
     def delete(self, key: str) -> None:
         self.check_conn()
 
         Cache.delete_by_id(key)
 
-    def delete_expired(self, expires_in: int | None = None) -> None:
+    def delete_expired(self) -> None:
         self.check_conn()
 
-        if expires_in is None:
-            expires_in = self.expires_in
-        expires_at = int(time()) - expires_in
-        Cache.delete().where(Cache.timestamp < expires_at).execute()  # type: ignore
+        curr_time = int(time())
+        Cache.delete().where(Cache.expires_at < curr_time).execute()
 
     def _count(self):
         return Cache.select(pw.fn.COUNT(Cache.key)).scalar()

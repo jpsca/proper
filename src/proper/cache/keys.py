@@ -26,7 +26,7 @@ def key_for_object(
         if updated_at is not None:
             version = str(datetime.timestamp(updated_at))
 
-    version = str(0 if version is None else 0)
+    version = str(0 if version is None else version)
 
     return f"{prefix}:{version}/{obj_class}/{obj_id}".lower()
 
@@ -50,7 +50,7 @@ def key_for_collection(
             if max_updated_at:
                 version = str(datetime.timestamp(max_updated_at))
 
-    version = str(0 if version is None else 0)
+    version = str(0 if version is None else version)
 
     return f"{prefix}:{version}/{col_class}/col/{col_size}".lower()
 

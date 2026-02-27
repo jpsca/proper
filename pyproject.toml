@@ -63,6 +63,7 @@ test = [
     "poyo",
     "pytest-smtpd",
     "pyvips >= 2.0.0",
+    "redis >= 7.0.0",
     "smtpdfix",
 ]
 

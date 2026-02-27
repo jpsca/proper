@@ -69,11 +69,11 @@ class FragmentCacheExtension(Extension):
         key = key_for(prefix=prefix, key_context=key_context, version=version)
         app_cache = self.environment.app_cache  # type: ignore
 
-        value = app_cache.get(key, expires_in=expires_in)
+        value = app_cache.get(key)
         if value is not None:
             return value
 
         value = caller()
-        app_cache.set(key, value)
+        app_cache.set(key, value, expires_in=expires_in)
         return value
 

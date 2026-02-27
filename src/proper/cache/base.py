@@ -40,10 +40,10 @@ class BaseCache:
             serializer = self.serializer_cls()
         self.serializer = serializer
 
-    def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
+    def set(self, key: str, value: t.Any, *, expires_in: int | None = None) -> None:
         raise NotImplementedError
 
-    def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
+    def get(self, key: str) -> t.Any:
         raise NotImplementedError
 
     update = set
@@ -51,10 +51,22 @@ class BaseCache:
     def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
         raise NotImplementedError
 
+    def read_multi(self, *keys: str) -> dict[str, t.Any]:
+        result = {}
+        for key in keys:
+            value = self.get(key)
+            if value is not None:
+                result[key] = value
+        return result
+
+    def write_multi(self, mapping: dict[str, t.Any], *, expires_in: int | None = None) -> None:
+        for key, value in mapping.items():
+            self.set(key, value, expires_in=expires_in)
+
     def delete(self, key: str) -> None:
         raise NotImplementedError
 
-    def delete_expired(self, expires_in: int | None = None) -> None:
+    def delete_expired(self) -> None:
         pass
 
     def serialize(self, value: t.Any) -> bytes:
@@ -67,14 +79,20 @@ class BaseCache:
 class NoCache(BaseCache):
     serializer_cls = NoSerializer
 
-    def get(self, key: str, *, expires_in: int | None = None) -> t.Any:
+    def get(self, key: str) -> t.Any:
         pass
 
-    def set(self, key: str, value: t.Any, *, timestamp: int | None = None) -> None:
+    def set(self, key: str, value: t.Any, *, expires_in: int | None = None) -> None:
         pass
 
     def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
         return 0
+
+    def read_multi(self, *keys: str) -> dict[str, t.Any]:
+        return {}
+
+    def write_multi(self, mapping: dict[str, t.Any], *, expires_in: int | None = None) -> None:
+        pass
 
     def delete(self, key: str) -> None:
         pass
