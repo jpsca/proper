@@ -393,8 +393,7 @@ class BaseRouter:
         A QUERY is like GET but with a body (although the HTTP standard doesn't
         forbid GET requests to have a body, that ship has sailed a long time ago).
 
-        Must be idempotent because the body WILL be cached. This also means
-        that, like with a GET, the CSRF token will not be checked for QUERY requests.
+        Must be idempotent because the body WILL be cached.
         """
         route = Route(
             method=QUERY,

@@ -59,7 +59,7 @@ There is no separate in-memory backend. Use `SqliteCache` with `":memory:"` as t
 Redis is an optional dependency. The `redis` package is only required if you use `RedisCache` — it won't be imported otherwise. Install it with:
 
 ```bash
-pip install redis
+uv add redis
 ```
 
 Configuration:
@@ -114,12 +114,9 @@ On `get`, the cache checks if the stored `expires_at` has passed. If the value h
 
 ### 2.2 Get or Set
 
-`get_or_set` fetches a value from the cache. On a miss, it computes and stores a default. The default can be a plain value or a callable:
+`get_or_set` fetches a value from the cache. On a miss, it calls the provided callable, stores the result, and returns it:
 
 ```python
-# With a plain value
-stats = cache.get_or_set("stats:daily", compute_stats())
-
 # With a callable — only invoked on a cache miss
 stats = cache.get_or_set("stats:daily", lambda: compute_stats(), expires_in=3600)
 ```

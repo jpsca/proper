@@ -2,6 +2,8 @@
 
 This file documents the conventions, implicit behaviors, and architecture of a Proper web application. Use it as a reference when reviewing or generating code.
 
+Proper is an opinionated and batteries-included web framework.
+
 ## Index
 
 - [Application](./app.md)
@@ -9,7 +11,8 @@ This file documents the conventions, implicit behaviors, and architecture of a P
 - [Routing](./routing.md)
 - [Models](./models.md)
 - [Security](./security.md)
-- [Cache](./cache.md)
+- [Frontend](./frontend.md)
+- [Caching](./caching.md)
 - [Emails](./emails.md)
 - [Background Tasks](./tasks.md)
 - [Authentication & Authorization](./auth.md)

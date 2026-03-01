@@ -27,8 +27,7 @@ class ResponseCookiesMixin:
     max_cookie_size: int = 4093
 
     # Set to True to not set cookies in this response, including any changes to the
-    # session or CSRF token. You might want to use it for some read-only public
-    # endpoints, like a RSS feed.
+    # session. You might want to use it for some read-only public endpoints, like a RSS feed.
     disable_cookies: bool = False
 
     def __init__(self) -> None:

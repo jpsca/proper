@@ -3,12 +3,12 @@ title: Application
 
 # Application
 
-Proper is a Python web framework built on [Peewee ORM](https://docs.peewee-orm.com/), [Huey](https://huey.readthedocs.io/) for background tasks, [Jx](https://jx.scaletti.dev/) for component templates, and [Formidable](https://github.com/jpsca/formidable) for form handling.
-
-
 ## 1. Setup
 
-Create a new application:
+To get started, you need to have `uv` installed.
+[Follow these instructions](https://docs.astral.sh/uv/getting-started/installation/) if `uv` and `uvx` are not present in your system.
+
+To create a new application, run:
 
 ```bash
 uvx proper_new myapp
@@ -48,15 +48,16 @@ storage/                  # Uploaded files and SQLite databases
 tests/                    # Test suite
 ```
 
-The app is instantiated in `main.py`:
+## 1.1 Main dependencies
 
-```python
-from proper import App
-from . import config
+Once installed, a Proper web app depends on some other Python libraries, most notably:
 
-app = App(__name__, config)
-config = app.config
-```
+- [Peewee ORM](https://docs.peewee-orm.com/)
+- [Huey](https://huey.readthedocs.io/) for background tasks
+- [Jx](https://jx.scaletti.dev/) for component templates
+- [Formidable](https://formidable.scaletti.dev/) for form handling
+
+Read the documentation of these libraries to understand how to work with them in Proper.
 
 
 ## 2. Request Lifecycle
@@ -317,7 +318,7 @@ proper install i18n                 # Install internationalization
 proper install storage              # Install file storage
 ```
 
-All commands accept a `--help` parameter that show more details about it.
+All commands accept a `--help` parameter that shows more details.
 
 Most `db` commands accept `--db=NAME` to target a specific database (default: `main`).
 

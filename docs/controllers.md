@@ -332,8 +332,8 @@ The session is a `DotDict`, so you can use both dict-style and attribute-style a
 If an action method returns `None` and doesn't set `response.body`, the framework
 **automatically infers a template** from the controller's module path:
 
-- `myapp.controllers.thing_controller` → `pages/controllers/thing/{action}.jinja`
-- `myapp.controllers.admin.user_controller` → `pages/controllers/admin/user/{action}.jinja`
+- `myapp.controllers.thing_controller` → `pages/thing/{action}.jinja`
+- `myapp.controllers.admin.user_controller` → `pages/admin/user/{action}.jinja`
 
 The inferred template is logged at DEBUG level: `[Controller.action] rendering inferred template: ...`
 

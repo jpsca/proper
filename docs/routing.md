@@ -340,7 +340,7 @@ class SearchController(AppController):
     def index(self): ...
 ```
 
-QUERY requests must be idempotent because the body will be cached. Like GET, the CSRF token is not checked for QUERY requests.
+QUERY requests must be idempotent because the body will be cached.
 
 To send a QUERY request from the browser, use the method override mechanism described below.
 

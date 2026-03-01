@@ -473,7 +473,7 @@ class Attachment(app.storage.Attachment, BaseModel):
     SUPPORTED_VARIANT_TYPES = {
         **app.storage.Attachment.SUPPORTED_VARIANT_TYPES,
         "application/pdf": "preview_pdf",
-        "video/", "preview_video",
+        "video/": "preview_video",
     }
 
     def preview_pdf(self, source, page=0, **ops):
@@ -493,7 +493,7 @@ The keys are content-type prefixes matched against the attachment's `content_typ
 Custom transform methods can call `self.transform_image(source, **ops)` to delegate image processing (resize, format conversion, etc.) after extracting an image from their source format.
 
 
-### 7.4. Iterating variants
+### 7.5. Iterating variants
 
 ```python
 for v in attachment.variants:
@@ -501,7 +501,7 @@ for v in attachment.variants:
 ```
 
 
-### 7.5. Purging variants
+### 7.6. Purging variants
 
 Purging a parent attachment automatically purges all its variants first:
 
@@ -516,7 +516,7 @@ attachment.purge_variants()
 ```
 
 
-### 7.6. Low-level variant creation
+### 7.7. Low-level variant creation
 
 For full control, use `create_variant(filesto)` directly. It inherits `service_name` and `public` from the parent by default:
 
