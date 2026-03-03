@@ -12,7 +12,7 @@ from wsgiref.types import StartResponse
 from .. import status as pstatus
 from ..global_context import current
 from ..helpers import DotDict, tunnel_encode
-from ..types import TBody, TIterable, TReadable
+from ..types import TBody, Iterable, TReadable
 from .cookies import ResponseCookiesMixin
 from .file_wrapper import FileWrapper
 from .flash_messages import FlashMessages
@@ -28,7 +28,7 @@ __all__ = ("Response",)
 
 
 def is_iterable(obj: t.Any) -> bool:
-    return isinstance(obj, TIterable) and not isinstance(obj, (str, dict))
+    return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
 
 class Response(ResponseHeadersMixin, ResponseCookiesMixin):
@@ -306,7 +306,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self,
         file: TReadable,
         block_size: int = 8192,
-    ) -> TIterable[bytes]:
+    ) -> Iterable[bytes]:
         """Wraps a file using the WSGI server's file wrapper
 
         More information about file wrappers is available in

@@ -2,61 +2,21 @@ import json
 import typing as t
 from urllib.parse import parse_qs
 
-from ..errors import (
-    BadRequest,
-    MultipartError,
-    RequestEntityTooLarge,
-    UnsupportedMediaType,
-    UriTooLong,
-)
+from ..errors import MultipartError, UriTooLong
 from ..helpers import MultiDict
 from .multipart import (
     MultipartParser,
-    parse_options_header,
+    parse_options_header,  # noqa
 )
 
 
-def parse_form(
-    stream: t.IO[bytes],
-    content_type: str,
-    content_length: int,
-    *,
-    encoding: str = "utf8",
-    max_content_length: int = -1,
-    strict: bool = True,
-) -> MultiDict:
-    if not content_length:
-        return MultiDict()
-
-    if max_content_length > 0 and content_length > max_content_length:
-        raise RequestEntityTooLarge("Maximum content length exceeded.")
-
-    content_type, options = parse_options_header(content_type)
-    encoding = options.get("charset", encoding)
-
-    if content_type == "multipart/form-data":
-        return parse_multipart(
-            stream,
-            content_length,
-            options,
-            encoding=encoding,
-            strict=strict,
-        )
-
-    content = _read_content(stream, max_content_length, encoding)
-    _validate_actual_content_length(content, content_length)
-
-    if content_type in (
-        "application/x-www-form-urlencoded",
-        "application/x-url-encoded",
-    ):
-        return parse_query_string(content, encoding=encoding, strict=strict)
-
-    # application/json
-    if content_type.startswith("application/json"):
-        return parse_json(content, strict=strict)
-
-    raise UnsupportedMediaType("Unsupported Content-Type")
+def _normalize_newlines(text: str) -> str:
+    r"""
+    A multipart text value can use `\r\n`, `\n`, or `\r` as newlines
+    and all three versions are valid.
+    This function change `\r\n` or `\r` to just `\n`.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def parse_multipart(
@@ -142,27 +102,3 @@ def parse_json(content: str, *, strict: bool = True) -> MultiDict:
             raise MultipartError(str(err)) from None
 
     return form
-
-
-def _normalize_newlines(text: str) -> str:
-    r"""
-    A multipart text value can use `\r\n`, `\n`, or `\r` as newlines
-    and all three versions are valid.
-    This function change `\r\n` or `\r` to just `\n`.
-    """
-    return text.replace("\r\n", "\n").replace("\r", "\n")
-
-
-def _read_content(stream: t.IO[bytes], max_content_length: int, encoding: str) -> str:
-    content = stream.read(max_content_length).decode(encoding)
-    if stream.read(1):  # OMG there is still more.
-        raise RequestEntityTooLarge("Increase max_content_length.")
-    return content
-
-
-def _validate_actual_content_length(content: str, content_length: int) -> None:
-    actual_content_length = len(content)
-    if actual_content_length > content_length:
-        raise BadRequest("Body is bigger than the declared Content-Length.")
-    elif actual_content_length < content_length:
-        raise BadRequest("Body is smaller than the declared Content-Length.")

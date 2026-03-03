@@ -1,14 +1,25 @@
 import typing as t
-from io import BytesIO
 
 import itsdangerous
 
 from ..constants import FLASHES_SESSION_KEY, GET, HEAD
+from ..errors import (
+    BadRequest,
+    ClientDisconnected,
+    RequestEntityTooLarge,
+    UnsupportedMediaType,
+)
 from ..helpers import DotDict, MultiDict, logger
 from ..router import Route
+from ..types import AsyncGenerator, TReceive, TScope
 from .headers import RequestHeadersMixin
-from .make_env import make_test_env
-from .parse_form import parse_form, parse_query_string
+from .parse_form import (
+    parse_json,
+    parse_multipart,
+    parse_options_header,
+    parse_query_string,
+)
+from .utils import make_test_scope
 
 
 if t.TYPE_CHECKING:
@@ -18,13 +29,21 @@ if t.TYPE_CHECKING:
 __all__ = ("Request", )
 
 
+async def empty_receive() -> t.NoReturn:
+    raise RuntimeError("Empty receive function called. This should never happen.")
+
+
 class Request(RequestHeadersMixin):
     """An HTTP request.
 
     Arguments:
 
-        encoding:
-            Default encoding.
+        scope:
+            An ASGI scope dict from the server. If not provided, a test scope will be created.
+
+        receive:
+            An ASGI receive function from the server. If not provided, an empty receive function
+            will be used that raises an error if called.
 
         max_content_length:
             Maximum content length in bytes.
@@ -32,14 +51,10 @@ class Request(RequestHeadersMixin):
         max_query_size:
             Maximum query string size in bytes.
 
-        **env:
-            A WSGI environment dict passed in from the server (See also PEP-3333).
-
     Attributes:
 
-        env:
-            The WSGI environment dict passed in from the server,
-        with keys normalized to lower-case
+        scope:
+            The ASGI scope dict passed in from the server.
 
         body:
             The request body as a bytes stream.
@@ -173,24 +188,105 @@ class Request(RequestHeadersMixin):
 
     def __init__(
         self,
+        scope: TScope,
         *,
-        encoding: str = "utf8",
+        receive: TReceive = empty_receive,
         max_content_length: int = -1,
         max_query_size: int | None = None,
-        app: "App | None" = None,
-        **env,
     ) -> None:
-        self.encoding = encoding
+        self.scope = scope or make_test_scope()
+
+        self._receive = receive
+        self._body: bytes | None = None
+        self._stream_consumed = False
+        self._is_disconnected = False
+
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
-        self._session = DotDict()
-        self.app = app
 
-        env = env or make_test_env()
-        super().__init__(env)
+        self._session = DotDict()
+        super().__init__()
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
+
+    async def _get_stream(self) -> AsyncGenerator[bytes, None]:
+        if hasattr(self, "_body"):
+            yield self._body
+            yield b""
+            return
+        if self._stream_consumed:
+            raise RuntimeError("Stream consumed")
+        while not self._stream_consumed:
+            message = await self._receive()
+            if message["type"] == "http.request":
+                body = message.get("body", b"")
+                if not message.get("more_body", False):
+                    self._stream_consumed = True
+                if body:
+                    yield body
+            elif message["type"] == "http.disconnect":  # pragma: no branch
+                self._is_disconnected = True
+                raise ClientDisconnected()
+        yield b""
+
+    async def _get_body(self):
+        if self._body is not None:
+            return self._body
+
+        chunks: list[bytes] = []
+        len_body = 0
+        async for chunk in self._get_stream():
+            chunks.append(chunk)
+            len_body += len(chunk)
+            if self.max_content_length and len_body > self.max_content_length:
+                raise RequestEntityTooLarge("Maximum content length exceeded.")
+
+        if len_body > self.content_length:
+            raise BadRequest("Body is bigger than the declared Content-Length.")
+        elif len_body < self.content_length:
+            raise BadRequest("Body is smaller than the declared Content-Length.")
+
+        self._body = b"".join(chunks)
+        return self._body
+
+    async def _get_form(self, strict: bool = True) -> MultiDict:
+        # GET and HEAD can't have form data.
+        if self.method in (GET, HEAD):
+            return MultiDict()
+
+        if not self.content_length:
+            return MultiDict()
+
+        content_type, options = parse_options_header(self.content_type)
+        encoding = options.get("charset", "utf-8")
+
+        if content_type == "multipart/form-data":
+            return parse_multipart(
+                self._get_stream(),
+                self.content_length,
+                options,
+                encoding=encoding,
+                strict=strict,
+            )
+
+        if content_type in (
+            "application/x-www-form-urlencoded",
+            "application/x-url-encoded",
+        ):
+            body = await self._get_body()
+            return parse_query_string(body, encoding=encoding, strict=strict)
+
+        # application/json
+        if content_type.startswith("application/json"):
+            body = await self._get_body()
+            return parse_json(body, strict=strict)
+
+        raise UnsupportedMediaType("Unsupported Content-Type")
+
+    @property
+    def app(self) -> "App":
+        return self.scope["app"]
 
     @property
     def session(self) -> DotDict:
@@ -201,9 +297,9 @@ class Request(RequestHeadersMixin):
         self._session = DotDict(value)
 
     @property
-    def body(self) -> BytesIO:
-        """The request body as a BytesIO stream."""
-        return self.env.get("wsgi.input") or BytesIO()
+    def http_version(self) -> str:
+        """The HTTP version used for the request, like "1.1"."""
+        return self.scope["http_version"]
 
     @property
     def flashes(self) -> list[tuple[str, str]]:
@@ -219,19 +315,6 @@ class Request(RequestHeadersMixin):
             self._form = self._parse_form()
         return self._form
 
-    def _parse_form(self) -> MultiDict:
-        # GET and HEAD can't have form data.
-        if self.method in (GET, HEAD):
-            return MultiDict()
-
-        return parse_form(
-            self.body,
-            self.content_type,
-            self.content_length,
-            encoding=self.encoding,
-            max_content_length=self.max_content_length,
-        )
-
     @property
     def query(self) -> MultiDict:
         """A `MultiDict` object containing the query string data."""
@@ -242,14 +325,14 @@ class Request(RequestHeadersMixin):
     def _parse_query(self) -> MultiDict:
         return parse_query_string(
             self.query_string,
-            encoding=self.encoding,
+            encoding="utf-8",
             max_query_size=self.max_query_size,
         )
 
     @property
     def query_string(self) -> str:
         """Returns the query string."""
-        return self.env.get("query_string", "")
+        return self.scope.get("query_string", "")
 
     @property
     def url(self) -> str:

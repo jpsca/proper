@@ -13,7 +13,7 @@ from .imageops import transform_image
 
 
 if t.TYPE_CHECKING:
-    from ..types import TIterable, TUpload
+    from ..types import Iterable, TUpload
     from .storage import Storage
 
 
@@ -106,7 +106,7 @@ def get_attachment_mixin(storage: "Storage", default_service_name: str = "") -> 
         def send_file(self):
             return storage.send_file(self)
 
-        def save(self, force_insert: bool = False, only: "TIterable | None" = None):
+        def save(self, force_insert: bool = False, only: "Iterable | None" = None):
             if self._filesto:
                 storage.upload(self._filesto, self)
                 self._filesto = None

@@ -1,15 +1,15 @@
 import mimetypes
 import re
-import typing as t
 from datetime import datetime
 from functools import cached_property
-from http.cookies import Morsel, SimpleCookie
+from http import cookies as http_cookies
 
 from dateutil.parser import parse as dtparse
 
 from ..constants import DELETE, GET, HEAD, PATCH, POST, PUT
 from ..errors import InvalidHeader
-from ..helpers import format_locale, tunnel_decode
+from ..helpers import MultiDict, format_locale
+from ..types import TScope
 from .forwarded import parse_forwarded
 
 
@@ -23,41 +23,34 @@ def enc(name: str) -> str:
     return name.strip().lower().replace("-", "_")
 
 
-class NormalizedEnv(dict):
-    def __setitem__(self, key, value):
-        super().__setitem__(enc(key), value)
-
-
 class RequestHeadersMixin:
     """Mixin with the methods related to the request headers.
     """
 
+    scope: TScope
     default_format = "html"
 
-    env: dict[str, t.Any]
-
-    def __init__(self, env: dict[str, t.Any]):
-        self.env = self._normalize_env(env)
-
-        self.protocol = self.env.get(
-            "x_forwarded_proto",
-            self.env.get("wsgi.url_protocol")
+    def __init__(self):
+        self.headers = MultiDict(
+            (key.decode("latin-1", errors="ignore"), value)
+            for key, value in self.scope.get("headers", [])
         )
-        host, port = parse_host(self.env.get("host"))
-        self.host = host
-        self.port = port or self.default_port
+        self.protocol: str = self._get_value("x-forwarded-proto") or self.scope["scheme"]
 
-        self.method = self.env.get("request_method", GET).upper()
+        if self.scope["server"]:
+            host, port = self.scope["server"]
+        else:
+            host, port = parse_host(self._get_value("host"))
+        self.host: str = host
+        self.port: int = port or self.default_port
+
+        self.method: str = self.scope["method"]
         self.request_method = self.method
+        self.path: str = self.scope["path"]
 
-        # PATH_INFO is always "bytes tunneled as latin-1" and must be decoded back.
-        path_info = self.env.get("path_info", "").strip("/")
-        self.path = "/" + tunnel_decode(path_info)
-
-        self.content_type = self.env.get("content_type", "")
-
+        self.content_type: str = self._get_value("content-type")
         try:
-            self.content_length = int(self.env.get("content_length") or "0")
+            self.content_length: int = int(self._get_value("content-length") or "0")
         except ValueError:
             raise InvalidHeader("The Content-Length header must be a number.") from None
         if self.content_length < 0:
@@ -65,59 +58,20 @@ class RequestHeadersMixin:
                 "The value of the Content-Length header must be a positive number."
             )
 
-    def _normalize_env(self, env: dict[str, t.Any]) -> NormalizedEnv:
-        """Normalize the environment variables.
+    def _get_value(self, name: str) -> str | None:
+        """Get a header value encoded as a string.
 
         Arguments:
 
-        - env:
-            A WSGI environment dict passed in from the server (See also PEP-3333).
-
+        - name:
+            The name of the header.
         """
-        # Add all the keys that do not start with "HTTP_"
-        normal_env = {
-            enc(name): value
-            for name, value in env.items()
-            if not name.startswith("HTTP_")
-        }
-
-        # Add all the rest of the keys but without the  "HTTP_" prefix
-        # unless the un-prefixed key already exists. In that case, keep it.
-        for name, value in env.items():
-            if not name.startswith("HTTP_"):
-                continue
-
-            name = enc(name)
-            unprefixed = name.removeprefix("http_")
-            if unprefixed in normal_env:
-                normal_env[name] = value
-            else:
-                normal_env[unprefixed] = value
-
-        return NormalizedEnv(normal_env)
-
-    def get(self, name: str, default: t.Any = None) -> t.Any:
-        name = enc(name)
-        if name in (
-            "accept",
-            "accept_encoding",
-            "accept_language",
-            "cookie",
-            "cookies",
-            "date",
-            "forwarded",
-            "if_none_match",
-            "if_modified_since",
-            "request_id",
-        ):
-            value = getattr(self, name)
-            return default if value is None else value
-
-        return self.env.get(name, default)
-
-    @property
-    def headers(self) -> dict[str, t.Any]:
-        return self.env
+        value = self.headers.get(name)
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            return value.decode("latin-1", errors="ignore")
+        return str(value)
 
     @cached_property
     def accept(self) -> list[str]:
@@ -141,7 +95,7 @@ class RequestHeadersMixin:
             If no quality value is specified, the default value is 1.0.
 
         """
-        return parse_accept(self.env.get("accept"))
+        return parse_accept(self._get_value("accept"))
 
     @cached_property
     def accept_encoding(self) -> list[str]:
@@ -162,7 +116,7 @@ class RequestHeadersMixin:
             If no quality value is specified, the default value is 1.0.
 
         """
-        return parse_accept(self.env.get("accept_encoding"))
+        return parse_accept(self._get_value("accept-encoding"))
 
     @cached_property
     def accept_language(self) -> list[str]:
@@ -191,25 +145,28 @@ class RequestHeadersMixin:
             If no quality value is specified, the default value is 1.0.
 
         """
-        return parse_accept(self.env.get("accept_language"))
+        return parse_accept(self._get_value("accept-language"))
+
+
+    @property
+    def cookie(self) -> dict[str, str]:
+        """An alias to `cookies`.
+        """
+        return self.cookie
 
     @cached_property
-    def cookie(self) -> dict[str, Morsel]:
+    def cookies(self) -> dict:
         """Parse the `cookie` header.
 
         Returns:
             A dictionary with the cookies.
 
         """
-        return parse_cookie(self.env.get("cookie"))
-
-    @property
-    def cookies(self) -> dict:
-        """Parse the `cookie` header.
-
-        An alias to `cookie`.
-        """
-        return self.cookie
+        cookies: dict[str, str] = {}
+        cookie_headers = self.headers.getall("cookie")
+        for header in cookie_headers:
+            cookies.update(parse_cookie(header))
+        return cookies
 
     @cached_property
     def date(self) -> datetime | None:
@@ -221,7 +178,7 @@ class RequestHeadersMixin:
             A datetime object or None if the header is not present.
 
         """
-        val = self.env.get("date")
+        val = self._get_value("date")
         return dtparse(val) if val else None
 
     @property
@@ -266,7 +223,7 @@ class RequestHeadersMixin:
             A list of dictionaries with the forwarding information.
 
         """
-        return parse_forwarded(self.env.get("forwarded"))
+        return parse_forwarded(self._get_value("forwarded"))
 
     @property
     def host_with_port(self) -> str:
@@ -296,7 +253,7 @@ class RequestHeadersMixin:
             A list of ETags.
 
         """
-        return parse_comma_separated(self.env.get("if_none_match"))
+        return parse_comma_separated(self._get_value("if-none-match"))
 
     @cached_property
     def if_modified_since(self) -> datetime | None:
@@ -311,7 +268,7 @@ class RequestHeadersMixin:
             A datetime object or None if the header is not present.
 
         """
-        val = self.env.get("if_modified_since")
+        val = self._get_value("if-modified-since")
         return dtparse(val) if val else None
 
     @property
@@ -354,7 +311,7 @@ class RequestHeadersMixin:
     @property
     def is_xhr(self) -> bool:
         """True if the request was done by JavaScript."""
-        return self.env.get("x_requested_with") == "XMLHttpRequest"
+        return self._get_value("x-requested-with") == "XMLHttpRequest"
 
     @property
     def port_is_default(self) -> bool:
@@ -383,15 +340,15 @@ class RequestHeadersMixin:
             if "for" in fw:
                 return fw["for"]
 
-        ff = self.env.get("x_forwarded_for", "").split(",")[0]
+        ff = self._get_value("x-forwarded-for", "").split(",")[0]
         if ff:
             return ff
 
-        realip = self.env.get("x_real_ip")
+        realip = self._get_value("x-real-ip")
         if realip:
             return realip
 
-        return self.env.get("remote_addr", "")
+        return self.scope.get("client", ["", 0])[0]
 
     @cached_property
     def request_id(self) -> str | None:
@@ -403,7 +360,7 @@ class RequestHeadersMixin:
             A string with the request ID or None if the header is not present.
 
         """
-        val = self.env.get("x_request_id")
+        val = self._get_value("x-request-id")
         return parse_request_id(val)
 
     @cached_property
@@ -419,7 +376,7 @@ class RequestHeadersMixin:
             A string with the user agent or None if the header is not present.
 
         """
-        return self.env.get("user_agent", "")
+        return self._get_value("user-agent")
 
 
 # --- Parsers -----
@@ -463,19 +420,36 @@ def parse_comma_separated(value: str | None) -> list[str]:
     return RX_COMMA.split(value.strip(" ,"))
 
 
-def parse_cookie(value: str | None) -> dict[str, Morsel]:
-    """Parse a cookie header.
-
-    Returns:
-        A dictionary of cookies.
-
+def parse_cookie(cookie_string: str | None) -> dict[str, str]:
     """
-    if value is None:
+    This function parses a `Cookie` HTTP header into a dict of key/value pairs.
+
+    It attempts to mimic browser cookie parsing behavior: browsers and web servers
+    frequently disregard the spec (RFC 6265) when setting and reading cookies,
+    so we attempt to suit the common scenarios here.
+
+    This function has been extracted from Starlette 1.0, which is based on Django's implementation,
+    which in turn is based on Python's `http.cookies.SimpleCookie` implementation.
+
+    Note: we are explicitly _NOT_ using `SimpleCookie.load`.
+    """
+    if cookie_string is None:
         return {}
 
-    cookie = SimpleCookie()
-    cookie.load(value)
-    return cookie
+    cookie_dict: dict[str, str] = {}
+    for chunk in cookie_string.split(";"):
+        if "=" in chunk:
+            key, val = chunk.split("=", 1)
+        else:
+            # Assume an empty name per
+            # https://bugzilla.mozilla.org/show_bug.cgi?id=169091
+            key, val = "", chunk
+        key, val = key.strip(), val.strip()
+        if key or val:
+            # unquote using Python's algorithm.
+            cookie_dict[key] = http_cookies._unquote(val)
+    return cookie_dict
+
 
 
 def parse_host(value: str | None) -> tuple[str, int]:

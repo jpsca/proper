@@ -16,7 +16,7 @@ from tempfile import TemporaryFile
 from wsgiref.headers import Headers
 
 from ..errors import MultipartError
-from ..types import TIterable
+from ..types import Iterable
 
 
 def to_bytes(data: str | bytes, enc: str = "utf8") -> bytes:
@@ -231,7 +231,7 @@ class MultipartParser(object):
             if not data:
                 break
 
-    def _iterparse(self) -> TIterable["MultipartPart"]:
+    def _iterparse(self) -> Iterable["MultipartPart"]:
         lines, line = self._lineiter(), ""
         separator = b"--" + to_bytes(self.boundary)
         terminator = b"--" + to_bytes(self.boundary) + b"--"

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import typing as t
 from importlib import import_module
@@ -29,11 +30,11 @@ from .response import Response
 from .router import Route, Router
 from .storage import Storage
 from .types import (
-    TBody,
     TEventHandler,
     TEventHandlers,
-    TStartResponse,
-    TWSGIEnvironment,
+    TReceive,
+    TScope,
+    TSend,
 )
 
 
@@ -121,13 +122,6 @@ class App(AppTest):
         # so any Jinja extension need to be setup before this line.
         self.catalog.add_folder(self.views_path)
 
-    def __call__(
-        self,
-        environ: TWSGIEnvironment,
-        start_response: TStartResponse,
-    ) -> TBody:
-        return self.wsgi_app(environ, start_response)
-
     @property
     def routes(self) -> list[Route]:
         return self.router._routes
@@ -143,40 +137,49 @@ class App(AppTest):
         self.router.debug = value
         self.catalog.auto_reload = value
 
-    def on_error(self, func: TEventHandler) -> TEventHandler:
-        """Decorator to add a function that runs if a request
-        raises an exception."""
-        self._on_error = self._on_error + (func,)
-        return func
-
-    def on_teardown(self, func: TEventHandler) -> TEventHandler:
-        """Decorator to add a function that *always* run at the end of
-        a request, even if an exception was raised before."""
-        self._on_teardown = self._on_teardown + (func,)
-        return func
-
-    def wsgi_app(
+    async def __call__(
         self,
-        environ: TWSGIEnvironment,
-        start_response: TStartResponse,
-    ) -> TBody:
-        current_response = self.do_request(environ)
-        return current_response(start_response)
+        scope: TScope,
+        receive: TReceive,
+        send: TSend,
+    ) -> None:
+        if scope["type"] == "lifespan":
+            while True:
+                message = await receive()
+                if message["type"] == "lifespan.startup":
+                    logger.info("Application is starting up...")
+                    await send({"type": "lifespan.startup.complete"})
+                elif message["type"] == "lifespan.shutdown":
+                    logger.info("Application is shutting down...")
+                    await send({"type": "lifespan.shutdown.complete"})
+                    return
+        elif scope["type"] == "http":
+            await self.handle_http(scope, receive, send)
+        elif scope["type"] == "websocket":
+            await self.handle_websocket(scope, receive, send)
 
-    def do_request(self, environ: TWSGIEnvironment) -> Response:
+    async def handle_http(
+        self,
+        scope: TScope,
+        receive: TReceive,
+        send: TSend,
+    ) -> None:
+        scope["app"] = self
         current.app = self
-
         current.request = request = self.request_cls(
+            scope,
+            receive=receive,
             max_content_length=self.config.MAX_CONTENT_LENGTH,
             max_query_size=self.config.MAX_QUERY_SIZE,
-            app=self,
-            **environ,
         )
-        current.response = response = self.response_cls(app=self, **environ)
+        current.response = response = self.response_cls(scope)
 
         try:
             self._dbs_connect()
-            self.run_pipeline(request, response)
+            # Done before threadpool, replace when pipeline is async
+            await request.read_body()
+            # Run the sync pipeline in a threadpool
+            await asyncio.to_thread(self.run_pipeline, request, response)
         except Exception as error:
             # We need this other `try...except` for handling any errors on:
             # - the custom error handlers,
@@ -192,7 +195,16 @@ class App(AppTest):
         finally:
             self._dbs_close()
 
-        return response
+        # Send response back through ASGI
+        await send({
+            "type": "http.response.start",
+            "status": response.status_code,
+            "headers": response.encode_headers(),
+        })
+        await send({
+            "type": "http.response.body",
+            "body": response.get_body_bytes(),
+        })
 
     def run_pipeline(self, request, response) -> None:
         try:
@@ -233,6 +245,14 @@ class App(AppTest):
             for func in self._on_teardown:
                 func()
 
+    async def handle_websocket(
+        self,
+        scope: TScope,
+        receive: TReceive,
+        send: TSend,
+    ) -> None:
+        pass
+
     def url_for(self, name: str, object: t.Any = None, *, _anchor: str = "", **kw) -> str:
         """Proxy for `self.router.url_for()`."""
         return self.router.url_for(name, object, _anchor=_anchor, **kw)
@@ -248,6 +268,18 @@ class App(AppTest):
     ) -> bool:
         """Proxy for `self.router.url_startswith()`."""
         return self.router.url_startswith(name, object, curr_url=curr_url, **kw)
+
+    def on_error(self, func: TEventHandler) -> TEventHandler:
+        """Decorator to add a function that runs if a request
+        raises an exception."""
+        self._on_error = self._on_error + (func,)
+        return func
+
+    def on_teardown(self, func: TEventHandler) -> TEventHandler:
+        """Decorator to add a function that *always* run at the end of
+        a request, even if an exception was raised before."""
+        self._on_teardown = self._on_teardown + (func,)
+        return func
 
     def get_signer(self, namespace: str = "", **kwargs) -> TimestampSigner:
         kwargs["salt"] = namespace.encode()

@@ -2,7 +2,7 @@ import typing as t
 
 from ..errors import TooManyRequests
 from ..helpers import make_list
-from ..types import TCallable
+from ..types import Callable
 from .concern import Concern
 
 
@@ -136,10 +136,10 @@ class RateLimiting(Concern):
     def _rate_limiting(
         self,
         *,
-        to: int | str | TCallable[[Concern], int],
-        within: int | str | TCallable[[Concern], int],
-        by: str | TCallable[[Concern], t.Any] | None = None,
-        react_with: str | TCallable[[Concern], None] | None = None,
+        to: int | str | Callable[[Concern], int],
+        within: int | str | Callable[[Concern], int],
+        by: str | Callable[[Concern], t.Any] | None = None,
+        react_with: str | Callable[[Concern], None] | None = None,
         scope: str | None = None,
         name: str | None = None,
         **kwargs,
@@ -163,7 +163,7 @@ class RateLimiting(Concern):
 
     def __get_value(
         self,
-        value: t.Any | TCallable[[Concern], t.Any],
+        value: t.Any | Callable[[Concern], t.Any],
     ) -> t.Any:
         if value is None:
             return None

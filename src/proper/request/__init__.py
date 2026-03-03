@@ -1,2 +1,2 @@
-from .make_env import *  # noqa
-from .request import *  # noqa
+from .utils import make_test_scope  # noqa
+from .request import Request  # noqa

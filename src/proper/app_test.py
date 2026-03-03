@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from .helpers import DotDict
-from .request import make_test_env
+from .request import make_test_scope
 
 
 if t.TYPE_CHECKING:
@@ -193,7 +193,7 @@ class AppTest:
             content_type, body = self._encode_multipart(params=body, upload_files=upload_files)
             headers["CONTENT_TYPE"] = content_type
 
-        environ = make_test_env(url, body=body, params=params, **headers)
+        environ = make_test_scope(url, body=body, params=params, **headers)
 
         response = self.do_request(environ)
         response.prepare_body()

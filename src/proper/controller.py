@@ -15,7 +15,7 @@ if t.TYPE_CHECKING:
     from .app import App
     from .request import Request
     from .response import Response
-    from .types import TIterable
+    from .types import Iterable
 
 
 __all__ = ("Controller",)
@@ -160,7 +160,7 @@ class StaticFilesController(Controller):
         relpath = Path(file.lstrip(os.path.sep))
         ext = "".join(relpath.suffixes)
 
-        allowed_ext: TIterable[str] | None = self.defaults.get("allowed_ext")
+        allowed_ext: Iterable[str] | None = self.defaults.get("allowed_ext")
         if allowed_ext:
             if ext not in allowed_ext:
                 raise NotFound("File does not exists")

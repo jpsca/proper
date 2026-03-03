@@ -18,7 +18,7 @@ from ..errors import (
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
-from ..types import THandler, TIterable
+from ..types import THandler, Iterable
 
 
 __all__ = (
@@ -330,7 +330,7 @@ class StaticRoute(Route):
         *,
         root: str | Path,
         name: str | None = None,
-        allowed_ext: TIterable[str] | None = (),
+        allowed_ext: Iterable[str] | None = (),
         public: bool = True,
         fingerprint: bool = True,
         host: str | None = None,

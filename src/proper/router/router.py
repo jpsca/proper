@@ -12,7 +12,7 @@ from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY
 from ..controller import Controller
 from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from ..global_context import current
-from ..types import TException, THandler, TIterable
+from ..types import TException, THandler, Iterable
 from .route import Route, StaticRoute
 
 
@@ -410,7 +410,7 @@ class BaseRouter:
         *,
         root: str | Path,
         name: str | None = None,
-        allowed_ext: TIterable[str] | None = (),
+        allowed_ext: Iterable[str] | None = (),
         public: bool = True,
         fingerprint: bool = True,
         host: str | None = None,

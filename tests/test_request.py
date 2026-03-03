@@ -28,7 +28,6 @@ from proper.request.headers import (
     parse_multivalue,
     parse_request_id,
 )
-from proper.request.make_env import make_test_env
 from proper.request.multipart import (
     MultipartParser,
     MultipartPart,
@@ -47,7 +46,7 @@ from proper.request.parse_form import (
     parse_multipart,
     parse_query_string,
 )
-from proper.request.request import Request
+from proper.request import Request, make_test_scope
 
 
 # ── helpers ─────────────────────────────────────────────────────────
@@ -67,10 +66,12 @@ def _build_multipart(parts, boundary="testboundary"):
         body += f"--{boundary}\r\n".encode()
         disp = f'form-data; name="{part["name"]}"'
         if "filename" in part:
+# ── make_test_scope ───────────────────────────────────────────────────
             disp += f'; filename="{part["filename"]}"'
         body += f"Content-Disposition: {disp}\r\n".encode()
         if "content_type" in part:
             body += f"Content-Type: {part['content_type']}\r\n".encode()
+        env = make_test_scope()
         body += b"\r\n"
         val = part["value"]
         body += val.encode() if isinstance(val, str) else val
@@ -79,23 +80,23 @@ def _build_multipart(parts, boundary="testboundary"):
     return body
 
 
-# ── make_test_env ───────────────────────────────────────────────────
 
 
+        env = make_test_scope("http://myhost:9090/hello?x=1")
 class TestMakeTestEnv:
     def test_default_env_has_wsgi_keys(self):
-        env = make_test_env()
         assert env["REQUEST_METHOD"] == "GET"
         assert env["PATH_INFO"] == "/"
         assert env["HTTP_HOST"] == "example.com"
         assert env["HTTP_PORT"] == "80"
         assert env["wsgi.url_protocol"] == "http"
+        env = make_test_scope("https://secure.example.com:443/path")
         assert env["QUERY_STRING"] == ""
         # wsgi.input should be a BytesIO
         assert hasattr(env["wsgi.input"], "read")
 
     def test_custom_url(self):
-        env = make_test_env("http://myhost:9090/hello?x=1")
+        env = make_test_scope(params={"a": "1", "b": "hello world"})
         assert env["HTTP_HOST"] == "myhost"
         assert env["HTTP_PORT"] == "9090"
         assert env["PATH_INFO"] == "/hello"
@@ -103,49 +104,47 @@ class TestMakeTestEnv:
         assert env["wsgi.url_protocol"] == "http"
 
     def test_https_url(self):
-        env = make_test_env("https://secure.example.com:443/path")
         assert env["wsgi.url_protocol"] == "https"
+        env = make_test_scope(body={"key": "val"})
         assert env["HTTP_HOST"] == "secure.example.com"
         assert env["HTTP_PORT"] == "443"
 
     def test_params_dict_produces_query_string(self):
-        env = make_test_env(params={"a": "1", "b": "hello world"})
         qs = env["QUERY_STRING"]
+        env = make_test_scope(body="raw body")
         assert "a=1" in qs
         assert "b=hello+world" in qs
         # Ensure no double-encoding: '=' and '&' must be literal
         assert "=" in qs
+        env = make_test_scope(body=b"raw bytes")
         assert "&" in qs
 
     def test_body_as_dict(self):
-        env = make_test_env(body={"key": "val"})
         stream = env["wsgi.input"]
         data = stream.read()
+        env = make_test_scope(body=bio)
         assert b"key=val" in data
 
     def test_body_as_str(self):
-        env = make_test_env(body="raw body")
         stream = env["wsgi.input"]
+        env = make_test_scope(body=b"")
         assert stream.read() == b"raw body"
 
     def test_body_as_bytes(self):
-        env = make_test_env(body=b"raw bytes")
         stream = env["wsgi.input"]
         assert stream.read() == b"raw bytes"
 
     def test_body_as_bytesio(self):
         bio = BytesIO(b"stream data")
-        env = make_test_env(body=bio)
         assert env["wsgi.input"] is bio
         assert env["wsgi.input"].read() == b"stream data"
 
     def test_empty_body(self):
-        env = make_test_env(body=b"")
         stream = env["wsgi.input"]
         assert stream.read() == b""
 
     def test_extra_kw_merged(self):
-        env = make_test_env(REQUEST_METHOD="POST", CONTENT_TYPE="text/plain")
+        env = make_test_scope(REQUEST_METHOD="POST", CONTENT_TYPE="text/plain")
         assert env["REQUEST_METHOD"] == "POST"
         assert env["CONTENT_TYPE"] == "text/plain"
 
@@ -170,7 +169,7 @@ class TestNormalizedEnv:
 
 class TestRequestHeadersMixin:
     def _make(self, **extra):
-        env = make_test_env(**extra)
+        env = make_test_scope(**extra)
         return RequestHeadersMixin(env)
 
     def test_protocol_defaults_to_http(self):
@@ -234,7 +233,7 @@ class TestRequestHeadersMixin:
 
 class TestHeaderProperties:
     def _make(self, **extra):
-        env = make_test_env(**extra)
+        env = make_test_scope(**extra)
         return RequestHeadersMixin(env)
 
     def test_accept_parsing(self):
@@ -302,8 +301,8 @@ class TestHeaderProperties:
         assert h.host_with_port == "example.com"
 
     def test_host_with_port_non_default(self):
-        # make_test_env sets HTTP_HOST without port; pass host:port directly
-        env = make_test_env(HTTP_HOST="example.com:8080")
+        # make_test_scope sets HTTP_HOST without port; pass host:port directly
+        env = make_test_scope(HTTP_HOST="example.com:8080")
         h = RequestHeadersMixin(env)
         assert h.host_with_port == "example.com:8080"
 
@@ -576,13 +575,13 @@ class TestRequest:
         assert req.session["foo"] == "bar"
 
     def test_body_property(self):
-        env = make_test_env(body=b"hello")
+        env = make_test_scope(body=b"hello")
         req = Request(**env)
         assert req.body.read() == b"hello"
 
     def test_body_fallback_empty(self):
         req = Request()
-        # Default make_test_env body is empty BytesIO
+        # Default make_test_scope body is empty BytesIO
         data = req.body.read()
         assert data == b""
 
@@ -596,7 +595,7 @@ class TestRequest:
         assert req.flashes == []
 
     def test_form_lazy_caching(self):
-        env = make_test_env(
+        env = make_test_scope(
             body=b"key=value",
             REQUEST_METHOD="POST",
             CONTENT_TYPE="application/x-www-form-urlencoded",
@@ -609,12 +608,12 @@ class TestRequest:
         assert form1["key"] == ["value"]
 
     def test_form_get_returns_empty(self):
-        env = make_test_env(REQUEST_METHOD="GET")
+        env = make_test_scope(REQUEST_METHOD="GET")
         req = Request(**env)
         assert len(req.form) == 0
 
     def test_query_lazy_caching(self):
-        env = make_test_env(params={"q": "test"})
+        env = make_test_scope(params={"q": "test"})
         req = Request(**env)
         q1 = req.query
         q2 = req.query
@@ -622,37 +621,37 @@ class TestRequest:
         assert q1["q"] == ["test"]
 
     def test_query_string(self):
-        env = make_test_env(params={"a": "1"})
+        env = make_test_scope(params={"a": "1"})
         req = Request(**env)
         assert "a=1" in req.query_string
 
     def test_url_with_query(self):
-        env = make_test_env("/hello", params={"x": "1"})
+        env = make_test_scope("/hello", params={"x": "1"})
         req = Request(**env)
         assert req.url == "/hello?x=1"
 
     def test_get_url_without_query(self):
-        env = make_test_env("/hello", params={"x": "1"})
+        env = make_test_scope("/hello", params={"x": "1"})
         req = Request(**env)
         assert req.get_url(include_query=False) == "/hello"
 
     def test_url_no_query(self):
-        env = make_test_env("/hello")
+        env = make_test_scope("/hello")
         req = Request(**env)
         assert req.url == "/hello"
 
     def test_get_cookie_found(self):
-        env = make_test_env(HTTP_COOKIE="name=Jon")
+        env = make_test_scope(HTTP_COOKIE="name=Jon")
         req = Request(**env)
         assert req.get_cookie("name") == "Jon"
 
     def test_get_cookie_not_found(self):
-        env = make_test_env()
+        env = make_test_scope()
         req = Request(**env)
         assert req.get_cookie("missing") is None
 
     def test_get_cookie_default(self):
-        env = make_test_env()
+        env = make_test_scope()
         req = Request(**env)
         assert req.get_cookie("missing", "fallback") == "fallback"
 
@@ -665,7 +664,7 @@ class TestRequest:
         app = MagicMock()
         app.get_serializer.return_value = s
 
-        env = make_test_env(HTTP_COOKIE=f"token={signed}")
+        env = make_test_scope(HTTP_COOKIE=f"token={signed}")
         req = Request(app=app, **env)
         assert req.get_signed_cookie("token") == "hello"
 
@@ -678,7 +677,7 @@ class TestRequest:
         app = MagicMock()
         app.get_serializer.return_value = s
 
-        env = make_test_env(HTTP_COOKIE="token=tampered-value")
+        env = make_test_scope(HTTP_COOKIE="token=tampered-value")
         req = Request(app=app, **env)
         assert req.get_signed_cookie("token", salt="x") is None
 
@@ -691,7 +690,7 @@ class TestRequest:
         app = MagicMock()
         app.get_serializer.return_value = s
 
-        env = make_test_env()
+        env = make_test_scope()
         req = Request(app=app, **env)
         assert req.get_signed_cookie("missing", "default", salt="x") == "default"
 
@@ -1262,13 +1261,13 @@ class TestMultipartPart:
 
 class TestHeadersMixinAdditional:
     def _make(self, **extra):
-        env = make_test_env(**extra)
+        env = make_test_scope(**extra)
         return RequestHeadersMixin(env)
 
     def test_normalize_env_http_prefix_kept_when_unprefixed_exists(self):
         """When a non-HTTP_ key exists (e.g. CONTENT_TYPE), and HTTP_CONTENT_TYPE
         also exists, the HTTP_ variant is kept with its full normalized name."""
-        env = make_test_env(CONTENT_TYPE="text/plain")
+        env = make_test_scope(CONTENT_TYPE="text/plain")
         env["HTTP_CONTENT_TYPE"] = "text/html"
         h = RequestHeadersMixin(env)
         # The unprefixed content_type was already set by CONTENT_TYPE,
@@ -1350,13 +1349,13 @@ class TestRequestAdditional:
         app = MagicMock()
         app.get_serializer.return_value = serializer
 
-        env = make_test_env(HTTP_COOKIE="token=signed-data")
+        env = make_test_scope(HTTP_COOKIE="token=signed-data")
         req = Request(app=app, **env)
         result = req.get_signed_cookie("token")
         assert result == "bytes-value"
 
     def test_form_head_returns_empty(self):
-        env = make_test_env(REQUEST_METHOD="HEAD")
+        env = make_test_scope(REQUEST_METHOD="HEAD")
         req = Request(**env)
         assert len(req.form) == 0
 

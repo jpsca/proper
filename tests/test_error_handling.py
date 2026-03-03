@@ -398,9 +398,9 @@ class TestDoRequestErrorFlow:
             Route(method="GET", path="/explode", to=_ExplodingController.index)
         )
         current.app = app
-        from proper.request import make_test_env
+        from proper.request import make_test_scope
 
-        environ = make_test_env("/explode", REQUEST_METHOD="GET")
+        environ = make_test_scope("/explode", REQUEST_METHOD="GET")
         response = app.do_request(environ)
         assert response.error is not None
         assert isinstance(response.error, ValueError)
