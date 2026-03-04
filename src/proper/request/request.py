@@ -1,3 +1,4 @@
+import asyncio
 import typing as t
 
 import itsdangerous
@@ -12,13 +13,13 @@ from ..errors import (
 from ..helpers import DotDict, MultiDict, logger
 from ..router import Route
 from ..types import AsyncGenerator, TReceive, TScope
-from .headers import RequestHeadersMixin
-from .parse_form import (
+from .formparser import (
     parse_json,
     parse_multipart,
     parse_options_header,
     parse_query_string,
 )
+from .headers import RequestHeadersMixin
 from .utils import make_test_scope
 
 
@@ -193,16 +194,23 @@ class Request(RequestHeadersMixin):
         receive: TReceive = empty_receive,
         max_content_length: int = -1,
         max_query_size: int | None = None,
+        max_files: int = 1000,
+        max_fields: int = 1000,
+        max_part_size: int = 2 ** 20,
     ) -> None:
         self.scope = scope or make_test_scope()
 
         self._receive = receive
+        self._loop = asyncio.get_event_loop()
         self._body: bytes | None = None
         self._stream_consumed = False
         self._is_disconnected = False
 
         self.max_content_length = max_content_length
         self.max_query_size = max_query_size
+        self.max_files = max_files
+        self.max_fields = max_fields
+        self.max_part_size = max_part_size
 
         self._session = DotDict()
         super().__init__()
@@ -211,7 +219,7 @@ class Request(RequestHeadersMixin):
         return f"<Request {self.method} “{self.path}”>"
 
     async def _get_stream(self) -> AsyncGenerator[bytes, None]:
-        if hasattr(self, "_body"):
+        if self._body is not None:
             yield self._body
             yield b""
             return
@@ -239,7 +247,7 @@ class Request(RequestHeadersMixin):
         async for chunk in self._get_stream():
             chunks.append(chunk)
             len_body += len(chunk)
-            if self.max_content_length and len_body > self.max_content_length:
+            if self.max_content_length > 0 and len_body > self.max_content_length:
                 raise RequestEntityTooLarge("Maximum content length exceeded.")
 
         if len_body > self.content_length:
@@ -250,39 +258,67 @@ class Request(RequestHeadersMixin):
         self._body = b"".join(chunks)
         return self._body
 
-    async def _get_form(self, strict: bool = True) -> MultiDict:
+    async def _get_form(self) -> MultiDict:
+        """Parse the request body based on Content-Type."""
+        if self._form is not None:
+            return self._form
+
         # GET and HEAD can't have form data.
         if self.method in (GET, HEAD):
-            return MultiDict()
+            self._form = MultiDict()
+            return self._form
 
         if not self.content_length:
-            return MultiDict()
+            self._form = MultiDict()
+            return self._form
 
         content_type, options = parse_options_header(self.content_type)
         encoding = options.get("charset", "utf-8")
 
         if content_type == "multipart/form-data":
-            return parse_multipart(
+            self._form = await parse_multipart(
                 self._get_stream(),
-                self.content_length,
                 options,
                 encoding=encoding,
-                strict=strict,
+                max_files=self.max_files,
+                max_fields=self.max_fields,
+                max_part_size=self.max_part_size,
             )
+            return self._form
 
         if content_type in (
             "application/x-www-form-urlencoded",
             "application/x-url-encoded",
         ):
             body = await self._get_body()
-            return parse_query_string(body, encoding=encoding, strict=strict)
+            self._form = parse_query_string(body.decode(encoding), encoding=encoding)
+            return self._form
 
         # application/json
         if content_type.startswith("application/json"):
             body = await self._get_body()
-            return parse_json(body, strict=strict)
+            self._form = parse_json(body.decode(encoding))
+            return self._form
 
         raise UnsupportedMediaType("Unsupported Content-Type")
+
+    @property
+    def form(self) -> MultiDict:
+        """Parse the request body and return the form data.
+
+        This is a sync method that bridges to the async ``_get_form``,
+        intended to be called from the sync pipeline running in a thread
+        (via ``asyncio.to_thread``).
+
+        Results are cached — subsequent calls return the same MultiDict.
+        """
+        if self._form is not None:
+            return self._form
+        future = asyncio.run_coroutine_threadsafe(
+            self._get_form(),
+            self._loop,
+        )
+        return future.result()
 
     @property
     def app(self) -> "App":
@@ -307,15 +343,6 @@ class Request(RequestHeadersMixin):
         return self.session.get(FLASHES_SESSION_KEY, [])
 
     @property
-    def form(self) -> MultiDict:
-        """A `MultiDict` object containing the parsed body data, like the
-        one sent by a HTML form with a POST, **including** the files.
-        """
-        if self._form is None:
-            self._form = self._parse_form()
-        return self._form
-
-    @property
     def query(self) -> MultiDict:
         """A `MultiDict` object containing the query string data."""
         if self._query is None:
@@ -332,7 +359,8 @@ class Request(RequestHeadersMixin):
     @property
     def query_string(self) -> str:
         """Returns the query string."""
-        return self.scope.get("query_string", "")
+        qs = self.scope.get("query_string", b"")
+        return qs.decode("latin-1") if isinstance(qs, bytes) else qs
 
     @property
     def url(self) -> str:

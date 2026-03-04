@@ -3,7 +3,7 @@ import typing as t
 from pathlib import Path
 
 from proper.helpers.imports import secure_filename
-from proper.request.multipart import copy_file
+from proper.request.formparser import copy_file
 from .service import Service
 
 

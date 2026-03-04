@@ -36,6 +36,7 @@ dependencies = [
     "peewee-migrate >=1.12.1,< 2",
     "proper-cli ~= 1.2",
     "python-dateutil ~= 2.9.0",
+    "python-multipart>=0.0.22",
     "traceback-with-variables ~= 2.0.4",
     "types-peewee ~= 3.17.7.20241017",
     "tzdata>=2025.3",

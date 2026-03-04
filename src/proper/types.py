@@ -11,7 +11,7 @@ from uuid import UUID
 
 
 if t.TYPE_CHECKING:
-    from proper.request.multipart import MultipartPart
+    from proper.request.formparser import MultipartPart
 
 
 TScope = MutableMapping[str, t.Any]
