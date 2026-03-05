@@ -9,8 +9,6 @@ from .http import (  # noqa
     format_http_date,
     format_locale,
     split_locale,
-    tunnel_decode,
-    tunnel_encode,
 )
 from .imports import (  # noqa
     ImportStringError,

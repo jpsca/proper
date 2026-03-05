@@ -167,16 +167,27 @@ class App(AppTest):
     ) -> None:
         response = await self.do_request(scope, receive)
         status, headers, body = response.prepare()
-        # Send response back through ASGI
         await send({
             "type": "http.response.start",
             "status": status,
             "headers": headers,
         })
-        await send({
-            "type": "http.response.body",
-            "body": body,
-        })
+        if isinstance(body, bytes):
+            await send({"type": "http.response.body", "body": body})
+        else:
+            # Stream iterables (e.g. FileWrapper) in chunks
+            try:
+                for chunk in body:
+                    await send({
+                        "type": "http.response.body",
+                        "body": chunk,
+                        "more_body": True,
+                    })
+                await send({"type": "http.response.body", "body": b""})
+            finally:
+                body_close = getattr(body, "close", None)
+                if callable(body_close):
+                    body_close()
 
     async def do_request(self, scope: TScope, receive: TReceive) -> Response:
         scope["app"] = self

@@ -279,24 +279,27 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     def get_headers_list(self) -> list[tuple[str, str]]:
         return [*self.get_header_tuples(), *self.get_cookie_tuples()]
 
-    def prepare(self) -> tuple[int, list[tuple[bytes, bytes]], bytes]:
+    def prepare(
+        self,
+    ) -> "tuple[int, list[tuple[bytes, bytes]], bytes | Iterable[bytes]]":
         """Prepare the response for sending through ASGI."""
         body = self.body or b""
 
         if isinstance(body, str):
-            body_bytes = body.encode(self.charset)
+            body_out: bytes | Iterable[bytes] = body.encode(self.charset)
         elif isinstance(body, bytes):
-            body_bytes = body
+            body_out = body
         else:
-            # Iterable (e.g. FileWrapper) — consume into bytes
-            body_bytes = b"".join(body)
+            # Iterable (e.g. FileWrapper) — pass through for streaming.
+            # Content-Length should already be set by the caller (e.g. send_file).
+            body_out = body
 
-        if not self.content_length:
-            self.set_content_length(len(body_bytes))
+        if isinstance(body_out, bytes) and not self.content_length:
+            self.set_content_length(len(body_out))
 
         enc_headers = [
             (name.encode("latin-1"), value.encode("latin-1"))
             for name, value in self.get_headers_list()
         ]
 
-        return self.status, enc_headers, body_bytes
+        return self.status, enc_headers, body_out

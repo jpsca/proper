@@ -144,10 +144,10 @@ class Request(RequestHeadersMixin):
             the protocol.
 
         remote_ip:
-            IP address of the closest client or proxy to the WSGI server.
-            This will use the `forwarded` header to try to found the real
+            IP address of the closest client or proxy to the server.
+            This will use the `forwarded` header to try to find the real
             IP address of the client if your application is behind one or
-            more reverse proxies,
+            more reverse proxies.
 
         request_id:
             Parse the `x-request-id` header for a value that uniquely

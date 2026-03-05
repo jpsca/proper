@@ -306,11 +306,11 @@ class RequestHeadersMixin:
 
     @property
     def remote_ip(self) -> str:
-        """IP address of the closest client or proxy to the WSGI server.
+        """IP address of the closest client or proxy to the server.
 
-        This will use the `Forwarded` header to try to found the real
+        This will use the `Forwarded` header to try to find the real
         IP address of the client if your application is behind one or
-        more reverse proxies,
+        more reverse proxies.
 
         Returns:
             A string with the IP address.

@@ -397,7 +397,7 @@ return self.render(json={"error": "not found"}, status=not_found)
 return self.render(text="created", status=created)
 ```
 
-Status codes are imported from `proper.status` as strings like `"422 Unprocessable Entity"`.
+Status codes are imported from `proper.status` as integers (e.g., `proper.status.unprocessable` is `422`).
 
 ### 5.6 Return Values
 

@@ -1,5 +1,5 @@
 # Dockerfile.dev
-FROM python:3.14
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -23,7 +23,7 @@ RUN chown ${USER}:appgroup /app
 # Install only dependencies
 COPY --chown=${USER}:appgroup pyproject.toml uv.lock* *.whl ./
 RUN \
-  python -m venv --prompt '.' .venv \
+  uv venv --prompt '.' .venv \
   && uv sync --active --frozen --no-install-project --group dev --group test
 
 # Install project

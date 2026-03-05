@@ -24,7 +24,7 @@ dependencies = [
 	"peewee",
 	"proper-cli",
   "formidable",
-  "gunicorn~=23.0.0",
+  "uvicorn[standard]",
   "proper",
   # "psycopg[binary,pool]",
 ]

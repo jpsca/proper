@@ -76,7 +76,7 @@ The Jx catalog exposes several globals in every template:
 
 | Global              | Description                                      |
 |---------------------|--------------------------------------------------|
-| `current`           | Thread-local with the current `request`, `app`, etc. |
+| `current`           | Request-scoped context with the current `request`, `app`, etc. |
 | `url_for()`         | Generate URLs for named routes                   |
 | `url_is()`          | Check if the current URL matches a route         |
 | `url_startswith()`  | Check if the current URL starts with a prefix    |

@@ -62,6 +62,11 @@ Read the documentation of these libraries to understand how to work with them in
 
 ## 2. Request Lifecycle
 
+Proper is an ASGI application. However, the code of the web applications that use Proper (meaning, the code that you write) is
+regular sync python.
+
+The async boundary is handled by the framework, he ASGI entry point receives the request asynchronously, parses the body, then runs the sync middleware pipeline in a thread via `asyncio.to_thread()`.
+
 Every request flows through a middleware pipeline in this exact order:
 
 1. **copy_session** — reads the signed `_session` cookie into `request.session`
@@ -261,7 +266,7 @@ def show(self):
 | 451    | `UnavailableForLegalReasons` |                                    |
 | 500    | `InternalServerError`      | Aliases: `ServerError`, `Error`      |
 
-All inherit from `HTTPError`. Each has a `status_code` property and an optional message.
+All inherit from `HTTPError`. Each has a `status` attribute and an optional message.
 
 
 ## 9. Helper Types
@@ -299,7 +304,7 @@ request.query.get("count", type=int) # type-casts the value
 The `proper` command provides these subcommands:
 
 ```bash
-proper run                          # Start dev server (Gunicorn, port 2300)
+proper run                          # Start dev server (Uvicorn, port 2300)
 proper routes                       # Display all registered routes
 
 proper g resource Photo title:str   # Generate model + controller + form + views

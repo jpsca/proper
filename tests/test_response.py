@@ -145,7 +145,8 @@ class TestPrepare:
         resp.body = [b"chunk1", b"chunk2"]
         resp.set_content_length(12)
         status, headers, body = resp.prepare()
-        assert body == b"chunk1chunk2"
+        # Iterables are passed through for streaming, not joined
+        assert b"".join(body) == b"chunk1chunk2"
 
     def test_content_length_auto_set_from_str(self):
         resp = _resp()
@@ -186,7 +187,8 @@ class TestPrepare:
         resp.body = FileWrapper(f, block_size=4)
         resp.set_content_length(12)
         status, headers, body = resp.prepare()
-        assert body == b"file content"
+        # FileWrapper is passed through for streaming
+        assert b"".join(body) == b"file content"
 
 
 # ── redirect_to ──────────────────────────────────────────────────────

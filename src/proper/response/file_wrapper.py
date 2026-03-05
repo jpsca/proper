@@ -7,15 +7,11 @@ __all__ = ("FileWrapper",)
 
 
 class FileWrapper:
-    """This class can be used to convert a file-like object into
-    an iterable. It yields `block_size` blocks until the file is fully read.
-    You should not use this class directly but rather use the
-    `Request.wrap_file` method that uses the WSGI server's file wrapper
-    support if it's available.
+    """Converts a file-like object into an iterable of chunks.
 
-    More information about file wrappers is available in
-    [PEP 3333](https://peps.python.org/pep-3333/#optional-platform-specific-file-handling).
-
+    Yields `block_size` blocks until the file is fully read.
+    Used by `Response.send_file` to stream file responses without
+    buffering the entire file in memory.
 
     Arguments:
 

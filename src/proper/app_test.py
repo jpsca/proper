@@ -214,8 +214,10 @@ class AppTest:
         )
 
         response = self.do_test_request(scope, body_bytes)
-        resp_status, enc_headers, resp_body_bytes = response.prepare()
-        body_str = resp_body_bytes.decode(response.charset) if resp_body_bytes else ""
+        resp_status, enc_headers, resp_body = response.prepare()
+        if not isinstance(resp_body, bytes):
+            resp_body = b"".join(resp_body)
+        body_str = resp_body.decode(response.charset) if resp_body else ""
         result = DotDict(
             status=resp_status,
             body=body_str,

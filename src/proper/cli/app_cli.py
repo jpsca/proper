@@ -1,4 +1,3 @@
-import os
 import typing as t
 from functools import wraps
 
@@ -30,15 +29,34 @@ def get_cli(app: "App") -> type[Cli]:
     return t.cast(type[Cli], type("appCL", (Cli,), attrs))
 
 
-def run(self, config="gunicorn.dev.py"):
-    """Run the development server using the Gunicorn config file.
+def run(self, config="uvicorn.dev.py"):
+    """Run the development server.
 
     Arguments:
-        config ["gunicorn.dev.py"]:
-            The Gunicorn config file to use.
+        config ["uvicorn.dev.py"]:
+            A Python file whose module-level variables are passed
+            as keyword arguments to `uvicorn.run()`.
 
     """
-    os.system(f"gunicorn -c {config}")
+    import importlib.util
+
+    import uvicorn
+
+    from ..helpers import show_banner, show_welcome
+
+    spec = importlib.util.spec_from_file_location("_uvicorn_config", config)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    kwargs = {
+        k: v for k, v in vars(mod).items()
+        if not k.startswith("_")
+    }
+
+    show_banner()
+    show_welcome(kwargs.get("host", "0.0.0.0"), kwargs.get("port", 2300))
+    uvicorn.run(**kwargs)
 
 
 def get_routes_cmd(app: "App") -> t.Callable:

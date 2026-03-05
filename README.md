@@ -34,7 +34,7 @@ A web framework optimized for programmer happiness.
 - "Everyone is an adult here".
 	Run with scissors if you must.
 
-- Regular WSGI is great.
+- ASGI-native, sync user code.
 
 
 # Sources of inspirations
