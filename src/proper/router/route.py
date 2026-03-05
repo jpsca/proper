@@ -18,7 +18,7 @@ from ..errors import (
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
-from ..types import THandler, Iterable
+from ..types import Iterable, THandler
 
 
 __all__ = (
@@ -118,7 +118,7 @@ class Route:
         to: THandler | None = None,
         host: str | None = None,
         redirect: str | None = None,
-        redirect_status: str = status.temporary_redirect,
+        redirect_status: int = status.temporary_redirect,
         defaults: dict | None = None,
     ) -> None:
         self.name = name

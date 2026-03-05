@@ -163,7 +163,7 @@ class TestRouteInit:
 
     def test_redirect_status_default(self):
         r = Route("GET", "/old", redirect="/new")
-        assert "307" in r.redirect_status
+        assert r.redirect_status == 307
 
 
 # ---------------------------------------------------------------------------

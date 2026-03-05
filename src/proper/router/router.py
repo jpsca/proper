@@ -12,7 +12,7 @@ from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY
 from ..controller import Controller
 from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from ..global_context import current
-from ..types import TException, THandler, Iterable
+from ..types import Iterable, TException, THandler
 from .route import Route, StaticRoute
 
 
@@ -214,7 +214,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         redirect: str | None = None,
-        redirect_status: str = status.temporary_redirect,
+        redirect_status: int = status.temporary_redirect,
         defaults: dict | None = None,
     ) -> TDecorator:
         r"""Function or method decorator to register a GET route.
@@ -291,7 +291,7 @@ class BaseRouter:
         name: str | None = None,
         host: str | None = None,
         redirect: str | None = None,
-        redirect_status: str = status.temporary_redirect,
+        redirect_status: int = status.temporary_redirect,
         defaults: dict | None = None,
     ) -> TDecorator:
         """Decorator to register an OPTIONS route. See `get()` for argument details."""

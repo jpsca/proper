@@ -24,14 +24,17 @@ from proper.errors import (
     TooManyRequests,
 )
 from proper.helpers import MultiDict
+from proper.request.utils import make_test_scope
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
-def _make(cls, app, **request_kw):
-    request = Request(**request_kw)
-    response = Response()
-    return cls(app, request, response)
+def _make(cls, app, **scope_kw):
+    scope = make_test_scope(**scope_kw)
+    scope["app"] = app
+    request = Request(scope)
+    response = Response(scope)
+    return cls(request, response)
 
 
 # ── Concern base class ───────────────────────────────────────────────
@@ -78,7 +81,7 @@ class TestOriginProtection:
         co.app.config["TRUSTED_ORIGINS"] = ["https://trusted.com"]
         co.request.method = method
         co.request.matched_action = "action"
-        co.request.env["origin"] = "https://trusted.com"
+        co.request.headers["origin"] = "https://trusted.com"
         co._dispatch("action")
 
     @pytest.mark.parametrize("value", ["same-origin", "none"])
@@ -87,7 +90,7 @@ class TestOriginProtection:
         co = _make(OriginCtrl, app)
         co.request.method = method
         co.request.matched_action = "action"
-        co.request.env["sec_fetch_site"] = value
+        co.request.headers["sec-fetch-site"] = value
         co._dispatch("action")
 
     @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -97,7 +100,7 @@ class TestOriginProtection:
         co.request.matched_action = "action"
         co.request.host = "example.com"
         co.request.port = 8080
-        co.request.env["origin"] = "example.com:8080"
+        co.request.headers["origin"] = "example.com:8080"
         co._dispatch("action")
 
     @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -107,7 +110,7 @@ class TestOriginProtection:
         co.request.matched_action = "action"
         co.request.host = "example.com"
         co.request.port = 443
-        co.request.env["origin"] = "https://evil.com"
+        co.request.headers["origin"] = "https://evil.com"
         with pytest.raises(InvalidOrigin):
             co._dispatch("action")
 
@@ -116,7 +119,7 @@ class TestOriginProtection:
         co = _make(OriginCtrl, app)
         co.request.method = method
         co.request.matched_action = "action"
-        co.request.env["sec_fetch_site"] = "cross-site"
+        co.request.headers["sec-fetch-site"] = "cross-site"
         with pytest.raises(InvalidOrigin):
             co._dispatch("action")
 
@@ -173,7 +176,7 @@ class TestRequestForgeryProtection:
         mask = "x" * CSRF_TOKEN_LENGTH
         token = "a" * CSRF_TOKEN_LENGTH
         co.request.session = {CSRF_SESSION_KEY: token}
-        co.request._form = MultiDict({CSRF_FORM_KEY: mask + token})
+        co.request.form = MultiDict({CSRF_FORM_KEY: mask + token})
         co._dispatch("action")
 
     @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -185,7 +188,7 @@ class TestRequestForgeryProtection:
         token = "a" * CSRF_TOKEN_LENGTH
         bad = "b" * CSRF_TOKEN_LENGTH
         co.request.session = {CSRF_SESSION_KEY: token}
-        co.request._form = MultiDict({CSRF_FORM_KEY: mask + bad})
+        co.request.form = MultiDict({CSRF_FORM_KEY: mask + bad})
         with pytest.raises(InvalidCSRFToken):
             co._dispatch("action")
 
@@ -197,7 +200,7 @@ class TestRequestForgeryProtection:
         mask = "x" * CSRF_TOKEN_LENGTH
         token = "a" * CSRF_TOKEN_LENGTH
         co.request.session = {CSRF_SESSION_KEY: token}
-        co.request.env[CSRF_HEADER] = mask + token
+        co.request.headers["x-csrf-token"] = mask + token
         co._dispatch("action")
 
     @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
@@ -209,7 +212,7 @@ class TestRequestForgeryProtection:
         token = "a" * CSRF_TOKEN_LENGTH
         bad = "b" * CSRF_TOKEN_LENGTH
         co.request.session = {CSRF_SESSION_KEY: token}
-        co.request.env[CSRF_HEADER] = mask + bad
+        co.request.headers["x-csrf-token"] = mask + bad
         with pytest.raises(InvalidCSRFToken):
             co._dispatch("action")
 
@@ -219,7 +222,7 @@ class TestRequestForgeryProtection:
         co.request.method = POST
         co.request.matched_action = "action"
         co.request.session = {CSRF_SESSION_KEY: token}
-        co.request._form = MultiDict({CSRF_FORM_KEY: token})
+        co.request.form = MultiDict({CSRF_FORM_KEY: token})
         with pytest.raises(MissingCSRFToken):
             co._dispatch("action")
 
@@ -378,7 +381,7 @@ class TestRateLimiting:
         co = _make(cls, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["remote_addr"] = "127.0.0.1"
+        co.request.scope["client"] = ("127.0.0.1", 0)
         app.cache = MagicMock()
         return co
 
@@ -425,7 +428,7 @@ class TestRateLimiting:
         co = _make(RateLimitOnlyCtrl, app)
         co.request.method = POST
         co.request.matched_action = "create"
-        co.request.env["remote_addr"] = "127.0.0.1"
+        co.request.scope["client"] = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 3
         with pytest.raises(TooManyRequests):
@@ -444,7 +447,7 @@ class TestRateLimiting:
         co = _make(RateLimitExcludeCtrl, app)
         co.request.method = POST
         co.request.matched_action = "create"
-        co.request.env["remote_addr"] = "127.0.0.1"
+        co.request.scope["client"] = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 3
         with pytest.raises(TooManyRequests):
@@ -454,7 +457,7 @@ class TestRateLimiting:
         co = _make(RateLimitMultiCtrl, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["remote_addr"] = "127.0.0.1"
+        co.request.scope["client"] = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 1
         co._dispatch("action")
@@ -465,7 +468,7 @@ class TestRateLimiting:
         co = _make(RateLimitMultiCtrl, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["remote_addr"] = "127.0.0.1"
+        co.request.scope["client"] = ("127.0.0.1", 0)
         app.cache = MagicMock()
         # First limit passes (count=1 <= to=2), second exceeds (count=6 > to=5)
         app.cache.increment.side_effect = [1, 6]
@@ -508,7 +511,7 @@ class TestRateLimiting:
         co = _make(RateLimitCtrl, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["remote_addr"] = "127.0.0.1"
+        co.request.scope["client"] = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 1
 
@@ -582,18 +585,16 @@ class LocaleCtrl(CurrentLocale, Controller):
 
 class TestCurrentLocale:
     def test_sets_locale_from_params(self, app):
-        co = _make(LocaleCtrl, app)
+        co = _make(LocaleCtrl, app, url="/?locale=fr")
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["query_string"] = "locale=fr"
         co._dispatch("action")
         assert current.locale == "fr"
 
     def test_sets_locale_from_cookie(self, app):
-        co = _make(LocaleCtrl, app)
+        co = _make(LocaleCtrl, app, headers=[("cookie", "locale=de")])
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["cookie"] = "locale=de"
         co._dispatch("action")
         assert current.locale == "de"
 
@@ -628,16 +629,14 @@ class TestCurrentLocale:
         assert co.etag == ""
 
     def test_param_locale_overrides_cookie(self, app):
-        co = _make(LocaleCtrl, app)
+        co = _make(LocaleCtrl, app, url="/?locale=fr", headers=[("cookie", "locale=de")])
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["query_string"] = "locale=fr"
-        co.request.env["cookie"] = "locale=de"
         co._dispatch("action")
         assert current.locale == "fr"
 
     def test_i18n_negotiate_locale(self, app):
-        co = _make(LocaleCtrl, app)
+        co = _make(LocaleCtrl, app, headers=[("accept-language", "pt-BR,pt;q=0.9")])
         co.request.method = GET
         co.request.matched_action = "action"
         current.user = None
@@ -645,7 +644,6 @@ class TestCurrentLocale:
         mock_i18n = MagicMock()
         mock_i18n.negotiate_locale.return_value = "pt"
         co.app.i18n = mock_i18n
-        co.request.env["accept_language"] = "pt-BR,pt;q=0.9"
 
         co._dispatch("action")
         assert current.locale == "pt"
@@ -660,18 +658,16 @@ class TzCtrl(CurrentTimezone, Controller):
 
 class TestCurrentTimezone:
     def test_sets_timezone_from_params(self, app):
-        co = _make(TzCtrl, app)
+        co = _make(TzCtrl, app, url="/?timezone=America/New_York")
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["query_string"] = "timezone=America/New_York"
         co._dispatch("action")
         assert current.timezone == "America/New_York"
 
     def test_sets_timezone_from_cookie(self, app):
-        co = _make(TzCtrl, app)
+        co = _make(TzCtrl, app, headers=[("cookie", "timezone=Europe/London")])
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["cookie"] = "timezone=Europe/London"
         co._dispatch("action")
         assert current.timezone == "Europe/London"
 
@@ -705,10 +701,8 @@ class TestCurrentTimezone:
         assert co.etag == ""
 
     def test_param_timezone_overrides_cookie(self, app):
-        co = _make(TzCtrl, app)
+        co = _make(TzCtrl, app, url="/?timezone=US/Eastern", headers=[("cookie", "timezone=US/Pacific")])
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.env["query_string"] = "timezone=US/Eastern"
-        co.request.env["cookie"] = "timezone=US/Pacific"
         co._dispatch("action")
         assert current.timezone == "US/Eastern"

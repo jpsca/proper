@@ -5,6 +5,7 @@ from proper.concerns import OriginProtection
 from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from proper.controller import Controller
 from proper.errors import InvalidOrigin
+from proper.request.utils import make_test_scope
 
 
 class _TestController(Controller, OriginProtection):
@@ -12,11 +13,17 @@ class _TestController(Controller, OriginProtection):
         return "OK"
 
 
+def _make_co(app, **scope_kw):
+    scope = make_test_scope(**scope_kw)
+    scope["app"] = app
+    request = Request(scope)
+    response = Response(scope)
+    return _TestController(request, response)
+
+
 @pytest.fixture
 def co(app):
-    request = Request()
-    response = Response()
-    return _TestController(app, request, response)
+    return _make_co(app)
 
 
 # Allow all safe methods (GET, HEAD, OPTIONS, QUERY)
@@ -47,7 +54,7 @@ def test_trusted_origin_allowed(co, method):
     co.app.config["TRUSTED_ORIGINS"] = ["https://trusted.com", "https://another-trusted.com:8080"]
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["origin"] = "https://trusted.com"
+    co.request.headers["origin"] = "https://trusted.com"
 
     # Should not raise InvalidOrigin
     co._dispatch("action")
@@ -58,7 +65,7 @@ def test_trusted_origin_with_port_allowed(co, method):
     co.app.config["TRUSTED_ORIGINS"] = ["https://trusted.com:8080"]
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["origin"] = "https://trusted.com:8080"
+    co.request.headers["origin"] = "https://trusted.com:8080"
 
     # Should not raise InvalidOrigin
     co._dispatch("action")
@@ -70,7 +77,7 @@ def test_trusted_origin_with_port_allowed(co, method):
 def test_sec_fetch_site_same_origin_allowed(co, value, method):
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["sec_fetch_site"] = value
+    co.request.headers["sec-fetch-site"] = value
 
     # Should not raise InvalidOrigin
     co._dispatch("action")
@@ -84,7 +91,7 @@ def test_matching_origin_and_host_allowed(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 8080
-    co.request.env["origin"] = "example.com:8080"
+    co.request.headers["origin"] = "example.com:8080"
 
     # Should not raise InvalidOrigin
     co._dispatch("action")
@@ -96,7 +103,7 @@ def test_matching_origin_and_host_default_port_allowed(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 80
-    co.request.env["origin"] = "example.com"
+    co.request.headers["origin"] = "example.com"
 
     # Should not raise InvalidOrigin
     co._dispatch("action")
@@ -109,7 +116,7 @@ def test_invalid_origin_rejected(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 443
-    co.request.env["origin"] = "https://evil.com"
+    co.request.headers["origin"] = "https://evil.com"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -119,7 +126,7 @@ def test_invalid_origin_rejected(co, method):
 def test_cross_site_rejected(co, method):
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["sec_fetch_site"] = "cross-site"
+    co.request.headers["sec-fetch-site"] = "cross-site"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -129,7 +136,7 @@ def test_cross_site_rejected(co, method):
 def test_same_site_rejected(co, method):
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["sec_fetch_site"] = "same-site"
+    co.request.headers["sec-fetch-site"] = "same-site"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -140,7 +147,7 @@ def test_untrusted_origin_rejected(co, method):
     co.app.config["TRUSTED_ORIGINS"] = ["https://trusted.com"]
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["origin"] = "https://untrusted.com"
+    co.request.headers["origin"] = "https://untrusted.com"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -153,7 +160,7 @@ def test_mismatched_port_rejected(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 8080
-    co.request.env["origin"] = "https://example.com:9090"
+    co.request.headers["origin"] = "https://example.com:9090"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -165,7 +172,7 @@ def test_origin_without_port_vs_host_with_port_rejected(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 8080
-    co.request.env["origin"] = "https://example.com"
+    co.request.headers["origin"] = "https://example.com"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -178,7 +185,7 @@ def test_standard_http_origin_with_protocol_rejected(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 443
-    co.request.env["origin"] = "https://example.com"
+    co.request.headers["origin"] = "https://example.com"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -186,11 +193,11 @@ def test_standard_http_origin_with_protocol_rejected(co, method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_empty_origin_and_sec_fetch_site_present_rejected(co, method):
-    # If sec_fetch_site is present but not an allowed value, should reject
+    # If sec-fetch-site is present but not an allowed value, should reject
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["origin"] = ""
-    co.request.env["sec_fetch_site"] = "cross-site"
+    co.request.headers["origin"] = ""
+    co.request.headers["sec-fetch-site"] = "cross-site"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -202,7 +209,7 @@ def test_origin_subdomain_mismatch_rejected(co, method):
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 443
-    co.request.env["origin"] = "https://subdomain.example.com"
+    co.request.headers["origin"] = "https://subdomain.example.com"
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
@@ -211,12 +218,12 @@ def test_origin_subdomain_mismatch_rejected(co, method):
 # Combination tests
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_trusted_origin_with_invalid_sec_fetch_site_allowed(co, method):
-    # Trusted origin should be allowed even with cross-site sec_fetch_site
+    # Trusted origin should be allowed even with cross-site sec-fetch-site
     co.app.config["TRUSTED_ORIGINS"] = ["https://trusted.com"]
     co.request.method = method
     co.request.matched_action = "action"
-    co.request.env["origin"] = "https://trusted.com"
-    co.request.env["sec_fetch_site"] = "cross-site"
+    co.request.headers["origin"] = "https://trusted.com"
+    co.request.headers["sec-fetch-site"] = "cross-site"
 
     # Should not raise InvalidOrigin because origin is trusted
     co._dispatch("action")
@@ -224,13 +231,13 @@ def test_trusted_origin_with_invalid_sec_fetch_site_allowed(co, method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_same_origin_sec_fetch_site_with_invalid_origin_allowed(co, method):
-    # Valid sec_fetch_site should allow even with mismatched origin
+    # Valid sec-fetch-site should allow even with mismatched origin
     co.request.method = method
     co.request.matched_action = "action"
     co.request.host = "example.com"
     co.request.port = 443
-    co.request.env["origin"] = "https://evil.com"
-    co.request.env["sec_fetch_site"] = "same-origin"
+    co.request.headers["origin"] = "https://evil.com"
+    co.request.headers["sec-fetch-site"] = "same-origin"
 
-    # Should not raise InvalidOrigin because sec_fetch_site is same-origin
+    # Should not raise InvalidOrigin because sec-fetch-site is same-origin
     co._dispatch("action")

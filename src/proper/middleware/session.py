@@ -5,7 +5,7 @@ from ..helpers import DotDict, logger
 
 
 if t.TYPE_CHECKING:
-    from ..app import App
+
     from ..request import Request
     from ..response import Response
 
@@ -15,43 +15,43 @@ __all__ = ("copy_session", "update_session_cookie")
 SKIP_FOR_METHODS = (HEAD, OPTIONS)
 
 
-def copy_session(app: "App", request: "Request", response: "Response"):
+def copy_session(request: "Request", response: "Response"):
     """Get the session data from the cookie and puts into the request
     and response.
     """
     if request.method in SKIP_FOR_METHODS:
         return
-    session = _find_session_by_cookie(app, request)
+    session = _find_session_by_cookie(request)
     request.session = session
     response.session = session.copy()
     if FLASHES_SESSION_KEY in response.session:
         del response.session[FLASHES_SESSION_KEY]
 
 
-def _find_session_by_cookie(app: "App", request: "Request") -> DotDict:
+def _find_session_by_cookie(request: "Request") -> DotDict:
     session = request.get_signed_cookie(
         "_session",
         salt="session",
-        max_age=app.config.SESSION_COOKIE_LIFETIME
+        max_age=request.app.config.SESSION_COOKIE_LIFETIME
     )
     logger.debug(">>> %s", session or "")
     return DotDict(session or {})
 
 
-def update_session_cookie(app: "App", request: "Request", response: "Response") -> None:
+def update_session_cookie(request: "Request", response: "Response") -> None:
     """Update the session cookie if the session was modified."""
     if request.method in SKIP_FOR_METHODS:
         return
     if response.session == request.session:
         return
     if response.session:
-        _set_new_session_cookie(app, request, response)
+        _set_new_session_cookie(request, response)
     else:
         response.unset_cookie("_session")
 
 
-def _set_new_session_cookie(app: "App", request: "Request", response: "Response") -> None:
-    config = app.config
+def _set_new_session_cookie(request: "Request", response: "Response") -> None:
+    config = request.app.config
     response.set_signed_cookie(
         "_session",
         dict(response.session),

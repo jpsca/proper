@@ -1,4 +1,3 @@
-import asyncio
 import typing as t
 
 import itsdangerous
@@ -12,10 +11,10 @@ from ..errors import (
 )
 from ..helpers import DotDict, MultiDict, logger
 from ..router import Route
-from ..types import AsyncGenerator, TReceive, TScope
+from ..types import TReceive, TScope
 from .formparser import (
     parse_json,
-    parse_multipart,
+    parse_multipart_sync,
     parse_options_header,
     parse_query_string,
 )
@@ -30,9 +29,6 @@ if t.TYPE_CHECKING:
 __all__ = ("Request", )
 
 
-async def empty_receive() -> t.NoReturn:
-    raise RuntimeError("Empty receive function called. This should never happen.")
-
 
 class Request(RequestHeadersMixin):
     """An HTTP request.
@@ -40,35 +36,33 @@ class Request(RequestHeadersMixin):
     Arguments:
 
         scope:
-            An ASGI scope dict from the server. If not provided, a test scope will be created.
-
-        receive:
-            An ASGI receive function from the server. If not provided, an empty receive function
-            will be used that raises an error if called.
-
-        max_content_length:
-            Maximum content length in bytes.
-
-        max_query_size:
-            Maximum query string size in bytes.
+            An ASGI scope dict from the server. If not provided, a test scope
+            will be created.
 
     Attributes:
 
         scope:
             The ASGI scope dict passed in from the server.
 
-        body:
-            The request body as a bytes stream.
+        query:
+            A `MultiDict` object containing the query string data.
+
+        form:
+            A `MultiDict` object containing the parsed body data, like the
+            one sent by a HTML form with a POST, **including** the files.
 
         accept:
-            Indicates which content types, expressed as MIME types,
-        the client is able to understand.
+            Parsed "accept" header, if present.
+            Indicates which content types, expressed as MIME types, the client
+            is able to understand.
 
         accept_encoding:
+            Parsed "accept-encoding" header, if present.
             Indicates the content encoding (usually a compression algorithm) that
-        the client can understand.
+            the client can understand.
 
         accept_language:
+            Parsed "accept-language" header, if present.
             Indicates the natural language and locale that the client prefers.
 
         content_length:
@@ -82,7 +76,8 @@ class Request(RequestHeadersMixin):
             A dict with the cookies sent with the request.
 
         date:
-            The date and time at which the message originated.
+            Parsed "date" header, if present.
+            Indicates the date and time at which the message was originated.
 
         default_port:
             Returns the default port (80 for HTTP, 443 for HTTPS)
@@ -93,15 +88,11 @@ class Request(RequestHeadersMixin):
         flashes:
             The flashed messages stored in the session cookie.
             By reading this value it will be stored in the request but
-            deleted form the session.
-
-        form:
-            A `MultiDict` object containing the parsed body data, like the
-            one sent by a HTML form with a POST, **including** the files.
+            deleted from the session.
 
         format:
-            Computed based on the value of the "Accept" header, with "html"
-        as a fallback.
+            Computed based on the value of the "accept" header, with "html"
+            as a fallback.
 
         forwarded:
             A comma-separated list of forwarding information from the client
@@ -152,12 +143,9 @@ class Request(RequestHeadersMixin):
             A `:port` string for the request if the port is not the default for
             the protocol.
 
-        query:
-            A `MultiDict` object containing the query string data.
-
         remote_ip:
             IP address of the closest client or proxy to the WSGI server.
-            This will use the `Forwarded` header to try to found the real
+            This will use the `forwarded` header to try to found the real
             IP address of the client if your application is behind one or
             more reverse proxies,
 
@@ -178,147 +166,95 @@ class Request(RequestHeadersMixin):
 
     method: str
     path: str
+    form: MultiDict
 
     matched_route: Route | None = None
     matched_params: dict | None = None
     matched_action: str | None = None
 
     # Cache attrs
-    _form: MultiDict | None = None
     _query: MultiDict | None = None
 
-    def __init__(
-        self,
-        scope: TScope,
-        *,
-        receive: TReceive = empty_receive,
-        max_content_length: int = -1,
-        max_query_size: int | None = None,
-        max_files: int = 1000,
-        max_fields: int = 1000,
-        max_part_size: int = 2 ** 20,
-    ) -> None:
+    def __init__(self, scope: TScope) -> None:
         self.scope = scope or make_test_scope()
-
-        self._receive = receive
-        self._loop = asyncio.get_event_loop()
-        self._body: bytes | None = None
-        self._stream_consumed = False
-        self._is_disconnected = False
-
-        self.max_content_length = max_content_length
-        self.max_query_size = max_query_size
-        self.max_files = max_files
-        self.max_fields = max_fields
-        self.max_part_size = max_part_size
-
+        self.form = MultiDict()
         self._session = DotDict()
         super().__init__()
 
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
 
-    async def _get_stream(self) -> AsyncGenerator[bytes, None]:
-        if self._body is not None:
-            yield self._body
-            yield b""
-            return
-        if self._stream_consumed:
-            raise RuntimeError("Stream consumed")
-        while not self._stream_consumed:
-            message = await self._receive()
-            if message["type"] == "http.request":
-                body = message.get("body", b"")
-                if not message.get("more_body", False):
-                    self._stream_consumed = True
-                if body:
-                    yield body
-            elif message["type"] == "http.disconnect":  # pragma: no branch
-                self._is_disconnected = True
+    async def _get_body(self, receive: TReceive) -> bytes:
+        max_content_length = self.app.config.MAX_CONTENT_LENGTH
+        chunks = []
+        total = 0
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
                 raise ClientDisconnected()
-        yield b""
+            body = message.get("body", b"")
+            if body:
+                total += len(body)
+                if max_content_length > 0 and total > max_content_length:
+                    raise RequestEntityTooLarge("Maximum content length exceeded")
+                chunks.append(body)
+            if not message.get("more_body", False):
+                break
+        return b"".join(chunks)
 
-    async def _get_body(self):
-        if self._body is not None:
-            return self._body
 
-        chunks: list[bytes] = []
-        len_body = 0
-        async for chunk in self._get_stream():
-            chunks.append(chunk)
-            len_body += len(chunk)
-            if self.max_content_length > 0 and len_body > self.max_content_length:
-                raise RequestEntityTooLarge("Maximum content length exceeded.")
+    async def _parse_body(self, receive: TReceive) -> None:
+        """Parse the request body from an ASGI receive callable."""
+        if self.method in (GET, HEAD) or not self.content_length:
+            return
+        body = await self._get_body(receive)
+        self._parse_body_bytes(body)
 
-        if len_body > self.content_length:
-            raise BadRequest("Body is bigger than the declared Content-Length.")
-        elif len_body < self.content_length:
-            raise BadRequest("Body is smaller than the declared Content-Length.")
+    def _parse_body_bytes(
+        self,
+        body: bytes,
+        content_type: str | None = None,
+        options: dict | None = None,
+    ) -> None:
+        """Parse already-available body bytes. Used by the test helper
+        and as the shared logic for non-multipart content types.
+        """
+        if self.method in (GET, HEAD) or not self.content_length:
+            return
 
-        self._body = b"".join(chunks)
-        return self._body
+        max_content_length = self.app.config.MAX_CONTENT_LENGTH
+        if max_content_length > 0 and len(body) > max_content_length:
+            raise RequestEntityTooLarge("Maximum content length exceeded.")
+        if len(body) != self.content_length:
+            raise BadRequest("Body size doesn't match the declared Content-Length.")
 
-    async def _get_form(self) -> MultiDict:
-        """Parse the request body based on Content-Type."""
-        if self._form is not None:
-            return self._form
+        if content_type is None:
+            content_type, options = parse_options_header(self.content_type)
 
-        # GET and HEAD can't have form data.
-        if self.method in (GET, HEAD):
-            self._form = MultiDict()
-            return self._form
-
-        if not self.content_length:
-            self._form = MultiDict()
-            return self._form
-
-        content_type, options = parse_options_header(self.content_type)
-        encoding = options.get("charset", "utf-8")
+        encoding = (options or {}).get("charset", "utf-8")
 
         if content_type == "multipart/form-data":
-            self._form = await parse_multipart(
-                self._get_stream(),
-                options,
+            config = self.app.config
+            self.form = parse_multipart_sync(
+                body,
+                options or {},
                 encoding=encoding,
-                max_files=self.max_files,
-                max_fields=self.max_fields,
-                max_part_size=self.max_part_size,
+                max_files=config.MAX_FORM_FILES,
+                max_fields=config.MAX_FORM_FIELDS,
+                max_part_size=config.MAX_FORM_PART_SIZE,
             )
-            return self._form
 
-        if content_type in (
+        elif content_type in (
             "application/x-www-form-urlencoded",
             "application/x-url-encoded",
         ):
-            body = await self._get_body()
-            self._form = parse_query_string(body.decode(encoding), encoding=encoding)
-            return self._form
+            self.form = parse_query_string(body.decode(encoding), encoding=encoding)
 
-        # application/json
-        if content_type.startswith("application/json"):
-            body = await self._get_body()
-            self._form = parse_json(body.decode(encoding))
-            return self._form
+        elif content_type.startswith("application/json"):
+            self.form = parse_json(body.decode(encoding))
 
-        raise UnsupportedMediaType("Unsupported Content-Type")
-
-    @property
-    def form(self) -> MultiDict:
-        """Parse the request body and return the form data.
-
-        This is a sync method that bridges to the async ``_get_form``,
-        intended to be called from the sync pipeline running in a thread
-        (via ``asyncio.to_thread``).
-
-        Results are cached — subsequent calls return the same MultiDict.
-        """
-        if self._form is not None:
-            return self._form
-        future = asyncio.run_coroutine_threadsafe(
-            self._get_form(),
-            self._loop,
-        )
-        return future.result()
+        else:
+            raise UnsupportedMediaType("Unsupported Content-Type")
 
     @property
     def app(self) -> "App":
@@ -353,7 +289,7 @@ class Request(RequestHeadersMixin):
         return parse_query_string(
             self.query_string,
             encoding="utf-8",
-            max_query_size=self.max_query_size,
+            max_query_size=self.app.config.MAX_QUERY_SIZE,
         )
 
     @property
@@ -391,7 +327,7 @@ class Request(RequestHeadersMixin):
         cookie = self.cookies.get(name)
         if cookie is None:
             return default
-        return cookie.value
+        return cookie
 
     def get_signed_cookie(
             self,

@@ -624,7 +624,7 @@ self.request.if_modified_since  # datetime from If-Modified-Since header
 Inside a controller, `self.response` gives you access to the outgoing HTTP response:
 
 ```python
-self.response.status          # Status line: "200 OK"
+self.response.status          # Status Code: 200 (OK)
 self.response.body            # Response body (set by render or return value)
 self.response.has_body        # True if body has been set (even to empty string)
 self.response.mimetype        # Content-Type without charset

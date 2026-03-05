@@ -27,6 +27,11 @@ default_config = {
     # Raises a `RequestEntityTooLarge` or an `UriTooLong` if this value is exceeded.
     "MAX_QUERY_SIZE": 1 * MB,
 
+    # Limits the number of files, fields and the size of each part in a multipart form.
+    "MAX_FORM_FILES": 10,
+    "MAX_FORM_FIELDS": 100,
+    "MAX_FORM_PART_SIZE": 2 * MB,
+
     "ASSETS_URL": "/assets/",
 
     # The name of the header to use to return a file

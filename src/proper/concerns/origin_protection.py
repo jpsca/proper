@@ -42,7 +42,7 @@ class OriginProtection(Concern):
             return
 
         origin = self.request.headers.get("origin")
-        sec_fetch_site = self.request.headers.get("sec_fetch_site")
+        sec_fetch_site = self.request.headers.get("sec-fetch-site")
 
         if (
             (origin is None and sec_fetch_site is None)  # 2

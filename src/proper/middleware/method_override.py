@@ -13,7 +13,7 @@ __all__ = ("method_override",)
 OVERRIDABLE_METHODS = (PUT, PATCH, DELETE, QUERY)
 
 
-def method_override(_app, request: "Request", _response) -> None:
+def method_override(request: "Request", _response) -> None:
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
     path or in the request body.
@@ -28,7 +28,7 @@ def method_override(_app, request: "Request", _response) -> None:
     if request.method != POST:
         return
 
-    new_method = request.get("x_http_method_override")
+    new_method = request.headers.get("x-http-method-override")
     if not new_method:
         new_method = request.query.get("_method") or request.form.get("_method")
 

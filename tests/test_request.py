@@ -1,1513 +1,1227 @@
-"""Tests for proper.request — Request class, headers, forwarded, make_env,
-parse_form, and multipart."""
+"""Tests for proper.request — Request class, headers, forwarded, utils,
+and formparser."""
 
+import json
 from datetime import datetime
 from io import BytesIO
-from unittest.mock import MagicMock
 
 import pytest
 
 from proper.errors import (
-    BadRequest,
+    ClientDisconnected,
     InvalidHeader,
     MultipartError,
     RequestEntityTooLarge,
     UnsupportedMediaType,
     UriTooLong,
 )
-from proper.helpers import DotDict
-from proper.request.forwarded import parse_forwarded
-from proper.request.headers import (
-    NormalizedEnv,
-    RequestHeadersMixin,
-    enc,
-    parse_accept,
-    parse_comma_separated,
-    parse_cookie,
-    parse_host,
-    parse_multivalue,
-    parse_request_id,
-)
-from proper.request.multipart import (
+from proper.helpers import DotDict, MultiDict
+from proper.request import Request, make_test_scope
+from proper.request.formparser import (
     MultipartParser,
     MultipartPart,
+    _safe_decode,
     copy_file,
-    header_quote,
-    header_unquote,
-    parse_options_header,
-    to_bytes,
-)
-from proper.request.parse_form import (
-    _normalize_newlines,
-    _read_content,
-    _validate_actual_content_length,
-    parse_form,
     parse_json,
-    parse_multipart,
+    parse_multipart_sync,
+    parse_options_header,
     parse_query_string,
 )
-from proper.request import Request, make_test_scope
+from proper.request.utils import make_test_scope as _make_test_scope
 
 
 # ── helpers ─────────────────────────────────────────────────────────
 
 
-def _build_multipart(parts, boundary="testboundary"):
-    """Build a multipart/form-data body.
+def _scope(url="/", method="GET", **kw):
+    return make_test_scope(url, method=method, **kw)
 
-    `parts` is a list of dicts, each with:
-      - name (str)
-      - value (str or bytes)
-      - filename (str, optional)
-      - content_type (str, optional)
-    """
+
+def _req(url="/", method="GET", **kw):
+    scope = _scope(url, method=method, **kw)
+    return Request(scope)
+
+
+def _build_multipart(parts, boundary="testboundary"):
     body = b""
     for part in parts:
         body += f"--{boundary}\r\n".encode()
-        disp = f'form-data; name="{part["name"]}"'
+        disp = f'Content-Disposition: form-data; name="{part["name"]}"'
         if "filename" in part:
-# ── make_test_scope ───────────────────────────────────────────────────
             disp += f'; filename="{part["filename"]}"'
-        body += f"Content-Disposition: {disp}\r\n".encode()
+        body += disp.encode() + b"\r\n"
         if "content_type" in part:
-            body += f"Content-Type: {part['content_type']}\r\n".encode()
-        env = make_test_scope()
+            body += f'Content-Type: {part["content_type"]}\r\n'.encode()
         body += b"\r\n"
-        val = part["value"]
-        body += val.encode() if isinstance(val, str) else val
-        body += b"\r\n"
+        value = part["value"]
+        if isinstance(value, str):
+            value = value.encode()
+        body += value + b"\r\n"
     body += f"--{boundary}--\r\n".encode()
     return body
 
 
+def _make_receive(body: bytes, *, chunk_size: int = 0):
+    """Create an ASGI receive callable that yields body in chunks."""
+    if chunk_size <= 0:
+        chunks = [body]
+    else:
+        chunks = [body[i:i + chunk_size] for i in range(0, len(body), chunk_size)]
+
+    idx = 0
+
+    async def receive():
+        nonlocal idx
+        if idx < len(chunks):
+            chunk = chunks[idx]
+            idx += 1
+            return {
+                "type": "http.request",
+                "body": chunk,
+                "more_body": idx < len(chunks),
+            }
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    return receive
 
 
-        env = make_test_scope("http://myhost:9090/hello?x=1")
-class TestMakeTestEnv:
-    def test_default_env_has_wsgi_keys(self):
-        assert env["REQUEST_METHOD"] == "GET"
-        assert env["PATH_INFO"] == "/"
-        assert env["HTTP_HOST"] == "example.com"
-        assert env["HTTP_PORT"] == "80"
-        assert env["wsgi.url_protocol"] == "http"
-        env = make_test_scope("https://secure.example.com:443/path")
-        assert env["QUERY_STRING"] == ""
-        # wsgi.input should be a BytesIO
-        assert hasattr(env["wsgi.input"], "read")
+def _make_disconnect_receive():
+    async def receive():
+        return {"type": "http.disconnect"}
 
-    def test_custom_url(self):
-        env = make_test_scope(params={"a": "1", "b": "hello world"})
-        assert env["HTTP_HOST"] == "myhost"
-        assert env["HTTP_PORT"] == "9090"
-        assert env["PATH_INFO"] == "/hello"
-        assert env["QUERY_STRING"] == "x=1"
-        assert env["wsgi.url_protocol"] == "http"
-
-    def test_https_url(self):
-        assert env["wsgi.url_protocol"] == "https"
-        env = make_test_scope(body={"key": "val"})
-        assert env["HTTP_HOST"] == "secure.example.com"
-        assert env["HTTP_PORT"] == "443"
-
-    def test_params_dict_produces_query_string(self):
-        qs = env["QUERY_STRING"]
-        env = make_test_scope(body="raw body")
-        assert "a=1" in qs
-        assert "b=hello+world" in qs
-        # Ensure no double-encoding: '=' and '&' must be literal
-        assert "=" in qs
-        env = make_test_scope(body=b"raw bytes")
-        assert "&" in qs
-
-    def test_body_as_dict(self):
-        stream = env["wsgi.input"]
-        data = stream.read()
-        env = make_test_scope(body=bio)
-        assert b"key=val" in data
-
-    def test_body_as_str(self):
-        stream = env["wsgi.input"]
-        env = make_test_scope(body=b"")
-        assert stream.read() == b"raw body"
-
-    def test_body_as_bytes(self):
-        stream = env["wsgi.input"]
-        assert stream.read() == b"raw bytes"
-
-    def test_body_as_bytesio(self):
-        bio = BytesIO(b"stream data")
-        assert env["wsgi.input"] is bio
-        assert env["wsgi.input"].read() == b"stream data"
-
-    def test_empty_body(self):
-        stream = env["wsgi.input"]
-        assert stream.read() == b""
-
-    def test_extra_kw_merged(self):
-        env = make_test_scope(REQUEST_METHOD="POST", CONTENT_TYPE="text/plain")
-        assert env["REQUEST_METHOD"] == "POST"
-        assert env["CONTENT_TYPE"] == "text/plain"
+    return receive
 
 
-# ── NormalizedEnv / enc() ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+# utils.py — make_test_scope
+# ═══════════════════════════════════════════════════════════════════
 
 
-class TestNormalizedEnv:
-    def test_enc_strips_lower_replaces(self):
-        assert enc("  Content-Type ") == "content_type"
-        assert enc("HTTP_HOST") == "http_host"
+class TestMakeTestScope:
+    def test_defaults(self):
+        scope = _make_test_scope()
+        assert scope["type"] == "http"
+        assert scope["method"] == "GET"
+        assert scope["path"] == "/"
+        assert scope["scheme"] == "http"
+        assert scope["server"] == ("example.com", 80)
+        assert scope["http_version"] == "1.1"
 
-    def test_setitem_normalizes(self):
-        ne = NormalizedEnv()
-        ne["Content-Type"] = "text/html"
-        assert "content_type" in ne
-        assert ne["content_type"] == "text/html"
+    def test_full_url(self):
+        scope = _make_test_scope("http://myhost:9090/hello?x=1")
+        assert scope["server"] == ("myhost", 9090)
+        assert scope["path"] == "/hello"
+        assert scope["query_string"] == b"x=1"
+
+    def test_https_default_port(self):
+        scope = _make_test_scope("https://secure.example.com/path")
+        assert scope["scheme"] == "https"
+        assert scope["server"] == ("secure.example.com", 443)
+
+    def test_params_override_query(self):
+        scope = _make_test_scope("/search?old=1", params={"q": "test"})
+        assert scope["query_string"] == b"q=test"
+
+    def test_custom_method(self):
+        scope = _make_test_scope("/", method="post")
+        assert scope["method"] == "POST"
+
+    def test_custom_scope_type(self):
+        scope = _make_test_scope("/", scope_type="websocket")
+        assert scope["type"] == "websocket"
+
+    def test_extra_kwargs(self):
+        scope = _make_test_scope("/", client=("127.0.0.1", 12345))
+        assert scope["client"] == ("127.0.0.1", 12345)
+
+    def test_custom_headers(self):
+        scope = _make_test_scope(
+            "/",
+            headers=[("x-custom", "value"), (b"x-binary", b"bval")],
+        )
+        header_names = [name for name, _ in scope["headers"]]
+        assert b"x-custom" in header_names
+        assert b"x-binary" in header_names
+
+    def test_path_only_url(self):
+        scope = _make_test_scope("/foo/bar")
+        assert scope["path"] == "/foo/bar"
+        assert scope["server"] == ("example.com", 80)
 
 
-# ── RequestHeadersMixin ─────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+# headers.py — RequestHeadersMixin (via Request)
+# ═══════════════════════════════════════════════════════════════════
 
 
-class TestRequestHeadersMixin:
-    def _make(self, **extra):
-        env = make_test_scope(**extra)
-        return RequestHeadersMixin(env)
-
-    def test_protocol_defaults_to_http(self):
-        h = self._make()
-        assert h.protocol == "http"
-
-    def test_protocol_from_x_forwarded_proto(self):
-        h = self._make(HTTP_X_FORWARDED_PROTO="https")
-        assert h.protocol == "https"
-
-    def test_host_and_port(self):
-        h = self._make()
-        assert h.host == "example.com"
-        assert h.port == 80
-
-    def test_method_uppercased(self):
-        h = self._make(REQUEST_METHOD="post")
-        assert h.method == "POST"
-
-    def test_path_decoded(self):
-        h = self._make(PATH_INFO="/hello%20world")
-        # PATH_INFO is passed through tunnel_decode
-        assert h.path.startswith("/")
+class TestRequestHeaders:
+    def test_method_and_path(self):
+        req = _req("/hello", method="POST")
+        assert req.method == "POST"
+        assert req.request_method == "POST"
+        assert req.path == "/hello"
 
     def test_content_type(self):
-        h = self._make(CONTENT_TYPE="application/json")
-        assert h.content_type == "application/json"
+        req = _req("/", headers=[("content-type", "application/json")])
+        assert req.content_type == "application/json"
 
-    def test_content_length_valid(self):
-        h = self._make(CONTENT_LENGTH="42")
-        assert h.content_length == 42
+    def test_content_length(self):
+        req = _req("/", headers=[("content-length", "42")])
+        assert req.content_length == 42
 
-    def test_content_length_empty(self):
-        h = self._make(CONTENT_LENGTH="")
-        assert h.content_length == 0
+    def test_content_length_zero(self):
+        req = _req("/")
+        assert req.content_length == 0
 
-    def test_content_length_invalid_raises(self):
-        with pytest.raises(InvalidHeader, match="must be a number"):
-            self._make(CONTENT_LENGTH="abc")
+    def test_content_length_invalid(self):
+        with pytest.raises(InvalidHeader, match="number"):
+            _req("/", headers=[("content-length", "abc")])
 
-    def test_content_length_negative_raises(self):
+    def test_content_length_negative(self):
         with pytest.raises(InvalidHeader, match="positive"):
-            self._make(CONTENT_LENGTH="-1")
+            _req("/", headers=[("content-length", "-1")])
 
-    def test_get_special_names(self):
-        h = self._make(HTTP_COOKIE="foo=bar")
-        cookies = h.get("cookie")
-        assert "foo" in cookies
-
-    def test_get_regular_env_key(self):
-        h = self._make(REQUEST_METHOD="GET")
-        assert h.get("request_method") == "GET"
-
-    def test_get_default(self):
-        h = self._make()
-        assert h.get("nonexistent", "default") == "default"
-
-
-# ── Header properties ───────────────────────────────────────────────
-
-
-class TestHeaderProperties:
-    def _make(self, **extra):
-        env = make_test_scope(**extra)
-        return RequestHeadersMixin(env)
-
-    def test_accept_parsing(self):
-        h = self._make(HTTP_ACCEPT="text/html, application/json;q=0.9")
-        assert h.accept == ["text/html", "application/json"]
+    def test_accept(self):
+        req = _req("/", headers=[("accept", "text/html,application/json;q=0.5")])
+        assert req.accept[0] == "text/html"
+        assert req.accept[1] == "application/json"
 
     def test_accept_encoding(self):
-        h = self._make(HTTP_ACCEPT_ENCODING="gzip, deflate;q=0.5")
-        assert h.accept_encoding[0] == "gzip"
+        req = _req("/", headers=[("accept-encoding", "gzip,deflate;q=0.5")])
+        assert req.accept_encoding[0] == "gzip"
 
     def test_accept_language(self):
-        h = self._make(HTTP_ACCEPT_LANGUAGE="en-US, es;q=0.8")
-        langs = h.accept_language
-        assert langs[0] == "en_US"
-        assert langs[1] == "es"
+        req = _req("/", headers=[("accept-language", "en-US,fr;q=0.5")])
+        assert req.accept_language[0] == "en_US"
 
-    def test_cookie_parsing(self):
-        h = self._make(HTTP_COOKIE="sid=abc123; theme=dark")
-        assert "sid" in h.cookie
-        assert h.cookie["sid"].value == "abc123"
+    def test_cookies(self):
+        req = _req("/", headers=[("cookie", "a=1; b=2")])
+        assert req.cookies["a"] == "1"
+        assert req.cookies["b"] == "2"
 
-    def test_cookies_alias(self):
-        h = self._make(HTTP_COOKIE="a=1")
-        assert h.cookies is h.cookie
+    def test_cookies_multiple_headers(self):
+        req = _req("/", headers=[("cookie", "a=1"), ("cookie", "b=2")])
+        assert req.cookies["a"] == "1"
+        assert req.cookies["b"] == "2"
 
-    def test_date_parsing(self):
-        h = self._make(HTTP_DATE="Wed, 09 Jun 2021 10:18:14 GMT")
-        assert isinstance(h.date, datetime)
-        assert h.date.year == 2021
+    def test_cookie_alias(self):
+        req = _req("/", headers=[("cookie", "a=1")])
+        assert req.cookie == req.cookies
 
-    def test_date_absent(self):
-        h = self._make()
-        assert h.date is None
+    def test_date_header(self):
+        req = _req("/", headers=[("date", "Wed, 09 Jun 2021 10:18:14 GMT")])
+        assert isinstance(req.date, datetime)
 
-    def test_if_modified_since(self):
-        h = self._make(HTTP_IF_MODIFIED_SINCE="Wed, 09 Jun 2021 10:18:14 GMT")
-        assert isinstance(h.if_modified_since, datetime)
-
-    def test_if_modified_since_absent(self):
-        h = self._make()
-        assert h.if_modified_since is None
-
-    def test_format_html(self):
-        h = self._make(HTTP_ACCEPT="text/html")
-        assert h.format == "html"
-
-    def test_format_json(self):
-        h = self._make(HTTP_ACCEPT="application/json")
-        assert h.format == "json"
-
-    def test_format_fallback_default(self):
-        h = self._make(HTTP_ACCEPT="*/*")
-        assert h.format == "html"
-
-    def test_format_no_accept(self):
-        h = self._make()
-        assert h.format == "html"
-
-    def test_forwarded(self):
-        h = self._make(HTTP_FORWARDED="for=1.2.3.4;proto=https")
-        assert h.forwarded == [{"for": "1.2.3.4", "proto": "https"}]
-
-    def test_host_with_port_default(self):
-        h = self._make()
-        assert h.host_with_port == "example.com"
-
-    def test_host_with_port_non_default(self):
-        # make_test_scope sets HTTP_HOST without port; pass host:port directly
-        env = make_test_scope(HTTP_HOST="example.com:8080")
-        h = RequestHeadersMixin(env)
-        assert h.host_with_port == "example.com:8080"
-
-    def test_port_is_default_true(self):
-        h = self._make()
-        assert h.port_is_default is True
-
-    def test_port_string_default(self):
-        h = self._make()
-        assert h.port_string == ""
+    def test_date_header_missing(self):
+        req = _req("/")
+        assert req.date is None
 
     def test_default_port_http(self):
-        h = self._make()
-        assert h.default_port == 80
+        req = _req("http://example.com/")
+        assert req.default_port == 80
 
     def test_default_port_https(self):
-        h = self._make(HTTP_X_FORWARDED_PROTO="https")
-        assert h.default_port == 443
+        req = _req("https://example.com/")
+        assert req.default_port == 443
+
+    def test_format_html(self):
+        req = _req("/", headers=[("accept", "text/html")])
+        assert req.format == "html"
+
+    def test_format_json(self):
+        req = _req("/", headers=[("accept", "application/json")])
+        assert req.format == "json"
+
+    def test_format_wildcard_default(self):
+        req = _req("/", headers=[("accept", "*/*")])
+        assert req.format == "html"
+
+    def test_format_no_accept(self):
+        req = _req("/")
+        assert req.format == "html"
+
+    def test_forwarded(self):
+        req = _req("/", headers=[("forwarded", "for=192.0.2.60;proto=http;by=203.0.113.43")])
+        assert req.forwarded[0]["for"] == "192.0.2.60"
+
+    def test_host_with_port_default(self):
+        req = _req("http://example.com/")
+        assert req.host_with_port == "example.com"
+
+    def test_host_with_port_non_default(self):
+        req = _req("http://example.com:9090/")
+        assert req.host_with_port == "example.com:9090"
 
     def test_if_none_match(self):
-        h = self._make(HTTP_IF_NONE_MATCH='"abc", "def"')
-        assert h.if_none_match == ['"abc"', '"def"']
+        req = _req("/", headers=[("if-none-match", '"etag1", "etag2"')])
+        assert '"etag1"' in req.if_none_match
+        assert '"etag2"' in req.if_none_match
+
+    def test_if_modified_since(self):
+        req = _req("/", headers=[("if-modified-since", "Wed, 09 Jun 2021 10:18:14 GMT")])
+        assert isinstance(req.if_modified_since, datetime)
+
+    def test_if_modified_since_missing(self):
+        req = _req("/")
+        assert req.if_modified_since is None
 
     def test_is_get(self):
-        h = self._make(REQUEST_METHOD="GET")
-        assert h.is_get is True
-        assert h.is_post is False
-
-    def test_is_post(self):
-        h = self._make(REQUEST_METHOD="POST")
-        assert h.is_post is True
-        assert h.is_get is False
-
-    def test_is_put(self):
-        h = self._make(REQUEST_METHOD="PUT")
-        assert h.is_put is True
-
-    def test_is_patch(self):
-        h = self._make(REQUEST_METHOD="PATCH")
-        assert h.is_patch is True
-
-    def test_is_delete(self):
-        h = self._make(REQUEST_METHOD="DELETE")
-        assert h.is_delete is True
+        assert _req("/", method="GET").is_get is True
+        assert _req("/", method="POST").is_get is False
 
     def test_is_head(self):
-        h = self._make(REQUEST_METHOD="HEAD")
-        assert h.is_head is True
+        assert _req("/", method="HEAD").is_head is True
+
+    def test_is_post(self):
+        assert _req("/", method="POST").is_post is True
+
+    def test_is_put(self):
+        assert _req("/", method="PUT").is_put is True
+
+    def test_is_patch(self):
+        assert _req("/", method="PATCH").is_patch is True
+
+    def test_is_delete(self):
+        assert _req("/", method="DELETE").is_delete is True
 
     def test_is_secure_http(self):
-        h = self._make()
-        assert h.is_secure is False
+        req = _req("http://example.com/")
+        assert req.is_secure is False
 
     def test_is_secure_https(self):
-        h = self._make(HTTP_X_FORWARDED_PROTO="https")
-        assert h.is_secure is True
+        req = _req("https://example.com/")
+        assert req.is_secure is True
+
+    def test_is_ssl_alias(self):
+        req = _req("https://example.com/")
+        assert req.is_ssl is True
 
     def test_is_xhr(self):
-        h = self._make(HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        assert h.is_xhr is True
+        req = _req("/", headers=[("x-requested-with", "XMLHttpRequest")])
+        assert req.is_xhr is True
 
     def test_is_xhr_false(self):
-        h = self._make()
-        assert h.is_xhr is False
+        req = _req("/")
+        assert req.is_xhr is False
 
-    def test_remote_ip_forwarded(self):
-        h = self._make(HTTP_FORWARDED="for=10.0.0.1")
-        assert h.remote_ip == "10.0.0.1"
+    def test_port_is_default(self):
+        assert _req("http://example.com/").port_is_default is True
+        assert _req("http://example.com:9090/").port_is_default is False
 
-    def test_remote_ip_x_forwarded_for(self):
-        h = self._make(HTTP_X_FORWARDED_FOR="10.0.0.2, 10.0.0.3")
-        assert h.remote_ip == "10.0.0.2"
+    def test_port_string(self):
+        assert _req("http://example.com/").port_string == ""
+        assert _req("http://example.com:9090/").port_string == ":9090"
 
-    def test_remote_ip_x_real_ip(self):
-        h = self._make(HTTP_X_REAL_IP="10.0.0.4")
-        assert h.remote_ip == "10.0.0.4"
+    def test_remote_ip_from_forwarded(self):
+        req = _req("/", headers=[("forwarded", "for=1.2.3.4")])
+        assert req.remote_ip == "1.2.3.4"
 
-    def test_remote_ip_forwarded_without_for_falls_through(self):
-        """Forwarded header present but no 'for' key — falls through to next check."""
-        h = self._make(HTTP_FORWARDED="proto=https", HTTP_X_FORWARDED_FOR="10.0.0.5")
-        assert h.remote_ip == "10.0.0.5"
+    def test_remote_ip_from_x_forwarded_for(self):
+        req = _req("/", headers=[("x-forwarded-for", "5.6.7.8,proxy")])
+        assert req.remote_ip == "5.6.7.8"
 
-    def test_remote_ip_fallback_remote_addr(self):
-        h = self._make()
-        assert h.remote_ip == "127.0.0.1"
+    def test_remote_ip_from_x_real_ip(self):
+        req = _req("/", headers=[("x-real-ip", "9.10.11.12")])
+        assert req.remote_ip == "9.10.11.12"
+
+    def test_remote_ip_from_client(self):
+        req = _req("/", client=("192.168.1.1", 5000))
+        assert req.remote_ip == "192.168.1.1"
+
+    def test_remote_ip_no_client(self):
+        scope = _scope("/")
+        scope.pop("client", None)
+        req = Request(scope)
+        assert req.remote_ip == ""
 
     def test_request_id(self):
-        h = self._make(HTTP_X_REQUEST_ID="abc-123")
-        assert h.request_id == "abc-123"
+        req = _req("/", headers=[("x-request-id", "req-123")])
+        assert req.request_id == "req-123"
 
-    def test_request_id_absent(self):
-        h = self._make()
-        assert h.request_id is None
+    def test_request_id_missing(self):
+        req = _req("/")
+        assert req.request_id is None
 
     def test_user_agent(self):
-        h = self._make(HTTP_USER_AGENT="TestBot/1.0")
-        assert h.user_agent == "TestBot/1.0"
+        req = _req("/", headers=[("user-agent", "TestBot/1.0")])
+        assert req.user_agent == "TestBot/1.0"
 
-    def test_user_agent_absent(self):
-        h = self._make()
-        assert h.user_agent == ""
+    def test_user_agent_missing(self):
+        req = _req("/")
+        assert req.user_agent is None
+
+    def test_protocol_from_x_forwarded_proto(self):
+        req = _req("http://example.com/", headers=[("x-forwarded-proto", "https")])
+        assert req.protocol == "https"
+        assert req.is_secure is True
+
+    def test_server_none_fallback_to_host_header(self):
+        scope = _scope("/", headers=[("host", "example.com:8080")])
+        scope["server"] = None
+        req = Request(scope)
+        assert req.host == "example.com"
+        assert req.port == 8080
+
+    def test_server_none_no_host_header(self):
+        scope = _scope("/")
+        scope["server"] = None
+        # Remove the host header
+        scope["headers"] = []
+        req = Request(scope)
+        assert req.host == ""
+
+    def test_headers_get_bytes_header(self):
+        scope = _scope("/")
+        scope["headers"].append((b"x-test", b"\xe4\xb8\xad"))
+        req = Request(scope)
+        val = req.headers.get("x-test")
+        assert val is not None
+
+    def test_headers_get_missing(self):
+        req = _req("/")
+        assert req.headers.get("nonexistent") is None
+
+    def test_headers_get_string(self):
+        scope = _scope("/")
+        # Inject a string value directly instead of bytes
+        req = Request(scope)
+        req.headers["x-str"] = "string-value"
+        assert req.headers.get("x-str") == "string-value"
+
+    # ── accept edge cases ───────────────────────────────────────────
+
+    def test_accept_empty(self):
+        req = _req("/")
+        assert req.accept == []
+
+    def test_accept_quality_sorting(self):
+        req = _req("/", headers=[
+            ("accept", "text/plain;q=0.5,text/html;q=0.9,application/json;q=0.1"),
+        ])
+        assert req.accept == ["text/html", "text/plain", "application/json"]
+
+    def test_accept_default_quality_is_1(self):
+        req = _req("/", headers=[("accept", "text/html,text/plain;q=0.5")])
+        assert req.accept == ["text/html", "text/plain"]
+
+    def test_accept_encoding_empty(self):
+        req = _req("/")
+        assert req.accept_encoding == []
+
+    def test_accept_language_empty(self):
+        req = _req("/")
+        assert req.accept_language == []
+
+    def test_accept_with_quoted_params(self):
+        """Exercise the parse_multivalue slow path (quoted strings)."""
+        req = _req("/", headers=[
+            ("accept", 'text/html;level="1",application/json;q=0.5'),
+        ])
+        assert req.accept[0] == "text/html"
+        assert req.accept[1] == "application/json"
+
+    def test_accept_with_escaped_quotes(self):
+        """Quoted string with escaped quote inside."""
+        req = _req("/", headers=[
+            ("accept", r'text/html;level="foo\"bar",text/plain;q=0.5'),
+        ])
+        assert req.accept[0] == "text/html"
+        assert req.accept[1] == "text/plain"
+
+    def test_accept_semicolon_without_equals(self):
+        """Semicolon-separated attribute without =value (slow path)."""
+        req = _req("/", headers=[
+            ("accept", '"text/html";level'),
+        ])
+        # Should still parse without error
+        assert len(req.accept) >= 1
+
+    # ── if_none_match edge cases ────────────────────────────────────
+
+    def test_if_none_match_empty(self):
+        req = _req("/")
+        assert req.if_none_match == []
+
+    def test_if_none_match_single(self):
+        req = _req("/", headers=[("if-none-match", '"etag1"')])
+        assert req.if_none_match == ['"etag1"']
+
+    def test_if_none_match_whitespace(self):
+        req = _req("/", headers=[("if-none-match", '"a", "b"')])
+        assert '"a"' in req.if_none_match
+        assert '"b"' in req.if_none_match
+
+    # ── cookie edge cases ───────────────────────────────────────────
+
+    def test_cookies_empty_header(self):
+        req = _req("/")
+        assert req.cookies == {}
+
+    def test_cookies_empty_name(self):
+        """Cookie chunk without '=' gets empty name."""
+        req = _req("/", headers=[("cookie", "justvalue")])
+        assert req.cookies[""] == "justvalue"
+
+    def test_cookies_quoted_value(self):
+        req = _req("/", headers=[("cookie", 'a="quoted"')])
+        assert req.cookies["a"] == "quoted"
+
+    def test_cookies_empty_pair_skipped(self):
+        req = _req("/", headers=[("cookie", "a=1;  ;b=2")])
+        assert req.cookies["a"] == "1"
+        assert req.cookies["b"] == "2"
+
+    # ── host parsing via header fallback ────────────────────────────
+
+    def test_host_from_header_ipv6(self):
+        scope = _scope("/", headers=[("host", "[::1]")])
+        scope["server"] = None
+        req = Request(scope)
+        assert req.host == "::1"
+        assert req.port == 80  # default
+
+    def test_host_from_header_ipv6_with_port(self):
+        scope = _scope("/", headers=[("host", "[::1]:9090")])
+        scope["server"] = None
+        req = Request(scope)
+        assert req.host == "::1"
+        assert req.port == 9090
+
+    def test_host_from_header_non_decimal_port(self):
+        scope = _scope("/", headers=[("host", "example.com:abc")])
+        scope["server"] = None
+        req = Request(scope)
+        assert req.host == "example.com"
+        assert req.port == 80  # non-decimal port → 0, then default_port
+
+    def test_host_from_header_simple(self):
+        scope = _scope("/", headers=[("host", "myhost:8080")])
+        scope["server"] = None
+        req = Request(scope)
+        assert req.host == "myhost"
+        assert req.port == 8080
+
+    # ── request_id edge cases ───────────────────────────────────────
+
+    def test_request_id_truncated(self):
+        long_id = "a" * 300
+        req = _req("/", headers=[("x-request-id", long_id)])
+        assert len(req.request_id) == 200
+
+    def test_request_id_non_ascii_removed(self):
+        req = _req("/", headers=[("x-request-id", "abc\x80\x81def")])
+        assert req.request_id == "abcdef"
+
+    # ── forwarded edge cases ────────────────────────────────────────
+
+    def test_forwarded_empty(self):
+        req = _req("/")
+        assert req.forwarded == []
+
+    def test_forwarded_multiple_proxies(self):
+        req = _req("/", headers=[
+            ("forwarded", "for=1.2.3.4,for=5.6.7.8"),
+        ])
+        assert len(req.forwarded) == 2
+        assert req.forwarded[0]["for"] == "1.2.3.4"
+        assert req.forwarded[1]["for"] == "5.6.7.8"
+
+    def test_forwarded_quoted_values(self):
+        req = _req("/", headers=[
+            ("forwarded", 'for="1.2.3.4"'),
+        ])
+        assert req.forwarded[0]["for"] == "1.2.3.4"
+
+    def test_forwarded_escaped_quotes(self):
+        req = _req("/", headers=[
+            ("forwarded", r'for="val\"ue"'),
+        ])
+        assert req.forwarded[0]["for"] == 'val"ue'
+
+    def test_forwarded_port_suffix(self):
+        req = _req("/", headers=[
+            ("forwarded", "for=1.2.3.4:8080"),
+        ])
+        assert req.forwarded[0]["for"] == "1.2.3.4:8080"
+
+    def test_forwarded_multiple_params(self):
+        req = _req("/", headers=[
+            ("forwarded", "for=1.2.3.4;proto=https;by=proxy"),
+        ])
+        fwd = req.forwarded[0]
+        assert fwd["for"] == "1.2.3.4"
+        assert fwd["proto"] == "https"
+        assert fwd["by"] == "proxy"
+
+    def test_forwarded_case_insensitive_keys(self):
+        req = _req("/", headers=[
+            ("forwarded", "For=1.2.3.4;Proto=https"),
+        ])
+        fwd = req.forwarded[0]
+        assert fwd["for"] == "1.2.3.4"
+        assert fwd["proto"] == "https"
+
+    def test_forwarded_whitespace_between_pairs(self):
+        req = _req("/", headers=[
+            ("forwarded", "for=1.2.3.4 ; proto=https"),
+        ])
+        fwd = req.forwarded[0]
+        assert fwd["for"] == "1.2.3.4"
+        assert fwd["proto"] == "https"
+
+    def test_forwarded_bad_syntax_skipped(self):
+        req = _req("/", headers=[
+            ("forwarded", "!!!,for=1.2.3.4"),
+        ])
+        # First proxy is empty (bad syntax skipped), second has the value
+        assert req.forwarded[1]["for"] == "1.2.3.4"
+
+    def test_forwarded_bad_syntax_after_valid(self):
+        """Two valid pairs without separator → bad syntax, skip to next comma."""
+        req = _req("/", headers=[
+            ("forwarded", "for=1.2.3.4 for=bad,for=5.6.7.8"),
+        ])
+        # After first valid pair, "for=bad" is encountered without separator
+        # so it skips to comma, then parses for=5.6.7.8
+        assert req.forwarded[0]["for"] == "1.2.3.4"
+        assert req.forwarded[1]["for"] == "5.6.7.8"
 
 
-# ── Standalone parsers (headers.py) ─────────────────────────────────
-
-
-class TestParseAccept:
-    def test_none(self):
-        assert parse_accept(None) == []
-
-    def test_single(self):
-        assert parse_accept("text/html") == ["text/html"]
-
-    def test_quality_sorting(self):
-        result = parse_accept("text/plain;q=0.5, text/html;q=0.9, */*;q=0.1")
-        assert result == ["text/html", "text/plain", "*/*"]
-
-    def test_default_quality(self):
-        result = parse_accept("text/html, text/plain;q=0.5")
-        assert result[0] == "text/html"
-        assert result[1] == "text/plain"
-
-
-class TestParseMultivalue:
-    def test_fast_path_simple(self):
-        result = parse_multivalue("text/html, text/plain")
-        assert result == [("text/html", {}), ("text/plain", {})]
-
-    def test_fast_path_with_params(self):
-        result = parse_multivalue("text/html;q=0.9, */*;q=0.1")
-        assert result[0] == ("text/html", {"q": "0.9"})
-        assert result[1] == ("*/*", {"q": "0.1"})
-
-    def test_slow_path_quoted_string(self):
-        result = parse_multivalue('text/html, "quoted value"')
-        assert len(result) == 2
-
-    def test_empty_string(self):
-        result = parse_multivalue("")
-        assert result == [("", {})]
-
-
-class TestParseCommaSeparated:
-    def test_none(self):
-        assert parse_comma_separated(None) == []
-
-    def test_single(self):
-        assert parse_comma_separated("value") == ["value"]
-
-    def test_multiple(self):
-        assert parse_comma_separated("a, b, c") == ["a", "b", "c"]
-
-    def test_whitespace(self):
-        # parse_comma_separated strips leading/trailing commas and spaces,
-        # then splits on ", " — inner values keep their whitespace from split
-        result = parse_comma_separated("  a , b  ")
-        assert len(result) == 2
-        assert "a" in result[0]
-        assert "b" in result[1]
-
-
-class TestParseCookie:
-    def test_none(self):
-        assert parse_cookie(None) == {}
-
-    def test_single(self):
-        cookies = parse_cookie("name=value")
-        assert cookies["name"].value == "value"
-
-    def test_multiple(self):
-        cookies = parse_cookie("a=1; b=2")
-        assert cookies["a"].value == "1"
-        assert cookies["b"].value == "2"
-
-
-class TestParseHost:
-    def test_empty(self):
-        assert parse_host("") == ("", 0)
-        assert parse_host(None) == ("", 0)
-
-    def test_ipv4(self):
-        assert parse_host("example.com") == ("example.com", 0)
-
-    def test_ipv4_with_port(self):
-        assert parse_host("example.com:8080") == ("example.com", 8080)
-
-    def test_ipv6(self):
-        assert parse_host("[::1]") == ("::1", 0)
-
-    def test_ipv6_with_port(self):
-        assert parse_host("[::1]:8080") == ("::1", 8080)
-
-
-class TestParseRequestId:
-    def test_none(self):
-        assert parse_request_id(None) is None
-
-    def test_normal(self):
-        assert parse_request_id("abc-123") == "abc-123"
-
-    def test_non_ascii_removed(self):
-        result = parse_request_id("abc\u00e9def")
-        assert "\u00e9" not in result
-
-    def test_truncation(self):
-        long_id = "x" * 300
-        result = parse_request_id(long_id)
-        assert len(result) == 200
-
-
-# ── parse_forwarded (forwarded.py) ──────────────────────────────────
-
-
-class TestParseForwarded:
-    def test_none(self):
-        assert parse_forwarded(None) == []
-
-    def test_single_proxy(self):
-        result = parse_forwarded("for=1.2.3.4")
-        assert result == [{"for": "1.2.3.4"}]
-
-    def test_multiple_proxies(self):
-        result = parse_forwarded("for=1.2.3.4, for=5.6.7.8")
-        assert len(result) == 2
-        assert result[0]["for"] == "1.2.3.4"
-        assert result[1]["for"] == "5.6.7.8"
-
-    def test_quoted_values(self):
-        result = parse_forwarded('for="1.2.3.4"')
-        assert result[0]["for"] == "1.2.3.4"
-
-    def test_port_suffix(self):
-        result = parse_forwarded("for=1.2.3.4:8080")
-        assert result[0]["for"] == "1.2.3.4:8080"
-
-    def test_multiple_params(self):
-        result = parse_forwarded("for=1.2.3.4;proto=https;by=proxy.example.com")
-        assert result[0]["for"] == "1.2.3.4"
-        assert result[0]["proto"] == "https"
-        assert result[0]["by"] == "proxy.example.com"
-
-    def test_bad_syntax_skipped(self):
-        # Invalid token followed by valid one
-        result = parse_forwarded("$$invalid$$, for=1.2.3.4")
-        # Should have two proxy entries (one empty from bad syntax, one valid)
-        found = [p for p in result if "for" in p]
-        assert len(found) == 1
-        assert found[0]["for"] == "1.2.3.4"
-
-
-# ── Request class ───────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+# request.py — Request class
+# ═══════════════════════════════════════════════════════════════════
 
 
 class TestRequest:
-    def test_default_construction(self):
-        req = Request()
-        assert req.method == "GET"
-        assert req.path == "/"
-
     def test_repr(self):
-        req = Request()
+        req = _req("/hello", method="GET")
         r = repr(req)
         assert "GET" in r
-        assert "/" in r
+        assert "/hello" in r
 
-    def test_session_get_set(self):
-        req = Request()
-        req.session = {"foo": "bar"}
+    def test_app(self, app):
+        scope = _scope("/")
+        scope["app"] = app
+        req = Request(scope)
+        assert req.app is app
+
+    def test_session_default(self):
+        req = _req("/")
         assert isinstance(req.session, DotDict)
-        assert req.session["foo"] == "bar"
+        assert len(req.session) == 0
 
-    def test_body_property(self):
-        env = make_test_scope(body=b"hello")
-        req = Request(**env)
-        assert req.body.read() == b"hello"
+    def test_session_setter(self):
+        req = _req("/")
+        req.session = {"key": "val"}
+        assert isinstance(req.session, DotDict)
+        assert req.session.key == "val"
 
-    def test_body_fallback_empty(self):
-        req = Request()
-        # Default make_test_scope body is empty BytesIO
-        data = req.body.read()
-        assert data == b""
-
-    def test_flashes_from_session(self):
-        req = Request()
-        req.session = {"_flashes": [("info", "Hello!")]}
-        assert req.flashes == [("info", "Hello!")]
+    def test_http_version(self):
+        req = _req("/")
+        assert req.http_version == "1.1"
 
     def test_flashes_empty(self):
-        req = Request()
+        req = _req("/")
         assert req.flashes == []
 
-    def test_form_lazy_caching(self):
-        env = make_test_scope(
-            body=b"key=value",
-            REQUEST_METHOD="POST",
-            CONTENT_TYPE="application/x-www-form-urlencoded",
-            CONTENT_LENGTH="9",
-        )
-        req = Request(**env)
-        form1 = req.form
-        form2 = req.form
-        assert form1 is form2
-        assert form1["key"] == ["value"]
+    def test_flashes_from_session(self):
+        req = _req("/")
+        req.session = {"_flashes": [("info", "hello")]}
+        assert req.flashes == [("info", "hello")]
 
-    def test_form_get_returns_empty(self):
-        env = make_test_scope(REQUEST_METHOD="GET")
-        req = Request(**env)
-        assert len(req.form) == 0
+    def test_query(self, app):
+        scope = _scope("http://example.com/search?q=test&page=2")
+        scope["app"] = app
+        req = Request(scope)
+        assert req.query.get("q") == "test"
+        assert req.query.get("page") == "2"
 
-    def test_query_lazy_caching(self):
-        env = make_test_scope(params={"q": "test"})
-        req = Request(**env)
+    def test_query_cached(self, app):
+        scope = _scope("http://example.com/?x=1")
+        scope["app"] = app
+        req = Request(scope)
         q1 = req.query
         q2 = req.query
         assert q1 is q2
-        assert q1["q"] == ["test"]
 
     def test_query_string(self):
-        env = make_test_scope(params={"a": "1"})
-        req = Request(**env)
-        assert "a=1" in req.query_string
+        req = _req("http://example.com/path?a=1&b=2")
+        assert req.query_string == "a=1&b=2"
 
-    def test_url_with_query(self):
-        env = make_test_scope("/hello", params={"x": "1"})
-        req = Request(**env)
-        assert req.url == "/hello?x=1"
+    def test_query_string_bytes(self):
+        scope = _scope("/")
+        scope["query_string"] = b"key=val"
+        req = Request(scope)
+        assert req.query_string == "key=val"
+
+    def test_query_string_str(self):
+        scope = _scope("/")
+        scope["query_string"] = "key=val"
+        req = Request(scope)
+        assert req.query_string == "key=val"
+
+    def test_query_string_empty(self):
+        req = _req("/")
+        assert req.query_string == ""
+
+    def test_url(self):
+        req = _req("http://example.com/path?q=1")
+        assert req.url == "/path?q=1"
 
     def test_get_url_without_query(self):
-        env = make_test_scope("/hello", params={"x": "1"})
-        req = Request(**env)
-        assert req.get_url(include_query=False) == "/hello"
+        req = _req("http://example.com/path?q=1")
+        assert req.get_url(include_query=False) == "/path"
 
-    def test_url_no_query(self):
-        env = make_test_scope("/hello")
-        req = Request(**env)
-        assert req.url == "/hello"
+    def test_get_url_no_query_string(self):
+        req = _req("http://example.com/path")
+        assert req.get_url() == "/path"
 
-    def test_get_cookie_found(self):
-        env = make_test_scope(HTTP_COOKIE="name=Jon")
-        req = Request(**env)
+    def test_form_default(self):
+        req = _req("/")
+        assert isinstance(req.form, MultiDict)
+        assert len(req.form) == 0
+
+    def test_matched_defaults(self):
+        req = _req("/")
+        assert req.matched_route is None
+        assert req.matched_params is None
+        assert req.matched_action is None
+
+    def test_get_cookie(self):
+        req = _req("/", headers=[("cookie", "name=Jon")])
         assert req.get_cookie("name") == "Jon"
 
-    def test_get_cookie_not_found(self):
-        env = make_test_scope()
-        req = Request(**env)
-        assert req.get_cookie("missing") is None
-
     def test_get_cookie_default(self):
-        env = make_test_scope()
-        req = Request(**env)
+        req = _req("/")
+        assert req.get_cookie("missing") is None
         assert req.get_cookie("missing", "fallback") == "fallback"
 
-    def test_get_signed_cookie_valid(self):
-        import itsdangerous
+    def test_get_signed_cookie(self, app):
 
-        s = itsdangerous.URLSafeTimedSerializer("test-secret")
-        signed = s.dumps("hello")
+        serializer = app.get_serializer("")
+        signed_value = serializer.dumps("secret_data")
+        scope = _scope("/")
+        scope["app"] = app
+        scope["headers"].append((b"cookie", f"test={signed_value}".encode()))
+        req = Request(scope)
+        assert req.get_signed_cookie("test") == "secret_data"
 
-        app = MagicMock()
-        app.get_serializer.return_value = s
+    def test_get_signed_cookie_missing(self, app):
+        scope = _scope("/")
+        scope["app"] = app
+        req = Request(scope)
+        assert req.get_signed_cookie("missing") is None
+        assert req.get_signed_cookie("missing", "default") == "default"
 
-        env = make_test_scope(HTTP_COOKIE=f"token={signed}")
-        req = Request(app=app, **env)
-        assert req.get_signed_cookie("token") == "hello"
+    def test_get_signed_cookie_bad_signature(self, app):
+        scope = _scope("/")
+        scope["app"] = app
+        scope["headers"].append((b"cookie", b"test=tampered_value"))
+        req = Request(scope)
+        assert req.get_signed_cookie("test") is None
+        assert req.get_signed_cookie("test", "fallback") == "fallback"
 
-    def test_get_signed_cookie_bad_signature(self):
-        import itsdangerous
+    def test_get_signed_cookie_bytes_value(self, app):
+        from unittest.mock import patch
 
-        secret = "test-secret"
-        s = itsdangerous.URLSafeTimedSerializer(secret)
-
-        app = MagicMock()
-        app.get_serializer.return_value = s
-
-        env = make_test_scope(HTTP_COOKIE="token=tampered-value")
-        req = Request(app=app, **env)
-        assert req.get_signed_cookie("token", salt="x") is None
-
-    def test_get_signed_cookie_missing(self):
-        import itsdangerous
-
-        secret = "test-secret"
-        s = itsdangerous.URLSafeTimedSerializer(secret)
-
-        app = MagicMock()
-        app.get_serializer.return_value = s
-
-        env = make_test_scope()
-        req = Request(app=app, **env)
-        assert req.get_signed_cookie("missing", "default", salt="x") == "default"
+        serializer = app.get_serializer("")
+        signed_value = serializer.dumps("bytes_test")
+        scope = _scope("/")
+        scope["app"] = app
+        scope["headers"].append((b"cookie", f"test={signed_value}".encode()))
+        req = Request(scope)
+        # Patch loads to return bytes
+        with patch.object(
+            type(serializer), "loads", return_value=b"decoded_bytes"
+        ):
+            result = req.get_signed_cookie("test")
+            assert result == "decoded_bytes"
 
 
-# ── parse_form.py ───────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+# request.py — async methods (_get_stream, _get_body, _parse_body)
+# ═══════════════════════════════════════════════════════════════════
 
 
-class TestParseForm:
-    def test_empty_content(self):
-        stream = BytesIO(b"")
-        result = parse_form(stream, "text/plain", 0)
-        assert len(result) == 0
+class TestRequestAsync:
+    async def test_get_body(self, app):
+        body = b"hello world"
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/json"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        receive = _make_receive(body)
+        result = await req._get_body(receive)
+        assert result == body
 
-    def test_max_content_length_exceeded(self):
-        stream = BytesIO(b"x" * 100)
+    async def test_get_body_chunked(self, app):
+        body = b"hello world"
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/json"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        receive = _make_receive(body, chunk_size=3)
+        result = await req._get_body(receive)
+        assert result == body
+
+    async def test_get_stream_max_content_length(self, app):
+        app.config.MAX_CONTENT_LENGTH = 5
+        body = b"toolongbody"
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/json"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        receive = _make_receive(body)
         with pytest.raises(RequestEntityTooLarge):
-            parse_form(stream, "text/plain", 100, max_content_length=10)
+            await req._get_body(receive)
+        app.config.MAX_CONTENT_LENGTH = 0
 
-    def test_urlencoded(self):
-        body = b"name=alice&age=30"
-        stream = BytesIO(body)
-        result = parse_form(
-            stream, "application/x-www-form-urlencoded", len(body),
+    async def test_get_stream_disconnect(self, app):
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", "10"),
+            ("content-type", "application/json"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        receive = _make_disconnect_receive()
+        with pytest.raises(ClientDisconnected):
+            await req._get_body(receive)
+
+    async def test_parse_body_get_skips(self, app):
+        scope = _scope("/", method="GET")
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(b""))
+        assert len(req.form) == 0
+
+    async def test_parse_body_head_skips(self, app):
+        scope = _scope("/", method="HEAD")
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(b""))
+        assert len(req.form) == 0
+
+    async def test_parse_body_no_content_length_skips(self, app):
+        scope = _scope("/", method="POST")
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(b""))
+        assert len(req.form) == 0
+
+    async def test_parse_body_json(self, app):
+        body = json.dumps({"key": "value"}).encode()
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/json"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(body))
+        assert req.form.get("key") == "value"
+
+    async def test_parse_body_json_charset(self, app):
+        body = json.dumps({"x": "y"}).encode()
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/json; charset=utf-8"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(body))
+        assert req.form.get("x") == "y"
+
+    async def test_parse_body_form_urlencoded(self, app):
+        body = b"name=Jon&age=30"
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/x-www-form-urlencoded"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(body))
+        assert req.form.get("name") == "Jon"
+        assert req.form.get("age") == "30"
+
+    async def test_parse_body_form_x_url_encoded(self, app):
+        body = b"key=val"
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/x-url-encoded"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(body))
+        assert req.form.get("key") == "val"
+
+    async def test_parse_body_multipart(self, app):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [{"name": "field1", "value": "hello"}],
+            boundary=boundary,
         )
-        assert result["name"] == ["alice"]
-        assert result["age"] == ["30"]
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", f"multipart/form-data; boundary={boundary}"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
+        await req._parse_body(_make_receive(body))
+        assert req.form.get("field1") == "hello"
 
-    def test_json(self):
-        body = b'{"name": "alice", "age": 30}'
-        stream = BytesIO(body)
-        result = parse_form(
-            stream, "application/json", len(body),
-        )
-        assert result["name"] == ["alice"]
-        assert result["age"] == [30]
-
-    def test_unsupported_type(self):
+    async def test_parse_body_unsupported_content_type(self, app):
         body = b"data"
-        stream = BytesIO(body)
+        scope = _scope("/", method="POST", headers=[
+            ("content-length", str(len(body))),
+            ("content-type", "application/xml"),
+        ])
+        scope["app"] = app
+        req = Request(scope)
         with pytest.raises(UnsupportedMediaType):
-            parse_form(stream, "text/plain", len(body))
+            await req._parse_body(_make_receive(body))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# formparser.py — standalone functions
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestParseOptionsHeader:
+    def test_empty(self):
+        ct, opts = parse_options_header("")
+        assert ct == ""
+        assert opts == {}
+
+    def test_simple(self):
+        ct, opts = parse_options_header("text/html")
+        assert ct == "text/html"
+
+    def test_with_params(self):
+        ct, opts = parse_options_header("text/html; charset=utf-8")
+        assert ct == "text/html"
+        assert opts["charset"] == "utf-8"
+
+    def test_multipart_boundary(self):
+        ct, opts = parse_options_header(
+            "multipart/form-data; boundary=----WebKitFormBoundary"
+        )
+        assert ct == "multipart/form-data"
+        assert opts["boundary"] == "----WebKitFormBoundary"
+
+    def test_existing_options_dict(self):
+        existing = {"extra": "value"}
+        ct, opts = parse_options_header("text/plain", options=existing)
+        assert opts["extra"] == "value"
+        assert opts is existing
 
 
 class TestParseQueryString:
-    def test_normal(self):
+    def test_simple(self):
         result = parse_query_string("a=1&b=2")
-        assert result["a"] == ["1"]
-        assert result["b"] == ["2"]
+        assert result.get("a") == "1"
+        assert result.get("b") == "2"
 
-    def test_max_query_size_exceeded(self):
-        with pytest.raises(UriTooLong):
-            parse_query_string("a=1&b=2", max_query_size=3)
-
-    def test_blank_values_kept(self):
-        result = parse_query_string("key=")
-        assert result["key"] == [""]
-
-    def test_empty_string(self):
+    def test_empty(self):
         result = parse_query_string("")
         assert len(result) == 0
 
+    def test_blank_values(self):
+        result = parse_query_string("key=")
+        assert result.get("key") == ""
+
+    def test_max_query_size(self):
+        with pytest.raises(UriTooLong):
+            parse_query_string("x" * 100, max_query_size=10)
+
+    def test_encoding(self):
+        result = parse_query_string("name=%C3%A9", encoding="utf-8")
+        assert result.get("name") == "\u00e9"
+
 
 class TestParseJson:
-    def test_valid_object(self):
-        result = parse_json('{"a": 1}')
-        assert result["a"] == [1]
+    def test_valid(self):
+        result = parse_json('{"key": "value"}')
+        assert result.get("key") == "value"
 
-    def test_decode_error_strict(self):
+    def test_invalid_strict(self):
         with pytest.raises(MultipartError):
-            parse_json("{invalid}", strict=True)
+            parse_json("not json")
 
-    def test_decode_error_non_strict(self):
-        result = parse_json("{invalid}", strict=False)
+    def test_invalid_non_strict(self):
+        result = parse_json("not json", strict=False)
         assert len(result) == 0
 
 
-class TestNormalizeNewlines:
-    def test_crlf(self):
-        assert _normalize_newlines("a\r\nb") == "a\nb"
-
-    def test_cr(self):
-        assert _normalize_newlines("a\rb") == "a\nb"
-
-    def test_lf(self):
-        assert _normalize_newlines("a\nb") == "a\nb"
-
-    def test_mixed(self):
-        assert _normalize_newlines("a\r\nb\rc\nd") == "a\nb\nc\nd"
-
-
-class TestValidateActualContentLength:
-    def test_match(self):
-        _validate_actual_content_length("hello", 5)  # should not raise
-
-    def test_too_big(self):
-        with pytest.raises(BadRequest, match="bigger"):
-            _validate_actual_content_length("hello world", 5)
-
-    def test_too_small(self):
-        with pytest.raises(BadRequest, match="smaller"):
-            _validate_actual_content_length("hi", 5)
-
-
-class TestReadContent:
-    def test_normal(self):
-        stream = BytesIO(b"hello")
-        result = _read_content(stream, 100, "utf8")
-        assert result == "hello"
-
-    def test_exceeds_limit(self):
-        stream = BytesIO(b"hello world")
-        with pytest.raises(RequestEntityTooLarge):
-            _read_content(stream, 5, "utf8")
-
-
-# ── parse_form multipart path ──────────────────────────────────────
-
-
-class TestParseFormMultipart:
-    def test_multipart_form_field(self):
-        body = _build_multipart([
-            {"name": "username", "value": "alice"},
-        ])
-        stream = BytesIO(body)
-        result = parse_form(
-            stream,
-            "multipart/form-data; boundary=testboundary",
-            len(body),
-        )
-        assert result["username"] == ["alice"]
-
-    def test_multipart_file_upload(self):
-        body = _build_multipart([
-            {
-                "name": "file",
-                "value": b"file content here",
-                "filename": "test.txt",
-                "content_type": "text/plain",
-            },
-        ])
-        stream = BytesIO(body)
-        result = parse_form(
-            stream,
-            "multipart/form-data; boundary=testboundary",
-            len(body),
-        )
-        part = result["file"][0]
-        assert part.filename == "test.txt"
-        assert part.value == "file content here"
-
-    def test_multipart_mixed_fields_and_files(self):
-        body = _build_multipart([
-            {"name": "title", "value": "My Document"},
-            {
-                "name": "doc",
-                "value": b"PDF bytes",
-                "filename": "doc.pdf",
-                "content_type": "application/pdf",
-            },
-        ])
-        stream = BytesIO(body)
-        result = parse_form(
-            stream,
-            "multipart/form-data; boundary=testboundary",
-            len(body),
-        )
-        assert result["title"] == ["My Document"]
-        part = result["doc"][0]
-        assert part.filename == "doc.pdf"
-
-    def test_multipart_no_boundary_raises(self):
-        stream = BytesIO(b"data")
-        with pytest.raises(MultipartError, match="No boundary"):
-            parse_form(stream, "multipart/form-data", 4)
-
-    def test_multipart_crlf_normalization(self):
-        body = _build_multipart([
-            {"name": "text", "value": "line1\r\nline2\rline3"},
-        ])
-        stream = BytesIO(body)
-        result = parse_form(
-            stream,
-            "multipart/form-data; boundary=testboundary",
-            len(body),
-        )
-        # Form text values have newlines normalized
-        assert result["text"] == ["line1\nline2\nline3"]
-
-
-class TestParseMultipartDirect:
-    def test_no_boundary_raises(self):
-        with pytest.raises(MultipartError, match="No boundary"):
-            parse_multipart(BytesIO(b""), 0, {}, encoding="utf8")
-
-    def test_with_boundary(self):
-        body = _build_multipart([
-            {"name": "field", "value": "val"},
-        ])
-        result = parse_multipart(
-            BytesIO(body), len(body),
-            {"boundary": "testboundary"},
-            encoding="utf8",
-        )
-        assert result["field"] == ["val"]
-
-
-class TestParseQueryStringStrictFalse:
-    def test_value_error_non_strict(self):
-        # parse_qs with invalid encoding can raise ValueError;
-        # non-strict mode swallows it
-        result = parse_query_string("key=val", strict=False)
-        assert result["key"] == ["val"]
-
-
-# ── multipart.py ────────────────────────────────────────────────────
-
-
-class TestToBytes:
-    def test_str_input(self):
-        assert to_bytes("hello") == b"hello"
-
-    def test_bytes_input(self):
-        assert to_bytes(b"hello") == b"hello"
-
-    def test_custom_encoding(self):
-        assert to_bytes("hello", enc="ascii") == b"hello"
-
-
 class TestCopyFile:
-    def test_copy_all(self):
+    def test_basic(self):
         src = BytesIO(b"hello world")
         dst = BytesIO()
         size = copy_file(src, dst)
         assert size == 11
         assert dst.getvalue() == b"hello world"
 
-    def test_copy_with_maxread(self):
+    def test_maxread(self):
         src = BytesIO(b"hello world")
         dst = BytesIO()
         size = copy_file(src, dst, maxread=5)
         assert size == 5
         assert dst.getvalue() == b"hello"
 
-    def test_copy_empty(self):
+    def test_empty(self):
         src = BytesIO(b"")
         dst = BytesIO()
         size = copy_file(src, dst)
         assert size == 0
 
 
-class TestHeaderQuote:
-    def test_plain_value(self):
-        assert header_quote("foo") == "foo"
+class TestSafeDecode:
+    def test_utf8(self):
+        assert _safe_decode(b"hello", "utf-8") == "hello"
 
-    def test_special_chars_quoted(self):
-        result = header_quote('foo"bar')
-        assert result.startswith('"')
-        assert result.endswith('"')
+    def test_latin1_fallback(self):
+        raw = b"\xe9"
+        result = _safe_decode(raw, "utf-8")
+        assert result == raw.decode("latin-1")
 
-    def test_space_quoted(self):
-        result = header_quote("foo bar")
-        assert result == '"foo bar"'
-
-    def test_backslash_escaped(self):
-        result = header_quote("foo\\bar")
-        assert '\\\\"' not in result or "\\\\" in result
+    def test_bad_codec_fallback(self):
+        result = _safe_decode(b"hello", "nonexistent-codec")
+        assert result == "hello"
 
 
-class TestHeaderUnquote:
-    def test_quoted_value(self):
-        assert header_unquote('"foo"') == "foo"
-
-    def test_unquoted_value(self):
-        assert header_unquote("foo") == "foo"
-
-    def test_escaped_quote(self):
-        assert header_unquote('"foo\\"bar"') == 'foo"bar'
-
-    def test_escaped_backslash(self):
-        assert header_unquote('"foo\\\\bar"') == "foo\\bar"
-
-
-class TestParseOptionsHeader:
-    def test_no_semicolon(self):
-        ct, opts = parse_options_header("text/html")
-        assert ct == "text/html"
-        assert opts == {}
-
-    def test_with_options(self):
-        ct, opts = parse_options_header('form-data; name="Test"; filename="Test.txt"')
-        assert ct == "form-data"
-        assert opts["name"] == "Test"
-        assert opts["filename"] == "Test.txt"
-
-    def test_quoted_value_with_escape(self):
-        ct, opts = parse_options_header('form-data; name="Te\\"st"')
-        assert opts["name"] == 'Te"st'
-
-    def test_existing_options_dict(self):
-        existing = {"extra": "value"}
-        ct, opts = parse_options_header("text/html; charset=utf-8", options=existing)
-        assert opts["charset"] == "utf-8"
-        assert opts["extra"] == "value"
-
-
-class TestMultipartParser:
-    def test_single_field(self):
-        body = _build_multipart([
-            {"name": "field1", "value": "value1"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 1
-        assert parts[0].name == "field1"
-        assert parts[0].value == "value1"
-
-    def test_multiple_fields(self):
-        body = _build_multipart([
-            {"name": "a", "value": "1"},
-            {"name": "b", "value": "2"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 2
-        assert parts[0].value == "1"
-        assert parts[1].value == "2"
-
-    def test_file_upload(self):
-        body = _build_multipart([
-            {
-                "name": "myfile",
-                "value": b"binary content",
-                "filename": "data.bin",
-                "content_type": "application/octet-stream",
-            },
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 1
-        assert parts[0].filename == "data.bin"
-        assert parts[0].raw == b"binary content"
-
-    def test_get_by_name(self):
-        body = _build_multipart([
-            {"name": "a", "value": "1"},
-            {"name": "b", "value": "2"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        part = mp.get("b")
-        assert part is not None
-        assert part.value == "2"
-
-    def test_get_missing_returns_default(self):
-        body = _build_multipart([
-            {"name": "a", "value": "1"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        assert mp.get("missing") is None
-        assert mp.get("missing", "fallback") == "fallback"
-
-    def test_get_all(self):
-        body = _build_multipart([
-            {"name": "items", "value": "one"},
-            {"name": "items", "value": "two"},
-            {"name": "other", "value": "x"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        items = mp.get_all("items")
-        assert len(items) == 2
-        assert items[0].value == "one"
-        assert items[1].value == "two"
-
-    def test_boundary_too_large_raises(self):
-        big_boundary = "x" * 300
-        with pytest.raises(MultipartError, match="Boundary does not fit"):
-            MultipartParser(BytesIO(b""), big_boundary, buffer_size=256)
-
-    def test_no_boundary_in_stream_raises(self):
-        mp = MultipartParser(BytesIO(b"no boundary here"), "testboundary")
-        with pytest.raises(MultipartError, match="does not contain boundary"):
-            mp.parts()
-
-    def test_empty_multipart(self):
-        # Terminator immediately after boundary
-        body = b"--testboundary--\r\n"
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 0
-
-    def test_unexpected_end_of_stream(self):
-        # Only separator, no terminator -> unexpected end
-        body = (
-            b"--testboundary\r\n"
-            b'Content-Disposition: form-data; name="f"\r\n'
-            b"\r\n"
-            b"value\r\n"
-            # Missing --testboundary-- terminator
-        )
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        with pytest.raises(MultipartError, match="Unexpected end"):
-            mp.parts()
-
-    def test_iter_caches_parts(self):
-        body = _build_multipart([
-            {"name": "a", "value": "1"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        # First iteration
-        list(mp)
-        # Second iteration should yield cached parts
-        parts = list(mp)
-        assert len(parts) == 1
-        assert parts[0].name == "a"
-
-    def test_memory_limit(self):
-        body = _build_multipart([
-            {"name": "big", "value": "x" * 200},
-        ])
-        mp = MultipartParser(
-            BytesIO(body), "testboundary", len(body), mem_limit=50,
-        )
-        with pytest.raises(MultipartError, match="Memory limit"):
-            mp.parts()
-
-    def test_bytes_boundary(self):
-        body = _build_multipart([
-            {"name": "f", "value": "v"},
-        ])
-        mp = MultipartParser(BytesIO(body), b"testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 1
-
-    def test_preamble_ignored(self):
-        body = (
-            b"This is the preamble. It should be ignored.\r\n"
-            b"--testboundary\r\n"
-            b'Content-Disposition: form-data; name="field"\r\n'
-            b"\r\n"
-            b"value\r\n"
-            b"--testboundary--\r\n"
-        )
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 1
-        assert parts[0].value == "value"
+# ═══════════════════════════════════════════════════════════════════
+# formparser.py — MultipartPart
+# ═══════════════════════════════════════════════════════════════════
 
 
 class TestMultipartPart:
-    def _make_part(self, name="field", value="hello", filename=None,
-                   content_type=None):
-        """Build a single MultipartPart by feeding it headers + body."""
+    def test_defaults(self):
         part = MultipartPart()
-        disp = f'form-data; name="{name}"'
-        if filename:
-            disp += f'; filename="{filename}"'
-        part.feed(f"Content-Disposition: {disp}".encode(), b"\r\n")
-        if content_type:
-            part.feed(f"Content-Type: {content_type}".encode(), b"\r\n")
-        part.feed(b"", b"\r\n")  # blank line -> finish_header
-        val = value.encode() if isinstance(value, str) else value
-        part.feed(val, b"\r\n")
-        return part
+        assert part.name == ""
+        assert part.filename is None
+        assert part.file is None
+        assert part.content_type is None
+        assert part.size == 0
+        assert part.headers == []
+
+    def test_is_buffered_bytesio(self):
+        part = MultipartPart()
+        part.file = BytesIO(b"data")
+        assert part.is_buffered() is True
+
+    def test_is_buffered_other(self):
+        part = MultipartPart()
+        from tempfile import SpooledTemporaryFile
+        part.file = SpooledTemporaryFile()
+        assert part.is_buffered() is False
+        part.close()
 
     def test_value_and_raw(self):
-        part = self._make_part(value="hello")
-        assert part.value == "hello"
+        part = MultipartPart()
+        part.file = BytesIO(b"hello")
         assert part.raw == b"hello"
-
-    def test_name_and_filename(self):
-        part = self._make_part(name="doc", filename="report.pdf",
-                               content_type="application/pdf")
-        assert part.name == "doc"
-        assert part.filename == "report.pdf"
-
-    def test_is_buffered(self):
-        part = self._make_part()
-        assert part.is_buffered() is True
+        assert part.value == "hello"
+        # file position should be restored
+        assert part.file.tell() == 0
 
     def test_raw_no_file(self):
         part = MultipartPart()
         assert part.raw == b""
 
-    def test_value_no_file(self):
+    def test_save_as(self, tmp_path):
         part = MultipartPart()
-        assert part.value == ""
+        part.file = BytesIO(b"file content")
+        dest = tmp_path / "output.bin"
+        size = part.save_as(str(dest))
+        assert size == 12
+        assert dest.read_bytes() == b"file content"
+        # file position should be restored
+        assert part.file.tell() == 0
 
     def test_close(self):
-        part = self._make_part()
-        assert part.file is not None
+        part = MultipartPart()
+        part.file = BytesIO(b"data")
         part.close()
         assert part.file is None
 
-    def test_close_idempotent(self):
+    def test_close_no_file(self):
         part = MultipartPart()
-        part.close()  # no file, should not raise
-        assert part.file is None
+        part.close()  # should not raise
 
-    def test_save_as(self, tmp_path):
-        part = self._make_part(value="save me")
-        part.file.seek(0)
-        path = str(tmp_path / "output.txt")
-        size = part.save_as(path)
-        assert size > 0
-        with open(path, "rb") as f:
-            assert f.read() == b"save me"
 
-    def test_write_header_continuation(self):
-        """Test folded header (continuation line starting with whitespace)."""
-        part = MultipartPart()
-        part.feed(b"Content-Disposition: form-data;", b"\r\n")
-        part.feed(b' name="field"', b"\r\n")
-        part.feed(b"", b"\r\n")  # end of headers
-        assert part.name == "field"
+# ═══════════════════════════════════════════════════════════════════
+# formparser.py — MultipartParser
+# ═══════════════════════════════════════════════════════════════════
 
-    def test_write_header_no_colon_raises(self):
-        part = MultipartPart()
-        with pytest.raises(MultipartError, match="No colon"):
-            part.feed(b"BadHeader", b"\r\n")
 
-    def test_write_header_no_newline_raises(self):
-        part = MultipartPart()
-        with pytest.raises(MultipartError, match="Unexpected end of line"):
-            part.feed(b"Content-Disposition: form-data", b"")
+class TestMultipartParser:
+    def test_single_field(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [{"name": "field1", "value": "hello"}],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary)
+        items = parser.parse_sync(body)
+        assert len(items) == 1
+        assert items[0] == ("field1", "hello")
 
-    def test_missing_content_disposition_raises(self):
-        part = MultipartPart()
-        part.feed(b"Content-Type: text/plain", b"\r\n")
+    def test_multiple_fields(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [
+                {"name": "a", "value": "1"},
+                {"name": "b", "value": "2"},
+            ],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary)
+        items = parser.parse_sync(body)
+        assert len(items) == 2
+
+    def test_file_upload(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [
+                {
+                    "name": "file",
+                    "value": b"file content here",
+                    "filename": "test.txt",
+                    "content_type": "text/plain",
+                },
+            ],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary)
+        items = parser.parse_sync(body)
+        assert len(items) == 1
+        name, part = items[0]
+        assert name == "file"
+        assert isinstance(part, MultipartPart)
+        assert part.filename == "test.txt"
+        assert part.content_type == "text/plain"
+        assert part.raw == b"file content here"
+        part.close()
+
+    def test_mixed_fields_and_files(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [
+                {"name": "title", "value": "My File"},
+                {
+                    "name": "upload",
+                    "value": b"binary data",
+                    "filename": "data.bin",
+                    "content_type": "application/octet-stream",
+                },
+            ],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary)
+        items = parser.parse_sync(body)
+        assert items[0] == ("title", "My File")
+        name, part = items[1]
+        assert isinstance(part, MultipartPart)
+        part.close()
+
+    def test_no_boundary_error(self):
+        with pytest.raises(MultipartError, match="boundary"):
+            parse_multipart_sync(b"", {})
+
+    def test_max_fields_exceeded(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [{"name": f"field{i}", "value": "v"} for i in range(5)],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary, max_fields=2)
+        with pytest.raises(MultipartError, match="Too many fields"):
+            parser.parse_sync(body)
+
+    def test_max_files_exceeded(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [
+                {"name": f"f{i}", "value": b"data", "filename": f"f{i}.txt"}
+                for i in range(5)
+            ],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary, max_files=2)
+        with pytest.raises(MultipartError, match="Too many files"):
+            parser.parse_sync(body)
+
+    def test_max_part_size_exceeded(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [{"name": "big", "value": "x" * 100}],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary, max_part_size=10)
+        with pytest.raises(MultipartError, match="exceeded"):
+            parser.parse_sync(body)
+
+    def test_missing_content_disposition(self):
+        boundary = "testboundary"
+        # Manually craft a body without Content-Disposition
+        body = (
+            f"--{boundary}\r\n"
+            f"Content-Type: text/plain\r\n"
+            f"\r\n"
+            f"value\r\n"
+            f"--{boundary}--\r\n"
+        ).encode()
+        parser = MultipartParser(boundary)
         with pytest.raises(MultipartError, match="Content-Disposition"):
-            part.feed(b"", b"\r\n")  # blank line triggers finish_header
+            parser.parse_sync(body)
 
-    def test_write_body_empty_noop(self):
-        part = self._make_part(value="initial")
-        size_before = part.size
-        part.write_body(b"", b"")
-        assert part.size == size_before
+    def test_missing_name_in_disposition(self):
+        boundary = "testboundary"
+        body = (
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data\r\n"
+            f"\r\n"
+            f"value\r\n"
+            f"--{boundary}--\r\n"
+        ).encode()
+        parser = MultipartParser(boundary)
+        with pytest.raises(MultipartError, match="name"):
+            parser.parse_sync(body)
 
-    def test_content_length_exceeded_raises(self):
-        part = MultipartPart()
-        part.feed(b'Content-Disposition: form-data; name="f"', b"\r\n")
-        part.feed(b"Content-Length: 3", b"\r\n")
-        part.feed(b"", b"\r\n")  # finish headers
-        with pytest.raises(MultipartError, match="exceeds Content-Length"):
-            part.feed(b"too much data here", b"\r\n")
+    def test_parse_multipart_sync_function(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [{"name": "x", "value": "y"}],
+            boundary=boundary,
+        )
+        result = parse_multipart_sync(body, {"boundary": boundary})
+        assert isinstance(result, MultiDict)
+        assert result.get("x") == "y"
 
-    def test_spill_to_disk(self):
-        """File uploads that exceed memfile_limit spill to a TemporaryFile."""
-        part = MultipartPart(memfile_limit=10)
-        part.feed(b'Content-Disposition: form-data; name="big"; filename="f.bin"', b"\r\n")
-        part.feed(b"", b"\r\n")
-        assert part.is_buffered() is True
-        # Feed enough data to exceed the limit
-        part.feed(b"x" * 20, b"\r\n")
-        assert part.is_buffered() is False
-        # Data should still be accessible
-        assert b"x" * 20 in part.raw
+    def test_chunked_parse(self):
+        boundary = "testboundary"
+        body = _build_multipart(
+            [{"name": "field", "value": "hello"}],
+            boundary=boundary,
+        )
+        parser = MultipartParser(boundary)
+        items = parser.parse_sync(body)
+        assert items[0] == ("field", "hello")
 
-    def test_non_file_field_exceeding_memfile_limit(self):
-        """Non-file fields that exceed memfile_limit raise an error."""
-        part = MultipartPart(memfile_limit=10)
-        part.feed(b'Content-Disposition: form-data; name="big"', b"\r\n")
-        part.feed(b"", b"\r\n")
+    def test_file_parts_closed_on_error(self):
+        boundary = "testboundary"
+        # Create body with a file upload then exceed max_fields with non-file
+        parts = [
+            {"name": "f", "value": b"data", "filename": "f.txt"},
+        ]
+        parts.extend(
+            {"name": f"field{i}", "value": "v"} for i in range(5)
+        )
+        body = _build_multipart(parts, boundary=boundary)
+        parser = MultipartParser(boundary, max_fields=2)
         with pytest.raises(MultipartError):
-            part.feed(b"x" * 20, b"\r\n")
-
-
-# ── Additional coverage for headers.py ──────────────────────────────
-
-
-class TestHeadersMixinAdditional:
-    def _make(self, **extra):
-        env = make_test_scope(**extra)
-        return RequestHeadersMixin(env)
-
-    def test_normalize_env_http_prefix_kept_when_unprefixed_exists(self):
-        """When a non-HTTP_ key exists (e.g. CONTENT_TYPE), and HTTP_CONTENT_TYPE
-        also exists, the HTTP_ variant is kept with its full normalized name."""
-        env = make_test_scope(CONTENT_TYPE="text/plain")
-        env["HTTP_CONTENT_TYPE"] = "text/html"
-        h = RequestHeadersMixin(env)
-        # The unprefixed content_type was already set by CONTENT_TYPE,
-        # so HTTP_CONTENT_TYPE should be stored as http_content_type
-        assert h.env.get("http_content_type") == "text/html"
-        assert h.env.get("content_type") == "text/plain"
-
-    def test_headers_property_returns_env(self):
-        h = self._make()
-        assert h.headers is h.env
-
-    def test_format_with_unrecognized_mime(self):
-        """When accept has a MIME type that has no known extension, fall through."""
-        h = self._make(HTTP_ACCEPT="application/x-unknown-type-xyz, text/html")
-        assert h.format == "html"
-
-    def test_get_returns_default_for_none_special_header(self):
-        """When a special header (e.g. request_id) returns None, get() returns default."""
-        h = self._make()
-        assert h.get("request_id", "fallback") == "fallback"
-
-
-class TestParseMultivalueSlowPath:
-    def test_params_with_key_value(self):
-        """Slow path: quoted string in params position."""
-        result = parse_multivalue('text/html;q="0.9", application/json')
-        assert result[0] == ("text/html", {"q": "0.9"})
-        assert result[1] == ("application/json", {})
-
-    def test_param_without_value(self):
-        """Slow path: semicolon-separated attribute without = sign."""
-        result = parse_multivalue('"text/html";novalue, other')
-        # "novalue" should be an attr with empty string value
-        assert "novalue" in result[0][1]
-        assert result[0][1]["novalue"] == ""
-
-    def test_escaped_quote_in_quoted_string(self):
-        result = parse_multivalue('"val\\"ue"')
-        assert result[0][0] == 'val"ue'
-
-    def test_equals_without_preceding_key(self):
-        """Branch 546->549: lop=='=' but key is None.
-        When first token after comma has tok='=', lop becomes '=' with key=None.
-        The next token then hits lop=='=' with key falsy, falling through."""
-        result = parse_multivalue('"a"="b"')
-        # 'a' is appended as a value (lop was ','), then 'b' hits lop='='
-        # with key=None → branch skipped, lop set to '' (empty tok)
-        assert result[0][0] == "a"
-
-
-# ── Additional coverage for forwarded.py ────────────────────────────
-
-
-class TestParseForwardedAdditional:
-    def test_bad_syntax_after_valid_pair_skips_to_comma(self):
-        """When need_separator is True and we get a match, skip to next comma."""
-        # Two pairs without semicolon between them — second triggers skip
-        result = parse_forwarded("for=1.2.3.4 for=5.6.7.8, for=9.0.0.1")
-        # The first proxy should have "for" from the first match,
-        # then the second "for=5.6.7.8" triggers bad syntax skip
-        found = [p for p in result if p.get("for")]
-        assert any(p["for"] == "9.0.0.1" for p in found)
-
-    def test_whitespace_between_pairs(self):
-        result = parse_forwarded("for=1.2.3.4 ; proto=https")
-        assert result[0]["for"] == "1.2.3.4"
-        assert result[0]["proto"] == "https"
-
-
-# ── Additional coverage for request.py ──────────────────────────────
-
-
-class TestRequestAdditional:
-    def test_get_signed_cookie_bytes_return(self):
-        """Cover line 328: when serializer.loads returns bytes, decode it."""
-        serializer = MagicMock()
-        serializer.loads.return_value = b"bytes-value"
-
-        app = MagicMock()
-        app.get_serializer.return_value = serializer
-
-        env = make_test_scope(HTTP_COOKIE="token=signed-data")
-        req = Request(app=app, **env)
-        result = req.get_signed_cookie("token")
-        assert result == "bytes-value"
-
-    def test_form_head_returns_empty(self):
-        env = make_test_scope(REQUEST_METHOD="HEAD")
-        req = Request(**env)
-        assert len(req.form) == 0
-
-    def test_max_content_length_passed_through(self):
-        req = Request(max_content_length=1024)
-        assert req.max_content_length == 1024
-
-    def test_max_query_size_passed_through(self):
-        req = Request(max_query_size=512)
-        assert req.max_query_size == 512
-
-    def test_encoding_default(self):
-        req = Request()
-        assert req.encoding == "utf8"
-
-
-# ── Remaining coverage gaps ─────────────────────────────────────────
-
-
-class TestMultipartParserEdgeCases:
-    def test_data_after_terminator_raises(self):
-        """Line 249: data after end-of-stream terminator raises."""
-        body = (
-            b"--boundary--\r\n"
-            b"unexpected extra data\r\n"
-        )
-        mp = MultipartParser(BytesIO(body), "boundary", len(body))
-        with pytest.raises(MultipartError, match="Data after end of stream"):
-            mp.parts()
-
-    def test_disk_limit_exceeded(self):
-        """Line 294: disk_limit check for non-buffered parts."""
-        # Create a file upload large enough to spill to disk, then exceed disk_limit
-        big_data = "x" * 500
-        body = _build_multipart([
-            {"name": "big", "filename": "big.bin", "value": big_data},
-        ])
-        mp = MultipartParser(
-            BytesIO(body), "testboundary", len(body),
-            memfile_limit=10,
-            mem_limit=2**20,
-            disk_limit=50,
-        )
-        with pytest.raises(MultipartError, match="Disk limit|Memory limit"):
-            mp.parts()
-
-    def test_multiple_parts_with_separator(self):
-        """Lines 270-283: separator between parts triggers disk_used/mem_used
-        tracking and file.seek(0) on the yielded part."""
-        body = _build_multipart([
-            {"name": "a", "value": "first"},
-            {"name": "b", "value": "second"},
-            {"name": "c", "value": "third"},
-        ])
-        mp = MultipartParser(BytesIO(body), "testboundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 3
-        # Verify all parts are seeked to 0 and readable
-        for p in parts:
-            assert p.value in ("first", "second", "third")
-
-    def test_lf_only_line_ending(self):
-        """Line 224: lines ending with just \\n."""
-        body = (
-            b"--boundary\n"
-            b'Content-Disposition: form-data; name="f"\n'
-            b"\n"
-            b"value\n"
-            b"--boundary--\n"
-        )
-        mp = MultipartParser(BytesIO(body), "boundary", len(body))
-        parts = mp.parts()
-        assert len(parts) == 1
-        assert parts[0].value == "value"
-
-
-class TestMultipartPartEdgeCases:
-    def test_raw_restores_position(self):
-        """Lines 404-412: raw property saves and restores file position."""
-        part = MultipartPart()
-        part.feed(b'Content-Disposition: form-data; name="f"', b"\r\n")
-        part.feed(b"", b"\r\n")
-        part.feed(b"hello", b"\r\n")
-        # Move file position to end
-        part.file.seek(0, 2)
-        pos = part.file.tell()
-        raw = part.raw
-        assert raw == b"hello"
-        # Position should be restored
-        assert part.file.tell() == pos
-
-
-class TestParseFormMultipartEdgeCases:
-    def test_nameless_part_skipped(self):
-        """Line 92: parts with no name are skipped."""
-        # Build a multipart body where one part has no name
-        body = (
-            b"--boundary\r\n"
-            b"Content-Disposition: form-data\r\n"
-            b"\r\n"
-            b"anonymous\r\n"
-            b"--boundary\r\n"
-            b'Content-Disposition: form-data; name="named"\r\n'
-            b"\r\n"
-            b"has name\r\n"
-            b"--boundary--\r\n"
-        )
-        result = parse_multipart(
-            BytesIO(body), len(body),
-            {"boundary": "boundary"},
-            encoding="utf8",
-        )
-        assert "named" in result
-        # The nameless part should have been skipped
-        assert len(result) == 1
-
-    def test_strict_multipart_error_closes_files_and_reraises(self):
-        """Lines 102-106: on MultipartError in strict mode, file parts are
-        closed and the error is re-raised."""
-        body = (
-            b"--boundary\r\n"
-            b'Content-Disposition: form-data; name="file"; filename="a.txt"\r\n'
-            b"Content-Type: text/plain\r\n"
-            b"\r\n"
-            b"file content\r\n"
-            b"--boundary\r\n"
-            # Missing Content-Disposition => will raise MultipartError
-            b"BadHeader\r\n"
-        )
-        with pytest.raises(MultipartError):
-            parse_multipart(
-                BytesIO(body), len(body),
-                {"boundary": "boundary"},
-                encoding="utf8",
-                strict=True,
-            )
-
-    def test_non_strict_multipart_error_swallowed(self):
-        """Lines 102-106: non-strict mode swallows MultipartError."""
-        body = (
-            b"--boundary\r\n"
-            b'Content-Disposition: form-data; name="field"\r\n'
-            b"\r\n"
-            b"value\r\n"
-            b"--boundary\r\n"
-            b"BadHeader\r\n"
-        )
-        # Should not raise in non-strict mode
-        result = parse_multipart(
-            BytesIO(body), len(body),
-            {"boundary": "boundary"},
-            encoding="utf8",
-            strict=False,
-        )
-        assert "field" in result
+            parser.parse_sync(body)

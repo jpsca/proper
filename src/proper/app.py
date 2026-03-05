@@ -72,7 +72,6 @@ class App(AppTest):
     _on_teardown: TEventHandlers = ()
 
     name: str
-    parent_path: Path
     root_path: Path
     views_path: Path
     config_path: Path
@@ -153,6 +152,8 @@ class App(AppTest):
                     logger.info("Application is shutting down...")
                     await send({"type": "lifespan.shutdown.complete"})
                     return
+                else:
+                    logger.warning("Unknown lifespan message: %s", message["type"])
         elif scope["type"] == "http":
             await self.handle_http(scope, receive, send)
         elif scope["type"] == "websocket":
@@ -164,86 +165,113 @@ class App(AppTest):
         receive: TReceive,
         send: TSend,
     ) -> None:
+        response = await self.do_request(scope, receive)
+        status, headers, body = response.prepare()
+        # Send response back through ASGI
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": headers,
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body,
+        })
+
+    async def do_request(self, scope: TScope, receive: TReceive) -> Response:
         scope["app"] = self
         current.app = self
-        current.request = request = self.request_cls(
-            scope,
-            receive=receive,
-            max_content_length=self.config.MAX_CONTENT_LENGTH,
-            max_query_size=self.config.MAX_QUERY_SIZE,
-        )
-        current.response = response = self.response_cls(scope)
-
+        current.request = request = self.request_cls(scope)
+        response = self.response_cls(scope)
         try:
-            self._dbs_connect()
-            # Done before threadpool, replace when pipeline is async
-            await request.read_body()
-            # Run the sync pipeline in a threadpool
-            await asyncio.to_thread(self.run_pipeline, request, response)
+            await request._parse_body(receive)
         except Exception as error:
-            # We need this other `try...except` for handling any errors on:
-            # - the custom error handlers,
-            # - the functions in the `_on_teardown` or `_on_error` lists, or
-            # - the body encoding on the `resp(start_response)`.
+            response.error = error
+            logger.debug(
+                "Error while parsing request body: %s: %s",
+                type(error).__name__, error,
+            )
+            # This error will be handled in the run_pipeline method
+
+        response = await asyncio.to_thread(self.run_pipeline, request, response)
+        current.response = response
+        return response
+
+    def do_test_request(self, scope: TScope, body: bytes = b"") -> Response:
+        """Synchronous request for testing. Body is already available as bytes."""
+        scope["app"] = self
+        current.app = self
+        current.request = request = self.request_cls(scope)
+        current.response = response = self.response_cls(scope)
+        try:
+            request._parse_body_bytes(body)
+        except Exception as error:
+            response.error = error
+            logger.debug(
+                "Error while parsing request body: %s: %s",
+                type(error).__name__, error,
+            )
+        response = self.run_pipeline(request, response)
+        current.response = response
+        return response
+
+    def run_pipeline(self, request, response) -> Response:
+        try:
+            try:
+                if response.error:
+                    raise response.error
+
+                self._dbs_connect()
+                for func in (
+                    middleware.copy_session,
+                    middleware.head_to_get,
+                    middleware.method_override,
+                    middleware.match,
+                    middleware.redirect,
+                    middleware.dispatch,
+                    middleware.strip_body_if_head,
+                    middleware.update_session_cookie,
+                ):
+                    logger.debug(
+                        "[pipeline] %s %s -> %s",
+                        request.request_method, request.path, func.__name__,
+                    )
+                    early_response = func(request, response)
+                    if early_response is not None:
+                        logger.debug(
+                            "[pipeline] %s returned early response",
+                            func.__name__,
+                        )
+                        return early_response
+
+            except Exception as error:
+                response.error = error
+                logger.debug(
+                    "[pipeline] error: %s: %s",
+                    type(error).__name__, error,
+                )
+                for func in self._on_error:
+                    func()
+                self._handle_app_error(request, response)
+
+            finally:
+                for func in self._on_teardown:
+                    func()
+
+        except Exception as error:
+            # For errors in the error handlers or teardown handlers
             logger.exception(
-                "[do_request] unhandled error: %s: %s",
+                "Unhandled error: %s: %s",
                 type(error).__name__, error,
             )
             response.error = error
             self._dbs_rollback()
             self._default_error_handler(request, response)
+
         finally:
             self._dbs_close()
 
-        # Send response back through ASGI
-        await send({
-            "type": "http.response.start",
-            "status": response.status_code,
-            "headers": response.encode_headers(),
-        })
-        await send({
-            "type": "http.response.body",
-            "body": response.get_body_bytes(),
-        })
-
-    def run_pipeline(self, request, response) -> None:
-        try:
-            for func in (
-                middleware.copy_session,
-                middleware.head_to_get,
-                middleware.method_override,
-                middleware.match,
-                middleware.redirect,
-                middleware.dispatch,
-                middleware.strip_body_if_head,
-                middleware.update_session_cookie,
-            ):
-                logger.debug(
-                    "[pipeline] %s %s -> %s",
-                    request.request_method, request.path, func.__name__,
-                )
-                early_response = func(self, request, response)
-                if early_response is not None:
-                    logger.debug(
-                        "[pipeline] %s returned early response",
-                        func.__name__,
-                    )
-                    current.response = early_response
-                    return
-
-        except Exception as error:
-            response.error = error
-            logger.debug(
-                "[pipeline] error in %s: %s: %s",
-                func.__name__, type(error).__name__, error,
-            )
-            for func in self._on_error:
-                func()
-            self._handle_app_error(request, response)
-
-        finally:
-            for func in self._on_teardown:
-                func()
+        return response
 
     async def handle_websocket(
         self,
@@ -379,7 +407,7 @@ class App(AppTest):
         elif self.config.CATCH_ALL_ERRORS:
             self._default_error_handler_production(response)
         else:
-            raise
+            raise response.error
 
     def _default_error_handler_debug(self, request, response) -> None:
         if isinstance(response.error, (MatchNotFound, MethodNotAllowed)):
@@ -401,7 +429,7 @@ class App(AppTest):
         else:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
-        middleware.dispatch(self, request, response)
+        middleware.dispatch(request, response)
 
     def _dbs_connect(self) -> None:
         for db in self.db.values():

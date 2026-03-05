@@ -13,16 +13,6 @@ from ..types import TScope
 from .forwarded import parse_forwarded
 
 
-DEFAULT_PORT = 80
-DEFAULT_HTTPS_PORT = 443
-
-MIME_ALL = "*/*"
-
-
-def enc(name: str) -> str:
-    return name.strip().lower().replace("-", "_")
-
-
 class RequestHeadersMixin:
     """Mixin with the methods related to the request headers.
     """
@@ -32,15 +22,18 @@ class RequestHeadersMixin:
 
     def __init__(self):
         self.headers = MultiDict(
-            (key.decode("latin-1", errors="ignore"), value)
+            (
+                key.decode("utf-8", errors="surrogateescape"),
+                value.decode("utf-8", errors="surrogateescape")
+            )
             for key, value in self.scope.get("headers", [])
         )
-        self.protocol: str = self._get_value("x-forwarded-proto") or self.scope["scheme"]
+        self.protocol: str = self.headers.get("x-forwarded-proto") or self.scope["scheme"]
 
         if self.scope["server"]:
             host, port = self.scope["server"]
         else:
-            host, port = parse_host(self._get_value("host"))
+            host, port = parse_host(self.headers.get("host"))
         self.host: str = host
         self.port: int = port or self.default_port
 
@@ -48,30 +41,15 @@ class RequestHeadersMixin:
         self.request_method = self.method
         self.path: str = self.scope["path"]
 
-        self.content_type: str = self._get_value("content-type")
+        self.content_type: str = self.headers.get("content-type")
         try:
-            self.content_length: int = int(self._get_value("content-length") or "0")
+            self.content_length: int = int(self.headers.get("content-length") or "0")
         except ValueError:
             raise InvalidHeader("The Content-Length header must be a number.") from None
         if self.content_length < 0:
             raise InvalidHeader(
                 "The value of the Content-Length header must be a positive number."
             )
-
-    def _get_value(self, name: str) -> str | None:
-        """Get a header value encoded as a string.
-
-        Arguments:
-
-        - name:
-            The name of the header.
-        """
-        value = self.headers.get(name)
-        if value is None:
-            return None
-        if isinstance(value, bytes):
-            return value.decode("latin-1", errors="ignore")
-        return str(value)
 
     @cached_property
     def accept(self) -> list[str]:
@@ -95,7 +73,7 @@ class RequestHeadersMixin:
             If no quality value is specified, the default value is 1.0.
 
         """
-        return parse_accept(self._get_value("accept"))
+        return parse_accept(self.headers.get("accept"))
 
     @cached_property
     def accept_encoding(self) -> list[str]:
@@ -116,7 +94,7 @@ class RequestHeadersMixin:
             If no quality value is specified, the default value is 1.0.
 
         """
-        return parse_accept(self._get_value("accept-encoding"))
+        return parse_accept(self.headers.get("accept-encoding"))
 
     @cached_property
     def accept_language(self) -> list[str]:
@@ -145,14 +123,14 @@ class RequestHeadersMixin:
             If no quality value is specified, the default value is 1.0.
 
         """
-        return parse_accept(self._get_value("accept-language"))
+        return parse_accept(self.headers.get("accept-language"))
 
 
     @property
     def cookie(self) -> dict[str, str]:
         """An alias to `cookies`.
         """
-        return self.cookie
+        return self.cookies
 
     @cached_property
     def cookies(self) -> dict:
@@ -165,6 +143,8 @@ class RequestHeadersMixin:
         cookies: dict[str, str] = {}
         cookie_headers = self.headers.getall("cookie")
         for header in cookie_headers:
+            if isinstance(header, bytes):
+                header = header.decode("utf-8", errors="ignore")
             cookies.update(parse_cookie(header))
         return cookies
 
@@ -178,14 +158,14 @@ class RequestHeadersMixin:
             A datetime object or None if the header is not present.
 
         """
-        val = self._get_value("date")
+        val = self.headers.get("date")
         return dtparse(val) if val else None
 
     @property
     def default_port(self) -> int:
         """Returns the default port for the protocol of this request.
         """
-        return DEFAULT_HTTPS_PORT if self.protocol == "https" else DEFAULT_PORT
+        return 443 if self.protocol == "https" else 80
 
     @cached_property
     def format(self) -> str:
@@ -204,7 +184,7 @@ class RequestHeadersMixin:
         """
         val = None
         for mime in self.accept:
-            if mime == MIME_ALL:
+            if mime == "*/*":
                 break
             ext = mimetypes.guess_extension(mime)
             if ext:
@@ -223,7 +203,7 @@ class RequestHeadersMixin:
             A list of dictionaries with the forwarding information.
 
         """
-        return parse_forwarded(self._get_value("forwarded"))
+        return parse_forwarded(self.headers.get("forwarded"))
 
     @property
     def host_with_port(self) -> str:
@@ -253,7 +233,7 @@ class RequestHeadersMixin:
             A list of ETags.
 
         """
-        return parse_comma_separated(self._get_value("if-none-match"))
+        return parse_comma_separated(self.headers.get("if-none-match"))
 
     @cached_property
     def if_modified_since(self) -> datetime | None:
@@ -268,7 +248,7 @@ class RequestHeadersMixin:
             A datetime object or None if the header is not present.
 
         """
-        val = self._get_value("if-modified-since")
+        val = self.headers.get("if-modified-since")
         return dtparse(val) if val else None
 
     @property
@@ -311,7 +291,7 @@ class RequestHeadersMixin:
     @property
     def is_xhr(self) -> bool:
         """True if the request was done by JavaScript."""
-        return self._get_value("x-requested-with") == "XMLHttpRequest"
+        return self.headers.get("x-requested-with") == "XMLHttpRequest"
 
     @property
     def port_is_default(self) -> bool:
@@ -340,11 +320,11 @@ class RequestHeadersMixin:
             if "for" in fw:
                 return fw["for"]
 
-        ff = self._get_value("x-forwarded-for", "").split(",")[0]
+        ff = (self.headers.get("x-forwarded-for") or "").split(",")[0]
         if ff:
             return ff
 
-        realip = self._get_value("x-real-ip")
+        realip = self.headers.get("x-real-ip")
         if realip:
             return realip
 
@@ -360,7 +340,7 @@ class RequestHeadersMixin:
             A string with the request ID or None if the header is not present.
 
         """
-        val = self._get_value("x-request-id")
+        val = self.headers.get("x-request-id")
         return parse_request_id(val)
 
     @cached_property
@@ -376,7 +356,7 @@ class RequestHeadersMixin:
             A string with the user agent or None if the header is not present.
 
         """
-        return self._get_value("user-agent")
+        return self.headers.get("user-agent")
 
 
 # --- Parsers -----

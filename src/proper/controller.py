@@ -25,13 +25,15 @@ class Controller:
 
     def __init__(
         self,
-        app: "App",
         request: "Request",
         response: "Response",
     ) -> None:
-        self.app = app
         self.request = request
         self.response = response
+
+    @property
+    def app(self) -> "App":
+        return self.request.app
 
     @property
     def params(self) -> MultiDict:
@@ -52,7 +54,7 @@ class Controller:
         self,
         name: str = "",
         *,
-        status: str | None = None,
+        status: int | None = None,
         json: t.Any = None,
         text: t.Any = None,
     ) -> str:

@@ -12,6 +12,7 @@ from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.controller import Controller
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
+from proper.request.utils import make_test_scope
 
 
 class _TestController(Controller, RequestForgeryProtection):
@@ -19,11 +20,17 @@ class _TestController(Controller, RequestForgeryProtection):
         return "STOP"
 
 
+def _make_co(app, **scope_kw):
+    scope = make_test_scope(**scope_kw)
+    scope["app"] = app
+    request = Request(scope)
+    response = Response(scope)
+    return _TestController(request, response)
+
+
 @pytest.fixture
 def co(app):
-    request = Request()
-    response = Response()
-    return _TestController(app, request, response)
+    return _make_co(app)
 
 
 def test_no_need_to_argue(co):
@@ -64,7 +71,7 @@ def test_valid_csrf_from_form(co, method):
     mask = "x" * CSRF_TOKEN_LENGTH
     token = "a" * CSRF_TOKEN_LENGTH
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request._form = MultiDict({CSRF_FORM_KEY: mask + token})
+    co.request.form = MultiDict({CSRF_FORM_KEY: mask + token})
 
     co._dispatch("action")
 
@@ -78,7 +85,7 @@ def test_invalid_csrf_from_form(co, method):
     co.request.method = method
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request._form = MultiDict({CSRF_FORM_KEY: mask + invalid_token})
+    co.request.form = MultiDict({CSRF_FORM_KEY: mask + invalid_token})
 
     with pytest.raises(InvalidCSRFToken):
         co._dispatch("action")
@@ -92,7 +99,7 @@ def test_valid_csrf_from_header(co, method):
     co.request.method = method
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request.env[CSRF_HEADER] = mask + token
+    co.request.headers["x-csrf-token"] = mask + token
 
     co._dispatch("action")
 
@@ -106,7 +113,7 @@ def test_invalid_csrf_from_header(co, method):
     co.request.method = method
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request.env[CSRF_HEADER] = mask + invalid_token
+    co.request.headers["x-csrf-token"] = mask + invalid_token
 
     with pytest.raises(InvalidCSRFToken):
         co._dispatch("action")
@@ -118,7 +125,7 @@ def test_ignore_unmasked_tokens(co):
     co.request.method = POST
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request._form = MultiDict({CSRF_FORM_KEY: token})
+    co.request.form = MultiDict({CSRF_FORM_KEY: token})
 
     with pytest.raises(MissingCSRFToken):
         co._dispatch("action")

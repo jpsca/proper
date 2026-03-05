@@ -1,4 +1,4 @@
 ## proper.middleware
 
-Each of these functions take a request, a response, and an application instance.
+Each of these functions take a request and a response arguments.
 They return nothing, all side-effects must be on the request and/or the response instances.

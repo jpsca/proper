@@ -4,16 +4,21 @@ from typing import Any
 
 class GlobalContext:
     def __init__(self) -> None:
-        cv = ContextVar("_current")
-        cv.set({})
-        super().__setattr__("_current", cv)
+        super().__setattr__("_vars", {})
 
     def __setattr__(self, name: str, value: Any) -> None:
-        super().__getattribute__("_current").get()[name] = value
+        _vars = super().__getattribute__("_vars")
+        cv = _vars.get(name)
+        if cv is None:
+            cv = _vars.setdefault(name, ContextVar(f"proper.current.{name}"))
+        cv.set(value)
 
     def __getattr__(self, name: str) -> Any:
-        return super().__getattribute__("_current").get().get(name)
+        try:
+            cv = super().__getattribute__("_vars")[name]
+            return cv.get()
+        except (KeyError, LookupError):
+            return None
 
 
 current = GlobalContext()
-

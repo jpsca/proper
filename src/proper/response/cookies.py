@@ -6,7 +6,6 @@ from email.utils import formatdate
 from http.cookies import Morsel
 
 from ..global_context import current
-from ..helpers import tunnel_encode
 
 
 RE_FILTER_FROM_COOKIE_NAME = re.compile(r"[^a-zA-Z0-9!*&#$%^'`+_~\.\-]*")
@@ -198,15 +197,14 @@ class ResponseCookiesMixin:
             salt=salt,
         )
 
-    def _get_cookie_tuples(self) -> list[tuple[str, str]]:
+    def get_cookie_tuples(self) -> list[tuple[str, str]]:
         if self.disable_cookies or not self.cookies:
             return []
 
-        values = [morsel.OutputString() for morsel in self.cookies.values()]
-        return [(
-            "Set-Cookie",
-            tunnel_encode(", ".join(values))
-        )]
+        return [
+            ("Set-Cookie", morsel.OutputString())
+            for morsel in self.cookies.values()
+        ]
 
 
 def validate_domain(domain: str | None) -> None:

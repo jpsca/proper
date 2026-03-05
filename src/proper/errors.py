@@ -70,8 +70,8 @@ class HTTPError(Exception):
     - msg (str):
         Description of the error.
 
-    - status (str):
-        HTTP status line, e.g. '200 OK' or '725 It works on my machine'.
+    - status (int):
+        HTTP status code, e.g. 500 or 725.
 
     - **headers (dict):
         Optional headers to attach to the response
@@ -83,7 +83,7 @@ class HTTPError(Exception):
     def __init__(
         self,
         msg: str = "",
-        status: str = "500 Error",
+        status: int = 500,
         **headers: list[str],
     ):
         self.msg = msg
@@ -95,10 +95,6 @@ class HTTPError(Exception):
 
     def __repr__(self):
         return f'{self.__class__.__name__}("{self.msg}")'
-
-    @property
-    def status_code(self) -> int:
-        return int(self.status.split(" ", 1)[0])
 
     @property
     def description(self) -> str:

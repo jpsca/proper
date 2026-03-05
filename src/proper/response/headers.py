@@ -4,11 +4,11 @@ from datetime import date, datetime, timezone
 from hashlib import sha1
 
 from ..errors import InvalidHeader
-from ..helpers import format_http_date, tunnel_encode
+from ..helpers import format_http_date
 
 
 def enc_name(name: str) -> str:
-    name = name.strip().replace("_", "-").removeprefix("http-").removeprefix("HTTP-")
+    name = name.strip().replace("_", "-")
     if not name.isascii():
         raise InvalidHeader("A header name must be encodable as latin-1")
     return name
@@ -585,12 +585,7 @@ class ResponseHeadersMixin:
             else:
                 coded_val = str(val)
 
-            tuples.append(
-                (
-                    tunnel_encode(header.name),
-                    tunnel_encode(coded_val, "utf-8"),
-                )
-            )
+            tuples.append((header.name, coded_val))
 
         return tuples
 
@@ -619,8 +614,7 @@ def format_comma_list(*names: str) -> list[str] | None:
 def format_int(num: int | str | None) -> int | None:
     if num is None:
         return None
-
-    return int(num) if num else None
+    return int(num) if str(num).isdigit() else None
 
 
 def format_header(val: t.Any, **params) -> str | None:

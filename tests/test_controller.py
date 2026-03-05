@@ -7,7 +7,7 @@ import pytest
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
 from proper.errors import NotFound
 from proper.helpers import DotDict, MultiDict
-from proper.request import Request
+from proper.request import Request, make_test_scope
 from proper.response import Response
 from proper.status import not_modified
 
@@ -17,10 +17,15 @@ from proper.status import not_modified
 
 def _make_controller(cls=Controller, **request_kw):
     app = MagicMock()
-    app.config = {}
-    request = Request(**request_kw)
-    response = Response()
-    return cls(app, request, response)
+    app.config = DotDict({
+        "MAX_QUERY_SIZE": 1_048_576,
+        "MAX_CONTENT_LENGTH": 8_388_608,
+    })
+    scope = make_test_scope(**request_kw)
+    scope["app"] = app
+    request = Request(scope)
+    response = Response(scope)
+    return cls(request, response)
 
 
 # ── Controller basics ────────────────────────────────────────────────
@@ -29,9 +34,11 @@ def _make_controller(cls=Controller, **request_kw):
 class TestControllerInit:
     def test_stores_app_request_response(self):
         app = MagicMock()
-        request = Request()
-        response = Response()
-        co = Controller(app, request, response)
+        scope = make_test_scope()
+        scope["app"] = app
+        request = Request(scope)
+        response = Response(scope)
+        co = Controller(request, response)
         assert co.app is app
         assert co.request is request
         assert co.response is response
@@ -45,8 +52,8 @@ class TestControllerInit:
 
 class TestParams:
     def test_merges_query_form_and_matched_params(self):
-        co = _make_controller(QUERY_STRING="a=1")
-        co.request._form = MultiDict([("b", "2")])
+        co = _make_controller(url="/?a=1")
+        co.request.form = MultiDict([("b", "2")])
         co.request.matched_params = {"c": "3"}
         params = co.params
         assert params.get("a") == "1"
@@ -100,8 +107,8 @@ class TestRender:
 
     def test_render_with_status(self):
         co = _make_controller()
-        co.render(text="ok", status="201 Created")
-        assert co.response.status == "201 Created"
+        co.render(text="ok", status=201)
+        assert co.response.status == 201
 
     def test_render_template(self):
         co = _make_controller()
@@ -180,7 +187,7 @@ class TestCall:
                 return "Hello"
 
         etag = 'W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
-        co = _make_controller(cls=MyController, HTTP_IF_NONE_MATCH=etag)
+        co = _make_controller(cls=MyController, headers=[("if-none-match", etag)])
         co._call("index")
         assert co.response.status == not_modified
         assert co.response.body == ""
@@ -585,7 +592,7 @@ class TestStaticFilesController:
 
         request_kw = {}
         if if_modified_since:
-            request_kw["HTTP_IF_MODIFIED_SINCE"] = if_modified_since
+            request_kw["headers"] = [("if-modified-since", if_modified_since)]
 
         co = _make_controller(cls=StaticFilesController, **request_kw)
 

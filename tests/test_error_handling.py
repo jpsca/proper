@@ -13,8 +13,24 @@ from proper.errors import (
     NotFound,
 )
 from proper.request import Request
+from proper.request.utils import make_test_scope
 from proper.response import Response
 from proper.router import Route
+
+
+def _scope(**kw):
+    return make_test_scope(**kw)
+
+
+def _req(**kw):
+    return Request(_scope(**kw))
+
+
+def _resp(*, app=None, **kw):
+    scope = _scope(**kw)
+    if app is not None:
+        scope["app"] = app
+    return Response(scope)
 
 
 # ── module-level controllers (required by middleware.dispatch) ────
@@ -72,15 +88,15 @@ class TestHandleAppError:
     """Tests for App._handle_app_error dispatch logic."""
 
     def test_sets_status_from_http_error(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = NotFound("gone")
         app._handle_app_error(request, response)
         assert response.status == status.not_found
 
     def test_generic_exception_gets_server_error_status(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = ValueError("oops")
         app._handle_app_error(request, response)
         assert response.status == status.server_error
@@ -90,8 +106,8 @@ class TestHandleAppError:
 
         app.router.add_error_handler(ValueError, _ErrorPageController.handle)
 
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = ValueError("oops")
 
         with patch("proper.app.debug_error_handler"):
@@ -102,8 +118,8 @@ class TestHandleAppError:
     def test_custom_handler_called_for_matching_error(self, app):
         app.router.add_error_handler(ValueError, _ErrorPageController.handle)
 
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         response.error = ValueError("bad value")
         app._handle_app_error(request, response)
         assert response.body == "custom error page"
@@ -112,8 +128,8 @@ class TestHandleAppError:
         """A handler for Exception should catch ValueError."""
         app.router.add_error_handler(Exception, _CatchAllErrorPageController.handle)
 
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         response.error = ValueError("sub")
         app._handle_app_error(request, response)
         assert response.body == "caught"
@@ -122,8 +138,8 @@ class TestHandleAppError:
         # Register handler for TypeError only
         app.router.add_error_handler(TypeError, _ErrorPageController.handle)
 
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         response.error = ValueError("no match")
         app._handle_app_error(request, response)
         assert response.body != "custom error page"
@@ -137,8 +153,8 @@ class TestHandleAppError:
 class TestDefaultErrorHandler:
     def test_debug_mode_calls_debug_handler(self, app):
         app.debug = True
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = ValueError("boom")
 
         with patch("proper.app.debug_error_handler") as mock_debug:
@@ -146,8 +162,8 @@ class TestDefaultErrorHandler:
             mock_debug.assert_called_once_with(app, request, response)
 
     def test_production_catch_all_calls_fallback(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = ValueError("boom")
 
         with patch("proper.app.fallback_error_handler") as mock_fallback:
@@ -156,8 +172,8 @@ class TestDefaultErrorHandler:
 
     def test_production_no_catch_all_reraises(self, app):
         app.config.CATCH_ALL_ERRORS = False
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
 
         with pytest.raises(ValueError, match="boom"):
             try:
@@ -167,8 +183,8 @@ class TestDefaultErrorHandler:
                 app._default_error_handler(request, response)
 
     def test_sets_status_from_error_attribute(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = Forbidden("denied")
 
         with patch("proper.app.fallback_forbidden_handler"):
@@ -177,8 +193,8 @@ class TestDefaultErrorHandler:
         assert response.status == status.forbidden
 
     def test_sets_server_error_for_generic_exception(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = RuntimeError("crash")
 
         with patch("proper.app.fallback_error_handler"):
@@ -194,8 +210,8 @@ class TestDefaultErrorHandler:
 
 class TestDefaultErrorHandlerDebug:
     def test_match_not_found_uses_not_found_handler(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = MatchNotFound("no route")
 
         with patch("proper.app.debug_not_found_handler") as mock_handler:
@@ -203,8 +219,8 @@ class TestDefaultErrorHandlerDebug:
             mock_handler.assert_called_once_with(app, request, response)
 
     def test_method_not_allowed_uses_not_found_handler(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = MethodNotAllowed("nope", allowed=["GET"])
 
         with patch("proper.app.debug_not_found_handler") as mock_handler:
@@ -212,8 +228,8 @@ class TestDefaultErrorHandlerDebug:
             mock_handler.assert_called_once_with(app, request, response)
 
     def test_other_error_uses_error_handler(self, app):
-        request = Request()
-        response = Response()
+        request = _req()
+        response = _resp()
         response.error = ValueError("oops")
 
         with patch("proper.app.debug_error_handler") as mock_handler:
@@ -228,7 +244,7 @@ class TestDefaultErrorHandlerDebug:
 
 class TestDefaultErrorHandlerProduction:
     def test_not_found_status(self, app):
-        response = Response()
+        response = _resp()
         response.status = status.not_found
 
         with patch("proper.app.fallback_not_found_handler") as mock_handler:
@@ -236,7 +252,7 @@ class TestDefaultErrorHandlerProduction:
             mock_handler.assert_called_once_with(response)
 
     def test_gone_status(self, app):
-        response = Response()
+        response = _resp()
         response.status = status.gone
 
         with patch("proper.app.fallback_not_found_handler") as mock_handler:
@@ -244,7 +260,7 @@ class TestDefaultErrorHandlerProduction:
             mock_handler.assert_called_once_with(response)
 
     def test_forbidden_status(self, app):
-        response = Response()
+        response = _resp()
         response.status = status.forbidden
 
         with patch("proper.app.fallback_forbidden_handler") as mock_handler:
@@ -252,7 +268,7 @@ class TestDefaultErrorHandlerProduction:
             mock_handler.assert_called_once_with(response)
 
     def test_server_error_status(self, app):
-        response = Response()
+        response = _resp()
         response.status = status.server_error
 
         with patch("proper.app.fallback_error_handler") as mock_handler:
@@ -267,23 +283,23 @@ class TestDefaultErrorHandlerProduction:
 
 class TestCustomErrorHandler:
     def test_dispatches_to_handler(self, app):
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         request.matched_route = None
         app._custom_error_handler(_ErrorPageController.handle, request, response)
         assert response.body == "custom error page"
 
     def test_creates_route_if_no_matched_route(self, app):
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         request.matched_route = None
         app._custom_error_handler(_ErrorPageController.handle, request, response)
         assert request.matched_route is not None
         assert isinstance(request.matched_route, Route)
 
     def test_reuses_existing_matched_route(self, app):
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         original_route = Route(method="GET", path="/original", to=lambda: None)
         request.matched_route = original_route
         app._custom_error_handler(_ErrorPageController.handle, request, response)
@@ -291,8 +307,8 @@ class TestCustomErrorHandler:
         assert request.matched_route.to == _ErrorPageController.handle
 
     def test_clears_matched_params(self, app):
-        request = Request()
-        response = Response(app=app)
+        request = _req()
+        response = _resp(app=app)
         request.matched_route = None
         request.matched_params = {"id": "42"}
         app._custom_error_handler(_ErrorPageController.handle, request, response)
@@ -398,10 +414,8 @@ class TestDoRequestErrorFlow:
             Route(method="GET", path="/explode", to=_ExplodingController.index)
         )
         current.app = app
-        from proper.request import make_test_scope
-
-        environ = make_test_scope("/explode", REQUEST_METHOD="GET")
-        response = app.do_request(environ)
+        scope = make_test_scope("/explode", method="GET")
+        response = app.do_test_request(scope)
         assert response.error is not None
         assert isinstance(response.error, ValueError)
 

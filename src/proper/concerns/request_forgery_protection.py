@@ -81,7 +81,7 @@ class RequestForgeryProtection(Concern):
 
     def _csrf_token_in_header(self) -> str:
         """Search for a CSRF token in a header"""
-        return self.request.get(CSRF_HEADER, "")
+        return self.request.headers.get("x-csrf-token") or ""
 
     def _set_new_csrf_token(self) -> str:
         token = self._generate_csrf_token()

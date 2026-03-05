@@ -20,8 +20,25 @@ from proper.middleware import (
 from proper.middleware.dispatch import dispatch
 from proper.middleware.match import LOCAL_HOSTS
 from proper.request import Request
+from proper.request.utils import make_test_scope
 from proper.response import Response
 from proper.router import Route
+
+
+def _scope(*, method="GET", url="/", headers=None, **kw):
+    hdr = headers or []
+    return make_test_scope(url, method=method, headers=hdr, **kw)
+
+
+def _req(*, method="GET", url="/", headers=None, **kw):
+    return Request(_scope(method=method, url=url, headers=headers, **kw))
+
+
+def _resp(*, app=None, **kw):
+    scope = _scope(**kw)
+    if app is not None:
+        scope["app"] = app
+    return Response(scope)
 
 
 # ── fixtures ────────────────────────────────────────────────────────
@@ -38,10 +55,12 @@ def app():
 
 @pytest.fixture()
 def make_co(app):
-    def _make_co(**request_kw):
-        request = Request(**request_kw)
-        response = Response(app=app)
-        return Controller(app, request, response)
+    def _make_co(*, method="GET", url="/", headers=None, **kw):
+        scope = _scope(method=method, url=url, headers=headers, **kw)
+        scope["app"] = app
+        request = Request(scope)
+        response = Response(scope)
+        return Controller(request, response)
     return _make_co
 
 
@@ -60,35 +79,35 @@ def co(make_co):
 
 class TestHeadToGet:
     def test_rewrites_head_to_get(self, make_co):
-        co = make_co(REQUEST_METHOD="HEAD")
-        head_to_get(None, co.request, None)
+        co = make_co(method="HEAD")
+        head_to_get(co.request, None)
         assert co.request.method == "GET"
 
     def test_preserves_original_request_method(self, make_co):
-        co = make_co(REQUEST_METHOD="HEAD")
-        head_to_get(None, co.request, None)
+        co = make_co(method="HEAD")
+        head_to_get(co.request, None)
         assert co.request.request_method == "HEAD"
 
     def test_does_not_touch_get(self, co):
-        head_to_get(None, co.request, None)
+        head_to_get(co.request, None)
         assert co.request.method == "GET"
 
     def test_does_not_touch_post(self, make_co):
-        co = make_co(REQUEST_METHOD="POST")
-        head_to_get(None, co.request, None)
+        co = make_co(method="POST")
+        head_to_get(co.request, None)
         assert co.request.method == "POST"
 
 
 class TestStripBodyIfHead:
     def test_strips_body_when_original_was_head(self, make_co):
-        co = make_co(REQUEST_METHOD="HEAD")
+        co = make_co(method="HEAD")
         co.response.body = "hello"
-        strip_body_if_head(None, co.request, co.response)
+        strip_body_if_head(co.request, co.response)
         assert co.response.body == ""
 
     def test_keeps_body_for_get(self, co):
         co.response.body = "hello"
-        strip_body_if_head(None, co.request, co.response)
+        strip_body_if_head(co.request, co.response)
         assert co.response.body == "hello"
 
 
@@ -97,42 +116,42 @@ class TestStripBodyIfHead:
 
 class TestMethodOverride:
     def test_override_via_header(self, make_co):
-        co = make_co(REQUEST_METHOD="POST", HTTP_X_HTTP_METHOD_OVERRIDE="PUT")
-        method_override(None, co.request, None)
+        co = make_co(method="POST", headers=[("x-http-method-override", "PUT")])
+        method_override(co.request, None)
         assert co.request.method == "PUT"
 
     def test_override_via_query_param(self, make_co):
-        co = make_co(REQUEST_METHOD="POST", QUERY_STRING="_method=DELETE")
-        method_override(None, co.request, None)
+        co = make_co(method="POST", url="/?_method=DELETE")
+        method_override(co.request, None)
         assert co.request.method == "DELETE"
 
     def test_override_via_form_body(self, make_co):
         co = make_co(
-            REQUEST_METHOD="POST",
-            CONTENT_TYPE="application/x-www-form-urlencoded",
+            method="POST",
+            headers=[("content-type", "application/x-www-form-urlencoded")],
         )
-        co.request._form = DotDict({"_method": "PATCH"})
-        method_override(None, co.request, None)
+        co.request.form = DotDict({"_method": "PATCH"})
+        method_override(co.request, None)
         assert co.request.method == "PATCH"
 
     def test_ignores_non_post(self, make_co):
-        co = make_co(REQUEST_METHOD="GET", HTTP_X_HTTP_METHOD_OVERRIDE="PUT")
-        method_override(None, co.request, None)
+        co = make_co(method="GET", headers=[("x-http-method-override", "PUT")])
+        method_override(co.request, None)
         assert co.request.method == "GET"
 
     def test_ignores_invalid_override(self, make_co):
-        co = make_co(REQUEST_METHOD="POST", HTTP_X_HTTP_METHOD_OVERRIDE="GET")
-        method_override(None, co.request, None)
+        co = make_co(method="POST", headers=[("x-http-method-override", "GET")])
+        method_override(co.request, None)
         assert co.request.method == "POST"
 
     def test_override_to_query(self, make_co):
-        co = make_co(REQUEST_METHOD="POST", HTTP_X_HTTP_METHOD_OVERRIDE="QUERY")
-        method_override(None, co.request, None)
+        co = make_co(method="POST", headers=[("x-http-method-override", "QUERY")])
+        method_override(co.request, None)
         assert co.request.method == "QUERY"
 
     def test_case_insensitive_override(self, make_co):
-        co = make_co(REQUEST_METHOD="POST", HTTP_X_HTTP_METHOD_OVERRIDE="put")
-        method_override(None, co.request, None)
+        co = make_co(method="POST", headers=[("x-http-method-override", "put")])
+        method_override(co.request, None)
         assert co.request.method == "PUT"
 
 
@@ -146,17 +165,17 @@ class TestMatch:
                 pass
 
         app.router.add_route(Route(method="GET", path="/items/:id", to=Dummy.index))
-        co = make_co(REQUEST_METHOD="GET", PATH_INFO="/items/42", HTTP_HOST="example.com")
-        match(app, co.request, co.response)
+        co = make_co(method="GET", url="/items/42")
+        match(co.request, co.response)
         assert co.request.matched_route is not None
         assert co.request.matched_params["id"] == "42"
 
     def test_raises_on_no_match(self, app, make_co):
         from proper.errors import MatchNotFound
 
-        co = make_co(REQUEST_METHOD="GET", PATH_INFO="/nope", HTTP_HOST="example.com")
+        co = make_co(method="GET", url="/nope")
         with pytest.raises(MatchNotFound):
-            match(app, co.request, None)
+            match(co.request, None)
 
     @pytest.mark.parametrize("host", LOCAL_HOSTS)
     def test_local_host_treated_as_none(self, app, make_co, host):
@@ -165,8 +184,8 @@ class TestMatch:
                 pass
 
         app.router.add_route(Route(method="GET", path="/ok", to=Dummy.index))
-        co = make_co(REQUEST_METHOD="GET", PATH_INFO="/ok", HTTP_HOST=host)
-        match(app, co.request, None)
+        co = make_co(method="GET", url="/ok", server=(host, 80))
+        match(co.request, None)
         assert co.request.matched_route is not None
 
 
@@ -176,17 +195,17 @@ class TestMatch:
 class TestRedirect:
     def test_returns_none_when_no_route(self, co):
         co.request.matched_route = None
-        assert redirect(None, co.request, co.response) is None
+        assert redirect(co.request, co.response) is None
 
     def test_returns_none_when_route_is_not_redirect(self, co):
         co.request.matched_route = Route(method="GET", path="/", to=lambda: None)
-        assert redirect(None, co.request, co.response) is None
+        assert redirect(co.request, co.response) is None
 
     def test_returns_response_when_redirect(self, co):
         route = Route(method="GET", path="/old", redirect="/new")
         co.request.matched_route = route
         co.request.matched_params = {}
-        result = redirect(None, co.request, co.response)
+        result = redirect(co.request, co.response)
         assert result is co.response
         assert co.response.status == status.temporary_redirect
 
@@ -194,7 +213,7 @@ class TestRedirect:
         route = Route(method="GET", path="/old/:id", redirect="/new/{id}")
         co.request.matched_route = route
         co.request.matched_params = {"id": "42"}
-        redirect(None, co.request, co.response)
+        redirect(co.request, co.response)
         location = co.response.headers.get("Location")
         assert location == "/new/42"
 
@@ -204,8 +223,8 @@ class TestRedirect:
 
 class TestCopySession:
     def test_copies_session_from_cookie(self, app, make_co):
-        co = make_co(REQUEST_METHOD="GET", app=app)
-        copy_session(app, co.request, co.response)
+        co = make_co(method="GET")
+        copy_session(co.request, co.response)
         assert co.request.session == {}
         assert co.response.session == {}
 
@@ -218,8 +237,8 @@ class TestCopySession:
             "proper.middleware.session._find_session_by_cookie",
             return_value=session_data,
         ):
-            co = make_co(REQUEST_METHOD="GET")
-            copy_session(app, co.request, co.response)
+            co = make_co(method="GET")
+            copy_session(co.request, co.response)
 
         assert FLASHES_SESSION_KEY in co.request.session
         assert co.request.session[FLASHES_SESSION_KEY] == [("info", "saved!")]
@@ -228,13 +247,13 @@ class TestCopySession:
         assert co.response.session["user"] == "alice"
 
     def test_skips_for_head(self, app, make_co):
-        co = make_co(REQUEST_METHOD="HEAD")
-        copy_session(app, co.request, co.response)
+        co = make_co(method="HEAD")
+        copy_session(co.request, co.response)
         assert not hasattr(co.request, "session") or co.request.session == DotDict()
 
     def test_skips_for_options(self, app, make_co):
-        co = make_co(REQUEST_METHOD="OPTIONS")
-        copy_session(app, co.request, co.response)
+        co = make_co(method="OPTIONS")
+        copy_session(co.request, co.response)
         assert not hasattr(co.request, "session") or co.request.session == DotDict()
 
 
@@ -242,8 +261,8 @@ class TestUpdateSessionCookie:
     def test_no_cookie_when_session_unchanged(self, app, co):
         co.request.session = DotDict({"foo": "bar"})
         co.response.session = DotDict({"foo": "bar"})
-        update_session_cookie(app, co.request, co.response)
-        cookies = co.response._get_cookie_tuples()
+        update_session_cookie(co.request, co.response)
+        cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if "_session" in c[1]]
         assert session_cookies == []
 
@@ -251,27 +270,27 @@ class TestUpdateSessionCookie:
         current.app = app
         co.request.session = DotDict({})
         co.response.session = DotDict({"foo": "bar"})
-        update_session_cookie(app, co.request, co.response)
-        cookies = co.response._get_cookie_tuples()
+        update_session_cookie(co.request, co.response)
+        cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if "_session" in c[1]]
         assert len(session_cookies) == 1
 
     def test_unsets_cookie_when_session_cleared(self, app, co):
         co.request.session = DotDict({"foo": "bar"})
         co.response.session = DotDict()
-        update_session_cookie(app, co.request, co.response)
-        cookies = co.response._get_cookie_tuples()
+        update_session_cookie(co.request, co.response)
+        cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if "_session" in c[1]]
         assert len(session_cookies) == 1
         cookie_val = session_cookies[0][1]
         assert "max-age=0" in cookie_val.lower() or "expires=" in cookie_val.lower()
 
     def test_skips_for_head(self, app, make_co):
-        co = make_co(REQUEST_METHOD="HEAD")
+        co = make_co(method="HEAD")
         co.request.session = DotDict({})
         co.response.session = DotDict({"changed": True})
-        update_session_cookie(app, co.request, co.response)
-        cookies = co.response._get_cookie_tuples()
+        update_session_cookie(co.request, co.response)
+        cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if "_session" in c[1]]
         assert session_cookies == []
 
@@ -292,14 +311,14 @@ class TestDispatch:
         route = Route(method="GET", path="/hello", to=_DispatchHello.index)
         co.request.matched_route = route
         co.request.matched_params = {}
-        dispatch(app, co.request, co.response)
+        dispatch(co.request, co.response)
         assert co.response.body == "hello"
 
     def test_sets_matched_action(self, app, co):
         route = Route(method="GET", path="/page", to=_DispatchHello.show)
         co.request.matched_route = route
         co.request.matched_params = {}
-        dispatch(app, co.request, co.response)
+        dispatch(co.request, co.response)
         assert co.request.matched_action == "show"
 
 
@@ -378,7 +397,7 @@ class TestPipelineMethodOverride:
         )
         result = app.post(
             "/items",
-            headers={"HTTP_X_HTTP_METHOD_OVERRIDE": "PATCH"},
+            headers={"x-http-method-override": "PATCH"},
         )
         assert result.status == status.ok
         assert result.body == "updated via PATCH"
@@ -396,7 +415,7 @@ class TestPipelineRedirect:
             Route(method="GET", path="/old", redirect="/new")
         )
         result = app.get("/old")
-        assert "307" in result.status
+        assert result.status == status.temporary_redirect
         assert result.headers.get("Location") == "/new"
 
     def test_redirect_with_params(self, app):
@@ -404,7 +423,7 @@ class TestPipelineRedirect:
             Route(method="GET", path="/old/:id", redirect="/new/{id}")
         )
         result = app.get("/old/99")
-        assert "307" in result.status
+        assert result.status == status.temporary_redirect
         assert result.headers.get("Location") == "/new/99"
 
 
@@ -453,6 +472,6 @@ class TestPipelineEarlyReturn:
             Route(method="GET", path="/redir", redirect="/target")
         )
         result = app.get("/redir")
-        assert "307" in result.status
+        assert result.status == status.temporary_redirect
         # Body is the redirect HTML, not a controller response
         assert "hello" not in (result.body or "")

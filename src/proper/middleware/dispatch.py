@@ -5,7 +5,6 @@ from ..helpers import import_string
 
 
 if t.TYPE_CHECKING:
-    from ..app import App
     from ..request import Request
     from ..response import Response
 
@@ -14,7 +13,7 @@ __all__ = ("dispatch",)
 TController = type[Controller]
 
 
-def dispatch(app: "App", request: "Request", response: "Response") -> "Response | None":
+def dispatch(request: "Request", response: "Response") -> "Response | None":
     route = request.matched_route
     assert route
     assert route.to
@@ -25,5 +24,5 @@ def dispatch(app: "App", request: "Request", response: "Response") -> "Response 
 
     # We instantiate the view class so we can have an independent
     # container for this request.
-    co = Controller(app, request, response)
+    co = Controller(request, response)
     co._dispatch(action_name)

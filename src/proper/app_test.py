@@ -1,8 +1,10 @@
 import mimetypes
 import random
 import typing as t
+from abc import abstractmethod
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlencode
 
 from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from .helpers import DotDict
@@ -11,7 +13,7 @@ from .request import make_test_scope
 
 if t.TYPE_CHECKING:
     from .response import Response
-    from .types import TWSGIEnvironment
+    from .types import TScope
 
 
 def to_bytes(value, charset="latin1"):
@@ -21,8 +23,9 @@ def to_bytes(value, charset="latin1"):
 
 
 class AppTest:
-    def do_request(self, environ: "TWSGIEnvironment") -> "Response":
-        raise NotImplementedError
+    @abstractmethod
+    def do_test_request(self, scope: "TScope", body: bytes = b"") -> "Response":
+        ...
 
     def get(
         self,
@@ -184,26 +187,55 @@ class AppTest:
     ):
         if params is None:
             params = {}
-        headers = headers or {}
-        headers["REQUEST_METHOD"] = method.upper()
+        extra_headers = []
+        if headers:
+            for name, val in headers.items():
+                extra_headers.append((name, val))
 
         if upload_files:
             if not isinstance(body, dict):
                 body = {}
-            content_type, body = self._encode_multipart(params=body, upload_files=upload_files)
-            headers["CONTENT_TYPE"] = content_type
+            content_type, body_bytes = self._encode_multipart(
+                params=body, upload_files=upload_files
+            )
+            extra_headers.append(("content-type", content_type))
+        else:
+            body_bytes = self._encode_body(body)
+            if isinstance(body, dict) and body:
+                extra_headers.append(
+                    ("content-type", "application/x-www-form-urlencoded")
+                )
 
-        environ = make_test_scope(url, body=body, params=params, **headers)
+        if body_bytes:
+            extra_headers.append(("content-length", str(len(body_bytes))))
 
-        response = self.do_request(environ)
-        response.prepare_body()
-        return DotDict(
-            status=response.status,
-            headers=dict(response.get_headers_list()),
-            body=response.body,
+        scope = make_test_scope(
+            url, method=method, params=params, headers=extra_headers
+        )
+
+        response = self.do_test_request(scope, body_bytes)
+        resp_status, enc_headers, resp_body_bytes = response.prepare()
+        body_str = resp_body_bytes.decode(response.charset) if resp_body_bytes else ""
+        result = DotDict(
+            status=resp_status,
+            body=body_str,
             mimetype=response.mimetype,
             content_type=response.content_type,
         )
+        # Assign directly to avoid DotDict's deep-copy of dict values,
+        # which breaks ResponseHeadersDict.
+        dict.__setitem__(result, "headers", response.headers)
+        return result
+
+    @staticmethod
+    def _encode_body(body: dict | str | bytes | BytesIO) -> bytes:
+        if isinstance(body, dict):
+            return urlencode(body).encode("utf-8") if body else b""
+        if isinstance(body, str):
+            return body.encode("utf-8")
+        if isinstance(body, BytesIO):
+            return body.read()
+        return body
 
     def _encode_multipart(
         self,

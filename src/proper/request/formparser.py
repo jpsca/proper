@@ -1,39 +1,8 @@
 """
 Multipart/form-data parser using python-multipart.
-Uses an async stream interface compatible with ASGI.
 """
-# Adapted and extened from Starlette's `formparsers.py`,
-# which is licensed under the BSD 3-Clause License.
-# ---- START OF LICENSE ---
-# Copyright © 2018, Encode OSS Ltd. All rights reserved.
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
-#
-# Redistributions of source code must retain the above copyright notice, this list
-# of conditions and the following disclaimer.
-#
-# Redistributions in binary form must reproduce the above copyright notice, this
-# list of conditions and the following disclaimer in the documentation and/or other
-# materials provided with the distribution.
-#
-# Neither the name of the copyright holder nor the names of its contributors may be
-# used to endorse or promote products derived from this software without specific
-# prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-# OF THE POSSIBILITY OF SUCH DAMAGE.
-# ---- END OF LICENSE ---
 import json
 import typing as t
-from collections.abc import AsyncGenerator
 from io import BytesIO
 from tempfile import SpooledTemporaryFile
 from urllib.parse import parse_qs
@@ -48,43 +17,8 @@ from ..helpers import MultiDict
 T = t.TypeVar("T")
 
 
-class _AwaitableForm:
-    """Wraps a coroutine so it can be used as both ``await`` and ``async with``.
-
-    Usage::
-
-        # Just await it:
-        form = await request.form()
-
-        # Or use as a context manager that auto-closes file parts:
-        async with request.form() as form:
-            ...
-    """
-
-    __slots__ = ("_coro", "_result")
-
-    def __init__(self, coro: t.Coroutine[t.Any, t.Any, MultiDict]) -> None:
-        self._coro = coro
-        self._result: MultiDict | None = None
-
-    def __await__(self) -> t.Generator[t.Any, None, MultiDict]:
-        return self._coro.__await__()
-
-    async def __aenter__(self) -> MultiDict:
-        self._result = await self._coro
-        return self._result
-
-    async def __aexit__(self, *args: t.Any) -> None:
-        if self._result is not None:
-            for values in self._result.data.values():
-                for value in values:
-                    if isinstance(value, MultipartPart):
-                        value.close()
-            self._result = None
-
-
-async def parse_multipart(
-    stream: AsyncGenerator[bytes, None],
+def parse_multipart_sync(
+    body: bytes,
     options: dict,
     *,
     encoding: str = "utf-8",
@@ -93,7 +27,7 @@ async def parse_multipart(
     max_part_size: int = 2 ** 20,
     memfile_limit: int = 2 ** 20,
 ) -> MultiDict:
-    """Parse a multipart/form-data async stream into a MultiDict.
+    """Parse multipart/form-data from bytes into a MultiDict.
 
     Non-file fields are stored as strings.  File fields are stored as
     ``MultipartPart`` instances (with a ``.file`` attribute).
@@ -103,8 +37,7 @@ async def parse_multipart(
         raise MultipartError("No boundary for multipart/form-data.")
 
     parser = MultipartParser(
-        stream,
-        boundary,
+        boundary=boundary,
         encoding=encoding,
         max_files=max_files,
         max_fields=max_fields,
@@ -112,7 +45,7 @@ async def parse_multipart(
         memfile_limit=memfile_limit,
     )
 
-    items = await parser.parse()
+    items = parser.parse_sync(body)
     form = MultiDict()
     for name, value in items:
         form.append(name, value)
@@ -297,19 +230,16 @@ class MultipartPart:
             self.file = None
 
 
-# ── Async Multipart Parser ───────────────────────────────────────────
+# ── Multipart Parser ─────────────────────────────────────────────────
 
 
 class MultipartParser:
-    """Async multipart/form-data parser.
+    """Multipart/form-data parser.
 
-    Parses a multipart stream using python-multipart's callback-based
+    Parses multipart body bytes using python-multipart's callback-based
     parser, collecting parts into ``MultipartPart`` objects.
 
     Arguments:
-
-        stream:
-            An async generator yielding body chunks.
 
         boundary:
             The multipart boundary string.
@@ -333,8 +263,7 @@ class MultipartParser:
 
     def __init__(
         self,
-        stream: AsyncGenerator[bytes, None],
-        boundary: str | bytes,
+        boundary: str | bytes = "",
         *,
         encoding: str = "utf-8",
         max_files: int = 1000,
@@ -342,7 +271,6 @@ class MultipartParser:
         max_part_size: int = 2 ** 20,
         memfile_limit: int = 2 ** 20,
     ):
-        self.stream = stream
         self.boundary = boundary
         self.encoding = encoding
         self.max_files = max_files
@@ -385,7 +313,7 @@ class MultipartParser:
             part.file.write(message_bytes)
             part.size += len(message_bytes)
         else:
-            # File field: queue write for async flush.
+            # File field: queue write for flush after callback returns.
             self._file_parts_to_write.append((part, message_bytes))
 
     def on_part_end(self) -> None:
@@ -399,7 +327,6 @@ class MultipartParser:
                     _safe_decode(part.file.read(), self.encoding),
                 ))
         else:
-            # File field: will be seeked to 0 in async flush.
             self._file_parts_to_finish.append(part)
             self.items.append((part.name, part))
 
@@ -462,18 +389,10 @@ class MultipartParser:
                 )
             part.file = BytesIO()
 
-    def on_end(self) -> None:
-        pass
+    # -- Parse methods --
 
-    # -- Async parse method --
-
-    async def parse(self) -> list[tuple[str, str | MultipartPart]]:
-        """Parse the multipart stream and return a list of (name, value) pairs.
-
-        For non-file fields, value is a decoded string.
-        For file fields, value is a ``MultipartPart`` instance.
-        """
-        callbacks = {
+    def _build_parser(self) -> multipart.MultipartParser:
+        return multipart.MultipartParser(self.boundary, {
             "on_part_begin": self.on_part_begin,
             "on_part_data": self.on_part_data,
             "on_part_end": self.on_part_end,
@@ -481,31 +400,30 @@ class MultipartParser:
             "on_header_value": self.on_header_value,
             "on_header_end": self.on_header_end,
             "on_headers_finished": self.on_headers_finished,
-            "on_end": self.on_end,
-        }
+            "on_end": lambda: None,
+        })
 
-        parser = multipart.MultipartParser(self.boundary, callbacks)
+    def _flush_file_writes(self) -> None:
+        for part, data in self._file_parts_to_write:
+            assert part.file
+            part.file.write(data)
+            part.size += len(data)
+        for part in self._file_parts_to_finish:
+            assert part.file
+            part.file.seek(0)
+        self._file_parts_to_write.clear()
+        self._file_parts_to_finish.clear()
+
+    def parse_sync(self, body: bytes) -> list[tuple[str, str | MultipartPart]]:
+        """Parse multipart from bytes. For use when body is already available."""
+        parser = self._build_parser()
         try:
-            async for chunk in self.stream:
-                if not chunk:
-                    break
-                parser.write(chunk)
-                # Flush queued file writes (must be done here, outside
-                # the sync callbacks, to avoid blocking the event loop
-                # if SpooledTemporaryFile spills to disk).
-                for part, data in self._file_parts_to_write:
-                    assert part.file
-                    part.file.write(data)
-                    part.size += len(data)
-                for part in self._file_parts_to_finish:
-                    assert part.file
-                    part.file.seek(0)
-                self._file_parts_to_write.clear()
-                self._file_parts_to_finish.clear()
+            parser.write(body)
+            self._flush_file_writes()
             parser.finalize()
         except MultipartError:
             for file in self._files_to_close_on_error:
                 file.close()
             raise
-
         return self.items
+

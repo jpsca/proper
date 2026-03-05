@@ -889,11 +889,11 @@ class TestEdgeCases:
         router.add_route(r)
         matched, _ = router.match("GET", "/old-path")
         assert matched.redirect == "/new-path"
-        assert "307" in matched.redirect_status
+        assert matched.redirect_status == 307
 
     def test_custom_redirect_status(self):
-        r = Route("GET", "/old", redirect="/new", redirect_status="301 Moved Permanently")
-        assert r.redirect_status == "301 Moved Permanently"
+        r = Route("GET", "/old", redirect="/new", redirect_status=301)
+        assert r.redirect_status == 301
 
     def test_multiple_params_url_for_and_match(self):
         router = BaseRouter()

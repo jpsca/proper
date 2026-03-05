@@ -84,7 +84,7 @@ def is_index(request) -> bool:
 def render_default_index(request, response) -> None:
     data = {
         "proper_version": version("proper"),
-        "server_software": request.env.get("server_software", ""),
+        "server_software": request.scope.get("server_software", ""),
         "python_version": sys.version,
     }
     response.body = render("default-index.jinja", **data)
@@ -120,7 +120,7 @@ def get_request_data(request) -> dict:
     except Exception:
         request_form = None
     try:
-        request_headers = request.env
+        request_headers = dict(request.headers)
     except Exception:
         request_headers = None
     return {

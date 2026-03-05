@@ -7,12 +7,11 @@ from datetime import datetime
 from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import quote
-from wsgiref.types import StartResponse
 
 from .. import status as pstatus
 from ..global_context import current
-from ..helpers import DotDict, tunnel_encode
-from ..types import TBody, Iterable, TReadable
+from ..helpers import DotDict
+from ..types import Iterable, TBody, TScope
 from .cookies import ResponseCookiesMixin
 from .file_wrapper import FileWrapper
 from .flash_messages import FlashMessages
@@ -40,25 +39,22 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
     def __init__(
         self,
-        status: str = pstatus.ok,
-        app: "App | None" = None,
-        **environ: t.Any,
+        scope: TScope,
+        *,
+        status: int = pstatus.ok,
     ) -> None:
+        self.scope = scope
         self.status = status
-        self.environ = environ
         self._session = DotDict()
         self.flash = FlashMessages(self)
-        self.app = app
         super().__init__()
 
-    def __call__(self, start_response: StartResponse) -> TBody:
-        body = self.prepare_body()
-        headers = self.get_headers_list()
-        start_response(tunnel_encode(self.status), headers)
-        return body
-
     def __repr__(self) -> str:
-        return f"<Response “{self.status}”>"
+        return f"<Response {self.status}>"
+
+    @property
+    def app(self) -> "App":
+        return self.scope["app"]
 
     @property
     def session(self) -> DotDict:
@@ -76,29 +72,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     @property
     def status_code(self) -> int:
         """The status code of the response."""
-        return int(self.status.split(" ", 1)[0])
-
-    def prepare_body(self) -> TBody:
-        body = self.body
-
-        if not body:
-            body = b""
-
-        if isinstance(body, str):
-            body = body.encode(self.charset)
-
-        if isinstance(body, bytes):
-            if not self.content_length:
-                if hasattr(body, "__len__"):  # pragma: no cover
-                    self.set_content_length(len(body))
-                else:  # pragma: no cover
-                    raise ValueError("Content-Length is required for iterable responses")
-            body = [body]
-
-        return body
-
-    def get_headers_list(self) -> list[tuple[str, str]]:
-        return [*self.get_header_tuples(), *self._get_cookie_tuples()]
+        return self.status
 
     def redirect_to(
         self,
@@ -107,7 +81,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         *,
         flash: str | None = None,
         flash_type: str = "info",
-        status: str = pstatus.see_other,
+        status: int = pstatus.see_other,
         **kw,
     ) -> None:
         """
@@ -127,8 +101,8 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
             flash_type:
                 Optional type of the flash message.
 
-            status (str):
-                The status code to use, e.g.: "303 See Other"
+            status (int):
+                The status code to use, e.g.: 303 (See Other)
 
             **kw:
                 Additional keyword arguments to pass to the route.
@@ -176,7 +150,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         Arguments:
 
             strong:
-                By default a “weak” Etag is used. Set this to `True` to set a “strong” ETag
+                By default a "weak" Etag is used. Set this to `True` to set a "strong" ETag
                 validator on the response. A strong ETag implies exact equality: the response
                 must match byte for byte. This is necessary for doing range requests within a
                 large file or for compatibility with some CDNs that don’t support weak ETags.
@@ -300,27 +274,29 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         value = "attachment" if as_attachment else "inline"
 
         self.headers["content-disposition"] = f"{value}{options}"
-        self.body = self._wrap_file(path.open("rb"))
+        self.body = FileWrapper(path.open("rb"), block_size=8192)
 
-    def _wrap_file(
-        self,
-        file: TReadable,
-        block_size: int = 8192,
-    ) -> Iterable[bytes]:
-        """Wraps a file using the WSGI server's file wrapper
+    def get_headers_list(self) -> list[tuple[str, str]]:
+        return [*self.get_header_tuples(), *self.get_cookie_tuples()]
 
-        More information about file wrappers is available in
-        [PEP 3333](https://peps.python.org/pep-3333/#optional-platform-specific-file-handling).
+    def prepare(self) -> tuple[int, list[tuple[bytes, bytes]], bytes]:
+        """Prepare the response for sending through ASGI."""
+        body = self.body or b""
 
-        Arguments:
+        if isinstance(body, str):
+            body_bytes = body.encode(self.charset)
+        elif isinstance(body, bytes):
+            body_bytes = body
+        else:
+            # Iterable (e.g. FileWrapper) — consume into bytes
+            body_bytes = b"".join(body)
 
-            file:
-                A file-like object with a `read` method.
+        if not self.content_length:
+            self.set_content_length(len(body_bytes))
 
-            block_size:
-                Number of bytes for one iteration.
+        enc_headers = [
+            (name.encode("latin-1"), value.encode("latin-1"))
+            for name, value in self.get_headers_list()
+        ]
 
-        """
-        assert self.environ is not None
-        file_wrapper = self.environ.get("wsgi.file_wrapper") or FileWrapper
-        return file_wrapper(file, block_size)
+        return self.status, enc_headers, body_bytes

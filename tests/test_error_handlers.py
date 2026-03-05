@@ -138,17 +138,17 @@ class TestGetRequestData:
         request = MagicMock()
         request.query = {"a": "1"}
         request.form = {"b": "2"}
-        request.env = {"SERVER_NAME": "localhost"}
+        request.headers = {"host": "localhost"}
         result = get_request_data(request)
         assert result["request_query"] == {"a": "1"}
         assert result["request_form"] == {"b": "2"}
-        assert result["request_headers"] == {"SERVER_NAME": "localhost"}
+        assert result["request_headers"] == {"host": "localhost"}
 
     def test_query_raises(self):
         request = MagicMock()
         type(request).query = PropertyMock(side_effect=Exception("bad query"))
         request.form = {}
-        request.env = {}
+        request.headers = {}
         result = get_request_data(request)
         assert result["request_query"] is None
 
@@ -156,15 +156,15 @@ class TestGetRequestData:
         request = MagicMock()
         request.query = {}
         type(request).form = PropertyMock(side_effect=Exception("bad form"))
-        request.env = {}
+        request.headers = {}
         result = get_request_data(request)
         assert result["request_form"] is None
 
-    def test_env_raises(self):
+    def test_headers_raises(self):
         request = MagicMock()
         request.query = {}
         request.form = {}
-        type(request).env = PropertyMock(side_effect=Exception("bad env"))
+        type(request).headers = PropertyMock(side_effect=Exception("bad headers"))
         result = get_request_data(request)
         assert result["request_headers"] is None
 
@@ -172,7 +172,7 @@ class TestGetRequestData:
         request = MagicMock()
         type(request).query = PropertyMock(side_effect=Exception)
         type(request).form = PropertyMock(side_effect=Exception)
-        type(request).env = PropertyMock(side_effect=Exception)
+        type(request).headers = PropertyMock(side_effect=Exception)
         result = get_request_data(request)
         assert result == {
             "request_query": None,
@@ -212,7 +212,7 @@ class TestFallbackHandlers:
 class TestRenderDefaultIndex:
     def test_sets_body(self):
         request = MagicMock()
-        request.env = {}
+        request.scope = {}
         response = MagicMock()
         render_default_index(request, response)
         assert response.body is not None
@@ -229,7 +229,7 @@ class TestDebugNotFoundHandler:
     def test_index_request_renders_default_page(self):
         app = MagicMock()
         request = MagicMock(method="GET", path="/")
-        request.env = {}
+        request.scope = {}
         response = MagicMock()
 
         debug_not_found_handler(app, request, response)
@@ -244,7 +244,7 @@ class TestDebugNotFoundHandler:
         request = MagicMock(method="GET", path="/missing")
         request.query = {}
         request.form = {}
-        request.env = {}
+        request.headers = {}
         response = MagicMock()
         response.error = Exception("not found")
 
@@ -265,7 +265,7 @@ class TestDebugErrorHandler:
         request = MagicMock()
         request.query = {}
         request.form = {}
-        request.env = {}
+        request.headers = {}
         response = MagicMock()
 
         try:
