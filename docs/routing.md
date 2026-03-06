@@ -415,7 +415,7 @@ Or to send a PUT/PATCH update:
 </form>
 ```
 
-This override happens early in the middleware pipeline, before route matching, so the router sees the overridden method as if the browser had sent it directly.
+This override happens early in the pipeline, before route matching, so the router sees the overridden method as if the browser had sent it directly.
 
 
 ## 3. Named Routes and URL Generation

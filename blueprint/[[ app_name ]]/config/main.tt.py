@@ -25,7 +25,8 @@ else:
         "---- This is a not-secret-secret_key just for development ----"
     ]
 
-# Turn off to let debugging WSGI middleware handle exceptions.
+# Turn off to let something else, outside the application,
+# like a proxy or web-server, handle the unhandled exceptions.
 CATCH_ALL_ERRORS = True
 
 # Limits the total content length (in bytes).

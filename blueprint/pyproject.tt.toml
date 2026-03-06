@@ -39,7 +39,6 @@ dev = [
   "ipdb",
 	[% if use_tailwindcss -%]
   "pytailwindcss>=0.3.0",
-  "pywatchman>=3.0.0",
 	[% endif -%]
   "ruff",
   "ty",

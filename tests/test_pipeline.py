@@ -1,4 +1,4 @@
-"""Tests for the App.__call__ / run_pipeline flow and individual middleware."""
+"""Tests for the App.__call__ / run_pipeline flow and individual pipeline."""
 
 from unittest.mock import patch
 
@@ -8,7 +8,7 @@ from proper import App, current, status
 from proper.constants import FLASHES_SESSION_KEY
 from proper.controller import Controller
 from proper.helpers import DotDict
-from proper.middleware import (
+from proper.pipeline import (
     copy_session,
     head_to_get,
     match,
@@ -17,8 +17,8 @@ from proper.middleware import (
     strip_body_if_head,
     update_session_cookie,
 )
-from proper.middleware.dispatch import dispatch
-from proper.middleware.match import LOCAL_HOSTS
+from proper.pipeline.dispatch import dispatch
+from proper.pipeline.match import LOCAL_HOSTS
 from proper.request import Request
 from proper.request.utils import make_test_scope
 from proper.response import Response
@@ -70,7 +70,7 @@ def co(make_co):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# UNIT TESTS — individual middleware functions
+# UNIT TESTS — individual pipeline functions
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -218,7 +218,7 @@ class TestRedirect:
         assert location == "/new/42"
 
 
-# ── session middleware ──────────────────────────────────────────────
+# ── session pipeline ──────────────────────────────────────────────
 
 
 class TestCopySession:
@@ -234,7 +234,7 @@ class TestCopySession:
             FLASHES_SESSION_KEY: [("info", "saved!")],
         })
         with patch(
-            "proper.middleware.session._find_session_by_cookie",
+            "proper.pipeline.session._find_session_by_cookie",
             return_value=session_data,
         ):
             co = make_co(method="GET")

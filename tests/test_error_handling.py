@@ -33,7 +33,7 @@ def _resp(*, app=None, **kw):
     return Response(scope)
 
 
-# ── module-level controllers (required by middleware.dispatch) ────
+# ── module-level controllers (required by pipeline.dispatch) ────
 
 
 class _ExplodingController(Controller):

@@ -16,7 +16,8 @@ default_config = {
     # against an attacker discovering a secret key.
     "SECRET_KEYS": (),
 
-    # Turn off to let debugging middleware handle exceptions.
+    # Turn off to let something else, outside the application,
+    # like a proxy or web-server, handle the unhandled exceptions.
     "CATCH_ALL_ERRORS": True,
 
     # Limits the total content length (in bytes).

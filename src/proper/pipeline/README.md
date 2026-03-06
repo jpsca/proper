@@ -1,4 +1,4 @@
-## proper.middleware
+## proper.pipeline
 
 Each of these functions take a request and a response arguments.
 They return nothing, all side-effects must be on the request and/or the response instances.

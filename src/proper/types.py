@@ -1,7 +1,6 @@
 import datetime
 import typing as t
 from collections.abc import (
-    AsyncGenerator,  # noqa
     Awaitable,
     Callable,
     Iterable,

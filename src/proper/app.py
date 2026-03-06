@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import typing as t
+from collections.abc import Callable, Sequence
 from importlib import import_module
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 
-from . import middleware, status, tools
+from . import pipeline, status, tools
 from .app_test import AppTest
 from .cache import FragmentCacheExtension
 from .cli.app_cli import get_cli
@@ -60,6 +61,9 @@ class App(AppTest):
             The name of the application package. Eg.: `foobar.web`.
         config:
             Optional dict-like with the config.
+        middleware:
+            Optional list of ASGI middleware. Each middleware should be a
+            callable that takes an ASGI app and returns a new ASGI app.
 
     """
 
@@ -108,6 +112,8 @@ class App(AppTest):
         self,
         import_name: str,
         config: dict[str, t.Any] | type | None = None,
+        *,
+        middleware: Sequence[Callable] = (),
     ) -> None:
         self.config = load_config(config or {})
         self._setup_paths(import_name)
@@ -120,6 +126,9 @@ class App(AppTest):
         # This will pre-load all templates in the views folder
         # so any Jinja extension need to be setup before this line.
         self.catalog.add_folder(self.views_path)
+
+        for mw in reversed(middleware):
+            self.__call__ = mw(self.__call__)
 
     @property
     def routes(self) -> list[Route]:
@@ -234,14 +243,14 @@ class App(AppTest):
 
                 self._dbs_connect()
                 for func in (
-                    middleware.copy_session,
-                    middleware.head_to_get,
-                    middleware.method_override,
-                    middleware.match,
-                    middleware.redirect,
-                    middleware.dispatch,
-                    middleware.strip_body_if_head,
-                    middleware.update_session_cookie,
+                    pipeline.copy_session,
+                    pipeline.head_to_get,
+                    pipeline.method_override,
+                    pipeline.match,
+                    pipeline.redirect,
+                    pipeline.dispatch,
+                    pipeline.strip_body_if_head,
+                    pipeline.update_session_cookie,
                 ):
                     logger.debug(
                         "[pipeline] %s %s -> %s",
@@ -440,7 +449,7 @@ class App(AppTest):
         else:
             request.matched_route = Route(method="", path="", to=handler)
         request.matched_params = {}
-        middleware.dispatch(request, response)
+        pipeline.dispatch(request, response)
 
     def _dbs_connect(self) -> None:
         for db in self.db.values():

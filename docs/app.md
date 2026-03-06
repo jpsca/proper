@@ -65,9 +65,9 @@ Read the documentation of these libraries to understand how to work with them in
 Proper is an ASGI application. However, the code of the web applications that use Proper (meaning, the code that you write) is
 regular sync python.
 
-The async boundary is handled by the framework, he ASGI entry point receives the request asynchronously, parses the body, then runs the sync middleware pipeline in a thread via `asyncio.to_thread()`.
+The async boundary is handled by the framework, he ASGI entry point receives the request asynchronously, parses the body, then runs the sync pipeline in a thread via `asyncio.to_thread()`.
 
-Every request flows through a middleware pipeline in this exact order:
+Every request flows through a pipeline in this exact order:
 
 1. **copy_session** — reads the signed `_session` cookie into `request.session`
 2. **head_to_get** — converts HEAD requests to GET (body stripped later)
@@ -332,7 +332,7 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 
 The `proper` logger outputs debug information for:
 
-- Each middleware step: `[pipeline] GET /path -> middleware_name`
+- Each pipeline step: `[pipeline] GET /path -> step_name`
 - Controller callbacks: `[ControllerName.action] before: callback_name (from ConcernClass)`
 - Callback halts: `[ControllerName.action] halted by before callback: callback_name`
 - Template inference: `[ControllerName.action] rendering inferred template: pages/.../action.jinja`
