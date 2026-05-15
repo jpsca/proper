@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Proper Web Framework {{ proper_version }}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <style type="text/css">
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      -moz-osx-font-smoothing: grayscale;
+      align-items: center;
+      background-color: #fff8f4;
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      min-height: 100vh;
+      font-family: "Raleway", Helvetica, sans-serif;
+      font-size: calc(0.9rem + 1vw);
+      color: #261b23;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 1.5;
+      text-align: center;
+    }
+    main {
+      position: absolute;
+      min-height: 460px;
+      height: 100%;
+      display: block;
+      width: 100%;
+    }
+    nav {
+      width: 100%;
+      text-align: center;
+      padding: 8rem 2rem;
+      display: block;
+      margin: 0 auto;
+    }
+    h1 a,
+    h1 a:visited {
+      display: inline-block;
+      text-align: center;
+      cursor: pointer;
+      font-size: 7rem;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      color: #0a6fc1;
+      fill: #0a6fc1;
+      font-weight: 600;
+      letter-spacing: -0.05ch;
+      transition: all;
+      width: 100%;
+      max-width: 80%;
+    }
+    h1 a:hover,
+    h1 a:active {
+      text-decoration-style: solid;
+    }
+    h1 a svg {
+      display: inline-block;
+    }
+    p {
+      margin-top: 1rem;
+    }
+    ul {
+      bottom: 0;
+      left: 0;
+      list-style: none;
+      padding: 2rem 2rem 3rem;
+      position: absolute;
+      right: 0;
+      font-size: calc(0.9rem + 0.3vw);
+    }
+    li {
+      padding: 0.2rem;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <nav>
+      <h1>
+        <a href="https://properproject.org" target="_blank">
+          <svg xmlns="http://www.w3.org/2000/svg" width="160" height="196" viewBox="0 0 160 196"><path d="M0.397 0.333c30.557.11 61.173-1.234 91.678.81 36.586 3.728 67.439 35.756 67.773 71.098 2.14 31.045-18.562 62.348-49.42 72.701-16.179 6.083-33.732 6.187-50.853 5.991v45.067H0c.037-66.555.06-129.111.397-195.666" fill="#f9f9f9"/><path d="M0.065 165.433c.019-39.772.46-45.785 3.884-52.739 2.712-5.51 9.148-12.102 14.209-14.555 7.253-3.517 10.71-3.853 39.848-3.87 25.043-.015 27.72-.14 30.694-1.423 9.231-3.984 13.97-13.662 11.159-22.791-1.616-5.247-5.021-9.105-10.203-11.559-3.935-1.863-4.737-1.955-17.08-1.955h-12.95v28.686h-19.064l.004-47.18 23.63.008c20.011.003 24.298.202 27.998 1.29 4.91 1.446 12.76 5.704 16.146 8.759 3.898 3.516 8.435 10.713 10.164 16.124 2.23 6.974 1.843 18.45-.842 25.022-3.926 9.611-13.156 17.957-23.968 21.672-10.804 3.713-62.154 1.259-66.35 3.544-2.663 1.45-5.721 5.289-6.656 8.355-.558 1.833-.77 12.416-.617 30.727l.236 23.93h19.858l.42-45.444 24.414-.012c27.503-.011 30.31-.366 41.02-5.18 16.047-7.212 27.015-19.265 32.371-35.572 2.415-7.352 2.65-22.515.467-30.195-5.367-18.89-19.7-33.149-40.308-40.102-5.06-1.707-5.898-1.747-41.901-1.998l-36.738-.257v68.693l-5.4 2.696c-2.969 1.483-7.401 4.555-9.85 6.827l-4.45 4.13.239-100.76 38.525-.222c43.597-.251 55.329.345 65.237 3.314 27.945 8.376 48.174 29.42 54.354 56.544 1.844 8.092 1.844 22.858 0 30.95-3.548 15.574-19.49 60.014-85.89 60.014h-13.049v45.067h-59.575z" fill="#3771c8"/></svg>
+        </a>
+      </h1>
+      <p><strong>¡Congratulations!</strong></p>
+      <p>You are now running a <em>proper</em> <br>web&nbsp;application.</p>
+    </nav>
+
+    <ul>
+      <li><strong>Proper version:</strong> {{ proper_version }}</li>
+      {% if server_software -%}
+        <li><strong>Server:</strong> {{ server_software }}</li>
+      {%- endif %}
+      <li><strong>Python version:</strong> {{ python_version }}</li>
+    </ul>
+  </main>
+</body>
+
+</html>

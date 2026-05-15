@@ -1,0 +1,13 @@
+{#import "layouts/auth.jx" as Layout #}
+
+<Layout title="Wrong password-reset link">
+  <div class="auth-panel">
+    <h2 class="auth-title">Wrong password-reset link</h2>
+    <p class="auth-text">
+      Something is wrong with the link to reset your&nbsp;password.
+    </p>
+    <p class="auth-text">
+      Try to copy and paste it from the email or to reset your password&nbsp;again.
+    </p>
+  </div>
+</Layout>

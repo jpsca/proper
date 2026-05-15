@@ -1,0 +1,12 @@
+# Be aware that YAML interprets the following case-insensitive strings as
+# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
+# must be quoted to be interpreted as strings. For example:
+
+# ```yaml
+# en:
+#   "yes": yup
+#   enabled: "ON"
+# ```
+
+en:
+  hello: "Hello world"

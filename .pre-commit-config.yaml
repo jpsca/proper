@@ -1,0 +1,12 @@
+exclude: ^(docs)/
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: linter
+        name: linter
+        entry: make lint
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true

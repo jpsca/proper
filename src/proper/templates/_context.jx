@@ -1,0 +1,70 @@
+{% macro print_dict(dict) -%}
+	<div class="scroll-container">
+		<table>
+			{%- for name, value in dict.items() %}
+			<tr>
+				{% if value is mapping and value -%}
+					<td colspan="2">
+						<details>
+							<summary>{{ name }}</summary>
+							{{ print_dict(value) }}
+						</details>
+					</td>
+				{%- else -%}
+					<th><div>{{ name }}</div></th>
+					<td><div>{{ value }}</div></td>
+				{%- endif %}
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+{%- endmacro -%}
+
+<h3>Config</h3>
+
+<details>
+	<summary>Config:</summary>
+	{{ print_dict(config) }}
+</details>
+
+<h3>Request</h3>
+
+{% if request_query -%}
+<details>
+	<summary>Query:</summary>
+	{{ print_dict(request_query) }}
+</details>
+{%- endif %}
+
+{% if request_form -%}
+<details>
+	<summary>Form data:</summary>
+	{{ print_dict(request_form) }}
+</details>
+{%- endif %}
+
+{% if request_headers -%}
+<details>
+	<summary>Environment:</summary>
+	{{ print_dict(request_headers) }}
+</details>
+{%- endif %}
+
+
+{% if response.headers -%}
+<h3>Response</h3>
+
+<details>
+	<summary>Headers:</summary>
+	<div class="scroll-container">
+		<table class="config">
+			{%- for name, value in response.get_header_tuples() %}
+			<tr>
+				<th><div>{{ name }}</div></th>
+				<td><div>{{ value }}</div></td>
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+</details>
+{%- endif %}

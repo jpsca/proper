@@ -1,0 +1,40 @@
+storage/*
+!storage/.keep
+
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+*.egg
+*.egg-info/
+*.log
+.cache
+.eggs/
+.env
+.installed.cfg
+.mypy_cache/*
+.tox
+.venv
+_build/*
+build/
+covreport
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+MANIFEST
+parts/
+pip-wheel-metadata
+sdist/
+site/*
+var/
+wheels/
+
+# Credentials
+master.key

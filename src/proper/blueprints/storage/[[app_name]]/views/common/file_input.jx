@@ -1,0 +1,41 @@
+{#def field, accept=None #}
+{#css "styles/file-input.css" #}
+{#js "js/file-input-controller.js" #}
+
+{# An existing attachment exposes `.url`; a fresh upload (MultipartPart) does not. #}
+{% set existing = field.value if (field.value and field.value.url) else None %}
+{% set accept = accept or (field.accept | join(',')) if field.accept else None %}
+
+<div class="file-input{{ ' has-file' if existing else '' }}"
+     data-controller="file-input"
+     data-file-input-has-file-class="has-file"
+     data-file-input-dragging-class="is-dragging"
+     data-action="click->file-input#open
+                  dragenter->file-input#dragEnter
+                  dragover->file-input#dragEnter
+                  dragleave->file-input#dragLeave
+                  drop->file-input#drop"
+>
+
+  {{ field.file_input(
+    accept=accept,
+    data_file_input_target="input",
+    data_action="change->file-input#fileSelected",
+  ) }}
+
+  {{ field.destroy_input(data_file_input_target="destroyFlag") }}
+
+  <div class="placeholder">
+    <p>Drop a file here or <span class="strong">click to browse</span></p>
+  </div>
+
+  <div class="selected">
+    <span class="filename" data-file-input-target="filename">{{ (existing.filename ~ ' · ' ~ (existing.byte_size | format_size)) if existing else '' }}</span>
+    <button
+      type="button"
+      class="remove btn"
+      data-action="click->file-input#remove"
+    >Remove</button>
+  </div>
+</div>
+{{ field.error_tag() }}

@@ -1,0 +1,258 @@
+"""A base controller class, all other application controllers
+must inherit from. Stores data available to the views.
+"""
+import os
+import re
+import typing as t
+from pathlib import Path
+
+from .errors import NotFound
+from .helpers import MultiDict, jsonplus, logger, make_list
+from .status import not_modified, unprocessable
+from .template_resolver import resolve_template
+
+
+if t.TYPE_CHECKING:
+    from .app import App
+    from .request import Request
+    from .response import Response
+    from .types import Iterable
+
+
+__all__ = ("Controller",)
+
+class Controller:
+    etag = ""
+
+    def __init__(
+        self,
+        request: "Request",
+        response: "Response",
+    ) -> None:
+        self.request = request
+        self.response = response
+
+    @property
+    def app(self) -> "App":
+        return self.request.app
+
+    @property
+    def params(self) -> MultiDict:
+        if not hasattr(self, "_params"):
+            params = MultiDict()
+            params.update(self.request.query)
+            params.update(self.request.form)
+            params.update(self.request.matched_params or {})
+            self._params = params
+        return self._params
+
+    @property
+    def defaults(self) -> dict:
+        defaults = {}
+        if self.request.matched_route:
+            defaults = self.request.matched_route.defaults
+        return defaults
+
+    def render(
+        self,
+        name: str = "",
+        *,
+        status: int | None = None,
+        json: t.Any = None,
+        text: t.Any = None,
+    ) -> str:
+        if status is not None:
+            self.response.status = status
+
+        if json is not None:
+            self.response.mimetype = "application/json"
+            return jsonplus.dumps(json)
+
+        if text is not None:
+            self.response.mimetype = "text/plain"
+            return text
+
+        assert self.app.catalog
+        return self.app.catalog.render(name, **vars(self))
+
+    def redo(self, status: int = unprocessable):
+        """A shortcut to re-render an invalid form"""
+        action = self.request.matched_action
+        target_action = "edit" if action == "update" else "new"
+        inferred_view = self._resolve_view(target_action)
+        self.response.body = self.render(inferred_view, status=status)
+
+    # Private
+
+    def _should_run_callback(self, options: dict[str, t.Any]) -> bool:
+        if not options:
+            return True
+        action = self.request.matched_action
+        only = options.get("only", None)
+        exclude = options.get("exclude", None)
+
+        if only and action not in make_list(only):
+            return False
+        if exclude and action in make_list(exclude):
+            return False
+        return True
+
+    def _dispatch(self, action_name: str) -> "Response | None":
+        mro = type(self).mro()
+        c_name = type(self).__name__
+
+        for cls in reversed(mro):
+            before = cls.__dict__.get("before", None)
+            if before:
+                for cb in make_list(before):
+                    if self._should_run_callback(cb):
+                        for action in make_list(getattr(self, cb["do"])):
+                            logger.debug(
+                                "[%s.%s] before: %s (from %s)",
+                                c_name, action_name, cb["do"], cls.__name__,
+                            )
+                            action()
+                            if self.response.has_body:
+                                logger.debug(
+                                    "[%s.%s] halted by before callback: %s",
+                                    c_name, action_name, cb["do"],
+                                )
+                                return
+
+        self._call(action_name)
+
+        for cls in mro:
+            after = cls.__dict__.get("after", None)
+            if after:
+                for cb in make_list(after):
+                    if self._should_run_callback(cb):
+                        for action in make_list(getattr(self, cb["do"])):
+                            logger.debug(
+                                "[%s.%s] after: %s (from %s)",
+                                c_name, action_name, cb["do"], cls.__name__,
+                            )
+                            action()
+
+    def _call(self, action_name: str) -> None:
+        # All the side effects of this call should be stored in the same
+        # view and in `resp`.
+        method = getattr(self, action_name)
+        ret_value = method()
+
+        if self.response.is_fresh(request=self.request):
+            self.response.status = not_modified
+            self.response.body = ""
+            return
+
+        if ret_value is not None:
+            self.response.body = ret_value
+            return
+
+        if not self.response.has_body:
+            inferred_view = self._resolve_view(action_name)
+            logger.debug(
+                "[%s.%s] rendering inferred template: %s",
+                self.__class__.__name__, action_name, inferred_view,
+            )
+            self.response.body = self.render(inferred_view)
+            return
+
+    def _prefixes(self) -> list[str]:
+        """View-folder prefixes to search, walking up the controller MRO.
+
+        Subclass first, then each ancestor controller, stopping before
+        `Controller` itself. Gives `application/` fallbacks and similar
+        without any explicit config.
+        """
+        prefixes = []
+        for cls in type(self).mro():
+            if cls is Controller:
+                break
+            module = getattr(cls, "__module__", "")
+            if not module or module.startswith("proper."):
+                continue
+            tail = module.split(".", 2)[-1]
+            tail = tail.removesuffix("_controller")
+            tail = tail.replace(".", "/")
+            if tail:
+                prefix = f"pages/{tail}"
+                if prefix not in prefixes:
+                    prefixes.append(prefix)
+        return prefixes
+
+    def _resolve_view(self, action_name: str) -> str:
+        assert self.app.catalog
+        return resolve_template(
+            self.app.catalog,
+            self._prefixes(),
+            action_name,
+            accept=self.request.accept,
+            default_format=self.request.default_format,
+            controller=type(self).__name__,
+        )
+
+
+RX_FINGERPRINT = re.compile("(.*)-([a-f0-9]{64})")
+
+
+class StaticFilesController(Controller):
+    def show(self):
+        root: Path = Path(self.defaults["root"])
+        public: bool = self.defaults["public"]
+        file: str = self.params.get("file", "")
+        relpath = Path(file.lstrip(os.path.sep))
+        ext = "".join(relpath.suffixes)
+
+        allowed_ext: Iterable[str] | None = self.defaults.get("allowed_ext")
+        if allowed_ext:
+            if ext not in allowed_ext:
+                raise NotFound("File does not exist")
+
+        # Ignore the fingerprint in the filename
+        # since is only for managing the cache in the client
+        stem = relpath.name.removesuffix(ext)
+        fingerprinted = RX_FINGERPRINT.match(stem)
+        if fingerprinted:
+            stem = fingerprinted.group(1)
+            relpath = relpath.with_name(f"{stem}{ext}")
+
+        filepath: Path = (root / relpath).resolve()
+
+        if not filepath.is_relative_to(root.resolve()):
+            raise NotFound(f"File `{file}` does not exist")
+
+        if not filepath.is_file():
+            raise NotFound(f"File `{file}` does not exist")
+
+        mtime = filepath.stat().st_mtime
+        self.response.last_modified = mtime
+
+        last_modified = self.response.last_modified
+        if_modified_since = self.request.if_modified_since
+        if last_modified and if_modified_since and last_modified <= if_modified_since:
+            self.response.status = not_modified
+        else:
+            x_sendfile = self.app.config.get("STATIC_X_SENDFILE_HEADER", "")
+            self.response.send_file(
+                filepath,
+                as_attachment=False,
+                x_sendfile_header=x_sendfile,
+            )
+
+        if fingerprinted:
+            self.response.set_cache_control(
+                "max-age=31536000",
+                "public" if public else "private",
+                "immutable",
+            )
+        else:
+            self.response.set_cache_control(
+                "max-age=0",
+                "public" if public else "private",
+                "must-revalidate",
+            )
+
+        # Ensures that things still work as expected when
+        # your files are served from a CDN, rather than
+        # your primary domain.
+        self.response.headers.set("Access-Control-Allow-Origin", "*")

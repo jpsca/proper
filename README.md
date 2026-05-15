@@ -1,66 +1,26 @@
-# Proper
+<h1><img src="https://properproject.org/proper.svg" height="48" />
+Proper Web Framework</h1>
 
-A web framework optimized for programmer happiness.
+Aren't you tired of every new Python web framework looking like a Flask clone? Well, Proper does not... because it looks like a Ruby on Rails clone :P.
 
+Seriously though, although it is not a clone, it was heavily influenced by it in many aspects: very opinionated, generator-heavy, focused on REST and server-rendered pages, built around a predefined project structure, and packed with hardcoded batteries. You can swap pieces if you must, but the assumption is that you won't, because the value of a framework is in the integration, not the menu.
 
-### Requirements
+Also, although Proper technically is an ASGI framework (a must for performance and websockets), the code you see and write is **synchronous**, top to bottom, no async/await confetti scattered across code that doesn't need it.
 
-- Python 3.6+
+## Docs for AI & Humans
 
+There is no way you are going to use this if your AI agent can't, so it does ship with an AI skill right from the beginning: [properguides.com/skill.zip](https://properguides.com/skill.zip). Being a heavily opinionated framework actually helps a lot in this regard: AI consumes fewer tokens understanding a project, and you spend less effort understanding its changes.
 
-### Installation
+There is also long and detailed human-shaped documentation in the works here: https://properguides.com/docs
 
-	python -m pip install proper
+## For the press release
 
+> Proper is the Python web framework I built for myself after fifteen years in the trade, once I understood that hard conventions do not lock you in, but rather free you to focus on what's important.
 
-## Design principles
+(It also works for the back cover of my future biography by Walter Isaacson)
 
-- "Convention over configuration".
+## Contributing
 
-- No globals.
-	When you need a shared object, pass it arround.
+The initial public version is "1.0", but you should still expect occasional bugs in real production use. I'd be very grateful for any bug reports in the pursuit of ironing them out and making the framework better for everybody.
 
-- Optimize for the 95%.
-	Don't compromise the usability of the common cases to keep consistency
-	with the edge cases.
-
-- Code redability is important.
-
-- App-code over framework-code
-	Because app code is infintely configurable without dirty hacks.
-
-- "Everyone is an adult here".
-	Run with scissors if you must.
-
-- Gevent over async.
-
-
-# Sources of inspirations
-
-## From Elixir/Phoenix
-
-### Pipelines in the routes.
-
-You don't need to have a framework for APIs and other for full-fletched apps, you can just deactivate cookie sessions, flash messages and other things yoi don't need for specific sections of your sites.
-And is super easy to add things too like admin-only sections just by composing multiple pipelines, after all, there are just lists of callables.
-
-### App-code over framework-code.
-
-You can make it clean and straightforward or you can make it configurable.
-But if you put the code in the application, thanks to a standarized project skeleton,
-you can have both!
-
-
-## From Ruby/Rails
-
-### Convention over configuration.
-
-### Optimize for developer happiness.
-
-### The application code must be beatiful.
-
-- Empty class-based controllers that works!
-- Class-based controllers allows several tricks that make the experience much better:
-	- A configurable and plugganle render and view functions.
-	- Class based views a-la Django, but simpler and completely obvious because is your application code (see (App-code over framework-code)
-	- Saving context varaibles in your controller instance looks much cleaner that building a dictionary and manually calling render and the end of each controller.
+_Thank you_.

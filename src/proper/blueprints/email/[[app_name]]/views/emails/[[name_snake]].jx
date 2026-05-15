@@ -1,0 +1,7 @@
+{#import "layouts/email.jx" as Layout #}
+
+{#def subject #}
+
+<Layout title={{ subject }}>
+
+</Layout>

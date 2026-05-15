@@ -1,0 +1,68 @@
+@layer components {
+  .btn {
+    --btn-fg: var(--color-gray-darkest);
+    --btn-bg: var(--color-gray-lightest);
+    --btn-shadow: 1px 1px 2px 2px okclh(var(--lch-black) / 10%);
+
+    --btn-bg-hover: color-mix(in srgb, var(--btn-bg), var(--color-black) 8%);
+    --btn-bg-active: color-mix(in srgb, var(--btn-bg), var(--color-black) 8%);
+    --btn-border: var(--color-gray-light);
+    --btn-border-hover: color-mix(in srgb, var(--btn-border), var(--color-black) 8%);
+    --btn-shadow-active: inset 1px 2px 4px rgba(30, 30, 30, 0.2), 1px 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  .btn {
+    align-items: center;
+    appearance: button;
+    background-color: var(--btn-bg);
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--btn-border);
+    box-shadow: var(--btn-shadow);
+    box-sizing: border-box;
+    color: var(--btn-fg);
+    cursor: pointer;
+    display: inline-flex;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    font-family: inherit;
+    font-weight: 600;
+    justify-content: center;
+    line-height: 1;
+    min-inline-size: min-content;
+    overflow: hidden;
+    padding: 0.9ch 1ch;
+    pointer-events: auto;
+    position: relative;
+    text-align: center;
+    text-decoration: none !important;
+    touch-action: manipulation;
+    user-select: none;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .btn:is(:hover,:focus-visible):not([disabled]) {
+    background-color: var(--btn-bg-hover, var(--btn-bg));
+    border-color: var(--btn-border-hover, var(--btn-border));
+    box-shadow: var(--btn-shadow-hover, var(--btn-shadow));
+    text-decoration: none;
+  }
+  .btn:is(:active,[data-active]):not([disabled]) {
+    background-color: var(--btn-bg-active, var(--btn-bg));
+    border-color: var(--btn-border-active, var(--btn-border));
+    box-shadow: var(--btn-shadow-active, var(--btn-shadow));
+    translate: 0 1px;
+    text-decoration: none;
+  }
+  .btn.btn--primary {
+    --btn-fg: #fff;
+    --btn-bg: var(--color-blue-dark);
+
+    &:is([data-theme="dark"] *) {
+      --btn-bg: var(--color-blue-medium);
+    }
+    @media (prefers-color-scheme: dark) {
+      &:is(:not([data-theme] *)) {
+        --btn-bg: var(--color-blue-medium);
+      }
+    }
+  }
+}

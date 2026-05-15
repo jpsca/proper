@@ -1,0 +1,10 @@
+{#import "./base.jx" as Layout #}
+{#css "styles/auth.css" #}
+
+{% do attrs.set(class="auth")%}
+
+<Layout attrs={{attrs}}>
+	<div class="auth-wrapper">
+		{{ content }}
+	</div>
+</Layout>

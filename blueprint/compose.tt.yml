@@ -1,0 +1,15 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    user: "1000:1000"
+    container_name: [[app_name]]
+    volumes:
+      - .:/app
+    ports:
+      - "2300:2300"
+      - "5678:5678"  # debugpy
+    command: sleep infinity
+    tty: true
+    stdin_open: true

@@ -1,0 +1,37 @@
+{#import "layouts/auth.jx" as Layout #}
+{#import "common/password.jx" as Password #}
+{#import "form.jx" as Form #}
+
+{#def form, password_minlen #}
+
+<Layout title="Sign up" data_turbo="false">
+  <Form class="auth-panel" action={{ url_for('SignUp.create') }}>
+    <div class="auth-header">
+      <h2 class="auth-title">Sign up</h2>
+      <p class="auth-text">Create a new account to get&nbsp;started.</p>
+    </div>
+
+    <div class="auth-field">
+      {{ form.login.label("Email") }}
+      {{ form.login.text_input(placeholder="Email", type="email") }}
+      {{ form.login.error_tag() }}
+    </div>
+
+    <div class="auth-field">
+      <Password field={{form.password1}} label="Password" placeholder="Password"
+        minlen={{password_minlen}} />
+    </div>
+
+    <div class="auth-field">
+      <Password field={{form.password2}} label="Repeat password" placeholder="Repeat password" />
+    </div>
+
+    <div class="auth-footer">
+      <button type="submit" class="btn btn--primary">Sign up</button>
+    </div>
+  </Form>
+
+  <div class="auth-back">
+    <a href="{{ url_for('Session.new') }}">Already have an account? Sign in</a>
+  </div>
+</Layout>

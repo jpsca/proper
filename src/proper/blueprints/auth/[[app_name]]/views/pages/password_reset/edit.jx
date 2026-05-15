@@ -1,0 +1,42 @@
+{#import "layouts/auth.jx" as Layout #}
+{#import "form.jx" as Form #}
+
+{#def form, token, login, password_minlen #}
+
+<Layout title="Change your password" data_turbo="false">
+  <Form
+    class="auth-panel"
+    action={{ url_for('PasswordReset.update', token=token) }}
+    method="patch"
+  >
+    <div class="auth-header">
+      <h2 class="auth-title">Change your password</h2>
+      <p class="auth-text">
+        Your email is “<strong><em>{{ login }}</em></strong>”.
+      </p>
+    </div>
+
+    <div class="auth-field">
+      {{ form.password1.label("Password") }}
+      {{ form.password1.password_input(placeholder="New password") }}
+      <div class="auth-help">
+        Make sure your new password it's at least {{ password_minlen }} characters long.
+      </div>
+      {{ form.password1.error_tag() }}
+    </div>
+
+    <div class="auth-field">
+      {{ form.password2.label("Confirm password") }}
+      {{ form.password2.password_input(placeholder="Confirm your new password") }}
+      <div class="auth-help">
+        Repeat your new password.
+      </div>
+      {{ form.password2.error_tag() }}
+    </div>
+
+    <div class="auth-footer">
+      <button type="submit" class="btn btn--primary"
+      >Save my password</button>
+    </div>
+  </Form>
+</Layout>

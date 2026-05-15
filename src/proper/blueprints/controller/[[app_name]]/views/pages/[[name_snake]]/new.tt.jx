@@ -1,0 +1,18 @@
+{#import "layouts/app.jx" as Layout #}
+{#import "./form.jx" as Form #}
+
+{#def form #}
+
+<Layout
+	title="New [[ name_snake ]]"
+>
+	<Form
+		action={{ url_for('[[nsprefix]][[ name_pascal ]].create') }}
+		form={{ form }}
+	>
+		<div class="form-group">
+			<button type="submit" class="btn">Add [[ name_snake ]]</button>
+			<a href={{ url_for('[[nsprefix]][[ name_pascal ]].index') }}>Cancel</a>
+		</div>
+	</Form>
+</Layout>

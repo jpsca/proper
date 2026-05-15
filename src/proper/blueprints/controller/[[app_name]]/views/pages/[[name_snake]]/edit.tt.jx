@@ -1,0 +1,17 @@
+{#import "layouts/app.jx" as Layout #}
+{#import "./form.jx" as Form #}
+
+{#def form, [[ name_snake ]] #}
+
+<Layout title="Edit [[ name_snake ]]">
+	<Form
+		method="patch"
+		action={{ url_for('[[nsprefix]][[ name_pascal ]].update', [[ object_id ]]=[[ name_snake ]].id) }}
+		form={{ form }}
+	>
+		<div class="form-group">
+			<button type="submit" class="btn">Update [[ name_snake ]]</button>
+			<a href={{ url_for('[[nsprefix]][[ name_pascal ]].index') }}>Cancel</a>
+		</div>
+	</Form>
+</Layout>

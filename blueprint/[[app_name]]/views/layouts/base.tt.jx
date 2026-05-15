@@ -1,0 +1,40 @@
+{#import "./app.jx" as Layout #}
+{#def title = '', description='', lang='en' #}
+
+{% if title %}{% set title = title + " | [[ app_name.title() ]]" %}{% endif -%}
+
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+	<meta charset="utf-8">
+	<title>{{ title }}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<link rel="icon" type="image/x-icon" href="{{ url_for('assets', file='favicon.ico') }}">
+	[% if tailwind -%]
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/app.css') }}">
+	[%- else -%]
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/globals.css') }}">
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/reset.css') }}">
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/base.css') }}">
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/buttons.css') }}">
+	<link rel="stylesheet" href="{{ url_for('assets', file='styles/inputs.css') }}">
+	[% endif %]
+
+	{% for url in assets.collect_css() -%}
+		<link rel="stylesheet" href="{{ url_for('assets', file=url) }}">
+	{% endfor -%}
+	{{ render_importmap() }}
+	<script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+	<script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
+	{% for url in assets.collect_js() -%}
+		<script src="{{ url_for('assets', file=url) }}" type="module"></script>
+	{% endfor -%}
+	{% if title %}<meta property="og:title" content="{{ title }}">
+	{% endif -%}
+	{% if description -%}<meta property="og:description" content="{{ description }}">
+	{% endif -%}
+</head>
+<body {{ attrs.render() }}>
+  {{ content }}
+</body>
+</html>

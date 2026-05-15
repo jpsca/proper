@@ -1,0 +1,47 @@
+{#def field, accept=None #}
+{#css "styles/image-input.css" #}
+{#js "js/image-input-controller.js" #}
+
+{# An existing attachment exposes `.url`; a fresh upload (MultipartPart) does not. #}
+{% set existing = field.value if (field.value and field.value.url) else None %}
+{% set accept = accept or (field.accept | join(',')) or "image/*" %}
+
+<div class="image-input{{ ' has-image' if existing else '' }}"
+     data-controller="image-input"
+     data-image-input-has-image-class="has-image"
+     data-image-input-dragging-class="is-dragging"
+     data-action="click->image-input#open
+                  dragenter->image-input#dragEnter
+                  dragover->image-input#dragEnter
+                  dragleave->image-input#dragLeave
+                  drop->image-input#drop"
+>
+
+  {{ field.file_input(
+    accept=accept,
+    data_image_input_target="input",
+    data_action="change->image-input#fileSelected",
+  ) }}
+
+  {{ field.destroy_input(data_image_input_target="destroyFlag") }}
+
+  <div class="placeholder">
+    <p>Drop an image here or <span class="strong">click to browse</span></p>
+    <small>png, jpg, gif, webp, etc.</small>
+  </div>
+
+  <div class="preview">
+    <img alt="{{ existing.filename if existing else '' }}"
+         {% if existing %}src="{{ existing.variant(resize_to_fit=(600,300)).url }}"{% endif %}
+         data-image-input-target="image">
+    <div class="meta">
+      <span class="filename" data-image-input-target="filename">{{ (existing.filename ~ ' · ' ~ (existing.byte_size | format_size)) if existing else '' }}</span>
+      <button
+        type="button"
+        class="remove btn"
+        data-action="click->image-input#remove"
+      >Remove</button>
+    </div>
+  </div>
+</div>
+{{ field.error_tag() }}

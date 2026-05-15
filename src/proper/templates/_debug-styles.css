@@ -1,0 +1,123 @@
+
+*, *:before, *:after {
+  box-sizing: border-box;
+}
+html, body {
+	padding: 0;
+	margin: 0;
+	color: #333;
+	background-color: #fefefe;
+	font-size: 16px;
+	line-height: 1.4;
+	font-family: Helvetica, Arial, sans-serif;
+	overflow-x: hidden;
+}
+header {
+	background-color: #C52F24;
+	color: #f0f0f0;
+}
+header h1 {
+	margin: 0;
+	padding: 13px 30px;
+	line-height: 1.1;
+	font-size: 26px;
+}
+.container {
+	padding: 0 30px 150px;
+	margin: 0;
+}
+header h1, .container {
+	max-width: 1280px;
+}
+.scroll-container {
+	width: 100%;
+	height: auto;
+	overflow-x: auto;
+	margin-top: 5px;
+}
+.container h2, .container h3, S.container h5, .container h6 {
+	margin: 16px 0 12px;
+	padding: 0;
+}
+.container h2, .container h3 {
+	color: #C52F24;
+}
+.container h3 {
+	margin-top: 30px;
+}
+.container section {
+	border-top: 1px solid #ddd;
+	padding: 8px 0 0;
+	margin-top: 16px;
+}
+table {
+	font-family: Monaco, "Courier New", Courier;
+	border: none;
+	text-align: left;
+	width: 100%;
+	min-width: 640px;
+	font-size: 14px;
+}
+details table {
+	font-size: 14px;
+}
+table summary {
+	padding: 2px 0;
+}
+.table-header {
+	color: #444;
+	background-color: #ddd;
+	padding: 8px 6px;
+	border-radius: 4px 4px 0 0;
+	font-weight: bold;
+	min-width: 640px;
+}
+table div, table details {
+	padding: 1px 4px;
+	vertical-align: middle;
+}
+table details {
+	margin-top: 4px;
+}
+table th {
+	color: #444;
+  white-space: nowrap;
+}
+table th,
+table td {
+	border-bottom: 1px dotted #ddd;
+}
+table table th {
+	width: 40%;
+}
+table tr:last-child > * {
+	border-bottom: none;
+}
+table tr > * {
+	overflow-wrap: anywhere;
+	vertical-align: middle;
+}
+table.routes {
+	border: none;
+}
+table.routes th {
+	font-size: 14px;
+}
+table.routes th,
+table.routes td {
+	vertical-align: middle;
+}
+table.routes div {
+	padding: 1px 4px;
+	min-height: 27px;
+}
+table.routes [role] {
+	cursor: default;
+}
+table.routes tr.build-only {
+	background-color: #eee;
+	cursor: not-allowed;
+}
+table.routes .defaults {
+  cursor: default;
+}

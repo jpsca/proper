@@ -1,0 +1,1 @@
+from .[[name_snake]]_email import [[name_pascal]]Email  # noqa

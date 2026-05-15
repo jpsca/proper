@@ -1,0 +1,7 @@
+{#import "layouts/app.jx" as Layout #}
+
+{#def [[ name_snake ]] #}
+
+<Layout title="[[ name_pascal ]]">
+
+</Layout>

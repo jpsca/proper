@@ -1,0 +1,16 @@
+**/.aws
+**/.DS_Store
+**/.env
+**/.git
+**/.gitignore
+**/.ssh
+**/.venv
+**/.vscode
+**/.well-known
+**/coverage
+**/env
+**/venv
+deploy
+docker-compose.yml
+Dockerfile*
+README.md

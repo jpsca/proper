@@ -1,0 +1,24 @@
+from proper import Concern
+
+
+class SecurityHeaders(Concern):
+    after = {"do": "set_security_headers"}
+
+    def set_security_headers(self):
+        # It determines if a web page can or cannot be included via <frame>
+        # and <iframe> topics by untrusted domains.
+        # https://developer.mozilla.org/Web/HTTP/Headers/X-Frame-Options
+        self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+
+        # Determine the behavior of the browser in case an XSS attack is
+        # detected. Use Content-Security-Policy without allowing unsafe-inline
+        # scripts instead.
+        # https://developer.mozilla.org/Web/HTTP/Headers/X-XSS-Protection
+        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+
+        # Download files or try to open them in the browser?
+        self.response.headers.setdefault("X-Download-Options", "noopen")
+
+        self.response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+

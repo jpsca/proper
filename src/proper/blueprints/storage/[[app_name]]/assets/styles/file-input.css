@@ -1,0 +1,84 @@
+.file-input {
+  position: relative;
+  min-height: 60px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  border: 1px dashed var(--color-gray-light);
+  background: var(--color-gray-lighter);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+
+  &:hover:not(.has-file),
+  &.is-dragging {
+    border-color: var(--color-gray-medium);
+  }
+
+  &.has-file {
+    border-style: solid;
+    cursor: default;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
+
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    pointer-events: none;
+    color: var(--color-gray-dark);
+    font-size: 0.9rem;
+  }
+
+  &.has-file .placeholder {
+    display: none;
+  }
+
+  .placeholder p {
+    margin: 0;
+  }
+
+  .placeholder .strong {
+    font-weight: 600;
+  }
+
+  .selected {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: .5rem .75rem;
+    font-size: .8rem;
+    color: var(--color-gray-dark);
+    min-height: 60px;
+  }
+
+  &.has-file .selected {
+    display: flex;
+  }
+
+  .selected .filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: .5rem;
+  }
+
+  .remove {
+    border: none;
+    background: transparent;
+    color: var(--color-red-medium);
+    cursor: pointer;
+    font-size: .8rem;
+    padding: .25rem .5rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .remove:hover {
+    background: var(--color-red-lighter);
+  }
+}

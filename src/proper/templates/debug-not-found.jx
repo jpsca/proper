@@ -1,0 +1,51 @@
+{% extends 'layout.jx' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+<h3>Routes</h3>
+<p>Routes match in priority from top to bottom.<br>
+Those that doesn't have a "<code>to</code>" property are build-only and never match.</p>
+
+<div class="scroll-container">
+	<table class="routes">
+		<tr>
+			<th></th>
+			<th><div>PATH</div></th>
+			<th><div>TO</div></th>
+			<th><div>NAME</div></th>
+			<th><div>HOST</div></th>
+		</tr>
+		{%- for route in routes %}
+			{% if route.build_only -%}
+				<tr class="build-only" title="Build-only">
+			{%- else -%}
+				<tr>
+			{%- endif %}
+			<td><div>{{ route.method or '—' }}</div></td>
+			<td><div>
+        {% if route.method == 'GET' -%}
+				  <a href="{{ route.path }}" target="_blank">{{ route.path }}</a>
+        {%- else -%}
+          {{ route.path }}
+        {%- endif %}
+			</div></td>
+			<td><div>
+				{% if route.redirect %}<span role="image" title="redirect">↪️</span>{% endif %}
+				{% if route.to %}{{ route.to.__qualname__ }}
+				{%- elif route.redirect %}{{ route.redirect }}
+				{%- else %}–{% endif %}
+			</div></td>
+			<td><div>{{ route.name or '—' }}</div></td>
+			<td>
+        {%- if route.host -%}
+        <div class="host">{{ route.host }}</div>
+        {%- else -%}
+        <div class="host">—</div>
+        {%- endif -%}
+      </td>
+		</tr>
+		{%- endfor %}
+	</table>
+</div>
+{% endblock %}
