@@ -1,0 +1,58 @@
+
+.page__pager {
+  display: flex;
+  gap: 1.2em;
+  margin: 4rem 0 2rem;
+  padding: 2rem 0 1rem;
+}
+
+.page__pager a {
+  background: var(--color-white);
+  border-radius: 0.6rem;
+  outline: 1px solid rgba(var(--rgb-gray-light), 0.5);
+  flex: 1;
+  padding: 1em 1.2em 0.8em 1.2em;
+  text-decoration: none;
+  transition: all var(--transition);
+  max-width: 50%;
+}
+.page__pager a:hover {
+  outline-color: rgba(var(--rgb-accent), 0.8);
+  box-shadow: 0 0 0 1px rgba(var(--rgb-black), 0.09),
+              0 10px 30px -15px rgba(var(--rgb-black), 0.18),
+              0 20px 20px -30px rgba(var(--rgb-black), 0.18);
+}
+
+.page__pager a.prev {
+  border-radius: 0.8rem 0.4rem 0.8rem;
+}
+.page__pager a.next {
+  margin-left: auto;
+  border-radius: 0.4rem 0.8rem 0.4rem;
+}
+
+.page__pager a dl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.page__pager a dl dt {
+  color: var(--color-gray-lighter);
+  font-size: 0.75em;
+  letter-spacing: normal;
+  text-transform: uppercase;
+  transition: color var(--transition);
+}
+.page__pager a:hover  dl dt {
+  color: var(--color-accent);
+}
+
+.page__pager a dl dd {
+  color: var(--color-gray);
+  font-size: 0.9em;
+}
+
+.page__pager a.next {
+  text-align: right;
+}

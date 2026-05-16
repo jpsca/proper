@@ -1,0 +1,40 @@
+{#def full=False #}
+{#css /assets/css/footer.css #}
+
+<footer class="footer">
+	{% if full -%}
+	<div class="footer-top">
+		<div class="footer-container">
+			<div class="footer-brand">
+				<div class="brand">
+					<span class="brand-name">Proper</span>
+				</div>
+				<p class="footer-tag">
+					Made for people who read their code.
+				</p>
+			</div>
+			<div class="footer-col">
+				<h4>Community</h4>
+				<ul>
+					<li><a href="https://discord.gg/aWVP3F4abD">Discord</a></li>
+					<li><a href="https://github.com/jpsca/proper">GitHub</a></li>
+				</ul>
+			</div>
+			<div class="footer-col">
+				<h4>About</h4>
+				<ul>
+					<li><a href="/docs">Documentation</a></li>
+					<li><a href="https://github.com/sponsors/jpsca">Sponsors</a></li>
+					<li><a href="https://github.com/jpsca/proper/blob/main/MIT-LICENSE">License&nbsp;(MIT)</a></li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	{%- endif %}
+	<div class="footer-bot">
+		<div class="footer-container">
+			<p>© 2026 Juan-Pablo&nbsp;Scaletti - Lima, Perú</p>
+			<p>Documentation licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-ShareAlike</a></p>
+		</div>
+	</div>
+</footer>

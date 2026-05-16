@@ -385,7 +385,7 @@ You can chain multiple operations. They are applied in order:
 
 ```python
 attachment.variant(
-    resize_to_limit=(800, 800),
+    resize_to_fit=(800, 800),
     rotate=(45,),
 )
 ```
@@ -405,14 +405,7 @@ If the content type is not supported, a `ValueError` is raised.
 
 All resize operations preserve the aspect ratio and apply a mild sharpening to the result. Options are forwarded to [`vips_thumbnail()`](https://www.libvips.org/API/current/ctor.Image.thumbnail.html).
 
-**`resize_to_limit`** — Shrink the image so it fits within the given dimensions. Never upsizes. Either dimension can be `None` to constrain only the other.
-
-```python
-attachment.variant(resize_to_limit=(400, 400))  # 600x800 => 300x400
-attachment.variant(resize_to_limit=(400, None))  # constrain width only
-```
-
-**`resize_to_fit`** — Resize the image to fit within the given dimensions. Will upsize if the image is smaller.
+**`resize_to_fit`** (alias: **`resize`**) — Resize the image to fit within the given dimensions, preserving aspect ratio. Either dimension can be `None` to constrain only the other. Will upsize if the image is smaller.
 
 ```python
 attachment.variant(resize_to_fit=(400, 400))  # 600x800 => 300x400
@@ -491,7 +484,7 @@ The optional `load` dict is forwarded to `pyvips.Image.new_from_file()` for cont
 
 ```python
 attachment.variant(
-    resize_to_limit=(800, 800),
+    resize_to_fit=(800, 800),
     load={"autorot": False},
 )
 ```
@@ -505,7 +498,7 @@ attachment.variant(
 )
 
 attachment.variant(
-    resize_to_limit=(1200, 1200),
+    resize_to_fit=(1200, 1200),
     save={"format": ".png", "compression": 6},
 )
 ```

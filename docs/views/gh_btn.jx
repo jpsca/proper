@@ -1,0 +1,4 @@
+{#def repo #}
+{#css /assets/css/gh-btn.css #}
+
+<a class="gh-btn btn" href="https://github.com/{{ repo }}" rel="noopener noreferrer" target="_blank" aria-label="Star {{ repo }} on GitHub"><span class="gh-ico" aria-hidden="true"></span> <span class="gh-text">Star on GitHub</span></a>

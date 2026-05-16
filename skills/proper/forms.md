@@ -108,19 +108,22 @@ Useful for API/JSON error responses.
 data = form.save(**extra)
 ```
 
-`save()` never writes to the database. It returns an in-memory object or dict. The return value depends on how the form was constructed:
+The return value and persistence behavior depend on how the form was constructed:
 
-| Constructed with | Returns |
-|---|---|
-| No `orm_cls`, no `object` | A plain dict of field values |
-| An `object` (dict or model) | The same object, updated with field values |
-| `orm_cls` set, no `object` | A new model instance (not yet persisted) |
+| Constructed with | Returns | Persists? |
+|---|---|---|
+| No `orm_cls`, no `object` | A plain dict of field values | No |
+| An `object` (plain dict) | The same dict, updated with field values | No |
+| An `object` (ORM model) | The same instance, updated with field values | **Yes** — calls `object.save()` |
+| `orm_cls` set, no `object` | A new model instance | **Yes** — created via `orm_cls.create(...)` |
+
+For ORM-bound forms the field-save loop and the object save run inside a single transaction (see [ORM Integration](#orm-integration)). No follow-up `instance.save()` is needed.
 
 Extra kwargs are set on the result before returning — useful for values that shouldn't be editable form fields:
 
 ```python
 photo = self.form.save(user_id=current.user.id)
-photo.save()  # persist to DB
+# photo is already persisted when Meta.orm_cls is set
 ```
 
 Only call `save()` after validation passes (`form.is_valid`). Calling `save()` on an invalid form raises `ValueError`.

@@ -879,10 +879,12 @@ def update(self):
 | `Forbidden`                   | 403         | Authenticated but not authorized
 | `NotFound`                    | 404         | Record or page doesn't exist
 | `MethodNotAllowed`            | 405         | Wrong HTTP method (raised by router)
+| `NotAcceptable`               | 406         | No representation matches the `Accept` header
 | `Conflict`                    | 409         | Conflicting state (e.g., duplicate)
 | `Gone`                        | 410         | Resource permanently removed
 | `UnprocessableEntity`         | 422         | Valid syntax but semantic errors
 | `TooManyRequests`             | 429         | Rate limit exceeded (raised by RateLimiting concern)
+| `InternalServerError`         | 500         | Something went wrong on the server
 
 All error classes inherit from `proper.errors.HTTPError` and accept an optional message string.
 

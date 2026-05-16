@@ -29,7 +29,7 @@ myapp/
 │   │   └── inputs.css
 │   ├── js/
 │   │   ├── app.js               # Main app JS
-│   │   └── turbo.es2017-umd.js  # Turbo Drive library
+│   │   └── turbo.js  # Turbo Drive library
 │   └── favicon.ico
 ├── views/
 │   ├── layouts/                 # Page layouts
@@ -197,10 +197,10 @@ import { Controller } from "@hotwired/stimulus";
 
 The generated app includes [Turbo Drive](https://turbo.hotwired.dev/handbook/drive), which intercepts link clicks and form submissions to replace just the `<body>` without a full page reload. This gives your multi-page app a faster, SPA-like navigation feel with no custom JavaScript required.
 
-The library is loaded from `assets/js/turbo.es2017-umd.js` in the layout:
+The library is loaded from `assets/js/turbo.js` in the layout:
 
 ```html+jinja
-<script src="{{ url_for('assets', file='js/turbo.es2017-umd.js') }}" type="module"></script>
+<script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
 ```
 
 Turbo Drive works automatically once the script is loaded. All same-origin link clicks and form submissions are accelerated. To opt out for specific links or forms, add `data-turbo="false"`:

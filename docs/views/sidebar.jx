@@ -1,0 +1,17 @@
+{#import "./toc.jx" as Toc #}
+{#import "./color_scheme.jx" as ColorScheme #}
+{#import "./version_selector.jx" as VersionSelector #}
+{#import "./language_selector.jx" as LanguageSelector #}
+{#import "./search_form.jx" as SearchForm #}
+{#css /assets/css/sidebar.css #}
+
+<aside class="sidebar" id="sidebar-popover" popover="auto">
+	<div data-preserve-scroll>
+		<div class="sidebar__variants">
+			<VersionSelector />
+			<LanguageSelector />
+		</div>
+		<SearchForm />
+		<Toc />
+	</div>
+</aside>

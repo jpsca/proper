@@ -85,7 +85,7 @@ def my_task(arg1, arg2):
 |---------------|------------------------------------------------------------------------------|
 | `retries`     | Number of automatic retries on failure                                       |
 | `retry_delay` | Seconds to wait between retries                                              |
-| `priority`    | Higher numbers processed first (default 0)                                   |
+| `priority`    | Higher numbers processed first (default `None`)                              |
 | `context`     | Pass the `Task` instance as `task` kwarg                                     |
 | `name`        | Custom task name (default: module.function)                                  |
 | `expires`     | Discard if not run within this time (int seconds, timedelta, or datetime)    |

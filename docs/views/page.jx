@@ -1,0 +1,17 @@
+{#import "./layout.jx" as Layout #}
+{#import "./footer.jx" as Footer #}
+{#import "./page_pager.jx" as PagePager #}
+{#import "./page_toc.jx" as PageToc #}
+{#import "./back_to_top.jx" as BackToTop #}
+
+<Layout sidebar>
+  <div class="page__wrapper">
+    <div class="page_content">
+      {{ page.content or content }}
+      <PagePager />
+    </div>
+    <PageToc />
+  </div>
+  <BackToTop />
+  <Footer />
+</Layout>

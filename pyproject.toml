@@ -69,6 +69,12 @@ test = [
     "redis >= 7.0.0",
     "smtpdfix",
 ]
+docs = [
+    "writeadoc>=0.22.0",
+]
+
+# [tool.uv.sources]
+# writeadoc = { path = "../../writeadoc", editable = true }
 
 
 [tool.setuptools.packages.find]

@@ -1,0 +1,20 @@
+{#import "./layout.jx" as Layout #}
+{#import "./toc.jx" as Toc #}
+{#import "./search_form.jx" as SearchForm #}
+{# def search_data #}
+{#css /assets/css/search.css #}
+
+<Layout sidebar>
+  <div class="page__wrapper">
+    <div class="page_content">
+      <h1 id="search-query">
+        <span>{{ _('SEARCH_RESULTS_FOR') }}</span>
+        <SearchForm autofocus />
+      </h1>
+      <div id="search-results">
+        <p>{{ _('NO_RESULTS_FOUND') }}</p>
+      </div>
+      <script>window.store = {{ search_data | tojson(indent=2) }};</script>
+    </div>
+  </div>
+</Layout>
