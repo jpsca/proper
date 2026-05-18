@@ -12,6 +12,5 @@ router = app.router
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 
 # Root-level assets
-router.get("favicon.ico", redirect="/assets/favicon.ico")
 router.get("robots.txt", redirect="/assets/robots.txt")
 router.get("humans.txt", redirect="/assets/humans.txt")

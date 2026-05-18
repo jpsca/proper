@@ -17,12 +17,13 @@ def setup(app):
                 imports[key] = value
             else:
                 imports[key] = app.url_for("assets", file=value)
+
+        json_imports = json.dumps({"imports": imports})
         return Markup(
-            f'<script type="importmap">{json.dumps({"imports": imports})}</script>'
+            f'<script type="importmap" data-turbo-track="reload">{json_imports}</script>'
         )
 
-    template_filters: dict[str, t.Any] = {
-    }
+    template_filters: dict[str, t.Any] = {}
 
     template_globals: dict[str, t.Any] = {
         "current": current,

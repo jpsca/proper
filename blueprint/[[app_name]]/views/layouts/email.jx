@@ -1,14 +1,16 @@
-{#def title='', lang='en' #}
+{#def lang='en' #}
 
 <!DOCTYPE html>
 <html lang="{{ lang }}">
-<head>
-	<meta charset="utf-8">
-	<title>{{ title }}</title>
-	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<style></style>
-</head>
-<body>
-	{{ content }}
-</body>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<style>
+			/* Email styles need to be inline */
+		</style>
+	</head>
+
+	<body>
+		{{ content }}
+	</body>
 </html>
