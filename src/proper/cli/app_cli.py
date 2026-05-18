@@ -1,3 +1,4 @@
+import os
 import typing as t
 from functools import wraps
 
@@ -54,6 +55,10 @@ def get_run_cli(app: "App") -> t.Callable:
             k: v for k, v in vars(mod).items()
             if not k.startswith("_")
         }
+
+        kwargs["host"] = "0.0.0.0"
+        kwargs["port"] = int(app.config["PORT"] or "2300")
+
         show_banner()
         show_welcome(app.config["HOST"])
         uvicorn.run(**kwargs)

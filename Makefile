@@ -32,4 +32,5 @@ docs-deploy:
 	rm -rf docs/build
 	uv run python docs/docs.py build
 	zip -r docs/build/skill.zip skills/proper -x "*.DS_Store"
+	cp proper.svg docs/build/
 	rsync --recursive --delete --progress docs/build code:/var/www/properproject/

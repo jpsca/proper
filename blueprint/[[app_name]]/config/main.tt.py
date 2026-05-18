@@ -7,12 +7,19 @@ env = os.getenv("APP_ENV", "dev")
 
 DEBUG = env == "dev"
 
+
+# `HOST`` is the base url of the app, including port if available.
+#   Used for generating full URLs
+# `PORT`` is used by the server. In production the port will be hidden behind a proxy
+#   so it doesn't need to be also specified in the `HOST` variable.
+PORT = os.getenv("PORT", 2300)
+
 if env == "prod":
     PROTOCOL = "https"
     HOST = "YOUR-DOMAIN.com"
 else:
     PROTOCOL = "http"
-    HOST = "[[ app_name ]].localhost:2300"
+    HOST = f"[[ app_name ]].localhost:{PORT}"
 
 # List of secret keys, **oldest to newest**.
 # Every key in the list is valid, so you can periodically generate a new key
