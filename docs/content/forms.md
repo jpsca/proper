@@ -140,7 +140,7 @@ Field             | Use for                          | Common options
 `f.DateTimeField()`| Dates with time                 | same as DateField
 `f.TimeField()`   | Times                            | `after_time`, `before_time`
 `f.FileField()`   | File uploads (validation only)   | -
-`f.AttachmentField(A)` | File upload bound to a `ForeignKeyField(Attachment)` | `max_size`, `accept`, `service_name`, `public`; covered in [`AttachmentField`](#attachmentfield)
+`f.AttachmentField(A)` | File upload bound to a `ForeignKeyField(Attachment)` | `max_size`, `accept`, `service_name`; covered in [`AttachmentField`](#attachmentfield)
 `f.ListField()`   | Multi-select, checkbox groups    | `type`, `min_items`, `max_items`
 `f.FormField()`   | Embedded sub-form                | covered in [Sub-forms with `FormField`](#sub-forms-with-formfield)
 `f.NestedForms()` | One-to-many sub-forms            | covered in [Nested Forms](#nested-forms)
@@ -858,7 +858,7 @@ class BookForm(f.Form):
         Attachment,
         max_size=5 * 1024 * 1024, # 5 MB
         accept=["image/*"],       # any image type
-        public=True,
+        service_name="public",
         required=False,
     )
 ```

@@ -956,7 +956,7 @@ class SecurityHeaders(Concern):
 
     def _set_security_headers(self):
         self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1", mode="block")
+        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
         self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         ...
 ```
