@@ -31,4 +31,6 @@ class FlashMessages:
         return len(self.flashes)
 
     def message(self, type: str, message: str) -> None:
-        self.flashes.append((type, message))
+        self.response.session.setdefault(FLASHES_SESSION_KEY, []).append(
+            (type, message)
+        )

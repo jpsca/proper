@@ -300,6 +300,31 @@ class TestUpdateSessionCookie:
         assert session_cookies == []
 
 
+# ── flash through pipeline ─────────────────────────────────────────
+
+
+class TestFlashThroughPipeline:
+    """A flash set by a controller (after `copy_session` has run) must end up
+    in the session cookie, so the next request can read it back.
+    """
+
+    def test_flash_set_after_copy_session_persists_to_cookie(self, app, make_co):
+        current.app = app
+        co = make_co(method="POST")
+
+        copy_session(co.request, co.response)
+        co.response.flash.message("info", "Saved!")
+        update_session_cookie(co.request, co.response)
+
+        assert co.response.session.get(FLASHES_SESSION_KEY) == [("info", "Saved!")]
+
+        cookies = co.response.get_cookie_tuples()
+        session_cookies = [c for c in cookies if "_session" in c[1]]
+        assert len(session_cookies) == 1, (
+            "session cookie was not written, so the flash will be lost"
+        )
+
+
 # ── dispatch ────────────────────────────────────────────────────────
 
 
