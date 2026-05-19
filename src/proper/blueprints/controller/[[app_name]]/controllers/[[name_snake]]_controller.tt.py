@@ -60,13 +60,11 @@ class [[name_pascal]]Controller(AppController):
     [% if "create" in actions -%]
     def create(self):
         [[name_snake]] = self.form.save()
-        [[name_snake]].save()
         self.response.redirect_to("[[nsprefix]][[name_pascal]].show", [[name_snake]], flash="[[name_pascal]] was created")
 [% endif %]
     [% if "update" in actions -%]
     def update(self):
         [[name_snake]] = self.form.save()
-        [[name_snake]].save()
         self.response.redirect_to("[[nsprefix]][[name_pascal]].show", [[name_snake]], flash="[[name_pascal]] was updated")
 [% endif %]
     [% if "delete" in actions -%]

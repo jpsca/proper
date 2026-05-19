@@ -151,10 +151,16 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `DEBUG`                    | `False`           | Enable debug mode                              |
 | `PROTOCOL`                 | `"http"`          | `"http"` or `"https"`                          |
 | `HOST`                     | `"localhost:2300"` | Hostname with port                            |
+| `PORT`                     | `2300`            | Port the dev server binds to (used by `app_cli`) |
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |
+| `MAX_FORM_FILES`           | `10`              | Max number of files in a multipart form        |
+| `MAX_FORM_FIELDS`          | `100`             | Max number of fields in a multipart form       |
+| `MAX_FORM_PART_SIZE`       | `2 * MB`          | Max size of each part in a multipart form      |
+| `LOCALE_DEFAULT`           | `"en"`            | Fallback locale when none is set on the request |
+| `TIMEZONE_DEFAULT`         | `"UTC"`           | Fallback timezone when none is set on the request |
 | `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets                   |
 | `STATIC_X_SENDFILE_HEADER` | `""`              | Header for web server file serving             |
 

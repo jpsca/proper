@@ -139,9 +139,10 @@ class ChatChannel(Channel):
 The framework blocks the following from being called as actions:
 
 - Methods starting with `_` (private methods)
-- `subscribed` and `unsubscribed` (lifecycle-only)
 - Empty action names
 - Methods that don't exist or aren't callable
+- Lifecycle-only methods: `subscribed`, `unsubscribed`
+- Channel API methods (calling these from the client would let the client bypass server logic): `send`, `broadcast`, `reject`, `stream_from`, `stop_stream_from`, `stop_all_streams`
 
 
 ## Streams and Broadcasting

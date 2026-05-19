@@ -616,7 +616,7 @@ Pass the current page to the layout for active link styling:
 </nav>
 ```
 
-In Proper, you can use `url_is()` and `url_startswith()` instead — they are available as template globals.
+In Proper, you can use `url_is()` and `url_startswith()` instead — they are available as template globals. The full list of Proper-registered globals is `current`, `url_for`, `url_is`, `url_startswith`, and `render_importmap` (used in the main layout to emit the `<script type="importmap">` tag). The `assets` global is auto-injected by Jx itself.
 
 ### Conditional Layout Sections
 

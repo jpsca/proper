@@ -41,7 +41,7 @@ The base class for all controllers. Accessed as `self` inside controller actions
 | Method   | Signature                                                    | Description                                                                                                  |
 |----------|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
 | `render` | `(name="", *, status=None, json=None, text=None) -> str` | Render a template, JSON, or plain text response. Sets `response.body` and optionally `response.status`. |
-| `redo`   | `(status=422) -> str`                                        | Re-render the form page for the current action. Maps `update` → `edit.jx`, `create` → `new.jx`. Use in `create`/`update` when `form.is_invalid`. |
+| `redo`   | `(status=422) -> None`                                       | Re-render the form page for the current action by setting `self.response.body` directly. Maps `update` → `edit.jx`, `create` → `new.jx`. Use in `create`/`update` when `form.is_invalid`. |
 
 ### Callbacks
 

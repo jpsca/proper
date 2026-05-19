@@ -254,7 +254,7 @@ Key patterns to notice:
 - `validate_form` comes from the `FormValidation` concern. On `create` and `update`, if the form is invalid it calls `self.redo()` to re-render the form template with a `422 Unprocessable Entity` status, and the action never runs.
 - After a successful create, update, or delete, the controller redirects with a flash message.
 - The `delete` action checks `if self.card` to handle the case where someone deletes the same record twice (e.g., double-clicking the delete button).
-- `form.save()` returns a model instance with validated data, but you still need to call `.save()` on the model to persist it to the database.
+- `form.save()` validates the data, persists the model (creating or updating), and returns it — no follow-up `obj.save()` needed. See [Forms — Saving](./forms.md) for details on the integration with Peewee.
 
 ### Data Flow: params → set_card → set_form → validate_form → action → save
 

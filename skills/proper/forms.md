@@ -311,6 +311,8 @@ IMPORTANT: When using a `TextField`, review if an `EmailField` or `URLField` wou
 f.BooleanField(*, required=False, default=None, messages=None)
 ```
 
+Also exported as `f.BoolField` — same class, just a shorter alias.
+
 Handles browser checkbox behavior:
 
 - If not checked: the browser doesn't send the field at all → becomes `False`
@@ -353,7 +355,7 @@ f.AttachmentField(
     attachment_cls,
     *, max_size=None, accept=None,
     required=True, default=None, messages=None,
-    service_name="", public=False,
+    service_name="",
 )
 ```
 
@@ -370,7 +372,7 @@ class BookForm(f.Form):
         orm_cls = Book
 
     title = f.TextField()
-    cover = f.AttachmentField(Attachment, public=True, required=False)
+    cover = f.AttachmentField(Attachment, service_name="public", required=False)
 ```
 
 ```python
@@ -439,7 +441,7 @@ class BookForm(f.Form):
         Attachment,
         max_size=5 * 1024 * 1024,            # 5 MB
         accept=["image/*"],                  # any image type
-        public=True,
+        service_name="public",
         required=False,
     )
 ```

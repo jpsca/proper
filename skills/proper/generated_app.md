@@ -151,7 +151,7 @@ This is why adding a new controller or model requires importing it in the respec
 
 ## Configuration
 
-**`config/main.py`** — Environment-aware core settings: `DEBUG`, `PROTOCOL`, `HOST`, `SECRET_KEYS`, `CATCH_ALL_ERRORS`, `MAX_CONTENT_LENGTH`, `MAX_QUERY_SIZE`, `MAX_FORM_FILES`, `MAX_FORM_FIELDS`, `MAX_FORM_PART_SIZE`, `ASSETS_URL`, `STATIC_X_SENDFILE_HEADER`, `MAILER`, `MAILER_DEFAULT_OPTIONS`.
+**`config/main.py`** — Environment-aware core settings: `DEBUG`, `PROTOCOL`, `HOST`, `PORT`, `SECRET_KEYS`, `CATCH_ALL_ERRORS`, `MAX_CONTENT_LENGTH`, `MAX_QUERY_SIZE`, `MAX_FORM_FILES`, `MAX_FORM_FIELDS`, `MAX_FORM_PART_SIZE`, `LOCALE_DEFAULT`, `TIMEZONE_DEFAULT`, `ASSETS_URL`, `STATIC_X_SENDFILE_HEADER`. Tool-level defaults overridable here include `MAILER` and `MAILER_DEFAULT_OPTIONS` (defined in `proper.tools.mailer`, not in the framework's `default_config`).
 
 **`config/session.py`** — Session cookie settings: `SESSION_COOKIE_LIFETIME` (30 days), `SESSION_COOKIE_DOMAIN`, `SESSION_COOKIE_PATH`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`.
 
@@ -336,7 +336,6 @@ db/main/002_users.py                        # Migration
 **Files modified:**
 
 - `main.py` — adds `auth = app.auth`
-- `router.py` — adds `router = router.scope("")`
 - `config/__init__.py` — adds auth config import
 - `controllers/__init__.py` — adds `SessionController`, `SignUpController`, `PasswordResetController`
 - `controllers/app_controller.py` — adds `Authentication` to base class
