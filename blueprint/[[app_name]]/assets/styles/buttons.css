@@ -65,4 +65,17 @@
       }
     }
   }
+  .btn.btn--danger {
+    --btn-fg: #fff;
+    --btn-bg: var(--color-red-dark);
+
+    &:is([data-theme="dark"] *) {
+      --btn-bg: var(--color-red-medium);
+    }
+    @media (prefers-color-scheme: dark) {
+      &:is(:not([data-theme] *)) {
+        --btn-bg: var(--color-red-medium);
+      }
+    }
+  }
 }

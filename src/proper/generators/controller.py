@@ -40,6 +40,20 @@ FORM_FIELDS = {
     "uuid": "TextField",
 }
 
+RENDER_METHODS = {
+    "bigint": "number_input",
+    "bool": "checkbox",
+    "date": "date_input",
+    "datetime": "datetime_input",
+    "decimal": "number_input",
+    "float": "number_input",
+    "int": "number_input",
+    "str": "text_input",
+    "text": "textarea",
+    "time": "time_input",
+    "uuid": "text_input",
+}
+
 ACTIONS = (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -142,12 +156,22 @@ def gen_controller(
     attrs_tuples = attrs_tuples = [_split_attr(attr) for attr in attrs]
     form_fields = [
         {
-            "type": FORM_FIELDS.get(ftype) or "TextField",
+            "type": FORM_FIELDS[ftype],
             "name": name,
             "default": None,
         }
         for name, ftype, _options in attrs_tuples
         if ftype in FORM_FIELDS
+    ]
+
+    render_fields = [
+        {
+            "method": RENDER_METHODS[ftype],
+            "name": name,
+            "label": inflection.humanize(name),
+        }
+        for name, ftype, _options in attrs_tuples
+        if ftype in RENDER_METHODS
     ]
 
     nsprefix = ""
@@ -164,6 +188,7 @@ def gen_controller(
         "actions": actions,
         "singular": singular,
         "form_fields": form_fields,
+        "render_fields": render_fields,
         "form_class": f"{name_pascal}Form",
         "load_method": f"set_{name_snake}",
         "object_id": pk or f"{name_snake}_id",

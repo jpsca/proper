@@ -1,7 +1,27 @@
 {#import "layouts/app.jx" as Layout #}
+{#import "form.jx" as Form #}
 
 {#def [[ name_snake ]] #}
 
 <Layout title="[[ name_pascal ]]">
+  <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
+    [%- for f in render_fields %]
+    <div>
+      <strong>[[ f.label ]]</strong>
+      {{ [[ name_snake ]].[[ f.name ]] }}
+    </div>
+    [%- endfor %]
+  </div>
 
+  <div class="form-group">
+    [% if "edit" in actions -%]
+    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].edit', [[ name_snake ]]) }}">Edit this [[ name_snake ]]</a>
+    [% endif -%]
+    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].index') }}">Back to [[ plural_snake ]]</a>
+    [% if "delete" in actions -%]
+    <Form method="delete" action={{ url_for('[[ nsprefix ]][[ name_pascal ]].delete', [[ name_snake ]] ) }}>
+      <button type="submit" class="btn btn--danger">Delete this [[ name_snake ]]</button>
+    </Form>
+    [% endif -%]
+  </div>
 </Layout>

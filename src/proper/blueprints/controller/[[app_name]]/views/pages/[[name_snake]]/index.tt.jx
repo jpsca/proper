@@ -3,5 +3,17 @@
 {#def [[ plural_snake ]] #}
 
 <Layout title="[[ name_pascal ]]">
+  <a class="btn" href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].new') }}">New [[ name_snake ]]</a>
 
+  {% for [[ name_snake ]] in [[ plural_snake ]] -%}
+    <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
+      [% for f in render_fields -%]
+      <div>
+        <strong>[[ f.label ]]</strong>
+        {{ [[ name_snake ]].[[ f.name ]] }}
+      </div>
+      [% endfor -%]
+      <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].show', [[ name_snake ]]) }}">Show this [[ name_snake ]]</a>
+    </div>
+  {% endfor -%}
 </Layout>

@@ -22,14 +22,17 @@ def gen_resource(
     singular: bool = False,
     migration: bool = False,
 ) -> None:
-    """Stubs out a new resource including a controller, model, form, and views.
+    """Stubs out a new resource including a controller, form, views, and a model.
 
     proper g resource NAME
         [--only=action[,action]] [--exclude=action[,action]]
         [--namespace=NS_NAME] [--pk=object_id] [--singular] [--migration]
         [attrs...]
 
-    Run `proper g controller --help` for more information.
+    For detailed information run:
+
+    - `proper g controller --help`, and
+    - `proper g model --help`
 
     """
     name_pascal = inflection.camelize(name)

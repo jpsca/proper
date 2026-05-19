@@ -209,7 +209,7 @@ The generated base layout calls `render_importmap()`:
 `Which` produces:
 
 ```html
-<script type="importmap">
+<script type="importmap" data-turbo-track="reload">
 {"imports": {
   "@hotwired/stimulus": "/assets/js/stimulus-a1b2c3...js",
   "@hotwired/turbo":    "/assets/js/turbo-d4e5f6...js"

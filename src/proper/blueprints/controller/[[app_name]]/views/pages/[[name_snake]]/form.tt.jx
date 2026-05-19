@@ -5,10 +5,10 @@
 {#def form, action='', method='post' #}
 
 <Form method={{ method }} action={{ action }}>
-  [% for f in form_fields -%]
+  [% for f in render_fields -%]
   <div class="field">
-    {{ form.[[ f.name ]].label("[[ f.name|title ]]") }}
-    {{ form.[[ f.name ]].text_input() }}
+    {{ form.[[ f.name ]].label("[[ f.label ]]") }}
+    {{ form.[[ f.name ]].[[ f.method ]]() }}
     {{ form.[[ f.name ]].error_tag() }}
   </div>
   [% endfor -%]
