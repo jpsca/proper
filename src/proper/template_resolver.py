@@ -7,6 +7,7 @@ don't care about content negotiation keep working unchanged.
 """
 import mimetypes
 import typing as t
+from collections.abc import Iterable, Iterator, Sequence
 
 from jx import ComponentNotFoundError
 
@@ -14,7 +15,7 @@ from jx import ComponentNotFoundError
 __all__ = ("iter_format_extensions", "iter_candidates", "resolve_template")
 
 
-def iter_format_extensions(accept: "t.Iterable[str]") -> "t.Iterator[str]":
+def iter_format_extensions(accept: Iterable[str]) -> Iterator[str]:
     """Yield filename extensions (without dot) for each mime in `accept`.
 
     Stops at `*/*` since anything after it is a wildcard fallback, not a
@@ -29,11 +30,11 @@ def iter_format_extensions(accept: "t.Iterable[str]") -> "t.Iterator[str]":
 
 
 def iter_candidates(
-    prefixes: "t.Sequence[str]",
+    prefixes: Sequence[str],
     action: str,
-    formats: "t.Sequence[str]",
+    formats: Sequence[str],
     handler: str = "jx",
-) -> "t.Iterator[str]":
+) -> Iterator[str]:
     """Yield template candidate names in priority order.
 
     For each prefix, emits `{prefix}/{action}.{format}.{handler}` for every
@@ -48,10 +49,10 @@ def iter_candidates(
 
 def resolve_template(
     catalog: t.Any,
-    prefixes: "t.Sequence[str]",
+    prefixes: Sequence[str],
     action: str,
     *,
-    accept: "t.Iterable[str]",
+    accept: Iterable[str],
     default_format: str,
     handler: str = "jx",
     controller: str | None = None,
