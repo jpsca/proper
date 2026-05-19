@@ -2,8 +2,9 @@
 
 {#def [[ plural_snake ]] #}
 
-<Layout title="[[ name_pascal ]]">
-  <a class="btn" href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].new') }}">New [[ name_snake ]]</a>
+<Layout title="[[ plural_human ]]">
+  <h1>[[ plural_human | title ]]</h1>
+  <a class="btn" href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].new') }}">New [[ name_human ]]</a>
 
   {% for [[ name_snake ]] in [[ plural_snake ]] -%}
     <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
@@ -13,7 +14,7 @@
         {{ [[ name_snake ]].[[ f.name ]] }}
       </div>
       [% endfor -%]
-      <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].show', [[ name_snake ]]) }}">Show this [[ name_snake ]]</a>
+      <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].show', [[ name_snake ]]) }}">Show this [[ name_human ]]</a>
     </div>
   {% endfor -%}
 </Layout>

@@ -3,7 +3,7 @@
 
 {#def [[ name_snake ]] #}
 
-<Layout title="[[ name_pascal ]]">
+<Layout title="[[ name_human ]]">
   <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
     [%- for f in render_fields %]
     <div>
@@ -15,12 +15,12 @@
 
   <div class="form-group">
     [% if "edit" in actions -%]
-    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].edit', [[ name_snake ]]) }}">Edit this [[ name_snake ]]</a>
+    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].edit', [[ name_snake ]]) }}">Edit this [[ name_human ]]</a>
     [% endif -%]
-    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].index') }}">Back to [[ plural_snake ]]</a>
+    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].index') }}">Back to [[ plural_human | lower ]]</a>
     [% if "delete" in actions -%]
     <Form method="delete" action={{ url_for('[[ nsprefix ]][[ name_pascal ]].delete', [[ name_snake ]] ) }}>
-      <button type="submit" class="btn btn--danger">Delete this [[ name_snake ]]</button>
+      <button type="submit" class="btn btn--danger">Delete this [[ name_human ]]</button>
     </Form>
     [% endif -%]
   </div>

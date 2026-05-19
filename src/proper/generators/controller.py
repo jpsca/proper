@@ -134,6 +134,8 @@ def gen_controller(
     name_pascal = _name_pascal or inflection.camelize(name)
     name_snake = _name_snake or inflection.underscore(name)
     plural_snake = inflection.pluralize(name_snake)
+    name_human = inflection.humanize(name_snake).lower()
+    plural_human = inflection.humanize(plural_snake).lower()
 
     only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
     exclude_list = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
@@ -182,7 +184,9 @@ def gen_controller(
         "app_name": app.name,
         "name_pascal": name_pascal,
         "name_snake": name_snake,
+        "name_human": name_human,
         "plural_snake": plural_snake,
+        "plural_human": plural_human,
         "only": only_list,
         "exclude": exclude_list,
         "actions": actions,

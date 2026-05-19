@@ -3,14 +3,15 @@
 
 {#def form, [[ name_snake ]] #}
 
-<Layout title="Edit [[ name_snake ]]">
+<Layout title="Editing [[ name_human ]]">
+	<h1>Editing [[ name_human ]]</h1>
 	<[[ name_pascal ]]Form
 		method="patch"
 		action={{ url_for('[[nsprefix]][[ name_pascal ]].update', [[ name_snake ]]) }}
 		form={{ form }}
 	>
 		<div class="form-group">
-			<button type="submit" class="btn btn--primary">Update [[ name_snake ]]</button>
+			<button type="submit" class="btn btn--primary">Update [[ name_human ]]</button>
 			<a href={{ url_for('[[nsprefix]][[ name_pascal ]].index') }}>Cancel</a>
 		</div>
 	</[[ name_pascal ]]Form>
