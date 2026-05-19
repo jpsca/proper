@@ -185,7 +185,7 @@ def resize_and_pad(
     image = _thumbnail(image, width, height, **options)
     if alpha and not image.hasalpha():
         image = image.addalpha()
-    background = background or [0, 0, 0]
+    background = background or [0.0, 0.0, 0.0]
     return image.gravity(gravity, width, height, extend=extend, background=background)
 
 
@@ -210,7 +210,7 @@ def rotate(
     See [vips_similarity()](http://libvips.github.io/libvips/API/current/libvips-resample.html#vips-similarity)
     for more details.
     """
-    background = background or [0, 0, 0]
+    background = background or [0.0, 0.0, 0.0]
     return image.similarity(angle=degrees, background=background, **options)
 
 
@@ -390,9 +390,9 @@ VALID_OPS = {
 }
 
 
-def _multi_replace(string, substitutions):
-    substrings = sorted(substitutions, key=len, reverse=True)
-    regex = re.compile("|".join(map(re.escape, substrings)))
+def _multi_replace(string: str, substitutions: dict[str, str]) -> str:
+    substrings = sorted(substitutions.keys(), key=lambda s: len(s), reverse=True)
+    regex = re.compile("|".join(re.escape(s) for s in substrings))
     return regex.sub(lambda match: substitutions[match.group(0)], string)
 
 

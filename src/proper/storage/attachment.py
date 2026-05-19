@@ -4,7 +4,7 @@ import json
 import mimetypes
 import typing as t
 from fnmatch import fnmatch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import peewee as pw
 from inflection import parameterize
@@ -40,7 +40,7 @@ def attachment_for(
     from the leftmost peewee-Model base.
     """
 
-    class Attachment(base_model_cls):
+    class Attachment(base_model_cls):  # type: ignore
         # No `default=uuid4`: peewee evaluates field defaults at __init__,
         # which would populate `id` before persistence. That makes
         # `att.id` look real on an unsaved instance — and silently breaks
@@ -48,15 +48,15 @@ def attachment_for(
         # would write a UUID pointing at no row). Generate the id in
         # `save()` instead so `att.id is None` truthfully signals
         # "not persisted yet."
-        id = pw.UUIDField(primary_key=True)
-        service_name = pw.CharField(64)
-        filename = pw.CharField(255, default="")
-        content_type = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)
-        byte_size = pw.IntegerField(default=0)
+        id: UUID = pw.UUIDField(primary_key=True)  # type: ignore
+        service_name: str = pw.CharField(64)  # type: ignore
+        filename: str = pw.CharField(255, default="")  # type: ignore
+        content_type: str = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)  # type: ignore
+        byte_size: int = pw.IntegerField(default=0)  # type: ignore
         created_at = pw.DateTimeField(default=pw.utcnow)  # type: ignore
         metadata = JSONField(null=True)
         parent = pw.ForeignKeyField("self", backref="variants", null=True)
-        variant_key = pw.CharField(64, default="", index=True)
+        variant_key: str = pw.CharField(64, default="", index=True)  # type: ignore
 
         # Service-instance cache (was Storage._services). Lives on the class
         # so all instances of this Attachment share lookups.
