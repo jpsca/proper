@@ -410,7 +410,7 @@ class PasswordResetForm(f.Form):
         return value
 ```
 
-The form *as generated* tells the user whether or not an account exists for that email. That's the (A) line. If you'd rather not leak account existence, comment that line out and edit `views/pages/password_reset/show.jx` to always say "if your account exists, we sent you an email." See [Revealing vs Hiding Account Existence](#revealing-vs-hiding-account-existence) for the tradeoff.
+The form *as generated* tells the user whether or not an account exists for that email. That's the (A) line. If you'd rather not leak account existence, comment that line out and edit `views/password_reset/show.jx` to always say "if your account exists, we sent you an email." See [Revealing vs Hiding Account Existence](#revealing-vs-hiding-account-existence) for the tradeoff.
 
 `PasswordChangeForm` is the form that submits the new password. Same `password_is_long_enough` and `password_hasnt_been_pwned` checks as `SignUpForm`, same `password1 == password2` confirmation in `after_validate`.
 
@@ -439,7 +439,7 @@ Comment out the `login_exists(value)` call and replace `self.password.error = v.
 
 **For the password reset page:**
 
-Comment out the `login_exists(value)` call in `PasswordResetForm`, and edit `views/pages/password_reset/show.jx` to always show the generic message regardless of whether the email matched. The controller code doesn't need to change - it already routes to the same page in both cases.
+Comment out the `login_exists(value)` call in `PasswordResetForm`, and edit `views/password_reset/show.jx` to always show the generic message regardless of whether the email matched. The controller code doesn't need to change - it already routes to the same page in both cases.
 
 **For the sign-up page:**
 
@@ -613,7 +613,7 @@ def new_session_for(self, user, *, remember=True):
     return self._set_current_session(session)
 ```
 
-Add a `{{ form.remember.checkbox() }}` to `views/pages/session/new.jx`, and the checkbox toggles the lifetime.
+Add a `{{ form.remember.checkbox() }}` to `views/session/new.jx`, and the checkbox toggles the lifetime.
 
 :::tip | Sliding sessions
 If you want "active users stay signed in indefinitely, idle users get logged out after 30 days", the building blocks are there: `last_seen_at` is updated on every request, and you can override `find_by_token` to also check `last_seen_at > now() - 30 days` instead of (or alongside) the absolute `expires_at`. The default uses an absolute ceiling because it's predictable; sliding is more user-friendly but requires the policy decision to be conscious.

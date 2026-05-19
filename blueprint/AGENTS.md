@@ -30,7 +30,7 @@ uv run proper run                                # Start dev server
 | Controller           | `controllers/{name}_controller.py` | `controllers/__init__.py`          |
 | Model                | `models/{name}.py`                 | `models/__init__.py`               |
 | Form                 | `forms/{name}.py`                  | —                                  |
-| Views                | `views/pages/{name}/*.jx`       | —                                  |
+| Views                | `views/{name}/*.jx`       | —                                  |
 | Concern (controller) | `controllers/concerns/{name}.py`   | controller that uses it            |
 | Concern (model)      | `models/concerns/{name}.py`        | model that uses it                 |
 | Task                 | `tasks/{name}.py`                  | —                                  |

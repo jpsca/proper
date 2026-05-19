@@ -3,7 +3,7 @@
 
 {#def [[ name_snake ]] #}
 
-<Layout title="[[ name_human ]]">
+<Layout title="[[ name_human | title ]]">
   <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
     [%- for f in render_fields %]
     <div>

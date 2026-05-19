@@ -66,7 +66,7 @@ class PasswordResetController(AppController):
             max_age=config.AUTH_TOKEN_LIFE,
         )
         if not user:
-            return self.render("pages/password_reset/invalid.jx")
+            return self.render("password_reset/invalid.jx")
         self.user = user
 
     def too_many_requests(self):

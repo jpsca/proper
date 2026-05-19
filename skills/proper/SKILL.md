@@ -43,8 +43,8 @@ Controller  ──────────────  receives the request, ru
 | Controller | `controllers/comment_controller.py` |
 | Model | `models/comment.py` |
 | Form | `forms/comment.py` |
-| Views | `views/pages/comment/{index,show,new,edit}.jx` |
-| Tests | `tests/pages/test_comment.py` |
+| Views | `views/comment/{index,show,new,edit}.jx` |
+| Tests | `tests/test_comment.py` |
 
 **Cross-cutting systems** — these are available from any controller via `self` or the app context:
 
@@ -90,9 +90,9 @@ This is the typical sequence for adding a new feature that involves a database-b
 2. **Edit model** — open `models/comment.py`, adjust fields if needed
 3. **Edit form** — open `forms/comment.py`, add/remove fields, add custom validators
 4. **Edit controller** — open `controllers/comment_controller.py`, adjust `before` callbacks and actions
-5. **Edit views** — open `views/pages/comment/*.jx`, update the markup and form fields
+5. **Edit views** — open `views/comment/*.jx`, update the markup and form fields
 6. **Migrate** — `proper db migrate`
-7. **Write tests** — open `tests/pages/test_comment.py`, add full CRUD coverage
+7. **Write tests** — open `tests/test_comment.py`, add full CRUD coverage
 8. **Run tests** — `uv run pytest`
 
 ### Adding a controller without a model

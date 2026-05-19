@@ -13,6 +13,7 @@ from .units import DAYS, MB
 default_config = {
     "DEBUG": False,
     "PROTOCOL": "http",
+    "PORT": 2300,
     "HOST": "localhost:2300",
 
     # List/tuple of secret keys, **oldest to newest**.

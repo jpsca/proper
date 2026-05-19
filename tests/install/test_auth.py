@@ -33,8 +33,7 @@ def app_in_tmp(tmp_path, app):
         "emails",
         "forms",
         "models",
-        "views/common",
-        "views/pages",
+        "views/layouts",
     ):
         (app_root / d).mkdir(parents=True)
 
@@ -46,7 +45,7 @@ def app_in_tmp(tmp_path, app):
     (app_root / "emails" / "__init__.py").write_text("")
     (app_root / "models" / "__init__.py").write_text("")
     (app_root / "router.py").write_text("from proper.router import Router\nrouter = Router()\n")
-    (app_root / "views" / "common" / "nav.jx").write_text("<nav></nav>\n")
+    (app_root / "views" / "nav.jx").write_text("<nav></nav>\n")
 
     app.root_path = app_root
     app.name = APP_NAME
@@ -106,11 +105,11 @@ def test_file_creation(app_in_tmp):
     assert path.exists()
 
     # creates_session_view
-    path = root_path / "views" / "pages" / "session" / "new.jx"
+    path = root_path / "views" / "session" / "new.jx"
     assert path.exists()
 
     # creates_password_reset_views
-    views = root_path / "views" / "pages" / "password_reset"
+    views = root_path / "views" / "password_reset"
     assert (views / "new.jx").exists()
     assert (views / "edit.jx").exists()
     assert (views / "show.jx").exists()
@@ -146,7 +145,7 @@ def test_file_creation(app_in_tmp):
     assert "from .session import Session" in text
 
     # appends_to_nav
-    text = (root_path / "views" / "common" / "nav.jx").read_text()
+    text = (root_path / "views" / "nav.jx").read_text()
     assert "Sign out" in text
     assert "Sign in" in text
 

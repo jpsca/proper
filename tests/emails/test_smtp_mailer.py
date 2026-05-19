@@ -1,4 +1,4 @@
-from smtplib import SMTP, SMTPException
+from smtplib import SMTPException
 
 import pytest
 
@@ -57,10 +57,9 @@ def test_sending(smtpd):
     mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
     email1, email2, email3, email4 = make_emails()
 
-    with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_now(email1) == 1
-        assert mailer.send_now(email2, email3) == 2
-        assert mailer.send_now(email4) == 1
+    assert mailer.send_now(email1) == 1
+    assert mailer.send_now(email2, email3) == 2
+    assert mailer.send_now(email4) == 1
 
     assert len(smtpd.messages) == 4
 
@@ -81,8 +80,7 @@ def test_sending_unicode(smtpd):
         to="to@example.com",
     ).serialize()
 
-    with SMTP(smtpd.hostname, smtpd.port):
-        assert mailer.send_now(email)
+    assert mailer.send_now(email)
 
     assert len(smtpd.messages) == 1
     message = smtpd.messages[0]
@@ -94,8 +92,7 @@ def test_sending_unicode(smtpd):
 def test_notls(smtpd):
     mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=True)
     with pytest.raises(SMTPException):
-        with SMTP(smtpd.hostname, smtpd.port):
-            mailer.open()
+        mailer.open()
     mailer.close()
 
 
@@ -107,8 +104,7 @@ def test_fail_silently(smtpd):
         fail_silently=True,
         timeout=0.1,
     )
-    with SMTP(smtpd.hostname, smtpd.port):
-        mailer.open()
+    mailer.open()
     mailer.close()
 
     mailer = SMTPMailer(
@@ -118,8 +114,7 @@ def test_fail_silently(smtpd):
         fail_silently=True,
         timeout=0.5,
     )
-    with SMTP(smtpd.hostname, smtpd.port):
-        mailer.open()
+    mailer.open()
     mailer.close()
 
     mailer = SMTPMailer(
@@ -129,6 +124,5 @@ def test_fail_silently(smtpd):
         fail_silently=True,
         timeout=0.1,
     )
-    with SMTP(smtpd.hostname, smtpd.port):
-        mailer.open()
+    mailer.open()
     mailer.close()

@@ -1,5 +1,5 @@
-{#import "common/nav.jx" as Nav #}
-{#import "common/flashes.jx" as Flashes #}
+{#import "nav.jx" as Nav #}
+{#import "flashes.jx" as Flashes #}
 {#import "./base.jx" as Layout #}
 
 <Layout attrs={{attrs}}>

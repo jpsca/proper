@@ -15,12 +15,12 @@ def app_in_tmp(tmp_path, app):
     """Set up a temporary app root with directories expected by both
     gen_model (models/) and gen_resource (controllers/, forms/, views/)."""
     app_root = tmp_path / APP_NAME
-    for d in ("models", "controllers", "forms", "views/pages"):
+    for d in ("models", "controllers", "forms", "views"):
         (app_root / d).mkdir(parents=True)
     (app_root / "models" / "__init__.py").write_text("")
     (app_root / "controllers" / "__init__.py").write_text("")
     (app_root / "forms" / "__init__.py").write_text("")
-    (app_root / "views" / "pages" / "__init__.py").write_text("")
+    (app_root / "views" / "__init__.py").write_text("")
 
     app.root_path = app_root
     app.name = APP_NAME
@@ -49,7 +49,7 @@ def _model_text(app, name_snake: str) -> str:
 
 
 def _views_folder(app, name_snake: str):
-    return app.root_path / "views" / "pages" / name_snake
+    return app.root_path / "views" / name_snake
 
 
 # ---------------------------------------------------------------------------

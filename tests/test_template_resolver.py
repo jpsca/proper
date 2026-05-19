@@ -44,80 +44,80 @@ class TestIterFormatExtensions:
 
 class TestIterCandidates:
     def test_single_prefix_single_format(self):
-        assert list(iter_candidates(["pages/posts"], "show", ["html"])) == [
-            "pages/posts/show.html.jx",
-            "pages/posts/show.jx",
+        assert list(iter_candidates(["posts"], "show", ["html"])) == [
+            "posts/show.html.jx",
+            "posts/show.jx",
         ]
 
     def test_multiple_formats(self):
-        assert list(iter_candidates(["pages/posts"], "show", ["json", "html"])) == [
-            "pages/posts/show.json.jx",
-            "pages/posts/show.html.jx",
-            "pages/posts/show.jx",
+        assert list(iter_candidates(["posts"], "show", ["json", "html"])) == [
+            "posts/show.json.jx",
+            "posts/show.html.jx",
+            "posts/show.jx",
         ]
 
     def test_multiple_prefixes(self):
         assert list(iter_candidates(
-            ["pages/posts", "pages/application"], "show", ["html"]
+            ["posts", "application"], "show", ["html"]
         )) == [
-            "pages/posts/show.html.jx",
-            "pages/posts/show.jx",
-            "pages/application/show.html.jx",
-            "pages/application/show.jx",
+            "posts/show.html.jx",
+            "posts/show.jx",
+            "application/show.html.jx",
+            "application/show.jx",
         ]
 
     def test_custom_handler(self):
         assert list(iter_candidates(
-            ["pages/x"], "show", ["html"], handler="haml"
+            ["x"], "show", ["html"], handler="haml"
         )) == [
-            "pages/x/show.html.haml",
-            "pages/x/show.haml",
+            "x/show.html.haml",
+            "x/show.haml",
         ]
 
 
 class TestResolveTemplate:
     def test_picks_format_specific(self):
         cat = FakeCatalog([
-            "pages/posts/show.json.jx",
-            "pages/posts/show.jx",
+            "posts/show.json.jx",
+            "posts/show.jx",
         ])
         name = resolve_template(
-            cat, ["pages/posts"], "show",
+            cat, ["posts"], "show",
             accept=["application/json"], default_format="html",
         )
-        assert name == "pages/posts/show.json.jx"
+        assert name == "posts/show.json.jx"
 
     def test_falls_back_to_bare(self):
-        cat = FakeCatalog(["pages/posts/show.jx"])
+        cat = FakeCatalog(["posts/show.jx"])
         name = resolve_template(
-            cat, ["pages/posts"], "show",
+            cat, ["posts"], "show",
             accept=["text/html"], default_format="html",
         )
-        assert name == "pages/posts/show.jx"
+        assert name == "posts/show.jx"
 
     def test_falls_back_to_next_prefix(self):
-        cat = FakeCatalog(["pages/application/error.jx"])
+        cat = FakeCatalog(["application/error.jx"])
         name = resolve_template(
-            cat, ["pages/posts", "pages/application"], "error",
+            cat, ["posts", "application"], "error",
             accept=[], default_format="html",
         )
-        assert name == "pages/application/error.jx"
+        assert name == "application/error.jx"
 
     def test_empty_accept_uses_default_format(self):
-        cat = FakeCatalog(["pages/posts/show.html.jx"])
+        cat = FakeCatalog(["posts/show.html.jx"])
         name = resolve_template(
-            cat, ["pages/posts"], "show",
+            cat, ["posts"], "show",
             accept=[], default_format="html",
         )
-        assert name == "pages/posts/show.html.jx"
+        assert name == "posts/show.html.jx"
 
     def test_missing_raises(self):
         cat = FakeCatalog([])
         with pytest.raises(ComponentNotFoundError) as exc:
             resolve_template(
-                cat, ["pages/posts"], "show",
+                cat, ["posts"], "show",
                 accept=["text/html"], default_format="html",
             )
         # Message should list what was tried, for debugging
-        assert "pages/posts/show.html.jx" in str(exc.value)
-        assert "pages/posts/show.jx" in str(exc.value)
+        assert "posts/show.html.jx" in str(exc.value)
+        assert "posts/show.jx" in str(exc.value)

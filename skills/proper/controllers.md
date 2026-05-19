@@ -339,14 +339,13 @@ myapp/
 │       ├── __init__.py
 │       └── post.py
 └── views/
-    └── pages/
-        └── admin/
-            └── post/
-                ├── index.jx
-                ├── show.jx
-                ├── new.jx
-                ├── edit.jx
-                └── form.jx
+    └── admin/
+        └── post/
+            ├── index.jx
+            ├── show.jx
+            ├── new.jx
+            ├── edit.jx
+            └── form.jx
 ```
 
 
@@ -571,11 +570,11 @@ exists in the jx catalog wins.
 **Step 1 — Build the prefix chain** (`Controller._prefixes`). Walk `type(self).mro()`
 from subclass upward, stopping at `Controller`. For each user-defined class,
 take its module, drop the first two dot-separated segments (the layout
-assumes `<app>.controllers.<…>`), strip any `_controller` suffix, convert
-remaining dots to slashes, and prepend `pages/`:
+assumes `<app>.controllers.<…>`), strip any `_controller` suffix and convert
+remaining dots to slashes:
 
-- `myapp.controllers.admin.card_controller` → `pages/admin/card`
-- Its parent `myapp.controllers.app_controller` → `pages/app`
+- `myapp.controllers.admin.card_controller` → `admin/card`
+- Its parent `myapp.controllers.app_controller` → `app`
 
 So a subclass inherits its ancestors' view folders as fallbacks, with no config.
 
@@ -588,15 +587,15 @@ use `request.default_format` (default `"html"`).
 every `{prefix}/{action}.{format}.jx` then the bare
 `{prefix}/{action}.jx` as a last-resort fallback, before moving to the next
 prefix. Example — action `show`, Accept `text/html, application/json`,
-prefixes `["pages/admin/card", "pages/app"]`:
+prefixes `["admin/card", "app"]`:
 
 ```
-pages/admin/card/show.html.jx
-pages/admin/card/show.json.jx
-pages/admin/card/show.jx
-pages/app/show.html.jx
-pages/app/show.json.jx
-pages/app/show.jx
+admin/card/show.html.jx
+admin/card/show.json.jx
+admin/card/show.jx
+app/show.html.jx
+app/show.json.jx
+app/show.jx
 ```
 
 **Step 4 — Resolve**. Return the first candidate where `catalog.has(name)` is
@@ -614,7 +613,7 @@ This means the simplest action is one that does nothing:
 ```python
 def show(self):
     self.card = Card.get_by_id(self.params["card_id"])
-    # Automatically renders pages/card/show.jx
+    # Automatically renders views/card/show.jx
 ```
 
 ### Explicit Template Rendering
@@ -847,7 +846,7 @@ You can also set flash messages directly without redirecting:
 self.response.flash.message("success", "Settings saved")
 ```
 
-In your templates, flash messages are reachable through `current.request.flashes` — a list of `(type, message)` tuples. The generated `common/flashes.jx` does roughly `{% set flashes = current.request.flashes %}` and iterates. Storage is the session, but the access path on the read side is the request.
+In your templates, flash messages are reachable through `current.request.flashes` — a list of `(type, message)` tuples. The generated `flashes.jx` does roughly `{% set flashes = current.request.flashes %}` and iterates. Storage is the session, but the access path on the read side is the request.
 
 
 ## Raising HTTP Errors

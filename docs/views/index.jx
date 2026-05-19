@@ -57,7 +57,7 @@
             lives at <code>models/post.py</code>. Its controller is
             <code>PostController</code> in
             <code>controllers/post_controller.py</code>. Its views are at
-            <code>views/pages/post/</code>. This is not a suggestion - it is
+            <code>views/post/</code>. This is not a suggestion - it is
             a feature.
           </p>
         </div>
@@ -276,17 +276,17 @@
       <div class="cmd">
   <span class="p">$</span> proper g resource Post title:str body:text
 
-  <span class="h">create</span>  tests/pages/test_post.py
+  <span class="h">create</span>  tests/test_post.py
   <span class="s">skipped</span>  demo/router.py
   <span class="h">create</span>  demo/forms/post.py
   <span class="h">create</span>  demo/controllers/post_controller.py
   <span class="a">append</span>  demo/controllers/__init__.py
-  <span class="h">create</span>  demo/views/pages/post/
-  <span class="h">create</span>  demo/views/pages/post/form.jx
-  <span class="h">create</span>  demo/views/pages/post/index.jx
-  <span class="h">create</span>  demo/views/pages/post/new.jx
-  <span class="h">create</span>  demo/views/pages/post/edit.jx
-  <span class="h">create</span>  demo/views/pages/post/show.jx
+  <span class="h">create</span>  demo/views/post/
+  <span class="h">create</span>  demo/views/post/form.jx
+  <span class="h">create</span>  demo/views/post/index.jx
+  <span class="h">create</span>  demo/views/post/new.jx
+  <span class="h">create</span>  demo/views/post/edit.jx
+  <span class="h">create</span>  demo/views/post/show.jx
   <span class="a">append</span>  demo/models/__init__.py
   <span class="h">create</span>  demo/models/post.py
       </div>

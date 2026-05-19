@@ -126,7 +126,7 @@ Paths relative to a catalog folder. Use for shared components used across your p
 
 ```html+jinja
 {#import "layouts/app.jx" as Layout #}
-{#import "common/nav.jx" as Nav #}
+{#import "nav.jx" as Nav #}
 ```
 
 ### Relative Imports
@@ -592,7 +592,7 @@ Compose layouts by wrapping one inside another:
 
 ```html+jinja
 {#import "layouts/base.jx" as Base #}
-{#import "common/sidebar.jx" as Sidebar #}
+{#import "sidebar.jx" as Sidebar #}
 {#def title='' #}
 
 <Base title={{ title }}>
@@ -810,11 +810,11 @@ Copies all registered package assets to an output folder. For each prefix that h
 
 ```python
 # Render a component file
-html = catalog.render("pages/home.jx", title="Hello", user=current_user)
+html = catalog.render("home.jx", title="Hello", user=current_user)
 
 # With globals (available to imported components too)
 html = catalog.render(
-    "pages/home.jx",
+    "home.jx",
     globals={"request": request},
     title="Hello",
 )

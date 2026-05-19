@@ -1,5 +1,5 @@
 {#import "layouts/auth.jx" as Layout #}
-{#import "common/password.jx" as Password #}
+{#import "password.jx" as Password #}
 {#import "form.jx" as Form #}
 
 {#def form #}

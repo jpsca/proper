@@ -41,7 +41,7 @@ Here's the smallest useful Jx component:
 And here's a page that uses it:
 
 ```html+jinja
-{# myapp/views/pages/home/show.jx #}
+{# myapp/views/home/show.jx #}
 {#import "components/card.jx" as Card #}
 
 <Card title="Welcome">
@@ -74,31 +74,29 @@ A new application starts with this layout under `myapp/views/`:
 
 ```
 views/
-├── form.jx                  # framework <Form> component
 ├── layouts/
 │   ├── base.jx              # bare HTML shell (head, body, assets)
 │   └── app.jx               # layout used by pages (base + nav + flashes)
-├── common/
-│   ├── flashes.jx           # flash message list
-│   └── nav.jx               # site navigation
-├── pages/
-│   ├── public/
-│   │   ├── index.jx
-│   │   └── error.jx
-│   └── card/
-│       ├── index.jx
-│       ├── show.jx
-│       ├── new.jx
-│       ├── edit.jx
-│       └── form.jx
-└── emails/                  # email-only templates
+├── public/
+│   ├── index.jx
+│   └── error.jx
+├── card/
+│   ├── index.jx
+│   ├── show.jx
+│   ├── new.jx
+│   ├── edit.jx
+│   └── form.jx
+├── emails/                  # email-only templates
+├── form.jx                  # framework <Form> component
+├── flashes.jx           # flash message list
+└── nav.jx               # site navigation
 ```
 
 The convention is one folder per "kind" of template:
 
-- **`pages/<controller>/`** - one folder per controller. Each file matches an action (`index.jx`, `show.jx`, `new.jx`, `edit.jx`). The resource generator creates these for you.
+- **`<controller>/`** - one folder per controller. Each file matches an action (`index.jx`, `show.jx`, `new.jx`, `edit.jx`). The resource generator creates these for you.
 - **`layouts/`** - the layouts pages wrap themselves in. Two by default; you can add more.
-- **`common/`** - components shared across the whole app: nav, flashes, footer, anything reused on most pages.
+- **Top-level `.jx` files** (`nav.jx`, `flashes.jx`, `form.jx`, …) - components shared across the whole app: anything reused on most pages.
 - **`emails/`** - templates rendered by mailers, not by HTTP requests.
 - **Anywhere else** - feel free to add subdirectories like `components/`, `forms/`, `widgets/` for organizing your own components.
 
@@ -258,7 +256,7 @@ Absolute paths resolve from the catalog root (`myapp/views/`):
 ```html+jinja
 {#import "components/card.jx" as Card #}
 {#import "icons/star.jx" as Star #}
-{#import "common/nav.jx" as Nav #}
+{#import "nav.jx" as Nav #}
 ```
 
 This is the form you'll use most often. It works regardless of where the importing file lives.
@@ -268,14 +266,14 @@ This is the form you'll use most often. It works regardless of where the importi
 Relative paths start with `./` or `../` and resolve against the *current file's* directory:
 
 ```html+jinja
-{# inside myapp/views/pages/card/edit.jx #}
+{# inside myapp/views/card/edit.jx #}
 {#import "./form.jx" as Form #}
 ```
 
-`./form.jx` is `myapp/views/pages/card/form.jx` - the form partial that lives next to the edit page.
+`./form.jx` is `myapp/views/card/form.jx` - the form partial that lives next to the edit page.
 
 ```html+jinja
-{# inside myapp/views/pages/admin/post/edit.jx #}
+{# inside myapp/views/admin/post/edit.jx #}
 {#import "../../layouts/admin.jx" as Layout #}
 ```
 
@@ -732,8 +730,8 @@ Passing `attrs={{ attrs }}` hands the full collected attribute bag to the child 
 The application's own `app.jx` layout uses this pattern to forward attrs down to `base.jx`:
 
 ```html+jinja
-{#import "common/nav.jx" as Nav #}
-{#import "common/flashes.jx" as Flashes #}
+{#import "nav.jx" as Nav #}
+{#import "flashes.jx" as Flashes #}
 {#import "./base.jx" as Layout #}
 
 <Layout attrs={{ attrs }}>
@@ -885,7 +883,7 @@ class CardController(AppController):
         pass        # what happens here?
 ```
 
-Proper looks for a template at `pages/card/show.jx`. If it exists, it's rendered with every instance attribute on the controller (e.g. `self.card`) available as a template variable.
+Proper looks for a template at `card/show.jx`. If it exists, it's rendered with every instance attribute on the controller (e.g. `self.card`) available as a template variable.
 
 The folder name comes from the controller class name (`CardController` → `card`), the file name from the action (`show` → `show.jx`).
 
@@ -906,10 +904,10 @@ class AdminPostController(AdminController):
 
 For `AdminPostController.index`, Proper looks at:
 
-1. `pages/admin_post/index.jx` (the child's own folder)
-2. `pages/admin/index.jx` (the parent's folder, if step 1 misses)
+1. `admin_post/index.jx` (the child's own folder)
+2. `admin/index.jx` (the parent's folder, if step 1 misses)
 
-This keeps shared admin layouts in `pages/admin/` instead of duplicating them under every admin sub-controller.
+This keeps shared admin layouts in `admin/` instead of duplicating them under every admin sub-controller.
 
 The chain stops at the framework's `Controller` base class - your `AppController` and any concerns are walked, but `proper.Controller` itself isn't.
 
@@ -917,13 +915,13 @@ The chain stops at the framework's `Controller` base class - your `AppController
 
 The request's `Accept` header decides the template's *format* part. For a request asking for `application/json`, the lookup tries:
 
-1. `pages/card/show.json.jx`
-2. `pages/card/show.jx` (fallback, no format extension)
+1. `card/show.json.jx`
+2. `card/show.jx` (fallback, no format extension)
 
 For a normal browser request asking for `text/html`:
 
-1. `pages/card/show.html.jx`
-2. `pages/card/show.jx`
+1. `card/show.html.jx`
+2. `card/show.jx`
 
 The `.html.jx` form is rare in practice - most apps just use `.jx` and let it serve HTML. The `.json.jx` form is the common one: a single controller can serve both HTML and JSON for the same action by having two templates side by side.
 
@@ -934,10 +932,10 @@ When the `Accept` header is `*/*` (or missing), the lookup uses the request's `d
 Combining all three: for `AdminPostController.index` with `Accept: application/json, */*`:
 
 ```
-pages/admin_post/index.json.jx     (step 1)
-pages/admin_post/index.jx          (step 2)
-pages/admin/index.json.jx          (step 3)
-pages/admin/index.jx               (step 4)
+admin_post/index.json.jx     (step 1)
+admin_post/index.jx          (step 2)
+admin/index.json.jx          (step 3)
+admin/index.jx               (step 4)
 ```
 
 The first one that exists in the catalog wins. If none exist, Proper raises `ComponentNotFoundError` listing every candidate it tried - which is what you want when debugging a "I added a template but it's not picking it up" problem.
@@ -950,7 +948,7 @@ The first one that exists in the catalog wins. If none exist, Proper raises `Com
 def show(self):
     self.card = Card.get_or_none(self.params["card_id"])
     if not self.card:
-        return self.render("pages/card/not_found.jx", status=404)
+        return self.render("card/not_found.jx", status=404)
 ```
 
 The path is the catalog name, exactly as you'd write it in `#import`. No prefix walk, no format negotiation - just "render this file."
@@ -973,7 +971,7 @@ The generator creates two layouts in `views/layouts/`:
 Every page imports a layout and wraps its body in it:
 
 ```html+jinja
-{# myapp/views/pages/card/show.jx #}
+{# myapp/views/card/show.jx #}
 {#import "layouts/app.jx" as Layout #}
 {#def card #}
 
@@ -991,8 +989,8 @@ A simplified version of the generated `app.jx`:
 
 ```html+jinja
 {# myapp/views/layouts/app.jx #}
-{#import "common/nav.jx" as Nav #}
-{#import "common/flashes.jx" as Flashes #}
+{#import "nav.jx" as Nav #}
+{#import "flashes.jx" as Flashes #}
 {#import "./base.jx" as Layout #}
 
 <Layout attrs={{ attrs }}>
@@ -1066,7 +1064,7 @@ Add a layout file to `views/layouts/` and pages can import it instead of (or alo
 
 ```html+jinja
 {# myapp/views/layouts/admin.jx #}
-{#import "common/nav_admin.jx" as AdminNav #}
+{#import "nav_admin.jx" as AdminNav #}
 {#import "./base.jx" as Layout #}
 
 <Layout attrs={{ attrs }}>
@@ -1082,7 +1080,7 @@ Admin pages then do `{#import "layouts/admin.jx" as Layout #}` instead of import
 Layouts are regular components, so any Jinja control flow works. A common pattern is to skip the navigation when there's no current user:
 
 ```html+jinja
-{#import "common/nav.jx" as Nav #}
+{#import "nav.jx" as Nav #}
 {#import "./base.jx" as Layout #}
 
 <Layout attrs={{ attrs }}>
@@ -1096,7 +1094,7 @@ Layouts are regular components, so any Jinja control flow works. A common patter
 Or a "minimal" mode the page can opt into via a prop:
 
 ```html+jinja
-{#import "common/nav.jx" as Nav #}
+{#import "nav.jx" as Nav #}
 {#import "./base.jx" as Layout #}
 {#def minimal=False #}
 
@@ -1122,7 +1120,7 @@ Anything you can do in a regular component, a layout can do.
 The `<Nav>` component is a regular Jx component. To mark which link is active, use the `url_is` and `url_startswith` template globals:
 
 ```html+jinja
-{# myapp/views/common/nav.jx #}
+{# myapp/views/nav.jx #}
 <nav class="Nav">
   <a href="{{ url_for('Card.index') }}"
      class="{% if url_startswith('Card.index') %}active{% endif %}">
@@ -1201,7 +1199,7 @@ Flash messages live on the request, not as a top-level global:
 {% endif %}
 ```
 
-The generated `common/flashes.jx` does roughly that. `flashes` is a list of `(kind, message)` tuples; `kind` is a free-form string (`"info"`, `"success"`, `"warning"`, `"error"` by convention).
+The generated `flashes.jx` does roughly that. `flashes` is a list of `(kind, message)` tuples; `kind` is a free-form string (`"info"`, `"success"`, `"warning"`, `"error"` by convention).
 
 ### Translation and Formatting Helpers
 
@@ -1249,7 +1247,7 @@ def show(self):
     self.related = Card.select().where(...).limit(5)
 ```
 
-In `pages/card/show.jx`:
+In `card/show.jx`:
 
 ```html+jinja
 <h1>{{ card.title }}</h1>

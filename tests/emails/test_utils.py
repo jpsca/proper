@@ -84,6 +84,12 @@ class TestToList:
 
 
 class TestCachedDnsName:
+    @pytest.fixture(autouse=True)
+    def _fast_getfqdn(self, monkeypatch):
+        # Avoid the real socket.getfqdn() — it can take ~5s on machines with
+        # slow reverse DNS. The cache behavior under test is unaffected.
+        monkeypatch.setattr("proper.emails.utils.socket.getfqdn", lambda: "host.example.com")
+
     def test_get_fqdn_returns_string(self):
         dns = CachedDnsName()
         fqdn = dns.get_fqdn()

@@ -58,7 +58,7 @@ Any attribute you set on `self` inside an action (e.g. `self.cards = Card.select
 
 ### Implicit Rendering
 
-If an action returns `None` and `response.body` is not set, the framework renders an inferred template at `pages/{module}/{action}.jx`. Call `self.render()` only when you need a different template or a custom status.
+If an action returns `None` and `response.body` is not set, the framework renders an inferred template at `views/{module}/{action}.jx`. Call `self.render()` only when you need a different template or a custom status.
 
 
 ## App

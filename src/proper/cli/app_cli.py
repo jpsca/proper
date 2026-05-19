@@ -57,7 +57,6 @@ def get_run_cli(app: "App") -> t.Callable:
 
         kwargs["host"] = "0.0.0.0"
         kwargs["port"] = int(app.config["PORT"] or "2300")
-
         show_banner()
         show_welcome(app.config["HOST"])
         uvicorn.run(**kwargs)

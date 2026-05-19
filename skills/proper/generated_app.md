@@ -61,17 +61,15 @@ myapp/                          # Project root
 │   │       └── russian_doll_cached.py
 │   ├── views/                  # Jx components
 │   │   ├── layouts/
-│   │   │   ├── app.jx       # Main HTML layout
-│   │   │   └── email.jx     # Email layout
-│   │   ├── common/
-│   │   │   ├── nav.jx       # Navigation (empty by default)
-│   │   │   └── flashes.jx   # Flash messages
-│   │   ├── pages/
-│   │   │   └── public/
-│   │   │       ├── index.jx
-│   │   │       ├── error.jx
-│   │   │       └── not_found.jx
-│   │   └── form.jx          # Reusable form component with method override
+│   │   │   ├── app.jx          # Main HTML layout
+│   │   │   └── email.jx        # Email layout
+│   │   ├── public/
+│   │   │   ├── index.jx
+│   │   │   ├── error.jx
+│   │   │   └── not_found.jx
+│   │   ├── nav.jx              # Navigation (empty by default)
+│   │   ├── flashes.jx          # Flash messages
+│   │   └── form.jx             # Reusable form component with method override
 │   ├── forms/                  # Form validation classes
 │   ├── emails/
 │   │   ├── __init__.py
@@ -115,8 +113,7 @@ myapp/                          # Project root
 ├── tests/
 │   ├── __init__.py             # Sets APP_ENV=test
 │   ├── conftest.py             # Database setup with transaction rollback
-│   └── pages/
-│       └── test_public.py
+│   └── test_public.py
 ├── pyproject.toml
 ├── uvicorn.py                  # Production server config
 ├── uvicorn.dev.py              # Development server config (with reload)
@@ -193,9 +190,9 @@ This is why adding a new controller or model requires importing it in the respec
 
 **`views/form.jx`** — Reusable form component. Props: `action`, `method`, `multipart`, `novalidate`. Handles method override automatically — if method is not GET/POST, renders a hidden `_method` input and sets the form to POST.
 
-**`views/common/flashes.jx`** — Renders flash messages from `current.request.flashes` as `(type, message)` tuples.
+**`views/flashes.jx`** — Renders flash messages from `current.request.flashes` as `(type, message)` tuples.
 
-**`views/common/nav.jx`** — Empty by default. Updated by the auth addon to show sign-in/sign-out links.
+**`views/nav.jx`** — Empty by default. Updated by the auth addon to show sign-in/sign-out links.
 
 Page-specific CSS is loaded using the `{#css "..." #}` directive in templates, which feeds into `assets.collect_css()` in the layout.
 
@@ -253,12 +250,12 @@ Creates model + controller + form + views + test scaffold. See [controllers.md](
 | `models/{name}.py` | Peewee model |
 | `controllers/{name}_controller.py` | CRUD controller with before callback for record loading |
 | `forms/{name}.py` | Formidable form with `Meta.orm_cls` binding |
-| `views/pages/{name}/index.jx` | List page |
-| `views/pages/{name}/show.jx` | Detail page |
-| `views/pages/{name}/new.jx` | New form page |
-| `views/pages/{name}/edit.jx` | Edit form page |
-| `views/pages/{name}/form.jx` | Shared form fields component |
-| `tests/pages/test_{name}.py` | Test skeleton (one function per action, bodies are `pass`) |
+| `views/{name}/index.jx` | List page |
+| `views/{name}/show.jx` | Detail page |
+| `views/{name}/new.jx` | New form page |
+| `views/{name}/edit.jx` | Edit form page |
+| `views/{name}/form.jx` | Shared form fields component |
+| `tests/test_{name}.py` | Test skeleton (one function per action, bodies are `pass`) |
 
 **Files modified:** `controllers/__init__.py`, `models/__init__.py` (adds imports)
 
@@ -277,16 +274,16 @@ Creates controller + form + views + test scaffold — **without** a model. Use w
 |------|---------|
 | `controllers/{name}_controller.py` | CRUD controller with before callback for record loading |
 | `forms/{name}.py` | Formidable form (no `Meta.orm_cls` — not tied to a model) |
-| `views/pages/{name}/index.jx` | List page |
-| `views/pages/{name}/show.jx` | Detail page |
-| `views/pages/{name}/new.jx` | New form page |
-| `views/pages/{name}/edit.jx` | Edit form page |
-| `views/pages/{name}/form.jx` | Shared form fields component |
-| `tests/pages/test_{name}.py` | Test skeleton (one function per action, bodies are `pass`) |
+| `views/{name}/index.jx` | List page |
+| `views/{name}/show.jx` | Detail page |
+| `views/{name}/new.jx` | New form page |
+| `views/{name}/edit.jx` | Edit form page |
+| `views/{name}/form.jx` | Shared form fields component |
+| `tests/test_{name}.py` | Test skeleton (one function per action, bodies are `pass`) |
 
 **Files modified:** `controllers/__init__.py` (adds import)
 
-**With `--namespace`:** files go into subfolders (e.g., `controllers/admin/`, `forms/admin/`, `views/pages/admin/`). A scoped router is added to `router.py`.
+**With `--namespace`:** files go into subfolders (e.g., `controllers/admin/`, `forms/admin/`, `views/admin/`). A scoped router is added to `router.py`.
 
 
 ### Model Generator
@@ -325,12 +322,12 @@ forms/password_reset.py                     # Password reset + change forms
 emails/password_reset_email.py              # Password reset email
 cli/auth_cli.py                             # CLI commands (user, password)
 views/layouts/auth.jx                    # Auth-specific layout (centered panel)
-views/pages/session/new.jx               # Sign-in page
-views/pages/sign_up/new.jx              # Registration page
-views/pages/password_reset/new.jx        # Request reset
-views/pages/password_reset/show.jx       # "Email sent" confirmation
-views/pages/password_reset/edit.jx       # Change password form
-views/pages/password_reset/invalid.jx    # Invalid/expired token page
+views/session/new.jx               # Sign-in page
+views/sign_up/new.jx              # Registration page
+views/password_reset/new.jx        # Request reset
+views/password_reset/show.jx       # "Email sent" confirmation
+views/password_reset/edit.jx       # Change password form
+views/password_reset/invalid.jx    # Invalid/expired token page
 views/emails/password_reset.jx           # Password reset email template
 assets/styles/auth.css                      # Auth page styles
 db/main/002_users.py                        # Migration
@@ -346,7 +343,7 @@ db/main/002_users.py                        # Migration
 - `models/__init__.py` — adds `User`, `Session`
 - `emails/__init__.py` — adds `PasswordResetEmail`
 - `cli/__init__.py` — adds `auth_cli`
-- `views/common/nav.jx` — adds sign-in/sign-out links based on `current.user`
+- `views/nav.jx` — adds sign-in/sign-out links based on `current.user`
 - `pyproject.toml` — adds `passlib`, `argon2-cffi`, `confusable-homoglyphs`
 
 
@@ -440,7 +437,7 @@ proper g controller NAME [attrs...] [--only=actions] [--exclude=actions] [--name
 
 Creates: controller, form, views (index/show/new/edit/form), test skeleton. Does **not** create a model.
 Use when the model already exists or when no model is needed.
-With `--namespace`, files go into subfolders (e.g., `controllers/admin/`, `forms/admin/`, `views/pages/admin/`).
+With `--namespace`, files go into subfolders (e.g., `controllers/admin/`, `forms/admin/`, `views/admin/`).
 Modifies: `controllers/__init__.py` (adds import).
 
 ### Model Generator

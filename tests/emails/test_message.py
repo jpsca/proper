@@ -3,12 +3,6 @@ import pytest
 from proper.emails import EmailMessage
 
 
-@pytest.fixture(autouse=True)
-def _app_context(app):
-    """Ensure current.app is set for all email tests."""
-    return app
-
-
 def test_basic_init():
     msg = EmailMessage(
         from_email="from@example.com",

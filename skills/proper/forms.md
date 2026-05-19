@@ -412,7 +412,7 @@ Behavior matrix:
 The `proper install storage` blueprint installs an image-input component that wires this together — preview state for existing attachments, drag-and-drop, replace/remove with destroy-flag toggling. Use it like:
 
 ```html+jinja
-{#import "common/image_input.jx" as ImageInput #}
+{#import "image_input.jx" as ImageInput #}
 
 <ImageInput field={{ form.cover }} />
 ```

@@ -1068,7 +1068,7 @@ This generates:
 - `models/photo.py` - the model
 - `controllers/photo_controller.py` - a CRUD controller with all actions
 - `forms/photo.py` - a form class linked to the model
-- `pages/photo/` - Jinja templates for index, show, new, edit, and delete
+- `views/photo/` - Jinja templates for index, show, new, edit, and delete
 
 You can limit which actions are generated:
 

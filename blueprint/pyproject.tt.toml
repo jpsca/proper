@@ -1,7 +1,6 @@
 [build-system]
 requires = ["setuptools"]
 
-# TEMP
 # [tool.uv.sources]
 # proper = { path = "../proper", editable = true }
 

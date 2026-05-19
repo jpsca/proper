@@ -205,7 +205,7 @@ def gen_controller(
         controllers_init = app.root_path / "controllers" / "__init__.py"
         ns_controllers = app.root_path / "controllers" / namespace
         ns_forms = app.root_path / "forms" / namespace
-        ns_views = app.root_path / "views" / "pages" / namespace
+        ns_views = app.root_path / "views" / namespace
 
         render_blueprint(
             RESOURCE_BLUEPRINT / "[[app_name]]" / "controllers",
@@ -232,7 +232,7 @@ def gen_controller(
         (ns_forms / "__init__.py").touch()
 
         render_blueprint(
-            RESOURCE_BLUEPRINT / "[[app_name]]" / "views" / "pages",
+            RESOURCE_BLUEPRINT / "[[app_name]]" / "views",
             ns_views,
             context=context,
             ignore=ignored_views,

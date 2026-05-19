@@ -358,12 +358,12 @@ def show(self):
     if self.request.format == "json":
         return self.render(json={"id": self.card.id, "title": self.card.title})
 
-    # falls through; renders pages/card/show.jx implicitly
+    # falls through; renders card/show.jx implicitly
 ```
 
 When the `Accept` header is missing or matches `*/*`, `format` falls back to `request.default_format`, which is `"html"` unless you've changed it. So a curl with no `-H 'Accept: ...'` lands in the HTML branch, which is usually what you want.
 
-You can also lean on the implicit-rendering machinery, which already understands format-specific templates: a request for JSON will pick `pages/card/show.json.jx` ahead of `pages/card/show.jx` if both exist. That's worth knowing when the JSON shape is non-trivial enough that you'd rather build it in a template than inline in the action. For the full algorithm, see the [Jx Components and Layouts guide](/docs/jx_components).
+You can also lean on the implicit-rendering machinery, which already understands format-specific templates: a request for JSON will pick `card/show.json.jx` ahead of `card/show.jx` if both exist. That's worth knowing when the JSON shape is non-trivial enough that you'd rather build it in a template than inline in the action. For the full algorithm, see the [Jx Components and Layouts guide](/docs/jx_components).
 
 ### The `Vary: Accept` Gotcha
 
@@ -560,7 +560,7 @@ class PublicController(AppController):
         pass
 ```
 
-When a `NotFound` is raised anywhere during request processing, the framework instantiates `PublicController`, sets up `self.request` and `self.response`, calls `not_found`, and renders the matching template (`pages/public/not_found.jx` in this case). `@router.error(Exception)` is the catch-all - any unhandled exception lands there.
+When a `NotFound` is raised anywhere during request processing, the framework instantiates `PublicController`, sets up `self.request` and `self.response`, calls `not_found`, and renders the matching template (`public/not_found.jx` in this case). `@router.error(Exception)` is the catch-all - any unhandled exception lands there.
 
 ### The `_not_found` Trick
 

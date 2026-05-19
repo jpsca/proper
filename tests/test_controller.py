@@ -141,14 +141,14 @@ class TestRedo:
         co = _make_controller(cls=PostsController)
         co.request.matched_action = "update"
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/posts/edit.jx"
+            "posts/edit.jx"
         )
         co.app.catalog.render.return_value = "<form/>"
         co.redo()
         assert co.response.body == "<form/>"
         assert co.response.status == 422
         template = co.app.catalog.render.call_args[0][0]
-        assert template == "pages/posts/edit.jx"
+        assert template == "posts/edit.jx"
 
     def test_redo_on_create_renders_new(self):
         class PostsController(Controller):
@@ -157,12 +157,12 @@ class TestRedo:
         co = _make_controller(cls=PostsController)
         co.request.matched_action = "create"
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/posts/new.jx"
+            "posts/new.jx"
         )
         co.app.catalog.render.return_value = "<form/>"
         co.redo()
         template = co.app.catalog.render.call_args[0][0]
-        assert template == "pages/posts/new.jx"
+        assert template == "posts/new.jx"
 
     def test_redo_custom_status(self):
         class PostsController(Controller):
@@ -171,7 +171,7 @@ class TestRedo:
         co = _make_controller(cls=PostsController)
         co.request.matched_action = "update"
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/posts/edit.jx"
+            "posts/edit.jx"
         )
         co.app.catalog.render.return_value = ""
         co.redo(status=400)
@@ -256,12 +256,12 @@ class TestCall:
 
         co = _make_controller(cls=MyController)
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/posts/show.jx"
+            "posts/show.jx"
         )
         co.app.catalog.render.return_value = "<html/>"
         co._call("show")
         assert co.response.body == "<html/>"
-        assert co.app.catalog.render.call_args[0][0] == "pages/posts/show.jx"
+        assert co.app.catalog.render.call_args[0][0] == "posts/show.jx"
 
     def test_no_return_body_already_set(self):
         class MyController(Controller):
@@ -281,11 +281,11 @@ class TestCall:
 
         co = _make_controller(cls=MyController)
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/users/edit.jx"
+            "users/edit.jx"
         )
         co.app.catalog.render.return_value = ""
         co._call("edit")
-        assert co.app.catalog.render.call_args[0][0] == "pages/users/edit.jx"
+        assert co.app.catalog.render.call_args[0][0] == "users/edit.jx"
 
     def test_inferred_view_module_path(self):
         class MyController(Controller):
@@ -296,11 +296,11 @@ class TestCall:
 
         co = _make_controller(cls=MyController)
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/admin/dashboard/index.jx"
+            "admin/dashboard/index.jx"
         )
         co.app.catalog.render.return_value = ""
         co._call("index")
-        assert co.app.catalog.render.call_args[0][0] == "pages/admin/dashboard/index.jx"
+        assert co.app.catalog.render.call_args[0][0] == "admin/dashboard/index.jx"
 
     def test_prefers_format_specific_template(self):
         class MyController(Controller):
@@ -314,12 +314,12 @@ class TestCall:
             headers=[("accept", "application/json")],
         )
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/posts/show.json.jx",
-            "pages/posts/show.jx",
+            "posts/show.json.jx",
+            "posts/show.jx",
         )
         co.app.catalog.render.return_value = "{}"
         co._call("show")
-        assert co.app.catalog.render.call_args[0][0] == "pages/posts/show.json.jx"
+        assert co.app.catalog.render.call_args[0][0] == "posts/show.json.jx"
 
     def test_falls_back_to_application_prefix(self):
         class ApplicationController(Controller):
@@ -333,11 +333,11 @@ class TestCall:
 
         co = _make_controller(cls=PostsController)
         co.app.catalog.has.side_effect = _only_allow(
-            "pages/application/missing.jx"
+            "application/missing.jx"
         )
         co.app.catalog.render.return_value = ""
         co._call("missing")
-        assert co.app.catalog.render.call_args[0][0] == "pages/application/missing.jx"
+        assert co.app.catalog.render.call_args[0][0] == "application/missing.jx"
 
     def test_missing_template_raises(self):
         class MyController(Controller):

@@ -38,7 +38,7 @@ class CardController(AppController):
         self.cards = Card.select()
 ```
 
-That's a complete controller. Visit `/cards` in the browser and Proper will run `index`, set `self.cards`, render `pages/card/index.jx`, and send the result back.
+That's a complete controller. Visit `/cards` in the browser and Proper will run `index`, set `self.cards`, render `card/index.jx`, and send the result back.
 
 ### Controller Naming Convention
 
@@ -97,7 +97,7 @@ This produces:
 - `migrations/NNN_create_cards.py` - the migration that creates the table.
 - `myapp/forms/card.py` - the form, with one field per model field.
 - `myapp/controllers/card_controller.py` - the controller, with all seven CRUD actions.
-- `myapp/views/pages/card/` - `index.jx`, `show.jx`, `new.jx`, `edit.jx`, and `form.jx`.
+- `myapp/views/card/` - `index.jx`, `show.jx`, `new.jx`, `edit.jx`, and `form.jx`.
 
 Run `proper g resource --help` to see all the options.
 
@@ -453,7 +453,7 @@ Routes can attach default values that flow into the controller as `self.defaults
 
 ```python
 # in the router
-@router.get("pages/:slug", defaults={"sidebar": True})
+@router.get(":slug", defaults={"sidebar": True})
 def show(self):
     ...
 
@@ -476,10 +476,10 @@ If an action returns `None` and doesn't set the response body, Proper picks the 
 ```python
 def show(self):
     self.card = Card.get_by_id(self.params["card_id"])
-    # automatically renders pages/card/show.jx
+    # automatically renders card/show.jx
 ```
 
-The lookup walks the controller's class hierarchy and the request's `Accept` header to find the best match - so an admin controller subclassing a public one inherits its template folder as a fallback, and a request for `application/json` can be handled by a `.json.jx` template if one exists. The [Jx Components and Layouts guide](/docs/jx_components) covers the full algorithm; for most pages, you don't have to think about it - the file at `pages/<controller>/<action>.jx` is what gets rendered.
+The lookup walks the controller's class hierarchy and the request's `Accept` header to find the best match - so an admin controller subclassing a public one inherits its template folder as a fallback, and a request for `application/json` can be handled by a `.json.jx` template if one exists. The [Jx Components and Layouts guide](/docs/jx_components) covers the full algorithm; for most pages, you don't have to think about it - the file at `<controller>/<action>.jx` is what gets rendered.
 
 ### Template Variables
 
@@ -506,7 +506,7 @@ When you need a different template, or want to set a custom status, call `self.r
 def show(self):
     self.card = Card.get_or_none(self.params["card_id"])
     if not self.card:
-        return self.render("pages/card/not_found.jx", status=404)
+        return self.render("card/not_found.jx", status=404)
 ```
 
 The path you pass goes straight to the template catalog - the prefix chain and format negotiation that implicit rendering does are skipped.

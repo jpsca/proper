@@ -15,7 +15,7 @@
 		<link rel="stylesheet" href="{{ url_for('assets', file='styles/globals.css') }}">
 		<link rel="stylesheet" href="{{ url_for('assets', file='styles/base.css') }}">
 		<link rel="stylesheet" href="{{ url_for('assets', file='styles/buttons.css') }}">
-		<link rel="stylesheet" href="{{ url_for('assets', file='styles/inputs.css') }}">
+		<link rel="stylesheet" href="{{ url_for('assets', file='styles/forms.css') }}">
 		{% for url in assets.collect_css() -%}
 			<link rel="stylesheet" href="{{ url_for('assets', file=url) }}">
 		{% endfor -%}

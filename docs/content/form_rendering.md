@@ -258,14 +258,14 @@ You can also mix the two: helpers for the standard cases, hand-written HTML for 
 The resource generator (`proper g resource`) sets up three layered Jx components for every form:
 
 1. **`views/form.jx`** - the framework component that emits the `<form>` HTML tag, sets the action and method, and adds the hidden `_method` input for `PATCH`/`PUT`/`DELETE`.
-2. **`views/pages/<name>/form.jx`** - a per-resource component that lays out the fields. The generator writes this file for you.
-3. **`views/pages/<name>/new.jx` and `edit.jx`** - the pages, which import the per-resource form component and pass it the right action URL.
+2. **`views/<name>/form.jx`** - a per-resource component that lays out the fields. The generator writes this file for you.
+3. **`views/<name>/new.jx` and `edit.jx`** - the pages, which import the per-resource form component and pass it the right action URL.
 
 This split keeps the field markup in one place while giving you separate pages for creating and editing.
 
 ### The Per-Resource `form.jx`
 
-For `proper g resource Card title:str body:text`, the generator writes `views/pages/card/form.jx`:
+For `proper g resource Card title:str body:text`, the generator writes `views/card/form.jx`:
 
 ```html+jinja
 {#import "form.jx" as Form #}
@@ -342,7 +342,7 @@ The only differences between the two are the action URL, the method (`patch` for
 The shared partial is the right default, but it's not a rule. If the create flow needs more fields than the edit flow (think: a "send invite" toggle that only appears at signup), or if an admin form should look different from a public one, write a second component:
 
 ```
-views/pages/card/
+views/card/
 ├── form.jx              # public form
 ├── admin_form.jx        # admin form with extra fields
 ├── new.jx               # imports form.jx
@@ -970,7 +970,7 @@ The field declaration on the form side is where you set server-side limits like 
 `proper install storage` ships a Jx component that wires the two inputs together with drag-and-drop, an existing-attachment preview, and a "Remove" button that toggles `_destroy` for you:
 
 ```html+jinja
-{#import "common/image_input.jx" as ImageInput #}
+{#import "image_input.jx" as ImageInput #}
 
 <ImageInput field={{ form.cover }} />
 ```

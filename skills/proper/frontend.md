@@ -17,28 +17,6 @@ Proper uses [Jx](https://jx.scaletti.dev) for component-based templates, and Tur
 - [Turbo Drive](#turbo-drive)
 - [Flash Messages](#flash-messages)
 
-
-```
-myapp/
-├── assets/
-│   ├── styles/
-│       ├── globals.css
-│       ├── reset.css
-│       ├── base.css
-│       ├── buttons.css
-│   │   └── inputs.css
-│   ├── js/
-│   │   ├── app.js               # Main app JS
-│   │   └── turbo.js  # Turbo Drive library
-│   └── favicon.ico
-├── views/
-│   ├── layouts/                 # Page layouts
-│   ├── common/                  # Shared components (nav, flashes)
-│   └── pages/                   # Page templates
-└── router.py                    # Static route registration
-```
-
-
 ## Templates
 
 Templates are [Jx](https://jx.scaletti.dev) components — Jinja2 files with explicit prop declarations and an HTML-like call syntax. All standard Jinja2 syntax still works; Jx adds a component layer on top.
@@ -50,15 +28,13 @@ myapp/views/
 ├── layouts/
 │   ├── app.jx          # Main HTML layout
 │   └── email.jx        # Email layout
-├── common/
-│   ├── nav.jx          # Navigation bar
-│   └── flashes.jx      # Flash messages
-├── pages/
-│   └── public/
-│       ├── index.jx
-│       ├── error.jx
-│       └── not_found.jx
-└── form.jx             # Reusable form component
+├── public/
+│   ├── index.jx
+│   ├── error.jx
+│   └── not_found.jx
+├── form.jx             # Reusable <Form> component
+├── flashes.jx          # Flash messages
+└── nav.jx              # Site navigation
 ```
 
 Templates live in the `views/` folder. The catalog is configured automatically at startup with `auto_reload` enabled in debug mode.
@@ -77,7 +53,7 @@ A component declares its props with a `{#def ... #}` comment and receives child 
 
 Components are imported and invoked with an HTML-like tag syntax:
 
-```html+jinja {title="myapp/views/pages/public/index.jx"}
+```html+jinja {title="myapp/views/public/index.jx"}
 {#import "layouts/app.jx" as Layout #}
 
 <Layout title="Hello world!">
@@ -103,7 +79,7 @@ The Jx catalog exposes several globals in every template:
 
 ### Implicit rendering
 
-If a controller action returns `None`, Proper renders the inferred template at `pages/{module}/{action}.jx`. You only need to call `self.render()` explicitly when the template name doesn't match the convention. See [Controllers](./controllers.md) for details.
+If a controller action returns `None`, Proper renders the inferred template at `views/{module}/{action}.jx`. You only need to call `self.render()` explicitly when the template name doesn't match the convention. See [Controllers](./controllers.md) for details.
 
 
 ## Layouts
@@ -212,9 +188,9 @@ Turbo Drive works automatically once the script is loaded. All same-origin link 
 
 ## Flash Messages
 
-The generated `common/flashes.jx` component renders one-time flash messages set during a redirect (see [Controllers — Flash Messages](./controllers.md#61-flash-messages)):
+The generated `flashes.jx` component renders one-time flash messages set during a redirect (see [Controllers — Flash Messages](./controllers.md#61-flash-messages)):
 
-```html+jinja {title="myapp/views/common/flashes.jx"}
+```html+jinja {title="myapp/views/flashes.jx"}
 {% set flashes = current.request.flashes %}
 
 {%- if flashes %}

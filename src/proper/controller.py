@@ -171,13 +171,11 @@ class Controller:
             module = getattr(cls, "__module__", "")
             if not module or module.startswith("proper."):
                 continue
-            tail = module.split(".", 2)[-1]
-            tail = tail.removesuffix("_controller")
-            tail = tail.replace(".", "/")
-            if tail:
-                prefix = f"pages/{tail}"
-                if prefix not in prefixes:
-                    prefixes.append(prefix)
+            prefix = module.split(".", 2)[-1]
+            prefix = prefix.removesuffix("_controller")
+            prefix = prefix.replace(".", "/")
+            if prefix not in prefixes:
+                prefixes.append(prefix)
         return prefixes
 
     def _resolve_view(self, action_name: str) -> str:

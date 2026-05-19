@@ -52,8 +52,6 @@ myapp/                    # Application package
     __init__.py           # Must import all models for migration detection
   views/                  # Jx components
     layouts/              # Base layouts (app.jx, email.jx)
-    pages/                # Page templates, mirroring controller structure
-    common/               # Shared partials (nav, flashes)
     emails/               # Email templates
   forms/                  # Form validation classes
   emails/                 # Email message classes
@@ -519,7 +517,7 @@ The `proper` logger outputs debug information for:
 - Each pipeline step: `[pipeline] GET /path -> step_name`
 - Controller callbacks: `[ControllerName.action] before: callback_name (from ConcernClass)`
 - Callback halts: `[ControllerName.action] halted by before callback: callback_name`
-- Template inference: `[ControllerName.action] rendering inferred template: pages/.../action.jx`
+- Template inference: `[ControllerName.action] rendering inferred template: views/.../action.jx`
 - Errors: `[error] GET /path -> ErrorType: message`
 
 Enable with standard Python logging:
