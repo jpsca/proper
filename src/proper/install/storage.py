@@ -7,6 +7,7 @@ from ..helpers.render import (
     render_blueprint,
     sort_imports_in,
 )
+from .metadata import record_install
 
 
 if t.TYPE_CHECKING:
@@ -38,3 +39,4 @@ def install(app: "App") -> None:
 
     add_dependencies(app.root_path, DEPENDENCIES)
     call('proper db create "storage"')
+    record_install(app, "storage")
