@@ -57,6 +57,15 @@ def attachment_for(
         metadata = JSONField(null=True)
         parent = pw.ForeignKeyField("self", backref="variants", null=True)
         variant_key: str = pw.CharField(64, default="", index=True)  # type: ignore
+        # Where this attachment came from. "direct" = uploaded as part of
+        # a form submission (the historical default). Addons may use other
+        # values to mark uploads with their own lifecycle policy.
+        source: str = pw.CharField(32, default="direct", index=True)  # type: ignore
+        # True when the upload exists but no parent record has confirmed
+        # ownership yet. Addons that pre-upload (e.g. rich-text editors
+        # uploading before form submit) set this to True and a sweep task
+        # purges rows that stay pending past a grace period.
+        pending: bool = pw.BooleanField(default=False)  # type: ignore
 
         # Service-instance cache (was Storage._services). Lives on the class
         # so all instances of this Attachment share lookups.
