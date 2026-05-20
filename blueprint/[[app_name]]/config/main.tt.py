@@ -54,14 +54,6 @@ MAX_FORM_PART_SIZE = 2 * MB
 
 ASSETS_URL = "/assets/"
 
-# Lets browsers resolve JS package names (like "@hotwired/stimulus") to local or CDN files.
-# It allows you to import JS files without needing to process them first with a bundler.
-# The values must be paths relative to `[[ app_name ]]/assets/` or an URL.
-IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo": "js/turbo.js",
-}
-
 # The name of the header to use to return a file
 # so the proxy or web-server does it instead of our application.
 # Lighttpd uses "X-Sendfile" while NGINX uses "X-/Accel-Redirect"
