@@ -3,7 +3,6 @@ __pycache__
 *.py[cod]
 *$py.class
 *.so
-.claude
 
 # Distribution / packaging
 .Python
@@ -11,12 +10,16 @@ __pycache__
 *.egg-info/
 *.log
 .cache
+.claude
 .eggs/
 .env
 .installed.cfg
 .mypy_cache/*
+.pytest_cache/*
+.ruff_cache/*
 .tox
 .venv
+.vscode
 _build/*
 build/
 covreport
@@ -33,3 +36,4 @@ sdist/
 site/*
 var/
 wheels/
+

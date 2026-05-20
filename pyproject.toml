@@ -1,6 +1,8 @@
 [build-system]
 requires = ["setuptools"]
 
+# [tool.uv.sources]
+# writeadoc = { path = "../../writeadoc", editable = true }
 
 [project]
 name = "proper"
@@ -72,10 +74,6 @@ test = [
 docs = [
     "writeadoc>=0.22.0",
 ]
-
-# [tool.uv.sources]
-# writeadoc = { path = "../../writeadoc", editable = true }
-
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -171,16 +169,16 @@ exclude = [
 include = ["*.py"]
 
 [tool.ruff.format]
-# Like Black, use double quotes for strings.
+# Use double quotes for strings.
 quote-style = "double"
 
-# Like Black, indent with spaces, rather than tabs.
+# Indent with spaces, rather than tabs.
 indent-style = "space"
 
-# Like Black, respect magic trailing commas.
+# Respect magic trailing commas.
 skip-magic-trailing-comma = false
 
-# Like Black, automatically detect the appropriate line ending.
+# Automatically detect the appropriate line ending.
 line-ending = "auto"
 
 # Enable auto-formatting of code examples in docstrings. Markdown,
