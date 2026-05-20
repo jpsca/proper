@@ -2,10 +2,8 @@
 
 import pytest
 
-from proper.install import auth
+from proper.install import auth, metadata
 
-
-APP_NAME = "myapp"
 
 # Minimal app_controller.py that add_to_concerns can parse
 APP_CONTROLLER = """\
@@ -23,7 +21,7 @@ class AppController(
 def app_in_tmp(tmp_path, app):
     """Set up a temporary app root with the files that the auth blueprint
     expects to already exist (append/prepend targets and sort_imports_in targets)."""
-    app_root = tmp_path / APP_NAME
+    app_root = tmp_path / "myapp"
 
     # Directories
     for d in (
@@ -48,7 +46,7 @@ def app_in_tmp(tmp_path, app):
     (app_root / "views" / "nav.jx").write_text("<nav></nav>\n")
 
     app.root_path = app_root
-    app.name = APP_NAME
+    app.name = "myapp"
     return app
 
 
@@ -160,3 +158,6 @@ def test_file_creation(app_in_tmp):
     # adds_authentication_concern
     text = (root_path / "controllers" / "app_controller.py").read_text()
     assert "Authentication," in text
+
+    # records the install in .proper
+    assert metadata.is_installed(app_in_tmp, "auth")

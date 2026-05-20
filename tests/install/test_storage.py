@@ -2,17 +2,14 @@
 
 import pytest
 
-from proper.install import storage
-
-
-APP_NAME = "myapp"
+from proper.install import metadata, storage
 
 
 @pytest.fixture()
 def app_in_tmp(tmp_path, app):
     """Set up a temporary app root with the files that the storage blueprint
     expects to already exist."""
-    app_root = tmp_path / APP_NAME
+    app_root = tmp_path / "myapp"
 
     for d in ("config", "controllers", "models"):
         (app_root / d).mkdir(parents=True)
@@ -22,7 +19,7 @@ def app_in_tmp(tmp_path, app):
     (app_root / "models" / "__init__.py").write_text("")
 
     app.root_path = app_root
-    app.name = APP_NAME
+    app.name = "myapp"
     return app
 
 
@@ -71,3 +68,6 @@ def test_file_creation(app_in_tmp):
     # config_has_allowed_inline
     text = (app_in_tmp.root_path / "config" / "storage.py").read_text()
     assert "STORAGE_ALLOWED_INLINE" in text
+
+    # records the install in .proper
+    assert metadata.is_installed(app_in_tmp, "storage")

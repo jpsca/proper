@@ -2,10 +2,8 @@
 
 import pytest
 
-from proper.install import i18n
+from proper.install import i18n, metadata
 
-
-APP_NAME = "myapp"
 
 APP_CONTROLLER = """\
 from proper.controller import Controller
@@ -23,7 +21,7 @@ class AppController(
 def app_in_tmp(tmp_path, app):
     """Set up a temporary app root with the files that the i18n blueprint
     expects to already exist."""
-    app_root = tmp_path / APP_NAME
+    app_root = tmp_path / "myapp"
 
     for d in ("controllers", "config"):
         (app_root / d).mkdir(parents=True)
@@ -31,7 +29,7 @@ def app_in_tmp(tmp_path, app):
     (app_root / "controllers" / "app_controller.py").write_text(APP_CONTROLLER)
 
     app.root_path = app_root
-    app.name = APP_NAME
+    app.name = "myapp"
     return app
 
 
@@ -70,3 +68,6 @@ def test_file_creation(app_in_tmp):
     auth_pos = class_body.index("Authentication,")
     tz_pos = class_body.index("CurrentTimezone,")
     assert tz_pos > auth_pos
+
+    # records the install in .properfrom proper.install import metadata
+    assert metadata.is_installed(app_in_tmp, "i18n")

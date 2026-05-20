@@ -2,6 +2,7 @@ import typing as t
 
 from ..helpers import BLUEPRINTS
 from ..helpers.render import render_blueprint, sort_imports_in
+from .metadata import record_install
 
 
 if t.TYPE_CHECKING:
@@ -25,3 +26,5 @@ def install(app: "App") -> None:
 
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
+
+    record_install(app, "channels")
