@@ -240,7 +240,7 @@ class TestClient:
             if not body_consumed:
                 body_consumed = True
                 return {"type": "http.request", "body": body_bytes, "more_body": False}
-            # Block until disconnect — shouldn't normally be reached
+            # Block until disconnect - shouldn't normally be reached
             await asyncio.Event().wait()
 
         async def send(message):

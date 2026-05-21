@@ -1,4 +1,4 @@
-"""Tests for proper.controller — Controller and StaticFilesController."""
+"""Tests for proper.controller - Controller and StaticFilesController."""
 
 from unittest.mock import MagicMock
 

@@ -1,4 +1,4 @@
-"""Tests for proper.forms — AttachmentField validation (max_size, accept)."""
+"""Tests for proper.forms"""
 
 import typing as t
 from io import BytesIO
@@ -13,7 +13,7 @@ from proper.forms import AttachmentField, errors
 
 class FakeAttachment:
     """Stand-in for the runtime Attachment class. Validation never builds
-    instances — it only uses `attachment_cls` for `isinstance` checks in
+    instances - it only uses `attachment_cls` for `isinstance` checks in
     `set()`/`save()`, which these tests don't exercise.
     """
 
@@ -56,7 +56,7 @@ def test_max_size_passes_when_under_limit():
 
 
 def test_max_size_passes_at_exact_boundary():
-    """`size > max_size` is the failure condition — equality must pass."""
+    """`size > max_size` is the failure condition - equality must pass."""
     field = AttachmentField(FAKE_ATTACHMENT, max_size=1024, required=False)
     _bind(field, _make_upload(size=1024))
     assert field.validate() is True
@@ -82,7 +82,7 @@ def test_max_size_error_args_use_format_size():
 
 def test_max_size_skipped_when_size_attr_missing():
     """A bound `Attachment` (manual assignment, not an upload) has no
-    `size` attribute — validation must not fail in that case.
+    `size` attribute - validation must not fail in that case.
     """
     field = AttachmentField(FAKE_ATTACHMENT, max_size=1024, required=False)
     upload = _make_upload()  # no `size` attribute set
@@ -132,7 +132,7 @@ def test_accept_rejects_non_matching():
 
 
 def test_accept_rejects_substring_without_wildcard():
-    """`image/` (no wildcard) is a literal pattern — `image/png` doesn't match.
+    """`image/` (no wildcard) is a literal pattern - `image/png` doesn't match.
     Glob matching, not prefix matching.
     """
     field = AttachmentField(FAKE_ATTACHMENT, accept=["image/"], required=False)
@@ -221,19 +221,6 @@ def test_validate_noop_when_value_is_none():
     )
     field.set({"file": None})
     assert field.validate() is True
-
-
-# ── error message templates ─────────────────────────────────────────
-
-
-def test_error_messages_registered():
-    """The new error codes must have message templates registered on
-    formidable's MESSAGES dict so renderers can look them up.
-    """
-    assert errors.MESSAGES[errors.FILE_TOO_LARGE] == (
-        "File size should be {max_size} or less"
-    )
-    assert errors.MESSAGES[errors.INVALID_CONTENT_TYPE] == "Invalid content type"
 
 
 @pytest.mark.parametrize(

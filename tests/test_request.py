@@ -1,4 +1,4 @@
-"""Tests for proper.request — Request class, headers, forwarded, utils,
+"""Tests for proper.request - Request class, headers, forwarded, utils,
 and formparser."""
 
 import json
@@ -94,7 +94,7 @@ def _make_disconnect_receive():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# utils.py — make_test_scope
+# utils.py - make_test_scope
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -151,7 +151,7 @@ class TestMakeTestScope:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# headers.py — RequestHeadersMixin (via Request)
+# headers.py - RequestHeadersMixin (via Request)
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -589,7 +589,7 @@ class TestRequestHeaders:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# request.py — Request class
+# request.py - Request class
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -737,7 +737,7 @@ class TestRequest:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# request.py — async methods (_get_stream, _get_body, _parse_body)
+# request.py - async methods (_get_stream, _get_body, _parse_body)
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -885,7 +885,7 @@ class TestRequestAsync:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# formparser.py — standalone functions
+# formparser.py - standalone functions
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -1018,7 +1018,7 @@ class TestParseRequestId:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# formparser.py — MultipartPart
+# formparser.py - MultipartPart
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -1078,7 +1078,7 @@ class TestMultipartPart:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# formparser.py — MultipartParser
+# formparser.py - MultipartParser
 # ═══════════════════════════════════════════════════════════════════
 
 

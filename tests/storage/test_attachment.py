@@ -1,4 +1,4 @@
-"""Tests for proper.storage — Attachment model, services, and variants."""
+"""Tests for proper.storage - Attachment model, services, and variants."""
 
 from io import BytesIO
 from unittest.mock import MagicMock, patch
@@ -71,7 +71,7 @@ def db(Attachment):
 
 
 def test_attachment_for_is_memoized(app):
-    """Repeated calls with the same base must return the *same* class —
+    """Repeated calls with the same base must return the *same* class -
     otherwise SUPPORTED_VARIANT_TYPES extension and the per-class service
     cache split across instances.
     """
@@ -158,7 +158,7 @@ def test_byte_size_default(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Attachment.save — upload on first save
+# Attachment.save - upload on first save
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -174,7 +174,7 @@ def test_second_save_does_not_reupload(Attachment, db):
     att.save(force_insert=True)
     original_size = att.byte_size
     assert original_size == 4
-    # Mutate byte_size and save again — file should not be re-uploaded
+    # Mutate byte_size and save again - file should not be re-uploaded
     att.byte_size = 999
     att.save()
     reloaded = Attachment.get_or_none(Attachment.id == att.id)
@@ -608,7 +608,7 @@ def test_stores_variant_key(Attachment, db):
     parent = Attachment(_make_file(b"img", "photo.jpg"), content_type="image/jpeg")
     parent.save(force_insert=True)
     # The key reflects the resolved save format, which `variant()` injects
-    # into ops before hashing — so we replay the same resolution here.
+    # into ops before hashing - so we replay the same resolution here.
     expected_key = Attachment._variant_key(resize=(100, 100), save={"format": "jpg"})
     transformed = _make_file(b"thumb", "thumb.jpg")
     with patch.object(parent, "transform_image", return_value=transformed):
@@ -687,7 +687,7 @@ def test_variants_lists_children(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Attachment.transform_image / video / pdf — delegate to functions
+# Attachment.transform_image / video / pdf - delegate to functions
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -767,7 +767,7 @@ def test_custom_transform_can_delegate_to_transform_image(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# imageops — sepia and grayscale filters
+# imageops - sepia and grayscale filters
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -893,7 +893,7 @@ def test_purge_variants_on_attachment_with_no_variants(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Storage.purge — later
+# Storage.purge - later
 # ═══════════════════════════════════════════════════════════════════
 
 

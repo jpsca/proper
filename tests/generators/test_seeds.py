@@ -26,7 +26,7 @@ def _read(path):
 
 
 # ---------------------------------------------------------------------------
-# gen_seed — flat layout (default db == "main")
+# gen_seed - flat layout (default db == "main")
 # ---------------------------------------------------------------------------
 
 
@@ -49,7 +49,7 @@ class TestGenSeedFlatLayout:
         gen_seed(app_in_tmp, "roles")
         gen_seed(app_in_tmp, "admin_user")
         init_text = (tmp_path / "db" / "seeds" / "__init__.py").read_text()
-        # Order is preserved — roles imported before admin_user.
+        # Order is preserved - roles imported before admin_user.
         roles_idx = init_text.index("from . import roles")
         admin_idx = init_text.index("from . import admin_user")
         assert roles_idx < admin_idx
@@ -74,7 +74,7 @@ class TestGenSeedFlatLayout:
 
 
 # ---------------------------------------------------------------------------
-# gen_seed — per-database layout (--db != "main")
+# gen_seed - per-database layout (--db != "main")
 # ---------------------------------------------------------------------------
 
 

@@ -256,7 +256,7 @@ def test_db_confignone_entry_passes():
 
 
 def test_db_config_falsy_entry_passes():
-    """Empty dict / 0 / False are all falsy — skipped."""
+    """Empty dict / 0 / False are all falsy - skipped."""
     db.validate_config({"main": {}})
 
 

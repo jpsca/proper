@@ -2,65 +2,15 @@ import typing as t
 from collections.abc import Sequence
 from fnmatch import fnmatch
 
-import formidable
-from formidable.fields import (
-    BooleanField,
-    BoolField,
-    DateField,
-    DateTimeField,
-    EmailField,
-    Field,
-    FileField,
-    FloatField,
-    FormField,
-    IntegerField,
-    ListField,
-    NestedForms,
-    SlugField,
-    TextField,
-    TimeField,
-    URLField,
-)
-from formidable.form import Form
+from formidable.fields import Field
 from markupsafe import Markup
 
-from .helpers import DotDict
-from .i18n.format_size import format_size
+from ..i18n.format_size import format_size
+from . import errors
 
 
 if t.TYPE_CHECKING:
-    from .types import TAttachment
-
-
-__all__ = [
-    "Form",
-    "Field",
-    "BooleanField",
-    "BoolField",
-    "DateField",
-    "DateTimeField",
-    "EmailField",
-    "FileField",
-    "FloatField",
-    "FormField",
-    "IntegerField",
-    "ListField",
-    "NestedForms",
-    "SlugField",
-    "TextField",
-    "TimeField",
-    "URLField",
-    # Proper additions
-    "errors",
-    "AttachmentField",
-]
-
-errors = DotDict(vars(formidable.errors))
-
-errors.FILE_TOO_LARGE = "file_too_large"
-errors.INVALID_CONTENT_TYPE = "invalid_content_type"
-errors.MESSAGES[errors.FILE_TOO_LARGE] = "File size should be {max_size} or less"
-errors.MESSAGES[errors.INVALID_CONTENT_TYPE] = "Invalid content type"
+    from ..types import TAttachment
 
 
 class AttachmentField(Field):
@@ -103,6 +53,7 @@ class AttachmentField(Field):
         messages:
             optional dict of error messages to override the defaults.
     """
+    MESSAGES = errors.MESSAGES
 
     _original: "TAttachment | None" = None
 
@@ -188,18 +139,18 @@ class AttachmentField(Field):
     def save(self) -> "TAttachment | None":
         original = self._original
 
-        # Existing Attachment preserved across an edit — same row, no purge.
+        # Existing Attachment preserved across an edit - same row, no purge.
         if isinstance(self.value, self.attachment_cls):
             return self.value
 
-        # No upload (and possibly explicit purge) — clear the FK and purge
+        # No upload (and possibly explicit purge) - clear the FK and purge
         # the original if there was one.
         if self.value is None:
             if original is not None:
                 original.purge_later()
             return None
 
-        # Fresh upload — build, save, and purge the replaced original.
+        # Fresh upload - build, save, and purge the replaced original.
         attachment = self.attachment_cls(self.value, service_name=self.service_name)
         attachment.save()
         if original is not None:
@@ -265,5 +216,5 @@ class AttachmentField(Field):
             return {}
         if isinstance(reqvalue, dict):
             return dict(reqvalue)
-        # Bare upload — no `_destroy` (or other) channels available.
+        # Bare upload - no `_destroy` (or other) channels available.
         return {"file": reqvalue}

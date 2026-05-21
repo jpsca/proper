@@ -6,8 +6,8 @@ that stream receive it.
 
 Two backends are provided:
 
-- ``Cable`` — in-process only (single worker).
-- ``RedisCable`` — Redis pub/sub (multi-worker).
+- ``Cable`` - in-process only (single worker).
+- ``RedisCable`` - Redis pub/sub (multi-worker).
 """
 import asyncio
 import typing as t

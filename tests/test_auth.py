@@ -1,4 +1,4 @@
-"""Tests for proper.auth — Auth, helpers, token generation & verification."""
+"""Tests for proper.auth - Auth, helpers, token generation & verification."""
 
 from unittest.mock import MagicMock
 

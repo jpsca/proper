@@ -9,7 +9,7 @@ Seeds are small idempotent scripts that put canonical data into a database
 Each seed module exposes:
 
 - ``envs``: a tuple of ``APP_ENV`` values where the seed should run.
-- ``seed()``: the entry point — takes no arguments, returns nothing.
+- ``seed()``: the entry point - takes no arguments, returns nothing.
 
 The runner imports the seeds package, then iterates over its submodules in
 import order (the ``__init__.py`` import order *is* the dependency graph).
@@ -73,8 +73,8 @@ def _resolve_package(db: str) -> str | None:
 
     Resolution order:
 
-    1. ``db/seeds/<db>/__init__.py`` — the per-database layout.
-    2. ``db/seeds/__init__.py`` — the flat single-database layout (only
+    1. ``db/seeds/<db>/__init__.py`` - the per-database layout.
+    2. ``db/seeds/__init__.py`` - the flat single-database layout (only
        used when ``db == "main"``).
     """
     if "db" not in sys.path and "" not in sys.path:

@@ -21,7 +21,7 @@ def _is_local_network(hostname: str) -> bool:
     try:
         addr = ipaddress.ip_address(hostname)
     except ValueError:
-        # Not an IP literal (e.g. "mypc.local") — not trusted
+        # Not an IP literal (e.g. "mypc.local") - not trusted
         return False
     return addr.is_private or addr.is_loopback or addr.is_link_local
 
@@ -72,7 +72,7 @@ class OriginProtection(Concern):
         ):
             return
 
-        # 6 — allow local-network to local-network requests
+        # 6 - allow local-network to local-network requests
         if origin:
             origin_host = urlparse(origin).hostname or ""
             request_host = self.request.host

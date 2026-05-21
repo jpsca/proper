@@ -1,4 +1,4 @@
-"""Tests for proper.install.channels — installs channels blueprint into an app."""
+"""Tests for proper.install.channels - installs channels blueprint into an app."""
 
 import pytest
 

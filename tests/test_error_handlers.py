@@ -1,4 +1,4 @@
-"""Tests for proper.error_handlers — fallback/debug error pages & helpers."""
+"""Tests for proper.error_handlers - fallback/debug error pages & helpers."""
 
 from unittest.mock import MagicMock, PropertyMock, patch
 

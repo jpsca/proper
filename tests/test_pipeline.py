@@ -75,7 +75,7 @@ def client(app):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# UNIT TESTS — individual pipeline functions
+# UNIT TESTS - individual pipeline functions
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -353,7 +353,7 @@ class TestDispatch:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# INTEGRATION TESTS — full pipeline via TestClient
+# INTEGRATION TESTS - full pipeline via TestClient
 # ═══════════════════════════════════════════════════════════════════
 
 

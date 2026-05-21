@@ -1,4 +1,4 @@
-"""Tests for proper.install.auth — installs auth blueprint into an app."""
+"""Tests for proper.install.auth - installs auth blueprint into an app."""
 
 import pytest
 

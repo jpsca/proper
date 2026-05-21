@@ -332,15 +332,15 @@ wheels = [
 
 [[package]]
 name = "formidable"
-version = "0.19.0"
+version = "0.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna" },
     { name = "markupsafe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c0/4f/3ca7aaaeb282da133da92361f051bb37bfc6cba9e0b313c7016c57247735/formidable-0.19.0.tar.gz", hash = "sha256:bdcbb322d8c932b53b2b040fd3b43c44b85f6e4c66f7ce974d4fce492de5c63d", size = 41640, upload-time = "2026-05-08T17:16:36.519Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/4e/244b5be252b04437af225038f0c98bf2083d4d9d20b7e744b6b403f13b89/formidable-0.20.0.tar.gz", hash = "sha256:62feeb8a6f98aee151afe975a6b18273c706a91f373fa2b3201052fbe722f9fa", size = 42505, upload-time = "2026-05-21T14:54:06.889Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/cb/a54d74f5dd6f42ce5ddc9cad2841779b628b6b86eb9741b06c29d470baed/formidable-0.19.0-py3-none-any.whl", hash = "sha256:373d2bcedc6ee306b0a5479e20fa849982fc3b2c87860e6daebc1239c7f6f354", size = 37405, upload-time = "2026-05-08T17:16:37.666Z" },
+    { url = "https://files.pythonhosted.org/packages/55/9b/a3c4077557e468b3f9238f2c47be5e0f4a728f60d1f85bf467b5008fb2a7/formidable-0.20.0-py3-none-any.whl", hash = "sha256:0e137e15fe4c85b319645788f2244e083b5d314fd9682a4f5ce84765cbf1c097", size = 38380, upload-time = "2026-05-21T14:54:05.907Z" },
 ]
 
 [[package]]
@@ -781,7 +781,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "babel", specifier = ">=2.17.0" },
-    { name = "formidable", specifier = ">=0.19" },
+    { name = "formidable", specifier = ">=0.20" },
     { name = "hecto", specifier = ">=2.0.3" },
     { name = "huey", specifier = "~=2.5.2" },
     { name = "inflection", specifier = ">=0.5.1" },

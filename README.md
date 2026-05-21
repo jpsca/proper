@@ -11,7 +11,7 @@ Full human-shaped docs at [properproject.org/docs](https://properproject.org/doc
 
 ## For the press release
 
-> Proper is the Python web framework I built for myself after years in the trade, once I understood that hard conventions do not lock you in — they free you to focus on what's important.
+> Proper is the Python web framework I built for myself after years in the trade, once I understood that hard conventions do not lock you in - they free you to focus on what's important.
 
 (It also works for the back cover of my future biography by Walter Isaacson).
 

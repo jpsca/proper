@@ -10,6 +10,8 @@ Before suggesting removal or simplification of existing configuration (editable 
 
 After creating or updating a python file, run `uv run ruff check --fix ${file} 2>/dev/null || true` to fix any linting errors.
 
+The docstrings are written in Markdown (not reStructuredText).
+
 ## Testing
 
 Always run `uv run pytest` as the test runner command. Do not use `pytest` directly or any other test runner unless explicitly told otherwise.

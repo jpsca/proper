@@ -71,7 +71,7 @@ class TestGetOrSet:
         assert len(called) == 0
 
     def test_race_condition_ttl_in_window(self, cache):
-        """Key about to expire — extends stale and recomputes."""
+        """Key about to expire - extends stale and recomputes."""
         # Set with very short TTL so Redis TTL is low
         cache.set("key", "stale", expires_in=2)
         time.sleep(1)  # let TTL drop into the race window
@@ -83,14 +83,14 @@ class TestGetOrSet:
         assert cache.get("key") == "fresh"
 
     def test_race_condition_ttl_miss(self, cache):
-        """Key fully expired — normal recompute."""
+        """Key fully expired - normal recompute."""
         result = cache.get_or_set(
             "gone", lambda: "new", expires_in=60, race_condition_ttl=10,
         )
         assert result == "new"
 
     def test_race_condition_ttl_not_in_window(self, cache):
-        """Key still valid (TTL well above window) — returns cached."""
+        """Key still valid (TTL well above window) - returns cached."""
         cache.set("key", "valid", expires_in=3600)
         called = []
         result = cache.get_or_set(

@@ -65,7 +65,7 @@ def db(Attachment):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# S3 service — basic operations
+# S3 service - basic operations
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -116,7 +116,7 @@ def test_download_different_files(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# S3 service — key sharding
+# S3 service - key sharding
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -130,7 +130,7 @@ def test_key_uses_id_sharding(app, Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# S3 service — purge
+# S3 service - purge
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -161,7 +161,7 @@ def test_purge_deletes_record(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# S3 service — send_file
+# S3 service - send_file
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -210,7 +210,7 @@ def test_send_file_as_attachment(app, Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# S3 service — round-trip through Attachment model
+# S3 service - round-trip through Attachment model
 # ═══════════════════════════════════════════════════════════════════
 
 

@@ -1,4 +1,4 @@
-"""Tests for proper.response — Response, headers, cookies, flash messages,
+"""Tests for proper.response - Response, headers, cookies, flash messages,
 and file wrapper."""
 
 import io

@@ -208,7 +208,7 @@ class TestBuildRows:
 
 
 # ---------------------------------------------------------------------------
-# gen_model  (integration — renders to tmp filesystem)
+# gen_model  (integration - renders to tmp filesystem)
 # ---------------------------------------------------------------------------
 
 
@@ -256,7 +256,7 @@ class TestGenModel:
 
     def test_no_migration_by_default(self, app_in_tmp):
         gen_model(app_in_tmp, "Product")
-        # No call() invoked — just verify the file was generated
+        # No call() invoked - just verify the file was generated
         text = _model_text(app_in_tmp, "product")
         assert "class Product(BaseModel):" in text
 

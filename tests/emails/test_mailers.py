@@ -68,7 +68,7 @@ class TestBaseMailer:
 
 
 # ---------------------------------------------------------------------------
-# BaseMailer.render — bodies, headers, attachments
+# BaseMailer.render - bodies, headers, attachments
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +160,7 @@ class TestRender:
 
 
 # ---------------------------------------------------------------------------
-# BaseMailer.render — alternatives
+# BaseMailer.render - alternatives
 # ---------------------------------------------------------------------------
 
 
@@ -232,7 +232,7 @@ class TestAlternatives:
 
 
 # ---------------------------------------------------------------------------
-# BaseMailer.render — attachments
+# BaseMailer.render - attachments
 # ---------------------------------------------------------------------------
 
 
@@ -331,7 +331,7 @@ class TestAttachments:
 
 
 # ---------------------------------------------------------------------------
-# BaseMailer.render — IDNA encoding
+# BaseMailer.render - IDNA encoding
 # ---------------------------------------------------------------------------
 
 
@@ -463,7 +463,7 @@ To: to@example.com
 
 
 # ---------------------------------------------------------------------------
-# SMTPMailer — unit tests (mocked SMTP)
+# SMTPMailer - unit tests (mocked SMTP)
 # ---------------------------------------------------------------------------
 
 

@@ -74,7 +74,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
 
         routes = []
         for route in app.routes:
-            method = route.method if route.method else "—"
+            method = route.method if route.method else "-"
             path = route.path
             if route.redirect:
                 to = f"↪ {route.redirect}"

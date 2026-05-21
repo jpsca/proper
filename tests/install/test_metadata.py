@@ -1,4 +1,4 @@
-"""Tests for proper.install.metadata — `.proper` file bookkeeping."""
+"""Tests for proper.install.metadata - `.proper` file bookkeeping."""
 import json
 
 import pytest

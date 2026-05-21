@@ -1,4 +1,4 @@
-"""Tests for WebSocket handling in proper.app — handle_websocket."""
+"""Tests for WebSocket handling in proper.app - handle_websocket."""
 
 import asyncio
 
@@ -403,7 +403,7 @@ class TestProtocolErrors:
         task = await run_ws(app, q)
         accept = await q.client_recv()
         assert accept["type"] == "websocket.accept"
-        # No error message — empty text is silently ignored
+        # No error message - empty text is silently ignored
         await task
 
     @pytest.mark.asyncio
@@ -441,7 +441,7 @@ class TestDisconnectErrorHandling:
         task = await run_ws(app, q)
         await q.client_recv()  # accept
         await q.client_recv()  # confirm
-        # Should not raise — error is logged
+        # Should not raise - error is logged
         await task
 
 

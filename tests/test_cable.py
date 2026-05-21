@@ -1,4 +1,4 @@
-"""Tests for proper.cable — in-process pub/sub backend."""
+"""Tests for proper.cable - in-process pub/sub backend."""
 
 from proper.cable import Cable
 from proper.channel import Channel

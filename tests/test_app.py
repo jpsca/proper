@@ -1,4 +1,4 @@
-"""Minimal end-to-end test — request in, text response out."""
+"""Minimal end-to-end test - request in, text response out."""
 
 import json
 

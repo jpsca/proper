@@ -1,4 +1,4 @@
-"""Tests for proper.channel — Channel base class."""
+"""Tests for proper.channel - Channel base class."""
 
 
 from proper.cable import Cable

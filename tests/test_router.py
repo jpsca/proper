@@ -1,4 +1,4 @@
-"""Tests for proper.router.router — BaseRouter, Router, ScopedRouter."""
+"""Tests for proper.router.router - BaseRouter, Router, ScopedRouter."""
 
 import pytest
 
@@ -16,7 +16,7 @@ from proper.router.router import (
 
 
 # ---------------------------------------------------------------------------
-# Module-level handler classes (qualname = "ClassName.method" — two parts)
+# Module-level handler classes (qualname = "ClassName.method" - two parts)
 # ---------------------------------------------------------------------------
 
 class Handlers:
@@ -457,7 +457,7 @@ class TestUrlFor:
         class User:
             username = "alice"
 
-        # url_for without _full just builds the path — but the host placeholder
+        # url_for without _full just builds the path - but the host placeholder
         # value should still be consumed and not bleed into a query string.
         url = router.url_for("Profile.show", User())
         assert url == "/"
@@ -626,7 +626,7 @@ class TestStatic:
 
 
 # ---------------------------------------------------------------------------
-# BaseRouter.resource — group resource
+# BaseRouter.resource - group resource
 # ---------------------------------------------------------------------------
 
 class TestResourceGroup:
@@ -701,7 +701,7 @@ class TestResourceGroup:
 
 
 # ---------------------------------------------------------------------------
-# BaseRouter.resource — singleton resource (pk=None)
+# BaseRouter.resource - singleton resource (pk=None)
 # ---------------------------------------------------------------------------
 
 class TestResourceSingleton:

@@ -1,4 +1,4 @@
-"""Tests for proper.install.storage — installs storage blueprint into an app."""
+"""Tests for proper.install.storage - installs storage blueprint into an app."""
 
 import pytest
 
@@ -34,7 +34,7 @@ def test_file_creation(app_in_tmp):
     path = app_in_tmp.root_path / "models" / "attachment.py"
     assert path.exists()
 
-    # main.py is left alone — the new shape doesn't need an app.storage alias
+    # main.py is left alone - the new shape doesn't need an app.storage alias
     text = (app_in_tmp.root_path / "main.py").read_text()
     assert "storage = app.storage" not in text
 

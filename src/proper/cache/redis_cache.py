@@ -58,7 +58,7 @@ class RedisCache(BaseCache):
             remaining = self.client.ttl(key)
             if remaining < 0 or remaining > race_condition_ttl:
                 return self.deserialize(data)
-            # In race window — extend stale entry for other callers
+            # In race window - extend stale entry for other callers
             self.client.expire(key, race_condition_ttl)
 
         if callable(default):

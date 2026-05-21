@@ -1,4 +1,4 @@
-"""Tests for error handling in proper.app — App error handler dispatch."""
+"""Tests for error handling in proper.app - App error handler dispatch."""
 
 from unittest.mock import MagicMock, patch
 
@@ -384,7 +384,7 @@ class TestEventDecorators:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Integration — do_request / _run_pipeline error flow
+# Integration - do_request / _run_pipeline error flow
 # ═══════════════════════════════════════════════════════════════════
 
 

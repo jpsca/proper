@@ -5,7 +5,38 @@ from collections.abc import Callable
 import peewee as pw
 
 from .global_context import current
+from .helpers import jsonplus
 from .units import MINUTES
+
+
+__all__ = (
+    "JSONField",
+    "ScopedSelect",
+    "scope",
+    "ProperModel",
+)
+
+
+class JSONField(pw.TextField):
+    """A TextField-based Peewee field that transparently
+    serializes/deserializes JSON data."""
+    field_type = "JSON"
+
+    def db_value(self, value):
+        if value is not None:
+            return jsonplus.dumps(
+                value,
+                ensure_ascii=getattr(
+                    self.model._meta.database, "json_ensure_ascii", True
+                ),
+                indent=2
+                if getattr(self.model._meta.database, "json_use_detailed", False)
+                else 0,
+            )
+
+    def python_value(self, value):
+        if value is not None:
+            return jsonplus.loads(value)
 
 
 class ScopedSelect(pw.ModelSelect):
@@ -33,7 +64,7 @@ class ScopedSelect(pw.ModelSelect):
 
         val = super().__getattribute__(name)
 
-        # Not callable, or is private/class — return as-is
+        # Not callable, or is private/class - return as-is
         if name.startswith("_") or not callable(val) or isinstance(val, type):
             return val
 
@@ -91,7 +122,7 @@ class ProperModel(pw.Model):
 
         Verifies the signature and expiration, loads the record by its
         primary key, and checks that the fingerprint still matches. Returns
-        None if any step fails — expired, tampered, record missing, or
+        None if any step fails - expired, tampered, record missing, or
         fingerprint mismatch.
 
         Arguments:
@@ -176,7 +207,7 @@ class ProperModel(pw.Model):
                 the token is treated as revoked.
 
                 The return value must be JSON-serializable (str, int, etc.) and
-                must be deterministic for a given model state — i.e., calling it
+                must be deterministic for a given model state - i.e., calling it
                 twice on the same unchanged record must return the same result.
 
                 It should NOT contain sensitive data, as the token payload is

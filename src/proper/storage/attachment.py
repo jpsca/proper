@@ -11,7 +11,7 @@ from inflection import parameterize
 
 from ..errors import StorageConfigError
 from ..global_context import current
-from ..helpers import JSONField
+from ..models import JSONField
 from ..units import YEAR
 from .imageops import transform_image
 from .services import Service
@@ -36,14 +36,14 @@ def attachment_for(
 
     Inheriting from `base_model_cls` rather than `ProperModel` directly is what
     lets the consumer's database binding propagate without a separate `Meta`
-    declaration on the user-facing class — peewee's metaclass takes `_meta`
+    declaration on the user-facing class - peewee's metaclass takes `_meta`
     from the leftmost peewee-Model base.
     """
 
     class Attachment(base_model_cls):  # type: ignore
         # No `default=uuid4`: peewee evaluates field defaults at __init__,
         # which would populate `id` before persistence. That makes
-        # `att.id` look real on an unsaved instance — and silently breaks
+        # `att.id` look real on an unsaved instance - and silently breaks
         # FK assignment (`book.cover = Attachment(buf)` without saving
         # would write a UUID pointing at no row). Generate the id in
         # `save()` instead so `att.id is None` truthfully signals
@@ -92,7 +92,7 @@ def attachment_for(
             **kwargs,
         ) -> None:
             if upload is None:
-                # Loading from DB — forward all field values to peewee
+                # Loading from DB - forward all field values to peewee
                 for key, val in [
                     ("service_name", service_name),
                     ("filename", filename),
@@ -142,7 +142,7 @@ def attachment_for(
         def save(self, force_insert: bool = False, only: "Iterable | None" = None):
             if self._upload:
                 # Fresh instance: generate the PK now (the field intentionally
-                # has no `default=uuid4` so `att.id` is None until this point —
+                # has no `default=uuid4` so `att.id` is None until this point -
                 # see the field declaration above for rationale).
                 if not self.id:
                     self.id = uuid4()
@@ -333,7 +333,7 @@ def attachment_for(
 
         # ── purge-later helpers ─────────────────────────────────────────
         # These are wrapped as Huey tasks below (after the class body) so
-        # registration happens in every process that imports this module —
+        # registration happens in every process that imports this module -
         # web AND worker share the same TASK_REGISTRY entry. Wrapping at
         # call time would only register in the calling process, leaving the
         # worker unable to dispatch the message. The task takes just the
@@ -355,7 +355,7 @@ def attachment_for(
 
     # Namespace task names by the base class so multiple Attachment classes
     # (e.g. distinct bases on the same app) don't collide in Huey's registry.
-    # The name must be deterministic — web and worker derive the same string
+    # The name must be deterministic - web and worker derive the same string
     # from the same `base_model_cls`, so messages dispatched in one process
     # resolve in the other.
     task_ns = f"{base_model_cls.__module__}.{base_model_cls.__qualname__}"

@@ -18,7 +18,6 @@ from .imports import (  # noqa
     import_string,
     secure_filename,
 )
-from .json_field import JSONField  # noqa
 from .multidict import MultiDict  # noqa
 from .render import (  # noqa
     add_dependencies,

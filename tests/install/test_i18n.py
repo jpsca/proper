@@ -1,4 +1,4 @@
-"""Tests for proper.install.i18n — installs i18n blueprint into an app."""
+"""Tests for proper.install.i18n - installs i18n blueprint into an app."""
 
 import pytest
 

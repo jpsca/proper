@@ -74,13 +74,13 @@ permanent_redirect = 308
 # Bad Request
 bad_request = 400
 
-# Unauthorized — means "not authenticated"
+# Unauthorized - means "not authenticated"
 unauthorized = 401
 
 # Payment Required
 payment_required = 402
 
-# Forbidden — means "not authorized"
+# Forbidden - means "not authorized"
 forbidden = 403
 
 # Not Found

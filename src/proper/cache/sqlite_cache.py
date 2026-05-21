@@ -116,7 +116,7 @@ class SqliteCache(BaseCache):
                     return self.deserialize(row.value)
 
                 if race_condition_ttl and curr_time < row.expires_at + race_condition_ttl:
-                    # Expired but within race window — extend stale entry
+                    # Expired but within race window - extend stale entry
                     # so other callers return the old value while we recompute.
                     Cache.update(expires_at=curr_time + race_condition_ttl).where(
                         Cache.key == key

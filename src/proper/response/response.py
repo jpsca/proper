@@ -280,7 +280,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         elif isinstance(body, (bytes, bytearray, memoryview)):
             body_out = bytes(body)
         else:
-            # Iterable (e.g. FileWrapper) — pass through for streaming.
+            # Iterable (e.g. FileWrapper) - pass through for streaming.
             # Content-Length should already be set by the caller (e.g. send_file).
             body_out = body
 

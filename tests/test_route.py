@@ -1,4 +1,4 @@
-"""Tests for proper.router.route — Route, StaticRoute, and path compilation."""
+"""Tests for proper.router.route - Route, StaticRoute, and path compilation."""
 
 import re
 

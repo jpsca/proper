@@ -127,7 +127,7 @@ def parse_options_header(
 
     content_type, raw_options = _pm_parse_options_header(header)
 
-    # python-multipart returns bytes keys/values — normalize to str.
+    # python-multipart returns bytes keys/values - normalize to str.
     result: dict[str, str] = options or {}
     for key, value in raw_options.items():
         k = key.decode("latin-1") if isinstance(key, bytes) else str(key)
@@ -289,7 +289,7 @@ class MultipartParser:
         message_bytes = data[start:end]
         part = self._current_part
         if part.file is None:
-            # Still accumulating headers — shouldn't happen after on_headers_finished,
+            # Still accumulating headers - shouldn't happen after on_headers_finished,
             # but guard against it.
             return
         if part.filename is None:

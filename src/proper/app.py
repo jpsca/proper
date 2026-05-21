@@ -240,7 +240,7 @@ class App(AppWs):
 
         The returned class carries all of the storage behavior (URLs, signed
         tokens, variants, purge, lookups) while inheriting `_meta.database`
-        from `base_model_cls` — no separate `Meta` declaration needed on the
+        from `base_model_cls` - no separate `Meta` declaration needed on the
         consumer's class.
 
         Calls are memoized per-`(app, base_model_cls)` so repeated invocations

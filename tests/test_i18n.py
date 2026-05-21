@@ -1,4 +1,4 @@
-"""Tests for proper.i18n — Reader, I18n, plural_rules, and BabelMixin."""
+"""Tests for proper.i18n - Reader, I18n, plural_rules, and BabelMixin."""
 import datetime
 
 import pytest
@@ -129,7 +129,7 @@ def test_load_from_subdirectories(tmp_path):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — init and properties
+# I18n - init and properties
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -168,7 +168,7 @@ def test_callable_shortcut(i18n):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — translate
+# I18n - translate
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -216,7 +216,7 @@ def test_locale_not_found_raises(i18n):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — pluralization
+# I18n - pluralization
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -267,7 +267,7 @@ def test_exact_count_key():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — territory fallback
+# I18n - territory fallback
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -290,7 +290,7 @@ def test_base_locale_unaffected(locale_dir_territory):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — negotiate_locale
+# I18n - negotiate_locale
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -307,7 +307,7 @@ def test_returns_first_match(i18n):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — test_for_incomplete_locales
+# I18n - test_for_incomplete_locales
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -330,7 +330,7 @@ def test_no_missing_when_identical(tmp_path):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# I18n — lazy_translate
+# I18n - lazy_translate
 # ═══════════════════════════════════════════════════════════════════
 
 
