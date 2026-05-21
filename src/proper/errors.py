@@ -62,10 +62,6 @@ class TranslationsNotFound(Exception):
         super().__init__(msg)
 
 
-class RichTextValidationError(ValueError):
-    """The given rich text document contains unknown node or mark types."""
-
-
 class HTTPError(Exception):
     """A generic HTTP error.
 
