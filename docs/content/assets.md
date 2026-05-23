@@ -166,8 +166,8 @@ Set `IMPORT_MAP` in your config to a dict of `bare-name -> file-or-URL`:
 ```python
 # config/main.py
 IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo":    "js/turbo.js",
+    "@hotwired/stimulus": "js/vendor/stimulus.js",
+    "@hotwired/turbo":    "js/vendor/turbo.js",
 }
 ```
 
@@ -201,7 +201,7 @@ The generated base layout calls `render_importmap()`:
   ...
   {{ render_importmap() }}
 
-  <script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+  <script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
   <script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
 </head>
 ```
@@ -229,8 +229,8 @@ For a library you don't want to vendor, point an entry at its URL:
 
 ```python
 IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo":    "js/turbo.js",
+    "@hotwired/stimulus": "js/vendor/stimulus.js",
+    "@hotwired/turbo":    "js/vendor/turbo.js",
     "lodash-es":          "https://esm.sh/lodash-es@4.17.21",
 }
 ```

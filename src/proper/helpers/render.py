@@ -32,6 +32,10 @@ def call(cmd: str) -> None:
     os.system(cmd)
 
 
+def echo(cmd: str, msg: str) -> None:
+    printf(cmd, msg, color=COLORS.LIGHT_MAGENTA)
+
+
 def add_dependencies(root_path: Path, dependencies: list[str]):
     root_path = root_path.parent
     cmd = "pip install"

@@ -333,13 +333,23 @@ def test_different_services_are_independent(Attachment):
 # ═══════════════════════════════════════════════════════════════════
 
 
-def test_url_for_private(app, Attachment, db):
+def test_url_for_private_defaults_to_redirect(app, Attachment, db):
     att = Attachment(_make_file(b"x", "f.txt"))
     att.save(force_insert=True)
     with patch.object(app, "url_for", return_value="/att/signed") as mock:
         url = att.url
     assert url == "/att/signed"
-    assert mock.call_args[0][0] == "Attachment.show"
+    assert mock.call_args[0][0] == "AttachmentRedirect.show"
+    assert "token" in mock.call_args[1]
+
+
+def test_url_proxy_private(app, Attachment, db):
+    att = Attachment(_make_file(b"x", "f.txt"))
+    att.save(force_insert=True)
+    with patch.object(app, "url_for", return_value="/att/proxied") as mock:
+        url = att.url_proxy
+    assert url == "/att/proxied"
+    assert mock.call_args[0][0] == "AttachmentProxy.show"
     assert "token" in mock.call_args[1]
 
 
@@ -349,6 +359,16 @@ def test_url_for_public(app, Attachment, db):
     with patch.object(app, "url_for", return_value="/pub/123") as mock:
         url = att.url
     assert url == "/pub/123"
+    mock.assert_called_once_with("PublicAttachment.show", pk=att.id)
+
+
+def test_url_proxy_public_uses_same_route(app, Attachment, db):
+    """Public attachments don't proxy/redirect — both URL flavors resolve
+    to `PublicAttachment.show`."""
+    att = Attachment(_make_file(b"x", "f.txt"), service_name="public")
+    att.save(force_insert=True)
+    with patch.object(app, "url_for", return_value="/pub/123") as mock:
+        att.url_proxy
     mock.assert_called_once_with("PublicAttachment.show", pk=att.id)
 
 

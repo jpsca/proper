@@ -3,8 +3,10 @@ import typing as t
 
 try:
     import boto3
+    from botocore.client import Config as BotoConfig
 except ImportError:
     boto3 = None  # type: ignore
+    BotoConfig = None  # type: ignore
 
 from .service import Service
 
@@ -15,16 +17,28 @@ if t.TYPE_CHECKING:
 
 
 class S3(Service):
+    # Short enough that a leaked URL has limited blast radius; long enough
+    # for the browser to fetch a large object on a slow connection. Tunable
+    # per-service via the `url_expires_in` config key.
+    DEFAULT_URL_EXPIRES_IN = 300
+
     def __init__(self, app: "App", **config: t.Any) -> None:
         if boto3 is None:
             raise ImportError("boto3 is required to use the S3 storage service.")
         self.bucket_name = config.pop("bucket")
+        self.url_expires_in = int(
+            config.pop("url_expires_in", self.DEFAULT_URL_EXPIRES_IN)
+        )
         self.client = boto3.client(
             "s3",
             region_name=config.pop("region", None),
             endpoint_url=config.pop("endpoint", None),
             aws_access_key_id=config.pop("access_key_id", None),
             aws_secret_access_key=config.pop("secret_access_key", None),
+            # Force SigV4 — required by AWS in newer regions, supported
+            # everywhere else. Without this, `generate_presigned_url`
+            # falls back to SigV2 against custom endpoints (MinIO, etc.).
+            config=BotoConfig(signature_version="s3v4"),
         )
         super().__init__(app, **config)
 
@@ -71,4 +85,30 @@ class S3(Service):
         self.client.delete_object(
             Bucket=self.bucket_name,
             Key=self._get_key(obj),
+        )
+
+    def service_url(
+        self, obj: "TAttachment", *, as_attachment: bool = False
+    ) -> str:
+        """A short-lived presigned GET URL for the object.
+
+        We override the `Content-Disposition` and `Content-Type` headers
+        of the redirected response via S3's `response-content-disposition`
+        / `response-content-type` query params so the browser sees our
+        chosen filename and the original mimetype — not the bare key the
+        object was stored under.
+        """
+        disposition = "attachment" if as_attachment else "inline"
+        filename = obj.filename or str(obj.id)
+        return self.client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": self._get_key(obj),
+                "ResponseContentDisposition": (
+                    f'{disposition}; filename="{filename}"'
+                ),
+                "ResponseContentType": obj.content_type,
+            },
+            ExpiresIn=self.url_expires_in,
         )

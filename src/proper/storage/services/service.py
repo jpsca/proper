@@ -26,3 +26,16 @@ class Service:
 
     def purge(self, obj: "TAttachment") -> None:
         raise NotImplementedError
+
+    def service_url(
+        self, obj: "TAttachment", *, as_attachment: bool = False
+    ) -> "str | None":
+        """A URL the client can be redirected to to fetch the bytes directly
+        from the underlying storage (e.g. a presigned S3 link). Override on
+        remote services where this is cheaper than streaming through the
+        app.
+
+        Returning `None` is fine: the redirect controller falls back to the
+        proxy path so URLs always work regardless of service support.
+        """
+        return None

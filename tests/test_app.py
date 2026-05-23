@@ -177,6 +177,6 @@ def test_render_importmap_custom_entries_override_defaults():
 def test_import_map_default_config():
     config = load_config({"SECRET_KEYS": ["*" * 50]})
     assert config.IMPORT_MAP == {
-        "@hotwired/stimulus": "js/stimulus.js",
-        "@hotwired/turbo": "js/turbo.js",
+        "@hotwired/stimulus": "js/vendor/stimulus.js",
+        "@hotwired/turbo": "js/vendor/turbo.js",
     }

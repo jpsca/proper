@@ -4,6 +4,7 @@ from ..helpers import BLUEPRINTS
 from ..helpers.render import (
     add_dependencies,
     call,
+    echo,
     render_blueprint,
     sort_imports_in,
 )
@@ -28,6 +29,8 @@ DEPENDENCIES = [
 
 def install(app: "App") -> None:
     """Install storage support."""
+    echo("install", "Storage addon")
+
     render_blueprint(
         STORAGE_BLUEPRINT,
         app.root_path.parent,

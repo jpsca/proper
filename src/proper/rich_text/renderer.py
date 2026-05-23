@@ -1,184 +1,50 @@
-"""AST → HTML walker.
+"""Server-side rendering of stored rich text HTML.
 
-The walker only knows about *structural* nodes - paragraphs, headings,
-lists, marks, and so on. For `attachment` nodes it delegates to an
-`attachment_renderer` callable, which is expected to look up the
-referenced `Attachment` and return ready-to-emit HTML (typically by
-rendering a Jx component). Keeping that boundary explicit lets the
-framework own structural HTML while the user owns the visual
-presentation of embeds.
+The editor (Lexxy) emits HTML directly, so the framework no longer needs
+a structural walker — paragraphs, headings, lists, links and inline
+marks ship from the client already formed. The one piece the server owns
+is the attachment expansion: each `<proper-attachment sgid="..."></proper-attachment>`
+tag is a placeholder that must be replaced by the rendered
+`rich_text_attachment.jx` partial for the referenced `Attachment` row.
 
-Text content is HTML-escaped. Link `href` attributes are sanitized
-against an allowlist of safe URL schemes; an unsafe scheme drops the
-link mark (the inner text still renders, without the `<a>` wrapper).
+`replace_attachments(html, resolver)` is the entry point. The resolver
+is called with the parsed attribute dict of each tag and returns the
+HTML to substitute. If the resolver returns an empty string, the tag is
+dropped entirely (useful when the referenced attachment no longer exists).
 """
-import typing as t
+import re
 from collections.abc import Callable
 
-from markupsafe import escape
+
+AttachmentRenderer = Callable[[dict[str, str]], str]
 
 
-AttachmentRenderer = Callable[[dict], str]
+# TODO: server-side HTML sanitization. The HTML arrives pre-formatted from
+# Lexxy; before production we should pass it through nh3/bleach with an
+# allowlist that includes `<proper-attachment>` + every tag Lexxy emits.
+_ATTACHMENT_TAG_RE = re.compile(
+    r"<proper-attachment\b([^>]*)>(.*?)</proper-attachment>",
+    re.IGNORECASE | re.DOTALL,
+)
+_ATTR_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*"([^"]*)"')
 
 
-SAFE_LINK_SCHEMES = ("http://", "https://", "mailto:", "tel:")
-
-
-def render(
-    ast: dict,
-    *,
+def replace_attachments(
+    html: str,
     attachment_renderer: AttachmentRenderer | None = None,
 ) -> str:
-    """Render an AST to an HTML string.
-
-    `attachment_renderer` is called with each attachment node and must
-    return the HTML for that embed. If `None`, attachment nodes render
-    as empty strings.
+    """Return `html` with each `<proper-attachment>` tag substituted by
+    the output of `attachment_renderer(attrs)`. If the renderer is
+    `None`, tags collapse to empty strings.
     """
-    return _render_node(ast, attachment_renderer)
-
-
-def _render_node(
-    node: t.Any,
-    attachment_renderer: AttachmentRenderer | None,
-) -> str:
-    if not isinstance(node, dict):
+    if not isinstance(html, str) or not html:
         return ""
 
-    node_type = node.get("type", "")
-    handler = _BLOCK_HANDLERS.get(node_type)
-    if handler is not None:
-        return handler(node, attachment_renderer)
+    if attachment_renderer is None:
+        return _ATTACHMENT_TAG_RE.sub("", html)
 
-    if node_type == "text":
-        return _render_text(node)
+    def _sub(match: re.Match[str]) -> str:
+        attrs = {name.lower(): value for name, value in _ATTR_RE.findall(match.group(1))}
+        return attachment_renderer(attrs) or ""
 
-    if node_type == "attachment":
-        if attachment_renderer is None:
-            return ""
-        return attachment_renderer(node)
-
-    # Unknown node type: render nothing. Children are not walked, on the
-    # principle that we don't know what the unknown wrapper means
-    # semantically - emitting orphaned children could produce nonsense.
-    return ""
-
-
-# ── block / structural nodes ────────────────────────────────────────
-
-
-def _render_doc(node, attachment_renderer):
-    return _render_children(node, attachment_renderer)
-
-
-def _render_paragraph(node, attachment_renderer):
-    inner = _render_children(node, attachment_renderer)
-    return f"<p>{inner}</p>"
-
-
-def _render_heading(node, attachment_renderer):
-    attrs = node.get("attrs") or {}
-    level = attrs.get("level", 1)
-    if not isinstance(level, int) or level < 1 or level > 6:
-        level = 1
-    inner = _render_children(node, attachment_renderer)
-    return f"<h{level}>{inner}</h{level}>"
-
-
-def _render_blockquote(node, attachment_renderer):
-    inner = _render_children(node, attachment_renderer)
-    return f"<blockquote>{inner}</blockquote>"
-
-
-def _render_code_block(node, attachment_renderer):
-    inner = _render_children(node, attachment_renderer)
-    attrs = node.get("attrs") or {}
-    lang = attrs.get("language")
-    if lang:
-        return f'<pre><code class="language-{escape(lang)}">{inner}</code></pre>'
-    return f"<pre><code>{inner}</code></pre>"
-
-
-def _render_bullet_list(node, attachment_renderer):
-    inner = _render_children(node, attachment_renderer)
-    return f"<ul>{inner}</ul>"
-
-
-def _render_ordered_list(node, attachment_renderer):
-    inner = _render_children(node, attachment_renderer)
-    return f"<ol>{inner}</ol>"
-
-
-def _render_list_item(node, attachment_renderer):
-    inner = _render_children(node, attachment_renderer)
-    return f"<li>{inner}</li>"
-
-
-def _render_horizontal_rule(node, attachment_renderer):
-    return "<hr>"
-
-
-def _render_hard_break(node, attachment_renderer):
-    return "<br>"
-
-
-_BLOCK_HANDLERS: dict[str, Callable[[dict, AttachmentRenderer | None], str]] = {
-    "doc": _render_doc,
-    "paragraph": _render_paragraph,
-    "heading": _render_heading,
-    "blockquote": _render_blockquote,
-    "code_block": _render_code_block,
-    "bullet_list": _render_bullet_list,
-    "ordered_list": _render_ordered_list,
-    "list_item": _render_list_item,
-    "horizontal_rule": _render_horizontal_rule,
-    "hard_break": _render_hard_break,
-}
-
-
-def _render_children(
-    node: dict,
-    attachment_renderer: AttachmentRenderer | None,
-) -> str:
-    return "".join(
-        _render_node(child, attachment_renderer)
-        for child in node.get("content") or ()
-    )
-
-
-# ── text + marks ────────────────────────────────────────────────────
-
-
-def _render_text(node: dict) -> str:
-    text = escape(node.get("text", ""))
-    for mark in node.get("marks") or ():
-        text = _apply_mark(mark, text)
-    return str(text)
-
-
-def _apply_mark(mark: dict, text: str) -> str:
-    mark_type = mark.get("type")
-
-    if mark_type == "bold":
-        return f"<strong>{text}</strong>"
-    if mark_type == "italic":
-        return f"<em>{text}</em>"
-    if mark_type == "strike":
-        return f"<s>{text}</s>"
-    if mark_type == "code":
-        return f"<code>{text}</code>"
-    if mark_type == "link":
-        href = (mark.get("attrs") or {}).get("href", "")
-        if not _is_safe_href(href):
-            return text
-        return f'<a href="{escape(href)}">{text}</a>'
-
-    # Unknown mark: drop it, keep the text content.
-    return text
-
-
-def _is_safe_href(href: t.Any) -> bool:
-    if not isinstance(href, str):
-        return False
-    lowered = href.lower()
-    return any(lowered.startswith(scheme) for scheme in SAFE_LINK_SCHEMES)
+    return _ATTACHMENT_TAG_RE.sub(_sub, html)

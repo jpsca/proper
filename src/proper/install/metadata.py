@@ -1,6 +1,6 @@
 """File-based tracking of installed Proper addons.
 
-Stores a JSON document at ``app.root_path / ".proper"``:
+Stores a JSON document at `app.root_path / ".proper"`:
 
     {
       "addons": {
@@ -31,7 +31,7 @@ def _current_version() -> str:
 
 
 def metadata_path(app: "App") -> Path:
-    return app.root_path / METADATA_FILENAME
+    return app.root_path.parent / METADATA_FILENAME
 
 
 def load_metadata(app: "App") -> dict:
@@ -57,7 +57,7 @@ def record_install(
     """Upsert the addon's install record in the metadata file.
 
     Re-recording the same addon updates its entry rather than duplicating.
-    If ``version`` is not provided, the current Proper version is used.
+    If `version` is not provided, the current Proper version is used.
     """
     if version is None:
         version = _current_version()

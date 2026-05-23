@@ -1,0 +1,39 @@
+{#def attachment, alt=None, caption=None #}
+
+{# Default renderer for an `attachment` node inside a Rich Text Document.
+
+   The framework hands us the resolved `Attachment` row plus the per-embed
+   `alt` and `caption` text from the AST. We dispatch on content type:
+
+   - Images: render as `<figure>` with a resized variant (max 1600x1600).
+     Edit the `attachment.variant(...)` call to taste — different limits,
+     different formats, lightbox wrappers, lazy-loading attributes, etc.
+   - PDFs: a labelled link that opens in a new tab.
+   - Anything else: a plain download link.
+
+   Replace this file freely. The Python AST renderer only knows it should
+   route every `attachment` node through here; the visual layout is yours.
+#}
+
+{% if attachment.content_type.startswith("image/") %}
+  {% set variant = attachment.variant(resize_to_fit=(1600, 1600, {"size": "down"})) %}
+  <figure class="rich-text-image">
+    <img src="{{ variant.url }}"
+         alt="{{ alt or '' }}"
+         loading="lazy">
+    {% if caption %}<figcaption>{{ caption }}</figcaption>{% endif %}
+  </figure>
+{% elif attachment.content_type == "application/pdf" %}
+  <a href="{{ attachment.url }}"
+     class="rich-text-pdf"
+     target="_blank"
+     rel="noopener">
+    {{ attachment.filename }}
+  </a>
+{% else %}
+  <a href="{{ attachment.url }}"
+     class="rich-text-file"
+     download>
+    {{ attachment.filename }}
+  </a>
+{% endif %}

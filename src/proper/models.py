@@ -20,23 +20,28 @@ __all__ = (
 class JSONField(pw.TextField):
     """A TextField-based Peewee field that transparently
     serializes/deserializes JSON data."""
+
     field_type = "JSON"
 
-    def db_value(self, value):
-        if value is not None:
-            return jsonplus.dumps(
-                value,
-                ensure_ascii=getattr(
-                    self.model._meta.database, "json_ensure_ascii", True
-                ),
-                indent=2
-                if getattr(self.model._meta.database, "json_use_detailed", False)
-                else 0,
-            )
+    def db_value(self, value: dict | list | None) -> str | None:
+        if value is None:
+            return None
 
-    def python_value(self, value):
-        if value is not None:
+        ensure_ascii = getattr(self.model._meta.database, "json_ensure_ascii", True)
+        if getattr(self.model._meta.database, "json_use_detailed", False):
+            indent = 2
+        else:
+            indent = 0
+
+        return jsonplus.dumps(value, ensure_ascii=ensure_ascii, indent=indent)
+
+    def python_value(self, value) -> dict[str, t.Any] | list[t.Any] | None:
+        if value is None:
+            return None
+        try:
             return jsonplus.loads(value)
+        except jsonplus.JSONDecodeError:
+            return None
 
 
 class ScopedSelect(pw.ModelSelect):
@@ -116,7 +121,7 @@ class ProperModel(pw.Model):
         fingerprint: Callable = (lambda x: None),
         *,
         max_age: int = 15 * MINUTES,
-        salt: str | None = None
+        salt: str | None = None,
     ) -> t.Any:
         """Resolve a token back into a model instance.
 
@@ -243,5 +248,3 @@ class ProperModel(pw.Model):
         fp_value = getattr(self, f"generate_token_for_{name}")()
         payload = {"id": str(self.get_id()), "fp": fp_value}
         return current.app.dumps(payload, salt=name)
-
-

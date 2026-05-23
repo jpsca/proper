@@ -6,6 +6,7 @@ from . import (  # noqa
     errors,
     forms,
     helpers,
+    rich_text,
     router,
     status,
     types,

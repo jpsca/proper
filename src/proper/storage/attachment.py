@@ -158,9 +158,33 @@ def attachment_for(
 
         @property
         def url(self) -> str:
+            """The URL for this attachment. Alias of `url_redirect` — the
+            cheap path when the underlying service supports it, falling
+            back to streaming via the app.
+            """
+            return self.url_redirect
+
+        @property
+        def url_redirect(self) -> str:
+            """Routes via `AttachmentRedirectController`, which 302s to the
+            service's native URL when available (e.g. presigned S3 link) and
+            otherwise streams the bytes."""
             if self._service.public:
                 return app.url_for("PublicAttachment.show", pk=self.id)
-            return app.url_for("Attachment.show", token=self.generate_token())
+            return app.url_for(
+                "AttachmentRedirect.show", token=self.generate_token()
+            )
+
+        @property
+        def url_proxy(self) -> str:
+            """Routes via `AttachmentProxyController`, which always streams
+            the bytes through the app. Use when you need a stable URL under
+            your own domain (CDN cache, app-controlled headers)."""
+            if self._service.public:
+                return app.url_for("PublicAttachment.show", pk=self.id)
+            return app.url_for(
+                "AttachmentProxy.show", token=self.generate_token()
+            )
 
         def send_file(self) -> None:
             inline = self._is_inline_content_type(self.content_type)
@@ -230,7 +254,7 @@ def attachment_for(
             # and fall back to STORAGE_FALLBACK_FORMAT for everything else.
             save = dict(ops.get("save") or {})
             save.setdefault("format", self._default_variant_format())
-            ops = {**ops, "save": save}
+            ops = {**ops, "save": save.copy()}
 
             key = self._variant_key(**ops)
             existing = self.__class__.get_or_none(

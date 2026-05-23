@@ -1,6 +1,4 @@
-/*
-Add/Remove nested form rows dynamically.
-Copyright © 2026 JPScaletti, MIT License
+/* Add/Remove nested form rows dynamically.
 
 Usage:
 

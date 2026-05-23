@@ -40,7 +40,7 @@ def purge_abandoned_uploads(
             How long an unconfirmed upload may live before it counts as
             abandoned. Defaults to 24h.
     """
-    cutoff = pw.utcnow() - timedelta(hours=grace_hours)
+    cutoff = pw.utcnow() - timedelta(hours=grace_hours)  # type: ignore
     cls = attachment_cls
     rows = cls.select().where(
         (cls.source == "rich_text")

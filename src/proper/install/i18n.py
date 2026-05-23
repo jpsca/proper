@@ -4,6 +4,7 @@ from ..helpers import BLUEPRINTS
 from ..helpers.render import (
     add_dependencies,
     add_to_concerns,
+    echo,
     render_blueprint,
     sort_imports_in,
 )
@@ -27,6 +28,8 @@ DEPENDENCIES = [
 
 def install(app: "App") -> None:
     """Install internationalization and localization support."""
+    echo("install", "i18n addon")
+
     render_blueprint(
         I18N_BLUEPRINT,
         app.root_path.parent,

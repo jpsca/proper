@@ -66,7 +66,10 @@ def transform_image(
 
 
 def resize_to_fit(
-    image: "Image", width: int | None = None, height: int | None = None, **options
+    image: "Image", width: int | None = None,
+    height: int | None = None,
+    size: t.Literal["both"] | t.Literal["down"] | t.Literal["up"] | t.Literal["force"] = "both",
+    **options
 ) -> "Image":
     """
     Resizes the image to fit within the specified dimensions while retaining
@@ -88,6 +91,16 @@ def resize_to_fit(
     pipeline.resize_to_fit(None, 400)
     ```
 
+    By default, the image will be downsized if it's larger than the specified dimensions
+    and upsized if it's smaller. You can control this behavior with the `size` option:
+
+    ```python
+    pipeline = ImageProcessing(image)  # 400x300
+    pipeline.resize_to_fit(500, 500, size="down")  # -> [400, 300]
+    pipeline.resize_to_fit(500, 500, size="up")  # -> [500, 375]
+    pipeline.resize_to_fit(500, 500, size="force")  # -> [500, 500]  (ignoring aspect ratio)
+    ```
+
     Any other options are forwarded to `pyvips.Image.thumbnail_image()`:
 
     ```python
@@ -98,6 +111,7 @@ def resize_to_fit(
     for more details.
     """
     iwidth, iheight = _default_dimensions(width, height)
+    options["size"] = size
     return _thumbnail(image, iwidth, iheight, **options)
 
 

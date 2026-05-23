@@ -28,7 +28,7 @@ class _CIMultiDict(MultiDict):
     """Case-insensitive MultiDict for response headers.
 
     Keys are lowered on storage so lookups are case-insensitive.
-    ``get`` returns the last value; ``getall`` returns every value
+    `get` returns the last value; `getall` returns every value
     (useful for Set-Cookie and other multi-value headers).
     """
 

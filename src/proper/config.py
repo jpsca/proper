@@ -63,8 +63,8 @@ default_config = {
     "CABLE_PATH": "/cable",
 
     "IMPORT_MAP": {
-        "@hotwired/stimulus": "js/stimulus.js",
-        "@hotwired/turbo": "js/turbo.js",
+        "@hotwired/stimulus": "js/vendor/stimulus.js",
+        "@hotwired/turbo": "js/vendor/turbo.js",
     },
 }
 

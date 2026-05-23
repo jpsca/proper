@@ -26,57 +26,52 @@ Usage::
 """
 import typing as t
 
+import peewee as pw
+
+from .document import _collect_attachment_ids as _collect_ids_from_html
+
 
 if t.TYPE_CHECKING:
-    import peewee as pw
+    from collections.abc import Iterator
 
 
-def _iter_rich_text_fields(cls: type) -> "t.Iterator[tuple[str, pw.Field]]":
+def _iter_rich_text_fields(cls: type[pw.Model]) -> "Iterator[tuple[str, pw.Field]]":
     """Yield `(field_name, field)` for every RichTextField column.
 
     Detected by duck-typing on the `attachment_cls` attribute, which
     every field built by `make_rich_text_field` carries. Using a
     structural check rather than `isinstance` lets users build
-    alternative parents (Postgres native JSON, etc.) via the factory
-    without losing lifecycle support.
+    alternative parents (compressed text, typed envelopes, etc.) via
+    the factory without losing lifecycle support.
     """
-    for name, field in cls._meta.fields.items():
+    for name, field in cls._meta.fields.items():  # type: ignore
         if hasattr(field, "attachment_cls"):
             yield name, field
 
 
-def _ast_of(value: t.Any) -> t.Any:
-    """Coerce a field value (dict, `RichTextDocument`, or `None`) to
-    a plain AST dict. `None` and other shapes pass through unchanged.
+def _html_of(value: t.Any) -> str:
+    """Coerce a field value (`str`, `RichTextDocument`, or `None`) to a
+    plain HTML string. `None` becomes empty so collectors are no-ops.
     """
     if value is None:
-        return None
-    if hasattr(value, "to_dict"):
-        return value.to_dict()
-    return value
+        return ""
+    if hasattr(value, "to_html"):
+        return value.to_html()
+    if isinstance(value, str):
+        return value
+    return ""
 
 
-def _collect_attachment_ids(ast: t.Any) -> list[str]:
-    """Walk an AST and return attachment IDs in document order, deduped."""
-    if not isinstance(ast, dict):
-        return []
-    seen: dict[str, None] = {}
-    _walk(ast, seen)
-    return list(seen.keys())
+def _collect_attachment_ids(value: t.Any) -> list[str]:
+    """Return attachment IDs in document order, deduped.
+
+    Accepts the raw field value (`str` HTML, `RichTextDocument`, or
+    `None`) and delegates to the HTML parser in `document.py`.
+    """
+    return _collect_ids_from_html(_html_of(value))
 
 
-def _walk(node: t.Any, seen: "dict[str, None]") -> None:
-    if not isinstance(node, dict):
-        return
-    if node.get("type") == "attachment":
-        att_id = (node.get("attrs") or {}).get("id")
-        if isinstance(att_id, str) and att_id not in seen:
-            seen[att_id] = None
-    for child in node.get("content") or ():
-        _walk(child, seen)
-
-
-class HasRichText:
+class HasRichText(pw.Model):
     """Mixin that handles RichTextField attachment lifecycle."""
 
     def save(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
@@ -89,7 +84,7 @@ class HasRichText:
     def delete_instance(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         # Collect IDs before the parent row vanishes.
         ids_by_field = self._collect_rich_text_ids_now()
-        result = super().delete_instance(*args, **kwargs)  # type: ignore[misc]
+        result = super().delete_instance(*args, **kwargs)
         self._purge_collected(ids_by_field)
         return result
 
@@ -114,13 +109,13 @@ class HasRichText:
             column = getattr(cls, name)
             row = (
                 cls.select(column)
-                .where(cls._meta.primary_key == pk)
+                .where(cls._meta.primary_key == pk)  # type: ignore
                 .first()
             )
             if row is None:
                 out[name] = []
             else:
-                out[name] = _collect_attachment_ids(_ast_of(getattr(row, name)))
+                out[name] = _collect_attachment_ids(getattr(row, name))
         return out
 
     def _reconcile_rich_text_attachments(
@@ -132,11 +127,11 @@ class HasRichText:
         """
         cls = type(self)
         for name, field in _iter_rich_text_fields(cls):
-            attachment_cls = field.attachment_cls  # type: ignore[attr-defined]
+            attachment_cls = field.attachment_cls  # type: ignore
             if attachment_cls is None:
                 continue
 
-            new_ids = set(_collect_attachment_ids(_ast_of(getattr(self, name))))
+            new_ids = set(_collect_attachment_ids(getattr(self, name)))
             old_ids = set(old_ids_by_field.get(name, ()))
 
             for att_id in old_ids - new_ids:
@@ -158,7 +153,7 @@ class HasRichText:
         cls = type(self)
         out: dict[str, tuple[t.Any, list[str]]] = {}
         for name, field in _iter_rich_text_fields(cls):
-            out[name] = (field, _collect_attachment_ids(_ast_of(getattr(self, name))))
+            out[name] = (field, _collect_attachment_ids(getattr(self, name)))
         return out
 
     def _purge_collected(

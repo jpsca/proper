@@ -138,14 +138,14 @@ The `IMPORT_MAP` config dict maps package names to asset paths. Proper ships wit
 ```python {title="config/main.py"}
 # Default (provided by the framework):
 IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo": "js/turbo.js",
+    "@hotwired/stimulus": "js/vendor/stimulus.js",
+    "@hotwired/turbo": "js/vendor/turbo.js",
 }
 
 # Add your own entries:
 IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo": "js/turbo.js",
+    "@hotwired/stimulus": "js/vendor/stimulus.js",
+    "@hotwired/turbo": "js/vendor/turbo.js",
     "alpinejs": "https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js",
 }
 ```
@@ -158,7 +158,7 @@ Call `{{ render_importmap() }}` in the layout **before** any `<script type="modu
 
 ```html+jinja
 {{ render_importmap() }}
-<script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+<script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
 <script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
 ```
 
@@ -173,10 +173,10 @@ import { Controller } from "@hotwired/stimulus";
 
 The generated app includes [Turbo Drive](https://turbo.hotwired.dev/handbook/drive), which intercepts link clicks and form submissions to replace just the `<body>` without a full page reload. This gives your multi-page app a faster, SPA-like navigation feel with no custom JavaScript required.
 
-The library is loaded from `assets/js/turbo.js` in the layout:
+The library is loaded from `assets/js/vendor/turbo.js` in the layout:
 
 ```html+jinja
-<script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+<script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
 ```
 
 Turbo Drive works automatically once the script is loaded. All same-origin link clicks and form submissions are accelerated. To opt out for specific links or forms, add `data-turbo="false"`:

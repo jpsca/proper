@@ -67,6 +67,8 @@ if t.TYPE_CHECKING:
         parent: "TAttachment | None"
         variant_key: str
         variants: Iterable["TAttachment"]
+        source: str
+        pending: bool
 
         SUPPORTED_VARIANT_TYPES: t.ClassVar[dict[str, str]]
 

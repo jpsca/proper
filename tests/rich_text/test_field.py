@@ -1,3 +1,4 @@
+"""Tests for proper.rich_text.field - RichTextField round-tripping HTML."""
 import peewee as pw
 import pytest
 
@@ -64,23 +65,18 @@ def PostWithAttachments(app, Attachment):
 
 
 def test_save_and_load_returns_document(Post):
-    ast = {
-        "type": "doc",
-        "content": [
-            {"type": "paragraph", "content": [{"type": "text", "text": "Hi"}]},
-        ],
-    }
-    Post.create(body=ast)
+    html = "<p>Hi <strong>there</strong></p>"
+    Post.create(body=html)
     post = Post.get()
     assert isinstance(post.body, RichTextDocument)
-    assert post.body.to_dict() == ast
+    assert post.body.to_html() == html
 
 
 def test_can_assign_a_document(Post):
-    doc = RichTextDocument({"type": "doc", "content": []})
+    doc = RichTextDocument("<p>x</p>")
     Post.create(body=doc)
     post = Post.get()
-    assert post.body.to_dict() == {"type": "doc", "content": []}
+    assert post.body.to_html() == "<p>x</p>"
 
 
 def test_null_value_round_trips_as_none(Post):
@@ -93,9 +89,8 @@ def test_null_value_round_trips_as_none(Post):
 
 
 def test_attachment_cls_propagates_to_document(PostWithAttachments):
-    PostWithAttachments.create(body={
-        "type": "doc",
-        "content": [{"type": "attachment", "attrs": {"id": "abc"}}],
-    })
+    PostWithAttachments.create(
+        body='<proper-attachment sgid="abc"></proper-attachment>',
+    )
     post = PostWithAttachments.get()
     assert post.body._attachment_cls is not None

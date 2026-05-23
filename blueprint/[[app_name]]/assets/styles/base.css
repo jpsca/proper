@@ -68,14 +68,6 @@
 }
 
 @layer base {
-  html {
-    font-size: 100%;
-
-    @media (min-width: 100ch) {
-      font-size: 1.1875rem;
-    }
-  }
-
   body {
     -moz-osx-font-smoothing: grayscale;
     -webkit-font-smoothing: antialiased;

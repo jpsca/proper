@@ -22,7 +22,8 @@
 
 		{{ render_importmap() }}
 
-		<script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+		<script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
+		<script src="{{ url_for('assets', file='js/application.js') }}" type="module"></script>
 		{% for url in assets.collect_js() -%}
 		<script src="{{ url_for('assets', file=url) }}" type="module"></script>
 		{% endfor -%}

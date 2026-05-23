@@ -1,7 +1,7 @@
 /*
 Stimulus 3.2.1
 Copyright © 2023 Basecamp, LLC
-*/
+ */
 class EventListener {
     constructor(eventTarget, eventName, eventOptions) {
         this.eventTarget = eventTarget;

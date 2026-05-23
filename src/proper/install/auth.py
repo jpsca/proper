@@ -5,6 +5,7 @@ from ..helpers.render import (
     add_dependencies,
     add_to_concerns,
     call,
+    echo,
     render_blueprint,
     sort_imports_in,
 )
@@ -35,6 +36,8 @@ DEPENDENCIES = [
 def install(app: "App") -> None:
     """Install user/password authentication support.
     """
+    echo("install", "Auth addon")
+
     render_blueprint(
         AUTH_BLUEPRINT,
         app.root_path.parent,

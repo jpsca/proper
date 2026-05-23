@@ -228,37 +228,6 @@ class App(AppWs):
         """Proxy for `self.router.url_startswith()`."""
         return self.router.url_startswith(name, object, curr_url=curr_url, **kw)
 
-    def attachment_for(self, base_model_cls: type) -> "type[TAttachment]":
-        """Build an Attachment model subclass of `base_model_cls`.
-
-        Used by the storage addon's seed `models/attachment.py`:
-
-        ```python
-        class Attachment(app.attachment_for(BaseModel)):
-            ...
-        ```
-
-        The returned class carries all of the storage behavior (URLs, signed
-        tokens, variants, purge, lookups) while inheriting `_meta.database`
-        from `base_model_cls` - no separate `Meta` declaration needed on the
-        consumer's class.
-
-        Calls are memoized per-`(app, base_model_cls)` so repeated invocations
-        return the same class. This keeps `SUPPORTED_VARIANT_TYPES` and the
-        service-instance cache stable, and prevents accidentally creating
-        duplicate peewee model classes for the same `attachment` table.
-        """
-        cache = self.__dict__.setdefault("_attachment_class_cache", {})
-        if base_model_cls in cache:
-            return cache[base_model_cls]
-        cls = attachment_for(
-            base_model_cls,
-            app=self,
-            default_service_name=self.config.get("STORAGE", ""),
-        )
-        cache[base_model_cls] = cls
-        return cls
-
     def dumps(self, obj: t.Any, salt: str | None = None) -> str:
         """Returns a signed string serialized with the internal
         serializer using hte first secret key.
@@ -302,6 +271,37 @@ class App(AppWs):
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
         return func
+
+    def attachment_for(self, base_model_cls: type) -> "type[TAttachment]":
+        """Build an Attachment model subclass of `base_model_cls`.
+
+        Used by the storage addon's seed `models/attachment.py`:
+
+        ```python
+        class Attachment(app.attachment_for(BaseModel)):
+            ...
+        ```
+
+        The returned class carries all of the storage behavior (URLs, signed
+        tokens, variants, purge, lookups) while inheriting `_meta.database`
+        from `base_model_cls` - no separate `Meta` declaration needed on the
+        consumer's class.
+
+        Calls are memoized per-`(app, base_model_cls)` so repeated invocations
+        return the same class. This keeps `SUPPORTED_VARIANT_TYPES` and the
+        service-instance cache stable, and prevents accidentally creating
+        duplicate peewee model classes for the same `attachment` table.
+        """
+        cache = self.__dict__.setdefault("_attachment_class_cache", {})
+        if base_model_cls in cache:
+            return cache[base_model_cls]
+        cls = attachment_for(
+            base_model_cls,
+            app=self,
+            default_service_name=self.config.get("STORAGE", ""),
+        )
+        cache[base_model_cls] = cls
+        return cls
 
     # Private
 

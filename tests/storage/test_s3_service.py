@@ -232,3 +232,75 @@ def test_download_after_reload(Attachment, db):
     att.save(force_insert=True)
     loaded = Attachment.get_or_none(Attachment.id == att.id)
     assert loaded.download() == b"round trip"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# S3.service_url — presigned URLs
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_service_url_returns_signed_url(app, Attachment, db):
+    att = Attachment(
+        _make_file(b"hi", "shot.png"),
+        content_type="image/png",
+    )
+    att.save(force_insert=True)
+
+    url = Attachment._get_service("s3").service_url(att)
+
+    assert url.startswith("http")
+    # Standard SigV4 query params
+    assert "X-Amz-Signature=" in url
+    assert "X-Amz-Expires=" in url
+
+
+def test_service_url_inline_by_default(app, Attachment, db):
+    from urllib.request import urlopen
+
+    att = Attachment(
+        _make_file(b"bytes", "report.pdf"),
+        content_type="application/pdf",
+    )
+    att.save(force_insert=True)
+
+    url = Attachment._get_service("s3").service_url(att)
+    with urlopen(url, timeout=5) as resp:
+        body = resp.read()
+        headers = dict(resp.headers)
+
+    assert body == b"bytes"
+    assert headers["Content-Type"] == "application/pdf"
+    assert headers["Content-Disposition"] == 'inline; filename="report.pdf"'
+
+
+def test_service_url_as_attachment_sets_download_disposition(app, Attachment, db):
+    from urllib.request import urlopen
+
+    att = Attachment(_make_file(b"x", "data.bin"), content_type="application/octet-stream")
+    att.save(force_insert=True)
+
+    url = Attachment._get_service("s3").service_url(att, as_attachment=True)
+    with urlopen(url, timeout=5) as resp:
+        disposition = resp.headers["Content-Disposition"]
+
+    assert disposition == 'attachment; filename="data.bin"'
+
+
+def test_service_url_uses_configured_expiration(app, minio, Attachment, db):
+    """`url_expires_in` config flows through to the presigned URL."""
+    from urllib.parse import parse_qs, urlparse
+
+    att = Attachment(_make_file(b"x", "f.txt"))
+    att.save(force_insert=True)
+
+    service = S3(
+        app,
+        bucket=MINIO_BUCKET,
+        endpoint=minio,
+        access_key_id=MINIO_ROOT_USER,
+        secret_access_key=MINIO_ROOT_PASSWORD,
+        url_expires_in=60,
+    )
+    url = service.service_url(att)
+    expires = parse_qs(urlparse(url).query)["X-Amz-Expires"][0]
+    assert expires == "60"

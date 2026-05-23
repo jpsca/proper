@@ -86,22 +86,16 @@ def PostTwoBodies(app, Attachment):
     database.close()
 
 
-def _doc_with_embed(att_id: str) -> dict:
-    return {
-        "type": "doc",
-        "content": [
-            {"type": "attachment", "attrs": {"id": att_id}},
-        ],
-    }
+def _html_with_embed(att_id: str) -> str:
+    return f'<proper-attachment sgid="{att_id}"></proper-attachment>'
 
 
-def _doc_with_embeds(*ids: str) -> dict:
-    return {
-        "type": "doc",
-        "content": [
-            {"type": "attachment", "attrs": {"id": x}} for x in ids
-        ],
-    }
+def _html_with_embeds(*ids: str) -> str:
+    return "".join(_html_with_embed(x) for x in ids)
+
+
+def _empty_html() -> str:
+    return ""
 
 
 def _store_attachment(Attachment, content=b"x", filename="x.txt"):
@@ -122,7 +116,7 @@ def test_new_post_with_embed_flips_pending_to_false(Post, Attachment):
     att = _store_attachment(Attachment)
     assert att.pending is True
 
-    post = Post(body=_doc_with_embed(str(att.id)))
+    post = Post(body=_html_with_embed(str(att.id)))
     post.save()
 
     refreshed = Attachment.get(Attachment.id == att.id)
@@ -131,7 +125,7 @@ def test_new_post_with_embed_flips_pending_to_false(Post, Attachment):
 
 def test_new_post_without_embeds_does_nothing(Post, Attachment):
     other = _store_attachment(Attachment)
-    post = Post(body={"type": "doc", "content": []})
+    post = Post(body=_empty_html())
     post.save()
 
     # Unrelated pending attachment is untouched.
@@ -146,7 +140,7 @@ def test_edit_removing_embed_purges_it(Post, Attachment):
     keep = _store_attachment(Attachment, b"a", "a.txt")
     drop = _store_attachment(Attachment, b"b", "b.txt")
 
-    post = Post(body=_doc_with_embeds(str(keep.id), str(drop.id)))
+    post = Post(body=_html_with_embeds(str(keep.id), str(drop.id)))
     post.save()
 
     # Both flipped to pending=False on first save
@@ -154,7 +148,7 @@ def test_edit_removing_embed_purges_it(Post, Attachment):
     assert Attachment.get(Attachment.id == drop.id).pending is False
 
     # Now edit the post, removing the `drop` embed
-    post.body = _doc_with_embed(str(keep.id))
+    post.body = _html_with_embed(str(keep.id))
     post.save()
 
     # `drop` is purged; `keep` remains
@@ -164,13 +158,13 @@ def test_edit_removing_embed_purges_it(Post, Attachment):
 
 def test_edit_adding_embed_flips_only_new_one(Post, Attachment):
     first = _store_attachment(Attachment, b"a", "a.txt")
-    post = Post(body=_doc_with_embed(str(first.id)))
+    post = Post(body=_html_with_embed(str(first.id)))
     post.save()
 
     second = _store_attachment(Attachment, b"b", "b.txt")
     assert second.pending is True
 
-    post.body = _doc_with_embeds(str(first.id), str(second.id))
+    post.body = _html_with_embeds(str(first.id), str(second.id))
     post.save()
 
     assert Attachment.get(Attachment.id == second.id).pending is False
@@ -181,10 +175,10 @@ def test_edit_replacing_one_embed_with_another_purges_removed(Post, Attachment):
     old = _store_attachment(Attachment, b"a", "a.txt")
     new = _store_attachment(Attachment, b"b", "b.txt")
 
-    post = Post(body=_doc_with_embed(str(old.id)))
+    post = Post(body=_html_with_embed(str(old.id)))
     post.save()
 
-    post.body = _doc_with_embed(str(new.id))
+    post.body = _html_with_embed(str(new.id))
     post.save()
 
     assert Attachment.get_or_none(Attachment.id == old.id) is None
@@ -197,7 +191,7 @@ def test_edit_replacing_one_embed_with_another_purges_removed(Post, Attachment):
 def test_delete_purges_all_embedded_attachments(Post, Attachment):
     a = _store_attachment(Attachment, b"a", "a.txt")
     b = _store_attachment(Attachment, b"b", "b.txt")
-    post = Post(body=_doc_with_embeds(str(a.id), str(b.id)))
+    post = Post(body=_html_with_embeds(str(a.id), str(b.id)))
     post.save()
 
     post.delete_instance()
@@ -208,7 +202,7 @@ def test_delete_purges_all_embedded_attachments(Post, Attachment):
 
 def test_delete_with_no_embeds_is_a_noop(Post, Attachment):
     other = _store_attachment(Attachment)
-    post = Post(body={"type": "doc", "content": []})
+    post = Post(body=_empty_html())
     post.save()
 
     post.delete_instance()
@@ -225,8 +219,8 @@ def test_multiple_rich_text_fields_are_all_reconciled(PostTwoBodies, Attachment)
     side = _store_attachment(Attachment, b"side", "side.txt")
 
     post = PostTwoBodies(
-        body=_doc_with_embed(str(main.id)),
-        summary=_doc_with_embed(str(side.id)),
+        body=_html_with_embed(str(main.id)),
+        summary=_html_with_embed(str(side.id)),
     )
     post.save()
 
@@ -235,7 +229,7 @@ def test_multiple_rich_text_fields_are_all_reconciled(PostTwoBodies, Attachment)
     assert Attachment.get(Attachment.id == side.id).pending is False
 
     # Remove the summary embed only
-    post.summary = {"type": "doc", "content": []}
+    post.summary = _empty_html()
     post.save()
 
     # Summary's embed purged, body's intact
@@ -284,9 +278,7 @@ def test_field_without_attachment_cls_is_skipped(app):
     database.create_tables([_Post])
 
     try:
-        post = _Post(body={"type": "doc", "content": [
-            {"type": "attachment", "attrs": {"id": "ignored"}},
-        ]})
+        post = _Post(body=_html_with_embed("ignored"))
         post.save()
         post.delete_instance()
     finally:
@@ -296,14 +288,12 @@ def test_field_without_attachment_cls_is_skipped(app):
 # ── internals: defensive walkers ───────────────────────────────────
 
 
-def test_collect_ids_from_non_dict_returns_empty():
+def test_collect_ids_from_non_string_returns_empty():
     from proper.rich_text.concerns import _collect_attachment_ids
-    assert _collect_attachment_ids("not a dict") == []
     assert _collect_attachment_ids(None) == []
+    assert _collect_attachment_ids(123) == []
 
 
-def test_walk_skips_non_dict_children():
-    """A malformed AST whose `content` contains non-dict items must not crash."""
+def test_collect_ids_from_html_without_attachments_returns_empty():
     from proper.rich_text.concerns import _collect_attachment_ids
-    ast = {"type": "doc", "content": ["junk", None, {"type": "paragraph"}]}
-    assert _collect_attachment_ids(ast) == []
+    assert _collect_attachment_ids("<p>nothing here</p>") == []
