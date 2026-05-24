@@ -1,4 +1,5 @@
 {#import "rich_text_toolbar.jx" as Toolbar #}
+
 {#def
   field,
   upload_url: str = "",
@@ -11,100 +12,47 @@
   permitted_attachment_types: str = "",
   multiline: str = "false",
   markdown: str = "false",
-  emojis: str = "false",
 #}
-{#css "styles/lexxy.css" #}
-{#js "js/rich-text-controller.js" #}
+{#css "styles/lexxy-editor.css" #}
+{#css "styles/lexxy-content.css" #}
+{#js "js/lexxy-config.js" #}
 
-{# `upload_url` defaults to the generated upload endpoint.
-   Pass a custom URL to scope uploads per-form
-   (e.g. a stricter endpoint requiring membership). #}
+{#
+Lexxy's DirectUpload pipeline POSTs blob metadata here; the response
+shape carries a `direct_upload.{url, headers}` envelope that drives
+the actual bytes PUT (to disk locally or to S3 directly).
+
+Override `upload_url` per-form if you need a stricter endpoint
+(e.g. membership-gated uploads). The endpoint must speak the same
+DirectUpload create protocol - see `AttachmentController.create`.
+#}
 {% set upload_url = upload_url or url_for("Attachment.create") %}
 
-{# Tells Lexxy how to build a URL for a not-yet-saved embed using the
-   `:signed_id` returned by the upload endpoint. We point at the same
-   redirect route `Attachment.url` emits, so embeds render in the editor
-   exactly as they will on the published page. `:signed_id` is left
-   literal — Lexxy substitutes it client-side. #}
+{#
+Lexxy substitutes `:signed_id` (and optionally `:filename`) client-side
+when it needs to display an attachment by its signed token. We point
+at the redirect route - same URL `Attachment.url` emits - so embeds
+render in the editor exactly as they will on the published page.
+#}
 {% set blob_url_template = url_for("AttachmentRedirect.show", token=":signed_id") %}
 
-<div {{ attrs.render(
-  class="lexxy-content",
-  data_controller="rich-text",
-  data_rich_text_upload_url_value=upload_url,
-) }}>
-  <lexxy-editor
-    name="{{ field.name }}"
-    value="{{ field.value or '' }}"
-    placeholder="{{ placeholder }}"
-    data-rich-text-target="editor"
-    markdown="{{ markdown }}"
-    multiLine="{{ multiline }}"
-    toolbar="{{ (field.id + '-toolbar') if toolbar == 'true' else 'false' }}"
-    data-blob-url-template="{{ blob_url_template }}"
-    {% if permitted_attachment_types -%}
-      permitted-attachment-types="{{ permitted_attachment_types }}"{% endif %}
-    {% if autofocus %} autofocus{% endif -%}
-    {% if disabled %} disabled{% endif -%}
-  >
-    {%- if toolbar == "true" %}
-      <Toolbar id={{ field.id + '-toolbar' }} images={{ images }} files={{ files }} />
-    {%- endif -%}
-
-    {%- if emojis == "true" %}
-    <lexxy-prompt trigger=":" insert-editable-text>
-      <lexxy-prompt-item search="joy laughing face">
-        <template type="menu">😂</template><template type="editor">😂</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="heart red heart">
-        <template type="menu">❤️</template><template type="editor">❤️</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="thumbs up like">
-        <template type="menu">👍</template><template type="editor">👍</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="fire hot lit">
-        <template type="menu">🔥</template><template type="editor">🔥</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="party popper celebration">
-        <template type="menu">🎉</template><template type="editor">🎉</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="star favorite">
-        <template type="menu">⭐</template><template type="editor">⭐</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="clap applause">
-        <template type="menu">👏</template><template type="editor">👏</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="rocket launch">
-        <template type="menu">🚀</template><template type="editor">🚀</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="100 hundred perfect">
-        <template type="menu">💯</template><template type="editor">💯</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="checkmark check mark">
-        <template type="menu">✅</template><template type="editor">✅</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="heart eyes love">
-        <template type="menu">😍</template><template type="editor">😍</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="thinking thought">
-        <template type="menu">🤔</template><template type="editor">🤔</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="wink wink">
-        <template type="menu">😉</template><template type="editor">😉</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="muscle flex strong">
-        <template type="menu">💪</template><template type="editor">💪</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="lightbulb idea">
-        <template type="menu">💡</template><template type="editor">💡</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="thumbs down dislike">
-        <template type="menu">👎</template><template type="editor">👎</template>
-      </lexxy-prompt-item>
-      <lexxy-prompt-item search="pray hands thank">
-        <template type="menu">🙏</template><template type="editor">🙏</template>
-      </lexxy-prompt-item>
-    </lexxy-prompt>
-    {% endif -%}
-  </lexxy-editor>
-</div>
+<lexxy-editor
+  data-direct-upload-url="{{ upload_url }}"
+  data-blob-url-template="{{ blob_url_template }}"
+  class="lexxy-content"
+  name="{{ field.name }}"
+  value="{{ field.value or '' }}"
+  placeholder="{{ placeholder }}"
+  markdown="{{ markdown }}"
+  multiLine="{{ multiline }}"
+  toolbar="{{ (field.id + '-toolbar') if toolbar == 'true' else 'false' }}"
+  {% if permitted_attachment_types -%}
+    permitted-attachment-types="{{ permitted_attachment_types }}"{% endif %}
+  {% if autofocus %} autofocus{% endif -%}
+  {% if disabled %} disabled{% endif -%}
+>
+  {%- if toolbar == "true" %}
+    <Toolbar id={{ field.id + '-toolbar' }} images={{ images }} files={{ files }} />
+  {%- endif -%}
+  {{ content }}
+</lexxy-editor>

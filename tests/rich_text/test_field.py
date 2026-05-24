@@ -33,7 +33,9 @@ def Post(app):
     state never leaks across tests.
     """
     class _Post(ProperModel):
-        body = RichTextField(null=True)
+        # `None` is the explicit "this document never embeds attachments"
+        # path; embedded tags collapse to empty markup at render time.
+        body = RichTextField(None, null=True)
 
     database = pw.SqliteDatabase(":memory:")
     _Post.bind(database)

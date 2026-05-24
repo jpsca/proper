@@ -18,11 +18,12 @@ doesn't know how to look them up.
 """
 import re
 import typing as t
+from collections.abc import Callable
 
 from markupsafe import Markup
 
 from ..global_context import current
-from . import plain_text, renderer
+from . import plain_text
 
 
 if t.TYPE_CHECKING:
@@ -72,10 +73,7 @@ class RichTextDocument:
 
     def __html__(self) -> Markup:
         resolved = self._resolve_attachments()
-        html = renderer.replace_attachments(
-            self._html,
-            self._make_attachment_renderer(resolved),
-        )
+        html = replace_attachments(self._html, _make_renderer(resolved))
         return Markup(html)
 
     def __str__(self) -> str:
@@ -110,23 +108,10 @@ class RichTextDocument:
         self._resolved = {pk: by_id[pk] for pk in ids if pk in by_id}
         return self._resolved
 
-    def _make_attachment_renderer(
-        self,
-        resolved: "dict[str, TAttachment]",
-    ) -> renderer.AttachmentRenderer:
-        def render_one(attrs: dict[str, str]) -> str:
-            att = resolved.get(attrs.get("sgid", ""))
-            if att is None:
-                return ""
-            assert current.app is not None
-            return str(current.app.catalog.render(
-                "rich_text_attachment.jx",
-                attachment=att,
-                alt=attrs.get("alt"),
-                caption=attrs.get("caption"),
-            ))
 
-        return render_one
+def _parse_attrs(raw: str) -> dict[str, str]:
+    """Extract `name="value"` pairs from a tag's attribute payload."""
+    return {name.lower(): value for name, value in _ATTR_RE.findall(raw)}
 
 
 def _collect_attachment_ids(html: str) -> list[str]:
@@ -145,6 +130,57 @@ def _collect_attachment_ids(html: str) -> list[str]:
     return list(seen.keys())
 
 
-def _parse_attrs(raw: str) -> dict[str, str]:
-    """Extract `name="value"` pairs from a tag's attribute payload."""
-    return {name.lower(): value for name, value in _ATTR_RE.findall(raw)}
+TAttachmentRenderer = Callable[[dict[str, str]], str]
+
+
+def _make_renderer(
+    resolved: "dict[str, TAttachment]",
+    *,
+    tmpl: str = "rich_text_attachment.jx",
+) -> TAttachmentRenderer:
+    """Return a renderer function that renders the given Jx template with
+    the attachment attributes + resolved row as context.
+
+    Arguments:
+        resolved:
+            A dict mapping attachment IDs (from `sgid` attributes) to resolved
+            `Attachment` rows. The document doesn't know how to look up attachments
+            itself, so the caller must provide them.
+        tmpl:
+            The Jx template to render for each attachment. The template receives the
+            tag attributes plus an `attachment` kwarg with the resolved row.
+    """
+    def render_one(attrs: dict[str, str]) -> str:
+        att = resolved.get(attrs.get("sgid", ""))
+        if att is None:
+            return ""
+        assert current.app is not None
+        kwargs: dict[str, t.Any] = {**attrs, "attachment": att}
+        return str(current.app.catalog.render(tmpl, **kwargs))
+
+    return render_one
+
+
+def replace_attachments(
+    html: str,
+    renderer: TAttachmentRenderer | None = None,
+) -> str:
+    """Return `html` with each `<proper-attachment>` tag substituted by
+    the output of `renderer(attrs)`.
+
+    Arguments:
+        html:
+            The rich text HTML to render.
+        renderer:
+            An renderer function.
+    """
+    if not isinstance(html, str) or not html:
+        return ""
+    if renderer is None:
+        return _ATTACHMENT_TAG_RE.sub("", html)
+
+    def _sub(match: re.Match[str]) -> str:
+        attrs = {name.lower(): value for name, value in _ATTR_RE.findall(match.group(1))}
+        return renderer(attrs) or ""
+
+    return _ATTACHMENT_TAG_RE.sub(_sub, html)

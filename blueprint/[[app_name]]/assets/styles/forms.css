@@ -13,6 +13,9 @@
   label {
     font-weight: 500;
   }
+  .field {
+    margin-bottom: 0.5ch;
+  }
   .field-error {
     margin-top: 0.5ch;
     color: var(--color-negative);
@@ -87,9 +90,9 @@
   }
 
   .form-group {
-    margin-top: 1.5ch;
-    padding-top: 1.5ch;
-    border-top: var(--border);
+    margin-top: 2ch;
+    padding-top: 2ch;
+    border-top: 1px solid var(--color-gray-lighter);
     display: flex;
     align-items: center;
     gap: 2ch;

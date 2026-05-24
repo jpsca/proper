@@ -1,4 +1,4 @@
-"""Tests for proper.install.rich_text — the rich_text addon installer.
+"""Tests for proper.install.rich_text - the rich_text addon installer.
 
 Covers the full installer flow including the auto-install of `storage`
 when it isn't yet present in the app, and the `.proper` bookkeeping.
@@ -39,17 +39,20 @@ def test_install_renders_blueprint(app_in_tmp):
     rich_text.install(app_in_tmp)
     root = app_in_tmp.root_path
 
+    # The DirectUpload create endpoint ships from the storage blueprint;
+    # rich_text doesn't append anything to the controller anymore — it
+    # just ships the editor views, JS, vendored assets, and the sweep.
     storage_text = (root / "controllers" / "storage_controller.py").read_text()
     assert "def create(self):" in storage_text
-    assert "rich_text" in storage_text
 
     assert (root / "views" / "rich_text_editor.jx").exists()
     assert (root / "views" / "rich_text_attachment.jx").exists()
     assert (root / "views" / "rich_text_toolbar.jx").exists()
-    assert (root / "assets" / "js" / "rich-text-controller.js").exists()
+    assert (root / "assets" / "js" / "lexxy-config.js").exists()
     assert (root / "assets" / "js" / "vendor" / "lexxy.js").exists()
-    assert (root / "assets" / "styles" / "vendor" / "lexxy.css").exists()
-    assert (root / "tasks" / "rich_text_sweep.py").exists()
+    assert (root / "assets" / "styles" / "lexxy-editor.css").exists()
+    assert (root / "assets" / "styles" / "lexxy-content.css").exists()
+    assert (root / "tasks" / "abandoned_uploads_sweep.py").exists()
 
 
 def test_install_records_in_proper(app_in_tmp):
@@ -93,12 +96,7 @@ def test_install_appends_lexxy_to_import_map(app_in_tmp):
     assert '"lexxy"' in text
 
 
-def test_install_wires_controller_and_task_into_their_inits(app_in_tmp):
+def test_install_wires_sweep_task_into_init(app_in_tmp):
     rich_text.install(app_in_tmp)
-    root = app_in_tmp.root_path
-
-    controllers_init = (root / "controllers" / "__init__.py").read_text()
-    assert "from . import rich_text_controller" in controllers_init
-
-    tasks_init = (root / "tasks" / "__init__.py").read_text()
-    assert "from . import rich_text_sweep" in tasks_init
+    tasks_init = (app_in_tmp.root_path / "tasks" / "__init__.py").read_text()
+    assert "from . import abandoned_uploads_sweep" in tasks_init

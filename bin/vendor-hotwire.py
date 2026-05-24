@@ -27,7 +27,7 @@ from pathlib import Path
 
 # Each package gets a (url_template, output_filename) pair. We pull the
 # pre-built single-file bundles that Hotwire ships in their npm packages
-# directly — these are documented entry points in the Hotwire docs and
+# directly - these are documented entry points in the Hotwire docs and
 # are guaranteed to be self-contained, with no external imports the
 # browser would chase back to a CDN.
 PACKAGES = {

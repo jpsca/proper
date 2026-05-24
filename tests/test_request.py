@@ -12,7 +12,6 @@ from proper.errors import (
     InvalidHeader,
     MultipartError,
     RequestEntityTooLarge,
-    UnsupportedMediaType,
     UriTooLong,
 )
 from proper.helpers import DotDict, MultiDict
@@ -872,16 +871,19 @@ class TestRequestAsync:
         await req._parse_body(_make_receive(body))
         assert req.form.get("field1") == "hello"
 
-    async def test_parse_body_unsupported_content_type(self, app):
-        body = b"data"
+    async def test_parse_body_unparsed_content_type_exposes_raw_body(self, app):
+        """Binary or unparsed content types don't fail - the controller
+        can still reach the bytes via `request.body`."""
+        body = b"<root/>"
         scope = _scope("/", method="POST", headers=[
             ("content-length", str(len(body))),
             ("content-type", "application/xml"),
         ])
         scope["app"] = app
         req = Request(scope)
-        with pytest.raises(UnsupportedMediaType):
-            await req._parse_body(_make_receive(body))
+        await req._parse_body(_make_receive(body))
+        assert req.body == body
+        assert len(req.form) == 0
 
 
 # ═══════════════════════════════════════════════════════════════════

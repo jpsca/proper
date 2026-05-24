@@ -235,7 +235,7 @@ def test_download_after_reload(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# S3.service_url — presigned URLs
+# S3.service_url - presigned URLs
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -304,3 +304,56 @@ def test_service_url_uses_configured_expiration(app, minio, Attachment, db):
     url = service.service_url(att)
     expires = parse_qs(urlparse(url).query)["X-Amz-Expires"][0]
     assert expires == "60"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# S3.direct_upload_url - presigned PUT
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_direct_upload_url_returns_signed_put(app, Attachment, db):
+    att = Attachment.create_pending_blob(
+        filename="x.png", content_type="image/png", byte_size=5,
+    )
+    upload = Attachment._get_service("s3").direct_upload_url(att)
+
+    assert upload["url"].startswith("http")
+    assert "X-Amz-Signature=" in upload["url"]
+    assert upload["headers"]["Content-Type"] == "image/png"
+
+
+def test_direct_upload_url_round_trip(app, Attachment, db):
+    """A real PUT to the presigned URL stores the bytes; we can then GET
+    them back via the same key. End-to-end smoke test."""
+    from urllib.request import Request as URLRequest
+    from urllib.request import urlopen
+
+    att = Attachment.create_pending_blob(
+        filename="rt.txt", content_type="text/plain", byte_size=5,
+    )
+    service = Attachment._get_service("s3")
+    upload = service.direct_upload_url(att)
+
+    req = URLRequest(
+        upload["url"], data=b"hello", method="PUT",
+        headers=upload["headers"],
+    )
+    with urlopen(req, timeout=5) as resp:
+        assert resp.status in (200, 204)
+
+    assert service.download(att) == b"hello"
+
+
+def test_direct_upload_url_propagates_checksum(app, Attachment, db):
+    att = Attachment.create_pending_blob(
+        filename="x.txt", content_type="text/plain", byte_size=1,
+    )
+    upload = Attachment._get_service("s3").direct_upload_url(
+        att, checksum="deadbeef==",
+    )
+    # The header is what the browser will send back on the PUT.
+    assert upload["headers"]["Content-MD5"] == "deadbeef=="
+    # SigV4 covers Content-MD5 via the signature, not as a query value -
+    # the signed-headers list announces it. If S3 receives a PUT without
+    # the matching header, the signature won't validate.
+    assert "X-Amz-SignedHeaders=content-md5" in upload["url"]

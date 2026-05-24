@@ -271,7 +271,7 @@ def test_field_without_attachment_cls_is_skipped(app):
     must skip it without raising.
     """
     class _Post(HasRichText, ProperModel):
-        body = RichTextField(null=True)  # no attachment_cls
+        body = RichTextField(None, null=True)  # explicit opt-out of attachment resolution
 
     database = pw.SqliteDatabase(":memory:")
     _Post.bind(database)

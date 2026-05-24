@@ -6,7 +6,7 @@ knows how to coerce a `RichTextDocument` (the runtime value of a
 render and submit.
 
 Without this adapter, loading an existing record into the form would
-hit `str(RichTextDocument)` — which returns plain text — and the editor
+hit `str(RichTextDocument)` - which returns plain text - and the editor
 would re-load the post body as a flat paragraph of plain text instead
 of the original HTML.
 """
@@ -23,7 +23,7 @@ class RichTextField(TextField):
     """
 
     def __init__(self, *, required: bool = False, **kwargs: t.Any) -> None:
-        # Rich text bodies are usually optional — most pages allow an
+        # Rich text bodies are usually optional - most pages allow an
         # empty document. The base default is `required=True`; flip it.
         super().__init__(required=required, strip=False, **kwargs)
 

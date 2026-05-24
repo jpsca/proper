@@ -308,7 +308,7 @@ from .models import Attachment
 
 
 @app.queue.periodic_task(crontab(hour="3", minute="0"))
-def sweep_rich_text_uploads():
+def sweep_abandoned_uploads():
     purge_abandoned_uploads(Attachment, grace_hours=24)
 ```
 
@@ -344,7 +344,7 @@ The framework's contract is the JSON schema, not TipTap. Any editor that produce
 To swap editors:
 
 1. Replace `views/rich_text_field.jx` with one that mounts your editor.
-2. Replace `assets/js/rich-text-controller.js` with one that drives it, syncing JSON to the hidden input on update.
+2. Replace `assets/js/rich-text.js` with one that drives it, syncing JSON to the hidden input on update.
 3. Update `config/import_map.py` to point to your editor's vendored JS.
 
 The Python side - `RichTextField`, `RichTextDocument`, the renderer, the `HasRichText` mixin - doesn't change. The upload endpoint at `/rich_text/uploads` stays the same. Your editor's JavaScript POSTs to it and embeds the returned `attachment` node in the document.

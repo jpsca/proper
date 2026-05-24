@@ -209,8 +209,8 @@ class TestRedirectTo:
 
     def test_redirect_with_flash(self):
         resp = _resp()
-        resp.redirect_to("/home", flash="Welcome!", flash_type="success")
-        assert resp.flash.flashes == [("success", "Welcome!")]
+        resp.redirect_to("/home", flash="Welcome!", flash_cat="positive")
+        assert resp.flash.flashes == [("positive", "Welcome!")]
 
     def test_redirect_custom_status(self):
         resp = _resp()

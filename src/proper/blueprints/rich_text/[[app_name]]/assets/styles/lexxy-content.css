@@ -486,3 +486,7 @@
     }
   }
 }
+
+:where(lexxy-editor) .attachment__caption textarea {
+  margin: 0;
+}

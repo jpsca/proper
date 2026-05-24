@@ -363,12 +363,12 @@ def test_url_for_public(app, Attachment, db):
 
 
 def test_url_proxy_public_uses_same_route(app, Attachment, db):
-    """Public attachments don't proxy/redirect — both URL flavors resolve
+    """Public attachments don't proxy/redirect - both URL flavors resolve
     to `PublicAttachment.show`."""
     att = Attachment(_make_file(b"x", "f.txt"), service_name="public")
     att.save(force_insert=True)
     with patch.object(app, "url_for", return_value="/pub/123") as mock:
-        att.url_proxy
+        _ = att.url_proxy
     mock.assert_called_once_with("PublicAttachment.show", pk=att.id)
 
 
@@ -428,15 +428,15 @@ def test_send_file_delegates_to_service(Attachment, db):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Attachment._is_inline_content_type
+# Attachment.is_inline_content_type
 # ═══════════════════════════════════════════════════════════════════
 
 
 def test_image_is_inline(Attachment):
-    assert Attachment._is_inline_content_type("image/png") is True
-    assert Attachment._is_inline_content_type("application/pdf") is True
-    assert Attachment._is_inline_content_type("application/octet-stream") is False
-    assert Attachment._is_inline_content_type("text/plain") is False
+    assert Attachment.is_inline_content_type("image/png") is True
+    assert Attachment.is_inline_content_type("application/pdf") is True
+    assert Attachment.is_inline_content_type("application/octet-stream") is False
+    assert Attachment.is_inline_content_type("text/plain") is False
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -513,7 +513,7 @@ def test_variant_in_public_service_keeps_public_url(app, Attachment, db):
     parent.save(force_insert=True)
     v = parent.create_variant(_make_file(b"y", "v.txt"))
     assert v.service_name == "public"
-    assert v._service.public is True
+    assert v.service.public is True
 
 
 def test_override_service_name(Attachment, db):
@@ -941,3 +941,120 @@ def test_purge_variants_later_enqueues(app, Attachment, db):
     assert not path.exists()
     assert Attachment.select().count() == 1
     assert Attachment.get_or_none(Attachment.id == parent.id) is not None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# DirectUpload - create_pending_blob + Disk.direct_upload_url
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_create_pending_blob_writes_row_with_metadata_only(Attachment, db):
+    att = Attachment.create_pending_blob(
+        filename="My Photo.PNG",
+        content_type="image/png",
+        byte_size=4096,
+    )
+
+    assert att.id is not None
+    assert att.pending is True
+    # `parameterize` lowers + slugifies; filename comes out web-safe.
+    assert att.filename == "my-photo.png"
+    assert att.content_type == "image/png"
+    assert att.byte_size == 4096
+    # No file on disk yet - bytes arrive later via the PUT endpoint.
+    assert not Attachment._get_service(att.service_name)._get_path(att).exists()
+
+
+def test_create_pending_blob_infers_content_type_from_filename(Attachment, db):
+    att = Attachment.create_pending_blob(filename="notes.md", byte_size=10)
+    assert att.content_type == "text/markdown"
+
+
+def test_create_pending_blob_defaults_to_octet_stream(Attachment, db):
+    att = Attachment.create_pending_blob(filename="unknown", byte_size=1)
+    assert att.content_type == DEFAULT_CONTENT_TYPE
+
+
+def test_create_pending_blob_tags_source(Attachment, db):
+    att = Attachment.create_pending_blob(
+        filename="x.txt", byte_size=1, source="rich_text",
+    )
+    assert att.source == "rich_text"
+
+
+def test_disk_direct_upload_url_targets_disk_endpoint(app, Attachment, db):
+    att = Attachment.create_pending_blob(
+        filename="x.txt", content_type="text/plain", byte_size=10,
+    )
+    service = Attachment._get_service(att.service_name)
+
+    with patch.object(app, "url_for", return_value="/storage/disk/eyJ...") as mock:
+        upload = service.direct_upload_url(att, checksum="abc==")
+
+    assert upload["url"] == "/storage/disk/eyJ..."
+    assert upload["headers"]["Content-Type"] == "text/plain"
+    assert upload["headers"]["Content-MD5"] == "abc=="
+    mock.assert_called_once()
+    name, kwargs = mock.call_args[0][0], mock.call_args[1]
+    assert name == "AttachmentDisk.update"
+    assert "token" in kwargs
+
+
+def test_disk_upload_token_is_salt_scoped(app, Attachment, db):
+    """The token in `direct_upload_url` must be resolvable with
+    `salt="upload"` (and only with that salt), so a leaked download
+    token can't be repurposed to overwrite the bytes."""
+    att = Attachment.create_pending_blob(
+        filename="x.txt", content_type="text/plain", byte_size=10,
+    )
+    service = Attachment._get_service(att.service_name)
+
+    # Capture the token directly without going through url_for.
+    captured = {}
+    original = att.generate_token
+    def spy(*a, **kw):
+        token = original(*a, **kw)
+        captured.setdefault(kw.get("salt", "default"), token)
+        return token
+    att.generate_token = spy  # type: ignore[method-assign]
+
+    with patch.object(app, "url_for", return_value="/x"):
+        service.direct_upload_url(att)
+
+    upload_token = captured["upload"]
+
+    # The download salt (default) must reject this token.
+    assert Attachment.resolve_token(upload_token, max_age=None) is None
+    # The upload salt must accept it.
+    resolved = Attachment.resolve_token(upload_token, max_age=None, salt="upload")
+    assert resolved is not None
+    assert resolved.id == att.id
+
+
+def test_disk_upload_token_expires(app, Attachment, db, monkeypatch):
+    """Upload tokens caducan en 15 min (default `resolve_token` max_age) —
+    una URL filtrada no se puede reutilizar mucho después de emitirla."""
+    import time
+
+    att = Attachment.create_pending_blob(
+        filename="x.txt", content_type="text/plain", byte_size=10,
+    )
+
+    captured = {}
+    original = att.generate_token
+    def spy(*a, **kw):
+        token = original(*a, **kw)
+        captured["token"] = token
+        return token
+    att.generate_token = spy  # type: ignore[method-assign]
+
+    with patch.object(app, "url_for", return_value="/x"):
+        Attachment._get_service(att.service_name).direct_upload_url(att)
+
+    token = captured["token"]
+    # Fresh: resolves fine.
+    assert Attachment.resolve_token(token, salt="upload") is not None
+    # After enough wall-clock skew, the default max_age (15 min) rejects it.
+    real_time = time.time
+    monkeypatch.setattr(time, "time", lambda: real_time() + 16 * 60)
+    assert Attachment.resolve_token(token, salt="upload") is None

@@ -14,7 +14,7 @@ document:
 
 The mixin auto-discovers `RichTextField` columns by walking
 `cls._meta.fields` and looking for fields with an `attachment_cls`
-attribute. No declarative list on the model — the field declaration is
+attribute. No declarative list on the model - the field declaration is
 already the source of truth.
 
 Usage::
@@ -33,6 +33,10 @@ from .document import _collect_attachment_ids as _collect_ids_from_html
 
 if t.TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+TRichTextIds = dict[str, list[str]]
+TRichTextFields = dict[str, tuple[t.Any, list[str]]]
 
 
 def _iter_rich_text_fields(cls: type[pw.Model]) -> "Iterator[tuple[str, pw.Field]]":
@@ -90,13 +94,13 @@ class HasRichText(pw.Model):
 
     # ── helpers ──────────────────────────────────────────────────────
 
-    def _snapshot_rich_text_ids(self) -> "dict[str, list[str]]":
+    def _snapshot_rich_text_ids(self) -> TRichTextIds:
         """Return `{field_name: [old_attachment_ids…]}` for every
-        RichTextField column. New (unsaved) records return empty lists —
+        RichTextField column. New (unsaved) records return empty lists -
         there's no prior body to diff against.
         """
         cls = type(self)
-        out: dict[str, list[str]] = {}
+        out: TRichTextIds = {}
 
         # `get_id()` returns the PK value, or None if unsaved.
         pk = self.get_id()  # type: ignore[attr-defined]
@@ -120,7 +124,7 @@ class HasRichText(pw.Model):
 
     def _reconcile_rich_text_attachments(
         self,
-        old_ids_by_field: "dict[str, list[str]]",
+        old_ids_by_field: TRichTextIds,
     ) -> None:
         """Purge attachments that disappeared from each body, mark survivors
         as no-longer-pending.
@@ -145,20 +149,20 @@ class HasRichText(pw.Model):
                     & (attachment_cls.pending == True)  # noqa: E712
                 ).execute()
 
-    def _collect_rich_text_ids_now(self) -> "dict[str, tuple[t.Any, list[str]]]":
+    def _collect_rich_text_ids_now(self) -> TRichTextFields:
         """Snapshot the *current* body of every RichTextField column,
         bundled with the field instance so the caller can find the
         right `attachment_cls` later.
         """
         cls = type(self)
-        out: dict[str, tuple[t.Any, list[str]]] = {}
+        out: TRichTextFields = {}
         for name, field in _iter_rich_text_fields(cls):
             out[name] = (field, _collect_attachment_ids(getattr(self, name)))
         return out
 
     def _purge_collected(
         self,
-        ids_by_field: "dict[str, tuple[t.Any, list[str]]]",
+        ids_by_field: "TRichTextFields",
     ) -> None:
         for _name, (field, ids) in ids_by_field.items():
             attachment_cls = field.attachment_cls

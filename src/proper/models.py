@@ -114,6 +114,65 @@ class ProperModel(pw.Model):
             query._bind_scopes(scopes)
         return query
 
+    def generate_token(
+        self,
+        fingerprint: Callable = (lambda x: None),
+        *,
+        salt: str | None = None,
+    ) -> str:
+        """Generate a signed, URL-safe token for this record.
+
+        The token embeds the record's primary key and an optional
+        fingerprint value, which can be used to automatically invalidate
+        the token when the underlying record changes.
+
+        Arguments:
+            fingerprint:
+                Function that should returns a value that changes when the token
+                should be invalidated.
+
+                The value is embedded in the token at generation time and compared
+                against a fresh computation at resolution time. If the two differ,
+                the token is treated as revoked.
+
+                The return value must be JSON-serializable (str, int, etc.) and
+                must be deterministic for a given model state - i.e., calling it
+                twice on the same unchanged record must return the same result.
+
+                It should NOT contain sensitive data, as the token payload is
+                signed but not encrypted.
+
+                Examples:
+                    lambda user: user.password[-10:]
+
+                    # Invalidate when email changes
+                    lambda user: user.email
+
+                    # One-time use (invalidate after any update)
+                    lambda user: str(user.updated_at)
+
+            salt:
+                Optional namespace. The model name is used by default.
+
+        Returns:
+            A URL-safe string suitable for use in links, headers, or
+            query parameters.
+
+        """
+        assert current.app
+        payload = {"id": str(self.get_id()), "fp": fingerprint(self)}
+        salt = salt or self.__class__.__name__
+        return current.app.dumps(payload, salt=salt)
+
+    def generate_token_for(self, name: str) -> str:
+        """Generate a signed, URL-safe token for this record using the
+        name as salt and the method `generate_token_for_NAME` as fingerprint function.
+        """
+        assert current.app
+        fp_value = getattr(self, f"generate_token_for_{name}")()
+        payload = {"id": str(self.get_id()), "fp": fp_value}
+        return current.app.dumps(payload, salt=name)
+
     @classmethod
     def resolve_token(
         cls,
@@ -189,62 +248,3 @@ class ProperModel(pw.Model):
         if fingerprint() == data["fp"]:
             return instance
         return None
-
-    def generate_token(
-        self,
-        fingerprint: Callable = (lambda x: None),
-        *,
-        salt: str | None = None,
-    ) -> str:
-        """Generate a signed, URL-safe token for this record.
-
-        The token embeds the record's primary key and an optional
-        fingerprint value, which can be used to automatically invalidate
-        the token when the underlying record changes.
-
-        Arguments:
-            fingerprint:
-                Function that should returns a value that changes when the token
-                should be invalidated.
-
-                The value is embedded in the token at generation time and compared
-                against a fresh computation at resolution time. If the two differ,
-                the token is treated as revoked.
-
-                The return value must be JSON-serializable (str, int, etc.) and
-                must be deterministic for a given model state - i.e., calling it
-                twice on the same unchanged record must return the same result.
-
-                It should NOT contain sensitive data, as the token payload is
-                signed but not encrypted.
-
-                Examples:
-                    lambda user: user.password[-10:]
-
-                    # Invalidate when email changes
-                    lambda user: user.email
-
-                    # One-time use (invalidate after any update)
-                    lambda user: str(user.updated_at)
-
-            salt:
-                Optional namespace. The model name is used by default.
-
-        Returns:
-            A URL-safe string suitable for use in links, headers, or
-            query parameters.
-
-        """
-        assert current.app
-        payload = {"id": str(self.get_id()), "fp": fingerprint(self)}
-        salt = salt or self.__class__.__name__
-        return current.app.dumps(payload, salt=salt)
-
-    def generate_token_for(self, name: str) -> str:
-        """Generate a signed, URL-safe token for this record using the
-        name as salt and the method `generate_token_for_NAME` as fingerprint function.
-        """
-        assert current.app
-        fp_value = getattr(self, f"generate_token_for_{name}")()
-        payload = {"id": str(self.get_id()), "fp": fp_value}
-        return current.app.dumps(payload, salt=name)

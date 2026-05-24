@@ -155,7 +155,7 @@ def test_attachments_dedupes_repeated_ids(Attachment, db):
 
 def test_attachments_skips_missing_rows(Attachment, db):
     """An attachment ID in the HTML that no longer exists in the DB is
-    silently skipped — old documents referencing purged blobs still
+    silently skipped - old documents referencing purged blobs still
     render (without the embed) instead of crashing.
     """
     att = Attachment(_make_file(b"x", "x.txt"))

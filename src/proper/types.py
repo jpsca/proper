@@ -11,9 +11,9 @@ if t.TYPE_CHECKING:
     import datetime
     from uuid import UUID
 
-    import peewee as pw
-
+    from proper.models import ProperModel
     from proper.request.formparser import MultipartPart
+    from proper.storage import Service
 
 
 TScope = MutableMapping[str, t.Any]
@@ -46,7 +46,7 @@ TUpload: t.TypeAlias = "MultipartPart | t.BinaryIO"
 
 if t.TYPE_CHECKING:
 
-    class TAttachment(pw.Model):
+    class TAttachment(ProperModel):
         """Type stub for the class returned by `attachment_for(...)`.
 
         Not a runtime class; gated under `TYPE_CHECKING`. Consumers see
@@ -69,6 +69,8 @@ if t.TYPE_CHECKING:
         variants: Iterable["TAttachment"]
         source: str
         pending: bool
+        service: "Service"
+
 
         SUPPORTED_VARIANT_TYPES: t.ClassVar[dict[str, str]]
 
@@ -116,3 +118,17 @@ if t.TYPE_CHECKING:
         def get_signed(
             cls, token: str, *, max_age: int | None = None
         ) -> "TAttachment | None": ...
+
+        @classmethod
+        def is_inline_content_type(cls, content_type: str) -> bool: ...
+
+        @classmethod
+        def create_pending_blob(
+            cls,
+            *,
+            filename: str,
+            content_type: str = "",
+            byte_size: int = 0,
+            service_name: str = "",
+            source: str = "direct",
+        ) -> "TAttachment": ...

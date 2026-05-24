@@ -23,7 +23,7 @@ def test_is_installed_false_when_file_missing(app_in_tmp):
 def test_record_install_creates_file_and_entry(app_in_tmp):
     metadata.record_install(app_in_tmp, "storage", version="1.2.3")
 
-    path = app_in_tmp.root_path / ".proper"
+    path = app_in_tmp.root_path.parent / ".proper"
     assert path.exists()
 
     data = json.loads(path.read_text())
@@ -80,4 +80,4 @@ def test_atomic_write_leaves_no_tmp_file(app_in_tmp):
 
 
 def test_metadata_path_helper(app_in_tmp):
-    assert metadata.metadata_path(app_in_tmp) == app_in_tmp.root_path / ".proper"
+    assert metadata.metadata_path(app_in_tmp) == app_in_tmp.root_path.parent / ".proper"

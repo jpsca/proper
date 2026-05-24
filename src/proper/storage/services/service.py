@@ -39,3 +39,21 @@ class Service:
         proxy path so URLs always work regardless of service support.
         """
         return None
+
+    def direct_upload_url(
+        self, obj: "TAttachment", *, checksum: str = ""
+    ) -> "dict[str, t.Any]":
+        """Return where (and with which headers) the client should PUT the
+        file bytes for a freshly-created pending blob.
+
+        Shape: `{"url": "...", "headers": {"Content-Type": "...", ...}}`.
+
+        For remote services (S3, GCS, ...) this is a presigned PUT URL the
+        browser hits directly. For local services (Disk) it's the app's
+        own bytes-receiving endpoint.
+
+        Implementations MUST set `Content-Type`. If the client supplies a
+        base64 MD5 `checksum`, propagate it as `Content-MD5` so the
+        backing store can verify the upload (S3 enforces, Disk can too).
+        """
+        raise NotImplementedError

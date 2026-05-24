@@ -9,9 +9,8 @@ Layout rules:
   `<figure>`) separate with a blank line (`\\n\\n`).
 - `<li>` items get a leading `- ` and end with a newline.
 - `<br>` becomes `\\n`; `<hr>` becomes `\\n---\\n`.
-- `<proper-attachment>` emits `[alt]` if the `alt` attribute is set,
-  else `[filename]` if the attachment was provided in the `attachments`
-  dict, else `[file]` as a defensive fallback.
+- `<proper-attachment>` emits the first that is available between
+`alt`, `caption`, or `filename`; else `[file]` as a defensive fallback.
 - Unknown tags are stripped but their text content passes through.
 """
 import typing as t
@@ -116,14 +115,14 @@ def _render_attachment(
     if alt:
         return f"[{alt}]"
 
+    caption = attrs.get("caption")
+    if caption:
+        return f"[{caption}]"
+
     sgid = attrs.get("sgid") or ""
     att = attachments.get(sgid)
     if att is not None and getattr(att, "filename", ""):
         return f"[{att.filename}]"
-
-    caption = attrs.get("caption")
-    if caption:
-        return f"[{caption}]"
 
     return "[file]"
 

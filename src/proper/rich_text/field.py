@@ -48,7 +48,7 @@ class _RichTextFieldMixin(pw.Field):
 
     def __init__(
         self,
-        attachment_cls: "type[TAttachment] | None" = None,
+        attachment_cls: "type[TAttachment] | None",
         **kwargs: t.Any,
     ) -> None:
         super().__init__(**kwargs)

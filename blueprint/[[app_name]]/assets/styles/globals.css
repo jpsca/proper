@@ -14,7 +14,7 @@
   --lch-gray-dark: 55.2% 0.016 285.938;
   --lch-gray-medium: 70.5% 0.015 286.067;
   --lch-gray-light: 87.1% 0.006 286.286;
-  --lch-gray-lighter: 92. 0%.004 286.32;
+  --lch-gray-lighter: 92% 0.004 286.32;
   --lch-gray-lightest: 96.7% 0.001 286.375;
 
   --lch-red-darkest: 26% 0.105 34;
@@ -162,7 +162,7 @@
   --color-canvas: oklch(var(--lch-canvas));
 
   --color-negative: oklch(var(--lch-red-dark));
-  --color-positive: oklch(var(--lch-green-medium));
+  --color-positive: oklch(var(--lch-green-dark));
   --color-warm: oklch(var(--lch-warm));
 
   /* Base */

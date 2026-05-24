@@ -10,7 +10,7 @@ uv run python bin/vendor-lexxy.py
 make vendor-lexxy
 ```
 
-The JS output is the *bundled* ESM build from esm.sh — a single
+The JS output is the *bundled* ESM build from esm.sh - a single
 self-contained file with all peer dependencies (lexical, dompurify,
 @rails/activestorage) inlined. That avoids having to vendor and
 import-map each peer individually, which would otherwise be ~10
@@ -31,25 +31,27 @@ VERSION = "0.9.12-beta"
 
 JS_URL = f"https://esm.sh/@37signals/lexxy@{VERSION}/es2022/lexxy.bundle.mjs"
 HELPERS_URL = f"https://esm.sh/@37signals/lexxy@{VERSION}/es2022/helpers.mjs"
-# The four upstream files we inline into one self-contained `lexxy.css`.
-# Order matters: variables first (they're referenced by the others).
+
 CSS_SOURCES = (
     "lexxy-variables.css",
     "lexxy-content.css",
     "lexxy-editor.css",
 )
-CSS_BASE = f"https://unpkg.com/@37signals/lexxy@{VERSION}/dist/stylesheets"
+CSS_BASE = f"https://cdn.jsdelivr.net/npm/@37signals/lexxy@{VERSION}/dist/stylesheets"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TARGETS = [
-    REPO_ROOT / "blueprint" / "[[app_name]]" / "assets",
-    REPO_ROOT / "src" / "proper" / "blueprints" / "rich_text" / "[[app_name]]" / "assets",
-]
+TARGET = REPO_ROOT / "src" / "proper" / "blueprints" / "rich_text" / "[[app_name]]" / "assets"
 
 custom_css = {
-  "lexxy-editor.css": """
+  "lexxy-editor.css": b"""
 :where(lexxy-toolbar) {
-    font-size: 0.9em;
+  font-size: 0.9em;
+}
+""",
+
+"lexxy-content.css": b"""
+:where(lexxy-editor) .attachment__caption textarea {
+  margin: 0;
 }
 """,
 }
@@ -61,19 +63,18 @@ def _download(url: str) -> bytes:
         return response.read()
 
 
-def _write_to_targets(rel_path: str, content: bytes) -> None:
-    for assets_root in TARGETS:
-        dest = assets_root / rel_path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(content)
-        print(f"    to:   {dest}")
+def _write_to_target(rel_path: str, content: bytes) -> None:
+    dest = TARGET / rel_path
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(content)
+    print(f"    to:   {dest}")
 
 
 def _rewrite_paths_to_esm_sh(js_bytes: bytes) -> bytes:
     """Rewrite absolute paths in the Lexxy bundle to point at esm.sh.
 
     esm.sh's `lexxy.bundle.mjs` keeps `import` statements referring to
-    paths like `/lexical@^0.44.0/Lexical.prod?target=es2022` — relative
+    paths like `/lexical@^0.44.0/Lexical.prod?target=es2022` - relative
     to esm.sh's origin. Served from our app, those resolve to 404s.
 
     We rewrite them to absolute `https://esm.sh/...` URLs so the browser
@@ -101,33 +102,22 @@ def main() -> None:
     js_content = _download(JS_URL)
     js_content = _rewrite_paths_to_esm_sh(js_content)
     js_content = _strip_source_map_reference(js_content)
-    _write_to_targets("js/vendor/lexxy.js", js_content)
+    _write_to_target("js/vendor/lexxy.js", js_content)
 
     print(f"  → @37signals/lexxy@{VERSION} (helpers)")
     helpers_content = _download(HELPERS_URL)
     helpers_content = _rewrite_paths_to_esm_sh(helpers_content)
     helpers_content = _strip_source_map_reference(helpers_content)
-    _write_to_targets("js/vendor/lexxy-helpers.js", helpers_content)
+    _write_to_target("js/vendor/lexxy-helpers.js", helpers_content)
 
-    # Lexxy ships its CSS as four files connected by `@import url("...")`.
-    # Proper fingerprints asset filenames, so those relative `@import`s
-    # would 404. We download each piece, strip the `@import` lines, and
-    # concatenate them into one self-contained `lexxy.css`.
-    print(f"  → @37signals/lexxy@{VERSION} (CSS, inlined)")
-    parts: list[str] = [f"/* @37signals/lexxy@{VERSION} — inlined stylesheets */"]
+    print(f"  → @37signals/lexxy@{VERSION} (CSS)")
     for name in CSS_SOURCES:
-        url = f"{CSS_BASE}/{name}"
-        css = _download(url).decode("utf-8")
-        css = re.sub(r"\s*@import\s+url\([^)]+\);\s*$", "", css, flags=re.MULTILINE)
+        css_content = _download(f"{CSS_BASE}/{name}")
         if name in custom_css:
-            css += "\n\n" + custom_css[name].strip() + "\n"
-        parts.append(f"/* --- {name} --- */\n{css.strip()}")
+            css_content += custom_css[name]
+        _write_to_target(f"styles/{name}", css_content)
 
-    inlined = ("\n\n".join(parts) + "\n").encode("utf-8")
-    _write_to_targets("styles/vendor/lexxy.css", inlined)
-
-    print(f"\nVendored Lexxy {VERSION} into {len(TARGETS)} blueprint(s).")
-
+    print(f"\nVendored Lexxy {VERSION} into blueprint.\n\n")
 
 if __name__ == "__main__":
     main()

@@ -35,7 +35,7 @@ class S3(Service):
             endpoint_url=config.pop("endpoint", None),
             aws_access_key_id=config.pop("access_key_id", None),
             aws_secret_access_key=config.pop("secret_access_key", None),
-            # Force SigV4 — required by AWS in newer regions, supported
+            # Force SigV4 - required by AWS in newer regions, supported
             # everywhere else. Without this, `generate_presigned_url`
             # falls back to SigV2 against custom endpoints (MinIO, etc.).
             config=BotoConfig(signature_version="s3v4"),
@@ -87,6 +87,35 @@ class S3(Service):
             Key=self._get_key(obj),
         )
 
+    def direct_upload_url(
+        self, obj: "TAttachment", *, checksum: str = ""
+    ) -> "dict[str, t.Any]":
+        """A short-lived presigned PUT URL the browser uploads to directly
+        - bytes never pass through the app.
+
+        We pin `ContentType` and (when provided) `ContentMD5` into the
+        signed params so the browser MUST send matching headers; S3
+        rejects the PUT otherwise. This is both a tamper check and a
+        soft cap on what the client can claim about the file.
+        """
+        params = {
+            "Bucket": self.bucket_name,
+            "Key": self._get_key(obj),
+            "ContentType": obj.content_type or "application/octet-stream",
+        }
+        if checksum:
+            params["ContentMD5"] = checksum
+
+        url = self.client.generate_presigned_url(
+            "put_object",
+            Params=params,
+            ExpiresIn=self.url_expires_in,
+        )
+        headers = {"Content-Type": params["ContentType"]}
+        if checksum:
+            headers["Content-MD5"] = checksum
+        return {"url": url, "headers": headers}
+
     def service_url(
         self, obj: "TAttachment", *, as_attachment: bool = False
     ) -> str:
@@ -95,7 +124,7 @@ class S3(Service):
         We override the `Content-Disposition` and `Content-Type` headers
         of the redirected response via S3's `response-content-disposition`
         / `response-content-type` query params so the browser sees our
-        chosen filename and the original mimetype — not the bare key the
+        chosen filename and the original mimetype - not the bare key the
         object was stored under.
         """
         disposition = "attachment" if as_attachment else "inline"

@@ -1,10 +1,10 @@
 {% set flashes = current.request.flashes %}
 
 {%- if flashes %}
-<div class="my-1 text-center" aria-live="polite">
-	{% for category, msg in flashes -%}
-	<div class="alert alert--{{ category }}" role="alert">
-		<p>{{ msg }}</p>
+<div class="alerts" aria-live="polite">
+	{% for cat, msg in flashes -%}
+	<div class="alert alert--{{ cat }}" role="alert">
+		{{ msg | safe }}
 	</div>
 	{% endfor -%}
 </div>

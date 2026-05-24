@@ -406,7 +406,6 @@
   min-block-size: var(--lexxy-editor-rows);
   outline: 0;
   padding: var(--lexxy-editor-padding);
-  font-size: 1rem;
 
   /* Isolate the contenteditable root's layout and style. Lexical's reconciler
      commits mutations inside this element (nodes appended, text inserted,
@@ -450,7 +449,6 @@
   max-inline-size: 100%;
   padding: 2px;
   position: relative;
-  font-size: 0.9em;
 
   @container (width < 300px) {
     font-size: 0.8em;
@@ -1115,4 +1113,8 @@ action-text-attachment[content-type^="application/vnd.actiontext"] {
       }
     }
   }
+}
+
+:where(lexxy-toolbar) {
+  font-size: 0.9em;
 }

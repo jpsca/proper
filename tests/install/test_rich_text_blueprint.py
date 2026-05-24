@@ -42,30 +42,22 @@ def test_blueprint_renders_all_files(app_in_tmp):
     )
     root = app_in_tmp.root_path
 
-    # Upload action appended to the storage addon's controller
-    storage_text = (root / "controllers" / "storage_controller.py").read_text()
-    assert "def create(self):" in storage_text
-    assert "source=\"rich_text\"" in storage_text
-    assert APP_NAME in storage_text  # template substitution worked
-    assert "[[app_name]]" not in storage_text
-
     # Jx components
     assert (root / "views" / "rich_text_editor.jx").exists()
     assert (root / "views" / "rich_text_attachment.jx").exists()
     assert (root / "views" / "rich_text_toolbar.jx").exists()
 
-    # Stimulus controller
-    assert (root / "assets" / "js" / "rich-text-controller.js").exists()
+    # Lexxy config-time script
+    assert (root / "assets" / "js" / "lexxy-config.js").exists()
 
     # Vendored Lexxy JS bundle + stylesheets land in the user's app
-    js_vendor = root / "assets" / "js" / "vendor"
-    assert (js_vendor / "lexxy.js").exists()
-
-    css_vendor = root / "assets" / "styles" / "vendor"
-    assert (css_vendor / "lexxy.css").exists()
+    assert (root / "assets" / "js" / "vendor" / "lexxy.js").exists()
+    styles = root / "assets" / "styles"
+    assert (styles / "lexxy-editor.css").exists()
+    assert (styles / "lexxy-content.css").exists()
 
     # Periodic sweep task
-    sweep = root / "tasks" / "rich_text_sweep.py"
+    sweep = root / "tasks" / "abandoned_uploads_sweep.py"
     assert sweep.exists()
     sweep_text = sweep.read_text()
     assert "purge_abandoned_uploads" in sweep_text
@@ -74,7 +66,7 @@ def test_blueprint_renders_all_files(app_in_tmp):
 
     # tasks/__init__ append wires up the sweep
     tasks_init = (root / "tasks" / "__init__.py").read_text()
-    assert "from . import rich_text_sweep" in tasks_init
+    assert "from . import abandoned_uploads_sweep" in tasks_init
 
     # IMPORT_MAP append registers the Lexxy bare specifier
     import_map_text = (root / "config" / "import_map.py").read_text()

@@ -2,7 +2,6 @@ import typing as t
 
 from ..helpers import BLUEPRINTS
 from ..helpers.render import (
-    call,
     echo,
     render_blueprint,
     sort_imports_in,
@@ -18,8 +17,6 @@ if t.TYPE_CHECKING:
 RICH_TEXT_BLUEPRINT = BLUEPRINTS / "rich_text"
 
 SORT_IMPORTS_IN = [
-    "controllers/__init__.py",
-    "controllers/storage_controller.py",
     "tasks/__init__.py",
 ]
 

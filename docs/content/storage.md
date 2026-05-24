@@ -635,7 +635,7 @@ class DownloadController(AppController):
         att = Attachment.get_signed(self.params["token"])
         if not att:
             raise NotFound
-        att._service.send_file(att, self.response, as_attachment=True)
+        att.service.send_file(att, self.response, as_attachment=True)
 ```
 
 The pattern is uncommon - usually the inline-vs-attachment decision is content-type-driven and `STORAGE_ALLOWED_INLINE` is enough - but the option is there.

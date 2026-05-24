@@ -14,6 +14,7 @@ if t.TYPE_CHECKING:
 
 class Disk(Service):
     def __init__(self, app: "App", **config: t.Any) -> None:
+        self.app = app
         self.root = app.root_path.parent / config["root"]
         self.root.mkdir(parents=True, exist_ok=True)
         super().__init__(app, **config)
@@ -54,6 +55,23 @@ class Disk(Service):
             parent_l1.rmdir()
         if parent_l2.is_dir() and is_dir_empty(parent_l2):
             parent_l2.rmdir()
+
+    def direct_upload_url(
+        self, obj: "TAttachment", *, checksum: str = ""
+    ) -> "dict[str, t.Any]":
+        """For Disk, there's nothing remote to PUT to — return our own
+        bytes-receiving endpoint. The token in the URL authorizes that
+        specific blob; the `upload` salt scopes it so a leaked download
+        URL can't be repurposed to overwrite content. The resolver pairs
+        it with a short TTL (see `AttachmentDiskController.update`) so a
+        leaked upload URL only lives long enough for the browser PUT.
+        """
+        token = obj.generate_token(salt="upload")
+        url = self.app.url_for("AttachmentDisk.update", token=token, _full=True)
+        headers = {"Content-Type": obj.content_type or "application/octet-stream"}
+        if checksum:
+            headers["Content-MD5"] = checksum
+        return {"url": url, "headers": headers}
 
     def _get_path(self, obj: "TAttachment") -> Path:
         key = str(obj.id)

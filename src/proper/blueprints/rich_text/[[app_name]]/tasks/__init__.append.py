@@ -1,2 +1,2 @@
-from . import rich_text_sweep  # noqa
+from . import abandoned_uploads_sweep  # noqa
 

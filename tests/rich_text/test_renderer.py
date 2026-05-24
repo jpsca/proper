@@ -1,5 +1,4 @@
-"""Tests for proper.rich_text.renderer - HTML attachment expansion."""
-from proper.rich_text.renderer import replace_attachments
+from proper.rich_text.document import replace_attachments
 
 
 # ── no attachments ──────────────────────────────────────────────────

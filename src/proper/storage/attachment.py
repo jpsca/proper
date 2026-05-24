@@ -131,13 +131,75 @@ def attachment_for(
             content_type = content_type or DEFAULT_CONTENT_TYPE
 
             self.service_name = service_name
-            self.filename = filename or ""
+            self.filename = filename
             self.content_type = content_type
             self.byte_size = byte_size
             self.parent = parent
             self.variant_key = variant_key
 
+        @property
+        def service(self) -> Service:
+            return type(self)._get_service(self.service_name)
+
+        @property
+        def extension(self) -> str:
+            if "." in self.filename:
+                return self.filename.rsplit(".", 1)[1].lower()
+            return ""
+
+        @classmethod
+        def is_inline_content_type(cls, content_type: str) -> bool:
+            allowed = app.config.get("STORAGE_ALLOWED_INLINE", ())
+            return any(fnmatch(content_type, pattern) for pattern in allowed)
+
         # ── persistence ─────────────────────────────────────────────────
+
+        @classmethod
+        def create_pending_blob(
+            cls,
+            *,
+            filename: str,
+            content_type: str = "",
+            byte_size: int = 0,
+            service_name: str = "",
+            source: str = "direct",
+        ) -> "Attachment":
+            """Create a pending Attachment row with metadata only (no file
+            bytes yet). Used by the DirectUpload protocol: the client posts
+            blob metadata, we register a row + signed token, the client
+            then PUTs the bytes to the token-scoped upload URL.
+
+            The row is `pending=True` so the rich_text sweeper purges it
+            if the upload never completes (tab closed mid-upload, etc.).
+            """
+            service_name = service_name or default_service_name
+            if not service_name:
+                raise StorageConfigError(
+                    "Missing config.storage.SERVICE or service_name argument"
+                )
+
+            if "." in filename:
+                name, ext = filename.rsplit(".", 1)
+                filename = f"{parameterize(name)}.{parameterize(ext)}"
+            else:
+                filename = parameterize(filename)
+
+            if not content_type and filename:
+                guess = mimetypes.guess_type(filename, strict=False)
+                content_type = guess[0] or ""
+            content_type = content_type or DEFAULT_CONTENT_TYPE
+
+            obj = cls(
+                service_name=service_name,
+                filename=filename,
+                content_type=content_type,
+                byte_size=byte_size,
+            )
+            obj.id = uuid4()
+            obj.source = source
+            obj.pending = True
+            obj.save(force_insert=True)
+            return obj
 
         def save(self, force_insert: bool = False, only: "Iterable | None" = None):
             if self._upload:
@@ -146,7 +208,7 @@ def attachment_for(
                 # see the field declaration above for rationale).
                 if not self.id:
                     self.id = uuid4()
-                self._service.upload(self._upload, self)
+                self.service.upload(self._upload, self)
                 self._upload = None
                 # We just populated the PK ourselves, so peewee would otherwise
                 # try an UPDATE (PK is set, not force_insert) that matches zero
@@ -158,7 +220,7 @@ def attachment_for(
 
         @property
         def url(self) -> str:
-            """The URL for this attachment. Alias of `url_redirect` — the
+            """The URL for this attachment. Alias of `url_redirect` - the
             cheap path when the underlying service supports it, falling
             back to streaming via the app.
             """
@@ -169,7 +231,7 @@ def attachment_for(
             """Routes via `AttachmentRedirectController`, which 302s to the
             service's native URL when available (e.g. presigned S3 link) and
             otherwise streams the bytes."""
-            if self._service.public:
+            if self.service.public:
                 return app.url_for("PublicAttachment.show", pk=self.id)
             return app.url_for(
                 "AttachmentRedirect.show", token=self.generate_token()
@@ -180,43 +242,46 @@ def attachment_for(
             """Routes via `AttachmentProxyController`, which always streams
             the bytes through the app. Use when you need a stable URL under
             your own domain (CDN cache, app-controlled headers)."""
-            if self._service.public:
+            if self.service.public:
                 return app.url_for("PublicAttachment.show", pk=self.id)
             return app.url_for(
                 "AttachmentProxy.show", token=self.generate_token()
             )
 
         def send_file(self) -> None:
-            inline = self._is_inline_content_type(self.content_type)
-            return self._service.send_file(
+            inline = self.is_inline_content_type(self.content_type)
+            return self.service.send_file(
                 self,
                 response=current.response,
                 as_attachment=not inline,
             )
 
         def download(self) -> bytes:
-            return self._service.download(self)
+            return self.service.download(self)
 
         # ── lookups (replace Storage.get_public_attachment / get_attachment) ──
 
         @classmethod
         def get_public(cls, pk: str) -> "Attachment | None":
             obj = cls.get_or_none(cls.id == pk)
-            if obj is None or not obj._service.public:
+            if obj is None or not obj.service.public:
                 return None
             return obj
 
         @classmethod
         def get_signed(
-            cls, token: str, max_age: "int | None" = YEAR
+            cls, token: str,
+            max_age: "int | None" = YEAR,
+            *,
+            salt: str | None = None,
         ) -> "Attachment | None":
             max_age = max(max_age or 0, 0) or YEAR
-            return cls.resolve_token(token, max_age=max_age)
+            return cls.resolve_token(token, max_age=max_age, salt=salt)
 
         # ── lifecycle ───────────────────────────────────────────────────
 
         def purge(self) -> None:
-            self._service.purge(self)
+            self.service.purge(self)
             self.purge_variants()
             self.delete_instance()
 
@@ -226,7 +291,7 @@ def attachment_for(
         def purge_variants(self) -> None:
             for variant in self.variants:
                 # variants may use a different service than their parent
-                variant._service.purge(variant)
+                variant.service.purge(variant)
                 variant.delete_instance()
 
         def purge_variants_later(self) -> None:
@@ -315,10 +380,6 @@ def attachment_for(
 
         # ── private ───────────────────────────────────────────────────
 
-        @property
-        def _service(self) -> Service:
-            return type(self)._get_service(self.service_name)
-
         @classmethod
         def _get_service(cls, service_name: str) -> Service:
             """Look up (and cache) a configured Service by name.
@@ -350,10 +411,6 @@ def attachment_for(
             cls._services[service_name] = service
             return service
 
-        @classmethod
-        def _is_inline_content_type(cls, content_type: str) -> bool:
-            allowed = app.config.get("STORAGE_ALLOWED_INLINE", ())
-            return any(fnmatch(content_type, pattern) for pattern in allowed)
 
         # ── purge-later helpers ─────────────────────────────────────────
         # These are wrapped as Huey tasks below (after the class body) so
