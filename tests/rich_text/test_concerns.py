@@ -1,14 +1,8 @@
 from io import BytesIO
 
 import peewee as pw
-import pytest
 
-from proper import App, current
-from proper.models import ProperModel
-from proper.rich_text import HasRichText, RichTextField
-
-
-STORAGE_SERVICES = {"local": {"type": "Disk", "root": "temp/storage"}}
+from proper.rich_text import HasRichText
 
 
 def _make_file(content=b"hello", filename="test.txt", content_type=""):
@@ -16,74 +10,6 @@ def _make_file(content=b"hello", filename="test.txt", content_type=""):
     buf.filename = filename  # type: ignore
     buf.content_type = content_type  # type: ignore
     return buf
-
-
-@pytest.fixture()
-def app(tmp_path):
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-        "STORAGE": "local",
-        "STORAGE_SERVICES": STORAGE_SERVICES,
-        "QUEUE": {
-            "type": "huey.MemoryHuey",
-            "immediate": True,
-            "immediate_use_memory": True,
-        },
-    }
-    app = App("tests", config)
-    app.root_path = tmp_path / "app"
-    app.root_path.mkdir(parents=True, exist_ok=True)
-    current.app = app
-    return app
-
-
-@pytest.fixture()
-def Attachment(app):
-    return app.attachment_for(ProperModel)
-
-
-@pytest.fixture()
-def Post(app, Attachment):
-    """A test model that uses HasRichText with one RichTextField column."""
-    class _Post(HasRichText, ProperModel):
-        body = RichTextField(null=True, attachment_cls=Attachment)
-
-    database = pw.SqliteDatabase(":memory:")
-    Attachment.bind(database)
-    _Post.bind(database)
-    database.create_tables([Attachment, _Post])
-    yield _Post
-    database.close()
-
-
-@pytest.fixture()
-def PostNoEmbeds(app):
-    """A model with HasRichText but no embeds wired - lifecycle is a no-op."""
-    class _Post(HasRichText, ProperModel):
-        title = pw.CharField(default="")
-
-    database = pw.SqliteDatabase(":memory:")
-    _Post.bind(database)
-    database.create_tables([_Post])
-    yield _Post
-    database.close()
-
-
-@pytest.fixture()
-def PostTwoBodies(app, Attachment):
-    """A model with two RichTextField columns - both must be reconciled."""
-    class _Post(HasRichText, ProperModel):
-        body = RichTextField(null=True, attachment_cls=Attachment)
-        summary = RichTextField(null=True, attachment_cls=Attachment)
-
-    database = pw.SqliteDatabase(":memory:")
-    Attachment.bind(database)
-    _Post.bind(database)
-    database.create_tables([Attachment, _Post])
-    yield _Post
-    database.close()
-
 
 def _html_with_embed(att_id: str) -> str:
     return f'<proper-attachment sgid="{att_id}"></proper-attachment>'
@@ -236,13 +162,19 @@ def test_multiple_rich_text_fields_are_all_reconciled(PostTwoBodies, Attachment)
     assert Attachment.get_or_none(Attachment.id == main.id) is not None
 
 
-# --- No rich text columns ---
+# --- Defensive ---
 
 
-def test_model_without_rich_text_fields_is_unaffected(PostNoEmbeds):
+def test_model_without_rich_text_fields_is_unaffected(db, BaseModel):
     """A model that mixes in HasRichText but has no RichTextField columns
     must still save and delete cleanly - the mixin is a no-op for it.
     """
+    class PostNoEmbeds(HasRichText, BaseModel):
+        title = pw.CharField(default="")
+
+    PostNoEmbeds.bind(db)
+    db.create_tables([PostNoEmbeds])
+
     post = PostNoEmbeds(title="hello")
     post.save()
     refreshed = PostNoEmbeds.get(PostNoEmbeds.id == post.id)
@@ -251,10 +183,7 @@ def test_model_without_rich_text_fields_is_unaffected(PostNoEmbeds):
     assert PostNoEmbeds.get_or_none(PostNoEmbeds.id == post.id) is None
 
 
-# --- Defensive: null body ---
-
-
-def test_null_body_doesnt_crash(Post, Attachment):
+def test_null_body_doesnt_crash(Post):
     post = Post(body=None)
     post.save()
     post.body = None
@@ -262,29 +191,13 @@ def test_null_body_doesnt_crash(Post, Attachment):
     post.delete_instance()
 
 
-# --- Attachment_cls=None edge case ---
-
-
-def test_field_without_attachment_cls_is_skipped(app):
+def test_field_without_attachment_cls_is_skipped(PostNoAttachments):
     """A RichTextField with attachment_cls=None can't purge - the mixin
     must skip it without raising.
     """
-    class _Post(HasRichText, ProperModel):
-        body = RichTextField(None, null=True)  # explicit opt-out of attachment resolution
-
-    database = pw.SqliteDatabase(":memory:")
-    _Post.bind(database)
-    database.create_tables([_Post])
-
-    try:
-        post = _Post(body=_html_with_embed("ignored"))
-        post.save()
-        post.delete_instance()
-    finally:
-        database.close()
-
-
-# --- Internals: defensive walkers ---
+    post = PostNoAttachments(body=_html_with_embed("ignored"))
+    post.save()
+    post.delete_instance()
 
 
 def test_collect_ids_from_non_string_returns_empty():

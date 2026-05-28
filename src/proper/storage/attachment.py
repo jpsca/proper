@@ -79,6 +79,10 @@ class _Attachment(ProperModel):
         # "video/*": "preview_video",
     }
 
+    def __new__(cls, *args, **kwargs):
+        cls._validate_previewers()
+        return super().__new__(cls)
+
     def __init__(
         self,
         upload: "TUpload | None" = None,

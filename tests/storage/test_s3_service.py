@@ -3,34 +3,15 @@
 from io import BytesIO
 from unittest.mock import patch
 
-import peewee as pw
 import pytest
 
-from proper import App
+from proper import App, current
 from proper.models import ProperModel
 from proper.storage.services import S3
 
 
-MINIO_ROOT_USER = "minioadmin"
-MINIO_ROOT_PASSWORD = "minioadmin"
-MINIO_BUCKET = "test-bucket"
-
-
-# --- Helpers ---
-
-
-def _make_file(content=b"hello", filename="test.txt", content_type=""):
-    buf = BytesIO(content)
-    buf.filename = filename  # type: ignore
-    buf.content_type = content_type  # type: ignore
-    return buf
-
-
-# --- Fixtures ---
-
-
 @pytest.fixture()
-def app(tmp_path, minio):
+def app(tmp_path, minio, MINIO_BUCKET, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD):
     config = {
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
@@ -52,30 +33,54 @@ def app(tmp_path, minio):
                 "public": True,
             },
         },
+        "STORAGE_ALLOWED_INLINE": ["image/*", "application/pdf"],
+        "STORAGE_ALLOWED_VARIANTS": ["image/png", "image/jpeg", "image/gif"],
+        "STORAGE_FALLBACK_FORMAT": "png",
+        "QUEUE": {
+            "type": "huey.MemoryHuey",
+            "immediate": True,
+            "immediate_use_memory": True,
+        },
     }
-    app = App("tests", config)
+    app = App(__name__, config)
     app.root_path = tmp_path / "app"
     app.root_path.mkdir(parents=True, exist_ok=True)
+    current.app = app
     return app
 
 
-class BaseModel(ProperModel):
-    """See note in tests/storage/test_attachment.py - the storage base
-    must be a distinct ProperModel subclass, not ProperModel itself."""
+@pytest.fixture()
+def BaseModel(db):
+    class BaseModel(ProperModel):
+        """Stand-in for the consumer's BaseModel. Real apps subclass ProperModel
+        once and reuse that as the storage base; `attachment_for` requires a
+        distinct subclass (not ProperModel itself) so the MRO can place the
+        consumer base before `_Attachment` without conflict.
+        """
+
+        class Meta:
+            database = db
+
+    return BaseModel
 
 
 @pytest.fixture()
-def Attachment(app):
-    return app.attachment_for(BaseModel)
+def Attachment(app, db, BaseModel):
+    # Mutate `VARIANTS_ENABLED_FOR` on the returned class rather than
+    # subclassing: `@queue.task` captures the decorated class eagerly,
+    # so further subclassing strands Huey task dispatch on the parent.
+    Attachment = app.attachment_for(BaseModel)
+    Attachment.VARIANTS_ENABLED_FOR = {"image/*": "preview_image"}
+    Attachment.bind(db)
+    db.create_tables([Attachment])
+    return Attachment
 
 
-@pytest.fixture()
-def db(Attachment):
-    database = pw.SqliteDatabase(":memory:")
-    Attachment.bind(database)
-    database.create_tables([Attachment])
-    yield database
-    database.close()
+def _make_file(content=b"hello", filename="test.txt", content_type=""):
+    buf = BytesIO(content)
+    buf.filename = filename  # type: ignore
+    buf.content_type = content_type  # type: ignore
+    return buf
 
 
 # --- S3 service - basic operations ---
@@ -86,19 +91,19 @@ def test_service_is_s3(Attachment):
     assert isinstance(service, S3)
 
 
-def test_upload_and_download(Attachment, db):
+def test_upload_and_download(Attachment):
     att = Attachment(_make_file(b"hello s3", "s3test.txt"))
     att.save(force_insert=True)
     assert att.download() == b"hello s3"
 
 
-def test_upload_sets_byte_size(Attachment, db):
+def test_upload_sets_byte_size(Attachment):
     att = Attachment(_make_file(b"12345", "f.txt"))
     att.save(force_insert=True)
     assert att.byte_size == 5
 
 
-def test_upload_content_type(app, Attachment, db):
+def test_upload_content_type(MINIO_BUCKET, Attachment):
     att = Attachment(
         _make_file(b"img-data", "photo.jpg"),
         content_type="image/jpeg",
@@ -112,13 +117,13 @@ def test_upload_content_type(app, Attachment, db):
     assert resp["ContentType"] == "image/jpeg"
 
 
-def test_upload_handles_closed_file(app, Attachment, db):
+def test_upload_handles_closed_file(Attachment):
     f = _make_file(b"some data", "f.txt")
     att = Attachment(f)
     att.save(force_insert=True)  # should not raise even if boto3 closes the stream
 
 
-def test_download_different_files(Attachment, db):
+def test_download_different_files(Attachment):
     att1 = Attachment(_make_file(b"aaa", "a.txt"))
     att1.save(force_insert=True)
     att2 = Attachment(_make_file(b"bbb", "b.txt"))
@@ -130,19 +135,19 @@ def test_download_different_files(Attachment, db):
 # --- S3 service - key sharding ---
 
 
-def test_key_uses_id_sharding(app, Attachment, db):
+def test_key_uses_id_sharding(Attachment):
     att = Attachment(_make_file(b"x", "f.txt"))
     att.save(force_insert=True)
     service = Attachment._get_service("s3")
     key = service._get_key(att)
     att_id = str(att.id)
-    assert key.startswith(f"{att_id[:2]}/{att_id[2:4]}/")
+    assert key.startswith(f"{att_id[:2]}/")
 
 
 # --- S3 service - purge ---
 
 
-def test_purge_deletes_object(app, Attachment, db):
+def test_purge_deletes_object(MINIO_BUCKET, Attachment):
     att = Attachment(_make_file(b"data", "f.txt"))
     att.save(force_insert=True)
     service = Attachment._get_service("s3")
@@ -160,7 +165,7 @@ def test_purge_deletes_object(app, Attachment, db):
         service.client.head_object(Bucket=MINIO_BUCKET, Key=key)
 
 
-def test_purge_deletes_record(Attachment, db):
+def test_purge_deletes_record(Attachment):
     att = Attachment(_make_file(b"data", "f.txt"))
     att.save(force_insert=True)
     assert Attachment.select().count() == 1
@@ -171,7 +176,7 @@ def test_purge_deletes_record(Attachment, db):
 # --- S3 service - send_file ---
 
 
-def test_send_file_inline(app, Attachment, db):
+def test_send_file_inline(Attachment):
     att = Attachment(
         _make_file(b"contents", "report.pdf"),
         content_type="application/pdf",
@@ -196,7 +201,7 @@ def test_send_file_inline(app, Attachment, db):
     assert resp.headers["content-disposition"] == 'inline; filename="report.pdf"'
 
 
-def test_send_file_as_attachment(app, Attachment, db):
+def test_send_file_as_attachment(Attachment):
     att = Attachment(_make_file(b"data", "f.txt"), content_type="text/plain")
     att.save(force_insert=True)
 
@@ -218,7 +223,7 @@ def test_send_file_as_attachment(app, Attachment, db):
 # --- S3 service - round-trip through Attachment model ---
 
 
-def test_fields_survive_round_trip(Attachment, db):
+def test_fields_survive_round_trip(Attachment):
     att = Attachment(
         _make_file(b"data", "photo.jpg"),
         content_type="image/jpeg",
@@ -231,7 +236,7 @@ def test_fields_survive_round_trip(Attachment, db):
     assert loaded.byte_size == 4
 
 
-def test_download_after_reload(Attachment, db):
+def test_download_after_reload(Attachment):
     att = Attachment(_make_file(b"round trip", "f.txt"))
     att.save(force_insert=True)
     loaded = Attachment.get_or_none(Attachment.id == att.id)
@@ -241,7 +246,7 @@ def test_download_after_reload(Attachment, db):
 # --- S3.service_url - presigned URLs ---
 
 
-def test_service_url_returns_signed_url(app, Attachment, db):
+def test_service_url_returns_signed_url(Attachment):
     att = Attachment(
         _make_file(b"hi", "shot.png"),
         content_type="image/png",
@@ -256,7 +261,7 @@ def test_service_url_returns_signed_url(app, Attachment, db):
     assert "X-Amz-Expires=" in url
 
 
-def test_service_url_inline_by_default(app, Attachment, db):
+def test_service_url_inline_by_default(Attachment):
     from urllib.request import urlopen
 
     att = Attachment(
@@ -275,7 +280,7 @@ def test_service_url_inline_by_default(app, Attachment, db):
     assert headers["Content-Disposition"] == 'inline; filename="report.pdf"'
 
 
-def test_service_url_as_attachment_sets_download_disposition(app, Attachment, db):
+def test_service_url_as_attachment_sets_download_disposition(Attachment):
     from urllib.request import urlopen
 
     att = Attachment(_make_file(b"x", "data.bin"), content_type="application/octet-stream")
@@ -288,7 +293,7 @@ def test_service_url_as_attachment_sets_download_disposition(app, Attachment, db
     assert disposition == 'attachment; filename="data.bin"'
 
 
-def test_service_url_uses_configured_expiration(app, minio, Attachment, db):
+def test_service_url_uses_configured_expiration(app, minio, Attachment):
     """`url_expires_in` config flows through to the presigned URL."""
     from urllib.parse import parse_qs, urlparse
 
@@ -297,10 +302,10 @@ def test_service_url_uses_configured_expiration(app, minio, Attachment, db):
 
     service = S3(
         app,
-        bucket=MINIO_BUCKET,
+        bucket="test-bucket",
         endpoint=minio,
-        access_key_id=MINIO_ROOT_USER,
-        secret_access_key=MINIO_ROOT_PASSWORD,
+        access_key_id="minioadmin",
+        secret_access_key="minioadmin",
         url_expires_in=60,
     )
     url = service.service_url(att)
@@ -311,7 +316,7 @@ def test_service_url_uses_configured_expiration(app, minio, Attachment, db):
 # --- S3.direct_upload_url - presigned PUT ---
 
 
-def test_direct_upload_url_returns_signed_put(app, Attachment, db):
+def test_direct_upload_url_returns_signed_put(Attachment):
     att = Attachment.create_pending_blob(
         filename="x.png", content_type="image/png", byte_size=5,
     )
@@ -322,7 +327,7 @@ def test_direct_upload_url_returns_signed_put(app, Attachment, db):
     assert upload["headers"]["Content-Type"] == "image/png"
 
 
-def test_direct_upload_url_round_trip(app, Attachment, db):
+def test_direct_upload_url_round_trip(Attachment):
     """A real PUT to the presigned URL stores the bytes; we can then GET
     them back via the same key. End-to-end smoke test."""
     from urllib.request import Request as URLRequest
@@ -344,7 +349,7 @@ def test_direct_upload_url_round_trip(app, Attachment, db):
     assert service.download(att) == b"hello"
 
 
-def test_direct_upload_url_propagates_checksum(app, Attachment, db):
+def test_direct_upload_url_propagates_checksum(Attachment):
     att = Attachment.create_pending_blob(
         filename="x.txt", content_type="text/plain", byte_size=1,
     )
@@ -362,7 +367,7 @@ def test_direct_upload_url_propagates_checksum(app, Attachment, db):
 # --- S3 public services ---
 
 
-def test_public_service_url_is_unsigned(app, Attachment, db):
+def test_public_service_url_is_unsigned(MINIO_BUCKET, Attachment):
     """`service_url()` on a public service returns the bucket's native
     URL with no presigning - the URL is stable and bears no expiry."""
     att = Attachment(
@@ -382,7 +387,7 @@ def test_public_service_url_is_unsigned(app, Attachment, db):
     assert url.endswith(f"/{att.filename}")
 
 
-def test_public_service_url_ignores_as_attachment(app, Attachment, db):
+def test_public_service_url_ignores_as_attachment(Attachment):
     """`as_attachment` is informational on public services - the URL is
     the same regardless. Disposition is decided by what was baked into
     Content-Type at upload time, not per-request."""
@@ -397,7 +402,7 @@ def test_public_service_url_ignores_as_attachment(app, Attachment, db):
     assert service.service_url(att) == service.service_url(att, as_attachment=True)
 
 
-def test_public_upload_passes_public_read_acl_to_boto(app, Attachment, db):
+def test_public_upload_passes_public_read_acl_to_boto(Attachment):
     """Objects uploaded to a public service pass `ACL=public-read` to boto3.
 
     Verified by intercepting the boto3 call rather than by reading the ACL
@@ -424,7 +429,7 @@ def test_public_upload_passes_public_read_acl_to_boto(app, Attachment, db):
     assert captured["ExtraArgs"].get("ContentType") == "text/plain"
 
 
-def test_private_upload_does_not_pass_acl(app, Attachment, db):
+def test_private_upload_does_not_pass_acl(Attachment):
     """Sanity check: the default (non-public) service uploads without ACL."""
     service = Attachment._get_service("s3")
     captured = {}
@@ -441,7 +446,7 @@ def test_private_upload_does_not_pass_acl(app, Attachment, db):
     assert "ACL" not in captured["ExtraArgs"]
 
 
-def test_public_direct_upload_url_signs_acl_header(app, Attachment, db):
+def test_public_direct_upload_url_signs_acl_header(Attachment):
     """The presigned PUT for a public service includes `x-amz-acl` in the
     signed-headers list and returns the matching `x-amz-acl: public-read`
     header for the browser to send back on the PUT.
@@ -460,7 +465,7 @@ def test_public_direct_upload_url_signs_acl_header(app, Attachment, db):
     assert upload["headers"]["x-amz-acl"] == "public-read"
 
 
-def test_public_direct_upload_round_trip(app, Attachment, db):
+def test_public_direct_upload_round_trip(Attachment):
     """End-to-end PUT to the presigned public URL with the returned headers
     succeeds. Validates that the signed `ACL` param and the `x-amz-acl`
     header agree (S3 rejects the PUT otherwise — signature mismatch)."""

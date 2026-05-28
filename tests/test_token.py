@@ -34,13 +34,6 @@ class Account(BaseModel):
 
 @pytest.fixture(autouse=True)
 def setup():
-    config = {
-        "SECRET_KEYS": ["x" * 50],
-        "DEBUG": False,
-    }
-    app = App("tests", config)
-    current.app = app
-
     db.connect(reuse_if_open=True)
     db.create_tables([Item, Account])
     yield

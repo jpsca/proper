@@ -25,7 +25,7 @@ def app():
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
     }
-    app = App("tests", config)
+    app = App(__name__, config)
     app.router.add_route(Route(method="GET", path="/hello", to=GreetController.index))
     app.router.add_route(Route(method="GET", path="/hello/:name", to=GreetController.show))
     return app
@@ -92,7 +92,7 @@ def _make_app(**overrides):
         "DEBUG": False,
         **overrides,
     }
-    app = App("tests", config)
+    app = App(__name__, config)
     app.router.static("/assets", root="/tmp/assets", name="assets")
     return app
 

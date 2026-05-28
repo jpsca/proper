@@ -40,15 +40,6 @@ def _resp(*, app=None, **kw):
 
 
 @pytest.fixture()
-def app():
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-    }
-    return App("tests", config)
-
-
-@pytest.fixture()
 def make_co(app):
     def _make_co(*, method="GET", url="/", headers=None, **kw):
         scope = _scope(method=method, url=url, headers=headers, **kw)

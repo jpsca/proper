@@ -2,12 +2,10 @@ import os
 import subprocess
 import time
 
+import peewee as pw
 import pytest
 
 from proper import App, current
-
-
-IMPORT_NAME = "tests"
 
 
 @pytest.fixture()
@@ -16,9 +14,16 @@ def app():
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
     }
-    app = App(IMPORT_NAME, config)
+    app = App(__name__, config)
     current.app = app
     return app
+
+
+@pytest.fixture()
+def db():
+    database = pw.SqliteDatabase(":memory:")
+    yield database
+    database.close()
 
 
 # --- Docker container fixtures ---
@@ -120,13 +125,25 @@ def redis_url():
 MINIO_CONTAINER = "minio/minio"
 MINIO_PORT = 19123
 MINIO_NAME = "proper-test-minio"
-MINIO_ROOT_USER = "minioadmin"
-MINIO_ROOT_PASSWORD = "minioadmin"
-MINIO_BUCKET = "test-bucket"
 
 
 @pytest.fixture(scope="session")
-def minio():
+def MINIO_ROOT_USER():
+    return "minioadmin"
+
+
+@pytest.fixture(scope="session")
+def MINIO_ROOT_PASSWORD():
+    return "minioadmin"
+
+
+@pytest.fixture(scope="session")
+def MINIO_BUCKET():
+    return "test-bucket"
+
+
+@pytest.fixture(scope="session")
+def minio(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, MINIO_BUCKET):
     """Start a MinIO container for the test session, skip if Docker is unavailable."""
     if not _docker_available():
         pytest.skip("Docker not available (start the daemon to run MinIO tests)")

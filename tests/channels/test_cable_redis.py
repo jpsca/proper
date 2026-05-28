@@ -87,8 +87,8 @@ class TestBroadcast:
 
         cable.broadcast("mystream", {"x": 42})
 
-        msg = pubsub.get_message(timeout=2)
-        assert msg["channel"] == b"test:cable:mystream"
+        msg = pubsub.get_message(timeout=2) or {}
+        assert msg.get("channel") == b"test:cable:mystream"
 
         pubsub.close()
         client.close()
@@ -330,12 +330,10 @@ class TestCableToolValidation:
 
 
 class TestAppIntegration:
-    def test_app_creates_cable_via_tool(self):
-        app = _make_app()
+    def test_app_creates_cable_via_tool(self, app):
         assert isinstance(app.cable, Cable)
 
-    async def test_lifespan_calls_start_and_stop(self):
-        app = _make_app()
+    async def test_lifespan_calls_start_and_stop(self, app):
         started = []
         stopped = []
 
@@ -365,12 +363,3 @@ class TestAppIntegration:
 
         assert started == [True]
         assert stopped == [True]
-
-
-def _make_app():
-    from proper import App
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-    }
-    return App("tests", config)

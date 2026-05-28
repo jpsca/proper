@@ -74,7 +74,7 @@ def app():
         "DEBUG": False,
         "CATCH_ALL_ERRORS": True,
     }
-    return App("tests", config)
+    return App(__name__, config)
 
 
 @pytest.fixture()

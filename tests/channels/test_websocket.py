@@ -2,21 +2,8 @@ import asyncio
 
 import pytest
 
-from proper import App
 from proper.channel import Channel
 from proper.helpers import jsonplus
-
-
-# --- Helpers ---
-
-
-@pytest.fixture()
-def app():
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-    }
-    return App("tests", config)
 
 
 class AsyncQueue:
@@ -88,11 +75,8 @@ class TestConnection:
         await task
 
     @pytest.mark.asyncio
-    async def test_custom_cable_path(self):
-        app = App("tests", {
-            "SECRET_KEYS": ["*" * 50],
-            "CABLE_PATH": "/ws",
-        })
+    async def test_custom_cable_path(self, app):
+        app.config.CABLE_PATH = "/ws"
         q = AsyncQueue()
         q.client_disconnect()
         task = await run_ws(app, q, ws_scope("/ws"))

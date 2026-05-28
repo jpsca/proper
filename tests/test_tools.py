@@ -14,7 +14,7 @@ def _make_app(**overrides):
         "DEBUG": False,
         **overrides,
     }
-    return App("tests", config)
+    return App(__name__, config)
 
 
 def test_all_tools_attached_after_init():
@@ -134,7 +134,7 @@ def test_default_nocache():
 
 def test_cache_attached_to_catalog():
     app = _make_app()
-    assert app.catalog.jinja_env.app_cache is app.cache
+    assert app.catalog.jinja_env.app_cache is app.cache  # type: ignore
 
 
 def test_cache_db_registered_if_present():

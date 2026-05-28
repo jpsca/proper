@@ -2,14 +2,8 @@ from datetime import timedelta
 from io import BytesIO
 
 import peewee as pw
-import pytest
 
-from proper import App, current
-from proper.models import ProperModel
 from proper.rich_text import purge_abandoned_uploads
-
-
-STORAGE_SERVICES = {"local": {"type": "Disk", "root": "temp/storage"}}
 
 
 def _make_file(content=b"x", filename="x.txt"):
@@ -17,40 +11,6 @@ def _make_file(content=b"x", filename="x.txt"):
     buf.filename = filename  # type: ignore
     buf.content_type = ""  # type: ignore
     return buf
-
-
-@pytest.fixture()
-def app(tmp_path):
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-        "STORAGE": "local",
-        "STORAGE_SERVICES": STORAGE_SERVICES,
-        "QUEUE": {
-            "type": "huey.MemoryHuey",
-            "immediate": True,
-            "immediate_use_memory": True,
-        },
-    }
-    app = App("tests", config)
-    app.root_path = tmp_path / "app"
-    app.root_path.mkdir(parents=True, exist_ok=True)
-    current.app = app
-    return app
-
-
-@pytest.fixture()
-def Attachment(app):
-    return app.attachment_for(ProperModel)
-
-
-@pytest.fixture()
-def db(Attachment):
-    database = pw.SqliteDatabase(":memory:")
-    Attachment.bind(database)
-    database.create_tables([Attachment])
-    yield database
-    database.close()
 
 
 def _make_attachment(Attachment, *, source, pending, age_hours, content=b"x"):
