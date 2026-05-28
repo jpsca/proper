@@ -354,7 +354,7 @@ db/main/002_users.py                        # Migration
 
 ```
 models/attachment.py                # Extends framework's app.storage.Attachment
-controllers/storage_controller.py   # Two controllers: public and authenticated serving
+controllers/storage_controller.py   # StorageRedirect, StorageProxy, DirectUpload
 db/main/003_storage.py              # Migration
 ```
 
@@ -362,7 +362,7 @@ db/main/003_storage.py              # Migration
 
 - `main.py` — adds `storage = app.storage`
 - `config/storage.py` — adds `STORAGE_SERVICES`, `STORAGE`, `STORAGE_ALLOWED_VARIANTS`, `STORAGE_ALLOWED_INLINE`, `STORAGE_FALLBACK_FORMAT`
-- `controllers/__init__.py` — adds `AttachmentController`, `PublicAttachmentController`
+- `controllers/__init__.py` — imports `storage_controller`
 - `models/__init__.py` — adds `Attachment`
 - `pyproject.toml` — adds `pyvips`
 

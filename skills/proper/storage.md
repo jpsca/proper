@@ -1,7 +1,7 @@
 ---
 title: Storage
 description: Storage addon — file uploads, Attachment model, S3/disk backends, variants
-last_verified: 2026-04-02
+last_verified: 2026-05-27
 ---
 
 # Proper Storage
@@ -66,7 +66,7 @@ Field            | Type                   | Description
 `parent`         | ForeignKeyField(self)  | Parent attachment for variants (nullable)
 `variant_key`    | CharField(64)          | SHA-256 digest of the variant's transformations
 
-Public access is configured at the service level (see "Configuring services" below). An attachment is public iff it lives in a service marked `public: True`.
+Mark a service `public: True` to flag attachments stored in it as publicly intended. This is an informational flag exposed to application code via `obj.service.public` and `Attachment.get_public(pk)` — the framework's URL helpers and controllers treat public and private attachments the same. See "Public services" under [Serving Files](#serving-files).
 
 
 ### Configuring services
@@ -250,76 +250,107 @@ attachment = Attachment(
 )
 ```
 
-To make an attachment publicly reachable, store it in a service whose config has `public: True` by passing the corresponding `service_name`.
+To flag an attachment as publicly intended (for application-level access checks), store it in a service whose config has `public: True` by passing the corresponding `service_name`. The flag is informational — it doesn't change URL generation or routing.
 
 
 ## Serving Files
 
-The `proper install storage` command creates two controllers for serving files:
+The `proper install storage` command creates three controllers in `controllers/storage_controller.py`:
+
+- **`StorageRedirectController`** (`GET /storage/redirect/<token>`) — serves files via 302 to the service's native URL (e.g. a presigned S3 link) when one exists, falling back to streaming through the app.
+- **`StorageProxyController`** (`GET /storage/proxy/<token>`) — always streams bytes through the app.
+- **`DirectUploadController`** (`POST /storage/direct`, `PUT /storage/direct/<token>`) — handles the direct-upload protocol (browser metadata POST + bytes PUT for the Disk service).
 
 
-### Private files (signed URLs)
+### URL helpers
 
-Private files are served through signed, time-limited URLs. The `url` property on an attachment generates the appropriate URL using `generate_token()`:
+Every saved attachment exposes:
 
 ```python
-attachment.url
-# => "/storage/aBcDe..."  (signed token)
+attachment.url           # alias for `url_redirect`
+attachment.url_redirect  # => "/storage/redirect/<signed-token>"
+attachment.url_proxy     # => "/storage/proxy/<signed-token>"
 ```
 
-The signed URL is verified by the `AttachmentController` using `resolve_token()`:
+Both URLs embed a signed token tied to the attachment's PK. The controllers resolve them via `Attachment.get_signed(token, max_age=None)`, so by default the URLs do not expire — they stay valid until your `SECRET_KEY` rotates. Pass a `max_age` (in seconds) to `get_signed()` from your own code to enforce expiry.
+
+
+### Redirect vs proxy
+
+`StorageRedirectController` (the default, used by `attachment.url`) calls `obj.service_url()`. For services that expose a native URL (S3, GCS, …) this returns a presigned URL and the controller issues a 302. For services without one (the Disk service), it falls back to streaming the bytes through the app:
 
 ```python
-@router.resource("storage", pk="token")
-class AttachmentController(AppController):
+@router.resource("storage/redirect", pk="token")
+class StorageRedirectController(AppController):
+    skip_authentication = True
+
     def show(self):
         token = self.params.get("token")
         obj = Attachment.get_signed(token, max_age=None)
         if not obj:
             raise NotFound
-        # Add any extra guards here, like checking if the user has access
-        obj.send_file()
+
+        service_url = obj.service_url()
+        if service_url:
+            self.response.redirect_to(service_url)
+        else:
+            obj.send_file()
 ```
 
-Signed URLs expire after one year by default. You can pass a custom `max_age` (in seconds) to `Attachment.get_signed()`.
-
-
-### Public files
-
-Public files don't require signing. Public access is configured at the service level: declare a service with `public: True` in `STORAGE_SERVICES`, then store the attachment there.
+Use `attachment.url_proxy` (and `StorageProxyController`) when you specifically need a URL on your own domain — for CDN caching, app-controlled response headers, or auth gating beyond the signed token:
 
 ```python
-# config/storage.py
-STORAGE_SERVICES = {
-    "local": {"type": "Disk", "root": "storage/"},
-    "public": {"type": "Disk", "root": "storage/public", "public": True},
-}
-```
-
-```python
-attachment = Attachment(upload, service_name="public")
-attachment.save()
-
-attachment.url
-# => "/storage/public/550e8400-e29b-..."
-```
-
-Public files are served by the `PublicAttachmentController`, which skips authentication:
-
-```python
-@router.resource("storage/public", pk="pk")
-class PublicAttachmentController(AppController):
+@router.resource("storage/proxy", pk="token")
+class StorageProxyController(AppController):
     skip_authentication = True
 
     def show(self):
-        pk = self.params.get("pk")
-        obj = Attachment.get_public(pk)
+        token = self.params.get("token")
+        obj = Attachment.get_signed(token, max_age=None)
         if not obj:
             raise NotFound
+
         obj.send_file()
 ```
 
-`Attachment.get_public(pk)` returns the attachment only if it lives in a public service; private attachments looked up by id through this method return `None`.
+Both controllers set `skip_authentication = True` because the signed token IS the access credential. Add app-specific guards (per-user access checks, etc.) by editing the generated `show()` method in your project.
+
+
+### Public services
+
+Mark a service `public: True` to declare its objects publicly readable. The framework does not ship a separate public route — public-service attachments use the same `url` / `url_redirect` / `url_proxy` helpers and the same controllers as private ones. The behaviour difference happens inside the service:
+
+- **S3** — uploads set `ACL: public-read`, and `service_url()` returns the bucket's native path-style URL (`<endpoint>/<bucket>/<key>`) with no expiry and no signature. Direct-upload URLs also sign `ACL: public-read` so browser PUTs apply the ACL. The bucket itself must allow object-level ACLs (S3 "Object Ownership" set to `BucketOwnerPreferred` or `ObjectWriter`). For CloudFront / custom domain / virtual-hosted-style URLs, subclass `S3` and override `service_url()`.
+- **Disk** — `public: True` is informational only (Disk has no native URL); the file is still served through `StorageRedirectController` / `StorageProxyController` with a stable signed-token URL.
+
+```python
+"public": {
+    "type": "S3",
+    "bucket": "my-public-bucket",
+    "public": True,
+    # ... credentials, region, etc.
+}
+```
+
+The flag is also exposed to application code. Read `obj.service.public` directly, or use `Attachment.get_public(pk)` for a guarded PK lookup that returns `None` unless the attachment lives in a public service:
+
+```python
+obj = Attachment.get_public(pk)
+if obj is None:
+    raise NotFound
+```
+
+> **Tradeoff:** On a public service, the native URL serves whatever `Content-Type` was baked in at upload — disposition can't be overridden per-request the way presigned URLs do. For typical public assets (avatars, hero images, PDFs) browsers render inline by default based on `Content-Type`, which is usually what you want. If you need forced-download behaviour for a specific file, use `attachment.url_proxy` instead (streams through the app with the correct disposition).
+
+
+### Model-level serving helpers
+
+The Attachment model exposes two serving helpers that apply the disposition rules from `STORAGE_ALLOWED_INLINE` automatically:
+
+- **`attachment.send_file()`** — streams the bytes through the current response.
+- **`attachment.service_url()`** — returns the service's native URL (presigned S3 link, etc.) or `None` for services without one.
+
+Call these from your controllers rather than `obj.service.send_file(...)` / `obj.service.service_url(...)` directly, so disposition stays consistent across paths.
 
 
 ### Content disposition
@@ -334,7 +365,7 @@ STORAGE_ALLOWED_INLINE = [
 ]
 ```
 
-Content types matching any of these glob patterns (via `fnmatch`) are served inline (displayed in the browser). All other types are served as attachments (triggering a download).
+Content types matching any of these glob patterns (via `fnmatch`) are served inline (displayed in the browser). All other types are served as attachments (triggering a download). `Attachment.send_file()` and `Attachment.service_url()` apply this rule, so controllers don't need to think about it.
 
 
 ## Downloading Files
@@ -515,26 +546,39 @@ See the [pyvips documentation](https://www.libvips.org/API/current/) for the ful
 
 ### Adding support for other content types
 
-Only `image/*` is supported out of the box. To create variants from other file types (videos, PDFs, ePubs, etc.), extend `SUPPORTED_VARIANT_TYPES` and add the corresponding method in your Attachment subclass:
+Only `image/*` is enabled by default. The framework also ships built-in `preview_pdf` (poppler's `pdftoppm`) and `preview_video` (ffmpeg). Turning either on is a one-line dict change plus installing the system tool:
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
-    SUPPORTED_VARIANT_TYPES = {
-        **app.attachment_for(BaseModel).SUPPORTED_VARIANT_TYPES,
+    VARIANTS_ENABLED_FOR = {
+        **app.attachment_for(BaseModel).VARIANTS_ENABLED_FOR,
         "application/pdf": "preview_pdf",
         "video/*": "preview_video",
     }
+```
 
-    def preview_pdf(self, source, page=0, **ops):
-        # Extract page as image, then delegate to transform_image
-        image_bytes = pdf_to_image(source, page)  # your extraction logic
-        return self.transform_image(image_bytes, **ops)
-    
-    def preview_video(self, source, **ops):
-        # Extract frame as image, then delegate to transform_image
-        image_bytes = extract_frame(source)  # your extraction logic
-        return self.transform_image(image_bytes, **ops)
+`preview_pdf` accepts two extra kwargs on top of the usual image ops:
 
+- `page=1` - 1-indexed page number to render.
+- `dpi=150` - render resolution. Bump to `dpi=300` for sharper output.
+
+`preview_video` accepts one:
+
+- `at_seconds=1.0` - timestamp of the frame to grab. Defaults to one second in (dodges the common black opening frame); pass `0` for the very first frame.
+
+For anything else (ePubs, audio waveforms, ...), extend `VARIANTS_ENABLED_FOR` and add the corresponding method:
+
+```python
+class Attachment(app.attachment_for(BaseModel)):
+    VARIANTS_ENABLED_FOR = {
+        **app.attachment_for(BaseModel).VARIANTS_ENABLED_FOR,
+        "application/epub+zip": "preview_epub",
+    }
+
+    def preview_epub(self, source, **ops):
+        # Extract cover image, then delegate to transform_image
+        image_bytes = extract_cover(source)  # your extraction logic
+        return self.transform_image(image_bytes, **ops)
 ```
 
 The keys are content-type glob patterns matched against the attachment's `content_type` via `fnmatch`. The values are method names called with `(source, **ops)`.

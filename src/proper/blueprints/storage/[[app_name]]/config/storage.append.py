@@ -20,16 +20,6 @@ STORAGE_SERVICES = {
         "bucket": "...",
         "region": "...",  # e.g. 'us-east-1'
     },
-
-    # An example of a public service. Files stored here get unsigned URLs
-    # served by PublicAttachmentController. Use it for assets that are
-    # genuinely meant to be world-readable.
-    # "amazon_public": {
-    #     "type": "S3",
-    #     "public": True,
-    #     "bucket": "...",
-    #     "region": "...",
-    # },
 }
 
 STORAGE = "local"

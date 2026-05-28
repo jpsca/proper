@@ -1,5 +1,3 @@
-"""Tests for proper.controller - Controller and StaticFilesController."""
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,9 +17,6 @@ def _only_allow(*names):
     return lambda name: name in allowed
 
 
-# ── helpers ──────────────────────────────────────────────────────────
-
-
 def _make_controller(cls=Controller, **request_kw):
     app = MagicMock()
     app.config = DotDict({
@@ -34,8 +29,6 @@ def _make_controller(cls=Controller, **request_kw):
     response = Response(scope)
     return cls(request, response)
 
-
-# ── Controller basics ────────────────────────────────────────────────
 
 
 class TestControllerInit:
@@ -53,8 +46,6 @@ class TestControllerInit:
     def test_default_etag(self):
         assert Controller.etag == ""
 
-
-# ── params ───────────────────────────────────────────────────────────
 
 
 class TestParams:
@@ -78,8 +69,6 @@ class TestParams:
         assert co.params is co.params
 
 
-# ── defaults ─────────────────────────────────────────────────────────
-
 
 class TestDefaults:
     def test_from_matched_route(self):
@@ -94,8 +83,6 @@ class TestDefaults:
         co.request.matched_route = None
         assert co.defaults == {}
 
-
-# ── render ───────────────────────────────────────────────────────────
 
 
 class TestRender:
@@ -128,9 +115,6 @@ class TestRender:
         co = _make_controller()
         co.render(json={"a": 1}, text="ignored")
         assert co.response.mimetype == "application/json"
-
-
-# ── redo ────────────────────────────────────────────────────────────
 
 
 class TestRedo:
@@ -178,8 +162,6 @@ class TestRedo:
         assert co.response.status == 400
 
 
-# ── _should_run_callback ─────────────────────────────────────────────
-
 
 class TestShouldRunCallback:
     def test_empty_options(self):
@@ -221,8 +203,6 @@ class TestShouldRunCallback:
         co.request.matched_action = "show"
         assert co._should_run_callback({"only": None, "exclude": None}) is True
 
-
-# ── _call ────────────────────────────────────────────────────────────
 
 
 class TestCall:
@@ -351,8 +331,6 @@ class TestCall:
         with pytest.raises(ComponentNotFoundError):
             co._call("show")
 
-
-# ── _dispatch ────────────────────────────────────────────────────────
 
 
 class TestDispatch:
@@ -662,8 +640,6 @@ class TestDispatch:
         assert called == []
 
 
-# ── RX_FINGERPRINT ───────────────────────────────────────────────────
-
 
 class TestRxFingerprint:
     def test_matches_fingerprinted_name(self):
@@ -685,8 +661,6 @@ class TestRxFingerprint:
         assert m is not None
         assert m.group(1) == "app.min"
 
-
-# ── StaticFilesController ────────────────────────────────────────────
 
 
 class TestStaticFilesController:

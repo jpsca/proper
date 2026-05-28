@@ -19,11 +19,11 @@ import peewee as pw
 
 
 if t.TYPE_CHECKING:
-    from ..types import TAttachment
+    from ..storage import _Attachment
 
 
 def purge_abandoned_uploads(
-    attachment_cls: "type[TAttachment]",
+    attachment_cls: "type[_Attachment]",
     *,
     grace_hours: int = 24,
     source: str = "direct",

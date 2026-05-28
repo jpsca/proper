@@ -1,4 +1,3 @@
-"""Tests for proper.rich_text.tasks - abandoned-upload sweep."""
 from datetime import timedelta
 from io import BytesIO
 
@@ -68,7 +67,7 @@ def _make_attachment(Attachment, *, source, pending, age_hours, content=b"x"):
     return att
 
 
-# ── filter behavior ─────────────────────────────────────────────────
+# --- filter behavior ---
 
 
 def test_purges_direct_pending_past_cutoff(Attachment, db):

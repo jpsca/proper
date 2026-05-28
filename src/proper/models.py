@@ -179,7 +179,7 @@ class ProperModel(pw.Model):
         token: str,
         fingerprint: Callable = (lambda x: None),
         *,
-        max_age: int = 15 * MINUTES,
+        max_age: int | None = 15 * MINUTES,
         salt: str | None = None,
     ) -> t.Any:
         """Resolve a token back into a model instance.
@@ -198,6 +198,7 @@ class ProperModel(pw.Model):
                 the token will be treated as revoked.
             max_age:
                 Maximum token age in seconds. Defaults to 15 minutes.
+                Use `None` for no expiration.
             salt:
                 Optional namespace. The model name is used by default.
 
@@ -207,6 +208,8 @@ class ProperModel(pw.Model):
         """
         assert current.app
         salt = salt or cls.__name__
+        if max_age is not None:
+            max_age = max(max_age, 0)
         data = current.app.loads(token, max_age=max_age, salt=salt)
         if not data:
             return None

@@ -1,6 +1,3 @@
-"""Tests for proper.request - Request class, headers, forwarded, utils,
-and formparser."""
-
 import json
 from datetime import datetime
 from io import BytesIO
@@ -28,9 +25,6 @@ from proper.request.formparser import (
 )
 from proper.request.headers import parse_request_id
 from proper.request.utils import make_test_scope as _make_test_scope
-
-
-# ── helpers ─────────────────────────────────────────────────────────
 
 
 def _scope(url="/", method="GET", **kw):
@@ -92,10 +86,6 @@ def _make_disconnect_receive():
     return receive
 
 
-# ═══════════════════════════════════════════════════════════════════
-# utils.py - make_test_scope
-# ═══════════════════════════════════════════════════════════════════
-
 
 class TestMakeTestScope:
     def test_defaults(self):
@@ -147,11 +137,6 @@ class TestMakeTestScope:
         scope = _make_test_scope("/foo/bar")
         assert scope["path"] == "/foo/bar"
         assert scope["server"] == ("example.com", 80)
-
-
-# ═══════════════════════════════════════════════════════════════════
-# headers.py - RequestHeadersMixin (via Request)
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestRequestHeaders:
@@ -388,7 +373,7 @@ class TestRequestHeaders:
         req.headers["x-str"] = "string-value"
         assert req.headers.get("x-str") == "string-value"
 
-    # ── accept edge cases ───────────────────────────────────────────
+    # --- accept edge cases ---
 
     def test_accept_empty(self):
         req = _req("/")
@@ -436,7 +421,7 @@ class TestRequestHeaders:
         # Should still parse without error
         assert len(req.accept) >= 1
 
-    # ── if_none_match edge cases ────────────────────────────────────
+    # --- if_none_match edge cases ---
 
     def test_if_none_match_empty(self):
         req = _req("/")
@@ -451,7 +436,7 @@ class TestRequestHeaders:
         assert '"a"' in req.if_none_match
         assert '"b"' in req.if_none_match
 
-    # ── cookie edge cases ───────────────────────────────────────────
+    # --- cookie edge cases ---
 
     def test_cookies_empty_header(self):
         req = _req("/")
@@ -471,7 +456,7 @@ class TestRequestHeaders:
         assert req.cookies["a"] == "1"
         assert req.cookies["b"] == "2"
 
-    # ── host parsing via header fallback ────────────────────────────
+    # --- host parsing via header fallback ---
 
     def test_host_from_header_ipv6(self):
         scope = _scope("/", headers=[("host", "[::1]")])
@@ -501,7 +486,7 @@ class TestRequestHeaders:
         assert req.host == "myhost"
         assert req.port == 8080
 
-    # ── request_id edge cases ───────────────────────────────────────
+    # --- request_id edge cases ---
 
     def test_request_id_truncated(self):
         long_id = "a" * 300
@@ -512,7 +497,7 @@ class TestRequestHeaders:
         req = _req("/", headers=[("x-request-id", "abc\x80\x81def")])
         assert req.request_id == "abcdef"
 
-    # ── forwarded edge cases ────────────────────────────────────────
+    # --- forwarded edge cases ---
 
     def test_forwarded_empty(self):
         req = _req("/")
@@ -585,11 +570,6 @@ class TestRequestHeaders:
         # so it skips to comma, then parses for=5.6.7.8
         assert req.forwarded[0]["for"] == "1.2.3.4"
         assert req.forwarded[1]["for"] == "5.6.7.8"
-
-
-# ═══════════════════════════════════════════════════════════════════
-# request.py - Request class
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestRequest:
@@ -733,11 +713,6 @@ class TestRequest:
         ):
             result = req.get_signed_cookie("test")
             assert result == "decoded_bytes"
-
-
-# ═══════════════════════════════════════════════════════════════════
-# request.py - async methods (_get_stream, _get_body, _parse_body)
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestRequestAsync:
@@ -886,11 +861,6 @@ class TestRequestAsync:
         assert len(req.form) == 0
 
 
-# ═══════════════════════════════════════════════════════════════════
-# formparser.py - standalone functions
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestParseOptionsHeader:
     def test_empty(self):
         ct, opts = parse_options_header("")
@@ -993,11 +963,6 @@ class TestSafeDecode:
         assert result == "hello"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# parse_request_id
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestParseRequestId:
     def test_none_returns_none(self):
         assert parse_request_id(None) is None
@@ -1017,11 +982,6 @@ class TestParseRequestId:
         long_id = "x" * 300
         result = parse_request_id(long_id)
         assert len(result) == 200
-
-
-# ═══════════════════════════════════════════════════════════════════
-# formparser.py - MultipartPart
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestMultipartPart:
@@ -1077,11 +1037,6 @@ class TestMultipartPart:
     def test_close_no_file(self):
         part = MultipartPart()
         part.close()  # should not raise
-
-
-# ═══════════════════════════════════════════════════════════════════
-# formparser.py - MultipartParser
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestMultipartParser:

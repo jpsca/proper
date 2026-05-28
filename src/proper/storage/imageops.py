@@ -5,12 +5,37 @@ from pathlib import Path
 
 try:
     import pyvips
-except ImportError:
+except (ImportError, OSError):
+    # ImportError: the python `pyvips` package isn't installed.
+    # OSError: the package is installed but the libvips system library
+    # can't be loaded (pyvips raises this on cffi.dlopen failure).
     pyvips = None  # type: ignore
 
 
 if t.TYPE_CHECKING:
-    from pyvips import Image
+    from collections.abc import Callable
+
+    class Image(t.Protocol):
+        width: int
+        height: int
+        bands: int
+        addalpha: Callable[[], "Image"]
+        autorot: Callable[[], "Image"]
+        bandjoin: Callable[..., "Image"]
+        cast: Callable[..., "Image"]
+        colourspace: Callable[..., "Image"]
+        composite: Callable[..., "Image"]
+        conv: Callable[..., "Image"]
+        extract_band: Callable[..., "Image"]
+        fliphor: Callable[[], "Image"]
+        flipver: Callable[[], "Image"]
+        gaussblur: Callable[..., "Image"]
+        gravity: Callable[..., "Image"]
+        hasalpha: Callable[[], bool]
+        recomb: Callable[..., "Image"]
+        similarity: Callable[..., "Image"]
+        thumbnail_image: Callable[..., "Image"]
+        write_to_buffer: Callable[..., bytes]
 
 
 MAX_COORD = 10000000
@@ -40,6 +65,10 @@ def transform_image(
         image = pyvips.Image.new_from_buffer(source, "", **load)
     else:
         image = pyvips.Image.new_from_file(source, **load)
+    if image is None:
+        raise ValueError("Could not load image from source")
+    image = t.cast("Image", image)
+
     if autorot:
         image = image.autorot()
 
@@ -115,6 +144,31 @@ def resize_to_fit(
     return _thumbnail(image, iwidth, iheight, **options)
 
 
+def resize_to_limit(image: "Image", width: int | None = None, height: int | None = None, **options) -> "Image":
+    """
+    Resizes the image to fit within the specified dimensions while retaining
+    the original aspect ratio. Will only downsize the image if it's larger than
+    the specified dimensions, but won't upsize if it's smaller.
+
+    ```python
+    pipeline = ImageProcessing(image)  # 400x300
+    result = pipeline.resize_to_limit(500, 500).run()
+    pyvips.Image.new_from_file(result.path).size  # [400, 300]
+    ```
+
+    Any other options are forwarded to `pyvips.Image.thumbnail_image()`:
+
+    ```python
+    pipeline.resize_to_limit(400, 400, linear=True)
+    ```
+
+    See [vips_thumbnail()](https://www.libvips.org/API/current/ctor.Image.thumbnail.html)
+    for more details.
+    """
+    options["size"] = "down"
+    return resize_to_fit(image, width, height, **options)
+
+
 def resize_to_fill(image: "Image", width: int, height: int, **options) -> "Image":
     """
     Resizes the image to fill the specified dimensions while retaining
@@ -136,6 +190,7 @@ def resize_to_fill(image: "Image", width: int, height: int, **options) -> "Image
     See [vips_thumbnail()](https://www.libvips.org/API/current/ctor.Image.thumbnail.html)
     for more details.
     """
+    assert pyvips
     options.setdefault("crop", pyvips.Interesting.CENTRE)
     return _thumbnail(image, width, height, **options)
 
@@ -194,6 +249,7 @@ def resize_and_pad(
     and [vips_gravity()](https://www.libvips.org/API/current/libvips-conversion.html#vips-gravity)
     for more details.
     """
+    assert pyvips
     extend = extend or pyvips.Extend.BLACK
     gravity = gravity or pyvips.Interesting.CENTRE
     image = _thumbnail(image, width, height, **options)
@@ -276,6 +332,7 @@ def composite(
     for more details.
     """
     sources = overlay if isinstance(overlay, list) else [overlay]
+    sources = t.cast("list[str | Path | Image]", sources)
     overlays = [_to_image_with_alpha(source) for source in sources]
 
     if gravity:
@@ -319,6 +376,7 @@ def sepia(image: "Image", r: float = 1.0, g: float = 0.89, b: float = 0.7, **_kw
     attachment.variant(sepia=(0.9, 0.9, 0.8))       # subtle, cooler
     ```
     """
+    assert pyvips
     if image.hasalpha():
         alpha = image.extract_band(image.bands - 1)
         image = image.extract_band(0, n=image.bands - 1)
@@ -358,6 +416,8 @@ def grayscale(
     attachment.variant(grayscale=(0.0, 1.0, 0.0))     # green channel only
     ```
     """
+    assert pyvips
+
     if image.hasalpha():
         alpha = image.extract_band(image.bands - 1)
         image = image.extract_band(0, n=image.bands - 1)
@@ -390,8 +450,9 @@ def blur(image: "Image", sigma: float = 4.0, **options) -> "Image":
 
 
 VALID_OPS = {
+    "resize": resize_to_limit,
+    "resize_to_limit": resize_to_limit,
     "resize_to_fit": resize_to_fit,
-    "resize": resize_to_fit,
     "resize_to_fill": resize_to_fill,
     "resize_and_pad": resize_and_pad,
     "rotate": rotate,
@@ -414,6 +475,7 @@ def _thumbnail(image: "Image", width: int, height: int, **options) -> "Image":
     """Resizes the image according to the specified parameters,
     and sharpens the resulting thumbnail.
     """
+    assert pyvips
     # We're already autorotating when loading the image
     if pyvips.at_least_libvips(8, 8):  # pragma: no cover
         options["no_rotate"] = True
@@ -434,10 +496,12 @@ def _default_dimensions(width: int | None, height: int | None) -> tuple[int, int
 
 
 def _to_image_with_alpha(source: "str | Path | Image") -> "Image":
+    assert pyvips
     if isinstance(source, pyvips.Image):
         image = source
     else:
         image = pyvips.Image.new_from_file(source)
+    image = t.cast("Image", image)
     if not image.hasalpha():
         image = image.addalpha()
     return image

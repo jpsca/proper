@@ -6,6 +6,9 @@ import pyvips
 from proper.storage.imageops import transform_image
 
 
+# --- Helpers ---
+
+
 HERE = Path(__file__).parent.absolute()
 SOURCE = str(HERE / "armendariz-road.jpg")  # 600 x 448
 
@@ -37,7 +40,7 @@ def fingerprint(image: pyvips.Image, power: int = 3):
     return diff
 
 
-# ── Tests ───────────────────────────────────────────────────────
+# --- Tests ---
 
 
 def test_transform_invalid():

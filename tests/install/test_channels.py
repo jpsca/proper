@@ -1,5 +1,3 @@
-"""Tests for proper.install.channels - installs channels blueprint into an app."""
-
 import pytest
 
 from proper.install import channels, metadata

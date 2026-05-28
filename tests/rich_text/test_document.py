@@ -1,4 +1,3 @@
-"""Tests for proper.rich_text.document - RichTextDocument over HTML."""
 from io import BytesIO
 
 import peewee as pw
@@ -61,7 +60,7 @@ def db(Attachment):
     database.close()
 
 
-# ── basics ──────────────────────────────────────────────────────────
+# --- Basics ---
 
 
 def test_to_html_returns_stored_html():
@@ -102,7 +101,7 @@ def test_none_html_becomes_empty():
     assert doc.to_html() == ""
 
 
-# ── attachments property ────────────────────────────────────────────
+# --- Attachments property ---
 
 
 def test_attachments_empty_when_no_embeds(Attachment, db):
@@ -189,7 +188,7 @@ def test_attachments_handles_non_string_html(Attachment, db):
     assert doc.attachments == []
 
 
-# ── __html__ ────────────────────────────────────────────────────────
+# --- __html__ ---
 
 
 def test_html_structural_content_only(app):

@@ -1,13 +1,8 @@
-"""Integration tests for proper.cache.RedisCache against a Redis container."""
-
 import time
 
 import pytest
 
 from proper.cache import RedisCache
-
-
-# ── fixtures ─────────────────────────────────────────────────────────
 
 
 @pytest.fixture()
@@ -17,8 +12,6 @@ def cache(redis_url):
     yield c
     c.close()
 
-
-# ── basic set / get ──────────────────────────────────────────────────
 
 
 class TestSetGet:
@@ -43,8 +36,6 @@ class TestSetGet:
         cache.set("key1", "value1", expires_in=3600)
         assert cache.get("key1") == "value1"
 
-
-# ── get_or_set ───────────────────────────────────────────────────────
 
 
 class TestGetOrSet:
@@ -100,8 +91,6 @@ class TestGetOrSet:
         assert len(called) == 0
 
 
-# ── increment / decrement ────────────────────────────────────────────
-
 
 class TestIncrementDecrement:
     def test_increment_new_key(self, cache):
@@ -153,8 +142,6 @@ class TestIncrementDecrement:
         assert cache.get("counter") == 100
 
 
-# ── delete / clear ───────────────────────────────────────────────────
-
 
 class TestDeleteClear:
     def test_delete(self, cache):
@@ -175,8 +162,6 @@ class TestDeleteClear:
     def test_delete_expired_is_noop(self, cache):
         cache.delete_expired()  # Redis handles TTLs natively
 
-
-# ── read_multi / write_multi ─────────────────────────────────────────
 
 
 class TestMulti:
@@ -215,8 +200,6 @@ class TestMulti:
     def test_write_multi_empty(self, cache):
         cache.write_multi({})  # should not raise
 
-
-# ── configuration ────────────────────────────────────────────────────
 
 
 class TestConfig:

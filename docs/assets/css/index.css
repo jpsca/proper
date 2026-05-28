@@ -1,4 +1,4 @@
-/* ───── base ───── */
+/* ----- base ----- */
 
 html {
   --paper: #f5f1e8;
@@ -20,7 +20,7 @@ html {
   --cmd: #0d0e12;
   --rule: rgba(26, 29, 36, 0.14);
 }
-/* ───── dark mode ───── */
+/* ----- dark mode ----- */
 @media (prefers-color-scheme: dark) {
   html:not(.cs-light) {
     --paper: #1c1d20;
@@ -61,14 +61,14 @@ body {
 }
 a { color: inherit; }
 
-/* ───── utilities ───── */
+/* ----- utilities ----- */
 .mono { font-family: var(--font-family-mono); }
 .narr {
   font-style: italic;
   color: var(--ink-2);
 }
 
-/* ───── shared ───── */
+/* ----- shared ----- */
 .nav-inner,
 .hero,
 .section-inner {
@@ -95,7 +95,7 @@ a { color: inherit; }
   border-bottom: 1px solid var(--rule);
 }
 
-/* ───── nav ───── */
+/* ----- nav ----- */
 .nav {
   position: absolute;
   inset: 0 0 auto 0;
@@ -145,7 +145,7 @@ a { color: inherit; }
   margin: 0;
 }
 
-/* ───── hero ───── */
+/* ----- hero ----- */
 
 .hero {
   text-align: center;
@@ -206,7 +206,7 @@ a { color: inherit; }
   font-weight: 500;
 }
 
-/* ───── install ───── */
+/* ----- install ----- */
 .install {
   display: flex;
   flex-wrap: wrap;
@@ -256,7 +256,7 @@ a { color: inherit; }
   color: var(--ink-2);
 }
 
-/* ───── cta ───── */
+/* ----- cta ----- */
 
 .cta.section {
   padding-top: 0;
@@ -268,7 +268,7 @@ a { color: inherit; }
   align-items: center;
 }
 
-/* ───── axioms ───── */
+/* ----- axioms ----- */
 .axioms-head {
   grid-template-columns: 1fr 1.4fr;
 }
@@ -314,7 +314,7 @@ a { color: inherit; }
   margin: 0;
 }
 
-/* ───── batteries ───── */
+/* ----- batteries ----- */
 .battery-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -370,7 +370,7 @@ a { color: inherit; }
   padding-top: 8px;
 }
 
-/* ───── scaffolds ───── */
+/* ----- scaffolds ----- */
 .scaffolds-inner {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -385,7 +385,7 @@ a { color: inherit; }
   margin: 0 0 20px;
 }
 
-/* ───── claude callout ───── */
+/* ----- claude callout ----- */
 .claude-inner {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -443,7 +443,7 @@ a { color: inherit; }
 .cmd .h { color: #aeff93; }
 .cmd .s { color: #f7ff82; }
 
-/* ───── responsive ───── */
+/* ----- responsive ----- */
 
 @media (max-width: 900px) {
   .nav-links { gap: 24px; }

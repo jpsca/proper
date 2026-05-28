@@ -1,5 +1,3 @@
-"""Tests for error handling in proper.app - App error handler dispatch."""
-
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,7 +31,7 @@ def _resp(*, app=None, **kw):
     return Response(scope)
 
 
-# ── module-level controllers (required by pipeline.dispatch) ────
+# --- module-level controllers (required by pipeline.dispatch) ---
 
 
 class _ExplodingController(Controller):
@@ -66,7 +64,7 @@ class _CatchAllErrorPageController(Controller):
         self.response.body = "caught"
 
 
-# ── fixtures ────────────────────────────────────────────────────────
+# --- Fixtures ---
 
 
 @pytest.fixture()
@@ -83,10 +81,6 @@ def app():
 def client(app):
     return TestClient(app)
 
-
-# ═══════════════════════════════════════════════════════════════════
-# _handle_app_error
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestHandleAppError:
@@ -150,10 +144,6 @@ class TestHandleAppError:
         assert response.body != "custom error page"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# _default_error_handler
-# ═══════════════════════════════════════════════════════════════════
-
 
 class TestDefaultErrorHandler:
     def test_debug_mode_calls_debug_handler(self, app):
@@ -208,10 +198,6 @@ class TestDefaultErrorHandler:
         assert response.status == status.server_error
 
 
-# ═══════════════════════════════════════════════════════════════════
-# _default_error_handler_debug
-# ═══════════════════════════════════════════════════════════════════
-
 
 class TestDefaultErrorHandlerDebug:
     def test_match_not_found_uses_not_found_handler(self, app):
@@ -241,10 +227,6 @@ class TestDefaultErrorHandlerDebug:
             app._default_error_handler_debug(request, response)
             mock_handler.assert_called_once_with(app, request, response)
 
-
-# ═══════════════════════════════════════════════════════════════════
-# _default_error_handler_production
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestDefaultErrorHandlerProduction:
@@ -281,10 +263,6 @@ class TestDefaultErrorHandlerProduction:
             mock_handler.assert_called_once_with(response)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# _custom_error_handler
-# ═══════════════════════════════════════════════════════════════════
-
 
 class TestCustomErrorHandler:
     def test_dispatches_to_handler(self, app):
@@ -319,10 +297,6 @@ class TestCustomErrorHandler:
         app._custom_error_handler(_ErrorPageController.handle, request, response)
         assert request.matched_params == {}
 
-
-# ═══════════════════════════════════════════════════════════════════
-# on_error / on_teardown decorators
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestEventDecorators:
@@ -382,10 +356,6 @@ class TestEventDecorators:
         assert len(app._on_teardown) == 2
         assert app._on_teardown == (first, second)
 
-
-# ═══════════════════════════════════════════════════════════════════
-# Integration - do_request / _run_pipeline error flow
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestDoRequestErrorFlow:

@@ -27,7 +27,7 @@ from . import plain_text
 
 
 if t.TYPE_CHECKING:
-    from ..types import TAttachment
+    from ..storage import _Attachment
 
 
 # Lexxy emits `<proper-attachment ...></proper-attachment>` as a paired
@@ -52,18 +52,18 @@ class RichTextDocument:
     def __init__(
         self,
         html: str,
-        attachment_cls: "type[TAttachment] | None" = None,
+        attachment_cls: "type[_Attachment] | None" = None,
     ) -> None:
         self._html = html or ""
         self._attachment_cls = attachment_cls
-        self._resolved: "dict[str, TAttachment] | None" = None
+        self._resolved: "dict[str, _Attachment] | None" = None
 
     def to_html(self) -> str:
         """Return the raw stored HTML. Useful for serialization."""
         return self._html
 
     @property
-    def attachments(self) -> "list[TAttachment]":
+    def attachments(self) -> "list[_Attachment]":
         """All `Attachment` rows referenced by `<proper-attachment>` tags,
         in document order, with duplicates dropped.
         """
@@ -90,9 +90,9 @@ class RichTextDocument:
     def __repr__(self) -> str:
         return f"RichTextDocument({self._html!r})"
 
-    # ── attachment resolution ────────────────────────────────────────
+    # --- Attachment resolution ---
 
-    def _resolve_attachments(self) -> "dict[str, TAttachment]":
+    def _resolve_attachments(self) -> "dict[str, _Attachment]":
         if self._resolved is not None:
             return self._resolved
 
@@ -130,14 +130,14 @@ def _collect_attachment_ids(html: str) -> list[str]:
     return list(seen.keys())
 
 
-TAttachmentRenderer = Callable[[dict[str, str]], str]
+_AttachmentRenderer = Callable[[dict[str, str]], str]
 
 
 def _make_renderer(
-    resolved: "dict[str, TAttachment]",
+    resolved: "dict[str, _Attachment]",
     *,
     tmpl: str = "rich_text_attachment.jx",
-) -> TAttachmentRenderer:
+) -> _AttachmentRenderer:
     """Return a renderer function that renders the given Jx template with
     the attachment attributes + resolved row as context.
 
@@ -163,7 +163,7 @@ def _make_renderer(
 
 def replace_attachments(
     html: str,
-    renderer: TAttachmentRenderer | None = None,
+    renderer: _AttachmentRenderer | None = None,
 ) -> str:
     """Return `html` with each `<proper-attachment>` tag substituted by
     the output of `renderer(attrs)`.

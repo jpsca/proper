@@ -1,5 +1,3 @@
-"""Tests for proper.storage - Attachment model, services, and variants."""
-
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -7,14 +5,13 @@ import peewee as pw
 import pytest
 
 from proper import App
-from proper.errors import StorageConfigError
 from proper.models import ProperModel
-from proper.storage.attachment import DEFAULT_CONTENT_TYPE, attachment_for
+from proper.storage.attachment import DEFAULT_CONTENT_TYPE
 from proper.storage.imageops import blur, grayscale, sepia
 from proper.storage.services import Disk
 
 
-# ── helpers ─────────────────────────────────────────────────────────
+# --- Helpers ---
 
 
 STORAGE_SERVICES = {
@@ -53,12 +50,22 @@ def app(tmp_path):
     return app
 
 
+class BaseModel(ProperModel):
+    """Stand-in for the consumer's BaseModel. Real apps subclass ProperModel
+    once and reuse that as the storage base; `attachment_for` requires a
+    distinct subclass (not ProperModel itself) so the MRO can place the
+    consumer base before `_Attachment` without conflict.
+    """
+
+
 @pytest.fixture()
 def Attachment(app):
-    # Build a fresh Attachment class against ProperModel as the test base.
-    # In real apps, BaseModel (with `Meta.database = ...`) takes this slot;
-    # tests bind the database explicitly via the `db` fixture below.
-    return app.attachment_for(ProperModel)
+    # Mutate `VARIANTS_ENABLED_FOR` on the returned class rather than
+    # subclassing: `@queue.task` captures the decorated class eagerly,
+    # so further subclassing strands Huey task dispatch on the parent.
+    Attachment = app.attachment_for(BaseModel)
+    Attachment.VARIANTS_ENABLED_FOR = {"image/*": "preview_image"}
+    return Attachment
 
 
 @pytest.fixture()
@@ -72,11 +79,11 @@ def db(Attachment):
 
 def test_attachment_for_is_memoized(app):
     """Repeated calls with the same base must return the *same* class -
-    otherwise SUPPORTED_VARIANT_TYPES extension and the per-class service
+    otherwise VARIANTS_ENABLED_FOR extension and the per-class service
     cache split across instances.
     """
-    a = app.attachment_for(ProperModel)
-    b = app.attachment_for(ProperModel)
+    a = app.attachment_for(BaseModel)
+    b = app.attachment_for(BaseModel)
     assert a is b
 
 
@@ -86,14 +93,12 @@ def test_attachment_for_different_bases_are_distinct(app):
     class OtherBase(ProperModel):
         pass
 
-    a = app.attachment_for(ProperModel)
+    a = app.attachment_for(BaseModel)
     b = app.attachment_for(OtherBase)
     assert a is not b
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.__init__
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.__init__ ---
 
 
 def test_default_service_name_from_config(Attachment, db):
@@ -104,15 +109,6 @@ def test_default_service_name_from_config(Attachment, db):
 def test_explicit_service_name(Attachment, db):
     att = Attachment(_make_file(), service_name="other")
     assert att.service_name == "other"
-
-
-def test_missing_service_name_raises():
-    Att = attachment_for(ProperModel, app=MagicMock(), default_service_name="")
-    database = pw.SqliteDatabase(":memory:")
-    Att.bind(database)
-    with pytest.raises(StorageConfigError, match="Missing"):
-        Att(_make_file())
-    database.close()
 
 
 def test_filename_parameterized(Attachment, db):
@@ -157,9 +153,7 @@ def test_byte_size_default(Attachment, db):
     assert att.byte_size == 0
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.save - upload on first save
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.save - upload on first save ---
 
 
 def test_save_uploads_and_persists(Attachment, db):
@@ -195,9 +189,7 @@ def test_first_save_inserts_without_explicit_force_insert(Attachment, db):
     assert Attachment.get_or_none(Attachment.id == att.id) is not None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.download
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.download ---
 
 
 def test_download_returns_bytes(Attachment, db):
@@ -216,9 +208,7 @@ def test_download_different_files(Attachment, db):
     assert att2.download() == b"bbb"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment round-trip (save → load from DB)
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment round-trip (save → load from DB) ---
 
 
 def test_fields_survive_round_trip(Attachment, db):
@@ -241,9 +231,7 @@ def test_download_after_reload(Attachment, db):
     assert loaded.download() == b"round trip"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.purge
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.purge ---
 
 
 def test_purge_deletes_file_and_record(Attachment, db):
@@ -261,9 +249,7 @@ def test_purge_file_no_longer_downloadable(Attachment, db):
     assert Attachment.get_or_none(Attachment.id == att.id) is None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Disk service
-# ═══════════════════════════════════════════════════════════════════
+# --- Disk service ---
 
 
 def test_upload_creates_file(app, Attachment, db):
@@ -301,9 +287,7 @@ def test_path_uses_id_sharding(app, Attachment, db):
     assert path.parent.name == key[2:4]
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Storage.get_service
-# ═══════════════════════════════════════════════════════════════════
+# --- Storage.get_service ---
 
 
 def test_returns_disk_service(Attachment):
@@ -328,9 +312,7 @@ def test_different_services_are_independent(Attachment):
     assert s1 is not s2
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Storage.url_for
-# ═══════════════════════════════════════════════════════════════════
+# --- Storage.url_for ---
 
 
 def test_url_for_private_defaults_to_redirect(app, Attachment, db):
@@ -339,7 +321,7 @@ def test_url_for_private_defaults_to_redirect(app, Attachment, db):
     with patch.object(app, "url_for", return_value="/att/signed") as mock:
         url = att.url
     assert url == "/att/signed"
-    assert mock.call_args[0][0] == "AttachmentRedirect.show"
+    assert mock.call_args[0][0] == "StorageRedirect.show"
     assert "token" in mock.call_args[1]
 
 
@@ -349,32 +331,11 @@ def test_url_proxy_private(app, Attachment, db):
     with patch.object(app, "url_for", return_value="/att/proxied") as mock:
         url = att.url_proxy
     assert url == "/att/proxied"
-    assert mock.call_args[0][0] == "AttachmentProxy.show"
+    assert mock.call_args[0][0] == "StorageProxy.show"
     assert "token" in mock.call_args[1]
 
 
-def test_url_for_public(app, Attachment, db):
-    att = Attachment(_make_file(b"x", "f.txt"), service_name="public")
-    att.save(force_insert=True)
-    with patch.object(app, "url_for", return_value="/pub/123") as mock:
-        url = att.url
-    assert url == "/pub/123"
-    mock.assert_called_once_with("PublicAttachment.show", pk=att.id)
-
-
-def test_url_proxy_public_uses_same_route(app, Attachment, db):
-    """Public attachments don't proxy/redirect - both URL flavors resolve
-    to `PublicAttachment.show`."""
-    att = Attachment(_make_file(b"x", "f.txt"), service_name="public")
-    att.save(force_insert=True)
-    with patch.object(app, "url_for", return_value="/pub/123") as mock:
-        _ = att.url_proxy
-    mock.assert_called_once_with("PublicAttachment.show", pk=att.id)
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.get_public / get_signed
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.get_public / get_signed ---
 
 
 def test_get_public_returns_attachment_in_public_service(Attachment, db):
@@ -408,9 +369,7 @@ def test_get_attachment_invalid_signature(Attachment, db):
     assert result is None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Storage.send_file
-# ═══════════════════════════════════════════════════════════════════
+# --- Storage.send_file ---
 
 
 def test_send_file_delegates_to_service(Attachment, db):
@@ -427,21 +386,17 @@ def test_send_file_delegates_to_service(Attachment, db):
     mock_response.send_file.assert_called_once()
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.is_inline_content_type
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.is_allowed_inline ---
 
 
 def test_image_is_inline(Attachment):
-    assert Attachment.is_inline_content_type("image/png") is True
-    assert Attachment.is_inline_content_type("application/pdf") is True
-    assert Attachment.is_inline_content_type("application/octet-stream") is False
-    assert Attachment.is_inline_content_type("text/plain") is False
+    assert Attachment.is_allowed_inline("image/png") is True
+    assert Attachment.is_allowed_inline("application/pdf") is True
+    assert Attachment.is_allowed_inline("application/octet-stream") is False
+    assert Attachment.is_allowed_inline("text/plain") is False
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Variant fields on Attachment
-# ═══════════════════════════════════════════════════════════════════
+# --- Variant fields on Attachment ---
 
 
 def test_parent_defaults_to_none(Attachment, db):
@@ -456,9 +411,7 @@ def test_variant_key_defaults_to_empty(Attachment, db):
     assert att.variant_key == ""
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment._variant_key
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment._variant_key ---
 
 
 def test_deterministic(Attachment):
@@ -485,9 +438,7 @@ def test_different_order_produce_different_keys(Attachment):
     assert k1 != k2
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.create_variant
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.create_variant ---
 
 
 def test_creates_variant_record(Attachment, db):
@@ -556,9 +507,7 @@ def test_metadata_stored(Attachment, db):
     assert v.metadata["transformations"] == {"resize": [100, 100]}
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.variant
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.variant ---
 
 
 def test_no_transformations_raises_for_unsupported(Attachment, db):
@@ -648,7 +597,7 @@ def test_variant_preserves_source_format_when_allowed(Attachment, db):
 
 
 def test_variant_uses_fallback_format_when_source_not_allowed(Attachment, db):
-    # image/bmp matches SUPPORTED_VARIANT_TYPES ("image/*") but is not in
+    # image/bmp matches VARIANTS_ENABLED_FOR ("image/*") but is not in
     # STORAGE_ALLOWED_VARIANTS, so the variant should fall back to PNG.
     parent = Attachment(_make_file(b"img", "photo.bmp"), content_type="image/bmp")
     parent.save(force_insert=True)
@@ -686,9 +635,7 @@ def test_variant_fallback_format_is_configurable(Attachment, db, app):
     assert v.filename.endswith(".webp")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.variants backref
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.variants backref ---
 
 
 def test_variants_empty_by_default(Attachment, db):
@@ -706,9 +653,7 @@ def test_variants_lists_children(Attachment, db):
     assert variant_ids == {v1.id, v2.id}
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Attachment.transform_image / video / pdf - delegate to functions
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.transform_image / video / pdf - delegate to functions ---
 
 
 def test_transform_image_calls_function(Attachment, db):
@@ -730,15 +675,13 @@ def test_transform_image_delegates_to_imageops(Attachment, db):
     mock.assert_called_once_with("/path/to/image.jpg", resize_to_limit=(400, 400))
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Custom SUPPORTED_VARIANT_TYPES via subclass
-# ═══════════════════════════════════════════════════════════════════
+# --- Custom VARIANTS_ENABLED_FOR via subclass ---
 
 
 def test_subclass_can_add_content_types(Attachment, db):
     class MyAttachment(Attachment):
-        SUPPORTED_VARIANT_TYPES = {
-            **Attachment.SUPPORTED_VARIANT_TYPES,
+        VARIANTS_ENABLED_FOR = {
+            **Attachment.VARIANTS_ENABLED_FOR,
             "application/epub": "transform_epub",
         }
 
@@ -758,8 +701,8 @@ def test_subclass_can_add_content_types(Attachment, db):
 
 def test_custom_transform_can_delegate_to_transform_image(Attachment, db):
     class MyAttachment(Attachment):
-        SUPPORTED_VARIANT_TYPES = {
-            **Attachment.SUPPORTED_VARIANT_TYPES,
+        VARIANTS_ENABLED_FOR = {
+            **Attachment.VARIANTS_ENABLED_FOR,
             "application/pdf": "transform_pdf",
         }
 
@@ -786,9 +729,244 @@ def test_custom_transform_can_delegate_to_transform_image(Attachment, db):
     assert v.download() == b"processed"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# imageops - sepia and grayscale filters
-# ═══════════════════════════════════════════════════════════════════
+# --- Attachment.preview_image ---
+
+
+def test_preview_image_missing_libvips_raises_importerror(Attachment, db):
+    att = Attachment(_make_file(b"img", "photo.jpg"), content_type="image/jpeg")
+    att.save(force_insert=True)
+
+    with patch("proper.storage.attachment.pyvips", None):
+        with pytest.raises(ImportError, match="libvips"):
+            att.preview_image(b"img")
+
+
+# --- Attachment.preview_pdf ---
+
+
+def test_preview_pdf_with_bytes_runs_pdftoppm_and_delegates(Attachment, db):
+    att = Attachment(
+        _make_file(b"%PDF-stub", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/pdftoppm"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png-bytes"
+    ), patch.object(att, "transform_image", return_value=b"final") as transform:
+        result = att.preview_pdf(
+            b"%PDF-stub", resize=(100, 100), save={"format": "png"}
+        )
+
+    assert result == b"final"
+    transform.assert_called_once_with(
+        b"png-bytes", resize=(100, 100), save={"format": "png"}
+    )
+    cmd = run.call_args.args[0]
+    assert cmd[0] == "pdftoppm"
+    assert "-png" in cmd
+    assert "-singlefile" in cmd
+    assert "-cropbox" in cmd
+    assert cmd[cmd.index("-f") + 1] == "1"  # default page
+    assert cmd[cmd.index("-r") + 1] == "150"  # default dpi
+
+
+def test_preview_pdf_page_kwarg_passed_to_pdftoppm(Attachment, db):
+    att = Attachment(
+        _make_file(b"%PDF", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/pdftoppm"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png"
+    ), patch.object(att, "transform_image", return_value=b"out"):
+        att.preview_pdf(b"%PDF", page=3)
+
+    cmd = run.call_args.args[0]
+    assert cmd[cmd.index("-f") + 1] == "3"
+
+
+def test_preview_pdf_dpi_kwarg_passed_to_pdftoppm(Attachment, db):
+    att = Attachment(
+        _make_file(b"%PDF", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/pdftoppm"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png"
+    ), patch.object(att, "transform_image", return_value=b"out") as transform:
+        att.preview_pdf(b"%PDF", dpi=300)
+
+    cmd = run.call_args.args[0]
+    assert cmd[cmd.index("-r") + 1] == "300"
+    # `dpi` must not leak into transform_image (PDF-extraction concern only)
+    transform.assert_called_once_with(b"png")
+
+
+def test_preview_pdf_with_path_source_skips_tempfile(Attachment, db, tmp_path):
+    pdf_path = tmp_path / "doc.pdf"
+    pdf_path.write_bytes(b"%PDF-stub")
+    att = Attachment(
+        _make_file(b"%PDF-stub", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/pdftoppm"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png"
+    ), patch.object(att, "transform_image", return_value=b"out"):
+        att.preview_pdf(str(pdf_path))
+
+    cmd = run.call_args.args[0]
+    assert cmd[1] == str(pdf_path)  # path used directly, no temp file
+
+
+def test_preview_pdf_missing_pdftoppm_raises_importerror(Attachment, db):
+    att = Attachment(
+        _make_file(b"%PDF", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+
+    with patch("proper.storage.attachment.shutil.which", return_value=None):
+        with pytest.raises(ImportError, match="pdftoppm"):
+            att.preview_pdf(b"%PDF")
+
+
+def test_variant_on_pdf_dispatches_to_preview_pdf(Attachment, db):
+    Attachment.VARIANTS_ENABLED_FOR = {
+        **Attachment.VARIANTS_ENABLED_FOR,
+        "application/pdf": "preview_pdf",
+    }
+    att = Attachment(
+        _make_file(b"%PDF-stub", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/pdftoppm"
+    ), patch("proper.storage.attachment.subprocess.run"), patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"page-png"
+    ), patch.object(att, "transform_image", return_value=b"thumb") as transform:
+        v = att.variant(resize=(200, 200))
+
+    # variant() injects save={"format": "png"} since PDF isn't in
+    # STORAGE_ALLOWED_VARIANTS, so it falls back to STORAGE_FALLBACK_FORMAT.
+    transform.assert_called_once_with(
+        b"page-png", resize=(200, 200), save={"format": "png"}
+    )
+    assert v.download() == b"thumb"
+    assert v.parent_id == att.id
+
+
+# --- Attachment.preview_video ---
+
+
+def test_preview_video_with_bytes_runs_ffmpeg_and_delegates(Attachment, db):
+    att = Attachment(
+        _make_file(b"mp4-stub", "clip.mp4"), content_type="video/mp4"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/ffmpeg"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png-bytes"
+    ), patch.object(att, "transform_image", return_value=b"final") as transform:
+        result = att.preview_video(
+            b"mp4-stub", resize=(100, 100), save={"format": "png"}
+        )
+
+    assert result == b"final"
+    transform.assert_called_once_with(
+        b"png-bytes", resize=(100, 100), save={"format": "png"}
+    )
+    cmd = run.call_args.args[0]
+    assert cmd[0] == "ffmpeg"
+    assert "-frames:v" in cmd
+    assert cmd[cmd.index("-frames:v") + 1] == "1"
+    assert cmd[cmd.index("-ss") + 1] == "1.0"  # default at_seconds
+
+
+def test_preview_video_at_seconds_kwarg_passed_to_ffmpeg(Attachment, db):
+    att = Attachment(
+        _make_file(b"mp4", "clip.mp4"), content_type="video/mp4"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/ffmpeg"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png"
+    ), patch.object(att, "transform_image", return_value=b"out") as transform:
+        att.preview_video(b"mp4", at_seconds=2.5)
+
+    cmd = run.call_args.args[0]
+    assert cmd[cmd.index("-ss") + 1] == "2.5"
+    # at_seconds must not leak into transform_image (extraction-only concern)
+    transform.assert_called_once_with(b"png")
+
+
+def test_preview_video_with_path_source_skips_tempfile(Attachment, db, tmp_path):
+    video_path = tmp_path / "clip.mp4"
+    video_path.write_bytes(b"mp4-stub")
+    att = Attachment(
+        _make_file(b"mp4-stub", "clip.mp4"), content_type="video/mp4"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/ffmpeg"
+    ), patch("proper.storage.attachment.subprocess.run") as run, patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"png"
+    ), patch.object(att, "transform_image", return_value=b"out"):
+        att.preview_video(str(video_path))
+
+    cmd = run.call_args.args[0]
+    assert cmd[cmd.index("-i") + 1] == str(video_path)
+
+
+def test_preview_video_missing_ffmpeg_raises_importerror(Attachment, db):
+    att = Attachment(
+        _make_file(b"mp4", "clip.mp4"), content_type="video/mp4"
+    )
+    att.save(force_insert=True)
+
+    with patch("proper.storage.attachment.shutil.which", return_value=None):
+        with pytest.raises(ImportError, match="ffmpeg"):
+            att.preview_video(b"mp4")
+
+
+def test_variant_on_video_dispatches_to_preview_video(Attachment, db):
+    Attachment.VARIANTS_ENABLED_FOR = {
+        **Attachment.VARIANTS_ENABLED_FOR,
+        "video/*": "preview_video",
+    }
+    att = Attachment(
+        _make_file(b"mp4-stub", "clip.mp4"), content_type="video/mp4"
+    )
+    att.save(force_insert=True)
+
+    with patch(
+        "proper.storage.attachment.shutil.which", return_value="/usr/bin/ffmpeg"
+    ), patch("proper.storage.attachment.subprocess.run"), patch(
+        "proper.storage.attachment.Path.read_bytes", return_value=b"frame-png"
+    ), patch.object(att, "transform_image", return_value=b"thumb") as transform:
+        v = att.variant(resize=(320, 240))
+
+    transform.assert_called_once_with(
+        b"frame-png", resize=(320, 240), save={"format": "png"}
+    )
+    assert v.download() == b"thumb"
+    assert v.parent_id == att.id
+
+
+# --- imageops - sepia and grayscale filters ---
 
 
 @pytest.fixture()
@@ -869,9 +1047,7 @@ def test_preserves_alpha(rgba_image):
     assert result.hasalpha()
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Storage.purge_variants
-# ═══════════════════════════════════════════════════════════════════
+# --- Storage.purge_variants ---
 
 
 def test_purge_variants_deletes_variant_records(Attachment, db):
@@ -912,9 +1088,7 @@ def test_purge_variants_on_attachment_with_no_variants(Attachment, db):
     assert Attachment.select().count() == 1
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Storage.purge - later
-# ═══════════════════════════════════════════════════════════════════
+# --- Storage.purge - later ---
 
 
 def test_purge_later_enqueues(app, Attachment, db):
@@ -943,9 +1117,7 @@ def test_purge_variants_later_enqueues(app, Attachment, db):
     assert Attachment.get_or_none(Attachment.id == parent.id) is not None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# DirectUpload - create_pending_blob + Disk.direct_upload_url
-# ═══════════════════════════════════════════════════════════════════
+# --- DirectUpload - create_pending_blob + Disk.direct_upload_url ---
 
 
 def test_create_pending_blob_writes_row_with_metadata_only(Attachment, db):
@@ -996,7 +1168,7 @@ def test_disk_direct_upload_url_targets_disk_endpoint(app, Attachment, db):
     assert upload["headers"]["Content-MD5"] == "abc=="
     mock.assert_called_once()
     name, kwargs = mock.call_args[0][0], mock.call_args[1]
-    assert name == "AttachmentDisk.update"
+    assert name == "DirectUpload.update"
     assert "token" in kwargs
 
 

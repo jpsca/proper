@@ -1,4 +1,3 @@
-"""Tests for proper.rich_text.concerns - HasRichText lifecycle mixin."""
 from io import BytesIO
 
 import peewee as pw
@@ -109,7 +108,7 @@ def _store_attachment(Attachment, content=b"x", filename="x.txt"):
     return att
 
 
-# ── new record with embeds ─────────────────────────────────────────
+# --- New record with embeds ---
 
 
 def test_new_post_with_embed_flips_pending_to_false(Post, Attachment):
@@ -133,7 +132,7 @@ def test_new_post_without_embeds_does_nothing(Post, Attachment):
     assert refreshed.pending is True
 
 
-# ── update: removing/replacing embeds ──────────────────────────────
+# --- Update: removing/replacing embeds ---
 
 
 def test_edit_removing_embed_purges_it(Post, Attachment):
@@ -185,7 +184,7 @@ def test_edit_replacing_one_embed_with_another_purges_removed(Post, Attachment):
     assert Attachment.get(Attachment.id == new.id).pending is False
 
 
-# ── delete ─────────────────────────────────────────────────────────
+# --- Delete ---
 
 
 def test_delete_purges_all_embedded_attachments(Post, Attachment):
@@ -211,7 +210,7 @@ def test_delete_with_no_embeds_is_a_noop(Post, Attachment):
     assert Attachment.get_or_none(Attachment.id == other.id) is not None
 
 
-# ── multiple rich text columns ─────────────────────────────────────
+# --- Multiple rich text columns ---
 
 
 def test_multiple_rich_text_fields_are_all_reconciled(PostTwoBodies, Attachment):
@@ -237,7 +236,7 @@ def test_multiple_rich_text_fields_are_all_reconciled(PostTwoBodies, Attachment)
     assert Attachment.get_or_none(Attachment.id == main.id) is not None
 
 
-# ── no rich text columns ───────────────────────────────────────────
+# --- No rich text columns ---
 
 
 def test_model_without_rich_text_fields_is_unaffected(PostNoEmbeds):
@@ -252,7 +251,7 @@ def test_model_without_rich_text_fields_is_unaffected(PostNoEmbeds):
     assert PostNoEmbeds.get_or_none(PostNoEmbeds.id == post.id) is None
 
 
-# ── defensive: null body ───────────────────────────────────────────
+# --- Defensive: null body ---
 
 
 def test_null_body_doesnt_crash(Post, Attachment):
@@ -263,7 +262,7 @@ def test_null_body_doesnt_crash(Post, Attachment):
     post.delete_instance()
 
 
-# ── attachment_cls=None edge case ──────────────────────────────────
+# --- Attachment_cls=None edge case ---
 
 
 def test_field_without_attachment_cls_is_skipped(app):
@@ -285,7 +284,7 @@ def test_field_without_attachment_cls_is_skipped(app):
         database.close()
 
 
-# ── internals: defensive walkers ───────────────────────────────────
+# --- Internals: defensive walkers ---
 
 
 def test_collect_ids_from_non_string_returns_empty():

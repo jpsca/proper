@@ -373,7 +373,7 @@ class WebSocketTestSession:
         await self._from_app.put(msg)
 
 
-# ── encoding helpers ──────────────────────────────────────────────────
+# --- encoding helpers ---
 
 
 def _encode_body(body: dict | str | bytes | BytesIO) -> bytes:

@@ -26,7 +26,7 @@ Override `upload_url` per-form if you need a stricter endpoint
 (e.g. membership-gated uploads). The endpoint must speak the same
 DirectUpload create protocol - see `AttachmentController.create`.
 #}
-{% set upload_url = upload_url or url_for("Attachment.create") %}
+{% set upload_url = upload_url or url_for("DirectUpload.create") %}
 
 {#
 Lexxy substitutes `:signed_id` (and optionally `:filename`) client-side
@@ -34,7 +34,7 @@ when it needs to display an attachment by its signed token. We point
 at the redirect route - same URL `Attachment.url` emits - so embeds
 render in the editor exactly as they will on the published page.
 #}
-{% set blob_url_template = url_for("AttachmentRedirect.show", token=":signed_id") %}
+{% set blob_url_template = url_for("StorageRedirect.show", token=":signed_id") %}
 
 <lexxy-editor
   data-direct-upload-url="{{ upload_url }}"

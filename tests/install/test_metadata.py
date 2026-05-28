@@ -1,4 +1,3 @@
-"""Tests for proper.install.metadata - `.proper` file bookkeeping."""
 import json
 
 import pytest

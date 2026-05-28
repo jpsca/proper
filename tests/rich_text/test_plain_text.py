@@ -1,4 +1,3 @@
-"""Tests for proper.rich_text.plain_text - HTML → plain text extractor."""
 from proper.rich_text.plain_text import to_plain_text
 
 

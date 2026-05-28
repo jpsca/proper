@@ -1,5 +1,3 @@
-"""Tests for the src/proper/tools/ setup & validation modules."""
-
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -37,9 +35,7 @@ def test_db_is_dict():
     assert isinstance(app.db, dict)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.auth
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.auth ---
 
 
 def test_auth_defaults():
@@ -126,9 +122,7 @@ def test_token_life_must_be_positive_int():
         auth.validate_config(config)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.cache
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.cache ---
 
 
 def test_default_nocache():
@@ -170,9 +164,7 @@ def test_cache_config():
         cache.validate_config({"type": 42})
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.db
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.db ---
 
 
 def test_default_sqlite_memory():
@@ -260,9 +252,7 @@ def test_db_config_falsy_entry_passes():
     db.validate_config({"main": {}})
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.i18n
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.i18n ---
 
 
 def test_i18n_no_locales_dir_still_constructs_instance():
@@ -316,9 +306,7 @@ def test_i18n_registers_jinja_global(tmp_path):
     assert "_" in app.catalog.jinja_env.globals
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.mailer
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.mailer ---
 
 
 def test_default_to_console_mailer():
@@ -353,9 +341,7 @@ def test_mailer_type_must_be_str_or_class():
         mailer.validate_config({"type": 42})
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.queue
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.queue ---
 
 
 def test_default_memory_huey():
@@ -470,9 +456,7 @@ def test_queue_dbtype_string_is_valid():
     )
 
 
-# ═══════════════════════════════════════════════════════════════════
-# tools.storage
-# ═══════════════════════════════════════════════════════════════════
+# --- tools.storage ---
 
 
 def test_storage_default_config_values_set():

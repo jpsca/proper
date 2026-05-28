@@ -27,7 +27,7 @@ from .document import RichTextDocument
 
 
 if t.TYPE_CHECKING:
-    from ..types import TAttachment
+    from ..storage import _Attachment
 
 
 class _RichTextFieldMixin(pw.Field):
@@ -48,7 +48,7 @@ class _RichTextFieldMixin(pw.Field):
 
     def __init__(
         self,
-        attachment_cls: "type[TAttachment] | None",
+        attachment_cls: "type[_Attachment] | None",
         **kwargs: t.Any,
     ) -> None:
         super().__init__(**kwargs)

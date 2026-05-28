@@ -3,9 +3,7 @@ import pytest
 from proper.generators.resource import gen_resource
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# --- Fixtures ---
 
 APP_NAME = "myapp"
 
@@ -27,9 +25,7 @@ def app_in_tmp(tmp_path, app):
     return app
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# --- Helpers ---
 
 
 def _init_text(app) -> str:
@@ -52,9 +48,7 @@ def _views_folder(app, name_snake: str):
     return app.root_path / "views" / name_snake
 
 
-# ---------------------------------------------------------------------------
-# File generation
-# ---------------------------------------------------------------------------
+# --- File generation ---
 
 
 def test_generated_files(app_in_tmp):
@@ -138,9 +132,7 @@ def test_generated_namespaced_files(app_in_tmp):
     assert (views / "form.jx").exists()
 
 
-# ---------------------------------------------------------------------------
-# Model content
-# ---------------------------------------------------------------------------
+# --- Model content ---
 
 
 class TestModel:
@@ -157,9 +149,7 @@ class TestModel:
         assert "name = pw.CharField()" in text
 
 
-# ---------------------------------------------------------------------------
-# Form content
-# ---------------------------------------------------------------------------
+# --- Form content ---
 
 
 class TestForm:
@@ -184,9 +174,7 @@ class TestForm:
         assert "user" not in text
 
 
-# ---------------------------------------------------------------------------
-# Singular resources
-# ---------------------------------------------------------------------------
+# --- Singular resources ---
 
 
 class TestSingular:
@@ -210,9 +198,7 @@ class TestSingular:
         assert "pk=None" in text
 
 
-# ---------------------------------------------------------------------------
-# only / exclude filtering
-# ---------------------------------------------------------------------------
+# --- only / exclude filtering ---
 
 
 class TestActionFiltering:
@@ -255,9 +241,7 @@ class TestActionFiltering:
         assert (views / "show.jx").exists()
 
 
-# ---------------------------------------------------------------------------
-# Custom pk
-# ---------------------------------------------------------------------------
+# --- Custom pk ---
 
 
 class TestCustomPk:
@@ -272,9 +256,7 @@ class TestCustomPk:
         assert 'pk="slug"' in text
 
 
-# ---------------------------------------------------------------------------
-# Name inflection
-# ---------------------------------------------------------------------------
+# --- Name inflection ---
 
 
 class TestNameInflection:
@@ -290,9 +272,7 @@ class TestNameInflection:
         assert "class BlogPost(BaseModel):" in text
 
 
-# ---------------------------------------------------------------------------
-# Migration
-# ---------------------------------------------------------------------------
+# --- Migration ---
 
 
 class TestMigration:

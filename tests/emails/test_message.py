@@ -251,7 +251,7 @@ def test_instances_dont_share_mutable_state():
     assert "X-Custom" not in msg2.headers
 
 
-# ── _render tests ───────────────────────────────────────────────────
+# --- _render tests ---
 
 
 def _make_email_class(module_name):

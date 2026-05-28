@@ -18,7 +18,7 @@ from html.parser import HTMLParser
 
 
 if t.TYPE_CHECKING:
-    from ..types import TAttachment
+    from ..storage import _Attachment
 
 
 _BLOCK_TAGS = frozenset({
@@ -30,7 +30,7 @@ _SKIP_CONTENT = frozenset({"script", "style"})
 
 
 class _PlainTextExtractor(HTMLParser):
-    def __init__(self, attachments: "dict[str, TAttachment]") -> None:
+    def __init__(self, attachments: "dict[str, _Attachment]") -> None:
         super().__init__(convert_charrefs=True)
         self._attachments = attachments
         self._parts: list[str] = []
@@ -96,7 +96,7 @@ class _PlainTextExtractor(HTMLParser):
 
 def to_plain_text(
     html: str,
-    attachments: "dict[str, TAttachment] | None" = None,
+    attachments: "dict[str, _Attachment] | None" = None,
 ) -> str:
     """Render rich text HTML as plain text."""
     if not isinstance(html, str) or not html:
@@ -109,7 +109,7 @@ def to_plain_text(
 
 def _render_attachment(
     attrs: dict[str, str | None],
-    attachments: "dict[str, TAttachment]",
+    attachments: "dict[str, _Attachment]",
 ) -> str:
     alt = attrs.get("alt")
     if alt:

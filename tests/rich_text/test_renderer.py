@@ -1,7 +1,7 @@
 from proper.rich_text.document import replace_attachments
 
 
-# ── no attachments ──────────────────────────────────────────────────
+# --- no attachments ---
 
 
 def test_empty_html_returns_empty():
@@ -20,7 +20,7 @@ def test_html_without_attachments_ignores_renderer():
     assert replace_attachments("<p>nothing</p>", boom) == "<p>nothing</p>"
 
 
-# ── attachment replacement ──────────────────────────────────────────
+# --- attachment replacement ---
 
 
 def test_no_renderer_drops_attachment_tag():
@@ -96,7 +96,7 @@ def test_tag_matching_is_case_insensitive():
     assert out == "[x]"
 
 
-# ── defensive ───────────────────────────────────────────────────────
+# --- defensive ---
 
 
 def test_non_string_input_returns_empty():

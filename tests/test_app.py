@@ -1,5 +1,3 @@
-"""Minimal end-to-end test - request in, text response out."""
-
 import json
 
 import pytest
@@ -85,9 +83,7 @@ def test_load_config_from_class():
     assert config.DEBUG is True
 
 
-# ═══════════════════════════════════════════════════════════════════
-# render_importmap
-# ═══════════════════════════════════════════════════════════════════
+# --- Render importmap ---
 
 
 def _make_app(**overrides):

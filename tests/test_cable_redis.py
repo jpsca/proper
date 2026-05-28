@@ -1,15 +1,12 @@
-"""Integration tests for proper.cable.RedisCable against a Redis container."""
-
 import asyncio
+import typing as t
 
 import pytest
 
+from proper.app import App
 from proper.cable import Cable, RedisCable
 from proper.channel import Channel
 from proper.helpers import DotDict, jsonplus
-
-
-# ── helpers ──────────────────────────────────────────────────────────
 
 
 class FakeApp:
@@ -19,7 +16,7 @@ class FakeApp:
 
 
 def _make_channel(app=None, params=None):
-    app = app or FakeApp()
+    app = t.cast(App, app or FakeApp())
     params = params or {}
     sent = []
 
@@ -30,16 +27,10 @@ def _make_channel(app=None, params=None):
     return ch, sent
 
 
-# ── fixtures ─────────────────────────────────────────────────────────
-
-
 @pytest.fixture()
 def cable(redis_url):
     """Create a RedisCable connected to the test Redis."""
     return RedisCable(url=redis_url, prefix="test:cable:")
-
-
-# ── RedisCable init ──────────────────────────────────────────────────
 
 
 class TestRedisCableInit:
@@ -62,9 +53,6 @@ class TestRedisCableInit:
         assert c._pub_redis is None
         assert c._sub_redis is None
         assert c._listener_task is None
-
-
-# ── broadcast publishes to Redis ─────────────────────────────────────
 
 
 class TestBroadcast:
@@ -104,9 +92,6 @@ class TestBroadcast:
 
         pubsub.close()
         client.close()
-
-
-# ── listener delivers to local channels ──────────────────────────────
 
 
 class TestListener:
@@ -181,9 +166,6 @@ class TestListener:
         assert [m["data"]["n"] for m in sent] == [1, 2, 3]
 
 
-# ── start / stop lifecycle ───────────────────────────────────────────
-
-
 class TestLifecycle:
     async def test_start_creates_listener_task(self, cable):
         await cable.start()
@@ -220,9 +202,6 @@ class TestLifecycle:
 
         assert len(sent) == 1
         assert sent[0]["data"] == {"after": "restart"}
-
-
-# ── subscribe / unsubscribe (inherited) ──────────────────────────────
 
 
 class TestSubscribeUnsubscribe:
@@ -263,9 +242,6 @@ class TestSubscribeUnsubscribe:
 
         assert len(sent) == 1
         assert sent[0]["data"] == {"n": 1}
-
-
-# ── tool setup ───────────────────────────────────────────────────────
 
 
 class TestCableTool:
@@ -353,9 +329,6 @@ class TestCableToolValidation:
         validate_config({"type": RedisCable})
 
 
-# ── app integration ──────────────────────────────────────────────────
-
-
 class TestAppIntegration:
     def test_app_creates_cable_via_tool(self):
         app = _make_app()
@@ -392,9 +365,6 @@ class TestAppIntegration:
 
         assert started == [True]
         assert stopped == [True]
-
-
-# ── helpers ──────────────────────────────────────────────────────────
 
 
 def _make_app():

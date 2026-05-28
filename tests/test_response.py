@@ -1,6 +1,3 @@
-"""Tests for proper.response - Response, headers, cookies, flash messages,
-and file wrapper."""
-
 import io
 import warnings
 from datetime import datetime, timezone
@@ -42,8 +39,6 @@ def _resp(*, status=pstatus.ok, **scope_kw):
     return Response(scope, status=status)
 
 
-# ── is_iterable ──────────────────────────────────────────────────────
-
 
 class TestIsIterable:
     def test_list(self):
@@ -67,8 +62,6 @@ class TestIsIterable:
     def test_int_not_iterable(self):
         assert is_iterable(42) is False
 
-
-# ── Response basics ──────────────────────────────────────────────────
 
 
 class TestResponse:
@@ -117,8 +110,6 @@ class TestResponse:
         resp = Response(scope)
         assert resp.app is mock_app
 
-
-# ── prepare() ────────────────────────────────────────────────────────
 
 
 class TestPrepare:
@@ -191,8 +182,6 @@ class TestPrepare:
         assert b"".join(body) == b"file content"
 
 
-# ── redirect_to ──────────────────────────────────────────────────────
-
 
 class TestRedirectTo:
     def test_redirect_to_url(self):
@@ -227,8 +216,6 @@ class TestRedirectTo:
         mock_app.url_for.assert_called_once_with("users.show", object=42, pk=42)
         assert resp.location == "/users/42"
 
-
-# ── fresh_when / is_fresh ────────────────────────────────────────────
 
 
 class TestFreshWhen:
@@ -363,8 +350,6 @@ class TestIsFresh:
         current.request = old
 
 
-# ── send_file ────────────────────────────────────────────────────────
-
 
 class TestSendFile:
     def test_send_file_basic(self, tmp_path):
@@ -481,8 +466,6 @@ class TestSendFile:
         assert resp.last_modified is not None
 
 
-# ── ResponseHeadersDict ──────────────────────────────────────────────
-
 
 class TestResponseHeadersDict:
     def test_setitem_getitem(self):
@@ -537,8 +520,6 @@ class TestResponseHeadersDict:
         d = ResponseHeadersDict()
         d._set("X-Custom", None)  # should not raise
 
-
-# ── ResponseHeadersMixin ─────────────────────────────────────────────
 
 
 class TestResponseHeadersMixin:
@@ -826,8 +807,6 @@ class TestResponseHeadersMixin:
         assert resp.charset == ""
 
 
-# ── get_header_tuples ─────────────────────────────
-
 
 class TestGetHeaderTuples:
     def test_basic_headers(self):
@@ -884,8 +863,6 @@ class TestGetHeaderTuples:
         cookie_headers = [h for h in headers if h[0] == "Set-Cookie"]
         assert len(cookie_headers) == 2
 
-
-# ── Cookies ──────────────────────────────────────────────────────────
 
 
 class TestCookies:
@@ -1044,8 +1021,6 @@ class TestCookies:
         assert resp.get_cookie_tuples() == []
 
 
-# ── validate_domain / validate_cookie_size ───────────────────────────
-
 
 class TestValidateDomain:
     def test_valid_domain(self):
@@ -1083,8 +1058,6 @@ class TestValidateCookieSize:
             validate_cookie_size("foo", "x" * 200, 100)
         assert "100 bytes" in str(record[0].message)
 
-
-# ── FlashMessages ────────────────────────────────────────────────────
 
 
 class TestFlashMessages:
@@ -1131,8 +1104,6 @@ class TestFlashMessages:
         flash = FlashMessages(resp)
         assert flash.flashes == [("existing", "msg")]
 
-
-# ── FileWrapper ──────────────────────────────────────────────────────
 
 
 class TestFileWrapper:

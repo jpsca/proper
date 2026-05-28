@@ -5,9 +5,7 @@ import pytest
 from proper.seeds import run_seeds
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# --- Fixtures ---
 
 
 @pytest.fixture(autouse=True)
@@ -65,9 +63,7 @@ def _make_seeds_pkg(root, *, db=None):
     return pkg_path
 
 
-# ---------------------------------------------------------------------------
-# Discovery
-# ---------------------------------------------------------------------------
+# --- Discovery ---
 
 
 class TestDiscovery:
@@ -105,9 +101,7 @@ class TestDiscovery:
         assert nested_log.entries == ["nested_seed"]
 
 
-# ---------------------------------------------------------------------------
-# Order, envs, single-name filter
-# ---------------------------------------------------------------------------
+# --- Order, envs, single-name filter ---
 
 
 class TestRun:

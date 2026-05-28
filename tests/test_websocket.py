@@ -1,5 +1,3 @@
-"""Tests for WebSocket handling in proper.app - handle_websocket."""
-
 import asyncio
 
 import pytest
@@ -9,7 +7,7 @@ from proper.channel import Channel
 from proper.helpers import jsonplus
 
 
-# ── helpers ──────────────────────────────────────────────────────────
+# --- Helpers ---
 
 
 @pytest.fixture()
@@ -67,7 +65,7 @@ async def run_ws(app, q, scope=None):
     return task
 
 
-# ── connection ───────────────────────────────────────────────────────
+# --- Connection ---
 
 
 class TestConnection:
@@ -103,7 +101,7 @@ class TestConnection:
         await task
 
 
-# ── subscribe ────────────────────────────────────────────────────────
+# --- Subscribe ---
 
 
 class TestSubscribe:
@@ -174,7 +172,7 @@ class TestSubscribe:
         await task
 
 
-# ── message ──────────────────────────────────────────────────────────
+# --- Message ---
 
 
 class TestMessage:
@@ -305,7 +303,7 @@ class TestMessage:
         await task
 
 
-# ── unsubscribe ──────────────────────────────────────────────────────
+# --- Unsubscribe ---
 
 
 class TestUnsubscribe:
@@ -359,7 +357,7 @@ class TestUnsubscribe:
         assert lifecycle == ["subscribed", "unsubscribed"]
 
 
-# ── error handling ───────────────────────────────────────────────────
+# --- Error handling ---
 
 
 class TestProtocolErrors:
@@ -419,7 +417,7 @@ class TestProtocolErrors:
         await task
 
 
-# ── messages sent during subscribed() ────────────────────────────────
+# --- Messages sent during subscribed() ---
 
 
 class TestDisconnectErrorHandling:

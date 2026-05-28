@@ -1,5 +1,3 @@
-"""Tests for ProperModel.generate_token / resolve_token and the named token_for variants."""
-
 import peewee as pw
 import pytest
 from playhouse.sqlite_ext import SqliteExtDatabase
@@ -9,7 +7,7 @@ from proper.models import ProperModel
 from proper.units import HOURS
 
 
-# ── helpers ─────────────────────────────────────────────────────────
+# --- helpers ---
 
 db = SqliteExtDatabase(":memory:")
 
@@ -47,11 +45,6 @@ def setup():
     db.create_tables([Item, Account])
     yield
     db.drop_tables([Item, Account])
-
-
-# ═══════════════════════════════════════════════════════════════════
-# generate_token / resolve_token (low-level)
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestGenerateToken:
@@ -148,11 +141,6 @@ class TestResolveToken:
         # Account has a different default salt (class name)
         found = Account.resolve_token(token)
         assert found is None
-
-
-# ═══════════════════════════════════════════════════════════════════
-# generate_token_for / resolve_token_for (named tokens)
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestGenerateTokenFor:

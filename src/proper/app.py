@@ -46,7 +46,7 @@ if t.TYPE_CHECKING:
     from .cache import BaseCache
     from .emails import BaseMailer
     from .i18n import I18n
-    from .types import TAttachment
+    from .storage import _Attachment
 
 
 __all__ = ("App",)
@@ -272,7 +272,7 @@ class App(AppWs):
         self._on_teardown = self._on_teardown + (func,)
         return func
 
-    def attachment_for(self, base_model_cls: type) -> "type[TAttachment]":
+    def attachment_for(self, base_model_cls: type) -> "type[_Attachment]":
         """Build an Attachment model subclass of `base_model_cls`.
 
         Used by the storage addon's seed `models/attachment.py`:
@@ -288,7 +288,7 @@ class App(AppWs):
         consumer's class.
 
         Calls are memoized per-`(app, base_model_cls)` so repeated invocations
-        return the same class. This keeps `SUPPORTED_VARIANT_TYPES` and the
+        return the same class. This keeps `VARIANTS_ENABLED_FOR` and the
         service-instance cache stable, and prevents accidentally creating
         duplicate peewee model classes for the same `attachment` table.
         """

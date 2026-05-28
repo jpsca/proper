@@ -17,8 +17,6 @@ from proper.cache import (
 from proper.cache.base import NoSerializer, Serializer, SerializerProtocol
 
 
-# ── Serializer ───────────────────────────────────────────────────────
-
 class TestSerializerProtocol:
     def test_serialize_raises(self):
         with pytest.raises(NotImplementedError):
@@ -70,8 +68,6 @@ class TestSerializer:
         assert s.protocol == pickle.HIGHEST_PROTOCOL
 
 
-# ── BaseCache ────────────────────────────────────────────────────────
-
 class TestBaseCache:
     def test_default_serializer(self):
         cache = BaseCache()
@@ -115,8 +111,6 @@ class TestBaseCache:
         assert cache.deserialize(data) == "hello"
 
 
-# ── NoCache ──────────────────────────────────────────────────────────
-
 class TestNoCache:
     def test_get_returns_none(self):
         cache = NoCache()
@@ -146,8 +140,6 @@ class TestNoCache:
         cache = NoCache()
         cache.write_multi({"a": 1, "b": 2})  # should not raise
 
-
-# ── SqliteCache ──────────────────────────────────────────────────────
 
 @pytest.fixture
 def cache():
@@ -473,8 +465,6 @@ class TestSqliteCache:
         assert cache._count() == 0
 
 
-# ── key_for_object ───────────────────────────────────────────────────
-
 class TestKeyForObject:
     def test_basic(self):
         obj = MagicMock()
@@ -516,8 +506,6 @@ class TestKeyForObject:
         assert key == "prefix:0/mymodel/1"
 
 
-# ── key_for_collection ───────────────────────────────────────────────
-
 class TestKeyForCollection:
     def test_basic(self):
         obj1 = MagicMock(spec=["updated_at"])
@@ -553,8 +541,6 @@ class TestKeyForCollection:
         key = key_for_collection("cache", [obj1])
         assert key == "cache:0/item/col/1"
 
-
-# ── key_for ──────────────────────────────────────────────────────────
 
 class TestKeyFor:
     def test_string_key(self):
@@ -597,8 +583,6 @@ class TestKeyFor:
         with pytest.raises(ValueError, match="key must be"):
             key_for("prefix", bytearray(b"hello"))
 
-
-# ── FragmentCacheExtension ───────────────────────────────────────────
 
 class TestFragmentCacheExtension:
     def _make_ext(self, cache=None):

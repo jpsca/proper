@@ -92,7 +92,7 @@ class HasRichText(pw.Model):
         self._purge_collected(ids_by_field)
         return result
 
-    # ── helpers ──────────────────────────────────────────────────────
+    # --- Helpers ---
 
     def _snapshot_rich_text_ids(self) -> TRichTextIds:
         """Return `{field_name: [old_attachment_ids…]}` for every

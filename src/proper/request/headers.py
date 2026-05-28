@@ -359,7 +359,7 @@ class RequestHeadersMixin:
         return self.headers.get("user-agent")
 
 
-# --- Parsers -----
+# --- Parsers ---
 
 
 def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:

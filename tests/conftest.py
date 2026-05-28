@@ -21,7 +21,7 @@ def app():
     return app
 
 
-# ── Docker container fixtures ────────────────────────────────────────
+# --- Docker container fixtures ---
 
 
 def _redis_ready(url) -> bool:

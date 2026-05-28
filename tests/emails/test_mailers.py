@@ -15,11 +15,6 @@ from proper.emails import (
 from proper.emails.message import EmailMessageDict
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def make_emails():
     return [
         EmailMessage(
@@ -42,11 +37,6 @@ def _simple_msg(**overrides) -> EmailMessageDict:
     return base.serialize()
 
 
-# ---------------------------------------------------------------------------
-# BaseMailer
-# ---------------------------------------------------------------------------
-
-
 class TestBaseMailer:
     def test_open_returns_false(self):
         assert BaseMailer().open() is False
@@ -65,11 +55,6 @@ class TestBaseMailer:
     def test_default_options_stored(self):
         m = BaseMailer(foo="bar")
         assert m.default_options == {"foo": "bar"}
-
-
-# ---------------------------------------------------------------------------
-# BaseMailer.render - bodies, headers, attachments
-# ---------------------------------------------------------------------------
 
 
 class TestRender:
@@ -159,11 +144,6 @@ class TestRender:
         assert msg["To"] == "override@example.com"
 
 
-# ---------------------------------------------------------------------------
-# BaseMailer.render - alternatives
-# ---------------------------------------------------------------------------
-
-
 class TestAlternatives:
     def test_text_alternative(self):
         base = EmailMessage(
@@ -229,11 +209,6 @@ class TestAlternatives:
         mailer = BaseMailer()
         msg = mailer.render(email)
         assert msg.get_content_type() == "multipart/alternative"
-
-
-# ---------------------------------------------------------------------------
-# BaseMailer.render - attachments
-# ---------------------------------------------------------------------------
 
 
 class TestAttachments:
@@ -330,11 +305,6 @@ class TestAttachments:
         assert attachment_part.get_content_type() == "application/octet-stream"
 
 
-# ---------------------------------------------------------------------------
-# BaseMailer.render - IDNA encoding
-# ---------------------------------------------------------------------------
-
-
 class TestIdnaEncoding:
     def test_non_ascii_domain_gets_punycode_encoded(self):
         email = _simple_msg()
@@ -359,11 +329,6 @@ class TestIdnaEncoding:
         assert "münchen" in str(msg["To"])
 
 
-# ---------------------------------------------------------------------------
-# ToMemoryMailer
-# ---------------------------------------------------------------------------
-
-
 class TestToMemoryMailer:
     def test_send_stores_in_outbox(self):
         mailer = ToMemoryMailer()
@@ -383,11 +348,6 @@ class TestToMemoryMailer:
     def test_send_zero_messages(self):
         mailer = ToMemoryMailer()
         assert mailer.send_now() == 0
-
-
-# ---------------------------------------------------------------------------
-# ToConsoleMailer
-# ---------------------------------------------------------------------------
 
 
 class TestToConsoleMailer:
@@ -460,11 +420,6 @@ From: from@example.com
 To: to@example.com
 """.strip())
         assert "\nContent\n" in value
-
-
-# ---------------------------------------------------------------------------
-# SMTPMailer - unit tests (mocked SMTP)
-# ---------------------------------------------------------------------------
 
 
 class TestSMTPMailerInit:

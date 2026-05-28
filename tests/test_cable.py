@@ -1,11 +1,9 @@
-"""Tests for proper.cable - in-process pub/sub backend."""
+import typing as t
 
+from proper.app import App
 from proper.cable import Cable
 from proper.channel import Channel
 from proper.helpers import DotDict
-
-
-# ── helpers ──────────────────────────────────────────────────────────
 
 
 class FakeApp:
@@ -15,7 +13,7 @@ class FakeApp:
 
 
 def _make_channel(app=None, params=None):
-    app = app or FakeApp()
+    app = t.cast(App, app or FakeApp())
     params = params or {}
     sent = []
 
@@ -25,8 +23,6 @@ def _make_channel(app=None, params=None):
     ch = Channel(app, params, _send=send)
     return ch, sent
 
-
-# ── Cable basics ─────────────────────────────────────────────────────
 
 
 class TestCableInit:
@@ -114,9 +110,6 @@ class TestUnsubscribeAll:
         assert cable.streams == {"chat": 1}
 
 
-# ── broadcast ────────────────────────────────────────────────────────
-
-
 class TestBroadcast:
     def test_sends_to_all_subscribers(self):
         app = FakeApp()
@@ -165,9 +158,6 @@ class TestBroadcast:
         # ch_good still received the message
         assert len(sent_good) == 1
         assert sent_good[0]["data"] == {"text": "hello"}
-
-
-# ── Channel integration ──────────────────────────────────────────────
 
 
 class TestChannelIntegration:

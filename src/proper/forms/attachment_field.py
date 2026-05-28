@@ -10,7 +10,7 @@ from . import errors
 
 
 if t.TYPE_CHECKING:
-    from ..types import TAttachment
+    from ..storage import _Attachment
 
 
 class AttachmentField(Field):
@@ -55,11 +55,11 @@ class AttachmentField(Field):
     """
     MESSAGES = errors.MESSAGES
 
-    _original: "TAttachment | None" = None
+    _original: "_Attachment | None" = None
 
     def __init__(
         self,
-        attachment_cls: "type[TAttachment]",
+        attachment_cls: "type[_Attachment]",
         *,
         max_size: int | None = None,
         accept: Sequence[str] | None = None,
@@ -136,7 +136,7 @@ class AttachmentField(Field):
 
         return True
 
-    def save(self) -> "TAttachment | None":
+    def save(self) -> "_Attachment | None":
         original = self._original
 
         # Existing Attachment preserved across an edit - same row, no purge.
@@ -160,7 +160,7 @@ class AttachmentField(Field):
                 pass
         return attachment
 
-    # ── Rendering helpers ─────────────────────────────────────────────────
+    # --- Rendering helpers ---
 
     def file_input(self, **attrs: t.Any) -> str:
         """Renders the `<input type="file" name="<field>[file]">` element.
@@ -199,7 +199,7 @@ class AttachmentField(Field):
         attr_str = self._render_html_attrs(attributes)
         return Markup(f"<input {attr_str} />")
 
-    # ── Private ─────────────────────────────────────────────────────────
+    # --- Private ---
 
     def _unpack(self, reqvalue: t.Any) -> dict[str, t.Any]:
         """Normalize `reqvalue` into a dict of named sub-parts.

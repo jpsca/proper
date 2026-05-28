@@ -1,7 +1,7 @@
 ---
 title: Rich Text
 description: |
-  How to store, render, and edit rich text content in Proper, including embedded image and file attachments. Covers the RichTextField, the bundled TipTap-based editor, attachment lifecycle, and how to customize or replace any piece.
+  How to store, render, and edit rich text content in Proper, including embedded image and file attachments.
 number_headers: true
 ---
 
@@ -203,25 +203,23 @@ The default toolbar exposes the common formatting actions: bold, italic, strike,
 
 ## Embed Rendering
 
-When `{{ post.body }}` renders, the AST walker emits HTML for structural nodes (paragraphs, headings, lists, marks, links) directly. For `attachment` nodes it pre-fetches every referenced `Attachment` in one query, then routes each through the Jx component `RichTextAttachment` - generated into your app at `views/rich_text_attachment.jx`:
+When `{{ post.body }}` renders, the AST walker emits HTML for structural nodes (paragraphs, headings, lists, marks, links) directly. For `attachment` nodes it pre-fetches every referenced `Attachment` in one query, then routes each through the Jx component `rich_text_attachment.jx` - generated into your app at `views`:
 
 ```jinja
-{#def attachment, alt=None, caption=None #}
+{#def attachment, alt="", caption="" #}
 
-{% if attachment.content_type.startswith("image/") %}
-  {% set variant = attachment.variant(resize_to_fit=(1600, 1600)) %}
+{% if attachment.is_previewable %}
+  {% set variant = attachment.variant(resize_to_limit=(1600, 1600)) %}
   <figure class="rich-text-image">
     <img src="{{ variant.url }}"
          alt="{{ alt or '' }}"
          loading="lazy">
     {% if caption %}<figcaption>{{ caption }}</figcaption>{% endif %}
   </figure>
-{% elif attachment.content_type == "application/pdf" %}
-  <a href="{{ attachment.url }}" class="rich-text-pdf" target="_blank">
-    {{ attachment.filename }}
-  </a>
 {% else %}
-  <a href="{{ attachment.url }}" class="rich-text-file" download>
+  <a href="{{ attachment.url }}"
+     class="rich-text-file"
+     download>
     {{ attachment.filename }}
   </a>
 {% endif %}
@@ -229,9 +227,9 @@ When `{{ post.body }}` renders, the AST walker emits HTML for structural nodes (
 
 The framework draws the line here: it owns the AST → HTML walk for structural content, you own the visual presentation of embeds. Edit this component to add lightbox wrappers, custom captions, video thumbnails, different size limits for images, anything you want.
 
-The default applies a `resize_to_fit: 1600x1600` variant to images. Producing a serving-sized image on demand keeps page weight down without you having to think about it; change the limit to taste, or drop the variant call to serve the original.
+The default applies a `resize_to_limit: 1600x1600` variant to images. Producing a serving-sized image on demand keeps page weight down without you having to think about it; change the limit to taste, or drop the variant call to serve the original.
 
-:::note | If you delete `RichTextAttachment.jx`
+:::note | If you delete `rich_text_attachment.jx`
 The renderer raises `ComponentNotFoundError` rather than silently dropping the embed. This is deliberate - losing embeds in production is worse than a loud error in development. Restore the file or render through a different component name in a custom renderer.
 :::
 
@@ -250,7 +248,7 @@ Internally:
 1. Jinja sees the `__html__()` method on `RichTextDocument` and uses it.
 2. The document walks the AST, collecting attachment IDs.
 3. One batched `Attachment.select().where(id.in_(ids))` resolves every embed.
-4. Structural nodes render via the renderer's built-in handlers; embeds route through `<RichTextAttachment>`.
+4. Structural nodes render via the renderer's built-in handlers; embeds route through `rich_text_attachment.jx`.
 5. Result is returned as `Markup`, so Jinja knows not to escape it.
 
 For plain text - search indices, OG meta tags, email previews, summary excerpts - call `str(...)` or use Jinja's `striptags` filter:

@@ -1,4 +1,3 @@
-"""Tests for proper.rich_text.field - RichTextField round-tripping HTML."""
 import peewee as pw
 import pytest
 
@@ -63,7 +62,7 @@ def PostWithAttachments(app, Attachment):
     database.close()
 
 
-# ── round-tripping ──────────────────────────────────────────────────
+# --- round-tripping ---
 
 
 def test_save_and_load_returns_document(Post):
@@ -87,7 +86,7 @@ def test_null_value_round_trips_as_none(Post):
     assert post.body is None
 
 
-# ── attachment_cls propagates ───────────────────────────────────────
+# --- attachment_cls propagates ---
 
 
 def test_attachment_cls_propagates_to_document(PostWithAttachments):

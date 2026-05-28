@@ -1,5 +1,3 @@
-"""Tests for proper.install.auth - installs auth blueprint into an app."""
-
 import pytest
 
 from proper.install import auth, metadata

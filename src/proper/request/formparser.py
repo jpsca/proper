@@ -146,7 +146,7 @@ def _safe_decode(src: bytes | bytearray, codec: str) -> str:
         return src.decode("latin-1")
 
 
-# ── MultipartPart ────────────────────────────────────────────────────
+# --- MultipartPart ---
 
 
 class MultipartPart:
@@ -224,7 +224,7 @@ class MultipartPart:
             self.file = None
 
 
-# ── Multipart Parser ─────────────────────────────────────────────────
+# --- Multipart Parser ---
 
 
 class MultipartParser:

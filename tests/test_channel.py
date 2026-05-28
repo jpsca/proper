@@ -1,12 +1,9 @@
-"""Tests for proper.channel - Channel base class."""
+import typing as t
 
-
+from proper.app import App
 from proper.cable import Cable
 from proper.channel import Channel
 from proper.helpers import DotDict
-
-
-# ── helpers ──────────────────────────────────────────────────────────
 
 
 class FakeApp:
@@ -16,7 +13,7 @@ class FakeApp:
 
 
 def _make_channel(cls=Channel, params=None, app=None):
-    app = app or FakeApp()
+    app = t.cast(App, app or FakeApp())
     params = params or {}
     sent = []
 
@@ -27,10 +24,8 @@ def _make_channel(cls=Channel, params=None, app=None):
     return ch, sent
 
 
-# ── Channel basics ───────────────────────────────────────────────────
 
-
-class TestChannelInit:
+class TestChannel:
     def test_stores_app_and_params(self):
         app = FakeApp()
         ch, _ = _make_channel(app=app, params={"room": "general"})
@@ -45,8 +40,6 @@ class TestChannelInit:
         ch, _ = _make_channel()
         assert ch._rejected is False
 
-
-class TestChannelName:
     def test_returns_class_name(self):
         ch, _ = _make_channel()
         assert ch.channel_name == "Channel"
@@ -59,10 +52,8 @@ class TestChannelName:
         assert ch.channel_name == "ChatChannel"
 
 
-# ── stream_from / stop_stream_from ──────────────────────────────────
 
-
-class TestStreamFrom:
+class TestStream:
     def test_adds_stream(self):
         ch, _ = _make_channel()
         ch.stream_from("chat_general")
@@ -80,8 +71,6 @@ class TestStreamFrom:
         ch.stream_from("chat_general")
         assert len(ch._streams) == 1
 
-
-class TestStopStreamFrom:
     def test_removes_stream(self):
         ch, _ = _make_channel()
         ch.stream_from("chat_general")
@@ -93,8 +82,6 @@ class TestStopStreamFrom:
         ch.stop_stream_from("nonexistent")
         assert ch._streams == set()
 
-
-# ── send ─────────────────────────────────────────────────────────────
 
 
 class TestSend:
@@ -115,18 +102,11 @@ class TestSend:
         ch.send({"b": 2})
         assert len(sent) == 2
 
-
-# ── reject ───────────────────────────────────────────────────────────
-
-
-class TestReject:
     def test_sets_rejected_flag(self):
         ch, _ = _make_channel()
         ch.reject()
         assert ch._rejected is True
 
-
-# ── subscribed / unsubscribed defaults ───────────────────────────────
 
 
 class TestLifecycleDefaults:
@@ -138,8 +118,6 @@ class TestLifecycleDefaults:
         ch, _ = _make_channel()
         ch.unsubscribed()
 
-
-# ── _dispatch ────────────────────────────────────────────────────────
 
 
 class TestDispatch:
@@ -165,8 +143,6 @@ class TestDispatch:
         ch._dispatch("subscribed")
         assert called == ["subscribed"]
 
-
-# ── real-world usage pattern ─────────────────────────────────────────
 
 
 class TestUsagePattern:

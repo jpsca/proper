@@ -29,7 +29,7 @@ vendor-lexxy:
 
 .PHONY: docs
 docs:
-	uv run python docs/docs.py
+	cd docs && uv run python docs.py
 
 .PHONY: docs-build
 docs-build:
