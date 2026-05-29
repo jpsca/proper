@@ -19,7 +19,7 @@ After reading this guide, you will know:
 - How to preview non-image files like PDFs and videos.
 - How to implement support for additional storage services.
 
-The companion [`AttachmentField` section](/docs/forms#attachmentfield) in the Forms guide covers the field that handles uploads inside a form in depth. Use this guide as the  reference for storage but jump there for form mechanics.
+The companion [`AttachmentField` section](/docs/forms#attachmentfield) in the Forms guide covers the field that handles uploads inside a form in depth. Use this guide as the reference for storage but jump there for form mechanics.
 
 ---
 
@@ -124,7 +124,7 @@ The Disk service writes files under a single root folder. Configuration takes on
 }
 ```
 
-If it doesn't already exists, the folder is created the first time the service is used.
+If it doesn't already exist, the folder is created the first time the service is used.
 
 :::tip
 `storage/` is in your `.gitignore` (the new-app generator already does it). Uploaded files are user data, not source, and they don't belong in version control.
@@ -263,13 +263,13 @@ class User(BaseModel):
     avatar = pw.ForeignKeyField(Attachment, null=True)
 ```
 
-That's the entire wire-up. `user.photo` is either `None` or an `Attachment` instance. Reading attributes works as you'd expect:
+That's the entire wire-up. `user.avatar` is either `None` or an `Attachment` instance. Reading attributes works as you'd expect:
 
 ```python
-user.photo.url
-user.photo.filename
-user.photo.byte_size
-user.photo.content_type
+user.avatar.url
+user.avatar.filename
+user.avatar.byte_size
+user.avatar.content_type
 ```
 
 To assign an attachment, you build it and save it before pointing the FK at it:
@@ -277,7 +277,7 @@ To assign an attachment, you build it and save it before pointing the FK at it:
 ```python {hl_lines="1-2"}
 att = Attachment(upload, filename="avatar.jpg")
 att.save()
-user.photo = att
+user.avatar = att
 user.save()
 ```
 
@@ -338,7 +338,7 @@ att.save()
 Things to know about the constructor:
 
 - `service_name` defaults to whatever `STORAGE` resolves to at runtime. Pass `service_name="amazon"` to override (write to a different bucket, for example, even though the active default is `local`).
-- `filename` is parameterized: lowercased, special characters replaced with dashes, the extension preserved as a separate part. `"My Photo!.JPG"` becomes `"my-photo.jpg"` on disk.
+- `filename` is normalized: lowercased, special characters replaced with dashes, the extension preserved as a separate part. `"My Photo!.JPG"` becomes `"my-photo.jpg"` on disk.
 - `content_type` is detected from the filename extension when you don't supply it. The fallback is `application/octet-stream`.
 - `byte_size` is populated by the service during `save()` - never pre-fill it.
 - `id` is `None` until `save()` runs.
@@ -373,7 +373,7 @@ def update(self):
     self.response.redirect_to("User.show", self.user)
 ```
 
-`form.save()` reads the multipart submission, builds an `Attachment(upload)`, calls `.save()` on it (uploading the bytes to the active service), assigns the new attachment to `user.photo`, and queues the previous attachment for deletion. All in one call.
+`form.save()` reads the multipart submission, builds an `Attachment(upload)`, calls `.save()` on it (uploading the bytes to the active service), assigns the new attachment to `user.avatar`, and queues the previous attachment for deletion. All in one call.
 
 The field interprets a structured payload composed of two sub-inputs:
 
@@ -476,10 +476,10 @@ To remove an attachment, call one of the purge methods. Both delete the file fro
 
 ```python
 # Synchronously destroy the avatar and actual resource files.
-user.photo.purge()
+user.avatar.purge()
 
 # Enqueues a Huey task, returns immediately
-user.photo.purge_later()
+user.avatar.purge_later()
 ```
 
 `purge()` calls `service.purge()`, removes any variants of the attachment, and deletes the row. It's the right call from a CLI script or a background job, where you want the work done before the next thing runs.
@@ -491,8 +491,8 @@ user.photo.purge_later()
 To remove just the variants of an attachment, leaving the original alone:
 
 ```python
-user.photo.purge_variants()        # synchronous
-user.photo.purge_variants_later()  # background
+user.avatar.purge_variants()        # synchronous
+user.avatar.purge_variants_later()  # background
 ```
 
 This is occasionally useful after a design change that invalidates dimensions, or in a migration that switches output format.
@@ -512,7 +512,7 @@ Both storage controllers are publicly accessible by default. The generated URLs 
 The permanent url of your attachment is `attachment.url`. The property returns a URL containing a token signed with your application's secret key.
 
 ```python
-user.photo.url  # or user.photo.get_redirect_url()
+user.avatar.url  # or user.avatar.get_redirect_url()
 # /storage/redirect/eyJpZCI6IC1mM...droorU1KWTkQ/my-avatar.jpg
 ```
 
@@ -521,29 +521,29 @@ This is the same as doing:
 ```python
 app.url_for(
     "StorageRedirect.show",
-    token=user.photo.generate_token(salt="redirect"),
-    filename=user.photo.filename,
+    token=user.avatar.generate_token(salt="redirect"),
+    filename=user.avatar.filename,
 )
 ```
 
 The `StorageRedirectController` decodes the token, checks the signature, looks up the attachment, and redirects to the actual service endpoint. This indirection decouples the service URL from the actual one.
 
-The URL of the service might be valid only for a few minutes (15 is the Amazon S3 default), but the one returned by `user.photo.url` never changes.
+The URL of the service might be valid only for a few minutes (15 is the Amazon S3 default), but the one returned by `user.avatar.url` never changes.
 
 :::note
 Technically the URL _does_ change, but only if you remove your current secret key, because the token generated will become invalid. So, if you do that, you need to also purge the cache of any page with old URLs.
 :::
 
-###  Proxy Mode
+### Proxy Mode
 
 Optionally, files can be proxied instead. This means that your application servers will download file data from the storage service in response to requests. This can be useful for serving files from a CDN.
 
 ```python
-user.photo.get_proxy_url()
+user.avatar.get_proxy_url()
 # /storage/proxy/sdaRCI6IC1mM...mieauU1KWXD/my-avatar.jpg
 ```
 
-The proxy and redirect URLs look very similar, but the tokens are not interchangeable, simply changing "redirect" to "proxy" in the URL will not work
+The proxy and redirect URLs look very similar, but the tokens are not interchangeable: simply changing "redirect" to "proxy" in the URL will not work.
 
 
 ### Authenticated Controllers
@@ -551,12 +551,12 @@ The proxy and redirect URLs look very similar, but the tokens are not interchang
 
 The signed token proves that a URL was generated by your code; it doesn't prove that the *current viewer* should be allowed to see the file.
 
-To gate access on application-level rules (e.g. team membership, ownership, payment status, etc.) edit `StorageRedirectController`
+To gate access on application-level rules (e.g. team membership, ownership, payment status, etc.), edit `StorageRedirectController`:
 
 1. Remove the `skip_authentication = True` rule that makes the controller public;
-2. Put the checks inside
+2. Put the checks inside:
 
-```python {hl_line="2,11"}
+```python {hl_lines="2,11"}
 class StorageRedirectController(AppController):
     # skip_authentication = True
 
@@ -587,18 +587,18 @@ class DownloadController(AppController):
         if not att:
             raise NotFound
 
-        service_url = attachment.service_url()
+        service_url = att.service_url()
         if service_url:
             self.response.redirect_to(service_url)
         else:
-            attachment.send_file()
+            att.send_file()
 ```
 
 And create the URLs for it like this:
 
 ```python
 # "secret_file" is an attachment field
-document.secret_file.url_for("Download.show". salt="secret")
+document.secret_file.url_for("Download.show", salt="secret")
 ```
 
 Choose a different salt than "redirect", otherwise the generated token will be usable to get the file through the `StorageRedirectController`.
@@ -610,7 +610,7 @@ Choose a different salt than "redirect", otherwise the generated token will be u
 
 ```html+jinja
 {# An image #}
-<img src="{{ user.photo.url }}" alt="{{ user.name }}">
+<img src="{{ user.avatar.url }}" alt="{{ user.name }}">
 
 {# A video, served inline #}
 <video src="{{ post.clip.url }}" controls></video>
@@ -635,18 +635,18 @@ def show(self):
     self.response.json = {
         "id": self.user.id,
         "name": self.user.name,
-        "avatar_url": self.user.photo.url if self.user.photo else None,
+        "avatar_url": self.user.avatar.url if self.user.avatar else None,
     }
 ```
 
-For PDFs, modern browsers render them in an embedded viewer when served inline. `STORAGE_ALLOWED_INLINE` defaults include `application/pdf`, so a `<iframe src="{{ doc.file.url }}">` works without extra configuration. If you want PDFs to download instead, drop `application/pdf` from `STORAGE_ALLOWED_INLINE`.
+For PDFs, modern browsers render them in an embedded viewer when served inline. `STORAGE_ALLOWED_INLINE` defaults include `application/pdf`, so an `<iframe src="{{ doc.file.url }}">` works without extra configuration. If you want PDFs to download instead, drop `application/pdf` from `STORAGE_ALLOWED_INLINE`.
 
-When you need a full URLs (meaning one that include the domain name) - for OpenGraph, emails, etc. - you can use:
+When you need a full URL (meaning one that includes the domain name) - for OpenGraph, emails, etc. - you can use:
 
 ```python
-user.photo.get_redirect_url(_full=True)
+user.avatar.get_redirect_url(_full=True)
 # or
-user.photo.get_proxy_url(_full=True)
+user.avatar.get_proxy_url(_full=True)
 ```
 
 ---
@@ -656,7 +656,7 @@ user.photo.get_proxy_url(_full=True)
 Sometimes you need to read an attachment's bytes back into Python: parsing a CSV, hashing a file for a deduplication check, re-uploading to a different service, transcoding through an external tool. `download()` returns the file as `bytes`:
 
 ```python
-data = user.photo.download()
+data = user.avatar.download()
 # => b'...'
 ```
 
@@ -668,7 +668,7 @@ Reading the bytes through `download()` always goes through the service: on `Disk
 
 ## Analyzing Files
 
-Proper does **not** automatically extracts metadata (image dimensions, audio bitrate, video duration) from uploaded files out of the box. The reason is mostly pragmatic: the analysis pipeline depends on a small zoo of native libraries (libvips for images, ffprobe for video, mutagen for audio) and we'd rather you opt into the ones you actually need.
+Proper does **not** automatically extract metadata (image dimensions, audio bitrate, video duration) from uploaded files out of the box. The reason is mostly pragmatic: the analysis pipeline depends on a small zoo of native libraries (libvips for images, ffprobe for video, mutagen for audio) and we'd rather you opt into the ones you actually need.
 
 Every `Attachment` carries a `metadata` JSON column that you can populate yourself:
 
@@ -722,17 +722,17 @@ For metadata that you'd want to *query* against (uploaded-by user id, gallery id
 
 A *variant* is a derived file generated from an original. The classic case is a thumbnail: store one full-size avatar, but render a 200x200 crop in lists, a 64x64 crop in headers, and a blurred hero version on the profile page. Each variant is itself an `Attachment` row, with `parent` set to the original and `variant_key` set to a hash of the operations that produced it.
 
-**Varriants are disabled by default**. To enable them, edit the `VARIANTS_ENABLED_FOR` in your `Attachhment` model to uncomment the `"image/*"` key:
+**Variants are disabled by default**. To enable them, edit `VARIANTS_ENABLED_FOR` in your `Attachment` model to uncomment the `"image/*"` key:
 
 ```python {hl_lines="3-4"}
-    class Attachment(app.attachment_for(BaseModel)):
-        
-        VARIANTS_ENABLED_FOR: dict[str, str] = {
-            "image/*": "preview_image",
-        }
+class Attachment(app.attachment_for(BaseModel)):
+
+    VARIANTS_ENABLED_FOR: dict[str, str] = {
+        "image/*": "preview_image",
+    }
 ```
 
-You will also have install the system library `libvips` and the python package `pyvips`. See the [requirements section](#requirements) for details.
+You will also have to install the system library `libvips` and the python package `pyvips`. See the [requirements section](#requirements) for details.
 
 Variants are:
 
@@ -747,7 +747,7 @@ Variants are not free. The first request that triggers a new variant pays for th
 Call `variant(**ops)` on any attachment (with variants enabled):
 
 ```python
-thumb = user.photo.variant(resize_to_fill=(200, 200))
+thumb = user.avatar.variant(resize_to_fill=(200, 200))
 thumb.url
 # => "/storage/aBcDe..."
 ```
@@ -798,7 +798,7 @@ attachment.variant(composite=("logo.png", {"gravity": "south-east"}))
 
 The full set of pyvips settings is forwarded through; the [pyvips documentation](https://www.libvips.org/API/current/){target=_blank} is the reference for what each operation supports.
 
-You can chain operations in a single call - they're applied left to right (up to down, in this example):
+You can chain operations in a single call - they're applied left to right (top to bottom, in this example):
 
 ```python
 hero = post.cover_image.variant(
@@ -850,7 +850,7 @@ This means you can call `variant()` freely in templates without worrying about d
 
 ```html+jinja
 {% for user in users %}
-  <img src="{{ user.photo.variant(resize_to_fill=(64, 64)).url }}">
+  <img src="{{ user.avatar.variant(resize_to_fill=(64, 64)).url }}">
 {% endfor %}
 ```
 
@@ -888,8 +888,8 @@ def generate_avatar_variants(attachment_id):
 
 def update(self):
     self.form.save()
-    if self.user.photo_id:
-        generate_avatar_variants(str(self.user.photo_id))
+    if self.user.avatar_id:
+        generate_avatar_variants(str(self.user.avatar_id))
     self.response.redirect_to("User.show", self.user)
 ```
 
@@ -901,8 +901,8 @@ The first request that displays an avatar finds the variant already in the datab
 # scripts/backfill_variants.py
 from myapp.models import User
 
-for user in User.select().where(User.photo_id.is_null(False)):
-    user.photo.variant(resize_to_fill=(64, 64))
+for user in User.select().where(User.avatar_id.is_null(False)):
+    user.avatar.variant(resize_to_fill=(64, 64))
 ```
 
 Run it once after deploying the design change.
@@ -913,9 +913,9 @@ The variant cache (the row in `attachment` plus the bytes in the service) surviv
 
 ## Previewing Files
 
-`variant()` can only handles images. For everything else - PDFs, videos, audio with cover art, ePubs - you need a way to extract an image "preview" of the file first.
+`variant()` can only handle images. For everything else - PDFs, videos, audio with cover art, ePubs - you need a way to extract an image "preview" of the file first.
 
-The `VARIANTS_ENABLED_FOR` property of your `Attachment` model, maps content-type patterns with the names of methods on the same class, that generates that preview.
+The `VARIANTS_ENABLED_FOR` property of your `Attachment` model maps content-type patterns to the names of methods on the same class that generate the preview.
 
 ```python
 VARIANTS_ENABLED_FOR = {
@@ -934,7 +934,7 @@ All three preview methods require libvips + pyvips:
 :::
 
 
-### PDF previews
+### PDF Previews
 
 PDF previews ship with the framework. To enable them, uncomment the `"application/pdf"` line in `VARIANTS_ENABLED_FOR` and install [poppler](https://poppler.freedesktop.org/) (`brew install poppler` on macOS, `apt install poppler-utils` on Debian/Ubuntu):
 
@@ -960,7 +960,7 @@ Two kwargs are specific to `preview_pdf`:
 
 Both participate in the variant cache key, so `variant(page=1)` and `variant(page=2)` produce distinct cached variants.
 
-### Video previews
+### Video Previews
 
 Video previews ship with the framework. To enable them, uncomment the `"video/*"` line in `VARIANTS_ENABLED_FOR` and install [ffmpeg](https://ffmpeg.org/) (`brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu):
 
@@ -972,7 +972,7 @@ class Attachment(app.attachment_for(BaseModel)):
     }
 ```
 
-`video_attachment.variant(resize_to_fit=(400, 400))` produces a PNG thumbnail of a single frame/
+`video_attachment.variant(resize_to_fit=(400, 400))` produces a PNG thumbnail of a single frame.
 
 One kwarg is specific to `preview_video`:
 
@@ -980,11 +980,11 @@ One kwarg is specific to `preview_video`:
 
 It participates in the variant cache key, so `variant(at_seconds=1)` and `variant(at_seconds=5)` produce distinct cached variants.
 
-### Custom previewers
+### Custom Previewers
 
 The same shape works for epub cover extraction, audio waveform thumbnails, or anything that can be transformed into an image.
 
-Write a method that takes the attachment bytes plus options and returns the image bytes. Then, sdd the content-type pattern to `VARIANTS_ENABLED_FOR`:
+Write a method that takes the attachment bytes plus options and returns the image bytes. Then, add the content-type pattern to `VARIANTS_ENABLED_FOR`:
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
@@ -1082,11 +1082,11 @@ def s3_storage(aws_credentials, app):
 
 Tests that need the S3 code path opt in by depending on `s3_storage`; the rest keep using the disk service. moto starts and tears down a per-test in-memory S3 with no network calls.
 
-For end-to-end tests that should hit a real bucket - smoke tests on staging, integration tests that exercise IAM policies - you can use Minio running on a docker container. Or point a test environment at a dedicated bucket and run them outside the unit-test loop. The S3 service has no special test mode of its own.
+For end-to-end tests that should hit a real bucket - smoke tests on staging, integration tests that exercise IAM policies - you can use MinIO running in a Docker container. Or point a test environment at a dedicated bucket and run them outside the unit-test loop. The S3 service has no special test mode of its own.
 
 ---
 
-## Implementing support for other cloud Services
+## Implementing Support for Other Cloud Services
 
 Proper ships with two services: `Disk` and `S3`. To add support for another one, subclass `proper.storage.services.Service` and implement these six methods:
 
@@ -1116,7 +1116,7 @@ class GigaCloud(Service):
     def service_url(self, att, *, as_attachment=False):
         """Generates a short-lived signed URL for the file"""
 
-    def direct_upload_url(attachment, cheksum):
+    def direct_upload_url(attachment, checksum):
         """Generates a presigned PUT URL + headers where the
         browser uploads to directly"""
 
@@ -1149,4 +1149,4 @@ Storage touches forms, models, async tasks, and the asset pipeline. A few places
 - [Rendering Forms - Attachment uploads](/docs/form_rendering#attachment-uploads) - the HTML side: `file_input()`, `destroy_input()`, and the `image_input.jx` component.
 - [Models](/docs/models) and [Relationships](/docs/relationships) - the foreign-key patterns that connect your records to attachments.
 - [Background Tasks](/docs/tasks) - the queue that runs `purge_later()`, `purge_variants_later()`, and any eager-loading task you write.
-- [pyvips documentation](https://www.libvips.org/API/current/){target=_blank} - the full image-processing reference behind `transform_image`.
+- [pyvips documentation](https://www.libvips.org/API/current/){target=_blank} - the full image-processing reference behind `variant()`.
