@@ -33,10 +33,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Install libvips
+      - name: Install system dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y libvips-dev
+          sudo apt-get install -y libvips-dev poppler-utils ffmpeg
 
       - name: "Installs dependencies"
         run: |
