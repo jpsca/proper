@@ -24,6 +24,7 @@ when it needs to display an attachment by its signed token. We point
 at the redirect route - same URL `Attachment.url` emits - so embeds
 render in the editor exactly as they will on the published page. #}
 {% set blob_url_template = url_for("StorageRedirect.show", token=":signed_id", filename=":filename") %}
+
 <lexxy-editor {{ attrs.render(
   class="lexxy-content",
   name=field.name,
