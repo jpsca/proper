@@ -17,7 +17,7 @@ class Attachment(app.attachment_for(BaseModel)):
     VARIANTS_ENABLED_FOR = {
         # Requires the `pyvips` python library and the
         # [libvips](https://www.libvips.org/install.html) system library.
-        # "image/*": "preview_image",
+        "image/*": "preview_image",
 
         # Requires [poppler](https://poppler.freedesktop.org/).
         # "application/pdf": "preview_pdf",

@@ -19,13 +19,14 @@ route every `attachment` node through here, the visual layout is yours.
     {%- endif %}
   </figure>
 {% else %}
-  <a
-    class="attachment attachment--file attachment--{{ attachment.extension }} }}"
-    href="{{ attachment.url }}"
-    target="_blank"
-    rel="noopener"
-  >
-    <span class="attachment__name">{{ attachment.filename }}</span>
+  <a href="{{ attachment.url }}" target="_blank" rel="noopener">
+    <figure
+      class="attachment attachment--file attachment--{{ attachment.extension }}" data-content-type="{{ attachment.content_type }}">
+      <span class="attachment__icon">{{ attachment.extension }}</span>
+      <figcaption class="attachment__caption">
+        <strong class="attachment__name">{{ attachment.filename }}</strong>
+        <span class="attachment__size">{{ attachment.byte_size | format_size }}</span>
+      </figcaption>
+      </figure>
   </a>
 {% endif %}
-

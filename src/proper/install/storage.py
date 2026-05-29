@@ -23,7 +23,7 @@ SORT_IMPORTS_IN = [
 ]
 
 DEPENDENCIES = [
-    # "pyvips >= 2.2.3",
+    "pyvips >= 2.2.3",
 ]
 
 

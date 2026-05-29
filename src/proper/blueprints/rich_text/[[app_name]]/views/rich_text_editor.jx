@@ -4,7 +4,7 @@
   field,
   upload_url: str = "",
   toolbar: str = "true",
-  toolbar_upload: str = "both",  # "both", "image", or "file"
+  toolbar_upload: str = "both",
   markdown: str = "false",
 #}
 {#css "css/lexxy-editor.css" #}
@@ -23,10 +23,9 @@ DirectUpload create protocol - see `AttachmentController.create`. #}
 when it needs to display an attachment by its signed token. We point
 at the redirect route - same URL `Attachment.url` emits - so embeds
 render in the editor exactly as they will on the published page. #}
-{% set blob_url_template = url_for("StorageRedirect.show", token=":signed_id") %}
-
+{% set blob_url_template = url_for("StorageRedirect.show", token=":signed_id", filename=":filename") %}
 <lexxy-editor {{ attrs.render(
-  class="lexxy-content"
+  class="lexxy-content",
   name=field.name,
   value=field.value or "",
   required=field.required,

@@ -78,13 +78,14 @@ class Post(BaseModel):
 
 and you want to make the body rich-text. To do so, update the field type and add the `HasRichText` mixin:
 
-```python {title="models/post.py" hl_lines="2 4 7 9"}
+```python {title="models/post.py" hl_lines="2 4 7 10"}
 import peewee as pw
 from proper.rich_text import HasRichText, RichTextField
 
 from .attachment import Attachment
 from .base import BaseModel
 
+# BaseModel always goes first
 class Post(BaseModel, HasRichText):
     title = pw.CharField()
     body = RichTextField(Attachment, null=True)
@@ -164,13 +165,15 @@ Instances of `rich_text.RichTextField` can be directly embedded into a page beca
 
 `RichTextDocument.__html__` safely transforms the data into an HTML String, including attachments. On the other hand `RichTextDocument.__str__` returns a plain text string without HTML tags, useful for using it in metadata.
 
-You probably also want to include the `lexxy-content.css`
-stylesheet to give your content the same styles it has in the editor:
+To be honest, you probably also want to include the `lexxy-content.css`
+stylesheet - to give your content the same styles it has in the editor - and to wrap the field with a `lexxy-content` class, since that's what the syles use:
 
 ```html+jinja
 {#css css/lexxy-content.css #}
 
-{{ post.body }}
+<div class="lexxy-content">
+  {{ post.body }}
+</div>
 ```
 
 ### Rendering embedded images and attachments

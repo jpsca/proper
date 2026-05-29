@@ -21,7 +21,7 @@ Usage::
 
     from proper.rich_text import HasRichText, RichTextField
 
-    class Post(HasRichText, BaseModel):
+    class Post(BaseModel, HasRichText):
         body = RichTextField(attachment_cls=Attachment)
 """
 import typing as t
@@ -39,7 +39,7 @@ TRichTextIds = dict[str, list[str]]
 TRichTextFields = dict[str, tuple[t.Any, list[str]]]
 
 
-def _iter_rich_text_fields(cls: type[pw.Model]) -> "Iterator[tuple[str, pw.Field]]":
+def _iter_rich_text_fields(cls: type) -> "Iterator[tuple[str, pw.Field]]":
     """Yield `(field_name, field)` for every RichTextField column.
 
     Detected by duck-typing on the `attachment_cls` attribute, which
@@ -75,20 +75,20 @@ def _collect_attachment_ids(value: t.Any) -> list[str]:
     return _collect_ids_from_html(_html_of(value))
 
 
-class HasRichText(pw.Model):
+class HasRichText:
     """Mixin that handles RichTextField attachment lifecycle."""
 
     def save(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         # Snapshot prior body before super().save() overwrites it.
         old_ids_by_field = self._snapshot_rich_text_ids()
-        result = super().save(*args, **kwargs)  # type: ignore[misc]
+        result = super().save(*args, **kwargs)  # type: ignore
         self._reconcile_rich_text_attachments(old_ids_by_field)
         return result
 
     def delete_instance(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         # Collect IDs before the parent row vanishes.
         ids_by_field = self._collect_rich_text_ids_now()
-        result = super().delete_instance(*args, **kwargs)
+        result = super().delete_instance(*args, **kwargs) # type: ignore
         self._purge_collected(ids_by_field)
         return result
 
@@ -103,7 +103,7 @@ class HasRichText(pw.Model):
         out: TRichTextIds = {}
 
         # `get_id()` returns the PK value, or None if unsaved.
-        pk = self.get_id()  # type: ignore[attr-defined]
+        pk = self.get_id()  # type: ignore
         if pk is None:
             for name, _field in _iter_rich_text_fields(cls):
                 out[name] = []
@@ -112,7 +112,7 @@ class HasRichText(pw.Model):
         for name, _field in _iter_rich_text_fields(cls):
             column = getattr(cls, name)
             row = (
-                cls.select(column)
+                cls.select(column) # type: ignore
                 .where(cls._meta.primary_key == pk)  # type: ignore
                 .first()
             )
