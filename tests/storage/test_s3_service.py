@@ -50,14 +50,13 @@ def app(tmp_path, minio, MINIO_BUCKET, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD):
 
 
 @pytest.fixture()
-def BaseModel(db):
+def BaseModel(app, db):
     class BaseModel(ProperModel):
         """Stand-in for the consumer's BaseModel. Real apps subclass ProperModel
         once and reuse that as the storage base; `attachment_for` requires a
         distinct subclass (not ProperModel itself) so the MRO can place the
         consumer base before `_Attachment` without conflict.
         """
-
         class Meta:
             database = db
 

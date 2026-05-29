@@ -1,58 +1,47 @@
 import peewee as pw
 import pytest
-from playhouse.sqlite_ext import SqliteExtDatabase
 
-from proper import App, current
-from proper.models import ProperModel
 from proper.units import HOURS
 
 
-# --- helpers ---
+@pytest.fixture()
+def Item(db, BaseModel):
+    class Item(BaseModel):
+        name = pw.CharField()
 
-db = SqliteExtDatabase(":memory:")
-
-
-class BaseModel(ProperModel):
-    class Meta:
-        database = db
-
-
-class Item(BaseModel):
-    name = pw.CharField()
+    db.create_tables([Item])
+    return Item
 
 
-class Account(BaseModel):
-    email = pw.CharField()
-    password = pw.CharField(default="hashed-pw-abc123")
+@pytest.fixture()
+def Account(db, BaseModel):
+    class Account(BaseModel):
+        email = pw.CharField()
+        password = pw.CharField(default="hashed-pw-abc123")
 
-    def generate_token_for_password_reset(self):
-        return (self.password or "")[-10:]
+        def generate_token_for_password_reset(self):
+            return (self.password or "")[-10:]
 
-    def generate_token_for_email_verification(self):
-        return self.email
+        def generate_token_for_email_verification(self):
+            return self.email
 
-
-@pytest.fixture(autouse=True)
-def setup():
-    db.connect(reuse_if_open=True)
-    db.create_tables([Item, Account])
-    yield
-    db.drop_tables([Item, Account])
+    db.create_tables([Account])
+    return Account
 
 
 class TestGenerateToken:
-    def test_returns_string(self):
+    def test_returns_string(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token()
         assert isinstance(token, str)
         assert len(token) > 0
 
-    def test_different_records_produce_different_tokens(self):
+    def test_different_records_produce_different_tokens(self, Item):
         a = Item.create(name="a")
         b = Item.create(name="b")
         assert a.generate_token() != b.generate_token()
 
-    def test_same_record_produces_different_tokens_with_different_salts(self):
+    def test_same_record_produces_different_tokens_with_different_salts(self, Item):
         item = Item.create(name="thing")
         t1 = item.generate_token(salt="purpose-a")
         t2 = item.generate_token(salt="purpose-b")
@@ -60,14 +49,14 @@ class TestGenerateToken:
 
 
 class TestResolveToken:
-    def test_round_trip(self):
+    def test_round_trip(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token()
         found = Item.resolve_token(token)
         assert found is not None
         assert found.id == item.id
 
-    def test_expired_token_returns_none(self):
+    def test_expired_token_returns_none(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token()
         # itsdangerous uses floor-second timestamps, so sleep past the boundary
@@ -76,26 +65,26 @@ class TestResolveToken:
         found = Item.resolve_token(token, max_age=1)
         assert found is None
 
-    def test_tampered_token_returns_none(self):
+    def test_tampered_token_returns_none(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token()
         found = Item.resolve_token(token + "x")
         assert found is None
 
-    def test_deleted_record_returns_none(self):
+    def test_deleted_record_returns_none(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token()
         item.delete_instance()
         found = Item.resolve_token(token)
         assert found is None
 
-    def test_wrong_salt_returns_none(self):
+    def test_wrong_salt_returns_none(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token(salt="purpose-a")
         found = Item.resolve_token(token, salt="purpose-b")
         assert found is None
 
-    def test_default_salt_is_class_name(self):
+    def test_default_salt_is_class_name(self, Item):
         item = Item.create(name="thing")
         token = item.generate_token()
         # Resolve with explicit salt matching the class name should work
@@ -103,7 +92,7 @@ class TestResolveToken:
         assert found is not None
         assert found.id == item.id
 
-    def test_with_fingerprint(self):
+    def test_with_fingerprint(self, Item):
         item = Item.create(name="thing")
 
         def fp(x):
@@ -114,7 +103,7 @@ class TestResolveToken:
         assert found is not None
         assert found.id == item.id
 
-    def test_fingerprint_mismatch_returns_none(self):
+    def test_fingerprint_mismatch_returns_none(self, Item):
         item = Item.create(name="thing")
 
         def fp(x):
@@ -127,7 +116,7 @@ class TestResolveToken:
         found = Item.resolve_token(token, fp)
         assert found is None
 
-    def test_cross_model_token_returns_none(self):
+    def test_cross_model_token_returns_none(self, Item, Account):
         """Token for one model class cannot resolve on another."""
         item = Item.create(name="thing")
         token = item.generate_token()
@@ -137,32 +126,32 @@ class TestResolveToken:
 
 
 class TestGenerateTokenFor:
-    def test_returns_string(self):
+    def test_returns_string(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("password_reset")
         assert isinstance(token, str)
 
-    def test_different_names_produce_different_tokens(self):
+    def test_different_names_produce_different_tokens(self, Account):
         acct = Account.create(email="alice@test.com")
         t1 = acct.generate_token_for("password_reset")
         t2 = acct.generate_token_for("email_verification")
         assert t1 != t2
 
-    def test_missing_method_raises_attribute_error(self):
+    def test_missing_method_raises_attribute_error(self, Item):
         item = Item.create(name="thing")
         with pytest.raises(AttributeError):
             item.generate_token_for("nonexistent")
 
 
 class TestResolveTokenFor:
-    def test_round_trip(self):
+    def test_round_trip(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("password_reset")
         found = Account.resolve_token_for("password_reset", token, max_age=1 * HOURS)
         assert found is not None
         assert found.id == acct.id
 
-    def test_expired_token_returns_none(self):
+    def test_expired_token_returns_none(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("password_reset")
         import time
@@ -170,13 +159,13 @@ class TestResolveTokenFor:
         found = Account.resolve_token_for("password_reset", token, max_age=1)
         assert found is None
 
-    def test_wrong_name_returns_none(self):
+    def test_wrong_name_returns_none(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("password_reset")
         found = Account.resolve_token_for("email_verification", token, max_age=1 * HOURS)
         assert found is None
 
-    def test_fingerprint_invalidation_on_password_change(self):
+    def test_fingerprint_invalidation_on_password_change(self, Account):
         acct = Account.create(email="alice@test.com", password="original-secret")
         token = acct.generate_token_for("password_reset")
         # Change the password so the last 10 chars differ
@@ -185,7 +174,7 @@ class TestResolveTokenFor:
         found = Account.resolve_token_for("password_reset", token, max_age=1 * HOURS)
         assert found is None
 
-    def test_fingerprint_invalidation_on_email_change(self):
+    def test_fingerprint_invalidation_on_email_change(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("email_verification")
         # Change the email, invalidating the fingerprint
@@ -194,7 +183,7 @@ class TestResolveTokenFor:
         found = Account.resolve_token_for("email_verification", token, max_age=1 * HOURS)
         assert found is None
 
-    def test_fingerprint_still_valid_when_unchanged(self):
+    def test_fingerprint_still_valid_when_unchanged(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("email_verification")
         # Modify something else, fingerprint should still match
@@ -204,14 +193,14 @@ class TestResolveTokenFor:
         assert found is not None
         assert found.id == acct.id
 
-    def test_deleted_record_returns_none(self):
+    def test_deleted_record_returns_none(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("password_reset")
         acct.delete_instance()
         found = Account.resolve_token_for("password_reset", token, max_age=1 * HOURS)
         assert found is None
 
-    def test_tampered_token_returns_none(self):
+    def test_tampered_token_returns_none(self, Account):
         acct = Account.create(email="alice@test.com")
         token = acct.generate_token_for("password_reset")
         found = Account.resolve_token_for("password_reset", token + "x", max_age=1 * HOURS)

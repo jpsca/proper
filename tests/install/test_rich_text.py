@@ -19,7 +19,7 @@ def app_in_tmp(tmp_path, app):
 
     for d in (
         "config", "controllers", "models",
-        "tasks", "views", "assets/js", "assets/styles",
+        "tasks", "views", "assets/js", "assets/css",
     ):
         (app_root / d).mkdir(parents=True)
 
@@ -50,8 +50,8 @@ def test_install_renders_blueprint(app_in_tmp):
     assert (root / "views" / "rich_text_toolbar.jx").exists()
     assert (root / "assets" / "js" / "lexxy-config.js").exists()
     assert (root / "assets" / "js" / "vendor" / "lexxy.js").exists()
-    assert (root / "assets" / "styles" / "lexxy-editor.css").exists()
-    assert (root / "assets" / "styles" / "lexxy-content.css").exists()
+    assert (root / "assets" / "css" / "lexxy-editor.css").exists()
+    assert (root / "assets" / "css" / "lexxy-content.css").exists()
     assert (root / "tasks" / "abandoned_uploads_sweep.py").exists()
 
 

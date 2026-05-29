@@ -1,5 +1,5 @@
 {#def field, accept=None #}
-{#css "styles/file-input.css" #}
+{#css "css/file-input.css" #}
 {#js "js/file-input-controller.js" #}
 
 {# An existing attachment exposes `.url`; a fresh upload (MultipartPart) does not. #}

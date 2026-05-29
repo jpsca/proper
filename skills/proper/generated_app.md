@@ -80,7 +80,7 @@ myapp/                          # Project root
 │   │   ├── __init__.py         # CLI entry point
 │   │   └── app_cli.py          # Custom CLI with Tailwind watcher
 │   └── assets/                 # Static files
-│       ├── styles/
+│       ├── css/
 │       │   ├── globals.css
 │       │   ├── reset.css
 │       │   ├── base.css
@@ -329,7 +329,7 @@ views/password_reset/show.jx       # "Email sent" confirmation
 views/password_reset/edit.jx       # Change password form
 views/password_reset/invalid.jx    # Invalid/expired token page
 views/emails/password_reset.jx           # Password reset email template
-assets/styles/auth.css                      # Auth page styles
+assets/css/auth.css                      # Auth page styles
 db/main/002_users.py                        # Migration
 ```
 

@@ -2,88 +2,90 @@ from time import sleep
 
 import peewee as pw
 import pytest
-from playhouse.sqlite_ext import SqliteExtDatabase
 
 
-db = SqliteExtDatabase(":memory:")
+@pytest.fixture()
+def RussianDollCached(BaseModel):
+    # Reproduces the blueprint's RussianDollCached mixin for testing.
+    class RussianDollCached(BaseModel):
+        updated_at = pw.DateTimeField(default=pw.utcnow, null=True)
+        touches: tuple[str, ...] = ()
+
+        class Meta:
+            table_name = None  # type: ignore
+
+        @classmethod
+        def update(cls, *args, **kwargs):
+            kwargs["updated_at"] = pw.utcnow()
+            return super().update(*args, **kwargs)
+
+        def save(self, *args, **kwargs):
+            self.updated_at = pw.utcnow()
+            result = super().save(*args, **kwargs)
+            self._touch_related()
+            return result
+
+        def delete_instance(self, *args, **kwargs):
+            self._touch_related()
+            return super().delete_instance(*args, **kwargs)
+
+        def touch(self):
+            type(self).update(updated_at=pw.utcnow()).where(
+                type(self)._meta.primary_key == self.get_id()
+            ).execute()
+            self._touch_related()
+
+        def _touch_related(self):
+            for field_name in self.touches:
+                related = getattr(self, field_name, None)
+                if related is not None and hasattr(related, "touch"):
+                    related.touch()
+
+    return RussianDollCached
 
 
-class BaseModel(pw.Model):
-    class Meta:
-        database = db
+@pytest.fixture()
+def Post(db, RussianDollCached):
+    class Post(RussianDollCached):
+        title = pw.TextField()
+
+        class Meta:
+            table_name = "posts"
+
+    db.create_tables([Post])
+    return Post
 
 
-# Reproduces the blueprint's RussianDollCached mixin for testing.
-class RussianDollCached(BaseModel):
-    updated_at = pw.DateTimeField(default=pw.utcnow, null=True)
-    touches: tuple[str, ...] = ()
+@pytest.fixture()
+def Comment(db, RussianDollCached, Post):
+    class Comment(RussianDollCached):
+        post = pw.ForeignKeyField(Post, backref="comments")
+        body = pw.TextField()
+        touches = ("post",)
 
-    class Meta:
-        table_name = None  # type: ignore
+        class Meta:
+            table_name = "comments"
 
-    @classmethod
-    def update(cls, *args, **kwargs):
-        kwargs["updated_at"] = pw.utcnow()
-        return super().update(*args, **kwargs)
-
-    def save(self, *args, **kwargs):
-        self.updated_at = pw.utcnow()
-        result = super().save(*args, **kwargs)
-        self._touch_related()
-        return result
-
-    def delete_instance(self, *args, **kwargs):
-        self._touch_related()
-        return super().delete_instance(*args, **kwargs)
-
-    def touch(self):
-        type(self).update(updated_at=pw.utcnow()).where(
-            type(self)._meta.primary_key == self.get_id()
-        ).execute()
-        self._touch_related()
-
-    def _touch_related(self):
-        for field_name in self.touches:
-            related = getattr(self, field_name, None)
-            if related is not None and hasattr(related, "touch"):
-                related.touch()
+    db.create_tables([Comment])
+    return Comment
 
 
-class Post(RussianDollCached):
-    title = pw.TextField()
+@pytest.fixture()
+def Reply(db, RussianDollCached, Comment):
+    class Reply(RussianDollCached):
+        comment = pw.ForeignKeyField(Comment, backref="replies")
+        body = pw.TextField()
+        touches = ("comment",)
 
-    class Meta:
-        table_name = "posts"
+        class Meta:
+            table_name = "replies"
 
-
-class Comment(RussianDollCached):
-    post = pw.ForeignKeyField(Post, backref="comments")
-    body = pw.TextField()
-    touches = ("post",)
-
-    class Meta:
-        table_name = "comments"
-
-
-class Reply(RussianDollCached):
-    comment = pw.ForeignKeyField(Comment, backref="replies")
-    body = pw.TextField()
-    touches = ("comment",)
-
-    class Meta:
-        table_name = "replies"
-
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    db.connect(reuse_if_open=True)
-    db.create_tables([Post, Comment, Reply])
-    yield
-    db.drop_tables([Post, Comment, Reply])
+    db.create_tables([Reply])
+    return Reply
 
 
 class TestTouches:
-    def test_save_touches_parent(self):
+    def test_save_touches_parent(self, Post, Comment):
         post = Post.create(title="Hello")
         original_ts = post.updated_at
 
@@ -93,7 +95,7 @@ class TestTouches:
         post = Post.get_by_id(post.id)
         assert post.updated_at > original_ts
 
-    def test_delete_touches_parent(self):
+    def test_delete_touches_parent(self, Post, Comment):
         post = Post.create(title="Hello")
         comment = Comment.create(post=post, body="Nice post")
         original_ts = Post.get_by_id(post.id).updated_at
@@ -104,7 +106,7 @@ class TestTouches:
         post = Post.get_by_id(post.id)
         assert post.updated_at > original_ts
 
-    def test_cascading_touch(self):
+    def test_cascading_touch(self, Post, Comment, Reply):
         """Reply touches Comment, which touches Post (russian doll)."""
         post = Post.create(title="Hello")
         comment = Comment.create(post=post, body="Nice")
@@ -119,7 +121,7 @@ class TestTouches:
         assert comment.updated_at > original_comment_ts
         assert post.updated_at > original_post_ts
 
-    def test_no_touches_by_default(self):
+    def test_no_touches_by_default(self, Post):
         """Models without `touches` don't touch anything."""
         post = Post.create(title="Hello")
         original_ts = post.updated_at
@@ -131,7 +133,7 @@ class TestTouches:
         post = Post.get_by_id(post.id)
         assert post.updated_at > original_ts
 
-    def test_touch_method(self):
+    def test_touch_method(self, Post):
         post = Post.create(title="Hello")
         original_ts = post.updated_at
 
@@ -141,7 +143,7 @@ class TestTouches:
         post = Post.get_by_id(post.id)
         assert post.updated_at > original_ts
 
-    def test_touch_skips_none_relation(self):
+    def test_touch_skips_none_relation(self, db, Post, RussianDollCached):
         """If the FK is null, touching is skipped gracefully."""
         class OptionalComment(RussianDollCached):
             post = pw.ForeignKeyField(Post, null=True, backref="opt_comments")

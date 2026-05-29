@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from proper import App, TestClient, current, status
+from proper import TestClient, current, status
 from proper.constants import FLASHES_SESSION_KEY
 from proper.controller import Controller
 from proper.helpers import DotDict

@@ -13,8 +13,8 @@
   multiline: str = "false",
   markdown: str = "false",
 #}
-{#css "styles/lexxy-editor.css" #}
-{#css "styles/lexxy-content.css" #}
+{#css "css/lexxy-editor.css" #}
+{#css "css/lexxy-content.css" #}
 {#js "js/lexxy-config.js" #}
 
 {#

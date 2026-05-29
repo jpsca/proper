@@ -21,10 +21,6 @@ Read me first. This will teach you how to set up a new Proper application.
 :::wip | Work in progress
 :::
 
-Everything you need to know to create your first application.
-This guide walks you through building _ReadThis_, a small social reading app where members track the books they want to read, are reading, or have read, rate and review them, and follow other readers.
-
-
 ## Models
 
 ### [Peewee ORM](/docs/models)
@@ -101,6 +97,10 @@ Internationalization, often shortened to i18n, is the work of preparing your app
 :::
 
 Sooner or later your application will need to send email - confirmations, password resets, notifications. This guide covers writing emails as Jx components, configuring SMTP for production and console output for development, and sending them in the background.
+
+### [Rich Text](/docs/rich_text)
+
+How to store, render, and edit rich text content in Proper, including embedded image and file attachments.
 
 ### [Channels](/docs/channels)
 

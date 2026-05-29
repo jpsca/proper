@@ -20,7 +20,7 @@ Destinations (mirrored to both the general app blueprint and the
 rich_text addon blueprint):
 
     blueprint/[[app_name]]/assets/js/vendor/lexxy.js
-    blueprint/[[app_name]]/assets/styles/vendor/lexxy.css
+    blueprint/[[app_name]]/assets/css/vendor/lexxy.css
 """
 import re
 import urllib.request
@@ -115,7 +115,7 @@ def main() -> None:
         css_content = _download(f"{CSS_BASE}/{name}")
         if name in custom_css:
             css_content += custom_css[name]
-        _write_to_target(f"styles/{name}", css_content)
+        _write_to_target(f"css/{name}", css_content)
 
     print(f"\nVendored Lexxy {VERSION} into blueprint.\n\n")
 

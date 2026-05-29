@@ -20,7 +20,7 @@ def app_in_tmp(tmp_path, app):
     """
     app_root = tmp_path / APP_NAME
 
-    for d in ("controllers", "tasks", "config", "views", "assets/js", "assets/styles"):
+    for d in ("controllers", "tasks", "config", "views", "assets/js", "assets/css"):
         (app_root / d).mkdir(parents=True)
 
     (app_root / "controllers" / "__init__.py").write_text("")
@@ -50,11 +50,11 @@ def test_blueprint_renders_all_files(app_in_tmp):
     # Lexxy config-time script
     assert (root / "assets" / "js" / "lexxy-config.js").exists()
 
-    # Vendored Lexxy JS bundle + stylesheets land in the user's app
+    # Vendored Lexxy JS bundle + heets land in the user's app
     assert (root / "assets" / "js" / "vendor" / "lexxy.js").exists()
-    styles = root / "assets" / "styles"
-    assert (styles / "lexxy-editor.css").exists()
-    assert (styles / "lexxy-content.css").exists()
+    css = root / "assets" / "css"
+    assert (css / "lexxy-editor.css").exists()
+    assert (css / "lexxy-content.css").exists()
 
     # Periodic sweep task
     sweep = root / "tasks" / "abandoned_uploads_sweep.py"

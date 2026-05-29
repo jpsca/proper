@@ -6,6 +6,7 @@ import peewee as pw
 import pytest
 
 from proper import App, current
+from proper.models import ProperModel
 
 
 @pytest.fixture()
@@ -22,8 +23,18 @@ def app():
 @pytest.fixture()
 def db():
     database = pw.SqliteDatabase(":memory:")
+    database.connect(reuse_if_open=True)
     yield database
     database.close()
+
+
+@pytest.fixture()
+def BaseModel(app, db):
+    class BaseModel(ProperModel):
+        class Meta:
+            database = db
+
+    return BaseModel
 
 
 # --- Docker container fixtures ---
