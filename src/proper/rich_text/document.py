@@ -34,11 +34,6 @@ if t.TYPE_CHECKING:
 # tag (custom element with potential caption/inner content). We match
 # the full tag, attribute payload, and any inner body in one go so we
 # can both extract IDs and replace the tag with rendered output.
-#
-# TODO: server-side HTML sanitization. Today we trust Lexxy's output;
-# before production we should run the HTML through nh3/bleach with an
-# allowlist that includes <proper-attachment> + the structural tags
-# Lexxy emits.
 _ATTACHMENT_TAG_RE = re.compile(
     r"<proper-attachment\b([^>]*)>(.*?)</proper-attachment>",
     re.IGNORECASE | re.DOTALL,

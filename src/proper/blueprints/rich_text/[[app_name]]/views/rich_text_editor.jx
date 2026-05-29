@@ -3,56 +3,43 @@
 {#def
   field,
   upload_url: str = "",
-  placeholder: str = "",
-  disabled: bool = False,
-  autofocus: bool = False,
   toolbar: str = "true",
-  images: str = "true",
-  files: str = "true",
-  permitted_attachment_types: str = "",
-  multiline: str = "false",
+  toolbar_upload: str = "both",  # "both", "image", or "file"
   markdown: str = "false",
 #}
 {#css "css/lexxy-editor.css" #}
 {#css "css/lexxy-content.css" #}
 {#js "js/lexxy-config.js" #}
 
-{#
-Lexxy's DirectUpload pipeline POSTs blob metadata here; the response
+{# Lexxy's DirectUpload pipeline POSTs blob metadata here; the response
 shape carries a `direct_upload.{url, headers}` envelope that drives
 the actual bytes PUT (to disk locally or to S3 directly).
-
 Override `upload_url` per-form if you need a stricter endpoint
 (e.g. membership-gated uploads). The endpoint must speak the same
-DirectUpload create protocol - see `AttachmentController.create`.
-#}
+DirectUpload create protocol - see `AttachmentController.create`. #}
 {% set upload_url = upload_url or url_for("DirectUpload.create") %}
 
-{#
-Lexxy substitutes `:signed_id` (and optionally `:filename`) client-side
+{# Lexxy substitutes `:signed_id` (and optionally `:filename`) client-side
 when it needs to display an attachment by its signed token. We point
 at the redirect route - same URL `Attachment.url` emits - so embeds
-render in the editor exactly as they will on the published page.
-#}
+render in the editor exactly as they will on the published page. #}
 {% set blob_url_template = url_for("StorageRedirect.show", token=":signed_id") %}
 
-<lexxy-editor
-  data-direct-upload-url="{{ upload_url }}"
-  data-blob-url-template="{{ blob_url_template }}"
+<lexxy-editor {{ attrs.render(
   class="lexxy-content"
-  name="{{ field.name }}"
-  value="{{ field.value or '' }}"
-  placeholder="{{ placeholder }}"
-  markdown="{{ markdown }}"
-  multiLine="{{ multiline }}"
-  toolbar="{{ (field.id + '-toolbar') if toolbar == 'true' else 'false' }}"
-  {% if permitted_attachment_types -%}
-    permitted-attachment-types="{{ permitted_attachment_types }}"{% endif %}
-  {% if autofocus %} autofocus{% endif -%}
-  {% if disabled %} disabled{% endif -%}
->
+  name=field.name,
+  value=field.value or "",
+  required=field.required,
+  toolbar=(field.id + "-toolbar") if toolbar == "true" else "false",
+  markdown=markdown,
+  data_direct_upload_url=upload_url,
+  data_blob_url_template=blob_url_template,
+) }}>
   {%- if toolbar == "true" %}
-    <Toolbar id={{ field.id + '-toolbar' }} images={{ images }} files={{ files }} />
+    <Toolbar
+      id={{ field.id + "-toolbar" }}
+      upload={{ toolbar_upload }}
+    />
   {%- endif -%}
   {{ content }}
 </lexxy-editor>
