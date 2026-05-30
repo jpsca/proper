@@ -38,18 +38,12 @@ Because the application code talks to `Attachment` and never to a service direct
 
 Some features of File Storage depend on third-party software which Proper will not install, and must be installed separately:
 
-- [libvips v8.6+](https://www.libvips.org/install.html) for making thumbnails and image transformations. You will also need the `pyvips` python package.
+- [libvips v8.6+](https://www.libvips.org/install.html) for making thumbnails and image transformations.
 - [ffmpeg v3.4+](https://ffmpeg.org/) for video previews.
 - [poppler](https://poppler.freedesktop.org/) for PDF previews.
 
 :::note | libvips
 On macOS install the system library with `brew install vips`; on Debian or Ubuntu, `apt install libvips-dev`. For other systems, see the [libvips installation page](https://www.libvips.org/install.html){target=_blank}.
-
-Then add `pyvips` to your project:
-
-```bash
-uv add pyvips
-```
 :::
 
 ---
@@ -722,17 +716,7 @@ For metadata that you'd want to *query* against (uploaded-by user id, gallery id
 
 A *variant* is a derived file generated from an original. The classic case is a thumbnail: store one full-size avatar, but render a 200x200 crop in lists, a 64x64 crop in headers, and a blurred hero version on the profile page. Each variant is itself an `Attachment` row, with `parent` set to the original and `variant_key` set to a hash of the operations that produced it.
 
-**Variants are disabled by default**. To enable them, edit `VARIANTS_ENABLED_FOR` in your `Attachment` model to uncomment the `"image/*"` key:
-
-```python {hl_lines="3-4"}
-class Attachment(app.attachment_for(BaseModel)):
-
-    VARIANTS_ENABLED_FOR: dict[str, str] = {
-        "image/*": "preview_image",
-    }
-```
-
-You will also have to install the system library `libvips` and the python package `pyvips`. See the [requirements section](#requirements) for details.
+**Variants are enabled by default**, but you need to install the system library `libvips`. See the [requirements section](#requirements) for details.
 
 Variants are:
 
@@ -926,11 +910,7 @@ VARIANTS_ENABLED_FOR = {
 ```
 
 :::warning
-All three preview methods require libvips + pyvips:
-
-- Images: libvips + pyvips
-- PDFs: libvips + pyvips + [poppler](https://poppler.freedesktop.org/)
-- Videos: libvips + pyvips + [ffmpeg](https://ffmpeg.org/)
+The preview methods also require the `libvips` system library.
 :::
 
 
