@@ -37,7 +37,7 @@ will render as
 ```
 
 To learn more about the API, please read the Proper Internationalization guide
-at https://guides.properproject.org/i18n.
+at https://properproject.org/docs/i18n.
 
 Be aware that YAML interprets the following case-insensitive strings as
 booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings

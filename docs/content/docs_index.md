@@ -86,10 +86,11 @@ Some work doesn't belong in a web request: sending an email, processing a video,
 
 ### [Internationalization (i18n)](/docs/i18n)
 
-:::wip | Work in progress
-:::
-
 Internationalization, often shortened to i18n, is the work of preparing your application to be translated into other languages. This guide covers locale-aware routing, where translations live, how pluralization works, and how to format dates and numbers for the user's locale.
+
+### [Rich Text](/docs/rich_text)
+
+How to store, render, and edit rich text content in Proper, including embedded image and file attachments.
 
 ### [Sending Emails](/docs/emails)
 
@@ -97,10 +98,6 @@ Internationalization, often shortened to i18n, is the work of preparing your app
 :::
 
 Sooner or later your application will need to send email - confirmations, password resets, notifications. This guide covers writing emails as Jx components, configuring SMTP for production and console output for development, and sending them in the background.
-
-### [Rich Text](/docs/rich_text)
-
-How to store, render, and edit rich text content in Proper, including embedded image and file attachments.
 
 ### [Channels](/docs/channels)
 

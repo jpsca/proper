@@ -1,4 +1,4 @@
-from proper import errors
+from proper import current, errors
 
 from ..router import router
 from .app_controller import AppController
@@ -26,5 +26,5 @@ class PublicController(AppController):
     def health(self):
         return (
             "<!doctype html>\n<html>\n<head><title>Up</title></head>"
-            '<body style="background-color:green;"></body>\n</html>'
+            '<body style="background:green"></body>\n</html>'
         )
