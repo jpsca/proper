@@ -5,7 +5,6 @@ from ..errors import (
     BadRequest,
     ClientDisconnected,
     RequestEntityTooLarge,
-    UnsupportedMediaType,
 )
 from ..helpers import DotDict, MultiDict, logger
 from ..router import Route
@@ -41,6 +40,7 @@ class Request(RequestHeadersMixin):
     method: str
     path: str
     form: MultiDict
+    body: bytes
 
     matched_route: Route | None = None
     matched_params: dict | None = None
@@ -52,6 +52,7 @@ class Request(RequestHeadersMixin):
     def __init__(self, scope: TScope) -> None:
         self.scope = scope or make_test_scope()
         self.form = MultiDict()
+        self.body = b""
         self._session = DotDict()
         super().__init__()
 
@@ -102,6 +103,10 @@ class Request(RequestHeadersMixin):
         if len(body) != self.content_length:
             raise BadRequest("Body size doesn't match the declared Content-Length.")
 
+        # Always expose the raw bytes - binary uploads (image/png PUTs,
+        # etc.) have no parser but the controller still needs the body.
+        self.body = body
+
         if content_type is None:
             content_type, options = parse_options_header(self.content_type)
 
@@ -127,8 +132,9 @@ class Request(RequestHeadersMixin):
         elif content_type.startswith("application/json"):
             self.form = parse_json(body.decode(encoding))
 
-        else:
-            raise UnsupportedMediaType("Unsupported Content-Type")
+        # Other content types: no parser available, but `self.body` carries
+        # the raw bytes. The controller decides what to do (binary upload,
+        # custom format, etc.) or just ignores them.
 
     @property
     def app(self) -> "App":

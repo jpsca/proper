@@ -1,4 +1,3 @@
-"""Tests for proper.template_resolver."""
 import pytest
 from jx import ComponentNotFoundError
 

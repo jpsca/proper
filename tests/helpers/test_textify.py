@@ -1,4 +1,3 @@
-"""Comprehensive tests for the textify HTML to plain text converter."""
 from proper.helpers import html2text
 
 

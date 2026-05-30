@@ -74,7 +74,7 @@ def get_routes_cmd(app: "App") -> t.Callable:
 
         routes = []
         for route in app.routes:
-            method = route.method if route.method else "—"
+            method = route.method if route.method else "-"
             path = route.path
             if route.redirect:
                 to = f"↪ {route.redirect}"
@@ -133,7 +133,7 @@ def get_generators_cli(app: "App") -> type[Cli]:
 
 
 def get_install_cli(app: "App") -> type[Cli]:
-    from proper.install import auth, channels, i18n, storage
+    from proper.install import auth, channels, i18n, rich_text, storage
 
     attrs: dict[str, t.Any] = {
         "__doc__": "",
@@ -141,7 +141,7 @@ def get_install_cli(app: "App") -> type[Cli]:
         "i18n": _get_cmd(app, i18n, "install"),
         "storage": _get_cmd(app, storage, "install"),
         "channels": _get_cmd(app, channels, "install"),
-        # "text": _get_cmd(app, text, "install"),
+        "rich_text": _get_cmd(app, rich_text, "install"),
     }
     return t.cast(type[Cli], type("Install", (Cli,), attrs))
 

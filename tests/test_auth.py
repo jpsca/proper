@@ -1,5 +1,3 @@
-"""Tests for proper.auth — Auth, helpers, token generation & verification."""
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,11 +21,6 @@ def auth():
     return Auth(secret_keys=SECRET_KEYS)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# force_bytes
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestForceBytes:
     def test_str_to_bytes(self):
         assert force_bytes("hello") == b"hello"
@@ -42,11 +35,6 @@ class TestForceBytes:
 
     def test_int_to_bytes(self):
         assert force_bytes(42) == b"42"
-
-
-# ═══════════════════════════════════════════════════════════════════
-# to36 / from36
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestTo36:
@@ -86,11 +74,6 @@ class TestFrom36:
             assert from36(to36(n)) == n
 
 
-# ═══════════════════════════════════════════════════════════════════
-# urlsafe_base64 encode/decode
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestUrlsafeBase64:
     def test_roundtrip(self):
         for s in ["hello", "42", "user@example.com", "a" * 100]:
@@ -103,11 +86,6 @@ class TestUrlsafeBase64:
     def test_decode_restores_padding(self):
         # "a" encodes to "YQ" (no padding), should still decode
         assert urlsafe_base64_decode("YQ") == "a"
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Auth.__init__ / _set_hasher
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestAuthInit:
@@ -141,11 +119,6 @@ class TestAuthInit:
         assert a.password_maxlen == 200
 
 
-# ═══════════════════════════════════════════════════════════════════
-# hash_password
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestHashPassword:
     def test_returns_hash(self, auth):
         hashed = auth.hash_password("validpassword")
@@ -172,11 +145,6 @@ class TestHashPassword:
         assert a.hash_password("a" * 10) is not None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# password_is_valid
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestPasswordIsValid:
     def test_valid_password(self, auth):
         hashed = auth.hash_password("mypassword")
@@ -201,11 +169,6 @@ class TestPasswordIsValid:
 
     def test_malformed_hash_returns_false(self, auth):
         assert auth.password_is_valid("password", "not-a-valid-hash") is False
-
-
-# ═══════════════════════════════════════════════════════════════════
-# authenticate
-# ═══════════════════════════════════════════════════════════════════
 
 
 def _make_user(password_hash):
@@ -266,11 +229,6 @@ class TestAuthenticate:
 
         result = auth.authenticate(model, "alice", "secret123", update_hash=False)
         assert result is user
-
-
-# ═══════════════════════════════════════════════════════════════════
-# update_password_hash
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestUpdatePasswordHash:

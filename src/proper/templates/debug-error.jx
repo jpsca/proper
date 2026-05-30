@@ -8,7 +8,7 @@
 
 {% block body %}
 <pre class="traceback">
-	<code class="language-python">{{ traceback }}</code>
+	<code class="language-python">{{ traceback | e }}</code>
 </pre>
 <script>{{ include_raw("_prism.js") }}</script>
 {% endblock %}

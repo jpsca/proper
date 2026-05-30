@@ -232,7 +232,7 @@ Static files in the `assets/` directory are served via a static route registered
 By default, asset URLs include a hash of the file's modification time for cache busting:
 
 ```
-/assets/styles/app-a1b2c3d4e5f6.css
+/assets/css/app-a1b2c3d4e5f6.css
 ```
 
 Fingerprinted files are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted files use `must-revalidate`. The framework also supports conditional requests via `If-Modified-Since` and `ETag` headers.

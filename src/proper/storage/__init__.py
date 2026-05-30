@@ -1,2 +1,2 @@
-from .attachment import attachment_for  # noqa
+from .attachment import _Attachment, attachment_for  # noqa
 from .services import *  # noqa

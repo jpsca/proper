@@ -1,5 +1,3 @@
-"""Tests for proper.install.auth — installs auth blueprint into an app."""
-
 import pytest
 
 from proper.install import auth, metadata
@@ -118,7 +116,7 @@ def test_file_creation(app_in_tmp):
     assert path.exists()
 
     # creates_auth_css
-    path = root_path / "assets" / "styles" / "auth.css"
+    path = root_path / "assets" / "css" / "auth.css"
     assert path.exists()
 
     # creates_password_reset_email_template

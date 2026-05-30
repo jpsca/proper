@@ -1,5 +1,3 @@
-"""Tests for proper.router.route — Route, StaticRoute, and path compilation."""
-
 import re
 
 import pytest
@@ -40,9 +38,6 @@ class Items:
     def list(self): ...
 
 
-# ---------------------------------------------------------------------------
-# RouteTemplate
-# ---------------------------------------------------------------------------
 
 class TestRouteTemplate:
     def test_uses_colon_delimiter(self):
@@ -54,9 +49,6 @@ class TestRouteTemplate:
         assert t.safe_substitute(name="ok") == "ok/:missing"
 
 
-# ---------------------------------------------------------------------------
-# RE_PLACEHOLDERS regex
-# ---------------------------------------------------------------------------
 
 class TestREPlaceholders:
     def test_simple_placeholder(self):
@@ -91,9 +83,6 @@ class TestREPlaceholders:
         assert m is None
 
 
-# ---------------------------------------------------------------------------
-# FORMATS constant
-# ---------------------------------------------------------------------------
 
 class TestFormats:
     def test_default_format(self):
@@ -115,9 +104,6 @@ class TestFormats:
         assert not re.fullmatch(FORMATS["float"], "abc")
 
 
-# ---------------------------------------------------------------------------
-# Route.__init__ and properties
-# ---------------------------------------------------------------------------
 
 class TestRouteInit:
     def test_method_uppercased(self):
@@ -166,9 +152,6 @@ class TestRouteInit:
         assert r.redirect_status == 307
 
 
-# ---------------------------------------------------------------------------
-# Route.to and auto-naming
-# ---------------------------------------------------------------------------
 
 class TestRouteAutoNaming:
     def test_auto_name_from_handler(self):
@@ -192,9 +175,6 @@ class TestRouteAutoNaming:
         assert r.name is None
 
 
-# ---------------------------------------------------------------------------
-# Route.build_only
-# ---------------------------------------------------------------------------
 
 class TestBuildOnly:
     def test_build_only_when_no_to_no_redirect(self):
@@ -210,9 +190,6 @@ class TestBuildOnly:
         assert r.build_only is False
 
 
-# ---------------------------------------------------------------------------
-# Route.__repr__
-# ---------------------------------------------------------------------------
 
 class TestRouteRepr:
     def test_basic_repr(self):
@@ -231,9 +208,6 @@ class TestRouteRepr:
         assert "redirect=" in repr(r)
 
 
-# ---------------------------------------------------------------------------
-# Route.__eq__
-# ---------------------------------------------------------------------------
 
 class TestRouteEquality:
     def test_equal_routes(self):
@@ -256,9 +230,6 @@ class TestRouteEquality:
         assert r != "not a route"
 
 
-# ---------------------------------------------------------------------------
-# Route path compilation and matching
-# ---------------------------------------------------------------------------
 
 class TestRoutePathCompilation:
     def test_static_path_compiled(self):
@@ -307,9 +278,6 @@ class TestRoutePathCompilation:
         assert r.path_plain == "/photos/:id"
 
 
-# ---------------------------------------------------------------------------
-# Route.match
-# ---------------------------------------------------------------------------
 
 class TestRouteMatch:
     def test_match_static_path(self):
@@ -391,9 +359,6 @@ class TestRouteMatch:
         assert r.match("/api/v1X0/items") is None
 
 
-# ---------------------------------------------------------------------------
-# Route.format (URL generation)
-# ---------------------------------------------------------------------------
 
 class TestRouteFormat:
     def test_format_static_path(self):
@@ -447,9 +412,6 @@ class TestRouteFormat:
             r.format(lang="fr")
 
 
-# ---------------------------------------------------------------------------
-# Route path re-assignment
-# ---------------------------------------------------------------------------
 
 class TestRoutePathReassignment:
     def test_path_setter_recompiles(self):
@@ -461,9 +423,6 @@ class TestRoutePathReassignment:
         assert "id" in r.path_placeholders
 
 
-# ---------------------------------------------------------------------------
-# StaticRoute
-# ---------------------------------------------------------------------------
 
 class TestStaticRoute:
     def test_static_route_is_get(self):
@@ -554,9 +513,6 @@ class TestStaticRoute:
         assert r.host == "cdn.example.com"
 
 
-# ---------------------------------------------------------------------------
-# Host compilation and matching (placeholders)
-# ---------------------------------------------------------------------------
 
 class TestHostCompilation:
     def test_no_host_compiles_to_none(self):

@@ -1,5 +1,3 @@
-"""Tests for proper.error_handlers — fallback/debug error pages & helpers."""
-
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from proper.error_handlers import (
@@ -16,11 +14,6 @@ from proper.error_handlers import (
     render,
     render_default_index,
 )
-
-
-# ═══════════════════════════════════════════════════════════════════
-# render
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestRender:
@@ -44,11 +37,6 @@ class TestRender:
         # Should fall back to the static fallback-error.html
         assert isinstance(body, str)
         assert len(body) > 0
-
-
-# ═══════════════════════════════════════════════════════════════════
-# redact_sensitive_info / redact_value
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestRedactValue:
@@ -94,11 +82,6 @@ class TestRedactSensibleInfo:
         assert result["password"] == ""
 
 
-# ═══════════════════════════════════════════════════════════════════
-# is_index
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestIsIndex:
     def test_get_root(self):
         request = MagicMock(method="GET", path="/")
@@ -113,11 +96,6 @@ class TestIsIndex:
         assert is_index(request) is False
 
 
-# ═══════════════════════════════════════════════════════════════════
-# get_title
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestGetTitle:
     def test_value_error(self):
         assert get_title(ValueError("x")) == "Value Error"
@@ -126,11 +104,6 @@ class TestGetTitle:
         from proper.errors import MatchNotFound
 
         assert get_title(MatchNotFound("x")) == "Match Not Found"
-
-
-# ═══════════════════════════════════════════════════════════════════
-# get_request_data
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestGetRequestData:
@@ -181,11 +154,6 @@ class TestGetRequestData:
         }
 
 
-# ═══════════════════════════════════════════════════════════════════
-# fallback handlers
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestFallbackHandlers:
     def test_fallback_not_found(self):
         response = MagicMock()
@@ -204,11 +172,6 @@ class TestFallbackHandlers:
         assert response.body is not None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# render_default_index
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestRenderDefaultIndex:
     def test_sets_body(self):
         request = MagicMock()
@@ -218,11 +181,6 @@ class TestRenderDefaultIndex:
         assert response.body is not None
         body = response.body
         assert isinstance(body, str)
-
-
-# ═══════════════════════════════════════════════════════════════════
-# debug_not_found_handler
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestDebugNotFoundHandler:
@@ -251,11 +209,6 @@ class TestDebugNotFoundHandler:
         debug_not_found_handler(app, request, response)
         body = response.body
         assert isinstance(body, str)
-
-
-# ═══════════════════════════════════════════════════════════════════
-# debug_error_handler
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestDebugErrorHandler:

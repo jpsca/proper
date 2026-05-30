@@ -1,7 +1,7 @@
 import typing as t
 
 from ..helpers import BLUEPRINTS
-from ..helpers.render import render_blueprint, sort_imports_in
+from ..helpers.render import echo, render_blueprint, sort_imports_in
 from .metadata import record_install
 
 
@@ -18,6 +18,8 @@ SORT_IMPORTS_IN = [
 
 def install(app: "App") -> None:
     """Install Channels support."""
+    echo("install", "Channels addon")
+
     render_blueprint(
         CHANNELS_BLUEPRINT,
         app.root_path.parent,

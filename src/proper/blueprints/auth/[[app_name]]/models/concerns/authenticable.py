@@ -81,7 +81,7 @@ class Authenticable(BaseModel):
         the token is treated as revoked.
 
         The return value must be JSON-serializable (str, int, etc.) and
-        must be deterministic for a given model state — i.e., calling it
+        must be deterministic for a given model state - i.e., calling it
         twice on the same unchanged record must return the same result.
 
         It should NOT contain sensitive data, as the token payload is

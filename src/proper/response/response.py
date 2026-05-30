@@ -82,7 +82,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         obj: t.Any = None,
         *,
         flash: str | None = None,
-        flash_type: str = "info",
+        flash_cat: str = "positive",
         status: int = pstatus.see_other,
         **kw,
     ) -> None:
@@ -96,8 +96,8 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
                 The object to build the route
             flash:
                 Optional flash message to set.
-            flash_type:
-                Optional type of the flash message.
+            flash_cat:
+                Optional category of the flash message.
             status (int):
                 The status code to use, e.g.: 303 (See Other)
             **kw:
@@ -125,7 +125,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         )
 
         if flash:
-            self.flash.message(flash_type, flash)
+            self.flash.message(flash_cat, flash)
 
     def fresh_when(
         self,
@@ -280,7 +280,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         elif isinstance(body, (bytes, bytearray, memoryview)):
             body_out = bytes(body)
         else:
-            # Iterable (e.g. FileWrapper) — pass through for streaming.
+            # Iterable (e.g. FileWrapper) - pass through for streaming.
             # Content-Length should already be set by the caller (e.g. send_file).
             body_out = body
 

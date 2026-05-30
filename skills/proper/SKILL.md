@@ -2,7 +2,7 @@
 name: proper
 description: Use when building features, adding resources, writing controllers/models/forms/views, or working with addons (auth, storage, i18n, channels) in a Proper web framework application. Also use when the user asks about Proper framework conventions or patterns.
 user-invocable: false
-last_verified: 2026-04-02
+last_verified: 2026-05-29
 ---
 
 # Proper Framework Development
@@ -53,6 +53,7 @@ Controller  ──────────────  receives the request, ru
 - **Background tasks** — `app.queue` (Huey), `@task()` decorator
 - **Emails** — `EmailMessage` composed and sent via mailer backends
 - **Storage** — `Attachment` model for file uploads (S3 or disk)
+- **Rich Text** — `RichTextField` for formatted documents with embedded attachments (Lexxy editor)
 - **Channels** — WebSocket channels for real-time updates
 
 ## Which Doc to Read
@@ -64,6 +65,7 @@ Controller  ──────────────  receives the request, ru
 | Add only a model | [models.md](models.md) | `proper g model NAME attrs...` |
 | Add authentication | [auth.md](auth.md) | `proper install auth && proper db migrate` |
 | Add file uploads | [storage.md](storage.md) | `proper install storage && proper db migrate` |
+| Add rich text fields with embedded files | [rich_text.md](rich_text.md) | `proper install rich_text && proper db migrate` |
 | Add i18n | [i18n.md](i18n.md) | `proper install i18n` |
 | Add WebSockets | [channels.md](channels.md) | `proper install channels` |
 | Write or fix tests | [testing.md](testing.md) | `uv run pytest` |

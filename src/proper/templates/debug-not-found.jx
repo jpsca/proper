@@ -22,7 +22,7 @@ Those that doesn't have a "<code>to</code>" property are build-only and never ma
 			{%- else -%}
 				<tr>
 			{%- endif %}
-			<td><div>{{ route.method or '—' }}</div></td>
+			<td><div>{{ route.method or '-' }}</div></td>
 			<td><div>
         {% if route.method == 'GET' -%}
 				  <a href="{{ route.path }}" target="_blank">{{ route.path }}</a>
@@ -36,12 +36,12 @@ Those that doesn't have a "<code>to</code>" property are build-only and never ma
 				{%- elif route.redirect %}{{ route.redirect }}
 				{%- else %}–{% endif %}
 			</div></td>
-			<td><div>{{ route.name or '—' }}</div></td>
+			<td><div>{{ route.name or '-' }}</div></td>
 			<td>
         {%- if route.host -%}
         <div class="host">{{ route.host }}</div>
         {%- else -%}
-        <div class="host">—</div>
+        <div class="host">-</div>
         {%- endif -%}
       </td>
 		</tr>

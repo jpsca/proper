@@ -73,5 +73,5 @@ class PasswordResetController(AppController):
         self.response.redirect_to(
             "PasswordReset.new",
             flash="Too many requests. Try again in a few minutes.",
-            flash_type="error",
+            flash_cat="negative",
         )

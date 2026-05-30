@@ -31,7 +31,7 @@ Proper serves them with three pieces, all wired up by the new-app generator:
 - A built-in `StaticFilesController` that opens the file and writes the right cache headers.
 - A **filename fingerprinting** convention that adds a hash to URLs (`app-a1b2...css`) so browsers can cache forever and still see updates within a second of you saving the file.
 
-Most of the time you don't think about any of this. You drop a CSS file in `assets/styles/`, write `{{ url_for("assets", file="styles/app.css") }}` in a template, and it works. The rest of this guide explains what's happening underneath, and the small set of options for when the defaults don't fit.
+Most of the time you don't think about any of this. You drop a CSS file in `assets/css/`, write `{{ url_for("assets", file="css/app.css") }}` in a template, and it works. The rest of this guide explains what's happening underneath, and the small set of options for when the defaults don't fit.
 
 ---
 
@@ -53,7 +53,7 @@ myapp/
 │   │   ├── nestedform.js
 │   │   ├── stimulus.js
 │   │   └── turbo.js
-│   └── styles/
+│   └── css/
 │       ├── base.css
 │       ├── buttons.css
 │       ├── globals.css
@@ -62,7 +62,7 @@ myapp/
 │       └── ...
 ```
 
-The convention is one subdirectory per file type (`styles/`, `js/`, `images/`, `fonts/`), with a few files at the root that need to live there for the browser to find them: `favicon.ico`, `robots.txt`, `humans.txt`. There's also a `500.html` that Proper serves as the bare-bones error page when the application itself crashes too hard to render its own template.
+The convention is one subdirectory per file type (`css/`, `js/`, `images/`, `fonts/`), with a few files at the root that need to live there for the browser to find them: `favicon.ico`, `robots.txt`, `humans.txt`. There's also a `500.html` that Proper serves as the bare-bones error page when the application itself crashes too hard to render its own template.
 
 You're not locked into this layout. The only thing that matters is that the files live somewhere reachable from `app.assets_path`, which defaults to `<your-app>/assets/`. Add new subdirectories whenever you want.
 
@@ -81,7 +81,7 @@ A new application's `router.py` includes one line that sets up asset serving:
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 ```
 
-That's the entire wire-up. `ASSETS_URL` defaults to `/assets/`, so a request for `/assets/styles/app.css` is served from `myapp/assets/styles/app.css`.
+That's the entire wire-up. `ASSETS_URL` defaults to `/assets/`, so a request for `/assets/css/app.css` is served from `myapp/assets/css/app.css`.
 
 The signature is:
 
@@ -110,7 +110,7 @@ The arguments you'll touch most often:
 | `allowed_ext`   | `()`    | Restrict to a specific list of extensions; empty means everything goes. |
 | `public`        | `True`  | Whether to send `Cache-Control: public` (vs `private`).                 |
 
-`router.static()` mounts a route under the hood that matches anything under the prefix - the path is `:file<path>`, where `<path>` is a custom placeholder that captures slashes. So `/assets/styles/forms/buttons.css` works without any extra wiring.
+`router.static()` mounts a route under the hood that matches anything under the prefix - the path is `:file<path>`, where `<path>` is a custom placeholder that captures slashes. So `/assets/css/forms/buttons.css` works without any extra wiring.
 
 :::tip
 Prefer `app.assets_path` over hard-coding the path. It's set to `<your-app>/assets/` at startup, but tests and CLI scripts may overwrite it - using the attribute keeps your route in sync.
@@ -123,14 +123,14 @@ Prefer `app.assets_path` over hard-coding the path. It's set to `<your-app>/asse
 Don't write asset URLs by hand. Use `url_for("assets", file=...)` so the right fingerprint gets inserted:
 
 ```python
-app.url_for("assets", file="styles/app.css")
-# /assets/styles/app-a1b2c3d4...css
+app.url_for("assets", file="css/app.css")
+# /assets/css/app-a1b2c3d4...css
 ```
 
 The same call works in templates (where `url_for` is a global):
 
 ```html+jinja
-<link rel="stylesheet" href="{{ url_for('assets', file='styles/app.css') }}">
+<link rel="stylesheet" href="{{ url_for('assets', file='css/app.css') }}">
 
 <img src="{{ url_for('assets', file='images/logo.png') }}" alt="Logo">
 
@@ -166,8 +166,8 @@ Set `IMPORT_MAP` in your config to a dict of `bare-name -> file-or-URL`:
 ```python
 # config/main.py
 IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo":    "js/turbo.js",
+    "@hotwired/stimulus": "js/vendor/stimulus.js",
+    "@hotwired/turbo":    "js/vendor/turbo.js",
 }
 ```
 
@@ -201,7 +201,7 @@ The generated base layout calls `render_importmap()`:
   ...
   {{ render_importmap() }}
 
-  <script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+  <script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
   <script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
 </head>
 ```
@@ -229,8 +229,8 @@ For a library you don't want to vendor, point an entry at its URL:
 
 ```python
 IMPORT_MAP = {
-    "@hotwired/stimulus": "js/stimulus.js",
-    "@hotwired/turbo":    "js/turbo.js",
+    "@hotwired/stimulus": "js/vendor/stimulus.js",
+    "@hotwired/turbo":    "js/vendor/turbo.js",
     "lodash-es":          "https://esm.sh/lodash-es@4.17.21",
 }
 ```
@@ -256,7 +256,7 @@ For larger JS apps - SPAs, anything with hundreds of components, anything that n
 A fingerprinted URL looks like:
 
 ```
-/assets/styles/app-a1b2c3d4e5f6a7b8c9...css
+/assets/css/app-a1b2c3d4e5f6a7b8c9...css
 ```
 
 The hex string between the filename and the extension is a SHA-256 of the file's last-modified time. When you save the file, the mtime changes, the hash changes, and so does the URL. Browsers see a new URL and fetch the new bytes; old bookmarks and cached HTML still work because the underlying file is also reachable at its plain name.
@@ -481,13 +481,13 @@ Set `ASSETS_URL` to the full CDN URL, with a trailing slash:
 ASSETS_URL = "https://cdn.example.com/"
 ```
 
-That's the entire change on Proper's side. `url_for("assets", file="styles/app.css")` now returns `https://cdn.example.com/styles/app-<hash>.css`, and every other code path that builds an asset URL (the Jx `{#css #}` and `{#js #}` directives, `render_importmap()` for relative-path entries, your own template URL helpers) follows along.
+That's the entire change on Proper's side. `url_for("assets", file="css/app.css")` now returns `https://cdn.example.com/css/app-<hash>.css`, and every other code path that builds an asset URL (the Jx `{#css #}` and `{#js #}` directives, `render_importmap()` for relative-path entries, your own template URL helpers) follows along.
 
 ### Origin Pull vs. Push Deploy
 
 CDNs come in two flavors. Both work the same with Proper:
 
-- **Origin pull.** The CDN holds nothing until the first request. When a user fetches `https://cdn.example.com/styles/app-abc.css`, the CDN fetches it from your application server (the *origin*), caches it, and returns it. Future fetches at any edge hit the cache. Cloudflare, Fastly, and Bunny all work this way out of the box. Setup is one DNS record and the `ASSETS_URL` change.
+- **Origin pull.** The CDN holds nothing until the first request. When a user fetches `https://cdn.example.com/css/app-abc.css`, the CDN fetches it from your application server (the *origin*), caches it, and returns it. Future fetches at any edge hit the cache. Cloudflare, Fastly, and Bunny all work this way out of the box. Setup is one DNS record and the `ASSETS_URL` change.
 - **Push deploy.** You upload assets to a bucket (S3, Cloud Storage) at deploy time, and the CDN fronts the bucket. The application server is never touched for static files. CloudFront-on-S3 is the canonical example. Setup is more involved (a CI step, IAM permissions) but the result is even less load on the origin.
 
 In origin-pull mode, the first user pays a small latency cost while the CDN populates its cache; subsequent users hit the edge directly. In push-deploy mode, the cache is warm from the moment a deploy completes.

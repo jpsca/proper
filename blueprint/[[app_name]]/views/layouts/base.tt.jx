@@ -12,17 +12,18 @@
 		<link rel="icon" href="{{ url_for('assets', file='icon.svg') }}" type="image/svg+xml">
 		<link rel="apple-touch-icon" href="{{ url_for('assets', file='icon.png') }}">
 
-		<link rel="stylesheet" href="{{ url_for('assets', file='styles/globals.css') }}">
-		<link rel="stylesheet" href="{{ url_for('assets', file='styles/base.css') }}">
-		<link rel="stylesheet" href="{{ url_for('assets', file='styles/buttons.css') }}">
-		<link rel="stylesheet" href="{{ url_for('assets', file='styles/forms.css') }}">
+		<link rel="stylesheet" href="{{ url_for('assets', file='css/globals.css') }}">
+		<link rel="stylesheet" href="{{ url_for('assets', file='css/base.css') }}">
+		<link rel="stylesheet" href="{{ url_for('assets', file='css/buttons.css') }}">
+		<link rel="stylesheet" href="{{ url_for('assets', file='css/forms.css') }}">
 		{% for url in assets.collect_css() -%}
 			<link rel="stylesheet" href="{{ url_for('assets', file=url) }}">
 		{% endfor -%}
 
 		{{ render_importmap() }}
 
-		<script src="{{ url_for('assets', file='js/turbo.js') }}" type="module"></script>
+		<script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
+		<script src="{{ url_for('assets', file='js/application.js') }}" type="module"></script>
 		{% for url in assets.collect_js() -%}
 		<script src="{{ url_for('assets', file=url) }}" type="module"></script>
 		{% endfor -%}

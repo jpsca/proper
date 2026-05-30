@@ -28,7 +28,7 @@ class _CIMultiDict(MultiDict):
     """Case-insensitive MultiDict for response headers.
 
     Keys are lowered on storage so lookups are case-insensitive.
-    ``get`` returns the last value; ``getall`` returns every value
+    `get` returns the last value; `getall` returns every value
     (useful for Set-Cookie and other multi-value headers).
     """
 
@@ -240,7 +240,7 @@ class TestClient:
             if not body_consumed:
                 body_consumed = True
                 return {"type": "http.request", "body": body_bytes, "more_body": False}
-            # Block until disconnect — shouldn't normally be reached
+            # Block until disconnect - shouldn't normally be reached
             await asyncio.Event().wait()
 
         async def send(message):
@@ -373,7 +373,7 @@ class WebSocketTestSession:
         await self._from_app.put(msg)
 
 
-# ── encoding helpers ──────────────────────────────────────────────────
+# --- encoding helpers ---
 
 
 def _encode_body(body: dict | str | bytes | BytesIO) -> bytes:

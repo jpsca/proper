@@ -150,6 +150,7 @@ def get_db_cli(app) -> type[Cli]:
 
             router = self._get_router(db)
             assert router
+            name = "_".join(name.lower().strip().split())
             migration = router.create(name, auto=models)
             if migration:
                 print(f"{router.migrate_dir}/{migration}.py")

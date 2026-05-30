@@ -1,4 +1,5 @@
 import typing as t
+from collections.abc import Iterator
 
 from ..constants import FLASHES_SESSION_KEY
 
@@ -24,13 +25,13 @@ class FlashMessages:
     def __getitem__(self, index: int) -> t.Any:
         return self.flashes.__getitem__(index)
 
-    def __iter__(self) -> t.Iterator[tuple[str, str]]:
+    def __iter__(self) -> Iterator[tuple[str, str]]:
         return self.flashes.__iter__()
 
     def __len__(self) -> int:
         return len(self.flashes)
 
-    def message(self, type: str, message: str) -> None:
+    def message(self, category: str, message: str) -> None:
         self.response.session.setdefault(FLASHES_SESSION_KEY, []).append(
-            (type, message)
+            (category, message)
         )

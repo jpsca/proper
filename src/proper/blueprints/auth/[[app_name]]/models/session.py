@@ -42,9 +42,9 @@ class Session(BaseModel):
         default=generate_session_token,
         help_text="Opaque session identifier sent to client",
     )
-    created_at = pw.DateTimeField(default=pw.utcnow, index=True)  # type: ignore
+    created_at = pw.DateTimeField(default=pw.utcnow, index=True)
     expires_at = pw.DateTimeField(index=True)  # absolute expiry
-    last_seen_at = pw.DateTimeField(default=pw.utcnow, index=True)  # type: ignore
+    last_seen_at = pw.DateTimeField(default=pw.utcnow, index=True)
     ip_address = pw.IPField(null=True)
     user_agent_hash = pw.CharField(max_length=64, index=True)
     user = pw.ForeignKeyField(User, backref="sessions", on_delete="CASCADE")

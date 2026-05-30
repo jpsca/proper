@@ -3,9 +3,10 @@ import json
 import typing as t
 
 
-__all__ = ("dumps", "loads")
+__all__ = ("dumps", "loads", "JSONDecodeError")
 
 DATE_PREFIX = "__dt__"
+JSONDecodeError = json.JSONDecodeError
 
 
 class CustomEncoder(json.JSONEncoder):

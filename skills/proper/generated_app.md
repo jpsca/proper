@@ -80,7 +80,7 @@ myapp/                          # Project root
 │   │   ├── __init__.py         # CLI entry point
 │   │   └── app_cli.py          # Custom CLI with Tailwind watcher
 │   └── assets/                 # Static files
-│       ├── styles/
+│       ├── css/
 │       │   ├── globals.css
 │       │   ├── reset.css
 │       │   ├── base.css
@@ -329,7 +329,7 @@ views/password_reset/show.jx       # "Email sent" confirmation
 views/password_reset/edit.jx       # Change password form
 views/password_reset/invalid.jx    # Invalid/expired token page
 views/emails/password_reset.jx           # Password reset email template
-assets/styles/auth.css                      # Auth page styles
+assets/css/auth.css                      # Auth page styles
 db/main/002_users.py                        # Migration
 ```
 
@@ -354,7 +354,7 @@ db/main/002_users.py                        # Migration
 
 ```
 models/attachment.py                # Extends framework's app.storage.Attachment
-controllers/storage_controller.py   # Two controllers: public and authenticated serving
+controllers/storage_controller.py   # StorageRedirect, StorageProxy, DirectUpload
 db/main/003_storage.py              # Migration
 ```
 
@@ -362,7 +362,7 @@ db/main/003_storage.py              # Migration
 
 - `main.py` — adds `storage = app.storage`
 - `config/storage.py` — adds `STORAGE_SERVICES`, `STORAGE`, `STORAGE_ALLOWED_VARIANTS`, `STORAGE_ALLOWED_INLINE`, `STORAGE_FALLBACK_FORMAT`
-- `controllers/__init__.py` — adds `AttachmentController`, `PublicAttachmentController`
+- `controllers/__init__.py` — imports `storage_controller`
 - `models/__init__.py` — adds `Attachment`
 - `pyproject.toml` — adds `pyvips`
 

@@ -1,5 +1,5 @@
 {#import "layouts/app.jx" as Layout #}
-{#css "styles/error-page.css" #}
+{#css "css/error-page.css" #}
 
 <Layout title="Server Error">
   <div class="error-page">

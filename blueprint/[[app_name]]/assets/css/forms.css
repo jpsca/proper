@@ -1,0 +1,101 @@
+@layer components {
+  ::placeholder {
+    color: var(--color-gray-light);
+  }
+
+  label, .field-error {
+    display: flex;
+    gap: 0.4ch;
+    align-items: center;
+    font-size: .875rem;
+    line-height: 1.5;
+  }
+  label {
+    font-weight: 500;
+  }
+  .field {
+    margin-bottom: 0.5ch;
+  }
+  .field-error {
+    margin-top: 0.5ch;
+    color: var(--color-negative);
+  }
+
+  input:not([type="hidden"],[type="checkbox"],[type="radio"],[type="file"],[type="range"],[type="color"]),
+  textarea,
+  select {
+    border: var(--border);
+    background: var(--color-canvas);
+    border-radius: var(--border-radius);
+    width: 100%;
+    padding: 0.9ch 1ch;
+    margin-top: 0.5ch;
+    font-size: 0.975rem;
+    line-height: 1;
+  }
+  textarea, select {
+    line-height: 1.5;
+  }
+
+  .input-group {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    background: var(--color-canvas);
+    border-radius: var(--border-radius);
+    margin-top: 0.5ch;
+    width: 100%;
+
+    &:focus-within {
+      outline: var(--focus-ring);
+    }
+    &:where([data-disabled]) {
+      cursor: not-allowed;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    input, input:focus, input:focus-within {
+      outline: none;
+      margin: 0;
+    }
+    &:has(.leading) input {
+      border-left: none;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+    &:has(.trailing) input {
+      border-right: none;
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .leading, .trailing {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      align-self: stretch;
+      box-shadow: none;
+
+      &:is(span) {
+        border: var(--border);
+      }
+    }
+    .leading {
+      border-radius: var(--border-radius) 0 0 var(--border-radius);
+    }
+    .trailing {
+      border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    }
+  }
+
+  .form-group {
+    margin-top: 2ch;
+    padding-top: 2ch;
+    border-top: 1px solid var(--color-gray-lighter);
+    display: flex;
+    align-items: center;
+    gap: 2ch;
+  }
+}
+

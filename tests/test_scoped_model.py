@@ -1,93 +1,91 @@
 import peewee as pw
 import pytest
 from peewee import ModelSelect
-from playhouse.sqlite_ext import SqliteExtDatabase
 
-from proper.models import ProperModel, ScopedSelect, scope
-
-
-db = SqliteExtDatabase(":memory:")
+from proper.models import ScopedSelect, scope
 
 
-class BaseModel(ProperModel):
-    class Meta:
-        database = db
+@pytest.fixture()
+def Article(db, BaseModel):
+    class Article(BaseModel):
+        title = pw.CharField()
+        status = pw.CharField(default="draft")
+        views = pw.IntegerField(default=0)
+        category = pw.CharField(default="general")
+
+        @scope
+        def published(query):
+            return query.where(Article.status == "published")
+
+        @scope
+        def draft(query):
+            return query.where(Article.status == "draft")
+
+        @scope
+        def popular(query, min_views=1000):
+            return query.where(Article.views >= min_views)
+
+        @scope
+        def in_category(query, cat):
+            return query.where(Article.category == cat)
+
+        @scope
+        def top(query, n=10):
+            return query.order_by(Article.views.desc()).limit(n)
+
+    db.create_tables([Article])
+    return Article
 
 
-class Article(BaseModel):
-    title = pw.CharField()
-    status = pw.CharField(default="draft")
-    views = pw.IntegerField(default=0)
-    category = pw.CharField(default="general")
+@pytest.fixture()
+def User(db, BaseModel):
+    class User(BaseModel):
+        username = pw.CharField(unique=True)
+        is_active = pw.BooleanField(default=True)
+        role = pw.CharField(default="user")
 
-    @scope
-    def published(query):
-        return query.where(Article.status == "published")
+        @scope
+        def active(query):
+            return query.where(User.is_active == True)  # noqa: E712
 
-    @scope
-    def draft(query):
-        return query.where(Article.status == "draft")
+        @scope
+        def admins(query):
+            return query.where(User.role == "admin")
 
-    @scope
-    def popular(query, min_views=1000):
-        return query.where(Article.views >= min_views)
+        @scope
+        def by_name(query):
+            return query.order_by(User.username)
 
-    @scope
-    def in_category(query, cat):
-        return query.where(Article.category == cat)
-
-    @scope
-    def top(query, n=10):
-        return query.order_by(Article.views.desc()).limit(n)
+    db.create_tables([User])
+    return User
 
 
-class User(BaseModel):
-    username = pw.CharField(unique=True)
-    is_active = pw.BooleanField(default=True)
-    role = pw.CharField(default="user")
+@pytest.fixture()
+def Comment(db, BaseModel, Article, User):
+    class Comment(BaseModel):
+        article = pw.ForeignKeyField(Article, backref="comments")
+        user = pw.ForeignKeyField(User, backref="comments")
+        body = pw.TextField()
+        approved = pw.BooleanField(default=False)
 
-    @scope
-    def active(query):
-        return query.where(User.is_active == True)  # noqa: E712
+        @scope
+        def approved_only(query):
+            return query.where(Comment.approved == True)  # noqa: E712
 
-    @scope
-    def admins(query):
-        return query.where(User.role == "admin")
+        @scope
+        def pending(query):
+            return query.where(Comment.approved == False)  # noqa: E712
 
-    @scope
-    def by_name(query):
-        return query.order_by(User.username)
-
-
-class Comment(BaseModel):
-    article = pw.ForeignKeyField(Article, backref="comments")
-    user = pw.ForeignKeyField(User, backref="comments")
-    body = pw.TextField()
-    approved = pw.BooleanField(default=False)
-
-    @scope
-    def approved_only(query):
-        return query.where(Comment.approved == True)  # noqa: E712
-
-    @scope
-    def pending(query):
-        return query.where(Comment.approved == False)  # noqa: E712
-
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    db.connect(reuse_if_open=True)
-    db.create_tables([Article, User, Comment])
-    yield
-    db.drop_tables([Article, User, Comment])
+    db.create_tables([Comment])
+    return Comment
 
 
 class TestScope:
-    def test_select_returns_scoped_select(self):
+    def test_select_returns_scoped_select(self, Article):
         query = Article.select()
         assert isinstance(query, ScopedSelect)
 
-    def test_single_scope(self):
+    def test_single_scope(self, Article):
         Article.create(title="A", status="published")
         Article.create(title="B", status="draft")
 
@@ -95,7 +93,7 @@ class TestScope:
         assert len(results) == 1
         assert results[0].title == "A"
 
-    def test_chained_scopes(self):
+    def test_chained_scopes(self, Article):
         Article.create(title="A", status="published", views=500, category="tech")
         Article.create(title="B", status="published", views=2000, category="tech")
         Article.create(title="C", status="published", views=2000, category="science")
@@ -107,7 +105,7 @@ class TestScope:
         assert len(results) == 1
         assert results[0].title == "B"
 
-    def test_scope_with_default_arg(self):
+    def test_scope_with_default_arg(self, Article):
         Article.create(title="A", views=999)
         Article.create(title="B", views=1000)
         Article.create(title="C", views=5000)
@@ -115,7 +113,7 @@ class TestScope:
         results = list(Article.select().popular())
         assert len(results) == 2
 
-    def test_scope_with_custom_arg(self):
+    def test_scope_with_custom_arg(self, Article):
         Article.create(title="A", views=100)
         Article.create(title="B", views=500)
 
@@ -123,7 +121,7 @@ class TestScope:
         assert len(results) == 1
         assert results[0].title == "B"
 
-    def test_scope_with_limit(self):
+    def test_scope_with_limit(self, Article):
         for i in range(5):
             Article.create(title=f"Art {i}", views=i * 100)
 
@@ -131,7 +129,7 @@ class TestScope:
         assert len(results) == 3
         assert results[0].views == 400
 
-    def test_scopes_independent_per_model(self):
+    def test_scopes_independent_per_model(self, Article, User):
         """Each model has its own scopes, not shared."""
         query = Article.select()
         assert hasattr(query, "published")
@@ -143,7 +141,7 @@ class TestScope:
 
 
 class TestScopePreservation:
-    def test_scopes_survive_where(self):
+    def test_scopes_survive_where(self, Article):
         Article.create(title="Python Tips", status="published", views=2000)
         Article.create(title="Python Tricks", status="published", views=50)
         Article.create(title="Go Tips", status="draft", views=3000)
@@ -157,14 +155,14 @@ class TestScopePreservation:
         assert len(results) == 1
         assert results[0].title == "Python Tips"
 
-    def test_scopes_survive_paginate(self):
+    def test_scopes_survive_paginate(self, Article):
         for i in range(15):
             Article.create(title=f"Art {i}", status="published")
 
         results = list(Article.select().published().paginate(1, 5))
         assert len(results) == 5
 
-    def test_scopes_survive_order_by(self):
+    def test_scopes_survive_order_by(self, Article):
         Article.create(title="B", status="published")
         Article.create(title="A", status="published")
         Article.create(title="C", status="draft")
@@ -177,7 +175,7 @@ class TestScopePreservation:
         assert len(results) == 2
         assert results[0].title == "A"
 
-    def test_scopes_survive_join(self):
+    def test_scopes_survive_join(self, Article, User, Comment):
         user = User.create(username="alice", is_active=True)
         a1 = Article.create(title="A", status="published")
         a2 = Article.create(title="B", status="draft")
@@ -194,14 +192,14 @@ class TestScopePreservation:
         assert len(results) == 1
         assert results[0].body == "Nice"
 
-    def test_scopes_survive_count(self):
+    def test_scopes_survive_count(self, Article):
         Article.create(title="A", status="published")
         Article.create(title="B", status="published")
         Article.create(title="C", status="draft")
 
         assert Article.select().published().count() == 2
 
-    def test_scopes_survive_switch(self):
+    def test_scopes_survive_switch(self, Article, User, Comment):
         user = User.create(username="alice", is_active=True)
         art = Article.create(title="A", status="published")
         Comment.create(article=art, user=user, body="Hi", approved=True)
@@ -218,7 +216,7 @@ class TestScopePreservation:
 
 
 class TestQueryReuse:
-    def test_base_query_reuse(self):
+    def test_base_query_reuse(self, Article):
         Article.create(title="T1", status="published", views=100, category="tech")
         Article.create(title="T2", status="published", views=200, category="tech")
         Article.create(title="S1", status="published", views=300, category="science")
@@ -234,7 +232,7 @@ class TestQueryReuse:
 
 
 class TestScopedSelectWrapper:
-    def test_wrapper_returns_non_query_result_as_is(self):
+    def test_wrapper_returns_non_query_result_as_is(self, Article):
         """When a wrapped method returns a non-ModelSelect (e.g. count()),
         the wrapper returns the value without modification."""
         Article.create(title="A", status="published")
@@ -244,7 +242,7 @@ class TestScopedSelectWrapper:
         assert result == 1
         assert isinstance(result, int)
 
-    def test_wrapper_upgrades_plain_model_select(self):
+    def test_wrapper_upgrades_plain_model_select(self, Article):
         """When a wrapped method returns a plain ModelSelect (not a
         ScopedSelect subclass), it gets upgraded with scopes bound."""
         q = Article.select()
@@ -255,7 +253,7 @@ class TestScopedSelectWrapper:
         assert isinstance(result, ScopedSelect)
         assert result._scopes == q._scopes
 
-    def test_no_scopes_returns_method_as_is(self):
+    def test_no_scopes_returns_method_as_is(self, Article):
         """ScopedSelect with empty scopes returns methods without wrapping."""
         q = ScopedSelect(Article, [Article.title])
         q._bind_scopes({})
@@ -265,7 +263,7 @@ class TestScopedSelectWrapper:
 
 
 class TestModelWithoutScopes:
-    def test_model_without_scopes_works(self):
+    def test_model_without_scopes_works(self, db, BaseModel):
         """A ProperModel with no @scope methods works like a normal Model."""
 
         class Plain(BaseModel):

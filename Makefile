@@ -19,9 +19,17 @@ lintfix:
 coverage:
 	uv run pytest --cov-config=pyproject.toml --cov-report html --cov proper src/proper tests
 
+.PHONY: vendor-hotwire
+vendor-hotwire:
+	uv run python bin/vendor-hotwire.py
+
+.PHONY: vendor-lexxy
+vendor-lexxy:
+	uv run python bin/vendor-lexxy.py
+
 .PHONY: docs
 docs:
-	uv run python docs/docs.py
+	cd docs && uv run python docs.py
 
 .PHONY: docs-build
 docs-build:

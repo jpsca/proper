@@ -89,7 +89,7 @@ class BaseRouter:
             return
 
         if not route.path_placeholders and not route.host:
-            # Static route — route.path is already normalized by the setter
+            # Static route - route.path is already normalized by the setter
             key = (route.method, route.path)
             if key not in self._static_routes:
                 self._static_routes[key] = route
@@ -145,7 +145,7 @@ class BaseRouter:
                 params.update(m)
                 return route, params
 
-        # No match — collect allowed methods for 405 detection
+        # No match - collect allowed methods for 405 detection
         allowed = set()
 
         # Check static index (static routes never have host constraints)

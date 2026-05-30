@@ -2,22 +2,22 @@
 
 Seeds are small idempotent scripts that put canonical data into a database
 (default roles, reference data, the first admin user). They live under
-``db/seeds/`` and are registered as submodule imports in
-``db/seeds/__init__.py`` (or, for a non-default database,
-``db/seeds/<db_name>/__init__.py``).
+`db/seeds/` and are registered as submodule imports in
+`db/seeds/__init__.py` (or, for a non-default database,
+`db/seeds/<db_name>/__init__.py`).
 
 Each seed module exposes:
 
-- ``envs``: a tuple of ``APP_ENV`` values where the seed should run.
-- ``seed()``: the entry point — takes no arguments, returns nothing.
+- `envs`: a tuple of `APP_ENV` values where the seed should run.
+- `seed()`: the entry point - takes no arguments, returns nothing.
 
 The runner imports the seeds package, then iterates over its submodules in
-import order (the ``__init__.py`` import order *is* the dependency graph).
-For each submodule, the runner checks whether the current ``APP_ENV`` is in
-``envs``; if so, it calls ``seed()``, otherwise it reports the seed as
+import order (the `__init__.py` import order *is* the dependency graph).
+For each submodule, the runner checks whether the current `APP_ENV` is in
+`envs`; if so, it calls `seed()`, otherwise it reports the seed as
 skipped.
 
-There is intentionally no ``--force`` flag: ``envs`` is the absolute
+There is intentionally no `--force` flag: `envs` is the absolute
 environment boundary.
 """
 import os
@@ -33,10 +33,10 @@ DEFAULT_DB = "main"
 
 
 def run_seeds(name: str = "", db: str = DEFAULT_DB) -> bool:
-    """Run seeds for ``db``, optionally filtering to a single seed by ``name``.
+    """Run seeds for `db`, optionally filtering to a single seed by `name`.
 
-    Returns ``True`` if any seed ran or was skipped (i.e. seeds existed),
-    ``False`` if no seeds package was found.
+    Returns `True` if any seed ran or was skipped (i.e. seeds existed),
+    `False` if no seeds package was found.
     """
     package_name = _resolve_package(db)
     if package_name is None:
@@ -69,13 +69,13 @@ def run_seeds(name: str = "", db: str = DEFAULT_DB) -> bool:
 
 
 def _resolve_package(db: str) -> str | None:
-    """Return the dotted package name to import, or ``None`` if missing.
+    """Return the dotted package name to import, or `None` if missing.
 
     Resolution order:
 
-    1. ``db/seeds/<db>/__init__.py`` — the per-database layout.
-    2. ``db/seeds/__init__.py`` — the flat single-database layout (only
-       used when ``db == "main"``).
+    1. `db/seeds/<db>/__init__.py` - the per-database layout.
+    2. `db/seeds/__init__.py` - the flat single-database layout (only
+       used when `db == "main"`).
     """
     if "db" not in sys.path and "" not in sys.path:
         sys.path.insert(0, "")
@@ -93,9 +93,9 @@ def _has_init(parts: tuple[str, ...]) -> bool:
 
 
 def _iter_seed_modules(package: types.ModuleType):
-    """Yield ``(short_name, submodule)`` pairs in ``__init__.py`` import order.
+    """Yield `(short_name, submodule)` pairs in `__init__.py` import order.
 
-    Only attributes of the package that are ``ModuleType`` *and* belong to
+    Only attributes of the package that are `ModuleType` *and* belong to
     the package itself are returned. Plain values, helper functions, and
     re-exports from elsewhere are filtered out.
     """

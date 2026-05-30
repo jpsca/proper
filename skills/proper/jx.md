@@ -461,7 +461,7 @@ Multiple files are comma-separated.
 Asset paths can be:
 
 - **Relative**: `card.css` — resolved relative to the assets folder
-- **Absolute path**: `/assets/styles/global.css`
+- **Absolute path**: `/assets/css/global.css`
 - **Full URL**: `https://cdn.example.com/library.js`
 
 Jx doesn't process or rewrite asset URLs; they're used exactly as you write them.

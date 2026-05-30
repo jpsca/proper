@@ -53,6 +53,7 @@ pages = [
             "tasks.md",
             "i18n.md",
             "emails.md",
+            "rich_text.md",
             "channels.md",
         ]
     },

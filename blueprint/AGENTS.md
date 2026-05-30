@@ -6,12 +6,12 @@ Deep reference docs are bundled in the `proper` skill.
 
 ## Key Conventions
 
-- **Everything is CRUD** — controllers map to RESTful resource actions (index, new, create, show, edit, update, delete)
-- **Singular names** — resource/model/controller names are always singular (e.g., `Post`, not `Posts`)
-- **Boot order matters** — `__init__.py` imports: main → router → controllers → models → tasks. New controllers/models must be imported in their respective `__init__.py`
-- **`form.save()` returns unsaved** — it returns a model instance that hasn't been persisted yet; call `instance.save()` to write to DB
-- **Controllers are sync** — despite ASGI, controller methods are regular sync Python
-- **`current` context** — `current.request`, `current.user`, `current.auth_session` available in controllers and templates
+- **Everything is CRUD** - controllers map to RESTful resource actions (index, new, create, show, edit, update, delete)
+- **Singular names** - resource/model/controller names are always singular (e.g., `Post`, not `Posts`)
+- **Boot order matters** - `__init__.py` imports: main → router → controllers → models → tasks. New controllers/models must be imported in their respective `__init__.py`
+- **`form.save()` returns unsaved** - it returns a model instance that hasn't been persisted yet; call `instance.save()` to write to DB
+- **Controllers are sync** - despite ASGI, controller methods are regular sync Python
+- **`current` context** - `current.request`, `current.user`, `current.auth_session` available in controllers and templates
 
 ## Common Commands
 
@@ -29,12 +29,12 @@ uv run proper run                                # Start dev server
 | -------------------- | ---------------------------------- | ---------------------------------- |
 | Controller           | `controllers/{name}_controller.py` | `controllers/__init__.py`          |
 | Model                | `models/{name}.py`                 | `models/__init__.py`               |
-| Form                 | `forms/{name}.py`                  | —                                  |
-| Views                | `views/{name}/*.jx`       | —                                  |
+| Form                 | `forms/{name}.py`                  | -                                  |
+| Views                | `views/{name}/*.jx`       | -                                  |
 | Concern (controller) | `controllers/concerns/{name}.py`   | controller that uses it            |
 | Concern (model)      | `models/concerns/{name}.py`        | model that uses it                 |
-| Task                 | `tasks/{name}.py`                  | —                                  |
-| Email                | `emails/{name}.py` + `views/emails/{name}.jx` | —                    |
+| Task                 | `tasks/{name}.py`                  | -                                  |
+| Email                | `emails/{name}.py` + `views/emails/{name}.jx` | -                    |
 | Config               | `config/{name}.py`                 | `config/__init__.py`               |
 
 ## General Guidelines

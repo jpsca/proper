@@ -1,5 +1,3 @@
-"""Tests for proper.install.i18n — installs i18n blueprint into an app."""
-
 import pytest
 
 from proper.install import i18n, metadata

@@ -2,11 +2,11 @@
 requires = ["setuptools"]
 
 # [tool.uv.sources]
-# writeadoc = { path = "../../writeadoc", editable = true }
+# writeadoc = { path = "../writeadoc", editable = true }
 
 [project]
 name = "proper"
-version = "0.10.0"
+version = "0.11.0"
 description = "A python web framework for people who read their code"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
@@ -25,7 +25,7 @@ classifiers = [
 requires-python = ">=3.13"
 dependencies = [
     "babel >= 2.17.0",
-    "formidable>=0.19",
+    "formidable>=0.20",
     "hecto >= 2.0.3",
     "huey ~= 2.5.2",
     "inflection >= 0.5.1",
@@ -40,7 +40,7 @@ dependencies = [
     "python-dateutil ~= 2.9.0",
     "python-multipart >= 0.0.22",
     "traceback-with-variables ~= 2.0.4",
-    "types-peewee ~= 3.17.7.20241017",
+    "types-peewee~=3.17.7.20241017",
     "uvicorn >= 0.41.0",
     "tzdata >= 2025.3",
 ]
@@ -117,13 +117,14 @@ directory = "covreport"
 
 [tool.ty.src]
 exclude = [
-    "**/__pycache__",
     "**/tests/",
-    "blueprint",
+    ".*",
+    "_build",
     "build",
-    "docs",
-    "src/proper/mail/",
-    "src/proper/blueprints/",
+    "covreport",
+    "dist",
+    "blueprint",
+    "src/proper/blueprints/*",
 ]
 
 
@@ -158,13 +159,13 @@ line-length = 90
 indent-width = 4
 target-version = "py313"
 exclude = [
-  ".*",
-  "_build",
-  "build",
-  "covreport",
-  "dist",
-  "blueprint",
-  "src/proper/blueprints/*",
+    ".*",
+    "_build",
+    "build",
+    "covreport",
+    "dist",
+    "blueprint",
+    "src/proper/blueprints/*",
 ]
 include = ["*.py"]
 

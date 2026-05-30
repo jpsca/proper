@@ -1,5 +1,3 @@
-"""Tests for proper.router.router — BaseRouter, Router, ScopedRouter."""
-
 import pytest
 
 from proper.channel import Channel
@@ -14,10 +12,6 @@ from proper.router.router import (
     ScopedRouter,
 )
 
-
-# ---------------------------------------------------------------------------
-# Module-level handler classes (qualname = "ClassName.method" — two parts)
-# ---------------------------------------------------------------------------
 
 class Handlers:
     """Generic handlers for testing. qualname = 'Handlers.method'."""
@@ -74,10 +68,6 @@ class PostController:
     def show(self): ...
 
 
-# ---------------------------------------------------------------------------
-# BaseRouter.add_route
-# ---------------------------------------------------------------------------
-
 class TestAddRoute:
     def test_add_route(self):
         router = BaseRouter()
@@ -113,10 +103,6 @@ class TestAddRoute:
         router.add_route(r2)
         assert len(router.routes) == 2
 
-
-# ---------------------------------------------------------------------------
-# BaseRouter.match
-# ---------------------------------------------------------------------------
 
 class TestMatch:
     def test_match_simple_route(self):
@@ -333,10 +319,6 @@ class TestMatch:
             router.match("get", "/photos")
 
 
-# ---------------------------------------------------------------------------
-# BaseRouter.url_for
-# ---------------------------------------------------------------------------
-
 class TestUrlFor:
     def test_url_for_simple(self):
         router = BaseRouter()
@@ -457,15 +439,11 @@ class TestUrlFor:
         class User:
             username = "alice"
 
-        # url_for without _full just builds the path — but the host placeholder
+        # url_for without _full just builds the path - but the host placeholder
         # value should still be consumed and not bleed into a query string.
         url = router.url_for("Profile.show", User())
         assert url == "/"
 
-
-# ---------------------------------------------------------------------------
-# BaseRouter.url_is
-# ---------------------------------------------------------------------------
 
 class TestUrlIs:
     def test_url_is_matches(self):
@@ -487,9 +465,6 @@ class TestUrlIs:
         assert router.url_is("photos", curr_url="/videos") is False
 
 
-# ---------------------------------------------------------------------------
-# BaseRouter.url_startswith
-# ---------------------------------------------------------------------------
 
 class TestUrlStartsWith:
     def test_exact_match(self):
@@ -523,9 +498,6 @@ class TestUrlStartsWith:
         assert router.url_startswith("photos", curr_url="/videos") is False
 
 
-# ---------------------------------------------------------------------------
-# HTTP method decorators
-# ---------------------------------------------------------------------------
 
 class TestHTTPMethodDecorators:
     def test_get_decorator(self):
@@ -602,10 +574,6 @@ class TestHTTPMethodDecorators:
         assert router.routes[0].path == "/"
 
 
-# ---------------------------------------------------------------------------
-# BaseRouter.static
-# ---------------------------------------------------------------------------
-
 class TestStatic:
     def test_static_route_added(self):
         router = BaseRouter()
@@ -624,10 +592,6 @@ class TestStatic:
         from proper.router.route import StaticRoute
         assert isinstance(route, StaticRoute)
 
-
-# ---------------------------------------------------------------------------
-# BaseRouter.resource — group resource
-# ---------------------------------------------------------------------------
 
 class TestResourceGroup:
     def test_resource_generates_all_crud_routes(self):
@@ -700,10 +664,6 @@ class TestResourceGroup:
         assert ("POST", "/signup") in paths
 
 
-# ---------------------------------------------------------------------------
-# BaseRouter.resource — singleton resource (pk=None)
-# ---------------------------------------------------------------------------
-
 class TestResourceSingleton:
     def test_singleton_generates_routes(self):
         router = BaseRouter()
@@ -753,10 +713,6 @@ class TestResourceSingleton:
         names = [r.name for r in router.routes]
         assert "ProfileWithIndex.index" not in names
 
-
-# ---------------------------------------------------------------------------
-# ScopedRouter
-# ---------------------------------------------------------------------------
 
 class TestScopedRouter:
     def test_scope_prefixes_routes(self):
@@ -846,10 +802,6 @@ class TestScopedRouter:
         assert "OPTIONS" in methods
 
 
-# ---------------------------------------------------------------------------
-# Router (extends BaseRouter)
-# ---------------------------------------------------------------------------
-
 class TestRouter:
     def test_router_has_error_handlers(self):
         router = Router()
@@ -880,10 +832,6 @@ class TestRouter:
         assert "<Router" in repr(router)
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
 class TestConstants:
     def test_group_routes_count(self):
         assert len(GROUP_ROUTES) == 8
@@ -904,10 +852,6 @@ class TestConstants:
         for _method, path, _action in SINGLE_ROUTES:
             assert ":pk" not in path
 
-
-# ---------------------------------------------------------------------------
-# Edge cases and integration
-# ---------------------------------------------------------------------------
 
 class TestEdgeCases:
     def test_match_empty_router(self):
@@ -1081,10 +1025,6 @@ class TestEdgeCases:
         assert len(scoped._routes) == 0
 
 
-# ---------------------------------------------------------------------------
-# Indexed match (two-tier lookup)
-# ---------------------------------------------------------------------------
-
 class TestIndexedMatch:
     def test_static_route_indexed(self):
         router = BaseRouter()
@@ -1205,10 +1145,6 @@ class TestIndexedMatch:
         )
 
 
-# ---------------------------------------------------------------------------
-# Channel registration
-# ---------------------------------------------------------------------------
-
 class TestChannelRegistration:
     def test_router_has_empty_channels(self):
         router = Router()
@@ -1265,10 +1201,6 @@ class TestChannelRegistration:
 
         assert "ChatChannel" in router.channels
 
-
-# ---------------------------------------------------------------------------
-# Namespace prefix tests
-# ---------------------------------------------------------------------------
 
 class TestNamespacePrefix:
     def test_no_controllers_segment(self):

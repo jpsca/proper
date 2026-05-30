@@ -9,8 +9,8 @@ class AppCLI(app.CLI):
     def run(self):
         subprocess.Popen([
             "tailwindcss",
-            "-i", "[[app_name]]/assets/styles/_tw.css",
-            "-o", "[[app_name]]/assets/styles/app.css",
+            "-i", "[[app_name]]/assets/css/_tw.css",
+            "-o", "[[app_name]]/assets/css/app.css",
             "--watch",
         ], process_group=0)
         super().run()   # type: ignore

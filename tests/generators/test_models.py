@@ -11,10 +11,6 @@ from proper.generators.model import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
 APP_NAME = "myapp"
 
 
@@ -39,10 +35,6 @@ def _model_text(app, name_snake: str) -> str:
 def _init_text(app) -> str:
     return (app.root_path / "models" / "__init__.py").read_text()
 
-
-# ---------------------------------------------------------------------------
-# _split_attr
-# ---------------------------------------------------------------------------
 
 
 class TestSplitAttr:
@@ -88,10 +80,6 @@ class TestSplitAttr:
         assert options == ['backref="tweets"']
 
 
-# ---------------------------------------------------------------------------
-# _build_option
-# ---------------------------------------------------------------------------
-
 
 class TestBuildOption:
     def test_flag_defaults_to_true(self):
@@ -113,10 +101,6 @@ class TestBuildOption:
     def test_string_default(self):
         assert _build_option('default:"fruit"') == 'default="fruit"'
 
-
-# ---------------------------------------------------------------------------
-# _field
-# ---------------------------------------------------------------------------
 
 
 class TestField:
@@ -150,10 +134,6 @@ class TestField:
             _field("foo", [])
 
 
-# ---------------------------------------------------------------------------
-# _foreign
-# ---------------------------------------------------------------------------
-
 
 class TestForeign:
     def test_basic(self):
@@ -169,10 +149,6 @@ class TestForeign:
             'pw.ForeignKeyField(User, backref="tweets", null=True)'
         )
 
-
-# ---------------------------------------------------------------------------
-# _build_row / _build_rows
-# ---------------------------------------------------------------------------
 
 
 class TestBuildRow:
@@ -206,10 +182,6 @@ class TestBuildRows:
             "count = pw.IntegerField(default=0)",
         ]
 
-
-# ---------------------------------------------------------------------------
-# gen_model  (integration — renders to tmp filesystem)
-# ---------------------------------------------------------------------------
 
 
 class TestGenModel:
@@ -256,7 +228,7 @@ class TestGenModel:
 
     def test_no_migration_by_default(self, app_in_tmp):
         gen_model(app_in_tmp, "Product")
-        # No call() invoked — just verify the file was generated
+        # No call() invoked - just verify the file was generated
         text = _model_text(app_in_tmp, "product")
         assert "class Product(BaseModel):" in text
 

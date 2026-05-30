@@ -63,7 +63,7 @@ The whole thing takes 10 to 20 seconds. Read the [tutorial](/docs/tutorial) next
 
 Proper ships with a skill for AI agents like Claude Code. Install it once, and Claude understands Proper's idioms in every session.
 
-Download [the skill](https://properproject.org/skill.zip) and unzip it into your skills folder — `.claude/skills`, for example.
+Download [the skill](https://properproject.org/skill.zip) and unzip it into your skills folder - `.claude/skills`, for example.
 
 ```text
 $ claude

@@ -1,4 +1,3 @@
-"""Tests for proper.i18n — Reader, I18n, plural_rules, and BabelMixin."""
 import datetime
 
 import pytest
@@ -46,9 +45,7 @@ def i18n(locale_dir):
     return I18n(locale_dir)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# deep_update
-# ═══════════════════════════════════════════════════════════════════
+# --- deep_update ---
 
 
 def test_shallow_merge():
@@ -75,9 +72,7 @@ def test_override_dict_with_non_dict():
     assert source == {"a": "flat"}
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Reader
-# ═══════════════════════════════════════════════════════════════════
+# --- Reader ---
 
 
 def test_processes_paths(locale_dir):
@@ -128,9 +123,7 @@ def test_load_from_subdirectories(tmp_path):
     assert translations["en"]["sub_key"] == "val"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — init and properties
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n init and properties ---
 
 
 def test_default_locale(locale_dir):
@@ -167,9 +160,7 @@ def test_callable_shortcut(i18n):
     assert result == Markup("hello world")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — translate
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n translate ---
 
 
 def test_simple_key(i18n):
@@ -215,9 +206,7 @@ def test_locale_not_found_raises(i18n):
         i18n.translate("greeting", locale="ja")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — pluralization
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n pluralization ---
 
 
 def test_count_one(i18n):
@@ -266,9 +255,7 @@ def test_exact_count_key():
     assert result == Markup("exactly three")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — territory fallback
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n territory fallback ---
 
 
 def test_territory_specific_overrides(locale_dir_territory):
@@ -289,9 +276,7 @@ def test_base_locale_unaffected(locale_dir_territory):
     assert result == Markup("color")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — negotiate_locale
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n negotiate_locale ---
 
 
 def test_finds_match(i18n):
@@ -306,9 +291,7 @@ def test_returns_first_match(i18n):
     assert i18n.negotiate_locale(["en", "es"]) == "en"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — test_for_incomplete_locales
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n test_for_incomplete_locales ---
 
 
 def test_detects_missing_keys(i18n):
@@ -329,9 +312,7 @@ def test_no_missing_when_identical(tmp_path):
     assert missing == {}
 
 
-# ═══════════════════════════════════════════════════════════════════
-# I18n — lazy_translate
-# ═══════════════════════════════════════════════════════════════════
+# --- I18n lazy_translate ---
 
 
 def test_lazy_wrapper_repr(i18n):
@@ -346,9 +327,7 @@ def test_lazy_with_interpolation(i18n):
     assert repr(lazy) == "hello Bob"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# BabelMixin
-# ═══════════════════════════════════════════════════════════════════
+# --- format methods ---
 
 
 def test_format_date(i18n):

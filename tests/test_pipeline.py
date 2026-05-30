@@ -1,10 +1,8 @@
-"""Tests for the App.__call__ / _run_pipeline flow and individual pipeline."""
-
 from unittest.mock import patch
 
 import pytest
 
-from proper import App, TestClient, current, status
+from proper import TestClient, current, status
 from proper.constants import FLASHES_SESSION_KEY
 from proper.controller import Controller
 from proper.helpers import DotDict
@@ -41,18 +39,6 @@ def _resp(*, app=None, **kw):
     return Response(scope)
 
 
-# ── fixtures ────────────────────────────────────────────────────────
-
-
-@pytest.fixture()
-def app():
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-    }
-    return App("tests", config)
-
-
 @pytest.fixture()
 def make_co(app):
     def _make_co(*, method="GET", url="/", headers=None, **kw):
@@ -73,13 +59,6 @@ def co(make_co):
 def client(app):
     return TestClient(app)
 
-
-# ═══════════════════════════════════════════════════════════════════
-# UNIT TESTS — individual pipeline functions
-# ═══════════════════════════════════════════════════════════════════
-
-
-# ── head_to_get / strip_body_if_head ────────────────────────────────
 
 
 class TestHeadToGet:
@@ -103,6 +82,7 @@ class TestHeadToGet:
         assert co.request.method == "POST"
 
 
+
 class TestStripBodyIfHead:
     def test_strips_body_when_original_was_head(self, make_co):
         co = make_co(method="HEAD")
@@ -115,8 +95,6 @@ class TestStripBodyIfHead:
         strip_body_if_head(co.request, co.response)
         assert co.response.body == "hello"
 
-
-# ── method_override ─────────────────────────────────────────────────
 
 
 class TestMethodOverride:
@@ -160,8 +138,6 @@ class TestMethodOverride:
         assert co.request.method == "PUT"
 
 
-# ── match ───────────────────────────────────────────────────────────
-
 
 class TestMatch:
     def test_sets_matched_route_and_params(self, app, make_co):
@@ -194,8 +170,6 @@ class TestMatch:
         assert co.request.matched_route is not None
 
 
-# ── redirect ────────────────────────────────────────────────────────
-
 
 class TestRedirect:
     def test_returns_none_when_no_route(self, co):
@@ -222,8 +196,6 @@ class TestRedirect:
         location = co.response.headers.get("Location")
         assert location == "/new/42"
 
-
-# ── session pipeline ──────────────────────────────────────────────
 
 
 class TestCopySession:
@@ -260,6 +232,7 @@ class TestCopySession:
         co = make_co(method="OPTIONS")
         copy_session(co.request, co.response)
         assert not hasattr(co.request, "session") or co.request.session == DotDict()
+
 
 
 class TestUpdateSessionCookie:
@@ -300,8 +273,6 @@ class TestUpdateSessionCookie:
         assert session_cookies == []
 
 
-# ── flash through pipeline ─────────────────────────────────────────
-
 
 class TestFlashThroughPipeline:
     """A flash set by a controller (after `copy_session` has run) must end up
@@ -324,8 +295,6 @@ class TestFlashThroughPipeline:
             "session cookie was not written, so the flash will be lost"
         )
 
-
-# ── dispatch ────────────────────────────────────────────────────────
 
 
 class _DispatchHello(Controller):
@@ -352,10 +321,6 @@ class TestDispatch:
         assert co.request.matched_action == "show"
 
 
-# ═══════════════════════════════════════════════════════════════════
-# INTEGRATION TESTS — full pipeline via TestClient
-# ═══════════════════════════════════════════════════════════════════
-
 
 class GreetController(Controller):
     def index(self):
@@ -375,6 +340,7 @@ class GreetController(Controller):
         raise ValueError("boom")
 
 
+
 class SessionController(Controller):
     def write_session(self):
         self.response.session["color"] = "blue"
@@ -384,7 +350,8 @@ class SessionController(Controller):
         return self.response.session.get("color", "none")
 
 
-class TestPipelineGet:
+
+class TestPipeline:
     def test_happy_path(self, app, client):
         app.router.add_route(
             Route(method="GET", path="/hello", to=GreetController.index)
@@ -401,8 +368,6 @@ class TestPipelineGet:
         assert result.status == status.ok
         assert result.body == "hello alice"
 
-
-class TestPipelineHead:
     def test_head_returns_empty_body(self, app, client):
         app.router.add_route(
             Route(method="GET", path="/hello", to=GreetController.index)
@@ -411,8 +376,6 @@ class TestPipelineHead:
         assert result.status == status.ok
         assert result.body == ""
 
-
-class TestPipelineMethodOverride:
     def test_post_overridden_to_put(self, app, client):
         app.router.add_route(
             Route(method="PUT", path="/items", to=GreetController.update)
@@ -432,14 +395,10 @@ class TestPipelineMethodOverride:
         assert result.status == status.ok
         assert result.body == "updated via PATCH"
 
-
-class TestPipelineNotFound:
     def test_404_for_unmatched_route(self, client):
         result = client.get("/nonexistent")
         assert result.status == status.not_found
 
-
-class TestPipelineRedirect:
     def test_redirect_route(self, app, client):
         app.router.add_route(
             Route(method="GET", path="/old", redirect="/new")
@@ -456,8 +415,6 @@ class TestPipelineRedirect:
         assert result.status == status.temporary_redirect
         assert result.headers.get("location") == "/new/99"
 
-
-class TestPipelineHooks:
     def test_on_teardown_always_runs(self, app, client):
         called = []
         app.on_teardown(lambda: called.append("teardown"))
@@ -494,8 +451,6 @@ class TestPipelineHooks:
         client.get("/hello")
         assert called == []
 
-
-class TestPipelineEarlyReturn:
     def test_redirect_stops_pipeline(self, app, client):
         """A redirect route should never reach dispatch."""
         app.router.add_route(

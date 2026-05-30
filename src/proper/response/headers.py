@@ -593,7 +593,7 @@ class ResponseHeadersMixin:
         return tuples
 
 
-# --- Formatters -----
+# --- Formatters ---
 
 
 def format_datetime(dt: datetime | float | int | None) -> datetime | None:

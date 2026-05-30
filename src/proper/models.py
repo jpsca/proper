@@ -5,7 +5,43 @@ from collections.abc import Callable
 import peewee as pw
 
 from .global_context import current
+from .helpers import jsonplus
 from .units import MINUTES
+
+
+__all__ = (
+    "JSONField",
+    "ScopedSelect",
+    "scope",
+    "ProperModel",
+)
+
+
+class JSONField(pw.TextField):
+    """A TextField-based Peewee field that transparently
+    serializes/deserializes JSON data."""
+
+    field_type = "JSON"
+
+    def db_value(self, value: dict | list | None) -> str | None:
+        if value is None:
+            return None
+
+        ensure_ascii = getattr(self.model._meta.database, "json_ensure_ascii", True)
+        if getattr(self.model._meta.database, "json_use_detailed", False):
+            indent = 2
+        else:
+            indent = 0
+
+        return jsonplus.dumps(value, ensure_ascii=ensure_ascii, indent=indent)
+
+    def python_value(self, value) -> dict[str, t.Any] | list[t.Any] | None:
+        if value is None:
+            return None
+        try:
+            return jsonplus.loads(value)
+        except jsonplus.JSONDecodeError:
+            return None
 
 
 class ScopedSelect(pw.ModelSelect):
@@ -33,7 +69,7 @@ class ScopedSelect(pw.ModelSelect):
 
         val = super().__getattribute__(name)
 
-        # Not callable, or is private/class — return as-is
+        # Not callable, or is private/class - return as-is
         if name.startswith("_") or not callable(val) or isinstance(val, type):
             return val
 
@@ -78,20 +114,79 @@ class ProperModel(pw.Model):
             query._bind_scopes(scopes)
         return query
 
+    def generate_token(
+        self,
+        fingerprint: Callable = (lambda x: None),
+        *,
+        salt: str | None = None,
+    ) -> str:
+        """Generate a signed, URL-safe token for this record.
+
+        The token embeds the record's primary key and an optional
+        fingerprint value, which can be used to automatically invalidate
+        the token when the underlying record changes.
+
+        Arguments:
+            fingerprint:
+                Function that should returns a value that changes when the token
+                should be invalidated.
+
+                The value is embedded in the token at generation time and compared
+                against a fresh computation at resolution time. If the two differ,
+                the token is treated as revoked.
+
+                The return value must be JSON-serializable (str, int, etc.) and
+                must be deterministic for a given model state - i.e., calling it
+                twice on the same unchanged record must return the same result.
+
+                It should NOT contain sensitive data, as the token payload is
+                signed but not encrypted.
+
+                Examples:
+                    lambda user: user.password[-10:]
+
+                    # Invalidate when email changes
+                    lambda user: user.email
+
+                    # One-time use (invalidate after any update)
+                    lambda user: str(user.updated_at)
+
+            salt:
+                Optional namespace. The model name is used by default.
+
+        Returns:
+            A URL-safe string suitable for use in links, headers, or
+            query parameters.
+
+        """
+        assert current.app
+        payload = {"id": str(self.get_id()), "fp": fingerprint(self)}
+        salt = salt or self.__class__.__name__
+        return current.app.dumps(payload, salt=salt)
+
+    def generate_token_for(self, name: str) -> str:
+        """Generate a signed, URL-safe token for this record using the
+        name as salt and the method `generate_token_for_NAME` as fingerprint function.
+        """
+        assert current.app
+        fp_value = getattr(self, f"generate_token_for_{name}")()
+        payload = {"id": str(self.get_id()), "fp": fp_value}
+        return current.app.dumps(payload, salt=name)
+
     @classmethod
     def resolve_token(
         cls,
         token: str,
         fingerprint: Callable = (lambda x: None),
         *,
-        max_age: int = 15 * MINUTES,
-        salt: str | None = None
+        max_age: int | None = 15 * MINUTES,
+        salt: str | None = None,
     ) -> t.Any:
         """Resolve a token back into a model instance.
 
         Verifies the signature and expiration, loads the record by its
         primary key, and checks that the fingerprint still matches. Returns
-        None if any step fails — expired, tampered, record missing, or
+        None if any step fails - expired, tampered, record missing, or
         fingerprint mismatch.
 
         Arguments:
@@ -103,6 +198,7 @@ class ProperModel(pw.Model):
                 the token will be treated as revoked.
             max_age:
                 Maximum token age in seconds. Defaults to 15 minutes.
+                Use `None` for no expiration.
             salt:
                 Optional namespace. The model name is used by default.
 
@@ -112,6 +208,8 @@ class ProperModel(pw.Model):
         """
         assert current.app
         salt = salt or cls.__name__
+        if max_age is not None:
+            max_age = max(max_age, 0)
         data = current.app.loads(token, max_age=max_age, salt=salt)
         if not data:
             return None
@@ -153,64 +251,3 @@ class ProperModel(pw.Model):
         if fingerprint() == data["fp"]:
             return instance
         return None
-
-    def generate_token(
-        self,
-        fingerprint: Callable = (lambda x: None),
-        *,
-        salt: str | None = None,
-    ) -> str:
-        """Generate a signed, URL-safe token for this record.
-
-        The token embeds the record's primary key and an optional
-        fingerprint value, which can be used to automatically invalidate
-        the token when the underlying record changes.
-
-        Arguments:
-            fingerprint:
-                Function that should returns a value that changes when the token
-                should be invalidated.
-
-                The value is embedded in the token at generation time and compared
-                against a fresh computation at resolution time. If the two differ,
-                the token is treated as revoked.
-
-                The return value must be JSON-serializable (str, int, etc.) and
-                must be deterministic for a given model state — i.e., calling it
-                twice on the same unchanged record must return the same result.
-
-                It should NOT contain sensitive data, as the token payload is
-                signed but not encrypted.
-
-                Examples:
-                    lambda user: user.password[-10:]
-
-                    # Invalidate when email changes
-                    lambda user: user.email
-
-                    # One-time use (invalidate after any update)
-                    lambda user: str(user.updated_at)
-
-            salt:
-                Optional namespace. The model name is used by default.
-
-        Returns:
-            A URL-safe string suitable for use in links, headers, or
-            query parameters.
-
-        """
-        assert current.app
-        payload = {"id": str(self.get_id()), "fp": fingerprint(self)}
-        salt = salt or self.__class__.__name__
-        return current.app.dumps(payload, salt=salt)
-
-    def generate_token_for(self, name: str) -> str:
-        """Generate a signed, URL-safe token for this record using the
-        name as salt and the method `generate_token_for_NAME` as fingerprint function.
-        """
-        assert current.app
-        fp_value = getattr(self, f"generate_token_for_{name}")()
-        payload = {"id": str(self.get_id()), "fp": fp_value}
-        return current.app.dumps(payload, salt=name)
-
-

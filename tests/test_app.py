@@ -1,5 +1,3 @@
-"""Minimal end-to-end test — request in, text response out."""
-
 import json
 
 import pytest
@@ -27,7 +25,7 @@ def app():
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
     }
-    app = App("tests", config)
+    app = App(__name__, config)
     app.router.add_route(Route(method="GET", path="/hello", to=GreetController.index))
     app.router.add_route(Route(method="GET", path="/hello/:name", to=GreetController.show))
     return app
@@ -85,9 +83,7 @@ def test_load_config_from_class():
     assert config.DEBUG is True
 
 
-# ═══════════════════════════════════════════════════════════════════
-# render_importmap
-# ═══════════════════════════════════════════════════════════════════
+# --- Render importmap ---
 
 
 def _make_app(**overrides):
@@ -96,7 +92,7 @@ def _make_app(**overrides):
         "DEBUG": False,
         **overrides,
     }
-    app = App("tests", config)
+    app = App(__name__, config)
     app.router.static("/assets", root="/tmp/assets", name="assets")
     return app
 
@@ -177,6 +173,6 @@ def test_render_importmap_custom_entries_override_defaults():
 def test_import_map_default_config():
     config = load_config({"SECRET_KEYS": ["*" * 50]})
     assert config.IMPORT_MAP == {
-        "@hotwired/stimulus": "js/stimulus.js",
-        "@hotwired/turbo": "js/turbo.js",
+        "@hotwired/stimulus": "js/vendor/stimulus.js",
+        "@hotwired/turbo": "js/vendor/turbo.js",
     }
