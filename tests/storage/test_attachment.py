@@ -62,6 +62,20 @@ def Attachment(app, db, BaseModel):
     return Attachment
 
 
+@pytest.fixture(autouse=True)
+def stub_previewer_tool_check():
+    # `Attachment.__new__` calls `_validate_previewers`, which probes the
+    # PATH for `pdftoppm` (poppler) and `ffmpeg` whenever
+    # `VARIANTS_ENABLED_FOR` contains `application/pdf` or `video/*`.
+    # The actual `subprocess.run` invocations are mocked per-test, so we
+    # only need the availability probe to succeed - no binaries required.
+    with patch(
+        "proper.storage.attachment.shutil.which",
+        side_effect=lambda name: f"/usr/bin/{name}",
+    ):
+        yield
+
+
 def _make_file(content=b"hello", filename="test.txt", content_type=""):
     buf = BytesIO(content)
     buf.filename = filename  # type: ignore
