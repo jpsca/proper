@@ -94,9 +94,6 @@ How to store, render, and edit rich text content in Proper, including embedded i
 
 ### [Sending Emails](/docs/emails)
 
-:::wip | Work in progress
-:::
-
 Sooner or later your application will need to send email - confirmations, password resets, notifications. This guide covers writing emails as Jx components, configuring SMTP for production and console output for development, and sending them in the background.
 
 ### [Channels](/docs/channels)

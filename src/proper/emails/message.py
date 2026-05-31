@@ -166,7 +166,7 @@ class EmailMessage:
 
     def _render(self):
         assert current.app
-        cmod = self.__class__.__module__.split(".")[-1]
+        cmod = self.__class__.__module__.split(".")[-1].removesuffix("_email")
 
         html_tmpl =  f"emails/{cmod}.jx"
         html_path = current.app.root_path / "views" / html_tmpl

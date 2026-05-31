@@ -11,7 +11,10 @@ from .app_controller import AppController
 class SignUpController(AppController):
     skip_authentication = True
 
-    before = {"do": "redirect_if_authenticated"}
+    before = [
+        {"do": "redirect_if_authenticated"},
+        {"do": "set_form"},
+    ]
     rate_limit = [
         {"to": 10, "within": 15 * MINUTES, "only": "create"},
         {"to": 30, "within": 1 * HOUR, "only": "create"},

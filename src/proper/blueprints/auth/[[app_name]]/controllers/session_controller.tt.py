@@ -10,7 +10,10 @@ from .app_controller import AppController
 class SessionController(AppController):
     skip_authentication = True
 
-    before = {"do": "redirect_if_authenticated", "exclude": ["delete"]}
+    before = [
+        {"do": "redirect_if_authenticated", "exclude": ["delete"]},
+        {"do": "set_form", "exclude": ["delete"]},
+    ]
     rate_limit = [
         {
             "to": 8,
