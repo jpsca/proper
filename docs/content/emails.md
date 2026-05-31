@@ -653,7 +653,7 @@ Non-ASCII local-parts (the part before `@`) are rejected by default because most
 
 Email in Proper covers the basics well: a class-per-message convention, template auto-discovery, background sending, the three standard backends, working tests. Several features common in mature email systems aren't here yet. None of them are blockers - workarounds exist - but they're the obvious places the framework will grow.
 
-- **Browser previews.** A dev-only route that instantiates an email with fixture data and renders it in an iframe. Designing HTML email blind, with a 30-second send-and-check loop, is painful enough that this is probably the highest-ROI feature on the list.
+- **Browser previews.** A dev-only route where you can preview your email templates with fixture data.This is probably the highest-ROI feature on the list.
 - **First-party HTTP backends.** Most production traffic in 2026 goes through Resend, Postmark, SendGrid, or SES rather than SMTP - they handle deliverability, bounces, and metrics that SMTP doesn't. The custom-backend recipe above works, but a curated set of provider mailers (and addons that ship them) would save every app re-implementing the same thing.
 - **CSS inlining at render time.** Today the email layout has an empty `<style>` block with a comment noting that styles must be inline. A premailer-style pass would let users write normal CSS and have it inlined into `style="..."` attributes automatically.
 - **Inline images (CIDs).** `attach_file(path, inline=True)` returning a `cid:` reference for `<img src="cid:...">`. Requires `multipart/related` handling that the current code doesn't expose.

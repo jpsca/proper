@@ -108,9 +108,6 @@ Channels let your application push data to the browser in real time over a WebSo
 
 ### [Caching](/docs/caching)
 
-:::wip | Work in progress
-:::
-
 Caching is the art of doing the same expensive work only once. This guide introduces Proper's SQLite and Redis cache stores, shows you how to cache fragments of pages, and explains how to use HTTP cache headers so the browser does some of the work for you.
 
 ### [Security](/docs/security)
@@ -131,9 +128,6 @@ Going to production means picking an ASGI server, deciding how many workers to r
 ## Digging Deeper
 
 ### [Testing Proper Applications](/docs/testing)
-
-:::wip | Work in progress
-:::
 
 Tests give you the confidence to change your code without breaking it. This guide introduces Proper's `TestClient`, which lets you simulate HTTP requests, upload files, exercise WebSockets, and sign users in - all without running a real server.
 

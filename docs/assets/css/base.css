@@ -497,8 +497,8 @@ small {
   display: flex;
   flex-direction: column;
   height: auto;
-  margin-bottom: 2.4em;
-  margin-top: 2.4em;
+  margin-bottom: 2em;
+  margin-top: 2em;
 }
 
 .page_content hr:before {
