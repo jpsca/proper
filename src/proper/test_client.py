@@ -172,16 +172,24 @@ class TestClient:
         path = url or self.app.config.get("CABLE_PATH", "/cable")
         return WebSocketTestSession(self.app, path)
 
-    def sign_in(self, login: str = "testuser", password: str = "password123") -> str:
+    def sign_in(
+        self,
+        login: str = "testuser",
+        password: str = "password123",
+        *,
+        action: str = "SessionController.create",
+    ) -> str:
         """Sign in and return the auth cookie string."""
-        result = self.post("/sign-in", body={"login": login, "password": password})
+        url = self.app.router.url_for(action)
+        result = self.post(url, body={"login": login, "password": password})
         assert result.status == 303
         # Extract the _auth cookie from the Set-Cookie header
         set_cookie = result.headers.get("set-cookie", "")
         return set_cookie.split(";")[0]  # "_auth=SIGNED_VALUE"
 
-    def sign_out(self):
-        result = self.delete("/sign-out")
+    def sign_out(self, *, action: str = "SessionController.destroy"):
+        url = self.app.router.url_for(action)
+        result = self.delete(url)
         assert result.status == 303
 
     # Private
@@ -226,9 +234,7 @@ class TestClient:
         if body_bytes:
             extra_headers.append(("content-length", str(len(body_bytes))))
 
-        scope = make_test_scope(
-            url, method=method, params=params, headers=extra_headers
-        )
+        scope = make_test_scope(url, method=method, params=params, headers=extra_headers)
 
         resp_status = 0
         resp_headers = _CIMultiDict()
@@ -248,8 +254,16 @@ class TestClient:
             if message["type"] == "http.response.start":
                 resp_status = message["status"]
                 for raw_name, raw_val in message.get("headers", []):
-                    name = raw_name.decode("latin-1") if isinstance(raw_name, bytes) else raw_name
-                    val = raw_val.decode("latin-1") if isinstance(raw_val, bytes) else raw_val
+                    name = (
+                        raw_name.decode("latin-1")
+                        if isinstance(raw_name, bytes)
+                        else raw_name
+                    )
+                    val = (
+                        raw_val.decode("latin-1")
+                        if isinstance(raw_val, bytes)
+                        else raw_val
+                    )
                     resp_headers[name] = val
             elif message["type"] == "http.response.body":
                 chunk = message.get("body", b"")
@@ -304,41 +318,45 @@ class WebSocketTestSession:
             "headers": [],
             "query_string": b"",
         }
-        task = asyncio.create_task(
-            self.app(scope, self._receive, self._send)
-        )
+        task = asyncio.create_task(self.app(scope, self._receive, self._send))
         # Wait for the accept/reject
         await asyncio.sleep(0.01)
         return task
 
     async def subscribe(self, channel: str, **params) -> dict:
         """Send a subscribe command and return the response."""
-        self.client_send({
-            "command": "subscribe",
-            "channel": channel,
-            "params": params or {},
-        })
+        self.client_send(
+            {
+                "command": "subscribe",
+                "channel": channel,
+                "params": params or {},
+            }
+        )
         return await self.receive()
 
     async def send_action(
         self, channel: str, action: str, data: dict | None = None, **params
     ) -> None:
         """Send a message/action to a subscribed channel."""
-        self.client_send({
-            "command": "message",
-            "channel": channel,
-            "action": action,
-            "data": data or {},
-            "params": params or {},
-        })
+        self.client_send(
+            {
+                "command": "message",
+                "channel": channel,
+                "action": action,
+                "data": data or {},
+                "params": params or {},
+            }
+        )
 
     async def unsubscribe(self, channel: str, **params) -> None:
         """Send an unsubscribe command."""
-        self.client_send({
-            "command": "unsubscribe",
-            "channel": channel,
-            "params": params or {},
-        })
+        self.client_send(
+            {
+                "command": "unsubscribe",
+                "channel": channel,
+                "params": params or {},
+            }
+        )
 
     async def receive(self, timeout: float = 1.0) -> dict:
         """Receive the next message from the app, parsed from JSON."""
@@ -353,10 +371,12 @@ class WebSocketTestSession:
 
     def client_send(self, data: dict) -> None:
         """Queue a JSON message from the client to the app."""
-        self._to_app.put_nowait({
-            "type": "websocket.receive",
-            "text": jsonplus.dumps(data),
-        })
+        self._to_app.put_nowait(
+            {
+                "type": "websocket.receive",
+                "text": jsonplus.dumps(data),
+            }
+        )
 
     def client_send_raw(self, msg: dict) -> None:
         """Queue a raw ASGI message to the app."""
@@ -427,8 +447,7 @@ def _encode_multipart(
         elif not isinstance(value, (bytes, str)):
             raise ValueError(
                 (
-                    "Value for field {} is a {} ({}). "
-                    "It must be str, bytes or an int"
+                    "Value for field {} is a {} ({}). It must be str, bytes or an int"
                 ).format(key, type(value), value)
             )
         lines.extend(
