@@ -6,7 +6,7 @@ requires = ["setuptools"]
 
 [project]
 name = "proper"
-version = "0.11.0"
+version = "0.12.0"
 description = "A python web framework for people who read their code"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
