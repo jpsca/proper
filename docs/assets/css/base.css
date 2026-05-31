@@ -1023,3 +1023,35 @@ form.search button svg {
   margin-top: 1em;
   margin-bottom: 1em;
 }
+
+
+/******* Docs Index  *******/
+
+.doc-index-section {
+  background-color: var(--color-white);
+  text-decoration: none;
+  display: block;
+  background: var(--color-white);
+  border-radius: 0.4rem 0.8rem 0.4rem;
+  outline: 1px solid rgba(var(--rgb-gray-light), 0.5);
+  flex: 1;
+  padding: 1.5em;
+  transition: all var(--transition);
+  margin-bottom: 1em;
+
+  &:is([href]):hover {
+    background-color: var(--color-base);
+    outline-color: rgba(var(--rgb-accent), 0.8);
+    box-shadow: 0 0 0 1px rgba(var(--rgb-black), 0.09), 0 10px 30px -15px rgba(var(--rgb-black), 0.18), 0 20px 20px -30px rgba(var(--rgb-black), 0.18);
+}
+  }
+
+  h3 {
+    color: var(--color-gray);
+    margin-bottom: 0.5em;
+  }
+  p {
+    font-weight: normal;
+    color: var(--color-gray);
+  }
+}
