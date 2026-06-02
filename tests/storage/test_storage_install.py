@@ -2,7 +2,7 @@
 
 import pytest
 
-from proper.install import metadata, storage
+from proper import metadata, storage
 
 
 @pytest.fixture()

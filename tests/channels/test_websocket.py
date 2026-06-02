@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from proper.channel import Channel
+from proper.channels import Channel
 from proper.helpers import jsonplus
 
 

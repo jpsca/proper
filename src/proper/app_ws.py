@@ -11,7 +11,7 @@ from .types import (
 
 if t.TYPE_CHECKING:
     from .app import App
-    from .channel import Channel
+    from .channels import Channel
     from .router import Router
 
 

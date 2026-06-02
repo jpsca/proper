@@ -1,4 +1,4 @@
-from ..cable import Cable
+from ..channels import Cable
 from ..errors import ConfigError
 from ..helpers.imports import get_instance
 

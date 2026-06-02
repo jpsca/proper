@@ -1,8 +1,7 @@
 import typing as t
 
 from proper.app import App
-from proper.cable import Cable
-from proper.channel import Channel
+from proper.channels import Cable, Channel
 from proper.helpers import DotDict
 
 

@@ -11,7 +11,7 @@ import jx
 
 from . import pipeline, status, tools
 from .app_ws import AppWs
-from .cable import Cable
+from .channels import Cable
 from .cli.app_cli import get_cli
 from .config import load_config
 from .error_handlers import (

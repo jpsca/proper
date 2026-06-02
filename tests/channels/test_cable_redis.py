@@ -4,8 +4,7 @@ import typing as t
 import pytest
 
 from proper.app import App
-from proper.cable import Cable, RedisCable
-from proper.channel import Channel
+from proper.channels import Cable, Channel, RedisCable
 from proper.helpers import DotDict, jsonplus
 
 

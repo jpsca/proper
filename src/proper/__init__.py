@@ -13,7 +13,7 @@ from . import (  # noqa
     units,
 )
 from .app import App  # noqa
-from .channel import Channel  # noqa
+from .channels import Channel  # noqa
 from .concerns.concern import Concern  # noqa
 from .controller import Controller  # noqa
 from .emails import (  # noqa

@@ -133,7 +133,7 @@ def get_generators_cli(app: "App") -> type[Cli]:
 
 
 def get_install_cli(app: "App") -> type[Cli]:
-    from proper.install import auth, channels, i18n, rich_text, storage
+    from proper import auth, channels, i18n, rich_text, storage
 
     attrs: dict[str, t.Any] = {
         "__doc__": "",

@@ -4,47 +4,53 @@ from ..helpers import BLUEPRINTS
 from ..helpers.render import (
     add_dependencies,
     add_to_concerns,
+    call,
     echo,
     render_blueprint,
     sort_imports_in,
 )
-from .metadata import record_install
+from ..metadata import record_install
 
 
 if t.TYPE_CHECKING:
     from ..app import App
 
 
-I18N_BLUEPRINT = BLUEPRINTS / "i18n"
+AUTH_BLUEPRINT = BLUEPRINTS / "auth"
 
 SORT_IMPORTS_IN = [
+    "main.py",
+    "controllers/__init__.py",
     "controllers/app_controller.py",
+    "cli/__init__.py",
+    "emails/__init__.py",
 ]
+
 DEPENDENCIES = [
-    "babel",
-    "poyo",
+    "passlib",
+    "argon2-cffi",
+    "confusable-homoglyphs",
 ]
 
 
 def install(app: "App") -> None:
-    """Install internationalization and localization support."""
-    echo("install", "i18n addon")
+    """Install user/password authentication support.
+    """
+    echo("install", "Auth addon")
 
     render_blueprint(
-        I18N_BLUEPRINT,
+        AUTH_BLUEPRINT,
         app.root_path.parent,
         context={"app_name": app.name},
+    )
+    add_to_concerns(
+        app.root_path / "controllers" / "app_controller.py",
+        "Authentication",
     )
 
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
 
-    add_to_concerns(
-        app.root_path / "controllers" / "app_controller.py",
-        "CurrentLocale,",
-        "CurrentTimezone,",
-        after="Authentication",
-    )
-
     add_dependencies(app.root_path, DEPENDENCIES)
-    record_install(app, "i18n")
+    call('proper db create "users"')
+    record_install(app, "auth")

@@ -1,6 +1,6 @@
 import pytest
 
-from proper.install import auth, metadata
+from proper import auth, metadata
 
 
 # Minimal app_controller.py that add_to_concerns can parse

@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 if t.TYPE_CHECKING:
-    from ..app import App
+    from .app import App
 
 
 METADATA_FILENAME = ".proper"

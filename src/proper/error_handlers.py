@@ -1,6 +1,5 @@
 """
 Fallback error handlers
-
 """
 
 import sys

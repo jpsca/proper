@@ -8,7 +8,7 @@ from pathlib import Path
 import inflection
 
 from .. import status
-from ..channel import Channel
+from ..channels import Channel
 from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY
 from ..controller import Controller
 from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound

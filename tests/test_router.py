@@ -1,6 +1,6 @@
 import pytest
 
-from proper.channel import Channel
+from proper.channels import Channel
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from proper.global_context import current
 from proper.router.route import Route, _namespace_prefix

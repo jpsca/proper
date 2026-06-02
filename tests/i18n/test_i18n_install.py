@@ -1,6 +1,6 @@
 import pytest
 
-from proper.install import i18n, metadata
+from proper import i18n, metadata
 
 
 APP_CONTROLLER = """\

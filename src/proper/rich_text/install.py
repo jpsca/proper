@@ -1,13 +1,13 @@
 import typing as t
 
+from .. import storage as storage_installer
 from ..helpers import BLUEPRINTS
 from ..helpers.render import (
     echo,
     render_blueprint,
     sort_imports_in,
 )
-from . import storage as storage_installer
-from .metadata import is_installed, record_install
+from ..metadata import is_installed, record_install
 
 
 if t.TYPE_CHECKING:

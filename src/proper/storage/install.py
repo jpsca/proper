@@ -8,7 +8,7 @@ from ..helpers.render import (
     render_blueprint,
     sort_imports_in,
 )
-from .metadata import record_install
+from ..metadata import record_install
 
 
 if t.TYPE_CHECKING:

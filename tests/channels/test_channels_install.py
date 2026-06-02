@@ -1,6 +1,6 @@
 import pytest
 
-from proper.install import channels, metadata
+from proper import channels, metadata
 
 
 @pytest.fixture()

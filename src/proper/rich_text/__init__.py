@@ -14,6 +14,7 @@ from a Huey task.
 from .concerns import HasRichText
 from .document import RichTextDocument
 from .field import RichTextField, make_rich_text_field
+from .install import install
 from .tasks import purge_abandoned_uploads
 
 
@@ -21,6 +22,7 @@ __all__ = (
     "HasRichText",
     "RichTextDocument",
     "RichTextField",
+    "install",
     "make_rich_text_field",
     "purge_abandoned_uploads",
 )

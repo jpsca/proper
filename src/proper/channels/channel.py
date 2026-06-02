@@ -8,14 +8,13 @@ All channels are multiplexed over a single WebSocket endpoint.
 """
 import typing as t
 
-from .helpers import logger
+from ..helpers import logger
 
 
 if t.TYPE_CHECKING:
-    from .app import App
+    from collections.abc import Callable
 
-
-__all__ = ("Channel",)
+    from ..app import App
 
 
 class Channel:
@@ -24,7 +23,7 @@ class Channel:
         app: "App",
         params: dict[str, t.Any],
         *,
-        _send: t.Callable[[dict], t.Any],
+        _send: "Callable[[dict], t.Any]",
     ) -> None:
         self.app = app
         self.params = params

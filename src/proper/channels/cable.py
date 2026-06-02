@@ -12,7 +12,7 @@ Two backends are provided:
 import asyncio
 import typing as t
 
-from .helpers import jsonplus, logger
+from ..helpers import jsonplus, logger
 
 
 try:

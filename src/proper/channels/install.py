@@ -2,7 +2,7 @@ import typing as t
 
 from ..helpers import BLUEPRINTS
 from ..helpers.render import echo, render_blueprint, sort_imports_in
-from .metadata import record_install
+from ..metadata import record_install
 
 
 if t.TYPE_CHECKING:

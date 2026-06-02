@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from proper.install import metadata
+from proper import metadata
 
 
 @pytest.fixture()
