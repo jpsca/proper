@@ -14,6 +14,7 @@ import inflection
 
 from .. import status
 from ..constants import GET
+from ..controller import StaticFilesController
 from ..errors import (
     BadRouteFormat,
     BadRoutePlaceholder,
@@ -419,8 +420,6 @@ class StaticRoute(Route):
         host: str | None = None,
         defaults: dict | None = None,
     ) -> None:
-        from proper.controller import StaticFilesController
-
         defaults = defaults or {}
         defaults["url"] = url
         defaults["root"] = root

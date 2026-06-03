@@ -1,7 +1,8 @@
 import typing as t
 from pathlib import Path
 
-from ..helpers import format_locale, logger
+from ..helpers import logger
+from ..helpers.formatters import format_locale
 
 
 TPath = str | Path

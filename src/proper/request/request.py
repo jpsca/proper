@@ -7,7 +7,6 @@ from ..errors import (
     RequestEntityTooLarge,
 )
 from ..helpers import DotDict, MultiDict, logger
-from ..router import Route
 from ..types import TReceive, TScope
 from .formparser import (
     parse_json,
@@ -21,6 +20,7 @@ from .utils import make_test_scope
 
 if t.TYPE_CHECKING:
     from ..app import App
+    from ..router import Route
 
 
 __all__ = ("Request", )
@@ -42,9 +42,9 @@ class Request(RequestHeadersMixin):
     form: MultiDict
     body: bytes
 
-    matched_route: Route | None = None
     matched_params: dict | None = None
     matched_action: str = ""
+    matched_route: "Route | None" = None
 
     # Cache attrs
     _query: MultiDict | None = None

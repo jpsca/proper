@@ -5,7 +5,7 @@ from fnmatch import fnmatch
 from formidable.fields import Field
 from markupsafe import Markup
 
-from ..i18n.format_size import format_size
+from ..helpers.formatters import format_size
 from . import errors
 
 

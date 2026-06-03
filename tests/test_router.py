@@ -1157,8 +1157,8 @@ class TestChannelRegistration:
         class ChatChannel(Channel):
             pass
 
-        assert "ChatChannel" in router.channels
-        assert router.channels["ChatChannel"] is ChatChannel
+        assert "chat" in router.channels
+        assert router.channels["chat"] is ChatChannel
 
     def test_channel_decorator_returns_class_unchanged(self):
         router = Router()
@@ -1177,12 +1177,12 @@ class TestChannelRegistration:
         class ChatChannel(Channel):
             pass
 
-        @router.channel("notifications")
+        @router.channel()
         class NotificationChannel(Channel):
             pass
 
         assert len(router.channels) == 2
-        assert "ChatChannel" in router.channels
+        assert "chat" in router.channels
         assert "NotificationChannel" in router.channels
 
     def test_channel_rejects_non_channel_subclass(self):

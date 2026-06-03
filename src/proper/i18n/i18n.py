@@ -8,7 +8,7 @@ from markupsafe import Markup
 
 from ..errors import TranslationsNotFound
 from ..global_context import current
-from ..helpers import format_locale
+from ..helpers.formatters import format_locale
 from .formatters import Formatters
 from .reader import Reader
 

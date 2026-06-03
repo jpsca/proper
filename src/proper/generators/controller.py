@@ -2,9 +2,7 @@ from typing import TYPE_CHECKING
 
 import inflection
 
-from ..helpers import BLUEPRINTS
-from ..helpers.render import render_blueprint, sort_imports_in
-from ..router import (
+from ..constants import (
     ACTION_CREATE,
     ACTION_DELETE,
     ACTION_EDIT,
@@ -13,6 +11,8 @@ from ..router import (
     ACTION_SHOW,
     ACTION_UPDATE,
 )
+from ..helpers import BLUEPRINTS
+from ..helpers.render import render_blueprint, sort_imports_in
 from .model import _split_attr
 
 

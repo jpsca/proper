@@ -9,22 +9,33 @@ import inflection
 
 from .. import status
 from ..channels import Channel
-from ..constants import DELETE, GET, OPTIONS, PATCH, POST, PUT, QUERY
-from ..controller import Controller
+from ..constants import (
+    ACTION_CREATE,
+    ACTION_DELETE,
+    ACTION_EDIT,
+    ACTION_INDEX,
+    ACTION_NEW,
+    ACTION_SHOW,
+    ACTION_UPDATE,
+    DELETE,
+    GET,
+    OPTIONS,
+    PATCH,
+    POST,
+    PUT,
+    QUERY,
+)
 from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from ..global_context import current
 from ..types import Iterable, TException, THandler
 from .route import Route, StaticRoute, _namespace_prefix
 
 
+if t.TYPE_CHECKING:
+    from ..controller import Controller
+
+
 __all__ = (
-    "ACTION_INDEX",
-    "ACTION_NEW",
-    "ACTION_CREATE",
-    "ACTION_SHOW",
-    "ACTION_EDIT",
-    "ACTION_UPDATE",
-    "ACTION_DELETE",
     "GROUP_ROUTES",
     "SINGLE_ROUTES",
     "TDecorator",
@@ -32,14 +43,6 @@ __all__ = (
     "Router",
     "ScopedRouter",
 )
-
-ACTION_INDEX = "index"
-ACTION_NEW = "new"
-ACTION_CREATE = "create"
-ACTION_SHOW = "show"
-ACTION_EDIT = "edit"
-ACTION_UPDATE = "update"
-ACTION_DELETE = "delete"
 
 GROUP_ROUTES = (
     (GET, "/", ACTION_INDEX),
@@ -552,7 +555,7 @@ class BaseRouter:
         """
         path = path.strip("/")
 
-        def class_decorator(Controller: type[Controller]) -> type[Controller]:
+        def class_decorator(Controller: "type[Controller]") -> "type[Controller]":
             c_name = Controller.__name__.removesuffix("Controller")
             ns_prefix = _namespace_prefix(Controller.__module__)
 
@@ -647,7 +650,7 @@ class Router(BaseRouter):
     error_handlers: dict[TException, THandler]
 
     # Registered channel classes, keyed by name (e.g. "ChatChannel")
-    channels: dict[str, type[Channel]]
+    channels: "dict[str, type[Channel]]"
 
     def __init__(self, *, debug: bool = False) -> None:
         self.error_handlers = {}
@@ -659,7 +662,7 @@ class Router(BaseRouter):
         assert is_exception, "`error_cls` must be a subclass of `Exception`"
         self.error_handlers[error_cls] = to
 
-    def channel(self, name: str = "") -> Callable[[type[Channel]], type[Channel]]:
+    def channel(self, name: str = "") -> "Callable[[type[Channel]], type[Channel]]":
         """Class decorator to register a WebSocket channel.
 
         Example:
@@ -681,7 +684,7 @@ class Router(BaseRouter):
             assert issubclass(cls, Channel), (
                 f"{cls.__name__} must be a subclass of Channel"
             )
-            self.channels[cls.__name__] = cls
+            self.channels[name or cls.__name__] = cls
             return cls
 
         return class_decorator

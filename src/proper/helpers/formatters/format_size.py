@@ -29,11 +29,12 @@ _ROUND_MODES = {
 
 def format_size(
     number: str | int | float | Decimal | None,
+    *,
     precision: int = 3,
     significant: bool = True,
     strip_zeros: bool = True,
     round_mode: str = "default",
-    locale: str | None = None,
+    locale: str = "en",
 ) -> str:
     """Format a byte count as a human-readable string with binary (1024) units.
     """

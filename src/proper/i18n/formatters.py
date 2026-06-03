@@ -4,11 +4,24 @@ import typing as t
 from collections.abc import Sequence
 
 import babel.dates as babel_dates
-import babel.lists as babel_lists
 import babel.numbers as babel_numbers
 
-from ..helpers import format_locale
-from .format_size import format_size
+from ..helpers.formatters import (
+    format_compact_currency,
+    format_compact_decimal,
+    format_currency,
+    format_date,
+    format_datetime,
+    format_decimal,
+    format_interval,
+    format_list,
+    format_percent,
+    format_scientific,
+    format_size,
+    format_skeleton,
+    format_time,
+    format_timedelta,
+)
 
 
 class Formatters:
@@ -52,7 +65,7 @@ class Formatters:
             babel_dates.get_day_names(
                 width=width,
                 context=context,
-                locale=format_locale(locale) if locale else self.get_current_locale(),
+                locale=locale if locale else self.get_current_locale(),
             )
         ))
 
@@ -85,7 +98,7 @@ class Formatters:
             babel_dates.get_month_names(
                 width=width,
                 context=context,
-                locale=format_locale(locale) if locale else self.get_current_locale(),
+                locale=locale if locale else self.get_current_locale(),
             )
         ))
 
@@ -118,7 +131,7 @@ class Formatters:
             babel_dates.get_quarter_names(
                 width=width,
                 context=context,
-                locale=format_locale(locale) if locale else self.get_current_locale(),
+                locale=locale if locale else self.get_current_locale(),
             )
         ))
 
@@ -146,7 +159,7 @@ class Formatters:
         return t.cast(list[str], list(
             babel_dates.get_era_names(
                 width=width,
-                locale=format_locale(locale) if locale else self.get_current_locale(),
+                locale=locale if locale else self.get_current_locale(),
             )
         ))
 
@@ -176,7 +189,7 @@ class Formatters:
         return babel_numbers.get_currency_name(
             currency=currency,
             count=count,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def get_currency_symbol(
@@ -201,7 +214,7 @@ class Formatters:
         """
         return babel_numbers.get_currency_symbol(
             currency=currency,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_datetime(
@@ -235,11 +248,11 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return babel_dates.format_datetime(
+        return format_datetime(
             datetime,
             format=format,
-            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            timezone=timezone if timezone else self.get_current_timezone(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_date(
@@ -272,10 +285,10 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return babel_dates.format_date(
+        return format_date(
             date,
             format=format,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_time(
@@ -341,11 +354,11 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return babel_dates.format_time(
+        return format_time(
             time,
             format=format,
-            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            timezone=timezone if timezone else self.get_current_timezone(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_timedelta(
@@ -425,13 +438,13 @@ class Formatters:
             locale:
                 force the locale to use for formatting.
         """
-        return babel_dates.format_timedelta(
+        return format_timedelta(
             delta=delta,
             granularity=granularity,
             threshold=threshold,
             add_direction=add_direction,
             format=format,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_skeleton(
@@ -490,12 +503,12 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return babel_dates.format_skeleton(
+        return format_skeleton(
             skeleton=skeleton,
             datetime=datetime,
             fuzzy=fuzzy,
-            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            timezone=timezone if timezone else self.get_current_timezone(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_interval(
@@ -555,13 +568,13 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return babel_dates.format_interval(
+        return format_interval(
             start=start,
             end=end,
             skeleton=skeleton,
             fuzzy=fuzzy,
-            tzinfo=babel_dates.get_timezone(timezone) if timezone else self.get_current_timezone(),
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            timezone=timezone if timezone else self.get_current_timezone(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_list(
@@ -628,10 +641,10 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return babel_lists.format_list(
+        return format_list(
             lst,
             style=style,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_decimal(
@@ -696,12 +709,12 @@ class Formatters:
             `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
 
         """
-        return babel_numbers.format_decimal(
+        return format_decimal(
             number,
-            decimal_quantization=quantization,
+            quantization=quantization,
             group_separator=group_separator,
             numbering_system=numbering_system,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_compact_decimal(
@@ -746,12 +759,12 @@ class Formatters:
         Raises:
             `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
         """
-        return babel_numbers.format_compact_decimal(
+        return format_compact_decimal(
             number,
             format_type=format_type,
             fraction_digits=fraction_digits,
             numbering_system=numbering_system,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_currency(
@@ -762,7 +775,7 @@ class Formatters:
         format: str | None = None,
         currency_digits: bool = True,
         format_type: t.Literal["name", "standard", "accounting"] = "standard",
-        decimal_quantization: bool = True,
+        quantization: bool = True,
         group_separator: bool = True,
         numbering_system: str = "latn",
         locale: str | None = None,
@@ -837,11 +850,11 @@ class Formatters:
 
         By default the locale is allowed to truncate and round a high-precision
         number by forcing its format pattern onto the decimal part. You can bypass
-        this behavior with the `decimal_quantization` parameter:
+        this behavior with the `quantization` parameter:
 
         >> format_currency(1099.9876, 'USD', locale='en_US')
         '$1,099.99'
-        >> format_currency(1099.9876, 'USD', locale='en_US', decimal_quantization=False)
+        >> format_currency(1099.9876, 'USD', locale='en_US', quantization=False)
         '$1,099.9876'
 
         Arguments:
@@ -855,7 +868,7 @@ class Formatters:
                 the currency format type to use
             currency_digits:
                 use the currency's natural number of decimal digits or not. Defaults to `True`.
-            decimal_quantization:
+            quantization:
                 truncate and round high-precision numbers to the format pattern. Defaults to `True`.
             group_separator:
                 boolean to switch group separator on/off in a locale's number format.
@@ -868,16 +881,16 @@ class Formatters:
         Raises:
             `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
         """
-        return babel_numbers.format_currency(
+        return format_currency(
             number=number,
             currency=currency,
             format=format,
             format_type=format_type,
             currency_digits=currency_digits,
-            decimal_quantization=decimal_quantization,
+            quantization=quantization,
             group_separator=group_separator,
             numbering_system=numbering_system,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_compact_currency(
@@ -915,12 +928,12 @@ class Formatters:
             `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
 
         """
-        return babel_numbers.format_compact_currency(
+        return format_compact_currency(
             number=number,
             currency=currency,
             fraction_digits=fraction_digits,
             numbering_system=numbering_system,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_percent(
@@ -928,7 +941,7 @@ class Formatters:
         number: float | decimal.Decimal | str,
         *,
         format: str | None = None,
-        decimal_quantization: bool = True,
+        quantization: bool = True,
         group_separator: bool = True,
         numbering_system: str = "latn",
         locale: str | None = None,
@@ -951,11 +964,11 @@ class Formatters:
 
         By default the locale is allowed to truncate and round a high-precision
         number by forcing its format pattern onto the decimal part. You can bypass
-        this behavior with the `decimal_quantization` parameter:
+        this behavior with the `quantization` parameter:
 
         >> format_percent(23.9876, locale='en_US')
         '2,399%'
-        >> format_percent(23.9876, locale='en_US', decimal_quantization=False)
+        >> format_percent(23.9876, locale='en_US', quantization=False)
         '2,398.76%'
 
         >> format_percent(229291.1234, locale='pt_BR', group_separator=False)
@@ -969,7 +982,7 @@ class Formatters:
                 the percent number to format.
             format:
                 the format string to use.
-            decimal_quantization:
+            quantization:
                 truncate and round high-precision numbers to the format pattern. Defaults to `True`.
             group_separator:
                 boolean to switch group separator on/off in a locale's number format.
@@ -983,13 +996,13 @@ class Formatters:
             `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
 
         """
-        return babel_numbers.format_percent(
+        return format_percent(
             number=number,
             format=format,
-            decimal_quantization=decimal_quantization,
+            quantization=quantization,
             group_separator=group_separator,
             numbering_system=numbering_system,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_scientific(
@@ -997,7 +1010,7 @@ class Formatters:
         number: float | decimal.Decimal | str,
         *,
         format: str | None = None,
-        decimal_quantization: bool = True,
+        quantization: bool = True,
         numbering_system: str = "latn",
         locale: str | None = None,
     ) -> str:
@@ -1015,11 +1028,11 @@ class Formatters:
 
         By default the locale is allowed to truncate and round a high-precision
         number by forcing its format pattern onto the decimal part. You can bypass
-        this behavior with the `decimal_quantization` parameter:
+        this behavior with the `quantization` parameter:
 
         >> format_scientific(1234.9876, format='#.##E0', locale='en_US')
         '1.23E3'
-        >> format_scientific(1234.9876, format='#.##E0', locale='en_US', decimal_quantization=False)
+        >> format_scientific(1234.9876, format='#.##E0', locale='en_US', quantization=False)
         '1.2349876E3'
 
         Arguments:
@@ -1027,7 +1040,7 @@ class Formatters:
                 the percent number to format.
             format:
                 the format string to use.
-            decimal_quantization:
+            quantization:
                 truncate and round high-precision numbers to the format pattern. Defaults to `True`.
             numbering_system:
                 the numbering system used for formatting number symbols. Defaults to "latn".
@@ -1039,12 +1052,12 @@ class Formatters:
             `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
 
         """
-        return babel_numbers.format_scientific(
+        return format_scientific(
             number=number,
             format=format,
-            decimal_quantization=decimal_quantization,
+            quantization=quantization,
             numbering_system=numbering_system,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
 
     def format_size(
@@ -1094,5 +1107,5 @@ class Formatters:
             significant=significant,
             strip_zeros=strip_zeros,
             round_mode=round_mode,
-            locale=format_locale(locale) if locale else self.get_current_locale(),
+            locale=locale if locale else self.get_current_locale(),
         )
