@@ -1,7 +1,7 @@
 ---
 title: Formidable Forms
 description: Form validation library — field definitions, validators, ORM integration, rendering
-last_verified: 2026-05-08
+last_verified: 2026-06-03
 ---
 
 # Formidable Forms
@@ -453,6 +453,31 @@ class BookForm(f.Form):
 #### Subclass extension
 
 `AttachmentField._unpack(reqvalue)` returns the raw parts dict. Subclasses can extend with extra sub-inputs (alt text, sort order, crop coords) by rendering them under bracketed names like `<field>[alt]` and reading `parts["alt"]` in their override of `set()`.
+
+### RichTextField
+
+```python
+f.RichTextField(*, required=False, default=None, messages=None, **kwargs)
+```
+
+Form-layer adapter for a model `RichTextField` column. Defaults to `required=False` (most rich-text bodies are optional) and `strip=False` (whitespace is meaningful in HTML).
+
+When the form is bound to an existing record, the field coerces the model's `RichTextDocument` to its `to_html()` representation so the editor re-loads the original HTML — not the plain-text view that `str(RichTextDocument)` returns. See [rich_text.md](rich_text.md) for the model side and editor integration.
+
+### JSONField
+
+```python
+f.JSONField(*, required=True, default=None, messages=None)
+```
+
+Captures JSON input from a form. Accepts:
+
+- A dict (passed through unchanged).
+- An object with a `to_dict()` method (called).
+- A JSON-encoded string (parsed). Invalid JSON raises an `INVALID_JSON` validation error.
+- An empty/whitespace string → `None`.
+
+Useful for hidden inputs that round-trip structured data, or for form fields backing a `JSONField` model column. The rendered string value is the JSON-encoded form of the current dict.
 
 ### ListField
 

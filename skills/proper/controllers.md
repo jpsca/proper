@@ -1,7 +1,7 @@
 ---
 title: Controllers
 description: Controller fundamentals — CRUD, callbacks, parameters, rendering, redirects, concerns
-last_verified: 2026-04-02
+last_verified: 2026-06-03
 ---
 
 # Controllers
@@ -834,11 +834,11 @@ self.response.redirect_to(
 self.response.redirect_to(
     "Session.new",
     flash="Try again in a few minutes.",
-    flash_type="error",
+    flash_cat="negative",
 )
 ```
 
-The `flash_type` defaults to `"info"`. Common types are `"info"`, `"success"`, `"warning"`, and `"error"`.
+The `flash_cat` parameter defaults to `"positive"`. Common categories are `"positive"`, `"negative"`, `"warning"`, and `"info"` — your layout decides how each one looks.
 
 You can also set flash messages directly without redirecting:
 
@@ -1052,11 +1052,11 @@ The `after` callbacks are similar to the `before` callbacks, but because the con
 
 ```python
 class SecurityHeaders(Concern):
-    after = {"do": "_set_security_headers"}
+    after = {"do": "set_security_headers"}
 
-    def _set_security_headers(self):
+    def set_security_headers(self):
         self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1", mode="block")
+        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
         self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
@@ -1205,7 +1205,7 @@ class SessionController(AppController):
         self.response.redirect_to(
             "Session.new",
             flash="Try again in a few minutes or reset your password.",
-            flash_type="error",
+            flash_cat="negative",
         )
 ```
 
@@ -1235,6 +1235,22 @@ self.reset_rate_limit(self.login_param)
 Rate limiting relies on a backing cache store. If no cache is configured, rate limiting is silently disabled.
 
 This concern is included in the default `AppController` but does nothing unless you set the `rate_limit` class attribute.
+
+#### CurrentLocale
+
+Resolves the current locale for the request and assigns it to `current.locale` in a `before` callback. Wired up by the `i18n` addon — see [i18n.md](i18n.md).
+
+Resolution order: URL param → cookie → `current.user.locale` → `app.i18n.negotiate_locale(accept_language)` → `LOCALE_DEFAULT` config.
+
+The concern also extends `etag` to include `current.locale`, so cached responses vary by language.
+
+#### CurrentTimezone
+
+Resolves the current timezone and assigns it to `current.timezone` in a `before` callback. Wired up by the `i18n` addon — see [i18n.md](i18n.md).
+
+Resolution order: URL param → cookie → `current.user.timezone` → `TIMEZONE_DEFAULT` config.
+
+Like `CurrentLocale`, this concern extends `etag` to include `current.timezone`.
 
 #### FormValidation
 
@@ -1274,11 +1290,11 @@ Sets security-related response headers as an `after` callback. This concern is d
 from proper import Concern
 
 class SecurityHeaders(Concern):
-    after = {"do": "_set_security_headers"}
+    after = {"do": "set_security_headers"}
 
-    def _set_security_headers(self):
+    def set_security_headers(self):
         self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1", mode="block")
+        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
         self.response.headers.setdefault("X-Download-Options", "noopen")
         self.response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
         self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

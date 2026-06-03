@@ -256,7 +256,7 @@ class SessionController(AppController):
         self.response.redirect_to(
             "Session.new",
             flash="Try again in a few minutes or reset your password.",
-            flash_type="error",
+            flash_cat="negative",
         )
 ```
 

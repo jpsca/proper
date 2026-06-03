@@ -1,7 +1,7 @@
 ---
 title: Models
-description: Peewee ORM models — fields, relationships, querying, scopes, mixins, migrations
-last_verified: 2026-04-02
+description: Peewee ORM models — fields, relationships, querying, scopes, mixins, migrations, seeds
+last_verified: 2026-06-03
 ---
 
 # Models
@@ -23,6 +23,7 @@ Proper uses [Peewee ORM](https://docs.peewee-orm.com) for database access. All m
 - [BaseModel](#basemodel)
 - [Migrations](#migrations)
   - [Adding Fields to Existing Models](#adding-fields-to-existing-models)
+- [Seeds](#seeds)
 - [Generators](#generators)
 - [Integration with Controllers and Forms](#integration-with-controllers-and-forms)
 - [Testing Models](#testing-models)
@@ -961,6 +962,112 @@ def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
 ```
 
 Migrations cannot be created for in-memory databases.
+
+
+## Seeds
+
+A **seed** is a small, idempotent script that inserts canonical data into the database — default roles, reference rows, the first admin user. Seeds describe data the *current* schema needs; migrations describe schema changes pinned to a single moment in history. Run `proper db migrate` to set up the schema, then `proper db seed` to populate it.
+
+### Where Seeds Live
+
+Seeds live in `db/seeds/`, parallel to the per-database migration folders:
+
+```
+db/
+├── main/                       # migrations for "main"
+│   ├── 001_initial.py
+│   └── 002_add_book.py
+└── seeds/
+    ├── __init__.py
+    ├── roles.py
+    └── admin_user.py
+```
+
+For multi-database apps, mirror the per-database layout (`db/seeds/<db_name>/`).
+
+The import order in `db/seeds/__init__.py` *is* the dependency graph:
+
+```python
+# db/seeds/__init__.py
+from . import roles       # noqa
+from . import admin_user  # noqa
+```
+
+A seed file that isn't imported here will never run.
+
+### Writing a Seed
+
+Each seed file exports a `seed()` function and declares which `APP_ENV` values it runs in:
+
+```python
+# db/seeds/roles.py
+from myapp.models import Role
+
+
+envs = ("dev", "test", "prod")
+
+
+def seed():
+    for name in ["admin", "editor", "viewer"]:
+        Role.get_or_create(name=name)
+```
+
+`seed()` takes no arguments and returns nothing. It must be safe to run repeatedly — use `get_or_create` (or an explicit existence check) and avoid plain `Model.create(...)`, which will hit a unique-constraint error on the second run.
+
+For seeds with attributes beyond the lookup key, pass `defaults`:
+
+```python
+user, _ = User.get_or_create(
+    email="admin@example.com",
+    defaults={"name": "Admin", "password_hash": hash_password("changeme")},
+)
+```
+
+`defaults` are only used when *creating*, so re-running the seed never overwrites values that changed in the interim.
+
+### Environment-Aware Seeds
+
+`APP_ENV` is set automatically: `dev` locally, `test` during tests, `prod` in production. The `envs` tuple is the only knob — there is intentionally no `--force` flag.
+
+- `("dev", "test", "prod")` — every context.
+- `("dev", "prod")` — everywhere except tests.
+- `("dev",)` — only on a developer's machine (sample/demo content).
+
+If `APP_ENV` isn't in the tuple, the seed is skipped and the CLI reports it as such.
+
+### Running Seeds
+
+```bash
+proper db seed                  # run every seed for "main", in import order
+proper db seed roles            # run a single seed by name
+proper db seed --db analytics   # target a different database
+```
+
+`proper db migrate` does **not** run seeds — schema and seed data are deliberately separate.
+
+### Generating a Seed
+
+```bash
+proper g seed roles
+proper g seed reference_paths --db analytics
+```
+
+The generator creates `db/seeds/<name>.py` with a `seed()` skeleton and `envs = ("dev", "test", "prod")`, and adds the import line to `db/seeds/__init__.py`.
+
+### Seeds and Tests
+
+Seeds are not run automatically during tests. If a test needs canonical data, call the seed function from a fixture:
+
+```python
+# tests/conftest.py
+from db.seeds.roles import seed as seed_roles
+
+@pytest.fixture(autouse=True)
+def setup_default_data():
+    seed_roles()
+```
+
+In general, tests should use fixtures (model factories, explicit setup) rather than seeds — seeds describe the canonical state of the application, not the state of one specific test.
 
 
 ## Generators

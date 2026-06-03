@@ -2,7 +2,7 @@
 name: proper
 description: Use when building features, adding resources, writing controllers/models/forms/views, or working with addons (auth, storage, i18n, channels) in a Proper web framework application. Also use when the user asks about Proper framework conventions or patterns.
 user-invocable: false
-last_verified: 2026-05-29
+last_verified: 2026-06-03
 ---
 
 # Proper Framework Development
@@ -63,6 +63,8 @@ Controller  ──────────────  receives the request, ru
 | Add a page with a DB model | [generated_app.md](generated_app.md) | `proper g resource NAME attrs...` |
 | Add a controller without a model | [generated_app.md](generated_app.md) | `proper g controller NAME attrs...` |
 | Add only a model | [models.md](models.md) | `proper g model NAME attrs...` |
+| Add seed data (default roles, reference rows) | [models.md — Seeds](models.md#seeds) | `proper g seed NAME` then `proper db seed` |
+| Add an email | [emails.md](emails.md) | `proper g email NAME` |
 | Add authentication | [auth.md](auth.md) | `proper install auth && proper db migrate` |
 | Add file uploads | [storage.md](storage.md) | `proper install storage && proper db migrate` |
 | Add rich text fields with embedded files | [rich_text.md](rich_text.md) | `proper install rich_text && proper db migrate` |

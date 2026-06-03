@@ -633,19 +633,19 @@ self.response.redirect_to(
 self.response.redirect_to(
     "Session.new",
     flash="Try again in a few minutes.",
-    flash_type="error",
+    flash_cat="negative",
 )
 ```
 
-`flash_type` defaults to `"info"`. Common types are `"info"`, `"success"`, `"warning"`, and `"error"` - your layout decides how each one looks.
+`flash_cat` defaults to `"positive"`. Common categories are `"positive"`, `"negative"`, `"warning"`, and `"info"` - your layout decides how each one looks.
 
 You can also set a flash message without redirecting, useful when an action renders a page itself but still wants to acknowledge something:
 
 ```python
-self.response.flash.message("success", "Settings saved")
+self.response.flash.message("positive", "Settings saved")
 ```
 
-In your templates, flash messages are available as a list of `(type, message)` tuples; the layout that ships with the generator already renders them.
+In your templates, flash messages are available as a list of `(category, message)` tuples; the layout that ships with the generator already renders them.
 
 ---
 
@@ -952,9 +952,9 @@ Sets a small set of safe-by-default response headers via an `after` callback. Th
 
 ```python
 class SecurityHeaders(Concern):
-    after = {"do": "_set_security_headers"}
+    after = {"do": "set_security_headers"}
 
-    def _set_security_headers(self):
+    def set_security_headers(self):
         self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
         self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

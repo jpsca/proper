@@ -1,7 +1,7 @@
 ---
 title: API
 description: Quick reference for all public symbols exported by the proper package
-last_verified: 2026-04-02
+last_verified: 2026-06-03
 ---
 
 # API Reference
@@ -85,8 +85,8 @@ Accessed via `current.app` or directly from the app instance.
 | `queue`          | `Huey`                        | Task queue instance                                  |
 | `cache`          | `BaseCache`                   | Cache backend instance                               |
 | `mailer`         | `BaseMailer`                  | Email mailer instance                                |
-| `i18n`           | `I18n \| None`                | Internationalization instance                        |
-| `storage`        | `Storage \| None`             | Storage service instance                             |
+| `auth`           | `Auth`                        | Auth instance (password hashing, token helpers)      |
+| `i18n`           | `I18n \| None`                | Internationalization instance (`None` if not installed) |
 | `cable`          | `Cable`                       | WebSocket cable instance for real-time communication |
 | `request_cls`    | `type[Request]`               | Request class used for creating request objects      |
 | `response_cls`   | `type[Response]`              | Response class used for creating response objects    |
@@ -109,6 +109,7 @@ Accessed via `current.app` or directly from the app instance.
 | `loads`            | `(value, *, max_age=None, return_timestamp=False, salt=None) -> Any` | Deserialize and verify a signed value. Tries all secret keys. Returns `None` if invalid. |
 | `on_error`         | `(func) -> func`                                           | Decorator to register error handlers                     |
 | `on_teardown`      | `(func) -> func`                                           | Decorator to register teardown handlers                  |
+| `attachment_for`   | `(base_model_cls) -> type[_Attachment]`                    | Build an `Attachment` model subclass for the storage addon (memoized per app+base) |
 
 
 ## Request
@@ -255,7 +256,7 @@ All of these are read/write.
 
 | Method               | Signature                                                                                                  | Description                                              |
 |----------------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|
-| `redirect_to`        | `(url_or_route, obj=None, *, flash=None, flash_type="info", status=303, **kw) -> None`                    | Redirect to a URL or named route with optional flash     |
+| `redirect_to`        | `(url_or_route, obj=None, *, flash=None, flash_cat="positive", status=303, **kw) -> None`                 | Redirect to a URL or named route with optional flash     |
 | `fresh_when`         | `(objects=None, *, etag=None, last_modified=None, strong=False, public=False, request=None) -> bool`       | Set cache headers and return whether the response is fresh |
 | `is_fresh`           | `(request=None) -> bool`                                                                                   | Check if response is fresh based on request cache headers |
 | `send_file`          | `(path, *, mimetype=None, as_attachment=False, download_name=None, x_sendfile_header="") -> None`          | Send a file as the response body                         |
@@ -365,10 +366,13 @@ See [Routing](routing.md) for full details.
 
 See [Models](models.md) for full details.
 
-| Symbol        | Description                                                           |
-|---------------|-----------------------------------------------------------------------|
-| `ProperModel` | Base Peewee model with scope support and token generation methods     |
-| `scope`       | Decorator that tags a classmethod as a chainable query scope          |
+| Symbol         | Description                                                              |
+|----------------|--------------------------------------------------------------------------|
+| `ProperModel`  | Base Peewee model with scope support and token generation methods        |
+| `scope`        | Decorator that tags a classmethod as a chainable query scope             |
+| `ScopedSelect` | The `Select` subclass returned by scoped queries; propagates scopes through chained method calls (rarely used directly). |
+| `JSONField`    | Peewee field that stores JSON with transparent serialization (also re-exported from `proper`) |
+| `run_seeds`    | `(name="", db="main") -> bool` — programmatic entry point for the `proper db seed` runner |
 
 ### Channel
 
@@ -387,17 +391,18 @@ WebSocket channel base class. See [Channels](channels.md) for full details.
 
 ### Emails
 
-See [Emails](emails.md) for full details.
+These symbols are exported from `proper.emails`, **not** the top-level `proper`. Import via `from proper.emails import EmailMessage`. See [Emails](emails.md) for full details.
 
-| Symbol             | Description                                              |
-|--------------------|----------------------------------------------------------|
-| `EmailMessage`     | Compose an email (subject, to, body, attachments)        |
-| `BaseMailer`       | Abstract mailer backend                                  |
-| `SMTPMailer`       | Send via SMTP                                            |
-| `ToConsoleMailer`  | Print emails to stdout (development)                     |
-| `ToMemoryMailer`   | Store emails in a list (testing)                         |
-| `EmailAttachment`  | TypedDict for file attachments                           |
-| `EmailAlternative` | TypedDict for alternative content parts                  |
+| Symbol             | Module                  | Description                                              |
+|--------------------|-------------------------|----------------------------------------------------------|
+| `EmailMessage`     | `proper.emails`         | Compose an email (subject, to, body, attachments)        |
+| `EmailMessageDict` | `proper.emails`         | Serialized form of `EmailMessage` (the value mailers send) |
+| `EmailAttachment`  | `proper.emails`         | TypedDict for file attachments                           |
+| `EmailAlternative` | `proper.emails`         | TypedDict for alternative content parts                  |
+| `BaseMailer`       | `proper.emails`         | Abstract mailer backend                                  |
+| `SMTPMailer`       | `proper.emails`         | Send via SMTP                                            |
+| `ToConsoleMailer`  | `proper.emails`         | Print emails to stdout (development)                     |
+| `ToMemoryMailer`   | `proper.emails`         | Store emails in a list (testing)                         |
 
 ### Helpers
 

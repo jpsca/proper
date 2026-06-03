@@ -1,7 +1,7 @@
 ---
 title: Application
 description: App setup, request lifecycle, configuration, lifecycle hooks, static assets, and logging
-last_verified: 2026-04-02
+last_verified: 2026-06-03
 ---
 
 # Application
@@ -221,6 +221,21 @@ data = app.loads(token, max_age=3600, salt="invite")  # Returns None if expired/
 ```
 
 `dumps()` always uses the first (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.
+
+
+## Attachment Model Factory
+
+The storage addon's generated `models/attachment.py` calls `app.attachment_for(BaseModel)` to build an `Attachment` subclass bound to the app's database and storage services:
+
+```python
+# models/attachment.py
+from .base import BaseModel
+
+class Attachment(app.attachment_for(BaseModel)):
+    pass
+```
+
+`attachment_for()` is memoized per `(app, base_model_cls)`, so importing the module repeatedly returns the same class — avoiding duplicate Peewee model definitions for the same `attachment` table. See [storage.md](storage.md) for the full lifecycle.
 
 
 ## Static Assets

@@ -1,7 +1,7 @@
 ---
 title: Background Tasks
 description: Huey task queue — task definition, scheduling, retries, pipelines, worker config
-last_verified: 2026-04-02
+last_verified: 2026-06-03
 ---
 
 # Background Tasks
@@ -76,7 +76,7 @@ The framework also uses the queue internally — the storage system queues image
 ### `task()` Decorator Options
 
 ```python
-@app.queue.task(retries=0, retry_delay=0, priority=None, context=False, name=None, expires=None)
+@app.queue.task(retries=0, retry_delay=0, context=False, name=None, expires=None)
 def my_task(arg1, arg2):
     return result
 ```
@@ -85,16 +85,20 @@ def my_task(arg1, arg2):
 |---------------|------------------------------------------------------------------------------|
 | `retries`     | Number of automatic retries on failure                                       |
 | `retry_delay` | Seconds to wait between retries                                              |
-| `priority`    | Higher numbers processed first (default `None`)                              |
 | `context`     | Pass the `Task` instance as `task` kwarg                                     |
 | `name`        | Custom task name (default: module.function)                                  |
 | `expires`     | Discard if not run within this time (int seconds, timedelta, or datetime)    |
 
-Priority can be overridden per-call:
+### Priority (PriorityRedisHuey only)
+
+If the queue backend is `PriorityRedisHuey`, tasks accept a `priority` kwarg at enqueue time. Higher numbers run first:
 
 ```python
 my_task(arg1, arg2, priority=50)
+my_task.schedule(args=(1, 2), delay=60, priority=50)
 ```
+
+Other backends (the default `MemoryHuey`, `SqliteHuey`, plain `RedisHuey`) ignore `priority` — switch the queue type in config if you need it.
 
 
 ## Periodic Tasks
@@ -109,7 +113,7 @@ def cleanup_expired_sessions():
     pass
 ```
 
-Accepts the same kwargs as `task()` (retries, priority, etc.) plus the `validate_datetime` function (typically `crontab()`).
+Accepts the same kwargs as `task()` (`retries`, `retry_delay`, etc.) plus the `validate_datetime` function (typically `crontab()`).
 
 ### `crontab()` Syntax
 
@@ -145,9 +149,6 @@ res = my_task.schedule(args=(1, 2), delay=60)
 from datetime import datetime, timedelta
 eta = datetime.now() + timedelta(hours=1)
 res = my_task.schedule(args=(1, 2), eta=eta)
-
-# Override priority when scheduling
-my_task.schedule(args=(1, 2), delay=60, priority=50)
 ```
 
 
