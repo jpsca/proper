@@ -3,6 +3,7 @@ from . import (  # noqa
     cache,
     concerns,
     constants,
+    core,
     errors,
     forms,
     helpers,
@@ -14,7 +15,7 @@ from . import (  # noqa
 )
 from .app import App  # noqa
 from .channels import Channel  # noqa
-from .concerns.concern import Concern  # noqa
+from .concerns import Concern  # noqa
 from .controller import Controller  # noqa
 from .emails import (  # noqa
     BaseMailer,
@@ -38,7 +39,7 @@ from .helpers import (  # noqa
     show_welcome,
 )
 from .models import JSONField, ProperModel, ScopedSelect, scope  # noqa
-from .request import Request  # noqa
-from .response import Response  # noqa
+from .core.request import Request  # noqa
+from .core.response import Response  # noqa
 from .router import Route, Router, ScopedRouter, StaticRoute  # noqa
 from .test_client import TestClient  # noqa

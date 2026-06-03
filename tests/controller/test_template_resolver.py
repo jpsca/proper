@@ -1,7 +1,7 @@
 import pytest
 from jx import ComponentNotFoundError
 
-from proper.template_resolver import (
+from proper.controller.template_resolver import (
     iter_candidates,
     iter_format_extensions,
     resolve_template,

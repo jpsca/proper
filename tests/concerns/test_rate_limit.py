@@ -7,7 +7,7 @@ from proper.concerns import RateLimiting
 from proper.constants import GET, POST
 from proper.controller import Controller
 from proper.errors import TooManyRequests
-from proper.request.utils import make_test_scope
+from proper.helpers.asgi import make_test_scope
 
 
 def _make(cls, app, **scope_kw):

@@ -5,7 +5,10 @@ import pytest
 from proper import TestClient, current, status
 from proper.constants import FLASHES_SESSION_KEY
 from proper.controller import Controller
+from proper.core.request import Request
+from proper.core.response import Response
 from proper.helpers import DotDict
+from proper.helpers.asgi import make_test_scope
 from proper.pipeline import (
     LOCAL_HOSTS,
     copy_session,
@@ -17,9 +20,6 @@ from proper.pipeline import (
     strip_body_if_head,
     update_session_cookie,
 )
-from proper.request import Request
-from proper.request.utils import make_test_scope
-from proper.response import Response
 from proper.router import Route
 
 

@@ -9,6 +9,7 @@ from .concern import Concern
 __all__ = (
     "OriginProtection",
 )
+
 SKIP_FOR_METHODS = (HEAD, GET, OPTIONS, QUERY)
 
 LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}

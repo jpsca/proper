@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from proper.error_handlers import (
+from proper.core.error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
     fallback_error_handler,
@@ -32,7 +32,7 @@ class TestRender:
         assert "1.0" in body
 
     def test_template_error_falls_back(self):
-        with patch("proper.error_handlers.jinja_render", side_effect=Exception("boom")):
+        with patch("proper.core.error_handlers.jinja_render", side_effect=Exception("boom")):
             body = render("debug-error.jx", some_data="x")
         # Should fall back to the static fallback-error.html
         assert isinstance(body, str)

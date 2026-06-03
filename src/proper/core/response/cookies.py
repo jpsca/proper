@@ -7,7 +7,7 @@ from http.cookies import Morsel
 
 
 if t.TYPE_CHECKING:
-    from ..app import App
+    from ...app import App
 
 
 RE_FILTER_FROM_COOKIE_NAME = re.compile(r"[^a-zA-Z0-9!*&#$%^'`+_~\.\-]*")

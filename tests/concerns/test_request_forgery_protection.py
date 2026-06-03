@@ -12,10 +12,10 @@ from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.controller import Controller
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
-from proper.request.utils import make_test_scope
+from proper.helpers.asgi import make_test_scope
 
 
-class _TestController(Controller, RequestForgeryProtection):
+class _TestController(RequestForgeryProtection, Controller):
     def action(self):
         return "STOP"
 

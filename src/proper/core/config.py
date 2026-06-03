@@ -5,9 +5,9 @@ For tool-specific configuration (db, auth, etc.), see the `tools/` folder.
 """
 import typing as t
 
-from .errors import BadSecretKey, ConfigError
-from .helpers import DotDict
-from .units import DAYS, MB
+from ..errors import BadSecretKey, ConfigError
+from ..helpers import DotDict
+from ..units import DAYS, MB
 
 
 default_config = {

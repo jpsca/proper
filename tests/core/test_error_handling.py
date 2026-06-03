@@ -4,15 +4,15 @@ import pytest
 
 from proper import App, TestClient, status
 from proper.controller import Controller
+from proper.core.request import Request
+from proper.core.response import Response
 from proper.errors import (
     Forbidden,
     MatchNotFound,
     MethodNotAllowed,
     NotFound,
 )
-from proper.request import Request
-from proper.request.utils import make_test_scope
-from proper.response import Response
+from proper.helpers.asgi import make_test_scope
 from proper.router import Route
 
 

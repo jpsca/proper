@@ -4,10 +4,11 @@ import pytest
 from jx import ComponentNotFoundError
 
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
+from proper.core.request import Request
+from proper.core.response import Response
 from proper.errors import NotFound
 from proper.helpers import DotDict, MultiDict
-from proper.request import Request, make_test_scope
-from proper.response import Response
+from proper.helpers.asgi import make_test_scope
 from proper.status import not_modified
 
 

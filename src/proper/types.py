@@ -9,7 +9,7 @@ from collections.abc import (
 
 if t.TYPE_CHECKING:
 
-    from proper.request.formparser import MultipartPart
+    from proper.core.request.formparser import MultipartPart
 
 
 TScope = MutableMapping[str, t.Any]
@@ -19,8 +19,6 @@ TSend = Callable[[dict[str, t.Any]], Awaitable[None]]
 TReadable = t.IO[t.Any]
 TBody = bytes | bytearray | memoryview | Iterable[bytes]
 TException = type[BaseException]
-TEventHandler = Callable[[], t.Any]
-TEventHandlers = tuple[TEventHandler, ...]
 
 
 @t.runtime_checkable

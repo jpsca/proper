@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from .helpers import DotDict, MultiDict, jsonplus
-from .request import make_test_scope
+from .helpers.asgi import make_test_scope
 
 
 if t.TYPE_CHECKING:

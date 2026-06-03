@@ -1,6 +1,6 @@
 import typing as t
 
-from ..types import TReadable
+from ...types import TReadable
 
 
 __all__ = ("FileWrapper",)

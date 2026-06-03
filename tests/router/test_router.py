@@ -815,7 +815,7 @@ class TestRouter:
     def test_add_error_handler_rejects_non_exception(self):
         router = Router()
         with pytest.raises(AssertionError):
-            router.add_error_handler("not_a_class", Handlers.action)
+            router.add_error_handler("not_a_class", Handlers.action) # type: ignore
 
     def test_error_decorator(self):
         router = Router()
@@ -1188,7 +1188,7 @@ class TestChannelRegistration:
     def test_channel_rejects_non_channel_subclass(self):
         router = Router()
         with pytest.raises(AssertionError, match="must be a subclass of Channel"):
-            @router.channel("bad")
+            @router.channel("bad") # type: ignore
             class NotAChannel:
                 pass
 

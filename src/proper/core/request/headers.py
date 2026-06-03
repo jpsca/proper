@@ -6,11 +6,11 @@ from http import cookies as http_cookies
 
 from dateutil.parser import parse as dtparse
 
-from ..constants import DELETE, GET, HEAD, PATCH, POST, PUT
-from ..errors import InvalidHeader
-from ..helpers import MultiDict
-from ..helpers.formatters import format_locale
-from ..types import TScope
+from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT
+from ...errors import InvalidHeader
+from ...helpers import MultiDict
+from ...helpers.formatters import format_locale
+from ...types import TScope
 from .forwarded import parse_forwarded
 
 

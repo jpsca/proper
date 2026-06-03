@@ -4,7 +4,7 @@ from proper import Request, Response, current
 from proper.concerns import CurrentTimezone
 from proper.constants import GET
 from proper.controller import Controller
-from proper.request.utils import make_test_scope
+from proper.helpers.asgi import make_test_scope
 
 
 def _make(cls, app, **scope_kw):

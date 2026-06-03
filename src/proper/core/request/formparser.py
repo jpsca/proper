@@ -10,8 +10,8 @@ from urllib.parse import parse_qs
 import python_multipart as multipart
 from python_multipart.multipart import parse_options_header as _pm_parse_options_header
 
-from ..errors import MultipartError, UriTooLong
-from ..helpers import MultiDict, copy_file
+from ...errors import MultipartError, UriTooLong
+from ...helpers import MultiDict, copy_file
 
 
 T = t.TypeVar("T")

@@ -5,10 +5,10 @@ from proper.concerns import OriginProtection
 from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from proper.controller import Controller
 from proper.errors import InvalidOrigin
-from proper.request.utils import make_test_scope
+from proper.helpers.asgi import make_test_scope
 
 
-class _TestController(Controller, OriginProtection):
+class _TestController(OriginProtection, Controller):
     def action(self):
         return "OK"
 

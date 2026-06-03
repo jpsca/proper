@@ -1,18 +1,14 @@
 import asyncio
 import typing as t
 
-from .helpers import jsonplus, logger
-from .types import (
-    TReceive,
-    TScope,
-    TSend,
-)
+from ..helpers import jsonplus, logger
+from ..types import TReceive, TScope, TSend
 
 
 if t.TYPE_CHECKING:
-    from .app import App
-    from .channels import Channel
-    from .router import Router
+    from ..app import App
+    from ..channels import Channel
+    from ..router import Router
 
 
 def _subscription_key(channel_name: str, params: dict) -> str:

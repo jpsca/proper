@@ -1,13 +1,14 @@
 import typing as t
 
-from ..constants import FLASHES_SESSION_KEY, GET, HEAD
-from ..errors import (
+from ...constants import FLASHES_SESSION_KEY, GET, HEAD
+from ...errors import (
     BadRequest,
     ClientDisconnected,
     RequestEntityTooLarge,
 )
-from ..helpers import DotDict, MultiDict, logger
-from ..types import TReceive, TScope
+from ...helpers import DotDict, MultiDict, logger
+from ...helpers.asgi import make_test_scope
+from ...types import TReceive, TScope
 from .formparser import (
     parse_json,
     parse_multipart_sync,
@@ -15,12 +16,11 @@ from .formparser import (
     parse_query_string,
 )
 from .headers import RequestHeadersMixin
-from .utils import make_test_scope
 
 
 if t.TYPE_CHECKING:
-    from ..app import App
-    from ..router import Route
+    from ...app import App
+    from ...router import Route
 
 
 __all__ = ("Request", )

@@ -9,23 +9,23 @@ import pytest
 from proper import DotDict, Response
 from proper import status as pstatus
 from proper.constants import FLASHES_SESSION_KEY
-from proper.errors import InvalidHeader
-from proper.global_context import current
-from proper.request import Request
-from proper.request.utils import make_test_scope
-from proper.response.cookies import (
+from proper.core.request import Request
+from proper.core.response.cookies import (
     HOST_PREFIX,
     SECURE_PREFIX,
     validate_cookie_size,
     validate_domain,
 )
-from proper.response.file_wrapper import FileWrapper
-from proper.response.flash_messages import FlashMessages
-from proper.response.headers import (
+from proper.core.response.file_wrapper import FileWrapper
+from proper.core.response.flash_messages import FlashMessages
+from proper.core.response.headers import (
     ResponseHeadersDict,
     enc_name,
 )
-from proper.response.response import is_iterable
+from proper.core.response.response import is_iterable
+from proper.errors import InvalidHeader
+from proper.global_context import current
+from proper.helpers.asgi import make_test_scope
 
 
 def _scope(**kw):

@@ -9,10 +9,10 @@ from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import quote
 
-from .. import status as pstatus
-from ..global_context import current
-from ..helpers import DotDict
-from ..types import Iterable, TBody, TScope
+from ... import status as pstatus
+from ...global_context import current
+from ...helpers import DotDict
+from ...types import Iterable, TBody, TScope
 from .cookies import ResponseCookiesMixin
 from .file_wrapper import FileWrapper
 from .flash_messages import FlashMessages
@@ -20,7 +20,7 @@ from .headers import ResponseHeadersMixin
 
 
 if t.TYPE_CHECKING:
-    from ..app import App
+    from ...app import App
     from ..request import Request
 
 

@@ -3,8 +3,8 @@ import json
 import pytest
 
 from proper import App, TestClient, status
-from proper.config import load_config
 from proper.controller import Controller
+from proper.core.config import load_config
 from proper.errors import BadSecretKey, ConfigError
 from proper.router import Route
 from proper.units import to_seconds

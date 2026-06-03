@@ -4,8 +4,9 @@ from contextvars import ContextVar
 
 if t.TYPE_CHECKING:
     from .app import App
-    from .request import Request
-    from .response import Response
+    from .core.request import Request
+    from .core.response import Response
+
 
 ALWAYS_VALID = (
     "locale",

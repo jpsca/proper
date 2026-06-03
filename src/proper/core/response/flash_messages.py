@@ -1,7 +1,7 @@
 import typing as t
 from collections.abc import Iterator
 
-from ..constants import FLASHES_SESSION_KEY
+from ...constants import FLASHES_SESSION_KEY
 
 
 if t.TYPE_CHECKING:

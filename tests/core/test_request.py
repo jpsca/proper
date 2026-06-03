@@ -4,16 +4,8 @@ from io import BytesIO
 
 import pytest
 
-from proper.errors import (
-    ClientDisconnected,
-    InvalidHeader,
-    MultipartError,
-    RequestEntityTooLarge,
-    UriTooLong,
-)
-from proper.helpers import DotDict, MultiDict, copy_file
-from proper.request import Request, make_test_scope
-from proper.request.formparser import (
+from proper.core.request import Request
+from proper.core.request.formparser import (
     MultipartParser,
     MultipartPart,
     _safe_decode,
@@ -22,8 +14,16 @@ from proper.request.formparser import (
     parse_options_header,
     parse_query_string,
 )
-from proper.request.headers import parse_request_id
-from proper.request.utils import make_test_scope as _make_test_scope
+from proper.core.request.headers import parse_request_id
+from proper.errors import (
+    ClientDisconnected,
+    InvalidHeader,
+    MultipartError,
+    RequestEntityTooLarge,
+    UriTooLong,
+)
+from proper.helpers import DotDict, MultiDict, copy_file
+from proper.helpers.asgi import make_test_scope
 
 
 def _scope(url="/", method="GET", **kw):
@@ -88,7 +88,7 @@ def _make_disconnect_receive():
 
 class TestMakeTestScope:
     def test_defaults(self):
-        scope = _make_test_scope()
+        scope = make_test_scope()
         assert scope["type"] == "http"
         assert scope["method"] == "GET"
         assert scope["path"] == "/"
@@ -97,34 +97,34 @@ class TestMakeTestScope:
         assert scope["http_version"] == "1.1"
 
     def test_full_url(self):
-        scope = _make_test_scope("http://myhost:9090/hello?x=1")
+        scope = make_test_scope("http://myhost:9090/hello?x=1")
         assert scope["server"] == ("myhost", 9090)
         assert scope["path"] == "/hello"
         assert scope["query_string"] == b"x=1"
 
     def test_https_default_port(self):
-        scope = _make_test_scope("https://secure.example.com/path")
+        scope = make_test_scope("https://secure.example.com/path")
         assert scope["scheme"] == "https"
         assert scope["server"] == ("secure.example.com", 443)
 
     def test_params_override_query(self):
-        scope = _make_test_scope("/search?old=1", params={"q": "test"})
+        scope = make_test_scope("/search?old=1", params={"q": "test"})
         assert scope["query_string"] == b"q=test"
 
     def test_custom_method(self):
-        scope = _make_test_scope("/", method="post")
+        scope = make_test_scope("/", method="post")
         assert scope["method"] == "POST"
 
     def test_custom_scope_type(self):
-        scope = _make_test_scope("/", scope_type="websocket")
+        scope = make_test_scope("/", scope_type="websocket")
         assert scope["type"] == "websocket"
 
     def test_extra_kwargs(self):
-        scope = _make_test_scope("/", client=("127.0.0.1", 12345))
+        scope = make_test_scope("/", client=("127.0.0.1", 12345))
         assert scope["client"] == ("127.0.0.1", 12345)
 
     def test_custom_headers(self):
-        scope = _make_test_scope(
+        scope = make_test_scope(
             "/",
             headers=[("x-custom", "value"), (b"x-binary", b"bval")],
         )
@@ -133,7 +133,7 @@ class TestMakeTestScope:
         assert b"x-binary" in header_names
 
     def test_path_only_url(self):
-        scope = _make_test_scope("/foo/bar")
+        scope = make_test_scope("/foo/bar")
         assert scope["path"] == "/foo/bar"
         assert scope["server"] == ("example.com", 80)
 

@@ -2,7 +2,6 @@ import asyncio
 import hashlib
 import types
 import typing as t
-from collections.abc import Callable, Sequence
 from importlib import import_module
 from pathlib import Path
 
@@ -10,27 +9,26 @@ import itsdangerous
 import jx
 
 from . import pipeline, status, tools
-from .app_ws import AppWs
 from .channels import Cable
 from .cli.app_cli import get_cli
-from .config import load_config
-from .error_handlers import (
+from .core.app_ws import AppWs
+from .core.config import load_config
+from .core.error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
     fallback_error_handler,
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from .core.request import Request
+from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
 from .helpers import DotDict, jsonplus, logger
-from .request import Request
-from .response import Response
 from .router import Route, Router
 from .storage import attachment_for
 from .types import (
-    TEventHandler,
-    TEventHandlers,
+    THandler,
     TReceive,
     TScope,
     TSend,
@@ -38,6 +36,8 @@ from .types import (
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     import peewee as pw
     from huey import Huey
     from proper_cli import Cli
@@ -69,11 +69,11 @@ class App(AppWs):
 
     # A list of functions that are called if a request
     # raises an exception
-    _on_error: TEventHandlers = ()
+    _on_error: tuple[THandler, ...] = ()
 
     # A list of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
-    _on_teardown: TEventHandlers = ()
+    _on_teardown: tuple[THandler, ...] = ()
 
     name: str
     root_path: Path
@@ -129,7 +129,7 @@ class App(AppWs):
         import_name: str,
         config: dict[str, t.Any] | type | None = None,
         *,
-        middleware: Sequence[Callable] = (),
+        middleware: "Sequence[Callable]" = (),
     ) -> None:
         self.config = load_config(config or {})
         self._setup_paths(import_name)
@@ -260,13 +260,13 @@ class App(AppWs):
             except itsdangerous.BadSignature:
                 logger.debug("BadSignature %s...", str(value)[:10])
 
-    def on_error(self, func: TEventHandler) -> TEventHandler:
+    def on_error(self, func: THandler) -> THandler:
         """Decorator to add a function that runs if a request
         raises an exception."""
         self._on_error = self._on_error + (func,)
         return func
 
-    def on_teardown(self, func: TEventHandler) -> TEventHandler:
+    def on_teardown(self, func: THandler) -> THandler:
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)

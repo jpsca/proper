@@ -16,8 +16,8 @@ from .helpers import DotDict, import_string, logger
 
 
 if t.TYPE_CHECKING:
-    from .request import Request
-    from .response import Response
+    from .core.request import Request
+    from .core.response import Response
 
 
 __all__ = (
