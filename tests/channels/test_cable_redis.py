@@ -274,7 +274,7 @@ class TestCableTool:
             "SECRET_KEYS": ["*" * 50],
             "DEBUG": False,
             "CHANNELS": {
-                "type": "proper.cable.RedisCable",
+                "type": "proper.channels.RedisCable",
                 "url": redis_url,
             },
         })
@@ -324,7 +324,7 @@ class TestCableToolValidation:
     def test_accepts_valid_config(self):
         from proper.tools.cable import validate_config
 
-        validate_config({"type": "proper.cable.RedisCable"})
+        validate_config({"type": "proper.channels.RedisCable"})
         validate_config({"type": RedisCable})
 
 

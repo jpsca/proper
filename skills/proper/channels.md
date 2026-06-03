@@ -12,8 +12,8 @@ The system has three layers:
 
 | Layer       | Module            | Role                                                          |
 |-------------|-------------------|---------------------------------------------------------------|
-| **Channel** | `proper.channel`  | Base class you subclass — the "controller" for WebSockets     |
-| **Cable**   | `proper.cable`    | Pub/sub broker — maps stream names to channels                |
+| **Channel** | `proper.channels`  | Base class you subclass — the "controller" for WebSockets     |
+| **Cable**   | `proper.channels`    | Pub/sub broker — maps stream names to channels                |
 | **AppWs**   | `proper.app_ws`   | ASGI handler — protocol parsing, multiplexing, lifecycle      |
 
 Channel code is regular sync Python. The framework handles the async boundary the same way it does for HTTP requests: channel methods run in threads via `asyncio.to_thread()`, with database connections managed automatically.
@@ -400,7 +400,7 @@ CHANNELS = {}
 
 if env == "prod":
     CHANNELS = {
-        "type": "proper.cable.RedisCable",
+        "type": "proper.channels.RedisCable",
         "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         "prefix": "myapp:cable:",
     }
@@ -410,7 +410,7 @@ When `CHANNELS` is empty (or not set), the framework uses the default in-memory 
 
 | Option   | Default                    | Description                                         |
 |----------|----------------------------|-----------------------------------------------------|
-| `type`   | —                          | Class path, e.g. `"proper.cable.RedisCable"`        |
+| `type`   | —                          | Class path, e.g. `"proper.channels.RedisCable"`        |
 | `url`    | `redis://localhost:6379/0` | Redis connection URL                                |
 | `prefix` | `proper:cable:`            | Prefix for Redis pub/sub channel names              |
 

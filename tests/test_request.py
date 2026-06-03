@@ -11,13 +11,12 @@ from proper.errors import (
     RequestEntityTooLarge,
     UriTooLong,
 )
-from proper.helpers import DotDict, MultiDict
+from proper.helpers import DotDict, MultiDict, copy_file
 from proper.request import Request, make_test_scope
 from proper.request.formparser import (
     MultipartParser,
     MultipartPart,
     _safe_decode,
-    copy_file,
     parse_json,
     parse_multipart_sync,
     parse_options_header,

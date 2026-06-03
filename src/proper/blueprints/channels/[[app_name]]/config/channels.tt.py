@@ -7,7 +7,7 @@ CHANNELS: dict = {}
 
 if env == "prod":
     CHANNELS = {
-        "type": "proper.cable.RedisCable",
+        "type": "proper.channels.RedisCable",
         "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         "prefix": "[[ app_name ]]:cable:",
     }

@@ -8,7 +8,7 @@ import peewee as pw
 from peewee_migrate import Router as PWRouter
 from proper_cli import Cli
 
-from ..seeds import run_seeds
+from ..models import run_seeds
 
 
 QUEUE = "proper_queue"

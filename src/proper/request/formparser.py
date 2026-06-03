@@ -11,7 +11,7 @@ import python_multipart as multipart
 from python_multipart.multipart import parse_options_header as _pm_parse_options_header
 
 from ..errors import MultipartError, UriTooLong
-from ..helpers import MultiDict
+from ..helpers import MultiDict, copy_file
 
 
 T = t.TypeVar("T")
@@ -84,26 +84,6 @@ def parse_json(content: str, *, strict: bool = True) -> MultiDict:
             raise MultipartError(str(err)) from None
 
     return form
-
-
-def copy_file(
-    stream: t.IO[bytes],
-    target: t.IO[bytes],
-    maxread: int = -1,
-    buffer_size: int = 2 ** 16,
-) -> int:
-    """Read from *stream* and write to *target* until *maxread* or EOF."""
-    size, read = 0, stream.read
-
-    while True:
-        to_read = buffer_size if maxread < 0 else min(buffer_size, maxread - size)
-        part = read(to_read)
-
-        if not part:
-            return size
-
-        target.write(part)
-        size += len(part)
 
 
 def parse_options_header(

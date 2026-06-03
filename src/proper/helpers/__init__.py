@@ -29,6 +29,7 @@ from .render import (  # noqa
     sort_imports_in,
 )
 from .server import show_banner, show_welcome  # noqa
+from .streams import copy_file  # noqa
 
 
 logger = logging.getLogger("proper")

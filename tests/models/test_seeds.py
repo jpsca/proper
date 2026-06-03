@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from proper.seeds import run_seeds
+from proper.models import run_seeds
 
 
 # --- Fixtures ---
