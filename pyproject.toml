@@ -144,6 +144,8 @@ legacy_tox_ini = """
 env_list =
     3.13
     3.14
+    3.14t
+    3.15
 
 [testenv]
 runner = uv-venv-lock-runner
