@@ -3,7 +3,13 @@
   src: url("../fonts/AlbertSans.woff2") format("woff2");
   font-display: swap;
 }
-
+@font-face {
+  font-family: "Fira Code VF";
+  src: url("../fonts/FiraCode-VF.woff2") format("woff2-variations");
+  /* font-weight requires a range: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide#Using_a_variable_font_font-face_changes */
+  font-weight: 300 700;
+  font-style: normal;
+}
 
 html.cs-light {
   color-scheme: light;
@@ -38,7 +44,7 @@ html {
   --color-accent: rgb(var(--rgb-accent));
 
   --font-family: "Albert Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-family-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  --font-family-mono: "Fira Code VF", "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
   --font-size: min(calc(1.6em + 1vw), 2.3rem);
   --space-small: 0.5em;
   --space-medium: 1em;
