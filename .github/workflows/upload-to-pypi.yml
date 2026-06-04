@@ -11,20 +11,15 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.11
+      - uses: actions/checkout@v4
 
-      - name: "Installs dependencies"
-        run: |
-          pip install -U build twine
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: "Builds and uploads to PyPI"
-        run: |
-          python -m build
-          twine upload dist/*
+      - name: "Builds the package"
+        run: uv build
 
+      - name: "Uploads to PyPI"
+        run: uv publish
         env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TOKEN_PYPI }}
+          UV_PUBLISH_TOKEN: ${{ secrets.TOKEN_PYPI }}
