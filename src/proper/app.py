@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import sys
 import types
 import typing as t
 from importlib import import_module
@@ -151,6 +152,8 @@ class App(AppWs):
 
         current.app = self
 
+        self._warn_of_pending_migrations()
+
     @property
     def routes(self) -> list[Route]:
         return self.router._routes
@@ -203,6 +206,9 @@ class App(AppWs):
 
         elif scope["type"] == "websocket":
             await self._handle_websocket(scope, receive, send)
+
+    def has_migrations_pending(self) -> bool:
+        return False
 
     def url_for(
         self,
@@ -303,7 +309,15 @@ class App(AppWs):
         cache[base_model_cls] = cls
         return cls
 
-    # Private
+    # ---- Private ----
+
+    def _warn_of_pending_migrations(self):
+        if sys.argv[0].endswith("proper") and sys.argv[1] == "db":
+            return
+        if self.has_migrations_pending():
+            logger.warning(
+                "There are pending migrations for this app. Run `proper db migrate` to apply them."
+            )
 
     def _setup_paths(self, import_name: str) -> None:
         module = import_module(import_name)

@@ -1,6 +1,9 @@
 from typing import Final
 
 
+DB_QUEUE = "proper_queue"
+DB_CACHE = "proper_cache"
+
 # HTTP methods (minus CONNECT and TRACE)
 GET: Final = "GET"
 HEAD: Final = "HEAD"

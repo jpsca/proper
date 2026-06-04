@@ -14,6 +14,7 @@ class SignUpController(AppController):
     before = [
         {"do": "redirect_if_authenticated"},
         {"do": "set_form"},
+        {"do": "validate_form", "only": ["create"]},
     ]
     rate_limit = [
         {"to": 10, "within": 15 * MINUTES, "only": "create"},

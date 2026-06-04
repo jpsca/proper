@@ -13,6 +13,7 @@ class SessionController(AppController):
     before = [
         {"do": "redirect_if_authenticated", "exclude": ["delete"]},
         {"do": "set_form", "exclude": ["delete"]},
+        {"do": "validate_form", "only": ["create"]},
     ]
     rate_limit = [
         {

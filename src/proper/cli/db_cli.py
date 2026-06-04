@@ -4,15 +4,11 @@ import sys
 from importlib import import_module
 from pathlib import Path
 
-import peewee as pw
 from peewee_migrate import Router as PWRouter
 from proper_cli import Cli
 
+from ..constants import DB_CACHE, DB_QUEUE
 from ..models import run_seeds
-
-
-QUEUE = "proper_queue"
-CACHE = "proper_cache"
 
 
 MIGRATION_TEMPLATE = '''\
@@ -87,37 +83,24 @@ def _ruff_format(path: Path) -> None:
 
 def get_db_cli(app) -> type[Cli]:
     class DBCLI(Cli):
-        def _get_db(self, name: str, validate: bool = True) -> pw.Database | None:
-            """Get the database instance for the given name.
-
-            If the database is not found, it will print an error message (unless `validate` is False)
-            and return None.
-            """
+        def _get_router(self, name: str, validate: bool = True) -> Router | None:
             log = print if validate is True else (lambda *args, **kwargs: None)
 
             db = app.db.get(name)
             if db is None:
                 log(f"Database '{name}' not found.")
+                sys.exit(1)
                 return
 
-            if name == QUEUE:
+            if name == DB_QUEUE:
                 dburi = app.config.QUEUE.get("database")
-            elif name == CACHE:
+            elif name == DB_CACHE:
                 dburi = app.config.CACHE.get("database")
             else:
                 dburi = app.config.DATABASES.get(name, {}).get("database")
 
             if dburi == ":memory:":
                 log(f"{name}: Cannot run migrations on in-memory database.")
-                return
-
-            return db
-
-        def _get_router(self, name: str, validate: bool = True) -> Router | None:
-            db = self._get_db(name, validate=validate)
-            if db is None:
-                if validate:
-                    sys.exit(1)
                 return
 
             if db.is_closed():
@@ -137,9 +120,9 @@ def get_db_cli(app) -> type[Cli]:
                 Database name to create the migration for. Default is "main".
 
             """
-            if QUEUE == db:
+            if DB_QUEUE == db:
                 models = getattr(app.queue, "models", None)
-            elif CACHE == db:
+            elif DB_CACHE == db:
                 models = getattr(app.cache, "models", None)
             else:
                 models = import_module(f"{app.name}.models")
@@ -182,7 +165,7 @@ def get_db_cli(app) -> type[Cli]:
 
             # Run all migrations for all databases
             found = False
-            for name in [*app.config.DATABASES.keys(), QUEUE, CACHE]:
+            for name in [*app.config.DATABASES.keys(), DB_QUEUE, DB_CACHE]:
                 router = self._get_router(name, validate=False)
                 if router is None or not router.diff:
                     continue

@@ -60,8 +60,6 @@ Controller  ──────────────  receives the request, ru
 
 | Task | Read | Run |
 |------|------|-----|
-| Add a page with a DB model | [generated_app.md](generated_app.md) | `proper g resource NAME attrs...` |
-| Add a controller without a model | [generated_app.md](generated_app.md) | `proper g controller NAME attrs...` |
 | Add only a model | [models.md](models.md) | `proper g model NAME attrs...` |
 | Add seed data (default roles, reference rows) | [models.md — Seeds](models.md#seeds) | `proper g seed NAME` then `proper db seed` |
 | Add an email | [emails.md](emails.md) | `proper g email NAME` |
@@ -119,4 +117,4 @@ Use when the model already exists or no model is needed:
 - After any generator, check `controllers/__init__.py` and `models/__init__.py` to verify imports were added
 - New fields on existing tables need `default=...` or `null=True`
 - Run `proper routes` to verify the routes look correct
-- See [generated_app.md — Generator Quick Reference](generated_app.md#generator-quick-reference) for full generator options
+

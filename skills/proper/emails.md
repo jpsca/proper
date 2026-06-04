@@ -144,15 +144,16 @@ class WelcomeEmail(EmailMessage):
 The generated app includes a `BaseEmail` class in `emails/base_email.py` that adds `send_later()` for background delivery:
 
 ```python
-import proper
+from proper.emails import EmailMessage
 
 from ..tasks import send_email_task
 
 
-class BaseEmail(proper.EmailMessage):
+class BaseEmail(EmailMessage):
     def send_later(self, **options):
         self.update(**options)
         send_email_task(message=self.serialize())
+
 ```
 
 This serializes the email to a dictionary and queues it as a background task. The worker process calls `app.mailer.send_now()` to deliver it.

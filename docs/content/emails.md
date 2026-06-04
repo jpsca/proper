@@ -177,7 +177,7 @@ Fill in `subject`, accept whatever domain objects the email needs, and stash any
 
 ## The email class
 
-Every email in your app is a subclass of `BaseEmail`, which is itself a thin subclass of `proper.EmailMessage`. The hierarchy:
+Every email in your app is a subclass of `BaseEmail`, which is itself a thin subclass of `proper.emails.EmailMessage`. The hierarchy:
 
 - `EmailMessage` (from the framework) - composes a message, renders templates, sends through the configured mailer.
 - `BaseEmail` (in *your* app, at `emails/base_email.py`) - adds `send_later()` so you can hand the message off to the background queue. You can edit this class.
@@ -412,12 +412,12 @@ The call returns immediately. The actual SMTP work happens in the worker process
 
 ```python
 # emails/base_email.py
-import proper
+from proper.emails import EmailMessage
 
 from ..tasks import send_email_task
 
 
-class BaseEmail(proper.EmailMessage):
+class BaseEmail(EmailMessage):
     def send_later(self, **options):
         self.update(**options)
         send_email_task(message=self.serialize())
