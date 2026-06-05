@@ -104,7 +104,9 @@ class Controller:
                                 "[%s.%s] before: %s (from %s)",
                                 c_name, action_name, cb["do"], cls.__name__,
                             )
-                            action()
+                            body = action()
+                            if body is not None:
+                                self.response.body = body
                             if self.response.has_body:
                                 logger.debug(
                                     "[%s.%s] halted by before callback: %s",

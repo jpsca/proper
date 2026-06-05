@@ -1,3 +1,5 @@
+import pytest
+
 from proper.helpers import DotDict
 
 
@@ -130,7 +132,7 @@ def test_deep_update_new_key_deep_copied():
 
 def test_missing_key_raises():
     dot = DotDict({"a": 1})
-    import pytest
+
     with pytest.raises(AttributeError):
         _ = dot.nonexistent
 

@@ -1,5 +1,7 @@
 from io import BytesIO
 
+from markupsafe import Markup
+
 from proper.rich_text import RichTextDocument
 
 
@@ -155,7 +157,6 @@ def test_html_structural_content_only():
 
 def test_html_returns_markup_safe_string():
     """The result must carry the Markup type so Jinja renders it raw."""
-    from markupsafe import Markup
     doc = RichTextDocument("")
     assert isinstance(doc.__html__(), Markup)
 

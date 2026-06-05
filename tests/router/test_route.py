@@ -487,9 +487,6 @@ class TestStaticRoute:
         css.write_text("v1")
         r = StaticRoute("/static", root=str(tmp_path), fingerprint=True)
         url1 = r.format(file="style.css")
-
-        import time
-        time.sleep(0.05)
         css.write_text("v2")
         url2 = r.format(file="style.css")
 

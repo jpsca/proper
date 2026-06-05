@@ -2,8 +2,12 @@
 
 from io import BytesIO
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
+from urllib.request import Request as URLRequest
+from urllib.request import urlopen
 
 import pytest
+from botocore.exceptions import ClientError
 
 from proper import App, current
 from proper.models import ProperModel
@@ -158,8 +162,6 @@ def test_purge_deletes_object(MINIO_BUCKET, Attachment):
     att.purge()
 
     # Verify it's gone
-    from botocore.exceptions import ClientError
-
     with pytest.raises(ClientError):
         service.client.head_object(Bucket=MINIO_BUCKET, Key=key)
 
@@ -261,8 +263,6 @@ def test_service_url_returns_signed_url(Attachment):
 
 
 def test_service_url_inline_by_default(Attachment):
-    from urllib.request import urlopen
-
     att = Attachment(
         _make_file(b"bytes", "report.pdf"),
         content_type="application/pdf",
@@ -280,8 +280,6 @@ def test_service_url_inline_by_default(Attachment):
 
 
 def test_service_url_as_attachment_sets_download_disposition(Attachment):
-    from urllib.request import urlopen
-
     att = Attachment(_make_file(b"x", "data.bin"), content_type="application/octet-stream")
     att.save(force_insert=True)
 
@@ -294,8 +292,6 @@ def test_service_url_as_attachment_sets_download_disposition(Attachment):
 
 def test_service_url_uses_configured_expiration(app, minio, Attachment):
     """`url_expires_in` config flows through to the presigned URL."""
-    from urllib.parse import parse_qs, urlparse
-
     att = Attachment(_make_file(b"x", "f.txt"))
     att.save(force_insert=True)
 
@@ -329,9 +325,6 @@ def test_direct_upload_url_returns_signed_put(Attachment):
 def test_direct_upload_url_round_trip(Attachment):
     """A real PUT to the presigned URL stores the bytes; we can then GET
     them back via the same key. End-to-end smoke test."""
-    from urllib.request import Request as URLRequest
-    from urllib.request import urlopen
-
     att = Attachment.create_pending_blob(
         filename="rt.txt", content_type="text/plain", byte_size=5,
     )
@@ -468,9 +461,6 @@ def test_public_direct_upload_round_trip(Attachment):
     """End-to-end PUT to the presigned public URL with the returned headers
     succeeds. Validates that the signed `ACL` param and the `x-amz-acl`
     header agree (S3 rejects the PUT otherwise — signature mismatch)."""
-    from urllib.request import Request as URLRequest
-    from urllib.request import urlopen
-
     att = Attachment.create_pending_blob(
         filename="rt.txt", content_type="text/plain", byte_size=5,
         service_name="s3_public",

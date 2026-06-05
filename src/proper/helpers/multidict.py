@@ -29,9 +29,11 @@ class MultiDict(MutableMapping):
         return iter(self.data)
 
     def __contains__(self, key: object):
+        key = self._normalize_key(key)
         return key in self.data
 
     def __delitem__(self, key: str):
+        key = self._normalize_key(key)
         del self.data[key]
 
     def __getitem__(self, key: str):
@@ -39,13 +41,18 @@ class MultiDict(MutableMapping):
         # consistent with `__setitem__` (which appends a single value) and
         # makes `pop` (inherited from MutableMapping) return a scalar too.
         # Use `.getall(key)` when you need every value associated with a key.
+        key = self._normalize_key(key)
         return self.data[key][-1]
 
     def __setitem__(self, key: str, value: t.Any):
+        key = self._normalize_key(key)
         return self.append(key, value)
 
     def __repr__(self):
         return f"{type(self).__name__}({list(self)!r})"
+
+    def _normalize_key(self, key: t.Any) -> t.Any:
+        return key
 
     def keys(self) -> KeysView:
         return self.data.keys()
@@ -55,23 +62,29 @@ class MultiDict(MutableMapping):
         return self.data.items()
 
     def append(self, key: str, value: t.Any) -> None:
+        key = self._normalize_key(key)
         self.data.setdefault(key, []).append(value)
 
     def extend(self, key: str, values: list[t.Any]) -> None:
+        key = self._normalize_key(key)
         self.data.setdefault(key, []).extend(values)
 
     def update(self, dict_or_iter: TDictOrIter | t.Any = (), /, **kwargs: t.Any) -> None:
         if dict_or_iter:
             if isinstance(dict_or_iter, MultiDict):
                 for key, values in dict_or_iter.items():
+                    key = self._normalize_key(key)
                     self.data.setdefault(key, []).extend(values)
             elif hasattr(dict_or_iter, "items"):
                 for key, value in dict(dict_or_iter).items():
+                    key = self._normalize_key(key)
                     self.data.setdefault(key, []).append(value)
             else:
                 for key, value in dict_or_iter:
+                    key = self._normalize_key(key)
                     self.data.setdefault(key, []).append(value)
         for key, value in kwargs.items():
+            key = self._normalize_key(key)
             self.data.setdefault(key, []).append(value)
 
     def get(
@@ -114,6 +127,7 @@ class MultiDict(MutableMapping):
                 Optional. Get this index instead of the first value
 
         """
+        key = self._normalize_key(key)
         if key not in self.data:
             return default
         value = self.data[key][index]
@@ -150,6 +164,7 @@ class MultiDict(MutableMapping):
                 the value is not included in the result
 
         """
+        key = self._normalize_key(key)
         if key not in self.data:
             return []
         values = self.data[key]
@@ -165,6 +180,14 @@ class MultiDict(MutableMapping):
 
     def set(self, key: str, values: list[t.Any]):
         """Replace all values for the given `key`"""
+        key = self._normalize_key(key)
         if not isinstance(values, list):
             values = list(values)
         self.data[key] = values
+
+
+class CIMultiDict(MultiDict):
+    """Case-insensitive MultiDict.
+    """
+    def _normalize_key(self, key: t.Any) -> str:
+        return str(key).lower()

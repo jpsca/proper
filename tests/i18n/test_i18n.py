@@ -5,6 +5,7 @@ from markupsafe import Markup
 
 from proper.errors import TranslationsNotFound
 from proper.i18n import I18n
+from proper.i18n.formatters import Formatters
 from proper.i18n.reader import Reader, deep_update
 
 
@@ -412,13 +413,11 @@ def test_get_currency_symbol(i18n):
 
 
 def test_get_current_locale_default():
-    from proper.i18n.formatters import Formatters
     mixin = Formatters()
     assert mixin.get_current_locale() == "en"
 
 
 def test_get_current_timezone_default():
-    from proper.i18n.formatters import Formatters
     mixin = Formatters()
     tz = mixin.get_current_timezone()
     assert str(tz) == "UTC"

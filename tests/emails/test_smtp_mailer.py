@@ -1,3 +1,4 @@
+import smtplib
 from smtplib import SMTPException
 
 import pytest
@@ -45,7 +46,6 @@ def test_prep_address_invalid():
 
 
 def test_connection_class():
-    import smtplib
     mailer_plain = SMTPMailer(use_tls=False, use_ssl=False)
     assert mailer_plain.connection_class is smtplib.SMTP
 

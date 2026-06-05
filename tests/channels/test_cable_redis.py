@@ -2,10 +2,14 @@ import asyncio
 import typing as t
 
 import pytest
+import redis
 
 from proper.app import App
 from proper.channels import Cable, Channel, RedisCable
+from proper.errors import ConfigError
 from proper.helpers import DotDict, jsonplus
+from proper.tools.cable import setup as setup_cable
+from proper.tools.cable import validate_config
 
 
 class FakeApp:
@@ -57,9 +61,7 @@ class TestRedisCableInit:
 class TestBroadcast:
     def test_publish_reaches_redis(self, cable, redis_url):
         """Verify that broadcast() actually publishes to Redis."""
-        import redis as r
-
-        client = r.from_url(redis_url)
+        client = redis.from_url(redis_url)
         pubsub = client.pubsub()
         pubsub.psubscribe("test:cable:*")
         # consume the psubscribe confirmation
@@ -77,9 +79,7 @@ class TestBroadcast:
         client.close()
 
     def test_broadcast_uses_prefix(self, cable, redis_url):
-        import redis as r
-
-        client = r.from_url(redis_url)
+        client = redis.from_url(redis_url)
         pubsub = client.pubsub()
         pubsub.subscribe("test:cable:mystream")
         pubsub.get_message(timeout=1)
@@ -245,85 +245,72 @@ class TestSubscribeUnsubscribe:
 
 class TestCableTool:
     def test_default_creates_cable(self):
-        from proper.tools.cable import setup
-
         app = FakeApp()
         app.config = DotDict({"SECRET_KEYS": ["*" * 50], "DEBUG": False})
-        setup(app)
+        setup_cable(app)
         assert isinstance(app.cable, Cable)
         assert not isinstance(app.cable, RedisCable)
 
     def test_empty_dict_creates_cable(self):
-        from proper.tools.cable import setup
-
         app = FakeApp()
-        app.config = DotDict({
-            "SECRET_KEYS": ["*" * 50],
-            "DEBUG": False,
-            "CHANNELS": {},
-        })
-        setup(app)
+        app.config = DotDict(
+            {
+                "SECRET_KEYS": ["*" * 50],
+                "DEBUG": False,
+                "CHANNELS": {},
+            }
+        )
+        setup_cable(app)
         assert isinstance(app.cable, Cable)
         assert not isinstance(app.cable, RedisCable)
 
     def test_with_config_creates_redis_cable(self, redis_url):
-        from proper.tools.cable import setup
-
         app = FakeApp()
-        app.config = DotDict({
-            "SECRET_KEYS": ["*" * 50],
-            "DEBUG": False,
-            "CHANNELS": {
-                "type": "proper.channels.RedisCable",
-                "url": redis_url,
-            },
-        })
-        setup(app)
+        app.config = DotDict(
+            {
+                "SECRET_KEYS": ["*" * 50],
+                "DEBUG": False,
+                "CHANNELS": {
+                    "type": "proper.channels.RedisCable",
+                    "url": redis_url,
+                },
+            }
+        )
+        setup_cable(app)
         assert isinstance(app.cable, RedisCable)
         assert app.cable._url == redis_url
 
     def test_with_class_reference(self):
-        from proper.tools.cable import setup
-
         app = FakeApp()
-        app.config = DotDict({
-            "SECRET_KEYS": ["*" * 50],
-            "DEBUG": False,
-            "CHANNELS": {
-                "type": RedisCable,
-                "prefix": "test:",
-            },
-        })
-        setup(app)
+        app.config = DotDict(
+            {
+                "SECRET_KEYS": ["*" * 50],
+                "DEBUG": False,
+                "CHANNELS": {
+                    "type": RedisCable,
+                    "prefix": "test:",
+                },
+            }
+        )
+        setup_cable(app)
         assert isinstance(app.cable, RedisCable)
         assert app.cable._prefix == "test:"
 
 
 class TestCableToolValidation:
     def test_rejects_non_dict(self):
-        from proper.errors import ConfigError
-        from proper.tools.cable import validate_config
-
         with pytest.raises(ConfigError, match="must be a dictionary"):
             validate_config("bad")
 
     def test_rejects_missing_type(self):
-        from proper.errors import ConfigError
-        from proper.tools.cable import validate_config
-
         with pytest.raises(ConfigError, match="must have a 'type' key"):
             validate_config({"url": "redis://localhost"})
 
     def test_rejects_bad_type_value(self):
-        from proper.errors import ConfigError
-        from proper.tools.cable import validate_config
-
         with pytest.raises(ConfigError, match="must be a string or a class"):
             validate_config({"type": 42})
 
     def test_accepts_valid_config(self):
-        from proper.tools.cable import validate_config
-
         validate_config({"type": "proper.channels.RedisCable"})
         validate_config({"type": RedisCable})
 

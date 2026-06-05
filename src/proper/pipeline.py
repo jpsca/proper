@@ -10,6 +10,8 @@ from .constants import (
     POST,
     PUT,
     QUERY,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_SALT,
 )
 from .controller import Controller
 from .helpers import DotDict, import_string, logger
@@ -50,7 +52,9 @@ def copy_session(request: "Request", response: "Response"):
 
 def _find_session_by_cookie(request: "Request") -> DotDict:
     session = request.get_signed_cookie(
-        "_session", salt="session", max_age=request.app.config.SESSION_COOKIE_LIFETIME
+        SESSION_COOKIE_NAME,
+        salt=SESSION_COOKIE_SALT,
+        max_age=request.app.config.SESSION_COOKIE_LIFETIME
     )
     logger.debug(">>> %s", session or "")
     return DotDict(session or {})
@@ -146,15 +150,15 @@ def update_session_cookie(request: "Request", response: "Response") -> None:
     if response.session:
         _set_new_session_cookie(request, response)
     else:
-        response.unset_cookie("_session")
+        response.unset_cookie(SESSION_COOKIE_NAME)
 
 
 def _set_new_session_cookie(request: "Request", response: "Response") -> None:
     config = request.app.config
     response.set_signed_cookie(
-        "_session",
+        SESSION_COOKIE_NAME,
         dict(response.session),
-        salt="session",
+        salt=SESSION_COOKIE_SALT,
         max_age=int(config.SESSION_COOKIE_LIFETIME)
         if config.SESSION_COOKIE_LIFETIME
         else None,

@@ -437,7 +437,14 @@ class App(AppWs):
             )
             # This error will be handled in the _run_pipeline method
 
-        response = await asyncio.to_thread(self._run_pipeline, request, response)
+        # By default the (synchronous) pipeline runs in a worker thread so it
+        # doesn't block the event loop. `RUN_SYNC` runs it inline instead, on
+        # the same thread/connection as the caller - which lets tests wrap a
+        # request and its setup in a single DB transaction.
+        if self.config.get("RUN_SYNC"):
+            response = self._run_pipeline(request, response)
+        else:
+            response = await asyncio.to_thread(self._run_pipeline, request, response)
         current.response = response
         return response
 

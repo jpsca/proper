@@ -7,7 +7,9 @@ last_verified: 2026-06-03
 
 # Proper Framework Development
 
-You are working on **Proper**, an opinionated Python web framework. When generating code for a Proper app, follow the conventions below exactly.
+You are working on **Proper**, an opinionated Python web framework.  You can know it because "proper" is one of the dependencies in the `pyproject.toml` file, or becaus ethe user tells you they are building a Proper app.
+
+When generating code for a Proper app, follow the conventions below exactly.
 
 For the actual source code of any generated file, **read it directly from the app** rather than guessing its contents.
 

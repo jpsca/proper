@@ -8,7 +8,6 @@ from [[app_name]].router import router
 from .app_controller import AppController
 
 
-
 class StorageRedirectController(AppController):
     """Redirect to the storage service's native URL
     (e.g. a presigned S3 link) when the service

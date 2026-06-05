@@ -17,9 +17,6 @@ DATABASES: dict[str, t.Any] = {
     #     "port": int(os.getenv("DB_PORT", 5432)),
     #     "user": os.getenv("DB_USER", "root"),
     #     "password": os.getenv("DB_PASSWORD", ""),
-    #     # The connection is managed in a concern of the controllers,
-    #     # and on the `on_teardown` and `on_error` hooks
-    #     "autoconnect": False,
     # }
 }
 
@@ -93,9 +90,6 @@ if env == "prod":
         "port": int(os.getenv("DB_PORT", 5432)),
         "user": os.getenv("DB_USER", "root"),
         "password": os.getenv("DB_PASSWORD", ""),
-        # The connection is managed in a concern of the controllers,
-        # and on the `on_teardown` and `on_error` hooks
-        "autoconnect": False,
     }
 
     QUEUE = {

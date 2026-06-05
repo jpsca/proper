@@ -1,3 +1,4 @@
+from .authentication import Authentication
 from .concern import Concern
 from .current_locale import CurrentLocale
 from .current_timezone import CurrentTimezone
@@ -13,6 +14,7 @@ from .request_forgery_protection import (
 
 
 __all__ = (
+    "Authentication",
     "Concern",
     "CurrentLocale",
     "CurrentTimezone",

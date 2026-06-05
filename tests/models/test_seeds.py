@@ -202,7 +202,6 @@ class TestRun:
         _write_seed(pkg, "only_dev", envs=("dev",))
 
         run_seeds()
-
         from db.seeds import _log
 
         assert _log.entries == ["only_dev"]

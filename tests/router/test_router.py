@@ -3,7 +3,7 @@ import pytest
 from proper.channels import Channel
 from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from proper.global_context import current
-from proper.router.route import Route, _namespace_prefix
+from proper.router.route import Route, StaticRoute, _namespace_prefix
 from proper.router.router import (
     GROUP_ROUTES,
     SINGLE_ROUTES,
@@ -589,7 +589,6 @@ class TestStatic:
     def test_static_route_is_static_route_type(self):
         router = BaseRouter()
         route = router.static("/assets", root="/tmp/assets")
-        from proper.router.route import StaticRoute
         assert isinstance(route, StaticRoute)
 
 

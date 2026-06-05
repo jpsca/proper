@@ -5,6 +5,7 @@ from .controller import Controller  # noqa
 from .global_context import current  # noqa
 from .helpers import (  # noqa
     DotDict,
+    CIMultiDict,
     MultiDict,
     Undefined,
     import_string,

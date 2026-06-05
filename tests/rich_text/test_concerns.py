@@ -3,6 +3,7 @@ from io import BytesIO
 import peewee as pw
 
 from proper.rich_text import HasRichText
+from proper.rich_text.concerns import _collect_attachment_ids
 
 
 def _make_file(content=b"hello", filename="test.txt", content_type=""):
@@ -201,11 +202,9 @@ def test_field_without_attachment_cls_is_skipped(PostNoAttachments):
 
 
 def test_collect_ids_from_non_string_returns_empty():
-    from proper.rich_text.concerns import _collect_attachment_ids
     assert _collect_attachment_ids(None) == []
     assert _collect_attachment_ids(123) == []
 
 
 def test_collect_ids_from_html_without_attachments_returns_empty():
-    from proper.rich_text.concerns import _collect_attachment_ids
     assert _collect_attachment_ids("<p>nothing here</p>") == []

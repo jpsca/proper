@@ -6,8 +6,19 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlencode
 
-from .constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
-from .helpers import DotDict, MultiDict, jsonplus
+from .constants import (
+    AUTH_COOKIE_NAME,
+    AUTH_COOKIE_SALT,
+    DELETE,
+    GET,
+    HEAD,
+    OPTIONS,
+    PATCH,
+    POST,
+    PUT,
+    QUERY,
+)
+from .helpers import CIMultiDict, DotDict, jsonplus
 from .helpers.asgi import make_test_scope
 
 
@@ -22,30 +33,6 @@ def _to_bytes(value, charset="latin1"):
     if isinstance(value, str):
         return value.encode(charset)
     return value
-
-
-class _CIMultiDict(MultiDict):
-    """Case-insensitive MultiDict for response headers.
-
-    Keys are lowered on storage so lookups are case-insensitive.
-    `get` returns the last value; `getall` returns every value
-    (useful for Set-Cookie and other multi-value headers).
-    """
-
-    def __setitem__(self, key, value):
-        super().__setitem__(key.lower(), value)
-
-    def __getitem__(self, key):
-        return super().__getitem__(key.lower())
-
-    def __contains__(self, key):
-        return super().__contains__(key.lower())
-
-    def get(self, key, default=None, **kwargs):
-        return super().get(key.lower(), default, **kwargs)
-
-    def getall(self, key, **kwargs):
-        return super().getall(key.lower(), **kwargs)
 
 
 class TestClient:
@@ -65,8 +52,27 @@ class TestClient:
 
     __test__ = False  # prevent pytest collection
 
-    def __init__(self, app: "App") -> None:
+    default_headers: dict[str, str]
+    remote_ip: str = "127.0.0.1"
+    user_agent: str = "TestClient"
+
+    def __init__(
+        self,
+        app: "App",
+        *,
+        headers: dict[str, str] | None = None,
+        sync: bool = True,
+    ) -> None:
         self.app = app
+
+        headers = {key.lower(): value for key, value in headers.items()} if headers else {}
+        headers.setdefault("forwarded", f"for={self.remote_ip};")
+        headers.setdefault("user-agent", self.user_agent)
+        self.default_headers = headers
+
+        # Runs requests inline, so a request shares this thread's connection:
+        # one transaction spans the test and the requests it makes.
+        self.app.config.RUN_SYNC = sync
 
     def get(
         self,
@@ -158,7 +164,7 @@ class TestClient:
     def websocket(self, url: str = "") -> "WebSocketTestSession":
         """Create a WebSocket test session.
 
-        Usage::
+        Usage:
 
             ws = client.websocket()
             task = await ws.connect()
@@ -172,27 +178,12 @@ class TestClient:
         path = url or self.app.config.get("CABLE_PATH", "/cable")
         return WebSocketTestSession(self.app, path)
 
-    def sign_in(
-        self,
-        login: str = "testuser",
-        password: str = "password123",
-        *,
-        action: str = "SessionController.create",
-    ) -> str:
-        """Sign in and return the auth cookie string."""
-        url = self.app.router.url_for(action)
-        result = self.post(url, body={"login": login, "password": password})
-        assert result.status == 303
-        # Extract the _auth cookie from the Set-Cookie header
-        set_cookie = result.headers.get("set-cookie", "")
-        return set_cookie.split(";")[0]  # "_auth=SIGNED_VALUE"
+    def sign_in(self, session):
+        """Adds an authenticated session cookie to the client, for testing authenticated endpoints."""
+        value = self.app.dumps(session.token, salt=AUTH_COOKIE_SALT)
+        self.default_headers["cookie"] = f"{AUTH_COOKIE_NAME}={value}"
 
-    def sign_out(self, *, action: str = "SessionController.destroy"):
-        url = self.app.router.url_for(action)
-        result = self.delete(url)
-        assert result.status == 303
-
-    # Private
+    # ---- Private ----
 
     def _request(
         self,
@@ -202,17 +193,14 @@ class TestClient:
         params: dict | None = None,
         body: dict | str | bytes | BytesIO = b"",
         upload_files: list[tuple[str, str | Path]] | None = None,
-        headers: dict | None = None,
+        headers: dict[str, str] | None = None,
     ) -> DotDict:
         if params is None:
             params = {}
-        extra_headers = [
-            ("forwarded", "for=127.0.0.1;"),
-            ("user-agent", "TestClient"),
-        ]
-        if headers:
-            for name, val in headers.items():
-                extra_headers.append((name, val))
+
+        req_headers = dict(self.default_headers.items())
+        headers = {key.lower(): value for key, value in headers.items()} if headers else {}
+        req_headers.update(headers)
 
         if upload_files:
             if body and not isinstance(body, dict):
@@ -223,21 +211,24 @@ class TestClient:
             content_type, body_bytes = _encode_multipart(
                 params=body, upload_files=upload_files
             )
-            extra_headers.append(("content-type", content_type))
+            req_headers["content-type"] = content_type
         else:
             body_bytes = _encode_body(body)
             if isinstance(body, dict) and body:
-                extra_headers.append(
-                    ("content-type", "application/x-www-form-urlencoded")
-                )
+                req_headers["content-type"] = "application/x-www-form-urlencoded"
 
         if body_bytes:
-            extra_headers.append(("content-length", str(len(body_bytes))))
+            req_headers["content-length"] = str(len(body_bytes))
 
-        scope = make_test_scope(url, method=method, params=params, headers=extra_headers)
+        scope = make_test_scope(
+            url,
+            method=method,
+            params=params,
+            headers=req_headers.items()
+        )
 
         resp_status = 0
-        resp_headers = _CIMultiDict()
+        resp_headers = CIMultiDict()
         body_parts: list[bytes] = []
         body_consumed = False
 

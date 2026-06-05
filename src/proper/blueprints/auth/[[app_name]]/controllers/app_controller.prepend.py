@@ -1,1 +1,2 @@
-from .concerns.authentication import Authentication
+from proper.concerns import Authentication
+from ..models import Session

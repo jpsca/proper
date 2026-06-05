@@ -1,3 +1,4 @@
+import time
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -1045,8 +1046,6 @@ def test_disk_upload_token_is_salt_scoped(app, Attachment):
 def test_disk_upload_token_expires(app, Attachment, monkeypatch):
     """Upload tokens caducan en 15 min (default `resolve_token` max_age) —
     una URL filtrada no se puede reutilizar mucho después de emitirla."""
-    import time
-
     att = Attachment.create_pending_blob(
         filename="x.txt", content_type="text/plain", byte_size=10,
     )

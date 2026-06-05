@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from io import BytesIO
 
@@ -16,7 +17,6 @@ def _make_file(content=b"x", filename="x.txt"):
 def _make_attachment(Attachment, *, source, pending, age_hours, content=b"x"):
     """Create an attachment with overridden source/pending/age."""
     # Use unique filenames so concurrent tests don't collide on disk.
-    import uuid
     name = f"{uuid.uuid4().hex}.txt"
     att = Attachment(_make_file(content, name), source=source, pending=pending)
     att.save()

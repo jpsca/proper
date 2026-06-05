@@ -13,7 +13,7 @@ from .imports import (  # noqa
     import_string,
     secure_filename,
 )
-from .multidict import MultiDict  # noqa
+from .multidict import CIMultiDict, MultiDict  # noqa
 from .render import (  # noqa
     add_dependencies,
     add_to_concerns,

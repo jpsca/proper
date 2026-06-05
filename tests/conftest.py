@@ -2,8 +2,11 @@ import os
 import subprocess
 import time
 
+import boto3
 import peewee as pw
 import pytest
+import redis
+from botocore.exceptions import ClientError, EndpointConnectionError
 
 from proper import App, current
 from proper.models import ProperModel
@@ -41,7 +44,6 @@ def BaseModel(app, db):
 
 
 def _redis_ready(url) -> bool:
-    import redis
     try:
         r = redis.from_url(url)
         r.ping()
@@ -52,9 +54,6 @@ def _redis_ready(url) -> bool:
 
 
 def _minio_ready(endpoint, access_key, secret_key) -> bool:
-    import boto3
-    from botocore.exceptions import ClientError, EndpointConnectionError
-
     client = boto3.client(
         "s3",
         endpoint_url=endpoint,
@@ -187,7 +186,6 @@ def minio(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, MINIO_BUCKET):
         subprocess.run(["docker", "rm", "-f", MINIO_NAME], capture_output=True)
         pytest.skip("MinIO did not become ready in time")
 
-    import boto3
     client = boto3.client(
         "s3",
         endpoint_url=endpoint,

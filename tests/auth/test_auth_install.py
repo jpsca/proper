@@ -30,6 +30,7 @@ def app_in_tmp(tmp_path, app):
         "forms",
         "models",
         "views/layouts",
+        "../tests",
     ):
         (app_root / d).mkdir(parents=True)
 
@@ -42,6 +43,7 @@ def app_in_tmp(tmp_path, app):
     (app_root / "models" / "__init__.py").write_text("")
     (app_root / "router.py").write_text("from proper.router import Router\nrouter = Router()\n")
     (app_root / "views" / "nav.jx").write_text("<nav></nav>\n")
+    (tmp_path / "tests" / "conftest.py").write_text("")
 
     app.root_path = app_root
     app.name = "myapp"
@@ -51,10 +53,6 @@ def app_in_tmp(tmp_path, app):
 def test_file_creation(app_in_tmp):
     auth.install(app_in_tmp)
     root_path = app_in_tmp.root_path
-
-    # creates_authentication_concern
-    path = root_path / "controllers" / "concerns" / "authentication.py"
-    assert path.exists()
 
     # creates_session_controller
     path = root_path / "controllers" / "session_controller.py"
@@ -151,11 +149,7 @@ def test_file_creation(app_in_tmp):
 
     # prepends_to_app_controller
     text = (root_path / "controllers" / "app_controller.py").read_text()
-    assert "from .concerns.authentication import Authentication" in text
-
-    # adds_authentication_concern
-    text = (root_path / "controllers" / "app_controller.py").read_text()
-    assert "Authentication," in text
+    assert "Authentication.for_session(Session)" in text
 
     # records the install in .proper
     assert metadata.is_installed(app_in_tmp, "auth")

@@ -1,5 +1,8 @@
+import email.policy
 import smtplib
 import ssl
+import subprocess
+from email.message import EmailMessage as StdEmailMessage
 from io import StringIO
 from unittest.mock import MagicMock, Mock, patch
 
@@ -247,8 +250,6 @@ class TestAttachments:
         assert msg.get_content_type() == "multipart/mixed"
 
     def test_message_rfc822_attachment(self, tmp_path):
-        from email.message import EmailMessage as StdEmailMessage
-
         eml = tmp_path / "forwarded.eml"
         eml.write_bytes(b"From: a@b.com\r\nSubject: hi\r\n\r\nBody")
 
@@ -319,7 +320,6 @@ class TestIdnaEncoding:
         assert "example.com" in str(msg["To"])
 
     def test_utf8_policy_skips_idna_encoding(self):
-        import email.policy
         mailer = BaseMailer()
         mailer.policy = email.policy.SMTPUTF8
         email_dict = _simple_msg()
@@ -448,7 +448,6 @@ class TestSMTPMailerInit:
 
     def test_ssl_context_custom_cert(self, tmp_path):
         # Create a self-signed cert for testing ssl_context branch
-        import subprocess
         cert = tmp_path / "cert.pem"
         key = tmp_path / "key.pem"
         subprocess.run([

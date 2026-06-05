@@ -770,6 +770,7 @@ docs = [
 test = [
     { name = "boto3" },
     { name = "poyo" },
+    { name = "proper-new" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
@@ -814,6 +815,7 @@ docs = [{ name = "writeadoc", specifier = ">=0.22.0" }]
 test = [
     { name = "boto3", specifier = ">=1.35.71" },
     { name = "poyo" },
+    { name = "proper-new" },
     { name = "pytest", specifier = ">=7.2" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
@@ -829,6 +831,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b8/39/018909db196921e8f3f944bf4d938f694236e1914d38256c78430563d384/proper_cli-1.4.1.tar.gz", hash = "sha256:33317610f73a6f3919bd0d31b33753067fbf18f8ae11368a0cd729122d12ba07", size = 12882, upload-time = "2024-03-31T18:33:48.935Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e5/88/c338d55e4813c3d5427e87800f6067765436872908fc05a18683aca563aa/proper_cli-1.4.1-py3-none-any.whl", hash = "sha256:82ba74f7b0b756ce5e48a3357d1e1ca8fc9c44bfea956f587eeecc6a8ebb37d1", size = 13640, upload-time = "2024-03-31T18:33:47.774Z" },
+]
+
+[[package]]
+name = "proper-new"
+version = "0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "hecto" },
+    { name = "inflection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/0d/9010f01995db6a7e07d56bf387097ede8788c0542374eaeb6d0ac2a8f32a/proper_new-0.8.tar.gz", hash = "sha256:6f6858bd142dbf6eb4c3b2c04a9661d02395fe1c194e7f185c2633cc3c2c4bbe", size = 3571, upload-time = "2026-03-19T18:12:58.914Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/33/51b89abf64cb69757b43bcaafa7dd7a0bd328ec9662d8b9b27fca99981f8/proper_new-0.8-py3-none-any.whl", hash = "sha256:4f75226d8573d9abb9d0ed3b673c748e13a88c299475c0a1050838c155aa22e6", size = 3312, upload-time = "2026-03-19T18:12:57.801Z" },
 ]
 
 [[package]]

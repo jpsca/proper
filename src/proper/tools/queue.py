@@ -48,6 +48,17 @@ def setup(app):
     if config["type"] == "huey.SqliteHuey":
         if "database" in config:
             config["filename"] = config.pop("database")
+        if config.get("filename") == ":memory:":
+            # A ":memory:" SQLite database is private to each connection, and
+            # SqliteHuey opens a separate connection per worker thread - and the
+            # consumer normally runs in its own process. So nothing would share
+            # the same queue. (Shared-cache can't help: in-memory databases are
+            # only shared within a single process.)
+            raise ConfigError(
+                "SqliteHuey cannot use ':memory:' (the queue would not be "
+                "shared with the consumer process). Use a file path, "
+                "RedisHuey, or MemoryHuey for an in-memory queue."
+            )
 
     elif config["type"] == "huey.contrib.sql_huey.SqlHuey":
         if "dbtype" in config:

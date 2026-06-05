@@ -1,4 +1,5 @@
 import time
+import unittest.mock
 
 import pytest
 
@@ -130,8 +131,6 @@ class TestIncrementDecrement:
                 cache.client.set(key, cache.serialize(99))
             return result
 
-        import unittest.mock
-
         with unittest.mock.patch.object(
             cache.client.pipeline().__class__, "get", intercepting_get
         ):
@@ -217,7 +216,3 @@ class TestConfig:
         monkeypatch.setattr(mod, "redis", None)
         with pytest.raises(ImportError, match="redis is required"):
             RedisCache()
-
-    def test_exported_from_package(self):
-        from proper.cache import RedisCache as RC
-        assert RC is RedisCache

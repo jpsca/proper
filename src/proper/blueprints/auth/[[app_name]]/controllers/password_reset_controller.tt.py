@@ -43,12 +43,15 @@ class PasswordResetController(AppController):
     def edit(self):
         self.form = PasswordChangeForm()
         self.login = self.user.login
+        self.token = self.params.get("token")
         self.password_minlen = config.AUTH_PASSWORD_MINLEN
 
     def update(self):
         self.form = PasswordChangeForm(self.params)
         if self.form.is_invalid:
             self.login = self.user.login
+            self.token = self.params.get("token")
+            self.password_minlen = config.AUTH_PASSWORD_MINLEN
             return self.redo()
 
         new_password = self.form.save()["password1"]
@@ -66,7 +69,8 @@ class PasswordResetController(AppController):
             max_age=config.AUTH_TOKEN_LIFE,
         )
         if not user:
-            return self.render("password_reset/invalid.jx")
+            self.response.body = self.render("password_reset/invalid.jx")
+            return
         self.user = user
 
     def too_many_requests(self):

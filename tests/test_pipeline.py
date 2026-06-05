@@ -3,10 +3,11 @@ from unittest.mock import patch
 import pytest
 
 from proper import TestClient, current, status
-from proper.constants import FLASHES_SESSION_KEY
+from proper.constants import FLASHES_SESSION_KEY, SESSION_COOKIE_NAME
 from proper.controller import Controller
 from proper.core.request import Request
 from proper.core.response import Response
+from proper.errors import MatchNotFound
 from proper.helpers import DotDict
 from proper.helpers.asgi import make_test_scope
 from proper.pipeline import (
@@ -152,8 +153,6 @@ class TestMatch:
         assert co.request.matched_params["id"] == "42"
 
     def test_raises_on_no_match(self, app, make_co):
-        from proper.errors import MatchNotFound
-
         co = make_co(method="GET", url="/nope")
         with pytest.raises(MatchNotFound):
             match(co.request, None)
@@ -241,7 +240,7 @@ class TestUpdateSessionCookie:
         co.response.session = DotDict({"foo": "bar"})
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
-        session_cookies = [c for c in cookies if "_session" in c[1]]
+        session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
         assert session_cookies == []
 
     def test_sets_cookie_when_session_modified(self, app, co):
@@ -250,7 +249,7 @@ class TestUpdateSessionCookie:
         co.response.session = DotDict({"foo": "bar"})
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
-        session_cookies = [c for c in cookies if "_session" in c[1]]
+        session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
         assert len(session_cookies) == 1
 
     def test_unsets_cookie_when_session_cleared(self, app, co):
@@ -258,7 +257,7 @@ class TestUpdateSessionCookie:
         co.response.session = DotDict()
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
-        session_cookies = [c for c in cookies if "_session" in c[1]]
+        session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
         assert len(session_cookies) == 1
         cookie_val = session_cookies[0][1]
         assert "max-age=0" in cookie_val.lower() or "expires=" in cookie_val.lower()
@@ -269,7 +268,7 @@ class TestUpdateSessionCookie:
         co.response.session = DotDict({"changed": True})
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
-        session_cookies = [c for c in cookies if "_session" in c[1]]
+        session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
         assert session_cookies == []
 
 
@@ -290,7 +289,7 @@ class TestFlashThroughPipeline:
         assert co.response.session.get(FLASHES_SESSION_KEY) == [("info", "Saved!")]
 
         cookies = co.response.get_cookie_tuples()
-        session_cookies = [c for c in cookies if "_session" in c[1]]
+        session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
         assert len(session_cookies) == 1, (
             "session cookie was not written, so the flash will be lost"
         )

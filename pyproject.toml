@@ -64,6 +64,7 @@ test = [
     "pytest >= 7.2",
     "pytest-cov",
     # To test installable frameworks
+    "proper_new",
     "boto3 >= 1.35.71",
     "poyo",
     "pytest-smtpd",

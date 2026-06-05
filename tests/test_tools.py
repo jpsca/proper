@@ -1,8 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from huey import MemoryHuey
 
 from proper import App
+from proper.cache import NoCache
+from proper.emails import ToConsoleMailer
 from proper.errors import ConfigError
 from proper.helpers import DotDict
 from proper.tools import auth, cache, db, i18n, mailer, queue, storage
@@ -127,8 +130,6 @@ def test_token_life_must_be_positive_int():
 
 def test_default_nocache():
     app = _make_app()
-    from proper.cache import NoCache
-
     assert isinstance(app.cache, NoCache)
 
 
@@ -311,8 +312,6 @@ def test_i18n_registers_jinja_global(tmp_path):
 
 def test_default_to_console_mailer():
     app = _make_app()
-    from proper.emails import ToConsoleMailer
-
     assert isinstance(app.mailer, ToConsoleMailer)
 
 
@@ -346,8 +345,6 @@ def test_mailer_type_must_be_str_or_class():
 
 def test_default_memory_huey():
     app = _make_app()
-    from huey import MemoryHuey
-
     assert isinstance(app.queue, MemoryHuey)
 
 

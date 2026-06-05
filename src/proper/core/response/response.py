@@ -10,16 +10,19 @@ from pathlib import Path
 from urllib.parse import quote
 
 from ... import status as pstatus
+from ...constants import SIGNED_COOKIE_SALT
 from ...global_context import current
 from ...helpers import DotDict
 from ...types import Iterable, TBody, TScope
-from .cookies import ResponseCookiesMixin
+from .cookies import make_cookie, validate_cookie_size
 from .file_wrapper import FileWrapper
 from .flash_messages import FlashMessages
 from .headers import ResponseHeadersMixin
 
 
 if t.TYPE_CHECKING:
+    from http.cookies import Morsel
+
     from ...app import App
     from ..request import Request
 
@@ -31,13 +34,25 @@ def is_iterable(obj: t.Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
 
-class Response(ResponseHeadersMixin, ResponseCookiesMixin):
+class Response(ResponseHeadersMixin):
     """ """
 
     flash: FlashMessages
     error: Exception | None = None
     body: TBody | str | None = None
     status: int = pstatus.ok
+    cookies: "dict[str, Morsel]"
+
+    # Warn if a cookie header exceeds this size.
+    # The default is 4093 and should be supported by most browsers
+    # (See http://browsercookielimits.squawky.net)
+    # A cookie larger than this size will still be sent, but it may be ignored or
+    # handled incorrectly by some browsers. Set to 0 to disable this check.
+    max_cookie_size: int = 4093
+
+    # Set to True to not set cookies in this response, including any changes to the
+    # session. You might want to use it for some read-only public endpoints, like a RSS feed.
+    disable_cookies: bool = False
 
     def __init__(
         self,
@@ -49,6 +64,7 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
         self.status = status
         self._session = DotDict()
         self.flash = FlashMessages(self)
+        self.cookies = {}
         super().__init__()
 
     def __repr__(self) -> str:
@@ -75,6 +91,128 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
     def status_code(self) -> int:
         """The status code of the response."""
         return self.status
+
+    def set_cookie(
+        self,
+        name: str,
+        value: t.Any = "",
+        *,
+        max_age: int | None = None,
+        path: str = "/",
+        domain: str | None = None,
+        secure: bool = False,
+        httponly: bool = False,
+        samesite: t.Literal["Lax", "Strict", "None"] | None = "Lax",
+        comment: str = "",
+        signed: bool = False,
+        salt: str = SIGNED_COOKIE_SALT,
+    ) -> None:
+        """
+        Set (add) a cookie to the response.
+
+        Arguments:
+            name:
+                The cookie name.
+            value:
+                The cookie value.
+            max_age:
+                An integer representing a number of seconds, datetime.timedelta,
+                or None. This value is used for the Max-Age and Expires values of
+                the generated cookie (Expires will be set to now + max_age).
+                If this value is None, the cookie will not have a Max-Age value.
+            path:
+                A string representing the cookie Path value. It defaults to `/`.
+            domain:
+                A string representing the cookie Domain, or None. If domain is None,
+                no Domain value will be sent in the cookie.
+            secure:
+                A boolean. If it's True, the secure flag will be sent in the cookie,
+                if it's False, the secure flag will not be sent in the cookie.
+            httponly:
+                A boolean. If it's True, the HttpOnly flag will be sent in the cookie,
+                if it's False, the HttpOnly flag will not be sent in the cookie.
+            samesite:
+                A string representing the SameSite attribute of the cookie or None.
+                If samesite is Python `None`, no SameSite value will be sent.
+                Should be `"Lax"`, `"Strict"`, `"None"`, or Python `None`.
+                See: https://www.owasp.org/index.php/SameSite
+
+                **Note**: Modern browsers place restriction on cookies without the
+                "same-site" cookie attribute set. To that end this attribute
+                is set to `"Lax"` by default.
+            comment:
+                A string representing the cookie Comment value, or None. If comment
+                is None, no Comment value will be sent in the cookie.
+            signed:
+                Cryptographically sign the cookie before setting it.
+                Default is `False`.
+            salt:
+                optional salt argument for added key strength, but you will
+                need to remember to pass it to the corresponding
+                `request.get_signed_cookie()` call.
+
+        """
+        if signed:
+            value = self.app.dumps(value, salt=salt)
+        elif not isinstance(value, (str, bytes)):
+            value = str(value)
+
+        cookie = make_cookie(
+            name=name,
+            value=value,
+            max_age=max_age,
+            path=path,
+            domain=domain,
+            secure=secure,
+            httponly=httponly,
+            samesite=samesite,
+            comment=comment,
+        )
+        name = cookie.key
+        if self.max_cookie_size > 0:
+            validate_cookie_size(name, cookie.output(), self.max_cookie_size)
+        self.cookies[name] = cookie
+
+    def unset_cookie(self, name: str) -> None:
+        """Unset a cookie in the response.
+
+        Clears the contents of the cookie, **and instructs the user agent to
+        immediately expire its own copy of the cookie**.
+
+        Arguments:
+            name:
+                The cookie name.
+        """
+        self.set_cookie(name, value=" ", max_age=0, comment="")
+
+    def set_signed_cookie(
+        self,
+        name: str,
+        value: t.Any = "",
+        *,
+        max_age: int | None = None,
+        path: str = "/",
+        domain: str | None = None,
+        secure: bool = False,
+        httponly: bool = False,
+        samesite: t.Literal["Lax", "Strict", "None"] | None = "Lax",
+        comment: str = "",
+        salt: str = "",
+    ) -> None:
+        """A shorthand for `.set_cookie(..., signed=True)`"""
+        return self.set_cookie(
+            name=name,
+            value=value,
+            max_age=max_age,
+            path=path,
+            domain=domain,
+            secure=secure,
+            httponly=httponly,
+            samesite=samesite,
+            comment=comment,
+            signed=True,
+            salt=salt,
+        )
 
     def redirect_to(
         self,
@@ -264,6 +402,15 @@ class Response(ResponseHeadersMixin, ResponseCookiesMixin):
 
         self.headers["content-disposition"] = f"{value}{options}"
         self.body = FileWrapper(path.open("rb"), block_size=8192)
+
+    def get_cookie_tuples(self) -> list[tuple[str, str]]:
+        if self.disable_cookies or not self.cookies:
+            return []
+
+        return [
+            ("Set-Cookie", morsel.OutputString())
+            for morsel in self.cookies.values()
+        ]
 
     def get_headers_list(self) -> list[tuple[str, str]]:
         return [*self.get_header_tuples(), *self.get_cookie_tuples()]

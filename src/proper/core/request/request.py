@@ -1,6 +1,6 @@
 import typing as t
 
-from ...constants import FLASHES_SESSION_KEY, GET, HEAD
+from ...constants import FLASHES_SESSION_KEY, GET, HEAD, SIGNED_COOKIE_SALT
 from ...errors import (
     BadRequest,
     ClientDisconnected,
@@ -214,7 +214,7 @@ class Request(RequestHeadersMixin):
             name: str,
             default: str | None = None,
             *,
-            salt: str = "",
+            salt: str = SIGNED_COOKIE_SALT,
             max_age: int | None = None,
         ) -> str | t.Any:
         """
@@ -248,7 +248,7 @@ class Request(RequestHeadersMixin):
         if cookie_value is None:
             return default
 
-        value = self.app.loads(cookie_value, max_age=max_age, salt="cookie")
+        value = self.app.loads(cookie_value, max_age=max_age, salt=salt)
 
         if value is None:
             logger.info("Bad signed cookie: %s", name)

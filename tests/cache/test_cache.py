@@ -1,9 +1,11 @@
+import pickle
 import threading
 from datetime import datetime
 from time import time
 from unittest.mock import MagicMock
 
 import pytest
+from jinja2 import Environment
 
 from proper.cache import (
     BaseCache,
@@ -15,16 +17,17 @@ from proper.cache import (
     key_for_object,
 )
 from proper.cache.base import NoSerializer, Serializer, SerializerProtocol
+from proper.cache.sqlite_cache import Cache
 
 
 class TestSerializerProtocol:
     def test_serialize_raises(self):
         with pytest.raises(NotImplementedError):
-            SerializerProtocol.serialize(None, b"")
+            SerializerProtocol.serialize(None, b"")  # type: ignore
 
     def test_deserialize_raises(self):
         with pytest.raises(NotImplementedError):
-            SerializerProtocol.deserialize(None, b"")
+            SerializerProtocol.deserialize(None, b"")  # type: ignore
 
 
 class TestNoSerializer:
@@ -63,8 +66,7 @@ class TestSerializer:
         assert s.deserialize(data) == 42
 
     def test_none_protocol_uses_highest(self):
-        import pickle
-        s = Serializer(protocol=None)
+        s = Serializer(protocol=None)  # type: ignore
         assert s.protocol == pickle.HIGHEST_PROTOCOL
 
 
@@ -176,14 +178,12 @@ class TestSqliteCache:
     def test_set_with_short_expires_in(self, cache):
         cache.set("key1", "value1", expires_in=1)
         # Simulate expiration by setting expires_at to the past
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "key1").execute()
         assert cache.get("key1") is None
 
     def test_get_expired_key(self, cache):
         cache.set("key1", "value1", expires_in=1)
         # Simulate expiration by updating expires_at directly
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "key1").execute()
         assert cache.get("key1") is None
 
@@ -193,7 +193,6 @@ class TestSqliteCache:
 
     def test_get_expired_deletes_key(self, cache):
         cache.set("key1", "value1", expires_in=1)
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "key1").execute()
         cache.get("key1")
         # Key should be deleted
@@ -211,6 +210,7 @@ class TestSqliteCache:
 
     def test_get_or_set_callable(self, cache):
         called = []
+
         def compute():
             called.append(1)
             return "computed"
@@ -230,31 +230,32 @@ class TestSqliteCache:
     def test_get_or_set_with_expires_in(self, cache):
         cache.get_or_set("key", "value", expires_in=1)
         assert cache.get("key") == "value"
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "key").execute()
         assert cache.get("key") is None
 
     def test_get_or_set_race_condition_ttl_serves_stale(self, cache):
         """Within the race window, other callers get the stale value."""
         cache.set("key", "original", expires_in=100)
-        from proper.cache.sqlite_cache import Cache
         # Expire the key 2 seconds ago
         Cache.update(expires_at=int(time()) - 2).where(Cache.key == "key").execute()
 
         # First caller recomputes
-        result = cache.get_or_set("key", lambda: "recomputed", expires_in=100, race_condition_ttl=10)
+        result = cache.get_or_set(
+            "key", lambda: "recomputed", expires_in=100, race_condition_ttl=10
+        )
         assert result == "recomputed"
 
         # Simulate a second concurrent caller seeing the extended stale entry.
         # After the first caller bumped the TTL and then wrote the new value,
         # subsequent callers get the fresh value.
-        result2 = cache.get_or_set("key", lambda: "should_not_run", expires_in=100, race_condition_ttl=10)
+        result2 = cache.get_or_set(
+            "key", lambda: "should_not_run", expires_in=100, race_condition_ttl=10
+        )
         assert result2 == "recomputed"
 
     def test_get_or_set_race_condition_ttl_extends_stale(self, cache):
         """The stale entry's TTL is extended so others don't also recompute."""
         cache.set("key", "original", expires_in=100)
-        from proper.cache.sqlite_cache import Cache
         # Expire the key 2 seconds ago
         Cache.update(expires_at=int(time()) - 2).where(Cache.key == "key").execute()
 
@@ -272,18 +273,21 @@ class TestSqliteCache:
     def test_get_or_set_race_condition_ttl_expired_beyond_window(self, cache):
         """Beyond the race window, treat as a normal miss."""
         cache.set("key", "original", expires_in=100)
-        from proper.cache.sqlite_cache import Cache
         # Expire the key 20 seconds ago, beyond the 10s window
         Cache.update(expires_at=int(time()) - 20).where(Cache.key == "key").execute()
 
-        result = cache.get_or_set("key", lambda: "fresh", expires_in=100, race_condition_ttl=10)
+        result = cache.get_or_set(
+            "key", lambda: "fresh", expires_in=100, race_condition_ttl=10
+        )
         assert result == "fresh"
 
     def test_get_or_set_race_condition_ttl_not_expired(self, cache):
         """If the key is still valid, return it without recomputing."""
         cache.set("key", "valid", expires_in=3600)
         called = []
-        result = cache.get_or_set("key", lambda: called.append(1) or "new", race_condition_ttl=10)
+        result = cache.get_or_set(
+            "key", lambda: called.append(1) or "new", race_condition_ttl=10
+        )
         assert result == "valid"
         assert len(called) == 0
 
@@ -304,7 +308,6 @@ class TestSqliteCache:
     def test_increment_expired_key_resets(self, cache):
         cache.increment("counter", 10, expires_in=1)
         # Simulate expiration
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "counter").execute()
         result = cache.increment("counter", 1, expires_in=1)
         assert result == 1
@@ -346,7 +349,6 @@ class TestSqliteCache:
         cache.set("old", "value", expires_in=1)
         cache.set("new", "value")
         # Simulate expiration of "old"
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "old").execute()
         cache.delete_expired()
         assert cache.get("old") is None
@@ -354,7 +356,6 @@ class TestSqliteCache:
 
     def test_delete_expired_default(self, cache):
         cache.set("old", "value", expires_in=1)
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "old").execute()
         cache.delete_expired()
         assert cache._count() == 0
@@ -438,7 +439,6 @@ class TestSqliteCache:
     def test_read_multi_skips_expired(self, cache):
         cache.set("fresh", "yes")
         cache.set("stale", "no", expires_in=1)
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=0).where(Cache.key == "stale").execute()
         result = cache.read_multi("fresh", "stale")
         assert result == {"fresh": "yes"}
@@ -624,12 +624,14 @@ class TestFragmentCacheExtension:
         ext = self._make_ext(cache)
         cache.set("my-key", "stale", expires_in=100)
         # Expire the key 2 seconds ago
-        from proper.cache.sqlite_cache import Cache
         Cache.update(expires_at=int(time()) - 2).where(Cache.key == "my-key").execute()
 
         result = ext._cache_support(
-            "my-key", caller=lambda: "fresh", name="view",
-            expires_in=300, race_condition_ttl=10,
+            "my-key",
+            caller=lambda: "fresh",
+            name="view",
+            expires_in=300,
+            race_condition_ttl=10,
         )
         assert result == "fresh"
         assert cache.get("my-key") == "fresh"
@@ -638,40 +640,28 @@ class TestFragmentCacheExtension:
         assert "cache" in FragmentCacheExtension.tags
 
     def test_parse_and_render(self):
-        from jinja2 import Environment
-
         env = Environment(extensions=[FragmentCacheExtension])
         env.app_cache = SqliteCache(":memory:")
 
-        template = env.from_string(
-            "{% cache('my-key') %}expensive{% endcache %}"
-        )
+        template = env.from_string("{% cache('my-key') %}expensive{% endcache %}")
         result = template.render()
         assert result == "expensive"
         assert env.app_cache.get("my-key") == "expensive"
 
     def test_parse_cache_hit(self):
-        from jinja2 import Environment
-
         env = Environment(extensions=[FragmentCacheExtension])
         env.app_cache = SqliteCache(":memory:")
         env.app_cache.set("key", "cached")
 
-        template = env.from_string(
-            "{% cache('key') %}fresh{% endcache %}"
-        )
+        template = env.from_string("{% cache('key') %}fresh{% endcache %}")
         result = template.render()
         assert result == "cached"
 
     def test_parse_with_expires_in(self):
-        from jinja2 import Environment
-
         env = Environment(extensions=[FragmentCacheExtension])
         env.app_cache = SqliteCache(":memory:")
 
-        template = env.from_string(
-            "{% cache('key', expires_in=300) %}body{% endcache %}"
-        )
+        template = env.from_string("{% cache('key', expires_in=300) %}body{% endcache %}")
         result = template.render()
         assert result == "body"
         assert env.app_cache.get("key") == "body"

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 import inflection
 
+from .. import metadata
 from ..constants import (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -180,6 +181,8 @@ def gen_controller(
     if namespace:
         nsprefix = ":".join(inflection.camelize(seg) for seg in namespace.split("/")) + ":"
 
+    test_client = "signed_client" if metadata.is_installed(app, "auth") else "client"
+
     context = {
         "app_name": app.name,
         "name_pascal": name_pascal,
@@ -198,7 +201,8 @@ def gen_controller(
         "object_id": pk or f"{name_snake}_id",
         "pk": pk,
         "namespace": namespace,
-        "nsprefix": nsprefix
+        "nsprefix": nsprefix,
+        "test_client": test_client,
     }
 
     if namespace:

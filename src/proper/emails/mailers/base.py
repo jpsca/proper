@@ -2,7 +2,7 @@ import email.policy
 import typing as t
 from datetime import datetime, timezone
 from email.headerregistry import Address, AddressHeader
-from email.message import EmailMessage
+from email.message import EmailMessage as StdEmailMessage
 from email.utils import make_msgid
 from pathlib import Path
 
@@ -41,7 +41,8 @@ class BaseMailer:
 
     default_from: str
     fail_silently: bool
-    policy: "email.policy.EmailPolicy[EmailMessage]" = email.policy.default
+    policy: "email.policy.EmailPolicy[StdEmailMessage]" = email.policy.default
+    outbox: list[StdEmailMessage]
 
     def __init__(self, fail_silently: bool = False, **default_options: t.Any):
         self.default_options = default_options
@@ -78,8 +79,8 @@ class BaseMailer:
         """
         raise NotImplementedError
 
-    def render(self, message: EmailMessageDict) -> EmailMessage:
-        msg = EmailMessage(policy=self.policy)
+    def render(self, message: EmailMessageDict) -> StdEmailMessage:
+        msg = StdEmailMessage(policy=self.policy)
         self._add_bodies(msg, message)
         self._add_attachments(msg, message)
 
@@ -106,7 +107,7 @@ class BaseMailer:
         self._idna_encode_address_header_domains(msg)
         return msg
 
-    def _add_bodies(self, msg: EmailMessage, message: EmailMessageDict):
+    def _add_bodies(self, msg: StdEmailMessage, message: EmailMessageDict):
         if message["body"] or not message["alternatives"]:
             encoding = self.encoding or message["charset"]
             body = force_str(
@@ -131,7 +132,7 @@ class BaseMailer:
                     msg.add_alternative(content, maintype=maintype, subtype=subtype)
         return msg
 
-    def _add_attachments(self, msg: EmailMessage, message: EmailMessageDict):
+    def _add_attachments(self, msg: StdEmailMessage, message: EmailMessageDict):
         if message["attachments"]:
             msg.make_mixed()
             for attachment in message["attachments"]:
@@ -139,7 +140,7 @@ class BaseMailer:
 
     def _add_attachment(
         self,
-        msg: EmailMessage,
+        msg: StdEmailMessage,
         message: EmailMessageDict,
         attachment: EmailAttachment
     ):
@@ -174,7 +175,7 @@ class BaseMailer:
 
     def _set_list_header_if_not_empty(
         self,
-        msg: EmailMessage,
+        msg: StdEmailMessage,
         headers: dict[str, t.Any],
         header,
         values,
@@ -189,7 +190,7 @@ class BaseMailer:
             if values:
                 msg[header] = ", ".join(str(v) for v in values)
 
-    def _idna_encode_address_header_domains(self, msg: EmailMessage):
+    def _idna_encode_address_header_domains(self, msg: StdEmailMessage):
         """
         If msg.policy does not permit utf8 in headers, IDNA encode all
         non-ASCII domains in its address headers.

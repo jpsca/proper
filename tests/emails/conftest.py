@@ -1,11 +1,12 @@
 import pytest
 
+from proper.emails.utils import DNS_NAME
+
 
 @pytest.fixture(autouse=True, scope="session")
 def _warm_dns_cache():
     # socket.getfqdn() can take ~5s on machines with slow reverse DNS.
     # Pre-seed the cached FQDN so the mailer never calls it during tests.
-    from proper.emails.utils import DNS_NAME
     DNS_NAME._fqdn = "localhost"
 
 

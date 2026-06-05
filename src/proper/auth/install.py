@@ -24,6 +24,7 @@ SORT_IMPORTS_IN = [
     "controllers/app_controller.py",
     "cli/__init__.py",
     "emails/__init__.py",
+    "../tests/conftest.py",
 ]
 
 DEPENDENCIES = [
@@ -45,7 +46,7 @@ def install(app: "App") -> None:
     )
     add_to_concerns(
         app.root_path / "controllers" / "app_controller.py",
-        "Authentication",
+        "Authentication.for_session(Session)",
     )
 
     for filename in SORT_IMPORTS_IN:
