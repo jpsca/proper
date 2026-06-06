@@ -40,7 +40,7 @@ class StorageProxyController(AppController):
     skip_authentication = True
 
     @router.get("storage/proxy/:token/:filename")
-    def proxy(self):
+    def show(self):
         attachment = Attachment.get_signed(
             self.params.get("token"),
             salt="proxy",

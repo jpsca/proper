@@ -863,6 +863,8 @@ The pattern is "child wraps parent." For a single request:
 parent.before  →  child.before  →  action  →  child.after  →  parent.after
 ```
 
+Each class's own `before`/`after` is collected independently from its own class body along the inheritance chain, so a child that declares `before` does not override the parent's - both run.
+
 This means a `before` callback on `AppController` always runs before any `before` callback on a child controller. The classic example is requiring login:
 
 ```python
@@ -996,7 +998,7 @@ class ProjectController(TeamScoped, AppController):
 
 A few rules of thumb:
 
-- **List concerns before `AppController`** when mixing them into individual controllers (`TeamScoped, AppController`). Python's MRO uses left-to-right order, and listing the concern first makes its callbacks run closer to the child than `AppController`'s do.
+- **List concerns before `AppController`** when mixing them into individual controllers (`TeamScoped, AppController`). Python's MRO uses left-to-right order, and listing the concern first makes its callbacks run closer to the child than `AppController`'s do. Concretely for `before` (which runs in reversed-MRO order, so the left-most class runs last): `AppController`'s `before` runs first, then `TeamScoped`'s.
 - **Keep concerns focused.** "Loads a team," "checks editor access," "tracks page views" - one job each. If a concern grows past 30 or 40 lines, it's probably doing too much.
 - **Concerns aren't a way to share state.** They're a way to share *behavior*. If two controllers need the same data, that's usually a model concern (covered in the [Models guide](/docs/models)) or a helper, not a controller concern.
 

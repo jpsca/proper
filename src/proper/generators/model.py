@@ -1,3 +1,4 @@
+import re
 import typing as t
 
 import inflection
@@ -145,16 +146,33 @@ def _split_attr(attr: str) -> tuple[str, str, list[str]]:
     return name, ftype, options
 
 
+rx_number = re.compile(r"^[+-]?(\d+(\.\d+)?|\.\d+)$")
+
+
 def _build_option(option: str) -> str:
     key, value = f"{option}:".split(":", 1)
     value = value.rstrip(":") or "True"
+
     if value.lower() == "false":
         value = "False"
-    if key == "backref":
-        if value.startswith("'") and value.endswith("'"):
+
+    first_char = value[0]
+    last_char = value[-1]
+
+    if (
+        value not in ("True", "False")
+        and not rx_number.match(value)
+        and not (first_char == "[" and last_char == "]")
+        and not (first_char == "{" and last_char == "}")
+    ):
+        if first_char == "'" and last_char == "'":
             value = f'"{value[1:-1]}"'
         else:
-            value = f'"{value}"'
+            if not first_char == '"':
+                value = f'"{value}'
+            if not last_char == '"':
+                value = f'{value}"'
+
     return f"{key}={value}"
 
 

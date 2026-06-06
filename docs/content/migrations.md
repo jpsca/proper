@@ -142,7 +142,7 @@ When you generate a brand-new model with `proper g model` - or as a part of a re
 proper g model Comment body:text book:foreign --migration
 ```
 
-This generates `models/comment.py`, adds it to `models/__init__.py`, and then runs `proper db create create_comment` for you. It's the fastest way to add a new table.
+This generates `models/comment.py`, adds it to `models/__init__.py`, and then runs `proper db create comment` for you (writing `db/main/NNN_comment.py`). It's the fastest way to add a new table.
 
 Without `--migration`, only the model file is created; you'd then run `proper db create` separately.
 
@@ -585,11 +585,10 @@ db/
 ├── main/
 ├── analytics/
 └── seeds/
-    ├── main/
-    │   ├── __init__.py
-    │   ├── roles.py
-    │   └── admin_user.py
-    └── analytics/
+    ├── __init__.py          # seeds for "main" (the default db) stay flat
+    ├── roles.py
+    ├── admin_user.py
+    └── analytics/           # non-default databases get their own subfolder
         ├── __init__.py
         └── reference_paths.py
 ```

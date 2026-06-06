@@ -768,29 +768,35 @@ The `proper routes` command prints a table of every route registered in your app
 ```
 
 ```
-METHOD | PATH                             | TO                            | NAME              | HOST
------- | -------------------------------- | ----------------------------- | ----------------- | ----
-GET    |  /assets/:file<path>             | StaticFilesController.show    | assets            | -   
-GET    |  /favicon.ico                    | -> /assets/favicon.ico        | -                 | -   
-GET    |  /robots.txt                     | -> /assets/robots.txt         | -                 | -   
-GET    |  /humans.txt                     | -> /assets/humans.txt         | -                 | -   
-GET    |  /photos                         | PhotoController.index         | Photo.index       | -   
-GET    |  /photos/new                     | PhotoController.new           | Photo.new         | -   
-POST   |  /photos                         | PhotoController.create        | Photo.create      | -   
-GET    |  /photos/:photo_id               | PhotoController.show          | Photo.show        | -   
-GET    |  /photos/:photo_id/edit          | PhotoController.edit          | Photo.edit        | -   
-PATCH  |  /photos/:photo_id               | PhotoController.update        | Photo.update      | -   
-PUT    |  /photos/:photo_id               | PhotoController.update        | Photo.update      | -   
-DELETE |  /photos/:photo_id               | PhotoController.delete        | Photo.delete      | -   
-GET    |  /                               | PublicController.index        | Public.index      | -   
-GET    |  /_not_found                     | PublicController.not_found    | Public.not_found  | -   
-GET    |  /_error                         | PublicController.error        | Public.error      | -   
+
+Routes match in priority from top to bottom.
+The rules that don't have a `to` property are build-only and never match.
+
+       PATH                     TO                          NAME              HOST
+       ------------------------ --------------------------- ----------------- ----
+GET    /assets/:file<path>      StaticFilesController.show  assets            -
+GET    /favicon.ico             ↪ /assets/favicon.ico       -                 -
+GET    /robots.txt              ↪ /assets/robots.txt        -                 -
+GET    /humans.txt              ↪ /assets/humans.txt        -                 -
+GET    /photos                  PhotoController.index       Photo.index       -
+GET    /photos/new              PhotoController.new         Photo.new         -
+POST   /photos                  PhotoController.create      Photo.create      -
+GET    /photos/:photo_id        PhotoController.show        Photo.show        -
+GET    /photos/:photo_id/edit   PhotoController.edit        Photo.edit        -
+PATCH  /photos/:photo_id        PhotoController.update      Photo.update      -
+PUT    /photos/:photo_id        PhotoController.update      Photo.update      -
+DELETE /photos/:photo_id        PhotoController.delete      Photo.delete      -
+GET    /                        PublicController.index      Public.index      -
+GET    /_not_found              PublicController.not_found  Public.not_found  -
+GET    /_error                  PublicController.error      Public.error      -
 ```
+
+The output is space-separated columns, not a pipe-delimited table: the method column has a blank header, and a row of dashes underlines each column. The example above is reproduced as the terminal actually prints it.
 
 How to read it:
 
 - The **PATH** column shows the URL pattern, including any format constraints.
-- The **TO** column shows where the route dispatches. A normal route shows `Controller.action`. A redirect shows `-> /target` so you can see at a glance which routes are redirects and where they go. A build-only route shows `-`.
+- The **TO** column shows where the route dispatches. A normal route shows `Controller.action`; a controller in a subfolder under `controllers/` is prefixed with that folder path (e.g. `admin/UserController.show`). A redirect shows `↪ /target` so you can see at a glance which routes are redirects and where they go. A build-only route shows `-`.
 - The **NAME** column is what you pass to `url_for`. Routes without a name (like redirects) show `-`.
 - The **HOST** column shows any host constraint, or `-` if the route matches all hosts.
 

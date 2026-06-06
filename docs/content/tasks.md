@@ -102,8 +102,9 @@ from ..main import app
 
 
 @app.queue.task()
-def send_email_task(message: EmailMessageDict):
-    app.mailer.send_now(message)
+def send_email_task(message: EmailMessageDict, via: str | None = None):
+    mailer = app.mailers[via] if via else app.mailer
+    mailer.send_now(message)
 ```
 
 This is the task behind `email.send_later()` - the Emails guide's [Sending in the background](/docs/emails) section covers that side. The storage system uses the queue too: `attachment.purge_later()` and variant cleanup are both tasks. You'll see the pattern repeated because it's the right one: anything slow or failure-prone, push to a task.
@@ -159,7 +160,7 @@ Wrap any task that touches the database this way once you run a real worker.
 The decorator takes several keyword arguments:
 
 ```python
-@app.queue.task(retries=0, retry_delay=0, context=False, name=None, expires=None)
+@app.queue.task(retries=0, retry_delay=0, priority=None, context=False, name=None, expires=None)
 def my_task(arg1, arg2):
     return result
 ```
@@ -168,6 +169,7 @@ def my_task(arg1, arg2):
 | --------- | ----------- |
 | `retries` | Number of automatic retries on failure. Default `0`. |
 | `retry_delay` | Seconds to wait between retries. Default `0`. |
+| `priority` | Default priority for this task, higher runs first (requires a priority-aware backend). Default `None`. |
 | `context` | If `True`, the running `Task` object is passed to your function as a `task` keyword argument. |
 | `name` | Custom task name. Defaults to `module.function`, which is what identifies the task across processes. |
 | `expires` | Discard the task if it hasn't run within this window. An int (seconds), `timedelta`, or `datetime`. |
@@ -686,7 +688,7 @@ $ proper db migrate --db=proper_queue
 $ proper db rollback --db=proper_queue
 ```
 
-The migration files live in `db/proper_queue/`. The backend uses three tables - `queuekv` (key/value storage), `queueschedule` (scheduled tasks), and `queuetask` (pending task data). You don't write these migrations by hand; `proper db create` generates them from the backend's models. You just need to run `migrate` on the queue database the same way you run it on `main`.
+The migration files live in `db/proper_queue/`. The backend uses three tables - `kv` (key/value storage), `schedule` (scheduled tasks), and `task` (pending task data). You don't write these migrations by hand; `proper db create` generates them from the backend's models. You just need to run `migrate` on the queue database the same way you run it on `main`.
 
 ---
 

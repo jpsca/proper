@@ -815,7 +815,7 @@ class BookForm(f.Form):
 
 The options are the usual `required`, `default`, and `messages`, plus:
 
-- **`service_name`** - which storage service to upload through (matches a key in your `STORAGE` config). Defaults to the default service.
+- **`service_name`** - which storage service to upload through (matches a key in your `STORAGES` config). Defaults to the default service.
 - **`max_size`** - reject uploads larger than this many bytes. Covered in [Validating Uploads](#validating-uploads).
 - **`accept`** - a list of allowed content-type glob patterns (e.g. `["image/*"]`). Covered in [Validating Uploads](#validating-uploads).
 

@@ -4,7 +4,7 @@ from .auth import validators as v
 
 # The form tells the user if the login doesn't exists
 # To go back to a generic "If your user exists we will send you an email"
-# message, edit the "views/password_reset/create.jx" component,
+# message, edit the "views/password_reset/new.jx" component,
 # and comment the (A) method below.
 
 

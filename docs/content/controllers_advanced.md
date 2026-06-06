@@ -260,7 +260,7 @@ class SessionController(AppController):
         )
 ```
 
-`react_with` can be either a method name (resolved on the controller) or a callable. The method runs in place of the action; whatever it sets on `self.response` becomes the response.
+`react_with` can be either a method name (resolved on the controller) or a callable. The method runs as a `before` callback; if it sets a response (e.g. via `redirect_to`), the action is skipped and whatever it set on `self.response` becomes the response.
 
 ### Multiple Limits at Once
 

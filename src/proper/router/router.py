@@ -691,8 +691,6 @@ class Router(BaseRouter):
 
     def error(self, error_cls: TException) -> Callable[[Callable], Callable]:
         """Decorator to register a controller method to handle errors by exception class.
-        If debug=True, it also adds a route to preview that page.
-
         Example:
 
         ```python

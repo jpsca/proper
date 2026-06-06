@@ -34,7 +34,7 @@ This writes a fair amount into your application; the main pieces are:
 - An `Authentication` controller concern - provided by the framework as `proper.concerns.Authentication` and wired into your `AppController` automatically via `Authentication.for_session(Session)`.
 - Three resource controllers - `SignUp`, `Session`, `PasswordReset` - with their templates, forms, and routes already wired together. You typically edit those, not write them.
 
-Don't forget to run the migration that adds the `user` and `session` tables:
+Don't forget to run the migration (named `users`) that adds the `user` and `session` tables:
 
 ```bash
 $ proper db migrate
@@ -121,7 +121,7 @@ class User(Authenticable, BaseModel):
     created_at = pw.DateTimeField(default=pw.utcnow)
 ```
 
-The `locale` and `timezone` columns are picked up automatically by the [i18n addon's `CurrentLocale` and `CurrentTimezone` concerns](/docs/i18n) if you have it installed - signed-in users get their preferences applied to every request without any extra wiring. `avatar` uses [`AttachmentField`](/docs/forms#attachmentfield) from the storage addon.
+The `locale` and `timezone` columns are picked up automatically by the [i18n addon's `CurrentLocale` and `CurrentTimezone` concerns](/docs/i18n) if you have it installed - signed-in users get their preferences applied to every request without any extra wiring. `avatar` is a `ForeignKeyField(Attachment)` on the model, paired with [`AttachmentField`](/docs/forms#attachmentfield) - the matching form field from the storage addon - to handle uploads.
 
 ----
 
@@ -152,7 +152,7 @@ user.save()
 
 ## The Auth Session
 
-When a user signs in, Proper creates a row in the `session` table and stores a random token that points to it in an `_auth` cookie; every request uses that value to look the row up and fill `current.auth_session` and `current.user`.
+When a user signs in, Proper creates a row in the `session` table and stores a random token that points to it in an `_auth` cookie; every request uses that value to look the row up and fill `current.user` (backed by the matching `current.auth_session`).
 
 ```python
 class Session(BaseModel):
@@ -306,7 +306,7 @@ self.new_session_for(user)
 self.redirect_after_authentication(flash="Welcome!")
 ```
 
-That creates the `Session` row, sets the `_auth` cookie, and assigns `current.user` and `current.auth_session`. After it returns, the request is "signed in" from Proper's perspective.
+That creates the `Session` row, sets the `_auth` cookie, and assigns `current.user`. After it returns, the request is "signed in" from Proper's perspective.
 
 `redirect_after_authentication` pops the `_redirect` value the `require_authentication` callback stashed in the session (the page the user originally asked for) and redirects there. Pass `default="/somewhere"` to control where the redirect goes when there's no saved URL.
 
@@ -319,7 +319,7 @@ self.terminate_session()
 self.response.redirect_to("/")
 ```
 
-It deletes the row (so the token can't be reused), clears the `_auth` cookie, drops `current.user` and `current.auth_session`, and clears the rest of the session bag too so no per-user data leaks across visitors.
+It deletes the row (so the token can't be reused), clears the `_auth` cookie, drops `current.user`, and clears the rest of the session bag too so no per-user data leaks across visitors.
 
 ----
 

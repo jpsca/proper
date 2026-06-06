@@ -195,7 +195,7 @@ Three steps: import, invoke, optionally pass content.
 
 The path is relative to the catalog root (`myapp/views/`). The `as` name is what you'll use in the body - usually the PascalCase form of the file name, but anything that's a valid identifier works.
 
-If the same component is imported with two different `as` names, both are valid; the one closer to the call site (later in the file) wins. There's no name conflict because Jx scopes imports to the file that declared them.
+Imports are stored in a dict keyed by the `as` name, so importing the same component under two different `as` names produces two independent, both-usable entries. Reusing the *same* `as` name is what causes a conflict - the last import with that name wins. Either way, Jx scopes imports to the file that declared them, so names never leak between files.
 
 ### Invoke It
 
@@ -281,15 +281,15 @@ Relative imports are most useful for components that travel together - a page an
 
 ### Prefixed
 
-Prefixed imports use a colon to distinguish a registered "package" of components from your own folder:
+Prefixed imports use an `@prefix/` form to distinguish a registered "package" of components from your own folder:
 
 ```html+jinja
-{#import "ui:button.jx" as Button #}
+{#import "@ui/button.jx" as Button #}
 ```
 
-This form is rare in plain Proper apps - the default catalog has just one folder, registered without a prefix. Prefixes show up when an addon (or a third-party package) registers its own component folder. The `auth` blueprint, for example, can register its components under an `auth:` prefix to avoid colliding with your own.
+This form is rare in plain Proper apps - the default catalog has just one folder, registered without a prefix. Prefixes show up when an addon (or a third-party package) registers its own component folder. The `auth` blueprint, for example, can register its components under an `auth` prefix to avoid colliding with your own.
 
-You'll know you need this when an addon's documentation tells you to write `{#import "addon-name:component.jx" as Foo #}`. Until then, stick to absolute and relative imports.
+You'll know you need this when an addon's documentation tells you to write `{#import "@addon-name/component.jx" as Foo #}`. Until then, stick to absolute and relative imports.
 
 ---
 
@@ -314,7 +314,7 @@ The order matters only for callers using positional arguments (which is rare); n
 Any argument with a default is optional. Any argument without one is required. Forgetting a required argument raises a clear error at render time:
 
 ```
-TypeError: Card() missing required argument: 'title'
+MissingRequiredArgument: card.jx component requires a `title` argument
 ```
 
 To make an argument optional with no sensible default, default it to `None` and check in the body:
@@ -411,9 +411,11 @@ The signature of every component is also queryable through the catalog - useful 
 
 ```python
 sig = app.catalog.get_signature("components/card.jx")
-sig.required   # {"title": str}
-sig.optional   # {"size": ("md", str), "badge": (None, ...)}
+sig["required"]   # {"title": str}
+sig["optional"]   # {"size": ("md", str), "badge": (None, ...)}
 ```
+
+The returned dict also has `slots`, `css`, and `js` keys.
 
 You won't reach for this often, but it's there.
 
@@ -617,13 +619,13 @@ Beyond `render()`, `attrs` exposes a small API for finer control:
 
 | Method                             | What it does                                                        |
 | ---------------------------------- | ------------------------------------------------------------------- |
-| `attrs.set(**kw)`                  | Set or replace attributes. Caller's value is **overridden**.        |
+| `attrs.set(**kw)`                  | Set or replace attributes. Caller's value is **overridden** - except `class`/`classes`, which `set(class_=...)` *appends* rather than replaces. |
 | `attrs.setdefault(**kw)`           | Set attributes only if not already present. Caller's value wins.    |
-| `attrs.get(name, default=None)`    | Read an attribute's value (and remove it from `attrs`).             |
+| `attrs.get(name, default=None)`    | Read an attribute's value. Does not remove it from `attrs`.         |
 | `attrs.add_class(*classes)`        | Append one or more classes.                                         |
 | `attrs.prepend_class(*classes)`    | Prepend one or more classes.                                        |
 | `attrs.remove_class(*classes)`     | Remove one or more classes.                                         |
-| `attrs.classes`                    | List of classes currently on `attrs`.                               |
+| `attrs.classes`                    | Space-separated string of classes currently on `attrs`.             |
 | `attrs.as_dict`                    | Dict of every attribute on `attrs`.                                 |
 
 Use these when you need to do something more than render-with-defaults. For example, *forcing* a `role="status"` on an alert no matter what the caller passed:
@@ -698,6 +700,7 @@ The underscore form is the Python identifier; the dash form is what shows up in 
 {#def name, label #}
 
 {% set field_id = attrs.get("id") or "field-" + name %}
+{% do attrs.set(id=False) %}
 
 <div class="Field">
   <label for="{{ field_id }}">{{ label }}</label>
@@ -709,7 +712,7 @@ The underscore form is the Python identifier; the dash form is what shows up in 
 </div>
 ```
 
-`attrs.get("id")` reads the `id` attribute and removes it from `attrs` (so it doesn't get rendered twice). `attrs.render()` then writes everything that's left, plus the default `type="text"`.
+`attrs.get("id")` reads the `id` attribute without removing it, so the following line (`attrs.set(id=False)`) removes it from `attrs` to avoid rendering it twice. `attrs.render()` then writes everything that's left, plus the default `type="text"`.
 
 ### Forwarding Attrs to a Child Component
 
@@ -793,6 +796,8 @@ In any layout (or anywhere you want), call methods on the `assets` global to emi
 
 `assets.render_css()` emits a `<link rel="stylesheet">` for every CSS file declared by every component used on the page. `assets.render_js()` emits a `<script type="module">` for every JS file. `assets.render()` does both.
 
+In Proper the catalog is created without an asset resolver, so these methods emit each declared path verbatim - they do *not* fingerprint the URLs. Fingerprinting comes from running the paths through `url_for('assets', file=url)`, which is what the generated `base.jx` does with the `collect_css()` / `collect_js()` loop shown below.
+
 `render_js()` accepts two arguments:
 
 ```html+jinja
@@ -817,7 +822,7 @@ If you want the URLs themselves rather than ready-made tags - to build a custom 
 {% endfor -%}
 ```
 
-This is what the generated `base.jx` does. The result is the same as `render_css()` / `render_js()` but you control the surrounding markup.
+This is what the generated `base.jx` does. Because each URL goes through `url_for('assets', file=url)`, the emitted paths are fingerprinted - unlike `render_css()` / `render_js()`, which emit the declared paths verbatim. You also control the surrounding markup.
 
 ### CSS Scoping Conventions
 
@@ -885,26 +890,28 @@ class CardController(AppController):
 
 Proper looks for a template at `card/show.jx`. If it exists, it's rendered with every instance attribute on the controller (e.g. `self.card`) available as a template variable.
 
-The folder name comes from the controller class name (`CardController` → `card`), the file name from the action (`show` → `show.jx`).
+The folder name is derived from the controller's module filename with the `_controller` suffix stripped (`card_controller.py` → `card/`), and the file name comes from the action (`show` → `show.jx`). Dotted submodules become subfolders.
 
 ### The Prefix Chain
 
 Controllers often inherit from each other. The lookup walks the inheritance chain so a child controller can fall back to its parent's templates:
 
 ```python
+# controllers/admin_controller.py
 class AdminController(AppController):
     def index(self):
         pass
 
 
-class AdminPostController(AdminController):
+# controllers/admin/post_controller.py
+class PostController(AdminController):
     def index(self):
         pass
 ```
 
-For `AdminPostController.index`, Proper looks at:
+For `admin/post_controller.py`'s `PostController.index`, Proper looks at:
 
-1. `admin_post/index.jx` (the child's own folder)
+1. `admin/post/index.jx` (the child's own folder, from `admin.post_controller` → `admin/post`)
 2. `admin/index.jx` (the parent's folder, if step 1 misses)
 
 This keeps shared admin layouts in `admin/` instead of duplicating them under every admin sub-controller.
@@ -929,11 +936,11 @@ When the `Accept` header is `*/*` (or missing), the lookup uses the request's `d
 
 ### The Full Algorithm
 
-Combining all three: for `AdminPostController.index` with `Accept: application/json, */*`:
+Combining all three: for `admin/post_controller.py`'s `PostController.index` with `Accept: application/json, */*`:
 
 ```
-admin_post/index.json.jx     (step 1)
-admin_post/index.jx          (step 2)
+admin/post/index.json.jx     (step 1)
+admin/post/index.jx          (step 2)
 admin/index.json.jx          (step 3)
 admin/index.jx               (step 4)
 ```
@@ -1026,7 +1033,7 @@ It does three things:
   {% endfor -%}
 
   {{ render_importmap() }}
-  <script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
+  <script src="{{ url_for('assets', file='js/application.js') }}" type="module"></script>
 
   {% for url in assets.collect_js() -%}
     <script src="{{ url_for('assets', file=url) }}" type="module"></script>

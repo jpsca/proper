@@ -398,6 +398,8 @@ The call blocks until the mailer returns. In production with the SMTP backend, t
 
 `send()` is the right call for: tests, scripts, scheduled jobs already running in a worker, and any place where blocking is not a problem.
 
+Like `send_later()`, it accepts an optional `via=` argument to route the message through a specific named mailer.
+
 ### `send_later()` - asynchronous
 
 `BaseEmail.send_later()` enqueues a background task that sends the message:
@@ -567,8 +569,7 @@ The sketch:
 # myapp/mailers/resend_mailer.py
 import httpx
 
-from proper.emails import BaseMailer
-from proper.emails.message import EmailMessageDict
+from proper.emails import BaseMailer, EmailMessageDict
 
 
 class ResendMailer(BaseMailer):

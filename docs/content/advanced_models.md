@@ -165,25 +165,34 @@ class Reaction(BaseModel):
 
 This is heavier than Pattern A but scales much better when you have many parent types or when the shared behavior is meaningful (timestamps, audit trail, soft-deletes).
 
-### Pattern C: `GFKField` from `playhouse.gfk`
+### Pattern C: Untyped Generic Foreign Key
 
-Peewee's playhouse offers a generic foreign key - a `(parent_type, parent_id)` pair where `parent_id` is just an integer with no FK constraint:
+When the parent set is genuinely open-ended - plugins, user-defined types, anything you can't enumerate up front - you can store a `(parent_type, parent_id)` pair where `parent_id` is just an integer with no foreign-key constraint, and resolve the parent in Python:
 
 ```python
-from playhouse.gfk import GFKField, ReverseGFK
-
-
 class Reaction(BaseModel):
-    parent_type = pw.CharField()
+    parent_type = pw.CharField()      # "article", "comment", ...
     parent_id   = pw.IntegerField()
-    parent      = GFKField("parent_type", "parent_id")
+    kind        = pw.CharField()
 
+    # Map each discriminator value to its model.
+    PARENT_MODELS = {"article": Article, "comment": Comment}
 
-class Article(BaseModel):
-    reactions = ReverseGFK(Reaction, "parent_type", "parent_id")
+    @property
+    def parent(self):
+        model = self.PARENT_MODELS[self.parent_type]
+        return model.get_or_none(model.id == self.parent_id)
 ```
 
-Convenient - but you give up the integrity guarantees that make foreign keys worth declaring in the first place. There's no cascade, no FK constraint, and no protection against orphan rows. Use this only when the parent set is genuinely open-ended (plugins, user-defined types).
+Reading a parent's reactions is a plain query on the discriminator and id:
+
+```python
+Reaction.select().where(
+    (Reaction.parent_type == "article") & (Reaction.parent_id == article.id)
+)
+```
+
+Flexible - but you give up the integrity guarantees that make foreign keys worth declaring in the first place. There's no cascade, no FK constraint, and no protection against orphan rows (delete an article and its reactions are left dangling). Use this only when the parent set is genuinely open-ended.
 
 ### Which to Pick
 
@@ -235,7 +244,6 @@ The existing `BaseModel` is bound to `app.db["main"]` through its `Meta` class. 
 
 ```python
 # models/base.py
-import peewee as pw
 from proper import ProperModel, scope  # noqa
 
 from ..main import app

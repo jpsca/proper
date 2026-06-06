@@ -156,7 +156,7 @@ Each field on a form exposes a set of methods that produce the right HTML for it
 Method                          | Renders
 ------------------------------- | ----------------------------------
 `field.label(text=None)`        | `<label>` with the right `for` ID
-`field.error_tag()`             | `<div class="field-error">` if there's an error
+`field.error_tag()`             | `<div id="<field-id>-error" class="field-error">` if there's an error
 `field.text_input()`            | `<input type="text">`
 `field.textarea()`              | `<textarea>`
 `field.select(options)`         | `<select>` with options as `[(value, text), ...]`
@@ -168,7 +168,7 @@ Method                          | Renders
 `field.date_input()`            | `<input type="date">`
 `field.number_input()`          | `<input type="number">`
 
-All of them accept `**attrs` for extra HTML attributes. Use a trailing underscore for Python reserved words: `class_="text-sm"` becomes `class="text-sm"` in the output.
+All of them accept `**attrs` for extra HTML attributes. Two name-conversion rules apply: `class_` is special-cased to `class` (so `class_="text-sm"` becomes `class="text-sm"`, working around the Python reserved word), and in every other attribute name each underscore becomes a hyphen (so `data_foo="bar"` becomes `data-foo="bar"`).
 
 Required fields automatically get the `required` HTML attribute. Fields with errors get `aria-invalid="true"` and `aria-errormessage`. You don't have to add them yourself.
 
@@ -302,17 +302,17 @@ The generator pairs the form partial with two pages. `new.jx`:
 
 ```html+jinja
 {#import "layouts/app.jx" as Layout #}
-{#import "./form.jx" as Form #}
+{#import "./form.jx" as CardForm #}
 
 {#def form #}
 
 <Layout title="New card">
-  <Form
+  <CardForm
     action={{ url_for('Card.create') }}
     form={{ form }}
   >
     <button type="submit">Create card</button>
-  </Form>
+  </CardForm>
 </Layout>
 ```
 
@@ -320,18 +320,18 @@ And `edit.jx`:
 
 ```html+jinja
 {#import "layouts/app.jx" as Layout #}
-{#import "./form.jx" as Form #}
+{#import "./form.jx" as CardForm #}
 
 {#def form, card #}
 
 <Layout title="Edit card">
-  <Form
+  <CardForm
     method="patch"
-    action={{ url_for('Card.update', card_id=card.id) }}
+    action={{ url_for('Card.update', card) }}
     form={{ form }}
   >
     <button type="submit">Update card</button>
-  </Form>
+  </CardForm>
 </Layout>
 ```
 
@@ -467,18 +467,18 @@ Wire format:
 addresses[0][street]=123+Main+St&addresses[0][city]=Springfield&...
 ```
 
-Formidable's parser produces:
+Formidable's parser produces a dict of dicts keyed by the grouping key (`"0"`, `"1"`, ...), not a list:
 
 ```python
 {
-    "addresses": [
-        {"street": "123 Main St", "city": "Springfield"},
-        {"street": "456 Oak Ave",  "city": "Shelbyville"},
-    ]
+    "addresses": {
+        "0": {"street": "123 Main St", "city": "Springfield"},
+        "1": {"street": "456 Oak Ave",  "city": "Shelbyville"},
+    }
 }
 ```
 
-The form field for this shape is `f.NestedForms` (covered in [Nested Forms](#nested-forms)).
+The final list shape only emerges later, after `f.NestedForms` processes those groups in `save()` - the parser itself never produces a list here. The form field for this shape is `f.NestedForms` (covered in [Nested Forms](#nested-forms)).
 
 :::note | The numbers don't matter
 The `0` and `1` in `addresses[0][...]` and `addresses[1][...]` are *grouping keys*, not list indices. They tell the parser "these inputs belong to the same sub-object." They don't have to start at zero, don't have to be sequential, and don't preserve order - they only have to be unique per sub-form. The dynamic JavaScript covered in ["Dynamic Add / Remove with JavaScript"](#dynamic) takes advantage of this by using arbitrary unique strings instead of numbers.
@@ -491,7 +491,7 @@ When you pass `self.params` (or any dict-like object) to a form constructor, For
 - Treats `key` as a top-level value.
 - Treats `key[]` as a list at the top level.
 - Treats `key[name]` as a nested dict under `key`.
-- Treats `key[N][name]` as a list of dicts under `key`.
+- Treats `key[N][name]` as a dict of dicts keyed by the grouping key `N` under `key` (the list shape only emerges later, in `NestedForms`/`save()`).
 
 Each form field then reads from the corresponding place in the parsed structure. A `TextField` named `title` reads `parsed["title"]`. A `FormField` named `user` reads `parsed["user"]`. A `NestedForms` named `addresses` reads `parsed["addresses"]`.
 
@@ -631,19 +631,19 @@ With two empty addresses (from `build(2)`), the rendered HTML is:
 
 The `0` and `1` are grouping keys, not list indices ([Lists of Objects](#lists-of-objects) covered why). The `_id` hidden input only appears when the form was instantiated with existing addresses; the `_destroy` input only appears when deletion is allowed (`allow_delete=True` on the field).
 
-When the user submits, Formidable's parser turns this into:
+When the user submits, Formidable's parser turns this into a dict of dicts keyed by the grouping key:
 
 ```python
 {
     "name": "Jane",
-    "addresses": [
-        {"kind": "home", "street": "..."},
-        {"kind": "work", "street": "..."},
-    ],
+    "addresses": {
+        "0": {"kind": "home", "street": "..."},
+        "1": {"kind": "work", "street": "..."},
+    },
 }
 ```
 
-`PersonForm` reads from the parsed structure and builds (or updates) the right model instances.
+`PersonForm` reads from the parsed structure and builds (or updates) the right model instances; `NestedForms` collapses those groups into the final list of sub-forms.
 
 :::warning | The `_id` hidden field is safe
 A user can edit the `_id` value in DevTools to point at someone else's record - and Formidable will silently ignore the change. The form remembers which objects it was instantiated with, and any `_id` that doesn't match one of those is rejected. Users cannot update objects they aren't authorized to modify just by editing the HTML.

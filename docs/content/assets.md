@@ -29,9 +29,9 @@ Proper serves them with three pieces, all wired up by the new-app generator:
 
 - A **route** declared in `myapp/router.py` with `router.static()`.
 - A built-in `StaticFilesController` that opens the file and writes the right cache headers.
-- A **filename fingerprinting** convention that adds a hash to URLs (`app-a1b2...css`) so browsers can cache forever and still see updates within a second of you saving the file.
+- A **filename fingerprinting** convention that adds a hash to URLs (`base-a1b2...css`) so browsers can cache forever and still see updates within a second of you saving the file.
 
-Most of the time you don't think about any of this. You drop a CSS file in `assets/css/`, write `{{ url_for("assets", file="css/app.css") }}` in a template, and it works. The rest of this guide explains what's happening underneath, and the small set of options for when the defaults don't fit.
+Most of the time you don't think about any of this. You drop a CSS file in `assets/css/`, write `{{ url_for("assets", file="css/base.css") }}` in a template, and it works. The rest of this guide explains what's happening underneath, and the small set of options for when the defaults don't fit.
 
 ---
 
@@ -43,31 +43,35 @@ A new application starts with this layout:
 myapp/
 ├── assets/
 │   ├── 500.html
-│   ├── favicon.ico
 │   ├── humans.txt
+│   ├── icon.png
+│   ├── icon.svg
 │   ├── robots.txt
 │   ├── fonts/
 │   ├── images/
 │   ├── js/
-│   │   ├── app.js
+│   │   ├── application.js
 │   │   ├── nestedform.js
-│   │   ├── stimulus.js
-│   │   └── turbo.js
+│   │   └── vendor/
+│   │       ├── stimulus.js
+│   │       └── turbo.js
 │   └── css/
 │       ├── base.css
 │       ├── buttons.css
+│       ├── email.css
+│       ├── error-page.css
+│       ├── forms.css
 │       ├── globals.css
-│       ├── inputs.css
-│       ├── reset.css
-│       └── ...
+│       ├── not-found-page.css
+│       └── reset.css
 ```
 
-The convention is one subdirectory per file type (`css/`, `js/`, `images/`, `fonts/`), with a few files at the root that need to live there for the browser to find them: `favicon.ico`, `robots.txt`, `humans.txt`. There's also a `500.html` that Proper serves as the bare-bones error page when the application itself crashes too hard to render its own template.
+The convention is one subdirectory per file type (`css/`, `js/`, `images/`, `fonts/`), with a few files at the root: `robots.txt`, `humans.txt`, and the `icon.png`/`icon.svg` favicons the browser looks for. There's also a `500.html` that Proper serves as the bare-bones error page when the application itself crashes too hard to render its own template.
 
 You're not locked into this layout. The only thing that matters is that the files live somewhere reachable from `app.assets_path`, which defaults to `<your-app>/assets/`. Add new subdirectories whenever you want.
 
 :::note | What's already in `assets/js`
-The default `js/` directory ships with three vendored libraries (`turbo.js`, `stimulus.js`, `nestedform.js`) plus an `app.js` for your own code. They're not pulled from a CDN at runtime - they're real files in your app, served alongside everything else. This avoids a third-party DNS lookup on every page load.
+The default `js/` directory ships with two vendored libraries under `js/vendor/` (`turbo.js`, `stimulus.js`), the `nestedform.js` helper, and an `application.js` entry point for your own code. They're not pulled from a CDN at runtime - they're real files in your app, served alongside everything else. This avoids a third-party DNS lookup on every page load.
 :::
 
 ---
@@ -81,7 +85,7 @@ A new application's `router.py` includes one line that sets up asset serving:
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 ```
 
-That's the entire wire-up. `ASSETS_URL` defaults to `/assets/`, so a request for `/assets/css/app.css` is served from `myapp/assets/css/app.css`.
+That's the entire wire-up. `ASSETS_URL` defaults to `/assets/`, so a request for `/assets/css/base.css` is served from `myapp/assets/css/base.css`.
 
 The signature is:
 
@@ -123,18 +127,18 @@ Prefer `app.assets_path` over hard-coding the path. It's set to `<your-app>/asse
 Don't write asset URLs by hand. Use `url_for("assets", file=...)` so the right fingerprint gets inserted:
 
 ```python
-app.url_for("assets", file="css/app.css")
-# /assets/css/app-a1b2c3d4...css
+app.url_for("assets", file="css/base.css")
+# /assets/css/base-a1b2c3d4...css
 ```
 
 The same call works in templates (where `url_for` is a global):
 
 ```html+jinja
-<link rel="stylesheet" href="{{ url_for('assets', file='css/app.css') }}">
+<link rel="stylesheet" href="{{ url_for('assets', file='css/base.css') }}">
 
 <img src="{{ url_for('assets', file='images/logo.png') }}" alt="Logo">
 
-<script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
+<script src="{{ url_for('assets', file='js/application.js') }}" type="module"></script>
 ```
 
 Pass the file path *relative to the asset root* - no leading slash, no `/assets/` prefix. The route's URL prefix gets prepended for you.
@@ -148,7 +152,7 @@ If the file doesn't exist on disk at the moment `url_for` runs, the URL is gener
 An *import map* is a small piece of JSON that tells the browser how to resolve `import` statements in ES modules. Without it, every `import` has to use a relative path (`./utils.js`) or an absolute URL. With it, you can write:
 
 ```javascript
-// myapp/assets/js/app.js
+// myapp/assets/js/application.js
 import { Application } from "@hotwired/stimulus"
 import "@hotwired/turbo"
 
@@ -171,7 +175,7 @@ IMPORT_MAP = {
 }
 ```
 
-The new-app generator pre-populates this with Stimulus and Turbo, since those are the JS libraries the default `app.js` reaches for. Add or remove entries as your app evolves.
+The new-app generator pre-populates this with Stimulus and Turbo, since those are the JS libraries the default `application.js` reaches for. Add or remove entries as your app evolves.
 
 The keys are *bare module specifiers* - the strings you'd write in an `import` statement. Conventionally they look like npm package names (`@scope/name` or just `name`), but any string the JS spec accepts is fine.
 
@@ -181,14 +185,14 @@ Each value in `IMPORT_MAP` can be one of three shapes, and Proper treats them di
 
 | Value                              | Treated as                                | Result                          |
 | ---------------------------------- | ----------------------------------------- | ------------------------------- |
-| `"js/stimulus.js"`                 | path relative to `app.assets_path`        | fingerprinted URL via `url_for("assets", file=...)` |
+| `"js/vendor/stimulus.js"`          | path relative to `app.assets_path`        | fingerprinted URL via `url_for("assets", file=...)` |
 | `"/assets/vendor/foo.js"`          | absolute path on your domain              | used verbatim, no fingerprint   |
 | `"https://cdn.example.com/x.js"`   | full URL                                  | used verbatim, no fingerprint   |
 
-The relative-path case is the interesting one - those entries flow through the same fingerprinting machinery as the rest of your assets, so updating `assets/js/stimulus.js` automatically invalidates the cached import-map URL.
+The relative-path case is the interesting one - those entries flow through the same fingerprinting machinery as the rest of your assets, so updating `assets/js/vendor/stimulus.js` automatically invalidates the cached import-map URL.
 
 :::error | Beware of the initial "/"
-`/js/stimulus.js` is not the same than `js/stimulus.js`!
+`/js/vendor/stimulus.js` is not the same as `js/vendor/stimulus.js`!
 :::
 
 ### Rendering in the Layout
@@ -202,19 +206,14 @@ The generated base layout calls `render_importmap()`:
   {{ render_importmap() }}
 
   <script src="{{ url_for('assets', file='js/vendor/turbo.js') }}" type="module"></script>
-  <script src="{{ url_for('assets', file='js/app.js') }}" type="module"></script>
+  <script src="{{ url_for('assets', file='js/application.js') }}" type="module"></script>
 </head>
 ```
 
-`Which` produces:
+Which produces a single compact `<script>` tag (shown wrapped here for readability):
 
 ```html
-<script type="importmap" data-turbo-track="reload">
-{"imports": {
-  "@hotwired/stimulus": "/assets/js/stimulus-a1b2c3...js",
-  "@hotwired/turbo":    "/assets/js/turbo-d4e5f6...js"
-}}
-</script>
+<script type="importmap" data-turbo-track="reload">{"imports": {"@hotwired/stimulus": "/assets/js/vendor/stimulus-a1b2c3...js", "@hotwired/turbo": "/assets/js/vendor/turbo-d4e5f6...js"}}</script>
 ```
 
 `render_importmap()` is a global available in every template; no import needed.
@@ -235,7 +234,7 @@ IMPORT_MAP = {
 }
 ```
 
-Now `import _ from "lodash-es"` in your `app.js` resolves to esm.sh; the browser fetches it once and caches forever. The URL is passed through verbatim - no fingerprinting (the URL itself already encodes the version), no static-route round-trip.
+Now `import _ from "lodash-es"` in your `application.js` resolves to esm.sh; the browser fetches it once and caches forever. The URL is passed through verbatim - no fingerprinting (the URL itself already encodes the version), no static-route round-trip.
 
 ### Why This Beats a Bundler
 
@@ -256,7 +255,7 @@ For larger JS apps - SPAs, anything with hundreds of components, anything that n
 A fingerprinted URL looks like:
 
 ```
-/assets/css/app-a1b2c3d4e5f6a7b8c9...css
+/assets/css/base-a1b2c3d4e5f6a7b8c9...css
 ```
 
 The hex string between the filename and the extension is a SHA-256 of the file's last-modified time. When you save the file, the mtime changes, the hash changes, and so does the URL. Browsers see a new URL and fetch the new bytes; old bookmarks and cached HTML still work because the underlying file is also reachable at its plain name.
@@ -405,25 +404,29 @@ For a small site, the bytes Proper writes vs the bytes nginx writes are indistin
 
 ## Root-Level Assets
 
-Some files have to live at the root of your domain to be found:
+Some files are conventionally fetched from the root of your domain:
 
-- `favicon.ico` - browsers fetch it without being told to.
 - `robots.txt` - search engines look here.
 - `humans.txt` - the friendly equivalent for the curious.
-- `apple-touch-icon.png` and friends.
 
-You don't want to mount a separate static route for each of them, but they also can't live under `/assets/` without redirects. The generator's `router.py` handles this with three explicit redirects:
+You don't want to mount a separate static route for each of them, but they also can't live under `/assets/` without redirects. The generator's `router.py` handles this with two explicit redirects:
 
 ```python
 # myapp/router.py
-router.get("favicon.ico", redirect="/assets/favicon.ico")
-router.get("robots.txt",  redirect="/assets/robots.txt")
-router.get("humans.txt",  redirect="/assets/humans.txt")
+router.get("robots.txt", redirect="/assets/robots.txt")
+router.get("humans.txt", redirect="/assets/humans.txt")
 ```
 
-The browser asks for `/favicon.ico`, gets a `301` to `/assets/favicon.ico`, and gets the file (with fingerprinting and caching) from there. It's two requests instead of one for the first hit, but the redirect itself is cached, so subsequent visits go straight to the asset.
+The browser asks for `/robots.txt`, gets a `307` to `/assets/robots.txt`, and gets the file (with fingerprinting and caching) from there. It's two requests instead of one on the first hit.
 
 For other root-level files, add another `router.get(..., redirect=...)` line.
+
+The favicon doesn't need a root redirect at all. The default layout points the browser straight at the fingerprinted asset with `<link rel="icon">` tags, so there's no `/favicon.ico` round-trip:
+
+```html+jinja
+<link rel="icon" href="{{ url_for('assets', file='icon.png') }}" type="image/png">
+<link rel="icon" href="{{ url_for('assets', file='icon.svg') }}" type="image/svg+xml">
+```
 
 :::note
 Of course you can, *and should*, configure this at proxy level (nginx, Caddy, etc.), but the redirects makes it works during development.
@@ -481,7 +484,7 @@ Set `ASSETS_URL` to the full CDN URL, with a trailing slash:
 ASSETS_URL = "https://cdn.example.com/"
 ```
 
-That's the entire change on Proper's side. `url_for("assets", file="css/app.css")` now returns `https://cdn.example.com/css/app-<hash>.css`, and every other code path that builds an asset URL (the Jx `{#css #}` and `{#js #}` directives, `render_importmap()` for relative-path entries, your own template URL helpers) follows along.
+That's the entire change on Proper's side. `url_for("assets", file="css/base.css")` now returns `https://cdn.example.com/css/base-<hash>.css`, and every other code path that builds an asset URL (the Jx `{#css #}` and `{#js #}` directives, `render_importmap()` for relative-path entries, your own template URL helpers) follows along.
 
 ### Origin Pull vs. Push Deploy
 

@@ -225,18 +225,23 @@ At minimum, you render the editor component like this:
 <RichTextEditor field={{ form.myfield }}></RichTextEditor>
 ```
 
-The `rich_text_editor.jx` component supports the following options out of the box:
+The `rich_text_editor.jx` component declares these options in its `{#def}`, so they're handled by the component itself:
 
 Option           | Description
 ---------------- | --------------------------
 `toolbar`        | Pass `"false"` (as a string) to disable the toolbar entirely. By default, the toolbar is rendered using the `rich_text_toolbar.jx` component.
 `toolbar-upload` | Control which upload button(s) appear in the toolbar. Accepts `"file"`, `"image"`, or `"both"` (default). The image button restricts the file picker to images and videos (`accept="image/*,video/*"`), which triggers the native photo/video picker on iOS and Android. The file button opens an unrestricted file picker.
-`attachments`    | Pass `"false"` (as a string) to disable attachments completely. By default, attachments are supported, including paste and drag & drop support. For finer-grained control - keeping attachments enabled while restricting which content types are accepted - use `permitted-attachment-types`.
 `markdown`       | Pass `"true"` (as a string) to enable Markdown support.
+
+Every other attribute you set on `<RichTextEditor>` passes straight through to the underlying `<lexxy-editor>` element, which reads them as kebab-cased HTML attributes. That includes the Lexxy editor attributes below:
+
+Attribute        | Description
+---------------- | --------------------------
+`attachments`    | Pass `"false"` (as a string) to disable attachments completely. By default, attachments are supported, including paste and drag & drop support. For finer-grained control - keeping attachments enabled while restricting which content types are accepted - use `permitted-attachment-types`.
 `multi-line`     | Pass `"false"` (as a string) to force single line editing.
 `permitted-attachment-types` | Restrict the editor to a specific allowlist of attachment content types. Unset (the default) permits any content type. Example: `<RichTextEditor permitted-attachment-types="application/epub+zip application/pdf" field={{form.body}} />`.
 
-The editor also supports standard HTML attributes: `placeholder`, `class`, `disabled`, `autofocus` etc.
+...as well as standard HTML attributes like `placeholder`, `class`, `disabled`, `autofocus`, etc.
 
 
 ### Customizing the toolbar

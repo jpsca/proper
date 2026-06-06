@@ -51,7 +51,6 @@ Every model in a Proper application inherits from `BaseModel`, which is defined 
 
 ```python
 # models/base.py
-import peewee as pw
 from proper import ProperModel, scope  # noqa
 
 from ..main import app
@@ -125,7 +124,7 @@ As you've seen in the examples, a convenient way to avoid manually importing eac
 import peewee as pw` and then use the `pw.` prefix.
 :::
 
-Peewee's [playhouse extensions](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html) provide additional field types for specific databases, such as `ArrayField`, `HStoreField`, and `TSVectorField` for PostgreSQL. Proper also includes a `JSONField` (from `proper.helpers`) that auto-serializes Python objects to JSON with special `datetime` round-trip support.
+Peewee's [playhouse extensions](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html) provide additional field types for specific databases, such as `ArrayField`, `HStoreField`, and `TSVectorField` for PostgreSQL. Proper also includes a `JSONField` (from `proper`) that auto-serializes Python objects to JSON with special `datetime` round-trip support.
 
 For the full list of fields and their options, see the [Peewee field documentation](https://docs.peewee-orm.com/en/latest/peewee/models.html#field-types-table).
 

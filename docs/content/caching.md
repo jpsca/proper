@@ -491,7 +491,7 @@ Each argument is a single directive; they're joined with commas in the header. P
 
 ### Static assets
 
-Static files are cached automatically. Fingerprinted asset URLs (the ones with a hash in the filename, like `/assets/css/app-a1b2c3d4.css`) are served with `Cache-Control: public, max-age=31536000, immutable` - one year, with no revalidation. Non-fingerprinted assets get `max-age=0, must-revalidate` and support `If-Modified-Since`. The [Static Assets guide, section 7](/docs/assets#cache-control-headers) covers the headers in detail, and [section 6](/docs/assets#filename-fingerprinting) explains how the fingerprint URL is built.
+Static files are cached automatically. Fingerprinted asset URLs (the ones with a hash in the filename, like `/assets/css/app-a1b2c3d4.css`) are served with `Cache-Control: max-age=31536000, public, immutable` - one year, with no revalidation. Non-fingerprinted assets get `max-age=0, public, must-revalidate` and support `If-Modified-Since`. The [Static Assets guide, section 7](/docs/assets#cache-control-headers) covers the headers in detail, and [section 6](/docs/assets#filename-fingerprinting) explains how the fingerprint URL is built.
 
 ---
 
@@ -513,7 +513,7 @@ key_for("view", card)               # => "view:1735689600.0/card/42"
 key_for("view", cards)              # => "view:1735689600.0/card/col/5"
 ```
 
-- **String** - returned as-is, lowercased. The `prefix` and `version` arguments are ignored.
+- **String** - returned lowercased. The `prefix` and `version` arguments are ignored.
 - **Object** - delegates to `key_for_object`.
 - **List or tuple** - delegates to `key_for_collection`.
 - **Dict, bytes, bytearray** - raises `ValueError` (these are ambiguous shapes).
