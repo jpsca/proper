@@ -65,12 +65,6 @@ def test_auth_valid_config_passes():
     auth.validate_config(config)  # should not raise
 
 
-def test_auth_class_must_be_str_or_type():
-    config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_CLASS": 42})
-    with pytest.raises(ConfigError, match="AUTH_CLASS"):
-        auth.validate_config(config)
-
-
 def test_auth_hash_name_must_be_str_or_none():
     config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_HASH_NAME": 42})
     with pytest.raises(ConfigError, match="AUTH_HASH_NAME"):

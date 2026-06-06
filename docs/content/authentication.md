@@ -31,7 +31,7 @@ $ proper install auth
 This writes a fair amount into your application; the main pieces are:
 
 - A `User` model and a `Session` model, plus an `Authenticable` model concern.
-- An `Authentication` controller concern, mixed into your `AppController` automatically.
+- An `Authentication` controller concern - provided by the framework as `proper.concerns.Authentication` and wired into your `AppController` automatically via `Authentication.for_session(Session)`.
 - Three resource controllers - `SignUp`, `Session`, `PasswordReset` - with their templates, forms, and routes already wired together. You typically edit those, not write them.
 
 Don't forget to run the migration that adds the `user` and `session` tables:
@@ -451,14 +451,15 @@ This is not so easy. You could split the sign-up in two: first the user enters t
 
 The auth-related settings live in `config/auth.py` and load into `app.config`. The defaults from the source:
 
-| Key                     | Default            | What it controls                                                |
-| ----------------------- | ------------------ | --------------------------------------------------------------- |
-| `AUTH_HASH_NAME`        | `"argon2"`         | Password hashing algorithm. See below for the allowed values.   |
-| `AUTH_ROUNDS`           | `None`             | Cost factor for the hasher; `None` uses the algorithm's default. |
-| `AUTH_PASSWORD_MINLEN`  | `9`                | Minimum password length, in characters.                          |
-| `AUTH_PASSWORD_MAXLEN`  | `1024`             | Maximum password length, in characters. Caps DoS via large passwords. |
-| `AUTH_TOKEN_LIFE`       | `3 * HOURS`        | Max age of a password-reset token before `resolve_token_for` rejects it. |
-| `AUTH_CLASS`            | `"proper.auth.Auth"` | The class implementing the hasher API. Replace to plug in a custom one. |
+Key                     | Default            | What it controls
+----------------------- | ------------------ | ---------------------------------------------------------------
+`AUTH_HASH_NAME`        | `"argon2"`         | Password hashing algorithm. See below for the allowed values.
+`AUTH_ROUNDS`           | `None`             | Cost factor for the hasher; `None` uses the algorithm's default.
+`AUTH_PASSWORD_MINLEN`  | `9`                | Minimum password length, in characters.
+`AUTH_PASSWORD_MAXLEN`  | `1024`             | Maximum password length, in characters. Caps DoS via large passwords.
+`AUTH_TOKEN_LIFE`       | `3 * HOURS`        | Max age of a password-reset token before `resolve_token_for` rejects it.
+
+Every key is written into the generated `config/auth.py`.
 
 `AUTH_HASH_NAME` is one of `argon2`, `bcrypt`, `bcrypt_sha256`, `pbkdf2_sha512`, `pbkdf2_sha256`, `sha512_crypt`, `sha256_crypt`. Pass anything else and Proper raises `WrongHashAlgorithm` at startup. The default of `argon2` is the right answer for new applications; the alternatives exist so you can match a hash format you inherited from another system.
 
@@ -581,7 +582,7 @@ Session.create_for_user(user=user, remember=False)  # 24 hours
 
 The lifetime is set as `expires_at`, which is checked at every `find_by_token` call - past it, the session is treated as invalid. `last_seen_at` is updated on every request via `session.touch()`, but the absolute ceiling is fixed at creation time.
 
-The bundled `Authentication.new_session_for` always passes `remember=True`, so out of the box every sign-in is a 60-day session. To honor an actual checkbox in the sign-in form, two small changes:
+The framework's `Authentication.new_session_for` doesn't pass `remember` at all, so `Session.create_for_user` falls back to its default of `remember=True` - out of the box every sign-in is a 60-day session. To honor an actual checkbox in the sign-in form, two small changes:
 
 ```python
 # forms/session.py
@@ -600,17 +601,22 @@ def create(self):
     self.redirect_after_authentication(flash="Welcome back!")
 ```
 
-And update `new_session_for` in the `Authentication` concern to forward the flag:
+`Authentication` is a framework concern (`proper.concerns.Authentication`), so you don't edit it in place - **override** `new_session_for` in your `AppController` to forward the flag. The inherited `_set_current_session` does the cookie and `current` wiring:
 
 ```python
-def new_session_for(self, user, *, remember=True):
-    session = Session.create_for_user(
-        user=user,
-        ip_address=self.request.remote_ip,
-        user_agent=self.request.user_agent,
-        remember=remember,
-    )
-    return self._set_current_session(session)
+# controllers/app_controller.py
+from proper.models import ProperModel
+
+
+class AppController(..., Authentication.for_session(Session)):
+    def new_session_for(self, user: ProperModel, *, remember=True):
+        session = Session.create_for_user(
+            user=user,
+            ip_address=self.request.remote_ip,
+            user_agent=self.request.user_agent,
+            remember=remember,
+        )
+        return self._set_current_session(session)
 ```
 
 Add a `{{ form.remember.checkbox() }}` to `views/session/new.jx`, and the checkbox toggles the lifetime.

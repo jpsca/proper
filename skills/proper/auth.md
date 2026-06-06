@@ -1,7 +1,7 @@
 ---
 title: Authentication
 description: Auth addon — user registration, login/logout, password reset, session management
-last_verified: 2026-04-02
+last_verified: 2026-06-05
 ---
 
 # Authentication
@@ -43,7 +43,6 @@ This generates a full authentication system in your app:
 - `models/session.py` - Session model
 
 **Controllers:**
-- `controllers/concerns/authentication.py` - Authentication concern
 - `controllers/sign_up_controller.py` - user registration
 - `controllers/session_controller.py` - login/logout
 - `controllers/password_reset_controller.py` - password reset flow
@@ -63,7 +62,7 @@ This generates a full authentication system in your app:
 
 The installer also:
 
-- Adds `Authentication` to your `AppController` concerns
+- Adds the framework's `Authentication.for_session(Session)` to your `AppController` concerns
 - Installs `passlib`, `argon2-cffi`, and `confusable-homoglyphs` as dependencies
 - Creates a `"users"` database migration
 
@@ -213,24 +212,29 @@ Tokens are 256-bit cryptographically random values encoded as URL-safe base64 (4
 
 ## The Authentication Concern
 
-The `Authentication` concern is a mixin added to `AppController`. It adds a `before` callback that runs on every request, requiring authentication by default:
+The `Authentication` concern is provided by the framework (`proper.concerns.Authentication`) and bound to your app's `Session` model via the `for_session(Session)` factory. The installer adds it to `AppController`, where it registers a `before` callback that runs on every request, requiring authentication by default:
 
 ```python
 from proper import Controller
-from proper.concerns import OriginProtection, RateLimiting
-from .concerns.authentication import Authentication
+from proper.concerns import Authentication, OriginProtection, RateLimiting
+
+from ..models import Session
+from .concerns.form_validation import FormValidation
 from .concerns.security_headers import SecurityHeaders
 
 
 class AppController(
     Controller,
+    Authentication.for_session(Session),
     OriginProtection,
     RateLimiting,
+    FormValidation,
     SecurityHeaders,
-    Authentication,
 ):
     pass
 ```
+
+To customize a method (e.g. `new_session_for`), override it on `AppController` rather than editing the framework concern.
 
 ### How It Works
 
@@ -252,8 +256,8 @@ class PublicController(AppController):
     skip_authentication = True
 
 # Skip authentication for specific actions only
-class SessionController(AppController):
-    skip_authentication = ("new", "create")
+class ArticlesController(AppController):
+    skip_authentication = ("index", "show")
 ```
 
 ### Authentication Methods

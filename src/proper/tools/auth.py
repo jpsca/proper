@@ -1,10 +1,9 @@
+from ..auth import Auth
 from ..errors import ConfigError
-from ..helpers import get_class
 from ..units import HOURS
 
 
 DEFAULT_CONFIG = {
-    "AUTH_CLASS": "proper.auth.Auth",
     # The name of the hashing algorithm to use
     "AUTH_HASH_NAME": None,  # str | None
     #`None` means using the default number for the hash".
@@ -21,7 +20,6 @@ def setup(app):
         app.config.setdefault(name, value)
     validate_config(app.config)
 
-    Auth = get_class(app.config.AUTH_CLASS)
     app.auth = Auth(
         secret_keys=app.config.SECRET_KEYS,
         hash_name=app.config.AUTH_HASH_NAME,
@@ -32,9 +30,6 @@ def setup(app):
 
 
 def validate_config(config):
-    if not isinstance(config.AUTH_CLASS, (str, type)):
-        raise ConfigError("'AUTH_CLASS' must be a string or a class")
-
     if config.AUTH_HASH_NAME is not None and not isinstance(config.AUTH_HASH_NAME, str):
         raise ConfigError("'AUTH_HASH_NAME' must be a string or None")
 
