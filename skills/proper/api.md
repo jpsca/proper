@@ -414,10 +414,8 @@ Utility functions and classes available from `proper`.
 | `DotDict`         | Dict subclass with attribute-style access (`d.key`)            |
 | `MultiDict`       | Dict that supports multiple values per key (query/form params) |
 | `JSONField`       | Peewee field that stores JSON with transparent serialization   |
-| `Undefined`       | Sentinel value for distinguishing "not provided" from `None`   |
-| `import_string`   | Import a dotted module path and return the attribute            |
 | `make_list`       | Wrap a value in a list if it isn't one already                 |
-| `secure_filename` | Sanitize a filename for safe filesystem storage                |
+
 
 ### Global Context
 
