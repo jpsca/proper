@@ -1,3 +1,3 @@
-# [[ app_name ]]
+# [[app_name]]
 
 A *Proper* web application.

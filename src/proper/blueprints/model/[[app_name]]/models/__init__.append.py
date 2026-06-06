@@ -1,1 +1,1 @@
-from .[[ name_snake ]] import  [[ name_pascal ]]  # noqa
+from .[[name_snake]] import  [[name_pascal]]  # noqa

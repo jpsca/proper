@@ -1,4 +1,4 @@
-from [[ app_name ]].main import app
+from [[app_name]].main import app
 
 
 def test_health_page(client):

@@ -1236,7 +1236,7 @@ def load_fixtures():
 
 
 @pytest.fixture(autouse=True)
-def dbs(db_setup):
+def db_reset(db_setup):
     with db.atomic() as transaction:
         yield
         transaction.rollback()

@@ -3,9 +3,9 @@ import os
 import pytest
 from proper import TestClient
 
-from [[ app_name ]].main import app
-from [[ app_name ]].models import db
-from [[ app_name ]].models.base import BaseModel
+from [[app_name]].main import app
+from [[app_name]].models import db
+from [[app_name]].models.base import BaseModel
 
 
 @pytest.fixture()

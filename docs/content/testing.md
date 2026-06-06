@@ -1,7 +1,7 @@
 ---
 title: Testing Proper Applications
 description: |
-  How to test a Proper application end-to-end with the bundled `TestClient`. Covers the generated test setup, the `dbs` transactional fixture, making requests of every HTTP verb, uploading files, asserting on the response, signing users in, and exercising models, forms, emails, background tasks, and WebSocket channels.
+  How to test a Proper application end-to-end with the bundled `TestClient`. Covers the generated test setup, the `db_reset` transactional fixture, making requests of every HTTP verb, uploading files, asserting on the response, signing users in, and exercising models, forms, emails, background tasks, and WebSocket channels.
 number_headers: true
 ---
 
@@ -13,7 +13,7 @@ Proper takes that idea seriously. The framework ships a `TestClient` that drives
 
 After reading this guide, you will know:
 
-- The shape of a Proper test - the `TestClient`, the `dbs` fixture, what runs differently in the test environment, and the conventions a generator follows.
+- The shape of a Proper test - the `TestClient`, the `db_reset` fixture, what runs differently in the test environment, and the conventions a generator follows.
 - How to drive the app through every HTTP verb, upload files, send headers, and read what came back.
 - How to sign users in, test channels, and assert on emails and background work.
 - The common pitfalls - redirects that aren't followed, the outbox that accumulates, the safety check that prevents wiping a real database.
@@ -39,7 +39,7 @@ def test_create_redirects_and_persists(client):
 Three things to notice:
 
 - **`client` is a fixture**, provided by the generated `tests/conftest.py`. You don't construct a `TestClient` per test - the fixture hands you a fresh one bound to your app.
-- **No database argument is required**, but a database is available. The generated conftest marks its `dbs` fixture as `autouse=True`, so every test runs inside a transaction that is rolled back when the test ends. You read and write the database freely; the next test sees a clean slate.
+- **No database argument is required**, but a database is available. The generated conftest marks its `db_reset` fixture as `autouse=True`, so every test runs inside a transaction that is rolled back when the test ends. You read and write the database freely; the next test sees a clean slate.
 - **The response is a plain object**. `result.status` is the HTTP status code. `result.headers` is a case-insensitive dict. `result.body` is the rendered response as a string. There is no `.json()` method to await, no test-specific response wrapper - the same data the browser would see, in Python form.
 
 The whole rest of this guide unpacks those three lines.
@@ -51,7 +51,7 @@ The whole rest of this guide unpacks those three lines.
 A freshly generated Proper application is already set up for testing. There are no extra packages to install, no test runner to configure, no test-specific entry point to wire up. The pieces are:
 
 - The **test environment**, selected by `APP_ENV=test`, which swaps in fast in-memory replacements for the database, queue, cache, and mailer.
-- The **`tests/` directory**, with a `conftest.py` that provides the `client` and `dbs` fixtures and a stub `test_public.py` to confirm the harness works.
+- The **`tests/` directory**, with a `conftest.py` that provides the `client` and `db_reset` fixtures and a stub `test_public.py` to confirm the harness works.
 - **pytest** as the runner, invoked through `uv run pytest`.
 
 ### The test environment
@@ -77,8 +77,16 @@ if env == "test":
 ```
 
 ```python {title="config/main.py"}
+# MAILERS lists the available backends by name; MAILER picks the active one.
+MAILERS = {
+    "console": {"type": "proper.emails.ToConsoleMailer"},
+    "memory": {"type": "proper.emails.ToMemoryMailer"},
+    # ...
+}
+MAILER = "console"
+
 if env == "test":
-    MAILER = {"type": "proper.emails.ToMemoryMailer"}
+    MAILER = "memory"
 ```
 
 Each switch matters:
@@ -106,6 +114,8 @@ Because pytest imports the `tests` package before it imports any test module (an
 The generated conftest is short. Most of it is fixture wiring:
 
 ```python {title="tests/conftest.py"}
+import os
+
 import pytest
 from proper import TestClient
 
@@ -122,24 +132,33 @@ def client():
 @pytest.fixture(scope="session")
 def db_setup():
     # better to be safe than sorry
-    assert "_test" in db.database or db.database == ":memory:"
+    assert os.getenv("APP_ENV") == "test"
+    assert "test" in db.database or "memory" in db.database
+
+    db.connect(reuse_if_open=True)
+
     models = BaseModel.__subclasses__()
     db.drop_tables(models)
     db.create_tables(models, safe=True)
     load_fixtures()
+
     yield
+
     db.drop_tables(models)
+    db.close()
+    if os.path.exists(db.database):
+        os.remove(db.database)
+
+
+@pytest.fixture(autouse=True)
+def db_reset(db_setup):
+    with db.atomic() as transaction:
+        yield
+        transaction.rollback()
 
 
 def load_fixtures():
     pass
-
-
-@pytest.fixture(autouse=True)
-def dbs(db_setup):
-    with db.atomic() as transaction:
-        yield
-        transaction.rollback()
 ```
 
 There are three fixtures, each doing one job.
@@ -165,26 +184,38 @@ def test_index(client):
 ```python
 @pytest.fixture(scope="session")
 def db_setup():
-    assert "_test" in db.database or db.database == ":memory:"
+    assert os.getenv("APP_ENV") == "test"
+    assert "test" in db.database or "memory" in db.database
+
+    db.connect(reuse_if_open=True)
+
     models = BaseModel.__subclasses__()
     db.drop_tables(models)
     db.create_tables(models, safe=True)
     load_fixtures()
+
     yield
+
     db.drop_tables(models)
+    db.close()
+    if os.path.exists(db.database):
+        os.remove(db.database)
 ```
 
-Runs **once per test session**. Three things happen in order:
+Runs **once per test session**. The steps, in order:
 
-1. **Safety check.** The assertion refuses to run if `db.database` doesn't look like a test database - either its name contains `_test` or it is `:memory:`. This is the line standing between you and the day someone runs the test suite against production. Leave it in place.
-2. **Schema reset.** Every subclass of `BaseModel` is dropped and recreated. No Alembic-style migrations, no fixture data left over from a previous run.
-3. **Seed data.** `load_fixtures()` is called - empty by default - so you can populate the database with rows that every test should see.
+1. **Safety check.** Two assertions refuse to run unless `APP_ENV` is `"test"` *and* `db.database` looks like a test database - its name contains `test`, or it is an in-memory database (`"memory"` matches `:memory:`). This is the line standing between you and the day someone runs the test suite against production. Leave it in place.
+2. **Connection.** A connection is opened on the test thread and held for the whole session (`reuse_if_open=True`). This keeps a shared in-memory database alive and supports backends configured with `autoconnect=False`.
+3. **Schema reset.** Every subclass of `BaseModel` is dropped and recreated. No Alembic-style migrations, no fixture data left over from a previous run.
+4. **Seed data.** `load_fixtures()` is called - empty by default - so you can populate the database with rows that every test should see.
 
-#### The `dbs` fixture (autouse, per test)
+On teardown the tables are dropped, the connection is closed, and the database file (if any) is removed.
+
+#### The `db_reset` fixture (autouse, per test)
 
 ```python
 @pytest.fixture(autouse=True)
-def dbs(db_setup):
+def db_reset(db_setup):
     with db.atomic() as transaction:
         yield
         transaction.rollback()
@@ -192,10 +223,10 @@ def dbs(db_setup):
 
 Runs **once per test**, automatically. Each test executes inside a Peewee transaction (`db.atomic()`); when the test returns, the transaction is rolled back. Anything you wrote to the database during the test - records, updates, deletes - disappears. The next test sees the same starting state.
 
-Because the fixture is `autouse=True`, you don't list `dbs` in your test signature unless you want pytest's dependency-ordering rules to make it explicit. The generated test scaffold does name it, mostly as a hint to the reader that this test touches the database:
+Because the fixture is `autouse=True`, you don't list `db_reset` in your test signature unless you want pytest's dependency-ordering rules to make it explicit. The generated test scaffold does name it, mostly as a hint to the reader that this test touches the database:
 
 ```python
-def test_photo_show(dbs):
+def test_photo_show(db_reset):
     photo = Photo.create(title="Sunset")
     result = client.get(f"/photos/{photo.id}")
     assert result.status == 200
@@ -464,92 +495,75 @@ Some apps add a small helper - `result.json()` - on a project-local subclass of 
 
 ## Testing with authentication
 
-If your app uses the [auth addon](/docs/authentication), the `TestClient` includes `sign_in()` and `sign_out()` helpers for the routes the addon installs.
+If your app uses the [auth addon](/docs/authentication), the `TestClient` has a `sign_in()` helper that authenticates the client for the requests that follow.
 
 ### `sign_in()`
 
-```python
-def test_dashboard_when_authenticated(client):
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
+`sign_in()` takes a `Session` object - the same kind the auth addon creates when a user logs in - and attaches its signed cookie to the client. Every request the client makes afterwards is authenticated; you don't pass anything back by hand.
 
-    result = client.get("/dashboard", headers={"Cookie": cookie})
+```python
+from myapp.models import User, Session
+
+
+def test_dashboard_when_authenticated(client):
+    user = User.create(login="testuser", password="password123")
+    session = Session.create_for_user(user=user)
+    client.sign_in(session)
+
+    result = client.get("/dashboard")
     assert result.status == 200
     assert "Dashboard" in result.body
 ```
 
-What `sign_in()` does, end to end:
-
-1. Posts `{"login": login, "password": password}` to `/sign-in`.
-2. Asserts the response is a 303 - the standard success-after-POST status. If it isn't, the assertion fires inside `sign_in()` and the test fails there, so you don't have to chase a misleading `200` further down.
-3. Extracts the `_auth=...` cookie from the `Set-Cookie` header and returns it as a string.
-
-You then pass that cookie back to subsequent requests via `headers={"Cookie": cookie}`. The `TestClient` does **not** persist cookies between requests - intentionally. Every call to `client.get(...)` is a fresh ASGI scope; nothing leaks between tests, and nothing about your test's auth state is hidden from the test code.
-
-The defaults are `login="testuser"` and `password="password123"`, which match the convention used by the generator's sample data. Pass real values when you need a specific user.
-
-The URL that the `sign_in()` method uses is actually whatever `url_for("SessionController.create")` resolves to. You can change the controller/action used with the `action=` argument:
-
-```python
-cookie = client.sign_in(
-    "testuser",
-    "password123",
-    action="AdminSessionController.create"
-)
-```
+What `sign_in(session)` does is small and direct: it signs the session token and stores it in the client's default headers as the auth cookie. It makes **no HTTP request** and returns nothing. Because the cookie lives on `client.default_headers`, it is sent automatically on every subsequent `client.get(...)`/`client.post(...)` - the client *does* carry it forward, which is exactly what you want for a sequence of authenticated requests in one test. A fresh `TestClient` (such as the one from the `client` fixture) starts with no cookie, so auth state never leaks between tests.
 
 ### A signed-in user creating a record
 
-The two-step pattern is the same for any authenticated action:
+The pattern is the same for any authenticated action - sign in once, then make the request:
 
 ```python
 def test_create_post_as_authenticated_user(client):
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
+    user = User.create(login="testuser", password="password123")
+    client.sign_in(Session.create_for_user(user=user))
 
     result = client.post(
         "/posts",
         body={"title": "Hello", "body": "World"},
-        headers={"Cookie": cookie},
     )
     assert result.status == 303
 ```
 
-When you find yourself repeating `User.create(...) + sign_in(...)` across many tests, extract a per-test fixture:
+When you find yourself repeating the create-user-then-sign-in dance across many tests, extract a fixture. The auth addon already ships one in `tests/conftest.py` called `signed_client` - a client that is already signed in:
 
 ```python {title="tests/conftest.py"}
 @pytest.fixture()
-def signed_in_user(client):
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
-    return cookie
+def signed_client(client):
+    """A test client with a signed-in user."""
+    user = User.create(login="testuser", password="password123")
+    session = Session.create_for_user(user=user)
+    client.sign_in(session)
+    return client
 
 
 # In a test:
-def test_dashboard(client, signed_in_user):
-    result = client.get("/dashboard", headers={"Cookie": signed_in_user})
+def test_dashboard(signed_client):
+    result = signed_client.get("/dashboard")
     assert result.status == 200
 ```
 
-### `sign_out()`
+### Signing out
+
+There is no `sign_out()` helper. Signing out in a test just means dropping the auth cookie the client is carrying:
 
 ```python
-def test_sign_out_clears_session(client):
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
+def test_dashboard_requires_auth_after_signout(client):
+    user = User.create(login="testuser", password="password123")
+    client.sign_in(Session.create_for_user(user=user))
 
-    client.sign_out()
+    client.default_headers.pop("cookie", None)   # forget the session
 
-    result = client.get("/dashboard", headers={"Cookie": cookie})
+    result = client.get("/dashboard")
     assert result.status == 303   # bounced to /sign-in
-```
-
-`sign_out()` sends `DELETE /sign-out` and asserts a 303 back. After it returns, the auth session row referenced by the cookie has been deleted on the server side - so even the old cookie no longer authenticates.
-
-Like, `sign_in()` the URL that the `sign_out()` method uses is actually `url_for("SessionController.destroy")`. You can change the controller/action used with the `action=` argument:
-
-```python
-client.sign_out(action="AdminSessionController.destroy")
 ```
 
 ### Testing unauthenticated access
@@ -569,7 +583,7 @@ This pairs naturally with the "when authenticated" test above. Together they doc
 
 ## Testing models
 
-Models are tested directly. There is no model-test base class, no fixture that constructs a model in a special way - Peewee works the same in a test as it does in production, and the `dbs` fixture keeps the database honest.
+Models are tested directly. There is no model-test base class, no fixture that constructs a model in a special way - Peewee works the same in a test as it does in production, and the `db_reset` fixture keeps the database honest.
 
 ```python {title="tests/test_user_model.py"}
 from myapp.models import User
@@ -693,7 +707,7 @@ Background tasks go through Huey. In the test environment, `QUEUE` is configured
 from myapp.tasks import generate_thumbnails
 
 
-def test_thumbnail_task_creates_files(tmp_path, dbs):
+def test_thumbnail_task_creates_files(tmp_path, db_reset):
     photo = Photo.create(title="x", original=str(tmp_path / "src.jpg"))
     generate_thumbnails(photo.id)
 
@@ -782,20 +796,20 @@ Said in the result-object section, said again here because the surprise can be c
 
 `app.mailer.outbox` lives on the app, which lives across tests. If two tests both end with `assert len(app.mailer.outbox) == 1`, the second one will see two messages and fail. Either add an autouse fixture that calls `app.mailer.outbox.clear()` before each test, or assert against the delta. See the [Testing emails](#testing-emails) section.
 
-### About the `dbs` fixture
+### About the `db_reset` fixture
 
 Three things to know about the autouse transactional fixture, in roughly the order you'll meet them.
 
-**The safety check is load-bearing.** The `assert "_test" in db.database or db.database == ":memory:"` in `db_setup` is not decoration - it's the line standing between you and someone who accidentally ran pytest with `APP_ENV=production` in their shell. The cost of the assertion firing in the wrong place is zero; the cost of dropping a production schema is unbounded. Leave it.
+**The safety check is load-bearing.** The `assert os.getenv("APP_ENV") == "test"` and `assert "test" in db.database or "memory" in db.database` in `db_setup` are not decoration - they're the line standing between you and someone who accidentally ran pytest with `APP_ENV=production` in their shell. The cost of an assertion firing in the wrong place is zero; the cost of dropping a production schema is unbounded. Leave them.
 
-**Explicit naming is a hint, not a requirement.** Because `dbs` has `autouse=True`, every test runs inside the rollback transaction whether it lists the fixture or not. The generator scaffolds it explicitly (`def test_x(dbs):`) as a signal to the reader that the test touches the database. Both styles work; pick one and be consistent.
+**Explicit naming is a hint, not a requirement.** Because `db_reset` has `autouse=True`, every test runs inside the rollback transaction whether it lists the fixture or not. The generator scaffolds it explicitly (`def test_x(db_reset):`) as a signal to the reader that the test touches the database. Both styles work; pick one and be consistent.
 
 **When you genuinely need a commit.** If you're testing code that itself calls `db.atomic()` and expects to commit - rare in application code, common when testing migrations or low-level utilities - the outer rollback turns the inner transaction into a savepoint. The cleanest escape is a marker that opts out of the fixture:
 
 ```python
 @pytest.fixture(autouse=True)
-def dbs(db_setup, request):
-    if "no_dbs" in request.keywords:
+def db_reset(db_setup, request):
+    if "no_db_reset" in request.keywords:
         yield
         return
     with db.atomic() as transaction:
@@ -803,7 +817,7 @@ def dbs(db_setup, request):
         transaction.rollback()
 
 
-@pytest.mark.no_dbs
+@pytest.mark.no_db_reset
 def test_migration_actually_commits():
     ...
 ```
@@ -831,5 +845,5 @@ Testing touches almost every part of Proper. A few places to go from here:
 - [Sending Emails](/docs/emails#testing) - the canonical reference for `ToMemoryMailer`, outbox introspection, and testing email classes in isolation.
 - [Background Tasks](/docs/tasks) - how immediate mode works under the hood, when to switch to a real consumer for an integration test, and the deeper Huey APIs.
 - [Channels](/docs/channels) - the framework side of the WebSocket protocol the test session exercises.
-- [Authentication](/docs/authentication) - what `client.sign_in()` is actually posting to, and how the auth session model is structured.
+- [Authentication](/docs/authentication) - how the `Session` model works and how `current.user` is resolved on each request.
 - [Controllers Advanced Topics](/docs/controllers_advanced) - error handlers, conditional GETs, and the controller behaviours that round out a complete test suite.

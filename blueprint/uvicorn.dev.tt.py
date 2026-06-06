@@ -3,7 +3,7 @@
 These values are passed as keyword arguments to `uvicorn.run()`.
 """
 
-app = "[[ app_name ]].main:app"
+app = "[[app_name]].main:app"
 host = "0.0.0.0"
 reload = True
 workers = 1

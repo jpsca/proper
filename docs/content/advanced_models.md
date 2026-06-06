@@ -98,13 +98,16 @@ Best for two or three known parent types. You add a `parent_type` column and one
 
 ```python
 class Reaction(BaseModel):
-    user = pw.ForeignKeyField(User, backref="reactions", on_delete="CASCADE")
-    parent_type = pw.CharField()      # "article" or "comment"
-    article = pw.ForeignKeyField(Article, null=True,
-                                 backref="reactions", on_delete="CASCADE")
-    comment = pw.ForeignKeyField(Comment, null=True,
-                                 backref="reactions", on_delete="CASCADE")
-    kind = pw.CharField()             # "like", "heart", etc.
+    user = pw.ForeignKeyField(
+        User, backref="reactions", on_delete="CASCADE")
+    
+    parent_type = pw.CharField()  # "article" or "comment"
+    kind = pw.CharField()  # "like", "heart", etc.
+
+    article = pw.ForeignKeyField(
+        Article, null=True, backref="reactions", on_delete="CASCADE")
+    comment = pw.ForeignKeyField(
+        Comment, null=True, backref="reactions", on_delete="CASCADE")
 
     class Meta:
         constraints = [
@@ -143,20 +146,22 @@ class Postable(BaseModel):
 
 
 class Article(BaseModel):
-    postable = pw.ForeignKeyField(Postable, unique=True, on_delete="CASCADE")
+    postable = pw.ForeignKeyField(
+        Postable, unique=True, on_delete="CASCADE")
     title = pw.CharField()
     body = pw.TextField()
 
 
 class Photo(BaseModel):
-    postable = pw.ForeignKeyField(Postable, unique=True, on_delete="CASCADE")
+    postable = pw.ForeignKeyField(
+        Postable, unique=True, on_delete="CASCADE")
     caption = pw.CharField()
     image_url = pw.CharField()
 
 
 class Reaction(BaseModel):
-    postable = pw.ForeignKeyField(Postable, backref="reactions",
-                                  on_delete="CASCADE")
+    postable = pw.ForeignKeyField(
+        Postable, backref="reactions", on_delete="CASCADE")
     user = pw.ForeignKeyField(User, on_delete="CASCADE")
     kind = pw.CharField()
 ```
@@ -188,7 +193,8 @@ Reading a parent's reactions is a plain query on the discriminator and id:
 
 ```python
 Reaction.select().where(
-    (Reaction.parent_type == "article") & (Reaction.parent_id == article.id)
+    (Reaction.parent_type == "article")
+    & (Reaction.parent_id == article.id)
 )
 ```
 
@@ -196,11 +202,11 @@ Flexible - but you give up the integrity guarantees that make foreign keys worth
 
 ### Which to Pick
 
-| Situation                                          | Pattern   |
-|----------------------------------------------------|-----------|
-| Two or three parent types, set in stone            | A         |
-| Parents share meaningful behavior                  | B         |
-| Many parent types, or extensible at runtime        | C         |
+Situation                                    | Pattern
+-------------------------------------------- | -------
+Two or three parent types, set in stone      | A
+Parents share meaningful behavior            | B
+Many parent types, or extensible at runtime  | C
 
 When in doubt, start with A. It's the easiest to migrate away from later.
 
@@ -244,7 +250,7 @@ The existing `BaseModel` is bound to `app.db["main"]` through its `Meta` class. 
 
 ```python
 # models/base.py
-from proper import ProperModel, scope  # noqa
+from proper import ProperModel, scope
 
 from ..main import app
 
@@ -307,7 +313,11 @@ When you need to combine data, query each side and stitch the results together i
 
 ```python
 top_paths = (
-    PageView.select(PageView.path, pw.fn.COUNT(PageView.id).alias("hits"))
+    PageView
+    .select(
+        PageView.path,
+        pw.fn.COUNT(PageView.id).alias("hits")
+    )
     .group_by(PageView.path)
     .order_by(pw.SQL("hits").desc())
     .limit(10)

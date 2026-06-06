@@ -29,17 +29,17 @@ Here is the layout in a freshly generated app with the auth addon installed:
 myapp/
 ├── emails/
 │   ├── __init__.py
-│   ├── base_email.py              # BaseEmail adds send_later()
-│   └── password_reset_email.py    # one class per email
+│   ├── base_email.py           # BaseEmail adds send_later()
+│   └── password_reset_email.py # one class per email
 ├── views/
 │   ├── emails/
-│   │   └── password_reset.jx      # the HTML template
+│   │   └── password_reset.jx   # the HTML template
 │   └── layouts/
-│       └── email.jx               # the layout every email wraps in
+│       └── email.jx            # the layout every email wraps in
 ├── tasks/
-│   └── __init__.py                # ships with send_email_task
+│   └── __init__.py             # ships with send_email_task
 └── config/
-    └── main.py                    # MAILERS, MAILER, and MAILER_DEFAULT_OPTIONS
+    └── main.py                 # MAILERS, MAILER, and MAILER_DEFAULT_OPTIONS
 ```
 
 ### The class
@@ -58,7 +58,8 @@ class PasswordResetEmail(BaseEmail):
     def __init__(self, user, **kwargs):
         super().__init__(**kwargs)
         token = user.generate_token_for("password_reset")
-        self.validate_url = app.url_for("PasswordReset.edit", token=token, _full=True)
+        self.validate_url = app.url_for(
+            "PasswordReset.edit", token=token, _full=True)
         self.reset_url = app.url_for("PasswordReset.new", _full=True)
 ```
 
@@ -241,7 +242,8 @@ class InvoiceEmail(BaseEmail):
         super().__init__(**kwargs)
         self.invoice = invoice
         self.total = invoice.total
-        self.download_url = app.url_for("Invoice.download", invoice, _full=True)
+        self.download_url = app.url_for(
+            "Invoice.download", invoice, _full=True)
 ```
 
 The template sees `{{ invoice }}`, `{{ total }}`, `{{ download_url }}`.
@@ -323,7 +325,10 @@ class WelcomeEmail(BaseEmail):
 
 <Layout>
   <p>Hi {{ user.name }},</p>
-  <p>Your account is ready. <a href="{{ dashboard_url }}">Go to your dashboard</a>.</p>
+  <p>
+    Your account is ready. 
+    <a href="{{ dashboard_url }}">Go to your dashboard</a>.
+  </p>
 </Layout>
 ```
 
@@ -584,13 +589,18 @@ class ResendMailer(BaseMailer):
     def send_now(self, *messages: EmailMessageDict) -> int:
         sent = 0
         for message in messages:
-            rendered = self.render(message)  # inherited - returns a stdlib EmailMessage
+            # inherited - returns a stdlib EmailMessage
+            rendered = self.render(message)
+
+            is_html = message["content_subtype"] == "html"
+            is_text = message["content_subtype"] == "plain"
+            
             response = self.client.post("/emails", json={
                 "from": rendered["From"],
                 "to": message["to"],
                 "subject": rendered["Subject"],
-                "html": message["body"] if message["content_subtype"] == "html" else None,
-                "text": message["body"] if message["content_subtype"] == "plain" else None,
+                "html": message["body"] if is_html else None,
+                "text": message["body"] if is_text else None,
             })
             if response.is_success:
                 sent += 1

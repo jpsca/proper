@@ -413,10 +413,10 @@ Now controllers can write `article.tags`, `article.add_tag(tag)`, and `article.r
 
 ### The `ManyToManyField` Shortcut
 
-If you really don't want to write a through model - say, the relationship is purely associative and you'll never need extra columns - Peewee's playhouse offers a shortcut:
+If you really don't want to write a through model - say, the relationship is purely associative and you'll never need extra columns - Peewee offers a shortcut:
 
 ```python
-from playhouse.fields import ManyToManyField
+from peewee import ManyToManyField
 
 
 class Article(BaseModel):
@@ -760,7 +760,7 @@ for article in Article.select():
 
 This issues **one** query to load articles, then **one more** query for each article to load its author. With 50 articles, that's 51 queries. With 5,000, you've got a problem. This is the N+1 problem.
 
-Proper logs every SQL statement in development mode, so you can see this happening in your terminal. When you spot a wall of nearly-identical queries, you've found an N+1.
+Peewee can log every query it runs through Python's `logging` module - the `peewee` logger, at `DEBUG` level. Turn that on in development (see the tip below) and you can watch this happening in your terminal. When you spot a wall of nearly-identical queries, you've found an N+1.
 
 There are two ways to fix it.
 
@@ -843,7 +843,16 @@ results = pw.prefetch(staff_articles, Comment.select())
 The join narrows the article set; the prefetch attaches the comments. Two queries, no N+1.
 
 :::tip | Watch the SQL
-The fastest way to spot N+1 problems is to keep an eye on the dev server's query log when you're loading a page. If you see the same `SELECT ... WHERE id = ?` shape repeating, you have one. Fix it with one of the two strategies above.
+The fastest way to spot N+1 problems is to watch the SQL while you load a page. Enable Peewee's query logger - attach a handler to the `peewee` logger and set it to `DEBUG`:
+
+```python
+import logging
+
+logging.getLogger("peewee").addHandler(logging.StreamHandler())
+logging.getLogger("peewee").setLevel(logging.DEBUG)
+```
+
+If you see the same `SELECT ... WHERE id = ?` shape repeating, you have one. Fix it with one of the two strategies above.
 :::
 
 ---
@@ -1028,5 +1037,5 @@ A quick lookup for the syntax bits you'll forget the most.
 
 ```python
 import peewee as pw
-from playhouse.fields import ManyToManyField
+from peewee import ManyToManyField
 ```

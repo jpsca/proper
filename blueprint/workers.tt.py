@@ -1,6 +1,6 @@
 from huey.consumer import Consumer
 
-from [[ app_name ]].main import app
+from [[app_name]].main import app
 
 
 def get_config():
