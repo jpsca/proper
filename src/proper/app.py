@@ -48,6 +48,7 @@ if t.TYPE_CHECKING:
     from .emails import BaseMailer
     from .i18n import I18n
     from .storage import _Attachment
+    from .tools.mailer import Mailers
 
 
 __all__ = ("App",)
@@ -118,6 +119,7 @@ class App(AppWs):
     queue: "Huey"
     cache: "BaseCache"
     mailer: "BaseMailer"
+    mailers: "Mailers"
     auth: "Auth"
     i18n: "I18n | None"
     cable: Cable

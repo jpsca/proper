@@ -84,7 +84,8 @@ Accessed via `current.app` or directly from the app instance.
 | `db`             | `dict[str, pw.Database]`      | Dictionary of Peewee database connections            |
 | `queue`          | `Huey`                        | Task queue instance                                  |
 | `cache`          | `BaseCache`                   | Cache backend instance                               |
-| `mailer`         | `BaseMailer`                  | Email mailer instance                                |
+| `mailer`         | `BaseMailer`                  | Default mailer backend instance                      |
+| `mailers`        | `Mailers`                     | Mailer registry — `app.mailers[name]` selects a backend by config name |
 | `auth`           | `Auth`                        | Auth instance (password hashing, token helpers)      |
 | `i18n`           | `I18n \| None`                | Internationalization instance (`None` if not installed) |
 | `cable`          | `Cable`                       | WebSocket cable instance for real-time communication |

@@ -5,7 +5,7 @@ from huey import MemoryHuey
 
 from proper import App
 from proper.cache import NoCache
-from proper.emails import ToConsoleMailer
+from proper.emails import ToConsoleMailer, ToMemoryMailer
 from proper.errors import ConfigError
 from proper.helpers import DotDict
 from proper.tools import auth, cache, db, i18n, mailer, queue, storage
@@ -26,6 +26,7 @@ def test_all_tools_attached_after_init():
     assert hasattr(app, "cache")
     assert hasattr(app, "db")
     assert hasattr(app, "mailer")
+    assert hasattr(app, "mailers")
     assert hasattr(app, "queue")
     assert hasattr(app, "i18n")
     # Storage no longer attaches a singleton to `app`; the entry point is
@@ -316,22 +317,72 @@ def test_mailer_default_options_set():
 
 
 def test_valid_mailer_config():
-    mailer.validate_config({"type": "proper.emails.ToConsoleMailer"})
+    config = DotDict(
+        {
+            "MAILER": "console",
+            "MAILERS": {"console": {"type": "proper.emails.ToConsoleMailer"}},
+        }
+    )
+    mailer.validate_config(config)
 
 
 def test_mailer_config_must_be_dict():
-    with pytest.raises(ConfigError, match="MAILER config must be a dictionary"):
-        mailer.validate_config("not a dict")
+    config = DotDict({"MAILERS": "not a dict"})
+    with pytest.raises(ConfigError, match="MAILERS config must be a dictionary"):
+        mailer.validate_config(config)
 
 
-def test_mailer_config_must_have_type():
+def test_unknown_default_mailer_raises():
+    config = DotDict(
+        {
+            "MAILER": "nope",
+            "MAILERS": {"console": {"type": "proper.emails.ToConsoleMailer"}},
+        }
+    )
+    with pytest.raises(ConfigError, match="not defined in MAILERS"):
+        mailer.validate_config(config)
+
+
+def test_mailer_backend_must_be_dict():
+    config = DotDict({"MAILER": "x", "MAILERS": {"x": "not a dict"}})
+    with pytest.raises(ConfigError, match="MAILERS\\['x'\\] must be a dictionary"):
+        mailer.validate_config(config)
+
+
+def test_mailer_backend_must_have_type():
+    config = DotDict({"MAILER": "x", "MAILERS": {"x": {}}})
     with pytest.raises(ConfigError, match="must have a 'type' key"):
-        mailer.validate_config({})
+        mailer.validate_config(config)
 
 
 def test_mailer_type_must_be_str_or_class():
+    config = DotDict({"MAILER": "x", "MAILERS": {"x": {"type": 42}}})
     with pytest.raises(ConfigError, match="must be a string or a class"):
-        mailer.validate_config({"type": 42})
+        mailer.validate_config(config)
+
+
+def test_mailer_registry_by_name():
+    app = _make_app(
+        MAILER="console",
+        MAILERS={
+            "console": {"type": "proper.emails.ToConsoleMailer"},
+            "memory": {"type": "proper.emails.ToMemoryMailer"},
+        },
+    )
+    assert isinstance(app.mailers["memory"], ToMemoryMailer)
+    # cached: same instance on repeated access
+    assert app.mailers["memory"] is app.mailers["memory"]
+
+
+def test_unknown_mailer_name_raises():
+    app = _make_app()
+    with pytest.raises(ConfigError, match="Unknown mailer"):
+        app.mailers["nope"]
+
+
+def test_default_mailer_in_registry():
+    app = _make_app()
+    assert app.mailer is app.mailers[app.config.MAILER]
 
 
 # --- tools.queue ---

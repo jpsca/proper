@@ -136,12 +136,17 @@ class EmailMessage:
         self.reply_to = to_list(reply_to) if reply_to else self.reply_to
         self.headers.update(headers or {})
 
-    def send(self, **options):
-        """Send the email message immediately."""
+    def send(self, *, via: str | None = None, **options):
+        """Send the email message immediately.
+
+        Pass `via` to route the message through a specific mailer from
+        `MAILERS` (by name). Defaults to the configured default mailer.
+        """
         self.update(**options)
         if not self.body:
             self._render()
-        current.app.mailer.send_now(self.serialize())
+        mailer = current.app.mailers[via] if via else current.app.mailer
+        mailer.send_now(self.serialize())
 
     def serialize(self) -> EmailMessageDict:
         """Serialize the email message to a dictionary."""

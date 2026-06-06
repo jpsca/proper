@@ -1,6 +1,8 @@
 import pytest
 
+from proper import App, current
 from proper.emails import EmailMessage
+from proper.errors import ConfigError
 
 
 def test_basic_init():
@@ -329,3 +331,54 @@ def test_render_no_templates(app, tmp_path):
     assert msg.body == ""
     assert msg.content_subtype == "plain"
     assert msg.alternatives == []
+
+
+# --- send() backend routing tests ---
+
+
+def _multi_mailer_app():
+    app = App(
+        __name__,
+        {
+            "SECRET_KEYS": ["*" * 50],
+            "DEBUG": False,
+            "MAILER": "primary",
+            "MAILERS": {
+                "primary": {"type": "proper.emails.ToMemoryMailer"},
+                "secondary": {"type": "proper.emails.ToMemoryMailer"},
+            },
+        },
+    )
+    current.app = app
+    return app
+
+
+def _msg():
+    return EmailMessage(from_email="a@example.com", to="to@example.com", body="hi")
+
+
+def test_send_uses_default_mailer():
+    app = _multi_mailer_app()
+    _msg().send()
+    assert len(app.mailers["primary"].outbox) == 1
+    assert app.mailers["secondary"].outbox == []
+
+
+def test_send_via_routes_to_named_mailer():
+    app = _multi_mailer_app()
+    _msg().send(via="secondary")
+    assert app.mailers["primary"].outbox == []
+    assert len(app.mailers["secondary"].outbox) == 1
+
+
+def test_send_via_default_name_matches_default():
+    app = _multi_mailer_app()
+    assert app.mailer is app.mailers["primary"]
+    _msg().send(via="primary")
+    assert len(app.mailer.outbox) == 1
+
+
+def test_send_via_unknown_raises():
+    _multi_mailer_app()
+    with pytest.raises(ConfigError, match="Unknown mailer"):
+        _msg().send(via="nope")

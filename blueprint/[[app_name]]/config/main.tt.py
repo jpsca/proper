@@ -63,20 +63,29 @@ else:
     STATIC_X_SENDFILE_HEADER = ""
 
 
-MAILER = {"type": "proper.emails.ToConsoleMailer"}
-MAILER_DEFAULT_OPTIONS = {
-    "from": "no-reply@example.com",
-}
-
-if env == "test":
-    MAILER = {"type": "proper.emails.ToMemoryMailer"}
-
-if env == "prod":
-    MAILER = {
+MAILERS = {
+    "console": {
+        "type": "proper.emails.ToConsoleMailer"
+    },
+    "memory": {
+        "type": "proper.emails.ToMemoryMailer"
+    },
+    "ses_smtp": {
         "type": "proper.emails.SMTPMailer",
         "host": "smtp.example.com",
         "port": 587,
         "username": os.getenv("SMTP_USERNAME"),
         "password": os.getenv("SMTP_PASSWORD"),
         "use_tls": True,
-    }
+    },
+}
+
+MAILER = "console"
+MAILER_DEFAULT_OPTIONS = {
+    "from": "no-reply@example.com",
+}
+
+if env == "test":
+    MAILER = "memory"
+elif env == "prod":
+    MAILER = "ses_smtp"

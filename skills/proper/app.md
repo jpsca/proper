@@ -40,7 +40,7 @@ This generates the full project structure:
 myapp/                    # Application package
   config/                 # Configuration modules
     __init__.py           # Imports all config modules in order
-    main.py               # Core settings: DEBUG, HOST, SECRET_KEYS, MAILER
+    main.py               # Core settings: DEBUG, HOST, SECRET_KEYS, MAILERS
     storage.py            # DATABASES, QUEUE, CACHE config by environment
   controllers/            # Request handlers
     concerns/             # Controller mixins (e.g., SecurityHeaders)

@@ -39,7 +39,7 @@ myapp/
 ├── tasks/
 │   └── __init__.py                # ships with send_email_task
 └── config/
-    └── main.py                    # MAILER and MAILER_DEFAULT_OPTIONS
+    └── main.py                    # MAILERS, MAILER, and MAILER_DEFAULT_OPTIONS
 ```
 
 ### The class
@@ -186,7 +186,7 @@ Every email in your app is a subclass of `BaseEmail`, which is itself a thin sub
 For one-off messages you don't need a class at all - `EmailMessage` is usable directly:
 
 ```python
-from proper import EmailMessage
+from proper.emails import EmailMessage
 
 EmailMessage(
     subject="Welcome!",
@@ -258,7 +258,7 @@ MAILER_DEFAULT_OPTIONS = {
 }
 ```
 
-Any field not supplied by the constructor or by a class default falls back to this dict. So `from_email` typically lives here, once - no email class needs to repeat it. The accepted keys are `from`, `subject`, `body`, `to`, `bcc`, `cc`, `reply_to`, and `headers`.
+Any field not supplied by the constructor or by a class default falls back to this dict. So `from_email` typically lives here, once - no email class needs to repeat it. The accepted keys are `from`, `subject`, `to`, `bcc`, `cc`, `reply_to`, and `headers`.
 
 ### Adjusting after construction
 
@@ -418,9 +418,9 @@ from ..tasks import send_email_task
 
 
 class BaseEmail(EmailMessage):
-    def send_later(self, **options):
+    def send_later(self, *, via=None, **options):
         self.update(**options)
-        send_email_task(message=self.serialize())
+        send_email_task(message=self.serialize(), via=via)
 ```
 
 And the task it calls is one of the few things shipped in `tasks/__init__.py`:
@@ -433,8 +433,9 @@ from ..main import app
 
 
 @app.queue.task()
-def send_email_task(message: EmailMessageDict):
-    app.mailer.send_now(message)
+def send_email_task(message: EmailMessageDict, via: str | None = None):
+    mailer = app.mailers[via] if via else app.mailer
+    mailer.send_now(message)
 ```
 
 Both files are in the generated app from day one. If you need to do something extra around sending - retries, tagging, multi-tenant routing - this is where to edit.
@@ -445,16 +446,29 @@ In dev and test, the queue runs in **immediate mode**: `send_email_task(...)` ru
 
 In production, where the queue points at Redis (or another real backend), `send_later()` enqueues a task message and a separate worker process picks it up. The worker must actually be running; see [Background Tasks → Running Workers](/docs/tasks#running-workers) for how to keep one alive.
 
+### Sending through a specific backend
+
+Both `send()` and `send_later()` take an optional `via=` argument that routes one message through a named backend instead of the default:
+
+```python
+# this one message goes through Postmark, even if the default is SES
+ReceiptEmail(order).send_later(via="postmark", to=order.email)
+```
+
+The name has to be a key in your `MAILERS` config (see [Backends](#backends)); an unknown name raises `ConfigError`. Omit `via=` and the message goes through the default - the common case.
+
+This is the clean answer to "bulk mail through one provider, transactional through another": declare both backends in `MAILERS`, set the default, and pass `via=` on the few messages that need the other one. If you ever need a backend directly, it's at `app.mailers["name"]` - `app.mailer` is just shorthand for the default.
+
 ---
 
 ## Backends
 
-The `MAILER` config in `config/main.py` decides which backend the app sends through. The `type` key names the class; every other key is passed to its constructor.
+Backends are declared in the `MAILERS` config in `config/main.py` - a dict mapping a name to a backend config. Each config's `type` key names the class; every other key is passed to its constructor. `MAILER` then names which backend is the default. The subsections below show each one as a `MAILERS` entry.
 
 ### `ToConsoleMailer` - development
 
 ```python
-MAILER = {"type": "proper.emails.ToConsoleMailer"}
+"console": {"type": "proper.emails.ToConsoleMailer"}
 ```
 
 Writes the full rendered RFC 5322 message to stdout, with a `---` separator between messages. Useful for "did the right thing get composed" - you can verify the subject, recipients, headers, and body without standing up an SMTP server or copying real addresses into your dev environment.
@@ -463,13 +477,13 @@ Pass `stream=` to redirect somewhere other than `sys.stdout`:
 
 ```python
 import sys
-MAILER = {"type": "proper.emails.ToConsoleMailer", "stream": sys.stderr}
+"console": {"type": "proper.emails.ToConsoleMailer", "stream": sys.stderr}
 ```
 
 ### `ToMemoryMailer` - tests
 
 ```python
-MAILER = {"type": "proper.emails.ToMemoryMailer"}
+"memory": {"type": "proper.emails.ToMemoryMailer"}
 ```
 
 Stores sent messages in an in-memory list at `app.mailer.outbox` instead of sending them. This is what powers the testing pattern in the next section. Each entry is a fully rendered `email.message.EmailMessage` (the stdlib class), so you inspect its headers and parts the way you would any other Python email.
@@ -477,7 +491,7 @@ Stores sent messages in an in-memory list at `app.mailer.outbox` instead of send
 ### `SMTPMailer` - production
 
 ```python
-MAILER = {
+"ses_smtp": {
     "type": "proper.emails.SMTPMailer",
     "host": "smtp.example.com",
     "port": 587,
@@ -515,28 +529,33 @@ import os
 
 env = os.getenv("APP_ENV", "dev")
 
-# Default - print to console in dev
-MAILER = {"type": "proper.emails.ToConsoleMailer"}
-
-MAILER_DEFAULT_OPTIONS = {
-    "from": "no-reply@example.com",
-}
-
-if env == "test":
-    MAILER = {"type": "proper.emails.ToMemoryMailer"}
-
-if env == "prod":
-    MAILER = {
+MAILERS = {
+    "console": {"type": "proper.emails.ToConsoleMailer"},
+    "memory": {"type": "proper.emails.ToMemoryMailer"},
+    "ses_smtp": {
         "type": "proper.emails.SMTPMailer",
         "host": "smtp.example.com",
         "port": 587,
         "username": os.getenv("SMTP_USERNAME"),
         "password": os.getenv("SMTP_PASSWORD"),
         "use_tls": True,
-    }
+    },
+}
+
+# Default - print to console in dev
+MAILER = "console"
+
+MAILER_DEFAULT_OPTIONS = {
+    "from": "no-reply@example.com",
+}
+
+if env == "test":
+    MAILER = "memory"
+elif env == "prod":
+    MAILER = "ses_smtp"
 ```
 
-This is the only switch you need: the same email classes, the same `send_later()` calls, just a different backend behind them.
+Declare the backends once; `MAILER` is the only thing that changes per environment. The same email classes and the same `send_later()` calls run behind whichever one is the default.
 
 ### Writing a custom backend
 
@@ -579,13 +598,17 @@ class ResendMailer(BaseMailer):
         return sent
 ```
 
-Then point `MAILER` at it:
+Then add it to `MAILERS` - as the default, or as a backend you reach with `via=`:
 
 ```python
-MAILER = {
-    "type": "myapp.mailers.resend_mailer.ResendMailer",
-    "api_key": os.getenv("RESEND_API_KEY"),
+MAILERS = {
+    # ...the bundled backends...
+    "resend": {
+        "type": "myapp.mailers.resend_mailer.ResendMailer",
+        "api_key": os.getenv("RESEND_API_KEY"),
+    },
 }
+MAILER = "resend"
 ```
 
 The `render()` method on `BaseMailer` does the heavy lifting (multipart assembly, attachments, IDNA encoding); your `send_now()` only has to translate the result into whatever shape your provider expects. A real implementation would also serialize attachments and alternatives into the provider's payload - the sketch above is just enough to show the seam.
@@ -594,7 +617,7 @@ The `render()` method on `BaseMailer` does the heavy lifting (multipart assembly
 
 ## Testing
 
-In tests, `MAILER` is `ToMemoryMailer`, and `send_email_task` runs in immediate mode. Together that means: anything your code sends ends up in `app.mailer.outbox`, synchronously, by the time the call returns. No waiting, no worker, no SMTP server.
+In tests, `MAILER` is `"memory"` (the in-memory backend), and `send_email_task` runs in immediate mode. Together that means: anything your code sends ends up in `app.mailer.outbox`, synchronously, by the time the call returns. No waiting, no worker, no SMTP server.
 
 A typical assertion:
 
@@ -659,7 +682,6 @@ Email in Proper covers the basics well: a class-per-message convention, template
 - **Inline images (CIDs).** `attach_file(path, inline=True)` returning a `cid:` reference for `<img src="cid:...">`. Requires `multipart/related` handling that the current code doesn't expose.
 - **Mail interceptors.** A `MAILER_INTERCEPT_TO = "staging@example.com"` config that rewrites all outgoing `to/cc/bcc` to a single address on non-production environments. This is the safest cure for the "we accidentally emailed 50,000 production users from staging" class of incident.
 - **Bounce and complaint webhooks.** A small interface for receiving provider webhooks and flagging the corresponding `User.email` as bounced or complained, so the app stops trying to send to dead addresses.
-- **Per-call backend override.** Sending one specific message through a different backend than the default - useful for "send this transactional mail through Postmark even though bulk goes through SES."
 
 If you build any of these against the current code, the framework would love a PR.
 

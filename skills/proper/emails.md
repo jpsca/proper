@@ -1,7 +1,7 @@
 ---
 title: Emails
 description: Email system — composing messages, mailer backends, async delivery via task queue
-last_verified: 2026-04-02
+last_verified: 2026-06-06
 ---
 
 # Emails
@@ -14,6 +14,7 @@ Proper includes a complete email system with an `EmailMessage` class for composi
 - [The BaseEmail Pattern](#the-baseemail-pattern)
 - [Mailer Backends](#mailer-backends)
 - [Configuration](#configuration)
+- [Selecting a Backend Per Message](#selecting-a-backend-per-message)
 - [Internationalized Domains](#internationalized-domains)
 
 
@@ -22,7 +23,7 @@ Proper includes a complete email system with an `EmailMessage` class for composi
 The `EmailMessage` class is the core container for email data:
 
 ```python
-from proper import EmailMessage
+from proper.emails import EmailMessage
 
 msg = EmailMessage(
     from_email="hello@example.com",
@@ -114,8 +115,11 @@ msg = EmailMessage(
 ```python
 msg.send()
 
-# You can also override recipients at send time
+# Override recipients at send time
 msg.send(to="override@example.com", bcc=["extra@example.com"])
+
+# Send through a specific backend (see Selecting a Backend Per Message)
+msg.send(via="ses_smtp")
 ```
 
 ### Auto-Rendering Templates
@@ -150,13 +154,13 @@ from ..tasks import send_email_task
 
 
 class BaseEmail(EmailMessage):
-    def send_later(self, **options):
+    def send_later(self, *, via=None, **options):
         self.update(**options)
-        send_email_task(message=self.serialize())
+        send_email_task(message=self.serialize(), via=via)
 
 ```
 
-This serializes the email to a dictionary and queues it as a background task. The worker process calls `app.mailer.send_now()` to deliver it.
+This serializes the email to a dictionary and queues it as a background task. The worker process resolves the mailer — the default, or the backend named by `via` — and calls `send_now()` to deliver it.
 
 ### Creating Custom Emails
 
@@ -239,14 +243,28 @@ Use it in your email templates:
 
 ## Mailer Backends
 
-The `MAILER` config in `config/main.py` controls which backend sends emails. The `type` key specifies the mailer class; remaining keys are passed to its constructor.
+Backends are declared in the `MAILERS` config dict in `config/main.py` — a mapping of name to backend config. Each config's `type` key names the mailer class (as an import string); the remaining keys are passed to its constructor. `MAILER` names the default backend.
+
+```python
+MAILERS = {
+    "console": {"type": "proper.emails.ToConsoleMailer"},
+    "ses_smtp": {
+        "type": "proper.emails.SMTPMailer",
+        "host": "smtp.example.com",
+        # ...connection options...
+    },
+}
+MAILER = "console"  # the default backend
+```
+
+The subsections below show each backend as a `MAILERS` entry.
 
 ### ToConsoleMailer (Development)
 
-Prints emails to stdout. This is the default:
+Prints emails to stdout. This is the default backend:
 
 ```python
-MAILER = {"type": "proper.emails.ToConsoleMailer"}
+"console": {"type": "proper.emails.ToConsoleMailer"}
 ```
 
 Useful during development to see what emails would be sent without actually delivering them.
@@ -256,10 +274,10 @@ Useful during development to see what emails would be sent without actually deli
 Stores emails in an in-memory list instead of sending them:
 
 ```python
-MAILER = {"type": "proper.emails.ToMemoryMailer"}
+"memory": {"type": "proper.emails.ToMemoryMailer"}
 ```
 
-Access sent emails in tests via `app.mailer.outbox`:
+When `MAILER` selects it, access sent emails in tests via `app.mailer.outbox`. Each entry is a fully rendered stdlib `email.message.EmailMessage` (headers are case-insensitive):
 
 ```python
 def test_sends_welcome_email():
@@ -267,7 +285,7 @@ def test_sends_welcome_email():
 
     assert len(app.mailer.outbox) == 1
     email = app.mailer.outbox[0]
-    assert email["subject"] == "Welcome!"
+    assert email["Subject"] == "Welcome!"
 ```
 
 ### SMTPMailer (Production)
@@ -275,7 +293,7 @@ def test_sends_welcome_email():
 Sends emails via SMTP:
 
 ```python
-MAILER = {
+"ses_smtp": {
     "type": "proper.emails.SMTPMailer",
     "host": "smtp.example.com",
     "port": 587,
@@ -298,6 +316,7 @@ All SMTPMailer options:
 | `timeout`      | `None`        | Connection timeout (seconds)         |
 | `ssl_keyfile`  | `None`        | Path to SSL key file                 |
 | `ssl_certfile` | `None`        | Path to SSL certificate file         |
+| `fail_silently`| `False`       | Swallow SMTP errors instead of raising |
 
 `use_tls` and `use_ssl` are mutually exclusive. `use_tls` upgrades a plain connection with STARTTLS, while `use_ssl` connects over SSL/TLS from the start (typically port 465).
 
@@ -316,8 +335,21 @@ import os
 
 env = os.getenv("APP_ENV", "dev")
 
+MAILERS = {
+    "console": {"type": "proper.emails.ToConsoleMailer"},
+    "memory": {"type": "proper.emails.ToMemoryMailer"},
+    "ses_smtp": {
+        "type": "proper.emails.SMTPMailer",
+        "host": "smtp.example.com",
+        "port": 587,
+        "username": os.getenv("SMTP_USERNAME"),
+        "password": os.getenv("SMTP_PASSWORD"),
+        "use_tls": True,
+    },
+}
+
 # Development (default) — print to console
-MAILER = {"type": "proper.emails.ToConsoleMailer"}
+MAILER = "console"
 
 MAILER_DEFAULT_OPTIONS = {
     "from": "no-reply@example.com",
@@ -325,18 +357,10 @@ MAILER_DEFAULT_OPTIONS = {
 
 # Testing — store in memory
 if env == "test":
-    MAILER = {"type": "proper.emails.ToMemoryMailer"}
-
+    MAILER = "memory"
 # Production — send via SMTP
-if env == "prod":
-    MAILER = {
-        "type": "proper.emails.SMTPMailer",
-        "host": "smtp.example.com",
-        "port": 587,
-        "username": os.getenv("SMTP_USERNAME"),
-        "password": os.getenv("SMTP_PASSWORD"),
-        "use_tls": True,
-    }
+elif env == "prod":
+    MAILER = "ses_smtp"
 ```
 
 ### Default Options
@@ -351,7 +375,30 @@ MAILER_DEFAULT_OPTIONS = {
 }
 ```
 
-Available keys: `from`, `subject`, `body`, `to`, `bcc`, `cc`, `reply_to`, `headers`.
+Available keys: `from`, `subject`, `to`, `bcc`, `cc`, `reply_to`, `headers`.
+
+
+## Selecting a Backend Per Message
+
+`MAILER` sets the default backend, but any single message can go through a different one by name. Pass `via=` to `send()` or `send_later()`:
+
+```python
+# Immediately, through the "ses_smtp" backend
+WelcomeEmail(user).send(via="ses_smtp", to=user.email)
+
+# Queued, through a specific backend
+ReceiptEmail(order).send_later(via="postmark", to=order.email)
+```
+
+The name must be a key in `MAILERS`; an unknown name raises `ConfigError`. With no `via`, the message goes through the default backend (`app.mailer`).
+
+Backends are also reachable directly on the app via `app.mailers[name]`, which lazily instantiates and caches each one:
+
+```python
+app.mailers["ses_smtp"].send_now(msg.serialize())
+```
+
+`app.mailer` is the default backend; `app.mailers[MAILER]` returns the same instance.
 
 
 ## Internationalized Domains

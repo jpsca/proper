@@ -4,5 +4,6 @@ from ..main import app
 
 
 @app.queue.task()
-def send_email_task(message: EmailMessageDict):
-    app.mailer.send_now(message)
+def send_email_task(message: EmailMessageDict, via: str | None = None):
+    mailer = app.mailers[via] if via else app.mailer
+    mailer.send_now(message)

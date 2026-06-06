@@ -6,7 +6,7 @@ requires = ["setuptools"]
 
 [project]
 name = "proper"
-version = "0.14.0"
+version = "0.15.0"
 description = "A python web framework for people who read their code"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
@@ -137,7 +137,7 @@ filterwarnings = [
     "ignore::DeprecationWarning:itsdangerous",
     "ignore::DeprecationWarning:botocore",
 ]
-
+testpaths = "tests"
 
 [tool.tox]
 legacy_tox_ini = """
