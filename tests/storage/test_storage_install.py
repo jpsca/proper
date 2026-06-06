@@ -40,7 +40,7 @@ def test_file_creation(app_in_tmp):
 
     # appends_storage_config
     text = (app_in_tmp.root_path / "config" / "storage.py").read_text()
-    assert "STORAGE_SERVICES" in text
+    assert "STORAGES" in text
     assert "STORAGE =" in text
 
     # appends_to_models_init

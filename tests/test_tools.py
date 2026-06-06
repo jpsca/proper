@@ -452,9 +452,9 @@ def test_queue_dbtype_string_is_valid():
 
 def test_storage_default_config_values_set():
     app = _make_app(STORAGE="local")
-    assert "STORAGE_SERVICES" in app.config
-    assert isinstance(app.config.STORAGE_SERVICES, dict)
-    assert "local" in app.config.STORAGE_SERVICES
+    assert "STORAGES" in app.config
+    assert isinstance(app.config.STORAGES, dict)
+    assert "local" in app.config.STORAGES
 
 
 def test_storage_web_image_content_types_default():
@@ -467,19 +467,19 @@ def test_storage_web_image_content_types_default():
 def test_storage_valid_config():
     config = DotDict(
         {
-            "STORAGE_SERVICES": {"local": {"type": "Disk", "root": "/tmp"}},
+            "STORAGES": {"local": {"type": "Disk", "root": "/tmp"}},
         }
     )
     storage.validate_config(config)
 
 
 def test_storage_services_must_be_dict():
-    config = DotDict({"STORAGE_SERVICES": "not a dict"})
-    with pytest.raises(ConfigError, match="STORAGE_SERVICES"):
+    config = DotDict({"STORAGES": "not a dict"})
+    with pytest.raises(ConfigError, match="STORAGES"):
         storage.validate_config(config)
 
 
 def test_storage_services_none_is_invalid():
-    config = DotDict({"STORAGE_SERVICES": None})
-    with pytest.raises(ConfigError, match="STORAGE_SERVICES"):
+    config = DotDict({"STORAGES": None})
+    with pytest.raises(ConfigError, match="STORAGES"):
         storage.validate_config(config)

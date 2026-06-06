@@ -5,7 +5,7 @@ DEFAULT_CONFIG = {
     # The storage service to use for storing files. `None` to disable
     "STORAGE": "local",
     # Available storage services
-    "STORAGE_SERVICES": {
+    "STORAGES": {
         "local": {
             "type": "Disk",
             "root": "storage/",
@@ -41,5 +41,5 @@ def setup(app):
 
 
 def validate_config(config):
-    if not isinstance(config.get("STORAGE_SERVICES"), dict):
-        raise ConfigError("STORAGE_SERVICES config must be a dictionary")
+    if not isinstance(config.get("STORAGES"), dict):
+        raise ConfigError("STORAGES config must be a dictionary")

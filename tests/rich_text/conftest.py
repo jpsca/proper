@@ -5,7 +5,7 @@ from proper.models import ProperModel
 from proper.rich_text import HasRichText, RichTextField
 
 
-STORAGE_SERVICES = {"local": {"type": "Disk", "root": "temp/storage"}}
+STORAGES = {"local": {"type": "Disk", "root": "temp/storage"}}
 
 
 @pytest.fixture()
@@ -14,7 +14,7 @@ def app(tmp_path):
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
         "STORAGE": "local",
-        "STORAGE_SERVICES": STORAGE_SERVICES,
+        "STORAGES": STORAGES,
         "QUEUE": {
             "type": "huey.MemoryHuey",
             "immediate": True,

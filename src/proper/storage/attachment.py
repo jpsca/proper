@@ -524,7 +524,7 @@ class _Attachment(ProperModel):
         class name as the type. For example:
 
         ```python
-        STORAGE_SERVICES = {
+        STORAGES = {
             "gcs": {"type": "GoogleCloud", "arg1": "value1"},
         }
         STORAGE = "gcs"
@@ -533,7 +533,7 @@ class _Attachment(ProperModel):
         if service_name in cls._services:
             return cls._services[service_name]
 
-        config = dict(cls._app.config.get("STORAGE_SERVICES", {}).get(service_name, {}))
+        config = dict(cls._app.config.get("STORAGES", {}).get(service_name, {}))
         service_type = config.pop("type", "")
         available = {c.__name__: c for c in Service.__subclasses__()}
         service_cls = available.get(service_type)

@@ -83,7 +83,7 @@ Field            | Type                   | Description
 Declare storage services in `config/storage.py`. The default config declares three services named `local`, `test`, and `amazon`:
 
 ```python
-STORAGE_SERVICES = {
+STORAGES = {
     "local": {
         "type": "Disk",
         "root": "storage/",
@@ -110,7 +110,7 @@ elif env == "test":
     STORAGE = "test"
 ```
 
-`STORAGE` names the default service. Application code never references a service name directly; it picks up the active one whenever you create an `Attachment`. Declare more services than you actively use if you like — services are instantiated lazily, on first use.
+`STORAGES` names the available services, `STORAGE` names the default service. Declare more services than you actively use if you like - services are instantiated lazily, on first use.
 
 ## Built-in Services
 
@@ -658,7 +658,7 @@ class GoogleCloud(Service):
 Then add a config entry where the `type` matches your class name:
 
 ```python
-STORAGE_SERVICES = {
+STORAGES = {
     "gcs": {
         "type": "GoogleCloud",
         "bucket": "my-bucket",

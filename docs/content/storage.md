@@ -78,7 +78,7 @@ Storage services are declared in `config/storage.py` as a dictionary. Each entry
 # config/storage.py
 import os
 
-STORAGE_SERVICES = {
+STORAGES = {
     "local": {
         "type": "Disk",
         "root": "storage/",
@@ -103,9 +103,7 @@ elif env == "test":
     STORAGE = "test"
 ```
 
-`STORAGE` names the default service. Application code never references a service name directly; it picks up the active one whenever you create an `Attachment`.
-
-You can declare more services than you actively use. The lookup is lazy: a service is instantiated only the first time someone or something writes to it.
+`STORAGES` names tall he available services, `STORAGE` names the default service. You can declare more services than you actively use: a service is instantiated only the first time someone or something writes to it.
 
 ### Disk Service
 
@@ -167,10 +165,10 @@ $ uv add boto3
 
 ### Public Access
 
-Public access is decided at the *service* level. Each entry in `STORAGE_SERVICES` can carry a `public: True` flag; every attachment stored in that service is reachable through a stable, unsigned URL. Attachments in services without the flag (the default) are reachable only through a signed URL with an expiration.
+Public access is decided at the *service* level. Each entry in `STORAGES` can carry a `public: True` flag; every attachment stored in that service is reachable through a stable, unsigned URL. Attachments in services without the flag (the default) are reachable only through a signed URL with an expiration.
 
 ```python
-STORAGE_SERVICES = {
+STORAGES = {
     "local": {
         "type": "Disk",
         "root": "storage/",
@@ -1105,7 +1103,7 @@ class GigaCloud(Service):
 Once the class is imported anywhere in your app (a top-level import in `myapp/__init__.py` is the simplest place), the `type` value in the service config matches the class name:
 
 ```python
-STORAGE_SERVICES = {
+STORAGES = {
     "giga": {
         "type": "GigaCloud",
         ...

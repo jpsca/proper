@@ -20,7 +20,7 @@ def app(tmp_path, minio, MINIO_BUCKET, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD):
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
         "STORAGE": "s3",
-        "STORAGE_SERVICES": {
+        "STORAGES": {
             "s3": {
                 "type": "S3",
                 "bucket": MINIO_BUCKET,

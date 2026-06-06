@@ -16,7 +16,7 @@ def app(tmp_path):
         "SECRET_KEYS": ["*" * 50],
         "DEBUG": False,
         "STORAGE": "local",
-        "STORAGE_SERVICES": {
+        "STORAGES": {
             "local": {"type": "Disk", "root": "temp/storage"},
             "other": {"type": "Disk", "root": "temp/other"},
             "public": {"type": "Disk", "root": "temp/public", "public": True},

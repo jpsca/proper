@@ -1,7 +1,7 @@
 import os
 
 
-STORAGE_SERVICES = {
+STORAGES = {
     "local": {
         "type": "Disk",
         "root": "storage/",
