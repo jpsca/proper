@@ -184,10 +184,12 @@ class SMTPMailer(BaseMailer):
         defects = {str(defect) for defect in parsed.all_defects}
         # Django allows local mailboxes like "From: webmaster" (#15042).
         defects.discard("addr-spec local part with no domain")
-        if not force_ascii:
-            # Non-ASCII local-part is valid with SMTPUTF8. Remove once
-            # https://github.com/python/cpython/issues/81074 is fixed.
-            defects.discard("local-part contains non-ASCII characters)")
+        # A non-ASCII local-part is valid with SMTPUTF8, so don't treat the
+        # parser's defect as a hard error; whether to allow it is decided
+        # explicitly below via `force_ascii`. CPython stopped emitting this
+        # defect in 3.15 (https://github.com/python/cpython/issues/81074), so
+        # we can't rely on it being present either.
+        defects.discard("local-part contains non-ASCII characters)")
         if defects:
             raise ValueError(f"Invalid address {address!r}: {'; '.join(defects)}")
 
@@ -196,6 +198,12 @@ class SMTPMailer(BaseMailer):
             raise ValueError(f"Invalid address {address!r}: must be a single address")
 
         mailbox = mailboxes[0]
+        if force_ascii and mailbox.local_part and not mailbox.local_part.isascii():
+            # A non-ASCII local-part can't be IDNA-encoded (only the domain
+            # can); it's only sendable with SMTPUTF8, i.e. force_ascii=False.
+            raise ValueError(
+                f"Invalid address {address!r}: local-part contains non-ASCII characters"
+            )
         if force_ascii and mailbox.domain and not mailbox.domain.isascii():
             # Re-compose an addr-spec with the IDNA encoded domain.
             domain = punycode(mailbox.domain)
