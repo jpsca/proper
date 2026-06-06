@@ -314,7 +314,7 @@ class App(AppWs):
     # ---- Private ----
 
     def _warn_of_pending_migrations(self):
-        if sys.argv[0].endswith("proper") and sys.argv[1] == "db":
+        if sys.argv[0].endswith("proper") and len(sys.argv) > 1 and sys.argv[1] == "db":
             return
         if self.has_migrations_pending():
             logger.warning(
