@@ -20,6 +20,7 @@ dependencies = [
 	"peewee-migrate",
 	"peewee",
 	"proper-cli",
+	"python-dotenv",
   "uvicorn[standard]",
   "proper",
   # "psycopg[binary,pool]",

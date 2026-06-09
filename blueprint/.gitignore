@@ -37,4 +37,5 @@ var/
 wheels/
 
 # Credentials
-master.key
+.env
+!.env.example

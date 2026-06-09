@@ -6,7 +6,7 @@ requires = ["setuptools"]
 
 [project]
 name = "proper"
-version = "0.15.0"
+version = "0.15.1"
 description = "A python web framework for people who read their code"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
@@ -36,7 +36,7 @@ dependencies = [
     "passlib ~= 1.7",
     "peewee ~= 3.15",
     "peewee-migrate >=1.12.1,< 2",
-    "proper-cli ~= 1.2",
+    "proper-cli ~= 2.0.0",
     "python-dateutil ~= 2.9.0",
     "python-multipart >= 0.0.22",
     "traceback-with-variables ~= 2.0.4",
