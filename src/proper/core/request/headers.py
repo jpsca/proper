@@ -1,6 +1,6 @@
 import mimetypes
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import cached_property
 from http import cookies as http_cookies
 
@@ -159,8 +159,7 @@ class RequestHeadersMixin:
             A datetime object or None if the header is not present.
 
         """
-        val = self.headers.get("date")
-        return dtparse(val) if val else None
+        return parse_date(self.headers.get("date"))
 
     @property
     def default_port(self) -> int:
@@ -249,8 +248,7 @@ class RequestHeadersMixin:
             A datetime object or None if the header is not present.
 
         """
-        val = self.headers.get("if-modified-since")
-        return dtparse(val) if val else None
+        return parse_date(self.headers.get("if-modified-since"))
 
     @property
     def is_delete(self) -> bool:
@@ -361,6 +359,22 @@ class RequestHeadersMixin:
 
 
 # --- Parsers ---
+
+
+def parse_date(value: str | None) -> datetime | None:
+    """Parse a date header.
+
+    The date and time at which the message originated.
+
+    Returns:
+        A datetime object or None if the header is not present.
+
+    """
+    if value is None:
+        return None
+    # The super-old ANSI C's asctime() format doesn't include timezone
+    # information, but the other formats do, so we assume UTC for it.
+    return dtparse(value).replace(tzinfo=timezone.utc)
 
 
 def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:

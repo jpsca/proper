@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 import pytest
 
@@ -192,9 +192,15 @@ def test_cookie_alias():
     assert req.cookie == req.cookies
 
 
-def test_date_header():
-    req = _make_request("/", headers=[("date", "Wed, 09 Jun 2021 10:18:14 GMT")])
-    assert isinstance(req.date, datetime)
+# https://www.rfc-editor.org/info/rfc9110/#section-5.6.7
+@pytest.mark.parametrize("value", [
+    "Sun, 06 Nov 1994 08:49:37 GMT",   # IMF-fixdate
+    "Sunday, 06-Nov-94 08:49:37 GMT",  # obsolete RFC 850 format
+    "Sun Nov  6 08:49:37 1994",        # ANSI C's asctime() format
+])
+def test_date_header(value):
+    req = _make_request("/", headers=[("date", value)])
+    assert req.date == datetime.datetime(1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc)
 
 
 def test_date_header_missing():
@@ -255,11 +261,15 @@ def test_if_none_match():
     assert '"etag2"' in req.if_none_match
 
 
-def test_if_modified_since():
-    req = _make_request(
-        "/", headers=[("if-modified-since", "Wed, 09 Jun 2021 10:18:14 GMT")]
-    )
-    assert isinstance(req.if_modified_since, datetime)
+# https://www.rfc-editor.org/info/rfc9110/#section-5.6.7
+@pytest.mark.parametrize("value", [
+    "Sun, 06 Nov 1994 08:49:37 GMT",   # IMF-fixdate
+    "Sunday, 06-Nov-94 08:49:37 GMT",  # obsolete RFC 850 format
+    "Sun Nov  6 08:49:37 1994",        # ANSI C's asctime() format
+])
+def test_if_modified_since(value):
+    req = _make_request("/", headers=[("if-modified-since", value)])
+    assert req.if_modified_since == datetime.datetime(1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc)
 
 
 def test_if_modified_since_missing():
