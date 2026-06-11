@@ -1,3 +1,3 @@
-IMPORT_MAP.update({  # noqa: F821
+IMPORT_MAP.update({
     "lexxy": "js/vendor/lexxy.js",
 })

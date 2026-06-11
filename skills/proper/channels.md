@@ -44,20 +44,21 @@ proper install channels
 This creates:
 
 - `config/channels.py` file
+- `channels/application_channel.py` - the `AppChannel` base your channels inherit from
 - Adds `cable.js` to your `assets/js` folder
 
 
 ## Defining Channels
 
-A channel is a subclass of `Channel`, registered with the router using the `@router.channel()` decorator. Channels are the WebSocket equivalent of controllers.
+A channel is a subclass of `AppChannel`, registered with the router using the `@router.channel()` decorator. Channels are the WebSocket equivalent of controllers, and `AppChannel` is their `AppController`.
 
 ```python {title="myapp/channels/chat_channel.py"}
-from proper.channel import Channel
 from ..router import router
+from .application_channel import AppChannel
 
 
 @router.channel()
-class ChatChannel(Channel):
+class ChatChannel(AppChannel):
     def subscribed(self):
         room = self.params["room"]
         self.stream_from(f"chat_{room}")
@@ -214,6 +215,39 @@ Inside any channel method, the following are available:
 | `self.app`        | The `App` instance (access DB, config, cable, etc.)        |
 | `self.params`     | Dict of params the client sent when subscribing            |
 | `self.channel_name` | The class name (e.g. `"ChatChannel"`)                   |
+| `self.authenticated` | `True` when the connection has a logged-in user         |
+| `self.scope`      | The raw ASGI scope of the WebSocket connection             |
+| `self.request`    | The connection request, for reading headers and signed cookies |
+
+
+## Authentication
+
+When the auth addon is installed, channels authenticate from the same signed
+session cookie an HTTP request uses - no token in `params`. Because
+`AppChannel` is wired to your app's `Session` model, the framework
+resumes the session from the cookie before every action and exposes the user as
+`current.user` (and `self.authenticated`), exactly like a controller:
+
+```python {title="myapp/channels/inbox_channel.py"}
+from proper import current
+
+from ..router import router
+from .application_channel import AppChannel
+
+
+@router.channel()
+class InboxChannel(AppChannel):
+    def subscribed(self):
+        if not self.authenticated:
+            self.reject()
+            return
+        self.stream_from(f"inbox_{current.user.id}")
+```
+
+Authentication is the `Session` class attribute under the hood: `AppChannel`
+sets it for you, and a channel with no `Session` stays anonymous (`current.user`
+is `None`). For custom schemes, `self.request.get_signed_cookie(...)` is still
+available.
 
 
 ## Client-Side Usage

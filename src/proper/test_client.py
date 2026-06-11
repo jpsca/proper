@@ -306,6 +306,8 @@ class WebSocketTestSession:
         scope = {
             "type": "websocket",
             "path": self._path,
+            "scheme": "ws",
+            "server": ("example.com", 80),
             "headers": [],
             "query_string": b"",
         }

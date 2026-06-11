@@ -77,16 +77,25 @@ class AppWs:
 
                 if command == "subscribe":
                     await self._ws_subscribe(
-                        channel_name, params, sub_key,
-                        subscriptions, ws_send,
+                        channel_name=channel_name,
+                        params=params,
+                        sub_key=sub_key,
+                        subscriptions=subscriptions,
+                        ws_send=ws_send,
+                        scope=scope,
                     )
                 elif command == "unsubscribe":
                     await self._ws_unsubscribe(
-                        sub_key, subscriptions, ws_send,
+                        sub_key=sub_key,
+                        subscriptions=subscriptions,
+                        ws_send=ws_send,
                     )
                 elif command == "message":
                     await self._ws_message(
-                        msg, sub_key, subscriptions, ws_send,
+                        msg=msg,
+                        sub_key=sub_key,
+                        subscriptions=subscriptions,
+                        ws_send=ws_send,
                     )
                 else:
                     await ws_send({
@@ -114,6 +123,7 @@ class AppWs:
         sub_key: str,
         subscriptions: dict[str, "Channel"],
         ws_send,
+        scope: TScope,
     ) -> None:
         channel_cls = self.router.channels.get(channel_name)
         if not channel_cls:
@@ -130,7 +140,12 @@ class AppWs:
         def sync_send(msg):
             pending.append(msg)
 
-        channel = channel_cls(t.cast("App", self), params, _send=sync_send)
+        channel = channel_cls(
+            t.cast("App", self),
+            params,
+            scope=scope,
+            _send=sync_send,
+        )
         await asyncio.to_thread(
             self._with_db,
             lambda: channel._dispatch("subscribed"),

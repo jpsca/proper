@@ -39,6 +39,21 @@ class TestChannel:
         ch, _ = _make_channel()
         assert ch._rejected is False
 
+    def test_scope_none_by_default(self):
+        ch, _ = _make_channel()
+        assert ch.scope is None
+
+    def test_stores_scope(self):
+        app = FakeApp()
+        scope = {"type": "websocket", "app": app}
+        ch = Channel(t.cast(App, app), {}, scope=scope, _send=lambda _msg: None)
+        assert ch.scope is scope
+
+    def test_request_falls_back_when_scope_is_none(self):
+        ch, _ = _make_channel()
+        assert ch.scope is None
+        assert ch.request is not None
+
     def test_returns_class_name(self):
         ch, _ = _make_channel()
         assert ch.channel_name == "Channel"
@@ -190,3 +205,14 @@ class TestUsagePattern:
         ch2._dispatch("subscribed")
         assert ch2._rejected is False
         assert "private" in ch2._streams
+
+
+
+class TestSessionResolution:
+    def test_session_none_by_default(self):
+        assert Channel.Session is None
+
+    def test_no_session_model_is_anonymous(self):
+        ch, _ = _make_channel()
+        assert ch._find_session_by_cookie() is None
+        assert ch._resume_session() is None

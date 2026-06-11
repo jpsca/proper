@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from proper import current
 from proper.channels import Channel
 from proper.helpers import jsonplus
 
@@ -38,6 +39,8 @@ def ws_scope(path="/cable"):
     return {
         "type": "websocket",
         "path": path,
+        "scheme": "ws",
+        "server": ("example.com", 80),
         "headers": [],
         "query_string": b"",
     }
@@ -46,6 +49,9 @@ def ws_scope(path="/cable"):
 async def run_ws(app, q, scope=None):
     """Run handle_websocket as a background task."""
     scope = scope or ws_scope()
+    # The real ASGI entrypoint puts the app on the scope; this direct path
+    # bypasses it, so set it here (channels read it via `self.request`).
+    scope.setdefault("app", app)
     task = asyncio.create_task(app._handle_websocket(scope, q.receive, q.send))
     # Let the accept happen
     await asyncio.sleep(0.01)
@@ -451,3 +457,179 @@ class TestSendDuringSubscribed:
         confirm = jsonplus.loads((await q.client_recv())["text"])
         assert confirm["type"] == "confirm_subscription"
         await task
+
+
+# --- Connection scope / signed cookies ---
+
+
+class TestConnectionScope:
+    @pytest.mark.asyncio
+    async def test_channel_reads_signed_cookie_from_scope(self, app):
+        captured = {}
+
+        class CookieChannel(Channel):
+            def subscribed(self):
+                captured["token"] = self.request.get_signed_cookie(
+                    "_auth", salt="auth cookie"
+                )
+
+        app.router.channels["CookieChannel"] = CookieChannel
+
+        signed = app.dumps("session-token-123", salt="auth cookie")
+        scope = ws_scope()
+        scope["headers"] = [(b"cookie", f"_auth={signed}".encode())]
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "CookieChannel"})
+        q.client_disconnect()
+
+        task = await run_ws(app, q, scope)
+        await q.client_recv()  # accept
+        confirm = jsonplus.loads((await q.client_recv())["text"])
+        assert confirm["type"] == "confirm_subscription"
+        await task
+
+        assert captured["token"] == "session-token-123"
+
+    @pytest.mark.asyncio
+    async def test_missing_cookie_returns_none(self, app):
+        captured = {}
+
+        class NoCookieChannel(Channel):
+            def subscribed(self):
+                captured["token"] = self.request.get_signed_cookie(
+                    "_auth", salt="auth cookie"
+                )
+
+        app.router.channels["NoCookieChannel"] = NoCookieChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "NoCookieChannel"})
+        q.client_disconnect()
+
+        task = await run_ws(app, q)  # default scope: no cookie header
+        await q.client_recv()  # accept
+        await q.client_recv()  # confirm
+        await task
+
+        assert captured["token"] is None
+
+
+# --- Session-based authentication ---
+
+
+class FakeUser:
+    def __init__(self, id):
+        self.id = id
+
+
+class FakeSession:
+    def __init__(self, user):
+        self.user = user
+        self.touched = False
+
+    def touch(self):
+        self.touched = True
+
+
+class FakeSessionModel:
+    """A stand-in for the app's Session model (`Channel.Session`)."""
+
+    instance = FakeSession(FakeUser(7))
+
+    @classmethod
+    def find_by_token(cls, token):
+        return cls.instance if token == "good-token" else None
+
+
+def _cookie_scope(app, token):
+    signed = app.dumps(token, salt="auth cookie")
+    scope = ws_scope()
+    scope["headers"] = [(b"cookie", f"_auth={signed}".encode())]
+    return scope
+
+
+class TestSessionAuth:
+    @pytest.mark.asyncio
+    async def test_resumes_session_and_sets_current_user(self, app):
+        FakeSessionModel.instance.touched = False
+        seen = {}
+
+        class AccountChannel(Channel):
+            Session = FakeSessionModel
+
+            def subscribed(self):
+                seen["authenticated"] = self.authenticated
+                seen["user_id"] = current.user.id if current.user else None
+
+        app.router.channels["AccountChannel"] = AccountChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "AccountChannel"})
+        q.client_disconnect()
+
+        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
+        await q.client_recv()  # accept
+        await q.client_recv()  # confirm
+        await task
+
+        assert seen["authenticated"] is True
+        assert seen["user_id"] == 7
+        assert FakeSessionModel.instance.touched is True
+
+    @pytest.mark.asyncio
+    async def test_current_user_available_in_actions(self, app):
+        seen = {}
+
+        class AccountChannel2(Channel):
+            Session = FakeSessionModel
+
+            def subscribed(self):
+                pass
+
+            def whoami(self, data):
+                seen["user_id"] = current.user.id if current.user else None
+
+        app.router.channels["AccountChannel2"] = AccountChannel2
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "AccountChannel2"})
+        q.client_send({
+            "command": "message",
+            "channel": "AccountChannel2",
+            "action": "whoami",
+        })
+        q.client_disconnect()
+
+        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
+        await q.client_recv()  # accept
+        await q.client_recv()  # confirm
+        await task
+
+        assert seen["user_id"] == 7
+
+    @pytest.mark.asyncio
+    async def test_anonymous_without_cookie(self, app):
+        seen = {}
+
+        class GuardedChannel(Channel):
+            Session = FakeSessionModel
+
+            def subscribed(self):
+                seen["authenticated"] = self.authenticated
+                if not self.authenticated:
+                    self.reject()
+
+        app.router.channels["GuardedChannel"] = GuardedChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
+        q.client_disconnect()
+
+        task = await run_ws(app, q)  # no cookie -> anonymous
+        await q.client_recv()  # accept
+        rejection = jsonplus.loads((await q.client_recv())["text"])
+        assert rejection["type"] == "reject_subscription"
+        await task
+
+        assert seen["authenticated"] is False

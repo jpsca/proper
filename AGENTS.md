@@ -8,6 +8,8 @@ Before suggesting removal or simplification of existing configuration (editable 
 
 ## Writing / Editing
 
+Unless done to avoid recursive imports, place all the imports at the beginning of the file.
+
 After creating or updating a python file, run `uv run ruff check --fix ${file} 2>/dev/null || true` to fix any linting errors.
 
 The docstrings are written in Markdown (not reStructuredText).

@@ -793,7 +793,7 @@ requires-dist = [
     { name = "passlib", specifier = "~=1.7" },
     { name = "peewee", specifier = "~=3.15" },
     { name = "peewee-migrate", specifier = ">=1.12.1,<2" },
-    { name = "proper-cli", specifier = "~=1.2" },
+    { name = "proper-cli", specifier = "~=2.0.0" },
     { name = "python-dateutil", specifier = "~=2.9.0" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "traceback-with-variables", specifier = "~=2.0.4" },
@@ -826,11 +826,11 @@ test = [
 
 [[package]]
 name = "proper-cli"
-version = "1.4.1"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b8/39/018909db196921e8f3f944bf4d938f694236e1914d38256c78430563d384/proper_cli-1.4.1.tar.gz", hash = "sha256:33317610f73a6f3919bd0d31b33753067fbf18f8ae11368a0cd729122d12ba07", size = 12882, upload-time = "2024-03-31T18:33:48.935Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/4a/206e06a40b4379444cb3c251f5ecd7883c19b01287a61185ad64c73cf581/proper_cli-2.0.0.tar.gz", hash = "sha256:1a3713706bcb0b9c4e17bb2e430b735df373724f2427ce4f1067f65776039166", size = 15418, upload-time = "2026-06-08T14:15:32.291Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/88/c338d55e4813c3d5427e87800f6067765436872908fc05a18683aca563aa/proper_cli-1.4.1-py3-none-any.whl", hash = "sha256:82ba74f7b0b756ce5e48a3357d1e1ca8fc9c44bfea956f587eeecc6a8ebb37d1", size = 13640, upload-time = "2024-03-31T18:33:47.774Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/59/44cc79b68dc88d61a4cc341c2bf538593ff0e6572be933bbe6495de41042/proper_cli-2.0.0-py3-none-any.whl", hash = "sha256:a1a997a6aabf1adb317d96d31bc3ffb5aa501c947a03c6e533c582c199459e3f", size = 10577, upload-time = "2026-06-08T14:15:33.094Z" },
 ]
 
 [[package]]

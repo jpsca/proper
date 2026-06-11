@@ -1,11 +1,10 @@
 /**
 WebSocket client for Proper channels.
-Copyright (c) JPScaletti, MIT License
 
 Usage:
 
 ```
-import { cable } from "/cable.js"
+import { cable } from "cable"
 
 cable.connect()
 
