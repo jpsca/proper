@@ -354,14 +354,14 @@ wheels = [
 
 [[package]]
 name = "hecto"
-version = "2.3.0"
+version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/2f/bb39b0fa0c90a977f002cdf3739b784c37a2c5e69037d53b51876e73e1fc/hecto-2.3.0.tar.gz", hash = "sha256:d0420511ff7c8475155ae00050173d478e009c5560059bad1bc975aa5a86ab34", size = 11858, upload-time = "2026-04-11T15:42:56.883Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/ed/7acbdd84d1f249d6108513210c9ddae814d20f5dcaa3017edb59383ce4ad/hecto-2.4.0.tar.gz", hash = "sha256:cdfe7431b7f39f01a9335fe94d2d885519c8c3bd79ffd27525ab6ff5c23c2821", size = 12522, upload-time = "2026-06-12T23:40:31.935Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/18/02/8fdd2a18086fb0252f5fd7f90987947380394866488997827ba8ec5653e8/hecto-2.3.0-py3-none-any.whl", hash = "sha256:fd2c3fa03b8610189801f99c46d44572e53e7fef3211da486e93fda909857c61", size = 8133, upload-time = "2026-04-11T15:42:56.037Z" },
+    { url = "https://files.pythonhosted.org/packages/44/9a/110af26c6bd360effe38f40dd0377a015d67453fa510d83c747d62589d42/hecto-2.4.0-py3-none-any.whl", hash = "sha256:bbc7d8d417bfd2ba693441701d40220d940bdf12c3502efacba2b00dc13a4386", size = 8473, upload-time = "2026-06-12T23:40:31.03Z" },
 ]
 
 [[package]]
@@ -783,7 +783,7 @@ test = [
 requires-dist = [
     { name = "babel", specifier = ">=2.17.0" },
     { name = "formidable", specifier = ">=0.20" },
-    { name = "hecto", specifier = ">=2.0.3" },
+    { name = "hecto", specifier = ">=2.4.0" },
     { name = "huey", specifier = "~=2.5.2" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },
