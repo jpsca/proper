@@ -18,8 +18,9 @@ chat.perform("speak", { message: "hello" })
 chat.unsubscribe()
 ```
 **/
+import { renderStreamMessage } from "@hotwired/turbo"
 
-class Subscription {
+export class Subscription {
   constructor(cable, channel, params, callbacks) {
     this.cable = cable
     this.channel = channel
@@ -86,8 +87,7 @@ class Subscription {
   }
 }
 
-
-class Cable {
+export class Cable {
   constructor() {
     this._ws = null
     this._url = null
@@ -224,4 +224,51 @@ class Cable {
 }
 
 export const cable = new Cable()
-export { Cable, Subscription }
+
+
+/**
+Bridge Proper channels to Turbo Streams.
+
+The server broadcasts `<turbo-stream>` HTML over a channel; this hands every
+incoming frame to Turbo's stream renderer, which applies it to the DOM. You
+write no DOM code: Turbo already implements append, prepend, replace, update,
+remove, before, after and morph.
+
+Subscribe declaratively from a view, no JavaScript required:
+
+```
+<turbo-stream-channel channel="ChatChannel" params='{"room_id": 42}'>
+</turbo-stream-channel>
+```
+
+Or imperatively:
+
+```
+import { streamFrom } from "cable"
+const sub = streamFrom("ChatChannel", { room_id: 42 })
+```
+**/
+
+export function streamFrom(channel, params = {}) {
+  cable.connect()
+  return cable.subscribe(channel, params, {
+    received(html) { renderStreamMessage(html) },
+  })
+}
+
+class TurboCableSource extends HTMLElement {
+  connectedCallback() {
+    this.subscription = streamFrom(
+      this.getAttribute("channel"),
+      JSON.parse(this.getAttribute("params") || "{}"),
+    )
+  }
+
+  disconnectedCallback() {
+    if (this.subscription) {
+      this.subscription.unsubscribe()
+    }
+  }
+}
+
+customElements.define("turbo-stream-channel", TurboCableSource)

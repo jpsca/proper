@@ -149,17 +149,21 @@ class ChatChannel(AppChannel):
         pass
 ```
 
-`subscribed()` runs once, when the client subscribes. It is where you check whether the subscription is allowed (see the next section), call `stream_from()` to start listening, and optionally `send()` an initial message. Anything you `send()` here is buffered and flushed to the client just before the subscription is confirmed. If you `reject()`, the buffered messages are discarded.
+`subscribed()` runs once, when the client subscribes. It is where you check whether the subscription is allowed (see the next section). Call `stream_from()` to start listening, and optionally `send()` an initial message. Anything you `send()` here is buffered and flushed to the client just before the subscription is confirmed. If you `reject()`, the buffered messages are discarded.
 
 `unsubscribed()` runs when the client unsubscribes *or* when the socket closes, including unexpected disconnects. Proper automatically removes the channel from all its streams before calling it, so you only need to undo work that lives elsewhere.
 
-One honest caveat: `unsubscribed()` is best-effort on disconnect. A clean close calls it; a process killed outright (`kill -9`, a crash) does not. Do not put anything you cannot afford to skip - a billing event, say - solely in `unsubscribed()`.
+:::warning
+`unsubscribed()` is best-effort on disconnect. A clean close calls it but a client closing their browser tab does not. Do not put anything you cannot afford to skip solely in `unsubscribed()`.
+:::
 
 ---
 
 ## Authenticating a connection
 
-A WebSocket handshake is an ordinary HTTP request, so it carries the same cookies your controllers see - including the signed session cookie a logged-in user already has. Proper uses that: when the auth addon is installed, `AppChannel` is wired to your app's `Session` model, and the framework resumes the session from the cookie before every channel method runs. The logged-in user is exposed exactly the way a controller sees it - as `current.user`:
+A WebSocket handshake is an ordinary HTTP request, so it carries the same cookies your controllers see - including the signed session cookie a logged-in user already has.
+
+Proper uses that: when the auth addon is installed, `AppChannel` is wired to your app's `Session` and `user` models. The logged-in user is exposed as as `current.user`, exactly the way a controller sees it:
 
 ```python {title="channels/inbox_channel.py"}
 from proper import current
@@ -177,24 +181,31 @@ class InboxChannel(AppChannel):
         self.stream_from(f"inbox_{current.user.id}")
 ```
 
-No token in `params`, no client cooperation, no re-implementing your session logic. `current.user` is the real, server-verified user, and `.authenticated` is the convenience boolean (`current.user is not None`). Because identity is resolved before *every* dispatch, `current.user` is also available inside your action methods, not just `subscribed()`.
+`current.user` is the real, server-verified user, and `.authenticated` is the convenience boolean (`current.user is not None`). Because identity is resolved before *every* dispatch, `current.user` is also available inside your action methods, not just `subscribed()`.
 
-This works because of one attribute. `AppChannel` sets `Session` to your session model; that is the whole wiring:
+This works because of `AppChannel`:
 
 ```python {title="channels/app_channel.py"}
 from proper.channels import Channel
 
 try:
-    from ..models import Session
+    from ..models import Session, User
 except ImportError:
     Session = None
 
 
 class AppChannel(Channel):
     Session = Session
+
+    def find_user(self, user_id):
+        return User.get_or_none(User.id == user_id)
+
 ```
 
-If the auth addon is not installed, `Session` is `None`, channels stay anonymous, and `current.user` is `None`. Authentication is opt-in per connection: a channel with no session model simply never has a user. For a custom scheme - a token in the query string, a different cookie - `.request.get_signed_cookie(...)` and the rest of the request are still there for you to read by hand.
+`Session` is used to save the `user_id` to the channel instance when `subscribed()` is called, `find_user` to load the `User` record from the database after that.
+If the auth addon is not installed, `Session` is `None`, channels stay anonymous, and `current.user` is `None`.
+
+Authentication is opt-in per connection: a channel with no session model simply never has a user.
 
 ### Authorizing versus authenticating
 
@@ -276,7 +287,9 @@ self.stream_from(f"inbox_{current.user.id}")
 self.stream_from(f"document_{doc_id}_edits")
 ```
 
-The name is the contract between the channel that listens and the code that broadcasts; both sides have to spell it the same way, and there is nothing today that checks they agree. A typo on one side delivers silently to no one. Keeping the names in one place - a small module of stream-name helpers - is a cheap way to avoid that. (A first-class `broadcast_to(model)` that derives the name from a record is on the list in [Where this could grow](#where-this-could-grow).)
+The name is the contract between the channel that listens and the code that broadcasts; both sides have to spell it the same way, and there is nothing today that checks they agree.
+
+A typo on one side delivers silently to no one, so a first-class `broadcast_to(model)` that derives the name from a record is on the list in [Where this could grow](#where-this-could-grow).   
 
 ### Broadcasting from a controller or a task
 
@@ -402,73 +415,139 @@ Each is keyed by its channel name plus params, which is how an incoming broadcas
 
 ---
 
+## Broadcasting HTML (Turbo Streams)
+
+The broadcasts so far ship JSON, leaving the `received()` callback to rebuild the DOM by hand - re-implementing in JavaScript the markup you already have as a Jx component.
+
+Proper bundles [Turbo](https://turbo.hotwired.dev/), so you can instead broadcast the *rendered* component wrapped in a `<turbo-stream>` and let Turbo apply it - a live-updating list then needs no custom JavaScript at all.
+
+A `<turbo-stream>` is HTML that names a DOM operation and a target:
+
+```html
+<turbo-stream action="append" target="messages">
+  <template><li>Ana: hello</li></template>
+</turbo-stream>
+```
+
+`turbo_stream()` builds one from a Jx component, or from raw HTML:
+
+```python
+from proper import turbo_stream
+
+turbo_stream(
+    action="append",
+    # The ID of the element in the page
+    target="messages",
+    # The path of the component to render
+    component="message.jx",
+    # Arguments for the component
+    message=message
+)
+# -> <turbo-stream action="append" target="messages">
+#      <template>...</template>
+#    </turbo-stream>
+```
+
+`target` is the id of the element to act on; `action` is any operation Turbo knows:
+
+Action               | Effect
+-------------------- | ---------------------------------------------------------
+`append` / `prepend` | Add the fragment as the last / first child of the target
+`before` / `after`   | Insert the fragment as a sibling before / after the target
+`replace`            | Swap the target element itself
+`update`             | Replace the target's contents, keep the element
+`remove`             | Remove the target (no `<template>` needed)
+`morph`              | Update the target by morphing, preserving unchanged nodes
+
+Broadcast it like any other payload:
+
+```python {title="controllers/message_controller.py"}
+def create(self):
+    room_id = self.params["room_id"]
+    message = Message.create(
+        room_id=room_id,
+        text=self.params["text"],
+        author=current.user
+    )
+
+    self.app.cable.broadcast(
+        f"chat_{room_id}",
+        turbo_stream(
+            "append",
+            # The ID of the element in the page
+            target="messages",
+            # The path of the component to render
+            component="message.jx",
+            # Arguments for the component
+            message=message
+        ),
+    )
+    self.response.redirect_to("Message.index", room_id=room_id)
+```
+
+You don't need to write JavaScript to subscribe a page to the channel, just use the custom element `<turbo-stream-channel>` (it was added by `cable.js`):
+
+```html+jinja {title="views/message/index.jx", hl_lines="3-4"}
+{#import "message.jx" as Message #}
+
+<turbo-stream-channel channel="ChatChannel" params='{"room_id": 42}'>
+</turbo-stream-channel>
+
+...
+
+<ul id="messages">
+  {% for message in messages %}
+    <Message message={message} />
+  {% endfor %}
+</ul>
+```
+
+The element subscribes through `cable.js` and feeds every frame to Turbo, which appends the new `<li>` for you. The same `Message` component renders the initial list and every live update, so there is one source of truth for the markup.
+
+For an imperative subscription, `import { streamFrom } from "cable"` and call `streamFrom("ChatChannel", { room_id: 42 })`.
+
+Authorization is unchanged: the client sends `params`, never a stream name. The channel's `subscribed()` still authorizes with `reject()` (see [Authorizing versus authenticating](#authorizing-versus-authenticating)) and derives the stream name on the server, so the Turbo wiring opens no new door.
+
+:::note
+The same fragment can also be returned from a controller. Set the response mimetype to `"text/vnd.turbo-stream.html"`, and Turbo will apply the operations to a plain form submit, with no full-page reload. Concatenate several streams to send more than one operation at once.
+:::
+
+---
+
 ## The wire protocol
 
 `cable.js` speaks this so you do not have to, but the frames are worth knowing for debugging or for writing a non-JavaScript client. Every message is JSON over the `/cable` WebSocket.
 
 The client sends three commands - `subscribe`, `message` (invoke an action), and `unsubscribe`:
 
-```json {title="subscribe"}
-{
-  "command": "subscribe",
-  "channel": "ChatChannel",
-  "params": {"room": "general"}
-}
-```
+```json
+{ "command": "subscribe", "channel": "ChatChannel",
+    "params": {"room": "general"} }
 
-```json {title="message"}
-{
-  "command": "message",
-  "channel": "ChatChannel",
-  "params": {"room": "general"},
-  "action": "speak",
-  "data": {"message": "hi"}
-}
-```
+{ "command": "message", "channel": "ChatChannel",
+    "params": {"room": "general"}, "action": "speak",
+    "data": {"message": "hi"} }
 
-```json {title="unsubscribe"}
-{
-  "command": "unsubscribe",
-  "channel": "ChatChannel",
-  "params": {"room": "general"}
-}
+{ "command": "unsubscribe", "channel": "ChatChannel",
+    "params": {"room": "general"} }
 ```
 
 The server sends back `confirm_subscription`, `reject_subscription`, `message` (the payload of a `send()` or `broadcast()`), and `error`:
 
-```json {title="confirm_subscription"}
-{
-  "type": "confirm_subscription",
-  "channel": "ChatChannel",
-  "params": {"room": "general"}
-}
-```
+```json
+{ "type": "confirm_subscription", "channel": "ChatChannel",
+    "params": {"room": "general"} }
 
-```json {title="reject_subscription"}
-{
-  "type": "reject_subscription",
-  "channel": "ChatChannel",
-  "params": {"room": "general"}
-}
+{ "type": "reject_subscription", "channel": "ChatChannel",
+    "params": {"room": "general"} }
+
+{ "type": "message", "channel": "ChatChannel",
+    "params": {"room": "general"}, "data": {"message": "hi"} }
+
+{ "type": "error", "reason": "not_subscribed" }
 ```
 
 A `reject_subscription` carries `"reason": "unknown_channel"` when no channel by that name is registered; a subscription your own `reject()` turned away has no reason.
-
-```json {title="message"}
-{
-  "type": "message",
-  "channel": "ChatChannel",
-  "params": {"room": "general"},
-  "data": {"message": "hi"}
-}
-```
-
-```json {title="error"}
-{
-  "type": "error",
-  "reason": "not_subscribed"
-}
-```
 
 An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`.
 
@@ -517,7 +596,7 @@ You do not need a running server to test a channel. The test client opens an in-
 ```python
 import pytest
 
-
+# Requires `pytest-asyncio` to run
 @pytest.mark.asyncio
 async def test_chat_broadcasts_to_the_room(client):
     ws = client.websocket()
@@ -526,7 +605,12 @@ async def test_chat_broadcasts_to_the_room(client):
     confirm = await ws.subscribe("ChatChannel", room="general")
     assert confirm["type"] == "confirm_subscription"
 
-    await ws.send_action("ChatChannel", "speak", {"message": "hi"}, room="general")
+    await ws.send_action(
+        "ChatChannel",
+        "speak",
+        {"message": "hi"},
+        room="general"
+    )
     msg = await ws.receive()
     assert msg["data"]["message"] == "hi"
 
@@ -534,7 +618,13 @@ async def test_chat_broadcasts_to_the_room(client):
     await task
 ```
 
-`client.websocket()` returns a session; `connect()` starts the handler and returns a task you await after `close()`. `subscribe()` sends a subscribe command and returns the response, `send_action()` invokes an action, and `receive()` returns the next frame parsed from JSON. To test an authenticated channel, sign a user in first - the test client carries the same session cookie into the handshake that an HTTP request would. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()` in full.
+`client.websocket()` returns a session; `connect()` starts the handler and returns a task you await after `close()`. `subscribe()` sends a subscribe command and returns the response, `send_action()` invokes an action, and `receive()` returns the next frame parsed from JSON.
+
+To test an authenticated channel, sign a user in first - the test client carries the same session cookie into the handshake that an HTTP request would. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()` in full.
+
+:::note
+As you can see, testing channels is one of the few places where the well-hidden `async` nature of Proper leaks into __your__ code. Sorry about that.
+:::
 
 ---
 
@@ -554,7 +644,11 @@ from .app_channel import AppChannel
 class ChatChannel(AppChannel):
     def subscribed(self):
         room = Room.get_or_none(Room.id == self.params["room_id"])
-        if room is None or not self.authenticated or not room.has_member(current.user):
+        if (
+            room is None
+            or not self.authenticated
+            or not room.has_member(current.user)
+        ):
             self.reject()
             return
         self.stream_from(f"chat_{room.id}")
@@ -593,20 +687,27 @@ import { cable } from "/cable.js"
 
 cable.connect()
 
-const chat = cable.subscribe("ChatChannel", { room_id: ROOM_ID }, {
-  received({ message, sender }) {
-    const el = document.createElement("li")
-    el.textContent = `${sender}: ${message}`
-    document.getElementById("messages").append(el)
-  },
-})
+const chat = cable.subscribe(
+    "ChatChannel",
+    { room_id: ROOM_ID },
+    {
+        received({ message, sender }) {
+            const el = document.createElement("li")
+            el.textContent = `${sender}: ${message}`
+            document.getElementById("messages").append(el)
+        },
+    }
+)
 
-document.getElementById("composer").addEventListener("submit", (e) => {
-  e.preventDefault()
-  const input = e.target.elements.message
-  chat.perform("speak", { message: input.value })
-  input.value = ""
-})
+document.getElementById("composer").addEventListener(
+    "submit",
+    (e) => {
+        e.preventDefault()
+        const input = e.target.elements.message
+        chat.perform("speak", { message: input.value })
+        input.value = ""
+    }
+)
 ```
 
 The channel guards the room with the server-verified user; the controller is the system of record that persists and broadcasts; the page renders whatever arrives. A message a user sends through the form is saved by the controller and lit up on every open page by the broadcast.
@@ -617,7 +718,6 @@ The channel guards the room with the server-verified user; the controller is the
 
 Channels covers the durable core - a multiplexed connection, authenticated subscriptions, streams, broadcasting, a reconnecting client, and a Redis backend for scale. Several things that mature real-time stacks offer are not here yet. None of them block you - workarounds exist - but they are the obvious places the framework will grow.
 
-- **Server-rendered fragment broadcasting.** The single highest-value feature. Today a broadcast ships JSON and your `received()` callback rebuilds the DOM in JavaScript - duplicating, in the browser, rendering you already do on the server. A Turbo Streams-style API would let you broadcast a rendered Jx component with a DOM operation (append/replace/remove a target) and have a tiny client handler apply it, so a live-updating list needs almost no custom JavaScript. Proper is unusually well-suited to this because Jx components already render to an HTML string synchronously.
 - **A presence primitive.** A real who-is-online API that handles the multi-tab and multi-worker cases (a Redis-backed roster with heartbeat expiry) instead of the manual, single-worker pattern shown above.
 - **Model-derived stream names.** `broadcast_to(record, data)` and `stream_for(record)` that derive a stable stream name from a model, removing the stringly-typed names that a typo can silently break.
 - **A subscription reply.** Letting an action return a value the framework sends back to the caller, tagged to that call, so optimistic UIs can confirm success or surface a validation error without a separate correlated message.
@@ -634,5 +734,5 @@ Channels touches several other parts of Proper:
 
 - [Authentication](/docs/authentication) - the session and signed-cookie model that `AppChannel` reuses to put `current.user` on a connection.
 - [Background Tasks](/docs/tasks) - the worker process behind broadcasting from a job, plus scheduling and retries.
-- [Jx Components](/docs/jx_components) - the server-rendered components you broadcast the results of, and the natural home of the fragment-broadcasting feature above.
+- [Jx Components](/docs/jx_components) - the server-rendered components you wrap in a `<turbo-stream>` to broadcast.
 - [Deployment](/docs/deployment) - choosing an ASGI server and worker count, and running Redis so `RedisCable` can carry broadcasts across them.

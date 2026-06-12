@@ -160,7 +160,6 @@ class Channel:
             current.user = self.find_user(self.user_id)
         else:
             current.user = None
-        current.auth_session = None
 
     def _dispatch(self, action_name: str, data: dict | None = None) -> None:
         if action_name == "subscribed":

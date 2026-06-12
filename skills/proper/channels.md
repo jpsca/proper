@@ -1,7 +1,7 @@
 ---
 title: Channels
 description: Channels addon — WebSocket system with multiplexed channels, streams, and broadcasting
-last_verified: 2026-04-02
+last_verified: 2026-06-12
 ---
 
 # Channels
@@ -14,7 +14,7 @@ The system has three layers:
 |-------------|-------------------|---------------------------------------------------------------|
 | **Channel** | `proper.channels`  | Base class you subclass — the "controller" for WebSockets     |
 | **Cable**   | `proper.channels`    | Pub/sub broker — maps stream names to channels                |
-| **AppWs**   | `proper.app_ws`   | ASGI handler — protocol parsing, multiplexing, lifecycle      |
+| **AppWs**   | `proper.core.app_ws` | ASGI handler — protocol parsing, multiplexing, lifecycle   |
 
 Channel code is regular sync Python. The framework handles the async boundary the same way it does for HTTP requests: channel methods run in threads via `asyncio.to_thread()`, with database connections managed automatically.
 
@@ -25,6 +25,7 @@ Channel code is regular sync Python. The framework handles the async boundary th
 - [Channel Lifecycle](#channel-lifecycle)
 - [Action Methods](#action-methods)
 - [Streams and Broadcasting](#streams-and-broadcasting)
+- [Turbo Streams](#turbo-streams)
 - [Channel Properties](#channel-properties)
 - [Client-Side Usage](#client-side-usage)
 - [Wire Protocol](#wire-protocol)
@@ -43,9 +44,9 @@ proper install channels
 
 This creates:
 
-- `config/channels.py` file
+- `config/channels.py` file (sets `CABLE_PATH` and the `CABLE` backend dict)
 - `channels/app_channel.py` - the `AppChannel` base your channels inherit from
-- Adds `cable.js` to your `assets/js` folder
+- Adds `cable.js` to your `assets/js` folder, registers it in the import map (as `"cable"`), and adds `import "cable"` to `application.js`
 
 
 ## Defining Channels
@@ -87,10 +88,10 @@ Called when a client subscribes to this channel. Use it to:
 
 ```python
 def subscribed(self):
-    if not self.params.get("token"):
+    if not self.authenticated:
         self.reject()
         return
-    self.stream_from(f"notifications_{self.params['user_id']}")
+    self.stream_from(f"notifications_{current.user.id}")
     self.send({"greeting": "welcome!"})
 ```
 
@@ -100,17 +101,18 @@ Messages sent during `subscribed()` are buffered and flushed to the client befor
 
 Called when the client explicitly unsubscribes or when the WebSocket connection closes (including unexpected disconnects). Use it for cleanup. The framework automatically removes the channel from all streams before calling this method.
 
+It is best-effort on disconnect: a clean close (a `websocket.disconnect` event) calls it, but a browser tab closing hard may not deliver that event, so do not put critical cleanup solely here.
+
 ### Rejection
 
 Call `self.reject()` inside `subscribed()` to deny the subscription. The client receives a `reject_subscription` message and the channel is not stored.
 
 ```python
 def subscribed(self):
-    user = authenticate(self.params.get("token"))
-    if not user:
+    if not self.authenticated:
         self.reject()
         return
-    self.stream_from(f"user_{user.id}")
+    self.stream_from(f"user_{current.user.id}")
 ```
 
 
@@ -120,7 +122,7 @@ Any public method on a channel (other than `subscribed` and `unsubscribed`) can 
 
 ```python
 @router.channel()
-class ChatChannel(Channel):
+class ChatChannel(AppChannel):
     def subscribed(self):
         self.stream_from(f"chat_{self.params['room']}")
 
@@ -144,6 +146,8 @@ The framework blocks the following from being called as actions:
 - Methods that don't exist or aren't callable
 - Lifecycle-only methods: `subscribed`, `unsubscribed`
 - Channel API methods (calling these from the client would let the client bypass server logic): `send`, `broadcast`, `reject`, `stream_from`, `stop_stream_from`, `stop_all_streams`
+
+One action name is conventional: `receive`. The client's `sub.send(data)` is shorthand for `perform("receive", data)`, so defining a `receive(self, data)` method makes it the default handler for messages sent that way.
 
 
 ## Streams and Broadcasting
@@ -206,6 +210,29 @@ def notify_user(user_id, payload):
 ```
 
 
+## Turbo Streams
+
+Proper bundles Turbo. Instead of broadcasting JSON and rebuilding the DOM in `received()`, broadcast a rendered Jx component wrapped in a `<turbo-stream>` and let Turbo apply it.
+
+`turbo_stream(action, target, component="", *, html="", **props)` lives in `proper.turbo` (re-exported as `proper.turbo_stream`) and returns a `<turbo-stream>` fragment. `action` is one of `append`, `prepend`, `replace`, `update`, `remove`, `before`, `after`, `morph`; `target` is the id of the element. Pass a `component` relpath (with extension, like `self.render`) plus props, or ready-made `html`. The `remove` action omits the `<template>`.
+
+```python
+from proper import turbo_stream
+
+app.cable.broadcast(
+    f"chat_{room_id}",
+    turbo_stream("append", "messages", "Message.jx", message=message),
+)
+```
+
+The channels addon ships the bridge inside `cable.js` (imported from `application.js` on install), which defines:
+
+- `<turbo-stream-channel channel="ChatChannel" params='{"room_id": 42}'>` — declarative subscription that feeds each frame to `Turbo.renderStreamMessage`.
+- `streamFrom(channel, params)` — the imperative equivalent (`import { streamFrom } from "cable"`).
+
+Authorization is unchanged: the client sends `params`, and the channel derives and authorizes the stream name in `subscribed()`. The same fragment can also be returned from a controller as an HTTP response (set `self.response.mimetype = "text/vnd.turbo-stream.html"`), and fragments can be concatenated to send several operations at once.
+
+
 ## Channel Properties
 
 Inside any channel method, the following are available:
@@ -223,9 +250,9 @@ Inside any channel method, the following are available:
 ## Authentication
 
 When the auth addon is installed, channels authenticate from the same signed
-session cookie an HTTP request uses - no token in `params`. Because
-`AppChannel` is wired to your app's `Session` model, the framework
-resumes the session from the cookie before every action and exposes the user as
+session cookie an HTTP request uses - no token in `params`. `AppChannel` is
+wired to your app's `Session` model, so the framework resolves the session from
+the cookie once, at subscription time, and exposes the logged-in user as
 `current.user` (and `self.authenticated`), exactly like a controller:
 
 ```python {title="myapp/channels/inbox_channel.py"}
@@ -244,10 +271,14 @@ class InboxChannel(AppChannel):
         self.stream_from(f"inbox_{current.user.id}")
 ```
 
-Authentication is the `Session` class attribute under the hood: `AppChannel`
-sets it for you, and a channel with no `Session` stays anonymous (`current.user`
-is `None`). For custom schemes, `self.request.get_signed_cookie(...)` is still
-available.
+Under the hood this is the `Session` class attribute, which `AppChannel` sets
+for you. At subscription time `_authenticate()` reads the cookie, stores the
+`user_id` on the channel, and makes the resolved session available as
+`current.auth_session` (only inside `subscribed()`). Before every later dispatch
+the framework calls `find_user(user_id)` — defined in `AppChannel` — to refresh
+`current.user` from the database; the cookie itself is not re-read. A channel
+with no `Session` stays anonymous (`current.user` is `None`). For custom schemes,
+`self.request.get_signed_cookie(...)` is still available.
 
 
 ## Client-Side Usage
@@ -257,7 +288,7 @@ The generated app includes `cable.js`, an ES module that handles the WebSocket p
 ### Basic Usage
 
 ```javascript
-import { cable } from "./cable.js"
+import { cable } from "cable"
 
 // Connect to the WebSocket endpoint
 cable.connect()
@@ -332,10 +363,12 @@ Each subscription is identified by its channel name + params combination.
 
 ### Loading cable.js
 
-Add the script to your layout:
+The installer registers `cable.js` in the import map (as `"cable"`) and adds
+`import "cable"` to `application.js`, so it loads with your app bundle — no
+manual `<script>` tag needed. Import it directly:
 
-```html+jinja {title="myapp/views/layouts/app.jx"}
-<script src="{{ url_for('assets', file='js/cable.js') }}" type="module"></script>
+```javascript
+import { cable } from "cable"
 ```
 
 
@@ -376,6 +409,8 @@ Clients connect via WebSocket to `/cable` and exchange JSON messages. This secti
 ```json
 {"type": "reject_subscription", "channel": "ChatChannel", "params": {"room": "general"}}
 ```
+
+A reject for an unregistered channel carries `"reason": "unknown_channel"`; a reject from your own `reject()` in `subscribed()` has no `reason`.
 
 **Data message (from `send()` or `broadcast()`):**
 
@@ -497,12 +532,12 @@ A complete chat feature with a channel, a controller that broadcasts on message 
 **Channel:**
 
 ```python {title="myapp/channels/chat_channel.py"}
-from proper.channel import Channel
 from ..router import router
+from .app_channel import AppChannel
 
 
 @router.channel()
-class ChatChannel(Channel):
+class ChatChannel(AppChannel):
     def subscribed(self):
         self.stream_from(f"chat_{self.params['room']}")
 
@@ -538,7 +573,7 @@ class MessageController(AppController):
 **Client:**
 
 ```javascript
-import { cable } from "./cable.js"
+import { cable } from "cable"
 
 cable.connect()
 

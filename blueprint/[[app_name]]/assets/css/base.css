@@ -172,7 +172,7 @@
 
   /* Turbo */
   turbo-frame,
-  turbo-cable-stream-source {
+  turbo-stream-channel {
     display: contents;
   }
 
