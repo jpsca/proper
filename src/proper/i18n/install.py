@@ -15,7 +15,7 @@ if t.TYPE_CHECKING:
     from ..app import App
 
 
-I18N_BLUEPRINT = BLUEPRINTS / "i18n"
+I18N_BLUEPRINT = BLUEPRINTS / "addon_i18n"
 
 SORT_IMPORTS_IN = [
     "controllers/app_controller.py",

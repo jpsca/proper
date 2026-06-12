@@ -526,20 +526,43 @@ class FakeUser:
 class FakeSession:
     def __init__(self, user):
         self.user = user
-        self.touched = False
+        self.user_id = user.id
+        self.touched = 0
 
     def touch(self):
-        self.touched = True
+        self.touched += 1
 
 
 class FakeSessionModel:
     """A stand-in for the app's Session model (`Channel.Session`)."""
 
     instance = FakeSession(FakeUser(7))
+    find_by_token_calls = 0
 
     @classmethod
     def find_by_token(cls, token):
+        cls.find_by_token_calls += 1
         return cls.instance if token == "good-token" else None
+
+
+class FakeAuthChannel(Channel):
+    """Mirrors the blueprint's `AppChannel`: wires the session model and
+    implements the per-message user lookup."""
+
+    Session = FakeSessionModel
+    users = {7: FakeUser(7)}
+    find_user_calls = 0
+
+    def find_user(self, user_id):
+        FakeAuthChannel.find_user_calls += 1
+        return FakeAuthChannel.users.get(user_id)
+
+
+def _reset_fakes():
+    FakeSessionModel.instance = FakeSession(FakeUser(7))
+    FakeSessionModel.find_by_token_calls = 0
+    FakeAuthChannel.users = {7: FakeUser(7)}
+    FakeAuthChannel.find_user_calls = 0
 
 
 def _cookie_scope(app, token):
@@ -552,12 +575,10 @@ def _cookie_scope(app, token):
 class TestSessionAuth:
     @pytest.mark.asyncio
     async def test_resumes_session_and_sets_current_user(self, app):
-        FakeSessionModel.instance.touched = False
+        _reset_fakes()
         seen = {}
 
-        class AccountChannel(Channel):
-            Session = FakeSessionModel
-
+        class AccountChannel(FakeAuthChannel):
             def subscribed(self):
                 seen["authenticated"] = self.authenticated
                 seen["user_id"] = current.user.id if current.user else None
@@ -575,15 +596,14 @@ class TestSessionAuth:
 
         assert seen["authenticated"] is True
         assert seen["user_id"] == 7
-        assert FakeSessionModel.instance.touched is True
+        assert FakeSessionModel.instance.touched == 1
 
     @pytest.mark.asyncio
     async def test_current_user_available_in_actions(self, app):
+        _reset_fakes()
         seen = {}
 
-        class AccountChannel2(Channel):
-            Session = FakeSessionModel
-
+        class AccountChannel2(FakeAuthChannel):
             def subscribed(self):
                 pass
 
@@ -610,11 +630,10 @@ class TestSessionAuth:
 
     @pytest.mark.asyncio
     async def test_anonymous_without_cookie(self, app):
+        _reset_fakes()
         seen = {}
 
-        class GuardedChannel(Channel):
-            Session = FakeSessionModel
-
+        class GuardedChannel(FakeAuthChannel):
             def subscribed(self):
                 seen["authenticated"] = self.authenticated
                 if not self.authenticated:
@@ -633,3 +652,117 @@ class TestSessionAuth:
         await task
 
         assert seen["authenticated"] is False
+
+    @pytest.mark.asyncio
+    async def test_session_read_once_user_reloaded_per_message(self, app):
+        _reset_fakes()
+        seen = {"user_ids": []}
+
+        class TickChannel(FakeAuthChannel):
+            def subscribed(self):
+                pass
+
+            def ping(self, data):
+                seen["user_ids"].append(current.user.id if current.user else None)
+
+        app.router.channels["TickChannel"] = TickChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "TickChannel"})
+        q.client_send({
+            "command": "message",
+            "channel": "TickChannel",
+            "action": "ping",
+        })
+        q.client_send({
+            "command": "message",
+            "channel": "TickChannel",
+            "action": "ping",
+        })
+        q.client_disconnect()
+
+        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
+        await q.client_recv()  # accept
+        await q.client_recv()  # confirm
+        await task
+
+        assert seen["user_ids"] == [7, 7]
+        # The cookie and the session were read only at subscription time
+        assert FakeSessionModel.find_by_token_calls == 1
+        assert FakeSessionModel.instance.touched == 1
+        # The user was reloaded once per message, plus once for the
+        # `unsubscribed` dispatch at disconnect
+        assert FakeAuthChannel.find_user_calls == 3
+
+    @pytest.mark.asyncio
+    async def test_deleted_user_unsets_current_user(self, app):
+        _reset_fakes()
+        seen = {}
+
+        class FragileChannel(FakeAuthChannel):
+            def subscribed(self):
+                pass
+
+            def vanish(self, data):
+                FakeAuthChannel.users.clear()
+
+            def whoami(self, data):
+                seen["user"] = current.user
+                seen["authenticated"] = self.authenticated
+
+        app.router.channels["FragileChannel"] = FragileChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "FragileChannel"})
+        q.client_send({
+            "command": "message",
+            "channel": "FragileChannel",
+            "action": "vanish",
+        })
+        q.client_send({
+            "command": "message",
+            "channel": "FragileChannel",
+            "action": "whoami",
+        })
+        q.client_disconnect()
+
+        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
+        await q.client_recv()  # accept
+        await q.client_recv()  # confirm
+        await task
+
+        assert seen["user"] is None
+        # `user_id` was resolved at subscription, so the connection still
+        # counts as authenticated even though the user row is gone
+        assert seen["authenticated"] is True
+
+    @pytest.mark.asyncio
+    async def test_auth_session_only_in_subscribed(self, app):
+        _reset_fakes()
+        seen = {}
+
+        class ProbeChannel(FakeAuthChannel):
+            def subscribed(self):
+                seen["in_subscribed"] = current.auth_session
+
+            def probe(self, data):
+                seen["in_action"] = current.auth_session
+
+        app.router.channels["ProbeChannel"] = ProbeChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "ProbeChannel"})
+        q.client_send({
+            "command": "message",
+            "channel": "ProbeChannel",
+            "action": "probe",
+        })
+        q.client_disconnect()
+
+        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
+        await q.client_recv()  # accept
+        await q.client_recv()  # confirm
+        await task
+
+        assert seen["in_subscribed"] is FakeSessionModel.instance
+        assert seen["in_action"] is None

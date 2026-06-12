@@ -14,7 +14,7 @@ if t.TYPE_CHECKING:
     from ..app import App
 
 
-RICH_TEXT_BLUEPRINT = BLUEPRINTS / "rich_text"
+RICH_TEXT_BLUEPRINT = BLUEPRINTS / "addon_rich_text"
 
 SORT_IMPORTS_IN = [
     "tasks/__init__.py",

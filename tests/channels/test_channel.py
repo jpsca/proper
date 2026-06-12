@@ -1,5 +1,7 @@
 import typing as t
 
+import pytest
+
 from proper.app import App
 from proper.channels import Cable, Channel
 from proper.helpers import DotDict
@@ -215,4 +217,12 @@ class TestSessionResolution:
     def test_no_session_model_is_anonymous(self):
         ch, _ = _make_channel()
         assert ch._find_session_by_cookie() is None
-        assert ch._resume_session() is None
+        ch._authenticate()
+        assert ch.user_id is None
+        assert ch.authenticated is False
+
+    def test_find_user_must_be_implemented(self):
+        ch, _ = _make_channel()
+        ch.user_id = 7
+        with pytest.raises(NotImplementedError):
+            ch._set_current_user()

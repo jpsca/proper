@@ -15,7 +15,7 @@ if t.TYPE_CHECKING:
     from ..app import App
 
 
-STORAGE_BLUEPRINT = BLUEPRINTS / "storage"
+STORAGE_BLUEPRINT = BLUEPRINTS / "addon_storage"
 
 SORT_IMPORTS_IN = [
     "controllers/__init__.py",

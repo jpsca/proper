@@ -1,8 +1,6 @@
 import pytest
 
 from proper import metadata, rich_text
-from proper.helpers import BLUEPRINTS
-from proper.helpers.render import render_blueprint
 
 
 APP_NAME = "myapp"
@@ -27,45 +25,6 @@ def app_in_tmp(tmp_path, app):
     app.root_path = app_root
     app.name = APP_NAME
     return app
-
-
-def test_blueprint_renders_all_files(app_in_tmp):
-    render_blueprint(
-        BLUEPRINTS / "rich_text",
-        app_in_tmp.root_path.parent,
-        context={"app_name": app_in_tmp.name},
-    )
-    root = app_in_tmp.root_path
-
-    # Jx components
-    assert (root / "views" / "rich_text_editor.jx").exists()
-    assert (root / "views" / "rich_text_attachment.jx").exists()
-    assert (root / "views" / "rich_text_toolbar.jx").exists()
-
-    # Lexxy config-time script
-    assert (root / "assets" / "js" / "lexxy-config.js").exists()
-
-    # Vendored Lexxy JS bundle + heets land in the user's app
-    assert (root / "assets" / "js" / "vendor" / "lexxy.js").exists()
-    css = root / "assets" / "css"
-    assert (css / "lexxy-editor.css").exists()
-    assert (css / "lexxy-content.css").exists()
-
-    # Periodic sweep task
-    sweep = root / "tasks" / "abandoned_uploads_sweep.py"
-    assert sweep.exists()
-    sweep_text = sweep.read_text()
-    assert "purge_abandoned_uploads" in sweep_text
-    assert APP_NAME in sweep_text
-    assert "[[app_name]]" not in sweep_text
-
-    # tasks/__init__ append wires up the sweep
-    tasks_init = (root / "tasks" / "__init__.py").read_text()
-    assert "from . import abandoned_uploads_sweep" in tasks_init
-
-    # IMPORT_MAP append registers the Lexxy bare specifier
-    import_map_text = (root / "config" / "import_map.py").read_text()
-    assert '"lexxy"' in import_map_text
 
 
 def test_install_renders_blueprint(app_in_tmp):

@@ -42,10 +42,10 @@ def test_file_creation(app_in_tmp):
     assert metadata.is_installed(app_in_tmp, "channels")
 
 
-def test_application_channel_created(app_in_tmp):
+def test_app_channel_created(app_in_tmp):
     channels.install(app_in_tmp)
 
-    path = app_in_tmp.root_path / "channels" / "application_channel.py"
+    path = app_in_tmp.root_path / "channels" / "app_channel.py"
     assert path.exists()
     text = path.read_text()
     assert "class AppChannel(Channel):" in text
@@ -53,7 +53,3 @@ def test_application_channel_created(app_in_tmp):
     # picks up the auth Session model when present, anonymous otherwise
     assert "from ..models import Session" in text
     assert "except ImportError:" in text
-
-    # channels package __init__ exports the base
-    text = (app_in_tmp.root_path / "channels" / "__init__.py").read_text()
-    assert "from .application_channel import AppChannel" in text

@@ -9,7 +9,7 @@ if t.TYPE_CHECKING:
     from ..app import App
 
 
-CHANNELS_BLUEPRINT = BLUEPRINTS / "channels"
+CHANNELS_BLUEPRINT = BLUEPRINTS / "addon_channels"
 
 SORT_IMPORTS_IN = [
     "config/__init__.py",

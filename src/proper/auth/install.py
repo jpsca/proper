@@ -16,7 +16,7 @@ if t.TYPE_CHECKING:
     from ..app import App
 
 
-AUTH_BLUEPRINT = BLUEPRINTS / "auth"
+AUTH_BLUEPRINT = BLUEPRINTS / "addon_auth"
 
 SORT_IMPORTS_IN = [
     "main.py",

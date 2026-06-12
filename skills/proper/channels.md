@@ -44,7 +44,7 @@ proper install channels
 This creates:
 
 - `config/channels.py` file
-- `channels/application_channel.py` - the `AppChannel` base your channels inherit from
+- `channels/app_channel.py` - the `AppChannel` base your channels inherit from
 - Adds `cable.js` to your `assets/js` folder
 
 
@@ -54,7 +54,7 @@ A channel is a subclass of `AppChannel`, registered with the router using the `@
 
 ```python {title="myapp/channels/chat_channel.py"}
 from ..router import router
-from .application_channel import AppChannel
+from .app_channel import AppChannel
 
 
 @router.channel()
@@ -232,7 +232,7 @@ resumes the session from the cookie before every action and exposes the user as
 from proper import current
 
 from ..router import router
-from .application_channel import AppChannel
+from .app_channel import AppChannel
 
 
 @router.channel()

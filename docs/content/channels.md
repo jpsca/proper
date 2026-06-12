@@ -1,11 +1,11 @@
 ---
-title: Channels
+title: Real-Time Updates (Channels)
 description: |
   How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, scaling across workers with Redis, and testing it all.
 number_headers: true
 ---
 
-# Channels
+# Real-Time Updates (Channels)
 
 <section class="admonition wip">
 <p class="admonition-title">Work in progress</p>
@@ -34,10 +34,9 @@ The connecting concept is the **stream**: a plain string like `chat_42`. A chann
 
 Here is the whole loop in miniature. A channel that joins a room's stream and re-broadcasts what it is told:
 
-```python
-# channels/chat_channel.py
+```python {title="channels/chat_channel.py"}
 from ..router import router
-from .application_channel import AppChannel
+from .app_channel import AppChannel
 
 
 @router.channel()
@@ -82,10 +81,8 @@ $ proper install channels
 That creates three things:
 
 - `config/channels.py` - the `CABLE_PATH` and the `CHANNELS` backend config.
-- `channels/application_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
+- `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
 - `assets/js/cable.js` - the browser client.
-
-There is no generator for individual channels (no `proper generate channel`); you write them by hand, subclassing `AppChannel`.
 
 The WebSocket endpoint lives at one path - `/cable` by default - and every channel is multiplexed over it. You never open more than one socket per browser tab, no matter how many channels it subscribes to.
 
@@ -93,12 +90,15 @@ The WebSocket endpoint lives at one path - `/cable` by default - and every chann
 
 ## Defining a channel
 
-A channel is a subclass of `AppChannel`, registered with the router by the `@router.channel()` decorator:
+A channel is a subclass of `AppChannel`, registered with the router by the `@router.channel()` decorator. Use a generator to add one:
 
-```python
-# channels/chat_channel.py
+```bash
+$ proper g channel Chat
+```
+
+```python {title="channels/chat_channel.py"}
 from ..router import router
-from .application_channel import AppChannel
+from .app_channel import AppChannel
 
 
 @router.channel()
@@ -113,9 +113,11 @@ class ChatChannel(AppChannel):
         })
 ```
 
-The class is registered under its name - `"ChatChannel"` - and that is the name clients subscribe with. The `params` are whatever the client passed when subscribing (here, `{"room": "general"}`); they are available as `.params` for the life of the subscription.
+The class is registered under its name - `"ChatChannel"` - and that is the name clients subscribe with. The `params` are whatever the client passed when subscribing (here, `{"room": "general"}`); they are available as `.params` for the life of the subscription. The same `params` dict also identifies the subscription: a client can subscribe to `ChatChannel` twice with different rooms, and each `(channel, params)` pair is a separate, independently-addressed subscription.
 
-For the `@router.channel()` decorator to run, the module has to be imported somewhere your app loads. The same `params` dict also identifies the subscription: a client can subscribe to `ChatChannel` twice with different rooms, and each `(channel, params)` pair is a separate, independently-addressed subscription.
+:::warning
+Like controllers, for the `@router.channel()` decorator to run, the module has to be imported somewhere your app loads, so the generator takes care of adding it to `channels/__init__.py`
+:::
 
 Inside any channel method you have:
 
@@ -159,12 +161,11 @@ One honest caveat: `unsubscribed()` is best-effort on disconnect. A clean close 
 
 A WebSocket handshake is an ordinary HTTP request, so it carries the same cookies your controllers see - including the signed session cookie a logged-in user already has. Proper uses that: when the auth addon is installed, `AppChannel` is wired to your app's `Session` model, and the framework resumes the session from the cookie before every channel method runs. The logged-in user is exposed exactly the way a controller sees it - as `current.user`:
 
-```python
-# channels/inbox_channel.py
+```python {title="channels/inbox_channel.py"}
 from proper import current
 
 from ..router import router
-from .application_channel import AppChannel
+from .app_channel import AppChannel
 
 
 @router.channel()
@@ -180,8 +181,7 @@ No token in `params`, no client cooperation, no re-implementing your session log
 
 This works because of one attribute. `AppChannel` sets `Session` to your session model; that is the whole wiring:
 
-```python
-# channels/application_channel.py  (generated)
+```python {title="channels/app_channel.py"}
 from proper.channels import Channel
 
 try:
@@ -282,8 +282,8 @@ The name is the contract between the channel that listens and the code that broa
 
 The most common broadcast does not come from a channel at all - it comes from an ordinary HTTP request or a background job that just changed something the live page should see. Any code with the app in hand can reach the cable through `app.cable`:
 
-```python
-# controllers/message_controller.py
+```python {title="controllers/message_controller.py"}
+# 
 from ..models import Message
 from ..router import router
 from .app_controller import AppController
@@ -374,12 +374,16 @@ const chat = cable.subscribe("ChatChannel", { room: "general" }, {
 })
 
 chat.perform("speak", { message: "hello" })  // invoke an action
-chat.send({ message: "hello" })              // shorthand for perform("receive", data)
-chat.unsubscribe()                           // leave this channel
-cable.disconnect()                           // close the socket, stop reconnecting
+chat.send({ message: "hello" })  // shorthand for perform("receive", data)
+chat.unsubscribe()               // leave this channel
+cable.disconnect()               // close the socket, stop reconnecting
 ```
 
-`cable.connect()` takes an optional URL; with none, it points at `/cable` on the current host (`ws://` on http, `wss://` on https). If you change `CABLE_PATH`, pass the matching URL to `connect()`. `cable.subscribe(channel, params, callbacks)` returns a subscription; if you pass only two arguments and the second looks like a callbacks object, it is treated as callbacks with empty params. The four callbacks - `connected`, `disconnected`, `received`, `rejected` - are all optional.
+`cable.connect()` takes an optional URL; with none, it points at `/cable` on the current host (`ws://` on http, `wss://` on https).
+
+If you change `CABLE_PATH`, pass the matching URL to `connect()`. `cable.subscribe(channel, params, callbacks)` returns a subscription; if you pass only two arguments and the second looks like a callbacks object, it is treated as callbacks with empty params.
+
+The four callbacks - `connected`, `disconnected`, `received`, `rejected` - are all optional.
 
 When the connection drops, `cable.js` reconnects on its own with exponential backoff (1s, 2s, 4s, up to ten attempts) and re-subscribes everything automatically, so a brief network blip is invisible to your code. `cable.disconnect()` is what stops it.
 
@@ -404,23 +408,70 @@ Each is keyed by its channel name plus params, which is how an incoming broadcas
 
 The client sends three commands - `subscribe`, `message` (invoke an action), and `unsubscribe`:
 
-```json
-{"command": "subscribe",   "channel": "ChatChannel", "params": {"room": "general"}}
-{"command": "message",     "channel": "ChatChannel", "params": {"room": "general"},
-    "action": "speak", "data": {"message": "hi"}}
-{"command": "unsubscribe", "channel": "ChatChannel", "params": {"room": "general"}}
+```json {title="subscribe"}
+{
+  "command": "subscribe",
+  "channel": "ChatChannel",
+  "params": {"room": "general"}
+}
+```
+
+```json {title="message"}
+{
+  "command": "message",
+  "channel": "ChatChannel",
+  "params": {"room": "general"},
+  "action": "speak",
+  "data": {"message": "hi"}
+}
+```
+
+```json {title="unsubscribe"}
+{
+  "command": "unsubscribe",
+  "channel": "ChatChannel",
+  "params": {"room": "general"}
+}
 ```
 
 The server sends back `confirm_subscription`, `reject_subscription`, `message` (the payload of a `send()` or `broadcast()`), and `error`:
 
-```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}}
-{"type": "reject_subscription",  "channel": "ChatChannel", "params": {"room": "general"}}
-{"type": "message", "channel": "ChatChannel", "params": {"room": "general"}, "data": {"message": "hi"}}
-{"type": "error", "reason": "not_subscribed"}
+```json {title="confirm_subscription"}
+{
+  "type": "confirm_subscription",
+  "channel": "ChatChannel",
+  "params": {"room": "general"}
+}
 ```
 
-An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`. A `reject_subscription` carries `"reason": "unknown_channel"` when no channel by that name is registered; a subscription your own `reject()` turned away has no reason.
+```json {title="reject_subscription"}
+{
+  "type": "reject_subscription",
+  "channel": "ChatChannel",
+  "params": {"room": "general"}
+}
+```
+
+A `reject_subscription` carries `"reason": "unknown_channel"` when no channel by that name is registered; a subscription your own `reject()` turned away has no reason.
+
+```json {title="message"}
+{
+  "type": "message",
+  "channel": "ChatChannel",
+  "params": {"room": "general"},
+  "data": {"message": "hi"}
+}
+```
+
+```json {title="error"}
+{
+  "type": "error",
+  "reason": "not_subscribed"
+}
+```
+
+An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`.
+
 
 ---
 
@@ -428,10 +479,11 @@ An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_s
 
 The default backend, `Cable`, keeps its stream-to-subscriber map in memory. That is correct and fast - as long as every browser is connected to the *same* process. A broadcast from one worker reaches only the clients that worker is holding. For a single-process deployment (one Uvicorn worker) that is all you need.
 
-The moment you run more than one worker, you need `RedisCable`. It publishes each broadcast to Redis, and a background listener in every process delivers it to that process's local subscribers - so a message broadcast in worker A reaches a browser connected to worker B. Your application code does not change at all; `.broadcast(...)` and `app.cable.broadcast(...)` work exactly the same. Only the config differs:
+The moment you run more than one worker, you need `RedisCable`. It publishes each broadcast to Redis, and a background listener in every process delivers it to that process's local subscribers - so a message broadcast in worker A reaches a browser connected to worker B.
 
-```python
-# config/channels.py
+Your application code does not change at all; `.broadcast(...)` and `app.cable.broadcast(...)` work exactly the same. Only the config differs:
+
+```python {title="config/channels.py"}
 import os
 
 env = os.getenv("APP_ENV", "dev")
@@ -490,13 +542,12 @@ async def test_chat_broadcasts_to_the_room(client):
 
 A complete room chat: an authenticated channel, a controller that persists a message and broadcasts it, and the page that ties them together.
 
-```python
-# channels/chat_channel.py
+```python {title="channels/chat_channel.py"}
 from proper import current
 
 from ..models import Room
 from ..router import router
-from .application_channel import AppChannel
+from .app_channel import AppChannel
 
 
 @router.channel()
@@ -515,8 +566,7 @@ class ChatChannel(AppChannel):
         })
 ```
 
-```python
-# controllers/message_controller.py
+```python {title="controllers/message_controller.py"}
 from ..models import Message
 from ..router import router
 from .app_controller import AppController
@@ -538,8 +588,7 @@ class MessageController(AppController):
         self.response.redirect_to("Message.index", room_id=room_id)
 ```
 
-```javascript
-// the room page
+```javascript {title="the room page"}
 import { cable } from "/cable.js"
 
 cable.connect()
@@ -574,7 +623,6 @@ Channels covers the durable core - a multiplexed connection, authenticated subsc
 - **A subscription reply.** Letting an action return a value the framework sends back to the caller, tagged to that call, so optimistic UIs can confirm success or surface a validation error without a separate correlated message.
 - **Per-subscription timers.** A `periodically(...)` hook for server-driven pushes - live counters, clocks, dashboards - scoped to the subscription's lifetime. For now, a periodic background task that broadcasts to a stream covers most of this.
 - **Channel error hooks.** A `rescue_from`-style way to turn an exception in an action into a clean error frame for the client, rather than only logging it.
-- **A channel generator.** A `proper generate channel` scaffold, the way controllers, models, and emails have one.
 
 If you build any of these against the current code, the framework would love a PR.
 

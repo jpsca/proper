@@ -126,7 +126,7 @@ def get_generators_cli(app: "App") -> type[Cli]:
         "__doc__": """Generate new code.""",
     }
 
-    for name in ("resource", "model", "controller", "email", "seed"):
+    for name in ("resource", "model", "controller", "email", "seed", "channel"):
         attrs[name] = _get_cmd(app, generators, f"gen_{name}")
 
     return t.cast(type[Cli], type("Generators", (Cli,), attrs))

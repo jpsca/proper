@@ -116,7 +116,7 @@ This is the documentation for **Proper**. These guides are designed to make you 
 </a>
 
 <a href="/docs/channels" class="doc-index-section">
-  <h3>Channels</h3>
+  <h3>Real-Time Updates (Channels)</h3>
   <p>Channels let your application push data to the browser in real time over a WebSocket connection, instead of waiting for the user to refresh. This guide covers writing channels, broadcasting messages, and tracking who is currently connected.</p>
 </a>
 
