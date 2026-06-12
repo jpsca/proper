@@ -1,1 +1,1 @@
-from .channels import CHANNELS  # noqa
+from .channels import CABLE  # noqa

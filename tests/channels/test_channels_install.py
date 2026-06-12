@@ -28,7 +28,7 @@ def test_file_creation(app_in_tmp):
     assert path.exists()
     text = path.read_text()
     assert "CABLE_PATH" in text
-    assert "CHANNELS" in text
+    assert "CABLE:" in text
 
     # cable.js asset
     path = app_in_tmp.root_path / "assets" / "js" / "cable.js"
@@ -36,7 +36,7 @@ def test_file_creation(app_in_tmp):
 
     # config __init__ updated with channels import
     text = (app_in_tmp.root_path / "config" / "__init__.py").read_text()
-    assert "from .channels import CHANNELS" in text
+    assert "from .channels import CABLE" in text
 
     # records the install in .proper
     assert metadata.is_installed(app_in_tmp, "channels")

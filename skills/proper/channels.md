@@ -423,24 +423,24 @@ This means every process — including the one that published — receives the m
 
 ### Configuration
 
-Set the `CHANNELS` dict in your config to enable `RedisCable`:
+Set the `CABLE` dict in your config to enable `RedisCable`:
 
 ```python {title="myapp/config/channels.py"}
 import os
 
 env = os.getenv("APP_ENV", "dev")
 
-CHANNELS = {}
+CABLE = {}
 
 if env == "prod":
-    CHANNELS = {
+    CABLE = {
         "type": "proper.channels.RedisCable",
         "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         "prefix": "myapp:cable:",
     }
 ```
 
-When `CHANNELS` is empty (or not set), the framework uses the default in-memory `Cable`.
+When `CABLE` is empty (or not set), the framework uses the default in-memory `Cable`.
 
 | Option   | Default                    | Description                                         |
 |----------|----------------------------|-----------------------------------------------------|
@@ -459,7 +459,7 @@ The `prefix` prevents collisions when multiple apps share the same Redis instanc
 uv add redis
 ```
 
-An `ImportError` is raised at startup if `redis` is not installed and `CHANNELS` is configured to use `RedisCable`.
+An `ImportError` is raised at startup if `redis` is not installed and `CABLE` is configured to use `RedisCable`.
 
 
 ### Lifecycle

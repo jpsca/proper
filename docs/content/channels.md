@@ -80,7 +80,7 @@ $ proper install channels
 
 That creates three things:
 
-- `config/channels.py` - the `CABLE_PATH` and the `CHANNELS` backend config.
+- `config/channels.py` - the `CABLE_PATH` and the `CABLE` backend config.
 - `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
 - `assets/js/cable.js` - the browser client.
 
@@ -488,10 +488,10 @@ import os
 
 env = os.getenv("APP_ENV", "dev")
 
-CHANNELS = {}
+CABLE = {}
 
 if env == "prod":
-    CHANNELS = {
+    CABLE = {
         "type": "proper.channels.RedisCable",
         "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         "prefix": "myapp:cable:",
@@ -504,7 +504,7 @@ Option   | Default                      | What it is
 `url`    | `redis://localhost:6379/0`   | Redis connection URL
 `prefix` | `proper:cable:`              | Namespace for the Redis pub/sub channels
 
-When `CHANNELS` is empty, you get the in-process `Cable`. Give each app a distinct `prefix` if several share one Redis. `RedisCable` needs the `redis` package (`uv add redis`) and raises at startup if it is configured without it. It hooks into the ASGI lifespan automatically - the listener starts on boot and is cancelled on shutdown - and if the Redis connection drops it reconnects with backoff (up to 30s) and resumes.
+When `CABLE` is empty, you get the in-process `Cable`. Give each app a distinct `prefix` if several share one Redis. `RedisCable` needs the `redis` package (`uv add redis`) and raises at startup if it is configured without it. It hooks into the ASGI lifespan automatically - the listener starts on boot and is cancelled on shutdown - and if the Redis connection drops it reconnects with backoff (up to 30s) and resumes.
 
 The line to remember: `RedisCable` shares *broadcasts* across workers, not *state*. Fire-and-forget delivery crosses the cluster cleanly. Anything that needs a shared, durable view - a presence roster, a "replay the last value to a late subscriber" - is not something the cable does for you, because Redis pub/sub carries events, not memory. [Deployment](/docs/deployment) covers choosing a worker count and running the server.
 

@@ -257,7 +257,7 @@ class TestCableTool:
             {
                 "SECRET_KEYS": ["*" * 50],
                 "DEBUG": False,
-                "CHANNELS": {},
+                "CABLE": {},
             }
         )
         setup_cable(app)
@@ -270,7 +270,7 @@ class TestCableTool:
             {
                 "SECRET_KEYS": ["*" * 50],
                 "DEBUG": False,
-                "CHANNELS": {
+                "CABLE": {
                     "type": "proper.channels.RedisCable",
                     "url": redis_url,
                 },
@@ -286,7 +286,7 @@ class TestCableTool:
             {
                 "SECRET_KEYS": ["*" * 50],
                 "DEBUG": False,
-                "CHANNELS": {
+                "CABLE": {
                     "type": RedisCable,
                     "prefix": "test:",
                 },

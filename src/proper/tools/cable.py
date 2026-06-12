@@ -3,7 +3,7 @@ from ..errors import ConfigError
 from ..helpers.imports import get_instance
 
 
-NAME = "CHANNELS"
+NAME = "CABLE"
 DEFAULT_CONFIG = {}
 
 
