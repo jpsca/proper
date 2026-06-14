@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from proper.helpers.streams import copy_file
+from proper.helpers import copy_file
 
 
 def test_basic():

@@ -412,29 +412,38 @@ small {
 
 .autodoc-symbol {
   border-radius: 0.1rem;
-  padding: 0 0.3em;
+  padding: 0;
+  margin: 0;
   font-weight: bold;
+}
+.autodoc-symbol::before {
+  content: attr(data-name);
 }
 
 .autodoc-symbol-attr {
   color: var(--doc-symbol-attribute-fg-color, #ffa657) !important;
   background-color: var(--doc-symbol-attribute-bg-color, #ffa6571a) !important;
+  font-size: 0.75em;
 }
 .autodoc-symbol-function {
   color: var(--doc-symbol-function-fg-color, #d2a8ff) !important;
   background-color: var(--doc-symbol-function-bg-color, #d2a8ff1a) !important;
+  font-size: 0.75em;
 }
 .autodoc-symbol-method {
   color: var(--doc-symbol-method-fg-color, #d2a8ff) !important;
   background-color: var(--doc-symbol-method-bg-color, #d2a8ff1a) !important;
+  font-size: 0.75em;
 }
 .autodoc-symbol-class {
   color: var(--doc-symbol-class-fg-color, #79c0ff) !important;
   background-color: var(--doc-symbol-class-bg-color, #79c0ff1a) !important;
+  font-size: 0.75em;
 }
 .autodoc-symbol-module {
   color: var(--doc-symbol-module-fg-color, #baff79) !important;
   background-color: var(--doc-symbol-module-bg-color, #baff791a) !important;
+  font-size: 0.75em;
 }
 
 .autodoc-name {
@@ -463,8 +472,16 @@ small {
 }
 
 .page_content > *+*,
-.page_content blockquote> *+* {
+.page_content blockquote> *+*,
+.page_content dt {
   margin-top: var(--flow-space);
+}
+
+.page_content dl {
+  margin-top: 0;
+}
+.page_content dd {
+  margin-left: 1rem;
 }
 
 .page_content sup {
@@ -533,12 +550,7 @@ small {
 
 /******* Page - Headers *******/
 
-.page_content > * + h1,
-.page_content > * + h2,
-.page_content > * + h3,
-.page_content > * + h4,
-.page_content > * + h5,
-.page_content > * + h6 {
+.page_content > * + :is(h1, h2, h3, h4, h5, h6) {
   --flow-space: 2.4rem;
 }
 
@@ -552,8 +564,7 @@ small {
   --flow-space: 1.4rem;
 }
 
-.page_content h2 + *,
-.page_content h3 + * {
+.page_content :is(h1, h2) + * {
   --flow-space: 0.9rem;
 }
 
@@ -570,42 +581,26 @@ small {
   padding-top: 0.125em;
 }
 
-.page_content h4,
-.page_content h5,
-.page_content h6 {
+.page_content :is(h4, h5, h6) {
   padding-top: 0.175em;
 }
 
-.page_content h4+*,
-.page_content h5+*,
-.page_content h6+* {
+.page_content :is(h4, h5, h6) + * {
   --flow-space: 0.4rem;
 }
 
-.page_content h1 .headerlink,
-.page_content h2 .headerlink,
-.page_content h3 .headerlink,
-.page_content h4 .headerlink,
-.page_content h5 .headerlink,
-.page_content h6 .headerlink {
+.page_content :is(h1, h2, h3, h4, h5, h6) .num {
+  font-weight: 400;
+}
+
+.page_content :is(h1, h2, h3, h4, h5, h6) .headerlink {
   opacity: 0.05;
   font-size: 0.9em;
   margin-left: 0.4em;
   transition: opacity var(--transition);
 }
 
-.page_content h1:hover .headerlink,
-.page_content h1:focus .headerlink,
-.page_content h2:hover .headerlink,
-.page_content h2:focus .headerlink,
-.page_content h3:hover .headerlink,
-.page_content h3:focus .headerlink,
-.page_content h4:hover .headerlink,
-.page_content h4:focus .headerlink,
-.page_content h5:hover .headerlink,
-.page_content h5:focus .headerlink,
-.page_content h6:hover .headerlink,
-.page_content h6:focus .headerlink {
+.page_content :is(h1, h2, h3, h4, h5, h6):is(:hover, :focus) .headerlink {
   opacity: 0.8;
 }
 

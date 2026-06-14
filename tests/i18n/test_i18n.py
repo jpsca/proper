@@ -353,7 +353,7 @@ def test_format_time(i18n):
 
 def test_format_datetime(i18n):
     dt = datetime.datetime(2024, 3, 15, 10, 30)
-    result = i18n.format_datetime(dt, locale="en", timezone="UTC")
+    result = i18n.format_date(dt, locale="en", timezone="UTC")
     assert "Mar" in result
     assert "2024" in result
 

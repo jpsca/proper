@@ -2,7 +2,7 @@
 {# def ds, level=2 #}
 
 {%- if ds.symbol or ds.name %}
-{{ "#" * level }} `{{ ds.symbol }}`{ .autodoc-symbol .autodoc-symbol-{{ ds.symbol }} } `{{ ds.name }}`{ .autodoc-name .autodoc-name-{{ ds.symbol }} }
+{{ "#" * level }} ` `{ .autodoc-symbol .autodoc-symbol-{{ ds.symbol }} data-name={{ ds.symbol }} } `{{ ds.name }}`{ .autodoc-name .autodoc-name-{{ ds.symbol }} }
 {%- if ds.label %} `{{ ds.label }}`{ .autodoc-label .autodoc-label-{{ ds.label }} }{% endif %}
 {% endif -%}
 

@@ -187,6 +187,46 @@ class BaseRouter:
         _full: bool = False,
         **kw,
     ) -> str:
+        """Builds a URL for the route with the given name, filling in placeholders
+        with the given kwargs or with attributes of the given object.
+
+        ```python
+        url_for("Page.show", object=page)
+        # => "/pages/123"
+
+        url_for("Page.show", page_id=123, _anchor="section1")
+        # => "/pages/123#section1"
+
+        # The host is determined by the route's host constraint
+        # or by the application's default host.
+        url_for("Page.show", page_id=123, _full=True)
+        # => "http://www.example.com/pages/123#section1"
+        ```
+
+        Arguments:
+            name:
+                The name of the route to build the URL for. This is usually the
+                qualified name of the `to` method minus the "Controller" suffix,
+                eg: `Page.show`, but it can be any unique string if you set the
+                `name` argument when declaring the route.
+            object:
+                Optional. An object to fill in the placeholders of the route.
+                For each placeholder, the router will look for a matching key in
+                `kw` first, then for an attribute with the same name in the object,
+                and then for an attribute with the same name but without the controller
+                prefix (e.g. for `ItemController`, the placeholder `:item_id` will look
+                for `item_id` and then `id` in the object attributes).
+            _anchor:
+                Optional. If given, appends an anchor to the URL (e.g. `#section1`).
+            _full:
+                Optional. If `True`, builds a full URL including the protocol and host.
+                The host is determined by the route's host constraint if it has one,
+                or by the application's default host otherwise.
+            **kw:
+                Additional keyword arguments to fill in the placeholders of the route.
+                These take precedence over the attributes of the given object.
+
+        """
         if name.startswith("/"):
             return name
 
@@ -233,6 +273,40 @@ class BaseRouter:
         curr_url: str = "",
         **kw,
     ) -> bool:
+        """Tells if the URL for the given route name and parameters is the same as the current URL
+        as reported by `current.request.path` (ignoring trailing slashes and anchors).
+        This is useful for things like active links in navigation bars.
+
+        If a current URL is not given, it defaults to `current.request.path`.
+        This is useful if you want to compare to a different URL than the current
+        request's path, for example when you are building a link to a section in the
+        same page and want to compare
+
+        ```python
+        url_is("Page.show", page_id=123, curr_url="/pages/123#section1")
+        # => True
+
+        url_is("Page.show", page_id=123, curr_url="/pages")
+        # => False
+        ```
+
+        Arguments:
+            name:
+                The name of the route to build the URL for. This is usually the
+                qualified name of the `to` method minus the "Controller" suffix,
+                eg: `Page.show`, but it can be any unique string if you set the `name`
+                argument when declaring the route.
+            object:
+                Optional. An object to fill in the placeholders of the route.
+                For each placeholder, the router will look for a matching key in
+                `kw` first, then for an attribute with the same name in the object,
+                and then for an attribute with the same name but without the controller
+                prefix (e.g. for `ItemController`, the placeholder `:item_id` will look
+                for `item_id` and then `id` in the object attributes).
+            curr_url:
+                Optional. The URL to compare to.
+
+        """
         control = self.url_for(name, object, **kw)
         if not curr_url and current.request:
             curr_url = current.request.path
@@ -246,6 +320,19 @@ class BaseRouter:
         curr_url: str = "",
         **kw,
     ) -> bool:
+        """Tells if the URL for the given route name and parameters starts with the current URL
+        as reported by `current.request.path` (ignoring trailing slashes and anchors).
+        This is useful for things like active links to sections in navigation bars.
+
+        ```python
+        url_startswith("Page.show", page_id=123, curr_url="/pages/123#section1")
+        # => True
+
+        url_startswith("Page.show", page_id=123, curr_url="/pages/")
+        # => True
+        ```
+
+        """
         control = self.url_for(name, object, **kw)
         if not curr_url and current.request:
             curr_url = current.request.path

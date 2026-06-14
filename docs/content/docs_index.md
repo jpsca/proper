@@ -82,6 +82,11 @@ This is the documentation for **Proper**. These guides are designed to make you 
   <p>The HTML side of forms: how to render fields with the built-in helpers, how to write the markup yourself, the wire format that comes back, and the rendering patterns for sub-forms, nested forms, file uploads, and the method-override trick.</p>
 </a>
 
+<a href="/docs/view_helpers" class="doc-index-section">
+  <h3>Views Helpers</h3>
+  <p>This is a list of of most of the helpers available in the views.</p>
+</a>
+
 
 ## Other Components
 

@@ -43,6 +43,7 @@ pages = [
         "pages": [
             "jx_components.md",
             "form_rendering.md",
+            "view_helpers.md",
         ]
     },
     {
@@ -71,6 +72,12 @@ pages = [
             "testing.md",
             "advanced_models.md",
             "api.md",
+        ]
+    },
+    {
+        "title": "API",
+        "pages": [
+            "api/view_helpers.md",
         ]
     },
 ]

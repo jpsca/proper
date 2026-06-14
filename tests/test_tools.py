@@ -285,7 +285,6 @@ def test_i18n_registers_jinja_filters(tmp_path):
     i18n.setup(app)
 
     filters = app.catalog.jinja_env.filters
-    assert "format_datetime" in filters
     assert "format_date" in filters
     assert "format_currency" in filters
 

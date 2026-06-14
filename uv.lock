@@ -811,7 +811,7 @@ dev = [
     { name = "tox-uv", specifier = ">=1.33.1" },
     { name = "ty", specifier = ">=0.0.1a24" },
 ]
-docs = [{ name = "writeadoc", specifier = ">=0.22.0" }]
+docs = [{ name = "writeadoc", editable = "../writeadoc" }]
 test = [
     { name = "boto3", specifier = ">=1.35.71" },
     { name = "poyo" },
@@ -1359,8 +1359,8 @@ wheels = [
 
 [[package]]
 name = "writeadoc"
-version = "0.22.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.23.0"
+source = { editable = "../writeadoc" }
 dependencies = [
     { name = "docstring-parser" },
     { name = "hecto" },
@@ -1372,7 +1372,26 @@ dependencies = [
     { name = "ty" },
     { name = "watchdog" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f5/c1/9733a88b52e4249302e478960f5610831e22ee3d49b1de69366fc4250a61/writeadoc-0.22.0.tar.gz", hash = "sha256:c0fdf3654fa318f4473e66610ae3826460989fb83878e58da11ce869ed19109a", size = 394885, upload-time = "2026-05-15T03:45:08.127Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/20/b79d81b21c2d0d5d8ac3a6048e36ae53dc63c68f34e375c90ea07230a232/writeadoc-0.22.0-py3-none-any.whl", hash = "sha256:92f46f3de2d026cd35a55deb33db9f3f04c68791bcb996140042420b73c32779", size = 406077, upload-time = "2026-05-15T03:45:09.687Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "docstring-parser", specifier = ">=0.17.0" },
+    { name = "hecto", specifier = ">=2.0.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "jx", specifier = ">=0.11.0" },
+    { name = "mistune", specifier = ">=3.2.0" },
+    { name = "pygments", specifier = ">=2.19.2" },
+    { name = "strictyaml", specifier = ">=1.7.3" },
+    { name = "ty", specifier = ">=0.0.1a15" },
+    { name = "watchdog", specifier = ">=6.0.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipdb", specifier = ">=0.13.13" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "ruff", specifier = ">=0.12.4" },
+    { name = "tox-uv" },
+    { name = "ty", specifier = ">=0.0.1a15" },
+]
+test = [{ name = "pytest", specifier = ">=8.4.1" }]
