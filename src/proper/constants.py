@@ -25,6 +25,9 @@ ACTION_DELETE = "delete"
 
 FLASHES_SESSION_KEY: Final = "_flashes"
 
+# The MIME type Turbo uses for stream requests and responses
+TURBO_STREAM_MIME: Final = "text/vnd.turbo-stream.html"
+
 # Default salt for signed cookies
 SIGNED_COOKIE_SALT: Final = "cookie"
 

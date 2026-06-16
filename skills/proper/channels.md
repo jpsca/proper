@@ -214,14 +214,14 @@ def notify_user(user_id, payload):
 
 Proper bundles Turbo. Instead of broadcasting JSON and rebuilding the DOM in `received()`, broadcast a rendered Jx component wrapped in a `<turbo-stream>` and let Turbo apply it.
 
-`turbo_stream(action, target, component="", *, html="", **props)` lives in `proper.turbo` (re-exported as `proper.turbo_stream`) and returns a `<turbo-stream>` fragment. `action` is one of `append`, `prepend`, `replace`, `update`, `remove`, `before`, `after`, `morph`; `target` is the id of the element. Pass a `component` relpath (with extension, like `self.render`) plus props, or ready-made `html`. The `remove` action omits the `<template>`.
+Build the fragment with the `turbo_stream` builder (`proper.turbo`, re-exported as `proper.turbo_stream`). Call an action method — `append`, `prepend`, `replace`, `update`, `remove`, `before`, `after`, `morph`, `refresh` — with a target id (or a model, via `dom_id`) and a `component` relpath plus props (or ready-made `html`/`content`):
 
 ```python
 from proper import turbo_stream
 
 app.cable.broadcast(
     f"chat_{room_id}",
-    turbo_stream("append", "messages", "Message.jx", message=message),
+    turbo_stream.append("messages", "Message.jx", message=message),
 )
 ```
 
@@ -230,7 +230,7 @@ The channels addon ships the bridge inside `cable.js` (imported from `applicatio
 - `<turbo-stream-channel channel="ChatChannel" params='{"room_id": 42}'>` — declarative subscription that feeds each frame to `Turbo.renderStreamMessage`.
 - `streamFrom(channel, params)` — the imperative equivalent (`import { streamFrom } from "cable"`).
 
-Authorization is unchanged: the client sends `params`, and the channel derives and authorizes the stream name in `subscribed()`. The same fragment can also be returned from a controller as an HTTP response (set `self.response.mimetype = "text/vnd.turbo-stream.html"`), and fragments can be concatenated to send several operations at once.
+Authorization is unchanged: the client sends `params`, and the channel derives and authorizes the stream name in `subscribed()`. The same fragment also serves an HTTP response — return it from a controller with `render(stream=...)`, or render a `*.turbo_stream.jx` view. The builder, frames, and stream responses are documented in full in [turbo.md](turbo.md).
 
 
 ## Channel Properties

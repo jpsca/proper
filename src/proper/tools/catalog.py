@@ -7,6 +7,7 @@ from ..cache import FragmentCacheExtension
 from ..global_context import current
 from ..helpers import dom_id, render_importmap
 from ..helpers.formatters import truncate
+from ..turbo import turbo_frame_tag, turbo_stream
 
 
 def setup(app):
@@ -22,6 +23,8 @@ def setup(app):
         "render_importmap": partial(render_importmap, app),
         "dom_id": dom_id,
         "truncate": truncate,
+        "turbo_frame_tag": turbo_frame_tag,
+        "turbo_stream": turbo_stream,
     }
 
     app.catalog = jx.Catalog(

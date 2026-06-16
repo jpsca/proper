@@ -44,6 +44,7 @@ pages = [
             "jx_components.md",
             "form_rendering.md",
             "view_helpers.md",
+            "turbo.md",
         ]
     },
     {

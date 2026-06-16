@@ -3,6 +3,9 @@ must inherit from. Stores data available to the views.
 """
 import typing as t
 
+from markupsafe import Markup
+
+from ..constants import TURBO_STREAM_MIME
 from ..helpers import MultiDict, jsonplus, logger, make_list
 from ..status import not_modified, unprocessable
 from .template_resolver import resolve_template
@@ -53,9 +56,15 @@ class Controller:
         status: int | None = None,
         json: t.Any = None,
         text: t.Any = None,
+        stream: t.Any = None,
     ) -> str:
         if status is not None:
             self.response.status = status
+
+        if stream is not None:
+            self.response.mimetype = TURBO_STREAM_MIME
+            parts = stream if isinstance(stream, (list, tuple)) else [stream]
+            return Markup("".join(str(part) for part in parts))
 
         if json is not None:
             self.response.mimetype = "application/json"

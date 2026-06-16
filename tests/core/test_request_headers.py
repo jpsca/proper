@@ -327,6 +327,28 @@ def test_is_xhr_false():
     assert req.is_xhr is False
 
 
+def test_turbo_frame():
+    req = _make_request("/", headers=[("turbo-frame", "messages")])
+    assert req.turbo_frame == "messages"
+
+
+def test_turbo_frame_none():
+    req = _make_request("/")
+    assert req.turbo_frame is None
+
+
+def test_turbo_stream():
+    req = _make_request(
+        "/", headers=[("accept", "text/vnd.turbo-stream.html, text/html")]
+    )
+    assert req.turbo_stream is True
+
+
+def test_turbo_stream_false():
+    req = _make_request("/", headers=[("accept", "text/html")])
+    assert req.turbo_stream is False
+
+
 def test_port_is_default():
     assert _make_request("http://example.com/").port_is_default is True
     assert _make_request("http://example.com:9090/").port_is_default is False
