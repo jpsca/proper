@@ -1,8 +1,8 @@
 [build-system]
 requires = ["setuptools"]
 
-[tool.uv.sources]
-writeadoc = { path = "../writeadoc", editable = true }
+# [tool.uv.sources]
+# writeadoc = { path = "../writeadoc", editable = true }
 
 [project]
 name = "proper"

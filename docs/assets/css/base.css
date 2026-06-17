@@ -4,11 +4,14 @@
   font-display: swap;
 }
 @font-face {
-  font-family: "Fira Code VF";
-  src: url("../fonts/FiraCode-VF.woff2") format("woff2-variations");
-  /* font-weight requires a range: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide#Using_a_variable_font_font-face_changes */
-  font-weight: 300 700;
-  font-style: normal;
+  font-family: "SF Mono";
+  src: url("../fonts/SFMono-Regular.woff2") format("woff2");
+  font-weight: normal;
+}
+@font-face {
+  font-family: "SF Mono";
+  src: url("../fonts/SFMono-Bold.woff2") format("woff2");
+  font-weight: bold;
 }
 
 html.cs-light {
@@ -44,7 +47,7 @@ html {
   --color-accent: rgb(var(--rgb-accent));
 
   --font-family: "Albert Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-family-mono: "Fira Code VF", "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  --font-family-mono: "SF Mono", Menlo, Consolas, monospace;
   --font-size: min(calc(1.6em + 1vw), 2.3rem);
   --space-small: 0.5em;
   --space-medium: 1em;
@@ -836,7 +839,7 @@ form.search input {
   appearance: none;
   border: none;
   color: var(--color-gray);
-  flex-grow: 0;
+  flex-grow: 1;
   line-height: 1.4;
   padding: 0.6em 0.8em 0.5em 0.8em;
   vertical-align: middle

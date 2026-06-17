@@ -6,7 +6,7 @@ from http import cookies as http_cookies
 
 from dateutil.parser import parse as dtparse
 
-from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT
+from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT, TURBO_STREAM_MIME
 from ...errors import InvalidHeader
 from ...helpers import MultiDict
 from ...helpers.formatters import format_locale
@@ -291,6 +291,19 @@ class RequestHeadersMixin:
     def is_xhr(self) -> bool:
         """True if the request was done by JavaScript."""
         return self.headers.get("x-requested-with") == "XMLHttpRequest"
+
+    @property
+    def turbo_frame(self) -> "str | None":
+        """The `Turbo-Frame` request header: the id of the frame Turbo is
+        updating, or `None` for a full-page request. Branch on it to render a
+        bare frame instead of the whole layout."""
+        return self.headers.get("turbo-frame")
+
+    @property
+    def turbo_stream(self) -> bool:
+        """True when the client accepts a Turbo Stream response (it sent the
+        Turbo Stream MIME in its `Accept` header)."""
+        return TURBO_STREAM_MIME in self.accept
 
     @property
     def port_is_default(self) -> bool:

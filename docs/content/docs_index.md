@@ -87,6 +87,11 @@ This is the documentation for **Proper**. These guides are designed to make you 
   <p>This is a list of of most of the helpers available in the views.</p>
 </a>
 
+<a href="/docs/turbo" class="doc-index-section">
+  <h3>Turbo</h3>
+  <p>The speed of a single-page web application without having to write any JavaScript.</p>
+</a>
+
 
 ## Other Components
 

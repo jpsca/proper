@@ -637,6 +637,10 @@ def show(self):
 
 This sets the Content-Type to `application/json` and serializes the data using a custom encoder that handles `datetime` objects (dates are prefixed with `"__dt__"` for round-trip parsing).
 
+### Turbo Stream Responses
+
+A Turbo form submission (`Accept: text/vnd.turbo-stream.html`) resolves a `{action}.turbo_stream.jx` view automatically, or you build the response inline with `self.render(stream=...)`. Branch on `self.request.turbo_stream` when one URL serves both Turbo and normal clients. See [turbo.md](turbo.md#responding-to-a-form).
+
 ### JSON API Patterns
 
 #### Content Negotiation

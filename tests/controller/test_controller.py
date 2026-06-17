@@ -10,6 +10,7 @@ from proper.errors import NotFound
 from proper.helpers import DotDict, MultiDict
 from proper.helpers.asgi import make_test_scope
 from proper.status import not_modified
+from proper.turbo import turbo_stream
 
 
 def _only_allow(*names):
@@ -116,6 +117,27 @@ class TestRender:
         co = _make_controller()
         co.render(json={"a": 1}, text="ignored")
         assert co.response.mimetype == "application/json"
+
+    def test_render_stream_sets_mimetype(self):
+        co = _make_controller()
+        body = co.render(stream=turbo_stream.append("messages", html="<li>a</li>"))
+        assert co.response.mimetype == "text/vnd.turbo-stream.html"
+        assert body == (
+            '<turbo-stream action="append" target="messages">'
+            "<template><li>a</li></template></turbo-stream>"
+        )
+
+    def test_render_stream_joins_a_list(self):
+        co = _make_controller()
+        body = co.render(stream=[
+            turbo_stream.append("messages", html="<li>a</li>"),
+            turbo_stream.remove("old"),
+        ])
+        assert body == (
+            '<turbo-stream action="append" target="messages">'
+            "<template><li>a</li></template></turbo-stream>"
+            '<turbo-stream action="remove" target="old"></turbo-stream>'
+        )
 
 
 class TestRedo:
@@ -301,6 +323,41 @@ class TestCall:
         co.app.catalog.render.return_value = "{}"
         co._call("show")
         assert co.app.catalog.render.call_args[0][0] == "posts/show.json.jx"
+
+    def test_routes_to_turbo_stream_template(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.posts_controller"
+
+            def create(self):
+                pass
+
+        co = _make_controller(
+            cls=MyController,
+            headers=[("accept", "text/vnd.turbo-stream.html, text/html")],
+        )
+        co.app.catalog.has.side_effect = _only_allow(
+            "posts/create.turbo_stream.jx",
+            "posts/create.jx",
+        )
+        co.app.catalog.render.return_value = "<turbo-stream></turbo-stream>"
+        co._call("create")
+        assert co.app.catalog.render.call_args[0][0] == "posts/create.turbo_stream.jx"
+
+    def test_turbo_request_falls_back_to_html_template(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.posts_controller"
+
+            def create(self):
+                pass
+
+        co = _make_controller(
+            cls=MyController,
+            headers=[("accept", "text/vnd.turbo-stream.html, text/html")],
+        )
+        co.app.catalog.has.side_effect = _only_allow("posts/create.jx")
+        co.app.catalog.render.return_value = "ok"
+        co._call("create")
+        assert co.app.catalog.render.call_args[0][0] == "posts/create.jx"
 
     def test_falls_back_to_application_prefix(self):
         class ApplicationController(Controller):

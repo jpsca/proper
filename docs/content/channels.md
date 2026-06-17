@@ -429,26 +429,22 @@ A `<turbo-stream>` is HTML that names a DOM operation and a target:
 </turbo-stream>
 ```
 
-`turbo_stream()` builds one from a Jx component, or from raw HTML:
+The `turbo_stream` builder has a method per action; each builds one from a Jx component, or from raw HTML:
 
 ```python
 from proper import turbo_stream
 
-turbo_stream(
-    action="append",
-    # The ID of the element in the page
-    target="messages",
-    # The path of the component to render
-    component="message.jx",
-    # Arguments for the component
-    message=message
+turbo_stream.append(
+    "messages",       # the id of the element to update
+    "message.jx",     # the component to render
+    message=message,  # arguments for the component
 )
 # -> <turbo-stream action="append" target="messages">
 #      <template>...</template>
 #    </turbo-stream>
 ```
 
-`target` is the id of the element to act on; `action` is any operation Turbo knows:
+The first argument is the id of the element to act on, and the method name is the operation. Turbo knows several:
 
 Action               | Effect
 -------------------- | ---------------------------------------------------------
@@ -472,14 +468,10 @@ def create(self):
 
     self.app.cable.broadcast(
         f"chat_{room_id}",
-        turbo_stream(
-            "append",
-            # The ID of the element in the page
-            target="messages",
-            # The path of the component to render
-            component="message.jx",
-            # Arguments for the component
-            message=message
+        turbo_stream.append(
+            "messages",       # the id of the element to update
+            "message.jx",     # the component to render
+            message=message,  # arguments for the component
         ),
     )
     self.response.redirect_to("Message.index", room_id=room_id)

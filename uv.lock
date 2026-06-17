@@ -811,7 +811,7 @@ dev = [
     { name = "tox-uv", specifier = ">=1.33.1" },
     { name = "ty", specifier = ">=0.0.1a24" },
 ]
-docs = [{ name = "writeadoc", editable = "../writeadoc" }]
+docs = [{ name = "writeadoc", specifier = ">=0.23.0" }]
 test = [
     { name = "boto3", specifier = ">=1.35.71" },
     { name = "poyo" },
@@ -1360,7 +1360,7 @@ wheels = [
 [[package]]
 name = "writeadoc"
 version = "0.23.0"
-source = { editable = "../writeadoc" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docstring-parser" },
     { name = "hecto" },
@@ -1372,26 +1372,7 @@ dependencies = [
     { name = "ty" },
     { name = "watchdog" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "docstring-parser", specifier = ">=0.17.0" },
-    { name = "hecto", specifier = ">=2.0.1" },
-    { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "jx", specifier = ">=0.11.0" },
-    { name = "mistune", specifier = ">=3.2.0" },
-    { name = "pygments", specifier = ">=2.19.2" },
-    { name = "strictyaml", specifier = ">=1.7.3" },
-    { name = "ty", specifier = ">=0.0.1a15" },
-    { name = "watchdog", specifier = ">=6.0.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/12/7a/6e823f7e02ba80a2fb19b1e681064253bc4a5cc177c3cb87941a0662b405/writeadoc-0.23.0.tar.gz", hash = "sha256:6c5501f001cb35a0d50cc69e46ed6ca1284ffab06bf17534ea73487aa810b580", size = 394888, upload-time = "2026-06-17T13:36:21.921Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6c/64/66e1df6329f375f630ca887bda6bfdea4dd50e4640deb5187e7b989b9336/writeadoc-0.23.0-py3-none-any.whl", hash = "sha256:7cfc2a8e175401cc9077e44984363d0b4ac0b257905d863a9974420449e85c6b", size = 406115, upload-time = "2026-06-17T13:36:20.415Z" },
 ]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipdb", specifier = ">=0.13.13" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "ruff", specifier = ">=0.12.4" },
-    { name = "tox-uv" },
-    { name = "ty", specifier = ">=0.0.1a15" },
-]
-test = [{ name = "pytest", specifier = ">=8.4.1" }]

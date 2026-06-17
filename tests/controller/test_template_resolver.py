@@ -40,6 +40,13 @@ class TestIterFormatExtensions:
     def test_empty(self):
         assert list(iter_format_extensions([])) == []
 
+    def test_turbo_stream_mime(self):
+        # Registered by importing `proper.turbo`; routes a Turbo request to a
+        # `.turbo_stream.jx` template, falling back to `.html`.
+        assert list(iter_format_extensions(
+            ["text/vnd.turbo-stream.html", "text/html"]
+        )) == ["turbo_stream", "html"]
+
 
 class TestIterCandidates:
     def test_single_prefix_single_format(self):

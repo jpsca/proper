@@ -185,6 +185,8 @@ Turbo Drive works automatically once the script is loaded. All same-origin link 
 <a href="/slow-page" data-turbo="false">Load without Turbo</a>
 ```
 
+Frames, Stream responses, and broadcasting — the rest of Turbo, plus the full Drive options — are covered in [turbo.md](turbo.md).
+
 
 ## Flash Messages
 
