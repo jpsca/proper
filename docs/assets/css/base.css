@@ -592,14 +592,21 @@ small {
   --flow-space: 0.4rem;
 }
 
+.page_content :is(h1, h2, h3, h4, h5, h6) {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  line-height: 1.4;
+}
+
 .page_content :is(h1, h2, h3, h4, h5, h6) .num {
   font-weight: 400;
+  font-size: 0.75em;
 }
 
 .page_content :is(h1, h2, h3, h4, h5, h6) .headerlink {
   opacity: 0.05;
   font-size: 0.9em;
-  margin-left: 0.4em;
   transition: opacity var(--transition);
 }
 
