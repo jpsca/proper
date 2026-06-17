@@ -40,7 +40,7 @@ CSS_SOURCES = (
 CSS_BASE = f"https://cdn.jsdelivr.net/npm/@37signals/lexxy@{VERSION}/dist/stylesheets"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TARGET = REPO_ROOT / "src" / "proper" / "blueprints" / "rich_text" / "[[app_name]]" / "assets"
+TARGET = REPO_ROOT / "src" / "proper" / "blueprints" / "addon_rich_text" / "[[app_name]]" / "assets"
 
 custom_css = {
   "lexxy-editor.css": b"""
