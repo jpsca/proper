@@ -24,13 +24,16 @@ class AuthCLI(CLI):
 
         while not login:
             login = input("Login: ")
-        while not password:
-            password = getpass("Password: ")
-        try:
-            User.create(login=login, password=password)
-        except Exception as e:
-            print("ERROR:", e)
-            return
+        while True:
+            while not password:
+                password = getpass("Password: ")
+            try:
+                User.create(login=login, password=password)
+                break
+            except Exception as e:
+                print("ERROR:", e)
+                password= ""
+
         print("User added")
 
     def password(self, login: str, password: str = "") -> None:
@@ -52,14 +55,15 @@ class AuthCLI(CLI):
         if not user:
             print("User not found")
             return
-        while not password:
-            password = getpass("Password: ")
-        try:
-            user.set_password(password)
-            user.save()
-        except Exception as e:
-            print("ERROR:", e)
-            return
+        while True:
+            while not password:
+                password = getpass("Password: ")
+            try:
+                User.create(login=login, password=password)
+                break
+            except Exception as e:
+                print("ERROR:", e)
+                password= ""
         print("Password updated")
 
 
