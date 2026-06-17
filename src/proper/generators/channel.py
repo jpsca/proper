@@ -17,6 +17,7 @@ def gen_channel(
     app: "App",
     name: str,
     *,
+    force: bool = False,
     _name_pascal: str = "",
     _name_snake: str = "",
 ) -> None:
@@ -25,9 +26,12 @@ def gen_channel(
     Arguments:
         name:
             The PascalCased name, always singular.
+        force [False]:
+            Whether to overwrite existing files without asking.
+
     """
-    name_pascal = inflection.camelize(name)
-    name_snake = inflection.underscore(name)
+    name_pascal = _name_pascal or inflection.camelize(name)
+    name_snake = _name_snake or inflection.underscore(name)
 
     render_blueprint(
         CHANNEL_BLUEPRINT,
@@ -37,4 +41,5 @@ def gen_channel(
             "name_snake": name_snake,
             "name_pascal": name_pascal,
         },
+        force=force,
     )

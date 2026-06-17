@@ -23,6 +23,7 @@ def gen_model(
     name: str,
     *attrs: str,
     migration: bool = False,
+    force: bool = False,
     _name_pascal: str = "",
     _name_snake: str = "",
 ) -> None:
@@ -34,6 +35,9 @@ def gen_model(
 
         migration [False]:
             Generate a migration for creating the table.
+
+        force [False]:
+            Whether to overwrite existing files without asking.
 
         attrs:
             Optional list of columns for the model schema.
@@ -124,6 +128,7 @@ def gen_model(
             "name_pascal": name_pascal,
             "rows": rows or ["name = pw.CharField()"],
         },
+        force=force,
     )
 
     for filename in SORT_IMPORTS_IN:

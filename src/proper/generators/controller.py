@@ -75,6 +75,7 @@ def gen_controller(
     namespace: str = "",
     pk: str = "",
     singular: bool = False,
+    force: bool = False,
     _name_pascal: str = "",
     _name_snake: str = "",
 ) -> None:
@@ -108,6 +109,9 @@ def gen_controller(
 
         singular [False]:
             Whether the resource represents a single entity for the user (like "profile").
+
+        force [False]:
+            Whether to overwrite existing files without asking.
 
         attrs:
             Optional list of `field:type` columns for the form schema.
@@ -216,6 +220,7 @@ def gen_controller(
             ns_controllers,
             context=context,
             ignore=ignored_views,
+            force=force,
         )
 
         # Overwrite the contents of the rendered __init__
@@ -232,6 +237,7 @@ def gen_controller(
             ns_forms,
             context=context,
             ignore=ignored_views,
+            force=force,
         )
         (ns_forms / "__init__.py").touch()
 
@@ -240,6 +246,7 @@ def gen_controller(
             ns_views,
             context=context,
             ignore=ignored_views,
+            force=force,
         )
 
     else:
@@ -248,6 +255,7 @@ def gen_controller(
             app.root_path.parent,
             context=context,
             ignore=ignored_views,
+            force=force,
         )
 
     for filename in SORT_IMPORTS_IN:

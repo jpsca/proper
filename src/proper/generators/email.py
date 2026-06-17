@@ -17,7 +17,7 @@ def gen_email(
     app: "App",
     name: str,
     *attrs: str,
-    migration: bool = False,
+    force: bool = False,
     _name_pascal: str = "",
     _name_snake: str = "",
 ) -> None:
@@ -26,9 +26,12 @@ def gen_email(
     Arguments:
         name:
             The PascalCased name, always singular.
+        force [False]:
+            Whether to overwrite existing files without asking.
+
     """
-    name_pascal = inflection.camelize(name)
-    name_snake = inflection.underscore(name)
+    name_pascal = _name_pascal or inflection.camelize(name)
+    name_snake = _name_snake or inflection.underscore(name)
 
     render_blueprint(
         EMAIL_BLUEPRINT,
@@ -38,4 +41,5 @@ def gen_email(
             "name_snake": name_snake,
             "name_pascal": name_pascal,
         },
+        force=force,
     )

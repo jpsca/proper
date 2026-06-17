@@ -21,6 +21,7 @@ def gen_resource(
     pk: str = "",
     singular: bool = False,
     migration: bool = False,
+    force: bool = False,
 ) -> None:
     """Stubs out a new resource including a controller, form, views, and a model.
 
@@ -47,6 +48,7 @@ def gen_resource(
         namespace=namespace,
         pk=pk,
         singular=singular,
+        force=force,
         _name_pascal=name_pascal,
         _name_snake=name_snake,
     )
@@ -56,6 +58,7 @@ def gen_resource(
         name,
         *attrs,
         migration=migration,
+        force=force,
         _name_pascal=name_pascal,
         _name_snake=name_snake,
     )
