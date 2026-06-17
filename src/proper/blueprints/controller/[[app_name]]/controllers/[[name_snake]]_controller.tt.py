@@ -3,9 +3,9 @@
 [% set has_validate = "create" in actions or "update" in actions -%]
 from proper.errors import NotFound
 
-[% if namespace %]
+[% if namespace -%]
 from [[app_name]].forms.[[namespace]].[[name_snake]] import [[form_class]]
-[% else %]
+[% else -%]
 from [[app_name]].forms.[[name_snake]] import [[form_class]]
 [% endif -%]
 from [[app_name]].models import [[name_pascal]]

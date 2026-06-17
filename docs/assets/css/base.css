@@ -1054,7 +1054,6 @@ form.search button svg {
     background-color: var(--color-base);
     outline-color: rgba(var(--rgb-accent), 0.8);
     box-shadow: 0 0 0 1px rgba(var(--rgb-black), 0.09), 0 10px 30px -15px rgba(var(--rgb-black), 0.18), 0 20px 20px -30px rgba(var(--rgb-black), 0.18);
-}
   }
 
   h3 {

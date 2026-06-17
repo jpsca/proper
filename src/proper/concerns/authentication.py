@@ -1,4 +1,3 @@
-import typing as t
 from collections.abc import Sequence
 
 from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
@@ -8,26 +7,13 @@ from .concern import Concern
 
 
 class Authentication(Concern):
-    _Session: type[ProperModel]
+    Session: type[ProperModel]
+
     auth_cookie_name: str = AUTH_COOKIE_NAME
     auth_cookie_salt: str = AUTH_COOKIE_SALT
 
     before = {"do": "require_authentication"}
     skip_authentication: bool | Sequence = ()
-
-    @classmethod
-    def for_session(
-        cls,
-        Session: type[ProperModel],
-        *,
-        auth_cookie_name: str = AUTH_COOKIE_NAME,
-        auth_cookie_salt: str = AUTH_COOKIE_SALT,
-    ) -> type[t.Self]:
-        """Factory method to create an Authentication concern class for a specific Session model."""
-        cls._Session = Session
-        cls.auth_cookie_name = auth_cookie_name
-        cls.auth_cookie_salt = auth_cookie_salt
-        return cls
 
     def require_authentication(self):
         if self.is_authenticated():
@@ -44,7 +30,7 @@ class Authentication(Concern):
         return current.auth_session is not None
 
     def new_session_for(self, user: ProperModel) -> ProperModel:
-        session = self._Session.create_for_user(  # type: ignore
+        session = self.Session.create_for_user(  # type: ignore
             user=user,
             ip_address=self.request.remote_ip,
             user_agent=self.request.user_agent,
@@ -89,7 +75,7 @@ class Authentication(Concern):
             salt=self.auth_cookie_salt,
         )
         if token:
-            return self._Session.find_by_token(token)  # type: ignore
+            return self.Session.find_by_token(token)  # type: ignore
 
     def _set_current_session(self, session: ProperModel) -> ProperModel:
         current.auth_session = session

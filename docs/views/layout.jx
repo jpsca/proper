@@ -43,6 +43,7 @@
         <BannerArchived />
         {{ content }}
       </div>
+      <canvas id="minimap"></canvas>
     </main>
   </div>
 

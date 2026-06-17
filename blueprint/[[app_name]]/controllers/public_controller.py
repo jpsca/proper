@@ -9,8 +9,8 @@ class PublicController(AppController):
 
     # --- Uncomment to have an index page ---
     # @router.get("")
-    # def index(self):
-    #     pass
+    def index(self):
+        pass
 
     @router.error(errors.NotFound)
     @router.get("_not_found")

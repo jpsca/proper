@@ -65,8 +65,8 @@ def add_to_concerns(filepath: Path, *items: str, after: str|None = None) -> None
 
     # Find the class definition
     match = re.search(
-        r"class AppController\(\n?\s*(Controller,)?",
-        content
+        r"class AppController\(\n?\s*(.*)?",
+        content,
     )
     if not match:
         print("Could not find AppController class definition.")

@@ -6,11 +6,11 @@ from .concerns.security_headers import SecurityHeaders
 
 
 class AppController(
-    Controller,
     OriginProtection,
     RateLimiting,
     FormValidation,
     SecurityHeaders,
+    Controller,
 ):
     """All other controllers must inherit from this class.
     """

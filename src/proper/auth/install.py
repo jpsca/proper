@@ -46,7 +46,7 @@ def install(app: "App") -> None:
     )
     add_to_concerns(
         app.root_path / "controllers" / "app_controller.py",
-        "Authentication.for_session(Session)",
+        "Authentication",
     )
 
     for filename in SORT_IMPORTS_IN:

@@ -6,7 +6,7 @@ requires = ["setuptools"]
 
 [project]
 name = "proper"
-version = "0.16.0"
+version = "0.17.0"
 description = "A python web framework for people who read their code"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
@@ -81,8 +81,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 proper = [
-    "blueprints",
-    "core/templates",
+    "blueprints/**/*",
+    "blueprints/**/.*",
+    "core/templates/**/*",
 ]
 [tool.setuptools.exclude-package-data]
 "*" = [

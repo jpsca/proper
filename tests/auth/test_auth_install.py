@@ -149,7 +149,7 @@ def test_file_creation(app_in_tmp):
 
     # prepends_to_app_controller
     text = (root_path / "controllers" / "app_controller.py").read_text()
-    assert "Authentication.for_session(Session)" in text
+    assert "Authentication," in text
 
     # records the install in .proper
     assert metadata.is_installed(app_in_tmp, "auth")
