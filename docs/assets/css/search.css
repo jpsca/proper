@@ -33,6 +33,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem 2rem;
+  padding-bottom: 4rem;
 }
 #search-query form.search {
   display: inline-flex;
@@ -42,37 +43,47 @@
 #search-results {
   display: flex;
   flex-direction: column;
-  gap: 1.4em;
+  gap: 1em;
 }
 #search-results .search-result {
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(var(--rgb-gray), 0.1);
+  background: rgba(var(--rgb-gray), 0.05);
+  border-radius: 0.5rem;
+  padding: 1rem 2rem;
+  margin: 0 -2rem;
+  text-decoration: none;
+  cursor: pointer;
+  color: inherit;
+}
+#search-results .search-result header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  margin-bottom: 1em;
 }
 #search-results .search-result h3 {
   color: var(--color-accent);
-}
-#search-results .search-result h3 a {
-  color: inherit;
+  margin-bottom: 0;
   text-decoration: underline;
-  text-decoration-color: rgba(var(--rgb-accent), 0);
+}
+#search-results .search-result h4 {
+  color: var(--color-gray);
+  font-size: 90%;
+  margin: 0;
 }
 #search-results .search-result small {
   color: var(--color-gray);
   font-size: 80%;
   font-weight: 500;
-  margin-bottom: 0.6em;
-  margin-top: 0.1em;
 }
-#search-results .search-result small a {
-  color: inherit;
-  text-decoration: none;
-}
-
 #search-results .search-result > div :not(pre,mark) {
   font-size: 80%;
   overflow: auto;
 }
 #search-results .search-result > div pre {
+  color: var(--color-gray);
   font-family: var(--font-family-mono);
   font-size: 70%;
   white-space: pre;

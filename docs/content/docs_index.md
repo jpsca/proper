@@ -90,9 +90,6 @@ This is the documentation for **Proper**. These guides are designed to make you 
 <a href="/docs/turbo" class="doc-index-section">
   <h3>Turbo</h3>
   <p>The speed of a single-page web application without having to write any JavaScript.</p>
-  <section class="admonition wip">
-    <p class="admonition-title">Work in progress</p>
-  </section>
 </a>
 
 

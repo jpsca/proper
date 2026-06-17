@@ -16,9 +16,12 @@ function showResults(results, store, searchTerm) {
       }
       shownUrls.add(item.url);
 
-      appendString += '<div class="search-result">';
-      appendString += '  <h3><a href="' + item.url + '">' + item.title + '</a></h3>';
-      appendString += '  <small><a href="' + item.url + '">' + item.section + '</a></small>';
+      appendString += `<a href="${item.url}" class="search-result">`;
+      appendString += '  <header>';
+      appendString += `    <small>${item.url}</small>`;
+      appendString += `    <h3>${item.title}</h3>`;
+      appendString += `    <h4>${item.section}</h4>`;
+      appendString += '  </header>';
       var content = item.content;
 
       if (item.content.startsWith('<pre>')) {
@@ -29,13 +32,13 @@ function showResults(results, store, searchTerm) {
           content = content.slice(0, 200);
         }
         content = content.replace(highlightRegex, '<mark>$&</mark>');
-        appendString += '  <div><pre>' + content + '</pre></div>';
+        appendString += `  <div><pre>${content}</pre></div>`;
       } else {
         content = content.slice(0, 300).replace(highlightRegex, '<mark>$&</mark>');
-        appendString += '  <div>' + content + ' &hellip;</div>';
+        appendString += `  <div>${content} &hellip;</div>`;
       }
 
-      appendString += '</div>';
+      appendString += '</a>';
     });
   } else {
     appendString = '<div class="search-result"><p>' + window.strings.NO_RESULTS_FOUND + '</p></div>';

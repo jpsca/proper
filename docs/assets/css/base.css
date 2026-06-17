@@ -839,7 +839,7 @@ form.search input {
   appearance: none;
   border: none;
   color: var(--color-gray);
-  flex-grow: 0;
+  flex-grow: 1;
   line-height: 1.4;
   padding: 0.6em 0.8em 0.5em 0.8em;
   vertical-align: middle
