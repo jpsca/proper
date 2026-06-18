@@ -29,6 +29,7 @@ class RequestHeadersMixin:
             )
             for key, value in self.scope.get("headers", [])
         )
+
         self.protocol: str = self.headers.get("x-forwarded-proto") or self.scope["scheme"]
 
         if self.scope["server"]:
@@ -460,6 +461,22 @@ def parse_cookie(cookie_string: str | None) -> dict[str, str]:
 
 
 
+# Host = uri-host [ ":" port ] per RFC 9112 §3.2 / RFC 3986 §3.2.2-3.2.3.
+# uri-host is a bracketed IP-literal (IPv6), an IPv4 address, or a reg-name
+# (unreserved / pct-encoded / sub-delims); the optional port is *DIGIT.
+# Anchored with \A...\Z (not ^...$) so a trailing newline can't sneak past.
+RX_VALID_HOST = re.compile(
+    r"\A"
+    r"(?:"
+    r"\[[0-9A-Fa-f:.]+\]"  # IP-literal (IPv6)
+    r"|"
+    r"(?:[A-Za-z0-9\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})+"  # IPv4 / reg-name
+    r")"
+    r"(?::[0-9]*)?"  # optional port
+    r"\Z"
+)
+
+
 def parse_host(value: str | None) -> tuple[str, int]:
     """Parse a host header.
 
@@ -467,8 +484,11 @@ def parse_host(value: str | None) -> tuple[str, int]:
         A tuple of (host, port) where port is 0 if not specified.
 
     """
-    if not value:
+    if value is None:
         return "", 0
+
+    if not value or RX_VALID_HOST.match(value) is None:
+        raise InvalidHeader("The Host header contains invalid characters.")
 
     host = value
     sport = ""

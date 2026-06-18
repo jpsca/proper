@@ -9,7 +9,7 @@ from proper.core.request.formparser import (
     parse_options_header,
     parse_query_string,
 )
-from proper.core.request.headers import parse_request_id
+from proper.core.request.headers import parse_host, parse_request_id
 from proper.errors import (
     InvalidHeader,
     MultipartError,
@@ -412,23 +412,6 @@ def test_protocol_from_x_forwarded_proto():
     assert req.is_secure is True
 
 
-def test_server_none_fallback_to_host_header():
-    scope = make_test_scope("/", headers=[("host", "example.com:8080")])
-    scope["server"] = None
-    req = Request(scope)
-    assert req.host == "example.com"
-    assert req.port == 8080
-
-
-def test_server_none_no_host_header():
-    scope = make_test_scope("/")
-    scope["server"] = None
-    # Remove the host header
-    scope["headers"] = []
-    req = Request(scope)
-    assert req.host == ""
-
-
 def test_headers_get_bytes_header():
     scope = make_test_scope("/")
     scope["headers"].append((b"x-test", b"\xe4\xb8\xad"))
@@ -563,7 +546,24 @@ def test_cookies_empty_pair_skipped():
     assert req.cookies["b"] == "2"
 
 
-# --- host parsing via header fallback ---
+# --- host parsing ---
+
+
+def test_server_none_fallback_to_host_header():
+    scope = make_test_scope("/", headers=[("host", "example.com:8080")])
+    scope["server"] = None
+    req = Request(scope)
+    assert req.host == "example.com"
+    assert req.port == 8080
+
+
+def test_allow_no_host():
+    scope = make_test_scope("/")
+    scope["server"] = None
+    # Remove the host header
+    scope["headers"] = []
+    req = Request(scope)
+    assert req.host == ""
 
 
 def test_host_from_header_ipv6():
@@ -583,11 +583,11 @@ def test_host_from_header_ipv6_with_port():
 
 
 def test_host_from_header_non_decimal_port():
+    # A non-numeric port is invalid per RFC 9112 §3.2 / RFC 3986 §3.2.3.
     scope = make_test_scope("/", headers=[("host", "example.com:abc")])
     scope["server"] = None
-    req = Request(scope)
-    assert req.host == "example.com"
-    assert req.port == 80  # non-decimal port → 0, then default_port
+    with pytest.raises(InvalidHeader, match="Host"):
+        Request(scope)
 
 
 def test_host_from_header_simple():
@@ -596,6 +596,46 @@ def test_host_from_header_simple():
     req = Request(scope)
     assert req.host == "myhost"
     assert req.port == 8080
+
+
+@pytest.mark.parametrize("value", [
+    "example.com",
+    "example.com:8080",
+    "example.com:",  # empty port is allowed by RFC 3986 (port = *DIGIT)
+    "sub.example.com",
+    "localhost",
+    "something.localhost:1234",
+    "127.0.0.1",
+    "127.0.0.1:5000",
+    "[::1]",
+    "[::1]:9090",
+    "[2001:db8::1]:443",
+    "my-host_1.example~test",  # unreserved chars
+    "xn--80ak6aa92e.com",  # punycode (IDN)
+])
+def test_accepts_valid_host(value):
+    host, _ = parse_host(value)
+    print(value)
+    assert host is not None
+
+
+@pytest.mark.parametrize("value", [
+    "example.com/abc?bar=",  # X41-2026-002: path/query injection
+    "example.com/abc",
+    "example.com?x=1",
+    "example.com#frag",
+    "user@example.com",  # userinfo is not part of a Host header
+    "example.com:abc",  # non-numeric port
+    "exa mple.com",  # space
+    "example.com\n",  # trailing newline (header injection)
+    "exam\tple.com",  # control character
+    "::1",  # unbracketed IPv6
+    "",  # empty
+])
+def test_rejects_invalid_host(value):
+    with pytest.raises(InvalidHeader, match="Host"):
+        print(value)
+        host, _ = parse_host(value)
 
 
 # --- request_id edge cases ---
