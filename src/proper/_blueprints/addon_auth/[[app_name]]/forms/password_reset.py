@@ -1,24 +1,36 @@
 from proper import forms as f
+
 from .auth import validators as v
 
 
-class SignUpForm(f.Form):
+# The form tells the user if the login doesn't exist.
+# To go back to a generic "If your user exists we will send you an email"
+# message, comment the (A) line below.
+
+
+class PasswordResetForm(f.Form):
     class Meta:
         messages = v.MESSAGES
 
     login = f.TextField(
         messages={"required": "Please write your email"},
     )
-    password1 = f.TextField(
-        messages={"required": "Please write your password"},
-    )
-    password2 = f.TextField(
-        messages={"required": "Please repeat your password"},
-    )
 
     def validate_login(self, value):
-        v.login_is_available(value)
+        v.login_exists(value)  # (A)
         return value
+
+
+class PasswordChangeForm(f.Form):
+    class Meta:
+        messages = v.MESSAGES
+
+    password1 = f.TextField(
+        messages={"required": "Please write your new password"},
+    )
+    password2 = f.TextField(
+        messages={"required": "Please repeat your new password"},
+    )
 
     def validate_password1(self, value):
         v.password_is_long_enough(value)

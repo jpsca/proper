@@ -64,7 +64,7 @@ __all__ = (
 
 logger = logging.getLogger("proper")
 logger.setLevel("DEBUG")
-BLUEPRINTS = (Path(__file__).parent.parent / "blueprints").resolve()
+BLUEPRINTS = (Path(__file__).parent.parent / "_blueprints").resolve()
 
 
 def make_list(value: t.Any) -> list[t.Any]:

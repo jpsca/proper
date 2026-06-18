@@ -81,8 +81,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 proper = [
-    "blueprints/**/*",
-    "blueprints/**/.*",
+    "blueprint/**/*",
+    "_blueprints/**/.*",
     "core/templates/**/*",
 ]
 [tool.setuptools.exclude-package-data]
@@ -107,7 +107,7 @@ exclude_lines = [
     "except ImportError:",
 ]
 omit = [
-    "src/proper/blueprints/*",
+    "src/proper/_blueprints/*",
     "src/proper/app_test.py",
     "src/proper/cli/*",
     "src/proper/helpers/server.py",
@@ -126,14 +126,14 @@ exclude = [
     "covreport",
     "dist",
     "blueprint",
-    "src/proper/blueprints/*",
+    "src/proper/_blueprints/*",
 ]
 
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "--doctest-modules --ignore=src/proper/blueprints"
+addopts = "--doctest-modules --ignore=src/proper/_blueprints"
 filterwarnings = [
     "ignore::DeprecationWarning:itsdangerous",
     "ignore::DeprecationWarning:botocore",
@@ -169,7 +169,7 @@ exclude = [
     "covreport",
     "dist",
     "blueprint",
-    "src/proper/blueprints/*",
+    "src/proper/_blueprints/*",
 ]
 include = ["*.py"]
 
