@@ -59,23 +59,24 @@ Every controller you write inherits from `AppController`, *not* directly from `C
 ```python
 # myapp/controllers/app_controller.py
 from proper import Controller
-from proper.concerns import OriginProtection, RateLimiting
+from proper.concerns import OriginProtection, Pagination, RateLimiting
 
 from .concerns.form_validation import FormValidation
 from .concerns.security_headers import SecurityHeaders
 
 
 class AppController(
-    Controller,
     OriginProtection,
+    Pagination,
     RateLimiting,
     FormValidation,
     SecurityHeaders,
+    Controller,
 ):
     pass
 ```
 
-The mixins it inherits from are *concerns* - small classes that bundle behavior. We'll come back to them in [Concerns](#concerns); for now, just know that the four shipped here give you CSRF protection, rate limiting, form validation, and sensible security headers without you having to wire them up.
+The mixins it inherits from are *concerns* - small classes that bundle behavior. We'll come back to them in [Concerns](#concerns); for now, just know that the five shipped here give you CSRF protection, pagination, rate limiting, form validation, and sensible security headers without you having to wire them up.
 
 ---
 
@@ -894,20 +895,21 @@ This is the right order: cheap, broad checks first; expensive, specific work lat
 
 A concern is a class that bundles callbacks and helper methods so you can share them across controllers. They're plain Python mixins, but they inherit from `proper.Concern` rather than `Controller`, which lets the framework distinguish "behavior to mix in" from "controllers to mount."
 
-You've already met four of them. Open `myapp/controllers/app_controller.py` and you'll see:
+You've already met five of them. Open `myapp/controllers/app_controller.py` and you'll see:
 
 ```python
 class AppController(
-    Controller,
     OriginProtection,
+    Pagination,
     RateLimiting,
     FormValidation,
     SecurityHeaders,
+    Controller,
 ):
     pass
 ```
 
-Those four ship with every Proper application. Two come from the framework (`OriginProtection`, `RateLimiting`); two live in your app under `myapp/controllers/concerns/` so you can edit them (`FormValidation`, `SecurityHeaders`).
+Those five ship with every Proper application. Three come from the framework (`OriginProtection`, `Pagination`, `RateLimiting`); two live in your app under `myapp/controllers/concerns/` so you can edit them (`FormValidation`, `SecurityHeaders`).
 
 ### The Built-in Concerns
 
@@ -926,6 +928,56 @@ TRUSTED_ORIGINS = [
 ```
 
 The full algorithm is covered in the [Security guide](/docs/security).
+
+#### `Pagination`
+
+Paginates a query and hands the current page to your templates. It's a port of Basecamp's [geared_pagination](https://github.com/basecamp/geared_pagination), and it brings that library's signature trick: **geared page sizes**. Instead of a fixed `per_page`, you give a progression like `[15, 30, 50, 100]` - page 1 returns 15 records, page 2 returns 30, page 3 returns 50, and every page from 4 on returns 100. The first screen loads fast; later pages arrive in bigger batches. It's a natural fit for infinite scroll.
+
+Call `paginate_for` from an action. It reads the `page` query parameter, sets `self.page`, and returns the records for that page:
+
+```python
+@router.resource("posts")
+class PostController(AppController):
+    def index(self):
+        self.posts = self.paginate_for(
+            Post.select().order_by(Post.created_at.desc()),
+            per_page=[15, 30, 50, 100],
+        )
+```
+
+`self.page` is a `Page` object the template can walk:
+
+```html
+{% for post in posts %}
+  <article>{{ post.title }}</article>
+{% endfor %}
+
+<p>Page {{ page.number }} of {{ page.recordset.page_count }}
+   ({{ page.recordset.records_count }} posts in total).</p>
+
+{% if page.is_last %}
+  No more pages.
+{% else %}
+  <a href="{{ url_for('Post.index', page=page.next_param) }}">Next page</a>
+{% endif %}
+```
+
+`page.next_param` is what you pass back as the `page` parameter to fetch the following page - a plain page number here, or `None` once you reach the end.
+
+**Cursor (keyset) paging.** Offset paging slows down on deep pages (the database still scans every skipped row) and can skip or repeat records when rows shift under you. Pass `ordered_by` to switch to cursor paging, which avoids both:
+
+```python
+self.posts = self.paginate_for(
+    Post.select(),
+    ordered_by=[(Post.created_at, "desc"), (Post.id, "desc")],
+)
+```
+
+The last column must be unique (usually the primary key) so the order is total and no row is skipped or repeated. Page sizes stay geared - the page number rides inside the cursor. The template is unchanged, except `page.next_param` is now an opaque token that Proper reads back on the next request (you'd typically drop the page-count line, since computing it would need the very `COUNT` that cursor paging skips). Cursor paging is *count-free*: each page fetches one extra row to detect whether another page follows.
+
+:::note | JSON responses get pagination headers
+On a JSON response the concern also sets `X-Total-Count` (offset mode only - cursor mode stays count-free) and a `Link: rel="next"` header pointing at the next page, dropped on the last page. And `self.page.cache_key` is folded into the response `etag`, so conditional requests work without extra wiring.
+:::
 
 #### `RateLimiting`
 

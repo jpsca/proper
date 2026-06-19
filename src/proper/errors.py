@@ -5,6 +5,9 @@ import itsdangerous
 from . import status
 
 
+# --- Configuration Errors ------
+
+
 class ConfigError(Exception):
     pass
 
@@ -52,6 +55,28 @@ class BadSignature(ConfigError, itsdangerous.BadSignature):
         super().__init__(message, payload)
 
 
+# --- Pagination Errors ------
+
+
+class PaginationError(Exception):
+    """Base class for every error raised by the Pagination concern."""
+
+
+class InvalidPage(PaginationError):
+    """Raised when a page number is out of the valid range (< 1)."""
+
+
+class InvalidCursor(PaginationError):
+    """Raised when a cursor token is malformed, tampered with, or undecodable."""
+
+
+class InvalidOrdering(PaginationError):
+    """Raised when `ordered_by` is malformed or not safe for cursor paging."""
+
+
+# --- i18n Errors ------
+
+
 class TranslationsNotFound(Exception):
     def __init__(self, locale: str) -> None:
         if "_" in locale:
@@ -60,6 +85,9 @@ class TranslationsNotFound(Exception):
         else:
             msg = f"No translations found for the '{locale}' locale"
         super().__init__(msg)
+
+
+# --- HTTP Errors ------
 
 
 class HTTPError(Exception):

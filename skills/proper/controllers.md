@@ -40,18 +40,19 @@ Every controller must inherit from `AppController`, which itself inherits from
 
 ```python
 from proper import Controller
-from proper.concerns import OriginProtection, RateLimiting
+from proper.concerns import OriginProtection, Pagination, RateLimiting
 
 from .concerns.form_validation import FormValidation
 from .concerns.security_headers import SecurityHeaders
 
 
 class AppController(
-    Controller,
     OriginProtection,
+    Pagination,
     RateLimiting,
     FormValidation,
     SecurityHeaders,
+    Controller,
 ):
     pass
 ```
@@ -1156,6 +1157,31 @@ TRUSTED_ORIGINS = [
 This concern is included in the default `AppController`.
 
 There is also `RequestForgeryProtection`, a legacy token-based CSRF protection. For modern browser-based applications, use `OriginProtection` instead.
+
+
+#### Pagination
+
+Paginates a Peewee query with **geared page sizes** (a port of Basecamp's geared_pagination). Included in the default `AppController`.
+
+Call `paginate_for` from an action; it reads the `page` query param, sets `self.page`, and returns the current page's records:
+
+```python
+def index(self):
+    self.posts = self.paginate_for(
+        Post.select().order_by(Post.created_at.desc()),
+        per_page=[15, 30, 50, 100],  # geared: page 1->15, 2->30, 3->50, 4+->100
+    )
+```
+
+`paginate_for(query, *, per_page=None, ordered_by=None, cursor_secret=None)`:
+
+- `per_page`: an int (fixed size) or a list of ints (geared sizes; the last repeats). Defaults to `[15, 30, 50, 100]`.
+- `ordered_by`: pass it to switch from `LIMIT/OFFSET` to **cursor (keyset)** paging. A list of `(field, "asc"|"desc")` pairs (or a dict). The last column must be unique (usually the primary key). Cursor paging is count-free.
+- `cursor_secret`: optional secret to sign cursor tokens (tamper-detected on decode).
+
+`self.page` is a `Page`: `.records`, `.number`, `.size`, `.is_first`, `.is_last`, `.is_only`, `.is_before_last`, `.is_empty`, `.next_param` (next page number, cursor token, or `None` on the last page), `.cache_key`, plus `.recordset.page_count` and `.recordset.records_count`. The `Page` is iterable and `len()`-able.
+
+On JSON responses the concern sets `X-Total-Count` (offset mode only) and a `Link: rel="next"` header (omitted on the last page), and folds `self.page.cache_key` into the response `etag`.
 
 
 #### RateLimiting
