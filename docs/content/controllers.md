@@ -911,9 +911,7 @@ class AppController(
 
 Those five ship with every Proper application. Three come from the framework (`OriginProtection`, `Pagination`, `RateLimiting`); two live in your app under `myapp/controllers/concerns/` so you can edit them (`FormValidation`, `SecurityHeaders`).
 
-### The Built-in Concerns
-
-#### `OriginProtection`
+### `OriginProtection`
 
 Modern CSRF protection. It verifies that state-changing requests (POST, PATCH, PUT, DELETE) come from a trusted origin, using the browser's `Sec-Fetch-Site` and `Origin` headers - no tokens needed. Safe methods (GET, HEAD, OPTIONS, QUERY) are skipped; cross-origin state changes raise `403 Forbidden`.
 
@@ -929,7 +927,7 @@ TRUSTED_ORIGINS = [
 
 The full algorithm is covered in the [Security guide](/docs/security).
 
-#### `Pagination`
+### `Pagination`
 
 Paginates a query and hands the current page to your templates. It's a port of Basecamp's [geared_pagination](https://github.com/basecamp/geared_pagination), and it brings that library's signature trick: **geared page sizes**. Instead of a fixed `per_page`, you give a progression like `[15, 30, 50, 100]` - page 1 returns 15 records, page 2 returns 30, page 3 returns 50, and every page from 4 on returns 100. The first screen loads fast; later pages arrive in bigger batches. It's a natural fit for infinite scroll.
 
@@ -979,7 +977,7 @@ The last column must be unique (usually the primary key) so the order is total a
 On a JSON response the concern also sets `X-Total-Count` (offset mode only - cursor mode stays count-free) and a `Link: rel="next"` header pointing at the next page, dropped on the last page. And `self.page.cache_key` is folded into the response `etag`, so conditional requests work without extra wiring.
 :::
 
-#### `RateLimiting`
+### `RateLimiting`
 
 Lets you cap how many requests a controller will accept in a time window. The concern is wired up but does nothing until you set `rate_limit` on a controller:
 
@@ -994,13 +992,13 @@ This allows ten POSTs to `Session.create` per IP per three minutes. Anything bey
 
 Rate limiting needs a configured cache store. If no cache is configured, the limits are silently ignored.
 
-#### `FormValidation`
+### `FormValidation`
 
 Provides the `validate_form` method that the generator wires into every resource controller's `before` list. It checks `self.form` and, if invalid, calls `self.redo()` - which re-renders the form template with a `422 Unprocessable Entity` status, halting the dispatch.
 
 The concern lives in your app at `myapp/controllers/concerns/form_validation.py`, so you can change it. The default does the right thing for HTML forms; for JSON APIs you'll typically skip it and validate inline (see the [API-only Applications guide](/docs/api)).
 
-#### `SecurityHeaders`
+### `SecurityHeaders`
 
 Sets a small set of safe-by-default response headers via an `after` callback. The default lives at `myapp/controllers/concerns/security_headers.py`:
 
