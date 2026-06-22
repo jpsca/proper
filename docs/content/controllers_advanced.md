@@ -1,7 +1,7 @@
 ---
 title: Controllers Advanced Topics
 description: |
-  The Controllers Overview covered the day-to-day shape of a controller. This guide picks up where it stops - the topics that don't come up on every page, but that you will reach for sooner or later: HTTP errors, conditional GETs, file downloads, controllers that don't fit the CRUD mold, and the harder corners of rate limiting.
+  The Controllers Overview covered the day-to-day shape of a controller. This guide picks up where it stops - the topics that don't come up on every page, but that you will reach for sooner or later: HTTP errors, conditional GETs, file downloads, grouping many controllers under one resource, and the harder corners of rate limiting.
 number_headers: true
 ---
 
@@ -11,102 +11,28 @@ This guide collects the controller features the [Controllers Overview](/docs/con
 
 ---
 
-## When CRUD Doesn't Fit: A New Controller
+## Many Controllers Per Resource
 
-Sooner or later you'll have a resource that needs an action that isn't one of the seven CRUD verbs. A card that can be closed and reopened. A user account that can be invited, suspended, restored. A subscription that can be cancelled, paused, resumed.
+The [Controllers Overview](/docs/controllers#a-resource-per-state-change) covers the core idea: every state change is its own resource - a card's closure, a user's suspension, a subscription's cancellation - mounted under the parent with `pk=None` and scaffolded with `proper g controller card/closure`. If you haven't read that section, start there; this one only covers the two things that come up once a single resource has grown several such controllers.
 
-The temptation is to add the action as a method on the existing controller and route it manually. Don't.
+### The delete-guard in a shared scope
 
-### The Tempting (Bad) Version
-
-```python {title="myapp/controllers/card_controller.py"}
-@router.resource("cards")
-class CardController(AppController):
-
-    @router.patch("cards/:card_id/close")
-    def close(self):
-        ...
-
-    @router.patch("cards/:card_id/reopen")
-    def reopen(self):
-        ...
-
-    @router.patch("cards/:card_id/not-now")
-    def not_now(self):
-        ...
-
-    # ... and the seven CRUD actions are still in here ...
-```
-
-Three problems with this. The controller bloats with every new state transition. The route names don't follow any convention (`Card.close` vs `Card.create`). And every new action invents its own URL shape, leaving you to remember whether it was `/close`, `/closed`, or `/closure`.
-
-### The Pattern: a Controller per State Change
-
-Each state change is its own resource - it has a way to make it happen (`create`) and, often, a way to undo it (`delete`). Mount it under the parent's URL with `pk=None`:
-
-```python {title="myapp/controllers/card/closure_controller.py"}
-from ...router import router
-from ..concerns.card_scoped import CardScoped
-from ..app_controller import AppController
-
-
-@router.resource("cards/:card_id/closure", pk=None)
-class ClosureController(CardScoped, AppController):
-
-    # POST /cards/:card_id/closure
-    def create(self):
-        self.card.close()
-        self.response.redirect_to("Card.show", self.card, flash="Card closed")
-
-    # DELETE /cards/:card_id/closure
-    def delete(self):
-        self.card.reopen()
-        self.response.redirect_to("Card.show", self.card, flash="Card reopened")
-```
-
-```python {title="myapp/controllers/card/not_now_controller.py"}
-@router.resource("cards/:card_id/not-now", pk=None)
-class NotNowController(CardScoped, AppController):
-
-    def create(self):
-        self.card.postpone()
-        self.response.redirect_to("Card.show", self.card)
-```
-
-`pk=None` drops the trailing ID from the URL: there's only ever one closure for a card, so `/cards/42/closure` is the whole address.
-
-### The `CardScoped` Concern
-
-Every controller in this family loads the parent card from `:card_id`. That's a single piece of behavior shared across many controllers, which is exactly what concerns are for:
+The `CardScoped` concern from the overview has one line worth dwelling on:
 
 ```python {title="myapp/controllers/concerns/card_scoped.py"}
-from proper import Concern
-from proper.errors import NotFound
-
-from ...models import Card
-
-
-class CardScoped(Concern):
-    before = {"do": "set_card"}
-
-    def set_card(self):
-        card_id = self.params.get("card_id")
-        if card_id:
-            self.card = Card.get_or_none(card_id)
-            if self.request.matched_action != "delete" and not self.card:
-                raise NotFound
+def set_card(self):
+    card_id = self.params.get("card_id")
+    if card_id:
+        self.card = Card.get_or_none(id=int(card_id))
+        if self.request.matched_action != "delete" and not self.card:
+            raise NotFound
 ```
 
-Mix it in ahead of `AppController` so its `before` callback runs after `AppController`'s but before the action:
+The `matched_action != "delete"` guard is what makes *undoing* a state change idempotent. If a user double-clicks "reopen," the second `DELETE /cards/42/closure` arrives after the card is already reopened. Raising `NotFound` there would surface an error for what is, semantically, a no-op; skipping the 404 on `delete` lets the action run and redirect cleanly. It's the same reasoning behind the generated `CardController.delete` tolerating a missing record - but applied to a whole family of controllers at once, from one place. Because the concern is shared, you get that behavior on every current and future child controller for free.
 
-```python
-class ClosureController(CardScoped, AppController):
-    ...
-```
+### Folder layout at scale
 
-### Folder Layout
-
-Once the card has more than one controller, group them under a subfolder:
+Once a card has several child controllers, group them under a subfolder beside a `card_scoped` concern:
 
 ```
 myapp/controllers/
@@ -120,16 +46,7 @@ myapp/controllers/
     └── card_scoped.py
 ```
 
-The original `card_controller.py` can stay where it is, or move to `card/main_controller.py` if you'd rather have everything in one folder. Either way, update `controllers/__init__.py` to import the new files - the generator does this for you when you run `proper g controller card/closure --namespace=...` or similar.
-
-### Why This Works Better
-
-- Each controller is small and stays small. Adding a new state change adds a file, not a method.
-- Route names follow the standard `Controller.action` convention: `Closure.create`, `Closure.delete`, `NotNow.create`. The same template machinery, the same URL helpers, the same callbacks.
-- The state change has a URL shape you can describe in one sentence: "POST creates the closure, DELETE removes it." That maps cleanly onto the buttons in your UI - one form per controller, one submit per state change.
-- `CardScoped` is reused across every child controller, including any future ones, so loading the parent card is wired up automatically.
-
-The only thing you give up is the sentimental satisfaction of a "fat controller." That's a feature.
+The generator creates the `card/` subfolder and keeps `controllers/__init__.py` in sync as you add each child, so the layout above falls out on its own. The original `card_controller.py` can stay where it is, or you can move it into the subfolder as `card/main_controller.py` if you'd rather keep everything for the resource together - just remember its views move with it, since the template prefix changes from `card/` to `card/main/`.
 
 ---
 

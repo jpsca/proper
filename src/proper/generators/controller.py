@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import inflection
+from hecto import COLORS, printf
 
 from .. import metadata
 from ..constants import (
@@ -65,6 +66,10 @@ ACTIONS = (
     ACTION_UPDATE,
 )
 
+# A state change is its own resource: `create` makes it happen, `delete`
+# undoes it. These are the actions a `parent/child` controller gets by default.
+STATE_CHANGE_ACTIONS = (ACTION_CREATE, ACTION_DELETE)
+
 
 def gen_controller(
     app: "App",
@@ -125,6 +130,12 @@ def gen_controller(
     For resources that users always look up without an ID, use `singular=True`
     to create REST routes that do not include `:object_id`.
 
+    A `PARENT/CHILD` name (e.g. `card/closure`) scaffolds a state change as its
+    own nested resource: a `pk=None` controller mounted under the parent, with
+    `create` (make it happen) and `delete` (undo it) stubs, plus a shared
+    `ParentScoped` concern that loads the parent record. No form or views are
+    created, since a state change redirects rather than rendering a form.
+
     Examples:
 
         proper g controller Post
@@ -132,15 +143,21 @@ def gen_controller(
         proper g controller Post --only=index,show title:str
         proper g controller Post title:str body:text published:bool
         proper g controller Profile --singular
+        proper g controller card/closure
+        proper g controller card/not_now --only=create
 
     """
-    pk = pk.strip().strip(":")
-
     name_pascal = _name_pascal or inflection.camelize(name)
     name_snake = _name_snake or inflection.underscore(name)
     plural_snake = inflection.pluralize(name_snake)
     name_human = inflection.humanize(name_snake).lower()
     plural_human = inflection.humanize(plural_snake).lower()
+
+    if "/" in name:
+        _gen_state_change(app, name, only=only, exclude=exclude, force=force)
+        return
+
+    pk = pk.strip().strip(":")
 
     only_list = [ac for ac in list(dict.fromkeys(only.split(","))) if ac in ACTIONS]
     exclude_list = [ac for ac in list(dict.fromkeys(exclude.split(","))) if ac in ACTIONS]
@@ -260,3 +277,213 @@ def gen_controller(
 
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
+
+
+def _gen_state_change(
+    app: "App",
+    name: str,
+    *,
+    only: str = "",
+    exclude: str = "",
+    force: bool = False,
+) -> None:
+    """Scaffold a state change as its own nested resource (`parent/child`).
+
+    Creates `controllers/PARENT/CHILD_controller.py` (a `pk=None` resource
+    mounted under the parent's URL), a shared `PARENT_scoped.py` concern that
+    loads the parent (only if it doesn't exist yet), and a matching test. The
+    new controller is wired into `controllers/__init__.py`.
+    """
+    parent, _, child = name.partition("/")
+
+    parent_snake = inflection.underscore(parent)
+    parent_pascal = inflection.camelize(parent_snake)
+    parent_plural = inflection.pluralize(parent_snake)
+    parent_id = f"{parent_snake}_id"
+
+    child_snake = inflection.underscore(child)
+    child_pascal = inflection.camelize(child_snake)
+    child_path = inflection.dasherize(child_snake)
+
+    concern_module = f"{parent_snake}_scoped"
+    concern_class = f"{parent_pascal}Scoped"
+    path = f"{parent_plural}/:{parent_id}/{child_path}"
+
+    only_list = [ac for ac in dict.fromkeys(only.split(",")) if ac in ACTIONS]
+    exclude_list = [ac for ac in dict.fromkeys(exclude.split(",")) if ac in ACTIONS]
+    actions = set(STATE_CHANGE_ACTIONS)
+    if only_list:
+        actions = actions.intersection(only_list)
+    elif exclude_list:
+        actions = actions.difference(exclude_list)
+
+    controllers = app.root_path / "controllers"
+    parent_dir = controllers / parent_snake
+    concerns_dir = controllers / "concerns"
+    parent_dir.mkdir(parents=True, exist_ok=True)
+    concerns_dir.mkdir(parents=True, exist_ok=True)
+    _touch_init(parent_dir)
+    _touch_init(concerns_dir)
+
+    # The concern is shared across every child controller of this parent, so
+    # never clobber it: write it only when it doesn't exist yet.
+    _write_file(
+        concerns_dir / f"{concern_module}.py",
+        _state_change_concern_py(
+            parent_pascal=parent_pascal,
+            parent_snake=parent_snake,
+            parent_id=parent_id,
+        ),
+        force=False,
+    )
+
+    _write_file(
+        parent_dir / f"{child_snake}_controller.py",
+        _state_change_controller_py(
+            path=path,
+            child_pascal=child_pascal,
+            concern_module=concern_module,
+            concern_class=concern_class,
+            parent_snake=parent_snake,
+            parent_pascal=parent_pascal,
+            actions=actions,
+        ),
+        force=force,
+    )
+
+    test_client = "signed_client" if metadata.is_installed(app, "auth") else "client"
+    test_path = app.root_path.parent / "tests" / "controllers" / f"test_{child_snake}.py"
+    test_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_file(
+        test_path,
+        _state_change_test_py(
+            app_name=app.name,
+            test_client=test_client,
+            child_snake=child_snake,
+            child_pascal=child_pascal,
+            parent_snake=parent_snake,
+            parent_pascal=parent_pascal,
+            actions=actions,
+        ),
+        force=force,
+    )
+
+    root_init = controllers / "__init__.py"
+    _append_import(root_init, f"from .{parent_snake} import {child_snake}_controller  # noqa")
+    sort_imports_in(root_init)
+
+
+def _touch_init(directory) -> None:
+    init = directory / "__init__.py"
+    if not init.exists():
+        init.write_text("")
+        printf("create", str(init), color=COLORS.GREEN)
+
+
+def _write_file(path, content: str, *, force: bool) -> None:
+    if path.exists() and not force:
+        printf("skip", str(path), color=COLORS.YELLOW)
+        return
+    verb = "force" if path.exists() else "create"
+    path.write_text(content)
+    printf(verb, str(path), color=COLORS.GREEN)
+
+
+def _append_import(init_path, line: str) -> None:
+    text = init_path.read_text() if init_path.exists() else ""
+    if line in text:
+        return
+    init_path.write_text(f"{text.rstrip()}\n{line}\n".lstrip("\n"))
+
+
+def _state_change_concern_py(*, parent_pascal: str, parent_snake: str, parent_id: str) -> str:
+    return f"""from proper import Concern
+from proper.errors import NotFound
+
+from ...models import {parent_pascal}
+
+
+class {parent_pascal}Scoped(Concern):
+    before = {{"do": "set_{parent_snake}"}}
+
+    def set_{parent_snake}(self):
+        {parent_id} = self.params.get("{parent_id}")
+        if {parent_id}:
+            self.{parent_snake} = {parent_pascal}.get_or_none(id=int({parent_id}))
+            if self.request.matched_action != "delete" and not self.{parent_snake}:
+                raise NotFound
+"""
+
+
+def _state_change_controller_py(
+    *,
+    path: str,
+    child_pascal: str,
+    concern_module: str,
+    concern_class: str,
+    parent_snake: str,
+    parent_pascal: str,
+    actions: set[str],
+) -> str:
+    head = (
+        "from ...router import router\n"
+        "from ..app_controller import AppController\n"
+        f"from ..concerns.{concern_module} import {concern_class}\n"
+        "\n\n"
+        f'@router.resource("{path}", pk=None)\n'
+        f"class {child_pascal}Controller({concern_class}, AppController):\n"
+    )
+    body = []
+    if ACTION_CREATE in actions:
+        body.append(
+            f"\n    # POST /{path}\n"
+            "    def create(self):\n"
+            f"        # TODO: apply the state change to self.{parent_snake}\n"
+            f'        self.response.redirect_to("{parent_pascal}.show", self.{parent_snake}, flash="...")\n'
+        )
+    if ACTION_DELETE in actions:
+        body.append(
+            f"\n    # DELETE /{path}\n"
+            "    def delete(self):\n"
+            f"        # TODO: undo the state change on self.{parent_snake}\n"
+            f'        self.response.redirect_to("{parent_pascal}.show", self.{parent_snake})\n'
+        )
+    if not body:
+        body.append("    pass\n")
+    return head + "".join(body)
+
+
+def _state_change_test_py(
+    *,
+    app_name: str,
+    test_client: str,
+    child_snake: str,
+    child_pascal: str,
+    parent_snake: str,
+    parent_pascal: str,
+    actions: set[str],
+) -> str:
+    blocks = []
+    if ACTION_CREATE in actions:
+        blocks.append(
+            f"def test_{child_snake}_create({test_client}):\n"
+            f"    # {parent_snake} = {parent_pascal}.create( ... )\n"
+            f'    # url = app.url_for("{child_pascal}.create", {_parent_id_kw(parent_snake)})\n'
+            f"    # response = {test_client}.post(url)\n"
+            "    # assert response.status == 303\n"
+            "    pass\n"
+        )
+    if ACTION_DELETE in actions:
+        blocks.append(
+            f"def test_{child_snake}_delete({test_client}):\n"
+            f"    # {parent_snake} = {parent_pascal}.create( ... )\n"
+            f'    # url = app.url_for("{child_pascal}.delete", {_parent_id_kw(parent_snake)})\n'
+            f"    # response = {test_client}.delete(url)\n"
+            "    # assert response.status == 303\n"
+            "    pass\n"
+        )
+    return f"from {app_name}.main import app\n\n\n" + "\n\n".join(blocks)
+
+
+def _parent_id_kw(parent_snake: str) -> str:
+    return f"{parent_snake}_id={parent_snake}.id"

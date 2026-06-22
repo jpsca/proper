@@ -1,7 +1,7 @@
 ---
 title: Controllers
 description: Controller fundamentals — CRUD, callbacks, parameters, rendering, redirects, concerns
-last_verified: 2026-06-03
+last_verified: 2026-06-21
 ---
 
 # Controllers
@@ -9,7 +9,7 @@ last_verified: 2026-06-03
 ## Table of Contents
 
 - [Introduction](#introduction)
-- [The Core Principle: Everything is CRUD](#the-core-principle-everything-is-crud)
+- [The Core Principle: Everything is CRUD](#crud)
 - [The Generated Controller](#the-generated-controller)
 - [Parameters](#parameters)
 - [Sessions](#sessions)
@@ -20,7 +20,6 @@ last_verified: 2026-06-03
 - [Request and Response Objects](#request-and-response-objects)
 - [Controller Callbacks](#controller-callbacks)
 - [Concerns](#concerns)
-- [Adding More Actions](#adding-more-actions)
 
 
 ## Introduction
@@ -80,10 +79,10 @@ Read the output of `proper g resource --help`, `proper g controller --help`, and
 
 If you are only adding a model, use the model generator `proper g model NAME ...` instead.
 
-## The Core Principle: Everything is CRUD
+## The Core Principle: CRUD
+{#crud}
 
-The `router.resource` class decorator is the most common method to mount a controller in the right URLs.
-This decorator maps the `index`, `new`, `create`, `show`, `edit`, `update`, and `delete` methods of the controller class (if they exist) to CRUD actions with the same name.
+The `router.resource` class decorator is the most common method to mount a controller in the right URLs. This decorator maps the `index`, `new`, `create`, `show`, `edit`, `update`, and `delete` methods of the controller class (if they exist) to the matching CRUD routes:
 
 ```python {title="myapp/controllers/card_controller.py"}
 from ..router import router
@@ -138,6 +137,95 @@ The auto-generated URLs in this example are:
 ::: warning
 If one of those methods doesn't exist in the controller class, its URL is not created.
 :::
+
+
+### Beyond records: state changes are resources too
+
+In Proper, **every state change is a resource.** You don't add verbs to a controller: you create a controller for the thing that changes.
+
+Records are the common case, not the only one. A card can be closed and reopened. A user can be suspended and restored. A subscription can be cancelled and resumed. Each of those is *also* a resource — a thing you `POST` to make happen and `DELETE` to undo — even though there's no new row in a table.
+
+The mistake is to bolt the verb onto the existing controller with a custom route:
+
+**BAD:** custom verbs on the parent controller
+
+```python {title="myapp/controllers/card_controller.py"}
+@router.resource("cards")
+class CardController(AppController):
+
+    @router.patch("cards/:card_id/close")
+    def close(self): ...
+
+    @router.patch("cards/:card_id/reopen")
+    def reopen(self): ...
+
+    @router.patch("cards/:card_id/not-now")
+    def not_now(self): ...
+```
+
+This bloats the controller with every new transition, invents an ad-hoc URL and route name per verb, and breaks the `Controller.action` naming convention.
+
+**GOOD:** one controller per state change, mounted under the parent with `pk=None`
+
+```python {title="myapp/controllers/card/closure_controller.py"}
+from ...router import router
+from ..app_controller import AppController
+from ..concerns.card_scoped import CardScoped
+
+
+@router.resource("cards/:card_id/closure", pk=None)
+class ClosureController(CardScoped, AppController):
+
+    # POST /cards/:card_id/closure
+    def create(self):
+        self.card.close()
+        self.response.redirect_to("Card.show", self.card, flash="Card closed")
+
+    # DELETE /cards/:card_id/closure
+    def delete(self):
+        self.card.reopen()
+        self.response.redirect_to("Card.show", self.card, flash="Card reopened")
+```
+
+```python {title="myapp/controllers/card/not_now_controller.py"}
+@router.resource("cards/:card_id/not-now", pk=None)
+class NotNowController(CardScoped, AppController):
+
+    # POST /cards/:card_id/not-now
+    def create(self):
+        self.card.postpone()
+        self.response.redirect_to("Card.show", self.card)
+```
+
+`pk=None` drops the trailing ID — there's only ever one closure for a card, so `/cards/:card_id/closure` is the whole address. Route names follow the standard convention (`Closure.create`, `Closure.delete`, `NotNow.create`), and each controller stays small: a new state change is a new file, not a new method.
+
+The parent record is loaded by a shared concern so every child controller gets it for free:
+
+```python {title="myapp/controllers/concerns/card_scoped.py"}
+from proper import Concern
+from proper.errors import NotFound
+from ...models import Card
+
+
+class CardScoped(Concern):
+    before = {"do": "set_card"}
+
+    def set_card(self):
+        card_id = self.params.get("card_id")
+        if card_id:
+            self.card = Card.get_or_none(id=int(card_id))
+            if self.request.matched_action != "delete" and not self.card:
+                raise NotFound
+```
+
+**ALWAYS** scaffold a state-change controller with a `PARENT/CHILD` name:
+
+```bash
+proper g controller card/closure
+proper g controller card/not_now --only=create
+```
+
+This generates the `pk=None` controller with `create`/`delete` stubs under `controllers/card/`, creates the `CardScoped` concern (if it doesn't exist yet), and wires the import into `controllers/__init__.py`. No form or views are generated, since a state change redirects rather than rendering a form. Group the parent and its children under the `controllers/card/` subfolder; the original `card_controller.py` can stay where it is or move to `card/main_controller.py`.
 
 
 ### ID parameter
@@ -1330,87 +1418,4 @@ class SecurityHeaders(Concern):
         self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
-## Adding More Actions
-
-When something doesn't fit the CRUD actions in a controller, create a new controller instead of adding new methods.
-
-**BAD:** Custom actions on an existing controller
-
-```python {title="myapp/controllers/card_controller.py"}
-from ..router import router
-from .app_controller import AppController
-
-@router.resource("cards")
-class CardController(AppController):
-
-    @router.patch("cards/:card_id/close")
-    def close(self):
-        """Close card"""
-
-    @router.patch("/cards/:card_id/reopen")
-    def reopen(self):
-        """Reopen card"""
-
-    @router.patch("/cards/:card_id/not-now")
-    def not_now(self):
-        """Postpone card"""
-
-    ...
-```
-
-**GOOD:** New controllers for each state change
-
-```python {title="myapp/controllers/card/closure_controller.py"}
-from ...router import router
-from ..concerns.card_scoped import CardScoped
-
-@router.resource("cards/:card_id/closure", pk=None)
-class ClosureController(CardScoped, AppController):
-
-    # POST /cards/:card_id/closure
-    def create(self):
-        """Close a card"""
-
-    # DELETE /cards/:card_id/closure
-    def delete(self):
-        """Reopen a card"""
-
-```
-
-```python {title="myapp/controllers/card/not_now_controller.py"}
-from ...router import router
-from ..concerns.card_scoped import CardScoped
-
-@router.resource("cards/:card_id/not-now", pk=None)
-class NotNowController(CardScoped, AppController):
-
-    # POST /cards/:card_id/not-now
-    def create(self):
-        """Postpone a card"""
-
-```
-
-In these cases:
-
-1. The card is loaded using a shared concern:
-
-```python {title="myapp/controllers/concerns/card_scoped.py"}
-from proper import Concern
-from proper.errors import NotFound
-from ...models import Card
-
-class CardScoped(Concern):
-    before = {"do": "set_card"}
-
-    def set_card(self):
-        card_id = self.params.get("card_id")
-        if card_id:
-            self.card = Card.get_or_none(card_id)
-            if self.request.matched_action != "delete" and not self.card:
-                raise NotFound
-
-```
-
-2. The new controllers do not have their own IDs, so they are mounted at "cards/:card_id/" and use the argument `pk=None`.
-
-3. The original controller file (`card_controller.py`) and the new ones (`closure_controller.py` and `not_now_controller.py`) are moved into a subfolder `myapp/controllers/card/`. Remember to update the imports in `controllers/__init__.py`.
+State changes that aren't record-CRUD follow the same rule — one controller per change, mounted under the parent with `pk=None`. See [The Core Principle: A Resource Per State Change](#the-core-principle-a-resource-per-state-change) above, and scaffold them with `proper g controller PARENT/CHILD`.

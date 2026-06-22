@@ -11,6 +11,7 @@ In this guide, you will learn how controllers work and how they fit into the req
 
 - How to generate a controller, and what the generator gives you.
 - How `@router.resource` maps actions to URLs.
+- Why every state change is a resource - and how to model the ones that aren't plain CRUD.
 - Access parameters passed to your controller.
 - How to render templates, return JSON, and redirect.
 - Store data in the cookie, the session, and one-shot flash messages.
@@ -373,6 +374,118 @@ One special case: if `new` is defined but `index` (or `show`, for `pk=None` reso
 :::
 
 The [Routing guide](/docs/routing) goes deeper - manually-defined routes with `@router.get`, `@router.post`, etc., named routes, route inspection, and scoped routers.
+
+---
+
+## A Resource Per State Change
+
+In Proper, **every state change is a resource.** You don't add verbs to a controller: you create a controller for the thing that changes.
+
+Records are the common case, not the only one. A card can be closed and reopened. A user can be suspended and restored. A subscription can be cancelled and resumed. Each of those is *also* a resource — a thing you `POST` to make happen and `DELETE` to undo — even though there's no new row in a table.
+
+### Don't add a verb to the controller
+
+The tempting move is to bolt the new action onto the existing controller and route it by hand:
+
+```python {title="myapp/controllers/card_controller.py"}
+@router.resource("cards")
+class CardController(AppController):
+
+    @router.patch("cards/:card_id/close")
+    def close(self):
+        ...
+
+    @router.patch("cards/:card_id/reopen")
+    def reopen(self):
+        ...
+```
+
+Resist it. The controller bloats with every new transition, the route names stop following any convention (`Card.close` next to `Card.create`), and each verb invents its own URL shape - was it `/close`, `/closed`, or `/closure`?
+
+### Make the state change its own resource
+
+Instead, give the state change a controller of its own and mount it under the parent with `pk=None`:
+
+```python {title="myapp/controllers/card/closure_controller.py"}
+from ...router import router
+from ..concerns.card_scoped import CardScoped
+from ..app_controller import AppController
+
+
+@router.resource("cards/:card_id/closure", pk=None)
+class ClosureController(CardScoped, AppController):
+
+    # POST /cards/:card_id/closure
+    def create(self):
+        self.card.close()
+        self.response.redirect_to("Card.show", self.card, flash="Card closed")
+
+    # DELETE /cards/:card_id/closure
+    def delete(self):
+        self.card.reopen()
+        self.response.redirect_to("Card.show", self.card, flash="Card reopened")
+```
+
+```python {title="myapp/controllers/card/not_now_controller.py"}
+@router.resource("cards/:card_id/not-now", pk=None)
+class NotNowController(CardScoped, AppController):
+
+    def create(self):
+        self.card.postpone()
+        self.response.redirect_to("Card.show", self.card)
+```
+
+`pk=None` (the [singular resource](#singular-resources-pknone) you just met) drops the trailing ID: there's only ever one closure for a card, so `/cards/42/closure` is the whole address. The route names follow the standard convention - `Closure.create`, `Closure.delete`, `NotNow.create` - and each controller stays small. Adding a new state change adds a file, not a method.
+
+The state change now has a URL shape you can describe in one sentence: *POST creates the closure, DELETE removes it.* That maps cleanly onto your UI - one form per controller, one submit per state change.
+
+### Loading the parent
+
+Every controller in this family needs the parent card loaded from `:card_id`. That's a single behavior shared across many controllers, which is exactly what a [concern](#concerns) is for:
+
+```python {title="myapp/controllers/concerns/card_scoped.py"}
+from proper import Concern
+from proper.errors import NotFound
+
+from ...models import Card
+
+
+class CardScoped(Concern):
+    before = {"do": "set_card"}
+
+    def set_card(self):
+        card_id = self.params.get("card_id")
+        if card_id:
+            self.card = Card.get_or_none(id=int(card_id))
+            if self.request.matched_action != "delete" and not self.card:
+                raise NotFound
+```
+
+Mix it in ahead of `AppController` so it loads the card for every child controller, current and future.
+
+### Let the generator do it
+
+You don't write any of this by hand. A `parent/child` name tells the generator to scaffold a state-change resource:
+
+```bash
+proper g controller card/closure
+proper g controller card/not_now --only=create
+```
+
+This creates the `pk=None` controller with `create`/`delete` stubs under `controllers/card/`, generates the `CardScoped` concern if it doesn't exist yet, and wires the import into `controllers/__init__.py`. It skips the form and views - a state change redirects, it doesn't render a form. Group the parent and its children under the `controllers/card/` subfolder:
+
+```
+myapp/controllers/
+├── card_controller.py             # the original
+├── card/
+│   ├── __init__.py
+│   ├── closure_controller.py
+│   └── not_now_controller.py
+└── concerns/
+    └── card_scoped.py
+```
+
+The only thing you give up is the satisfaction of a "fat controller." That's a feature.
 
 ---
 
