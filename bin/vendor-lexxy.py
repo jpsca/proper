@@ -27,7 +27,7 @@ import urllib.request
 from pathlib import Path
 
 
-VERSION = "0.9.18"
+VERSION = "0.9.19"
 
 JS_URL = f"https://esm.sh/@37signals/lexxy@{VERSION}/es2022/lexxy.bundle.mjs"
 HELPERS_URL = f"https://esm.sh/@37signals/lexxy@{VERSION}/es2022/helpers.mjs"
@@ -40,7 +40,7 @@ CSS_SOURCES = (
 CSS_BASE = f"https://cdn.jsdelivr.net/npm/@37signals/lexxy@{VERSION}/dist/stylesheets"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TARGET = REPO_ROOT / "src" / "proper" / "blueprints" / "addon_rich_text" / "[[app_name]]" / "assets"
+TARGET = REPO_ROOT / "src" / "proper" / "_blueprints" / "addon_rich_text" / "[[app_name]]" / "assets"
 
 custom_css = {
   "lexxy-editor.css": b"""
