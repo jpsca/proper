@@ -23,7 +23,8 @@ dependencies = [
 	"python-dotenv",
   "uvicorn[standard]",
   "proper",
-  # "psycopg[binary,pool]",
+  # "psycopg[pool]",
+	# "redis",
 ]
 
 [project.scripts]
@@ -34,9 +35,6 @@ proper = "[[ app_name ]].cli:run"
 dev = [
   "inotify;sys_platform=='linux'",
   "ipdb",
-	[% if tailwind -%]
-  "pytailwindcss>=0.3.0",
-	[% endif -%]
   "ruff",
   "ty",
 ]

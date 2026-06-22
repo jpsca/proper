@@ -1,15 +1,56 @@
+# Production stack: web + worker, with a one-off migrate job.
+# Postgres and Redis are EXTERNAL (managed elsewhere) — point at them via .env.
+#
+# Usage:
+#   1. cp .env.example .env   # then fill in real secrets/hosts
+#   2. docker compose build
+#   3. docker compose run --rm migrate     # apply migrations once
+#   4. docker compose up -d web worker     # start the app
+#
+# web and worker are the SAME image run with different commands (12-factor).
+# (Dockerfile.workers remains for pushing a *separate* worker image to a registry.)
+
+name: [[app_name]]
+
+x-app: &app
+  image: [[app_name]]:latest
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # Connection settings + secrets (DB_*, REDIS_*, SECRET_KEYS, SMTP_*) live here.
+  env_file:
+    - .env
+  environment:
+    APP_ENV: prod
+  restart: unless-stopped
+
 services:
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    user: "1000:1000"
-    container_name: [[app_name]]
-    volumes:
-      - .:/app
+  # ASGI web server (proper run uvicorn.py -> binds 0.0.0.0:2300).
+  web:
+    <<: *app
     ports:
-      - "2300:2300"
-      - "5678:5678"  # debugpy
-    command: sleep infinity
-    tty: true
-    stdin_open: true
+      - "${WEB_PORT:-2300}:2300"
+    volumes:
+      - storage:/app/storage
+
+  # Huey background-task consumer. Same image, different command.
+  worker:
+    <<: *app
+    command: ["python", "workers.py"]
+    # The image's /up HTTP healthcheck is meaningless for a worker — disable it.
+    healthcheck:
+      disable: true
+    volumes:
+      - storage:/app/storage
+
+  # One-off migration job. Gated behind a profile so `up` never starts it;
+  # run it explicitly before bringing web/worker up.
+  migrate:
+    <<: *app
+    command: ["proper", "db", "prepare"]
+    restart: "no"
+    profiles: ["tools"]
+
+volumes:
+  # Uploads + the SqliteCache/cache.sqlite3, shared between web and worker.
+  storage:

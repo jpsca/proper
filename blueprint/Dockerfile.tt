@@ -1,0 +1,91 @@
+# syntax=docker/dockerfile:1.7
+
+# ============================================================================
+#   docker build -t [[app_name]]:latest .
+# ============================================================================
+
+ARG PYTHON_VERSION=3.14
+ARG UV_VERSION=0.11.7
+
+# Pinned, reproducible uv binary as its own stage (no `pip install uv` layer).
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
+
+# --- Stage 1: builder -------------------------------------------------------
+# Resolves and installs the locked dependencies into a self-contained venv.
+FROM python:${PYTHON_VERSION}-slim AS builder
+
+COPY --from=uv /uv /uvx /bin/
+
+# Build-time uv behaviour:
+#   COMPILE_BYTECODE -> ship .pyc for faster cold starts
+#   LINK_MODE=copy   -> avoid hardlink warnings across the cache mount
+#   PYTHON_DOWNLOADS=0 -> use the base image's interpreter, don't fetch one
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0
+
+WORKDIR /app
+
+# 1) Dependencies only — cached unless pyproject.toml / uv.lock change.
+#    (README.md is required: pyproject `readme` points at it.)
+COPY pyproject.toml uv.lock README.md ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
+
+# 2) Application code, then install the project itself into the venv.
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+
+# --- Stage 2: runtime -------------------------------------------------------
+# Minimal image: interpreter + venv + source, no build tooling.
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    APP_ENV=prod \
+    PORT=2300 \
+    VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
+
+# System runtime libs:
+# - libpq5 -> required by the pure-Python psycopg (it dlopen's libpq at import).
+# - libvips -> required for image processing
+# - poppler-utils -> required for PDF processing (optional, not installed by default)
+# - ffmpeg -> required for video processing (optional, not installed by default)
+#
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y libpq5 \
+        libvips \
+        # poppler-utils \
+        # ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    # Then create an unprivileged user to run the app.
+    && groupadd --system app \
+    && useradd --system --gid app --home-dir /app --no-create-home app
+
+WORKDIR /app
+
+# The venv installs `[[app_name]]` from source at /app (which also holds /app/.venv),
+# so the app source must live at the same path it had in the builder.
+COPY --from=builder --chown=app:app /app /app
+
+# Writable runtime dirs (uploads, sqlite cache, logs). Mount volumes here in prod.
+RUN mkdir -p storage log && chown -R app:app storage log
+
+USER app
+
+EXPOSE 2300
+
+# Uses the app's own /up health route (returns 200 when serving).
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/up' % os.environ.get('PORT','2300'), timeout=2)" || exit 1
+
+# Web server (reads uvicorn.prod.py: workers/log_level/keep-alive; binds 0.0.0.0:$PORT).
+# Run the background worker from the SAME image by overriding the command:
+#   docker run ... [[app_name]]:latest python workers.py
+# Apply DB migrations as a one-off job (not on every container start):
+#   docker run --rm ... [[app_name]]:latest proper db migrate
+CMD ["proper", "run", "uvicorn.prod.py"]

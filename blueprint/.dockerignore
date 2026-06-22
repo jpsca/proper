@@ -12,5 +12,16 @@
 **/venv
 deploy
 docker-compose.yml
+compose*.yml
 Dockerfile*
-README.md
+
+# Build hygiene — keep local artifacts out of the production image.
+# (README.md is intentionally NOT ignored: pyproject `readme` needs it.)
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+**/storage/*.sqlite3
+**/log/*.log
+tests

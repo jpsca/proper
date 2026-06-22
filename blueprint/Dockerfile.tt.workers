@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+
+# ============================================================================
+# Worker image for the `[[app_name]]` Proper application.
+#
+# Runs the Huey background-task consumer (workers.py). It is the SAME built
+# artifact as the web image, only with a different default command — so the
+# worker imports byte-for-byte identical tasks / models / dependencies as the
+# web tier. (For a task queue this matters: a version skew between the producer
+# that enqueues and the consumer that runs corrupts task payloads.)
+#
+# Build the app image FIRST, then this one on top of it:
+#   docker build -t [[app_name]]:latest .
+#   docker build -f Dockerfile.workers --build-arg APP_IMAGE=[[app_name]]:latest \
+#       -t [[app_name]]-worker:latest .
+# ============================================================================
+
+ARG APP_IMAGE=[[app_name]]:latest
+FROM ${APP_IMAGE}
+
+# The base image defines an HTTP HEALTHCHECK against /up. A worker serves no
+# HTTP, so that probe would fail forever — disable it. (Under Kubernetes,
+# attach a liveness exec probe to the worker pod instead.)
+HEALTHCHECK NONE
+
+# Background-task consumer. Reads QUEUE / QUEUE_CONSUMER from config; in prod
+# that is RedisHuey, so this needs DB_*/REDIS_* env and a reachable Redis.
+CMD ["python", "workers.py"]

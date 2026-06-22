@@ -11,7 +11,7 @@ DATABASES: dict[str, t.Any] = {
     },
     # -- or --
     # "main": {
-    #     "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
+    #     "type": "playhouse.pool.PooledPsycopg3Database",
     #     "database": os.getenv("DB_NAME", "[[app_name]]"),
     #     "host": os.getenv("DB_HOST", "127.0.0.1"),
     #     "port": int(os.getenv("DB_PORT", 5432)),
@@ -30,7 +30,9 @@ QUEUE = {
     # "database": "storage/queue.sqlite3",
     # -- or --
     # "type": "huey.RedisHuey",
-    # "name": "[[app_name]]",
+    # "name": os.getenv("REDIS_NAME", "[[app_name]]"),
+    # "host": os.getenv("REDIS_HOST", "127.0.0.1"),
+    # "port": int(os.getenv("REDIS_PORT", 6379)),
 }
 QUEUE_CONSUMER = {
     # Number of workers to spawn.
@@ -84,7 +86,7 @@ if env == "test":
 # --- Override config for production ---
 if env == "prod":
     DATABASES["main"] = {
-        "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
+        "type": "playhouse.pool.PooledPsycopg3Database",
         "database": os.getenv("DB_NAME", "[[app_name]]"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_PORT", 5432)),
@@ -95,7 +97,13 @@ if env == "prod":
     QUEUE = {
         # Require redis package
         "type": "huey.RedisHuey",
-        "name": "[[app_name]]",
+        "name": os.getenv("REDIS_NAME", "[[app_name]]"),
+        "host": os.getenv("REDIS_HOST", "127.0.0.1"),
+        "port": int(os.getenv("REDIS_PORT", 6379)),
+    }
+    QUEUE_CONSUMER = {
+        **QUEUE_CONSUMER,
+        "workers": 4,
     }
 
     CACHE = {

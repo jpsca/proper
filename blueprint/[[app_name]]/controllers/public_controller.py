@@ -1,4 +1,4 @@
-from proper import current, errors
+from proper import errors
 
 from ..router import router
 from .app_controller import AppController
