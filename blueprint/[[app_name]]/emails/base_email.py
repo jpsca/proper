@@ -11,4 +11,8 @@ class BaseEmail(EmailMessage):
         `MAILERS` (by name). Defaults to the configured default mailer.
         """
         self.update(**options)
+        # Render the template now: the worker only receives the serialized dict,
+        # so it can no longer render the body. Mirrors `EmailMessage.send()`.
+        if not self.body:
+            self._render()
         send_email_task(message=self.serialize(), via=via)
