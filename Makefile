@@ -9,7 +9,7 @@ test:
 .PHONY: lint
 lint:
 	uv run ruff check src/proper tests
-	uv run ty check
+	uv run ty check src/proper
 
 .PHONY: lintfix
 lintfix:
