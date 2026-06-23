@@ -1,4 +1,4 @@
-name: run_tests
+name: validate
 
 on:
   push:
@@ -11,8 +11,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  tests:
-    name: tests
+  validate:
+    name: validate
     strategy:
       matrix:
         python: ['3.13', '3.14', '3.14t']
@@ -45,6 +45,9 @@ jobs:
 
       - name: "Installs dependencies"
         run: uv sync --group test --python ${{ matrix.python }}
+
+      - name: "Lint"
+        run: make lint
 
       - name: "Test"
         run: make test
