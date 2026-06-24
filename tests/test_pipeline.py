@@ -18,7 +18,6 @@ from proper.pipeline import (
     match,
     method_override,
     redirect,
-    strip_body_if_head,
     update_session_cookie,
 )
 from proper.router import Route
@@ -81,21 +80,6 @@ class TestHeadToGet:
         co = make_co(method="POST")
         head_to_get(co.request, None)
         assert co.request.method == "POST"
-
-
-
-class TestStripBodyIfHead:
-    def test_strips_body_when_original_was_head(self, make_co):
-        co = make_co(method="HEAD")
-        co.response.body = "hello"
-        strip_body_if_head(co.request, co.response)
-        assert co.response.body == ""
-
-    def test_keeps_body_for_get(self, co):
-        co.response.body = "hello"
-        strip_body_if_head(co.request, co.response)
-        assert co.response.body == "hello"
-
 
 
 class TestMethodOverride:
@@ -222,11 +206,6 @@ class TestCopySession:
         assert FLASHES_SESSION_KEY not in co.response.session
         assert co.response.session["user"] == "alice"
 
-    def test_skips_for_head(self, app, make_co):
-        co = make_co(method="HEAD")
-        copy_session(co.request, co.response)
-        assert not hasattr(co.request, "session") or co.request.session == DotDict()
-
     def test_skips_for_options(self, app, make_co):
         co = make_co(method="OPTIONS")
         copy_session(co.request, co.response)
@@ -261,16 +240,6 @@ class TestUpdateSessionCookie:
         assert len(session_cookies) == 1
         cookie_val = session_cookies[0][1]
         assert "max-age=0" in cookie_val.lower() or "expires=" in cookie_val.lower()
-
-    def test_skips_for_head(self, app, make_co):
-        co = make_co(method="HEAD")
-        co.request.session = DotDict({})
-        co.response.session = DotDict({"changed": True})
-        update_session_cookie(co.request, co.response)
-        cookies = co.response.get_cookie_tuples()
-        session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
-        assert session_cookies == []
-
 
 
 class TestFlashThroughPipeline:

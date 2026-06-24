@@ -1,5 +1,6 @@
 import typing as t
 
+from . import status
 from .constants import (
     DELETE,
     FLASHES_SESSION_KEY,
@@ -14,6 +15,7 @@ from .constants import (
     SESSION_COOKIE_SALT,
 )
 from .controller import Controller
+from .errors import MethodNotAllowed
 from .helpers import DotDict, import_string, logger
 
 
@@ -29,7 +31,6 @@ __all__ = (
     "match",
     "redirect",
     "dispatch",
-    "strip_body_if_head",
     "update_session_cookie",
 )
 
@@ -37,11 +38,12 @@ TController = type[Controller]
 LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")
 
 
+# STEP 1
 def copy_session(request: "Request", response: "Response"):
     """Get the session data from the cookie and puts into the request
     and response.
     """
-    if request.method in (HEAD, OPTIONS):
+    if request.method == OPTIONS:
         return
     session = _find_session_by_cookie(request)
     request.session = session
@@ -60,12 +62,14 @@ def _find_session_by_cookie(request: "Request") -> DotDict:
     return DotDict(session or {})
 
 
+# STEP 2
 def head_to_get(request: "Request", _response) -> None:
     """Transform a HEAD request to a fake GET request."""
     if request.request_method == HEAD:
         request.method = GET
 
 
+# STEP 3
 def method_override(request: "Request", _response) -> None:
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
@@ -78,6 +82,7 @@ def method_override(request: "Request", _response) -> None:
     * `QUERY`
 
     """
+    # Only override the method if the original method is POST
     if request.method != POST:
         return
 
@@ -92,17 +97,28 @@ def method_override(request: "Request", _response) -> None:
     request.method = new_method
 
 
-def match(request: "Request", _response) -> "Response | None":
+# STEP 4
+def match(request: "Request", response) -> "Response | None":
     """Match the request url to a route."""
     host: str | None = request.host
     if host in LOCAL_HOSTS:
         host = None
     router = request.app.router
-    route, params = router.match(request.method, request.path, host)
+    try:
+        route, params = router.match(request.method, request.path, host)
+    except MethodNotAllowed as e:
+        if request.method != OPTIONS:
+            raise
+
+        response.status = status.no_content
+        response.headers["Allow"] = e.headers["Allow"]
+        return response
+
     request.matched_route = route
     request.matched_params = params
 
 
+# STEP 5
 def redirect(request: "Request", response: "Response") -> "Response | None":
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
@@ -120,6 +136,7 @@ def redirect(request: "Request", response: "Response") -> "Response | None":
         return response
 
 
+# STEP 6
 def dispatch(request: "Request", response: "Response") -> "Response | None":
     route = request.matched_route
     assert route
@@ -135,16 +152,9 @@ def dispatch(request: "Request", response: "Response") -> "Response | None":
     co._dispatch(action_name)
 
 
-def strip_body_if_head(request: "Request", response: "Response") -> None:
-    """Strip the response body if the method was HEAD."""
-    if request.request_method == HEAD:
-        response.body = ""
-
-
+# STEP 7
 def update_session_cookie(request: "Request", response: "Response") -> None:
     """Update the session cookie if the session was modified."""
-    if request.method in (HEAD, OPTIONS):
-        return
     if response.session == request.session:
         return
     if response.session:

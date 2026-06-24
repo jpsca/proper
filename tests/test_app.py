@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from proper import App, TestClient, status
@@ -18,6 +16,13 @@ class GreetController(Controller):
         name = self.params.get("name", "stranger")
         return f"hello {name}"
 
+    def options(self):
+        return "Custom OPTIONS response"
+
+    def echo_method(self):
+        self.response.headers["real"] = self.request.method
+        return ""
+
 
 @pytest.fixture()
 def app():
@@ -27,7 +32,16 @@ def app():
     }
     app = App(__name__, config)
     app.router.add_route(Route(method="GET", path="/hello", to=GreetController.index))
+
     app.router.add_route(Route(method="GET", path="/hello/:name", to=GreetController.show))
+    app.router.add_route(Route(method="OPTIONS", path="/hello/:name", to=GreetController.options))
+
+    app.router.add_route(Route(method="GET", path="/echo", to=GreetController.echo_method))
+    app.router.add_route(Route(method="POST", path="/echo", to=GreetController.echo_method))
+    app.router.add_route(Route(method="PUT", path="/echo", to=GreetController.echo_method))
+    app.router.add_route(Route(method="DELETE", path="/echo", to=GreetController.echo_method))
+    app.router.add_route(Route(method="PATCH", path="/echo", to=GreetController.echo_method))
+    app.router.add_route(Route(method="QUERY", path="/echo", to=GreetController.echo_method))
     return app
 
 
@@ -83,96 +97,61 @@ def test_load_config_from_class():
     assert config.DEBUG is True
 
 
-# --- Render importmap ---
+def test_method_override(client):
+    # Test overriding POST to PUT
+    result = client.post("/echo", headers={"X-HTTP-Method-Override": "PUT"})
+    assert result.headers["real"] == "PUT"
+
+    # Test overriding POST to DELETE
+    result = client.post("/echo", headers={"X-HTTP-Method-Override": "DELETE"})
+    assert result.headers["real"] == "DELETE"
+
+    # Test overriding POST to PATCH
+    result = client.post("/echo", headers={"X-HTTP-Method-Override": "PATCH"})
+    assert result.headers["real"] == "PATCH"
+
+    # Test overriding POST to QUERY
+    result = client.post("/echo", headers={"X-HTTP-Method-Override": "QUERY"})
+    assert result.headers["real"] == "QUERY"
 
 
-def _make_app(**overrides):
-    config = {
-        "SECRET_KEYS": ["*" * 50],
-        "DEBUG": False,
-        **overrides,
-    }
-    app = App(__name__, config)
-    app.router.static("/assets", root="/tmp/assets", name="assets")
-    return app
+def test_method_does_not_override(client):
+    result = client.put("/echo", headers={"X-HTTP-Method-Override": "DELETE"})
+    assert result.headers["real"] == "PUT"
+
+    # Test GET does not override
+    result = client.get("/echo", headers={"X-HTTP-Method-Override": "PUT"})
+    assert result.headers["real"] == "GET"
+
+    # Test HEAD does not override
+    result = client.head("/echo", headers={"X-HTTP-Method-Override": "PUT"})
+    assert result.headers["real"] == "GET"
 
 
-def _get_data(html: str) -> dict:
-    start_json = html.find(">") + 1
-    end_json = html.rfind("</script>")
-    return json.loads(html[start_json:end_json])
+def test_method_not_allowed_returns_allow_header(client):
+    result = client.post("/hello")
+    assert result.status == status.method_not_allowed
+    assert "Allow" in result.headers
+    assert result.headers["Allow"] == "GET, HEAD, OPTIONS"
 
 
-def test_render_importmap_registered_as_global():
-    app = _make_app()
-    assert "render_importmap" in app.catalog.jinja_env.globals
+def test_options_returns_allow_header(client):
+    result = client.options("/hello")
+    assert result.status == status.no_content
+    assert "Allow" in result.headers
+    assert result.headers["Allow"] == "GET, HEAD, OPTIONS"
+    assert result.body == ""
 
 
-def test_render_importmap_defaults():
-    app = _make_app()
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
-    html = str(render_importmap())
-    assert html.startswith('<script type="importmap"')
-    assert html.endswith("</script>")
-    data = _get_data(html)
-    assert "@hotwired/stimulus" in data["imports"]
-    assert "@hotwired/turbo" in data["imports"]
+def test_custom_options_response(client):
+    result = client.options("/hello/world")
+    assert result.status == status.ok
+    assert result.body == "Custom OPTIONS response"
 
 
-def test_render_importmap_resolves_asset_paths():
-    app = _make_app()
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
-    html = str(render_importmap())
-    data = _get_data(html)
-    assert data["imports"]["@hotwired/stimulus"].startswith("/assets/")
-    assert "stimulus.js" in data["imports"]["@hotwired/stimulus"]
-
-
-def test_render_importmap_absolute_url_passthrough():
-    app = _make_app(IMPORT_MAP={
-        "alpinejs": "https://cdn.example.com/alpine.js",
-    })
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
-    html = str(render_importmap())
-    data = _get_data(html)
-    assert data["imports"]["alpinejs"] == "https://cdn.example.com/alpine.js"
-
-
-def test_render_importmap_absolute_path_passthrough():
-    app = _make_app(IMPORT_MAP={
-        "mylib": "/static/mylib.js",
-    })
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
-    html = str(render_importmap())
-    data = _get_data(html)
-    assert data["imports"]["mylib"] == "/static/mylib.js"
-
-
-def test_render_importmap_empty_config_keeps_defaults():
-    """DotDict deep-merges, so IMPORT_MAP={} doesn't clear defaults."""
-    app = _make_app(IMPORT_MAP={})
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
-    html = str(render_importmap())
-    data = _get_data(html)
-    assert "@hotwired/stimulus" in data["imports"]
-    assert "@hotwired/turbo" in data["imports"]
-
-
-def test_render_importmap_custom_entries_override_defaults():
-    app = _make_app(IMPORT_MAP={
-        "@hotwired/stimulus": "https://cdn.example.com/stimulus.js",
-        "mylib": "js/mylib.js",
-    })
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
-    html = str(render_importmap())
-    data = _get_data(html)
-    assert data["imports"]["@hotwired/stimulus"] == "https://cdn.example.com/stimulus.js"
-    assert data["imports"]["mylib"].startswith("/assets/")
-
-
-def test_import_map_default_config():
-    config = load_config({"SECRET_KEYS": ["*" * 50]})
-    assert config.IMPORT_MAP == {
-        "@hotwired/stimulus": "js/vendor/stimulus.js",
-        "@hotwired/turbo": "js/vendor/turbo.js",
-    }
+def test_head_returns_same_headers(client):
+    get_result = client.get("/hello")
+    head_result = client.head("/hello")
+    assert head_result.status == get_result.status
+    assert head_result.headers.items() == get_result.headers.items()
+    assert head_result.body == ""

@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from ... import status as pstatus
-from ...constants import SIGNED_COOKIE_SALT
+from ...constants import HEAD, SIGNED_COOKIE_SALT
 from ...global_context import current
 from ...helpers import DotDict
 from ...types import Iterable, TBody, TScope
@@ -38,7 +38,6 @@ class Response(ResponseHeadersMixin):
     """ """
 
     flash: FlashMessages
-    error: Exception | None = None
     body: TBody | str | None = None
     status: int = pstatus.ok
     cookies: "dict[str, Morsel]"
@@ -53,6 +52,9 @@ class Response(ResponseHeadersMixin):
     # Set to True to not set cookies in this response, including any changes to the
     # session. You might want to use it for some read-only public endpoints, like a RSS feed.
     disable_cookies: bool = False
+
+    _error: Exception | None = None
+    _session: DotDict
 
     def __init__(
         self,
@@ -91,6 +93,20 @@ class Response(ResponseHeadersMixin):
     def status_code(self) -> int:
         """The status code of the response."""
         return self.status
+
+    @property
+    def error(self) -> Exception | None:
+        """The error that caused this response, if any."""
+        return self._error
+
+    @error.setter
+    def error(self, value: Exception | None) -> None:
+        self._error = value
+        self.status = getattr(value, "status", pstatus.server_error)
+        headers = getattr(value, "headers", {})
+        if headers:
+            for name, value in headers.items():
+                self.headers[name] = value
 
     def set_cookie(
         self,
@@ -439,4 +455,6 @@ class Response(ResponseHeadersMixin):
             for name, value in self.get_headers_list()
         ]
 
+        if current.request and current.request.request_method == HEAD:
+            body_out = b""
         return self.status, enc_headers, body_out

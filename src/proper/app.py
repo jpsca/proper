@@ -99,7 +99,6 @@ class App(AppWs):
         pipeline.match,
         pipeline.redirect,
         pipeline.dispatch,
-        pipeline.strip_body_if_head,
         pipeline.update_session_cookie,
     )
 
@@ -503,19 +502,12 @@ class App(AppWs):
                 error = response.error
                 for error_cls, handler in error_handlers.items():
                     if isinstance(error, error_cls):
-                        response.status = getattr(
-                            error,
-                            "status",
-                            status.server_error,
-                        )
                         self._custom_error_handler(handler, request, response)
                         return
 
         self._default_error_handler(request, response)
 
     def _default_error_handler(self, request, response) -> None:
-        response.status = getattr(response.error, "status", status.server_error)
-
         if self.config.DEBUG:
             self._default_error_handler_debug(request, response)
         elif self.config.CATCH_ALL_ERRORS:
