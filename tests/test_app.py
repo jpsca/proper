@@ -132,15 +132,7 @@ def test_method_not_allowed_returns_allow_header(client):
     result = client.post("/hello")
     assert result.status == status.method_not_allowed
     assert "Allow" in result.headers
-    assert result.headers["Allow"] == "GET, HEAD, OPTIONS"
-
-
-def test_options_returns_allow_header(client):
-    result = client.options("/hello")
-    assert result.status == status.no_content
-    assert "Allow" in result.headers
-    assert result.headers["Allow"] == "GET, HEAD, OPTIONS"
-    assert result.body == ""
+    assert result.headers["Allow"] == "GET, HEAD"
 
 
 def test_custom_options_response(client):

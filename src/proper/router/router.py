@@ -169,10 +169,9 @@ class BaseRouter:
 
         if allowed:
             msg = f"`{path}` does not accept a `{method}`."
-            _allowed = ["OPTIONS", *allowed]
             if "GET" in allowed:
-                _allowed.append("HEAD")
-            raise MethodNotAllowed(msg, allowed=sorted(_allowed))
+                allowed.add("HEAD")
+            raise MethodNotAllowed(msg, allowed=sorted(allowed))
         else:
             msg = f"{method} `{path}` does not match."
             raise MatchNotFound(msg)

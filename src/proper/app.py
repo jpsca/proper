@@ -93,11 +93,11 @@ class App(AppWs):
     catalog: jx.Catalog
 
     pipeline: tuple[types.FunctionType, ...] = (
-        pipeline.copy_session,
         pipeline.head_to_get,
         pipeline.method_override,
         pipeline.match,
         pipeline.redirect,
+        pipeline.copy_session,
         pipeline.dispatch,
         pipeline.update_session_cookie,
     )

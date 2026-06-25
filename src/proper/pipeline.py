@@ -1,12 +1,10 @@
 import typing as t
 
-from . import status
 from .constants import (
     DELETE,
     FLASHES_SESSION_KEY,
     GET,
     HEAD,
-    OPTIONS,
     PATCH,
     POST,
     PUT,
@@ -15,7 +13,6 @@ from .constants import (
     SESSION_COOKIE_SALT,
 )
 from .controller import Controller
-from .errors import MethodNotAllowed
 from .helpers import DotDict, import_string, logger
 
 
@@ -25,11 +22,11 @@ if t.TYPE_CHECKING:
 
 
 __all__ = (
-    "copy_session",
     "head_to_get",
     "method_override",
     "match",
     "redirect",
+    "copy_session",
     "dispatch",
     "update_session_cookie",
 )
@@ -39,37 +36,13 @@ LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")
 
 
 # STEP 1
-def copy_session(request: "Request", response: "Response"):
-    """Get the session data from the cookie and puts into the request
-    and response.
-    """
-    if request.method == OPTIONS:
-        return
-    session = _find_session_by_cookie(request)
-    request.session = session
-    response.session = session.copy()
-    if FLASHES_SESSION_KEY in response.session:
-        del response.session[FLASHES_SESSION_KEY]
-
-
-def _find_session_by_cookie(request: "Request") -> DotDict:
-    session = request.get_signed_cookie(
-        SESSION_COOKIE_NAME,
-        salt=SESSION_COOKIE_SALT,
-        max_age=request.app.config.SESSION_COOKIE_LIFETIME
-    )
-    logger.debug(">>> %s", session or "")
-    return DotDict(session or {})
-
-
-# STEP 2
 def head_to_get(request: "Request", _response) -> None:
     """Transform a HEAD request to a fake GET request."""
     if request.request_method == HEAD:
         request.method = GET
 
 
-# STEP 3
+# STEP 2
 def method_override(request: "Request", _response) -> None:
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
@@ -97,28 +70,19 @@ def method_override(request: "Request", _response) -> None:
     request.method = new_method
 
 
-# STEP 4
+# STEP 3
 def match(request: "Request", response) -> "Response | None":
     """Match the request url to a route."""
     host: str | None = request.host
     if host in LOCAL_HOSTS:
         host = None
     router = request.app.router
-    try:
-        route, params = router.match(request.method, request.path, host)
-    except MethodNotAllowed as e:
-        if request.method != OPTIONS:
-            raise
-
-        response.status = status.no_content
-        response.headers["Allow"] = e.headers["Allow"]
-        return response
-
+    route, params = router.match(request.method, request.path, host)
     request.matched_route = route
     request.matched_params = params
 
 
-# STEP 5
+# STEP 4
 def redirect(request: "Request", response: "Response") -> "Response | None":
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
@@ -134,6 +98,28 @@ def redirect(request: "Request", response: "Response") -> "Response | None":
             status=route.redirect_status,
         )
         return response
+
+
+# STEP 5
+def copy_session(request: "Request", response: "Response"):
+    """Get the session data from the cookie and puts into the request
+    and response.
+    """
+    session = _find_session_by_cookie(request)
+    request.session = session
+    response.session = session.copy()
+    if FLASHES_SESSION_KEY in response.session:
+        del response.session[FLASHES_SESSION_KEY]
+
+
+def _find_session_by_cookie(request: "Request") -> DotDict:
+    session = request.get_signed_cookie(
+        SESSION_COOKIE_NAME,
+        salt=SESSION_COOKIE_SALT,
+        max_age=request.app.config.SESSION_COOKIE_LIFETIME
+    )
+    logger.debug(">>> %s", session or "")
+    return DotDict(session or {})
 
 
 # STEP 6
