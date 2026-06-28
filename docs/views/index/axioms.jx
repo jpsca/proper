@@ -1,0 +1,54 @@
+<section class="section" id="axioms">
+  <div class="section-inner axioms-inner">
+    <div class="section-head axioms-head">
+      <h2 class="section-title"><em>Opinionated</em> <br />by design</h2>
+      <p class="section-sub">
+        These are the ideas the framework will not compromise on - the rules
+        that everything else is built around.
+      </p>
+    </div>
+    <div class="axiom-grid">
+      <div class="axiom">
+        <div class="axiom-num">- 01</div>
+        <h3 class="axiom-title">
+          <em>Humans read code.</em> Machines just run it.
+        </h3>
+        <p class="axiom-body">
+          Writing code can - and should - be automated. But making that code
+          <strong>easy to read and understand</strong> is the framework's
+          reason for being.
+        </p>
+      </div>
+      <div class="axiom">
+        <div class="axiom-num">- 02</div>
+        <h3 class="axiom-title">Convention over configuration</h3>
+        <p class="axiom-body">
+          You already know where things go. A <code>Post</code> model lives at
+          <code>models/post.py</code>. Its controller is
+          <code>PostController</code> in
+          <code>controllers/post_controller.py</code>. Its views are at
+          <code>views/post/</code>. This is not a suggestion - it is a
+          feature.
+        </p>
+      </div>
+      <div class="axiom">
+        <div class="axiom-num">- 03</div>
+        <h3 class="axiom-title">CRUD, always</h3>
+        <p class="axiom-body">
+          Every controller maps URLs to the same seven actions - index, new,
+          create, show, edit, update, delete. Remove those you don't need.
+          Create another resource if you need more.
+        </p>
+      </div>
+      <div class="axiom">
+        <div class="axiom-num">- 04</div>
+        <h3 class="axiom-title">Sync above, async below</h3>
+        <p class="axiom-body">
+          The runtime is ASGI. The code you write is not.
+          <code>await</code> is a hazard we've hidden behind a clean interface
+          - you get concurrency without the colour.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

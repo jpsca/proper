@@ -1,0 +1,44 @@
+{#import "./example/model.jx" as ExModel #}
+{#import "./example/controller.jx" as ExController #}
+{#import "./example/form.jx" as ExForm #}
+{#import "./example/view.jx" as ExView #}
+
+<section class="section example">
+  <div class="section-inner">
+    <div class="example-block">
+      <ExModel />
+      <h3>Peewee ORM make modelling easy.</h3>
+      <p>
+        Proper uses Peewee as its ORM, and adds some extra features like
+        scopes, rich text fields, and attachment support.
+      </p>
+    </div>
+
+    <div class="example-block">
+      <ExController />
+      <h3>Controllers handle all requests.</h3>
+      <p>
+        Proper controllers are simple classes with methods for each action.
+        They have before/after hooks, and can render templates or redirect.
+      </p>
+    </div>
+
+    <div class="example-block">
+      <ExForm class="example-short" />
+      <h3>Forms are declarative and easy to use.</h3>
+      <p>
+        Proper forms are declarative, and integrate with Peewee models. They
+        also have built-in validation, and can be rendered in templates.
+      </p>
+    </div>
+
+    <div class="example-block">
+      <ExView class="example-short" />
+      <h3>Component Views.</h3>
+      <p>
+        Proper views are components-based templates. They
+        can have props, slots, and can be nested.
+      </p>
+    </div>
+  </div>
+</section>

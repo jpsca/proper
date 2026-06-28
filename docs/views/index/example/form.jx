@@ -1,0 +1,17 @@
+<div {{ attrs.render(class="highlight lang-python") }}>
+<span class="filename">myapp/forms/article.py</span>
+<pre><code><details><summary><span class="c"># imports</span></summary><span class="kn">from</span><span class="w"> </span><span class="nn">proper</span><span class="w"> </span><span class="kn">import</span> <span class="n">forms</span> <span class="k">as</span> <span class="n">f</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Article</span><span class="p">,</span> <span class="n">Attachment</span>
+
+</details>
+<span class="k">class</span><span class="w"> </span><span class="nc">ArticleForm</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
+  <span class="k">class</span><span class="w"> </span><span class="nc">Meta</span><span class="p">:</span>
+    <span class="n">orm_cls</span> <span class="o">=</span> <span class="n">Article</span>
+
+  <span class="n">title</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">TextField</span><span class="p">()</span>
+  <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">RichTextField</span><span class="p">(</span><span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+  <span class="n">cover_image</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">AttachmentField</span><span class="p">(</span><span class="n">Attachment</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+  <span class="n">is_draft</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre>
+</div>

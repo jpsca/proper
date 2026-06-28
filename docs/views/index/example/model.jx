@@ -1,0 +1,44 @@
+<div {{ attrs.render(class="highlight lang-python") }}>
+<span class="filename">myapp/models/article.py</span>
+<pre><code><details><summary><span class="c"># imports</span></summary><span class="kn">import</span><span class="w"> </span><span class="nn">peewee</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">proper.rich_text</span><span class="w"> </span><span class="kn">import</span> <span class="n">HasRichText</span><span class="p">,</span> <span class="n">RichTextField</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">scope</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.attachment</span><span class="w"> </span><span class="kn">import</span> <span class="n">Attachment</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.user</span><span class="w"> </span><span class="kn">import</span> <span class="n">User</span>
+
+</details>
+<span class="k">class</span><span class="w"> </span><span class="nc">Article</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">,</span> <span class="n">HasRichText</span><span class="p">):</span>
+  <span class="n">title</span> <span class="o">=</span> <span class="n">pw</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
+  <span class="n">content</span> <span class="o">=</span> <span class="n">RichTextField</span><span class="p">(</span><span class="n">Attachment</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="n">cover_image</span> <span class="o">=</span> <span class="n">pw</span><span class="o">.</span><span class="n">ForeignKeyField</span><span class="p">(</span><span class="n">Attachment</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="n">is_draft</span> <span class="o">=</span> <span class="n">pw</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+  <span class="n">author</span> <span class="o">=</span> <span class="n">pw</span><span class="o">.</span><span class="n">ForeignKeyField</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">User</span><span class="p">,</span>
+    <span class="n">backref</span><span class="o">=</span><span class="s2">"articles"</span><span class="p">,</span>
+    <span class="n">default</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">current</span><span class="o">.</span><span class="n">user</span>
+  <span class="p">)</span>
+
+  <span class="nd">@scope</span>
+  <span class="k">def</span><span class="w"> </span><span class="nf">published</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Article</span><span class="o">.</span><span class="n">is_draft</span><span class="o">==</span><span class="kc">False</span><span class="p">)</span>
+
+  <span class="nd">@scope</span>
+  <span class="k">def</span><span class="w"> </span><span class="nf">recent</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+      <span class="n">query</span>
+      <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Article</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
+      <span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
+    <span class="p">)</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">byline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+       <span class="sa">f</span><span class="s2">"Written by </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> "</span>
+       <span class="sa">f</span><span class="s2">"on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">'%b </span><span class="si">%d</span><span class="s1">, %Y'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">publish</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">is_draft</span> <span class="o">=</span> <span class="kc">False</span>
+
+</code></pre>
+</div>

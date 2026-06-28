@@ -1,0 +1,47 @@
+<div {{ attrs.render(class="highlight lang-python") }}>
+<span class="filename">myapp/controllers/controller_article.py</span>
+<pre><code><details><summary><span class="c"># imports</span></summary><span class="kn">from</span><span class="w"> </span><span class="nn">proper.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">NotFound</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..forms.article</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArticleForm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Article</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..router</span><span class="w"> </span><span class="kn">import</span> <span class="n">router</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.app_controller</span><span class="w"> </span><span class="kn">import</span> <span class="n">AppController</span>
+
+</details>
+<span class="nd">@router</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s2">"articles"</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ArticleController</span><span class="p">(</span><span class="n">AppController</span><span class="p">):</span>
+  <span class="n">before</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">"do"</span><span class="p">:</span><span class="s2">"set_article"</span><span class="p">,</span> <span class="s2">"exclude"</span><span class="p">:</span><span class="p">[</span><span class="s2">"index"</span><span class="p">,</span><span class="s2">"new"</span><span class="p">,</span><span class="s2">"create"</span><span class="p">]},</span>
+    <span class="p">{</span><span class="s2">"do"</span><span class="p">:</span><span class="s2">"set_form"</span><span class="p">,</span> <span class="s2">"exclude"</span><span class="p">:</span><span class="p">[</span><span class="s2">"index"</span><span class="p">,</span><span class="s2">"show"</span><span class="p">,</span><span class="s2">"delete"</span><span class="p">]},</span>
+    <span class="p">{</span><span class="s2">"do"</span><span class="p">:</span><span class="s2">"validate_form"</span><span class="p">,</span> <span class="s2">"only"</span><span class="p">:</span><span class="p">[</span><span class="s2">"create"</span><span class="p">,</span><span class="s2">"update"</span><span class="p">]},</span>
+  <span class="p">]</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">articles</span> <span class="o">=</span> <span class="n">Article</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">published</span><span class="p">()</span><span class="o">.</span><span class="n">recent</span><span class="p">()</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">is_draft</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">NotFound</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">new</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">edit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">article</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">redirect_to</span><span class="p">(</span><span class="s2">"Article.show"</span><span class="p">,</span> <span class="n">article</span><span class="p">)</span>
+
+  <span class="c1"># Private</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">set_article</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">article_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"article_id"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">article</span> <span class="o">=</span> <span class="n">Article</span><span class="o">.</span><span class="n">get_or_none</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">article_id</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">article</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">NotFound</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="nf">set_form</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"article"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="n">ArticleForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+
+</code></pre>
+</div>

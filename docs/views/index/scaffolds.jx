@@ -1,0 +1,33 @@
+<section class="section" id="scaffolds">
+  <div class="section-inner scaffolds-inner">
+    <div class="cmd">
+<span class="p">$</span> proper g resource Post title:str body:text
+
+<span class="h">create</span> tests/test_post.py
+<span class="s">skipped</span> demo/router.py
+<span class="h">create</span> demo/forms/post.py
+<span class="h">create</span> demo/controllers/post_controller.py
+<span class="a">append</span> demo/controllers/__init__.py
+<span class="h">create</span> demo/views/post/
+<span class="h">create</span> demo/views/post/form.jx
+<span class="h">create</span> demo/views/post/index.jx
+<span class="h">create</span> demo/views/post/new.jx
+<span class="h">create</span> demo/views/post/edit.jx
+<span class="h">create</span> demo/views/post/show.jx
+<span class="a">append</span> demo/models/__init__.py
+<span class="h">create</span> demo/models/post.py
+    </div>
+    <div class="scaffolds-copy">
+      <h2 class="section-title"><em>Scaffolds</em>, <br />not snippets</h2>
+      <p>
+        Copy-paste is a tax on attention. Proper's generators produce
+        complete, idiomatic, pre-tested files - so you read, not reassemble.
+      </p>
+      <p>
+        One command turns a resource into a model, controller, views, tests,
+        and routes - wired together and ready to run.
+      </p>
+      <p><em class="narr">- Almost suspicious, really.</em></p>
+    </div>
+  </div>
+</section>

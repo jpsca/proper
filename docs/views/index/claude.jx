@@ -1,0 +1,35 @@
+<section class="section claude" id="claude">
+  <div class="section-inner claude-inner">
+    <div>
+      <div class="claude-tag">For AI Agents</div>
+      <h2 class="claude-h">
+        Build a Proper app, side&nbsp;by&nbsp;side with AI.
+      </h2>
+      <p class="claude-p">
+        Drop the Proper skill into your skills folder and your AI agent will
+        scaffold, edit, and refactor your app the Proper way:
+        convention-aware, generator-first, idiomatic from the start.
+      </p>
+      <p class="claude-p" style="color: var(--ink-3); font-size: 14px">
+        Installed in your home folder, skills apply across every AI agent
+        session.
+      </p>
+    </div>
+    <div class="cmd">
+<span class="c"># Step one: download the skill.</span>
+<span class="p">$ </span>mkdir -p ~/.claude/skills
+<span class="p">$ </span>curl -LsSf https://properproject/skill.zip -o
+~/.claude/skills/
+
+<span class="c"># Step two: open your project.</span>
+<span class="p">$ </span>cd myapp
+
+<span class="c"># Step three: ask, plainly, for a thing.</span>
+<span class="p">$ </span>claude
+<span class="h">───────────────</span>
+<span class="h">› </span>add an OAuth login
+
+<span class="c"># Step four: You are the one in charge</span>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,18 @@
+<div {{ attrs.render(class="highlight lang-html+jinja") }}>
+<span class="filename">myapp/views/article/show.jx</span>
+<pre><code>{% raw %}<span class="c">{#import "layouts/app.jx" as Layout #}</span>
+<span class="c">{#def article #}</span>
+
+<span class="p">&lt;</span><span class="nt">Layout</span> <span class="na">title</span><span class="o">=</span><span class="s">"Room"</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span><span class="cp">{{</span> <span class="nv">article.title</span> <span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">"</span><span class="cp">{{</span> <span class="nv">article.cover_image.url</span> <span class="cp">}}</span><span class="s">"</span>
+       <span class="na">alt</span><span class="o">=</span><span class="s">"</span><span class="cp">{{</span> <span class="nv">article.title</span> <span class="cp">}}</span><span class="s">"</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="cp">{{</span> <span class="nv">article.content</span> <span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+
+  <span class="cp">{%</span> <span class="k">if</span> <span class="nv">current.user.is_admin</span> -<span class="cp">%}</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">"</span><span class="cp">{{</span> <span class="nv">url_for</span><span class="o">(</span><span class="s1">'Article.edit'</span><span class="o">,</span> <span class="nv">article</span><span class="o">)</span> <span class="cp">}}</span><span class="s">"</span><span class="p">&gt;</span>Edit<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="cp">{%</span> <span class="k">endif</span> <span class="cp">%}</span>
+<span class="p">&lt;/</span><span class="nt">Layout</span><span class="p">&gt;</span>
+{% endraw %}
+</code></pre>
+</div>
