@@ -2,6 +2,7 @@ from .authentication import Authentication
 from .concern import Concern
 from .current_locale import CurrentLocale
 from .current_timezone import CurrentTimezone
+from .form_validation import FormValidation
 from .origin_protection import OriginProtection
 from .pagination.concern import Pagination
 from .rate_limiting import RateLimiting
@@ -19,6 +20,7 @@ __all__ = (
     "Concern",
     "CurrentLocale",
     "CurrentTimezone",
+    "FormValidation",
     "OriginProtection",
     "Pagination",
     "RateLimiting",

@@ -73,7 +73,7 @@ test = [
     "smtpdfix",
 ]
 docs = [
-    "writeadoc>=0.23.0",
+    "writeadoc>=0.25.0",
 ]
 
 [tool.setuptools.packages.find]

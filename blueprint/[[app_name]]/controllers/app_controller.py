@@ -1,7 +1,6 @@
 from proper import Controller
-from proper.concerns import OriginProtection, Pagination, RateLimiting
+from proper.concerns import FormValidation, OriginProtection, Pagination, RateLimiting
 
-from .concerns.form_validation import FormValidation
 from .concerns.security_headers import SecurityHeaders
 
 

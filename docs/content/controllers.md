@@ -26,8 +26,7 @@ After the [router](/docs/routing) has matched a controller to an incoming reques
 
 Controllers live in `myapp/controllers/`, one class per file. Each class inherits from `AppController`:
 
-```python
-# myapp/controllers/card_controller.py
+```python {title="myapp/controllers/card_controller.py"}
 from ..router import router
 from ..models import Card
 from .app_controller import AppController
@@ -135,8 +134,7 @@ The generator wires up `__init__.py` imports, picks the right route names, creat
 
 Let's look at what `proper g resource Card title:str body:text` produces, simplified slightly:
 
-```python
-# myapp/controllers/card_controller.py
+```python {title="myapp/controllers/card_controller.py"}
 from proper.errors import NotFound
 
 from ..forms.card import CardForm
@@ -167,16 +165,19 @@ class CardController(AppController):
 
     def create(self):
         card = self.form.save()
-        self.response.redirect_to("Card.show", card, flash="Card was created")
+        self.response.redirect_to("Card.show", card,
+            flash="Card was created")
 
     def update(self):
         card = self.form.save()
-        self.response.redirect_to("Card.show", card, flash="Card was updated")
+        self.response.redirect_to("Card.show", card,
+            flash="Card was updated")
 
     def delete(self):
         if self.card:
             self.card.delete_instance()
-        self.response.redirect_to("Card.index", flash="Card was deleted")
+        self.response.redirect_to("Card.index",
+            flash="Card was deleted")
 
     # Private
 

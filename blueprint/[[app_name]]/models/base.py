@@ -9,3 +9,5 @@ db = app.db["main"]
 class BaseModel(ProperModel):
     class Meta:
         database = app.db["main"]
+
+    created_at = db.DateTimeField(default=pw.utcnow)

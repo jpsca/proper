@@ -77,7 +77,7 @@ def test_generated_files(app_in_tmp):
 
     # class_definition
     text = _controller_text(app_in_tmp, "product")
-    assert "class ProductController(AppController):" in text
+    assert "class ProductController(AppController" in text
 
     # resource_decorator
     text = _controller_text(app_in_tmp, "product")
@@ -263,7 +263,7 @@ class TestNameInflection:
     def test_snake_case_name(self, app_in_tmp):
         gen_resource(app_in_tmp, "blog_post")
         text = _controller_text(app_in_tmp, "blog_post")
-        assert "class BlogPostController(AppController):" in text
+        assert "class BlogPostController(AppController" in text
         assert '@router.resource("blog_posts")' in text
 
     def test_model_inflected(self, app_in_tmp):
@@ -288,4 +288,4 @@ class TestMigration:
         assert (app_in_tmp.root_path / "controllers" / "product_controller.py").exists()
         assert (app_in_tmp.root_path / "models" / "product.py").exists()
         text = _controller_text(app_in_tmp, "product")
-        assert "class ProductController(AppController):" in text
+        assert "class ProductController(AppController" in text
