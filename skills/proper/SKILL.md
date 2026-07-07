@@ -62,6 +62,7 @@ Controller  ──────────────  receives the request, ru
 
 | Task | Read | Run |
 |------|------|-----|
+| Create a new app from scratch | [app.md — Setup](app.md#setup) | `uvx proper_new myapp` |
 | Add only a model | [models.md](models.md) | `proper g model NAME attrs...` |
 | Add seed data (default roles, reference rows) | [models.md — Seeds](models.md#seeds) | `proper g seed NAME` then `proper db seed` |
 | Add an email | [emails.md](emails.md) | `proper g email NAME` |
@@ -88,6 +89,15 @@ Controller  ──────────────  receives the request, ru
 ## Standard Workflow
 
 This is the typical sequence for adding a new feature that involves a database-backed resource.
+
+### Creating a new app
+
+The first step for any new Proper app. Requires `uv`/`uvx` ([install guide](https://docs.astral.sh/uv/getting-started/installation/)).
+
+1. **Scaffold** — `uvx proper_new myapp` (generates the full project: `config/`, `controllers/`, `models/`, `views/`, `forms/`, `router.py`, `db/`, `tests/`)
+2. **Enter the project** — `cd myapp`
+3. **Verify the baseline** — `uv run pytest`
+4. Add your first resource (see below)
 
 ### Adding a resource (model + controller + views)
 
