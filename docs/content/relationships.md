@@ -887,11 +887,11 @@ class User(BaseModel):
     email = pw.CharField(unique=True)
 
     @scope
-    def with_article_count(query):
+    def with_article_count(cls, query):
         return (
-            query.select(User, pw.fn.COUNT(Article.id).alias("article_count"))
+            query.select(cls, pw.fn.COUNT(Article.id).alias("article_count"))
             .join(Article, pw.JOIN.LEFT_OUTER)
-            .group_by(User.id)
+            .group_by(cls.id)
         )
 ```
 

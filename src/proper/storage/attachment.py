@@ -8,7 +8,7 @@ import typing as t
 from fnmatch import fnmatch
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import peewee as pw
 from inflection import parameterize
@@ -32,7 +32,7 @@ DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
 
 class _Attachment(ProperModel):
-    id: UUID
+    id: str
     service_name: str
     filename: str
     content_type: str
@@ -207,7 +207,7 @@ class _Attachment(ProperModel):
             content_type=content_type,
             byte_size=byte_size,
         )
-        obj.id = uuid4()
+        obj.id = uuid4().hex
         obj.source = source
         obj.pending = True
         obj.save(force_insert=True)
@@ -219,7 +219,7 @@ class _Attachment(ProperModel):
             # has no `default=uuid4` so `att.id` is None until this point -
             # see the field declaration above for rationale).
             if not self.id:
-                self.id = uuid4()
+                self.id = uuid4().hex
             self.service.upload(self._upload, self)
             self._upload = None
             # We just populated the PK ourselves, so peewee would otherwise
@@ -594,7 +594,7 @@ def attachment_for(
         # Fresh per-subclass dict for the service-instance cache.
         _services: t.ClassVar[dict[str, Service]] = {}
 
-        id: UUID = pw.UUIDField(primary_key=True)  # type: ignore
+        id: str = pw.CharField(32, primary_key=True)  # type: ignore
         service_name: str = pw.CharField(64)  # type: ignore
         filename: str = pw.CharField(255, default="")  # type: ignore
         content_type: str = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)  # type: ignore

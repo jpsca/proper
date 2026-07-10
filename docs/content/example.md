@@ -21,14 +21,14 @@ class Article(BaseModel, HasRichText):
   )
 
   @scope
-  def published(query):
-    return query.where(Article.is_draft==False)
+  def published(cls, query):
+    return query.where(cls.is_draft==False)
 
   @scope
-  def recent(query):
+  def recent(cls, query):
     return (
       query
-      .order_by(Article.created_at.desc())
+      .order_by(cls.created_at.desc())
       .limit(25)
     )
   

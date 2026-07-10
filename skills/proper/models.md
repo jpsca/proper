@@ -699,7 +699,7 @@ Scopes are reusable query fragments you can chain onto `select()`. They work lik
 
 ### Defining Scopes
 
-Import `scope` from `proper` (it's already exported in `base.py`) and decorate query methods. The first argument is the query, not `self`:
+Import `scope` from `proper` (it's already exported in `base.py`) and decorate class methods. The first argument is the model class and the second is the query:
 
 ```python
 import peewee as pw
@@ -715,24 +715,24 @@ class Article(BaseModel):
     created_at = pw.DateTimeField()
 
     @scope
-    def published(query):
-        return query.where(Article.status == "published")
+    def published(cls, query):
+        return query.where(cls.status == "published")
 
     @scope
-    def popular(query, min_views=1000):
-        return query.where(Article.views >= min_views)
+    def popular(cls, query, min_views=1000):
+        return query.where(cls.views >= min_views)
 
     @scope
-    def in_category(query, cat):
-        return query.where(Article.category == cat)
+    def in_category(cls, query, cat):
+        return query.where(cls.category == cat)
 
     @scope
-    def recent(query):
-        return query.order_by(Article.created_at.desc())
+    def recent(cls, query):
+        return query.order_by(cls.created_at.desc())
 
     @scope
-    def top(query, n=10):
-        return query.order_by(Article.views.desc()).limit(n)
+    def top(cls, query, n=10):
+        return query.order_by(cls.views.desc()).limit(n)
 ```
 
 ### Using Scopes

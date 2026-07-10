@@ -47,7 +47,6 @@ class ScopedSelect(pw.ModelSelect):
 
 
 def scope(fn):
-    """Tag a method as a scope."""
+    """Tag a class method as a scope."""
     fn._is_scope = True
-    return fn
-
+    return classmethod(fn)

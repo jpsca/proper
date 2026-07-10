@@ -489,7 +489,7 @@ Article.select().published().recent()
 
 ### Defining Scopes
 
-Import `scope` from `proper` (it's already available in `base.py`) and decorate methods on your model. The first argument is the query - not `self`:
+Import `scope` from `proper` (it's already available in `base.py`) and decorate class methods on your model. The first argument is the model class and the second is the query:
 
 ```python
 # models/article.py
@@ -506,28 +506,28 @@ class Article(BaseModel):
     created_at = pw.DateTimeField(default=pw.utcnow)
 
     @scope
-    def published(query):
-        return query.where(Article.status == "published")
+    def published(cls, query):
+        return query.where(cls.status == "published")
 
     @scope
-    def draft(query):
-        return query.where(Article.status == "draft")
+    def draft(cls, query):
+        return query.where(cls.status == "draft")
 
     @scope
-    def popular(query, min_views=1000):
-        return query.where(Article.views >= min_views)
+    def popular(cls, query, min_views=1000):
+        return query.where(cls.views >= min_views)
 
     @scope
-    def in_category(query, cat):
-        return query.where(Article.category == cat)
+    def in_category(cls, query, cat):
+        return query.where(cls.category == cat)
 
     @scope
-    def recent(query):
-        return query.order_by(Article.created_at.desc())
+    def recent(cls, query):
+        return query.order_by(cls.created_at.desc())
 
     @scope
-    def top(query, n=10):
-        return query.order_by(Article.views.desc()).limit(n)
+    def top(cls, query, n=10):
+        return query.order_by(cls.views.desc()).limit(n)
 ```
 
 Scopes can accept arguments (like `popular(min_views=1000)`) or use sensible defaults.

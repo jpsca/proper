@@ -14,24 +14,24 @@ def Article(db, BaseModel):
         category = pw.CharField(default="general")
 
         @scope
-        def published(query):
-            return query.where(Article.status == "published")
+        def published(cls, query):
+            return query.where(cls.status == "published")
 
         @scope
-        def draft(query):
-            return query.where(Article.status == "draft")
+        def draft(cls, query):
+            return query.where(cls.status == "draft")
 
         @scope
-        def popular(query, min_views=1000):
-            return query.where(Article.views >= min_views)
+        def popular(cls, query, min_views=1000):
+            return query.where(cls.views >= min_views)
 
         @scope
-        def in_category(query, cat):
-            return query.where(Article.category == cat)
+        def in_category(cls, query, cat):
+            return query.where(cls.category == cat)
 
         @scope
-        def top(query, n=10):
-            return query.order_by(Article.views.desc()).limit(n)
+        def top(cls, query, n=10):
+            return query.order_by(cls.views.desc()).limit(n)
 
     db.create_tables([Article])
     return Article
@@ -45,16 +45,16 @@ def User(db, BaseModel):
         role = pw.CharField(default="user")
 
         @scope
-        def active(query):
-            return query.where(User.is_active == True)  # noqa: E712
+        def active(cls, query):
+            return query.where(cls.is_active == True)  # noqa: E712
 
         @scope
-        def admins(query):
-            return query.where(User.role == "admin")
+        def admins(cls, query):
+            return query.where(cls.role == "admin")
 
         @scope
-        def by_name(query):
-            return query.order_by(User.username)
+        def by_name(cls, query):
+            return query.order_by(cls.username)
 
     db.create_tables([User])
     return User
@@ -69,12 +69,12 @@ def Comment(db, BaseModel, Article, User):
         approved = pw.BooleanField(default=False)
 
         @scope
-        def approved_only(query):
-            return query.where(Comment.approved == True)  # noqa: E712
+        def approved_only(cls, query):
+            return query.where(cls.approved == True)  # noqa: E712
 
         @scope
-        def pending(query):
-            return query.where(Comment.approved == False)  # noqa: E712
+        def pending(cls, query):
+            return query.where(cls.approved == False)  # noqa: E712
 
     db.create_tables([Comment])
     return Comment
@@ -84,6 +84,10 @@ class TestScope:
     def test_select_returns_scoped_select(self, Article):
         query = Article.select()
         assert isinstance(query, ScopedSelect)
+
+    def test_scope_is_classmethod(self, Article):
+        assert isinstance(Article.__dict__["published"], classmethod)
+        assert Article.published.__self__ is Article
 
     def test_single_scope(self, Article):
         Article.create(title="A", status="published")

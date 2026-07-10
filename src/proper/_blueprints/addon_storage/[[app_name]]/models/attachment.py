@@ -2,6 +2,8 @@ from ..main import app
 from .base import BaseModel
 
 
+# app.attachment_for(BaseModel) must always come first in the inheritance list,
+# otherwise the attachment functionality will not work.
 class Attachment(app.attachment_for(BaseModel)):
     # You can add any extra fields here, like:
     # user = pw.ForeignKeyField(User, null=True)

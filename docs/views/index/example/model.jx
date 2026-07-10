@@ -21,14 +21,14 @@
   <span class="p">)</span>
 
   <span class="nd">@scope</span>
-  <span class="k">def</span><span class="w"> </span><span class="nf">published</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Article</span><span class="o">.</span><span class="n">is_draft</span><span class="o">==</span><span class="kc">False</span><span class="p">)</span>
+  <span class="k">def</span><span class="w"> </span><span class="nf">published</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">is_draft</span><span class="o">==</span><span class="kc">False</span><span class="p">)</span>
 
   <span class="nd">@scope</span>
-  <span class="k">def</span><span class="w"> </span><span class="nf">recent</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
+  <span class="k">def</span><span class="w"> </span><span class="nf">recent</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span>
       <span class="n">query</span>
-      <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Article</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
+      <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
       <span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
     <span class="p">)</span>
 

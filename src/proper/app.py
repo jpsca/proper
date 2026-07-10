@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import os
 import sys
 import types
 import typing as t
@@ -133,6 +134,7 @@ class App(AppWs):
         *,
         middleware: "Sequence[Callable]" = (),
     ) -> None:
+        self.env = os.getenv("APP_ENV", "dev")
         self.config = load_config(config or {})
         self._setup_paths(import_name)
         self.router = Router()
