@@ -27,16 +27,13 @@ Usage:
 ```
 */
 const parser = new DOMParser();
-const initialized = new WeakSet();
 
 function initNestedForm(root) {
-  if (initialized.has(root)) return;
-
   const target = root.querySelector('[data-nestedform-target]');
   const template = root.querySelector('[data-nestedform-template]');
   const wrapperSelector = root.dataset.wrapperSelector || ".nestedform";
 
-  root.addEventListener("click", (e) => {
+  function onClick(e){
     const addBtn = e.target.closest("[data-nestedform-add]");
     if (addBtn) {
       e.preventDefault();
@@ -75,10 +72,13 @@ function initNestedForm(root) {
 
       root.dispatchEvent(new CustomEvent("nestedform:remove", { bubbles: true }));
     }
-  });
-  initialized.add(root);
+  };
+
+  console.log("initNestedForm", root);
+  root.removeEventListener("click", onClick);
+  root.addEventListener("click", onClick);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("turbo:load", function() {
   document.querySelectorAll("[data-nestedform]").forEach(initNestedForm);
 });
