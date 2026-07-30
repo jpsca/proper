@@ -89,7 +89,6 @@ def gen_controller(
     proper g controller NAME
         [--only=action[,action]] [--exclude=action[,action]]
         [--namespace=NS_NAME] [--pk=object_id] [--singular]
-        [attrs...]
 
     Arguments:
         name:

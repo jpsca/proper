@@ -225,6 +225,15 @@ STORAGE_ALLOWED_VARIANTS = [
 ]
 
 STORAGE_FALLBACK_FORMAT = "png"
+
+STORAGE_SAFE_IMAGE_LOADERS = [
+    "VipsForeignLoadJpeg",
+    "VipsForeignLoadPng",
+    "VipsForeignLoadWebp",
+    "VipsForeignLoadNsgif",  # GIF
+    "VipsForeignLoadTiff",
+    "VipsForeignLoadHeif",  # HEIC / AVIF
+]
 ```
 
 `STORAGE_ALLOWED_INLINE` is a list of glob patterns (matched with `fnmatch`) for content types that should be served inline in the browser. `<img>` shows the image, `<video>` plays the video, the PDF opens in the browser viewer. Anything not matched is served with `Content-Disposition: attachment`, triggering a download dialog.
@@ -232,6 +241,12 @@ STORAGE_FALLBACK_FORMAT = "png"
 `STORAGE_ALLOWED_VARIANTS` is a list of glob patterns for source content types whose format should be **preserved** when generating a variant. A source PNG produces a PNG variant; a source JPEG produces a JPEG variant. Add `image/webp` or `image/avif` if your application produces those.
 
 `STORAGE_FALLBACK_FORMAT` is the format used for variants whose source content type is *not* in `STORAGE_ALLOWED_VARIANTS`. The default is `"png"` (lossless, supports transparency). Set it to `"jpg"` or `"webp"` if smaller files matter more than fidelity. A caller-supplied `save={"format": "..."}` always overrides both rules - see [Format Conversion](#format-conversion).
+
+`STORAGE_SAFE_IMAGE_LOADERS` is the list of image decoders Proper will let libvips use when it builds a variant. Variants are made from files your users upload, and the *content* of a file decides which decoder runs - not its name or declared type. Some decoders are unsafe on hostile input: the SVG decoder can be tricked into reading files off your server, and the ImageMagick one can be pushed further still. Proper blocks every decoder except the ones on this list, so a booby-trapped upload can't reach an unsafe one. The default covers the common web formats (JPEG, PNG, WebP, GIF, TIFF, HEIC/AVIF). Add an entry only if you truly need another format - for example `"VipsForeignLoadJxl"` for JPEG-XL.
+
+:::note | PDF and video previews are unaffected
+This list only governs libvips image decoders. PDF and video previews are rendered to an image by the `pdftoppm` and `ffmpeg` command-line tools, so leaving those decoders off the list does **not** disable previews.
+:::
 
 ---
 

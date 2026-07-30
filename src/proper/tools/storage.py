@@ -1,4 +1,5 @@
 from ..errors import ConfigError
+from ..storage.imageops import SAFE_LOADERS, restrict_loaders
 
 
 DEFAULT_CONFIG = {
@@ -28,6 +29,12 @@ DEFAULT_CONFIG = {
         "video/*",
         "application/pdf",
     ),
+    # libvips image loaders allowed when generating variants. Every other
+    # loader is blocked, so a malicious upload can't reach an unsafe loader
+    # (the SVG loader reads local files, the ImageMagick delegate opens the
+    # door to RCE, ...). Add a loader class prefix to enable more formats,
+    # e.g. "VipsForeignLoadJxl" for JPEG-XL.
+    "STORAGE_SAFE_IMAGE_LOADERS": SAFE_LOADERS,
 }
 
 
@@ -38,6 +45,7 @@ def setup(app):
     for name, value in DEFAULT_CONFIG.items():
         app.config.setdefault(name, value)
     validate_config(app.config)
+    restrict_loaders(app.config["STORAGE_SAFE_IMAGE_LOADERS"])
 
 
 def validate_config(config):

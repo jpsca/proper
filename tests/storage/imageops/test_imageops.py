@@ -3,7 +3,13 @@ from pathlib import Path
 import pytest
 import pyvips
 
-from proper.storage.imageops import blur, grayscale, sepia, transform_image
+from proper.storage.imageops import (
+    blur,
+    grayscale,
+    restrict_loaders,
+    sepia,
+    transform_image,
+)
 
 
 HERE = Path(__file__).parent.absolute()
@@ -189,3 +195,60 @@ def test_preserves_alpha(rgba_image):
     result = blur(rgba_image, 1.5)
     assert result.bands == 4
     assert result.hasalpha()
+
+
+# --- imageops - loader allowlist (CVE-2026-66066 class) ---
+#
+# Importing `proper.storage.imageops` locks libvips down to the safe raster
+# loaders, so these run against the module-level restriction with no setup.
+
+
+# A malicious SVG that reads a local file via an external reference. With the
+# SVG loader available this leaks /etc/passwd into the rendered variant.
+MALICIOUS_SVG = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" '
+    b'xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100">'
+    b'<image xlink:href="file:///etc/passwd" width="100" height="100"/>'
+    b"</svg>"
+)
+
+
+def test_safe_loader_still_works():
+    # A real PNG uses an allowlisted loader and transforms normally.
+    png = pyvips.Image.black(4, 4).cast("uchar").write_to_buffer(".png")
+    imbytes = transform_image(png, resize_to_fit=(2, 2))
+    image = pyvips.Image.new_from_buffer(imbytes, "")
+    assert [image.width, image.height] == [2, 2]
+
+
+def test_untrusted_svg_loader_is_blocked():
+    # The SVG loader is untrusted and blocked, so the malicious buffer is
+    # rejected before it can resolve the local-file reference.
+    with pytest.raises(pyvips.Error):
+        transform_image(MALICIOUS_SVG, resize_to_fit=(2, 2))
+
+
+def test_untrusted_ppm_loader_is_blocked():
+    # PPM is a fuzzed-but-unwanted loader that the allowlist also excludes.
+    ppm = b"P6\n1 1\n255\n\x00\x00\x00"
+    with pytest.raises(pyvips.Error):
+        transform_image(ppm, resize_to_fit=(2, 2))
+
+
+@pytest.fixture()
+def _restore_loaders():
+    # Loader block state is process-global; restore the default afterwards.
+    yield
+    restrict_loaders()
+
+
+def test_restrict_loaders_custom_allowlist(_restore_loaders):
+    # A narrower allowlist (PNG only) is honored: JPEG can no longer be loaded.
+    png = pyvips.Image.black(2, 2).cast("uchar").write_to_buffer(".png")
+    jpg = pyvips.Image.black(2, 2).cast("uchar").write_to_buffer(".jpg")
+
+    restrict_loaders(("VipsForeignLoadPng",))
+
+    pyvips.Image.new_from_buffer(png, "").avg()  # still allowed
+    with pytest.raises(pyvips.Error):
+        pyvips.Image.new_from_buffer(jpg, "").avg()

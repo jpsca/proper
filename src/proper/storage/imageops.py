@@ -12,6 +12,50 @@ except (ImportError, OSError):
     pyvips = None  # type: ignore
 
 
+# libvips can decode many formats through third-party loaders, several of
+# which are unsafe on untrusted input: the SVG loader resolves external
+# references (`<image href="file:///etc/passwd">` reads local files), and the
+# ImageMagick delegate widens the surface all the way to remote code
+# execution. libvips flags these as "untrusted".
+#
+# Variants are generated from user-uploaded files, and `transform_image`
+# loads with format auto-detection, so the *bytes* pick the loader -- not the
+# extension or declared content type. We lock loading to an allowlist of
+# well-fuzzed raster loaders and block everything else at the libvips level,
+# so a malicious upload can't reach a risky loader even if its bytes match one.
+SAFE_LOADERS = (
+    "VipsForeignLoadJpeg",
+    "VipsForeignLoadPng",
+    "VipsForeignLoadWebp",
+    "VipsForeignLoadNsgif",  # GIF
+    "VipsForeignLoadTiff",
+    "VipsForeignLoadHeif",  # HEIC / AVIF
+)
+
+
+def restrict_loaders(loaders: "t.Iterable[str]" = SAFE_LOADERS) -> None:
+    """Block every libvips loader except the given allowlist.
+
+    `loaders` is a sequence of libvips loader *class-name prefixes* (e.g.
+    "VipsForeignLoadJpeg", which covers its File/Buffer/Source variants).
+
+    libvips block state is process-global, so this only needs to run once. It
+    runs at import with the safe default, and the storage tool re-applies it
+    from the `STORAGE_SAFE_IMAGE_LOADERS` config at app setup, so an app can
+    widen or narrow the allowlist. PDF and video previews are unaffected:
+    those formats are rendered to PNG by the `pdftoppm`/`ffmpeg` CLIs, never
+    by a libvips loader.
+    """
+    if pyvips is None or not hasattr(pyvips, "operation_block_set"):
+        return
+    pyvips.operation_block_set("VipsForeignLoad", True)
+    for loader in loaders:
+        pyvips.operation_block_set(loader, False)
+
+
+restrict_loaders()
+
+
 if t.TYPE_CHECKING:
     from collections.abc import Callable
 

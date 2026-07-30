@@ -47,3 +47,16 @@ STORAGE_ALLOWED_INLINE = [
     "video/*",
     "application/pdf",
 ]
+
+# libvips image loaders allowed when generating variants. Every other loader
+# is blocked, so a malicious upload can't reach an unsafe loader (the SVG
+# loader reads local files, the ImageMagick delegate opens the door to RCE).
+# Add a loader class prefix to enable more formats, e.g. "VipsForeignLoadJxl".
+STORAGE_SAFE_IMAGE_LOADERS = [
+    "VipsForeignLoadJpeg",
+    "VipsForeignLoadPng",
+    "VipsForeignLoadWebp",
+    "VipsForeignLoadNsgif",  # GIF
+    "VipsForeignLoadTiff",
+    "VipsForeignLoadHeif",  # HEIC / AVIF
+]
