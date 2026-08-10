@@ -1,8 +1,8 @@
-----
+---
 title: View Helpers
 description:
 number_headers: true
-----
+---
 
 # View Helpers
 

@@ -39,7 +39,7 @@
     <main class="main">
       <Sidebar />
       <div class="page">
-        {% if page.url != "/" -%}<PageNav />{% endif %}
+        {% if page.url != build.base_url -%}<PageNav />{% endif %}
         <BannerArchived />
         {{ content }}
       </div>

@@ -1,9 +1,6 @@
 [build-system]
 requires = ["setuptools"]
 
-# [tool.uv.sources]
-# writeadoc = { path = "../writeadoc", editable = true }
-
 [project]
 name = "proper"
 version = "0.23.0"
@@ -73,7 +70,7 @@ test = [
     "smtpdfix",
 ]
 docs = [
-    "writeadoc>=0.25.0",
+    "writeadoc>=0.28.0",
 ]
 
 [tool.setuptools.packages.find]
