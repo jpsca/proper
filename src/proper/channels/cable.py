@@ -33,6 +33,9 @@ if t.TYPE_CHECKING:
 
 __all__ = ("Cable", "RedisCable")
 
+# Longest the Redis listener waits between attempts to reconnect.
+MAX_RECONNECT_DELAY = 30
+
 
 class Cable:
     def __init__(self) -> None:
@@ -159,38 +162,58 @@ class RedisCable(Cable):
     async def _listen(self) -> None:
         """Background task: subscribe to Redis, deliver messages locally.
 
-        Reconnects with exponential backoff on connection errors.
+        Reconnects whenever the subscription ends, whether it broke or
+        simply finished. A subscription that outlives its own backoff
+        counts as healthy and resets the wait; one that dies sooner than
+        that is flapping, so each retry waits twice as long as the last.
         """
-        delay = 1
-        while True:
-            try:
-                sub = aioredis.from_url(self._url)
-                pubsub = sub.pubsub()
-                self._sub_redis = sub
-                self._pubsub = pubsub
-                await pubsub.psubscribe(self._prefix + "*")
-                logger.info("[cable] Redis listener connected")
-                delay = 1
+        loop = asyncio.get_running_loop()
+        delay = 0
+        try:
+            while True:
+                started = loop.time()
+                try:
+                    sub = aioredis.from_url(self._url)
+                    pubsub = sub.pubsub()
+                    self._sub_redis = sub
+                    self._pubsub = pubsub
+                    await pubsub.psubscribe(self._prefix + "*")
+                    logger.info("[cable] Redis listener connected")
 
-                async for message in pubsub.listen():
-                    if message["type"] == "pmessage":
-                        channel_name = message["channel"]
-                        if isinstance(channel_name, bytes):
-                            channel_name = channel_name.decode()
-                        stream_name = channel_name[len(self._prefix):]
-                        data = jsonplus.loads(message["data"])
-                        self._deliver_local(stream_name, data)
-            except asyncio.CancelledError:
-                break
-            except Exception:
+                    async for message in pubsub.listen():
+                        if message["type"] == "pmessage":
+                            channel_name = message["channel"]
+                            if isinstance(channel_name, bytes):
+                                channel_name = channel_name.decode()
+                            stream_name = channel_name[len(self._prefix):]
+                            data = jsonplus.loads(message["data"])
+                            self._deliver_local(stream_name, data)
+
+                    # `listen()` returned instead of raising: the
+                    # subscription is gone, which is not an error but is
+                    # still a disconnect. Wait before trying again - a
+                    # server that keeps dropping it would otherwise have
+                    # us reconnecting in a tight loop.
+                    reason = "subscription ended"
+                except Exception:
+                    reason = "connection lost"
+
+                lasted = loop.time() - started
+                delay = (
+                    1 if lasted >= delay
+                    else min(delay * 2, MAX_RECONNECT_DELAY)
+                )
+                # Let go of the dead connection before waiting, not after.
+                await self._close_subscriber()
                 logger.warning(
-                    "[cable] Redis connection lost, reconnecting in %ds",
-                    delay,
+                    "[cable] Redis %s, reconnecting in %ds", reason, delay,
                 )
                 await asyncio.sleep(delay)
-                delay = min(delay * 2, 30)
-            finally:
-                await self._close_subscriber()
+        finally:
+            # Cancellation lands here too: `stop()` cancels this task and
+            # `CancelledError` is not an `Exception`, so it passes straight
+            # through the loop above.
+            await self._close_subscriber()
 
     async def _close_subscriber(self) -> None:
         if self._pubsub:

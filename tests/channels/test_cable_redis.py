@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import threading
 import typing as t
 
@@ -35,6 +36,167 @@ def _make_channel(app=None, params=None):
 def cable(redis_url):
     """Create a RedisCable connected to the test Redis."""
     return RedisCable(url=redis_url, prefix="test:cable:")
+
+
+class FlakyPubSub:
+    """A subscription that ends the way the caller asks it to."""
+
+    def __init__(self, server, hold):
+        self.server = server
+        self.hold = hold
+
+    async def psubscribe(self, *patterns):
+        await asyncio.sleep(0)  # real psubscribe does I/O
+
+    async def punsubscribe(self, *patterns):
+        await asyncio.sleep(0)
+
+    async def aclose(self):
+        self.server.closed += 1
+        await asyncio.sleep(0)
+
+    async def listen(self):
+        await asyncio.sleep(self.hold)
+        if self.server.fail:
+            raise ConnectionError("redis went away")
+        # Ends cleanly, exactly as redis-py does once `subscribed` is False.
+        return
+        yield  # pragma: no cover
+
+
+class FlakyRedis:
+    def __init__(self, server):
+        self.server = server
+
+    def pubsub(self):
+        return FlakyPubSub(self.server, self.server.next_hold())
+
+    async def aclose(self):
+        await asyncio.sleep(0)
+
+
+class FlakyServer:
+    """Stands in for a Redis that drops the subscription immediately.
+
+    A real server cannot be asked to misbehave on cue, and this is the
+    only way to reach the reconnect path deterministically.
+    """
+
+    def __init__(self, fail=False, holds=()):
+        self.fail = fail
+        # How long each successive subscription stays up before ending.
+        self.holds = list(holds)
+        self.attempts = 0
+        self.closed = 0
+
+    def next_hold(self):
+        return self.holds.pop(0) if self.holds else 0
+
+    def from_url(self, *args, **kwargs):
+        self.attempts += 1
+        return FlakyRedis(self)
+
+
+@pytest.fixture()
+def flaky_redis(monkeypatch):
+    def install(fail=False, holds=()):
+        server = FlakyServer(fail=fail, holds=holds)
+        monkeypatch.setattr(
+            "proper.channels.cable.aioredis", server, raising=False
+        )
+        return server
+
+    return install
+
+
+def _waits(caplog):
+    """The delays the listener announced, in order."""
+    return [
+        record.getMessage().rsplit(" in ", 1)[1].removesuffix("s")
+        for record in caplog.records
+        if "reconnecting in" in record.getMessage()
+    ]
+
+
+class TestListenerReconnect:
+    """`listen()` ending is a disconnect even when it does not raise."""
+
+    async def test_a_subscription_that_ends_does_not_spin(self, flaky_redis):
+        server = flaky_redis()
+        cable = RedisCable(url="redis://localhost:6379/0", prefix="test:")
+
+        await cable.start()
+        await asyncio.sleep(0.2)
+        await cable.stop()
+
+        # Without the backoff this reconnects tens of thousands of times.
+        assert server.attempts <= 2, f"{server.attempts} reconnects in 0.2s"
+
+    async def test_a_failing_connection_does_not_spin(self, flaky_redis):
+        server = flaky_redis(fail=True)
+        cable = RedisCable(url="redis://localhost:6379/0", prefix="test:")
+
+        await cable.start()
+        await asyncio.sleep(0.2)
+        await cable.stop()
+
+        assert server.attempts <= 2
+
+    async def test_each_wait_is_longer_than_the_last(self, flaky_redis, caplog):
+        """Attempts land at ~0s, ~1s and ~3s. If the delay stayed at 1s
+        there would already be three by 2.2s."""
+        server = flaky_redis(fail=True)
+        cable = RedisCable(url="redis://localhost:6379/0", prefix="test:")
+
+        with caplog.at_level(logging.WARNING, logger="proper"):
+            await cable.start()
+            await asyncio.sleep(2.2)
+            await cable.stop()
+
+        assert server.attempts == 2
+        assert _waits(caplog) == ["1", "2"]
+
+    async def test_a_healthy_connection_resets_the_wait(
+        self, flaky_redis, caplog
+    ):
+        """One quick failure, then a subscription that outlives its own
+        backoff. The wait after it goes back to 1s instead of doubling."""
+        flaky_redis(fail=True, holds=[0, 1.2])
+        cable = RedisCable(url="redis://localhost:6379/0", prefix="test:")
+
+        with caplog.at_level(logging.WARNING, logger="proper"):
+            await cable.start()
+            await asyncio.sleep(2.4)
+            await cable.stop()
+
+        assert _waits(caplog) == ["1", "1"]
+
+    async def test_the_dead_connection_is_dropped_before_waiting(
+        self, flaky_redis
+    ):
+        server = flaky_redis()
+        cable = RedisCable(url="redis://localhost:6379/0", prefix="test:")
+
+        await cable.start()
+        await asyncio.sleep(0.1)
+        # Mid-backoff: nothing should still be held open.
+        assert cable._pubsub is None
+        assert cable._sub_redis is None
+        assert server.closed >= 1
+
+        await cable.stop()
+
+    async def test_cancelling_closes_the_subscriber(self, flaky_redis):
+        flaky_redis(fail=True)
+        cable = RedisCable(url="redis://localhost:6379/0", prefix="test:")
+
+        await cable.start()
+        await asyncio.sleep(0.05)
+        await cable.stop()
+
+        assert cable._pubsub is None
+        assert cable._sub_redis is None
+        assert cable._listener_task is None
 
 
 class TestPublisherClient:
