@@ -1,9 +1,6 @@
-import sys
 import threading
 import time
 import typing as t
-
-import pytest
 
 from proper.app import App
 from proper.channels import Cable, Channel
@@ -14,16 +11,6 @@ class FakeApp:
     def __init__(self):
         self.config = DotDict({"SECRET_KEYS": ["*" * 50], "DEBUG": False})
         self.cable = Cable()
-
-
-@pytest.fixture()
-def fast_switching():
-    """Make the GIL hand off as often as it can, so thread interleavings
-    that are otherwise vanishingly rare actually show up."""
-    previous = sys.getswitchinterval()
-    sys.setswitchinterval(1e-6)
-    yield
-    sys.setswitchinterval(previous)
 
 
 def _make_channel(app=None, params=None):

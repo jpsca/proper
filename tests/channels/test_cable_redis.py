@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import typing as t
 
 import pytest
@@ -34,6 +35,47 @@ def _make_channel(app=None, params=None):
 def cable(redis_url):
     """Create a RedisCable connected to the test Redis."""
     return RedisCable(url=redis_url, prefix="test:cable:")
+
+
+class TestPublisherClient:
+    """The publisher is built on first use, from whichever worker thread
+    happens to broadcast first."""
+
+    def test_concurrent_broadcasts_share_one_client(self, fast_switching):
+        cable = RedisCable()
+        handed_out = []
+        ready = threading.Barrier(8)
+
+        def grab():
+            ready.wait()
+            handed_out.append(cable._get_pub_redis())
+
+        threads = [threading.Thread(target=grab) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        try:
+            assert len(handed_out) == 8
+            # Every thread must have been given the client that is still
+            # installed; anything else was built and thrown away.
+            assert all(client is cable._pub_redis for client in handed_out)
+        finally:
+            for client in set(handed_out):
+                client.close()
+
+    async def test_stop_closes_the_publisher(self):
+        cable = RedisCable()
+        client = cable._get_pub_redis()
+
+        await cable.stop()
+        assert cable._pub_redis is None
+
+        # Restarting is supported, so a later broadcast builds a fresh one.
+        replacement = cable._get_pub_redis()
+        assert replacement is not client
+        replacement.close()
 
 
 class TestRedisCableInit:

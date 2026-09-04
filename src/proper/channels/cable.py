@@ -132,6 +132,11 @@ class RedisCable(Cable):
         self._url = url
         self._prefix = prefix
         self._pub_redis: "redis.Redis | None" = None
+        # Broadcasts reach here from any worker thread. Without this, several
+        # threads race to build the publisher and every connection pool but
+        # the last one is thrown away - and `stop()` only ever closes the
+        # one it happens to find.
+        self._pub_lock = threading.Lock()
         self._sub_redis = None
         self._pubsub = None
         self._listener_task: asyncio.Task | None = None
@@ -142,9 +147,10 @@ class RedisCable(Cable):
         self._get_pub_redis().publish(self._prefix + stream_name, payload)
 
     def _get_pub_redis(self) -> "redis.Redis":
-        if self._pub_redis is None:
-            self._pub_redis = redis.from_url(self._url)
-        return self._pub_redis
+        with self._pub_lock:
+            if self._pub_redis is None:
+                self._pub_redis = redis.from_url(self._url)
+            return self._pub_redis
 
     async def start(self) -> None:
         """Start the Redis pub/sub listener."""
@@ -210,6 +216,7 @@ class RedisCable(Cable):
             except asyncio.CancelledError:
                 pass
             self._listener_task = None
-        if self._pub_redis:
-            self._pub_redis.close()
-            self._pub_redis = None
+        with self._pub_lock:
+            if self._pub_redis:
+                self._pub_redis.close()
+                self._pub_redis = None
