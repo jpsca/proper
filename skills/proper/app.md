@@ -83,7 +83,9 @@ Read the documentation of these libraries to understand how to work with them in
 Proper is an ASGI application. However, the code of the web applications that use Proper (meaning, the code that you write) is
 regular sync python.
 
-The async boundary is handled by the framework: the ASGI entry point receives the request asynchronously, parses the body, then runs the sync pipeline in a thread via `asyncio.to_thread()`.
+The async boundary is handled by the framework: the ASGI entry point receives the request asynchronously, parses the body, then runs the sync pipeline in a thread via `asyncio.to_thread()`. Once the pipeline returns, the response goes back out on the event loop, and file bodies are read one chunk at a time in a worker thread so the loop is never the one waiting on disk.
+
+In DEBUG, the app watches its own event loop and logs a warning, with a stack trace, whenever the loop stays blocked for longer than `LOOP_STALL_WARNING` seconds. A warning means something that belongs in a worker thread is running on the loop instead.
 
 Every request flows through a pipeline in this exact order:
 
@@ -117,7 +119,7 @@ current.request        # The current Request
 current.response       # The current Response
 ```
 
-It uses Python's `contextvars` module, so it's safe for threaded and async environments. Custom attributes can be set on it too. The following attributes are set by the framework and its built-in tools:
+It uses Python's `contextvars` module, so it's safe for threaded and async environments. The context is copied into the pipeline's worker thread, but only in that direction: what a controller sets on `current` is gone once the pipeline returns, so code running back on the event loop cannot read it. Custom attributes can be set on it too. The following attributes are set by the framework and its built-in tools:
 
 | Attribute              | Set by          | Description                                      |
 |------------------------|-----------------|--------------------------------------------------|
@@ -154,6 +156,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `PORT`                     | `2300`            | Port the dev server binds to (used by `app_cli`) |
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
+| `LOOP_STALL_WARNING`       | `0.1`             | In DEBUG, warn when the event loop is blocked for this many seconds (`0` disables) |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |
 | `MAX_FORM_FILES`           | `10`              | Max number of files in a multipart form        |

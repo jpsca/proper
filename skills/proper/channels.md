@@ -18,6 +18,8 @@ The system has three layers:
 
 Channel code is regular sync Python. The framework handles the async boundary the same way it does for HTTP requests: channel methods run in threads via `asyncio.to_thread()`, with database connections managed automatically.
 
+Outbound messages go the other way. Everything a connection sends — `send()`, broadcasts, subscription confirmations — passes through one queue per connection, drained by a single task. That is what keeps messages in the order they were sent, no matter which thread produced them.
+
 ## Table of Contents
 
 - [Installation](#installation)

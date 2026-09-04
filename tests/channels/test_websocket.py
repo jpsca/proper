@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import random
 
 import pytest
 
@@ -766,3 +768,146 @@ class TestSessionAuth:
 
         assert seen["in_subscribed"] is FakeSessionModel.instance
         assert seen["in_action"] is None
+
+
+# --- Outbound delivery ---
+
+
+class SlowAsyncQueue(AsyncQueue):
+    """Like `AsyncQueue`, but `send` suspends before delivering.
+
+    A real ASGI server does the same whenever the transport applies
+    backpressure, which is what pulls concurrent senders out of order.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._rng = random.Random(1234)
+
+    async def send(self, msg):
+        await asyncio.sleep(self._rng.uniform(0, 0.002))
+        await self.from_app.put(msg)
+
+
+class BrokenAsyncQueue(AsyncQueue):
+    """A connection that drops as soon as the app tries to write to it."""
+
+    async def send(self, msg):
+        if msg["type"] == "websocket.send":
+            raise ConnectionResetError("client went away")
+        await self.from_app.put(msg)
+
+
+class TestOutboundDelivery:
+    @pytest.mark.asyncio
+    async def test_broadcasts_arrive_in_the_order_they_were_sent(self, app):
+        class RoomChannel(Channel):
+            def subscribed(self):
+                self.stream_from("room")
+
+        app.router.channels["RoomChannel"] = RoomChannel
+
+        q = SlowAsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "RoomChannel"})
+
+        task = await run_ws(app, q)
+        await q.client_recv()  # accept
+        confirm = jsonplus.loads((await q.client_recv())["text"])
+        assert confirm["type"] == "confirm_subscription"
+
+        total = 25
+        # Broadcast from a worker thread, the way a controller does.
+        await asyncio.to_thread(
+            lambda: [app.cable.broadcast("room", {"n": n}) for n in range(total)]
+        )
+
+        received = [
+            jsonplus.loads((await q.client_recv())["text"])["data"]["n"]
+            for _ in range(total)
+        ]
+        assert received == list(range(total))
+
+        q.client_disconnect()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_queued_messages_are_flushed_before_closing(self, app):
+        class RoomChannel(Channel):
+            def subscribed(self):
+                self.stream_from("room")
+
+        app.router.channels["RoomChannel"] = RoomChannel
+
+        q = SlowAsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "RoomChannel"})
+        # The disconnect is already waiting when the confirm is queued.
+        q.client_disconnect()
+
+        task = await run_ws(app, q)
+        await q.client_recv()  # accept
+        confirm = jsonplus.loads((await q.client_recv())["text"])
+        assert confirm["type"] == "confirm_subscription"
+        await task
+
+    @pytest.mark.asyncio
+    async def test_a_failed_send_is_reported(self, app, caplog):
+        class RoomChannel(Channel):
+            def subscribed(self):
+                self.stream_from("room")
+
+        app.router.channels["RoomChannel"] = RoomChannel
+
+        q = BrokenAsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "RoomChannel"})
+        q.client_disconnect()
+
+        with caplog.at_level(logging.ERROR, logger="proper"):
+            task = await run_ws(app, q)
+            await q.client_recv()  # accept
+            await task
+
+        assert "could not send to the client" in caplog.text
+
+
+class TestRejectedSubscription:
+    @pytest.mark.asyncio
+    async def test_a_rejected_channel_does_not_leak_its_streams(self, app):
+        class GuardedChannel(Channel):
+            def subscribed(self):
+                self.stream_from("guarded")  # set up first...
+                self.reject()  # ...then decide against it
+
+        app.router.channels["GuardedChannel"] = GuardedChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
+        q.client_disconnect()
+
+        task = await run_ws(app, q)
+        await q.client_recv()  # accept
+        rejection = jsonplus.loads((await q.client_recv())["text"])
+        assert rejection["type"] == "reject_subscription"
+        await task
+
+        assert app.cable.streams == {}
+
+    @pytest.mark.asyncio
+    async def test_a_rejected_channel_sends_nothing_to_the_client(self, app):
+        class GuardedChannel(Channel):
+            def subscribed(self):
+                self.send({"secret": "should never arrive"})
+                self.reject()
+
+        app.router.channels["GuardedChannel"] = GuardedChannel
+
+        q = AsyncQueue()
+        q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
+        q.client_disconnect()
+
+        task = await run_ws(app, q)
+        await q.client_recv()  # accept
+        rejection = jsonplus.loads((await q.client_recv())["text"])
+        assert rejection["type"] == "reject_subscription"
+        await task
+
+        assert q.from_app.empty()

@@ -22,6 +22,7 @@ from .core.error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
+from .core.loop_debug import LoopWatchdog, enable_asyncio_debug
 from .core.request import Request
 from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
@@ -127,6 +128,8 @@ class App(AppWs):
     request_cls: type[Request] = Request
     response_cls: type[Response] = Response
 
+    _loop_watchdog: LoopWatchdog | None = None
+
     def __init__(
         self,
         import_name: str,
@@ -194,11 +197,13 @@ class App(AppWs):
                 message = await receive()
                 if message["type"] == "lifespan.startup":
                     logger.info("Application is starting up...")
+                    self._start_loop_debug()
                     await self.cable.start()
                     await send({"type": "lifespan.startup.complete"})
                 elif message["type"] == "lifespan.shutdown":
                     logger.info("Application is shutting down...")
                     await self.cable.stop()
+                    await self._stop_loop_debug()
                     await send({"type": "lifespan.shutdown.complete"})
                     return
                 else:
@@ -314,6 +319,23 @@ class App(AppWs):
 
     # ---- Private ----
 
+    def _start_loop_debug(self) -> None:
+        """In DEBUG, watch the event loop for work that should be running in
+        a worker thread. Under `RUN_SYNC` the pipeline runs on the loop on
+        purpose, so there is nothing to complain about.
+        """
+        threshold = self.config.LOOP_STALL_WARNING
+        if not threshold or not self.config.DEBUG or self.config.get("RUN_SYNC"):
+            return
+        enable_asyncio_debug(threshold)
+        self._loop_watchdog = LoopWatchdog(threshold)
+        self._loop_watchdog.start()
+
+    async def _stop_loop_debug(self) -> None:
+        if self._loop_watchdog is not None:
+            await self._loop_watchdog.stop()
+            self._loop_watchdog = None
+
     def _warn_of_pending_migrations(self):
         if sys.argv[0].endswith("proper") and len(sys.argv) > 1 and sys.argv[1] == "db":
             return
@@ -410,9 +432,16 @@ class App(AppWs):
         if isinstance(body, bytes):
             await send({"type": "http.response.body", "body": body})
         else:
-            # Stream iterables (e.g. FileWrapper) in chunks
+            # Stream iterables (e.g. FileWrapper) in chunks. Reading them
+            # blocks - a `FileWrapper` hits the disk on every `next()` - so
+            # each chunk is pulled in a worker thread. "Sync above, async
+            # below": the loop itself must never wait on a file.
+            chunks = iter(body)
             try:
-                for chunk in body:
+                while True:
+                    chunk = await asyncio.to_thread(next, chunks, None)
+                    if chunk is None:
+                        break
                     await send(
                         {
                             "type": "http.response.body",

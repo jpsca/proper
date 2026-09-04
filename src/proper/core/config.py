@@ -26,6 +26,12 @@ default_config = {
     # like a proxy or web-server, handle the unhandled exceptions.
     "CATCH_ALL_ERRORS": True,
 
+    # In DEBUG, warn when the event loop stays blocked for longer than this
+    # many seconds. Your code runs in worker threads, so the loop should
+    # never be busy for long: a warning means something is running in the
+    # wrong place. Set to 0 to turn the check off.
+    "LOOP_STALL_WARNING": 0.1,
+
     # Limits the total content length (in bytes).
     # Raises a `RequestEntityTooLarge` exception if this value is exceeded.
     "MAX_CONTENT_LENGTH": 8 * MB,
@@ -94,6 +100,8 @@ def normalize_config(config: DotDict) -> DotDict:
     config.DEBUG = bool(config.DEBUG)
     config.CATCH_ALL_ERRORS = bool(config.CATCH_ALL_ERRORS)
     config.SESSION_COOKIE_HTTPONLY = bool(config.SESSION_COOKIE_HTTPONLY)
+
+    config.LOOP_STALL_WARNING = float(config.LOOP_STALL_WARNING)
 
     config.MAX_CONTENT_LENGTH = int(config.MAX_CONTENT_LENGTH)
     config.MAX_QUERY_SIZE = int(config.MAX_QUERY_SIZE)

@@ -1,9 +1,14 @@
 import typing as t
 
 from ...types import TReadable
+from ...units import KB
 
 
 __all__ = ("FileWrapper",)
+
+# Each block costs a hop to a worker thread (the loop must not read from
+# disk itself), so keep them big enough for the hop to be worth it.
+BLOCK_SIZE = 64 * KB
 
 
 class FileWrapper:
@@ -21,7 +26,7 @@ class FileWrapper:
 
     """
 
-    def __init__(self, filelike: TReadable, block_size: int = 8192) -> None:
+    def __init__(self, filelike: TReadable, block_size: int = BLOCK_SIZE) -> None:
         self.filelike = filelike
         self.block_size = block_size
 

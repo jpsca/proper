@@ -417,7 +417,7 @@ class Response(ResponseHeadersMixin):
         value = "attachment" if as_attachment else "inline"
 
         self.headers["content-disposition"] = f"{value}{options}"
-        self.body = FileWrapper(path.open("rb"), block_size=8192)
+        self.body = FileWrapper(path.open("rb"))
 
     def get_cookie_tuples(self) -> list[tuple[str, str]]:
         if self.disable_cookies or not self.cookies:

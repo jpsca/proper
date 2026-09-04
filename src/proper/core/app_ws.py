@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import typing as t
 
 from ..helpers import jsonplus, logger
@@ -11,13 +12,13 @@ if t.TYPE_CHECKING:
     from ..router import Router
 
 
+# Put on the outbox to tell the writer there is nothing more to send.
+_CLOSE = object()
+
+
 def _subscription_key(channel_name: str, params: dict) -> str:
     sorted_params = sorted(params.items())
     return f"{channel_name}:{sorted_params}"
-
-
-def _enqueue_send(loop, ws_send, msg):
-    loop.call_soon_threadsafe(asyncio.ensure_future, ws_send(msg))
 
 
 class AppWs:
@@ -44,11 +45,32 @@ class AppWs:
         await send({"type": "websocket.accept"})
         subscriptions: dict[str, "Channel"] = {}
 
+        # Everything going out to this client passes through one queue,
+        # drained by one task. Channels run in worker threads and hand their
+        # messages over with `call_soon_threadsafe`, so a single consumer is
+        # what keeps them in the order they were sent.
+        outbox: asyncio.Queue = asyncio.Queue()
+
         async def ws_send(msg: dict) -> None:
-            await send({
-                "type": "websocket.send",
-                "text": jsonplus.dumps(msg),
-            })
+            await outbox.put(msg)
+
+        async def writer() -> None:
+            while True:
+                msg = await outbox.get()
+                if msg is _CLOSE:
+                    return
+                try:
+                    await send({
+                        "type": "websocket.send",
+                        "text": jsonplus.dumps(msg),
+                    })
+                except Exception:
+                    # The connection is gone. The receive loop below sees
+                    # the disconnect and takes care of the cleanup.
+                    logger.exception("[cable] could not send to the client")
+                    return
+
+        writer_task = asyncio.create_task(writer())
 
         try:
             while True:
@@ -82,6 +104,7 @@ class AppWs:
                         sub_key=sub_key,
                         subscriptions=subscriptions,
                         ws_send=ws_send,
+                        outbox=outbox,
                         scope=scope,
                     )
                 elif command == "unsubscribe":
@@ -115,6 +138,13 @@ class AppWs:
                         "Error in %s.unsubscribed", channel.channel_name,
                     )
             subscriptions.clear()
+            # Let whatever is already queued reach the client before
+            # closing, then make sure the writer is not left behind.
+            outbox.put_nowait(_CLOSE)
+            try:
+                await writer_task
+            finally:
+                writer_task.cancel()
 
     async def _ws_subscribe(
         self,
@@ -123,6 +153,7 @@ class AppWs:
         sub_key: str,
         subscriptions: dict[str, "Channel"],
         ws_send,
+        outbox: asyncio.Queue,
         scope: TScope,
     ) -> None:
         channel_cls = self.router.channels.get(channel_name)
@@ -135,10 +166,23 @@ class AppWs:
             })
             return
 
-        pending: list[dict] = []
+        loop = asyncio.get_running_loop()
+        # Until the subscription is accepted, messages are held back rather
+        # than sent: `subscribed()` may still reject, and a rejected channel
+        # must not reach the client. `pending` becomes `None` once that is
+        # settled, and everything goes straight to the outbox from then on.
+        # The lock is what makes the handover atomic for the worker thread
+        # `subscribed()` runs in, and for any thread broadcasting to a stream
+        # it just opened.
+        pending: list[dict] | None = []
+        handover = threading.Lock()
 
         def sync_send(msg):
-            pending.append(msg)
+            with handover:
+                if pending is not None:
+                    pending.append(msg)
+                    return
+            loop.call_soon_threadsafe(outbox.put_nowait, msg)
 
         channel = channel_cls(
             t.cast("App", self),
@@ -152,6 +196,10 @@ class AppWs:
         )
 
         if channel._rejected:
+            # `subscribed()` may have opened streams before deciding to
+            # reject. Nothing else would ever close them: the channel is
+            # not in `subscriptions`, so the cleanup on disconnect misses it.
+            channel.stop_all_streams()
             await ws_send({
                 "type": "reject_subscription",
                 "channel": channel_name,
@@ -161,14 +209,12 @@ class AppWs:
 
         subscriptions[sub_key] = channel
 
-        # Flush any messages sent during subscribed()
-        for msg in pending:
-            await ws_send(msg)
-
-        # Now wire up the real async send (thread-safe)
-        # This enqueues async sends from sync
-        loop = asyncio.get_running_loop()
-        channel._send = lambda msg: _enqueue_send(loop, ws_send, msg)
+        # Release whatever `subscribed()` sent, and let later messages
+        # through. Both happen under the lock so nothing overtakes them.
+        with handover:
+            for msg in pending:
+                outbox.put_nowait(msg)
+            pending = None
 
         await ws_send({
             "type": "confirm_subscription",
