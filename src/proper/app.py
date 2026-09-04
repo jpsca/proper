@@ -2,8 +2,11 @@ import asyncio
 import hashlib
 import os
 import sys
+import threading
+import time
 import types
 import typing as t
+from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from pathlib import Path
 
@@ -54,6 +57,45 @@ if t.TYPE_CHECKING:
 
 
 __all__ = ("App",)
+
+
+# At most one "the pool is full" warning per this many seconds. A saturated
+# pool would otherwise log once per queued request, and logging from the
+# worker threads is the last thing it needs.
+THREAD_WAIT_WARNING_INTERVAL = 10
+
+
+def _default_max_threads() -> int:
+    """Python's own default for a `ThreadPoolExecutor`."""
+    return min(32, (os.process_cpu_count() or 1) + 4)
+
+
+class _ThreadWaits:
+    """Counts requests that had to queue, and says when to report.
+
+    Worker threads all call `record`, so the tally is locked.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._count = 0
+        self._longest = 0.0
+        self._reported_at = 0.0
+
+    def record(self, waited: float, interval: float) -> "tuple[int, float] | None":
+        """Note a wait. Returns `(count, longest)` when it is time to
+        report, having reset the tally, and `None` while holding back."""
+        with self._lock:
+            self._count += 1
+            self._longest = max(self._longest, waited)
+            now = time.monotonic()
+            if self._reported_at and now - self._reported_at < interval:
+                return None
+            self._reported_at = now
+            report = (self._count, self._longest)
+            self._count = 0
+            self._longest = 0.0
+            return report
 
 
 class App(AppWs):
@@ -129,6 +171,7 @@ class App(AppWs):
     response_cls: type[Response] = Response
 
     _loop_watchdog: LoopWatchdog | None = None
+    max_threads: int
 
     def __init__(
         self,
@@ -139,6 +182,8 @@ class App(AppWs):
     ) -> None:
         self.env = os.getenv("APP_ENV", "dev")
         self.config = load_config(config or {})
+        self.max_threads = self.config.MAX_THREADS or _default_max_threads()
+        self._thread_waits = _ThreadWaits()
         self._setup_paths(import_name)
         self.router = Router()
         self.CLI = get_cli(self)
@@ -197,6 +242,7 @@ class App(AppWs):
                 message = await receive()
                 if message["type"] == "lifespan.startup":
                     logger.info("Application is starting up...")
+                    self._setup_executor()
                     self._start_loop_debug()
                     await self.cable.start()
                     await send({"type": "lifespan.startup.complete"})
@@ -318,6 +364,59 @@ class App(AppWs):
         return cls
 
     # ---- Private ----
+
+    def _setup_executor(self) -> None:
+        """Install the pool of threads that run the application's code.
+
+        Without this the loop builds its own on first use, sized by
+        Python's default and with threads named after asyncio rather than
+        after this app.
+        """
+        asyncio.get_running_loop().set_default_executor(
+            ThreadPoolExecutor(
+                max_workers=self.max_threads,
+                thread_name_prefix="proper-worker",
+            )
+        )
+        logger.info("[app] %s worker threads", self.max_threads)
+
+    async def _run_in_worker(self, func: "Callable", *args) -> t.Any:
+        """Run `func` in the worker pool.
+
+        Every request spends its whole life in one of these threads, so
+        when they are all busy the next request simply waits - invisibly,
+        unless we say so.
+        """
+        threshold = self.config.THREAD_WAIT_WARNING
+        if not threshold:
+            return await asyncio.to_thread(func, *args)
+
+        submitted = time.monotonic()
+
+        def start():
+            waited = time.monotonic() - submitted
+            if waited >= threshold:
+                self._warn_thread_wait(waited)
+            return func(*args)
+
+        return await asyncio.to_thread(start)
+
+    def _warn_thread_wait(self, waited: float) -> None:
+        """Report a queued request, at most once per interval."""
+        report = self._thread_waits.record(
+            waited, THREAD_WAIT_WARNING_INTERVAL
+        )
+        if report is None:
+            return
+        count, longest = report
+        logger.warning(
+            "[app] %s request(s) queued for a worker thread, up to %.1fs:"
+            " all %s are busy. Raise MAX_THREADS, or move slow work"
+            " to the queue.",
+            count,
+            longest,
+            self.max_threads,
+        )
 
     def _start_loop_debug(self) -> None:
         """In DEBUG, watch the event loop for work that should be running in
@@ -476,7 +575,9 @@ class App(AppWs):
         if self.config.get("RUN_SYNC"):
             response = self._run_pipeline(request, response)
         else:
-            response = await asyncio.to_thread(self._run_pipeline, request, response)
+            response = await self._run_in_worker(
+                self._run_pipeline, request, response
+            )
         current.response = response
         return response
 

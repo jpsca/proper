@@ -87,6 +87,8 @@ The async boundary is handled by the framework: the ASGI entry point receives th
 
 In DEBUG, the app watches its own event loop and logs a warning, with a stack trace, whenever the loop stays blocked for longer than `LOOP_STALL_WARNING` seconds. A warning means something that belongs in a worker thread is running on the loop instead.
 
+Those worker threads are a fixed pool, sized by `MAX_THREADS`. A request holds one for its whole duration, so the pool size is how many requests the app works on at once — and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue; the app logs a warning naming the wait when they do.
+
 Every request flows through a pipeline in this exact order:
 
 1. **copy_session** — reads the signed `_session` cookie into `request.session`
@@ -156,6 +158,8 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `PORT`                     | `2300`            | Port the dev server binds to (used by `app_cli`) |
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
+| `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
+| `THREAD_WAIT_WARNING`      | `0.5`             | Warn when a request waits this many seconds for a free thread (`0` disables) |
 | `LOOP_STALL_WARNING`       | `0.1`             | In DEBUG, warn when the event loop is blocked for this many seconds (`0` disables) |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |

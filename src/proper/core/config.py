@@ -26,6 +26,18 @@ default_config = {
     # like a proxy or web-server, handle the unhandled exceptions.
     "CATCH_ALL_ERRORS": True,
 
+    # How many threads run your code. Each request occupies one for its
+    # whole duration, so this is how many requests the app can work on at
+    # once - and, since every thread opens its own database connection,
+    # how many connections it can hold. `0` uses Python's default of
+    # `min(32, cpu_count + 4)`.
+    "MAX_THREADS": 0,
+
+    # Warn when a request has to wait this many seconds for a free thread,
+    # which means every one of them is busy and requests are queuing up.
+    # Set to 0 to turn the check off.
+    "THREAD_WAIT_WARNING": 0.5,
+
     # In DEBUG, warn when the event loop stays blocked for longer than this
     # many seconds. Your code runs in worker threads, so the loop should
     # never be busy for long: a warning means something is running in the
@@ -101,6 +113,8 @@ def normalize_config(config: DotDict) -> DotDict:
     config.CATCH_ALL_ERRORS = bool(config.CATCH_ALL_ERRORS)
     config.SESSION_COOKIE_HTTPONLY = bool(config.SESSION_COOKIE_HTTPONLY)
 
+    config.MAX_THREADS = int(config.MAX_THREADS)
+    config.THREAD_WAIT_WARNING = float(config.THREAD_WAIT_WARNING)
     config.LOOP_STALL_WARNING = float(config.LOOP_STALL_WARNING)
 
     config.MAX_CONTENT_LENGTH = int(config.MAX_CONTENT_LENGTH)

@@ -27,7 +27,12 @@ class AppWs:
     config: dict
     router: "Router"
 
+    max_threads: int
+
     def _with_db(self, work, *, on_error=None) -> None:
+        ...
+
+    async def _run_in_worker(self, func, *args) -> t.Any:
         ...
 
     async def _handle_websocket(
@@ -129,7 +134,7 @@ class AppWs:
             for channel in subscriptions.values():
                 try:
                     channel.stop_all_streams()
-                    await asyncio.to_thread(
+                    await self._run_in_worker(
                         self._with_db,
                         lambda ch=channel: ch._dispatch("unsubscribed"),
                     )
@@ -190,7 +195,7 @@ class AppWs:
             scope=scope,
             _send=sync_send,
         )
-        await asyncio.to_thread(
+        await self._run_in_worker(
             self._with_db,
             lambda: channel._dispatch("subscribed"),
         )
@@ -231,7 +236,7 @@ class AppWs:
         channel = subscriptions.pop(sub_key, None)
         if channel:
             channel.stop_all_streams()
-            await asyncio.to_thread(
+            await self._run_in_worker(
                 self._with_db,
                 lambda: channel._dispatch("unsubscribed"),
             )
@@ -272,7 +277,7 @@ class AppWs:
             return
 
         data = msg.get("data") or {}
-        await asyncio.to_thread(
+        await self._run_in_worker(
             self._with_db,
             lambda: channel._dispatch(action, data),
         )
