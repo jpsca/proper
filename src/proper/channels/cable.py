@@ -10,6 +10,7 @@ Two backends are provided:
 - `RedisCable` - Redis pub/sub (multi-worker).
 """
 import asyncio
+import threading
 import typing as t
 
 from ..helpers import jsonplus, logger
@@ -36,32 +37,45 @@ __all__ = ("Cable", "RedisCable")
 class Cable:
     def __init__(self) -> None:
         self._streams: dict[str, set["Channel"]] = {}
+        # Channels subscribe and unsubscribe from the worker threads their
+        # code runs in, while broadcasts are delivered from other threads or
+        # from the event loop. Every read and write of `_streams` is guarded,
+        # or a stream emptied by one thread can be deleted out from under a
+        # subscription another thread just made. Re-entrant because
+        # `unsubscribe_all` works through `unsubscribe`.
+        self._lock = threading.RLock()
 
     @property
     def streams(self) -> dict[str, int]:
         """Return a dict of stream names to listener counts (for debugging)."""
-        return {name: len(channels) for name, channels in self._streams.items()}
+        with self._lock:
+            return {
+                name: len(channels) for name, channels in self._streams.items()
+            }
 
     def subscribe(self, stream_name: str, channel: "Channel") -> None:
         """Register a channel to receive broadcasts on a stream."""
-        self._streams.setdefault(stream_name, set()).add(channel)
+        with self._lock:
+            self._streams.setdefault(stream_name, set()).add(channel)
         logger.debug(
             "[cable] %s subscribed to %s", channel.channel_name, stream_name,
         )
 
     def unsubscribe(self, stream_name: str, channel: "Channel") -> None:
         """Remove a channel from a stream."""
-        listeners = self._streams.get(stream_name)
-        if not listeners:
-            return
-        listeners.discard(channel)
-        if not listeners:
-            del self._streams[stream_name]
+        with self._lock:
+            listeners = self._streams.get(stream_name)
+            if not listeners:
+                return
+            listeners.discard(channel)
+            if not listeners:
+                del self._streams[stream_name]
 
     def unsubscribe_all(self, channel: "Channel") -> None:
         """Remove a channel from all streams it is subscribed to."""
-        for stream_name in list(self._streams):
-            self.unsubscribe(stream_name, channel)
+        with self._lock:
+            for stream_name in list(self._streams):
+                self.unsubscribe(stream_name, channel)
 
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Send data to all channels subscribed to a stream."""
@@ -69,14 +83,18 @@ class Cable:
 
     def _deliver_local(self, stream_name: str, data: t.Any) -> None:
         """Deliver data to all local channels subscribed to a stream."""
-        listeners = self._streams.get(stream_name)
-        if not listeners:
-            return
+        with self._lock:
+            subscribed = self._streams.get(stream_name)
+            if not subscribed:
+                return
+            # Take a copy and let go of the lock: sending reaches into
+            # channel code, which must never run while the cable is held.
+            listeners = list(subscribed)
         logger.debug(
             "[cable] broadcasting to %s (%d listeners)",
             stream_name, len(listeners),
         )
-        for channel in list(listeners):
+        for channel in listeners:
             try:
                 channel.send(data)
             except Exception:

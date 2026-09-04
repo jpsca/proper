@@ -1,4 +1,9 @@
+import sys
+import threading
+import time
 import typing as t
+
+import pytest
 
 from proper.app import App
 from proper.channels import Cable, Channel
@@ -9,6 +14,16 @@ class FakeApp:
     def __init__(self):
         self.config = DotDict({"SECRET_KEYS": ["*" * 50], "DEBUG": False})
         self.cable = Cable()
+
+
+@pytest.fixture()
+def fast_switching():
+    """Make the GIL hand off as often as it can, so thread interleavings
+    that are otherwise vanishingly rare actually show up."""
+    previous = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    yield
+    sys.setswitchinterval(previous)
 
 
 def _make_channel(app=None, params=None):
@@ -214,3 +229,114 @@ class TestChannelIntegration:
         app.cable.broadcast("chat", {"msg": "second"})
         assert len(sent1) == 1  # ch1 didn't get it
         assert len(sent2) == 2  # ch2 did
+
+
+class StubChannel:
+    """The cable only needs a name and a `send`, not a whole Channel."""
+
+    channel_name = "StubChannel"
+
+    def send(self, data):
+        pass
+
+
+class TestConcurrency:
+    """Channels subscribe from worker threads while broadcasts are delivered
+    from others. Without a lock, `_streams` loses subscriptions and raises."""
+
+    def test_subscribing_and_unsubscribing_from_many_threads(self, fast_switching):
+        cable = Cable()
+        errors: list[str] = []
+        lost: list[int] = []
+        streams = [f"room:{n}" for n in range(3)]
+        workers = 6
+        rounds = 20000
+        ready = threading.Barrier(workers)
+
+        def churn(i):
+            channel = StubChannel()
+            ready.wait()
+            for r in range(rounds):
+                name = streams[r % len(streams)]
+                try:
+                    cable.subscribe(name, channel)
+                    # A subscription must be visible the moment it is made.
+                    if channel not in cable._streams.get(name, ()):
+                        lost.append(i)
+                    cable.unsubscribe(name, channel)
+                except Exception as error:  # noqa: BLE001
+                    errors.append(repr(error))
+                    return
+
+        threads = [
+            threading.Thread(target=churn, args=(i,)) for i in range(workers)
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert errors == []
+        assert lost == []
+        assert cable.streams == {}
+
+    def test_broadcasting_while_subscriptions_change(self, fast_switching):
+        cable = Cable()
+        errors: list[str] = []
+        stop = threading.Event()
+
+        def churn():
+            channel, _ = _make_channel()
+            while not stop.is_set():
+                try:
+                    cable.subscribe("room", channel)
+                    cable.unsubscribe("room", channel)
+                except Exception as error:  # noqa: BLE001
+                    errors.append(repr(error))
+                    return
+
+        def broadcast():
+            while not stop.is_set():
+                try:
+                    cable.broadcast("room", {"tick": True})
+                except Exception as error:  # noqa: BLE001
+                    errors.append(repr(error))
+                    return
+
+        threads = [threading.Thread(target=churn) for _ in range(3)]
+        threads += [threading.Thread(target=broadcast) for _ in range(3)]
+        for thread in threads:
+            thread.start()
+        time.sleep(0.3)
+        stop.set()
+        for thread in threads:
+            thread.join()
+
+        assert errors == []
+
+    def test_a_broadcast_does_not_hold_the_lock_while_sending(self):
+        """Channel code runs outside the lock, so it can touch the cable."""
+        cable = Cable()
+        channel, _ = _make_channel()
+        reached = []
+
+        def send(data):
+            # Re-entering the cable from a send would deadlock if the
+            # broadcast still held the lock.
+            cable.unsubscribe("room", channel)
+            reached.append(data)
+
+        channel.send = send
+        cable.subscribe("room", channel)
+
+        finished = threading.Event()
+
+        def run():
+            cable.broadcast("room", {"msg": "hi"})
+            finished.set()
+
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        assert finished.wait(timeout=2), "broadcast deadlocked while sending"
+        assert reached == [{"msg": "hi"}]
+        assert cable.streams == {}
