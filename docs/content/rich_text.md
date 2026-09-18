@@ -85,13 +85,17 @@ from proper.rich_text import HasRichText, RichTextField
 from .attachment import Attachment
 from .base import BaseModel
 
-# BaseModel always goes first
-class Post(BaseModel, HasRichText):
+# HasRichText must go before BaseModel
+class Post(HasRichText, BaseModel):
     title = pw.CharField()
     body = RichTextField(Attachment, null=True)
 ```
 
 As you see, you also need to pass your `Attachment` model to it, so it knows where to upload files.
+
+::: warning
+**`HasRichText` must be listed before `BaseModel`.** Peewee's `save()` and `delete_instance()` don't call `super()`, so a mixin placed after the model class would never run: embedded files would stay marked as pending and be deleted later as abandoned uploads. Proper raises a `TypeError` when the class is defined in the wrong order, so you can't miss it.
+:::
 
 **If you don't want to use image/file uploads in that field**, pass `None` instead and drop the mixin. The result is much simpler:
 

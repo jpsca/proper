@@ -21,8 +21,16 @@ Usage::
 
     from proper.rich_text import HasRichText, RichTextField
 
-    class Post(BaseModel, HasRichText):
+    class Post(HasRichText, BaseModel):
         body = RichTextField(attachment_cls=Attachment)
+
+**The mixin must be listed before the model class.** Peewee's
+`Model.save()` and `Model.delete_instance()` do not call `super()`, so a
+mixin placed after the model in the bases is never reached: its hooks
+would silently not run, embedded attachments would stay `pending`, and the
+abandoned-uploads sweeper would eventually delete them. To make that
+mistake impossible to miss, declaring the bases in the wrong order raises
+a `TypeError` when the class is defined.
 """
 import typing as t
 
@@ -76,7 +84,25 @@ def _collect_attachment_ids(value: t.Any) -> list[str]:
 
 
 class HasRichText:
-    """Mixin that handles RichTextField attachment lifecycle."""
+    """Mixin that handles RichTextField attachment lifecycle.
+
+    Must come before the model class in the bases:
+    `class Post(HasRichText, BaseModel)`.
+    """
+
+    def __init_subclass__(cls, **kwargs: t.Any) -> None:
+        super().__init_subclass__(**kwargs)
+        mro = cls.__mro__
+        if pw.Model in mro and mro.index(HasRichText) > mro.index(pw.Model):
+            raise TypeError(
+                f"`HasRichText` must be listed before the model class in the "
+                f"bases of `{cls.__name__}`, e.g. "
+                f"`class {cls.__name__}(HasRichText, BaseModel)`. "
+                "Peewee's `Model.save()` and `Model.delete_instance()` don't "
+                "call `super()`, so in the current order the mixin's hooks "
+                "would never run and embedded attachments would be purged "
+                "as abandoned uploads."
+            )
 
     def save(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         # Snapshot prior body before super().save() overwrites it.

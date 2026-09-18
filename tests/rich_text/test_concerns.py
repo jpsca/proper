@@ -1,6 +1,7 @@
 from io import BytesIO
 
 import peewee as pw
+import pytest
 
 from proper.rich_text import HasRichText
 from proper.rich_text.concerns import _collect_attachment_ids
@@ -208,3 +209,50 @@ def test_collect_ids_from_non_string_returns_empty():
 
 def test_collect_ids_from_html_without_attachments_returns_empty():
     assert _collect_attachment_ids("<p>nothing here</p>") == []
+
+
+# --- Base order guard ---
+
+
+def test_mixin_after_the_model_class_is_rejected(db):
+    """Peewee's `Model.save()` doesn't call `super()`: a mixin listed after
+    the model would silently never run, so it must fail loudly instead.
+    """
+    class BaseModel(pw.Model):
+        class Meta:
+            database = db
+
+    with pytest.raises(TypeError, match=r"HasRichText.*before the model class"):
+        class Post(BaseModel, HasRichText):  # noqa: F841
+            body = pw.TextField(null=True)
+
+
+def test_mixin_before_the_model_class_is_accepted(db):
+    class BaseModel(pw.Model):
+        class Meta:
+            database = db
+
+    class Post(HasRichText, BaseModel):
+        body = pw.TextField(null=True)
+
+    # The hooks are reachable: the mixin's `save` is the one that runs.
+    assert Post.save is HasRichText.save
+    assert Post.delete_instance is HasRichText.delete_instance
+
+
+def test_intermediate_mixins_are_not_checked_until_they_meet_a_model(db):
+    class Auditable(HasRichText):
+        """A plain mixin building on HasRichText: no model in sight yet."""
+
+    class BaseModel(pw.Model):
+        class Meta:
+            database = db
+
+    class Good(Auditable, BaseModel):
+        pass
+
+    assert Good.save is HasRichText.save
+
+    with pytest.raises(TypeError, match="Bad"):
+        class Bad(BaseModel, Auditable):  # noqa: F841
+            pass

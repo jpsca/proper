@@ -8,7 +8,7 @@ from .base import BaseModel, scope
 from .attachment import Attachment
 from .user import User
 
-class Article(BaseModel, HasRichText):
+class Article(HasRichText, BaseModel):
   title = pw.CharField()
   content = RichTextField(Attachment, null=True)
   cover_image = pw.ForeignKeyField(Attachment, null=True)

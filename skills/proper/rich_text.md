@@ -53,8 +53,10 @@ from .attachment import Attachment
 from .base import BaseModel
 
 
-# BaseModel always goes first.
-class Post(BaseModel, HasRichText):
+# HasRichText MUST go before BaseModel. Peewee's `save()` doesn't call
+# `super()`, so in the other order the mixin would never run
+# (Proper raises a TypeError if you get it wrong).
+class Post(HasRichText, BaseModel):
     title = pw.CharField()
     body = RichTextField(Attachment, null=True)
 ```
