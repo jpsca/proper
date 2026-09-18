@@ -60,6 +60,18 @@ class _CatchAllErrorPageController(Controller):
         self.response.body = "caught"
 
 
+class _FlakyController(Controller):
+    """Fails on the first request only."""
+
+    calls = 0
+
+    def index(self):
+        type(self).calls += 1
+        if type(self).calls == 1:
+            raise ValueError("boom")
+        return "ok"
+
+
 # --- Fixtures ---
 
 
@@ -276,14 +288,19 @@ class TestCustomErrorHandler:
         assert request.matched_route is not None
         assert isinstance(request.matched_route, Route)
 
-    def test_reuses_existing_matched_route(self, app):
+    def test_does_not_mutate_the_matched_route(self, app):
         request = _make_request()
         response = _make_response(app=app)
-        original_route = Route(method="GET", path="/original", to=lambda: None)
+        original_to = lambda: None  # noqa: E731
+        original_route = Route(method="GET", path="/original", to=original_to)
         request.matched_route = original_route
         app._custom_error_handler(_ErrorPageController.handle, request, response)
-        assert request.matched_route is original_route
+        # The request dispatches to the handler through a copy of the route...
+        assert request.matched_route is not original_route
         assert request.matched_route.to == _ErrorPageController.handle
+        assert request.matched_route.path == "/original"
+        # ...and the registered route is left untouched for later requests.
+        assert original_route.to is original_to
 
     def test_clears_matched_params(self, app):
         request = _make_request()
@@ -430,6 +447,17 @@ class TestDoRequestErrorFlow:
         )
         result = client.get("/explode")
         assert result.body == "custom error page"
+
+    def test_custom_error_handler_keeps_the_route_intact(self, app, client):
+        """A handled error must not hijack the route for later requests."""
+        _FlakyController.calls = 0
+        app.router.add_error_handler(ValueError, _ErrorPageController.handle)
+        route = Route(method="GET", path="/flaky", to=_FlakyController.index)
+        app.router.add_route(route)
+
+        assert client.get("/flaky").body == "custom error page"
+        assert route.to == _FlakyController.index
+        assert client.get("/flaky").body == "ok"
 
     def test_custom_error_handler_not_used_in_debug(self, app, client):
         app.debug = True
