@@ -294,7 +294,17 @@ post.body == "<p>Hello</p>"
 post.body == other_post.body
 ```
 
-`document.to_html()` returns the raw HTML string (useful for serialization, dumping into a JSON API response).
+`document.to_html()` returns the raw stored HTML string (useful for serialization, dumping into a JSON API response).
+
+`document.to_editor_html()` returns the HTML for the editor: the stored HTML with each `<proper-attachment>` tag re-hydrated from its row (`url`, `filename`, `content-type`, `filesize`, `previewable`). `f.RichTextField` uses it automatically.
+
+### What is stored
+
+Only `sgid` plus what the author typed (`alt`, `caption`, `presentation`, ...). The attributes derived from the attachment row (`proper.rich_text.document.DERIVED_ATTRS`) are stripped by `RichTextField.db_value` and rebuilt by `to_editor_html()`. The embed `url` is signed with `SECRET_KEYS`, so persisting it would break the editor's thumbnails whenever the database is copied to another environment or the keys are replaced. Consequences:
+
+- Never build features on a stored `url`/`filename` attribute; read them from `document.attachments`.
+- Documents saved by older versions still carry those attributes. No migration is needed: they are ignored on load and dropped on the next save.
+- If you hand a document to an editor yourself (not through `f.RichTextField`), use `to_editor_html()`, not `to_html()`.
 
 ## Custom Storage for the Document
 

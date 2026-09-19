@@ -528,7 +528,7 @@ This is the same as doing:
 ```python
 app.url_for(
     "StorageRedirect.show",
-    token=user.avatar.generate_token(salt="redirect"),
+    token=user.avatar.generate_token(salt="redirect", timed=False),
     filename=user.avatar.filename,
 )
 ```
@@ -540,6 +540,28 @@ The URL of the service might be valid only for a few minutes (15 is the Amazon S
 :::note
 Technically the URL _does_ change, but only if you remove your current secret key, because the token generated will become invalid. So, if you do that, you need to also purge the cache of any page with old URLs.
 :::
+
+### Caching
+
+Files are served with a long-lived caching policy, because the bytes behind an attachment never change: replacing a file creates a new attachment with a new ID, and every variant is its own attachment too.
+
+```
+Cache-Control: private, max-age=31536000, immutable
+```
+
+Two things make this work:
+
+1. **The URL is stable.** `attachment.url` and `attachment.get_proxy_url()` return the same URL every time for the same attachment, so a browser that has seen an image once doesn't download it again on the next page view.
+2. **`private` by default.** Only the visitor's browser keeps a copy. The token in the URL is the access credential, and a shared cache (a CDN, a reverse proxy) would hand out its copy without asking your app again. For a storage service declared with `public: True` the policy says `public` instead, so shared caches can keep the file too.
+
+To change the duration, or to send no caching headers at all, set `CACHE_MAX_AGE` in your `Attachment` model:
+
+```python
+class Attachment(app.attachment_for(BaseModel)):
+    CACHE_MAX_AGE = 30 * DAYS   # or None to disable
+```
+
+This applies to files streamed by your app. With a private S3 service the redirect controller sends the browser to a short-lived presigned URL, and the caching of that response is up to S3.
 
 ### Proxy Mode
 

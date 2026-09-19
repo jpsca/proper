@@ -188,7 +188,7 @@ avatar = f.AttachmentField(Attachment, service_name="public")
 Behavior per backend:
 
 - **S3** — uploads set `ACL: public-read`; `service_url()` returns the bucket's native path-style URL (`<endpoint>/<bucket>/<key>`) with no expiry or signature. Direct-upload URLs sign `ACL: public-read` so browser PUTs apply the ACL. The bucket itself must allow object-level ACLs (S3 "Object Ownership" set to `BucketOwnerPreferred` or `ObjectWriter`). For CloudFront / custom domain / virtual-hosted-style URLs, subclass `S3` and override `service_url()`.
-- **Disk** — `public: True` is informational only (Disk has no native URL); the file is still served through `StorageRedirectController` / `StorageProxyController` with a stable signed-token URL.
+- **Disk** — Disk has no native URL, so the file is still served through `StorageRedirectController` / `StorageProxyController` with a stable signed-token URL. `public: True` changes the caching policy of those responses from `private` to `public` (see [Caching](#caching)), so a CDN or reverse proxy in front of your app may cache them.
 
 The flag is also exposed to application code via `obj.service.public`, and `Attachment.get_public(pk)` returns `None` unless the attachment lives in a public service:
 
@@ -329,7 +329,15 @@ attachment.get_redirect_url(_full=True)
 attachment.get_proxy_url(_full=True)
 ```
 
-Both URLs embed a signed token tied to the attachment's PK. The controllers resolve them via `Attachment.get_signed(token, max_age=None, salt="redirect"|"proxy")`, so by default the URLs do not expire — they stay valid until your `SECRET_KEY` rotates. Pass a `max_age` (in seconds) to `get_signed()` from your own code to enforce expiry.
+Both URLs embed a signed token tied to the attachment's PK. The controllers resolve them via `Attachment.get_signed(token, max_age=None, salt="redirect"|"proxy")`, so the URLs do not expire — they stay valid until your `SECRET_KEY` rotates.
+
+**These two URLs are stable**: the token has no timestamp (`generate_token(timed=False)`), so the same attachment always gives the same URL. That is what lets browsers cache the file; a URL that changes on every render never gets a cache hit. URLs generated before this existed (timed tokens) keep resolving.
+
+**Custom URLs are timed by default.** `attachment.url_for("Download.show", salt="secret")` gives a different URL on every call, and your controller can expire it with `get_signed(token, salt="secret", max_age=...)`. Pass `stable=True` to `url_for()` to get a stable one instead; a stable token can't prove its age, so it only resolves with `max_age=None`.
+
+### Caching
+
+`attachment.send_file()` (used by both generated controllers) sets `Cache-Control: private, max-age=31536000, immutable`. The bytes of an attachment never change (replacements and variants are new rows), so the long lifetime is safe. It says `public` instead of `private` when the storage service has `public: True`, which also allows shared caches (CDN, reverse proxy) to keep a copy; keep it `private` for anything gated by the token or by controller-level checks. Override `CACHE_MAX_AGE` on your `Attachment` model to change the duration, or set it to `None` to send no caching headers. Redirects to presigned S3 URLs are not affected.
 
 ### Redirect vs proxy
 

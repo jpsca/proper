@@ -320,6 +320,10 @@ The placeholder looks like this in the stored HTML:
   caption="A picture of my cat"></proper-attachment>
 ```
 
+That is *all* that gets stored: the attachment's ID and what the author typed (`alt`, `caption`, how it's presented). The editor also writes attributes that only restate facts about the file, like its URL, filename, content type and size. Proper drops those before saving and rebuilds them from the `Attachment` row every time the document is loaded into the editor.
+
+The reason is the URL. It carries a token signed with your `SECRET_KEYS`, so a stored copy would stop working the day you copy the database to another environment or replace the keys, and the editor would show broken images. Because the URL is never stored, documents are valid anywhere, and there is nothing to migrate when keys change.
+
 This section walks through how those rows get created, when they get confirmed or cleaned up, and how to work with them from your Python code.
 
 
