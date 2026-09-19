@@ -289,11 +289,16 @@ class App(AppWs):
         """Proxy for `self.router.url_startswith()`."""
         return self.router.url_startswith(name, object, curr_url=curr_url, **kw)
 
-    def dumps(self, obj: t.Any, salt: str | None = None) -> str:
+    def dumps(self, obj: t.Any, salt: str | None = None, *, timed: bool = True) -> str:
         """Returns a signed string serialized with the internal
         serializer using hte first secret key.
+
+        With `timed=False` the token carries no timestamp, so it is
+        deterministic (same input, same token) and can never expire. Read it
+        back with `loads(..., timed=False)`.
         """
-        return str(self.serializers[0].dumps(obj, salt=salt))
+        serializers = self.serializers if timed else self.untimed_serializers
+        return str(serializers[0].dumps(obj, salt=salt))
 
     def loads(
         self,
@@ -302,6 +307,7 @@ class App(AppWs):
         max_age: int | None = None,
         return_timestamp: bool = False,
         salt: str | None = None,
+        timed: bool = True,
     ) -> t.Any:
         """Reverse of `dumps`. Tries decoding the value with
         every secret key, in order, and returns `None` if the
@@ -310,7 +316,22 @@ class App(AppWs):
         If `return_timestamp` is `True` this method will return a tuple
         `(value, timestamp)`, with timestamp returned as a naive
         `datetime.datetime` object in UTC.
+
+        Use `timed=False` for values made with `dumps(..., timed=False)`.
+        The two kinds are not interchangeable: each one rejects the other's
+        tokens. `max_age` and `return_timestamp` need a timestamp, so they
+        can't be combined with `timed=False`.
         """
+        if not timed:
+            if max_age is not None or return_timestamp:
+                raise ValueError("Untimed values have no timestamp to check or return")
+            for serializer in self.untimed_serializers:
+                try:
+                    return serializer.loads(value, salt=salt)
+                except itsdangerous.BadData:
+                    logger.debug("BadData %s...", str(value)[:10])
+            return None
+
         for serializer in self.serializers:
             try:
                 return serializer.loads(
@@ -470,6 +491,14 @@ class App(AppWs):
 
         self.serializers = tuple(
             itsdangerous.URLSafeTimedSerializer(secret_key, **kwargs)
+            for secret_key in self.config.SECRET_KEYS
+        )
+        # Same keys and signing parameters, but no timestamp in the token:
+        # the same input always gives the same output. For values that never
+        # expire anyway and benefit from being stable, like URLs that
+        # browsers and CDNs should be able to cache.
+        self.untimed_serializers = tuple(
+            itsdangerous.URLSafeSerializer(secret_key, **kwargs)
             for secret_key in self.config.SECRET_KEYS
         )
 

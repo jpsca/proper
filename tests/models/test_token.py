@@ -220,3 +220,48 @@ def test_fingerprint_still_valid_when_unchanged(Account):
     found = Account.resolve_token_for("email_verification", token, max_age=1 * HOURS)
     assert found is not None
     assert found.id == acct.id
+
+
+# --- Untimed (stable) tokens ---
+
+
+def test_untimed_token_is_the_same_every_time(Item):
+    item = Item.create(name="thing")
+    assert item.generate_token(timed=False) == item.generate_token(timed=False)
+    assert item.generate_token() != item.generate_token(timed=False)
+
+
+def test_untimed_token_differs_per_record_and_salt(Item):
+    a = Item.create(name="a")
+    b = Item.create(name="b")
+    assert a.generate_token(timed=False) != b.generate_token(timed=False)
+    assert a.generate_token(timed=False) != a.generate_token(timed=False, salt="other")
+
+
+def test_untimed_token_resolves_only_without_an_age_limit(Item):
+    """It can't prove its age, so asking for a `max_age` must reject it."""
+    item = Item.create(name="thing")
+    token = item.generate_token(timed=False)
+    assert Item.resolve_token(token, max_age=None) == item
+    assert Item.resolve_token(token, max_age=1 * HOURS) is None
+    assert Item.resolve_token(token) is None  # the default max_age
+
+
+def test_timed_token_still_resolves_without_an_age_limit(Item):
+    item = Item.create(name="thing")
+    assert Item.resolve_token(item.generate_token(), max_age=None) == item
+
+
+def test_untimed_token_honors_the_fingerprint(Item):
+    item = Item.create(name="before")
+    token = item.generate_token(lambda i: i.name, timed=False)
+    assert Item.resolve_token(token, lambda i: i.name, max_age=None) == item
+    Item.update(name="after").where(Item.id == item.id).execute()
+    assert Item.resolve_token(token, lambda i: i.name, max_age=None) is None
+
+
+def test_a_signed_value_that_is_not_a_token_payload_resolves_to_none(Item, app):
+    Item.create(name="thing")
+    for value in ["just a string", ["a", "list"], {"no": "id"}]:
+        assert Item.resolve_token(app.dumps(value, salt="Item"), max_age=None) is None
+        assert Item.resolve_token(app.dumps(value, salt="Item", timed=False), max_age=None) is None

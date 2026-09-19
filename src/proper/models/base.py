@@ -34,6 +34,7 @@ class ProperModel(pw.Model):
         fingerprint: Callable = (lambda x: None),
         *,
         salt: str | None = None,
+        timed: bool = True,
     ) -> str:
         """Generate a signed, URL-safe token for this record.
 
@@ -68,6 +69,13 @@ class ProperModel(pw.Model):
 
             salt:
                 Optional namespace. The model name is used by default.
+            timed:
+                `True` by default: the token records when it was made, so
+                `resolve_token` can enforce a `max_age`. With `False` the
+                token has no timestamp: it is the same every time for the
+                same record, fingerprint and salt, and it cannot expire. It
+                is only accepted by `resolve_token(..., max_age=None)`.
+                Use it for stable, cacheable URLs.
 
         Returns:
             A URL-safe string suitable for use in links, headers, or
@@ -77,7 +85,7 @@ class ProperModel(pw.Model):
         assert current.app
         payload = {"id": str(self.get_id()), "fp": fingerprint(self)}
         salt = salt or self.__class__.__name__
-        return current.app.dumps(payload, salt=salt)
+        return current.app.dumps(payload, salt=salt, timed=timed)
 
     def generate_token_for(self, name: str) -> str:
         """Generate a signed, URL-safe token for this record using the
@@ -126,16 +134,19 @@ class ProperModel(pw.Model):
         if max_age is not None:
             max_age = max(max_age, 0)
         data = current.app.loads(token, max_age=max_age, salt=salt)
-        if not data:
+        if not data and max_age is None:
+            # An untimed token can't prove its age, so it is only accepted
+            # when the caller asks for no age limit.
+            data = current.app.loads(token, salt=salt, timed=False)
+        if not isinstance(data, dict) or "id" not in data:
             return None
-        data = t.cast(dict, data)
         try:
             instance = cls.get_by_id(data["id"])
         except pw.DoesNotExist:
             return None
 
         fingerprint = (lambda x: None) if fingerprint is None else fingerprint
-        if fingerprint(instance) == data["fp"]:
+        if fingerprint(instance) == data.get("fp"):
             return instance
         return None
 
