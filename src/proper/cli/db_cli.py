@@ -88,9 +88,14 @@ def get_db_cli(app) -> type[Cli]:
 
             db = app.db.get(name)
             if db is None:
-                log(f"Database '{name}' not found.")
-                sys.exit(1)
-                return
+                # When not validating, a missing database is simply skipped.
+                # E.g. the queue has no database with `huey.MemoryHuey`, and
+                # exiting here would stop `db migrate` before it reaches the
+                # databases that come after it (like the cache).
+                if validate:
+                    log(f"Database '{name}' not found.")
+                    sys.exit(1)
+                return None
 
             if name == DB_QUEUE:
                 dburi = app.config.QUEUE.get("database")
