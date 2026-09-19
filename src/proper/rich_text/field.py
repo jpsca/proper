@@ -23,7 +23,7 @@ import typing as t
 
 import peewee as pw
 
-from .document import RichTextDocument
+from .document import RichTextDocument, dehydrate_attachments
 
 
 if t.TYPE_CHECKING:
@@ -63,6 +63,10 @@ class _RichTextFieldMixin(pw.Field):
     def db_value(self, value: t.Any) -> t.Any:
         if isinstance(value, RichTextDocument):
             value = value.to_html()
+        # Never persist the attributes derived from the attachment row: the
+        # embed URL is signed for one environment. See `document.py`.
+        if isinstance(value, str):
+            value = dehydrate_attachments(value)
         return super().db_value(value)
 
 

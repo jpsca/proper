@@ -15,12 +15,27 @@ enough wiring to render it. Two display paths:
 When `attachment_cls` is not provided the document still renders, but
 `<proper-attachment>` tags collapse to empty markup - the document
 doesn't know how to look them up.
+
+**Stored vs. editor HTML.** The editor writes attributes on each tag that
+only restate facts about the attachment row (`DERIVED_ATTRS`): its URL,
+filename, content type, size and whether it can be previewed. The URL is
+signed with the secret keys of the environment that produced it, so a
+stored copy stops working when the database moves to another environment
+or the keys change. Those attributes are therefore never persisted:
+
+- `dehydrate_attachments()` drops them before the document is stored
+  (`RichTextField.db_value`).
+- `RichTextDocument.to_editor_html()` rebuilds them from the attachment
+  rows when the document is handed to the editor (the form field).
+
+What is stored is just `sgid` plus what the author typed (`alt`,
+`caption`, `presentation`, ...), which is valid anywhere.
 """
 import re
 import typing as t
 from collections.abc import Callable
 
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 from ..global_context import current
 from . import plain_text
@@ -40,6 +55,17 @@ _ATTACHMENT_TAG_RE = re.compile(
 )
 _ATTR_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*"([^"]*)"')
 
+# Attributes of a `<proper-attachment>` tag that only restate facts about the
+# attachment row. Never stored; rebuilt for the editor.
+DERIVED_ATTRS = ("url", "filename", "content-type", "filesize", "previewable")
+
+_ATTACHMENT_OPEN_TAG_RE = re.compile(r"<proper-attachment\b([^>]*)>", re.IGNORECASE)
+# The leading whitespace keeps `url` from matching inside e.g. `data-url`.
+_DERIVED_ATTR_RE = re.compile(
+    r"\s+(?:" + "|".join(re.escape(name) for name in DERIVED_ATTRS) + r')\s*=\s*"[^"]*"',
+    re.IGNORECASE,
+)
+
 
 class RichTextDocument:
     """Value object for a rich text body."""
@@ -56,6 +82,14 @@ class RichTextDocument:
     def to_html(self) -> str:
         """Return the raw stored HTML. Useful for serialization."""
         return self._html
+
+    def to_editor_html(self) -> str:
+        """Return the HTML for the editor: every `<proper-attachment>` tag
+        gets its `DERIVED_ATTRS` rebuilt from the attachment row, so the
+        URLs are valid in the current environment. One query for all the
+        referenced attachments, same as rendering.
+        """
+        return hydrate_attachments(self._html, self._resolve_attachments())
 
     @property
     def attachments(self) -> "list[_Attachment]":
@@ -123,6 +157,51 @@ def _collect_attachment_ids(html: str) -> list[str]:
         if att_id and att_id not in seen:
             seen[att_id] = None
     return list(seen.keys())
+
+
+def dehydrate_attachments(html: str) -> str:
+    """Return `html` with the `DERIVED_ATTRS` removed from every
+    `<proper-attachment>` tag. Everything else is left byte-for-byte as the
+    editor wrote it. This is the form in which documents are stored.
+    """
+    if not isinstance(html, str) or not html:
+        return html
+
+    def _sub(match: re.Match[str]) -> str:
+        return f"<proper-attachment{_DERIVED_ATTR_RE.sub('', match.group(1))}>"
+
+    return _ATTACHMENT_OPEN_TAG_RE.sub(_sub, html)
+
+
+def hydrate_attachments(html: str, resolved: "dict[str, _Attachment]") -> str:
+    """Return `html` with the `DERIVED_ATTRS` of every `<proper-attachment>`
+    tag rebuilt from its row in `resolved` (attachment ID -> row). Stale
+    values already present in a tag are replaced. Tags whose attachment is
+    not in `resolved` (e.g. it was deleted) are left without them.
+
+    The values mirror what the direct-upload endpoint returns to the editor
+    for a fresh upload.
+    """
+    if not isinstance(html, str) or not html:
+        return html
+
+    def _sub(match: re.Match[str]) -> str:
+        payload = _DERIVED_ATTR_RE.sub("", match.group(1))
+        att = resolved.get(_parse_attrs(payload).get("sgid", ""))
+        if att is None:
+            return f"<proper-attachment{payload}>"
+        derived = {
+            "url": att.url,
+            "filename": att.filename,
+            "content-type": att.content_type,
+            "filesize": att.byte_size,
+        }
+        if att.is_previewable:
+            derived["previewable"] = "true"
+        extra = "".join(f' {name}="{escape(value)}"' for name, value in derived.items())
+        return f"<proper-attachment{payload}{extra}>"
+
+    return _ATTACHMENT_OPEN_TAG_RE.sub(_sub, html)
 
 
 _AttachmentRenderer = Callable[[dict[str, str]], str]

@@ -4,10 +4,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from proper import App, current
+from proper import App, Controller, current
+from proper.core.response import Response
+from proper.helpers.asgi import make_test_scope
 from proper.models import ProperModel
+from proper.router import Route
 from proper.storage.attachment import DEFAULT_CONTENT_TYPE
 from proper.storage.services import Disk
+from proper.units import YEAR
 
 
 @pytest.fixture()
@@ -1068,3 +1072,130 @@ def test_disk_upload_token_expires(app, Attachment, monkeypatch):
     real_time = time.time
     monkeypatch.setattr(time, "time", lambda: real_time() + 16 * 60)
     assert Attachment.resolve_token(token, salt="upload") is None
+
+
+# --- Stable URLs and caching ---
+
+
+class StorageRedirectController(Controller):
+    def show(self):
+        pass
+
+
+class StorageProxyController(Controller):
+    def show(self):
+        pass
+
+
+class DownloadController(Controller):
+    def show(self):
+        pass
+
+
+@pytest.fixture()
+def storage_routes(app):
+    for path, to in [
+        ("storage/redirect/:token/:filename", StorageRedirectController.show),
+        ("storage/proxy/:token/:filename", StorageProxyController.show),
+        ("download/:token/:filename", DownloadController.show),
+    ]:
+        app.router.add_route(Route(method="GET", path=path, to=to))
+
+
+def _token_of(url: str) -> str:
+    return url.split("/")[-2]
+
+
+def test_url_is_the_same_on_every_call(Attachment, storage_routes):
+    """A URL that changes on every call can never be served from a cache."""
+    att = Attachment(_make_file(b"data", "photo.png"))
+    att.save()
+    first = att.url
+    time.sleep(1.1)  # timed tokens have a one-second resolution
+    assert att.url == first
+    assert att.get_redirect_url() == first
+    assert Attachment.get_by_id(att.id).url == first  # and across instances
+
+
+def test_proxy_url_is_stable_and_distinct_from_the_redirect_url(Attachment, storage_routes):
+    att = Attachment(_make_file(b"data", "photo.png"))
+    att.save()
+    assert att.get_proxy_url() == att.get_proxy_url()
+    assert _token_of(att.get_proxy_url()) != _token_of(att.url)
+
+
+def test_stable_urls_differ_per_attachment(Attachment, storage_routes):
+    a = Attachment(_make_file(b"a", "a.png"))
+    a.save()
+    b = Attachment(_make_file(b"b", "b.png"))
+    b.save()
+    assert _token_of(a.url) != _token_of(b.url)
+
+
+def test_stable_url_token_resolves_with_its_salt_only(Attachment, storage_routes):
+    att = Attachment(_make_file(b"data", "photo.png"))
+    att.save()
+    token = _token_of(att.url)
+    assert Attachment.get_signed(token, salt="redirect", max_age=None).id == att.id
+    assert Attachment.get_signed(token, salt="proxy", max_age=None) is None
+    # An upload URL must never be derivable from a download URL.
+    assert Attachment.get_signed(token, salt="upload", max_age=None) is None
+
+
+def test_urls_made_before_this_change_still_resolve(Attachment, storage_routes):
+    """Timed tokens are out there: in emails, social previews, stored HTML."""
+    att = Attachment(_make_file(b"data", "photo.png"))
+    att.save()
+    old_style = att.generate_token(salt="redirect")
+    assert old_style != _token_of(att.url)
+    assert Attachment.get_signed(old_style, salt="redirect", max_age=None).id == att.id
+
+
+def test_custom_urls_are_timed_unless_asked_to_be_stable(Attachment, storage_routes):
+    """Expiring download links keep working: `url_for` is timed by default."""
+    att = Attachment(_make_file(b"data", "report.pdf"))
+    att.save()
+
+    timed = _token_of(att.url_for("Download.show", salt="secret"))
+    assert Attachment.get_signed(timed, salt="secret", max_age=60).id == att.id
+
+    stable = att.url_for("Download.show", salt="secret", stable=True)
+    assert stable == att.url_for("Download.show", salt="secret", stable=True)
+    # A stable token can't prove its age, so an age limit rejects it.
+    assert Attachment.get_signed(_token_of(stable), salt="secret", max_age=60) is None
+    assert Attachment.get_signed(_token_of(stable), salt="secret", max_age=None).id == att.id
+
+
+def _send(att, app):
+    scope = make_test_scope()
+    scope["app"] = app
+    current.response = response = Response(scope)
+    att.send_file()
+    # The headers as they go over the wire.
+    return {name.lower(): value for name, value in response.get_header_tuples()}
+
+
+def test_send_file_lets_browsers_cache_the_file(app, Attachment):
+    att = Attachment(_make_file(b"data", "photo.png"), content_type="image/png")
+    att.save()
+    headers = _send(att, app)
+    assert headers["cache-control"] == f"private, max-age={YEAR}, immutable"
+    assert headers["last-modified"]
+
+
+def test_send_file_on_a_public_service_also_allows_shared_caches(app, Attachment):
+    att = Attachment(_make_file(b"data", "photo.png"), service_name="public")
+    att.save()
+    headers = _send(att, app)
+    assert headers["cache-control"] == f"public, max-age={YEAR}, immutable"
+
+
+def test_cache_max_age_can_be_changed_or_disabled(app, Attachment):
+    att = Attachment(_make_file(b"data", "photo.png"))
+    att.save()
+
+    Attachment.CACHE_MAX_AGE = 3600
+    assert _send(att, app)["cache-control"] == "private, max-age=3600, immutable"
+
+    Attachment.CACHE_MAX_AGE = None
+    assert "cache-control" not in _send(att, app)

@@ -79,6 +79,11 @@ class _Attachment(ProperModel):
         # "video/*": "preview_video",
     }
 
+    # How long, in seconds, a served file may be cached (`Cache-Control:
+    # max-age`). The bytes of an attachment never change, so it can be long.
+    # Set it to `None` in your Attachment model to send no caching headers.
+    CACHE_MAX_AGE: int | None = YEAR
+
     def __new__(cls, *args, **kwargs):
         cls._validate_previewers()
         return super().__new__(cls)
@@ -239,24 +244,42 @@ class _Attachment(ProperModel):
     def get_redirect_url(self, **kwargs) -> str:
         """Routes via `StorageRedirectController`, which redirects to the
         service's native URL when available (e.g. presigned S3 link) and
-        otherwise streams the bytes."""
+        otherwise streams the bytes.
+
+        The URL is stable: it is the same every time for the same
+        attachment, so browsers and CDNs can cache what it returns."""
+        kwargs.setdefault("stable", True)
         return self.url_for("StorageRedirect.show", salt="redirect", **kwargs)
 
     def get_proxy_url(self, **kwargs) -> str:
         """Routes via `StorageProxyController`, which always streams
-        the bytes through the app."""
+        the bytes through the app. Stable, like `get_redirect_url()`."""
+        kwargs.setdefault("stable", True)
         return self.url_for("StorageProxy.show", salt="proxy", **kwargs)
 
-    def url_for(self, action: str, *, salt: str | None = None, **kwargs) -> str:
+    def url_for(
+        self,
+        action: str,
+        *,
+        salt: str | None = None,
+        stable: bool = False,
+        **kwargs,
+    ) -> str:
         """Generate a URL for this attachment using the specified action as
         salt. The action should correspond to a controller that can resolve
         the token and serve the file (e.g. "Download.show"), and the
         salt should match what that controller expects when resolving the
         token.
+
+        By default the token is timed: it differs on every call, and the
+        controller can expire it with `get_signed(token, max_age=...)`.
+        With `stable=True` the token has no timestamp, so the URL is always
+        the same and therefore cacheable, but it can never expire: the
+        controller must resolve it with `max_age=None`.
         """
         return self._app.url_for(
             action,
-            token=self.generate_token(salt=salt),
+            token=self.generate_token(salt=salt, timed=not stable),
             filename=self.filename,
             **kwargs
         )
@@ -272,10 +295,30 @@ class _Attachment(ProperModel):
 
     def send_file(self) -> None:
         inline = self.is_allowed_inline(self.content_type)
-        return self.service.send_file(
+        self.service.send_file(
             self,
             response=current.response,
             as_attachment=not inline,
+        )
+        self._set_cache_headers(current.response)
+
+    def _set_cache_headers(self, response: t.Any) -> None:
+        """The bytes behind an attachment never change (a replacement is a
+        new attachment with a new ID, and so is every variant), so whatever
+        a URL returns can be cached for as long as `CACHE_MAX_AGE` says.
+
+        Only browsers may keep a copy (`private`), unless the storage
+        service is declared `public`, which also lets shared caches like a
+        CDN or a reverse proxy keep one. The token in the URL is the access
+        credential, and a shared cache would serve its copy without asking
+        the app again.
+        """
+        if self.CACHE_MAX_AGE is None:
+            return
+        response.set_cache_control(
+            "public" if self.service.public else "private",
+            f"max-age={int(self.CACHE_MAX_AGE)}",
+            "immutable",
         )
 
     def download(self) -> bytes:
