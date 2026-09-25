@@ -107,9 +107,9 @@ def copy_session(request: "Request", response: "Response"):
     """
     session = _find_session_by_cookie(request)
     if session is None:
-        # No cookie, or a bad one: two empty sessions, and nothing to copy
-        # or to strip. This is most requests.
-        request.session = DotDict()
+        # No cookie, or a bad one: the request keeps the empty session it
+        # was born with; the response gets a fresh one, since its flash
+        # messages already wrote to the first. This is most requests.
         response.session = DotDict()
         return
     request.session = session

@@ -20,18 +20,28 @@ class GlobalContext:
     request: "Request"
     response: "Response"
 
+    _vars: dict[str, ContextVar]
+
     def __init__(self) -> None:
-        super().__setattr__("_vars", {})
+        # The three set on every request exist from the start; others are
+        # made on first use.
+        super().__setattr__("_vars", {
+            name: ContextVar(f"proper.current.{name}")
+            for name in ("app", "request", "response")
+        })
 
     def __setattr__(self, name: str, value: t.Any) -> None:
-        _vars = super().__getattribute__("_vars")
-        cv = _vars.get(name)
-        if cv is None:
+        # `_vars` is a real attribute, so this is a plain lookup; only
+        # names that are not attributes reach `__getattr__`.
+        _vars = self._vars
+        try:
+            cv = _vars[name]
+        except KeyError:
             cv = _vars.setdefault(name, ContextVar(f"proper.current.{name}"))
         cv.set(value)
 
     def __getattr__(self, name: str) -> t.Any:
-        _vars = super().__getattribute__("_vars")
+        _vars = self._vars
         if name not in _vars:
             if name in ALWAYS_VALID:
                 return None
