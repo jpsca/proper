@@ -267,11 +267,67 @@ class TestRunCommand:
         get_run_cli(app)(None)
 
         assert calls["target"] == "myapp.main:app"
+        assert calls["interface"] == "wsgi"
+        assert calls["websockets"] is False
         assert calls["port"] == 4321
         assert calls["workers"] == 3
+        assert calls["blocking_threads"] >= 1
         assert calls["address"] == "0.0.0.0"
         assert calls["reload"] is False
         assert calls["served"] is True
+
+    def test_rsgi_is_a_choice(self, app, monkeypatch):
+        import granian
+
+        from proper.cli.app_cli import get_run_cli
+
+        calls = {}
+
+        class FakeGranian:
+            def __init__(self, **kwargs):
+                calls.update(kwargs)
+
+            def serve(self):
+                pass
+
+        monkeypatch.setattr(granian, "Granian", FakeGranian)
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        app.config.INTERFACE = "RSGI"
+
+        get_run_cli(app)(None)
+
+        assert calls["interface"] == "rsgi"
+        assert calls["websockets"] is True
+        # Granian's blocking threads only mean something for WSGI.
+        assert calls["blocking_threads"] is None
+
+    def test_an_unknown_interface_is_refused(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
+
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        app.config.INTERFACE = "asgi"
+
+        with pytest.raises(ValueError, match="INTERFACE"):
+            get_run_cli(app)(None)
+
+    def test_the_thread_budget_is_split_between_free_threaded_workers(
+        self, monkeypatch
+    ):
+        from proper.cli import app_cli
+
+        monkeypatch.setattr(app_cli, "_free_threaded", lambda: True)
+        assert app_cli._blocking_threads(20, 4) == 5
+        assert app_cli._blocking_threads(20, 3) == 7  # rounded up
+        assert app_cli._blocking_threads(2, 8) == 1
+
+    def test_process_workers_each_get_the_whole_budget(self, monkeypatch):
+        from proper.cli import app_cli
+
+        monkeypatch.setattr(app_cli, "_free_threaded", lambda: False)
+        assert app_cli._blocking_threads(20, 4) == 20
+        assert app_cli._blocking_threads(0, 4) == 1
 
     def test_the_target_defaults_to_the_creating_module(self, app, monkeypatch):
         import granian

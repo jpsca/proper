@@ -35,12 +35,27 @@ def _free_threaded() -> bool:
     return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
+def _blocking_threads(max_threads: int, workers: int) -> int:
+    """Threads per worker for the WSGI server, out of the app's
+    `MAX_THREADS`, which is per process. Free-threaded workers share the
+    process, so they share that budget; process workers each get all of it.
+
+    Granian's own default is in the hundreds, which floods a database with
+    connections and buys nothing for CPU-bound Python.
+    """
+    if _free_threaded():
+        return max(1, -(-max_threads // workers))
+    return max(1, max_threads)
+
+
 def _serve(
     *,
     target: str,
+    interface: str,
     address: str,
     port: int,
     workers: int,
+    blocking_threads: int,
     reload: bool,
     debug: bool,
 ) -> None:
@@ -55,10 +70,12 @@ def _serve(
 
     Granian(
         target=target,
-        interface=Interfaces.RSGI,
+        interface=Interfaces(interface),
         address=address,
         port=port,
         workers=workers,
+        blocking_threads=blocking_threads if interface == "wsgi" else None,
+        websockets=interface == "rsgi",
         reload=reload,
         log_level=LogLevels.debug if debug else LogLevels.info,
         log_access=debug,
@@ -103,17 +120,24 @@ def get_run_cli(app: "App") -> t.Callable:
                 How many workers to start.
 
         The app is loaded from `config.APP_TARGET`, or from `app` in the
-        module that created it when that is empty.
+        module that created it when that is empty. `config.INTERFACE`
+        picks WSGI (the default) or RSGI.
         """
         from ..helpers import show_banner, show_welcome
 
         config = app.config
         reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
+        interface = str(config.INTERFACE or "wsgi").lower()
+        if interface not in ("wsgi", "rsgi"):
+            raise ValueError(f"INTERFACE must be 'wsgi' or 'rsgi', not {config.INTERFACE!r}")
+        workers = int(workers or config.WORKERS or 1)
         options = {
             "target": config.APP_TARGET or f"{app.import_name}:app",
+            "interface": interface,
             "address": host,
             "port": int(port or config["PORT"] or 2300),
-            "workers": int(workers or config.WORKERS or 1),
+            "workers": workers,
+            "blocking_threads": _blocking_threads(app.max_threads, workers),
             "debug": bool(config.DEBUG),
         }
         show_banner()

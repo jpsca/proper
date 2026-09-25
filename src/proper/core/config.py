@@ -24,6 +24,12 @@ default_config = {
     # they are threads sharing this process; otherwise, separate processes.
     "WORKERS": 1,
 
+    # How the server talks to the app. "wsgi" runs each request on one of the
+    # server's own threads, which is the fastest way to serve sync
+    # controllers, but has no WebSockets. "rsgi" has them, at a cost per
+    # request.
+    "INTERFACE": "wsgi",
+
     # Restart the server when the code changes. `None` follows `DEBUG`.
     "RELOAD": None,
 
