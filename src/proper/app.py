@@ -603,6 +603,9 @@ class App(AppWs, AppWsgi):
         )
 
     async def _handle_http(self, scope, protocol) -> None:
+        if scope.method == "POST" and scope.path == self.config.CABLE_PATH:
+            await self._receive_broadcast(scope, protocol)
+            return
         request = self._request_from_scope(scope)
         response = await self._respond(request, protocol)
         await self._send_response(request, response, protocol)

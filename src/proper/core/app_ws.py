@@ -2,6 +2,7 @@ import asyncio
 import threading
 import typing as t
 
+from ..channels.cable import CABLE_SALT, FORWARD_MAX_AGE
 from ..helpers import jsonplus, logger
 
 
@@ -42,6 +43,20 @@ class AppWs:
 
     def _request_from_scope(self, scope) -> "Request":
         ...
+
+    async def _receive_broadcast(self, scope, protocol) -> None:
+        """A broadcast forwarded by a process without WebSockets, as a
+        `POST` to `CABLE_PATH`: a token signed with the app's keys, carrying
+        the stream and the data. Anything else gets a 403; behind a proxy
+        this path is reachable from outside."""
+        token = (await protocol()).decode("utf-8", "replace")
+        payload = self.loads(token, salt=CABLE_SALT, max_age=FORWARD_MAX_AGE)  # type: ignore[attr-defined]
+        if not isinstance(payload, dict) or "stream" not in payload:
+            logger.warning("[cable] refused a broadcast with a bad signature")
+            protocol.response_empty(403, [])
+            return
+        self.cable._deliver_local(payload["stream"], payload.get("data"))  # type: ignore[attr-defined]
+        protocol.response_empty(204, [])
 
     async def _handle_websocket(self, scope, protocol) -> None:
         cable_path = self.config.get("CABLE_PATH", "/cable")

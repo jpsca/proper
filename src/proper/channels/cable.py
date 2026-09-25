@@ -6,13 +6,18 @@ that stream receive it.
 
 Two backends are provided:
 
-- `Cable` - in-process only. Enough for one worker process, or for any
-  number of worker threads sharing the process.
-- `RedisCable` - Redis pub/sub, for several worker processes.
+- `Cable` - in-process. Enough for one worker process, or for any number of
+  worker threads sharing the process. When the WebSockets live in their own
+  process (`CABLE_PORT`), broadcasts made anywhere else are forwarded to it
+  over the loopback, signed with the app's secret keys.
+- `RedisCable` - Redis pub/sub, for several worker processes on one or more
+  machines.
 """
 import asyncio
+import http.client
 import threading
 import typing as t
+from urllib.parse import urlsplit
 
 from ..helpers import jsonplus, logger
 
@@ -42,13 +47,22 @@ def _load_redis() -> None:
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .channel import Channel
 
 
-__all__ = ("Cable", "RedisCable")
+__all__ = ("Cable", "RedisCable", "CABLE_SALT")
 
 # Longest the Redis listener waits between attempts to reconnect.
 MAX_RECONNECT_DELAY = 30
+
+# Salt of the signature on broadcasts forwarded to the cable process.
+CABLE_SALT = "cable-broadcast"
+# How long such a broadcast stays valid, in seconds. Loopback is instant;
+# this only bounds a replay.
+FORWARD_MAX_AGE = 30
+FORWARD_TIMEOUT = 2.0
 
 
 class Cable:
@@ -61,6 +75,13 @@ class Cable:
         # subscription another thread just made. Re-entrant because
         # `unsubscribe_all` works through `unsubscribe`.
         self._lock = threading.RLock()
+        # Set by `forward_to`: where broadcasts go when this process has no
+        # WebSockets of its own.
+        self._forward_url: str | None = None
+        self._sign: "Callable[[t.Any], str] | None" = None
+        # `start()` is what the WebSocket server calls; a process that never
+        # does has no subscribers and forwards instead.
+        self._started = False
 
     @property
     def streams(self) -> dict[str, int]:
@@ -94,9 +115,50 @@ class Cable:
             for stream_name in list(self._streams):
                 self.unsubscribe(stream_name, channel)
 
+    def forward_to(self, url: str, sign: "Callable[[t.Any], str]") -> None:
+        """Send the broadcasts of any process that is not serving the
+        WebSockets to `url`, the cable process's `CABLE_PATH`, signed with
+        `sign`."""
+        self._forward_url = url
+        self._sign = sign
+
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Send data to all channels subscribed to a stream."""
-        self._deliver_local(stream_name, data)
+        if self._forward_url and not self._started:
+            self._forward(stream_name, data)
+        else:
+            self._deliver_local(stream_name, data)
+
+    def _forward(self, stream_name: str, data: t.Any) -> None:
+        """POST the broadcast to the cable process. A cable that is down
+        loses the message and logs it; the page that broadcast still
+        renders."""
+        assert self._forward_url and self._sign
+        token = self._sign({"stream": stream_name, "data": data})
+        url = urlsplit(self._forward_url)
+        try:
+            conn = http.client.HTTPConnection(
+                url.hostname or "127.0.0.1", url.port, timeout=FORWARD_TIMEOUT
+            )
+            try:
+                conn.request(
+                    "POST", url.path, body=token.encode(),
+                    headers={"Content-Type": "text/plain"},
+                )
+                status = conn.getresponse().status
+            finally:
+                conn.close()
+        except OSError as error:
+            logger.warning(
+                "[cable] could not reach the cable process at %s: %s",
+                self._forward_url, error,
+            )
+            return
+        if status != 204:
+            logger.warning(
+                "[cable] the cable process at %s refused a broadcast: HTTP %s",
+                self._forward_url, status,
+            )
 
     def _deliver_local(self, stream_name: str, data: t.Any) -> None:
         """Deliver data to all local channels subscribed to a stream."""
@@ -120,6 +182,7 @@ class Cable:
                 )
 
     async def start(self) -> None:
+        self._started = True
         # no-op for in-process cable.
         ...
 
