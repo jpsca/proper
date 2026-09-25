@@ -102,7 +102,10 @@ export class Cable {
   connect(url) {
     if (!url) {
       const protocol = location.protocol === "https:" ? "wss:" : "ws:"
-      url = `${protocol}//${location.host}/cable`
+      // In development the cable runs on its own port, announced by the page.
+      const port = document.querySelector('meta[name="cable-port"]')?.content
+      const host = port ? `${location.hostname}:${port}` : location.host
+      url = `${protocol}//${host}/cable`
     }
     this._url = url
     this._shouldReconnect = true

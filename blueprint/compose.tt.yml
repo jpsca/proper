@@ -25,11 +25,13 @@ x-app: &app
   restart: unless-stopped
 
 services:
-  # Web server (proper run -> Granian on 0.0.0.0:2300).
+  # Web server (proper run -> Granian on 0.0.0.0:2300, plus the WebSockets
+  # on 2301 when the app has channels).
   web:
     <<: *app
     ports:
       - "${WEB_PORT:-2300}:2300"
+      - "${CABLE_PORT:-2301}:2301"
     volumes:
       - storage:/app/storage
 

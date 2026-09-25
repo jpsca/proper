@@ -1,3 +1,4 @@
+import multiprocessing
 import sysconfig
 import typing as t
 from functools import wraps
@@ -8,6 +9,8 @@ from .db_cli import get_db_cli
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ..app import App
 
 
@@ -82,6 +85,29 @@ def _serve(
     ).serve()
 
 
+def _serve_with_cable(
+    web: dict, cable: dict, *, serve: "Callable" = _serve
+) -> multiprocessing.Process:
+    """Run the web server here and the WebSocket server in a child process,
+    and take the child down when the web server stops. Returns the child,
+    once it has.
+
+    Two processes because they speak different interfaces: WSGI has no
+    WebSockets, and RSGI pays for its event loop on every request.
+    """
+    child = multiprocessing.get_context("spawn").Process(
+        target=serve, kwargs=cable, name="proper-cable", daemon=True
+    )
+    child.start()
+    try:
+        serve(**web)
+    finally:
+        if child.is_alive():
+            child.terminate()
+        child.join(timeout=10)
+    return child
+
+
 def _log_changes(changes: set) -> None:
     # Printed rather than logged: the `proper` logger has no handler of its
     # own, and this must show up next to Granian's lines.
@@ -89,22 +115,20 @@ def _log_changes(changes: set) -> None:
     print(f"[INFO] Changes detected, restarting the server: {files}", flush=True)
 
 
-def _serve_restarting_on_changes(path: str, **options: t.Any) -> None:
-    """Run the server in a child process, and start a new one whenever a
-    file under `path` changes.
+def _serve_restarting_on_changes(
+    path: str, target: "Callable", kwargs: dict
+) -> None:
+    """Run `target(**kwargs)` in a child process, and start a new one
+    whenever a file under `path` changes.
 
     Granian's own reloader replaces its worker processes, which is not
     possible on free-threaded Python, where the workers are threads of a
-    single process. Restarting that whole process from outside is.
+    single process, nor covers a second server. Restarting the whole
+    process from outside does both.
     """
     import watchfiles
 
-    watchfiles.run_process(
-        path,
-        target=_serve,
-        kwargs={**options, "reload": False},
-        callback=_log_changes,
-    )
+    watchfiles.run_process(path, target=target, kwargs=kwargs, callback=_log_changes)
 
 
 def get_run_cli(app: "App") -> t.Callable:
@@ -121,7 +145,8 @@ def get_run_cli(app: "App") -> t.Callable:
 
         The app is loaded from `config.APP_TARGET`, or from `app` in the
         module that created it when that is empty. `config.INTERFACE`
-        picks WSGI (the default) or RSGI.
+        picks WSGI (the default) or RSGI. With WSGI and a `CABLE_PORT`, a
+        second process serves the WebSockets over RSGI on that port.
         """
         from ..helpers import show_banner, show_welcome
 
@@ -140,10 +165,31 @@ def get_run_cli(app: "App") -> t.Callable:
             "blocking_threads": _blocking_threads(app.max_threads, workers),
             "debug": bool(config.DEBUG),
         }
+        cable_port = int(config.CABLE_PORT or 0)
         show_banner()
         show_welcome(config["HOST"])
-        if reload and _free_threaded():
-            _serve_restarting_on_changes(str(app.root_path), **options)
+
+        if cable_port and interface == "wsgi":
+            # The WebSockets get their own RSGI process; Granian's reloader
+            # would not restart it, so reloading is always done from outside.
+            web = {**options, "reload": False}
+            cable = {
+                **options,
+                "interface": "rsgi",
+                "port": cable_port,
+                "workers": 1,
+                "reload": False,
+            }
+            if reload:
+                _serve_restarting_on_changes(
+                    str(app.root_path), _serve_with_cable, {"web": web, "cable": cable}
+                )
+            else:
+                _serve_with_cable(web, cable)
+        elif reload and _free_threaded():
+            _serve_restarting_on_changes(
+                str(app.root_path), _serve, {**options, "reload": False}
+            )
         else:
             _serve(reload=reload, **options)
 

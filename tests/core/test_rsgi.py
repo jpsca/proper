@@ -1,5 +1,6 @@
 """The RSGI face of the app: what the server calls, and what it gets back."""
 import asyncio
+import time
 
 import pytest
 
@@ -64,6 +65,14 @@ class Page(Controller):
 class Files(Controller):
     def show(self):
         self.response.send_file(SEEN["path"])
+
+
+def fake_serve(**options):
+    """Stands in for a server: the WebSocket one runs until it is stopped,
+    the web one returns at once. Module-level so a spawned process can
+    import it."""
+    if options["interface"] == "rsgi":
+        time.sleep(60)
 
 
 def _route(app, path, action, method="GET"):
@@ -397,6 +406,90 @@ class TestRunCommand:
         _log_changes({(Change.modified, "b.py"), (Change.added, "a.py")})
 
         assert "restarting the server: a.py, b.py" in capsys.readouterr().out
+
+    def test_a_cable_port_adds_a_websocket_process(self, app, monkeypatch):
+        from proper.cli import app_cli
+
+        calls = {}
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        monkeypatch.setattr(
+            app_cli, "_serve_with_cable", lambda web, cable: calls.update(web=web, cable=cable)
+        )
+        app.config.CABLE_PORT = 2301
+        app.config.WORKERS = 4
+
+        app_cli.get_run_cli(app)(None, port=2300)
+
+        assert calls["web"]["interface"] == "wsgi"
+        assert calls["web"]["port"] == 2300
+        assert calls["web"]["workers"] == 4
+        assert calls["web"]["reload"] is False
+        assert calls["cable"]["interface"] == "rsgi"
+        assert calls["cable"]["port"] == 2301
+        assert calls["cable"]["workers"] == 1
+        assert calls["cable"]["reload"] is False
+        assert calls["cable"]["target"] == calls["web"]["target"]
+
+    def test_with_a_cable_reloading_restarts_both(self, app, monkeypatch):
+        import watchfiles
+
+        from proper.cli import app_cli
+
+        calls = {}
+        monkeypatch.setattr(
+            watchfiles, "run_process", lambda *paths, **kw: calls.update(paths=paths, **kw)
+        )
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        monkeypatch.setattr(app_cli, "_free_threaded", lambda: False)
+        app.config.CABLE_PORT = 2301
+        app.config.RELOAD = True
+
+        app_cli.get_run_cli(app)(None)
+
+        assert calls["paths"] == (str(app.root_path),)
+        assert calls["target"] is app_cli._serve_with_cable
+        assert calls["kwargs"]["cable"]["port"] == 2301
+        assert calls["kwargs"]["web"]["reload"] is False
+
+    def test_rsgi_needs_no_cable_process(self, app, monkeypatch):
+        import granian
+
+        from proper.cli import app_cli
+
+        calls = {}
+
+        class FakeGranian:
+            def __init__(self, **kwargs):
+                calls.update(kwargs)
+
+            def serve(self):
+                pass
+
+        monkeypatch.setattr(granian, "Granian", FakeGranian)
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        monkeypatch.setattr(
+            app_cli, "_serve_with_cable", lambda web, cable: calls.update(cable=True)
+        )
+        app.config.INTERFACE = "rsgi"
+        app.config.CABLE_PORT = 2301
+
+        app_cli.get_run_cli(app)(None)
+
+        assert calls["interface"] == "rsgi"
+        assert "cable" not in calls
+
+    def test_the_cable_process_goes_down_with_the_web_server(self):
+        from proper.cli.app_cli import _serve_with_cable
+
+        child = _serve_with_cable(
+            {"interface": "wsgi"}, {"interface": "rsgi"}, serve=fake_serve
+        )
+
+        assert not child.is_alive()
+        assert child.exitcode is not None
 
     def test_free_threaded_follows_the_build(self):
         import sysconfig

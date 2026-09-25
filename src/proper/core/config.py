@@ -99,6 +99,12 @@ default_config = {
 
     "CABLE_PATH": "/cable",
 
+    # Port of the WebSocket (RSGI) process that `proper run` starts next to
+    # the web server, for the channels. `0` starts none. In production a
+    # proxy routes `CABLE_PATH` here; in `DEBUG` the browser connects to this
+    # port directly.
+    "CABLE_PORT": 0,
+
     "IMPORT_MAP": {
         "@hotwired/stimulus": "js/vendor/stimulus.js",
         "@hotwired/turbo": "js/vendor/turbo.js",

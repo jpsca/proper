@@ -28,6 +28,7 @@ def test_file_creation(app_in_tmp):
     assert path.exists()
     text = path.read_text()
     assert "CABLE_PATH" in text
+    assert "CABLE_PORT" in text
     assert "CABLE:" in text
 
     # cable.js asset
@@ -37,11 +38,13 @@ def test_file_creation(app_in_tmp):
     # turbo streams bridge lives in cable.js, imported from application.js
     js_dir = app_in_tmp.root_path / "assets" / "js"
     assert "turbo-stream-channel" in (js_dir / "cable.js").read_text()
+    assert 'meta[name="cable-port"]' in (js_dir / "cable.js").read_text()
     assert 'import "cable"' in (js_dir / "application.js").read_text()
 
     # config __init__ updated with channels import
     text = (app_in_tmp.root_path / "config" / "__init__.py").read_text()
     assert "from .channels import CABLE" in text
+    assert "CABLE_PORT" in text
 
     # records the install in .proper
     assert metadata.is_installed(app_in_tmp, "channels")
