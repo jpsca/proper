@@ -20,6 +20,7 @@ from . import pipeline, status, tools
 from .channels import Cable
 from .cli.app_cli import get_cli
 from .core.app_ws import AppWs
+from .core.app_wsgi import AppWsgi
 from .core.config import load_config
 from .core.error_handlers import (
     debug_error_handler,
@@ -110,7 +111,7 @@ class _ThreadWaits:
             return report
 
 
-class App(AppWs):
+class App(AppWs, AppWsgi):
     """
     A Proper app core.
 

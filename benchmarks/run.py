@@ -8,8 +8,8 @@ against each endpoint, samples the RSS of the whole process tree, stops the
 server and prints a Markdown table. Results are also written as JSON to
 `benchmarks/results/`.
 
-The servers are Granian running `benchmarks/app` on the GIL and on the
-free-threaded Python, and the reference apps in `benchmarks/beego` (Go) and
+The servers are Granian running `benchmarks/app` over RSGI and over WSGI, on
+the GIL and on the free-threaded Python, and the reference apps in `benchmarks/beego` (Go) and
 `benchmarks/topcoat` (Rust), which serve the same three routes over the same
 SQLite file. The reference apps are built on demand with `go` and `cargo`,
 looked up on PATH, then in `~/go/bin` and `~/.cargo/bin`. Go and Rust use
@@ -72,19 +72,24 @@ class Config:
     env: dict = field(default_factory=dict)
 
 
-def configs(workers: int, ft_python: str | None) -> list[Config]:
-    def granian(name, python=sys.executable):
-        return Config(name, [
+def configs(workers: int, ft_python: str | None, blocking_threads: int | None) -> list[Config]:
+    def granian(name, python=sys.executable, interface="rsgi"):
+        argv = [
             python, "-m", "granian", "benchmarks.rsgi:app",
-            "--interface", "rsgi",
+            "--interface", interface,
             "--host", "127.0.0.1", "--port", str(PORT),
             "--workers", str(workers), "--log-level", "warning",
             "--no-access-log",
-        ], python=python)
+        ]
+        if interface == "wsgi" and blocking_threads:
+            argv += ["--blocking-threads", str(blocking_threads)]
+            name = f"{name} {blocking_threads}bt"
+        return Config(name, argv, python=python)
 
-    out = [granian("granian rsgi")]
+    out = [granian("granian rsgi"), granian("granian wsgi", interface="wsgi")]
     if ft_python:
         out.append(granian("granian rsgi 3.14t", python=ft_python))
+        out.append(granian("granian wsgi 3.14t", python=ft_python, interface="wsgi"))
     if BEEGO_BIN.exists():
         out.append(Config("beego (go)", [str(BEEGO_BIN)], env={"PORT": str(PORT)}))
     if TOPCOAT_BIN.exists():
@@ -198,11 +203,13 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--only", default="", help="comma-separated substrings of config names")
     ap.add_argument("--ft-python", default=str(ROOT / ".venv-ft/bin/python"))
+    ap.add_argument("--blocking-threads", type=int, default=None,
+                    help="Granian blocking threads per worker, WSGI only")
     args = ap.parse_args()
 
     ft = args.ft_python if Path(args.ft_python).exists() else None
     build_reference_apps()
-    cfgs = configs(args.workers, ft)
+    cfgs = configs(args.workers, ft, args.blocking_threads)
     if args.only:
         keys = [k.strip() for k in args.only.split(",")]
         cfgs = [c for c in cfgs if any(k in c.name for k in keys)]

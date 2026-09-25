@@ -117,12 +117,22 @@ class Request(RequestHeadersMixin):
         length is checked against `MAX_CONTENT_LENGTH` before a single
         byte is read, so an oversized upload is refused, not buffered.
         """
+        if self._expects_body():
+            self._parse_body_bytes(await read())
+
+    def _read_body_sync(self, read: "Callable[[int], bytes]") -> None:
+        """`_read_body` for a server that hands us a blocking `read(size)`,
+        like WSGI's `wsgi.input`."""
+        if self._expects_body():
+            self._parse_body_bytes(read(self.content_length))
+
+    def _expects_body(self) -> bool:
         if self.method in (GET, HEAD) or not self.content_length:
-            return
+            return False
         max_content_length = self.app.config.MAX_CONTENT_LENGTH
         if max_content_length > 0 and self.content_length > max_content_length:
             raise RequestEntityTooLarge("Maximum content length exceeded")
-        self._parse_body_bytes(await read())
+        return True
 
     def _parse_body_bytes(
         self,
