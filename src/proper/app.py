@@ -2,6 +2,7 @@ import asyncio
 import contextvars
 import copy
 import hashlib
+import logging
 import os
 import sys
 import threading
@@ -189,6 +190,10 @@ class App(AppWs):
         self.env = os.getenv("APP_ENV", "dev")
         self.import_name = import_name
         self.config = load_config(config or {})
+        # Every `logger.debug` call builds a full record when the level lets
+        # it through, handlers or not. Outside of debug mode that is pure cost
+        # on the request path.
+        logger.setLevel(logging.DEBUG if self.config.DEBUG else logging.INFO)
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
         self._thread_waits = _ThreadWaits()
         self._executor: ThreadPoolExecutor | None = None
