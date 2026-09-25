@@ -4,26 +4,37 @@
 #   docker build -t [[app_name]]:latest .
 # ============================================================================
 
-ARG PYTHON_VERSION=3.14
+# Proper serves on free-threaded Python (the "t" builds). The official
+# `python` images have no such variant, so uv installs the interpreter into
+# /python in the builder and the runtime stage copies it over.
+ARG PYTHON_VERSION=3.14t
 ARG UV_VERSION=0.11.7
+ARG DEBIAN_VERSION=bookworm
 
 # Pinned, reproducible uv binary as its own stage (no `pip install uv` layer).
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
 
 # --- Stage 1: builder -------------------------------------------------------
-# Resolves and installs the locked dependencies into a self-contained venv.
-FROM python:${PYTHON_VERSION}-slim AS builder
+# Installs the interpreter and the locked dependencies into a self-contained venv.
+FROM debian:${DEBIAN_VERSION}-slim AS builder
+ARG PYTHON_VERSION
 
 COPY --from=uv /uv /uvx /bin/
 
 # Build-time uv behaviour:
 #   COMPILE_BYTECODE -> ship .pyc for faster cold starts
 #   LINK_MODE=copy   -> avoid hardlink warnings across the cache mount
-#   PYTHON_DOWNLOADS=0 -> use the base image's interpreter, don't fetch one
+#   PYTHON_INSTALL_DIR -> a fixed path, the same in both stages, so the
+#                         venv's links to the interpreter survive the copy
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=0
+    UV_PYTHON_INSTALL_DIR=/python \
+    UV_PYTHON_PREFERENCE=only-managed \
+    UV_PYTHON=${PYTHON_VERSION}
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv python install ${PYTHON_VERSION}
 
 WORKDIR /app
 
@@ -41,7 +52,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # --- Stage 2: runtime -------------------------------------------------------
 # Minimal image: interpreter + venv + source, no build tooling.
-FROM python:${PYTHON_VERSION}-slim AS runtime
+FROM debian:${DEBIAN_VERSION}-slim AS runtime
+
+COPY --from=builder /python /python
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -57,7 +70,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # - ffmpeg -> required for video processing (optional, not installed by default)
 #
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y libpq5 \
+    && apt-get install --no-install-recommends -y ca-certificates libpq5 \
         libvips \
         # poppler-utils \
         # ffmpeg \

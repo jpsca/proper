@@ -20,9 +20,21 @@ default_config = {
     # means the `app` variable of the module that created it.
     "APP_TARGET": "",
 
-    # How many server workers `proper run` starts. On free-threaded Python
-    # they are threads sharing this process; otherwise, separate processes.
+    # How many server workers `proper run` starts in each process: threads,
+    # each with its own event loop, sharing the process and its memory.
     "WORKERS": 1,
+
+    # How many copies of the web server `proper run` starts, all on the same
+    # port. One is right for most machines. On free-threaded Python the
+    # threads of one process contend for its shared objects, so with four
+    # or more cores a second process adds throughput (about 10% at 16
+    # threads) for another copy of the app in memory.
+    "PROCESSES": 1,
+
+    # Proper serves on free-threaded Python (a "3.14t" build), and `proper
+    # run` refuses to start otherwise. Set to True to serve with the GIL
+    # anyway, at the cost of memory and parallelism.
+    "ALLOW_GIL": False,
 
     # How the server talks to the app. "wsgi" runs each request on one of the
     # server's own threads, which is the fastest way to serve sync

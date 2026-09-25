@@ -159,6 +159,11 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
 | `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
+| `WORKERS`                  | `1`               | Server workers (threads, each with an event loop) per process |
+| `PROCESSES`                | `1`               | Copies of the web server on the same port; try `2` with four or more cores |
+| `INTERFACE`                | `"wsgi"`          | How the server calls the app: `"wsgi"` (fastest) or `"rsgi"` (WebSockets in-process) |
+| `CABLE_PORT`               | `0`               | Port of the WebSocket process `proper run` starts next to the web server (`0` = none) |
+| `ALLOW_GIL`                | `False`           | Let `proper run` serve on a Python with the GIL; it refuses otherwise |
 | `THREAD_WAIT_WARNING`      | `0.5`             | Warn when a request waits this many seconds for a free thread (`0` disables) |
 | `LOOP_STALL_WARNING`       | `0.1`             | In DEBUG, warn when the event loop is blocked for this many seconds (`0` disables) |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |

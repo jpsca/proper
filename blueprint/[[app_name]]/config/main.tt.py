@@ -18,6 +18,10 @@ PORT = os.getenv("PORT", 2300)
 # are threads sharing one process; otherwise, separate processes.
 WORKERS = int(os.getenv("WORKERS", "1"))
 
+# Copies of the web server, all on the same port. One is right for most
+# machines; with four or more cores a second one adds throughput.
+PROCESSES = int(os.getenv("PROCESSES", "1"))
+
 if env == "prod":
     PROTOCOL = "https"
     HOST = "YOUR-DOMAIN.com"

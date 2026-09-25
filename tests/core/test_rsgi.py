@@ -1,5 +1,7 @@
 """The RSGI face of the app: what the server calls, and what it gets back."""
 import asyncio
+import multiprocessing
+import sys
 import time
 
 import pytest
@@ -68,10 +70,10 @@ class Files(Controller):
 
 
 def fake_serve(**options):
-    """Stands in for a server: the WebSocket one runs until it is stopped,
-    the web one returns at once. Module-level so a spawned process can
-    import it."""
-    if options["interface"] == "rsgi":
+    """Stands in for a server: the children run until they are stopped, the
+    one in the foreground returns at once. Module-level so a spawned process
+    can import it."""
+    if multiprocessing.parent_process() is not None:
         time.sleep(60)
 
 
@@ -252,10 +254,62 @@ class TestLifecycle:
 
 
 class TestRunCommand:
-    def test_it_starts_granian_with_the_app_target(self, app, monkeypatch):
+    @pytest.fixture(autouse=True)
+    def _quiet_and_free_threaded(self, monkeypatch):
+        """The tests run on any build; the command sees a free-threaded one
+        with the GIL off unless a test says otherwise."""
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        monkeypatch.setattr("proper.cli.app_cli._free_threaded", lambda: True)
+        monkeypatch.setattr("proper.cli.app_cli._gil_enabled", lambda: False)
+
+    def _capture_group(self, monkeypatch):
+        calls = {}
+        monkeypatch.setattr(
+            "proper.cli.app_cli._serve_group",
+            lambda web, cable, processes: calls.update(web=web, cable=cable, processes=processes),
+        )
+        return calls
+
+    def test_it_serves_the_app_target_over_wsgi(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
+
+        calls = self._capture_group(monkeypatch)
+        app.config.PORT = 4321
+        app.config.WORKERS = 3
+        app.config.APP_TARGET = "myapp.main:app"
+
+        get_run_cli(app)(None)
+
+        web = calls["web"]
+        assert web["target"] == "myapp.main:app"
+        assert web["interface"] == "wsgi"
+        assert web["address"] == "0.0.0.0"
+        assert web["port"] == 4321
+        assert web["workers"] == 3
+        assert web["blocking_threads"] >= 1
+        assert web["debug"] is False
+        assert calls["cable"] is None
+        assert calls["processes"] == 1
+
+    def test_the_target_defaults_to_the_creating_module(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
+
+        calls = self._capture_group(monkeypatch)
+        app.config.APP_TARGET = ""
+        app.config.RELOAD = False
+
+        get_run_cli(app)(None, host="127.0.0.1", port=9000, workers=2)
+
+        assert calls["web"]["target"] == f"{app.import_name}:app"
+        assert calls["web"]["address"] == "127.0.0.1"
+        assert calls["web"]["port"] == 9000
+        assert calls["web"]["workers"] == 2
+
+    def test_granian_gets_the_options(self, monkeypatch):
         import granian
 
-        from proper.cli.app_cli import get_run_cli
+        from proper.cli.app_cli import _serve
 
         calls = {}
 
@@ -267,135 +321,73 @@ class TestRunCommand:
                 calls["served"] = True
 
         monkeypatch.setattr(granian, "Granian", FakeGranian)
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        app.config.PORT = 4321
-        app.config.WORKERS = 3
-        app.config.APP_TARGET = "myapp.main:app"
-
-        get_run_cli(app)(None)
-
-        assert calls["target"] == "myapp.main:app"
+        _serve(
+            target="myapp:app", interface="wsgi", address="0.0.0.0", port=2300,
+            workers=2, blocking_threads=5, debug=False,
+        )
+        assert calls["target"] == "myapp:app"
         assert calls["interface"] == "wsgi"
+        assert calls["blocking_threads"] == 5
         assert calls["websockets"] is False
-        assert calls["port"] == 4321
-        assert calls["workers"] == 3
-        assert calls["blocking_threads"] >= 1
-        assert calls["address"] == "0.0.0.0"
-        assert calls["reload"] is False
         assert calls["served"] is True
 
-    def test_rsgi_is_a_choice(self, app, monkeypatch):
-        import granian
-
-        from proper.cli.app_cli import get_run_cli
-
-        calls = {}
-
-        class FakeGranian:
-            def __init__(self, **kwargs):
-                calls.update(kwargs)
-
-            def serve(self):
-                pass
-
-        monkeypatch.setattr(granian, "Granian", FakeGranian)
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        app.config.INTERFACE = "RSGI"
-
-        get_run_cli(app)(None)
-
+        _serve(
+            target="myapp:app", interface="rsgi", address="0.0.0.0", port=2301,
+            workers=1, blocking_threads=5, debug=True,
+        )
         assert calls["interface"] == "rsgi"
         assert calls["websockets"] is True
         # Granian's blocking threads only mean something for WSGI.
         assert calls["blocking_threads"] is None
+        assert calls["log_access"] is True
 
-    def test_an_unknown_interface_is_refused(self, app, monkeypatch):
+    def test_rsgi_is_a_choice(self, app, monkeypatch):
         from proper.cli.app_cli import get_run_cli
 
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        app.config.INTERFACE = "asgi"
+        calls = self._capture_group(monkeypatch)
+        app.config.INTERFACE = "RSGI"
+        app.config.CABLE_PORT = 2301
 
+        get_run_cli(app)(None)
+
+        assert calls["web"]["interface"] == "rsgi"
+        assert calls["cable"] is None  # RSGI serves the WebSockets itself
+
+    def test_an_unknown_interface_is_refused(self, app):
+        from proper.cli.app_cli import get_run_cli
+
+        app.config.INTERFACE = "asgi"
         with pytest.raises(ValueError, match="INTERFACE"):
             get_run_cli(app)(None)
 
-    def test_the_thread_budget_is_split_between_free_threaded_workers(
-        self, monkeypatch
-    ):
-        from proper.cli import app_cli
+    def test_the_thread_budget_is_split_between_workers(self):
+        from proper.cli.app_cli import _blocking_threads
 
-        monkeypatch.setattr(app_cli, "_free_threaded", lambda: True)
-        assert app_cli._blocking_threads(20, 4) == 5
-        assert app_cli._blocking_threads(20, 3) == 7  # rounded up
-        assert app_cli._blocking_threads(2, 8) == 1
+        assert _blocking_threads(20, 4) == 5
+        assert _blocking_threads(20, 3) == 7  # rounded up
+        assert _blocking_threads(2, 8) == 1
+        assert _blocking_threads(0, 4) == 1
 
-    def test_process_workers_each_get_the_whole_budget(self, monkeypatch):
-        from proper.cli import app_cli
-
-        monkeypatch.setattr(app_cli, "_free_threaded", lambda: False)
-        assert app_cli._blocking_threads(20, 4) == 20
-        assert app_cli._blocking_threads(0, 4) == 1
-
-    def test_the_target_defaults_to_the_creating_module(self, app, monkeypatch):
-        import granian
-
-        from proper.cli.app_cli import get_run_cli
-
-        calls = {}
-
-        class FakeGranian:
-            def __init__(self, **kwargs):
-                calls.update(kwargs)
-
-            def serve(self):
-                pass
-
-        monkeypatch.setattr(granian, "Granian", FakeGranian)
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        monkeypatch.setattr("proper.cli.app_cli._free_threaded", lambda: False)
-        app.config.APP_TARGET = ""
-        app.config.DEBUG = True
-        app.config.RELOAD = None
-
-        get_run_cli(app)(None, host="127.0.0.1", port=9000, workers=2)
-
-        assert calls["target"] == f"{app.import_name}:app"
-        assert calls["address"] == "127.0.0.1"
-        assert calls["port"] == 9000
-        assert calls["workers"] == 2
-        assert calls["reload"] is True
-
-    def test_free_threaded_python_restarts_the_server_from_outside(
-        self, app, monkeypatch
-    ):
+    def test_reloading_restarts_the_whole_group_from_outside(self, app, monkeypatch):
         import watchfiles
 
         from proper.cli import app_cli
 
         calls = {}
-
-        def run_process(*paths, **kwargs):
-            calls["paths"] = paths
-            calls.update(kwargs)
-
-        monkeypatch.setattr(watchfiles, "run_process", run_process)
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        monkeypatch.setattr(app_cli, "_free_threaded", lambda: True)
+        monkeypatch.setattr(
+            watchfiles, "run_process", lambda *paths, **kw: calls.update(paths=paths, **kw)
+        )
         app.config.RELOAD = True
-        app.config.APP_TARGET = "myapp.main:app"
+        app.config.CABLE_PORT = 2301
+        app.config.PROCESSES = 2
 
-        app_cli.get_run_cli(app)(None, port=9000)
+        app_cli.get_run_cli(app)(None, port=2300)
 
         assert calls["paths"] == (str(app.root_path),)
-        assert calls["target"] is app_cli._serve
-        assert calls["kwargs"]["target"] == "myapp.main:app"
-        assert calls["kwargs"]["port"] == 9000
-        # The child must not try Granian's own reloader again.
-        assert calls["kwargs"]["reload"] is False
+        assert calls["target"] is app_cli._serve_group
+        assert calls["kwargs"]["web"]["port"] == 2300
+        assert calls["kwargs"]["cable"]["port"] == 2301
+        assert calls["kwargs"]["processes"] == 2
         assert calls["callback"] is app_cli._log_changes
 
     def test_the_restart_says_which_files_changed(self, capsys):
@@ -408,95 +400,89 @@ class TestRunCommand:
         assert "restarting the server: a.py, b.py" in capsys.readouterr().out
 
     def test_a_cable_port_adds_a_websocket_process(self, app, monkeypatch):
-        from proper.cli import app_cli
+        from proper.cli.app_cli import get_run_cli
 
-        calls = {}
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        monkeypatch.setattr(
-            app_cli, "_serve_with_cable", lambda web, cable: calls.update(web=web, cable=cable)
-        )
+        calls = self._capture_group(monkeypatch)
         app.config.CABLE_PORT = 2301
         app.config.WORKERS = 4
 
-        app_cli.get_run_cli(app)(None, port=2300)
+        get_run_cli(app)(None, port=2300)
 
-        assert calls["web"]["interface"] == "wsgi"
-        assert calls["web"]["port"] == 2300
+        cable = calls["cable"]
+        assert cable["interface"] == "rsgi"
+        assert cable["port"] == 2301
+        assert cable["workers"] == 1
+        assert cable["target"] == calls["web"]["target"]
         assert calls["web"]["workers"] == 4
-        assert calls["web"]["reload"] is False
-        assert calls["cable"]["interface"] == "rsgi"
-        assert calls["cable"]["port"] == 2301
-        assert calls["cable"]["workers"] == 1
-        assert calls["cable"]["reload"] is False
-        assert calls["cable"]["target"] == calls["web"]["target"]
 
-    def test_with_a_cable_reloading_restarts_both(self, app, monkeypatch):
-        import watchfiles
+    def test_processes_come_from_the_config(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
 
-        from proper.cli import app_cli
+        calls = self._capture_group(monkeypatch)
+        app.config.PROCESSES = 3
+        get_run_cli(app)(None)
+        assert calls["processes"] == 3
 
-        calls = {}
-        monkeypatch.setattr(
-            watchfiles, "run_process", lambda *paths, **kw: calls.update(paths=paths, **kw)
-        )
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        monkeypatch.setattr(app_cli, "_free_threaded", lambda: False)
-        app.config.CABLE_PORT = 2301
-        app.config.RELOAD = True
+        app.config.PROCESSES = 0  # nonsense is one
+        get_run_cli(app)(None)
+        assert calls["processes"] == 1
 
-        app_cli.get_run_cli(app)(None)
+    def test_the_group_goes_down_with_the_web_server(self):
+        from proper.cli.app_cli import _serve_group
 
-        assert calls["paths"] == (str(app.root_path),)
-        assert calls["target"] is app_cli._serve_with_cable
-        assert calls["kwargs"]["cable"]["port"] == 2301
-        assert calls["kwargs"]["web"]["reload"] is False
-
-    def test_rsgi_needs_no_cable_process(self, app, monkeypatch):
-        import granian
-
-        from proper.cli import app_cli
-
-        calls = {}
-
-        class FakeGranian:
-            def __init__(self, **kwargs):
-                calls.update(kwargs)
-
-            def serve(self):
-                pass
-
-        monkeypatch.setattr(granian, "Granian", FakeGranian)
-        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
-        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
-        monkeypatch.setattr(
-            app_cli, "_serve_with_cable", lambda web, cable: calls.update(cable=True)
-        )
-        app.config.INTERFACE = "rsgi"
-        app.config.CABLE_PORT = 2301
-
-        app_cli.get_run_cli(app)(None)
-
-        assert calls["interface"] == "rsgi"
-        assert "cable" not in calls
-
-    def test_the_cable_process_goes_down_with_the_web_server(self):
-        from proper.cli.app_cli import _serve_with_cable
-
-        child = _serve_with_cable(
-            {"interface": "wsgi"}, {"interface": "rsgi"}, serve=fake_serve
+        children = _serve_group(
+            {"interface": "wsgi"}, {"interface": "rsgi"}, processes=3, serve=fake_serve
         )
 
-        assert not child.is_alive()
-        assert child.exitcode is not None
+        assert [child.name for child in children] == ["proper-cable", "proper-web-2", "proper-web-3"]
+        assert all(not child.is_alive() for child in children)
+        assert all(child.exitcode is not None for child in children)
 
-    def test_free_threaded_follows_the_build(self):
-        import sysconfig
+    def test_the_gil_is_refused(self, app, monkeypatch, capsys):
+        from proper.cli.app_cli import get_run_cli
 
-        from proper.cli.app_cli import _free_threaded
+        monkeypatch.setattr("proper.cli.app_cli._free_threaded", lambda: False)
+        monkeypatch.setattr("proper.cli.app_cli._gil_enabled", lambda: True)
 
-        assert _free_threaded() is bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+        with pytest.raises(SystemExit):
+            get_run_cli(app)(None)
+
+        err = capsys.readouterr().err
+        assert "uv python install 3.14t" in err
+        assert "ALLOW_GIL" in err
+
+    def test_an_extension_that_turned_the_gil_on_is_refused(self, app, monkeypatch, capsys):
+        from proper.cli.app_cli import get_run_cli
+
+        monkeypatch.setattr("proper.cli.app_cli._gil_enabled", lambda: True)
+
+        with pytest.raises(SystemExit):
+            get_run_cli(app)(None)
+
+        assert "RuntimeWarning" in capsys.readouterr().err
+
+    def test_allow_gil_serves_with_a_warning(self, app, monkeypatch, capsys):
+        from proper.cli.app_cli import get_run_cli
+
+        calls = self._capture_group(monkeypatch)
+        monkeypatch.setattr("proper.cli.app_cli._free_threaded", lambda: False)
+        monkeypatch.setattr("proper.cli.app_cli._gil_enabled", lambda: True)
+        app.config.ALLOW_GIL = True
+
+        get_run_cli(app)(None)
+
+        assert calls["processes"] == 1
+        assert "Serving with the GIL" in capsys.readouterr().out
+
+
+
+def test_the_build_checks_follow_the_interpreter():
+    import sysconfig
+
+    from proper.cli.app_cli import _free_threaded, _gil_enabled
+
+    assert _free_threaded() is bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+    assert _gil_enabled() is getattr(sys, "_is_gil_enabled", lambda: True)()
 
 
 @pytest.fixture(autouse=True)
