@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import copy
 import hashlib
 import os
@@ -185,6 +186,11 @@ class App(AppWs):
         self.config = load_config(config or {})
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
         self._thread_waits = _ThreadWaits()
+        self._executor: ThreadPoolExecutor | None = None
+        self._executor_lock = threading.Lock()
+        self._executor_users = 0
+        self._attachment_class_cache: "dict[type, type[_Attachment]]" = {}
+        self._attachment_lock = threading.Lock()
         self._setup_paths(import_name)
         self.router = Router()
         self.CLI = get_cli(self)
@@ -251,6 +257,7 @@ class App(AppWs):
                     logger.info("Application is shutting down...")
                     await self.cable.stop()
                     await self._stop_loop_debug()
+                    self._shutdown_executor()
                     await send({"type": "lifespan.shutdown.complete"})
                     return
                 else:
@@ -374,33 +381,74 @@ class App(AppWs):
         service-instance cache stable, and prevents accidentally creating
         duplicate peewee model classes for the same `attachment` table.
         """
-        cache = self.__dict__.setdefault("_attachment_class_cache", {})
-        if base_model_cls in cache:
-            return cache[base_model_cls]
-        cls = attachment_for(
-            base_model_cls,
-            app=self,
-            default_service_name=self.config.get("STORAGE", ""),
-        )
-        cache[base_model_cls] = cls
-        return cls
+        # Requests run in threads, so two first calls for the same model can
+        # overlap; without the lock each would build its own class and one of
+        # them would end up with a duplicate peewee model for the same table.
+        with self._attachment_lock:
+            cls = self._attachment_class_cache.get(base_model_cls)
+            if cls is None:
+                cls = attachment_for(
+                    base_model_cls,
+                    app=self,
+                    default_service_name=self.config.get("STORAGE", ""),
+                )
+                self._attachment_class_cache[base_model_cls] = cls
+            return cls
 
     # ---- Private ----
 
     def _setup_executor(self) -> None:
         """Install the pool of threads that run the application's code.
 
-        Without this the loop builds its own on first use, sized by
-        Python's default and with threads named after asyncio rather than
-        after this app.
+        There is one pool per app, however many event loops share it: on
+        free-threaded Python the server runs its workers as threads of one
+        process, and each one calls this on its own loop. The pool is not
+        made the loops' default executor on purpose, because a loop shuts
+        its default executor down when it closes, and the first worker to
+        stop would take the pool away from the rest. Every worker counts
+        itself in here and out in `_shutdown_executor`.
         """
-        asyncio.get_running_loop().set_default_executor(
-            ThreadPoolExecutor(
-                max_workers=self.max_threads,
-                thread_name_prefix="proper-worker",
-            )
+        with self._executor_lock:
+            self._executor_users += 1
+            if self._executor is None:
+                self._executor = self._new_executor()
+                logger.info("[app] %s worker threads", self.max_threads)
+
+    def _shutdown_executor(self) -> None:
+        """Let the pool go once the last worker that set it up is done."""
+        with self._executor_lock:
+            self._executor_users = max(0, self._executor_users - 1)
+            if self._executor_users or self._executor is None:
+                return
+            executor = self._executor
+            self._executor = None
+        executor.shutdown(wait=False)
+
+    def _new_executor(self) -> ThreadPoolExecutor:
+        return ThreadPoolExecutor(
+            max_workers=self.max_threads,
+            thread_name_prefix="proper-worker",
         )
-        logger.info("[app] %s worker threads", self.max_threads)
+
+    def _pool(self) -> ThreadPoolExecutor:
+        """The shared pool, built on first use when no one set it up - a
+        test client, or an app driven without the server's startup."""
+        executor = self._executor
+        if executor is None:
+            with self._executor_lock:
+                executor = self._executor
+                if executor is None:
+                    executor = self._executor = self._new_executor()
+        return executor
+
+    def _in_pool(self, func: "Callable", *args) -> "asyncio.Future":
+        """Run `func` in the pool, carrying `current` and the rest of the
+        context along - as `asyncio.to_thread` does - and return an
+        awaitable for its result."""
+        context = contextvars.copy_context()
+        return asyncio.get_running_loop().run_in_executor(
+            self._pool(), lambda: context.run(func, *args)
+        )
 
     async def _run_in_worker(self, func: "Callable", *args) -> t.Any:
         """Run `func` in the worker pool.
@@ -411,7 +459,7 @@ class App(AppWs):
         """
         threshold = self.config.THREAD_WAIT_WARNING
         if not threshold:
-            return await asyncio.to_thread(func, *args)
+            return await self._in_pool(func, *args)
 
         submitted = time.monotonic()
 
@@ -421,7 +469,7 @@ class App(AppWs):
                 self._warn_thread_wait(waited)
             return func(*args)
 
-        return await asyncio.to_thread(start)
+        return await self._in_pool(start)
 
     def _warn_thread_wait(self, waited: float) -> None:
         """Report a queued request, at most once per interval."""
@@ -568,7 +616,7 @@ class App(AppWs):
             chunks = iter(body)
             try:
                 while True:
-                    chunk = await asyncio.to_thread(next, chunks, None)
+                    chunk = await self._in_pool(next, chunks, None)
                     if chunk is None:
                         break
                     await send(

@@ -29,7 +29,9 @@ default_config = {
     # How many threads run your code. Each request occupies one for its
     # whole duration, so this is how many requests the app can work on at
     # once - and, since every thread opens its own database connection,
-    # how many connections it can hold. `0` uses Python's default of
+    # how many connections it can hold. It is a total for the whole
+    # process: when the server runs several workers as threads, they all
+    # share this one pool. `0` uses Python's default of
     # `min(32, cpu_count + 4)`.
     "MAX_THREADS": 0,
 

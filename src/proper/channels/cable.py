@@ -6,8 +6,9 @@ that stream receive it.
 
 Two backends are provided:
 
-- `Cable` - in-process only (single worker).
-- `RedisCable` - Redis pub/sub (multi-worker).
+- `Cable` - in-process only. Enough for one worker process, or for any
+  number of worker threads sharing the process.
+- `RedisCable` - Redis pub/sub, for several worker processes.
 """
 import asyncio
 import threading
@@ -143,6 +144,16 @@ class RedisCable(Cable):
         self._sub_redis = None
         self._pubsub = None
         self._listener_task: asyncio.Task | None = None
+        # On free-threaded Python the server runs its workers as threads of
+        # one process, each with its own event loop, and every one of them
+        # calls `start()` and `stop()` on this same cable. One listener per
+        # process is enough, and any more would deliver each message once
+        # per worker. So the first `start()` owns the listener, the others
+        # only count themselves in, and the publisher closes with the last
+        # `stop()`.
+        self._life_lock = threading.Lock()
+        self._listener_loop: asyncio.AbstractEventLoop | None = None
+        self._starts = 0
 
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Publish to Redis. The listener delivers to local channels."""
@@ -156,8 +167,13 @@ class RedisCable(Cable):
             return self._pub_redis
 
     async def start(self) -> None:
-        """Start the Redis pub/sub listener."""
-        self._listener_task = asyncio.create_task(self._listen())
+        """Start the Redis pub/sub listener, once per process."""
+        with self._life_lock:
+            self._starts += 1
+            if self._listener_task is not None:
+                return
+            self._listener_loop = asyncio.get_running_loop()
+            self._listener_task = asyncio.create_task(self._listen())
 
     async def _listen(self) -> None:
         """Background task: subscribe to Redis, deliver messages locally.
@@ -231,15 +247,29 @@ class RedisCable(Cable):
             self._sub_redis = None
 
     async def stop(self) -> None:
-        """Stop the listener and close all connections."""
-        if self._listener_task:
-            self._listener_task.cancel()
+        """Stop the listener and close all connections.
+
+        The listener can only be stopped from the loop that started it, so
+        a `stop()` from any other worker just counts itself out. The
+        publisher is shared by all workers and closes with the last one.
+        """
+        with self._life_lock:
+            self._starts = max(0, self._starts - 1)
+            last = self._starts == 0
+            task = self._listener_task
+            if task is not None and self._listener_loop is asyncio.get_running_loop():
+                self._listener_task = None
+                self._listener_loop = None
+            else:
+                task = None
+        if task is not None:
+            task.cancel()
             try:
-                await self._listener_task
+                await task
             except asyncio.CancelledError:
                 pass
-            self._listener_task = None
-        with self._pub_lock:
-            if self._pub_redis:
-                self._pub_redis.close()
-                self._pub_redis = None
+        if last:
+            with self._pub_lock:
+                if self._pub_redis:
+                    self._pub_redis.close()
+                    self._pub_redis = None
