@@ -1,3 +1,4 @@
+import sysconfig
 import typing as t
 from functools import wraps
 
@@ -29,6 +30,11 @@ def get_cli(app: "App") -> type[Cli]:
     return t.cast(type[Cli], type("appCL", (Cli,), attrs))
 
 
+def _free_threaded() -> bool:
+    """Whether this Python was built without the GIL (a "3.14t" build)."""
+    return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
 def get_run_cli(app: "App") -> t.Callable:
     def run(self, host="0.0.0.0", port=0, workers=0):
         """Run the server.
@@ -48,10 +54,16 @@ def get_run_cli(app: "App") -> t.Callable:
         from granian.constants import Interfaces
         from granian.log import LogLevels
 
-        from ..helpers import show_banner, show_welcome
+        from ..helpers import logger, show_banner, show_welcome
 
         config = app.config
         reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
+        if reload and _free_threaded():
+            logger.warning(
+                "Reloading on code changes is not available on free-threaded "
+                "Python. Starting without it."
+            )
+            reload = False
         show_banner()
         show_welcome(config["HOST"])
         Granian(

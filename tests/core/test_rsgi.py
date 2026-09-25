@@ -1,5 +1,6 @@
 """The RSGI face of the app: what the server calls, and what it gets back."""
 import asyncio
+import logging
 
 import pytest
 
@@ -290,6 +291,7 @@ class TestRunCommand:
         monkeypatch.setattr(granian, "Granian", FakeGranian)
         monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
         monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        monkeypatch.setattr("proper.cli.app_cli._free_threaded", lambda: False)
         app.config.APP_TARGET = ""
         app.config.DEBUG = True
         app.config.RELOAD = None
@@ -301,6 +303,39 @@ class TestRunCommand:
         assert calls["port"] == 9000
         assert calls["workers"] == 2
         assert calls["reload"] is True
+
+    def test_reload_is_dropped_on_free_threaded_python(self, app, monkeypatch, caplog):
+        import granian
+
+        from proper.cli import app_cli
+
+        calls = {}
+
+        class FakeGranian:
+            def __init__(self, **kwargs):
+                calls.update(kwargs)
+
+            def serve(self):
+                pass
+
+        monkeypatch.setattr(granian, "Granian", FakeGranian)
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
+        monkeypatch.setattr(app_cli, "_free_threaded", lambda: True)
+        app.config.RELOAD = True
+
+        with caplog.at_level(logging.WARNING, logger="proper"):
+            app_cli.get_run_cli(app)(None)
+
+        assert calls["reload"] is False
+        assert "free-threaded" in caplog.text
+
+    def test_free_threaded_follows_the_build(self):
+        import sysconfig
+
+        from proper.cli.app_cli import _free_threaded
+
+        assert _free_threaded() is bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
 @pytest.fixture(autouse=True)
