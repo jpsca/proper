@@ -37,10 +37,5 @@ site/*
 var/
 wheels/
 
-benchmarks/app/fortunes.db*
-benchmarks/results/
 .venv-ft
 
-# Benchmark reference apps
-benchmarks/beego/beego-bench
-benchmarks/topcoat/target/
