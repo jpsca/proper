@@ -17,7 +17,7 @@ from ..errors import StorageConfigError
 from ..global_context import current
 from ..models import JSONField, ProperModel
 from ..units import YEAR
-from .imageops import pyvips, transform_image
+from .imageops import load_pyvips, transform_image
 from .services import Service
 
 
@@ -535,7 +535,7 @@ class _Attachment(ProperModel):
     @classmethod
     def _validate_previewers(cls):
         if "image/*" in cls.VARIANTS_ENABLED_FOR:
-            if pyvips is None:
+            if load_pyvips() is None:
                 raise ImportError(
                     "preview_image requires the `pyvips` python library and the " \
                     "`libvips` system library." \

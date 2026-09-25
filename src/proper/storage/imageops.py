@@ -3,13 +3,9 @@ import typing as t
 from pathlib import Path
 
 
-try:
-    import pyvips
-except (ImportError, OSError):
-    # ImportError: the python `pyvips` package isn't installed.
-    # OSError: the package is installed but the libvips system library
-    # can't be loaded (pyvips raises this on cffi.dlopen failure).
-    pyvips = None  # type: ignore
+# Imported on first use, see `load_pyvips`: loading libvips is slow and an
+# app without image variants should not pay for it at startup.
+pyvips: t.Any = None
 
 
 # libvips can decode many formats through third-party loaders, several of
@@ -46,14 +42,45 @@ def restrict_loaders(loaders: "t.Iterable[str]" = SAFE_LOADERS) -> None:
     those formats are rendered to PNG by the `pdftoppm`/`ffmpeg` CLIs, never
     by a libvips loader.
     """
-    if pyvips is None or not hasattr(pyvips, "operation_block_set"):
+    global _loaders
+    _loaders = tuple(loaders)
+    if pyvips is not None:
+        _apply_loaders()
+
+
+_loaders: tuple[str, ...] = SAFE_LOADERS
+
+
+def _apply_loaders() -> None:
+    if not hasattr(pyvips, "operation_block_set"):
         return
     pyvips.operation_block_set("VipsForeignLoad", True)
-    for loader in loaders:
+    for loader in _loaders:
         pyvips.operation_block_set(loader, False)
 
 
-restrict_loaders()
+def load_pyvips() -> t.Any:
+    """Import `pyvips` the first time it is needed and lock its loaders to
+    the allowlist. Returns the module, or `None` when it is not available:
+    the package is not installed, or it is but the libvips system library
+    cannot be loaded (pyvips raises `OSError` on that).
+    """
+    global pyvips
+    if pyvips is None:
+        try:
+            import pyvips as module
+        except (ImportError, OSError):
+            return None
+        pyvips = module
+        _apply_loaders()
+    return pyvips
+
+
+def _require_pyvips() -> t.Any:
+    module = load_pyvips()
+    if module is None:
+        raise ImportError("pyvips is required to use the image processing features.")
+    return module
 
 
 if t.TYPE_CHECKING:
@@ -98,17 +125,16 @@ def transform_image(
     save: dict | None = None,
     **ops: t.Any,
 ) -> bytes:
-    if pyvips is None:
-        raise ImportError("pyvips is required to use the image processing features.")
+    vips = _require_pyvips()
 
     load = load or {}
     save = save or {}
 
     autorot = load.pop("autorot", load.pop("autorotate", True))
     if isinstance(source, (bytes, bytearray)):
-        image = pyvips.Image.new_from_buffer(source, "", **load)
+        image = vips.Image.new_from_buffer(source, "", **load)
     else:
-        image = pyvips.Image.new_from_file(source, **load)
+        image = vips.Image.new_from_file(source, **load)
     if image is None:
         raise ValueError("Could not load image from source")
     image = t.cast("Image", image)
@@ -234,8 +260,8 @@ def resize_to_fill(image: "Image", width: int, height: int, **options) -> "Image
     See [vips_thumbnail()](https://www.libvips.org/API/current/ctor.Image.thumbnail.html)
     for more details.
     """
-    assert pyvips
-    options.setdefault("crop", pyvips.Interesting.CENTRE)
+    vips = _require_pyvips()
+    options.setdefault("crop", vips.Interesting.CENTRE)
     return _thumbnail(image, width, height, **options)
 
 
@@ -293,9 +319,9 @@ def resize_and_pad(
     and [vips_gravity()](https://www.libvips.org/API/current/libvips-conversion.html#vips-gravity)
     for more details.
     """
-    assert pyvips
-    extend = extend or pyvips.Extend.BLACK
-    gravity = gravity or pyvips.Interesting.CENTRE
+    vips = _require_pyvips()
+    extend = extend or vips.Extend.BLACK
+    gravity = gravity or vips.Interesting.CENTRE
     image = _thumbnail(image, width, height, **options)
     if alpha and not image.hasalpha():
         image = image.addalpha()

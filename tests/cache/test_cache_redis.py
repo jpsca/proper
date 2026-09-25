@@ -212,7 +212,13 @@ class TestConfig:
         c.close()  # should not raise
 
     def test_import_error_when_redis_missing(self, monkeypatch):
+        import sys
+
         import proper.cache.redis_cache as mod
+
+        # The library is imported on first use, so "missing" means the
+        # import itself fails.
         monkeypatch.setattr(mod, "redis", None)
+        monkeypatch.setitem(sys.modules, "redis", None)
         with pytest.raises(ImportError, match="redis is required"):
             RedisCache()

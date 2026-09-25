@@ -17,15 +17,28 @@ import typing as t
 from ..helpers import jsonplus, logger
 
 
-try:
-    import redis
-except ImportError:
-    redis = None  # type: ignore
+# Imported on first use: an app with the in-process cable should not pay
+# for loading the library at startup.
+redis: t.Any = None
+aioredis: t.Any = None
 
-try:
-    import redis.asyncio as aioredis
-except ImportError:
-    aioredis = None  # type: ignore
+
+def _load_redis() -> None:
+    global redis, aioredis
+    try:
+        if redis is None:
+            import redis as module
+
+            redis = module
+        if aioredis is None:
+            import redis.asyncio as async_module
+
+            aioredis = async_module
+    except ImportError:
+        raise ImportError(
+            "redis is required to use the Redis cable backend. "
+            "Install it with: uv add redis"
+        ) from None
 
 
 if t.TYPE_CHECKING:
@@ -127,11 +140,7 @@ class RedisCable(Cable):
         url: str = "redis://localhost:6379/0",
         prefix: str = "proper:cable:",
     ) -> None:
-        if redis is None or aioredis is None:
-            raise ImportError(
-                "redis is required to use the Redis cable backend. "
-                "Install it with: uv add redis"
-            )
+        _load_redis()
         super().__init__()
         self._url = url
         self._prefix = prefix
