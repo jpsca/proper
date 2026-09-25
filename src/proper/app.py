@@ -319,8 +319,8 @@ class App(AppWs, AppWsgi):
         signature is outdated or not valid for any of the keys.
 
         If `return_timestamp` is `True` this method will return a tuple
-        `(value, timestamp)`, with timestamp returned as a naive
-        `datetime.datetime` object in UTC.
+        `(value, timestamp)`, with the timestamp as a timezone-aware
+        `datetime.datetime` in UTC.
 
         Use `timed=False` for values made with `dumps(..., timed=False)`.
         The two kinds are not interchangeable: each one rejects the other's
