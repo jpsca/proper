@@ -436,11 +436,11 @@ wheels = [
 
 [[package]]
 name = "huey"
-version = "2.5.5"
+version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e6/87/07796060836baf60727df5edae1579adcc8140f42fb7dea3c34ca7ce7fd3/huey-2.5.5.tar.gz", hash = "sha256:a39010628a9a1a9e91462f9bf33dc243b006a9f21193026ea47ae18949a12581", size = 895915, upload-time = "2025-12-05T02:26:54.226Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/25/1281d8f3febc30b5facbfc5e4163447241711591c094dac642d32c827eb0/huey-3.4.0.tar.gz", hash = "sha256:ac9b02e741f13da4092ea19bcaafc73669e97d3153914d2fed2868df144f6dfa", size = 630013, upload-time = "2026-09-04T02:04:34.521Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/c2/0543039071259cfdab525757022de8dad6d22c15a0e7352f1a50a1444a13/huey-2.5.5-py3-none-any.whl", hash = "sha256:82ac73343248c5d7acec04814f952c61f7793e11fd99d26ed9030137d32f912c", size = 76889, upload-time = "2025-12-05T02:26:52.668Z" },
+    { url = "https://files.pythonhosted.org/packages/57/31/cee585bd4d1e39947a426a6736f4e17d22b454952370fb9cf48eb3103085/huey-3.4.0-py3-none-any.whl", hash = "sha256:d0580762397744026f83baae5f2b97a62474a62b8565ac75bbafefe72f9c784f", size = 136493, upload-time = "2026-09-04T02:04:32.848Z" },
 ]
 
 [[package]]
@@ -855,7 +855,7 @@ requires-dist = [
     { name = "formidable", specifier = ">=0.20" },
     { name = "granian", extras = ["reload"], specifier = ">=2.8.3" },
     { name = "hecto", specifier = ">=2.4.0" },
-    { name = "huey", specifier = "~=2.5.2" },
+    { name = "huey", specifier = ">=3.4,<4" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },
     { name = "itsdangerous", specifier = "~=1.1" },

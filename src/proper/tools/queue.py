@@ -33,6 +33,11 @@ DEFAULT_CONSUMER_CONFIG = {
     "flush_locks": False,
     # Comma-separated extra locks to use.
     "extra_locks": "",
+    # Seconds to wait for running tasks on a graceful shutdown; `None` waits.
+    "shutdown_timeout": None,
+    # Signal that starts a graceful shutdown: "INT" (ctrl+c) or "TERM", which
+    # is what `docker stop` and most supervisors send.
+    "graceful_signal": "INT",
 }
 
 

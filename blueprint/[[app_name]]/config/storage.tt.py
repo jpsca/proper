@@ -57,6 +57,10 @@ QUEUE_CONSUMER = {
     "flush_locks": False,
     # Comma-separated extra locks to use.
     "extra_locks": "",
+    # Seconds to wait for running tasks on a graceful shutdown; `None` waits.
+    "shutdown_timeout": None,
+    # `docker stop` and most supervisors send TERM: make it a graceful stop.
+    "graceful_signal": "TERM",
 }
 
 CACHE = {
