@@ -7,11 +7,24 @@ from ...errors import InvalidHeader
 from ...helpers.formatters import format_http_date
 
 
+# Header names seen so far, mapped to their cleaned form and dict key. The
+# framework uses a few dozen names over and over, on every request.
+_NAMES: dict[str, tuple[str, str]] = {}
+
+
+def _name_and_key(name: str) -> tuple[str, str]:
+    try:
+        return _NAMES[name]
+    except KeyError:
+        clean = name.strip().replace("_", "-")
+        if not clean.isascii():
+            raise InvalidHeader("A header name must be encodable as latin-1") from None
+        _NAMES[name] = pair = (clean, clean.lower())
+        return pair
+
+
 def enc_name(name: str) -> str:
-    name = name.strip().replace("_", "-")
-    if not name.isascii():
-        raise InvalidHeader("A header name must be encodable as latin-1")
-    return name
+    return _name_and_key(name)[0]
 
 
 Header = namedtuple("Header", "name value")
@@ -19,31 +32,27 @@ Header = namedtuple("Header", "name value")
 
 class ResponseHeadersDict(dict):
     def __contains__(self, name: str) -> bool:  # type: ignore
-        key = enc_name(name).lower()
-        return super().__contains__(key)
+        return super().__contains__(_name_and_key(name)[1])
 
     def __getitem__(self, name: str) -> t.Any:
         """Returns the header as a namedtuple."""
-        key = enc_name(name).lower()
-        return super().__getitem__(key)
+        return super().__getitem__(_name_and_key(name)[1])
 
     def __setitem__(self, name: str, val: t.Any) -> None:
         """Sets the VALUE of a header. If `val` is None, it deleted the header."""
         self.set(name, val)
 
     def _set(self, name: str, coded_val: t.Any) -> None:
-        name = enc_name(name)
-        key = name.lower()
+        name, key = _name_and_key(name)
         if coded_val is None:
-            if key in self:
-                del self[key]
+            if super().__contains__(key):
+                super().__delitem__(key)
         else:
             super().__setitem__(key, Header(name, coded_val))
 
     def get(self, name: str, default: t.Any = None) -> t.Any:
         """Returns the VALUE of a header."""
-        key = enc_name(name).lower()
-        header = super().get(key)
+        header = super().get(_name_and_key(name)[1])
         if header is None:
             return default
         return header.value
@@ -59,8 +68,7 @@ class ResponseHeadersDict(dict):
         self.set(name, default, **params)
 
     def __delitem__(self, name: str) -> None:
-        key = enc_name(name).lower()
-        super().__delitem__(key)
+        super().__delitem__(_name_and_key(name)[1])
 
     def update(self, *args, **kwargs):
         for name, value in dict(*args, **kwargs).items():
@@ -72,6 +80,7 @@ class ResponseHeadersMixin:
 
     default_mimetype = "text/html"
     default_charset = "utf-8"
+    _default_content_type = "text/html; charset=utf-8"
 
     # Header exclude-list for specific response codes
     # (rfc2616 section 10.2.3 and 10.3.5)
@@ -95,7 +104,8 @@ class ResponseHeadersMixin:
         self.headers = ResponseHeadersDict()
         self._mimetype = self.default_mimetype
         self._charset = self.default_charset
-        self.set_content_type(self.mimetype, charset=self.charset)
+        # The same header on every new response: formatted once, below.
+        self.headers._set("Content-Type", self._default_content_type)
         super().__init__()
 
     @property
@@ -581,7 +591,9 @@ class ResponseHeadersMixin:
                 continue
 
             val = header.value
-            if isinstance(val, datetime):
+            if isinstance(val, str):
+                coded_val = val
+            elif isinstance(val, datetime):
                 coded_val = format_http_date(val)
             elif isinstance(val, list):
                 coded_val = ", ".join(val)
