@@ -13,7 +13,7 @@ from .constants import (
     SESSION_COOKIE_SALT,
 )
 from .controller import Controller
-from .helpers import DotDict, import_string, logger
+from .helpers import DotDict, logger
 
 
 if t.TYPE_CHECKING:
@@ -135,10 +135,8 @@ def dispatch(request: "Request", response: "Response") -> "Response | None":
     route = request.matched_route
     assert route
     assert route.to
-    cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
+    Controller, action_name = route.resolve()
     request.matched_action = action_name
-    module = import_string(route.to.__module__)
-    Controller: TController = getattr(module, cls_name)
 
     # We instantiate the view class so we can have an independent
     # container for this request.

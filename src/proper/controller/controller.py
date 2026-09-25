@@ -17,6 +17,11 @@ if t.TYPE_CHECKING:
     from ..core.response import Response
 
 
+# The flattened callbacks of every controller class seen so far. Classes are
+# defined at import time, so there is nothing to invalidate.
+_CALLBACKS: "dict[type, tuple[list, list]]" = {}
+
+
 class Controller:
     etag = ""
 
@@ -99,43 +104,58 @@ class Controller:
             return False
         return True
 
-    def _dispatch(self, action_name: str) -> "Response | None":
-        mro = type(self).mro()
-        c_name = type(self).__name__
+    @classmethod
+    def _callbacks(cls) -> "tuple[list[tuple[dict, str]], list[tuple[dict, str]]]":
+        """The `before` and `after` callbacks of this controller and its
+        ancestors, flattened once per class: `before` from the base class
+        down, `after` from this class up. Each is `(options, class name)`."""
+        cached = _CALLBACKS.get(cls)
+        if cached is None:
+            mro = cls.mro()
+            before = [
+                (cb, klass.__name__)
+                for klass in reversed(mro)
+                for cb in make_list(klass.__dict__.get("before") or [])
+            ]
+            after = [
+                (cb, klass.__name__)
+                for klass in mro
+                for cb in make_list(klass.__dict__.get("after") or [])
+            ]
+            cached = _CALLBACKS[cls] = (before, after)
+        return cached
 
-        for cls in reversed(mro):
-            before = cls.__dict__.get("before", None)
-            if before:
-                for cb in make_list(before):
-                    if self._should_run_callback(cb):
-                        for action in make_list(getattr(self, cb["do"])):
-                            logger.debug(
-                                "[%s.%s] before: %s (from %s)",
-                                c_name, action_name, cb["do"], cls.__name__,
-                            )
-                            body = action()
-                            if body is not None:
-                                self.response.body = body
-                            if self.response.has_body:
-                                logger.debug(
-                                    "[%s.%s] halted by before callback: %s",
-                                    c_name, action_name, cb["do"],
-                                )
-                                return
+    def _dispatch(self, action_name: str) -> "Response | None":
+        c_name = type(self).__name__
+        before, after = self._callbacks()
+
+        for cb, from_name in before:
+            if self._should_run_callback(cb):
+                for action in make_list(getattr(self, cb["do"])):
+                    logger.debug(
+                        "[%s.%s] before: %s (from %s)",
+                        c_name, action_name, cb["do"], from_name,
+                    )
+                    body = action()
+                    if body is not None:
+                        self.response.body = body
+                    if self.response.has_body:
+                        logger.debug(
+                            "[%s.%s] halted by before callback: %s",
+                            c_name, action_name, cb["do"],
+                        )
+                        return
 
         self._call(action_name)
 
-        for cls in mro:
-            after = cls.__dict__.get("after", None)
-            if after:
-                for cb in make_list(after):
-                    if self._should_run_callback(cb):
-                        for action in make_list(getattr(self, cb["do"])):
-                            logger.debug(
-                                "[%s.%s] after: %s (from %s)",
-                                c_name, action_name, cb["do"], cls.__name__,
-                            )
-                            action()
+        for cb, from_name in after:
+            if self._should_run_callback(cb):
+                for action in make_list(getattr(self, cb["do"])):
+                    logger.debug(
+                        "[%s.%s] after: %s (from %s)",
+                        c_name, action_name, cb["do"], from_name,
+                    )
+                    action()
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same
