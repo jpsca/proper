@@ -5,13 +5,10 @@ from unittest.mock import MagicMock, patch
 from proper import Response
 from proper import status as pstatus
 from proper.core.response.file_wrapper import FileWrapper
-from proper.helpers.asgi import make_test_scope
 
 
-def _make_response(*, status=pstatus.ok, **scope_kw):
-    """Build a Response with a valid ASGI scope."""
-    scope = make_test_scope(**scope_kw)
-    response = Response(scope, status=status)
+def _make_response(*, status=pstatus.ok, app=None):
+    response = Response(app, status=status)
     return response
 
 
@@ -72,10 +69,8 @@ def test_send_file_x_sendfile(tmp_path):
 
     mock_app = MagicMock()
     mock_app.root_path = subdir  # parent is tmp_path
-    scope = make_test_scope()
-    scope["app"] = mock_app
 
-    resp = Response(scope)
+    resp = Response(mock_app)
     resp.send_file(f, x_sendfile_header="X-Accel-Redirect")
     assert resp.headers.get("X-Accel-Redirect") == "/file.txt"
     assert resp.body == ""

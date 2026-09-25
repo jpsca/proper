@@ -8,7 +8,7 @@ import pytest
 
 from proper import App
 from proper.app import _default_max_threads, _ThreadWaits
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import HttpProtocolStub, make_test_scope
 
 
 def make_app(**config):
@@ -28,16 +28,7 @@ async def run_requests(app, count, work=0.1):
     app._run_pipeline = pipeline.__get__(app, App)
 
     async def one():
-        scope = make_test_scope("/")
-        scope["app"] = app
-
-        async def receive():
-            return {"type": "http.request", "body": b"", "more_body": False}
-
-        async def send(message):
-            pass
-
-        await app.asgi_app(scope, receive, send)
+        await app.__rsgi__(make_test_scope("/"), HttpProtocolStub())
 
     started = time.perf_counter()
     await asyncio.gather(*[one() for _ in range(count)])
@@ -176,16 +167,7 @@ class TestSharedPool:
             return response
 
         app._run_pipeline = pipeline.__get__(app, App)
-        scope = make_test_scope("/")
-        scope["app"] = app
-
-        async def receive():
-            return {"type": "http.request", "body": b"", "more_body": False}
-
-        async def send(message):
-            pass
-
-        await app.asgi_app(scope, receive, send)
+        await app.__rsgi__(make_test_scope("/"), HttpProtocolStub())
 
         assert seen["request"] is not None
         assert seen["request"].path == "/"

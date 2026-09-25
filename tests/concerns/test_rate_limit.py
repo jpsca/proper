@@ -2,19 +2,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from proper import Request, Response
+from proper import Response
 from proper.concerns import RateLimiting
 from proper.constants import GET, POST
 from proper.controller import Controller
 from proper.errors import TooManyRequests
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import make_test_request
 
 
 def _make(cls, app, **scope_kw):
-    scope = make_test_scope(**scope_kw)
-    scope["app"] = app
-    request = Request(scope)
-    response = Response(scope)
+    request = make_test_request(app=app, **scope_kw)
+    response = Response(app)
     return cls(request, response)
 
 
@@ -106,7 +104,7 @@ class TestRateLimiting:
         co = _make(cls, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.scope["client"] = ("127.0.0.1", 0)
+        co.request.client = ("127.0.0.1", 0)
         app.cache = MagicMock()
         return co
 
@@ -153,7 +151,7 @@ class TestRateLimiting:
         co = _make(RateLimitOnlyCtrl, app)
         co.request.method = POST
         co.request.matched_action = "create"
-        co.request.scope["client"] = ("127.0.0.1", 0)
+        co.request.client = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 3
         with pytest.raises(TooManyRequests):
@@ -172,7 +170,7 @@ class TestRateLimiting:
         co = _make(RateLimitExcludeCtrl, app)
         co.request.method = POST
         co.request.matched_action = "create"
-        co.request.scope["client"] = ("127.0.0.1", 0)
+        co.request.client = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 3
         with pytest.raises(TooManyRequests):
@@ -182,7 +180,7 @@ class TestRateLimiting:
         co = _make(RateLimitMultiCtrl, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.scope["client"] = ("127.0.0.1", 0)
+        co.request.client = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 1
         co._dispatch("action")
@@ -193,7 +191,7 @@ class TestRateLimiting:
         co = _make(RateLimitMultiCtrl, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.scope["client"] = ("127.0.0.1", 0)
+        co.request.client = ("127.0.0.1", 0)
         app.cache = MagicMock()
         # First limit passes (count=1 <= to=2), second exceeds (count=6 > to=5)
         app.cache.increment.side_effect = [1, 6]
@@ -236,7 +234,7 @@ class TestRateLimiting:
         co = _make(RateLimitCtrl, app)
         co.request.method = GET
         co.request.matched_action = "action"
-        co.request.scope["client"] = ("127.0.0.1", 0)
+        co.request.client = ("127.0.0.1", 0)
         app.cache = MagicMock()
         app.cache.increment.return_value = 1
 

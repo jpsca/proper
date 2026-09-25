@@ -4,7 +4,6 @@ import pytest
 
 from proper import App, TestClient, status
 from proper.controller import Controller
-from proper.core.request import Request
 from proper.core.response import Response
 from proper.errors import (
     Forbidden,
@@ -12,19 +11,16 @@ from proper.errors import (
     MethodNotAllowed,
     NotFound,
 )
-from proper.helpers.asgi import make_test_scope
 from proper.router import Route
+from proper.test_client import make_test_request
 
 
 def _make_request(**kw):
-    return Request(make_test_scope(**kw))
+    return make_test_request(**kw)
 
 
 def _make_response(*, app=None, **kw):
-    scope = make_test_scope(**kw)
-    if app is not None:
-        scope["app"] = app
-    return Response(scope)
+    return Response(app)
 
 
 # --- module-level controllers (required by pipeline.dispatch) ---

@@ -37,14 +37,11 @@ from .router import Route, Router
 from .storage import attachment_for
 from .types import (
     THandler,
-    TReceive,
-    TScope,
-    TSend,
 )
 
 
 if t.TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable
 
     import peewee as pw
     from huey import Huey
@@ -52,6 +49,7 @@ if t.TYPE_CHECKING:
 
     from .auth import Auth
     from .cache import BaseCache
+    from .core.request.request import TReadBody
     from .emails import BaseMailer
     from .i18n import I18n
     from .storage import _Attachment
@@ -65,6 +63,17 @@ __all__ = ("App",)
 # pool would otherwise log once per queued request, and logging from the
 # worker threads is the last thing it needs.
 THREAD_WAIT_WARNING_INTERVAL = 10
+
+
+def _split_address(address: str | None) -> "tuple[str, int | None] | None":
+    """`"host:port"` as the server gives it, to `(host, port)`. IPv6 hosts
+    come in brackets, which are dropped."""
+    if not address:
+        return None
+    host, sep, port = address.rpartition(":")
+    if not sep or not port.isdigit():
+        return (address.strip("[]"), None)
+    return (host.strip("[]"), int(port))
 
 
 def _default_max_threads() -> int:
@@ -109,9 +118,6 @@ class App(AppWs):
             The name of the application package. Eg.: `foobar.web`.
         config:
             Optional dict-like with the config.
-        middleware:
-            Optional list of ASGI middleware. Each middleware should be a
-            callable that takes an ASGI app and returns a new ASGI app.
 
     """
 
@@ -179,10 +185,9 @@ class App(AppWs):
         self,
         import_name: str,
         config: dict[str, t.Any] | type | None = None,
-        *,
-        middleware: "Sequence[Callable]" = (),
     ) -> None:
         self.env = os.getenv("APP_ENV", "dev")
+        self.import_name = import_name
         self.config = load_config(config or {})
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
         self._thread_waits = _ThreadWaits()
@@ -203,11 +208,6 @@ class App(AppWs):
         # so any Jinja extension need to be setup before this line.
         self.catalog.add_folder(self.views_path)
 
-        # Store the original asgi_app method before wrapping with middleware
-        self._asgi_app = self.asgi_app
-        for mw in reversed(middleware):
-            self._asgi_app = mw(self._asgi_app)
-
         current.app = self
 
         self._warn_of_pending_migrations()
@@ -227,47 +227,39 @@ class App(AppWs):
         self.router.debug = value
         self.catalog.auto_reload = value
 
-    async def __call__(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        await self._asgi_app(scope, receive, send)
+    # ---- RSGI ----
+    #
+    # The server (Granian) talks RSGI: one call per connection with a `scope`
+    # describing it and a `protocol` to read the body and send the response
+    # through, plus two hooks around the life of each worker.
 
-    async def asgi_app(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        scope["app"] = self
+    async def __rsgi__(self, scope, protocol) -> None:
         current.app = self
+        if scope.proto == "http":
+            await self._handle_http(scope, protocol)
+        else:
+            await self._handle_websocket(scope, protocol)
 
-        if scope["type"] == "lifespan":
-            while True:
-                message = await receive()
-                if message["type"] == "lifespan.startup":
-                    logger.info("Application is starting up...")
-                    self._setup_executor()
-                    self._start_loop_debug()
-                    await self.cable.start()
-                    await send({"type": "lifespan.startup.complete"})
-                elif message["type"] == "lifespan.shutdown":
-                    logger.info("Application is shutting down...")
-                    await self.cable.stop()
-                    await self._stop_loop_debug()
-                    self._shutdown_executor()
-                    await send({"type": "lifespan.shutdown.complete"})
-                    return
-                else:
-                    logger.warning("Unknown lifespan message: %s", message["type"])
+    def __rsgi_init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        loop.run_until_complete(self.startup())
 
-        elif scope["type"] == "http":
-            await self._handle_http(scope, receive, send)
+    def __rsgi_del__(self, loop: asyncio.AbstractEventLoop) -> None:
+        loop.run_until_complete(self.shutdown())
 
-        elif scope["type"] == "websocket":
-            await self._handle_websocket(scope, receive, send)
+    async def startup(self) -> None:
+        """Get ready to serve: the worker pool, the cable, the debug checks.
+        Called once per server worker, all sharing this app."""
+        logger.info("Application is starting up...")
+        self._setup_executor()
+        self._start_loop_debug()
+        await self.cable.start()
+
+    async def shutdown(self) -> None:
+        """Undo `startup`."""
+        logger.info("Application is shutting down...")
+        await self.cable.stop()
+        await self._stop_loop_debug()
+        self._shutdown_executor()
 
     def has_migrations_pending(self) -> bool:
         return False
@@ -591,52 +583,34 @@ class App(AppWs):
         finally:
             self._dbs_close()
 
-    async def _handle_http(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        response = await self._do_request(scope, receive)
-        status_code, headers, body = response.prepare()
-        await send(
-            {
-                "type": "http.response.start",
-                "status": status_code,
-                "headers": headers,
-            }
+    def _request_from_scope(self, scope) -> Request:
+        return self.request_cls(
+            method=scope.method,
+            path=scope.path,
+            query_string=scope.query_string,
+            headers=scope.headers.items(),
+            scheme=scope.scheme,
+            server=_split_address(scope.server),
+            client=_split_address(scope.client),
+            http_version=scope.http_version,
+            app=self,
         )
-        if isinstance(body, bytes):
-            await send({"type": "http.response.body", "body": body})
-        else:
-            # Stream iterables (e.g. FileWrapper) in chunks. Reading them
-            # blocks - a `FileWrapper` hits the disk on every `next()` - so
-            # each chunk is pulled in a worker thread. "Sync above, async
-            # below": the loop itself must never wait on a file.
-            chunks = iter(body)
-            try:
-                while True:
-                    chunk = await self._in_pool(next, chunks, None)
-                    if chunk is None:
-                        break
-                    await send(
-                        {
-                            "type": "http.response.body",
-                            "body": chunk,
-                            "more_body": True,
-                        }
-                    )
-                await send({"type": "http.response.body", "body": b""})
-            finally:
-                body_close = getattr(body, "close", None)
-                if callable(body_close):
-                    body_close()
 
-    async def _do_request(self, scope: TScope, receive: TReceive) -> Response:
-        current.request = request = self.request_cls(scope)
-        current.response = response = self.response_cls(scope)
+    async def _handle_http(self, scope, protocol) -> None:
+        request = self._request_from_scope(scope)
+        response = await self._respond(request, protocol)
+        await self._send_response(request, response, protocol)
+
+    async def _respond(self, request: Request, read_body: "TReadBody") -> Response:
+        """Run the request through the pipeline and return its response.
+
+        `read_body` is an awaitable returning the request body as bytes:
+        the RSGI protocol itself, or a stand-in from the `TestClient`.
+        """
+        current.request = request
+        current.response = response = self.response_cls(self)
         try:
-            await request._parse_body(receive)
+            await request._read_body(read_body)
         except Exception as error:
             response.error = error
             logger.debug(
@@ -658,6 +632,40 @@ class App(AppWs):
             )
         current.response = response
         return response
+
+    async def _send_response(
+        self, request: Request, response: Response, protocol
+    ) -> None:
+        status, headers, body = response.prepare(request)
+        raw_body = response.body
+        try:
+            if isinstance(body, bytes):
+                if body:
+                    protocol.response_bytes(status, headers, body)
+                else:
+                    protocol.response_empty(status, headers)
+                return
+
+            if response.file_path is not None:
+                # The server reads and sends the file itself, off the loop
+                # and outside Python.
+                protocol.response_file(status, headers, str(response.file_path))
+                return
+
+            # Any other iterable is streamed chunk by chunk. Reading it may
+            # block, so each chunk is pulled in a worker thread: the loop
+            # itself must never wait on a file or a slow generator.
+            transport = await protocol.response_stream(status, headers)
+            chunks = iter(body)
+            while True:
+                chunk = await self._in_pool(next, chunks, None)
+                if chunk is None:
+                    break
+                await transport.send_bytes(bytes(chunk))
+        finally:
+            body_close = getattr(raw_body, "close", None)
+            if callable(body_close):
+                body_close()
 
     def _run_pipeline(self, request, response) -> Response:
         def work():

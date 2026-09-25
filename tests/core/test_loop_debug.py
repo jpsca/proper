@@ -167,21 +167,10 @@ class TestAppWiring:
 class TestLifespan:
     async def test_the_watchdog_runs_for_the_life_of_the_app(self):
         app = make_app(DEBUG=True)
-        messages = [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
-        sent = []
-        watching = []
 
-        async def receive():
-            return messages.pop(0)
+        await app.startup()
+        assert isinstance(app._loop_watchdog, LoopWatchdog)
 
-        async def send(message):
-            sent.append(message["type"])
-            if message["type"] == "lifespan.startup.complete":
-                watching.append(app._loop_watchdog)
-
-        await app.asgi_app({"type": "lifespan"}, receive, send)
-
-        assert sent == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
-        assert isinstance(watching[0], LoopWatchdog)
+        await app.shutdown()
         assert app._loop_watchdog is None
         asyncio.get_running_loop().set_debug(False)

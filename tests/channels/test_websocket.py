@@ -7,54 +7,17 @@ import pytest
 from proper import current
 from proper.channels import Channel
 from proper.helpers import jsonplus
-
-
-class AsyncQueue:
-    """Simulates ASGI receive/send as async queues."""
-
-    def __init__(self):
-        self.to_app = asyncio.Queue()
-        self.from_app = asyncio.Queue()
-
-    async def receive(self):
-        return await self.to_app.get()
-
-    async def send(self, msg):
-        await self.from_app.put(msg)
-
-    def client_send(self, data):
-        """Queue a JSON message from the client."""
-        self.to_app.put_nowait({
-            "type": "websocket.receive",
-            "text": jsonplus.dumps(data),
-        })
-
-    def client_disconnect(self):
-        self.to_app.put_nowait({"type": "websocket.disconnect"})
-
-    async def client_recv(self, timeout=1.0):
-        """Get the next message sent by the app to the client."""
-        return await asyncio.wait_for(self.from_app.get(), timeout=timeout)
+from proper.test_client import WsMessage, WsProtocolStub, make_test_ws_scope
 
 
 def ws_scope(path="/cable"):
-    return {
-        "type": "websocket",
-        "path": path,
-        "scheme": "ws",
-        "server": ("example.com", 80),
-        "headers": [],
-        "query_string": b"",
-    }
+    return make_test_ws_scope(path)
 
 
 async def run_ws(app, q, scope=None):
-    """Run handle_websocket as a background task."""
+    """Run the WebSocket handler as a background task."""
     scope = scope or ws_scope()
-    # The real ASGI entrypoint puts the app on the scope; this direct path
-    # bypasses it, so set it here (channels read it via `self.request`).
-    scope.setdefault("app", app)
-    task = asyncio.create_task(app._handle_websocket(scope, q.receive, q.send))
+    task = asyncio.create_task(app._handle_websocket(scope, q))
     # Let the accept happen
     await asyncio.sleep(0.01)
     return task
@@ -66,30 +29,30 @@ async def run_ws(app, q, scope=None):
 class TestConnection:
     @pytest.mark.asyncio
     async def test_accepts_on_cable_path(self, app):
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_disconnect()
         task = await run_ws(app, q)
         msg = await q.client_recv()
-        assert msg == {"type": "websocket.accept"}
+        assert msg == {"type": "accept"}
         await task
 
     @pytest.mark.asyncio
     async def test_rejects_wrong_path(self, app):
-        q = AsyncQueue()
+        q = WsProtocolStub()
         scope = ws_scope("/wrong")
         task = await run_ws(app, q, scope)
         msg = await q.client_recv()
-        assert msg == {"type": "websocket.close", "code": 4004}
+        assert msg == {"type": "close", "code": 404}
         await task
 
     @pytest.mark.asyncio
     async def test_custom_cable_path(self, app):
         app.config.CABLE_PATH = "/ws"
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_disconnect()
         task = await run_ws(app, q, ws_scope("/ws"))
         msg = await q.client_recv()
-        assert msg == {"type": "websocket.accept"}
+        assert msg == {"type": "accept"}
         await task
 
 
@@ -105,7 +68,7 @@ class TestSubscribe:
 
         app.router.channels["ChatChannel"] = ChatChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({
             "command": "subscribe",
             "channel": "ChatChannel",
@@ -115,7 +78,7 @@ class TestSubscribe:
 
         task = await run_ws(app, q)
         accept = await q.client_recv()
-        assert accept["type"] == "websocket.accept"
+        assert accept["type"] == "accept"
 
         confirm = jsonplus.loads((await q.client_recv())["text"])
         assert confirm["type"] == "confirm_subscription"
@@ -125,7 +88,7 @@ class TestSubscribe:
 
     @pytest.mark.asyncio
     async def test_subscribe_unknown_channel(self, app):
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({
             "command": "subscribe",
             "channel": "NonexistentChannel",
@@ -148,7 +111,7 @@ class TestSubscribe:
 
         app.router.channels["PrivateChannel"] = PrivateChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({
             "command": "subscribe",
             "channel": "PrivateChannel",
@@ -182,7 +145,7 @@ class TestMessage:
 
         app.router.channels["EchoChannel"] = EchoChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "EchoChannel"})
         q.client_send({
             "command": "message",
@@ -206,7 +169,7 @@ class TestMessage:
 
     @pytest.mark.asyncio
     async def test_message_not_subscribed(self, app):
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({
             "command": "message",
             "channel": "SomeChannel",
@@ -230,7 +193,7 @@ class TestMessage:
 
         app.router.channels["TestChannel"] = TestChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "TestChannel"})
         # Try calling a private method
         q.client_send({
@@ -276,7 +239,7 @@ class TestMessage:
 
         app.router.channels["TestChannel"] = TestChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "TestChannel"})
         q.client_send({
             "command": "message",
@@ -312,7 +275,7 @@ class TestUnsubscribe:
 
         app.router.channels["TrackChannel"] = TrackChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "TrackChannel"})
         q.client_send({"command": "unsubscribe", "channel": "TrackChannel"})
         q.client_disconnect()
@@ -337,7 +300,7 @@ class TestUnsubscribe:
 
         app.router.channels["TrackChannel"] = TrackChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "TrackChannel"})
         q.client_disconnect()
 
@@ -355,11 +318,8 @@ class TestUnsubscribe:
 class TestProtocolErrors:
     @pytest.mark.asyncio
     async def test_invalid_json(self, app):
-        q = AsyncQueue()
-        q.to_app.put_nowait({
-            "type": "websocket.receive",
-            "text": "not valid json{{{",
-        })
+        q = WsProtocolStub()
+        q.client_send_text("not valid json{{{")
         q.client_disconnect()
 
         task = await run_ws(app, q)
@@ -372,7 +332,7 @@ class TestProtocolErrors:
 
     @pytest.mark.asyncio
     async def test_unknown_command(self, app):
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "bogus"})
         q.client_disconnect()
 
@@ -386,26 +346,26 @@ class TestProtocolErrors:
 
     @pytest.mark.asyncio
     async def test_empty_text_ignored(self, app):
-        q = AsyncQueue()
-        q.to_app.put_nowait({"type": "websocket.receive", "text": ""})
+        q = WsProtocolStub()
+        q.client_send_text("")
         q.client_disconnect()
 
         task = await run_ws(app, q)
         accept = await q.client_recv()
-        assert accept["type"] == "websocket.accept"
+        assert accept["type"] == "accept"
         # No error message - empty text is silently ignored
         await task
 
     @pytest.mark.asyncio
     async def test_non_receive_event_ignored(self, app):
-        q = AsyncQueue()
+        q = WsProtocolStub()
         # Send an unexpected event type
-        q.to_app.put_nowait({"type": "websocket.ping"})
+        q.to_app.put_nowait(WsMessage(1, b"binary frames are ignored"))
         q.client_disconnect()
 
         task = await run_ws(app, q)
         accept = await q.client_recv()
-        assert accept["type"] == "websocket.accept"
+        assert accept["type"] == "accept"
         await task
 
 
@@ -424,7 +384,7 @@ class TestDisconnectErrorHandling:
 
         app.router.channels["BadChannel"] = BadChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "BadChannel"})
         q.client_disconnect()
 
@@ -444,7 +404,7 @@ class TestSendDuringSubscribed:
 
         app.router.channels["GreetChannel"] = GreetChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "GreetChannel"})
         q.client_disconnect()
 
@@ -479,9 +439,9 @@ class TestConnectionScope:
 
         signed = app.dumps("session-token-123", salt="auth cookie")
         scope = ws_scope()
-        scope["headers"] = [(b"cookie", f"_auth={signed}".encode())]
+        scope.headers = {"cookie": f"_auth={signed}"}
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "CookieChannel"})
         q.client_disconnect()
 
@@ -505,7 +465,7 @@ class TestConnectionScope:
 
         app.router.channels["NoCookieChannel"] = NoCookieChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "NoCookieChannel"})
         q.client_disconnect()
 
@@ -570,7 +530,7 @@ def _reset_fakes():
 def _cookie_scope(app, token):
     signed = app.dumps(token, salt="auth cookie")
     scope = ws_scope()
-    scope["headers"] = [(b"cookie", f"_auth={signed}".encode())]
+    scope.headers = {"cookie": f"_auth={signed}"}
     return scope
 
 
@@ -587,7 +547,7 @@ class TestSessionAuth:
 
         app.router.channels["AccountChannel"] = AccountChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "AccountChannel"})
         q.client_disconnect()
 
@@ -614,7 +574,7 @@ class TestSessionAuth:
 
         app.router.channels["AccountChannel2"] = AccountChannel2
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "AccountChannel2"})
         q.client_send({
             "command": "message",
@@ -643,7 +603,7 @@ class TestSessionAuth:
 
         app.router.channels["GuardedChannel"] = GuardedChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
         q.client_disconnect()
 
@@ -669,7 +629,7 @@ class TestSessionAuth:
 
         app.router.channels["TickChannel"] = TickChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "TickChannel"})
         q.client_send({
             "command": "message",
@@ -714,7 +674,7 @@ class TestSessionAuth:
 
         app.router.channels["FragileChannel"] = FragileChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "FragileChannel"})
         q.client_send({
             "command": "message",
@@ -752,7 +712,7 @@ class TestSessionAuth:
 
         app.router.channels["ProbeChannel"] = ProbeChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "ProbeChannel"})
         q.client_send({
             "command": "message",
@@ -773,10 +733,10 @@ class TestSessionAuth:
 # --- Outbound delivery ---
 
 
-class SlowAsyncQueue(AsyncQueue):
-    """Like `AsyncQueue`, but `send` suspends before delivering.
+class SlowWsProtocolStub(WsProtocolStub):
+    """Like `WsProtocolStub`, but sending a frame suspends before delivering.
 
-    A real ASGI server does the same whenever the transport applies
+    A real server does the same whenever the transport applies
     backpressure, which is what pulls concurrent senders out of order.
     """
 
@@ -784,18 +744,16 @@ class SlowAsyncQueue(AsyncQueue):
         super().__init__()
         self._rng = random.Random(1234)
 
-    async def send(self, msg):
+    async def send_str(self, text):
         await asyncio.sleep(self._rng.uniform(0, 0.002))
-        await self.from_app.put(msg)
+        await super().send_str(text)
 
 
-class BrokenAsyncQueue(AsyncQueue):
+class BrokenWsProtocolStub(WsProtocolStub):
     """A connection that drops as soon as the app tries to write to it."""
 
-    async def send(self, msg):
-        if msg["type"] == "websocket.send":
-            raise ConnectionResetError("client went away")
-        await self.from_app.put(msg)
+    async def send_str(self, text):
+        raise ConnectionResetError("client went away")
 
 
 class TestOutboundDelivery:
@@ -807,7 +765,7 @@ class TestOutboundDelivery:
 
         app.router.channels["RoomChannel"] = RoomChannel
 
-        q = SlowAsyncQueue()
+        q = SlowWsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "RoomChannel"})
 
         task = await run_ws(app, q)
@@ -838,7 +796,7 @@ class TestOutboundDelivery:
 
         app.router.channels["RoomChannel"] = RoomChannel
 
-        q = SlowAsyncQueue()
+        q = SlowWsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "RoomChannel"})
         # The disconnect is already waiting when the confirm is queued.
         q.client_disconnect()
@@ -857,7 +815,7 @@ class TestOutboundDelivery:
 
         app.router.channels["RoomChannel"] = RoomChannel
 
-        q = BrokenAsyncQueue()
+        q = BrokenWsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "RoomChannel"})
         q.client_disconnect()
 
@@ -879,7 +837,7 @@ class TestRejectedSubscription:
 
         app.router.channels["GuardedChannel"] = GuardedChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
         q.client_disconnect()
 
@@ -900,7 +858,7 @@ class TestRejectedSubscription:
 
         app.router.channels["GuardedChannel"] = GuardedChannel
 
-        q = AsyncQueue()
+        q = WsProtocolStub()
         q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
         q.client_disconnect()
 

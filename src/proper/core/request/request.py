@@ -3,12 +3,10 @@ import typing as t
 from ...constants import FLASHES_SESSION_KEY, GET, HEAD, SIGNED_COOKIE_SALT
 from ...errors import (
     BadRequest,
-    ClientDisconnected,
     RequestEntityTooLarge,
 )
+from ...global_context import current
 from ...helpers import DotDict, MultiDict, logger
-from ...helpers.asgi import make_test_scope
-from ...types import TReceive, TScope
 from .formparser import (
     parse_json,
     parse_multipart_sync,
@@ -19,8 +17,12 @@ from .headers import RequestHeadersMixin
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Iterable, Mapping
+
     from ...app import App
     from ...router import Route
+
+    TReadBody = Callable[[], Awaitable[bytes]]
 
 
 __all__ = ("Request", )
@@ -30,10 +32,32 @@ __all__ = ("Request", )
 class Request(RequestHeadersMixin):
     """An HTTP request.
 
+    The server hands over the connection data already parsed; nothing here
+    depends on how it arrived. The `TestClient` and the tests build these
+    the same way.
+
     Arguments:
-        scope:
-            An ASGI scope dict from the server. If not provided, a test scope
-            will be created.
+        method:
+            The HTTP method. Uppercased.
+        path:
+            The path of the URL, without the query string.
+        query_string:
+            The part of the URL after the `?`, without it.
+        headers:
+            A mapping, or an iterable of `(name, value)` pairs, with the
+            header names in lowercase. A header sent more than once is a
+            repeated pair.
+        scheme:
+            `http` or `https`.
+        server:
+            `(host, port)` of the address the request arrived at, or `None`
+            to take it from the `host` header.
+        client:
+            `(host, port)` of the client, or `None`.
+        http_version:
+            `"1.1"`, `"2"`, etc.
+        app:
+            The app this request belongs to. Defaults to `current.app`.
 
     """
 
@@ -49,8 +73,34 @@ class Request(RequestHeadersMixin):
     # Cache attrs
     _query: MultiDict | None = None
 
-    def __init__(self, scope: TScope) -> None:
-        self.scope = scope or make_test_scope()
+    def __init__(
+        self,
+        *,
+        method: str = GET,
+        path: str = "/",
+        query_string: str = "",
+        headers: "Mapping[str, str] | Iterable[tuple[str, str]] | None" = None,
+        scheme: str = "http",
+        server: "tuple[str, int | None] | None" = None,
+        client: "tuple[str, int | None] | None" = None,
+        http_version: str = "1.1",
+        app: "App | None" = None,
+    ) -> None:
+        self._app = app
+        self.method = method.upper()
+        self.request_method = self.method
+        self.path = path
+        self._query_string = query_string
+        self.scheme = scheme
+        self.server = server
+        self.client = client
+        self.http_version = http_version
+        if headers is None:
+            self.headers = MultiDict()
+        elif hasattr(headers, "items"):
+            self.headers = MultiDict(headers.items())  # type: ignore[union-attr]
+        else:
+            self.headers = MultiDict(headers)
         self.form = MultiDict()
         self.body = b""
         self._session = DotDict()
@@ -59,31 +109,20 @@ class Request(RequestHeadersMixin):
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
 
-    async def _get_body(self, receive: TReceive) -> bytes:
-        max_content_length = self.app.config.MAX_CONTENT_LENGTH
-        chunks = []
-        total = 0
-        while True:
-            message = await receive()
-            if message["type"] == "http.disconnect":
-                raise ClientDisconnected()
-            body = message.get("body", b"")
-            if body:
-                total += len(body)
-                if max_content_length > 0 and total > max_content_length:
-                    raise RequestEntityTooLarge("Maximum content length exceeded")
-                chunks.append(body)
-            if not message.get("more_body", False):
-                break
-        return b"".join(chunks)
+    async def _read_body(self, read: "TReadBody") -> None:
+        """Read and parse the body, with `read()` being the server's
+        awaitable that returns the whole body as bytes.
 
-
-    async def _parse_body(self, receive: TReceive) -> None:
-        """Parse the request body from an ASGI receive callable."""
+        Requests without a `content-length` carry no body for us: the
+        length is checked against `MAX_CONTENT_LENGTH` before a single
+        byte is read, so an oversized upload is refused, not buffered.
+        """
         if self.method in (GET, HEAD) or not self.content_length:
             return
-        body = await self._get_body(receive)
-        self._parse_body_bytes(body)
+        max_content_length = self.app.config.MAX_CONTENT_LENGTH
+        if max_content_length > 0 and self.content_length > max_content_length:
+            raise RequestEntityTooLarge("Maximum content length exceeded")
+        self._parse_body_bytes(await read())
 
     def _parse_body_bytes(
         self,
@@ -138,7 +177,7 @@ class Request(RequestHeadersMixin):
 
     @property
     def app(self) -> "App":
-        return self.scope["app"]
+        return self._app or current.app
 
     @property
     def session(self) -> DotDict:
@@ -147,11 +186,6 @@ class Request(RequestHeadersMixin):
     @session.setter
     def session(self, value: dict | DotDict) -> None:
         self._session = DotDict(value)
-
-    @property
-    def http_version(self) -> str:
-        """The HTTP version used for the request, like "1.1"."""
-        return self.scope["http_version"]
 
     @property
     def flashes(self) -> list[tuple[str, str]]:
@@ -175,8 +209,7 @@ class Request(RequestHeadersMixin):
     @property
     def query_string(self) -> str:
         """Returns the query string."""
-        qs = self.scope.get("query_string", b"")
-        return qs.decode("latin-1") if isinstance(qs, bytes) else qs
+        return self._query_string
 
     @property
     def url(self) -> str:

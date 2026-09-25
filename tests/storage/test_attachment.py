@@ -7,7 +7,6 @@ import pytest
 
 from proper import App, Controller, current
 from proper.core.response import Response
-from proper.helpers.asgi import make_test_scope
 from proper.models import ProperModel
 from proper.router import Route
 from proper.storage.attachment import DEFAULT_CONTENT_TYPE
@@ -1190,9 +1189,7 @@ def test_custom_urls_are_timed_unless_asked_to_be_stable(Attachment, storage_rou
 
 
 def _send(att, app):
-    scope = make_test_scope()
-    scope["app"] = app
-    current.response = response = Response(scope)
+    current.response = response = Response(app)
     att.send_file()
     # The headers as they go over the wire.
     return {name.lower(): value for name, value in response.get_header_tuples()}

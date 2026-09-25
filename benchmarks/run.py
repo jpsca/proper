@@ -3,8 +3,8 @@
     uv run python -m benchmarks.run [--duration 10s] [--connections 64] [--workers 4]
                                     [--only uvicorn,granian-rsgi] [--ft-python .venv-ft/bin/python]
 
-For each server configuration it starts the server, waits for it, warms it
-up, runs bombardier against each endpoint, samples the RSS of the whole
+For each Python (GIL and free-threaded) it starts Granian, waits for it,
+warms it up, runs bombardier against each endpoint, samples the RSS of the whole
 process tree, stops the server and prints a Markdown table. Results are also
 written as JSON to `benchmarks/results/`.
 """
@@ -39,34 +39,18 @@ class Config:
 
 
 def configs(workers: int, ft_python: str | None) -> list[Config]:
-    def uvicorn(name, *extra, python=sys.executable):
+    def granian(name, python=sys.executable):
         return Config(name, [
-            python, "-m", "uvicorn", "benchmarks.asgi:app",
+            python, "-m", "granian", "benchmarks.rsgi:app",
+            "--interface", "rsgi",
             "--host", "127.0.0.1", "--port", str(PORT),
             "--workers", str(workers), "--log-level", "warning",
-            "--no-access-log", *extra,
+            "--no-access-log",
         ], python=python)
 
-    def granian(name, interface, target, *extra, python=sys.executable):
-        return Config(name, [
-            python, "-m", "granian", target,
-            "--interface", interface,
-            "--host", "127.0.0.1", "--port", str(PORT),
-            "--workers", str(workers), "--no-ws", "--log-level", "warning",
-            "--no-access-log", *extra,
-        ], python=python)
-
-    out = [
-        uvicorn("uvicorn (h11+asyncio)", "--http", "h11", "--loop", "asyncio"),
-        uvicorn("uvicorn (httptools+uvloop)", "--http", "httptools", "--loop", "uvloop"),
-        granian("granian asgi", "asgi", "benchmarks.asgi:app"),
-        granian("granian rsgi (shim)", "rsgi", "benchmarks.rsgi:app"),
-    ]
+    out = [granian("granian rsgi")]
     if ft_python:
-        out += [
-            granian("granian asgi 3.14t", "asgi", "benchmarks.asgi:app", python=ft_python),
-            granian("granian rsgi (shim) 3.14t", "rsgi", "benchmarks.rsgi:app", python=ft_python),
-        ]
+        out.append(granian("granian rsgi 3.14t", python=ft_python))
     return out
 
 

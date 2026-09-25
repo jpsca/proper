@@ -8,13 +8,10 @@ from proper.constants import FLASHES_SESSION_KEY
 from proper.core.response.file_wrapper import FileWrapper
 from proper.core.response.flash_messages import FlashMessages
 from proper.core.response.response import is_iterable
-from proper.helpers.asgi import make_test_scope
 
 
-def _make_response(*, status=pstatus.ok, **scope_kw):
-    """Build a Response with a valid ASGI scope."""
-    scope = make_test_scope(**scope_kw)
-    response = Response(scope, status=status)
+def _make_response(*, status=pstatus.ok, app=None):
+    response = Response(app, status=status)
     return response
 
 
@@ -81,11 +78,9 @@ class TestResponse:
         resp.session = DotDict({"a": 1})
         assert resp.session["a"] == 1
 
-    def test_app_from_scope(self):
-        scope = make_test_scope()
+    def test_app_given(self):
         mock_app = MagicMock()
-        scope["app"] = mock_app
-        resp = Response(scope)
+        resp = Response(mock_app)
         assert resp.app is mock_app
 
 
@@ -135,14 +130,22 @@ class TestPrepare:
         resp.prepare()
         assert resp.content_length == 99
 
-    def test_headers_encoded_as_bytes(self):
+    def test_headers_are_strings(self):
         resp = _make_response()
         resp.body = b""
         status, headers, body = resp.prepare()
-        # Headers should be list of (bytes, bytes) tuples
+        assert headers
         for name, value in headers:
-            assert isinstance(name, bytes)
-            assert isinstance(value, bytes)
+            assert isinstance(name, str)
+            assert isinstance(value, str)
+
+    def test_head_request_has_no_body(self):
+        from proper.test_client import make_test_request
+
+        resp = _make_response()
+        resp.body = b"hidden"
+        _, _, body = resp.prepare(make_test_request("/", method="HEAD"))
+        assert body == b""
 
     def test_status_returned(self):
         resp = _make_response(status=pstatus.not_found)
@@ -185,9 +188,7 @@ class TestRedirectTo:
     def test_redirect_to_route_name(self):
         mock_app = MagicMock()
         mock_app.url_for.return_value = "/users/42"
-        scope = make_test_scope()
-        scope["app"] = mock_app
-        resp = Response(scope)
+        resp = Response(mock_app)
         resp.redirect_to("users.show", obj=42, pk=42)
         mock_app.url_for.assert_called_once_with("users.show", object=42, pk=42)
         assert resp.location == "/users/42"

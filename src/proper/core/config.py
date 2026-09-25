@@ -16,6 +16,17 @@ default_config = {
     "PORT": 2300,
     "HOST": "localhost:2300",
 
+    # Where the server finds the app, as "package.module:variable". Empty
+    # means "<import_name>.main:app".
+    "APP_TARGET": "",
+
+    # How many server workers `proper run` starts. On free-threaded Python
+    # they are threads sharing this process; otherwise, separate processes.
+    "WORKERS": 1,
+
+    # Restart the server when the code changes. `None` follows `DEBUG`.
+    "RELOAD": None,
+
     # List/tuple of secret keys, **oldest to newest**.
     # Every key in the list is valid, so you can periodically generate a new key
     # and remove the oldest one to add and extra layer of mitigation

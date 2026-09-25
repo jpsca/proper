@@ -30,38 +30,43 @@ def get_cli(app: "App") -> type[Cli]:
 
 
 def get_run_cli(app: "App") -> t.Callable:
-    def run(self, config="uvicorn.dev.py"):
-        """Run the development server.
+    def run(self, host="0.0.0.0", port=0, workers=0):
+        """Run the server.
 
         Arguments:
-            config ["uvicorn.dev.py"]:
-                A Python file whose module-level variables are passed
-                as keyword arguments to `uvicorn.run()`.
+            host ["0.0.0.0"]:
+                The address to listen on.
+            port [config PORT]:
+                The port to listen on.
+            workers [config WORKERS]:
+                How many workers to start.
 
+        The app is loaded from `config.APP_TARGET`, or from
+        `<import_name>.main:app` when that is empty.
         """
-        import importlib.util
-
-        import uvicorn
+        from granian import Granian
+        from granian.constants import Interfaces
+        from granian.log import LogLevels
 
         from ..helpers import show_banner, show_welcome
 
-        spec = importlib.util.spec_from_file_location("_uvicorn_config", config)
-        assert spec and spec.loader
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-
-        kwargs = {
-            k: v for k, v in vars(mod).items()
-            if not k.startswith("_")
-        }
-
-        kwargs["host"] = "0.0.0.0"
-        kwargs["port"] = int(app.config["PORT"] or "2300")
+        config = app.config
+        reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
         show_banner()
-        show_welcome(app.config["HOST"])
-        uvicorn.run(**kwargs)
+        show_welcome(config["HOST"])
+        Granian(
+            target=config.APP_TARGET or f"{app.import_name}.main:app",
+            interface=Interfaces.RSGI,
+            address=host,
+            port=int(port or config["PORT"] or 2300),
+            workers=int(workers or config.WORKERS or 1),
+            reload=reload,
+            log_level=LogLevels.debug if config.DEBUG else LogLevels.info,
+            log_access=bool(config.DEBUG),
+        ).serve()
 
     return run
+
 
 def get_routes_cmd(app: "App") -> t.Callable:
     def routes(self):

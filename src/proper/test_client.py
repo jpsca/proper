@@ -4,7 +4,8 @@ import secrets
 import typing as t
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import urlencode
+from types import SimpleNamespace
+from urllib.parse import urlencode, urlparse
 
 from .constants import (
     AUTH_COOKIE_NAME,
@@ -18,15 +19,164 @@ from .constants import (
     PUT,
     QUERY,
 )
+from .core.request import Request
 from .helpers import CIMultiDict, DotDict, jsonplus
-from .helpers.asgi import make_test_scope
 
 
 if t.TYPE_CHECKING:
     from .app import App
 
 
-__all__ = ("TestClient",)
+__all__ = (
+    "TestClient",
+    "make_test_request",
+    "make_test_scope",
+    "make_test_ws_scope",
+    "HttpProtocolStub",
+    "WsProtocolStub",
+)
+
+_FROM_URL = object()
+
+SCHEME_DEFAULT_PORTS = {
+    "http": 80,
+    "https": 443,
+    "ws": 80,
+    "wss": 443,
+}
+
+
+def make_test_request(
+    url: str = "/",
+    *,
+    method: str = GET,
+    params: dict | None = None,
+    headers: "dict[str, str] | t.Iterable[tuple[str, str]] | None" = None,
+    app: "App | None" = None,
+    client: "tuple[str, int | None] | None" = None,
+    server: "tuple[str, int | None] | None | object" = _FROM_URL,
+    http_version: str = "1.1",
+    request_cls: type[Request] = Request,
+) -> Request:
+    """Build a `Request` the way the server would, from a URL.
+
+    The URL may carry a scheme, a host and port, a path and a query string.
+    `params`, if given, replace the query string. A `host` header is added
+    unless `headers` already has one. `server` overrides the `(host, port)`
+    taken from the URL.
+    """
+    upa = urlparse(url)
+    scheme = upa.scheme or "http"
+    path = upa.path or "/"
+
+    if ":" in upa.netloc:
+        host, port_str = upa.netloc.rsplit(":", 1)
+        port = int(port_str)
+    else:
+        host = upa.netloc or "example.com"
+        port = SCHEME_DEFAULT_PORTS.get(scheme, 80)
+
+    query_string = urlencode(params) if params else (upa.query or "")
+
+    pairs = list(headers.items()) if hasattr(headers, "items") else list(headers or [])
+    if not any(name.lower() == "host" for name, _ in pairs):
+        pairs.insert(0, ("host", upa.netloc or host))
+
+    return request_cls(
+        method=method,
+        path=path,
+        query_string=query_string,
+        headers=pairs,
+        scheme=scheme,
+        server=(host, port) if server is _FROM_URL else server,  # type: ignore[arg-type]
+        client=client,
+        http_version=http_version,
+        app=app,
+    )
+
+
+def _body_reader(body: bytes):
+    async def read() -> bytes:
+        return body
+
+    return read
+
+
+def make_test_scope(
+    url: str = "/",
+    *,
+    method: str = GET,
+    headers: "dict[str, str] | t.Iterable[tuple[str, str]] | None" = None,
+    client: str = "127.0.0.1:1234",
+) -> SimpleNamespace:
+    """A stand-in for the server's HTTP scope, for driving `app.__rsgi__`
+    directly."""
+    upa = urlparse(url)
+    scheme = upa.scheme or "http"
+    netloc = upa.netloc or "example.com"
+    pairs = list(headers.items()) if hasattr(headers, "items") else list(headers or [])
+    if not any(name.lower() == "host" for name, _ in pairs):
+        pairs.insert(0, ("host", netloc))
+    if ":" not in netloc:
+        netloc = f"{netloc}:{SCHEME_DEFAULT_PORTS.get(scheme, 80)}"
+    return SimpleNamespace(
+        proto="http",
+        method=method.upper(),
+        path=upa.path or "/",
+        query_string=upa.query or "",
+        headers=_HeadersStub(pairs),
+        scheme=scheme,
+        server=netloc,
+        client=client,
+        http_version="1.1",
+    )
+
+
+class _HeadersStub:
+    def __init__(self, pairs):
+        self._pairs = pairs
+
+    def items(self):
+        return list(self._pairs)
+
+
+class HttpProtocolStub:
+    """Stands in for the server's HTTP protocol object: hands the app the
+    request body and records what it sends back in `status`, `headers`,
+    `body` and `file`."""
+
+    def __init__(self, body: bytes = b"") -> None:
+        self._body = body
+        self.status: int = 0
+        self.headers: list[tuple[str, str]] = []
+        self.body = b""
+        self.file: str | None = None
+        self.streamed = False
+
+    async def __call__(self) -> bytes:
+        return self._body
+
+    def response_empty(self, status, headers) -> None:
+        self.status, self.headers = status, list(headers)
+
+    def response_str(self, status, headers, body: str) -> None:
+        self.status, self.headers, self.body = status, list(headers), body.encode()
+
+    def response_bytes(self, status, headers, body: bytes) -> None:
+        self.status, self.headers, self.body = status, list(headers), body
+
+    def response_file(self, status, headers, path: str) -> None:
+        self.status, self.headers, self.file = status, list(headers), path
+
+    async def response_stream(self, status, headers) -> "HttpProtocolStub":
+        self.status, self.headers, self.streamed = status, list(headers), True
+        return self
+
+    async def send_bytes(self, data: bytes) -> None:
+        self.body += data
+
+    async def send_str(self, data: str) -> None:
+        self.body += data.encode()
 
 
 def _to_bytes(value, charset="latin1"):
@@ -36,8 +186,8 @@ def _to_bytes(value, charset="latin1"):
 
 
 class TestClient:
-    """Test client that drives the app through the full ASGI stack,
-    exactly as they would in production.
+    """Test client that drives requests through the whole pipeline, the
+    same way the server does.
 
     Arguments:
         app: The Proper `App` instance to test.
@@ -220,50 +370,27 @@ class TestClient:
         if body_bytes:
             req_headers["content-length"] = str(len(body_bytes))
 
-        scope = make_test_scope(
+        request = make_test_request(
             url,
             method=method,
             params=params,
-            headers=req_headers.items()
+            headers=req_headers,
+            app=self.app,
+            request_cls=self.app.request_cls,
         )
+        response = asyncio.run(self.app._respond(request, _body_reader(body_bytes)))
 
-        resp_status = 0
-        resp_headers = CIMultiDict()
-        body_parts: list[bytes] = []
-        body_consumed = False
-
-        async def receive():
-            nonlocal body_consumed
-            if not body_consumed:
-                body_consumed = True
-                return {"type": "http.request", "body": body_bytes, "more_body": False}
-            # Block until disconnect - shouldn't normally be reached
-            await asyncio.Event().wait()
-
-        async def send(message):
-            nonlocal resp_status
-            if message["type"] == "http.response.start":
-                resp_status = message["status"]
-                for raw_name, raw_val in message.get("headers", []):
-                    name = (
-                        raw_name.decode("latin-1")
-                        if isinstance(raw_name, bytes)
-                        else raw_name
-                    )
-                    val = (
-                        raw_val.decode("latin-1")
-                        if isinstance(raw_val, bytes)
-                        else raw_val
-                    )
-                    resp_headers[name] = val
-            elif message["type"] == "http.response.body":
-                chunk = message.get("body", b"")
-                if chunk:
-                    body_parts.append(chunk)
-
-        asyncio.run(self.app(scope, receive, send))
-
-        resp_body = b"".join(body_parts)
+        resp_status, headers, body = response.prepare(request)
+        resp_headers = CIMultiDict(headers)
+        if isinstance(body, bytes):
+            resp_body = body
+        else:
+            try:
+                resp_body = b"".join(bytes(chunk) for chunk in body)
+            finally:
+                body_close = getattr(body, "close", None)
+                if callable(body_close):
+                    body_close()
 
         # Parse content-type header
         ct = resp_headers.get("content-type", "")
@@ -284,6 +411,81 @@ class TestClient:
         return result
 
 
+def make_test_ws_scope(path: str = "/cable") -> SimpleNamespace:
+    """A stand-in for the server's WebSocket scope."""
+    return SimpleNamespace(
+        proto="ws",
+        method="GET",
+        path=path,
+        query_string="",
+        headers={},
+        scheme="ws",
+        server="example.com:80",
+        client="127.0.0.1:1234",
+        http_version="1.1",
+    )
+
+
+class WsMessage:
+    """What the server hands over for each frame: a `kind` (0 close,
+    1 bytes, 2 text) and its `data`."""
+
+    def __init__(self, kind: int, data: "bytes | str | None" = None) -> None:
+        self.kind = kind
+        self.data = data
+
+
+class WsProtocolStub:
+    """Stands in for the server's WebSocket protocol object.
+
+    Frames from the client are queued with `client_send`; what the app
+    sends to the client, and whether it accepted or closed, come out of
+    `from_app` as dicts: `{"type": "accept"}`, `{"type": "text", "text": ...}`,
+    `{"type": "close", "code": ...}`.
+    """
+
+    def __init__(self) -> None:
+        self.to_app: asyncio.Queue = asyncio.Queue()
+        self.from_app: asyncio.Queue = asyncio.Queue()
+
+    # -- server side, called by the app --
+
+    async def accept(self) -> "WsProtocolStub":
+        await self.from_app.put({"type": "accept"})
+        return self
+
+    def close(self, code: int) -> None:
+        self.from_app.put_nowait({"type": "close", "code": code})
+
+    async def receive(self) -> WsMessage:
+        return await self.to_app.get()
+
+    async def send_str(self, text: str) -> None:
+        await self.from_app.put({"type": "text", "text": text})
+
+    async def send_bytes(self, data: bytes) -> None:
+        await self.from_app.put({"type": "bytes", "bytes": data})
+
+    # -- client side, called by the test --
+
+    def client_send(self, data: dict) -> None:
+        """Queue a JSON message from the client to the app."""
+        self.to_app.put_nowait(WsMessage(2, jsonplus.dumps(data)))
+
+    def client_send_text(self, text: str) -> None:
+        self.to_app.put_nowait(WsMessage(2, text))
+
+    def client_send_bytes(self, data: bytes) -> None:
+        self.to_app.put_nowait(WsMessage(1, data))
+
+    def client_disconnect(self) -> None:
+        self.to_app.put_nowait(WsMessage(0))
+
+    async def client_recv(self, timeout: float = 1.0) -> dict:
+        """The next thing the app sent to the client."""
+        return await asyncio.wait_for(self.from_app.get(), timeout=timeout)
+
+
 class WebSocketTestSession:
     """Async helper for testing WebSocket channels.
 
@@ -294,8 +496,7 @@ class WebSocketTestSession:
 
     def __init__(self, app: "App", path: str) -> None:
         self.app = app
-        self._to_app: asyncio.Queue = asyncio.Queue()
-        self._from_app: asyncio.Queue = asyncio.Queue()
+        self.protocol = WsProtocolStub()
         self._path = path
 
     async def connect(self) -> asyncio.Task:
@@ -303,15 +504,8 @@ class WebSocketTestSession:
 
         Returns the task so you can `await` it after `close()`.
         """
-        scope = {
-            "type": "websocket",
-            "path": self._path,
-            "scheme": "ws",
-            "server": ("example.com", 80),
-            "headers": [],
-            "query_string": b"",
-        }
-        task = asyncio.create_task(self.app(scope, self._receive, self._send))
+        scope = make_test_ws_scope(self._path)
+        task = asyncio.create_task(self.app.__rsgi__(scope, self.protocol))
         # Wait for the accept/reject
         await asyncio.sleep(0.01)
         return task
@@ -353,37 +547,27 @@ class WebSocketTestSession:
 
     async def receive(self, timeout: float = 1.0) -> dict:
         """Receive the next message from the app, parsed from JSON."""
-        msg = await asyncio.wait_for(self._from_app.get(), timeout=timeout)
-        if msg.get("type") == "websocket.send":
+        msg = await self.protocol.client_recv(timeout=timeout)
+        if msg.get("type") == "text":
             return jsonplus.loads(msg["text"])
         return msg
 
     async def receive_raw(self, timeout: float = 1.0) -> dict:
-        """Receive the next raw ASGI message from the app."""
-        return await asyncio.wait_for(self._from_app.get(), timeout=timeout)
+        """Receive the next raw event from the app: an accept, a close, or
+        a frame as sent."""
+        return await self.protocol.client_recv(timeout=timeout)
 
     def client_send(self, data: dict) -> None:
         """Queue a JSON message from the client to the app."""
-        self._to_app.put_nowait(
-            {
-                "type": "websocket.receive",
-                "text": jsonplus.dumps(data),
-            }
-        )
+        self.protocol.client_send(data)
 
-    def client_send_raw(self, msg: dict) -> None:
-        """Queue a raw ASGI message to the app."""
-        self._to_app.put_nowait(msg)
+    def client_send_text(self, text: str) -> None:
+        """Queue a raw text frame from the client to the app."""
+        self.protocol.client_send_text(text)
 
     async def close(self) -> None:
         """Disconnect the client."""
-        self._to_app.put_nowait({"type": "websocket.disconnect"})
-
-    async def _receive(self):
-        return await self._to_app.get()
-
-    async def _send(self, msg):
-        await self._from_app.put(msg)
+        self.protocol.client_disconnect()
 
 
 # --- encoding helpers ---

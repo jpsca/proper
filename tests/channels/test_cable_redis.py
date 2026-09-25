@@ -523,7 +523,7 @@ class TestAppIntegration:
     def test_app_creates_cable_via_tool(self, app):
         assert isinstance(app.cable, Cable)
 
-    async def test_lifespan_calls_start_and_stop(self, app):
+    async def test_startup_and_shutdown_call_start_and_stop(self, app):
         started = []
         stopped = []
 
@@ -536,20 +536,8 @@ class TestAppIntegration:
         app.cable.start = mock_start
         app.cable.stop = mock_stop
 
-        scope = {"type": "lifespan"}
-        events = asyncio.Queue()
-        sent = []
-
-        events.put_nowait({"type": "lifespan.startup"})
-        events.put_nowait({"type": "lifespan.shutdown"})
-
-        async def receive():
-            return await events.get()
-
-        async def send(msg):
-            sent.append(msg)
-
-        await app.asgi_app(scope, receive, send)
+        await app.startup()
+        await app.shutdown()
 
         assert started == [True]
         assert stopped == [True]

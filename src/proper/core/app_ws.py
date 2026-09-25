@@ -3,13 +3,18 @@ import threading
 import typing as t
 
 from ..helpers import jsonplus, logger
-from ..types import TReceive, TScope, TSend
 
 
 if t.TYPE_CHECKING:
     from ..app import App
     from ..channels import Channel
     from ..router import Router
+    from .request import Request
+
+# RSGI WebSocket message kinds.
+WS_CLOSE = 0
+WS_BYTES = 1
+WS_TEXT = 2
 
 
 # Put on the outbox to tell the writer there is nothing more to send.
@@ -35,19 +40,21 @@ class AppWs:
     async def _run_in_worker(self, func, *args) -> t.Any:
         ...
 
-    async def _handle_websocket(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        path = scope.get("path", "")
+    def _request_from_scope(self, scope) -> "Request":
+        ...
+
+    async def _handle_websocket(self, scope, protocol) -> None:
         cable_path = self.config.get("CABLE_PATH", "/cable")
-        if path != cable_path:
-            await send({"type": "websocket.close", "code": 4004})
+        if scope.path != cable_path:
+            # Before the handshake is accepted this is still HTTP, so the
+            # refusal is an HTTP status, not a WebSocket close code.
+            protocol.close(404)
             return
 
-        await send({"type": "websocket.accept"})
+        transport = await protocol.accept()
+        # The handshake's headers and cookies, for channels to authenticate
+        # the connection with.
+        request = self._request_from_scope(scope)
         subscriptions: dict[str, "Channel"] = {}
 
         # Everything going out to this client passes through one queue,
@@ -65,10 +72,7 @@ class AppWs:
                 if msg is _CLOSE:
                     return
                 try:
-                    await send({
-                        "type": "websocket.send",
-                        "text": jsonplus.dumps(msg),
-                    })
+                    await transport.send_str(jsonplus.dumps(msg))
                 except Exception:
                     # The connection is gone. The receive loop below sees
                     # the disconnect and takes care of the cleanup.
@@ -79,14 +83,17 @@ class AppWs:
 
         try:
             while True:
-                event = await receive()
-                if event["type"] == "websocket.disconnect":
+                try:
+                    message = await transport.receive()
+                except Exception:
+                    # The connection dropped without a close frame.
                     break
-
-                if event["type"] != "websocket.receive":
+                if message.kind == WS_CLOSE:
+                    break
+                if message.kind != WS_TEXT:
                     continue
 
-                text = event.get("text", "")
+                text = message.data
                 if not text:
                     continue
 
@@ -110,7 +117,7 @@ class AppWs:
                         subscriptions=subscriptions,
                         ws_send=ws_send,
                         outbox=outbox,
-                        scope=scope,
+                        request=request,
                     )
                 elif command == "unsubscribe":
                     await self._ws_unsubscribe(
@@ -159,7 +166,7 @@ class AppWs:
         subscriptions: dict[str, "Channel"],
         ws_send,
         outbox: asyncio.Queue,
-        scope: TScope,
+        request: "Request",
     ) -> None:
         channel_cls = self.router.channels.get(channel_name)
         if not channel_cls:
@@ -192,7 +199,7 @@ class AppWs:
         channel = channel_cls(
             t.cast("App", self),
             params,
-            scope=scope,
+            request=request,
             _send=sync_send,
         )
         await self._run_in_worker(

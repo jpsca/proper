@@ -12,7 +12,6 @@ from ..constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
 from ..core.request import Request
 from ..global_context import current
 from ..helpers import logger
-from ..types import TScope
 
 
 if t.TYPE_CHECKING:
@@ -35,20 +34,19 @@ class Channel:
         app: "App",
         params: dict[str, t.Any],
         *,
-        scope: TScope | None = None,
+        request: Request | None = None,
         _send: "Callable[[dict], t.Any]",
     ) -> None:
-        """`scope` is the ASGI scope of the WebSocket connection. It carries
-        the connection's headers and cookies. It is `None` only when a channel
+        """`request` is the WebSocket handshake, which carries the
+        connection's headers and cookies. It is `None` only when a channel
         is constructed directly (for example, in a unit test)."""
         self.app = app
         self.params = params
-        self.scope = scope
         self.user_id: t.Any = None
         self._send = _send
         self._streams: set[str] = set()
         self._rejected = False
-        self._request: Request | None = None
+        self._request = request
 
     @property
     def channel_name(self) -> str:
@@ -63,19 +61,16 @@ class Channel:
     @property
     def request(self) -> Request:
         """The connection's request, for reading headers and cookies (for
-        example, a signed auth cookie). Built lazily from the ASGI scope:
+        example, a signed auth cookie):
 
         ```python
         token = self.request.get_signed_cookie("_auth", salt="auth cookie")
         ```
+
+        A channel built without one gets an empty request.
         """
         if self._request is None:
-            scope = self.scope
-            if scope is not None and "method" not in scope:
-                # A WebSocket handshake is an HTTP GET upgrade; the ASGI
-                # WebSocket scope omits "method", which the request needs.
-                scope = {**scope, "method": "GET"}
-            self._request = Request(scope or {})
+            self._request = Request(app=self.app)
         return self._request
 
     def subscribed(self) -> None:

@@ -23,6 +23,7 @@ requires-python = ">=3.13"
 dependencies = [
     "babel >= 2.17.0",
     "formidable>=0.20",
+    "granian>=2.8.3",
     "hecto>=2.4.0",
     "huey ~= 2.5.2",
     "inflection >= 0.5.1",
@@ -38,7 +39,6 @@ dependencies = [
     "python-multipart >= 0.0.22",
     "traceback-with-variables ~= 2.0.4",
     "types-peewee~=3.17.7.20241017",
-    "uvicorn >= 0.41.0",
     "tzdata >= 2025.3",
 ]
 
@@ -71,10 +71,6 @@ test = [
 ]
 docs = [
     "writeadoc>=0.28.0",
-]
-bench = [
-    "granian>=2.8.3",
-    "uvicorn[standard]>=0.46.0",
 ]
 
 [tool.setuptools.packages.find]

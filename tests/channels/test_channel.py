@@ -5,6 +5,7 @@ import pytest
 from proper.app import App
 from proper.channels import Cable, Channel
 from proper.helpers import DotDict
+from proper.test_client import make_test_request
 
 
 class FakeApp:
@@ -41,20 +42,20 @@ class TestChannel:
         ch, _ = _make_channel()
         assert ch._rejected is False
 
-    def test_scope_none_by_default(self):
+    def test_request_none_by_default(self):
         ch, _ = _make_channel()
-        assert ch.scope is None
+        assert ch._request is None
 
-    def test_stores_scope(self):
+    def test_stores_request(self):
         app = FakeApp()
-        scope = {"type": "websocket", "app": app}
-        ch = Channel(t.cast(App, app), {}, scope=scope, _send=lambda _msg: None)
-        assert ch.scope is scope
+        request = make_test_request("/cable", app=t.cast(App, app))
+        ch = Channel(t.cast(App, app), {}, request=request, _send=lambda _msg: None)
+        assert ch.request is request
 
-    def test_request_falls_back_when_scope_is_none(self):
+    def test_request_falls_back_when_not_given(self):
         ch, _ = _make_channel()
-        assert ch.scope is None
         assert ch.request is not None
+        assert ch.request.path == "/"
 
     def test_returns_class_name(self):
         ch, _ = _make_channel()
