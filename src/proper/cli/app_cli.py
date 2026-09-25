@@ -35,6 +35,61 @@ def _free_threaded() -> bool:
     return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
+def _serve(
+    *,
+    target: str,
+    address: str,
+    port: int,
+    workers: int,
+    reload: bool,
+    debug: bool,
+) -> None:
+    """Start Granian and block until it stops.
+
+    A plain function, with plain arguments, so the free-threaded reloader can
+    run it in a fresh process.
+    """
+    from granian import Granian
+    from granian.constants import Interfaces
+    from granian.log import LogLevels
+
+    Granian(
+        target=target,
+        interface=Interfaces.RSGI,
+        address=address,
+        port=port,
+        workers=workers,
+        reload=reload,
+        log_level=LogLevels.debug if debug else LogLevels.info,
+        log_access=debug,
+    ).serve()
+
+
+def _log_changes(changes: set) -> None:
+    # Printed rather than logged: the `proper` logger has no handler of its
+    # own, and this must show up next to Granian's lines.
+    files = ", ".join(sorted(path for _change, path in changes))
+    print(f"[INFO] Changes detected, restarting the server: {files}", flush=True)
+
+
+def _serve_restarting_on_changes(path: str, **options: t.Any) -> None:
+    """Run the server in a child process, and start a new one whenever a
+    file under `path` changes.
+
+    Granian's own reloader replaces its worker processes, which is not
+    possible on free-threaded Python, where the workers are threads of a
+    single process. Restarting that whole process from outside is.
+    """
+    import watchfiles
+
+    watchfiles.run_process(
+        path,
+        target=_serve,
+        kwargs={**options, "reload": False},
+        callback=_log_changes,
+    )
+
+
 def get_run_cli(app: "App") -> t.Callable:
     def run(self, host="0.0.0.0", port=0, workers=0):
         """Run the server.
@@ -50,32 +105,23 @@ def get_run_cli(app: "App") -> t.Callable:
         The app is loaded from `config.APP_TARGET`, or from `app` in the
         module that created it when that is empty.
         """
-        from granian import Granian
-        from granian.constants import Interfaces
-        from granian.log import LogLevels
-
-        from ..helpers import logger, show_banner, show_welcome
+        from ..helpers import show_banner, show_welcome
 
         config = app.config
         reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
-        if reload and _free_threaded():
-            logger.warning(
-                "Reloading on code changes is not available on free-threaded "
-                "Python. Starting without it."
-            )
-            reload = False
+        options = {
+            "target": config.APP_TARGET or f"{app.import_name}:app",
+            "address": host,
+            "port": int(port or config["PORT"] or 2300),
+            "workers": int(workers or config.WORKERS or 1),
+            "debug": bool(config.DEBUG),
+        }
         show_banner()
         show_welcome(config["HOST"])
-        Granian(
-            target=config.APP_TARGET or f"{app.import_name}:app",
-            interface=Interfaces.RSGI,
-            address=host,
-            port=int(port or config["PORT"] or 2300),
-            workers=int(workers or config.WORKERS or 1),
-            reload=reload,
-            log_level=LogLevels.debug if config.DEBUG else LogLevels.info,
-            log_access=bool(config.DEBUG),
-        ).serve()
+        if reload and _free_threaded():
+            _serve_restarting_on_changes(str(app.root_path), **options)
+        else:
+            _serve(reload=reload, **options)
 
     return run
 

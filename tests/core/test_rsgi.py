@@ -1,6 +1,5 @@
 """The RSGI face of the app: what the server calls, and what it gets back."""
 import asyncio
-import logging
 
 import pytest
 
@@ -304,31 +303,44 @@ class TestRunCommand:
         assert calls["workers"] == 2
         assert calls["reload"] is True
 
-    def test_reload_is_dropped_on_free_threaded_python(self, app, monkeypatch, caplog):
-        import granian
+    def test_free_threaded_python_restarts_the_server_from_outside(
+        self, app, monkeypatch
+    ):
+        import watchfiles
 
         from proper.cli import app_cli
 
         calls = {}
 
-        class FakeGranian:
-            def __init__(self, **kwargs):
-                calls.update(kwargs)
+        def run_process(*paths, **kwargs):
+            calls["paths"] = paths
+            calls.update(kwargs)
 
-            def serve(self):
-                pass
-
-        monkeypatch.setattr(granian, "Granian", FakeGranian)
+        monkeypatch.setattr(watchfiles, "run_process", run_process)
         monkeypatch.setattr("proper.helpers.show_banner", lambda: None)
         monkeypatch.setattr("proper.helpers.show_welcome", lambda host: None)
         monkeypatch.setattr(app_cli, "_free_threaded", lambda: True)
         app.config.RELOAD = True
+        app.config.APP_TARGET = "myapp.main:app"
 
-        with caplog.at_level(logging.WARNING, logger="proper"):
-            app_cli.get_run_cli(app)(None)
+        app_cli.get_run_cli(app)(None, port=9000)
 
-        assert calls["reload"] is False
-        assert "free-threaded" in caplog.text
+        assert calls["paths"] == (str(app.root_path),)
+        assert calls["target"] is app_cli._serve
+        assert calls["kwargs"]["target"] == "myapp.main:app"
+        assert calls["kwargs"]["port"] == 9000
+        # The child must not try Granian's own reloader again.
+        assert calls["kwargs"]["reload"] is False
+        assert calls["callback"] is app_cli._log_changes
+
+    def test_the_restart_says_which_files_changed(self, capsys):
+        from watchfiles import Change
+
+        from proper.cli.app_cli import _log_changes
+
+        _log_changes({(Change.modified, "b.py"), (Change.added, "a.py")})
+
+        assert "restarting the server: a.py, b.py" in capsys.readouterr().out
 
     def test_free_threaded_follows_the_build(self):
         import sysconfig
