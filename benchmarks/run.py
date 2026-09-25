@@ -1,12 +1,19 @@
 """Run the Proper server benchmarks.
 
     uv run python -m benchmarks.run [--duration 10s] [--connections 64] [--workers 4]
-                                    [--only uvicorn,granian-rsgi] [--ft-python .venv-ft/bin/python]
+                                    [--only granian,beego] [--ft-python .venv-ft/bin/python]
 
-For each Python (GIL and free-threaded) it starts Granian, waits for it,
-warms it up, runs bombardier against each endpoint, samples the RSS of the whole
-process tree, stops the server and prints a Markdown table. Results are also
-written as JSON to `benchmarks/results/`.
+For each server it starts the app, waits for it, warms it up, runs bombardier
+against each endpoint, samples the RSS of the whole process tree, stops the
+server and prints a Markdown table. Results are also written as JSON to
+`benchmarks/results/`.
+
+The servers are Granian running `benchmarks/app` on the GIL and on the
+free-threaded Python, and the reference apps in `benchmarks/beego` (Go) and
+`benchmarks/topcoat` (Rust), which serve the same three routes over the same
+SQLite file. The reference apps are built on demand with `go` and `cargo`,
+looked up on PATH, then in `~/go/bin` and `~/.cargo/bin`. Go and Rust use
+every core by default; `--workers` only applies to Granian.
 """
 import argparse
 import json
@@ -28,6 +35,33 @@ RESULTS = HERE / "results"
 PORT = 8123
 ENDPOINTS = ("/plaintext", "/json", "/fortunes")
 BOMBARDIER = shutil.which("bombardier") or str(Path.home() / "go/bin/bombardier")
+BEEGO_DIR = HERE / "beego"
+BEEGO_BIN = BEEGO_DIR / "beego-bench"
+TOPCOAT_DIR = HERE / "topcoat"
+TOPCOAT_BIN = TOPCOAT_DIR / "target/release/proper-bench-topcoat"
+
+
+def tool(name: str, fallback: str) -> str | None:
+    found = shutil.which(name)
+    if found:
+        return found
+    path = Path.home() / fallback
+    return str(path) if path.exists() else None
+
+
+def build_reference_apps() -> None:
+    """Compile the Go and Rust apps; skipped, with a note, when the toolchain
+    is missing."""
+    go = tool("go", "go/bin/go")
+    if go:
+        subprocess.run([go, "build", "-o", str(BEEGO_BIN), "."], cwd=BEEGO_DIR, check=True)
+    else:
+        print("go not found, skipping beego", file=sys.stderr)
+    cargo = tool("cargo", ".cargo/bin/cargo")
+    if cargo:
+        subprocess.run([cargo, "build", "--release", "--quiet"], cwd=TOPCOAT_DIR, check=True)
+    else:
+        print("cargo not found, skipping topcoat", file=sys.stderr)
 
 
 @dataclass
@@ -51,6 +85,10 @@ def configs(workers: int, ft_python: str | None) -> list[Config]:
     out = [granian("granian rsgi")]
     if ft_python:
         out.append(granian("granian rsgi 3.14t", python=ft_python))
+    if BEEGO_BIN.exists():
+        out.append(Config("beego (go)", [str(BEEGO_BIN)], env={"PORT": str(PORT)}))
+    if TOPCOAT_BIN.exists():
+        out.append(Config("topcoat (rust)", [str(TOPCOAT_BIN)], env={"PORT": str(PORT)}))
     return out
 
 
@@ -163,6 +201,7 @@ def main() -> None:
     args = ap.parse_args()
 
     ft = args.ft_python if Path(args.ft_python).exists() else None
+    build_reference_apps()
     cfgs = configs(args.workers, ft)
     if args.only:
         keys = [k.strip() for k in args.only.split(",")]
