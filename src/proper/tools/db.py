@@ -1,11 +1,19 @@
+import playhouse.sqlite_ext
+
 from ..errors import ConfigError
 from ..helpers.imports import get_instance
 
 
 NAME = "DATABASES"
+# peewee 4 folded `SqliteExtDatabase` into `SqliteDatabase`.
+SQLITE_DATABASE = (
+    "playhouse.sqlite_ext.SqliteExtDatabase"
+    if hasattr(playhouse.sqlite_ext, "SqliteExtDatabase")
+    else "peewee.SqliteDatabase"
+)
 DEFAULT_CONFIG = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": SQLITE_DATABASE,
         "database": ":memory:",
     },
 }

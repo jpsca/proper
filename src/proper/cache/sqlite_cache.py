@@ -3,7 +3,12 @@ import typing as t
 from time import time
 
 import peewee as pw
-from playhouse.sqlite_ext import SqliteExtDatabase
+
+
+try:
+    from playhouse.sqlite_ext import SqliteExtDatabase
+except ImportError:  # peewee 4 folded it into SqliteDatabase
+    from peewee import SqliteDatabase as SqliteExtDatabase
 
 from .base import BaseCache, SerializerProtocol
 

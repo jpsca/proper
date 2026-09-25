@@ -24,7 +24,8 @@ config = {
     "RUN_SYNC": bool(os.getenv("BENCH_RUN_SYNC")),
     "DATABASES": {
         "main": {
-            "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+            # Overridable to try other database classes or peewee forks.
+            "type": os.getenv("BENCH_DB", "playhouse.sqlite_ext.SqliteExtDatabase"),
             "database": str(DB_PATH),
             "pragmas": {"journal_mode": "wal", "cache_size": -64000},
         }
