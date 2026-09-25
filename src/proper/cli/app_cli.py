@@ -41,8 +41,8 @@ def get_run_cli(app: "App") -> t.Callable:
             workers [config WORKERS]:
                 How many workers to start.
 
-        The app is loaded from `config.APP_TARGET`, or from
-        `<import_name>.main:app` when that is empty.
+        The app is loaded from `config.APP_TARGET`, or from `app` in the
+        module that created it when that is empty.
         """
         from granian import Granian
         from granian.constants import Interfaces
@@ -55,7 +55,7 @@ def get_run_cli(app: "App") -> t.Callable:
         show_banner()
         show_welcome(config["HOST"])
         Granian(
-            target=config.APP_TARGET or f"{app.import_name}.main:app",
+            target=config.APP_TARGET or f"{app.import_name}:app",
             interface=Interfaces.RSGI,
             address=host,
             port=int(port or config["PORT"] or 2300),

@@ -273,7 +273,7 @@ class TestRunCommand:
         assert calls["reload"] is False
         assert calls["served"] is True
 
-    def test_the_target_defaults_to_main_app(self, app, monkeypatch):
+    def test_the_target_defaults_to_the_creating_module(self, app, monkeypatch):
         import granian
 
         from proper.cli.app_cli import get_run_cli
@@ -296,7 +296,7 @@ class TestRunCommand:
 
         get_run_cli(app)(None, host="127.0.0.1", port=9000, workers=2)
 
-        assert calls["target"] == f"{app.import_name}.main:app"
+        assert calls["target"] == f"{app.import_name}:app"
         assert calls["address"] == "127.0.0.1"
         assert calls["port"] == 9000
         assert calls["workers"] == 2

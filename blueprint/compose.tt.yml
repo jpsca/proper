@@ -25,7 +25,7 @@ x-app: &app
   restart: unless-stopped
 
 services:
-  # ASGI web server (proper run uvicorn.py -> binds 0.0.0.0:2300).
+  # Web server (proper run -> Granian on 0.0.0.0:2300).
   web:
     <<: *app
     ports:

@@ -14,6 +14,10 @@ DEBUG = env == "dev"
 #   so it doesn't need to be also specified in the `HOST` variable.
 PORT = os.getenv("PORT", 2300)
 
+# How many server workers `proper run` starts. On free-threaded Python they
+# are threads sharing one process; otherwise, separate processes.
+WORKERS = int(os.getenv("WORKERS", "1"))
+
 if env == "prod":
     PROTOCOL = "https"
     HOST = "YOUR-DOMAIN.com"

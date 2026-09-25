@@ -17,7 +17,7 @@ default_config = {
     "HOST": "localhost:2300",
 
     # Where the server finds the app, as "package.module:variable". Empty
-    # means "<import_name>.main:app".
+    # means the `app` variable of the module that created it.
     "APP_TARGET": "",
 
     # How many server workers `proper run` starts. On free-threaded Python

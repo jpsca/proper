@@ -83,9 +83,9 @@ EXPOSE 2300
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
     CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/up' % os.environ.get('PORT','2300'), timeout=2)" || exit 1
 
-# Web server (reads uvicorn.prod.py: workers/log_level/keep-alive; binds 0.0.0.0:$PORT).
+# Web server (Granian; binds 0.0.0.0:$PORT with the WORKERS from the config).
 # Run the background worker from the SAME image by overriding the command:
 #   docker run ... [[app_name]]:latest python workers.py
 # Apply DB migrations as a one-off job (not on every container start):
 #   docker run --rm ... [[app_name]]:latest proper db migrate
-CMD ["proper", "run", "uvicorn.prod.py"]
+CMD ["proper", "run"]

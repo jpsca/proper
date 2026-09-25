@@ -21,7 +21,6 @@ dependencies = [
 	"peewee",
 	"proper-cli",
 	"python-dotenv",
-  "uvicorn[standard]",
   "proper",
   # "psycopg[pool]",
 	# "redis",
