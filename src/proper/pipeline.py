@@ -106,20 +106,28 @@ def copy_session(request: "Request", response: "Response"):
     and response.
     """
     session = _find_session_by_cookie(request)
+    if session is None:
+        # No cookie, or a bad one: two empty sessions, and nothing to copy
+        # or to strip. This is most requests.
+        request.session = DotDict()
+        response.session = DotDict()
+        return
     request.session = session
     response.session = session.copy()
     if FLASHES_SESSION_KEY in response.session:
         del response.session[FLASHES_SESSION_KEY]
 
 
-def _find_session_by_cookie(request: "Request") -> DotDict:
+def _find_session_by_cookie(request: "Request") -> DotDict | None:
+    if SESSION_COOKIE_NAME not in request.cookies:
+        return None
     session = request.get_signed_cookie(
         SESSION_COOKIE_NAME,
         salt=SESSION_COOKIE_SALT,
         max_age=request.app.config.SESSION_COOKIE_LIFETIME
     )
     logger.debug(">>> %s", session or "")
-    return DotDict(session or {})
+    return DotDict(session) if session else None
 
 
 # STEP 6

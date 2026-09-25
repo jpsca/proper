@@ -84,7 +84,7 @@ class Response(ResponseHeadersMixin):
 
     @session.setter
     def session(self, value: dict | DotDict) -> None:
-        self._session = DotDict(value)
+        self._session = value if isinstance(value, DotDict) else DotDict(value)
 
     @property
     def has_body(self) -> bool:
