@@ -282,3 +282,29 @@ class TestModelWithoutScopes:
             assert Plain.select().count() == 1
         finally:
             db.drop_tables([Plain])
+
+
+class TestScopeCache:
+    def test_scopes_are_collected_once_per_class(self, Article, monkeypatch):
+        from proper.models import base
+
+        first = Article._collect_scopes()
+        assert "published" in first
+
+        def no_scan(cls):
+            raise AssertionError("the class was scanned again")
+
+        # `dir` is looked up in the module's globals first, so this shadows
+        # the builtin for the code under test only.
+        monkeypatch.setattr(base, "dir", no_scan, raising=False)
+        assert Article._collect_scopes() is first
+        assert hasattr(Article.select(), "published")
+
+    def test_subclasses_have_their_own_scopes(self, db, BaseModel, Article):
+        class Special(Article):
+            @scope
+            def special(cls, query):
+                return query.where(Article.title == "special")
+
+        assert "special" in Special._collect_scopes()
+        assert "special" not in Article._collect_scopes()
