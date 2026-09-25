@@ -72,6 +72,10 @@ test = [
 docs = [
     "writeadoc>=0.28.0",
 ]
+bench = [
+    "granian>=2.8.3",
+    "uvicorn[standard]>=0.46.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

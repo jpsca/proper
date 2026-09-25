@@ -37,3 +37,6 @@ site/*
 var/
 wheels/
 
+benchmarks/app/fortunes.db*
+benchmarks/results/
+.venv-ft
