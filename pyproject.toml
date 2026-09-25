@@ -32,13 +32,13 @@ dependencies = [
     "jx>=0.11.0",
     "markupsafe >= 2.0",
     "passlib ~= 1.7",
-    "peewee ~= 3.15",
-    "peewee-migrate >=1.12.1,< 2",
+    "peewee>=4.5.1,<5",
+    "peewee-migrate>=2.3,<3",
     "proper-cli ~= 2.0.0",
     "python-dateutil ~= 2.9.0",
     "python-multipart >= 0.0.22",
     "traceback-with-variables ~= 2.0.4",
-    "types-peewee~=3.17.7.20241017",
+    "types-peewee>=4.5.1",
     "tzdata >= 2025.3",
 ]
 

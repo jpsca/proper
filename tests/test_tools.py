@@ -178,11 +178,11 @@ def test_custom_db_config():
     app = _make_app(
         DATABASES={
             "main": {
-                "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                "type": "peewee.SqliteDatabase",
                 "database": ":memory:",
             },
             "secondary": {
-                "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                "type": "peewee.SqliteDatabase",
                 "database": ":memory:",
             },
         }
@@ -195,7 +195,7 @@ def test_valid_db_config():
     db.validate_config(
         {
             "main": {
-                "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                "type": "peewee.SqliteDatabase",
                 "database": ":memory:",
             }
         }
@@ -224,7 +224,7 @@ def test_db_config_entry_type_must_be_str_or_class():
 
 def test_db_config_entry_must_have_database():
     with pytest.raises(ConfigError, match="must have a 'database' key"):
-        db.validate_config({"main": {"type": "playhouse.sqlite_ext.SqliteExtDatabase"}})
+        db.validate_config({"main": {"type": "peewee.SqliteDatabase"}})
 
 
 def test_db_config_entry_database_must_be_str():
@@ -232,7 +232,7 @@ def test_db_config_entry_database_must_be_str():
         db.validate_config(
             {
                 "main": {
-                    "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+                    "type": "peewee.SqliteDatabase",
                     "database": 42,
                 }
             }

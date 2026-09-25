@@ -756,7 +756,7 @@ This is the default. It needs no extra dependencies - SQLite ships with Python:
 ```python
 DATABASES: dict[str, t.Any] = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
 }
@@ -764,7 +764,7 @@ DATABASES: dict[str, t.Any] = {
 
 For tests, the blueprint already overrides this to `":memory:"`, so each test run starts with a clean in-memory database.
 
-`SqliteExtDatabase` (from `playhouse`) is preferred over the plain `peewee.SqliteDatabase` because it enables useful extensions like JSON support and full-text search.
+`peewee.SqliteDatabase` already includes the SQLite extensions, like JSON support and full-text search. Older Peewee versions kept those in a separate `SqliteExtDatabase`, which no longer exists.
 
 ### PostgreSQL
 

@@ -601,7 +601,7 @@ env = os.getenv("APP_ENV", "dev")
 
 DATABASES: dict[str, t.Any] = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
 }
@@ -614,7 +614,7 @@ The `type` key is a dotted import path to a Peewee database class. The remaining
 ```python
 DATABASES = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
 }
@@ -648,7 +648,7 @@ env = os.getenv("APP_ENV", "dev")
 # Default (dev) database
 DATABASES: dict[str, t.Any] = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
 }
@@ -656,7 +656,7 @@ DATABASES: dict[str, t.Any] = {
 # Override for tests
 if env == "test":
     DATABASES["main"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
 
@@ -680,7 +680,7 @@ You can configure multiple databases for different purposes. The keys `"proper_q
 ```python
 DATABASES = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
     "analytics": {

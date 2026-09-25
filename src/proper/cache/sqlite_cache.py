@@ -4,12 +4,6 @@ from time import time
 
 import peewee as pw
 
-
-try:
-    from playhouse.sqlite_ext import SqliteExtDatabase
-except ImportError:  # peewee 4 folded it into SqliteDatabase
-    from peewee import SqliteDatabase as SqliteExtDatabase
-
 from .base import BaseCache, SerializerProtocol
 
 
@@ -26,7 +20,7 @@ class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
     _counter = itertools.count()
     models = [Cache]
-    db_class: type[pw.Database] = SqliteExtDatabase
+    db_class: type[pw.Database] = pw.SqliteDatabase
     memory_based: bool = False
 
     def __init__(

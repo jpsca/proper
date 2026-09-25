@@ -272,7 +272,7 @@ Configure a test database in `config/storage.py`:
 ```python
 if env == "test":
     DATABASES["main"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
 ```

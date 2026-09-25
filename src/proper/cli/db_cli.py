@@ -256,7 +256,9 @@ def get_db_cli(app) -> type[Cli]:
             """
             router = self._get_router(db)
             assert router
-            for migration in router.todo:
+            # `router.todo` is every migration on disk; `diff` is what is
+            # still to run.
+            for migration in router.diff:
                 print(f"{router.migrate_dir}/{migration}.py")
 
         def done(self, db: str = "main"):

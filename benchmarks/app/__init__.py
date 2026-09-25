@@ -25,7 +25,7 @@ config = {
     "DATABASES": {
         "main": {
             # Overridable to try other database classes or peewee forks.
-            "type": os.getenv("BENCH_DB", "playhouse.sqlite_ext.SqliteExtDatabase"),
+            "type": os.getenv("BENCH_DB", "peewee.SqliteDatabase"),
             "database": str(DB_PATH),
             "pragmas": {"journal_mode": "wal", "cache_size": -64000},
         }

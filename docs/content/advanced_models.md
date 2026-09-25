@@ -226,7 +226,7 @@ Open `config/storage.py` and add another entry to the `DATABASES` dict:
 # config/storage.py
 DATABASES: dict[str, t.Any] = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
     "analytics": {

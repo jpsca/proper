@@ -61,7 +61,7 @@ A freshly generated Proper application is already set up for testing. There are 
 ```python {title="config/storage.py"}
 if env == "test":
     DATABASES["main"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
 

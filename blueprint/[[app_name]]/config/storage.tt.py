@@ -6,12 +6,12 @@ env = os.getenv("APP_ENV", "dev")
 
 DATABASES: dict[str, t.Any] = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
     # -- or --
     # "main": {
-    #     "type": "playhouse.pool.PooledPsycopg3Database",
+    #     "type": "playhouse.postgres_ext.PooledPsycopg3Database",
     #     "database": os.getenv("DB_NAME", "[[app_name]]"),
     #     "host": os.getenv("DB_HOST", "127.0.0.1"),
     #     "port": int(os.getenv("DB_PORT", 5432)),
@@ -68,7 +68,7 @@ CACHE = {
 # --- Override config for testing ---
 if env == "test":
     DATABASES["main"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
 
@@ -86,7 +86,7 @@ if env == "test":
 # --- Override config for production ---
 if env == "prod":
     DATABASES["main"] = {
-        "type": "playhouse.pool.PooledPsycopg3Database",
+        "type": "playhouse.postgres_ext.PooledPsycopg3Database",
         "database": os.getenv("DB_NAME", "[[app_name]]"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_PORT", 5432)),
