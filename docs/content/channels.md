@@ -80,7 +80,7 @@ $ proper install channels
 
 That creates three things:
 
-- `config/channels.py` - the `CABLE_PATH` and the `CABLE` backend config.
+- `config/channels.py` - `CABLE_PATH`, `CABLE_PORT` and the `CABLE` backend config.
 - `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
 - `assets/js/cable.js` - the browser client.
 
@@ -128,7 +128,6 @@ Property         | What it is
 `.channel_name`  | The class name, e.g. `"ChatChannel"`
 `.authenticated` | `True` when the connection has a logged-in user
 `.request`       | The connection's request, for reading headers and signed cookies
-`.scope`         | The raw ASGI scope of the WebSocket connection
 
 ---
 
@@ -546,11 +545,13 @@ An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_s
 
 ---
 
-## Going multi-process: Cable and RedisCable
+## The cable process, and RedisCable
 
-The default backend, `Cable`, keeps its stream-to-subscriber map in memory. That is correct and fast - as long as every browser is connected to the *same* process. A broadcast from one worker reaches only the clients that worker is holding. For a single-process deployment (one Uvicorn worker) that is all you need.
+Proper serves HTTP over WSGI, which has no WebSockets. So `proper run` starts a second process for them, over RSGI, on `CABLE_PORT` - the channels addon sets it to `PORT + 1`. In production, your reverse proxy routes `CABLE_PATH` to that port; the blueprint's nginx config has the block ready. In development there is no proxy, so the page tells the browser where the cable is: `render_importmap()` adds a `<meta name="cable-port">` tag when `DEBUG` is on, and `cable.js` connects to that port on the same host.
 
-The moment you run more than one worker, you need `RedisCable`. It publishes each broadcast to Redis, and a background listener in every process delivers it to that process's local subscribers - so a message broadcast in worker A reaches a browser connected to worker B.
+That leaves one question: a `broadcast()` made in the web process - from a controller, or from a task - has no WebSockets to reach there. The default backend, `Cable`, answers it by forwarding the message to the cable process as a `POST` to `CABLE_PATH`, signed with the app's secret keys, and the cable process delivers it to its subscribers. There is nothing to configure and no Redis to run. If the cable process is down, the message is lost and a warning is logged; the page that broadcast still renders.
+
+The moment you run the cable on more than one machine, or more than one cable process, you need `RedisCable`. It publishes each broadcast to Redis, and a background listener in every process delivers it to that process's local subscribers - so a message broadcast in process A reaches a browser connected to process B.
 
 Your application code does not change at all; `.broadcast(...)` and `app.cable.broadcast(...)` work exactly the same. Only the config differs:
 
@@ -575,7 +576,7 @@ Option   | Default                      | What it is
 `url`    | `redis://localhost:6379/0`   | Redis connection URL
 `prefix` | `proper:cable:`              | Namespace for the Redis pub/sub channels
 
-When `CABLE` is empty, you get the in-process `Cable`. Give each app a distinct `prefix` if several share one Redis. `RedisCable` needs the `redis` package (`uv add redis`) and raises at startup if it is configured without it. It hooks into the ASGI lifespan automatically - the listener starts on boot and is cancelled on shutdown - and if the Redis connection drops it reconnects with backoff (up to 30s) and resumes.
+When `CABLE` is empty, you get the in-process `Cable`. Give each app a distinct `prefix` if several share one Redis. `RedisCable` needs the `redis` package (`uv add redis`) and raises at startup if it is configured without it. It hooks into the server's startup and shutdown automatically - the listener starts on boot and is cancelled on shutdown - and if the Redis connection drops it reconnects with backoff (up to 30s) and resumes.
 
 The line to remember: `RedisCable` shares *broadcasts* across workers, not *state*. Fire-and-forget delivery crosses the cluster cleanly. Anything that needs a shared, durable view - a presence roster, a "replay the last value to a late subscriber" - is not something the cable does for you, because Redis pub/sub carries events, not memory. [Deployment](/docs/deployment) covers choosing a worker count and running the server.
 
@@ -727,4 +728,4 @@ Channels touches several other parts of Proper:
 - [Authentication](/docs/authentication) - the session and signed-cookie model that `AppChannel` reuses to put `current.user` on a connection.
 - [Background Tasks](/docs/tasks) - the worker process behind broadcasting from a job, plus scheduling and retries.
 - [Jx Components](/docs/jx_components) - the server-rendered components you wrap in a `<turbo-stream>` to broadcast.
-- [Deployment](/docs/deployment) - choosing an ASGI server and worker count, and running Redis so `RedisCable` can carry broadcasts across them.
+- [Deployment](/docs/deployment) - workers, processes and the cable port behind a proxy, and running Redis so `RedisCable` can carry broadcasts across machines.

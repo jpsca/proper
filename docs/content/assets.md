@@ -370,7 +370,7 @@ A request for any file with a different extension (or no extension at all) retur
 
 ## Off-loading to a Reverse Proxy
 
-In production, opening a file and copying its bytes to a socket is something nginx, Caddy, or Apache do significantly faster than a Python ASGI process. The trick is to let the proxy serve the file *while keeping the routing logic in Proper* - your application still decides whether the file exists and what cache headers it deserves; it just doesn't send the bytes itself.
+In production, opening a file and copying its bytes to a socket is something nginx, Caddy, or Apache do significantly faster than a Python process. The trick is to let the proxy serve the file *while keeping the routing logic in Proper* - your application still decides whether the file exists and what cache headers it deserves; it just doesn't send the bytes itself.
 
 That's what `STATIC_X_SENDFILE_HEADER` configures. Set it in your config:
 

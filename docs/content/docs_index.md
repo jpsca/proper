@@ -148,7 +148,7 @@ This is the documentation for **Proper**. These guides are designed to make you 
 
 <a href="/docs/deployment" class="doc-index-section">
   <h3>Deployment and Performance</h3>
-  <p>Going to production means picking an ASGI server, deciding how many workers to run, serving your static files efficiently, and managing environment variables. This guide will help you make those choices and keep your application fast under real traffic.</p>
+  <p>Going to production means running on free-threaded Python, deciding how many workers and processes to run, serving your static files efficiently, and managing environment variables. This guide will help you make those choices and keep your application fast under real traffic.</p>
   <section class="admonition wip">
     <p class="admonition-title">Work in progress</p>
   </section>

@@ -9,7 +9,7 @@ number_headers: true
 
 A web application that you can't change without fear of breaking it is a web application that stops moving. Tests are how you keep that fear in proportion: not "I think this still works" but "the suite tells me it does." The earlier you write them and the cheaper they are to run, the more often you'll actually run them - and the more you'll trust the result.
 
-Proper takes that idea seriously. The framework ships a `TestClient` that drives your app through the **full ASGI stack** - the same router, middleware, controllers, sessions, and database connections that run in production. There is no separate test server to start and no internals to mock. A test is a Python function that calls the client, gets a response, and asserts on it. The generated `tests/conftest.py` wires up a transactional database fixture so tests don't have to clean up after themselves. In the test environment, the cache is a no-op, background tasks run inline, and emails go to an in-memory outbox - so you can assert on the side effects without standing up Redis, a worker, or an SMTP server.
+Proper takes that idea seriously. The framework ships a `TestClient` that drives your app through the **full request pipeline** - the same router, callbacks, controllers, sessions, and database connections that run in production, with no server in between. There is no separate test server to start and no internals to mock. A test is a Python function that calls the client, gets a response, and asserts on it. The generated `tests/conftest.py` wires up a transactional database fixture so tests don't have to clean up after themselves. In the test environment, the cache is a no-op, background tasks run inline, and emails go to an in-memory outbox - so you can assert on the side effects without standing up Redis, a worker, or an SMTP server.
 
 After reading this guide, you will know:
 
@@ -321,7 +321,7 @@ result = client.head("/photos")
 result = client.options("/photos")
 ```
 
-`params` are appended as a query string. Pass values as strings - the ASGI scope's `query_string` is bytes, and Proper's request layer parses them as text, so anything `int` or `bool` should be stringified at the call site.
+`params` are appended as a query string. Pass values as strings - a query string is text on the wire, so anything `int` or `bool` should be stringified at the call site.
 
 `HEAD` returns the same headers as the equivalent `GET` but with an empty body. Don't assert on `result.body` for a `HEAD` request - it's always `""`.
 
@@ -725,7 +725,7 @@ For the deeper testing patterns - asserting on the task's return value, exercisi
 
 ## Testing channels (WebSockets)
 
-Channels are tested through `client.websocket()`, which returns an async `WebSocketTestSession`. The session is an `async`-only API because the underlying ASGI machinery is async, so a channel test is a coroutine that you drive with `asyncio.run()`:
+Channels are tested through `client.websocket()`, which returns an async `WebSocketTestSession`. The session is an `async`-only API because the WebSocket handler is async, so a channel test is a coroutine that you drive with `asyncio.run()`:
 
 ```python
 import asyncio
@@ -761,12 +761,12 @@ The shape is always the same: connect, subscribe, exchange messages, close. The 
 | `ws.send_action(channel, action, data)`     | Invoke a channel action                             |
 | `ws.unsubscribe(channel, **params)`         | Unsubscribe from a channel                          |
 | `ws.receive(timeout=1.0)`                   | Receive the next message (parsed JSON)              |
-| `ws.receive_raw(timeout=1.0)`               | Receive the next raw ASGI message                   |
+| `ws.receive_raw(timeout=1.0)`               | Receive the next raw event: `{"type": "accept"}`, a frame, or a close |
 | `ws.client_send(data)`                      | Queue a JSON message to the app                     |
-| `ws.client_send_raw(msg)`                   | Queue a raw ASGI message to the app                 |
+| `ws.client_send_text(text)`                 | Queue a raw text frame to the app                   |
 | `ws.close()`                                | Disconnect the client                               |
 
-`receive()` parses the next outgoing message as JSON. If you need the unparsed ASGI envelope (to inspect the message *type*, for example), `receive_raw()` returns it as a dict. Both methods take a `timeout=` in seconds; if no message arrives in time, `asyncio.TimeoutError` is raised. Default is one second - generous for an in-process test, tight enough that a hung handler fails fast.
+`receive()` parses the next outgoing message as JSON. If you need the raw event (to see the accept or the close, for example), `receive_raw()` returns it as a dict with a `type` key. Both methods take a `timeout=` in seconds; if no message arrives in time, `asyncio.TimeoutError` is raised. Default is one second - generous for an in-process test, tight enough that a hung handler fails fast.
 
 ### Custom path
 
