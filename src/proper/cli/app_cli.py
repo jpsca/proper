@@ -220,7 +220,7 @@ def get_run_cli(app: "App") -> t.Callable:
         cable = None
         if cable_port and interface == "wsgi":
             cable = {**web, "interface": "rsgi", "port": cable_port, "workers": 1}
-        group = {"web": web, "cable": cable, "processes": max(1, int(config.PROCESSES or 1))}
+        group: dict[str, t.Any] = {"web": web, "cable": cable, "processes": max(1, int(config.PROCESSES or 1))}
 
         show_banner()
         show_welcome(config["HOST"])

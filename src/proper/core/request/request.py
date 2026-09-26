@@ -95,12 +95,7 @@ class Request(RequestHeadersMixin):
         self.server = server
         self.client = client
         self.http_version = http_version
-        if headers is None:
-            self.headers = MultiDict()
-        elif hasattr(headers, "items"):
-            self.headers = MultiDict(headers.items())  # type: ignore[union-attr]
-        else:
-            self.headers = MultiDict(headers)
+        self.headers = MultiDict(headers or ())
         self.form = MultiDict()
         self.body = b""
         self._session = DotDict()

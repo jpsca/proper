@@ -1,5 +1,5 @@
-import os
 import re
+import subprocess
 from pathlib import Path
 
 import isort
@@ -29,7 +29,7 @@ PACKAGE_MANAGERS = (
 
 def call(cmd: str) -> None:
     printf("run", cmd, color=COLORS.OK)
-    os.system(cmd)
+    subprocess.run(cmd, shell=True, check=False)
 
 
 def echo(cmd: str, msg: str) -> None:

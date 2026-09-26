@@ -157,7 +157,7 @@ class _Attachment(ProperModel):
         return ""
 
     @property
-    def variants(self) -> "pw.ModelSelect":
+    def variants(self) -> "pw.ModelSelect[t.Self]":
         # Query through `type(self)` so the result is bound to the leaf
         # subclass's database. A peewee `backref` would pin its `rel_model`
         # to the class that declared the FK, breaking further subclassing.

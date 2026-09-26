@@ -3,8 +3,8 @@ requires = ["setuptools"]
 
 [project]
 name = "proper"
-version = "0.26.0"
-description = "A python web framework for people who read their code"
+version = "0.27.0"
+description = "Opinionated and batteries-included Python web framework"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
 ]
@@ -15,11 +15,11 @@ classifiers = [
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Typing :: Typed",
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "babel >= 2.17.0",
     "formidable>=0.20",
@@ -142,10 +142,8 @@ testpaths = "tests"
 legacy_tox_ini = """
 [tox]
 env_list =
-    3.13
-    3.14
     3.14t
-    3.15
+    3.15.0rc2t
 
 [testenv]
 runner = uv-venv-lock-runner
@@ -159,7 +157,7 @@ commands =
 [tool.ruff]
 line-length = 90
 indent-width = 4
-target-version = "py313"
+target-version = "py314"
 exclude = [
     ".*",
     "_build",

@@ -13,6 +13,7 @@ from ..global_context import current
 if t.TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from ..app import App
     from ..core.request import Request
     from ..core.response import Response
 
@@ -52,7 +53,7 @@ class AppWsgi:
     response_cls: t.Any
 
     def __call__(
-        self, environ: dict, start_response: "Callable"
+        self: "App", environ: dict, start_response: "Callable"
     ) -> "Iterable[bytes]":
         request = self._request_from_environ(environ)
         response = self._respond_sync(request, environ["wsgi.input"].read)
@@ -82,7 +83,7 @@ class AppWsgi:
         )
 
     def _respond_sync(
-        self, request: "Request", read: "Callable[[int], bytes]"
+        self: "App", request: "Request", read: "Callable[[int], bytes]"
     ) -> "Response":
         """`_respond`, on the calling thread."""
         current.app = self
@@ -92,6 +93,6 @@ class AppWsgi:
             request._read_body_sync(read)
         except Exception as error:
             response.error = error  # handled by the pipeline
-        response = self._run_pipeline(request, response)  # type: ignore[attr-defined]
+        response = self._run_pipeline(request, response)
         current.response = response
         return response

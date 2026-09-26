@@ -8,7 +8,7 @@ from ..helpers import jsonplus, logger
 
 if t.TYPE_CHECKING:
     from ..app import App
-    from ..channels import Channel
+    from ..channels import Cable, Channel
     from ..router import Router
     from .request import Request
 
@@ -32,30 +32,29 @@ class AppWs:
     """
     config: dict
     router: "Router"
+    cable: "Cable"
 
     max_threads: int
 
-    def _with_db(self, work, *, on_error=None) -> None:
-        ...
+    if t.TYPE_CHECKING:
+        def _with_db(self, work, *, on_error=None) -> None: ...
 
-    async def _run_in_worker(self, func, *args) -> t.Any:
-        ...
+        async def _run_in_worker(self, func, *args) -> t.Any: ...
 
-    def _request_from_scope(self, scope) -> "Request":
-        ...
+        def _request_from_scope(self, scope) -> "Request": ...
 
-    async def _receive_broadcast(self, scope, protocol) -> None:
+    async def _receive_broadcast(self: "App", scope, protocol) -> None:
         """A broadcast forwarded by a process without WebSockets, as a
         `POST` to `CABLE_PATH`: a token signed with the app's keys, carrying
         the stream and the data. Anything else gets a 403; behind a proxy
         this path is reachable from outside."""
         token = (await protocol()).decode("utf-8", "replace")
-        payload = self.loads(token, salt=CABLE_SALT, max_age=FORWARD_MAX_AGE)  # type: ignore[attr-defined]
+        payload = self.loads(token, salt=CABLE_SALT, max_age=FORWARD_MAX_AGE)
         if not isinstance(payload, dict) or "stream" not in payload:
             logger.warning("[cable] refused a broadcast with a bad signature")
             protocol.response_empty(403, [])
             return
-        self.cable._deliver_local(payload["stream"], payload.get("data"))  # type: ignore[attr-defined]
+        self.cable._deliver_local(payload["stream"], payload.get("data"))
         protocol.response_empty(204, [])
 
     async def _handle_websocket(self, scope, protocol) -> None:

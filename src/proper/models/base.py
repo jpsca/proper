@@ -35,7 +35,9 @@ class ProperModel(pw.Model):
         scopes = cls._collect_scopes()
         if scopes:
             query.__class__ = ScopedSelect
-            query._bind_scopes(scopes)
+            # ty can't follow the `__class__` swap above, and a `cast()` would
+            # add a call to every `select()`.
+            query._bind_scopes(scopes)  # ty: ignore[unresolved-attribute]
         return query
 
     def generate_token(

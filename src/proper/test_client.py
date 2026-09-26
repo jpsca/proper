@@ -1,4 +1,5 @@
 import asyncio
+import enum
 import mimetypes
 import secrets
 import typing as t
@@ -36,7 +37,12 @@ __all__ = (
     "WsProtocolStub",
 )
 
-_FROM_URL = object()
+
+class _Sentinel(enum.Enum):
+    FROM_URL = enum.auto()
+
+
+_FROM_URL = _Sentinel.FROM_URL
 
 SCHEME_DEFAULT_PORTS = {
     "http": 80,
@@ -44,6 +50,14 @@ SCHEME_DEFAULT_PORTS = {
     "ws": 80,
     "wss": 443,
 }
+
+
+def _header_pairs(
+    headers: "dict[str, str] | t.Iterable[tuple[str, str]] | None",
+) -> list[tuple[str, str]]:
+    if isinstance(headers, dict):
+        return [(str(name), str(value)) for name, value in headers.items()]
+    return list(headers or [])
 
 
 def make_test_request(
@@ -54,7 +68,7 @@ def make_test_request(
     headers: "dict[str, str] | t.Iterable[tuple[str, str]] | None" = None,
     app: "App | None" = None,
     client: "tuple[str, int | None] | None" = None,
-    server: "tuple[str, int | None] | None | object" = _FROM_URL,
+    server: "tuple[str, int | None] | None | t.Literal[_Sentinel.FROM_URL]" = _FROM_URL,
     http_version: str = "1.1",
     request_cls: type[Request] = Request,
 ) -> Request:
@@ -78,7 +92,7 @@ def make_test_request(
 
     query_string = urlencode(params) if params else (upa.query or "")
 
-    pairs = list(headers.items()) if hasattr(headers, "items") else list(headers or [])
+    pairs = _header_pairs(headers)
     if not any(name.lower() == "host" for name, _ in pairs):
         pairs.insert(0, ("host", upa.netloc or host))
 
@@ -88,7 +102,7 @@ def make_test_request(
         query_string=query_string,
         headers=pairs,
         scheme=scheme,
-        server=(host, port) if server is _FROM_URL else server,  # type: ignore[arg-type]
+        server=(host, port) if server is _FROM_URL else server,
         client=client,
         http_version=http_version,
         app=app,
@@ -114,7 +128,7 @@ def make_test_scope(
     upa = urlparse(url)
     scheme = upa.scheme or "http"
     netloc = upa.netloc or "example.com"
-    pairs = list(headers.items()) if hasattr(headers, "items") else list(headers or [])
+    pairs = _header_pairs(headers)
     if not any(name.lower() == "host" for name, _ in pairs):
         pairs.insert(0, ("host", netloc))
     if ":" not in netloc:
@@ -380,15 +394,15 @@ class TestClient:
         )
         response = asyncio.run(self.app._respond(request, _body_reader(body_bytes)))
 
-        resp_status, headers, body = response.prepare(request)
-        resp_headers = CIMultiDict(headers)
-        if isinstance(body, bytes):
-            resp_body = body
+        resp_status, raw_headers, raw_body = response.prepare(request)
+        resp_headers = CIMultiDict(raw_headers)
+        if isinstance(raw_body, bytes):
+            resp_body = raw_body
         else:
             try:
-                resp_body = b"".join(bytes(chunk) for chunk in body)
+                resp_body = b"".join(bytes(chunk) for chunk in raw_body)
             finally:
-                body_close = getattr(body, "close", None)
+                body_close = getattr(raw_body, "close", None)
                 if callable(body_close):
                     body_close()
 

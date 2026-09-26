@@ -15,11 +15,7 @@ jobs:
     name: validate
     strategy:
       matrix:
-        python: ['3.13', '3.14', '3.14t']
-        include:
-          # Beta: advisory, never blocks merges.
-          - python: '3.15'
-            experimental: true
+        python: ['3.14t', '3.15.0rc2t']
       fail-fast: false
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental || false }}

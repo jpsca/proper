@@ -18,6 +18,8 @@ class RequestHeadersMixin:
     """
 
     headers: MultiDict
+    method: str
+    request_method: str
     scheme: str
     server: "tuple[str, int | None] | None"
     client: "tuple[str, int | None] | None"
