@@ -1,12 +1,12 @@
 ---
 title: Testing
 description: TestClient setup, making requests, file uploads, WebSocket testing, auth helpers
-last_verified: 2026-04-02
+last_verified: 2026-09-25
 ---
 
 # Testing
 
-Proper includes a `TestClient` that drives your app through the full ASGI stack — the same pipeline, middleware, database connections, and session handling that run in production. No mocking of internals is needed.
+Proper includes a `TestClient` that drives your app through the full request pipeline — the same routing, callbacks, database connections, and session handling that run in production, without a server. No mocking of internals is needed.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ from myapp.main import app
 client = TestClient(app)
 ```
 
-Every call to `client.get(...)`, `client.post(...)`, etc. creates a fresh ASGI scope, runs the full request pipeline synchronously, and returns a result object.
+Every call to `client.get(...)`, `client.post(...)`, etc. builds a request the way the server would, runs the full request pipeline synchronously, and returns a result object.
 
 
 ## Making Requests
@@ -213,9 +213,9 @@ asyncio.run(test_chat())
 | `ws.send_action(channel, action, data)`     | Invoke a channel action                             |
 | `ws.unsubscribe(channel, **params)`         | Unsubscribe from a channel                          |
 | `ws.receive(timeout=1.0)`                   | Receive the next message (parsed JSON)              |
-| `ws.receive_raw(timeout=1.0)`               | Receive the next raw ASGI message                   |
+| `ws.receive_raw(timeout=1.0)`               | Receive the next raw event: `{"type": "accept"}`, a frame, or a close |
 | `ws.client_send(data)`                      | Queue a JSON message to the app                     |
-| `ws.client_send_raw(msg)`                   | Queue a raw ASGI message to the app                 |
+| `ws.client_send_text(text)`                 | Queue a raw text frame to the app                   |
 | `ws.close()`                                | Disconnect the client                               |
 
 ### Custom WebSocket Path
@@ -272,7 +272,7 @@ Configure a test database in `config/storage.py`:
 ```python
 if env == "test":
     DATABASES["main"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
 ```

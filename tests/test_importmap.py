@@ -94,3 +94,17 @@ def test_import_map_default_config():
         "@hotwired/stimulus": "js/vendor/stimulus.js",
         "@hotwired/turbo": "js/vendor/turbo.js",
     }
+
+
+def test_the_cable_port_is_announced_in_debug():
+    app = _make_app(DEBUG=True, CABLE_PORT=2301)
+    html = str(app.catalog.jinja_env.globals["render_importmap"]())
+    assert html.endswith('<meta name="cable-port" content="2301">')
+    assert "</script>\n<meta" in html
+
+
+def test_the_cable_port_is_not_announced_behind_a_proxy():
+    app = _make_app(DEBUG=False, CABLE_PORT=2301)
+    assert "cable-port" not in str(app.catalog.jinja_env.globals["render_importmap"]())
+    app = _make_app(DEBUG=True, CABLE_PORT=0)
+    assert "cable-port" not in str(app.catalog.jinja_env.globals["render_importmap"]())

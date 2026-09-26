@@ -6,35 +6,63 @@ that stream receive it.
 
 Two backends are provided:
 
-- `Cable` - in-process only (single worker).
-- `RedisCable` - Redis pub/sub (multi-worker).
+- `Cable` - in-process. Enough for one worker process, or for any number of
+  worker threads sharing the process. When the WebSockets live in their own
+  process (`CABLE_PORT`), broadcasts made anywhere else are forwarded to it
+  over the loopback, signed with the app's secret keys.
+- `RedisCable` - Redis pub/sub, for several worker processes on one or more
+  machines.
 """
 import asyncio
+import http.client
 import threading
 import typing as t
+from urllib.parse import urlsplit
 
 from ..helpers import jsonplus, logger
 
 
-try:
-    import redis
-except ImportError:
-    redis = None  # type: ignore
+# Imported on first use: an app with the in-process cable should not pay
+# for loading the library at startup.
+redis: t.Any = None
+aioredis: t.Any = None
 
-try:
-    import redis.asyncio as aioredis
-except ImportError:
-    aioredis = None  # type: ignore
+
+def _load_redis() -> None:
+    global redis, aioredis
+    try:
+        if redis is None:
+            import redis as module
+
+            redis = module
+        if aioredis is None:
+            import redis.asyncio as async_module
+
+            aioredis = async_module
+    except ImportError:
+        raise ImportError(
+            "redis is required to use the Redis cable backend. "
+            "Install it with: uv add redis"
+        ) from None
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .channel import Channel
 
 
-__all__ = ("Cable", "RedisCable")
+__all__ = ("Cable", "RedisCable", "CABLE_SALT")
 
 # Longest the Redis listener waits between attempts to reconnect.
 MAX_RECONNECT_DELAY = 30
+
+# Salt of the signature on broadcasts forwarded to the cable process.
+CABLE_SALT = "cable-broadcast"
+# How long such a broadcast stays valid, in seconds. Loopback is instant;
+# this only bounds a replay.
+FORWARD_MAX_AGE = 30
+FORWARD_TIMEOUT = 2.0
 
 
 class Cable:
@@ -47,6 +75,13 @@ class Cable:
         # subscription another thread just made. Re-entrant because
         # `unsubscribe_all` works through `unsubscribe`.
         self._lock = threading.RLock()
+        # Set by `forward_to`: where broadcasts go when this process has no
+        # WebSockets of its own.
+        self._forward_url: str | None = None
+        self._sign: "Callable[[t.Any], str] | None" = None
+        # `start()` is what the WebSocket server calls; a process that never
+        # does has no subscribers and forwards instead.
+        self._started = False
 
     @property
     def streams(self) -> dict[str, int]:
@@ -80,9 +115,50 @@ class Cable:
             for stream_name in list(self._streams):
                 self.unsubscribe(stream_name, channel)
 
+    def forward_to(self, url: str, sign: "Callable[[t.Any], str]") -> None:
+        """Send the broadcasts of any process that is not serving the
+        WebSockets to `url`, the cable process's `CABLE_PATH`, signed with
+        `sign`."""
+        self._forward_url = url
+        self._sign = sign
+
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Send data to all channels subscribed to a stream."""
-        self._deliver_local(stream_name, data)
+        if self._forward_url and not self._started:
+            self._forward(stream_name, data)
+        else:
+            self._deliver_local(stream_name, data)
+
+    def _forward(self, stream_name: str, data: t.Any) -> None:
+        """POST the broadcast to the cable process. A cable that is down
+        loses the message and logs it; the page that broadcast still
+        renders."""
+        assert self._forward_url and self._sign
+        token = self._sign({"stream": stream_name, "data": data})
+        url = urlsplit(self._forward_url)
+        try:
+            conn = http.client.HTTPConnection(
+                url.hostname or "127.0.0.1", url.port, timeout=FORWARD_TIMEOUT
+            )
+            try:
+                conn.request(
+                    "POST", url.path, body=token.encode(),
+                    headers={"Content-Type": "text/plain"},
+                )
+                status = conn.getresponse().status
+            finally:
+                conn.close()
+        except OSError as error:
+            logger.warning(
+                "[cable] could not reach the cable process at %s: %s",
+                self._forward_url, error,
+            )
+            return
+        if status != 204:
+            logger.warning(
+                "[cable] the cable process at %s refused a broadcast: HTTP %s",
+                self._forward_url, status,
+            )
 
     def _deliver_local(self, stream_name: str, data: t.Any) -> None:
         """Deliver data to all local channels subscribed to a stream."""
@@ -106,6 +182,7 @@ class Cable:
                 )
 
     async def start(self) -> None:
+        self._started = True
         # no-op for in-process cable.
         ...
 
@@ -126,11 +203,7 @@ class RedisCable(Cable):
         url: str = "redis://localhost:6379/0",
         prefix: str = "proper:cable:",
     ) -> None:
-        if redis is None or aioredis is None:
-            raise ImportError(
-                "redis is required to use the Redis cable backend. "
-                "Install it with: uv add redis"
-            )
+        _load_redis()
         super().__init__()
         self._url = url
         self._prefix = prefix
@@ -143,6 +216,16 @@ class RedisCable(Cable):
         self._sub_redis = None
         self._pubsub = None
         self._listener_task: asyncio.Task | None = None
+        # On free-threaded Python the server runs its workers as threads of
+        # one process, each with its own event loop, and every one of them
+        # calls `start()` and `stop()` on this same cable. One listener per
+        # process is enough, and any more would deliver each message once
+        # per worker. So the first `start()` owns the listener, the others
+        # only count themselves in, and the publisher closes with the last
+        # `stop()`.
+        self._life_lock = threading.Lock()
+        self._listener_loop: asyncio.AbstractEventLoop | None = None
+        self._starts = 0
 
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Publish to Redis. The listener delivers to local channels."""
@@ -156,8 +239,13 @@ class RedisCable(Cable):
             return self._pub_redis
 
     async def start(self) -> None:
-        """Start the Redis pub/sub listener."""
-        self._listener_task = asyncio.create_task(self._listen())
+        """Start the Redis pub/sub listener, once per process."""
+        with self._life_lock:
+            self._starts += 1
+            if self._listener_task is not None:
+                return
+            self._listener_loop = asyncio.get_running_loop()
+            self._listener_task = asyncio.create_task(self._listen())
 
     async def _listen(self) -> None:
         """Background task: subscribe to Redis, deliver messages locally.
@@ -231,15 +319,29 @@ class RedisCable(Cable):
             self._sub_redis = None
 
     async def stop(self) -> None:
-        """Stop the listener and close all connections."""
-        if self._listener_task:
-            self._listener_task.cancel()
+        """Stop the listener and close all connections.
+
+        The listener can only be stopped from the loop that started it, so
+        a `stop()` from any other worker just counts itself out. The
+        publisher is shared by all workers and closes with the last one.
+        """
+        with self._life_lock:
+            self._starts = max(0, self._starts - 1)
+            last = self._starts == 0
+            task = self._listener_task
+            if task is not None and self._listener_loop is asyncio.get_running_loop():
+                self._listener_task = None
+                self._listener_loop = None
+            else:
+                task = None
+        if task is not None:
+            task.cancel()
             try:
-                await self._listener_task
+                await task
             except asyncio.CancelledError:
                 pass
-            self._listener_task = None
-        with self._pub_lock:
-            if self._pub_redis:
-                self._pub_redis.close()
-                self._pub_redis = None
+        if last:
+            with self._pub_lock:
+                if self._pub_redis:
+                    self._pub_redis.close()
+                    self._pub_redis = None

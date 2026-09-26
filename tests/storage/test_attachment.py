@@ -1,3 +1,4 @@
+import threading
 import time
 from io import BytesIO
 from unittest.mock import MagicMock, patch
@@ -6,7 +7,6 @@ import pytest
 
 from proper import App, Controller, current
 from proper.core.response import Response
-from proper.helpers.asgi import make_test_scope
 from proper.models import ProperModel
 from proper.router import Route
 from proper.storage.attachment import DEFAULT_CONTENT_TYPE
@@ -96,6 +96,28 @@ def test_attachment_for_is_memoized(app, BaseModel):
     a = app.attachment_for(BaseModel)
     b = app.attachment_for(BaseModel)
     assert a is b
+
+
+def test_attachment_for_is_shared_across_threads(app, BaseModel):
+    """Requests run in threads; the first ones for a model may overlap and
+    must still all get the one class.
+    """
+    workers = 8
+    barrier = threading.Barrier(workers)
+    results = []
+
+    def build():
+        barrier.wait()
+        results.append(app.attachment_for(BaseModel))
+
+    threads = [threading.Thread(target=build) for _ in range(workers)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+
+    assert len(results) == workers
+    assert all(cls is results[0] for cls in results)
 
 
 def test_attachment_for_different_bases_are_distinct(app, BaseModel):
@@ -1167,9 +1189,7 @@ def test_custom_urls_are_timed_unless_asked_to_be_stable(Attachment, storage_rou
 
 
 def _send(att, app):
-    scope = make_test_scope()
-    scope["app"] = app
-    current.response = response = Response(scope)
+    current.response = response = Response(app)
     att.send_file()
     # The headers as they go over the wire.
     return {name.lower(): value for name, value in response.get_header_tuples()}

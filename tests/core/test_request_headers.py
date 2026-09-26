@@ -15,7 +15,7 @@ from proper.errors import (
     MultipartError,
     UriTooLong,
 )
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import make_test_request
 
 
 class TestParseOptionsHeader:
@@ -123,8 +123,7 @@ class TestParseRequestId:
 
 
 def _make_request(url="/", method="GET", **kw):
-    scope = make_test_scope(url, method=method, **kw)
-    return Request(scope)
+    return make_test_request(url, method=method, **kw)
 
 
 def test_method_and_path():
@@ -380,9 +379,7 @@ def test_remote_ip_from_client():
 
 
 def test_remote_ip_no_client():
-    scope = make_test_scope("/")
-    scope.pop("client", None)
-    req = Request(scope)
+    req = _make_request("/")
     assert req.remote_ip == ""
 
 
@@ -412,23 +409,13 @@ def test_protocol_from_x_forwarded_proto():
     assert req.is_secure is True
 
 
-def test_headers_get_bytes_header():
-    scope = make_test_scope("/")
-    scope["headers"].append((b"x-test", b"\xe4\xb8\xad"))
-    req = Request(scope)
-    val = req.headers.get("x-test")
-    assert val is not None
-
-
 def test_headers_get_missing():
     req = _make_request("/")
     assert req.headers.get("nonexistent") is None
 
 
 def test_headers_get_string():
-    scope = make_test_scope("/")
-    # Inject a string value directly instead of bytes
-    req = Request(scope)
+    req = _make_request("/")
     req.headers["x-str"] = "string-value"
     assert req.headers.get("x-str") == "string-value"
 
@@ -550,50 +537,36 @@ def test_cookies_empty_pair_skipped():
 
 
 def test_server_none_fallback_to_host_header():
-    scope = make_test_scope("/", headers=[("host", "example.com:8080")])
-    scope["server"] = None
-    req = Request(scope)
+    req = Request(headers=[("host", "example.com:8080")])
     assert req.host == "example.com"
     assert req.port == 8080
 
 
 def test_allow_no_host():
-    scope = make_test_scope("/")
-    scope["server"] = None
-    # Remove the host header
-    scope["headers"] = []
-    req = Request(scope)
+    req = Request()
     assert req.host == ""
 
 
 def test_host_from_header_ipv6():
-    scope = make_test_scope("/", headers=[("host", "[::1]")])
-    scope["server"] = None
-    req = Request(scope)
+    req = Request(headers=[("host", "[::1]")])
     assert req.host == "::1"
     assert req.port == 80  # default
 
 
 def test_host_from_header_ipv6_with_port():
-    scope = make_test_scope("/", headers=[("host", "[::1]:9090")])
-    scope["server"] = None
-    req = Request(scope)
+    req = Request(headers=[("host", "[::1]:9090")])
     assert req.host == "::1"
     assert req.port == 9090
 
 
 def test_host_from_header_non_decimal_port():
     # A non-numeric port is invalid per RFC 9112 §3.2 / RFC 3986 §3.2.3.
-    scope = make_test_scope("/", headers=[("host", "example.com:abc")])
-    scope["server"] = None
     with pytest.raises(InvalidHeader, match="Host"):
-        Request(scope)
+        Request(headers=[("host", "example.com:abc")])
 
 
 def test_host_from_header_simple():
-    scope = make_test_scope("/", headers=[("host", "myhost:8080")])
-    scope["server"] = None
-    req = Request(scope)
+    req = Request(headers=[("host", "myhost:8080")])
     assert req.host == "myhost"
     assert req.port == 8080
 

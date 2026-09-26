@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
-from proper import DotDict, Request, Response
+from proper import DotDict, Response
 from proper import status as pstatus
 from proper.global_context import current
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import make_test_request
 
 
 def _make_request(**headers):
@@ -11,15 +11,12 @@ def _make_request(**headers):
     header_list = []
     for name, val in headers.items():
         header_list.append((name, val))
-    scope = make_test_scope(headers=header_list)
-    request = Request(scope)
+    request = make_test_request(headers=header_list)
     return request
 
 
-def _make_response(*, status=pstatus.ok, **scope_kw):
-    """Build a Response with a valid ASGI scope."""
-    scope = make_test_scope(**scope_kw)
-    response = Response(scope, status=status)
+def _make_response(*, status=pstatus.ok, app=None):
+    response = Response(app, status=status)
     return response
 
 

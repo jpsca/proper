@@ -5,11 +5,9 @@ import pytest
 from proper import TestClient, current, status
 from proper.constants import FLASHES_SESSION_KEY, SESSION_COOKIE_NAME
 from proper.controller import Controller
-from proper.core.request import Request
 from proper.core.response import Response
 from proper.errors import MatchNotFound
 from proper.helpers import DotDict
-from proper.helpers.asgi import make_test_scope
 from proper.pipeline import (
     LOCAL_HOSTS,
     copy_session,
@@ -21,31 +19,24 @@ from proper.pipeline import (
     update_session_cookie,
 )
 from proper.router import Route
-
-
-def _scope(*, method="GET", url="/", headers=None, **kw):
-    hdr = headers or []
-    return make_test_scope(url, method=method, headers=hdr, **kw)
+from proper.test_client import make_test_request
 
 
 def _req(*, method="GET", url="/", headers=None, **kw):
-    return Request(_scope(method=method, url=url, headers=headers, **kw))
+    return make_test_request(url, method=method, headers=headers or [], **kw)
 
 
 def _resp(*, app=None, **kw):
-    scope = _scope(**kw)
-    if app is not None:
-        scope["app"] = app
-    return Response(scope)
+    return Response(app)
 
 
 @pytest.fixture()
 def make_co(app):
     def _make_co(*, method="GET", url="/", headers=None, **kw):
-        scope = _scope(method=method, url=url, headers=headers, **kw)
-        scope["app"] = app
-        request = Request(scope)
-        response = Response(scope)
+        request = make_test_request(
+            url, method=method, headers=headers or [], app=app, **kw
+        )
+        response = Response(app)
         return Controller(request, response)
     return _make_co
 

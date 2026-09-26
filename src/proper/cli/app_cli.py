@@ -1,3 +1,6 @@
+import multiprocessing
+import sys
+import sysconfig
 import typing as t
 from functools import wraps
 
@@ -7,6 +10,8 @@ from .db_cli import get_db_cli
 
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ..app import App
 
 
@@ -29,39 +34,203 @@ def get_cli(app: "App") -> type[Cli]:
     return t.cast(type[Cli], type("appCL", (Cli,), attrs))
 
 
+def _free_threaded() -> bool:
+    """Whether this Python was built without the GIL (a "3.14t" build)."""
+    return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
+def _gil_enabled() -> bool:
+    """Whether the GIL is on right now. A free-threaded build turns it back
+    on when it imports an extension module that has not declared itself
+    safe without it."""
+    return getattr(sys, "_is_gil_enabled", lambda: True)()
+
+
+def _check_free_threading(config) -> None:
+    """Proper serves on free-threaded Python: one process, workers as
+    threads, one copy of everything. Refuse the GIL unless `ALLOW_GIL`."""
+    if not _gil_enabled():
+        return
+    if config.ALLOW_GIL:
+        print(
+            "[WARNING] Serving with the GIL: more memory, less parallelism. "
+            "Use a free-threaded Python (`uv python install 3.14t`).",
+            flush=True,
+        )
+        return
+    if _free_threaded():
+        why = (
+            "This is a free-threaded Python, but an extension module turned the "
+            "GIL back on when it was imported; Python named it in a "
+            "RuntimeWarning above. Upgrade or replace that module."
+        )
+    else:
+        why = (
+            "This Python has the GIL. Proper serves on free-threaded Python: "
+            "install one with `uv python install 3.14t` and run the app with it."
+        )
+    print(
+        f"[ERROR] {why}\nTo serve with the GIL anyway, set ALLOW_GIL = True "
+        "in the config.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(1)
+
+
+def _blocking_threads(max_threads: int, workers: int) -> int:
+    """Threads per worker for the WSGI server: the app's `MAX_THREADS`,
+    which is per process, shared between the workers of that process.
+
+    Granian's own default is in the hundreds, which floods a database with
+    connections and buys nothing for CPU-bound Python.
+    """
+    return max(1, -(-max(0, max_threads) // max(1, workers)))
+
+
+def _serve(
+    *,
+    target: str,
+    interface: str,
+    address: str,
+    port: int,
+    workers: int,
+    blocking_threads: int,
+    debug: bool,
+) -> None:
+    """Start Granian and block until it stops.
+
+    A plain function, with plain arguments, so it can run in a fresh
+    process: the reloader's, or one of `PROCESSES`.
+    """
+    from granian import Granian
+    from granian.constants import Interfaces
+    from granian.log import LogLevels
+
+    Granian(
+        target=target,
+        interface=Interfaces(interface),
+        address=address,
+        port=port,
+        workers=workers,
+        blocking_threads=blocking_threads if interface == "wsgi" else None,
+        websockets=interface == "rsgi",
+        log_level=LogLevels.debug if debug else LogLevels.info,
+        log_access=debug,
+    ).serve()
+
+
+def _serve_group(
+    web: dict,
+    cable: dict | None = None,
+    processes: int = 1,
+    *,
+    serve: "Callable" = _serve,
+) -> list[multiprocessing.Process]:
+    """Run the web server here, plus in child processes the WebSocket server
+    (`cable`) and `processes - 1` more copies of the web server, all on the
+    same port. Take the children down when this server stops, and return
+    them, once they have.
+
+    The cable is a separate process because it speaks another interface:
+    WSGI has no WebSockets, and RSGI pays for its event loop on every
+    request. The extra web processes are for machines with many cores:
+    threads of one interpreter contend for its shared objects, and two
+    smaller groups of them do better than one big one.
+    """
+    ctx = multiprocessing.get_context("spawn")
+    children = []
+    if cable:
+        children.append(ctx.Process(target=serve, kwargs=cable, name="proper-cable", daemon=True))
+    for n in range(2, processes + 1):
+        children.append(ctx.Process(target=serve, kwargs=web, name=f"proper-web-{n}", daemon=True))
+    for child in children:
+        child.start()
+    try:
+        serve(**web)
+    finally:
+        for child in children:
+            if child.is_alive():
+                child.terminate()
+        for child in children:
+            child.join(timeout=10)
+    return children
+
+
+def _log_changes(changes: set) -> None:
+    # Printed rather than logged: the `proper` logger has no handler of its
+    # own, and this must show up next to Granian's lines.
+    files = ", ".join(sorted(path for _change, path in changes))
+    print(f"[INFO] Changes detected, restarting the server: {files}", flush=True)
+
+
+def _serve_restarting_on_changes(
+    path: str, target: "Callable", kwargs: dict
+) -> None:
+    """Run `target(**kwargs)` in a child process, and start a new one
+    whenever a file under `path` changes.
+
+    Granian's own reloader replaces its worker processes, which does not
+    exist when the workers are threads, nor covers the other servers of
+    the group. Restarting the whole group from outside does both.
+    """
+    import watchfiles
+
+    watchfiles.run_process(path, target=target, kwargs=kwargs, callback=_log_changes)
+
+
 def get_run_cli(app: "App") -> t.Callable:
-    def run(self, config="uvicorn.dev.py"):
-        """Run the development server.
+    def run(self, host="0.0.0.0", port=0, workers=0):
+        """Run the server.
 
         Arguments:
-            config ["uvicorn.dev.py"]:
-                A Python file whose module-level variables are passed
-                as keyword arguments to `uvicorn.run()`.
+            host ["0.0.0.0"]:
+                The address to listen on.
+            port [config PORT]:
+                The port to listen on.
+            workers [config WORKERS]:
+                How many workers (threads with their own event loop) to
+                start in each process.
 
+        The app is loaded from `config.APP_TARGET`, or from `app` in the
+        module that created it when that is empty. `config.INTERFACE`
+        picks WSGI (the default) or RSGI. With WSGI and a `CABLE_PORT`, a
+        second process serves the WebSockets over RSGI on that port.
+        `config.PROCESSES` starts that many copies of the web server.
         """
-        import importlib.util
-
-        import uvicorn
-
         from ..helpers import show_banner, show_welcome
 
-        spec = importlib.util.spec_from_file_location("_uvicorn_config", config)
-        assert spec and spec.loader
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-
-        kwargs = {
-            k: v for k, v in vars(mod).items()
-            if not k.startswith("_")
+        config = app.config
+        _check_free_threading(config)
+        reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
+        interface = str(config.INTERFACE or "wsgi").lower()
+        if interface not in ("wsgi", "rsgi"):
+            raise ValueError(f"INTERFACE must be 'wsgi' or 'rsgi', not {config.INTERFACE!r}")
+        workers = int(workers or config.WORKERS or 1)
+        web = {
+            "target": config.APP_TARGET or f"{app.import_name}:app",
+            "interface": interface,
+            "address": host,
+            "port": int(port or config["PORT"] or 2300),
+            "workers": workers,
+            "blocking_threads": _blocking_threads(app.max_threads, workers),
+            "debug": bool(config.DEBUG),
         }
+        cable_port = int(config.CABLE_PORT or 0)
+        cable = None
+        if cable_port and interface == "wsgi":
+            cable = {**web, "interface": "rsgi", "port": cable_port, "workers": 1}
+        group: dict[str, t.Any] = {"web": web, "cable": cable, "processes": max(1, int(config.PROCESSES or 1))}
 
-        kwargs["host"] = "0.0.0.0"
-        kwargs["port"] = int(app.config["PORT"] or "2300")
         show_banner()
-        show_welcome(app.config["HOST"])
-        uvicorn.run(**kwargs)
+        show_welcome(config["HOST"])
+        if reload:
+            _serve_restarting_on_changes(str(app.root_path), _serve_group, group)
+        else:
+            _serve_group(**group)
 
     return run
+
 
 def get_routes_cmd(app: "App") -> t.Callable:
     def routes(self):

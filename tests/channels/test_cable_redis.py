@@ -523,7 +523,7 @@ class TestAppIntegration:
     def test_app_creates_cable_via_tool(self, app):
         assert isinstance(app.cable, Cable)
 
-    async def test_lifespan_calls_start_and_stop(self, app):
+    async def test_startup_and_shutdown_call_start_and_stop(self, app):
         started = []
         stopped = []
 
@@ -536,20 +536,87 @@ class TestAppIntegration:
         app.cable.start = mock_start
         app.cable.stop = mock_stop
 
-        scope = {"type": "lifespan"}
-        events = asyncio.Queue()
-        sent = []
-
-        events.put_nowait({"type": "lifespan.startup"})
-        events.put_nowait({"type": "lifespan.shutdown"})
-
-        async def receive():
-            return await events.get()
-
-        async def send(msg):
-            sent.append(msg)
-
-        await app.asgi_app(scope, receive, send)
+        await app.startup()
+        await app.shutdown()
 
         assert started == [True]
         assert stopped == [True]
+
+
+def _in_new_loop(coro_fn):
+    """Run `coro_fn()` to completion on a fresh loop in another thread.
+
+    Stands in for a second server worker: on free-threaded Python every
+    worker is a thread with its own loop, all sharing the one cable.
+    """
+    thread = threading.Thread(target=lambda: asyncio.run(coro_fn()))
+    thread.start()
+    thread.join()
+
+
+class TestSharedListener:
+    """One process, several worker loops, one listener."""
+
+    async def test_later_starts_join_the_first_listener(self, flaky_redis):
+        server = flaky_redis(holds=(10,))
+        cable = RedisCable()
+
+        await cable.start()
+        await asyncio.sleep(0)  # let the listener connect
+        owner_task = cable._listener_task
+        _in_new_loop(cable.start)
+
+        assert cable._listener_task is owner_task
+        assert cable._starts == 2
+        assert server.attempts == 1
+
+        await cable.stop()
+
+    async def test_stop_from_another_loop_leaves_the_listener_alone(
+        self, flaky_redis
+    ):
+        flaky_redis(holds=(10,))
+        cable = RedisCable()
+
+        await cable.start()
+        _in_new_loop(cable.start)
+        _in_new_loop(cable.stop)
+
+        assert cable._listener_task is not None
+        assert not cable._listener_task.done()
+        assert cable._starts == 1
+
+        await cable.stop()
+        assert cable._listener_task is None
+        assert cable._starts == 0
+
+    async def test_owner_stops_listener_but_last_stop_closes_publisher(
+        self, cable
+    ):
+        await cable.start()
+        _in_new_loop(cable.start)
+        cable.broadcast("stream", {"n": 1})
+        assert cable._pub_redis is not None
+
+        await cable.stop()
+        assert cable._listener_task is None
+        assert cable._pub_redis is not None
+
+        _in_new_loop(cable.stop)
+        assert cable._pub_redis is None
+
+    async def test_each_broadcast_is_delivered_once(self, cable):
+        ch, sent = _make_channel()
+        cable.subscribe("room", ch)
+
+        await cable.start()
+        _in_new_loop(cable.start)
+        await asyncio.sleep(0.1)
+
+        cable.broadcast("room", {"msg": "hi"})
+        await asyncio.sleep(0.2)
+
+        await cable.stop()
+        _in_new_loop(cable.stop)
+
+        assert len(sent) == 1

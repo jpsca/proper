@@ -1,6 +1,6 @@
 import pytest
 
-from proper import Request, Response, current
+from proper import Response, current
 from proper.concerns import (
     CSRF_FORM_KEY,
     CSRF_HEADER,
@@ -12,7 +12,7 @@ from proper.constants import DELETE, GET, PATCH, POST, PUT
 from proper.controller import Controller
 from proper.errors import InvalidCSRFToken, MissingCSRFToken
 from proper.helpers import MultiDict
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import make_test_request
 
 
 class _TestController(RequestForgeryProtection, Controller):
@@ -21,10 +21,8 @@ class _TestController(RequestForgeryProtection, Controller):
 
 
 def _make_co(app, **scope_kw):
-    scope = make_test_scope(**scope_kw)
-    scope["app"] = app
-    request = Request(scope)
-    response = Response(scope)
+    request = make_test_request(app=app, **scope_kw)
+    response = Response(app)
     return _TestController(request, response)
 
 

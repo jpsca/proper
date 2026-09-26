@@ -505,3 +505,94 @@ a { color: inherit; }
 }
 
 }
+/* --- Benchmark ------------------------------------------------------------ */
+
+section.fast {
+  background: var(--color-base-dark);
+}
+
+.bench-chart {
+  margin: 2rem 0 0;
+}
+.bench-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+/* Wide: label column on the left, right-aligned; bar column on the right. */
+.bench-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) 1fr;
+  align-items: center;
+  gap: 0 0.9rem;
+}
+.bench-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+  text-align: right;
+}
+.bench-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.bench-runtime {
+  font-size: 0.75rem;
+  color: var(--ink);
+  opacity: 0.6;
+}
+.bench-track {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+.bench-bar {
+  /* --w is the value as a fraction of the largest one; the track keeps
+     room for the number after the longest bar. */
+  width: calc(var(--w) * (100% - 4.5rem));
+  height: 1.5rem;
+  border-radius: 4px;
+  background: var(--ink);
+  opacity: 0.35;
+  flex: 0 0 auto;
+}
+.bench-value {
+  font-size: 1rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+}
+.bench-row-proper .bench-bar {
+  background: var(--terra);
+  opacity: 1;
+}
+.bench-row-proper .bench-name {
+  color: var(--terra);
+}
+/* Narrow: label above the bar, everything flush left. */
+@media (max-width: 900px) {
+  .bench-row {
+    grid-template-columns: 1fr;
+    gap: 0.2rem 0;
+  }
+  .bench-label {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.5rem;
+    text-align: left;
+  }
+  .bench-bar {
+    height: 1.1rem;
+  }
+}
+.bench-caption {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  opacity: 0.7;
+  text-align: center;
+}

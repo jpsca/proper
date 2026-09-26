@@ -2,9 +2,8 @@ import json
 
 import pytest
 
-from proper.core.request import Request
 from proper.errors import ClientDisconnected, RequestEntityTooLarge
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import make_test_request
 
 
 def _build_multipart(parts, boundary="testboundary"):
@@ -26,150 +25,105 @@ def _build_multipart(parts, boundary="testboundary"):
     return body
 
 
-def _make_receive(body: bytes, *, chunk_size: int = 0):
-    """Create an ASGI receive callable that yields body in chunks."""
-    if chunk_size <= 0:
-        chunks = [body]
-    else:
-        chunks = [body[i:i + chunk_size] for i in range(0, len(body), chunk_size)]
+def _reader(body: bytes):
+    """Stand-in for the server's body reader."""
+    async def read():
+        return body
 
-    idx = 0
-
-    async def receive():
-        nonlocal idx
-        if idx < len(chunks):
-            chunk = chunks[idx]
-            idx += 1
-            return {
-                "type": "http.request",
-                "body": chunk,
-                "more_body": idx < len(chunks),
-            }
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    return receive
+    return read
 
 
-def _make_disconnect_receive():
-    async def receive():
-        return {"type": "http.disconnect"}
-
-    return receive
-
-
-async def test_get_body(app):
-    body = b"hello world"
-    scope = make_test_scope("/", method="POST", headers=[
+def _post(app, body: bytes, content_type="application/json", method="POST"):
+    return make_test_request("/", method=method, app=app, headers=[
         ("content-length", str(len(body))),
-        ("content-type", "application/json"),
+        ("content-type", content_type),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    receive = _make_receive(body)
-    result = await req._get_body(receive)
-    assert result == body
 
-async def test_get_body_chunked(app):
-    body = b"hello world"
-    scope = make_test_scope("/", method="POST", headers=[
-        ("content-length", str(len(body))),
-        ("content-type", "application/json"),
-    ])
-    scope["app"] = app
-    req = Request(scope)
-    receive = _make_receive(body, chunk_size=3)
-    result = await req._get_body(receive)
-    assert result == body
 
-async def test_get_stream_max_content_length(app):
+async def test_read_body(app):
+    body = b'{"a": 1}'
+    req = _post(app, body)
+    await req._read_body(_reader(body))
+    assert req.body == body
+    assert req.form["a"] == 1
+
+
+async def test_read_body_over_max_content_length_is_refused_before_reading(app):
     app.config.MAX_CONTENT_LENGTH = 5
     body = b"toolongbody"
-    scope = make_test_scope("/", method="POST", headers=[
-        ("content-length", str(len(body))),
-        ("content-type", "application/json"),
-    ])
-    scope["app"] = app
-    req = Request(scope)
-    receive = _make_receive(body)
+    req = _post(app, body)
+    reads = []
+
+    async def read():
+        reads.append(True)
+        return body
+
     with pytest.raises(RequestEntityTooLarge):
-        await req._get_body(receive)
+        await req._read_body(read)
+    assert reads == []
     app.config.MAX_CONTENT_LENGTH = 0
 
-async def test_get_stream_disconnect(app):
-    scope = make_test_scope("/", method="POST", headers=[
-        ("content-length", "10"),
-        ("content-type", "application/json"),
-    ])
-    scope["app"] = app
-    req = Request(scope)
-    receive = _make_disconnect_receive()
+
+async def test_read_body_error_propagates(app):
+    req = _post(app, b"0123456789")
+
+    async def read():
+        raise ClientDisconnected()
+
     with pytest.raises(ClientDisconnected):
-        await req._get_body(receive)
+        await req._read_body(read)
+
 
 async def test_parse_body_get_skips(app):
-    scope = make_test_scope("/", method="GET")
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(b""))
+    req = make_test_request("/", method="GET", app=app)
+    await req._read_body(_reader(b""))
     assert len(req.form) == 0
 
 async def test_parse_body_head_skips(app):
-    scope = make_test_scope("/", method="HEAD")
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(b""))
+    req = make_test_request("/", method="HEAD", app=app)
+    await req._read_body(_reader(b""))
     assert len(req.form) == 0
 
 async def test_parse_body_no_content_length_skips(app):
-    scope = make_test_scope("/", method="POST")
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(b""))
+    req = make_test_request("/", method="POST", app=app)
+    await req._read_body(_reader(b""))
     assert len(req.form) == 0
 
 async def test_parse_body_json(app):
     body = json.dumps({"key": "value"}).encode()
-    scope = make_test_scope("/", method="POST", headers=[
+    req = make_test_request("/", method="POST", app=app, headers=[
         ("content-length", str(len(body))),
         ("content-type", "application/json"),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(body))
+    await req._read_body(_reader(body))
     assert req.form.get("key") == "value"
 
 async def test_parse_body_json_charset(app):
     body = json.dumps({"x": "y"}).encode()
-    scope = make_test_scope("/", method="POST", headers=[
+    req = make_test_request("/", method="POST", app=app, headers=[
         ("content-length", str(len(body))),
         ("content-type", "application/json; charset=utf-8"),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(body))
+    await req._read_body(_reader(body))
     assert req.form.get("x") == "y"
 
 async def test_parse_body_form_urlencoded(app):
     body = b"name=Jon&age=30"
-    scope = make_test_scope("/", method="POST", headers=[
+    req = make_test_request("/", method="POST", app=app, headers=[
         ("content-length", str(len(body))),
         ("content-type", "application/x-www-form-urlencoded"),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(body))
+    await req._read_body(_reader(body))
     assert req.form.get("name") == "Jon"
     assert req.form.get("age") == "30"
 
 async def test_parse_body_form_x_url_encoded(app):
     body = b"key=val"
-    scope = make_test_scope("/", method="POST", headers=[
+    req = make_test_request("/", method="POST", app=app, headers=[
         ("content-length", str(len(body))),
         ("content-type", "application/x-url-encoded"),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(body))
+    await req._read_body(_reader(body))
     assert req.form.get("key") == "val"
 
 async def test_parse_body_multipart(app):
@@ -178,25 +132,21 @@ async def test_parse_body_multipart(app):
         [{"name": "field1", "value": "hello"}],
         boundary=boundary,
     )
-    scope = make_test_scope("/", method="POST", headers=[
+    req = make_test_request("/", method="POST", app=app, headers=[
         ("content-length", str(len(body))),
         ("content-type", f"multipart/form-data; boundary={boundary}"),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(body))
+    await req._read_body(_reader(body))
     assert req.form.get("field1") == "hello"
 
 async def test_parse_body_unparsed_content_type_exposes_raw_body(app):
     """Binary or unparsed content types don't fail - the controller
     can still reach the bytes via `request.body`."""
     body = b"<root/>"
-    scope = make_test_scope("/", method="POST", headers=[
+    req = make_test_request("/", method="POST", app=app, headers=[
         ("content-length", str(len(body))),
         ("content-type", "application/xml"),
     ])
-    scope["app"] = app
-    req = Request(scope)
-    await req._parse_body(_make_receive(body))
+    await req._read_body(_reader(body))
     assert req.body == body
     assert len(req.form) == 0

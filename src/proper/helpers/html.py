@@ -43,9 +43,12 @@ def render_importmap(_app) -> str:
             imports[key] = _app.url_for("assets", file=value)
 
     json_imports = json.dumps({"imports": imports})
-    return Markup(
-        f'<script type="importmap" data-turbo-track="reload">{json_imports}</script>'
-    )
+    tags = f'<script type="importmap" data-turbo-track="reload">{json_imports}</script>'
+    # Without a proxy in front, the cable listens on its own port; the
+    # client (`cable.js`) reads it from here.
+    if _app.config.DEBUG and _app.config.get("CABLE_PORT"):
+        tags += f'\n<meta name="cable-port" content="{int(_app.config.CABLE_PORT)}">'
+    return Markup(tags)
 
 
 def dom_id(obj: t.Any, prefix: str = "") -> str:

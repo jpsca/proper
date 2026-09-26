@@ -1,4 +1,6 @@
-from ..channels import Cable
+from functools import partial
+
+from ..channels import CABLE_SALT, Cable
 from ..errors import ConfigError
 from ..helpers.imports import get_instance
 
@@ -11,6 +13,15 @@ def setup(app):
     config = app.config.get(NAME, DEFAULT_CONFIG)
     if not config:
         app.cable = Cable()
+        port = int(app.config.get("CABLE_PORT") or 0)
+        if port:
+            # The WebSockets run in their own process; a broadcast made
+            # here has to get there.
+            path = app.config.get("CABLE_PATH", "/cable")
+            app.cable.forward_to(
+                f"http://127.0.0.1:{port}{path}",
+                sign=partial(app.dumps, salt=CABLE_SALT),
+            )
         return
 
     validate_config(config)

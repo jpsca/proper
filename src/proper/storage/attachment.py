@@ -17,7 +17,7 @@ from ..errors import StorageConfigError
 from ..global_context import current
 from ..models import JSONField, ProperModel
 from ..units import YEAR
-from .imageops import pyvips, transform_image
+from .imageops import load_pyvips, transform_image
 from .services import Service
 
 
@@ -157,7 +157,7 @@ class _Attachment(ProperModel):
         return ""
 
     @property
-    def variants(self) -> "pw.ModelSelect":
+    def variants(self) -> "pw.ModelSelect[t.Self]":
         # Query through `type(self)` so the result is bound to the leaf
         # subclass's database. A peewee `backref` would pin its `rel_model`
         # to the class that declared the FK, breaking further subclassing.
@@ -535,7 +535,7 @@ class _Attachment(ProperModel):
     @classmethod
     def _validate_previewers(cls):
         if "image/*" in cls.VARIANTS_ENABLED_FOR:
-            if pyvips is None:
+            if load_pyvips() is None:
                 raise ImportError(
                     "preview_image requires the `pyvips` python library and the " \
                     "`libvips` system library." \

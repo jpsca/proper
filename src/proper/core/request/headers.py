@@ -10,7 +10,6 @@ from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT, TURBO_STREAM_MIME
 from ...errors import InvalidHeader
 from ...helpers import MultiDict
 from ...helpers.formatters import format_locale
-from ...types import TScope
 from .forwarded import parse_forwarded
 
 
@@ -18,30 +17,23 @@ class RequestHeadersMixin:
     """Mixin with the methods related to the request headers.
     """
 
-    scope: TScope
+    headers: MultiDict
+    method: str
+    request_method: str
+    scheme: str
+    server: "tuple[str, int | None] | None"
+    client: "tuple[str, int | None] | None"
     default_format = "html"
 
     def __init__(self):
-        self.headers = MultiDict(
-            (
-                key.decode("utf-8", errors="surrogateescape"),
-                value.decode("utf-8", errors="surrogateescape")
-            )
-            for key, value in self.scope.get("headers", [])
-        )
+        self.protocol: str = self.headers.get("x-forwarded-proto") or self.scheme
 
-        self.protocol: str = self.headers.get("x-forwarded-proto") or self.scope["scheme"]
-
-        if self.scope["server"]:
-            host, port = self.scope["server"]
+        if self.server:
+            host, port = self.server
         else:
             host, port = parse_host(self.headers.get("host"))
         self.host: str = host
         self.port: int = port or self.default_port
-
-        self.method: str = self.scope["method"]
-        self.request_method = self.method
-        self.path: str = self.scope["path"]
 
         self.content_type: str = self.headers.get("content-type")
         try:
@@ -341,7 +333,7 @@ class RequestHeadersMixin:
         if realip:
             return realip
 
-        return self.scope.get("client", ["", 0])[0]
+        return self.client[0] if self.client else ""
 
     @cached_property
     def request_id(self) -> str | None:

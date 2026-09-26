@@ -1,0 +1,42 @@
+{#def data = [
+  ("Actix Web", "Rust", 48497, False),
+  ("Proper", "Python 3.14t", 35063, True),
+  ("Beego", "Go", 31138, False),
+  ("Flask", "Python 3.14t", 13669, False),
+  ("Litestar", "Python 3.14t", 12239, False),
+  ("FastAPI", "Python 3.14t", 11767, False),
+  ("Sanic", "Python 3.14t", 10300, False),
+  ("Django", "Python 3.14t", 10097, False),
+  ("Ruby on Rails", "Ruby 3.4", 6454, False),
+] #}
+{#
+  A bar chart, in plain divs, of requests per second on the "fortunes" page: 12 rows read
+  from SQLite, one added, sorted, rendered with a template. Measured
+  2026-09-25 with https://github.com/jpsca/proper-bench; the numbers are the
+  ones in the deployment guide. Below 900px the labels move above the bars,
+  left-aligned, so the bars can use the whole width.
+#}
+{% set max_value = data[0][2] %}
+<figure class="bench-chart">
+  <div class="bench-rows" role="img"
+    aria-label="Requests per second on the fortunes page: Actix Web 48,497; Proper 35,063; Beego 31,138; Flask 13,669; Litestar 12,239; FastAPI 11,767; Sanic 10,300; Django 10,097; Ruby on Rails 6,454">
+    {% for name, runtime, value, ours in data %}
+    <div class="bench-row{% if ours %} bench-row-proper{% endif %}">
+      <div class="bench-label">
+        <span class="bench-name">{{ name }}</span>
+        <span class="bench-runtime">{{ runtime }}</span>
+      </div>
+      <div class="bench-track">
+        <div class="bench-bar" style="--w: {{ (value / max_value) | round(4) }}"></div>
+        <span class="bench-value">{{ "{:,}".format(value) }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <figcaption class="bench-caption">
+    Requests per second on the <em>fortunes</em> page, 64 connections, one
+    machine.<br>
+    Every app serves the same page over the same database; the code and the numbers for every
+    framework are in <a href="https://github.com/jpsca/proper-bench" target="_blank" rel="noopener">proper-bench</a>.
+  </figcaption>
+</figure>

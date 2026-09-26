@@ -1,12 +1,25 @@
 import typing as t
 
-
-try:
-    import redis
-except ImportError:
-    redis = None  # type: ignore
-
 from .base import BaseCache, SerializerProtocol
+
+
+# Imported on first use: an app that does not cache in Redis should not pay
+# for loading the library at startup.
+redis: t.Any = None
+
+
+def _load_redis() -> t.Any:
+    global redis
+    if redis is None:
+        try:
+            import redis as module
+        except ImportError:
+            raise ImportError(
+                "redis is required to use the Redis cache backend. "
+                "Install it with: uv add redis"
+            ) from None
+        redis = module
+    return redis
 
 
 class RedisCache(BaseCache):
@@ -20,14 +33,10 @@ class RedisCache(BaseCache):
         serializer: SerializerProtocol | None = None,
         **kwargs,
     ):
-        if redis is None:
-            raise ImportError(
-                "redis is required to use the Redis cache backend. "
-                "Install it with: uv add redis"
-            )
+        client_module = _load_redis()
         super().__init__(serializer=serializer)
         self.expires_in = expires_in
-        self.client: redis.Redis[bytes] = redis.from_url(url, **kwargs)
+        self.client: "redis.Redis[bytes]" = client_module.from_url(url, **kwargs)
 
     def set(self, key: str, value: t.Any, *, expires_in: int | None = None) -> None:
         data = self.serialize(value)

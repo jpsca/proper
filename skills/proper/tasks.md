@@ -413,6 +413,8 @@ QUEUE_CONSUMER = {
     "health_check_interval": 10,   # Health check frequency (seconds)
     "flush_locks": False,          # Flush locks on startup
     "extra_locks": "",             # Comma-separated extra lock names
+    "shutdown_timeout": None,      # Seconds to wait for running tasks on a graceful stop
+    "graceful_signal": "TERM",     # "INT" (ctrl+c) or "TERM" (what `docker stop` sends)
 }
 ```
 

@@ -13,7 +13,7 @@ from ... import status as pstatus
 from ...constants import HEAD, SIGNED_COOKIE_SALT
 from ...global_context import current
 from ...helpers import DotDict
-from ...types import Iterable, TBody, TScope
+from ...types import Iterable, TBody
 from .cookies import make_cookie, validate_cookie_size
 from .file_wrapper import FileWrapper
 from .flash_messages import FlashMessages
@@ -58,12 +58,14 @@ class Response(ResponseHeadersMixin):
 
     def __init__(
         self,
-        scope: TScope,
+        app: "App | None" = None,
         *,
         status: int = pstatus.ok,
     ) -> None:
-        self.scope = scope
+        self._app = app
         self.status = status
+        # Set by `send_file`: the server sends this file itself.
+        self.file_path: Path | None = None
         self._session = DotDict()
         self.flash = FlashMessages(self)
         self.cookies = {}
@@ -74,7 +76,7 @@ class Response(ResponseHeadersMixin):
 
     @property
     def app(self) -> "App":
-        return self.scope["app"]
+        return self._app or current.app
 
     @property
     def session(self) -> DotDict:
@@ -82,7 +84,7 @@ class Response(ResponseHeadersMixin):
 
     @session.setter
     def session(self, value: dict | DotDict) -> None:
-        self._session = DotDict(value)
+        self._session = value if isinstance(value, DotDict) else DotDict(value)
 
     @property
     def has_body(self) -> bool:
@@ -418,6 +420,7 @@ class Response(ResponseHeadersMixin):
 
         self.headers["content-disposition"] = f"{value}{options}"
         self.body = FileWrapper(path.open("rb"))
+        self.file_path = path
 
     def get_cookie_tuples(self) -> list[tuple[str, str]]:
         if self.disable_cookies or not self.cookies:
@@ -433,8 +436,11 @@ class Response(ResponseHeadersMixin):
 
     def prepare(
         self,
-    ) -> "tuple[int, list[tuple[bytes, bytes]], bytes | Iterable[bytes]]":
-        """Prepare the response for sending through ASGI."""
+        request: "Request | None" = None,
+    ) -> "tuple[int, list[tuple[str, str]], bytes | Iterable[bytes]]":
+        """Return `(status, headers, body)` ready for the server. The body
+        is bytes, or an iterable of bytes to stream - and empty for a `HEAD`
+        request, which is `current.request` unless given."""
         body = self.body or b""
         body_out: bytes | Iterable[bytes]
 
@@ -450,11 +456,7 @@ class Response(ResponseHeadersMixin):
         if isinstance(body_out, bytes) and not self.content_length:
             self.set_content_length(len(body_out))
 
-        enc_headers: list[tuple[bytes, bytes]] = [
-            (name.encode("latin-1"), value.encode("latin-1"))
-            for name, value in self.get_headers_list()
-        ]
-
-        if current.request and current.request.request_method == HEAD:
+        request = request or current.request
+        if request and request.request_method == HEAD:
             body_out = b""
-        return self.status, enc_headers, body_out
+        return self.status, self.get_headers_list(), body_out

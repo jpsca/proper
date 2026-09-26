@@ -3,7 +3,6 @@ import typing as t
 from time import time
 
 import peewee as pw
-from playhouse.sqlite_ext import SqliteExtDatabase
 
 from .base import BaseCache, SerializerProtocol
 
@@ -21,7 +20,7 @@ class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
     _counter = itertools.count()
     models = [Cache]
-    db_class: type[pw.Database] = SqliteExtDatabase
+    db_class: type[pw.Database] = pw.SqliteDatabase
     memory_based: bool = False
 
     def __init__(
@@ -160,7 +159,7 @@ class SqliteCache(BaseCache):
         expired_keys = []
 
         with self.database.atomic():
-            rows = Cache.select().where(Cache.key << keys)
+            rows = Cache.select().where(Cache.key << keys)  # ty: ignore[unsupported-operator]
             for row in rows:
                 if row.expires_at < curr_time:
                     expired_keys.append(row.key)
@@ -168,7 +167,7 @@ class SqliteCache(BaseCache):
                     result[row.key] = self.deserialize(row.value)
 
             if expired_keys:
-                Cache.delete().where(Cache.key << expired_keys).execute()
+                Cache.delete().where(Cache.key << expired_keys).execute()  # ty: ignore[unsupported-operator]
 
         return result
 
@@ -197,7 +196,7 @@ class SqliteCache(BaseCache):
         self.check_conn()
 
         curr_time = int(time())
-        Cache.delete().where(Cache.expires_at < curr_time).execute()
+        Cache.delete().where(Cache.expires_at < curr_time).execute()  # ty: ignore[unsupported-operator]
 
     def _count(self):
         return Cache.select(pw.fn.COUNT(Cache.key)).scalar()

@@ -27,7 +27,7 @@
         </h3>
         <p class="battery-desc">
           A small, expressive ORM with migrations, query helpers, and
-          async-safe connection handling.
+          a database connection per request, opened and closed for you.
         </p>
         <div class="battery-pkg">peewee</div>
       </a>
@@ -251,7 +251,8 @@
           WebSockets
         </h3>
         <p class="battery-desc">
-          Channels, broadcasts, and presence on top of the same ASGI runtime.
+          Channels, broadcasts and Turbo Streams, served by their own process
+          next to the web server, with no extra infrastructure.
         </p>
         <div class="battery-pkg">proper.channels</div>
       </a>

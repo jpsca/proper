@@ -1,6 +1,8 @@
 import asyncio
+import contextvars
 import copy
 import hashlib
+import logging
 import os
 import sys
 import threading
@@ -18,6 +20,7 @@ from . import pipeline, status, tools
 from .channels import Cable
 from .cli.app_cli import get_cli
 from .core.app_ws import AppWs
+from .core.app_wsgi import AppWsgi
 from .core.config import load_config
 from .core.error_handlers import (
     debug_error_handler,
@@ -36,14 +39,11 @@ from .router import Route, Router
 from .storage import attachment_for
 from .types import (
     THandler,
-    TReceive,
-    TScope,
-    TSend,
 )
 
 
 if t.TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable
 
     import peewee as pw
     from huey import Huey
@@ -51,6 +51,7 @@ if t.TYPE_CHECKING:
 
     from .auth import Auth
     from .cache import BaseCache
+    from .core.request.request import TReadBody
     from .emails import BaseMailer
     from .i18n import I18n
     from .storage import _Attachment
@@ -64,6 +65,17 @@ __all__ = ("App",)
 # pool would otherwise log once per queued request, and logging from the
 # worker threads is the last thing it needs.
 THREAD_WAIT_WARNING_INTERVAL = 10
+
+
+def _split_address(address: str | None) -> "tuple[str, int | None] | None":
+    """`"host:port"` as the server gives it, to `(host, port)`. IPv6 hosts
+    come in brackets, which are dropped."""
+    if not address:
+        return None
+    host, sep, port = address.rpartition(":")
+    if not sep or not port.isdigit():
+        return (address.strip("[]"), None)
+    return (host.strip("[]"), int(port))
 
 
 def _default_max_threads() -> int:
@@ -99,7 +111,7 @@ class _ThreadWaits:
             return report
 
 
-class App(AppWs):
+class App(AppWs, AppWsgi):
     """
     A Proper app core.
 
@@ -108,9 +120,6 @@ class App(AppWs):
             The name of the application package. Eg.: `foobar.web`.
         config:
             Optional dict-like with the config.
-        middleware:
-            Optional list of ASGI middleware. Each middleware should be a
-            callable that takes an ASGI app and returns a new ASGI app.
 
     """
 
@@ -178,13 +187,21 @@ class App(AppWs):
         self,
         import_name: str,
         config: dict[str, t.Any] | type | None = None,
-        *,
-        middleware: "Sequence[Callable]" = (),
     ) -> None:
         self.env = os.getenv("APP_ENV", "dev")
+        self.import_name = import_name
         self.config = load_config(config or {})
+        # Every `logger.debug` call builds a full record when the level lets
+        # it through, handlers or not. Outside of debug mode that is pure cost
+        # on the request path.
+        logger.setLevel(logging.DEBUG if self.config.DEBUG else logging.INFO)
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
         self._thread_waits = _ThreadWaits()
+        self._executor: ThreadPoolExecutor | None = None
+        self._executor_lock = threading.Lock()
+        self._executor_users = 0
+        self._attachment_class_cache: "dict[type, type[_Attachment]]" = {}
+        self._attachment_lock = threading.Lock()
         self._setup_paths(import_name)
         self.router = Router()
         self.CLI = get_cli(self)
@@ -196,11 +213,6 @@ class App(AppWs):
         # This will pre-load all templates in the views folder
         # so any Jinja extension need to be setup before this line.
         self.catalog.add_folder(self.views_path)
-
-        # Store the original asgi_app method before wrapping with middleware
-        self._asgi_app = self.asgi_app
-        for mw in reversed(middleware):
-            self._asgi_app = mw(self._asgi_app)
 
         current.app = self
 
@@ -221,46 +233,39 @@ class App(AppWs):
         self.router.debug = value
         self.catalog.auto_reload = value
 
-    async def __call__(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        await self._asgi_app(scope, receive, send)
+    # ---- RSGI ----
+    #
+    # The server (Granian) talks RSGI: one call per connection with a `scope`
+    # describing it and a `protocol` to read the body and send the response
+    # through, plus two hooks around the life of each worker.
 
-    async def asgi_app(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        scope["app"] = self
+    async def __rsgi__(self, scope, protocol) -> None:
         current.app = self
+        if scope.proto == "http":
+            await self._handle_http(scope, protocol)
+        else:
+            await self._handle_websocket(scope, protocol)
 
-        if scope["type"] == "lifespan":
-            while True:
-                message = await receive()
-                if message["type"] == "lifespan.startup":
-                    logger.info("Application is starting up...")
-                    self._setup_executor()
-                    self._start_loop_debug()
-                    await self.cable.start()
-                    await send({"type": "lifespan.startup.complete"})
-                elif message["type"] == "lifespan.shutdown":
-                    logger.info("Application is shutting down...")
-                    await self.cable.stop()
-                    await self._stop_loop_debug()
-                    await send({"type": "lifespan.shutdown.complete"})
-                    return
-                else:
-                    logger.warning("Unknown lifespan message: %s", message["type"])
+    def __rsgi_init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        loop.run_until_complete(self.startup())
 
-        elif scope["type"] == "http":
-            await self._handle_http(scope, receive, send)
+    def __rsgi_del__(self, loop: asyncio.AbstractEventLoop) -> None:
+        loop.run_until_complete(self.shutdown())
 
-        elif scope["type"] == "websocket":
-            await self._handle_websocket(scope, receive, send)
+    async def startup(self) -> None:
+        """Get ready to serve: the worker pool, the cable, the debug checks.
+        Called once per server worker, all sharing this app."""
+        logger.info("Application is starting up...")
+        self._setup_executor()
+        self._start_loop_debug()
+        await self.cable.start()
+
+    async def shutdown(self) -> None:
+        """Undo `startup`."""
+        logger.info("Application is shutting down...")
+        await self.cable.stop()
+        await self._stop_loop_debug()
+        self._shutdown_executor()
 
     def has_migrations_pending(self) -> bool:
         return False
@@ -291,14 +296,16 @@ class App(AppWs):
 
     def dumps(self, obj: t.Any, salt: str | None = None, *, timed: bool = True) -> str:
         """Returns a signed string serialized with the internal
-        serializer using hte first secret key.
+        serializer, using the newest secret key: the last one in
+        `SECRET_KEYS`. `loads` accepts every key in the list, so a new key
+        goes at the end and the oldest can be dropped later.
 
         With `timed=False` the token carries no timestamp, so it is
         deterministic (same input, same token) and can never expire. Read it
         back with `loads(..., timed=False)`.
         """
         serializers = self.serializers if timed else self.untimed_serializers
-        return str(serializers[0].dumps(obj, salt=salt))
+        return str(serializers[-1].dumps(obj, salt=salt))
 
     def loads(
         self,
@@ -314,8 +321,8 @@ class App(AppWs):
         signature is outdated or not valid for any of the keys.
 
         If `return_timestamp` is `True` this method will return a tuple
-        `(value, timestamp)`, with timestamp returned as a naive
-        `datetime.datetime` object in UTC.
+        `(value, timestamp)`, with the timestamp as a timezone-aware
+        `datetime.datetime` in UTC.
 
         Use `timed=False` for values made with `dumps(..., timed=False)`.
         The two kinds are not interchangeable: each one rejects the other's
@@ -374,33 +381,74 @@ class App(AppWs):
         service-instance cache stable, and prevents accidentally creating
         duplicate peewee model classes for the same `attachment` table.
         """
-        cache = self.__dict__.setdefault("_attachment_class_cache", {})
-        if base_model_cls in cache:
-            return cache[base_model_cls]
-        cls = attachment_for(
-            base_model_cls,
-            app=self,
-            default_service_name=self.config.get("STORAGE", ""),
-        )
-        cache[base_model_cls] = cls
-        return cls
+        # Requests run in threads, so two first calls for the same model can
+        # overlap; without the lock each would build its own class and one of
+        # them would end up with a duplicate peewee model for the same table.
+        with self._attachment_lock:
+            cls = self._attachment_class_cache.get(base_model_cls)
+            if cls is None:
+                cls = attachment_for(
+                    base_model_cls,
+                    app=self,
+                    default_service_name=self.config.get("STORAGE", ""),
+                )
+                self._attachment_class_cache[base_model_cls] = cls
+            return cls
 
     # ---- Private ----
 
     def _setup_executor(self) -> None:
         """Install the pool of threads that run the application's code.
 
-        Without this the loop builds its own on first use, sized by
-        Python's default and with threads named after asyncio rather than
-        after this app.
+        There is one pool per app, however many event loops share it: on
+        free-threaded Python the server runs its workers as threads of one
+        process, and each one calls this on its own loop. The pool is not
+        made the loops' default executor on purpose, because a loop shuts
+        its default executor down when it closes, and the first worker to
+        stop would take the pool away from the rest. Every worker counts
+        itself in here and out in `_shutdown_executor`.
         """
-        asyncio.get_running_loop().set_default_executor(
-            ThreadPoolExecutor(
-                max_workers=self.max_threads,
-                thread_name_prefix="proper-worker",
-            )
+        with self._executor_lock:
+            self._executor_users += 1
+            if self._executor is None:
+                self._executor = self._new_executor()
+                logger.info("[app] %s worker threads", self.max_threads)
+
+    def _shutdown_executor(self) -> None:
+        """Let the pool go once the last worker that set it up is done."""
+        with self._executor_lock:
+            self._executor_users = max(0, self._executor_users - 1)
+            if self._executor_users or self._executor is None:
+                return
+            executor = self._executor
+            self._executor = None
+        executor.shutdown(wait=False)
+
+    def _new_executor(self) -> ThreadPoolExecutor:
+        return ThreadPoolExecutor(
+            max_workers=self.max_threads,
+            thread_name_prefix="proper-worker",
         )
-        logger.info("[app] %s worker threads", self.max_threads)
+
+    def _pool(self) -> ThreadPoolExecutor:
+        """The shared pool, built on first use when no one set it up - a
+        test client, or an app driven without the server's startup."""
+        executor = self._executor
+        if executor is None:
+            with self._executor_lock:
+                executor = self._executor
+                if executor is None:
+                    executor = self._executor = self._new_executor()
+        return executor
+
+    def _in_pool(self, func: "Callable", *args) -> "asyncio.Future":
+        """Run `func` in the pool, carrying `current` and the rest of the
+        context along - as `asyncio.to_thread` does - and return an
+        awaitable for its result."""
+        context = contextvars.copy_context()
+        return asyncio.get_running_loop().run_in_executor(
+            self._pool(), lambda: context.run(func, *args)
+        )
 
     async def _run_in_worker(self, func: "Callable", *args) -> t.Any:
         """Run `func` in the worker pool.
@@ -411,7 +459,7 @@ class App(AppWs):
         """
         threshold = self.config.THREAD_WAIT_WARNING
         if not threshold:
-            return await asyncio.to_thread(func, *args)
+            return await self._in_pool(func, *args)
 
         submitted = time.monotonic()
 
@@ -421,7 +469,7 @@ class App(AppWs):
                 self._warn_thread_wait(waited)
             return func(*args)
 
-        return await asyncio.to_thread(start)
+        return await self._in_pool(start)
 
     def _warn_thread_wait(self, waited: float) -> None:
         """Report a queued request, at most once per interval."""
@@ -543,52 +591,37 @@ class App(AppWs):
         finally:
             self._dbs_close()
 
-    async def _handle_http(
-        self,
-        scope: TScope,
-        receive: TReceive,
-        send: TSend,
-    ) -> None:
-        response = await self._do_request(scope, receive)
-        status_code, headers, body = response.prepare()
-        await send(
-            {
-                "type": "http.response.start",
-                "status": status_code,
-                "headers": headers,
-            }
+    def _request_from_scope(self, scope) -> Request:
+        return self.request_cls(
+            method=scope.method,
+            path=scope.path,
+            query_string=scope.query_string,
+            headers=scope.headers.items(),
+            scheme=scope.scheme,
+            server=_split_address(scope.server),
+            client=_split_address(scope.client),
+            http_version=scope.http_version,
+            app=self,
         )
-        if isinstance(body, bytes):
-            await send({"type": "http.response.body", "body": body})
-        else:
-            # Stream iterables (e.g. FileWrapper) in chunks. Reading them
-            # blocks - a `FileWrapper` hits the disk on every `next()` - so
-            # each chunk is pulled in a worker thread. "Sync above, async
-            # below": the loop itself must never wait on a file.
-            chunks = iter(body)
-            try:
-                while True:
-                    chunk = await asyncio.to_thread(next, chunks, None)
-                    if chunk is None:
-                        break
-                    await send(
-                        {
-                            "type": "http.response.body",
-                            "body": chunk,
-                            "more_body": True,
-                        }
-                    )
-                await send({"type": "http.response.body", "body": b""})
-            finally:
-                body_close = getattr(body, "close", None)
-                if callable(body_close):
-                    body_close()
 
-    async def _do_request(self, scope: TScope, receive: TReceive) -> Response:
-        current.request = request = self.request_cls(scope)
-        current.response = response = self.response_cls(scope)
+    async def _handle_http(self, scope, protocol) -> None:
+        if scope.method == "POST" and scope.path == self.config.CABLE_PATH:
+            await self._receive_broadcast(scope, protocol)
+            return
+        request = self._request_from_scope(scope)
+        response = await self._respond(request, protocol)
+        await self._send_response(request, response, protocol)
+
+    async def _respond(self, request: Request, read_body: "TReadBody") -> Response:
+        """Run the request through the pipeline and return its response.
+
+        `read_body` is an awaitable returning the request body as bytes:
+        the RSGI protocol itself, or a stand-in from the `TestClient`.
+        """
+        current.request = request
+        current.response = response = self.response_cls(self)
         try:
-            await request._parse_body(receive)
+            await request._read_body(read_body)
         except Exception as error:
             response.error = error
             logger.debug(
@@ -611,23 +644,63 @@ class App(AppWs):
         current.response = response
         return response
 
+    async def _send_response(
+        self, request: Request, response: Response, protocol
+    ) -> None:
+        status, headers, body = response.prepare(request)
+        raw_body = response.body
+        try:
+            if isinstance(body, bytes):
+                if body:
+                    protocol.response_bytes(status, headers, body)
+                else:
+                    protocol.response_empty(status, headers)
+                return
+
+            if response.file_path is not None:
+                # The server reads and sends the file itself, off the loop
+                # and outside Python.
+                protocol.response_file(status, headers, str(response.file_path))
+                return
+
+            # Any other iterable is streamed chunk by chunk. Reading it may
+            # block, so each chunk is pulled in a worker thread: the loop
+            # itself must never wait on a file or a slow generator.
+            transport = await protocol.response_stream(status, headers)
+            chunks = iter(body)
+            while True:
+                chunk = await self._in_pool(next, chunks, None)
+                if chunk is None:
+                    break
+                await transport.send_bytes(bytes(chunk))
+        finally:
+            body_close = getattr(raw_body, "close", None)
+            if callable(body_close):
+                body_close()
+
     def _run_pipeline(self, request, response) -> Response:
+        # Asked once here rather than on every step: each check is cheap,
+        # but there are several per request.
+        debug = logger.isEnabledFor(logging.DEBUG)
+
         def work():
             if response.error:
                 raise response.error
             for func in self.pipeline:
-                logger.debug(
-                    "[pipeline] %s %s -> %s",
-                    request.request_method,
-                    request.path,
-                    func.__name__,
-                )
-                early_response = func(request, response)
-                if early_response is not None:
+                if debug:
                     logger.debug(
-                        "[pipeline] %s returned early response",
+                        "[pipeline] %s %s -> %s",
+                        request.request_method,
+                        request.path,
                         func.__name__,
                     )
+                early_response = func(request, response)
+                if early_response is not None:
+                    if debug:
+                        logger.debug(
+                            "[pipeline] %s returned early response",
+                            func.__name__,
+                        )
                     return early_response
 
         def on_error(error):

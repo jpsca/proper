@@ -8,16 +8,25 @@ from ..units import MINUTES
 from .scopes import ScopedSelect
 
 
+# The scopes of every model class, found once: `dir()` plus a `getattr` per
+# attribute is a few hundred calls, and `select()` runs on every page.
+# Classes are defined at import time, so there is nothing to invalidate.
+_SCOPES: dict[type, dict[str, t.Any]] = {}
+
+
 class ProperModel(pw.Model):
     """Base Peewee model with extra features: scope support and token generation."""
 
     @classmethod
     def _collect_scopes(cls):
-        scopes = {}
-        for name in dir(cls):
-            attr = getattr(cls, name, None)
-            if callable(attr) and getattr(attr, "_is_scope", False):
-                scopes[name] = attr
+        scopes = _SCOPES.get(cls)
+        if scopes is None:
+            scopes = {}
+            for name in dir(cls):
+                attr = getattr(cls, name, None)
+                if callable(attr) and getattr(attr, "_is_scope", False):
+                    scopes[name] = attr
+            _SCOPES[cls] = scopes
         return scopes
 
     @classmethod
@@ -26,7 +35,9 @@ class ProperModel(pw.Model):
         scopes = cls._collect_scopes()
         if scopes:
             query.__class__ = ScopedSelect
-            query._bind_scopes(scopes)
+            # ty can't follow the `__class__` swap above, and a `cast()` would
+            # add a call to every `select()`.
+            query._bind_scopes(scopes)  # ty: ignore[unresolved-attribute]
         return query
 
     def generate_token(

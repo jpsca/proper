@@ -63,3 +63,13 @@ def test_untimed_loads_refuses_options_that_need_a_timestamp(kwargs):
     token = app.dumps({"id": 1}, salt="x", timed=False)
     with pytest.raises(ValueError, match="no timestamp"):
         app.loads(token, salt="x", timed=False, **kwargs)
+
+
+def test_dumps_signs_with_the_newest_key():
+    """Keys are listed oldest to newest; rotating means appending. What the
+    app signs must be readable by an app that has dropped the oldest key."""
+    rotated = make_app(KEY_A, KEY_B)
+    for kwargs in ({}, {"timed": False}):
+        token = rotated.dumps({"id": 1}, salt="x", **kwargs)
+        assert make_app(KEY_B).loads(token, salt="x", **kwargs) == {"id": 1}
+        assert make_app(KEY_A).loads(token, salt="x", **kwargs) is None

@@ -1,7 +1,7 @@
 ---
 title: Application
 description: App setup, request lifecycle, configuration, lifecycle hooks, static assets, and logging
-last_verified: 2026-06-03
+last_verified: 2026-09-25
 ---
 
 # Application
@@ -80,33 +80,34 @@ Read the documentation of these libraries to understand how to work with them in
 
 ## Request Lifecycle
 
-Proper is an ASGI application. However, the code of the web applications that use Proper (meaning, the code that you write) is
-regular sync python.
+Proper serves on free-threaded Python (a `3.14t` build) with Granian, and the code of the web applications that use Proper (meaning, the code that you write) is regular sync Python: controllers, models, channels, tasks.
 
-The async boundary is handled by the framework: the ASGI entry point receives the request asynchronously, parses the body, then runs the sync pipeline in a thread via `asyncio.to_thread()`. Once the pipeline returns, the response goes back out on the event loop, and file bodies are read one chunk at a time in a worker thread so the loop is never the one waiting on disk.
+The server talks to the app over one of two interfaces, picked with the `INTERFACE` setting:
 
-In DEBUG, the app watches its own event loop and logs a warning, with a stack trace, whenever the loop stays blocked for longer than `LOOP_STALL_WARNING` seconds. A warning means something that belongs in a worker thread is running on the loop instead.
+- **WSGI** (the default): Granian runs each request on one of its own threads, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. WebSockets need the RSGI process described below.
+- **RSGI**: an async entry point receives the request, parses the body, then runs the sync pipeline in a worker thread from a pool sized by `MAX_THREADS`. The event loop is never blocked, and it also serves the WebSockets. It costs a thread hop per request.
 
-Those worker threads are a fixed pool, sized by `MAX_THREADS`. A request holds one for its whole duration, so the pool size is how many requests the app works on at once — and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue; the app logs a warning naming the wait when they do.
+With WSGI, an app with channels gets a second process for the WebSockets, over RSGI, on `CABLE_PORT` (see the channels doc). Under RSGI in DEBUG, the app watches its event loop and logs a warning, with a stack trace, whenever the loop stays blocked for longer than `LOOP_STALL_WARNING` seconds: something that belongs in a worker thread is running on the loop instead.
+
+`MAX_THREADS` is per process. Under WSGI it is split between the `WORKERS` of the process as Granian's threads; under RSGI it sizes the shared pool. Either way it is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue; under RSGI the app logs a warning naming the wait when they do.
 
 Every request flows through a pipeline in this exact order:
 
-1. **copy_session** — reads the signed `_session` cookie into `request.session`
-2. **head_to_get** — converts HEAD requests to GET (body stripped later)
-3. **method_override** — converts POST to PUT/PATCH/DELETE via `_method` param or `X-HTTP-Method-Override` header
-4. **match** — matches the URL to a route, sets `request.matched_route` and `request.matched_params`
-5. **redirect** — if the matched route is a redirect, sends the redirect response and stops
+1. **head_to_get** — converts HEAD requests to GET; the body is dropped when the response is prepared
+2. **method_override** — converts POST to PUT/PATCH/DELETE via `_method` param or `X-HTTP-Method-Override` header
+3. **match** — matches the URL to a route, sets `request.matched_route` and `request.matched_params`
+4. **redirect** — if the matched route is a redirect, sends the redirect response and stops
+5. **copy_session** — reads the signed `_session` cookie into `request.session`, when there is one
 6. **dispatch** — instantiates the controller and calls `_dispatch(action_name)`:
    - Runs **before** callbacks in MRO order
    - If any before callback sets a response body, the action is **skipped silently**
    - Calls the action method
    - Runs **after** callbacks in reverse MRO order
-7. **strip_body_if_head** — removes body for original HEAD requests
-8. **update_session_cookie** — writes back modified session as a signed cookie
+7. **update_session_cookie** — writes back a modified session as a signed cookie
 
-The framework also manages database connections around the pipeline: it opens connections before step 1 and closes them after step 8. If an unhandled error occurs, a rollback is issued before closing.
+The framework also manages database connections around the pipeline: it opens connections before step 1 and closes them after step 7. If an unhandled error occurs, a rollback is issued before closing.
 
-All steps are logged at DEBUG level with the `proper` logger (prefix `[pipeline]`).
+In DEBUG, all steps are logged with the `proper` logger (prefix `[pipeline]`).
 
 
 ## Global Context
@@ -121,7 +122,7 @@ current.request        # The current Request
 current.response       # The current Response
 ```
 
-It uses Python's `contextvars` module, so it's safe for threaded and async environments. The context is copied into the pipeline's worker thread, but only in that direction: what a controller sets on `current` is gone once the pipeline returns, so code running back on the event loop cannot read it. Custom attributes can be set on it too. The following attributes are set by the framework and its built-in tools:
+It uses Python's `contextvars` module, so it's safe for threaded and async environments. Under WSGI the whole request runs on one thread. Under RSGI the context is copied into the pipeline's worker thread, but only in that direction: what a controller sets on `current` is gone once the pipeline returns, so code running back on the event loop cannot read it. Custom attributes can be set on it too. The following attributes are set by the framework and its built-in tools:
 
 | Attribute              | Set by          | Description                                      |
 |------------------------|-----------------|--------------------------------------------------|
@@ -159,8 +160,13 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
 | `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
+| `WORKERS`                  | `1`               | Server workers per process; `MAX_THREADS` is split between them under WSGI |
+| `PROCESSES`                | `1`               | Copies of the web server on the same port; try `2` with four or more cores |
+| `INTERFACE`                | `"wsgi"`          | How the server calls the app: `"wsgi"` (fastest) or `"rsgi"` (WebSockets in-process) |
+| `CABLE_PORT`               | `0`               | Port of the WebSocket process `proper run` starts next to the web server (`0` = none) |
+| `ALLOW_GIL`                | `False`           | Let `proper run` serve on a Python with the GIL; it refuses otherwise |
 | `THREAD_WAIT_WARNING`      | `0.5`             | Warn when a request waits this many seconds for a free thread (`0` disables) |
-| `LOOP_STALL_WARNING`       | `0.1`             | In DEBUG, warn when the event loop is blocked for this many seconds (`0` disables) |
+| `LOOP_STALL_WARNING`       | `0.1`             | RSGI, in DEBUG: warn when the event loop is blocked for this many seconds (`0` disables) |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |
 | `MAX_FORM_FILES`           | `10`              | Max number of files in a multipart form        |
@@ -227,7 +233,7 @@ token = app.dumps({"user_id": 42}, salt="invite")
 data = app.loads(token, max_age=3600, salt="invite")  # Returns None if expired/invalid
 ```
 
-`dumps()` always uses the first (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.
+`dumps()` always signs with the last (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.
 
 
 ## Attachment Model Factory
@@ -483,7 +489,7 @@ request.query.get("count", type=int) # type-casts the value
 The `proper` command provides these subcommands:
 
 ```bash
-proper run                          # Start dev server (Uvicorn, port 2300)
+proper run                          # Start the server (Granian, port 2300)
 proper routes                       # Display all registered routes
 
 proper g resource Photo title:str   # Generate model + controller + form + views
@@ -508,34 +514,18 @@ All commands accept a `--help` parameter that shows more details.
 Most `db` commands accept `--db=NAME` to target a specific database (default: `main`).
 
 
-## Middleware
+## Serving
 
-The `App` constructor accepts an optional `middleware` parameter — a sequence of ASGI middleware. Each middleware is a callable that takes an ASGI app and returns a new ASGI app. Middleware wraps the entire request/response cycle, including WebSocket handling.
+`proper run` starts Granian with the app. It refuses to start on a Python with the GIL: install a free-threaded one with `uv python install 3.14t` (the blueprint pins it in `.python-version` and its Dockerfile installs it), or set `ALLOW_GIL = True` to serve with the GIL anyway, at the cost of memory and parallelism. On a free-threaded Python, an extension module that has not declared itself safe turns the GIL back on when imported; Python names it in a `RuntimeWarning`, and `proper run` stops with the same error.
 
-```python
-from myapp.config import Config
+What it starts, from the config:
 
-app = App("myapp", Config, middleware=[
-    SentryMiddleware,
-    CORSMiddleware,
-])
-```
+- `WORKERS` Granian workers, threads of one process, each with `MAX_THREADS / WORKERS` request threads under WSGI.
+- With `CABLE_PORT` set and the WSGI interface, a second process serving the WebSockets over RSGI on that port.
+- `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
+- With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes.
 
-Middleware is applied in reverse order (last in the list is the innermost), matching the standard ASGI convention. A middleware callable looks like:
-
-```python
-class TimingMiddleware:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        start = time.monotonic()
-        await self.app(scope, receive, send)
-        elapsed = time.monotonic() - start
-        print(f"{scope['path']} took {elapsed:.3f}s")
-```
-
-Middleware runs outside of the framework's pipeline, so it does not have access to `current`, database connections, or other per-request state managed by Proper.
+There is no middleware parameter: Proper is not an ASGI application. Cross-cutting behavior goes in controller `before`/`after` callbacks and concerns, and TLS or compression belong to the reverse proxy in front of the app.
 
 
 ## Logging

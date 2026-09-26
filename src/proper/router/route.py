@@ -21,6 +21,7 @@ from ..errors import (
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
+from ..helpers import import_string
 from ..types import Iterable, THandler
 
 
@@ -192,6 +193,7 @@ class Route:
 
         self.method = method
         self.path = path
+        self._resolved: "tuple[type, str] | None" = None
         self.to = to
 
     @property
@@ -227,10 +229,21 @@ class Route:
     @to.setter
     def to(self, value: THandler | None):
         self._to = value
+        self._resolved = None
         if not self.name and value:
             cls, method = value.__qualname__.rsplit(".", 1)
             prefix = _namespace_prefix(getattr(value, "__module__", "") or "")
             self.name = f"{prefix}{cls.removesuffix('Controller')}.{method}"
+
+    def resolve(self) -> "tuple[type, str]":
+        """The controller class and action name behind `to`, imported and
+        looked up once, on the first request, and kept for the next ones."""
+        if self._resolved is None:
+            assert self._to
+            cls_name, action_name = self._to.__qualname__.rsplit(".", 1)
+            module = import_string(self._to.__module__)
+            self._resolved = (getattr(module, cls_name), action_name)
+        return self._resolved
 
     def __repr__(self) -> str:
         return (

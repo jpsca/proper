@@ -16,10 +16,39 @@ default_config = {
     "PORT": 2300,
     "HOST": "localhost:2300",
 
-    # List/tuple of secret keys, **oldest to newest**.
-    # Every key in the list is valid, so you can periodically generate a new key
-    # and remove the oldest one to add and extra layer of mitigation
-    # against an attacker discovering a secret key.
+    # Where the server finds the app, as "package.module:variable". Empty
+    # means the `app` variable of the module that created it.
+    "APP_TARGET": "",
+
+    # How many server workers `proper run` starts in each process: threads,
+    # each with its own event loop, sharing the process and its memory.
+    "WORKERS": 1,
+
+    # How many copies of the web server `proper run` starts, all on the same
+    # port. One is right for most machines. On free-threaded Python the
+    # threads of one process contend for its shared objects, so with four
+    # or more cores a second process adds throughput (about 10% at 16
+    # threads) for another copy of the app in memory.
+    "PROCESSES": 1,
+
+    # Proper serves on free-threaded Python (a "3.14t" build), and `proper
+    # run` refuses to start otherwise. Set to True to serve with the GIL
+    # anyway, at the cost of memory and parallelism.
+    "ALLOW_GIL": False,
+
+    # How the server talks to the app. "wsgi" runs each request on one of the
+    # server's own threads, which is the fastest way to serve sync
+    # controllers, but has no WebSockets. "rsgi" has them, at a cost per
+    # request.
+    "INTERFACE": "wsgi",
+
+    # Restart the server when the code changes. `None` follows `DEBUG`.
+    "RELOAD": None,
+
+    # List/tuple of secret keys, **oldest to newest**. New values are signed
+    # with the newest one and every key in the list is accepted, so you can
+    # rotate: append a new key, and once everything signed with the oldest
+    # has expired, remove it. This mitigates an attacker discovering a key.
     "SECRET_KEYS": (),
 
     # Turn off to let something else, outside the application,
@@ -29,7 +58,9 @@ default_config = {
     # How many threads run your code. Each request occupies one for its
     # whole duration, so this is how many requests the app can work on at
     # once - and, since every thread opens its own database connection,
-    # how many connections it can hold. `0` uses Python's default of
+    # how many connections it can hold. It is a total for the whole
+    # process: when the server runs several workers as threads, they all
+    # share this one pool. `0` uses Python's default of
     # `min(32, cpu_count + 4)`.
     "MAX_THREADS": 0,
 
@@ -79,6 +110,12 @@ default_config = {
     "TIMEZONE_DEFAULT": "UTC",
 
     "CABLE_PATH": "/cable",
+
+    # Port of the WebSocket (RSGI) process that `proper run` starts next to
+    # the web server, for the channels. `0` starts none. In production a
+    # proxy routes `CABLE_PATH` here; in `DEBUG` the browser connects to this
+    # port directly.
+    "CABLE_PORT": 0,
 
     "IMPORT_MAP": {
         "@hotwired/stimulus": "js/vendor/stimulus.js",

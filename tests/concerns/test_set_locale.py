@@ -1,17 +1,15 @@
 from unittest.mock import MagicMock
 
-from proper import Request, Response, current
+from proper import Response, current
 from proper.concerns import CurrentLocale
 from proper.constants import GET
 from proper.controller import Controller
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import make_test_request
 
 
 def _make(cls, app, **scope_kw):
-    scope = make_test_scope(**scope_kw)
-    scope["app"] = app
-    request = Request(scope)
-    response = Response(scope)
+    request = make_test_request(app=app, **scope_kw)
+    response = Response(app)
     return cls(request, response)
 
 

@@ -42,11 +42,12 @@
       </div>
       <div class="axiom">
         <div class="axiom-num">- 04</div>
-        <h3 class="axiom-title">Sync above, async below</h3>
+        <h3 class="axiom-title">Sync code, parallel runtime</h3>
         <p class="axiom-body">
-          The runtime is ASGI. The code you write is not.
-          <code>await</code> is a hazard we've hidden behind a clean interface
-          - you get concurrency without the colour.
+          The code you write is plain, synchronous Python. It runs on
+          free-threaded Python, on the server's own threads, one process for
+          all your workers - you get parallelism without <code>await</code>,
+          and without the colour.
         </p>
       </div>
     </div>

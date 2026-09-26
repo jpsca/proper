@@ -1,14 +1,24 @@
 import typing as t
 
-
-try:
-    import boto3
-    from botocore.client import Config as BotoConfig
-except ImportError:
-    boto3 = None  # type: ignore
-    BotoConfig = None  # type: ignore
-
 from .service import Service
+
+
+# Imported on first use: boto3 is heavy, and an app storing files on disk
+# should not pay for loading it at startup.
+boto3: t.Any = None
+BotoConfig: t.Any = None
+
+
+def _load_boto3() -> None:
+    global boto3, BotoConfig
+    if boto3 is None:
+        try:
+            import boto3 as module
+            from botocore.client import Config
+        except ImportError:
+            raise ImportError("boto3 is required to use the S3 storage service.") from None
+        boto3 = module
+        BotoConfig = Config
 
 
 if t.TYPE_CHECKING:
@@ -24,8 +34,7 @@ class S3(Service):
     DEFAULT_URL_EXPIRES_IN = 300
 
     def __init__(self, app: "App", **config: t.Any) -> None:
-        if boto3 is None:
-            raise ImportError("boto3 is required to use the S3 storage service.")
+        _load_boto3()
         self.bucket_name = config.pop("bucket")
         self.url_expires_in = int(
             config.pop("url_expires_in", self.DEFAULT_URL_EXPIRES_IN)

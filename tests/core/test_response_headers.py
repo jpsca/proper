@@ -6,13 +6,10 @@ from proper import Response
 from proper import status as pstatus
 from proper.core.response.headers import ResponseHeadersDict, enc_name
 from proper.errors import InvalidHeader
-from proper.helpers.asgi import make_test_scope
 
 
-def _make_response(*, status=pstatus.ok, **scope_kw):
-    """Build a Response with a valid ASGI scope."""
-    scope = make_test_scope(**scope_kw)
-    response = Response(scope, status=status)
+def _make_response(*, status=pstatus.ok, app=None):
+    response = Response(app, status=status)
     return response
 
 

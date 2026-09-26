@@ -1,0 +1,8 @@
+{#import "./benchmark.jx" as Benchmark #}
+
+<section class="section fast">
+  <div class="section-inner">
+      <h2 class="section-title">The <em>fastest</em> full-stack Python framework</h2>
+      <Benchmark />
+  </div>
+</section>

@@ -12,7 +12,7 @@ authors = [
   { name = "Lorem Ipsum", email = "lorem.ipsum@example.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.13,<4"
+requires-python = ">=3.14,<4"
 dependencies = [
 	"huey",
 	"itsdangerous",
@@ -21,7 +21,6 @@ dependencies = [
 	"peewee",
 	"proper-cli",
 	"python-dotenv",
-  "uvicorn[standard]",
   "proper",
   # "psycopg[pool]",
 	# "redis",

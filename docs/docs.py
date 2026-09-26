@@ -10,7 +10,7 @@ from writeadoc import Docs
 
 site = {
     "name": "Proper",
-    "description": "Opinionated and batteries-included Python web framework. Made for people who read their code.",
+    "description": "Opinionated and batteries-included Python web framework.",
     "base_url": "https://properproject.org",
     "lang": "en",
     "source_code": "https://github.com/jpsca/proper/",

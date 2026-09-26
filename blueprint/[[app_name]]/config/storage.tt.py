@@ -6,12 +6,12 @@ env = os.getenv("APP_ENV", "dev")
 
 DATABASES: dict[str, t.Any] = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": "storage/app.sqlite3",
     },
     # -- or --
     # "main": {
-    #     "type": "playhouse.pool.PooledPsycopg3Database",
+    #     "type": "playhouse.postgres_ext.PooledPsycopg3Database",
     #     "database": os.getenv("DB_NAME", "[[app_name]]"),
     #     "host": os.getenv("DB_HOST", "127.0.0.1"),
     #     "port": int(os.getenv("DB_PORT", 5432)),
@@ -57,6 +57,10 @@ QUEUE_CONSUMER = {
     "flush_locks": False,
     # Comma-separated extra locks to use.
     "extra_locks": "",
+    # Seconds to wait for running tasks on a graceful shutdown; `None` waits.
+    "shutdown_timeout": None,
+    # `docker stop` and most supervisors send TERM: make it a graceful stop.
+    "graceful_signal": "TERM",
 }
 
 CACHE = {
@@ -68,7 +72,7 @@ CACHE = {
 # --- Override config for testing ---
 if env == "test":
     DATABASES["main"] = {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
 
@@ -86,7 +90,7 @@ if env == "test":
 # --- Override config for production ---
 if env == "prod":
     DATABASES["main"] = {
-        "type": "playhouse.pool.PooledPsycopg3Database",
+        "type": "playhouse.postgres_ext.PooledPsycopg3Database",
         "database": os.getenv("DB_NAME", "[[app_name]]"),
         "host": os.getenv("DB_HOST", "127.0.0.1"),
         "port": int(os.getenv("DB_PORT", 5432)),

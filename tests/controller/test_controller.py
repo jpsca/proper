@@ -4,12 +4,11 @@ import pytest
 from jx import ComponentNotFoundError
 
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
-from proper.core.request import Request
 from proper.core.response import Response
 from proper.errors import NotFound
 from proper.helpers import DotDict, MultiDict
-from proper.helpers.asgi import make_test_scope
 from proper.status import not_modified
+from proper.test_client import make_test_request
 from proper.turbo import turbo_stream
 
 
@@ -25,10 +24,8 @@ def _make_controller(cls=Controller, **request_kw):
         "MAX_QUERY_SIZE": 1_048_576,
         "MAX_CONTENT_LENGTH": 8_388_608,
     })
-    scope = make_test_scope(**request_kw)
-    scope["app"] = app
-    request = Request(scope)
-    response = Response(scope)
+    request = make_test_request(app=app, **request_kw)
+    response = Response(app)
     return cls(request, response)
 
 
@@ -36,10 +33,8 @@ def _make_controller(cls=Controller, **request_kw):
 class TestControllerInit:
     def test_stores_app_request_response(self):
         app = MagicMock()
-        scope = make_test_scope()
-        scope["app"] = app
-        request = Request(scope)
-        response = Response(scope)
+        request = make_test_request(app=app)
+        response = Response(app)
         co = Controller(request, response)
         assert co.app is app
         assert co.request is request

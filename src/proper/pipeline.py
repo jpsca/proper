@@ -13,7 +13,7 @@ from .constants import (
     SESSION_COOKIE_SALT,
 )
 from .controller import Controller
-from .helpers import DotDict, import_string, logger
+from .helpers import DotDict, logger
 
 
 if t.TYPE_CHECKING:
@@ -106,20 +106,28 @@ def copy_session(request: "Request", response: "Response"):
     and response.
     """
     session = _find_session_by_cookie(request)
+    if session is None:
+        # No cookie, or a bad one: the request keeps the empty session it
+        # was born with; the response gets a fresh one, since its flash
+        # messages already wrote to the first. This is most requests.
+        response.session = DotDict()
+        return
     request.session = session
     response.session = session.copy()
     if FLASHES_SESSION_KEY in response.session:
         del response.session[FLASHES_SESSION_KEY]
 
 
-def _find_session_by_cookie(request: "Request") -> DotDict:
+def _find_session_by_cookie(request: "Request") -> DotDict | None:
+    if SESSION_COOKIE_NAME not in request.cookies:
+        return None
     session = request.get_signed_cookie(
         SESSION_COOKIE_NAME,
         salt=SESSION_COOKIE_SALT,
         max_age=request.app.config.SESSION_COOKIE_LIFETIME
     )
     logger.debug(">>> %s", session or "")
-    return DotDict(session or {})
+    return DotDict(session) if session else None
 
 
 # STEP 6
@@ -127,10 +135,8 @@ def dispatch(request: "Request", response: "Response") -> "Response | None":
     route = request.matched_route
     assert route
     assert route.to
-    cls_name, action_name = route.to.__qualname__.rsplit(".", 1)
+    Controller, action_name = route.resolve()
     request.matched_action = action_name
-    module = import_string(route.to.__module__)
-    Controller: TController = getattr(module, cls_name)
 
     # We instantiate the view class so we can have an independent
     # container for this request.

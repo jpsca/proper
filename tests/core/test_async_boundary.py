@@ -11,7 +11,7 @@ import pytest
 
 from proper import App, current
 from proper.core.response.file_wrapper import FileWrapper
-from proper.helpers.asgi import make_test_scope
+from proper.test_client import HttpProtocolStub, make_test_scope
 
 
 @pytest.fixture()
@@ -39,19 +39,9 @@ class SlowFile:
 
 
 async def run_request(app, path="/"):
-    scope = make_test_scope(path)
-    scope["app"] = app
-
-    async def receive():
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    sent = []
-
-    async def send(message):
-        sent.append(message)
-
-    await app.asgi_app(scope, receive, send)
-    return sent
+    protocol = HttpProtocolStub()
+    await app.__rsgi__(make_test_scope(path), protocol)
+    return protocol
 
 
 async def measure_worst_stall(coro):
@@ -86,12 +76,10 @@ class TestStreamingDoesNotBlockTheLoop:
 
         app._run_pipeline = stream.__get__(app, App)
 
-        sent, worst_stall = await measure_worst_stall(run_request(app, "/file.bin"))
+        protocol, worst_stall = await measure_worst_stall(run_request(app, "/file.bin"))
 
-        body = b"".join(
-            m.get("body", b"") for m in sent if m["type"] == "http.response.body"
-        )
-        assert body == b"x" * 60
+        assert protocol.streamed
+        assert protocol.body == b"x" * 60
         # The reads add up to ~300ms; none of it may happen on the loop.
         assert worst_stall < 0.04, f"loop blocked for {worst_stall * 1000:.0f} ms"
 
@@ -117,18 +105,12 @@ class TestStreamingDoesNotBlockTheLoop:
 
         app._run_pipeline = stream.__get__(app, App)
 
-        scope = make_test_scope("/file.bin")
-        scope["app"] = app
-
-        async def receive():
-            return {"type": "http.request", "body": b"", "more_body": False}
-
-        async def send(message):
-            if message.get("more_body"):
+        class Dropped(HttpProtocolStub):
+            async def send_bytes(self, data):
                 raise ConnectionResetError("client went away")
 
         with pytest.raises(ConnectionResetError):
-            await app.asgi_app(scope, receive, send)
+            await app.__rsgi__(make_test_scope("/file.bin"), Dropped())
 
         assert source.closed
 
@@ -141,12 +123,10 @@ class TestStreamingDoesNotBlockTheLoop:
             return response
 
         app._run_pipeline = stream.__get__(app, App)
-        sent = await run_request(app, "/chunks")
+        protocol = await run_request(app, "/chunks")
 
-        body = b"".join(
-            m.get("body", b"") for m in sent if m["type"] == "http.response.body"
-        )
-        assert body == b"onetwothree"
+        assert protocol.streamed
+        assert protocol.body == b"onetwothree"
 
 
 class TestContextBarrier:

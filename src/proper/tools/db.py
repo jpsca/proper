@@ -5,7 +5,7 @@ from ..helpers.imports import get_instance
 NAME = "DATABASES"
 DEFAULT_CONFIG = {
     "main": {
-        "type": "playhouse.sqlite_ext.SqliteExtDatabase",
+        "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     },
 }
