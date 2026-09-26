@@ -45,10 +45,10 @@ default_config = {
     # Restart the server when the code changes. `None` follows `DEBUG`.
     "RELOAD": None,
 
-    # List/tuple of secret keys, **oldest to newest**.
-    # Every key in the list is valid, so you can periodically generate a new key
-    # and remove the oldest one to add and extra layer of mitigation
-    # against an attacker discovering a secret key.
+    # List/tuple of secret keys, **oldest to newest**. New values are signed
+    # with the newest one and every key in the list is accepted, so you can
+    # rotate: append a new key, and once everything signed with the oldest
+    # has expired, remove it. This mitigates an attacker discovering a key.
     "SECRET_KEYS": (),
 
     # Turn off to let something else, outside the application,

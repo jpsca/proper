@@ -161,7 +161,7 @@ Variable | What it is
 `WEB_PORT` | Host port Compose publishes the web server on (the container always listens on 2300)
 `WORKERS`, `PROCESSES` | See [Sizing](#sizing)
 
-Every key in `SECRET_KEYS` is valid, so you can rotate them: append a new key, and later remove the oldest. Never deploy with an empty `SECRET_KEYS`.
+New values are signed with the newest key, the last in the list, and every key in `SECRET_KEYS` is accepted when reading, so you can rotate them: append a new key, and once everything signed with the oldest has expired, remove it. Never deploy with an empty `SECRET_KEYS`.
 
 ### Databases
 

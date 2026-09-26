@@ -233,7 +233,7 @@ token = app.dumps({"user_id": 42}, salt="invite")
 data = app.loads(token, max_age=3600, salt="invite")  # Returns None if expired/invalid
 ```
 
-`dumps()` always uses the first (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.
+`dumps()` always signs with the last (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.
 
 
 ## Attachment Model Factory

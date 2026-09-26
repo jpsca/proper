@@ -296,14 +296,16 @@ class App(AppWs, AppWsgi):
 
     def dumps(self, obj: t.Any, salt: str | None = None, *, timed: bool = True) -> str:
         """Returns a signed string serialized with the internal
-        serializer using hte first secret key.
+        serializer, using the newest secret key: the last one in
+        `SECRET_KEYS`. `loads` accepts every key in the list, so a new key
+        goes at the end and the oldest can be dropped later.
 
         With `timed=False` the token carries no timestamp, so it is
         deterministic (same input, same token) and can never expire. Read it
         back with `loads(..., timed=False)`.
         """
         serializers = self.serializers if timed else self.untimed_serializers
-        return str(serializers[0].dumps(obj, salt=salt))
+        return str(serializers[-1].dumps(obj, salt=salt))
 
     def loads(
         self,
