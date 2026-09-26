@@ -7,40 +7,36 @@
   ("FastAPI + SQLAlchemy", "Python 3.14t", 11767, False),
   ("Sanic + SQLAlchemy", "Python 3.14t", 10300, False),
   ("Django", "Python 3.14t", 10097, False),
-  ("Rails", "Ruby 3.4", 6454, False),
+  ("Ruby on Rails", "Ruby 3.4", 6454, False),
 ] #}
 {#
-  A bar chart of requests per second on the "fortunes" page: 12 rows read
+  A bar chart, in plain divs, of requests per second on the "fortunes" page: 12 rows read
   from SQLite, one added, sorted, rendered with a template. Measured
   2026-09-25 with https://github.com/jpsca/proper-bench; the numbers are the
-  ones in the deployment guide. Drop it in a section with `<BenchmarkChart />`.
+  ones in the deployment guide. Below 900px the labels move above the bars,
+  left-aligned, so the bars can use the whole width.
 #}
-{% set label_w = 236 %}
-{% set bar_max = 380 %}
-{% set row_h = 34 %}
-{% set top = 8 %}
 {% set max_value = data[0][2] %}
-{% set height = top + row_h * (data | length) %}
 <figure class="bench-chart">
-  <svg viewBox="0 0 {{ label_w + bar_max + 84 }} {{ height }}" role="img"
-    aria-label="Requests per second on the fortunes page: Actix Web 48,497; Proper 35,063; Beego 31,138; Flask 13,669; Litestar 12,239; FastAPI 11,767; Sanic 10,300; Django 10,097; Rails 6,454"
-    xmlns="http://www.w3.org/2000/svg">
+  <div class="bench-rows" role="img"
+    aria-label="Requests per second on the fortunes page: Actix Web 48,497; Proper 35,063; Beego 31,138; Flask 13,669; Litestar 12,239; FastAPI 11,767; Sanic 10,300; Django 10,097; Ruby on Rails 6,454">
     {% for name, runtime, value, ours in data %}
-    {% set y = top + loop.index0 * row_h %}
-    {% set w = (bar_max * value / max_value) | round | int %}
-    <g class="bench-row{% if ours %} bench-row-proper{% endif %}">
-      <text class="bench-name" x="{{ label_w - 12 }}" y="{{ y + 15 }}" text-anchor="end">{{ name }}</text>
-      <text class="bench-runtime" x="{{ label_w - 12 }}" y="{{ y + 27 }}" text-anchor="end">{{ runtime }}</text>
-      <rect class="bench-bar" x="{{ label_w }}" y="{{ y + 5 }}" width="{{ w }}" height="{{ row_h - 12 }}" rx="2" />
-      <text class="bench-value" x="{{ label_w + w + 8 }}" y="{{ y + 20 }}">{{ "{:,}".format(value) }}</text>
-    </g>
+    <div class="bench-row{% if ours %} bench-row-proper{% endif %}">
+      <div class="bench-label">
+        <span class="bench-name">{{ name }}</span>
+        <span class="bench-runtime">{{ runtime }}</span>
+      </div>
+      <div class="bench-track">
+        <div class="bench-bar" style="--w: {{ (value / max_value) | round(4) }}"></div>
+        <span class="bench-value">{{ "{:,}".format(value) }}</span>
+      </div>
+    </div>
     {% endfor %}
-  </svg>
+  </div>
   <figcaption class="bench-caption">
     Requests per second on the <em>fortunes</em> page, 64 connections, one
-    machine (Intel Core i5-14400), 2026-09-25. Every app serves the same
-    page over the same database; the code and the numbers for every
-    framework are in
-    <a href="https://github.com/jpsca/proper-bench" target="_blank" rel="noopener">proper-bench</a>.
+    machine.<br>
+    Every app serves the same page over the same database; the code and the numbers for every
+    framework are in <a href="https://github.com/jpsca/proper-bench" target="_blank" rel="noopener">proper-bench</a>.
   </figcaption>
 </figure>
