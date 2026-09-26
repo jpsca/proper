@@ -1,7 +1,9 @@
 <h1><img src="https://properproject.org/proper.svg" height="48" />
 Proper Web Framework</h1>
 
-Proper is **the fastest** full-stack Python web framework (see https://github.com/jpsca/proper-bench)
+Proper is **the fastest** full-stack Python web framework (see https://github.com/jpsca/proper-bench).
+
+![Benchmark](https://raw.githubusercontent.com/jpsca/proper/refs/heads/main/docs/assets/images/benchmark-fortunes.svg)
 
 It's also opinionated, generator-heavy, focused on REST and server-rendered HTML, built around a fixed project structure, and packed with batteries for auth, file uploads, etc.
 
