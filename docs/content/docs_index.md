@@ -127,7 +127,7 @@ This is the documentation for **Proper**. These guides are designed to make you 
 
 <a href="/docs/channels" class="doc-index-section">
   <h3>Real-Time Updates (Channels)</h3>
-  <p>Channels let your application push data to the browser in real time over a WebSocket connection, instead of waiting for the user to refresh. This guide covers writing channels, broadcasting messages, and tracking who is currently connected.</p>
+  <p>Channels let your application push data to the browser in real time over a WebSocket connection, instead of waiting for the user to refresh. This guide covers writing channels, authenticating a connection from the session cookie, broadcasting messages and Turbo Streams, the browser client, the cable process behind a proxy, scaling with Redis, and testing.</p>
 </a>
 
 
@@ -148,10 +148,7 @@ This is the documentation for **Proper**. These guides are designed to make you 
 
 <a href="/docs/deployment" class="doc-index-section">
   <h3>Deployment and Performance</h3>
-  <p>Going to production means running on free-threaded Python, deciding how many workers and processes to run, serving your static files efficiently, and managing environment variables. This guide will help you make those choices and keep your application fast under real traffic.</p>
-  <section class="admonition wip">
-    <p class="admonition-title">Work in progress</p>
-  </section>
+  <p>Going to production means running on free-threaded Python, sizing the server's workers, threads and processes, putting a proxy in front of the app, and running the background worker. This guide covers all of that, the Docker image and Compose files a new app comes with, a deploy checklist, and how Proper performs against other Python, Ruby, Go and Rust frameworks.</p>
 </a>
 
 
