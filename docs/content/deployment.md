@@ -399,20 +399,20 @@ On each deploy, in this order:
 
 ## Performance
 
-How fast is this? The table below was measured on 2026-09-25 on an Intel Core i5-14400 (6 performance and 4 efficiency cores), with 64 connections, all rows from the same run. The Python servers ran Granian with 4 workers of 4 threads, 16 threads in total; Proper's second row is 2 processes of 2 workers of 4 threads; Sanic ran 4 of its own worker processes. Go and Rust used every core.
+How fast is this? The table below, sorted by the fortunes column, was measured on 2026-09-25 on an Intel Core i5-14400 (6 performance and 4 efficiency cores), with 64 connections, all rows from the same run. The Python servers ran Granian with 4 workers of 4 threads, 16 threads in total; Proper's second row is 2 processes of 2 workers of 4 threads; Sanic ran 4 of its own worker processes. Go and Rust used every core.
 
 | server | plaintext rps | json rps | fortunes rps | fortunes p50 | fortunes p99 | RSS |
 |---|---:|---:|---:|---:|---:|---:|
-| Proper 0.26, Granian WSGI | 116,828 | 108,427 | 35,063 | 1.7 ms | 4.3 ms | 187 MB |
-| Proper 0.26, 2 processes | 129,495 | 118,494 | 34,151 | 1.7 ms | 4.4 ms | 316 MB |
-| Flask 3.1 + SQLAlchemy, Granian WSGI | 76,252 | 72,359 | 13,669 | 3.0 ms | 40.0 ms | 196 MB |
-| Litestar 2.24 + SQLAlchemy, Granian ASGI | 100,935 | 97,398 | 12,239 | 3.6 ms | 50.5 ms | 263 MB |
-| FastAPI 0.141 + SQLAlchemy, Granian ASGI | 49,334 | 44,351 | 11,767 | 3.3 ms | 61.3 ms | 313 MB |
-| Sanic 25.12 + SQLAlchemy asyncio, own server | 149,176 | 133,980 | 10,300 | 5.6 ms | 10.5 ms | 606 MB |
-| Django 6.1, Granian WSGI | 56,310 | 51,340 | 10,097 | 5.7 ms | 31.9 ms | 164 MB |
 | Rails 8.1, Puma | 9,685 | 10,072 | 6,454 | 9.9 ms | 13.0 ms | 491 MB |
+| Django 6.1, Granian WSGI | 56,310 | 51,340 | 10,097 | 5.7 ms | 31.9 ms | 164 MB |
+| Sanic 25.12 + SQLAlchemy asyncio, own server | 149,176 | 133,980 | 10,300 | 5.6 ms | 10.5 ms | 606 MB |
+| FastAPI 0.141 + SQLAlchemy, Granian ASGI | 49,334 | 44,351 | 11,767 | 3.3 ms | 61.3 ms | 313 MB |
+| Litestar 2.24 + SQLAlchemy, Granian ASGI | 100,935 | 97,398 | 12,239 | 3.6 ms | 50.5 ms | 263 MB |
+| Flask 3.1 + SQLAlchemy, Granian WSGI | 76,252 | 72,359 | 13,669 | 3.0 ms | 40.0 ms | 196 MB |
 | Beego 2.3 (Go) | 318,146 | 257,260 | 31,138 | 1.2 ms | 10.7 ms | 63 MB |
-| Actix Web 4.15 + sqlx (Rust) | 630,327 | 620,509 | 48,497 | 1.1 ms | 4.4 ms | 19 MB |
+| **Proper 0.26, 2 processes** | **129,495** | **118,494** | **34,151** | **1.7 ms** | **4.4 ms** | **316 MB** |
+| **Proper 0.26, Granian WSGI** | **116,828** | **108,427** | **35,063** | **1.7 ms** | **4.3 ms** | **187 MB** |
+| Actix Web 4.15 + sqlx + askama (Rust) | 630,327 | 620,509 | 48,497 | 1.1 ms | 4.4 ms | 19 MB |
 | Topcoat 0.9 + Toasty (Rust) | 321,294 | 324,361 | 181,794 | 0.3 ms | 1.0 ms | 17 MB |
 
 `plaintext` and `json` return a fixed response, so they measure the fixed cost of each request. `fortunes` reads 12 rows from SQLite, adds one, sorts them and renders a template; it is the one that resembles a real page.
