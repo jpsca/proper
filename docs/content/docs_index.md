@@ -147,8 +147,8 @@ This is the documentation for **Proper**. These guides are designed to make you 
 </a>
 
 <a href="/docs/deployment" class="doc-index-section">
-  <h3>Deployment and Performance</h3>
-  <p>Going to production means running on free-threaded Python, sizing the server's workers, threads and processes, putting a proxy in front of the app, and running the background worker. This guide covers all of that, the Docker image and Compose files a new app comes with, a deploy checklist, and how Proper performs against other Python, Ruby, Go and Rust frameworks.</p>
+  <h3>Deployment</h3>
+  <p>Going to production means running on free-threaded Python, sizing the server's workers, threads and processes, putting a proxy in front of the app, and running the background worker. This guide covers all of that.</p>
 </a>
 
 
