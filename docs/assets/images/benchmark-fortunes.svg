@@ -1,6 +1,6 @@
-<svg viewBox="0 0 700 246" role="img"
-        aria-label="Requests per second on the fortunes page: Actix Web 51,656; Beego 35,380; Proper 35,014; Flask 13,871; FastAPI 11,570; Django 10,252; Rails 6,584"
-        xmlns="http://www.w3.org/2000/svg"><style>:root{--ink:#1a1d24;--terra:#d30001;--paper:#f5f1e8;} svg{font-family:Inter,Helvetica,Arial,sans-serif;} /* --- Benchmark ------------------------------------------------------------ */
+<svg viewBox="0 0 700 314" role="img"
+    aria-label="Requests per second on the fortunes page: Actix Web 48,497; Proper 35,063; Beego 31,138; Flask 13,669; Litestar 12,239; FastAPI 11,767; Sanic 10,300; Django 10,097; Rails 6,454"
+    xmlns="http://www.w3.org/2000/svg"><style>svg{font-family:Inter,Helvetica,Arial,sans-serif} /* --- Benchmark ------------------------------------------------------------ */
 
 .bench-chart {
   margin: 2rem 0 0;
@@ -44,68 +44,86 @@
   opacity: 0.7;
 }
 </style>
-        
-        
-        
-        <g class="bench-row">
-          <text class="bench-name" x="224" y="23" text-anchor="end">Actix Web</text>
-          <text class="bench-runtime" x="224" y="35" text-anchor="end">Rust</text>
-          <rect class="bench-bar" x="236" y="13" width="380" height="22" rx="2" />
-          <text class="bench-value" x="624" y="28">51,656</text>
-        </g>
-        
-        
-        
-        <g class="bench-row">
-          <text class="bench-name" x="224" y="57" text-anchor="end">Beego</text>
-          <text class="bench-runtime" x="224" y="69" text-anchor="end">Go</text>
-          <rect class="bench-bar" x="236" y="47" width="260" height="22" rx="2" />
-          <text class="bench-value" x="504" y="62">35,380</text>
-        </g>
-        
-        
-        
-        <g class="bench-row bench-row-proper">
-          <text class="bench-name" x="224" y="91" text-anchor="end">Proper</text>
-          <text class="bench-runtime" x="224" y="103" text-anchor="end">Python 3.14t</text>
-          <rect class="bench-bar" x="236" y="81" width="258" height="22" rx="2" />
-          <text class="bench-value" x="502" y="96">35,014</text>
-        </g>
-        
-        
-        
-        <g class="bench-row">
-          <text class="bench-name" x="224" y="125" text-anchor="end">Flask + SQLAlchemy</text>
-          <text class="bench-runtime" x="224" y="137" text-anchor="end">Python 3.14t</text>
-          <rect class="bench-bar" x="236" y="115" width="102" height="22" rx="2" />
-          <text class="bench-value" x="346" y="130">13,871</text>
-        </g>
-        
-        
-        
-        <g class="bench-row">
-          <text class="bench-name" x="224" y="159" text-anchor="end">FastAPI + SQLAlchemy</text>
-          <text class="bench-runtime" x="224" y="171" text-anchor="end">Python 3.14t</text>
-          <rect class="bench-bar" x="236" y="149" width="85" height="22" rx="2" />
-          <text class="bench-value" x="329" y="164">11,570</text>
-        </g>
-        
-        
-        
-        <g class="bench-row">
-          <text class="bench-name" x="224" y="193" text-anchor="end">Django</text>
-          <text class="bench-runtime" x="224" y="205" text-anchor="end">Python 3.14t</text>
-          <rect class="bench-bar" x="236" y="183" width="75" height="22" rx="2" />
-          <text class="bench-value" x="319" y="198">10,252</text>
-        </g>
-        
-        
-        
-        <g class="bench-row">
-          <text class="bench-name" x="224" y="227" text-anchor="end">Rails</text>
-          <text class="bench-runtime" x="224" y="239" text-anchor="end">Ruby 3.4</text>
-          <rect class="bench-bar" x="236" y="217" width="48" height="22" rx="2" />
-          <text class="bench-value" x="292" y="232">6,584</text>
-        </g>
-        
-      </svg>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="23" text-anchor="end">Actix Web</text>
+      <text class="bench-runtime" x="224" y="35" text-anchor="end">Rust</text>
+      <rect class="bench-bar" x="236" y="13" width="380" height="22" rx="2" />
+      <text class="bench-value" x="624" y="28">48,497</text>
+    </g>
+    
+    
+    
+    <g class="bench-row bench-row-proper">
+      <text class="bench-name" x="224" y="57" text-anchor="end">Proper</text>
+      <text class="bench-runtime" x="224" y="69" text-anchor="end">Python 3.14t</text>
+      <rect class="bench-bar" x="236" y="47" width="275" height="22" rx="2" />
+      <text class="bench-value" x="519" y="62">35,063</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="91" text-anchor="end">Beego</text>
+      <text class="bench-runtime" x="224" y="103" text-anchor="end">Go</text>
+      <rect class="bench-bar" x="236" y="81" width="244" height="22" rx="2" />
+      <text class="bench-value" x="488" y="96">31,138</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="125" text-anchor="end">Flask + SQLAlchemy</text>
+      <text class="bench-runtime" x="224" y="137" text-anchor="end">Python 3.14t</text>
+      <rect class="bench-bar" x="236" y="115" width="107" height="22" rx="2" />
+      <text class="bench-value" x="351" y="130">13,669</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="159" text-anchor="end">Litestar + SQLAlchemy</text>
+      <text class="bench-runtime" x="224" y="171" text-anchor="end">Python 3.14t</text>
+      <rect class="bench-bar" x="236" y="149" width="96" height="22" rx="2" />
+      <text class="bench-value" x="340" y="164">12,239</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="193" text-anchor="end">FastAPI + SQLAlchemy</text>
+      <text class="bench-runtime" x="224" y="205" text-anchor="end">Python 3.14t</text>
+      <rect class="bench-bar" x="236" y="183" width="92" height="22" rx="2" />
+      <text class="bench-value" x="336" y="198">11,767</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="227" text-anchor="end">Sanic + SQLAlchemy</text>
+      <text class="bench-runtime" x="224" y="239" text-anchor="end">Python 3.14t</text>
+      <rect class="bench-bar" x="236" y="217" width="81" height="22" rx="2" />
+      <text class="bench-value" x="325" y="232">10,300</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="261" text-anchor="end">Django</text>
+      <text class="bench-runtime" x="224" y="273" text-anchor="end">Python 3.14t</text>
+      <rect class="bench-bar" x="236" y="251" width="79" height="22" rx="2" />
+      <text class="bench-value" x="323" y="266">10,097</text>
+    </g>
+    
+    
+    
+    <g class="bench-row">
+      <text class="bench-name" x="224" y="295" text-anchor="end">Rails</text>
+      <text class="bench-runtime" x="224" y="307" text-anchor="end">Ruby 3.4</text>
+      <rect class="bench-bar" x="236" y="285" width="51" height="22" rx="2" />
+      <text class="bench-value" x="295" y="300">6,454</text>
+    </g>
+    
+  </svg>

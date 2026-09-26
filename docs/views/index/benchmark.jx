@@ -1,11 +1,13 @@
 {#def data = [
-  ("Actix Web", "Rust", 51656, False),
-  ("Beego", "Go", 35380, False),
-  ("Proper", "Python 3.14t", 35014, True),
-  ("Flask + SQLAlchemy", "Python 3.14t", 13871, False),
-  ("FastAPI + SQLAlchemy", "Python 3.14t", 11570, False),
-  ("Django", "Python 3.14t", 10252, False),
-  ("Rails", "Ruby 3.4", 6584, False),
+  ("Actix Web", "Rust", 48497, False),
+  ("Proper", "Python 3.14t", 35063, True),
+  ("Beego", "Go", 31138, False),
+  ("Flask + SQLAlchemy", "Python 3.14t", 13669, False),
+  ("Litestar + SQLAlchemy", "Python 3.14t", 12239, False),
+  ("FastAPI + SQLAlchemy", "Python 3.14t", 11767, False),
+  ("Sanic + SQLAlchemy", "Python 3.14t", 10300, False),
+  ("Django", "Python 3.14t", 10097, False),
+  ("Rails", "Ruby 3.4", 6454, False),
 ] #}
 {#
   A bar chart of requests per second on the "fortunes" page: 12 rows read
@@ -21,7 +23,7 @@
 {% set height = top + row_h * (data | length) %}
 <figure class="bench-chart">
   <svg viewBox="0 0 {{ label_w + bar_max + 84 }} {{ height }}" role="img"
-    aria-label="Requests per second on the fortunes page: Actix Web 51,656; Beego 35,380; Proper 35,014; Flask 13,871; FastAPI 11,570; Django 10,252; Rails 6,584"
+    aria-label="Requests per second on the fortunes page: Actix Web 48,497; Proper 35,063; Beego 31,138; Flask 13,669; Litestar 12,239; FastAPI 11,767; Sanic 10,300; Django 10,097; Rails 6,454"
     xmlns="http://www.w3.org/2000/svg">
     {% for name, runtime, value, ours in data %}
     {% set y = top + loop.index0 * row_h %}
