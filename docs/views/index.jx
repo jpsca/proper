@@ -1,6 +1,7 @@
 {#import "./layout.jx" as Layout #}
 {#import "./footer.jx" as Footer #}
 {#import "./index/hero.jx" as HeroSection #}
+{#import "./index/fast.jx" as FastSection #}
 {#import "./index/video.jx" as VideoSection #}
 {#import "./index/example.jx" as ExampleSection #}
 {#import "./index/batteries.jx" as BatteriesSection #}
@@ -11,7 +12,8 @@
 
 <Layout title="Proper web framework">
   <HeroSection />
-  <VideoSection />
+  {# <VideoSection /> #}
+  <FastSection />
   <ExampleSection />
   <BatteriesSection />
   <ScaffoldsSection />

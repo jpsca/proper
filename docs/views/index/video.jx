@@ -1,0 +1,7 @@
+<section class="section video">
+  <div class="section-inner">
+    <video controls>
+      <source src="/static/proper_brag.mp4" type="video/mp4">
+    </video>
+  </div>
+</section>

@@ -1,11 +1,9 @@
 <h1><img src="https://properproject.org/proper.svg" height="48" />
 Proper Web Framework</h1>
 
-Proper is a new Python web framework. Not another Flask clone, it's a Ruby-on-Rails clone :P.
+Proper is **the fastest** full-stack Python web framework.
 
-More seriously: it isn't a clone, but it is heavily influenced by Rails in the ways that matter: opinionated, generator-heavy, focused on REST and server-rendered HTML, built around a fixed project structure, and packed with batteries for auth, file uploads, etc.
-
-The one thing Proper does very differently: The runtime is ASGI (you need it for performance and WebSockets), but the code you write is _synchronous_. No `async`/`await` confetti scattered across code that doesn't need concurrency.
+It's also opinionated, generator-heavy, focused on REST and server-rendered HTML, built around a fixed project structure, and packed with batteries for auth, file uploads, etc.
 
 Full human-shaped docs at [properproject.org/docs](https://properproject.org/docs).
 

@@ -21,7 +21,7 @@
     ></span>
   </h1>
   <p class="dek">
-    A Python framework for writing web applications <em>properly</em>.
+    A Python web framework for writing web applications <em>properly</em>.
   </p>
   <div class="install">
     <div class="install-cmd highlight">
