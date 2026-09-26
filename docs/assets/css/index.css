@@ -505,3 +505,46 @@ a { color: inherit; }
 }
 
 }
+/* --- Benchmark ------------------------------------------------------------ */
+
+.bench-chart {
+  margin: 2rem 0 0;
+}
+.bench-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: inherit;
+}
+.bench-name {
+  fill: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.bench-runtime {
+  fill: var(--ink);
+  fill-opacity: 0.6;
+  font-size: 11px;
+}
+.bench-bar {
+  fill: var(--ink);
+  fill-opacity: 0.35;
+}
+.bench-row-proper .bench-bar {
+  fill: var(--terra);
+  fill-opacity: 1;
+}
+.bench-row-proper .bench-name {
+  fill: var(--terra);
+}
+.bench-value {
+  fill: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.bench-caption {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  opacity: 0.7;
+}

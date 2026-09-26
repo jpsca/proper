@@ -1,0 +1,44 @@
+{#def data = [
+  ("Actix Web", "Rust", 51656, False),
+  ("Beego", "Go", 35380, False),
+  ("Proper", "Python 3.14t", 35014, True),
+  ("Flask + SQLAlchemy", "Python 3.14t", 13871, False),
+  ("FastAPI + SQLAlchemy", "Python 3.14t", 11570, False),
+  ("Django", "Python 3.14t", 10252, False),
+  ("Rails", "Ruby 3.4", 6584, False),
+] #}
+{#
+  A bar chart of requests per second on the "fortunes" page: 12 rows read
+  from SQLite, one added, sorted, rendered with a template. Measured
+  2026-09-25 with https://github.com/jpsca/proper-bench; the numbers are the
+  ones in the deployment guide. Drop it in a section with `<BenchmarkChart />`.
+#}
+{% set label_w = 236 %}
+{% set bar_max = 380 %}
+{% set row_h = 34 %}
+{% set top = 8 %}
+{% set max_value = data[0][2] %}
+{% set height = top + row_h * (data | length) %}
+<figure class="bench-chart">
+  <svg viewBox="0 0 {{ label_w + bar_max + 84 }} {{ height }}" role="img"
+    aria-label="Requests per second on the fortunes page: Actix Web 51,656; Beego 35,380; Proper 35,014; Flask 13,871; FastAPI 11,570; Django 10,252; Rails 6,584"
+    xmlns="http://www.w3.org/2000/svg">
+    {% for name, runtime, value, ours in data %}
+    {% set y = top + loop.index0 * row_h %}
+    {% set w = (bar_max * value / max_value) | round | int %}
+    <g class="bench-row{% if ours %} bench-row-proper{% endif %}">
+      <text class="bench-name" x="{{ label_w - 12 }}" y="{{ y + 15 }}" text-anchor="end">{{ name }}</text>
+      <text class="bench-runtime" x="{{ label_w - 12 }}" y="{{ y + 27 }}" text-anchor="end">{{ runtime }}</text>
+      <rect class="bench-bar" x="{{ label_w }}" y="{{ y + 5 }}" width="{{ w }}" height="{{ row_h - 12 }}" rx="2" />
+      <text class="bench-value" x="{{ label_w + w + 8 }}" y="{{ y + 20 }}">{{ "{:,}".format(value) }}</text>
+    </g>
+    {% endfor %}
+  </svg>
+  <figcaption class="bench-caption">
+    Requests per second on the <em>fortunes</em> page, 64 connections, one
+    machine (Intel Core i5-14400), 2026-09-25. Every app serves the same
+    page over the same database; the code and the numbers for every
+    framework are in
+    <a href="https://github.com/jpsca/proper-bench" target="_blank" rel="noopener">proper-bench</a>.
+  </figcaption>
+</figure>
