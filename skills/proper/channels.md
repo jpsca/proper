@@ -1,7 +1,7 @@
 ---
 title: Channels
 description: Channels addon — WebSocket system with multiplexed channels, streams, and broadcasting
-last_verified: 2026-06-12
+last_verified: 2026-09-25
 ---
 
 # Channels
@@ -14,9 +14,9 @@ The system has three layers:
 |-------------|-------------------|---------------------------------------------------------------|
 | **Channel** | `proper.channels`  | Base class you subclass — the "controller" for WebSockets     |
 | **Cable**   | `proper.channels`    | Pub/sub broker — maps stream names to channels                |
-| **AppWs**   | `proper.core.app_ws` | ASGI handler — protocol parsing, multiplexing, lifecycle   |
+| **AppWs**   | `proper.core.app_ws` | RSGI WebSocket handler — protocol parsing, multiplexing, lifecycle |
 
-Channel code is regular sync Python. The framework handles the async boundary the same way it does for HTTP requests: channel methods run in threads via `asyncio.to_thread()`, with database connections managed automatically.
+Channel code is regular sync Python. The framework handles the async boundary: channel methods run in the app's worker threads, off the event loop, with database connections managed automatically.
 
 Outbound messages go the other way. Everything a connection sends — `send()`, broadcasts, subscription confirmations — passes through one queue per connection, drained by a single task. That is what keeps messages in the order they were sent, no matter which thread produced them.
 
@@ -245,7 +245,6 @@ Inside any channel method, the following are available:
 | `self.params`     | Dict of params the client sent when subscribing            |
 | `self.channel_name` | The class name (e.g. `"ChatChannel"`)                   |
 | `self.authenticated` | `True` when the connection has a logged-in user         |
-| `self.scope`      | The raw ASGI scope of the WebSocket connection             |
 | `self.request`    | The connection request, for reading headers and signed cookies |
 
 
@@ -434,6 +433,7 @@ Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_act
 | Setting      | Default    | Description                        |
 |--------------|------------|------------------------------------|
 | `CABLE_PATH` | `"/cable"` | WebSocket endpoint path            |
+| `CABLE_PORT` | `0`        | Port of the WebSocket process `proper run` starts next to the web server; `0` starts none. The channels addon sets it to `PORT + 1` |
 
 Set in your app config:
 
@@ -442,11 +442,18 @@ CABLE_PATH = "/ws"
 ```
 
 
+## The Cable Process
+
+The web server speaks WSGI, which has no WebSockets, so `proper run` serves them from a second process, over RSGI, on `CABLE_PORT`. In production, the reverse proxy routes `CABLE_PATH` to that port (the blueprint's nginx config has the block). In development there is no proxy: the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()` when `DEBUG` is on, and `cable.js` connects to it directly.
+
+A `broadcast()` made in the web process, from a controller or a task, has no WebSockets to reach there. The default `Cable` forwards it to the cable process as a `POST` to `CABLE_PATH`, signed with the app's secret keys, and the cable process delivers it to its subscribers. Nothing to configure, no Redis. If the cable process is down, the message is lost with a warning; the page still renders.
+
+With `INTERFACE = "rsgi"` there is one process for everything and the cable is purely in-process.
+
+
 ## Scaling with Redis
 
-The default `Cable` backend is an in-process pub/sub broker. Broadcasts from one process do not reach clients connected to a different process. For single-process deployments (one Uvicorn worker) this is fine.
-
-For multi-process deployments, use `RedisCable` — a Redis-backed backend that relays broadcasts across workers via Redis pub/sub.
+The forwarding above covers one web process and one cable process on one machine. To run the cable on several machines, or several cable processes, use `RedisCable` — a Redis-backed backend that relays broadcasts across processes via Redis pub/sub.
 
 
 ### How It Works
@@ -501,7 +508,7 @@ An `ImportError` is raised at startup if `redis` is not installed and `CABLE` is
 
 ### Lifecycle
 
-`RedisCable` hooks into the ASGI lifespan automatically:
+`RedisCable` hooks into the RSGI server's startup and shutdown automatically:
 
 - **Startup** — starts a background listener task that subscribes to Redis and delivers messages to local channels.
 - **Shutdown** — cancels the listener and closes all Redis connections.
