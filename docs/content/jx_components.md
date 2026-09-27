@@ -1269,6 +1269,20 @@ This works because Proper renders the template with `**vars(self)` - everything 
 
 ---
 
+## Checking Your Components
+
+`proper jx check` validates every component in your `views/` folder without rendering anything: imports that resolve, tags that name an imported component, props that exist. It exits with a non-zero status when something is wrong, so it can run in CI.
+
+```bash
+❯ proper jx check
+✓ layouts/app.jx - OK
+✗ posts/show.jx:12: unknown component <Cardd>, did you mean <Card>?
+
+2 components checked, 1 error
+```
+
+There are three more commands. `proper jx info` reports the folders and components the catalog found. `proper jx parse FILE` prints the imports and component tags of one file, with their positions, as JSON. `proper jx collect_assets OUTPUT` copies the assets of any component packages registered with a prefix into one folder. Add `--format json` to `check` or `info` for machine-readable output.
+
 ## What's Not Covered Here
 
 This guide focuses on the day-to-day surface: writing components, using them, and the way Proper hooks into Jx. A few topics are deliberately left out.

@@ -7,6 +7,7 @@ from functools import wraps
 from proper_cli import Cli
 
 from .db_cli import get_db_cli
+from .jx_cli import get_jx_cli
 
 
 if t.TYPE_CHECKING:
@@ -29,6 +30,7 @@ def get_cli(app: "App") -> type[Cli]:
         "db": get_db_cli(app),
         "g": get_generators_cli(app),
         "install": get_install_cli(app),
+        "jx": get_jx_cli(app),
     }
 
     return t.cast(type[Cli], type("appCL", (Cli,), attrs))
@@ -222,8 +224,11 @@ def get_run_cli(app: "App") -> t.Callable:
             cable = {**web, "interface": "rsgi", "port": cable_port, "workers": 1}
         group: dict[str, t.Any] = {"web": web, "cable": cable, "processes": max(1, int(config.PROCESSES or 1))}
 
-        show_banner()
-        show_welcome(config["HOST"])
+        if config.DEBUG:
+            show_banner()
+            show_welcome(config["HOST"])
+        # Fail here, before any request, if a controller can never dispatch.
+        app.lower()
         if reload:
             _serve_restarting_on_changes(str(app.root_path), _serve_group, group)
         else:

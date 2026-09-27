@@ -507,6 +507,11 @@ proper install auth                 # Install authentication system
 proper install i18n                 # Install internationalization
 proper install storage              # Install file storage
 proper install channels             # Install channels addon
+
+proper jx check                     # Validate every Jx component (exit 1 on errors)
+proper jx info                      # Folders and components of the catalog
+proper jx parse FILE                # Imports and tags of one component, as JSON
+proper jx collect_assets OUTPUT     # Copy component package assets to OUTPUT
 ```
 
 All commands accept a `--help` parameter that shows more details.
