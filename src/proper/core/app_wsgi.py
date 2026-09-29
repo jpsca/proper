@@ -4,6 +4,7 @@ The server calls `app(environ, start_response)` on one of its own threads, so
 the pipeline runs right there: no event loop, no hand-off to a worker. This is
 the fast path for HTTP; WebSockets need RSGI (see `app_ws.py`).
 """
+import contextvars
 import typing as t
 from http import HTTPStatus
 
@@ -85,7 +86,18 @@ class AppWsgi:
     def _respond_sync(
         self: "App", request: "Request", read: "Callable[[int], bytes]"
     ) -> "Response":
-        """`_respond`, on the calling thread."""
+        """`_respond`, on the calling thread, in a context of its own.
+
+        The server runs many requests on each of its threads. Without a
+        context per request, what one sets in `current` (the user, the
+        session, the locale) would still be there for the next request on
+        the same thread.
+        """
+        return contextvars.copy_context().run(self._respond_sync_in_context, request, read)
+
+    def _respond_sync_in_context(
+        self: "App", request: "Request", read: "Callable[[int], bytes]"
+    ) -> "Response":
         current.app = self
         current.request = request
         current.response = response = self.response_cls(self)

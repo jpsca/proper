@@ -192,3 +192,23 @@ def _reset_current():
     yield
     current.request = None
     current.response = None
+
+
+class Whoami(Controller):
+    def index(self):
+        if self.request.headers.get("x-user"):
+            current.user = self.request.headers["x-user"]
+        return self.render(text=str(current.user))
+
+
+class TestContextPerRequest:
+    """The server runs many requests on each thread: what one request sets in
+    `current` must not be there for the next one on the same thread."""
+
+    def test_current_does_not_leak_between_requests(self, app):
+        _route(app, "whoami", Whoami.index)
+        _, _, body = call(app, make_environ("/whoami", headers=[("x-user", "alice")]))
+        assert b"".join(body) == b"alice"
+        _, _, body = call(app, make_environ("/whoami"))
+        assert b"".join(body) == b"None"
+        assert current.user is None
