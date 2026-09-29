@@ -1,0 +1,15 @@
+{# import "toc_item.jx" as TocItem #}
+{# import "toc_pages.jx" as TocPages #}
+{#def items #}
+
+{% for item in items -%}
+{%- if item.pages -%}
+<details class="toc__section"
+{%- if (item.id == page.id) or (item.id in page.parents) or (not item.closed) %} open{% endif %}>
+  <summary><TocItem item={{ item }} /></summary>
+  <div><TocPages items={{ item.pages }} /></div>
+</details>
+{%- else %}
+  <TocItem item={{ item }} />
+{%- endif %}
+{% endfor %}

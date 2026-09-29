@@ -1,0 +1,9 @@
+{#def item #}
+
+{%- if item.icon -%}
+  {% if item.icon.endswith('.svg') -%}
+    {{ _insert_asset(item.icon) }}
+  {%- else -%}
+    <img src="/assets/{{ item.icon }}" />
+  {%- endif -%}
+{%- endif -%}

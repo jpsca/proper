@@ -1,13 +1,5 @@
 {#css /assets/css/page_toc.css #}
 
-{% macro render_toc(items) %}
-	<ul>
-	{% for level, id, text in items -%}
-	<li class="level--{{ level }}"><a href="#{{ id }}">{{ text|safe }}</a></li>
-	{% endfor %}
-	</ul>
-{% endmacro %}
-
 {% if (page.toc | length) > 1 -%}
 <nav class="page_toc" id="pagetoc-popover" popover="auto">
   <h4><a href="#">
@@ -17,7 +9,11 @@
 		{{ _('ON_THIS_PAGE') }}
 	</a></h4>
 	<div class="page_toc-content" data-preserve-scroll>
-		{{ render_toc(page.toc) }}
+		<ul>
+		{% for level, id, text in page.toc -%}
+		<li class="level--{{ level }}"><a href="#{{ id }}">{{ text|safe }}</a></li>
+		{% endfor %}
+		</ul>
 	</div>
 </nav>
 {%- endif %}
