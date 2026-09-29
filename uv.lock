@@ -581,26 +581,17 @@ wheels = [
 
 [[package]]
 name = "minijx"
-version = "0.1.0rc1"
-source = { editable = "../minijx" }
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markupsafe" },
 ]
-
-[package.metadata]
-requires-dist = [{ name = "markupsafe", specifier = ">=3.0,<4" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ruff" },
-    { name = "ty" },
-]
-test = [
-    { name = "hatchling", specifier = ">=1.26" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "jx", specifier = ">=0.16" },
-    { name = "pytest" },
-    { name = "tox-uv" },
+sdist = { url = "https://files.pythonhosted.org/packages/5c/31/9202fc8e1012c73433d0982c23ada0d24f3a3729dac2fbf368593b4f5bc2/minijx-0.1.0.tar.gz", hash = "sha256:a9e886c72cf52dae567b21bc985c7ad44b8de03856a165ac477f7d2a90561af8", size = 115889, upload-time = "2026-09-29T04:43:53.87Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/20/3ea9d626166d339cacb80149ab84f90bab54677ed6d051a6045cfa70dd4c/minijx-0.1.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:a36bb7d6545a903845619b9cf29e0b2e4d397eab691fdc50122eac3e81802d1c", size = 255563, upload-time = "2026-09-29T04:43:49.586Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/96/6e11238f574fcd84ca1414bb49b0f30c51b7a7e81d417de6d19b6369ec08/minijx-0.1.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:6037d5b5a61bf4ac8d2749cafd6196cf46b3fb67480d41579e2e0005bbc1d181", size = 243656, upload-time = "2026-09-29T04:43:50.908Z" },
+    { url = "https://files.pythonhosted.org/packages/30/47/dbe3f8dd5b5b984ed20c612e687e5ef34fe950fa4aacb1a0274aa3d17088/minijx-0.1.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:669d4621350502ecb98efa7237e80ccf0f656bb4c01aee58a40ca7f88891ffd7", size = 176381, upload-time = "2026-09-29T04:43:51.801Z" },
+    { url = "https://files.pythonhosted.org/packages/22/20/a1306b710b65b2f30e2b1a80cb222567a197d82f5d1d5548230154932562/minijx-0.1.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.musllinux_1_1_x86_64.whl", hash = "sha256:b82b60f9510725f821b76f4eeeee9ae05c65955481d2e39502552f0b876d6431", size = 181506, upload-time = "2026-09-29T04:43:52.923Z" },
 ]
 
 [[package]]
@@ -812,7 +803,7 @@ requires-dist = [
     { name = "itsdangerous", specifier = ">=2.2" },
     { name = "jinja2", specifier = ">=3.0" },
     { name = "markupsafe", specifier = ">=2.0" },
-    { name = "minijx", editable = "../minijx" },
+    { name = "minijx", specifier = ">=0.1.0" },
     { name = "passlib", specifier = "~=1.7" },
     { name = "peewee", specifier = ">=4.5.1,<5" },
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
