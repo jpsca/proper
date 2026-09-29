@@ -31,7 +31,7 @@ dependencies = [
     "itsdangerous>=2.2",
     "jinja2>=3.0",
     "markupsafe >= 2.0",
-    "minijx",
+    "minijx>=0.1.0",
     "passlib ~= 1.7",
     "peewee>=4.5.1,<5",
     "peewee-migrate>=2.3,<3",
@@ -232,6 +232,3 @@ no-lines-before = ["local-folder"]
 relative-imports-order = "furthest-to-closest"
 # Use two line after imports.
 lines-after-imports = 2
-
-[tool.uv.sources]
-minijx = { path = "../minijx", editable = true }
