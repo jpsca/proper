@@ -65,15 +65,17 @@ Components are imported and invoked with an HTML-like tag syntax:
 
 The Jx catalog exposes several globals in every template:
 
-| Global              | Provided by | Description                                      |
-|---------------------|-------------|--------------------------------------------------|
-| `current`           | Proper      | Request-scoped context: `current.app`, `current.request`, `current.response`, `current.user`, `current.auth_session`, `current.locale`, `current.timezone`, `current.csrf_token` (the last when token-based CSRF is enabled). The four `user`/`auth_session`/`locale`/`timezone` always work and return `None` when not set. |
-| `url_for()`         | Proper      | Generate URLs for named routes                   |
-| `url_is()`          | Proper      | Check if the current URL matches a route         |
-| `url_startswith()`  | Proper      | Check if the current URL starts with a prefix    |
-| `render_importmap()`| Proper      | Renders the `<script type="importmap">` tag      |
-| `assets`            | Jx          | Asset collector with `render`, `render_css`, `render_js`, `collect_css`, `collect_js` (see section 4) |
-| `_get_random_id`    | Jx          | Generate a unique HTML id (used internally; rarely called directly) |
+| Global | Description |
+|------- |-------------|
+| `current`           | Request-scoped context: `current.app`, `current.request`, `current.response`, `current.user`, `current.auth_session`, `current.locale`, `current.timezone`, `current.csrf_token` (the last when token-based CSRF is enabled). The four `user`/`auth_session`/`locale`/`timezone` always work and return `None` when not set. |
+| `url_for()`         | Generate URLs for named routes                   |
+| `url_is()`          | Check if the current URL matches a route         |
+| `url_startswith()`  | Check if the current URL starts with a prefix    |
+| `dom_id`            | Generate a stable id for an object, suitable for use in HTML element ids. |
+| `stream`/`turbo_stream` | Generates a `<turbo-stream>` tag, See [Turbo](/docs/turbo/) |
+| `frame`/`turbo_frame`   | Generates a `<turbo-frame>` tag, See [Turbo](/docs/turbo/) |
+| `render_importmap()`| Renders the `<script type="importmap">` tag      |
+| `assets`            | Asset collector with `render`, `render_css`, `render_js`, `collect_css`, `collect_js` (see section 4) |
 
 `app` itself is **not** a template global — use `current.app` if you need it. Flash messages live on the request: `current.request.flashes` returns a list of `(type, message)` tuples.
 

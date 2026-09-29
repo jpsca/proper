@@ -13,16 +13,15 @@ In this guide you will learn how to use Turbo from the server side of a Proper a
 
 Turbo bundles several techniques for creating fast and modern web applications. With Turbo, you let the server deliver HTML directly - the contents of a frame, and individual stream fragments - so you rarely write JavaScript.
 
-Turbo comes in four pieces:
+Turbo comes in pieces:
 
 Piece       | What it does                                                           | What Proper gives you
 ----------- | ---------------------------------------------------------------------- | ---------------------
 **Drive**   | Turns every link and form into a fast partial navigation, no reload    | On by default - nothing to write
-**Frames**  | Wraps part of a page so Turbo can navigate and replace it on its own   | `frame`, `request.turbo_frame`
-**Streams** | Applies targeted changes to the page from a form response or broadcast | the `turbo_stream` builder, `*.turbo_stream.jx` views, `render(stream=...)`
-**Native**  | Wraps your HTML in iOS and Android shells                              | nothing special - your normal responses serve native too
+**Frames**  | Wraps part of a page so Turbo can navigate and replace it on its own   | `frame` tag, `request.turbo_frame`
+**Streams** | Applies targeted changes to the page from a form response or broadcast | `stream` tag, the `turbo_stream` builder, `*.turbo_stream.jx` views
 
-Drive needs no server code, Frames need a little, and Streams are where the backend does the real work. Turbo Native is out of scope here - it consumes the same HTML responses you already return.
+Drive needs no server code, Frames need a little, and Streams are where the backend does the real work.
 
 ---
 
@@ -336,26 +335,6 @@ Clients subscribe with a `<turbo-stream-channel>` element, and each fragment is 
 :::note
 Broadcasts are explicit - call `app.cable.broadcast` wherever a change happens.
 :::
-
----
-
-## Quick reference
-
-These are available in every view, with no import:
-
-Global        | Use
-------------- | ---------------------------------------------------------
-`stream `     | build `<turbo-stream>` fragments
-`frame`       | render a `<turbo-frame>`
-`dom_id`      | stable element id for a model, `dom_id(post)` → `post_42`
-
-And on the request and response:
-
-Name                   | Type         | Meaning
----------------------- | ------------ | ----------------------------------------------------
-`request.turbo_stream` | `bool`       | the client accepts `text/vnd.turbo-stream.html`
-`request.turbo_frame`  | `str / None` | the `Turbo-Frame` header - the id of the frame being updated
-`self.render(stream=)` | -            | set the Turbo Stream content type and return one or a list of fragments
 
 ---
 
