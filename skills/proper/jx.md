@@ -8,7 +8,7 @@ last_verified: 2026-09-28
 
 Jx is a component-based template system with Jinja's syntax. Components are `.jx` files with explicit imports, prop declarations, and an HTML-like call syntax. Proper compiles each component to a Python function with [minijx](https://github.com/jpsca/minijx), at startup.
 
-**Syntax available:** `{{ }}`, `if`/`elif`/`else`, `for` (with `loop`, `else`, `recursive`), `set name = value`, `do`, `raw`, `filter`, `macro`, Jinja's builtin filters (except `xmlattr`, `pprint`, `urlize`) and tests, custom filters and tests, and block tags: Proper's `{% cache %}`, `{% turbo_frame %}`, `{% turbo_stream %}`.
+**Syntax available:** `{{ }}`, `if`/`elif`/`else`, `for` (with `loop`, `else`, `recursive`), `set name = value`, `do`, `raw`, `filter`, `macro`, Jinja's builtin filters (except `xmlattr`, `pprint`, `urlize`) and tests, custom filters and tests, and block tags: Proper's `{% cache %}`, `{% frame %}`, `{% stream %}`.
 **Not available:** `include`, `extends`, `block` (use components and layouts), `with`, `call`, block `set`, `namespace()`, imports with a `@prefix/`, Jinja extensions.
 
 **Escaping:** `{{ }}` escapes in `.jx`, `.html.jx` and `.xml.jx` files, unless the value is markup (a component's output, `attrs.render()`, form fields, `| safe`). Other files (`.txt.jx`, `.json.jx`) render values as they are.

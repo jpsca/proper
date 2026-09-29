@@ -1,7 +1,7 @@
 import mimetypes
 
 from ..constants import TURBO_STREAM_MIME
-from .frame import turbo_frame_tag
+from .frame import turbo_frame
 from .stream import turbo_stream
 
 
@@ -13,6 +13,6 @@ mimetypes.add_type(TURBO_STREAM_MIME, ".turbo_stream")
 
 __all__ = (
     "TURBO_STREAM_MIME",
-    "turbo_frame_tag",
+    "turbo_frame",
     "turbo_stream",
 )
