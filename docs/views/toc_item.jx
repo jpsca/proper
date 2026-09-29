@@ -1,0 +1,7 @@
+{# import "toc_icon.jx" as TocIcon #}
+{#def item #}
+
+<a class="toc__page {% if item.id == page.id %}toc__page--selected{% endif %}"
+  {%- if item.url %} href="{{ item.url }}"{% endif %} aria-label="{{ item.title }}">
+  <TocIcon item={{ item }} /> {{ item.title }}
+</a>
