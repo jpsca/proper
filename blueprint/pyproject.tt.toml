@@ -49,6 +49,7 @@ packages = ["[[ app_name ]]"]
 [tool.ty.src]
 exclude = [
     "**/__pycache__",
+    "_compiled",
     "tests/**",
 ]
 
@@ -60,6 +61,7 @@ target-version = "py314"
 exclude = [
   ".*",
   "_build",
+  "_compiled",
   "build",
   "dist",
 ]
