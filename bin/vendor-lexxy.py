@@ -27,7 +27,7 @@ import urllib.request
 from pathlib import Path
 
 
-VERSION = "0.9.32"
+VERSION = "1.0.0"
 
 JS_URL = f"https://esm.sh/@37signals/lexxy@{VERSION}/es2022/lexxy.bundle.mjs"
 HELPERS_URL = f"https://esm.sh/@37signals/lexxy@{VERSION}/es2022/helpers.mjs"
