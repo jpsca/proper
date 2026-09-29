@@ -25,6 +25,8 @@ def setup(app):
         "truncate": truncate,
         "frame": turbo_frame,
         "stream": turbo_stream,
+        "turbo_frame": turbo_frame,
+        "turbo_stream": turbo_stream,
     }
 
     # The views are compiled to Python modules in `COMPILED_PATH`, one folder

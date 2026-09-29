@@ -448,3 +448,20 @@ the app's configuration. It looks for an `IMPORT_MAP` configuration variable, wh
 should be a dictionary mapping module specifiers to asset paths or URLs.
 
 See the [render_importmap API Documentation](/docs/api/view_helpers#render_importmap) for more information.
+
+---
+
+
+## Turbo
+
+### frame / turbo_frame
+
+Generates an HTML fragment with a `<turbo-frame>` tag.
+
+See the [Turbo Documentation](/docs/turbo) for more information.
+
+### stream / turbo_stream   
+
+Generates an HTML fragment with a `<turbo-stream>` tag.
+
+See the [Turbo Documentation](/docs/turbo) for more information.

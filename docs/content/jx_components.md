@@ -1131,15 +1131,18 @@ Every template (page, layout, component) has access to a small set of globals wi
 
 ### The Globals
 
-| Global              | Provided by | What it does                                                  |
-| ------------------- | ----------- | ------------------------------------------------------------- |
-| `url_for`           | Proper      | Generate URLs from named routes.                              |
-| `url_is`            | Proper      | True if the current request matches a named route exactly.    |
-| `url_startswith`    | Proper      | True if the current request matches a named route or a sub-path of it. |
-| `current`           | Proper      | The per-request global context (covered below).               |
-| `render_importmap`  | Proper      | Emit the `<script type="importmap">` for the `IMPORT_MAP` config. |
-| `assets`            | Jx          | The asset collector (`render`, `render_css`, `render_js`, `collect_css`, `collect_js`). |
-| `_get_random_id`    | Jx          | Generate a unique HTML id (used internally by some helpers). |
+Global                  | What it does
+----------------------- | -------------------------------------------------------------
+`url_for`               | Generate URLs from named routes.
+`url_is`                | True if the current request matches a named route exactly.
+`url_startswith`        | True if the current request matches a named route or a sub-path of it.
+`dom_id`                | Generate a stable id for an object, suitable for use in HTML element ids.
+`current`               | The per-request global context (covered below).
+`render_importmap`      | Emit the `<script type="importmap">` for the `IMPORT_MAP` config.
+`stream`/`turbo_stream` | Generates a `<turbo-stream>` tag, See [Turbo](/docs/turbo/)
+`frame`/`turbo_frame`   | Generates a `<turbo-frame>` tag, See [Turbo](/docs/turbo/)
+`render_importmap`      | Emit the `<script type="importmap">` for the `IMPORT_MAP` config.
+`assets`                | The asset collector (`render`, `render_css`, `render_js`, `collect_css`, `collect_js`).
 
 That's the full set in a base Proper application. Addons (i18n, auth) and your own code can add more.
 
@@ -1157,16 +1160,16 @@ That's the full set in a base Proper application. Addons (i18n, auth) and your o
 
 The standard attributes:
 
-| `current.<attr>`     | What it is                                                              |
-| -------------------- | ----------------------------------------------------------------------- |
-| `current.app`        | The Proper application instance.                                        |
-| `current.request`    | The current `Request` object.                                           |
-| `current.response`   | The current `Response` object.                                          |
-| `current.user`       | The signed-in user, or `None`. Set by the auth concern.                 |
-| `current.auth_session` | The current auth session, or `None`. Set by the auth concern.         |
-| `current.locale`     | The current locale string, or `None`. Set by the i18n addon.            |
-| `current.timezone`   | The current timezone, or `None`. Set by the i18n addon.                 |
-| `current.csrf_token` | The current CSRF token. Set by the `RequestForgeryProtection` concern.  |
+`current.<attr>`       | What it is
+---------------------- | -------------------------------------------------------------
+`current.app`          | The Proper application instance.
+`current.request`      | The current `Request` object.
+`current.response`     | The current `Response` object.
+`current.user`         | The signed-in user, or `None`. Set by the auth concern.
+`current.auth_session` | The current auth session, or `None`. Set by the auth concern.
+`current.locale`       | The current locale string, or `None`. Set by the i18n addon.
+`current.timezone`     | The current timezone, or `None`. Set by the i18n addon.
+`current.csrf_token`   | The current CSRF token. Set by the `RequestForgeryProtection` concern.
 
 `current.user`, `current.auth_session`, `current.locale`, and `current.timezone` always work - they return `None` when not set, rather than raising. The others raise `AttributeError` if accessed in a context where they weren't initialized; in a normal request that doesn't happen.
 
