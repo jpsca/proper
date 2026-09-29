@@ -16,7 +16,6 @@ requires-python = ">=3.14,<4"
 dependencies = [
 	"huey",
 	"itsdangerous",
-	"jx",
 	"peewee-migrate",
 	"peewee",
 	"proper-cli",
