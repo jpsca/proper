@@ -1,15 +1,8 @@
-"""`proper jx`: the Jx component tools, pointed at the app's catalog.
-
-The standalone `jx` command took the catalog as a `module:attribute` path.
-Here the app already built it, so the commands take no such argument.
-"""
-import sys
+"""`proper jx`: the tools for the app's views, compiled by minijx."""
+import json
 import typing as t
 
 from proper_cli import Cli
-
-from ..jx.cli import run_parse
-from ..jx.tools import check, info
 
 
 if t.TYPE_CHECKING:
@@ -18,67 +11,38 @@ if t.TYPE_CHECKING:
 
 def get_jx_cli(app: "App") -> type[Cli]:
     class JxCLI(Cli):
-        """Check and inspect the app's Jx components."""
-
-        def check(self, format: str = "text"):
-            """Validate every component in the app's views: imports that
-            resolve, tags that name an imported component, props that exist.
-            Exits with 1 if any component has errors.
-
-            Arguments:
-
-            - format:
-                "text" (default) or "json".
-
-            """
-            code = check(app.catalog, format=format)
-            if code:
-                sys.exit(code)
+        """Inspect the app's views."""
 
         def info(self, format: str = "text"):
-            """Report the catalog's folders, prefixes, file extension
-            and the components it found.
+            """Report the catalog's folders, where the views are compiled,
+            the extensions with autoescape, the custom tags and the views.
 
             Arguments:
-
             - format:
                 "text" (default) or "json".
-
             """
-            info(app.catalog, format=format)
-
-        def parse(self, file: str, stdin: bool = False, format: str = "json"):
-            """Report one component's imports and component tags, with
-            their positions. Exits with 1 if the file has syntax errors.
-
-            Arguments:
-
-            - file:
-                Path to the component file.
-            - stdin:
-                Read the source from stdin, using `file` only as its name
-                (for an editor buffer that has not been saved).
-            - format:
-                "json" (default) or "text".
-
-            """
-            code = run_parse(file, use_stdin=stdin, format=format)
-            if code:
-                sys.exit(code)
-
-        def collect_assets(self, output: str):
-            """Copy the assets of the catalog's package folders (the ones
-            registered with a prefix) into one output folder.
-
-            Arguments:
-
-            - output:
-                Destination folder.
-
-            """
-            collected = app.catalog.collect_assets(output)
-            for prefix, rel in collected:
-                print(f"  {prefix}/{rel}" if prefix else f"  {rel}")
-            print(f"\n{len(collected)} file{'s' if len(collected) != 1 else ''} collected")
+            catalog = app.catalog
+            views = sorted(
+                p.relative_to(folder).as_posix()
+                for folder in catalog.folders
+                for p in folder.rglob("*.jx")
+            )
+            data = {
+                "folders": [str(f) for f in catalog.folders],
+                "output": str(catalog.output),
+                "autoescape": list(catalog.autoescape),
+                "tags": list(catalog.tags),
+                "views": views,
+            }
+            if format == "json":
+                print(json.dumps(data, indent=2))
+                return
+            print(f"Folders:    {', '.join(data['folders'])}")
+            print(f"Compiled:   {data['output']}")
+            print(f"Autoescape: {', '.join(data['autoescape']) or '-'}")
+            print(f"Tags:       {', '.join(data['tags']) or '-'}")
+            print(f"Views:      {len(views)}")
+            for name in views:
+                print(f"  {name}")
 
     return JxCLI

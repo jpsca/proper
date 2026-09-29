@@ -20,7 +20,7 @@ def setup(app):
         default_timezone=app.config.TIMEZONE_DEFAULT,
     )
 
-    app.catalog.jinja_env.globals.update({
+    app.catalog.globals.update({
         "_": i18n,
         "format_date": i18n.format_date,
         "format_interval": i18n.format_interval,
@@ -36,7 +36,7 @@ def setup(app):
         "format_size": i18n.format_size,
         "format_list": i18n.format_list,
     })
-    app.catalog.jinja_env.filters.update({
+    app.catalog.add_filters({
         "format_date": i18n.format_date,
         "format_interval": i18n.format_interval,
         "format_skeleton": i18n.format_skeleton,

@@ -14,11 +14,12 @@ from importlib import import_module
 from pathlib import Path
 
 import itsdangerous
-import jx
+import minijx
 
 from . import pipeline, status, tools
 from .channels import Cable
 from .cli.app_cli import get_cli
+from .compile import install
 from .core.app_ws import AppWs
 from .core.app_wsgi import AppWsgi
 from .core.config import load_config
@@ -144,7 +145,7 @@ class App(AppWs, AppWsgi):
     CLI: "type[Cli]"
     signers: tuple[itsdangerous.TimestampSigner, ...]
     serializers: tuple[itsdangerous.URLSafeTimedSerializer, ...]
-    catalog: jx.Catalog
+    catalog: minijx.Catalog
 
     pipeline: tuple[types.FunctionType, ...] = (
         pipeline.head_to_get,
@@ -210,9 +211,9 @@ class App(AppWs, AppWsgi):
         for tool_module in self.tools:
             tool_module.setup(self)
 
-        # This will pre-load all templates in the views folder
-        # so any Jinja extension need to be setup before this line.
-        self.catalog.add_folder(self.views_path)
+        # An app without views (an API) has no folder for them.
+        if self.views_path.is_dir():
+            self.catalog.add_folder(self.views_path)
 
         current.app = self
 
@@ -256,9 +257,19 @@ class App(AppWs, AppWsgi):
         """Get ready to serve: the worker pool, the cable, the debug checks.
         Called once per server worker, all sharing this app."""
         logger.info("Application is starting up...")
+        self.lower()
         self._setup_executor()
         self._start_loop_debug()
         await self.cable.start()
+
+    def lower(self) -> None:
+        """Take now every decision about dispatching that does not depend on
+        the request, and compile every view (see `proper.compile`). Raises
+        `LoweringError` for a callback that names a method its controller
+        does not have, and, outside of debug mode, `minijx.CompileError`
+        listing every view that does not compile; in debug mode those errors
+        are logged, and each shows when its view is rendered."""
+        install(self, strict=not self.config.DEBUG)
 
     async def shutdown(self) -> None:
         """Undo `startup`."""
@@ -490,11 +501,10 @@ class App(AppWs, AppWsgi):
 
     def _start_loop_debug(self) -> None:
         """In DEBUG, watch the event loop for work that should be running in
-        a worker thread. Under `RUN_SYNC` the pipeline runs on the loop on
-        purpose, so there is nothing to complain about.
+        a worker thread.
         """
         threshold = self.config.LOOP_STALL_WARNING
-        if not threshold or not self.config.DEBUG or self.config.get("RUN_SYNC"):
+        if not threshold or not self.config.DEBUG:
             return
         enable_asyncio_debug(threshold)
         self._loop_watchdog = LoopWatchdog(threshold)
@@ -631,16 +641,9 @@ class App(AppWs, AppWsgi):
             )
             # This error will be handled in the _run_pipeline method
 
-        # By default the (synchronous) pipeline runs in a worker thread so it
-        # doesn't block the event loop. `RUN_SYNC` runs it inline instead, on
-        # the same thread/connection as the caller - which lets tests wrap a
-        # request and its setup in a single DB transaction.
-        if self.config.get("RUN_SYNC"):
-            response = self._run_pipeline(request, response)
-        else:
-            response = await self._run_in_worker(
-                self._run_pipeline, request, response
-            )
+        # The (synchronous) pipeline runs in a worker thread so it doesn't
+        # block the event loop.
+        response = await self._run_in_worker(self._run_pipeline, request, response)
         current.response = response
         return response
 

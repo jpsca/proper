@@ -109,13 +109,6 @@ def make_test_request(
     )
 
 
-def _body_reader(body: bytes):
-    async def read() -> bytes:
-        return body
-
-    return read
-
-
 def make_test_scope(
     url: str = "/",
     *,
@@ -225,7 +218,6 @@ class TestClient:
         app: "App",
         *,
         headers: dict[str, str] | None = None,
-        sync: bool = True,
     ) -> None:
         self.app = app
 
@@ -233,10 +225,6 @@ class TestClient:
         headers.setdefault("forwarded", f"for={self.remote_ip};")
         headers.setdefault("user-agent", self.user_agent)
         self.default_headers = headers
-
-        # Runs requests inline, so a request shares this thread's connection:
-        # one transaction spans the test and the requests it makes.
-        self.app.config.RUN_SYNC = sync
 
     def get(
         self,
@@ -392,7 +380,10 @@ class TestClient:
             app=self.app,
             request_cls=self.app.request_cls,
         )
-        response = asyncio.run(self.app._respond(request, _body_reader(body_bytes)))
+        # The WSGI entry: the request runs on this thread, so it shares the
+        # test's database connection and one transaction can span the test
+        # and the requests it makes.
+        response = self.app._respond_sync(request, BytesIO(body_bytes).read)
 
         resp_status, raw_headers, raw_body = response.prepare(request)
         resp_headers = CIMultiDict(raw_headers)

@@ -23,12 +23,12 @@ def _get_data(html: str) -> dict:
 
 def test_render_importmap_registered_as_global():
     app = _make_app()
-    assert "render_importmap" in app.catalog.jinja_env.globals
+    assert "render_importmap" in app.catalog.globals
 
 
 def test_render_importmap_defaults():
     app = _make_app()
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
+    render_importmap = app.catalog.globals["render_importmap"]
     html = str(render_importmap())
     assert html.startswith('<script type="importmap"')
     assert html.endswith("</script>")
@@ -39,7 +39,7 @@ def test_render_importmap_defaults():
 
 def test_render_importmap_resolves_asset_paths():
     app = _make_app()
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
+    render_importmap = app.catalog.globals["render_importmap"]
     html = str(render_importmap())
     data = _get_data(html)
     assert data["imports"]["@hotwired/stimulus"].startswith("/assets/")
@@ -50,7 +50,7 @@ def test_render_importmap_absolute_url_passthrough():
     app = _make_app(IMPORT_MAP={
         "alpinejs": "https://cdn.example.com/alpine.js",
     })
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
+    render_importmap = app.catalog.globals["render_importmap"]
     html = str(render_importmap())
     data = _get_data(html)
     assert data["imports"]["alpinejs"] == "https://cdn.example.com/alpine.js"
@@ -60,7 +60,7 @@ def test_render_importmap_absolute_path_passthrough():
     app = _make_app(IMPORT_MAP={
         "mylib": "/static/mylib.js",
     })
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
+    render_importmap = app.catalog.globals["render_importmap"]
     html = str(render_importmap())
     data = _get_data(html)
     assert data["imports"]["mylib"] == "/static/mylib.js"
@@ -69,7 +69,7 @@ def test_render_importmap_absolute_path_passthrough():
 def test_render_importmap_empty_config_keeps_defaults():
     """DotDict deep-merges, so IMPORT_MAP={} doesn't clear defaults."""
     app = _make_app(IMPORT_MAP={})
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
+    render_importmap = app.catalog.globals["render_importmap"]
     html = str(render_importmap())
     data = _get_data(html)
     assert "@hotwired/stimulus" in data["imports"]
@@ -81,7 +81,7 @@ def test_render_importmap_custom_entries_override_defaults():
         "@hotwired/stimulus": "https://cdn.example.com/stimulus.js",
         "mylib": "js/mylib.js",
     })
-    render_importmap = app.catalog.jinja_env.globals["render_importmap"]
+    render_importmap = app.catalog.globals["render_importmap"]
     html = str(render_importmap())
     data = _get_data(html)
     assert data["imports"]["@hotwired/stimulus"] == "https://cdn.example.com/stimulus.js"
@@ -98,13 +98,13 @@ def test_import_map_default_config():
 
 def test_the_cable_port_is_announced_in_debug():
     app = _make_app(DEBUG=True, CABLE_PORT=2301)
-    html = str(app.catalog.jinja_env.globals["render_importmap"]())
+    html = str(app.catalog.globals["render_importmap"]())
     assert html.endswith('<meta name="cable-port" content="2301">')
     assert "</script>\n<meta" in html
 
 
 def test_the_cable_port_is_not_announced_behind_a_proxy():
     app = _make_app(DEBUG=False, CABLE_PORT=2301)
-    assert "cable-port" not in str(app.catalog.jinja_env.globals["render_importmap"]())
+    assert "cable-port" not in str(app.catalog.globals["render_importmap"]())
     app = _make_app(DEBUG=True, CABLE_PORT=0)
-    assert "cable-port" not in str(app.catalog.jinja_env.globals["render_importmap"]())
+    assert "cable-port" not in str(app.catalog.globals["render_importmap"]())

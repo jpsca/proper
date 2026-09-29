@@ -18,7 +18,7 @@ class RussianDollCached(BaseModel):
             touches = ("post",)
 
     Now saving a Comment bumps its Post's `updated_at`, which busts
-    any `{% cache post %}` fragment that wraps `{% cache comment %}`.
+    any `{% cache(post) %}` fragment that wraps `{% cache(comment) %}`.
     """
 
     updated_at = pw.DateTimeField(default=pw.utcnow, null=True)

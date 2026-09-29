@@ -12,6 +12,15 @@ from proper import App, current
 from proper.models import ProperModel
 
 
+@pytest.fixture(autouse=True)
+def _compiled_views(tmp_path, monkeypatch):
+    """Every test compiles the views of its apps into a folder of its own,
+    not into the repository."""
+    from proper.core import config
+
+    monkeypatch.setitem(config.default_config, "COMPILED_PATH", str(tmp_path / "_compiled"))
+
+
 @pytest.fixture()
 def app():
     config = {

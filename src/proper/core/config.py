@@ -44,6 +44,14 @@ default_config = {
 
     # Restart the server when the code changes. `None` follows `DEBUG`.
     "RELOAD": None,
+    # Where the views are compiled to, as Python modules (by minijx).
+    # Relative to the app's parent folder. See `proper.compile`.
+    "COMPILED_PATH": "_compiled",
+
+    # Custom block tags for the views, `{"name": function}`:
+    # `{% name args %}body{% endname %}` calls `function(args, caller=...,
+    # template=...)`, where `caller()` renders the body. `cache` is Proper's.
+    "TEMPLATE_TAGS": {},
 
     # List/tuple of secret keys, **oldest to newest**. New values are signed
     # with the newest one and every key in the list is accepted, so you can

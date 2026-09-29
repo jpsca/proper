@@ -488,7 +488,7 @@ You don't need to write JavaScript to subscribe a page to the channel, just use 
 
 <ul id="messages">
   {% for message in messages %}
-    <Message message={message} />
+    <Message message={{ message }} />
   {% endfor %}
 </ul>
 ```

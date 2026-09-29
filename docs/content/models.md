@@ -301,6 +301,10 @@ books = Book.select()
 # Get a single book by primary key
 book = Book.get_by_id(1)
 
+# The same, but None instead of an exception if not found. The SQL is
+# generated once per model, so this is the cheapest lookup there is.
+book = Book.find(1)
+
 # Get a single book by condition, or None if not found
 book = Book.get_or_none(Book.title == "The Hobbit")
 ```
@@ -312,7 +316,7 @@ The resulting SQL for each:
 SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
 FROM "book" AS "t1"
 
--- Book.get_by_id(1)
+-- Book.get_by_id(1) and Book.find(1)
 SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
 FROM "book" AS "t1"
 WHERE ("t1"."id" = 1) LIMIT 1

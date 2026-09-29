@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from jx import ComponentNotFoundError
+from minijx import ComponentNotFoundError
 
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
 from proper.core.response import Response
@@ -13,7 +13,7 @@ from proper.turbo import turbo_stream
 
 
 def _only_allow(*names):
-    """Make catalog.has return True only for `names`."""
+    """Make catalog.has_component return True only for `names`."""
     allowed = set(names)
     return lambda name: name in allowed
 
@@ -142,7 +142,7 @@ class TestRedo:
 
         co = _make_controller(cls=PostsController)
         co.request.matched_action = "update"
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "posts/edit.jx"
         )
         co.app.catalog.render.return_value = "<form/>"
@@ -158,7 +158,7 @@ class TestRedo:
 
         co = _make_controller(cls=PostsController)
         co.request.matched_action = "create"
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "posts/new.jx"
         )
         co.app.catalog.render.return_value = "<form/>"
@@ -172,7 +172,7 @@ class TestRedo:
 
         co = _make_controller(cls=PostsController)
         co.request.matched_action = "update"
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "posts/edit.jx"
         )
         co.app.catalog.render.return_value = ""
@@ -253,7 +253,7 @@ class TestCall:
                 pass
 
         co = _make_controller(cls=MyController)
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "posts/show.jx"
         )
         co.app.catalog.render.return_value = "<html/>"
@@ -278,7 +278,7 @@ class TestCall:
                 pass
 
         co = _make_controller(cls=MyController)
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "users/edit.jx"
         )
         co.app.catalog.render.return_value = ""
@@ -293,7 +293,7 @@ class TestCall:
                 pass
 
         co = _make_controller(cls=MyController)
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "admin/dashboard/index.jx"
         )
         co.app.catalog.render.return_value = ""
@@ -311,7 +311,7 @@ class TestCall:
             cls=MyController,
             headers=[("accept", "application/json")],
         )
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "posts/show.json.jx",
             "posts/show.jx",
         )
@@ -330,7 +330,7 @@ class TestCall:
             cls=MyController,
             headers=[("accept", "text/vnd.turbo-stream.html, text/html")],
         )
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "posts/create.turbo_stream.jx",
             "posts/create.jx",
         )
@@ -349,7 +349,7 @@ class TestCall:
             cls=MyController,
             headers=[("accept", "text/vnd.turbo-stream.html, text/html")],
         )
-        co.app.catalog.has.side_effect = _only_allow("posts/create.jx")
+        co.app.catalog.has_component.side_effect = _only_allow("posts/create.jx")
         co.app.catalog.render.return_value = "ok"
         co._call("create")
         assert co.app.catalog.render.call_args[0][0] == "posts/create.jx"
@@ -365,7 +365,7 @@ class TestCall:
                 pass
 
         co = _make_controller(cls=PostsController)
-        co.app.catalog.has.side_effect = _only_allow(
+        co.app.catalog.has_component.side_effect = _only_allow(
             "application/missing.jx"
         )
         co.app.catalog.render.return_value = ""
@@ -380,7 +380,7 @@ class TestCall:
                 pass
 
         co = _make_controller(cls=MyController)
-        co.app.catalog.has.return_value = False
+        co.app.catalog.has_component.return_value = False
         with pytest.raises(ComponentNotFoundError):
             co._call("show")
 

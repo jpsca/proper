@@ -580,6 +580,30 @@ wheels = [
 ]
 
 [[package]]
+name = "minijx"
+version = "0.1.0rc1"
+source = { editable = "../minijx" }
+dependencies = [
+    { name = "markupsafe" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "markupsafe", specifier = ">=3.0,<4" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ruff" },
+    { name = "ty" },
+]
+test = [
+    { name = "hatchling", specifier = ">=1.26" },
+    { name = "jinja2", specifier = ">=3.1" },
+    { name = "jx", specifier = ">=0.16" },
+    { name = "pytest" },
+    { name = "tox-uv" },
+]
+
+[[package]]
 name = "mistune"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -740,6 +764,7 @@ dependencies = [
     { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "markupsafe" },
+    { name = "minijx" },
     { name = "passlib" },
     { name = "peewee" },
     { name = "peewee-migrate" },
@@ -787,6 +812,7 @@ requires-dist = [
     { name = "itsdangerous", specifier = ">=2.2" },
     { name = "jinja2", specifier = ">=3.0" },
     { name = "markupsafe", specifier = ">=2.0" },
+    { name = "minijx", editable = "../minijx" },
     { name = "passlib", specifier = "~=1.7" },
     { name = "peewee", specifier = ">=4.5.1,<5" },
     { name = "peewee-migrate", specifier = ">=2.3,<3" },

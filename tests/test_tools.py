@@ -128,9 +128,9 @@ def test_default_nocache():
     assert isinstance(app.cache, NoCache)
 
 
-def test_cache_attached_to_catalog():
+def test_cache_tag_registered_in_the_catalog():
     app = _make_app()
-    assert app.catalog.jinja_env.app_cache is app.cache  # type: ignore
+    assert "cache" in app.catalog.tags
 
 
 def test_cache_db_registered_if_present():
@@ -275,7 +275,7 @@ def test_i18n_sets_defaults_when_locales_exist(tmp_path):
     assert app.i18n is not None
 
 
-def test_i18n_registers_jinja_filters(tmp_path):
+def test_i18n_registers_template_filters(tmp_path):
     locales_dir = tmp_path / "locales"
     locales_dir.mkdir()
     (locales_dir / "en.yml").write_text("hello: Hello")
@@ -284,12 +284,10 @@ def test_i18n_registers_jinja_filters(tmp_path):
     app.locales_path = locales_dir
     i18n.setup(app)
 
-    filters = app.catalog.jinja_env.filters
-    assert "format_date" in filters
-    assert "format_currency" in filters
+    assert app.catalog.render_string("{{ 1234.5 | format_decimal }}") == app.i18n.format_decimal(1234.5)
 
 
-def test_i18n_registers_jinja_global(tmp_path):
+def test_i18n_registers_template_globals(tmp_path):
     locales_dir = tmp_path / "locales"
     locales_dir.mkdir()
     (locales_dir / "en.yml").write_text("hello: Hello")
@@ -298,7 +296,8 @@ def test_i18n_registers_jinja_global(tmp_path):
     app.locales_path = locales_dir
     i18n.setup(app)
 
-    assert "_" in app.catalog.jinja_env.globals
+    assert "_" in app.catalog.globals
+    assert "format_date" in app.catalog.globals
 
 
 # --- tools.mailer ---

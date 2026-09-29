@@ -1,12 +1,18 @@
 ---
 title: Jx Components
 description: Component template system — imports, props, slots, attrs, assets, htmx, Catalog API
-last_verified: 2026-04-02
+last_verified: 2026-09-28
 ---
 
 # Jx Components
 
-Jx is a component-based template system built on Jinja2. Components are `.jx` files with explicit imports, prop declarations, and an HTML-like call syntax. All standard Jinja2 syntax works; Jx adds a component layer on top.
+Jx is a component-based template system with Jinja's syntax. Components are `.jx` files with explicit imports, prop declarations, and an HTML-like call syntax. Proper compiles each component to a Python function with [minijx](https://github.com/jpsca/minijx), at startup.
+
+**Syntax available:** `{{ }}`, `if`/`elif`/`else`, `for` (with `loop`, `else`, `recursive`), `set name = value`, `do`, `raw`, `filter`, `macro`, Jinja's builtin filters (except `xmlattr`, `pprint`, `urlize`) and tests, custom filters and tests, and block tags: Proper's `{% cache %}`, `{% turbo_frame %}`, `{% turbo_stream %}`.
+**Not available:** `include`, `extends`, `block` (use components and layouts), `with`, `call`, block `set`, `namespace()`, imports with a `@prefix/`, Jinja extensions.
+
+**Escaping:** `{{ }}` escapes in `.jx`, `.html.jx` and `.xml.jx` files, unless the value is markup (a component's output, `attrs.render()`, form fields, `| safe`). Other files (`.txt.jx`, `.json.jx`) render values as they are.
+**Names:** a name that is not an argument, a `set` variable, a loop variable or a global is a `KeyError` (with a note saying where it was looked for). A `set` inside a `for` is not visible after the loop.
 
 > For production UI component patterns (buttons, modals, dropdowns, form inputs, layouts, etc.), see the **jx-components** skill. Component JavaScript should use **StimulusJS**, not vanilla JavaScript. Bare imports like `@hotwired/stimulus` are resolved by the [import maps](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap). Every Stimulus controller must self-register via `window.Stimulus.register()`:
 >
@@ -147,20 +153,6 @@ Component files can use any naming convention: `button.jx`, `user-card.jx`, `for
 {#import "form_input.jx" as FormInput #}
 ```
 
-### Prefixed Imports
-
-For components from prefixed catalog folders. Use for third-party component libraries:
-
-```python
-catalog.add_folder("vendor/ui-lib", prefix="ui")
-```
-
-```html+jinja
-{#import "@ui/button.jx" as Button #}
-```
-
-Components within a prefixed folder can also use relative imports to reference siblings.
-
 
 ## Arguments (Props)
 
@@ -177,7 +169,7 @@ Use `{#def ...#}` at the top of a component:
 - `title` — required (no default)
 - `count` — optional (defaults to `0`)
 
-Defaults can be any Python value: strings, numbers, booleans, lists, dicts, etc. The expression is evaluated once when the component is parsed and the resulting object is stored on the component. **At every render, Jx makes a shallow copy of the stored value** when it is a `list`, `dict`, or `set` — so `tags=[]` and `config={}` are not shared between renders. The shallow copy does not extend to nested mutables (a list inside a default dict is still shared) or to custom mutable classes; default to `None` and create the value in the body when those matter.
+Defaults are Python expressions: strings, numbers, booleans, lists, dicts, etc. A default that is not a plain literal (`tags=[]`, `config={"a": [1]}`) is **evaluated again at every render**, so it is never shared between renders, nested values included.
 
 For components with many arguments, `{#def}` can span multiple lines:
 
@@ -196,9 +188,11 @@ Arguments can have type annotations for runtime validation of built-in types:
 {#def title: str, count: int = 0 #}
 ```
 
-When the annotation resolves to a Python built-in (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `float`, `bytes`), Jx runs `isinstance(value, expected_type)` at render time and raises `InvalidPropType` on a mismatch. Type checking is **shallow**: for `list[str]`, only the outer `list` is checked; the elements are not inspected. The same applies to `dict[str, int]`.
+When the annotation resolves to a Python built-in (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `float`, `bytes`), Jx runs `isinstance(value, expected_type)` at render time (the default value too) and raises `InvalidPropType` (a `TypeError`) on a mismatch. Type checking is **shallow**: for `list[str]`, only the outer `list` is checked; the elements are not inspected. The same applies to `dict[str, int]`.
 
-Annotations that don't resolve to a built-in — custom classes, unions like `int | str`, `Optional[int]`, `typing.Iterable[str]` — are silently ignored at runtime. They survive on the component signature for tooling but no `isinstance` check happens. Stick to built-ins for strict checking; drop the annotation when you need a permissive shape.
+Annotations that don't resolve to a built-in — custom classes, unions like `int | str`, `Optional[int]`, `typing.Iterable[str]` — are not checked, nor evaluated: they are kept as text in the signature of the compiled function. Stick to built-ins for strict checking; drop the annotation when you need a permissive shape.
+
+When the views compile, each component call is checked against the component's signature: a missing required argument (`<Card />`), or a literal of the wrong type (`<Card count="3" />` for `count: int`; a flag like `<Card open />` is `True`), is a compile error with file, line and column. Values computed at render time are checked then.
 
 ### Passing Arguments
 
@@ -757,54 +751,44 @@ Renders as `hx-get="/api/items" hx-target="#list" hx-swap="innerHTML"`.
 
 ## Catalog API
 
+In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup, and the template globals, filters and tags are added. It is a `minijx.Catalog`.
+
+### In Proper
+
+```python
+# More globals, filters or tests (e.g., from a tool's setup)
+app.catalog.globals["site_name"] = "Acme"
+app.catalog.add_filters({"money": format_money})
+app.catalog.add_tests({"admin": lambda user: user.is_admin})
+
+# Block tags: {% name args %}body{% endname %} calls function(args, caller=..., template=...)
+# config: TEMPLATE_TAGS = {"card_box": card_box}
+def card_box(title, *, caller, template):
+    return Markup(f'<section class="box"><h2>{escape(title)}</h2>{caller()}</section>')
+```
+
+`caller()` renders the body only if the function calls it; `template` is the path of the component the tag is in. What the function returns is not escaped.
+
 ### Constructor
 
 ```python
+from minijx import Catalog
+
 Catalog(
     folder=None,            # Optional initial component folder
     *,
-    jinja_env=None,         # Custom Jinja2 environment
-    extensions=None,        # Extra Jinja2 extensions
-    filters=None,           # Custom template filters {name: callable}
-    tests=None,             # Custom template tests {name: callable}
-    auto_reload=True,       # Auto-detect file changes (disable in prod)
-    asset_resolver=None,    # Callable (url, prefix) -> resolved_url for package assets
-    **globals               # Global template variables
+    auto_reload=True,       # Check the .jx files on every render (off in production)
+    compiler=None,          # The minijx binary: None = bundled; False = never compile
+    filters=None,           # Custom filters {name: callable}
+    tests=None,             # Custom tests {name: callable}
+    autoescape=True,        # Extensions escaped: True = ("html", "jx", "xml"); False = none
+    tags=None,              # Block tags {name: callable}
+    output=None,            # Folder for the compiled modules (default: next to each .jx)
+    **globals               # Global template variables (catalog.globals)
 )
 ```
 
-The `jinja2.ext.do` extension is always enabled (required for `attrs` manipulation).
-
-### Adding Folders
-
-```python
-catalog.add_folder(
-    path,                   # Absolute path to component folder
-    *,
-    prefix="",              # Namespace prefix (use @prefix/ in imports)
-    assets=None,            # Path to CSS/JS assets folder for this prefix
-)
-```
-
-Multiple folders with the same prefix are treated as one namespace. If both contain a component with the same path, the first one added wins.
-
-You cannot move or delete component files from a folder after calling `add_folder()`, but you can call it again to pick up new files.
-
-### Adding Packages
-
-```python
-catalog.add_package("my_ui_kit", prefix="ui")
-```
-
-Registers components (and optionally assets) from an installed Python package. The package module must expose a `JX_COMPONENTS` attribute pointing to the components folder. It may also expose `JX_ASSETS` pointing to an assets folder.
-
-### Collecting Package Assets
-
-```python
-catalog.collect_assets("static/vendor")
-```
-
-Copies all registered package assets to an output folder. For each prefix that has a registered assets folder, files are copied to `<output>/<prefix>/`. Returns a list of `(prefix, relative_path)` tuples for every file copied.
+A module is checked the first time it is loaded, in any mode, and compiled again if it is missing or out of date. `catalog.compile()` compiles every folder and raises `CompileError` listing every error.
 
 ### Rendering
 
@@ -819,7 +803,8 @@ html = catalog.render(
     title="Hello",
 )
 
-# Render from a string (not cached, no relative imports)
+# Render from a string: compiled once to a temporary folder;
+# its imports are looked for in the catalog's folders
 html = catalog.render_string("{#def name #}<p>{{ name }}</p>", name="World")
 ```
 
@@ -829,19 +814,6 @@ html = catalog.render_string("{#def name #}<p>{{ name }}</p>", name="World")
 - `globals` — dict of variables available to this component and all its imports
 - `**kwargs` — arguments passed to the component only (not to its imports)
 
-### Introspection
+It returns `Markup` for a component with autoescape, `str` otherwise. An error while rendering has a traceback that points to the `.jx` file, line and expression.
 
-```python
-# List all registered component paths
-catalog.list_components()
-
-# Get a component's signature (required/optional args, slots, assets)
-catalog.get_signature("card.jx")
-# => {
-#   "required": {"title": <class 'str'>, "count": None},  # {name: type or None}
-#   "optional": {"subtitle": ("", <class 'str'>)},         # {name: (default, type or None)}
-#   "slots": ("header", "footer"),
-#   "css": ("card.css",),
-#   "js": ()
-# }
-```
+`catalog.has_component(relpath)` tells if a component exists.

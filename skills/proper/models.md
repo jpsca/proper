@@ -253,8 +253,12 @@ photos = Photo.select()
 # Get a single photo by primary key
 photo = Photo.get_by_id(42)
 
+# By primary key, None if not found. Prefer it in controllers: the SQL is
+# generated once per model, so it costs a fraction of get_or_none
+photo = Photo.find(42)
+
 # Get a single photo by a condition, or None if not found
-photo = Photo.get_or_none(Photo.id == 42)
+photo = Photo.get_or_none(Photo.published == True)
 
 # Filter with where()
 published = Photo.select().where(Photo.published == True)
@@ -1182,7 +1186,7 @@ This generates:
 - `models/photo.py` - the model
 - `controllers/photo_controller.py` - a CRUD controller with all actions
 - `forms/photo.py` - a form class linked to the model
-- `views/photo/` - Jinja templates for index, show, new, edit, and delete
+- `views/photo/` - Jx templates for index, show, new, edit, and delete
 
 You can limit which actions are generated:
 

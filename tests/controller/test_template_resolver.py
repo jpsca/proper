@@ -1,5 +1,5 @@
 import pytest
-from jx import ComponentNotFoundError
+from minijx import ComponentNotFoundError
 
 from proper.controller.template_resolver import (
     iter_candidates,
@@ -13,7 +13,7 @@ class FakeCatalog:
         self.names = set(names)
         self.probed = []
 
-    def has(self, name):
+    def has_component(self, name):
         self.probed.append(name)
         return name in self.names
 

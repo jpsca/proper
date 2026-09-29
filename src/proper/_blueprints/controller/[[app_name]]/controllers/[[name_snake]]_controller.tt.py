@@ -83,7 +83,7 @@ class [[name_pascal]]Controller(AppController):
         self.[[name_snake]] = [[name_pascal]].get_or_none()
         [% else -%]
         [[object_id]] = self.params.get("[[object_id]]", "")
-        self.[[name_snake]] = [[name_pascal]].get_or_none(id=int([[object_id]]))
+        self.[[name_snake]] = [[name_pascal]].find(int([[object_id]]))
         [% endif -%]
         if self.request.matched_action != "delete" and not self.[[name_snake]]:
             raise NotFound

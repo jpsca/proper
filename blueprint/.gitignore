@@ -1,5 +1,6 @@
 storage/*
 !storage/.keep
+_compiled/
 
 # Byte-compiled / optimized / DLL files
 __pycache__
