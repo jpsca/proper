@@ -120,6 +120,7 @@ exclude = [
     "**/tests/",
     ".*",
     "_build",
+    "_compiled",
     "build",
     "covreport",
     "dist",
@@ -162,6 +163,7 @@ target-version = "py314"
 exclude = [
     ".*",
     "_build",
+    "_compiled",
     "build",
     "covreport",
     "dist",
