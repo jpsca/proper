@@ -129,7 +129,7 @@ def test_caller_takes_precedence_over_html(app, tmp_path):
 
 def test_tag_in_a_template(app):
     out = app.catalog.render_string(
-        '{% turbo_stream "append", "messages" %}<li>{{ 1 + 1 }}</li>{% endturbo_stream %}'
+        '{% stream "append", "messages" %}<li>{{ 1 + 1 }}</li>{% endstream %}'
     )
     assert out.strip() == (
         '<turbo-stream action="append" target="messages">'

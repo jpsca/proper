@@ -22,13 +22,13 @@ class TurboStream:
     `target` is an element id, or a model instance (its `dom_id` is used). Pass
     `targets` with a CSS selector instead to act on every matching element.
 
-    In a template, the `turbo_stream` tag takes the action and the same
+    In a template, the `stream` tag takes the action and the same
     arguments, and its body is the content:
 
     ```html+jinja
-    {% turbo_stream "append", "messages" %}
+    {% stream "append", "messages" %}
       <li>{{ message.body }}</li>
-    {% endturbo_stream %}
+    {% endstream %}
     ```
 
     Broadcast the result over a stream for a live update, or return it from a

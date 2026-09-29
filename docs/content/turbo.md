@@ -18,7 +18,7 @@ Turbo comes in four pieces:
 Piece       | What it does                                                           | What Proper gives you
 ----------- | ---------------------------------------------------------------------- | ---------------------
 **Drive**   | Turns every link and form into a fast partial navigation, no reload    | On by default - nothing to write
-**Frames**  | Wraps part of a page so Turbo can navigate and replace it on its own   | `turbo_frame_tag`, `request.turbo_frame`
+**Frames**  | Wraps part of a page so Turbo can navigate and replace it on its own   | `frame`, `request.turbo_frame`
 **Streams** | Applies targeted changes to the page from a form response or broadcast | the `turbo_stream` builder, `*.turbo_stream.jx` views, `render(stream=...)`
 **Native**  | Wraps your HTML in iOS and Android shells                              | nothing special - your normal responses serve native too
 
@@ -100,13 +100,13 @@ Drive also shows a progress bar for slow navigations and caches a preview of vis
 
 ## Turbo Frames
 
-A frame is a region of the page that Turbo can replace on its own. Wrap content in `turbo_frame_tag` (a template global, so there is no import) and give it a stable id. Use it as an expression for an empty or lazily loaded frame, or as the `turbo_frame` tag, with the same arguments, to wrap content:
+A frame is a region of the page that Turbo can replace on its own. Wrap content in a `frame` tag (a template global, so there is no import) and give it a stable id. Use it as an expression for an empty or lazily loaded frame, or as the `frame` tag, with the same arguments, to wrap content:
 
 ```html+jinja
-{% turbo_frame message %}
+{% frame message %}
   <h1>{{ message.title }}</h1>
   <a href="{{ url_for('Message.edit', object=message) }}">Edit</a>
-{% endturbo_frame %}
+{% endframe %}
 {# <turbo-frame id="message_42"> ... </turbo-frame> #}
 ```
 
@@ -121,19 +121,19 @@ This means you don't have to change anything in your controllers code for this m
 The classic frame pattern is an edit link that swaps the frame for a form, and a form that swaps it back. Every view wraps the same `dom_id` frame, so Turbo keeps swapping the one region:
 
 ```html+jinja {title="views/message/show.jx (view state)"}
-{% turbo_frame message %}
+{% frame message %}
   <h1>{{ message.title }}</h1>
   <a href="{{ url_for('Message.edit', object=message) }}">Edit</a>
-{% endturbo_frame %}
+{% endframe %}
 ```
 
 ```html+jinja {title="views/message/edit.jx (edit state)"}
-{% turbo_frame message %}
+{% frame message %}
   <form method="post" action="{{ url_for('Message.update', object=message) }}">
     <input name="title" value="{{ message.title }}">
     <button>Save</button>
   </form>
-{% endturbo_frame %}
+{% endframe %}
 ```
 
 The controller needs no Turbo awareness. `update` saves and redirects to `show` as usual - Turbo follows the redirect, extracts the `message_42` frame, and the region flips back to view mode:
@@ -151,15 +151,15 @@ When the form is invalid, the generated `validate_form` callback re-renders `edi
 Give a frame a `src` and Turbo fetches it; add `loading="lazy"` and it waits until the frame scrolls into view. The frame shows a placeholder until the content arrives, which is handy for slow widgets that should not block the main page:
 
 ```html+jinja {title="views/dashboard/index.jx"}
-{% turbo_frame "inbox_count", src=url_for("Inbox.count"), loading="lazy" %}
+{% frame "inbox_count", src=url_for("Inbox.count"), loading="lazy" %}
   Loading...
-{% endturbo_frame %}
+{% endframe %}
 ```
 
 The endpoint returns the same-id frame with the real content (and no `src`):
 
 ```html+jinja {title="views/inbox/count.jx"}
-{% turbo_frame "inbox_count" %}{{ unread }} unread{% endturbo_frame %}
+{% frame "inbox_count" %}{{ unread }} unread{% endframe %}
 ```
 
 ### Targeting and breaking out
@@ -175,12 +175,12 @@ By default a link inside a frame navigates *that* frame. Two attributes on the l
 
 `_top` promotes the click to a normal full-page Drive visit; a frame id loads the response into that other frame instead.
 
-To make a frame's *own* navigations add browser history (so the "Back" button works), set `data-turbo-action="advance"` on the frame. `turbo_frame_tag` turns keyword underscores into dashes, so you pass it as `data_turbo_action`:
+To make a frame's *own* navigations add browser history (so the "Back" button works), set `data-turbo-action="advance"` on the frame. `frame` turns keyword underscores into dashes, so you pass it as `data_turbo_action`:
 
 ```html+jinja
-{% turbo_frame "results", data_turbo_action="advance" %}
+{% frame "results", data_turbo_action="advance" %}
   ...
-{% endturbo_frame %}
+{% endframe %}
 ```
 
 ### Frame requests on the server
@@ -248,12 +248,12 @@ Argument               | Renders
 `content=...`          | a string or `Markup`, or a callable returning one
 `html=...`             | ready-made HTML
 
-In a template, the `turbo_stream` tag takes the action and then the same arguments as the method; its body becomes the content:
+In a template, the `stream` tag takes the action and then the same arguments as the method; its body becomes the content:
 
 ```html+jinja
-{% turbo_stream "append", "messages" %}
+{% stream "append", "messages" %}
   <li>{{ message.body }}</li>
-{% endturbo_stream %}
+{% endstream %}
 ```
 
 To send several operations at once, concatenate fragments. They are `Markup`, so `+` just works:
@@ -279,8 +279,8 @@ views/message/create.jx              <- normal navigation (fallback)
 A `*.turbo_stream.jx` view is just a list of fragments, with no layout. The most common scenario - create a row, then reset the form - reuses the same partials the full page already uses:
 
 ```html+jinja {title="views/message/create.turbo_stream.jx"}
-{{ turbo_stream.append("messages", "message/message.jx", message=message) }}
-{{ turbo_stream.update("new_message", "message/form.jx") }}
+{{ stream.append("messages", "message/message.jx", message=message) }}
+{{ stream.update("new_message", "message/form.jx") }}
 ```
 
 The controller does not change. It sets the data and lets the template resolve:
@@ -343,11 +343,11 @@ Broadcasts are explicit - call `app.cable.broadcast` wherever a change happens.
 
 These are available in every view, with no import:
 
-Global             | Use
------------------- | ---------------------------------------------------------
-`turbo_stream`     | build `<turbo-stream>` fragments
-`turbo_frame_tag`  | render a `<turbo-frame>` (expression; `{% turbo_frame %}` as a block)
-`dom_id`           | stable element id for a model, `dom_id(post)` → `post_42`
+Global        | Use
+------------- | ---------------------------------------------------------
+`stream `     | build `<turbo-stream>` fragments
+`frame`       | render a `<turbo-frame>`
+`dom_id`      | stable element id for a model, `dom_id(post)` → `post_42`
 
 And on the request and response:
 

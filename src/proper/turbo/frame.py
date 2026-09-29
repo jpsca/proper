@@ -6,7 +6,7 @@ from markupsafe import Markup, escape
 from ..helpers import dom_id
 
 
-def turbo_frame_tag(
+def turbo_frame(
     *ids: t.Any,
     src: str = "",
     loading: str = "",
@@ -23,15 +23,15 @@ def turbo_frame_tag(
     loaded frame:
 
     ```html+jinja
-    {{ turbo_frame_tag(post, src=url_for("Posts.show", post=post), loading="lazy") }}
+    {{ frame(post, src=url_for("Posts.show", post=post), loading="lazy") }}
     ```
 
-    or as the `turbo_frame` tag to wrap content, with the same arguments:
+    or as the `frame` tag to wrap content, with the same arguments:
 
     ```html+jinja
-    {% turbo_frame post %}
+    {% frame post %}
       {{ post.title }}
-    {% endturbo_frame %}
+    {% endframe %}
     ```
 
     `src` loads the frame's content from a URL, `loading="lazy"` defers that load

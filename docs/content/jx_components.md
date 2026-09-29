@@ -165,9 +165,9 @@ After the header, the body uses Jinja's syntax:
 - `{{ expression }}` - render a value, escaped (see below).
 - `{% if %}`, `{% for %}` (with `loop`, `else` and `recursive`), `{% set name = value %}`, `{% do %}`, `{% raw %}`, `{% filter %}`.
 - Filters (`{{ name | upper }}`), tests (`{% if x is none %}`), macros (`{% macro foo() %}`), for markup repeated inside one component.
-- Proper's block tags: `{% cache %}` (see [Caching](/docs/caching)), `{% turbo_frame %}` and `{% turbo_stream %}` (see [Turbo](/docs/turbo)).
+- Proper's block tags: `{% cache %}` (see [Caching](/docs/caching)), `{% frame %}` and `{% stream %}` (see [Turbo](/docs/turbo)).
 
-A few Jinja statements are not available, because components do their job: `{% include %}`, `{% extends %}` and `{% block %}` (use components and layouts), `{% with %}`, `{% call %}`, a `{% set %}` with a body, and `namespace()`. A `{% set %}` inside a `{% for %}` is not visible after the loop, as in Jinja.
+A few Jinja statements are not available, because components do their job: `{% include %}`, `{% extends %}` and `{% block %}` (use components and layouts), `{% with %}`, `{% call %}`, a `{% set %}` with a body, and `namespace()`.
 
 `{{ }}` escapes what it renders in `.jx`, `.html.jx` and `.xml.jx` files: `<`, `>`, `&` and quotes become entities, unless the value is already markup (the output of a component, `attrs.render()`, a form field, the `safe` filter). Other files, like `welcome.txt.jx` for the text part of an email, render values as they are.
 

@@ -34,7 +34,7 @@ def test_info(cli, app, capsys):
     out = capsys.readouterr().out
     assert f"Folders:    {views.resolve()}" in out
     assert "Autoescape: html, jx, xml" in out
-    assert "Tags:       cache, turbo_frame, turbo_stream" in out
+    assert "Tags:       cache, frame, stream" in out
     assert "Views:      2" in out
     assert "  page.jx" in out
 
@@ -45,5 +45,5 @@ def test_info_json(cli, app, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["folders"] == [str(views.resolve())]
     assert data["output"] == str(app.catalog.output)
-    assert data["tags"] == ["cache", "turbo_frame", "turbo_stream"]
+    assert data["tags"] == ["cache", "frame", "stream"]
     assert data["views"] == ["card.jx", "page.jx"]

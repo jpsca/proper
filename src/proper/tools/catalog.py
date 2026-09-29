@@ -6,7 +6,7 @@ import minijx
 from ..global_context import current
 from ..helpers import dom_id, render_importmap
 from ..helpers.formatters import truncate
-from ..turbo import turbo_frame_tag, turbo_stream
+from ..turbo import turbo_frame, turbo_stream
 from ..turbo.tags import TAGS as TURBO_TAGS
 
 
@@ -23,8 +23,8 @@ def setup(app):
         "render_importmap": partial(render_importmap, app),
         "dom_id": dom_id,
         "truncate": truncate,
-        "turbo_frame_tag": turbo_frame_tag,
-        "turbo_stream": turbo_stream,
+        "frame": turbo_frame,
+        "stream": turbo_stream,
     }
 
     # The views are compiled to Python modules in `COMPILED_PATH`, one folder
