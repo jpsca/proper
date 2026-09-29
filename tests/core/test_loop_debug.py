@@ -134,16 +134,6 @@ class TestAppWiring:
         assert app._loop_watchdog is None
         asyncio.get_running_loop().set_debug(False)
 
-    async def test_run_sync_keeps_it_off(self):
-        """Under RUN_SYNC the pipeline runs on the loop on purpose."""
-        app = make_app(DEBUG=True, RUN_SYNC=True)
-        app._start_loop_debug()
-        try:
-            assert app._loop_watchdog is None
-            assert not asyncio.get_running_loop().get_debug()
-        finally:
-            await app._stop_loop_debug()
-
     async def test_a_zero_threshold_turns_it_off(self):
         app = make_app(DEBUG=True, LOOP_STALL_WARNING=0)
         app._start_loop_debug()

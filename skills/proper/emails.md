@@ -191,7 +191,7 @@ class PasswordResetEmail(BaseEmail):
 Key patterns:
 
 - Set class-level attributes like `subject` for defaults
-- Use `app.catalog.render()` to render Jinja templates for the body
+- Use `app.catalog.render()` to render Jx templates for the body
 - Call `generate_text_alternative()` to auto-create a plain text version from HTML
 - Use `app.url_for()` to generate URLs
 
@@ -209,7 +209,7 @@ email.send_later(to=user.email)
 
 ### Email Templates
 
-Email templates are Jinja files in the `views/emails/` directory. They use a layout defined in `views/layouts/email.jx`:
+Email templates are Jx files in the `views/emails/` directory. They use a layout defined in `views/layouts/email.jx`:
 
 ```html+jinja
 {#def title='', lang='en' #}

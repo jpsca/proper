@@ -292,6 +292,36 @@ class TestRunCommand:
         assert calls["cable"] is None
         assert calls["processes"] == 1
 
+    def _capture_welcome(self, monkeypatch):
+        shown = []
+        monkeypatch.setattr("proper.helpers.show_banner", lambda: shown.append("banner"))
+        monkeypatch.setattr("proper.helpers.show_welcome", lambda host: shown.append(host))
+        return shown
+
+    def test_the_welcome_is_shown_in_debug(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
+
+        self._capture_group(monkeypatch)
+        shown = self._capture_welcome(monkeypatch)
+        app.config.DEBUG = True
+        app.config.RELOAD = False
+        app.config.HOST = "localhost:2300"
+
+        get_run_cli(app)(None)
+
+        assert shown == ["banner", "localhost:2300"]
+
+    def test_the_welcome_is_not_shown_outside_debug(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
+
+        self._capture_group(monkeypatch)
+        shown = self._capture_welcome(monkeypatch)
+        app.config.DEBUG = False
+
+        get_run_cli(app)(None)
+
+        assert shown == []
+
     def test_the_target_defaults_to_the_creating_module(self, app, monkeypatch):
         from proper.cli.app_cli import get_run_cli
 

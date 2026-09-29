@@ -32,7 +32,7 @@ Controller  ──────────────  receives the request, ru
   │
   ├──▶ Form (Formidable)   validates input, saves to model
   │
-  ├──▶ View (Jx/Jinja)  ─  renders HTML using components and layouts
+  ├──▶ View (Jx)        ─  renders HTML using components and layouts
   │
   └──▶ Response  ─────────  HTML page, redirect, or JSON
 ```
@@ -73,7 +73,7 @@ Controller  ──────────────  receives the request, ru
 | Add WebSockets | [channels.md](channels.md) | `proper install channels` |
 | Write or fix tests | [testing.md](testing.md) | `uv run pytest` |
 | Customize forms / validation | [forms.md](forms.md) | — |
-| Build Jinja components | [jx.md](jx.md) | — |
+| Build Jx components | [jx.md](jx.md) | — |
 | Add routes or understand URL generation | [routing.md](routing.md) | `proper routes` |
 | Build a JSON API or add JSON responses | [controllers.md](controllers.md) | — |
 | Turbo (Drive, Frames, Streams) — live UI, frame navigation, stream responses | [turbo.md](turbo.md) | — |

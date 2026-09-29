@@ -263,7 +263,7 @@ The Redis backend handles expiration natively; `delete_expired()` is a no-op the
 Fragment caching stores rendered HTML blocks so the template engine doesn't have to render them again on the next request. The `{% cache %}` tag wraps the slow part of a template; the first render stores the HTML in `app.cache`, every subsequent render reads it back:
 
 ```html+jinja
-{% cache "sidebar" %}
+{% cache("sidebar") %}
   ... expensive rendering ...
 {% endcache %}
 ```
@@ -273,10 +273,12 @@ That's the whole API for the simple case. The first time this block renders, the
 The full syntax has four arguments. Only the first is required:
 
 ```html+jinja
-{% cache key [, expires_in=seconds] [, version=string] [, race_condition_ttl=seconds] %}
+{% cache(key [, expires_in=seconds] [, version=string] [, race_condition_ttl=seconds]) %}
   ...
 {% endcache %}
 ```
+
+The arguments go in parentheses, as in a function call. `{% cache "sidebar" %}` without them is a template syntax error.
 
 Argument             | Type                          | Description
 -------------------- | ----------------------------- | -----------------------------
@@ -289,20 +291,22 @@ Argument             | Type                          | Description
 
 The first argument is what makes fragment caching feel like part of the data model rather than a separate concern. It can be any of three things, and Proper builds the cache key differently for each:
 
-**A string** is used as the key directly:
+**A string** is used as the key directly (lowercased):
 
 ```html+jinja
-{% cache "sidebar" %}
+{% cache("sidebar") %}
   ...
 {% endcache %}
 ```
 
 Good for fragments that aren't tied to a specific record - the marketing footer, a global announcement bar, the sidebar of a generic page. You'll usually set `expires_in` to control when these refresh, because nothing in the key changes on its own.
 
+A string key is the same in every template: `{% cache("sidebar") %}` in two templates is one fragment, and whichever renders first fills it for both. Use a different string for each distinct fragment.
+
 **A model object** generates a key from the object's class name, ID, and `updated_at` timestamp:
 
 ```html+jinja
-{% cache card %}
+{% cache(card) %}
   <div class="card">
     <h2>{{ card.title }}</h2>
     <p>{{ card.body }}</p>
@@ -310,14 +314,14 @@ Good for fragments that aren't tied to a specific record - the marketing footer,
 {% endcache %}
 ```
 
-This is the powerful one. The key looks like `view:1735689600.0/card/42`, where the floating-point number is the `updated_at` timestamp. When the card is saved, `updated_at` changes, which changes the key, which means the next render is a *miss* and re-renders the block. The old entry stays around until it expires (or `delete_expired` cleans it up), but nobody reads from it because nobody can build its key anymore. You get automatic invalidation without ever calling `cache.delete`.
+This is the powerful one. The key looks like `cards/show.jx:1735689600.0/card/42`: the path of the template, the `updated_at` timestamp as a floating-point number, the class name, and the ID. Because the template is part of the key, the same card cached in two different templates gives two fragments. When the card is saved, `updated_at` changes, which changes the key, which means the next render is a *miss* and re-renders the block. The old entry stays around until it expires (or `delete_expired` cleans it up), but nobody reads from it because nobody can build its key anymore. You get automatic invalidation without ever calling `cache.delete`.
 
 This pattern is sometimes called *key-based expiration* or "the cache is its own invalidation strategy." It works because Proper's `BaseModel` ships an `updated_at` column out of the box; if you're caching objects that don't have one, set `expires_in` explicitly or supply a `version`.
 
 **A collection** (a list, tuple, or any iterable of model objects) generates a key from the class name, the count, and the maximum `updated_at` across the collection:
 
 ```html+jinja
-{% cache cards %}
+{% cache(cards) %}
   {% for card in cards %}
     <div class="card">{{ card.title }}</div>
   {% endfor %}
@@ -331,7 +335,7 @@ The fragment invalidates when any object in the collection is added, removed, or
 For fragments keyed on a string, `expires_in` is how you control freshness:
 
 ```html+jinja
-{% cache "trending", expires_in=300 %}
+{% cache("trending", expires_in=300) %}
   ... refreshed every 5 minutes ...
 {% endcache %}
 ```
@@ -341,7 +345,7 @@ For fragments keyed on a model or collection, the `updated_at` mechanism already
 `version` is the manual override. When the *template* changes but the data hasn't, the model's `updated_at` doesn't move, and the old (now-misrendered) HTML stays in the cache. Bumping the version forces a re-render:
 
 ```html+jinja
-{% cache card, version="v2" %}
+{% cache(card, version="v2") %}
   ... new layout, even if the card hasn't been saved ...
 {% endcache %}
 ```
@@ -353,7 +357,7 @@ In practice you reach for `version` rarely, after a redesign. The everyday workf
 The same `race_condition_ttl` parameter from [section 3.2](#preventing-the-thundering-herd) applies to `{% cache %}`. When a heavily-trafficked fragment expires, you don't want every concurrent request to re-render it:
 
 ```html+jinja
-{% cache "trending", expires_in=300, race_condition_ttl=10 %}
+{% cache("trending", expires_in=300, race_condition_ttl=10) %}
   ... expensive rendering ...
 {% endcache %}
 ```
@@ -369,11 +373,11 @@ While the first request re-renders, the cache continues serving the stale HTML t
 The shape, in a template:
 
 ```html+jinja
-{% cache post %}
+{% cache(post) %}
   <article>
     <h1>{{ post.title }}</h1>
     {% for comment in post.comments %}
-      {% cache comment %}
+      {% cache(comment) %}
         <div class="comment">
           {{ comment.body }}
         </div>
@@ -389,7 +393,7 @@ If you edit a single comment, you'd like:
 - The post's fragment to invalidate too (so the updated comment is rendered into the outer markup).
 - Every *other* comment's fragment to stay cached (they didn't change).
 
-The first part works by itself; the third works by itself; the second one is the catch. The post's `updated_at` didn't change when the comment did, so the outer `{% cache post %}` keeps serving the old HTML - which still contains the old comment's body baked in.
+The first part works by itself; the third works by itself; the second one is the catch. The post's `updated_at` didn't change when the comment did, so the outer `{% cache(post) %}` keeps serving the old HTML - which still contains the old comment's body baked in.
 
 ### The `touches` pattern
 
@@ -409,7 +413,7 @@ class Comment(RussianDollCached):
     touches = ("post",)
 ```
 
-`touches` is a tuple of foreign-key field names. When a `Comment` is saved or deleted, the mixin walks each name, finds the related record, and calls `touch()` on it - which bumps that record's `updated_at`. The post's cache key changes; the outer `{% cache post %}` re-renders; the inner `{% cache comment %}` blocks for unchanged comments are still cached and served from the store.
+`touches` is a tuple of foreign-key field names. When a `Comment` is saved or deleted, the mixin walks each name, finds the related record, and calls `touch()` on it - which bumps that record's `updated_at`. The post's cache key changes; the outer `{% cache(post) %}` re-renders; the inner `{% cache(comment) %}` blocks for unchanged comments are still cached and served from the store.
 
 ### Cascading touches
 

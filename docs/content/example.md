@@ -80,7 +80,7 @@ class ArticleController(AppController):
 
   def set_article(self):
     article_id = self.params.get("article_id", "")
-    self.article = Article.get_or_none(id=int(article_id))
+    self.article = Article.find(int(article_id))
     if not self.article:
       raise NotFound
 

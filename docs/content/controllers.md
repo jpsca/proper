@@ -183,7 +183,7 @@ class CardController(AppController):
 
     def set_card(self):
         card_id = self.params.get("card_id", "")
-        self.card = Card.get_or_none(id=int(card_id))
+        self.card = Card.find(int(card_id))
         if self.request.matched_action != "delete" and not self.card:
             raise NotFound
 
@@ -239,7 +239,7 @@ Three `before` callbacks, listed in the order they run. Each one narrows its sco
 ```python
 def set_card(self):
     card_id = self.params.get("card_id", "")
-    self.card = Card.get_or_none(id=int(card_id))
+    self.card = Card.find(int(card_id))
     if self.request.matched_action != "delete" and not self.card:
         raise NotFound
 ```
@@ -457,7 +457,7 @@ class CardScoped(Concern):
     def set_card(self):
         card_id = self.params.get("card_id")
         if card_id:
-            self.card = Card.get_or_none(id=int(card_id))
+            self.card = Card.find(int(card_id))
             if self.request.matched_action != "delete" and not self.card:
                 raise NotFound
 ```
@@ -887,7 +887,7 @@ class CardController(AppController):
 
     def set_card(self):
         card_id = self.params.get("card_id", "")
-        self.card = Card.get_or_none(id=int(card_id))
+        self.card = Card.find(int(card_id))
         if self.request.matched_action != "delete" and not self.card:
             raise NotFound
 
@@ -1146,7 +1146,7 @@ class TeamScoped(Concern):
 
     def set_team(self):
         team_id = self.params.get("team_id")
-        self.team = Team.get_or_none(id=team_id)
+        self.team = Team.find(team_id)
         if not self.team:
             raise NotFound
 ```

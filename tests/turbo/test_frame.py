@@ -42,8 +42,16 @@ def test_expression_form_renders_an_empty_frame(app):
     assert out.strip() == '<turbo-frame id="messages"></turbo-frame>'
 
 
-def test_call_block_wraps_rendered_content(app):
+def test_tag_wraps_rendered_content(app):
     out = app.catalog.render_string(
-        '{% call turbo_frame_tag("messages") %}<p>{{ 1 + 1 }}</p>{% endcall %}'
+        '{% turbo_frame "messages" %}<p>{{ 1 + 1 }}</p>{% endturbo_frame %}'
     )
     assert out.strip() == '<turbo-frame id="messages"><p>2</p></turbo-frame>'
+
+
+def test_tag_with_attributes_and_escaping(app):
+    out = app.catalog.render_string(
+        '{# def v #}{% turbo_frame "results", data_turbo_action="advance" %}{{ v }}{% endturbo_frame %}',
+        v="<x>",
+    )
+    assert out == '<turbo-frame id="results" data-turbo-action="advance">&lt;x&gt;</turbo-frame>'

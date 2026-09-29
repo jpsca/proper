@@ -224,7 +224,7 @@ Since each entry stores its own `expires_at`, no TTL parameter is needed. This c
 Fragment caching stores rendered HTML blocks so expensive template rendering is skipped on subsequent requests. Use the `{% cache %}` tag in Jinja templates:
 
 ```html+jinja
-{% cache "sidebar" %}
+{% cache("sidebar") %}
   ... expensive rendering ...
 {% endcache %}
 ```
@@ -234,10 +234,12 @@ On the first render, the block is rendered and stored in the cache under the key
 The full syntax is:
 
 ```html+jinja
-{% cache key [, expires_in=seconds] [, version=string] [, race_condition_ttl=seconds] %}
+{% cache(key [, expires_in=seconds] [, version=string] [, race_condition_ttl=seconds]) %}
   ...
 {% endcache %}
 ```
+
+The arguments go in parentheses, as in a function call; `{% cache "sidebar" %}` without them is a template syntax error.
 
 | Argument             | Type             | Description                                                                                               |
 |----------------------|------------------|-----------------------------------------------------------------------------------------------------------|
@@ -250,18 +252,18 @@ The full syntax is:
 
 The first argument to `{% cache %}` determines how the cache key is generated:
 
-**String** — used as-is (lowercased). Good for fragments that aren't tied to a specific record:
+**String** — used as-is (lowercased), and shared by every template: the same string in two templates is one fragment. Good for fragments that aren't tied to a specific record:
 
 ```html+jinja
-{% cache "sidebar" %}
+{% cache("sidebar") %}
   ...
 {% endcache %}
 ```
 
-**Model object** — the key is derived from the object's class name, ID, and `updated_at` timestamp. When the record is updated, `updated_at` changes, which changes the key and automatically invalidates the cached fragment:
+**Model object** — the key is derived from the template's path, the object's class name, ID, and `updated_at` timestamp (`cards/show.jx:1735689600.0/card/42`). When the record is updated, `updated_at` changes, which changes the key and automatically invalidates the cached fragment:
 
 ```html+jinja
-{% cache card %}
+{% cache(card) %}
   <div class="card">
     <h2>{{ card.title }}</h2>
     <p>{{ card.body }}</p>
@@ -272,7 +274,7 @@ The first argument to `{% cache %}` determines how the cache key is generated:
 **Collection** — the key is derived from the class name, the count of objects, and the maximum `updated_at` across the collection. The fragment invalidates when any object is added, removed, or updated:
 
 ```html+jinja
-{% cache cards %}
+{% cache(cards) %}
   {% for card in cards %}
     <div class="card">{{ card.title }}</div>
   {% endfor %}
@@ -284,7 +286,7 @@ The first argument to `{% cache %}` determines how the cache key is generated:
 Set a TTL with `expires_in` (in seconds). The fragment will be re-rendered after the TTL expires, regardless of whether the underlying data changed:
 
 ```html+jinja
-{% cache "sidebar", expires_in=3600 %}
+{% cache("sidebar", expires_in=3600) %}
   ... refreshed every hour ...
 {% endcache %}
 ```
@@ -292,7 +294,7 @@ Set a TTL with `expires_in` (in seconds). The fragment will be re-rendered after
 Use `version` to manually invalidate a fragment. This is useful when the template markup changes but the data hasn't — bumping the version forces a re-render:
 
 ```html+jinja
-{% cache card, version="v2" %}
+{% cache(card, version="v2") %}
   ... invalidated when version changes ...
 {% endcache %}
 ```
@@ -304,7 +306,7 @@ When caching model objects, `version` is normally unnecessary because `updated_a
 For heavily-trafficked fragments, use `race_condition_ttl` to prevent many requests from re-rendering the same block simultaneously when the cache expires:
 
 ```html+jinja
-{% cache "sidebar", expires_in=300, race_condition_ttl=10 %}
+{% cache("sidebar", expires_in=300, race_condition_ttl=10) %}
   ... expensive rendering ...
 {% endcache %}
 ```
@@ -318,11 +320,11 @@ Russian doll caching nests cached fragments inside other cached fragments. When 
 The template side uses nested `{% cache %}` blocks:
 
 ```html+jinja
-{% cache post %}
+{% cache(post) %}
   <article>
     <h1>{{ post.title }}</h1>
     {% for comment in post.comments %}
-      {% cache comment %}
+      {% cache(comment) %}
         <div class="comment">
           {{ comment.body }}
         </div>
@@ -332,7 +334,7 @@ The template side uses nested `{% cache %}` blocks:
 {% endcache %}
 ```
 
-The challenge: when a comment changes, its own fragment invalidates (its `updated_at` changed), but the outer `{% cache post %}` fragment still has the old `post.updated_at` and keeps serving stale HTML.
+The challenge: when a comment changes, its own fragment invalidates (its `updated_at` changed), but the outer `{% cache(post) %}` fragment still has the old `post.updated_at` and keeps serving stale HTML.
 
 The fix is to declare `touches` on the child model. Use the `RussianDollCached` mixin (found in `models/concerns/russian_doll_cached.py`):
 
@@ -344,7 +346,7 @@ class Comment(RussianDollCached, BaseModel):
     touches = ("post",)
 ```
 
-Now when a comment is saved or deleted, it automatically bumps its post's `updated_at`, which invalidates the outer fragment. The post fragment re-renders, but since only one comment changed, all the other `{% cache comment %}` fragments are still cached and served from the store.
+Now when a comment is saved or deleted, it automatically bumps its post's `updated_at`, which invalidates the outer fragment. The post fragment re-renders, but since only one comment changed, all the other `{% cache(comment) %}` fragments are still cached and served from the store.
 
 Touches cascade through multiple levels. If replies touch comments and comments touch posts, saving a reply invalidates all three layers:
 

@@ -72,7 +72,7 @@ Once installed, a Proper web app depends on some other Python libraries, most no
 
 - [Peewee ORM](https://docs.peewee-orm.com/)
 - [Huey](https://huey.readthedocs.io/) for background tasks
-- [Jx](https://jx.scaletti.dev/) for component templates
+- Jx components for templates, compiled to Python by [minijx](https://github.com/jpsca/minijx)
 - [Formidable](https://formidable.scaletti.dev/) for form handling
 
 Read the documentation of these libraries to understand how to work with them in Proper.
@@ -191,7 +191,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 
 | Setting                    | Default   | Description                                              |
 |----------------------------|-----------|----------------------------------------------------------|
-| `TEMPLATE_EXTENSIONS`      | `[]`      | Extra Jinja2 extensions to load into the catalog         |
+| `TEMPLATE_TAGS`            | `{}`      | Custom block tags for the views, `{"name": function}`    |
 | `IMPORT_MAP`               | `{}`      | JavaScript import map (`{"@hotwired/stimulus": "path"}`) |
 | `TRUSTED_ORIGINS`          | `[]`      | Origins allowed by `OriginProtection` (e.g. `["https://example.com"]`) |
 
@@ -508,10 +508,7 @@ proper install i18n                 # Install internationalization
 proper install storage              # Install file storage
 proper install channels             # Install channels addon
 
-proper jx check                     # Validate every Jx component (exit 1 on errors)
-proper jx info                      # Folders and components of the catalog
-proper jx parse FILE                # Imports and tags of one component, as JSON
-proper jx collect_assets OUTPUT     # Copy component package assets to OUTPUT
+proper jx info                      # Folders, autoescape, tags and views of the catalog
 ```
 
 All commands accept a `--help` parameter that shows more details.

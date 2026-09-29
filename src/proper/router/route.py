@@ -194,6 +194,7 @@ class Route:
         self.method = method
         self.path = path
         self._resolved: "tuple[type, str] | None" = None
+        self._controller_prefix: str | None = None
         self.to = to
 
     @property
@@ -230,10 +231,26 @@ class Route:
     def to(self, value: THandler | None):
         self._to = value
         self._resolved = None
+        self._controller_prefix = None
         if not self.name and value:
             cls, method = value.__qualname__.rsplit(".", 1)
             prefix = _namespace_prefix(getattr(value, "__module__", "") or "")
             self.name = f"{prefix}{cls.removesuffix('Controller')}.{method}"
+
+    @property
+    def controller_prefix(self) -> str:
+        """The snake-cased controller name of `to` plus `_`, so that for
+        `ItemController.show` the placeholder `:item_id` can also be read as
+        `id` from an object. Empty without a `to`."""
+        prefix = self._controller_prefix
+        if prefix is None:
+            if self._to:
+                cname = self._to.__qualname__.split(".")[0].removesuffix("Controller")
+                prefix = inflection.underscore(cname) + "_"
+            else:
+                prefix = ""
+            self._controller_prefix = prefix
+        return prefix
 
     def resolve(self) -> "tuple[type, str]":
         """The controller class and action name behind `to`, imported and
@@ -310,9 +327,8 @@ class Route:
         return params
 
     def format(self, **kw) -> str:
-        tmpl = RouteTemplate(self.path_plain or "")
         path_params = self._get_path_params(kw)
-        url = tmpl.substitute(dict(path_params)) or "/"
+        url = self._path_template.substitute(path_params) or "/"
 
         query_params = self._get_query_params(path_params, kw)
         if query_params:
@@ -326,11 +342,10 @@ class Route:
 
         Returns `None` if the route has no host constraint.
         """
-        if self.host_plain is None:
+        if self._host_template is None:
             return None
-        tmpl = RouteTemplate(self.host_plain)
         host_params = self._get_host_params(kw)
-        return tmpl.substitute(dict(host_params))
+        return self._host_template.substitute(host_params)
 
     # Private
 
@@ -342,6 +357,12 @@ class Route:
         self.path_plain = path_plain
         self.path_placeholders = placeholders
         self.path_casters = casters
+        # What `format` needs, ready: the template and one compiled regex
+        # per placeholder to validate its value.
+        self._path_template = RouteTemplate(path_plain)
+        self._path_placeholder_re = {
+            name: re.compile(rx) for name, rx in placeholders.items()
+        }
 
     def _compile_host(self) -> None:
         if self._host is None:
@@ -349,6 +370,8 @@ class Route:
             self.host_plain = None
             self.host_placeholders = {}
             self.host_casters = {}
+            self._host_template = None
+            self._host_placeholder_re = {}
             return
         host_re, host_plain, placeholders, casters = _compile_pattern(
             self._host, anchor_suffix=r"$"
@@ -357,27 +380,33 @@ class Route:
         self.host_plain = host_plain
         self.host_placeholders = placeholders
         self.host_casters = casters
+        self._host_template = RouteTemplate(host_plain)
+        self._host_placeholder_re = {
+            name: re.compile(rx) for name, rx in placeholders.items()
+        }
 
     def _get_path_params(self, kwargs: dict) -> dict:
         return self._get_pattern_params(
-            self.path_placeholders, kwargs, source=self.path
+            self._path_placeholder_re, kwargs, source=self.path
         )
 
     def _get_host_params(self, kwargs: dict) -> dict:
         return self._get_pattern_params(
-            self.host_placeholders, kwargs, source=self.host or ""
+            self._host_placeholder_re, kwargs, source=self.host or ""
         )
 
     @staticmethod
-    def _get_pattern_params(placeholders: dict, kwargs: dict, *, source: str) -> dict:
+    def _get_pattern_params(
+        placeholders: "dict[str, re.Pattern]", kwargs: dict, *, source: str
+    ) -> dict:
         params = {}
         for name, rx in placeholders.items():
             value = kwargs.get(name)
             if value is None:
                 raise MissingRouteParameter(name, source)
             value = str(value)
-            if not re.match(rx, value):
-                raise BadRoutePlaceholder(name, source, rx)
+            if not rx.match(value):
+                raise BadRoutePlaceholder(name, source, rx.pattern)
             params[name] = value
         return params
 

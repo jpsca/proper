@@ -24,7 +24,7 @@ For the asset-delivery side - filename fingerprinting, cache headers, the `route
 
 Jx is a Python component library. A component is a `.jx` file: a small piece of HTML with a header that declares its arguments and dependencies. Components import each other and compose into pages. The output is plain HTML.
 
-If you've used Django or Flask templates, the syntax in the body will feel familiar - Jx uses Jinja2 underneath, so `{% if %}`, `{% for %}`, `{{ value }}`, filters, and tests all work. The new bits are the header (a few `{# ... #}` directives at the top of the file) and the way components are *invoked* (as HTML tags, not via `{% include %}`).
+If you've used Django or Flask templates, the syntax in the body will feel familiar - Jx uses Jinja's syntax, so `{% if %}`, `{% for %}`, `{{ value }}`, filters, and tests all work. Proper compiles each component to a Python function with [minijx](https://github.com/jpsca/minijx){target="_blank"}, so rendering a page is calling plain Python code. The new bits are the header (a few `{# ... #}` directives at the top of the file) and the way components are *invoked* (as HTML tags, not via `{% include %}`).
 
 Here's the smallest useful Jx component:
 
@@ -62,8 +62,8 @@ Two things to notice. First, the component is invoked as `<Card>` rather than `{
 
 The rest of this guide covers the pieces you'll reach for past this minimum: declaring multiple props with defaults, named slots, attribute forwarding, CSS and JS dependencies, and the layouts and rendering conventions Proper layers on top.
 
-:::note Jx
-This guide aims to cover everything most Proper apps will need. For Jx internals not covered here (extending the catalog, the asset resolver, programmatic introspection), see the [Jx documentation](https://jx.scaletti.dev/){target="_blank"}.
+:::note minijx
+This guide aims to cover everything most Proper apps will need. For the compiler itself (the catalog, custom tags, the compiled modules), see the [minijx documentation](https://github.com/jpsca/minijx){target="_blank"}.
 :::
 
 ---
@@ -136,7 +136,7 @@ A complete component, with every directive used at least once:
 </article>
 ```
 
-The first lines are the **header**: zero or more directives wrapped in `{# ... #}`. After the header comes the **body**: regular Jinja2.
+The first lines are the **header**: zero or more directives wrapped in `{# ... #}`. After the header comes the **body**: HTML with Jinja's syntax.
 
 ### The Header Directives
 
@@ -149,24 +149,27 @@ The first lines are the **header**: zero or more directives wrapped in `{# ... #
 
 The order doesn't matter; each directive can appear multiple times; you can omit any of them. A component with only `#def` is fine. A component with no directives at all is fine too - it's just inert HTML.
 
-Each directive lives on its own line, but you can pack arguments onto one line:
+Each directive lives on its own line. `#import` takes one component; `#css` and `#js` can list several files, separated by commas:
 
 ```html+jinja
-{#import "icons/star.jx" as Star, "icons/warning.jx" as Warning #}
+{#import "icons/star.jx" as Star #}
+{#import "icons/warning.jx" as Warning #}
 {#css "card.css", "card-anim.css" #}
 {#js "card.js" #}
 ```
 
-Comma-separated values go inside one directive; each directive type repeats only when you'd rather split for readability.
-
 ### The Body
 
-After the header, the body is Jinja2. Everything you know works:
+After the header, the body uses Jinja's syntax:
 
-- `{{ expression }}` - render a value.
-- `{% if %}`, `{% for %}`, `{% set %}`, `{% with %}` - control flow.
-- `{% include %}`, `{% extends %}`, `{% block %}` - if you want them, though Jx components usually replace the `extends`/`block` pattern.
-- Filters (`{{ name | upper }}`), tests (`{% if x is none %}`), macros (`{% macro foo() %}`).
+- `{{ expression }}` - render a value, escaped (see below).
+- `{% if %}`, `{% for %}` (with `loop`, `else` and `recursive`), `{% set name = value %}`, `{% do %}`, `{% raw %}`, `{% filter %}`.
+- Filters (`{{ name | upper }}`), tests (`{% if x is none %}`), macros (`{% macro foo() %}`), for markup repeated inside one component.
+- Proper's block tags: `{% cache %}` (see [Caching](/docs/caching)), `{% turbo_frame %}` and `{% turbo_stream %}` (see [Turbo](/docs/turbo)).
+
+A few Jinja statements are not available, because components do their job: `{% include %}`, `{% extends %}` and `{% block %}` (use components and layouts), `{% with %}`, `{% call %}`, a `{% set %}` with a body, and `namespace()`. A `{% set %}` inside a `{% for %}` is not visible after the loop, as in Jinja.
+
+`{{ }}` escapes what it renders in `.jx`, `.html.jx` and `.xml.jx` files: `<`, `>`, `&` and quotes become entities, unless the value is already markup (the output of a component, `attrs.render()`, a form field, the `safe` filter). Other files, like `welcome.txt.jx` for the text part of an email, render values as they are.
 
 Two implicit variables come for free in every component:
 
@@ -279,18 +282,6 @@ Relative paths start with `./` or `../` and resolve against the *current file's*
 
 Relative imports are most useful for components that travel together - a page and its dedicated form partial, a layout and a layout-only sub-component. For everything else, absolute imports are clearer.
 
-### Prefixed
-
-Prefixed imports use an `@prefix/` form to distinguish a registered "package" of components from your own folder:
-
-```html+jinja
-{#import "@ui/button.jx" as Button #}
-```
-
-This form is rare in plain Proper apps - the default catalog has just one folder, registered without a prefix. Prefixes show up when an addon (or a third-party package) registers its own component folder. The `auth` blueprint, for example, can register its components under an `auth` prefix to avoid colliding with your own.
-
-You'll know you need this when an addon's documentation tells you to write `{#import "@addon-name/component.jx" as Foo #}`. Until then, stick to absolute and relative imports.
-
 ---
 
 ## Props (Arguments)
@@ -344,8 +335,8 @@ Defaults can be any Python literal:
 
 Multi-line `#def` is fine - Jx joins everything between `{#def` and `#}`. Use it to keep long argument lists readable.
 
-:::note | Mutable defaults are safe (mostly)
-Unlike Python function defaults, Jx makes a shallow copy of `list`, `dict`, and `set` defaults at every render - so `tags=[]` and `config={}` are not shared between calls. The exceptions are deeper structures (a list inside a default dict shares the inner list) and custom mutable classes (which aren't copied). For these, default to `None` and build the value in the body, just like in Python.
+:::note | Mutable defaults are safe
+Unlike Python function defaults, a default that is not a plain literal (`tags=[]`, `config={"key": "value"}`) is built again at every render, so it is never shared between calls, not even the lists or dicts inside it.
 :::
 
 ### Type Hints
@@ -356,13 +347,15 @@ Type hints are accepted in `#def`:
 {#def title: str, count: int = 0 #}
 ```
 
-When the annotation is a built-in Python type (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `float`, `bytes`), Jx enforces it at render time with `isinstance`. Pass `count="abc"` to a component declared as `count: int = 0` and the render fails with `InvalidPropType` before the body runs.
+When the annotation is a built-in Python type (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `float`, `bytes`), Jx enforces it at render time with `isinstance`. Pass a string to a component declared as `count: int = 0` (`count={{ n }}`, with `n = "abc"`) and the render fails with `InvalidPropType` before the body runs.
 
 For parameterized generics (`items: list[str]`), only the outer type is checked - Jx confirms the value is a `list`, but doesn't inspect the elements.
 
 For anything else - your own classes, unions like `int | str`, `Optional[int]`, types from the `typing` module - the annotation is silently ignored at runtime. It still shows up in the component's signature for tooling and editor support, but no `isinstance` check happens.
 
 If you want strict checking, stick to built-in types in `#def`. If you need to accept "an int or `None`", drop the annotation and validate in the body.
+
+What can be known before rendering is checked when the views compile, at startup: calling a component without a required argument (`<Counter />`), or with a literal of the wrong type (`<Counter count="3" />`, where `"3"` is a `str`), is a compile error that names the file, line and column.
 
 ### Passing Arguments
 
@@ -405,19 +398,7 @@ You write idiomatic HTML at the call site, idiomatic Python in the component bod
 
 ### Validation
 
-When a component is rendered, Jx checks that every required prop was passed and that no unknown props were passed. The latter goes through the `attrs` system instead of erroring (next section).
-
-The signature of every component is also queryable through the catalog - useful for tooling and tests:
-
-```python
-sig = app.catalog.get_signature("components/card.jx")
-sig["required"]   # {"title": str}
-sig["optional"]   # {"size": ("md", str), "badge": (None, ...)}
-```
-
-The returned dict also has `slots`, `css`, and `js` keys.
-
-You won't reach for this often, but it's there.
+Every required prop must be passed: a component call that is missing one is an error when the views compile, and, if the compiler could not see it, when the component renders. A prop the component doesn't declare is not an error: it goes through the `attrs` system (next section).
 
 ---
 
@@ -596,7 +577,7 @@ This is a *setdefault* semantic - you're saying "use this if the caller didn't p
 Classes are special. The caller often wants to *add* a class, not replace one:
 
 ```html+jinja
-<button {{ attrs.render(class_="Button") }}>
+<button {{ attrs.render(class="Button") }}>
 ```
 
 ```html+jinja
@@ -611,7 +592,7 @@ Output:
 
 Both classes appear. The component's `Button` class is preserved, and the caller's `danger` is appended.
 
-The trailing-underscore on `class_` is because `class` is a Python reserved word. Jx strips the underscore when emitting HTML.
+In a template, `class` is not a reserved word, so `attrs.render(class="Button")` works as written; `classes="Button"` does the same. (Don't write `class_`: it would become a `class-` attribute, like any other underscore.)
 
 ### The Methods on `attrs`
 
@@ -619,7 +600,7 @@ Beyond `render()`, `attrs` exposes a small API for finer control:
 
 | Method                             | What it does                                                        |
 | ---------------------------------- | ------------------------------------------------------------------- |
-| `attrs.set(**kw)`                  | Set or replace attributes. Caller's value is **overridden** - except `class`/`classes`, which `set(class_=...)` *appends* rather than replaces. |
+| `attrs.set(**kw)`                  | Set or replace attributes. Caller's value is **overridden** - except `class`/`classes`, which `set(class=...)` *appends* rather than replaces. |
 | `attrs.setdefault(**kw)`           | Set attributes only if not already present. Caller's value wins.    |
 | `attrs.get(name, default=None)`    | Read an attribute's value. Does not remove it from `attrs`.         |
 | `attrs.add_class(*classes)`        | Append one or more classes.                                         |
@@ -632,12 +613,12 @@ Use these when you need to do something more than render-with-defaults. For exam
 
 ```html+jinja
 {% do attrs.set(role="status") %}
-<div {{ attrs.render(class_="Alert") }}>
+<div {{ attrs.render(class="Alert") }}>
   {{ content }}
 </div>
 ```
 
-The `{% do ... %}` tag is from `jinja2.ext.do`, enabled by default in Jx. It runs an expression for its side effect without rendering anything.
+The `{% do ... %}` tag runs an expression for its side effect without rendering anything.
 
 ### Underscore-to-Dash Conversion
 
@@ -663,7 +644,7 @@ The underscore form is the Python identifier; the dash form is what shows up in 
 ```html+jinja
 {#def label #}
 
-<button {{ attrs.render(type="button", class_="Button") }}>
+<button {{ attrs.render(type="button", class="Button") }}>
   {{ label }}
 </button>
 ```
@@ -686,7 +667,7 @@ The underscore form is the Python identifier; the dash form is what shows up in 
 
 {% do attrs.set(role="article") %}
 
-<article {{ attrs.render(class_="Card") }}>
+<article {{ attrs.render(class="Card") }}>
   <h3>{{ title }}</h3>
   {{ content }}
 </article>
@@ -796,7 +777,7 @@ In any layout (or anywhere you want), call methods on the `assets` global to emi
 
 `assets.render_css()` emits a `<link rel="stylesheet">` for every CSS file declared by every component used on the page. `assets.render_js()` emits a `<script type="module">` for every JS file. `assets.render()` does both.
 
-In Proper the catalog is created without an asset resolver, so these methods emit each declared path verbatim - they do *not* fingerprint the URLs. Fingerprinting comes from running the paths through `url_for('assets', file=url)`, which is what the generated `base.jx` does with the `collect_css()` / `collect_js()` loop shown below.
+These methods emit each declared path verbatim - they do *not* fingerprint the URLs. Fingerprinting comes from running the paths through `url_for('assets', file=url)`, which is what the generated `base.jx` does with the `collect_css()` / `collect_js()` loop shown below.
 
 `render_js()` accepts two arguments:
 
@@ -1271,21 +1252,17 @@ This works because Proper renders the template with `**vars(self)` - everything 
 
 ## Checking Your Components
 
-`proper jx check` validates every component in your `views/` folder without rendering anything: imports that resolve, tags that name an imported component, props that exist. It exits with a non-zero status when something is wrong, so it can run in CI.
+The views are compiled when the app starts. Outside of `DEBUG`, a view with an error stops the start, and the message lists every error, with its file, line and column: a syntax error, an import that does not resolve, a component used without a required argument or with a literal of the wrong type.
 
-```bash
-❯ proper jx check
-✓ layouts/app.jx - OK
-✗ posts/show.jx:12: unknown component <Cardd>, did you mean <Card>?
-
-2 components checked, 1 error
+```
+/srv/myapp/views/posts/show.jx:12:3: `<Card>` needs the argument `title` (ui/card.jx)
 ```
 
-There are three more commands. `proper jx info` reports the folders and components the catalog found. `proper jx parse FILE` prints the imports and component tags of one file, with their positions, as JSON. `proper jx collect_assets OUTPUT` copies the assets of any component packages registered with a prefix into one folder. Add `--format json` to `check` or `info` for machine-readable output.
+In `DEBUG`, the errors are logged and the app starts anyway; each error shows when its view is rendered. `proper jx info` reports the folders of the catalog, where the views are compiled, the custom tags and the views it found; add `--format json` for machine-readable output.
 
 ## What's Not Covered Here
 
 This guide focuses on the day-to-day surface: writing components, using them, and the way Proper hooks into Jx. A few topics are deliberately left out.
 
-- **The Catalog API.** Proper sets up the catalog automatically, registers your `views/` folder, and adds the globals discussed above. If you're embedding Jx into a non-Proper context (a Flask app, a script that produces HTML) you'd build the catalog yourself - that's covered in the [Jx documentation](https://jx.scaletti.dev/){target="_blank"}.
+- **The Catalog API.** Proper sets up the catalog (`app.catalog`) automatically, registers your `views/` folder, and adds the globals and tags discussed above. It is a minijx catalog; to use one outside Proper, see the [minijx documentation](https://github.com/jpsca/minijx){target="_blank"}.
 - **Form rendering.** The `<Form>` component, render helpers like `field.label()` and `field.text_input()`, and the wire format for submitted data are covered in the [Rendering Forms guide](/docs/form_rendering).

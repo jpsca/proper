@@ -100,13 +100,13 @@ Drive also shows a progress bar for slow navigations and caches a preview of vis
 
 ## Turbo Frames
 
-A frame is a region of the page that Turbo can replace on its own. Wrap content in `turbo_frame_tag` (a template global, so there is no import) and give it a stable id. Use it as an expression for an empty or lazily loaded frame, or as a `{% call %}` block to wrap content:
+A frame is a region of the page that Turbo can replace on its own. Wrap content in `turbo_frame_tag` (a template global, so there is no import) and give it a stable id. Use it as an expression for an empty or lazily loaded frame, or as the `turbo_frame` tag, with the same arguments, to wrap content:
 
 ```html+jinja
-{% call turbo_frame_tag(message) %}
+{% turbo_frame message %}
   <h1>{{ message.title }}</h1>
   <a href="{{ url_for('Message.edit', object=message) }}">Edit</a>
-{% endcall %}
+{% endturbo_frame %}
 {# <turbo-frame id="message_42"> ... </turbo-frame> #}
 ```
 
@@ -121,19 +121,19 @@ This means you don't have to change anything in your controllers code for this m
 The classic frame pattern is an edit link that swaps the frame for a form, and a form that swaps it back. Every view wraps the same `dom_id` frame, so Turbo keeps swapping the one region:
 
 ```html+jinja {title="views/message/show.jx (view state)"}
-{% call turbo_frame_tag(message) %}
+{% turbo_frame message %}
   <h1>{{ message.title }}</h1>
   <a href="{{ url_for('Message.edit', object=message) }}">Edit</a>
-{% endcall %}
+{% endturbo_frame %}
 ```
 
 ```html+jinja {title="views/message/edit.jx (edit state)"}
-{% call turbo_frame_tag(message) %}
+{% turbo_frame message %}
   <form method="post" action="{{ url_for('Message.update', object=message) }}">
     <input name="title" value="{{ message.title }}">
     <button>Save</button>
   </form>
-{% endcall %}
+{% endturbo_frame %}
 ```
 
 The controller needs no Turbo awareness. `update` saves and redirects to `show` as usual - Turbo follows the redirect, extracts the `message_42` frame, and the region flips back to view mode:
@@ -151,17 +151,15 @@ When the form is invalid, the generated `validate_form` callback re-renders `edi
 Give a frame a `src` and Turbo fetches it; add `loading="lazy"` and it waits until the frame scrolls into view. The frame shows a placeholder until the content arrives, which is handy for slow widgets that should not block the main page:
 
 ```html+jinja {title="views/dashboard/index.jx"}
-{% call turbo_frame_tag(
-  "inbox_count", src=url_for("Inbox.count"), loading="lazy"
-) %}
+{% turbo_frame "inbox_count", src=url_for("Inbox.count"), loading="lazy" %}
   Loading...
-{% endcall %}
+{% endturbo_frame %}
 ```
 
 The endpoint returns the same-id frame with the real content (and no `src`):
 
 ```html+jinja {title="views/inbox/count.jx"}
-{% call turbo_frame_tag("inbox_count") %}{{ unread }} unread{% endcall %}
+{% turbo_frame "inbox_count" %}{{ unread }} unread{% endturbo_frame %}
 ```
 
 ### Targeting and breaking out
@@ -180,9 +178,9 @@ By default a link inside a frame navigates *that* frame. Two attributes on the l
 To make a frame's *own* navigations add browser history (so the "Back" button works), set `data-turbo-action="advance"` on the frame. `turbo_frame_tag` turns keyword underscores into dashes, so you pass it as `data_turbo_action`:
 
 ```html+jinja
-{% call turbo_frame_tag("results", data_turbo_action="advance") %}
+{% turbo_frame "results", data_turbo_action="advance" %}
   ...
-{% endcall %}
+{% endturbo_frame %}
 ```
 
 ### Frame requests on the server
@@ -250,12 +248,12 @@ Argument               | Renders
 `content=...`          | a string or `Markup`, or a callable returning one
 `html=...`             | ready-made HTML
 
-In a template, the action methods also work as `{% call %}` blocks - the block body becomes the content:
+In a template, the `turbo_stream` tag takes the action and then the same arguments as the method; its body becomes the content:
 
 ```html+jinja
-{% call turbo_stream.append("messages") %}
+{% turbo_stream "append", "messages" %}
   <li>{{ message.body }}</li>
-{% endcall %}
+{% endturbo_stream %}
 ```
 
 To send several operations at once, concatenate fragments. They are `Markup`, so `+` just works:
@@ -348,7 +346,7 @@ These are available in every view, with no import:
 Global             | Use
 ------------------ | ---------------------------------------------------------
 `turbo_stream`     | build `<turbo-stream>` fragments
-`turbo_frame_tag`  | render a `<turbo-frame>` (expression or `{% call %}` block)
+`turbo_frame_tag`  | render a `<turbo-frame>` (expression; `{% turbo_frame %}` as a block)
 `dom_id`           | stable element id for a model, `dom_id(post)` → `post_42`
 
 And on the request and response:

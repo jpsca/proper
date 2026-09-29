@@ -8,7 +8,7 @@ number_headers: true
 
 The following outlines the view helpers available in your views. It serves as a good starting point, but reviewing the [full API Documentation](/docs/api/view_helpers) is also recommended, as it covers all of the helpers in more detail.
 
-These are the ones **added by Proper**, Jinja (the template engine Jx is based on) [include some more builtin filters](https://tedboy.github.io/jinja2/templ14.html).
+These are the ones **added by Proper**. The [builtin filters of Jinja](https://jinja.palletsprojects.com/en/stable/templates/#builtin-filters){target="_blank"} are available too, except `xmlattr`, `pprint` and `urlize`.
 
 All of these helpers _can_ be also used in your views with the pipe operator. For example, `{{value|format_date(args)}}` instead of `{{format_date(value, args)}}`.
 

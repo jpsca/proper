@@ -23,7 +23,7 @@ The `CardScoped` concern from the overview has one line worth dwelling on:
 def set_card(self):
     card_id = self.params.get("card_id")
     if card_id:
-        self.card = Card.get_or_none(id=int(card_id))
+        self.card = Card.find(int(card_id))
         if self.request.matched_action != "delete" and not self.card:
             raise NotFound
 ```
@@ -395,7 +395,7 @@ from proper.errors import NotFound, Forbidden
 
 def set_card(self):
     card_id = self.params.get("card_id", "")
-    self.card = Card.get_or_none(id=int(card_id))
+    self.card = Card.find(int(card_id))
     if not self.card:
         raise NotFound
 
@@ -438,7 +438,7 @@ Two paths produce an error response from a controller. Both are fine; they're fo
 
 ```python
 def set_card(self):
-    self.card = Card.get_or_none(id=int(self.params.get("card_id", "")))
+    self.card = Card.find(int(self.params.get("card_id", "")))
     if not self.card:
         raise NotFound
 ```

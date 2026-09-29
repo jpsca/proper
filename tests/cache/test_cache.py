@@ -4,14 +4,14 @@ from datetime import datetime
 from time import time
 from unittest.mock import MagicMock
 
+import minijx
 import pytest
-from jinja2 import Environment
 
 from proper.cache import (
     BaseCache,
-    FragmentCacheExtension,
     NoCache,
     SqliteCache,
+    cache_tag,
     key_for,
     key_for_collection,
     key_for_object,
@@ -584,84 +584,90 @@ class TestKeyFor:
             key_for("prefix", bytearray(b"hello"))
 
 
-class TestFragmentCacheExtension:
-    def _make_ext(self, cache=None):
-        ext = FragmentCacheExtension.__new__(FragmentCacheExtension)
-        ext.environment = MagicMock()
-        ext.environment.app_cache = cache or SqliteCache(":memory:")
-        return ext
+class TestCacheTag:
+    """The `{% cache %}` tag: `cache_tag` and a catalog of views using it."""
+
+    def _catalog(self, tmp_path, cache):
+        return minijx.Catalog(tmp_path, tags={"cache": cache_tag(cache)})
 
     def test_cache_miss_renders_and_stores(self):
-        ext = self._make_ext()
-        result = ext._cache_support("my-key", caller=lambda: "rendered", name="view")
+        cache = SqliteCache(":memory:")
+        result = cache_tag(cache)("my-key", caller=lambda: "rendered", template="page.jx")
         assert result == "rendered"
-        assert ext.environment.app_cache.get("my-key") == "rendered"
+        assert cache.get("my-key") == "rendered"
 
     def test_cache_hit_returns_cached(self):
-        ext = self._make_ext()
-        ext.environment.app_cache.set("my-key", "cached-value")
-        result = ext._cache_support("my-key", caller=lambda: "fresh", name="view")
-        assert result == "cached-value"
+        cache = SqliteCache(":memory:")
+        cache.set("my-key", "cached-value")
+        assert cache_tag(cache)("my-key", caller=lambda: "fresh", template="page.jx") == "cached-value"
 
-    def test_cache_with_expires_in(self):
-        ext = self._make_ext()
-        ext._cache_support("my-key", caller=lambda: "value", name="view", expires_in=300)
-        assert ext.environment.app_cache.get("my-key") == "value"
+    def test_cache_with_expires_in_and_version(self):
+        cache = SqliteCache(":memory:")
+        tag = cache_tag(cache)
+        tag("my-key", caller=lambda: "value", template="page.jx", expires_in=300, version="v2")
+        # key_for ignores the version of a string key
+        assert cache.get("my-key") == "value"
 
-    def test_cache_with_version(self):
-        ext = self._make_ext()
-        ext._cache_support("my-key", caller=lambda: "value", name="", version="v2")
-        # key_for with version="v2" produces "my-key" for string keys
-        assert ext.environment.app_cache.get("my-key") == "value"
+    def test_object_keys_are_prefixed_with_the_template(self):
+        cache = SqliteCache(":memory:")
+        tag = cache_tag(cache)
 
-    def test_default_name_prefix(self):
-        ext = self._make_ext()
-        ext._cache_support("my-key", caller=lambda: "value", name="")
-        assert ext.environment.app_cache.get("my-key") == "value"
+        class Card:
+            id = 42
+            updated_at = None
+
+        tag(Card(), caller=lambda: "a", template="cards/show.jx")
+        tag(Card(), caller=lambda: "b", template="cards/index.jx")
+        assert cache.get("cards/show.jx:0/card/42") == "a"
+        assert cache.get("cards/index.jx:0/card/42") == "b"
 
     def test_race_condition_ttl(self):
         cache = SqliteCache(":memory:")
-        ext = self._make_ext(cache)
         cache.set("my-key", "stale", expires_in=100)
         # Expire the key 2 seconds ago
         Cache.update(expires_at=int(time()) - 2).where(Cache.key == "my-key").execute()
-
-        result = ext._cache_support(
+        result = cache_tag(cache)(
             "my-key",
             caller=lambda: "fresh",
-            name="view",
+            template="page.jx",
             expires_in=300,
             race_condition_ttl=10,
         )
         assert result == "fresh"
         assert cache.get("my-key") == "fresh"
 
-    def test_tags(self):
-        assert "cache" in FragmentCacheExtension.tags
+    @pytest.mark.parametrize("source", [
+        "{% cache('my-key') %}expensive{% endcache %}",
+        '{% cache "my-key" %}expensive{% endcache %}',
+    ])
+    def test_render(self, tmp_path, source):
+        cache = SqliteCache(":memory:")
+        catalog = self._catalog(tmp_path, cache)
+        assert catalog.render_string(source) == "expensive"
+        assert cache.get("my-key") == "expensive"
 
-    def test_parse_and_render(self):
-        env = Environment(extensions=[FragmentCacheExtension])
-        env.app_cache = SqliteCache(":memory:")
+    def test_render_cache_hit(self, tmp_path):
+        cache = SqliteCache(":memory:")
+        cache.set("key", "cached")
+        catalog = self._catalog(tmp_path, cache)
+        assert catalog.render_string("{% cache('key') %}fresh{% endcache %}") == "cached"
 
-        template = env.from_string("{% cache('my-key') %}expensive{% endcache %}")
-        result = template.render()
-        assert result == "expensive"
-        assert env.app_cache.get("my-key") == "expensive"
+    def test_render_with_expires_in(self, tmp_path):
+        cache = SqliteCache(":memory:")
+        catalog = self._catalog(tmp_path, cache)
+        assert catalog.render_string("{% cache('key', expires_in=300) %}body{% endcache %}") == "body"
+        assert cache.get("key") == "body"
 
-    def test_parse_cache_hit(self):
-        env = Environment(extensions=[FragmentCacheExtension])
-        env.app_cache = SqliteCache(":memory:")
-        env.app_cache.set("key", "cached")
+    def test_the_body_is_not_rendered_on_a_hit(self, tmp_path):
+        cache = SqliteCache(":memory:")
+        cache.set("key", "cached")
+        catalog = self._catalog(tmp_path, cache)
+        calls = []
+        catalog.globals["count"] = lambda: calls.append(1)
+        assert catalog.render_string("{% cache('key') %}{{ count() }}{% endcache %}") == "cached"
+        assert calls == []
 
-        template = env.from_string("{% cache('key') %}fresh{% endcache %}")
-        result = template.render()
-        assert result == "cached"
+    def test_the_app_registers_the_tag(self, app):
+        assert "cache" in app.catalog.tags
 
-    def test_parse_with_expires_in(self):
-        env = Environment(extensions=[FragmentCacheExtension])
-        env.app_cache = SqliteCache(":memory:")
 
-        template = env.from_string("{% cache('key', expires_in=300) %}body{% endcache %}")
-        result = template.render()
-        assert result == "body"
-        assert env.app_cache.get("key") == "body"

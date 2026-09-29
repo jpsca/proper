@@ -55,13 +55,13 @@ Drive also shows a progress bar for slow navigations and caches a preview of vis
 
 ## Turbo Frames
 
-A frame is a region of the page Turbo can replace on its own. Wrap content in `turbo_frame_tag` — a [template global](#quick-reference), so no import — and give it a stable id. Use it as an expression for an empty/lazy frame, or as a `{% call %}` block to wrap content:
+A frame is a region of the page Turbo can replace on its own. Wrap content in `turbo_frame_tag` — a [template global](#quick-reference), so no import — and give it a stable id. Use it as an expression for an empty/lazy frame, or as the `turbo_frame` tag (same arguments) to wrap content:
 
 ```html+jinja
-{% call turbo_frame_tag(message) %}
+{% turbo_frame message %}
   <h1>{{ message.title }}</h1>
   <a href="{{ url_for('Message.edit', object=message) }}">Edit</a>
-{% endcall %}
+{% endturbo_frame %}
 {# <turbo-frame id="message_42"> … </turbo-frame> #}
 ```
 
@@ -72,19 +72,19 @@ The id is what ties everything together. Pass a model and `turbo_frame_tag` deri
 The canonical frame pattern: an edit link that swaps the frame for a form, and a form that swaps it back. Every view wraps the same `dom_id` frame, so Turbo keeps swapping the one region:
 
 ```html+jinja {title="views/message/show.jx — view state"}
-{% call turbo_frame_tag(message) %}
+{% turbo_frame message %}
   <h1>{{ message.title }}</h1>
   <a href="{{ url_for('Message.edit', object=message) }}">Edit</a>
-{% endcall %}
+{% endturbo_frame %}
 ```
 
 ```html+jinja {title="views/message/edit.jx — edit state"}
-{% call turbo_frame_tag(message) %}
+{% turbo_frame message %}
   <form method="post" action="{{ url_for('Message.update', object=message) }}">
     <input name="title" value="{{ message.title }}">
     <button>Save</button>
   </form>
-{% endcall %}
+{% endturbo_frame %}
 ```
 
 The controller needs no Turbo awareness. `update` saves and redirects to `show` as usual — Turbo follows the redirect, extracts the `message_42` frame, and the region flips back to view mode:
@@ -108,7 +108,7 @@ Give a frame a `src` and Turbo fetches it; add `loading="lazy"` and it waits unt
 The endpoint returns the same-id frame with the real content (and no `src`):
 
 ```html+jinja {title="views/inbox/count.jx"}
-{% call turbo_frame_tag("inbox_count") %}{{ unread }} unread{% endcall %}
+{% turbo_frame "inbox_count" %}{{ unread }} unread{% endturbo_frame %}
 ```
 
 ### Targeting and breaking out
@@ -125,7 +125,7 @@ By default a link inside a frame navigates *that* frame. Two attributes on the l
 To make a frame's *own* navigations push browser history (so Back works), set `data-turbo-action="advance"` on the frame. `turbo_frame_tag` turns keyword underscores into dashes, so pass it as `data_turbo_action`:
 
 ```html+jinja
-{% call turbo_frame_tag("results", data_turbo_action="advance") %} … {% endcall %}
+{% turbo_frame "results", data_turbo_action="advance" %} … {% endturbo_frame %}
 ```
 
 ### Frame requests on the server
@@ -183,12 +183,12 @@ turbo_stream.remove(targets=".flash")                   # targets=".flash", no c
 | `content=…` | A string/`Markup`, or a callable returning one |
 | `html=…` | Ready-made HTML |
 
-In a template, the action methods double as `{% call %}` blocks — the block body becomes the content:
+In a template, the `turbo_stream` tag takes the action and then the method's arguments — its body becomes the content:
 
 ```html+jinja
-{% call turbo_stream.append("messages") %}
+{% turbo_stream "append", "messages" %}
   <li>{{ message.body }}</li>
-{% endcall %}
+{% endturbo_stream %}
 ```
 
 **Concatenate** to send several operations at once. Fragments are `Markup`, so `+` (or returning a list to `render(stream=)`) just works:
@@ -272,7 +272,7 @@ Template globals (every view, no import):
 | Global | Use |
 |--------|-----|
 | `turbo_stream` | build `<turbo-stream>` fragments |
-| `turbo_frame_tag` | render a `<turbo-frame>` (expression or `{% call %}` block) |
+| `turbo_frame_tag` | render a `<turbo-frame>` (expression; `{% turbo_frame %}` as a block) |
 | `dom_id` | stable element id for a model — `dom_id(post)` → `post_42` ([frontend.md](frontend.md#template-globals)) |
 
 Request predicates and the response helper:

@@ -213,7 +213,7 @@ class CardScoped(Concern):
     def set_card(self):
         card_id = self.params.get("card_id")
         if card_id:
-            self.card = Card.get_or_none(id=int(card_id))
+            self.card = Card.find(int(card_id))
             if self.request.matched_action != "delete" and not self.card:
                 raise NotFound
 ```
@@ -326,7 +326,7 @@ class CardController(AppController):
 
     def set_card(self):
         card_id = self.params.get("card_id", "")
-        self.card = Card.get_or_none(id=int(card_id))
+        self.card = Card.find(int(card_id))
         if self.request.matched_action != "delete" and not self.card:
             raise NotFound
 
@@ -381,7 +381,7 @@ self.params
         │
         ▼
 set_card
-  └─ self.card = Card.get_or_none(id=int(card_id))
+  └─ self.card = Card.find(int(card_id))
   └─ raises NotFound if missing
         │
         ▼
@@ -487,7 +487,7 @@ class PostController(AppController):
 
     def set_post(self):
         post_id = self.params.get("post_id", "")
-        self.post = Post.get_or_none(id=int(post_id))
+        self.post = Post.find(int(post_id))
         if self.request.matched_action != "delete" and not self.post:
             raise NotFound
 

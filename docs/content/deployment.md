@@ -110,6 +110,10 @@ Broadcasts made in the web process are forwarded to the cable process as a signe
 
 Ctrl+C, or a `SIGTERM` to `proper run`, shuts down every process it started.
 
+### Compiled views
+
+The views are compiled to Python modules under `_compiled/views/`, next to your app's package. The server compiles them all when it starts, in a few milliseconds. Outside of `DEBUG`, a view that does not compile stops the start, listing every error, instead of failing its first request. In `DEBUG`, the errors are logged and the server starts anyway: each error shows when its view is rendered, and a view you edit is compiled again on the next request that uses it. The folder is in the `.gitignore` of new apps; `COMPILED_PATH` in the config moves it.
+
 ---
 
 ## Sizing

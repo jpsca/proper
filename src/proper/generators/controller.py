@@ -408,7 +408,7 @@ class {parent_pascal}Scoped(Concern):
     def set_{parent_snake}(self):
         {parent_id} = self.params.get("{parent_id}")
         if {parent_id}:
-            self.{parent_snake} = {parent_pascal}.get_or_none(id=int({parent_id}))
+            self.{parent_snake} = {parent_pascal}.find(int({parent_id}))
             if self.request.matched_action != "delete" and not self.{parent_snake}:
                 raise NotFound
 """

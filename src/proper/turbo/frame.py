@@ -26,12 +26,12 @@ def turbo_frame_tag(
     {{ turbo_frame_tag(post, src=url_for("Posts.show", post=post), loading="lazy") }}
     ```
 
-    or as a `{% call %}` block to wrap content:
+    or as the `turbo_frame` tag to wrap content, with the same arguments:
 
     ```html+jinja
-    {% call turbo_frame_tag(post) %}
+    {% turbo_frame post %}
       {{ post.title }}
-    {% endcall %}
+    {% endturbo_frame %}
     ```
 
     `src` loads the frame's content from a URL, `loading="lazy"` defers that load

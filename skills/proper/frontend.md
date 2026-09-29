@@ -6,7 +6,7 @@ last_verified: 2026-04-02
 
 # Frontend
 
-Proper uses [Jx](https://jx.scaletti.dev) for component-based templates, and Turbo Drive for fast page-to-page navigation. Static assets are served with automatic fingerprinting for long-term caching.
+Proper uses Jx components for templates (compiled to Python by [minijx](https://github.com/jpsca/minijx)), and Turbo Drive for fast page-to-page navigation. Static assets are served with automatic fingerprinting for long-term caching.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ Proper uses [Jx](https://jx.scaletti.dev) for component-based templates, and Tur
 
 ## Templates
 
-Templates are [Jx](https://jx.scaletti.dev) components — Jinja2 files with explicit prop declarations and an HTML-like call syntax. All standard Jinja2 syntax still works; Jx adds a component layer on top.
+Templates are Jx components — files with Jinja's syntax, explicit prop declarations and an HTML-like call syntax. Most Jinja syntax works (`if`, `for`, `set`, filters, tests, macros); `include`, `extends`, `block`, `with` and `call` don't — components and layouts replace them. See [jx.md](jx.md).
 
 ### Directory structure
 
@@ -124,7 +124,7 @@ In the layout, `assets.collect_css()` and `assets.collect_js()` return the paths
 {% endfor -%}
 ```
 
-See the [Jx documentation](https://jx.scaletti.dev) for details on declaring assets in components.
+See [jx.md](jx.md) for details on declaring assets in components.
 
 
 ## Import Maps

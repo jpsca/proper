@@ -22,13 +22,13 @@ class TurboStream:
     `target` is an element id, or a model instance (its `dom_id` is used). Pass
     `targets` with a CSS selector instead to act on every matching element.
 
-    `content` can be a string/`Markup` or a callable returning one - which is how
-    the action methods double as `{% call %}` blocks in a template:
+    In a template, the `turbo_stream` tag takes the action and the same
+    arguments, and its body is the content:
 
     ```html+jinja
-    {% call turbo_stream.append("messages") %}
+    {% turbo_stream "append", "messages" %}
       <li>{{ message.body }}</li>
-    {% endcall %}
+    {% endturbo_stream %}
     ```
 
     Broadcast the result over a stream for a live update, or return it from a
@@ -163,7 +163,7 @@ class TurboStream:
         if component:
             inner_html = current.app.catalog.render(component, **props)
         else:
-            # `caller` is the html delivered by a template's `{% call %}` block.
+            # `caller` renders the body of a template's `turbo_stream` tag.
             if caller:
                 inner_html = caller()
             else:

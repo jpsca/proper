@@ -1,3 +1,4 @@
+from ..cache import cache_tag
 from ..errors import ConfigError
 from ..helpers.imports import get_instance
 
@@ -17,7 +18,7 @@ def setup(app):
     if database and database != ":memory:":
         app.db["proper_cache"] = database
 
-    app.catalog.jinja_env.extend(app_cache=cache)
+    app.catalog.add_tags({"cache": cache_tag(cache)})
 
 
 def validate_config(config):

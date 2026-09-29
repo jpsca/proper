@@ -9,6 +9,7 @@ import inflection
 
 from .. import status
 from ..channels import Channel
+from ..compile.routes import RouteTable, lower_routes
 from ..constants import (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -78,12 +79,16 @@ class BaseRouter:
         self._static_routes: dict[tuple[str, str], Route] = {}
         self._dynamic_routes: dict[str, list[Route]] = {}
         self._allowed_by_path: dict[str, set[str]] = {}
+        # The dynamic routes lowered for matching (see `proper.compile.routes`),
+        # built on the first match after the last `add_route`.
+        self._table: RouteTable | None = None
         self.debug = debug
 
     def __repr__(self) -> str:
         return f"<Router #{id(self)}>"
 
     def add_route(self, route: Route) -> None:
+        self._table = None
         self._routes.append(route)
         if route.name and route.name not in self._routes_by_name:
             self._routes_by_name[route.name] = route
@@ -135,18 +140,15 @@ class BaseRouter:
             params = route.defaults.copy() or {}
             return route, params
 
-        # Dynamic routes: scan only those registered for this method
-        dynamic = self._dynamic_routes.get(method, ())
-        for route in dynamic:
-            host_params = route.match_host(host)
-            if host_params is None:
-                continue
-            m = route.match(path)
-            if m is not None:
-                params = route.defaults.copy() or {}
-                params.update(host_params)
-                params.update(m)
-                return route, params
+        table = self._table
+        if table is None:
+            table = self.lower()
+        found = table.lookup(method, path, host)
+        if found is not None:
+            route, matched = found
+            params = route.defaults.copy() or {}
+            params.update(matched)
+            return route, params
 
         # No match - collect allowed methods for 405 detection
         allowed = set()
@@ -156,16 +158,7 @@ class BaseRouter:
         if static_allowed:
             allowed = static_allowed - {method}
 
-        # Check dynamic routes for other methods
-        for other_method, routes in self._dynamic_routes.items():
-            if other_method == method:
-                continue
-            for route in routes:
-                if route.match_host(host) is None:
-                    continue
-                if route.match(path) is not None:
-                    allowed.add(other_method)
-                    break
+        allowed |= table.allowed_methods(method, path, host)
 
         if allowed:
             msg = f"`{path}` does not accept a `{method}`."
@@ -175,6 +168,12 @@ class BaseRouter:
         else:
             msg = f"{method} `{path}` does not match."
             raise MatchNotFound(msg)
+
+    def lower(self) -> RouteTable:
+        """Fold the dynamic routes into the table `match` uses, now instead
+        of on the first request. Called again after any `add_route`."""
+        self._table = table = lower_routes(self)
+        return table
 
     @property
     def routes(self) -> list[Route]:
@@ -242,8 +241,7 @@ class BaseRouter:
                 # Find the prefix for the placeholders of this route so if, for example, the route is
                 # for `ItemController.action`, the placeholders `:item_id` and `:item_slug`,
                 # are also searched as `id` and `slug` in the object attributes.
-                cname = route.to.__qualname__.split(".")[0].removesuffix("Controller")
-                cprefix = inflection.underscore(cname) + "_"
+                cprefix = route.controller_prefix
             else:
                 cprefix = ""
 

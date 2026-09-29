@@ -112,7 +112,7 @@ class TestScopedConcern:
         assert 'before = {"do": "set_card"}' in text
         assert "def set_card(self):" in text
         assert "from ...models import Card" in text
-        assert "self.card = Card.get_or_none(id=int(card_id))" in text
+        assert "self.card = Card.find(int(card_id))" in text
 
     def test_concern_not_clobbered_on_second_child(self, app_in_tmp):
         gen_controller(app_in_tmp, "card/closure")

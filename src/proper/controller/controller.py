@@ -5,21 +5,17 @@ import typing as t
 
 from markupsafe import Markup
 
+from ..compile.dispatch import callback_applies, plan_for, resolve_view
 from ..constants import TURBO_STREAM_MIME
 from ..helpers import MultiDict, jsonplus, logger, make_list
 from ..status import not_modified, unprocessable
-from .template_resolver import resolve_template
+from .template_resolver import formats_for
 
 
 if t.TYPE_CHECKING:
     from ..app import App
     from ..core.request import Request
     from ..core.response import Response
-
-
-# The flattened callbacks of every controller class seen so far. Classes are
-# defined at import time, so there is nothing to invalidate.
-_CALLBACKS: "dict[type, tuple[list, list]]" = {}
 
 
 class Controller:
@@ -92,76 +88,47 @@ class Controller:
     # Private
 
     def _should_run_callback(self, options: dict[str, t.Any]) -> bool:
-        if not options:
-            return True
-        action = self.request.matched_action
-        only = options.get("only", None)
-        exclude = options.get("exclude", None)
+        return callback_applies(options, self.request.matched_action)
 
-        if only and action not in make_list(only):
-            return False
-        if exclude and action in make_list(exclude):
-            return False
-        return True
-
-    @classmethod
-    def _callbacks(cls) -> "tuple[list[tuple[dict, str]], list[tuple[dict, str]]]":
-        """The `before` and `after` callbacks of this controller and its
-        ancestors, flattened once per class: `before` from the base class
-        down, `after` from this class up. Each is `(options, class name)`."""
-        cached = _CALLBACKS.get(cls)
-        if cached is None:
-            mro = cls.mro()
-            before = [
-                (cb, klass.__name__)
-                for klass in reversed(mro)
-                for cb in make_list(klass.__dict__.get("before") or [])
-            ]
-            after = [
-                (cb, klass.__name__)
-                for klass in mro
-                for cb in make_list(klass.__dict__.get("after") or [])
-            ]
-            cached = _CALLBACKS[cls] = (before, after)
-        return cached
-
-    def _dispatch(self, action_name: str) -> "Response | None":
-        c_name = type(self).__name__
-        before, after = self._callbacks()
-
-        for cb, from_name in before:
-            if self._should_run_callback(cb):
-                for action in make_list(getattr(self, cb["do"])):
+    def _run_callbacks(self, plan, callbacks, kind: str) -> bool:
+        """Run the lowered `before` or `after` callbacks of `plan`. Returns
+        `True` when a `before` callback produced a body, which ends the
+        dispatch."""
+        response = self.response
+        for name, is_method in callbacks:
+            attr = getattr(self, name)
+            fns = (attr,) if is_method else make_list(attr)
+            for fn in fns:
+                if plan.log:
                     logger.debug(
-                        "[%s.%s] before: %s (from %s)",
-                        c_name, action_name, cb["do"], from_name,
+                        "[%s.%s] %s: %s", plan.cls.__name__, plan.action, kind, name
                     )
-                    body = action()
-                    if body is not None:
-                        self.response.body = body
-                    if self.response.has_body:
+                body = fn()
+                if kind != "before":
+                    continue
+                if body is not None:
+                    response.body = body
+                if response.has_body:
+                    if plan.log:
                         logger.debug(
                             "[%s.%s] halted by before callback: %s",
-                            c_name, action_name, cb["do"],
+                            plan.cls.__name__, plan.action, name,
                         )
-                        return
+                    return True
+        return False
 
+    def _dispatch(self, action_name: str) -> "Response | None":
+        plan = plan_for(type(self), action_name)
+        if plan.before and self._run_callbacks(plan, plan.before, "before"):
+            return
         self._call(action_name)
-
-        for cb, from_name in after:
-            if self._should_run_callback(cb):
-                for action in make_list(getattr(self, cb["do"])):
-                    logger.debug(
-                        "[%s.%s] after: %s (from %s)",
-                        c_name, action_name, cb["do"], from_name,
-                    )
-                    action()
+        if plan.after:
+            self._run_callbacks(plan, plan.after, "after")
 
     def _call(self, action_name: str) -> None:
         # All the side effects of this call should be stored in the same
         # view and in `resp`.
-        method = getattr(self, action_name)
-        ret_value = method()
+        ret_value = getattr(self, action_name)()
 
         if self.response.is_fresh(request=self.request):
             self.response.status = not_modified
@@ -181,34 +148,14 @@ class Controller:
             self.response.body = self.render(inferred_view)
             return
 
-    def _prefixes(self) -> list[str]:
-        """View-folder prefixes to search, walking up the controller MRO.
-
-        Subclass first, then each ancestor controller, stopping before
-        `Controller` itself. Gives `application/` fallbacks and similar
-        without any explicit config.
-        """
-        prefixes = []
-        for cls in type(self).mro():
-            if cls is Controller:
-                break
-            module = getattr(cls, "__module__", "")
-            if not module or module.startswith("proper."):
-                continue
-            prefix = module.split(".", 2)[-1]
-            prefix = prefix.removesuffix("_controller")
-            prefix = prefix.replace(".", "/")
-            if prefix not in prefixes:
-                prefixes.append(prefix)
-        return prefixes
-
     def _resolve_view(self, action_name: str) -> str:
-        assert self.app.catalog
-        return resolve_template(
-            self.app.catalog,
-            self._prefixes(),
-            action_name,
-            accept=self.request.accept,
-            default_format=self.request.default_format,
-            controller=type(self).__name__,
+        catalog = self.app.catalog
+        assert catalog
+        request = self.request
+        return resolve_view(
+            plan_for(type(self), action_name),
+            catalog,
+            formats_for(request.accept, request.default_format),
+            # While templates can change on disk, the answer can change too.
+            cache=catalog.auto_reload is False,
         )
