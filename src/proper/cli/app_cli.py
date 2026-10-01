@@ -2,6 +2,7 @@ import multiprocessing
 import sys
 import sysconfig
 import typing as t
+from contextlib import contextmanager
 from functools import wraps
 
 from proper_cli import Cli
@@ -11,7 +12,7 @@ from .jx_cli import get_jx_cli
 
 
 if t.TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from ..app import App
 
@@ -109,17 +110,56 @@ def _serve(
     from granian.constants import Interfaces
     from granian.log import LogLevels
 
-    Granian(
-        target=target,
-        interface=Interfaces(interface),
-        address=address,
-        port=port,
-        workers=workers,
-        blocking_threads=blocking_threads if interface == "wsgi" else None,
-        websockets=interface == "rsgi",
-        log_level=LogLevels.debug if debug else LogLevels.info,
-        log_access=debug,
-    ).serve()
+    with _closing_worker_loops():
+        Granian(
+            target=target,
+            interface=Interfaces(interface),
+            address=address,
+            port=port,
+            workers=workers,
+            blocking_threads=blocking_threads if interface == "wsgi" else None,
+            websockets=interface == "rsgi",
+            log_level=LogLevels.debug if debug else LogLevels.info,
+            log_access=debug,
+        ).serve()
+
+
+@contextmanager
+def _closing_worker_loops() -> "Iterator[None]":
+    """Close the event loops that Granian creates for its workers once
+    the server stops.
+
+    Granian never closes them. When a worker thread ends, its loop is
+    garbage-collected together with the socket it uses to wake itself
+    up, and if the socket goes first, the loop prints a
+    "ValueError: Invalid file descriptor: -1" traceback as it is
+    deleted. Closing the loops ourselves avoids it.
+    """
+    from granian._loops import loops as registry
+
+    created = []
+    originals = dict(registry._data)
+
+    def tracking(builder: "Callable") -> "Callable":
+        @wraps(builder)
+        def build(**packages):
+            loop = builder(**packages)
+            created.append(loop)
+            return loop
+
+        return build
+
+    registry._data = {
+        key: (tracking(builder), packages)
+        for key, (builder, packages) in originals.items()
+    }
+    try:
+        yield
+    finally:
+        registry._data = originals
+        for loop in created:
+            if not loop.is_running():
+                loop.close()
 
 
 def _serve_group(

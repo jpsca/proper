@@ -3,7 +3,7 @@ requires = ["setuptools"]
 
 [project]
 name = "proper"
-version = "0.29.0"
+version = "0.30.0"
 description = "Opinionated and batteries-included Python web framework"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
