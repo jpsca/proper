@@ -337,14 +337,20 @@ docker compose up -d web worker
 The app should not face the internet directly. Put nginx (or another proxy) in front of it to terminate TLS, serve the static assets from disk, and route the WebSockets. The blueprint's `deploy/nginx.conf` has the whole server block, with the TLS lines commented out. Its locations:
 
 ```nginx {title="deploy/nginx.conf"}
-# Fingerprinted assets: strip the hash and serve the file from disk
-location ~* "^\/assets\/(.*)-[a-z0-9]{12,}\.([a-z0-9]+)$" {
-  rewrite "^\/assets\/(.*)-[a-f0-9]{12,}\.([a-z0-9]+)$" /assets/$1.$2 break;
-  try_files $uri =404;
+# The largest request body nginx lets through
+client_max_body_size 8M;
+
+# Fingerprinted assets: remove the hash and serve the file from disk
+location ~* "^/assets/(.*)-[a-f0-9]{12,}\.([a-z0-9]+)$" {
+  root /var/www/myapp/myapp;
+  try_files /assets/$1.$2 =404;
+  add_header Cache-Control "public, max-age=31536000, immutable";
 }
 
+# The other assets
 location /assets/ {
-  alias /var/www/myapp/myapp/assets;
+  alias /var/www/myapp/myapp/assets/;
+  add_header Cache-Control "public, max-age=0, must-revalidate";
 }
 
 # WebSockets: the cable process
@@ -376,6 +382,10 @@ location = /500.html {
 ```
 
 The `/cable` block needs `proxy_http_version 1.1` and the `Upgrade` and `Connection` headers to pass the WebSocket handshake through, and a long `proxy_read_timeout` so nginx doesn't close idle connections. Remove the block if the app has no channels. If you change `CABLE_PATH`, change the location to match.
+
+The two `/assets/` blocks send the same `Cache-Control` headers the app sends when it serves the assets itself: a fingerprinted file can be kept by the browser for a year, and the others are revalidated on each use. Both paths assume the project is in `/var/www/myapp`; note that the `alias` must end with a slash, like its `location`.
+
+`client_max_body_size` is the largest request nginx accepts, and its default is only 1 MB. Keep it in sync with `MAX_CONTENT_LENGTH` (8 MB by default): if it's lower, nginx answers `413` to uploads that the app would have accepted.
 
 The `500.html` page is served by nginx, so visitors see it even when the app is down.
 
