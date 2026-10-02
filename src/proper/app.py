@@ -491,7 +491,7 @@ class App(AppWs, AppWsgi):
             return
         count, longest = report
         logger.warning(
-            "[app] %s request(s) queued for a worker thread, up to %.1fs:"
+            "⚠️ [app] %s request(s) queued for a worker thread, up to %.1fs:"
             " all %s are busy. Raise MAX_THREADS, or move slow work"
             " to the queue.",
             count,
@@ -520,7 +520,7 @@ class App(AppWs, AppWsgi):
             return
         if self.has_migrations_pending():
             logger.warning(
-                "There are pending migrations for this app. Run `proper db migrate` to apply them."
+                "⚠️ [db]There are pending migrations for this app. Run `proper db migrate` to apply them."
             )
 
     def _setup_paths(self, import_name: str) -> None:
@@ -536,7 +536,7 @@ class App(AppWs, AppWsgi):
 
         self.views_path = self.root_path / "views"
         self.config_path = self.root_path / "config"
-        self.assets_path = self.root_path / "assets"
+        self.assets_path = self.root_path.parent / "assets"
         self.locales_path = self.config_path / "locales"
         self.storage_path = self.root_path.parent / "storage"
 
@@ -727,7 +727,7 @@ class App(AppWs, AppWsgi):
         handlers if there isn't one for this error.
         """
         logger.error(
-            "[error] %s %s -> %s: %s",
+            "❌ %s %s -> %s: %s",
             request.request_method,
             request.path,
             type(response.error).__name__,

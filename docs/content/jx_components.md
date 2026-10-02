@@ -762,7 +762,7 @@ Asset paths can be:
 - **Absolute paths** (`"/vendor/foo.css"`) - used verbatim, no fingerprinting.
 - **Full URLs** (`"https://cdn.example.com/lib.js"`) - used verbatim, no fingerprinting.
 
-Use the relative form for assets that live in `myapp/assets/`. Use the absolute or URL form for things outside that tree.
+Use the relative form for assets that live in the `assets/` folder. Use the absolute or URL form for things outside that tree.
 
 ### The `assets` Global
 

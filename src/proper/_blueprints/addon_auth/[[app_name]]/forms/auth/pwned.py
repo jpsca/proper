@@ -54,7 +54,7 @@ def get_pwned_count(password: str, timeout: int = 1) -> int:
     resp = query_api(hprefix, timeout=timeout)
     if resp is None:
         # The API is down or the network is slow
-        logger.warning("Unreachable 'Have I been pwned?' API")
+        logger.warning("⚠️ [net] Unreachable 'Have I been pwned?' API")
         return 1 if password.lower() in FALLBACK_LIST else 0
 
     for row in resp:

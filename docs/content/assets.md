@@ -37,7 +37,7 @@ Most of the time you don't think about any of this. You drop a CSS file in `asse
 
 ## Where Assets Live
 
-A new application starts with this layout:
+The `assets/` folder is at the root of the project, next to `storage/` and the folder with your Python code. A new application starts with this layout:
 
 ```
 myapp/
@@ -64,11 +64,13 @@ myapp/
 │       ├── globals.css
 │       ├── not-found-page.css
 │       └── reset.css
+├── myapp/
+└── storage/
 ```
 
-The convention is one subdirectory per file type (`css/`, `js/`, `images/`, `fonts/`), with a few files at the root: `robots.txt`, `humans.txt`, and the `icon.png`/`icon.svg` favicons the browser looks for. There's also a `500.html` that Proper serves as the bare-bones error page when the application itself crashes too hard to render its own template.
+The convention is one subdirectory per file type (`css/`, `js/`, `images/`, `fonts/`), with a few files at the root: `robots.txt`, `humans.txt`, and the `icon.png`/`icon.svg` favicons the browser looks for. There's also a `500.html` page. The app never uses it: the reverse proxy shows it when the app can't answer at all, for example while it is down or restarting (see [Deployment](/docs/deployment#the-reverse-proxy)).
 
-You're not locked into this layout. The only thing that matters is that the files live somewhere reachable from `app.assets_path`, which defaults to `<your-app>/assets/`. Add new subdirectories whenever you want.
+You're not locked into this layout. The only thing that matters is that the files live somewhere reachable from `app.assets_path`, which defaults to the `assets/` folder at the root of the project. Add new subdirectories whenever you want.
 
 :::note | What's already in `assets/js`
 The default `js/` directory ships with two vendored libraries under `js/vendor/` (`turbo.js`, `stimulus.js`), the `nestedform.js` helper, and an `application.js` entry point for your own code. They're not pulled from a CDN at runtime - they're real files in your app, served alongside everything else. This avoids a third-party DNS lookup on every page load.
@@ -85,7 +87,7 @@ A new application's `router.py` includes one line that sets up asset serving:
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 ```
 
-That's the entire wire-up. `ASSETS_URL` defaults to `/assets/`, so a request for `/assets/css/base.css` is served from `myapp/assets/css/base.css`.
+That's the entire wire-up. `ASSETS_URL` defaults to `/assets/`, so a request for `/assets/css/base.css` is served from `assets/css/base.css`.
 
 The signature is:
 
@@ -117,7 +119,7 @@ The arguments you'll touch most often:
 `router.static()` mounts a route under the hood that matches anything under the prefix - the path is `:file<path>`, where `<path>` is a custom placeholder that captures slashes. So `/assets/css/forms/buttons.css` works without any extra wiring.
 
 :::tip
-Prefer `app.assets_path` over hard-coding the path. It's set to `<your-app>/assets/` at startup, but tests and CLI scripts may overwrite it - using the attribute keeps your route in sync.
+Prefer `app.assets_path` over hard-coding the path. It's set to the `assets/` folder at the root of the project at startup, but tests and CLI scripts may overwrite it - using the attribute keeps your route in sync.
 :::
 
 ---
@@ -152,7 +154,7 @@ If the file doesn't exist on disk at the moment `url_for` runs, the URL is gener
 An *import map* is a small piece of JSON that tells the browser how to resolve `import` statements in ES modules. Without it, every `import` has to use a relative path (`./utils.js`) or an absolute URL. With it, you can write:
 
 ```javascript
-// myapp/assets/js/application.js
+// assets/js/application.js
 import { Application } from "@hotwired/stimulus"
 import "@hotwired/turbo"
 
@@ -280,7 +282,7 @@ The trade-off is that touching a file without changing it (a `git checkout`, a `
 For the few cases where you need a stable URL - an Open Graph image referenced by a Slack preview, an email's signature image - pass `fingerprint=False`:
 
 ```python
-router.static("/og", root=app.root_path / "assets" / "og", name="og", fingerprint=False)
+router.static("/og", root=app.assets_path / "og", name="og", fingerprint=False)
 ```
 
 Now `url_for("og", file="cover.png")` returns `/og/cover.png` with no hash. The cache headers also change (covered in the next section).

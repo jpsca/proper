@@ -70,12 +70,12 @@ Accessed via `current.app` or directly from the app instance.
 | Attribute        | Type                          | Description                                          |
 |------------------|-------------------------------|------------------------------------------------------|
 | `name`           | `str`                         | Application name derived from the root path          |
-| `root_path`      | `Path`                        | Absolute path to the application root directory      |
+| `root_path`      | `Path`                        | Absolute path to the application package (`myapp/`)  |
 | `views_path`     | `Path`                        | Path to views folder                                 |
 | `config_path`    | `Path`                        | Path to config folder                                |
-| `assets_path`    | `Path`                        | Path to assets folder                                |
+| `assets_path`    | `Path`                        | `assets/` folder at the project root (`root_path.parent / "assets"`) |
 | `locales_path`   | `Path`                        | Path to locales folder                               |
-| `storage_path`   | `Path`                        | Path to storage folder                               |
+| `storage_path`   | `Path`                        | `storage/` folder at the project root (`root_path.parent / "storage"`) |
 | `router`         | `Router`                      | The application router instance                      |
 | `config`         | `DotDict`                     | Configuration values, accessed as attributes         |
 | `catalog`        | `jx.Catalog`                  | Jx component catalog                                 |

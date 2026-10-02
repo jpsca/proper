@@ -126,7 +126,7 @@ class Recordset:
                 try:
                     number, values = decode_cursor(str(param), secret=self.cursor_secret)
                 except InvalidCursor as e:
-                    logger.warning("invalid cursor: %s", e)
+                    logger.warning("⚠️ [db] invalid cursor: %s", e)
                     number, values = 1, None
             else:
                 number, values = 1, None
@@ -135,6 +135,6 @@ class Recordset:
         try:
             number = max(int(param), 1)
         except (TypeError, ValueError):
-            logger.warning("invalid page number: %s", param)
+            logger.warning("⚠️ [db] invalid page number: %s", param)
             number = 1
         return Page(self, number=number)

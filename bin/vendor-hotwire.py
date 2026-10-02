@@ -12,7 +12,7 @@ make vendor-hotwire
 
 The output goes to:
 
-    blueprint/[[app_name]]/assets/js/vendor/
+    blueprint/assets/js/vendor/
 
 Files are then committed to the Proper repo so newly-created apps
 work without a runtime CDN dependency.
@@ -45,8 +45,7 @@ PACKAGES = {
 
 OUTPUT_DIR = (
     Path(__file__).resolve().parent.parent
-    / "blueprint" / "[[app_name]]"
-    / "assets" / "js" / "vendor"
+    / "blueprint" / "assets" / "js" / "vendor"
 )
 
 

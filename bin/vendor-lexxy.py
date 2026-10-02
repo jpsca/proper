@@ -16,11 +16,9 @@ self-contained file with all peer dependencies (lexical, dompurify,
 import-map each peer individually, which would otherwise be ~10
 files for Lexical alone.
 
-Destinations (mirrored to both the general app blueprint and the
-rich_text addon blueprint):
+The files go to the `assets/` folder of the rich_text addon blueprint:
 
-    blueprint/[[app_name]]/assets/js/vendor/lexxy.js
-    blueprint/[[app_name]]/assets/css/vendor/lexxy.css
+    src/proper/_blueprints/addon_rich_text/assets/
 """
 import re
 import urllib.request
@@ -40,7 +38,7 @@ CSS_SOURCES = (
 CSS_BASE = f"https://cdn.jsdelivr.net/npm/@37signals/lexxy@{VERSION}/dist/stylesheets"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TARGET = REPO_ROOT / "src" / "proper" / "_blueprints" / "addon_rich_text" / "[[app_name]]" / "assets"
+TARGET = REPO_ROOT / "src" / "proper" / "_blueprints" / "addon_rich_text" / "assets"
 
 custom_css = {
   "lexxy-editor.css": b"""

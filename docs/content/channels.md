@@ -82,7 +82,7 @@ That creates three things:
 
 - `config/channels.py` - `CABLE_PATH`, `CABLE_PORT` and the `CABLE` backend config.
 - `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
-- `assets/js/cable.js` - the browser client.
+- `assets/js/cable.js` - the browser client, in the `assets/` folder at the root of the project.
 
 The WebSocket endpoint lives at one path - `/cable` by default - and every channel is multiplexed over it. You never open more than one socket per browser tab, no matter how many channels it subscribes to.
 

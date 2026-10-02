@@ -342,14 +342,14 @@ client_max_body_size 8M;
 
 # Fingerprinted assets: remove the hash and serve the file from disk
 location ~* "^/assets/(.*)-[a-f0-9]{12,}\.([a-z0-9]+)$" {
-  root /var/www/myapp/myapp;
+  root /var/www/myapp;
   try_files /assets/$1.$2 =404;
   add_header Cache-Control "public, max-age=31536000, immutable";
 }
 
 # The other assets
 location /assets/ {
-  alias /var/www/myapp/myapp/assets/;
+  alias /var/www/myapp/assets/;
   add_header Cache-Control "public, max-age=0, must-revalidate";
 }
 
@@ -377,7 +377,7 @@ location / {
 
 error_page 500 502 503 504 /500.html;
 location = /500.html {
-  root /var/www/myapp/myapp/assets;
+  root /var/www/myapp/assets;
 }
 ```
 

@@ -112,7 +112,7 @@ class LoopWatchdog:
             else "  (the loop thread is gone)\n"
         )
         logger.warning(
-            "[loop] the event loop has been blocked for %.0f ms."
+            "⚠️ [loop] the event loop has been blocked for %.0f ms."
             " This work belongs in a worker thread:\n%s",
             stalled * 1000,
             stack,
