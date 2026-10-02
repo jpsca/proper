@@ -549,6 +549,8 @@ proper db migrate
 
 This is what you want during deployment - a single command brings every database up to the version your code expects.
 
+`proper db prepare` does the same and then runs the seeds of `main` (except when `APP_ENV` is `test`). With `--db <name>` it migrates and seeds only that database.
+
 For more on registering and using multiple databases, see the Peewee ORM guide's [Using Multiple Databases](/docs/models#using-multiple-databases) section.
 
 ---

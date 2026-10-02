@@ -319,7 +319,7 @@ volumes:
 
 - **`web`** publishes the web server and the cable port, and mounts the `storage` volume for uploads and the cache file.
 - **`worker`** is the same image running `python workers.py`, with the health check turned off because it serves no HTTP.
-- **`migrate`** is a one-off job behind the `tools` profile, so `docker compose up` never starts it. It runs `proper db prepare`, which runs `proper db migrate` and then `proper db seed`.
+- **`migrate`** is a one-off job behind the `tools` profile, so `docker compose up` never starts it. It runs `proper db prepare`, which runs `proper db migrate` for every database and then `proper db seed`.
 
 The order is:
 
