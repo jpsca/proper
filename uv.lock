@@ -303,15 +303,15 @@ wheels = [
 
 [[package]]
 name = "formidable"
-version = "0.20.0"
+version = "0.21.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna" },
     { name = "markupsafe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/4e/244b5be252b04437af225038f0c98bf2083d4d9d20b7e744b6b403f13b89/formidable-0.20.0.tar.gz", hash = "sha256:62feeb8a6f98aee151afe975a6b18273c706a91f373fa2b3201052fbe722f9fa", size = 42505, upload-time = "2026-05-21T14:54:06.889Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/05/fac60c06d711aab41e01c2ae7c0151f21c9645190de8b063f86a67bee9c3/formidable-0.21.0.tar.gz", hash = "sha256:2c1242e5b048e107ff87904953bf5c0e604c504dbc18d62ea4cff429a0363963", size = 44767, upload-time = "2026-10-02T02:19:14.195Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/9b/a3c4077557e468b3f9238f2c47be5e0f4a728f60d1f85bf467b5008fb2a7/formidable-0.20.0-py3-none-any.whl", hash = "sha256:0e137e15fe4c85b319645788f2244e083b5d314fd9682a4f5ce84765cbf1c097", size = 38380, upload-time = "2026-05-21T14:54:05.907Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/e8/0f4839d3c0d612fe5e87ed02dd09c4294ea06659443d54bcf5f38da9b165/formidable-0.21.0-py3-none-any.whl", hash = "sha256:4fa08cd05ad2c02bcdc83cda2ce3d3b4901c7e49df1a4586b26c0a613facfda5", size = 40756, upload-time = "2026-10-02T02:19:13.23Z" },
 ]
 
 [[package]]
@@ -776,7 +776,7 @@ wheels = [
 
 [[package]]
 name = "proper"
-version = "0.30.0"
+version = "0.31.0"
 source = { editable = "." }
 dependencies = [
     { name = "babel" },
@@ -829,7 +829,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "babel", specifier = ">=2.17.0" },
-    { name = "formidable", specifier = ">=0.20" },
+    { name = "formidable", specifier = ">=0.21" },
     { name = "granian", extras = ["reload"], specifier = ">=2.8.3" },
     { name = "hecto", specifier = ">=2.4.0" },
     { name = "huey", specifier = ">=3.4,<4" },
@@ -842,7 +842,7 @@ requires-dist = [
     { name = "passlib", specifier = "~=1.7" },
     { name = "peewee", specifier = ">=4.5.1,<5" },
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
-    { name = "proper-cli", specifier = "~=2.0.0" },
+    { name = "proper-cli", specifier = ">=2.1.0" },
     { name = "python-dateutil", specifier = "~=2.9.0" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "traceback-with-variables", specifier = "~=2.0.4" },
@@ -875,11 +875,11 @@ test = [
 
 [[package]]
 name = "proper-cli"
-version = "2.0.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/4a/206e06a40b4379444cb3c251f5ecd7883c19b01287a61185ad64c73cf581/proper_cli-2.0.0.tar.gz", hash = "sha256:1a3713706bcb0b9c4e17bb2e430b735df373724f2427ce4f1067f65776039166", size = 15418, upload-time = "2026-06-08T14:15:32.291Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/a3/51926dd3b479a6f8c764263a4b693ea2b574c50e6c10b7e826ecfbaf7ab5/proper_cli-2.1.0.tar.gz", hash = "sha256:ad63c0c5695671c1fc36460b1ed8fc940bcbff56b8da430ebe7148a32f6bc21c", size = 15778, upload-time = "2026-10-02T04:13:13.025Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/59/44cc79b68dc88d61a4cc341c2bf538593ff0e6572be933bbe6495de41042/proper_cli-2.0.0-py3-none-any.whl", hash = "sha256:a1a997a6aabf1adb317d96d31bc3ffb5aa501c947a03c6e533c582c199459e3f", size = 10577, upload-time = "2026-06-08T14:15:33.094Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/64/a79362c4ade49863d8f54bddd7d295dec13c8a8e86ba0afddb268253c804/proper_cli-2.1.0-py3-none-any.whl", hash = "sha256:8a629df27cf2b3daeaec4c8cf6a2576c8ea6701c2b142f7a043bb551480c3a2f", size = 10672, upload-time = "2026-10-02T04:13:12.189Z" },
 ]
 
 [[package]]
