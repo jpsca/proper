@@ -1,18 +1,24 @@
 {#import "layouts/app.jx" as Layout #}
 {#import "./form.jx" as [[ name_pascal ]]Form #}
 
-{#def form, [[ name_snake ]] #}
+{#def form[% if member_def %], [[ member_def ]][% endif %] #}
 
 <Layout title="Editing [[ name_human ]]">
 	<h1>Editing [[ name_human ]]</h1>
 	<[[ name_pascal ]]Form
 		method="patch"
-		action={{ url_for('[[nsprefix]][[ name_pascal ]].update', [[ name_snake ]]) }}
+		[%- if "update" in actions %]
+		action={{ url_for('[[nsprefix]][[ name_pascal ]].update'[[ member_arg ]]) }}
+		[%- endif %]
 		form={{ form }}
 	>
 		<div class="form-group">
 			<button type="submit" class="btn btn--primary">Update [[ name_human ]]</button>
+			[%- if "index" in actions %]
 			<a href={{ url_for('[[nsprefix]][[ name_pascal ]].index') }}>Cancel</a>
+			[%- elif "show" in actions %]
+			<a href={{ url_for('[[nsprefix]][[ name_pascal ]].show'[[ member_arg ]]) }}>Cancel</a>
+			[%- endif %]
 		</div>
 	</[[ name_pascal ]]Form>
 </Layout>

@@ -1,9 +1,12 @@
 {#import "layouts/app.jx" as Layout #}
+[%- if "delete" in actions %]
 {#import "form.jx" as Form #}
-
-{#def [[ name_snake ]] #}
-
+[%- endif %]
+[% if member_def %]
+{#def [[ member_def ]] #}
+[% endif %]
 <Layout title="[[ name_human | title ]]">
+  [%- if has_model %]
   <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
     [%- for f in render_fields %]
     <div>
@@ -12,16 +15,21 @@
     </div>
     [%- endfor %]
   </div>
+  [%- else %]
+  <h1>[[ name_human | title ]]</h1>
+  [%- endif %]
 
   <div class="form-group">
-    [% if "edit" in actions -%]
-    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].edit', [[ name_snake ]]) }}">Edit this [[ name_human ]]</a>
-    [% endif -%]
+    [%- if "edit" in actions %]
+    <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].edit'[[ member_arg ]]) }}">Edit this [[ name_human ]]</a>
+    [%- endif %]
+    [%- if "index" in actions %]
     <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].index') }}">Back to [[ plural_human | lower ]]</a>
-    [% if "delete" in actions -%]
-    <Form method="delete" action={{ url_for('[[ nsprefix ]][[ name_pascal ]].delete', [[ name_snake ]] ) }}>
+    [%- endif %]
+    [%- if "delete" in actions %]
+    <Form method="delete" action={{ url_for('[[ nsprefix ]][[ name_pascal ]].delete'[[ member_arg ]]) }}>
       <button type="submit" class="btn btn--danger">Delete this [[ name_human ]]</button>
     </Form>
-    [% endif -%]
+    [%- endif %]
   </div>
 </Layout>
