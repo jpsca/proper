@@ -146,6 +146,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `query_string`     | `str`                      | Raw query string                                                    |
 | `url`              | `str`                      | Full URL including query string                                     |
 | `http_version`     | `str`                      | HTTP version (e.g. `"1.1"`)                                        |
+| `server_software`  | `str`                      | How the server names itself (e.g. `"Granian"`); `""` if unknown     |
 | `flashes`          | `list[tuple[str, str]]`    | Flash messages stored in the session                                |
 | `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality                  |
 | `accept_encoding`  | `list[str]`                | Encodings from `Accept-Encoding`, sorted by quality                 |

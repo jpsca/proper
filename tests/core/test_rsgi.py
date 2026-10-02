@@ -101,6 +101,8 @@ class TestHttp:
         assert request.host == "api.example.com"
         assert request.port == 8443
         assert request.client == ("10.0.0.9", 5555)
+        # Only Granian speaks RSGI
+        assert request.server_software == "Granian"
         assert request.headers.getall("x-dup") == ["a", "b"]
         assert protocol.status == 200
         assert protocol.body == b"ok"

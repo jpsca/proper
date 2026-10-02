@@ -80,6 +80,7 @@ class AppWsgi:
             server=_address(environ.get("SERVER_NAME"), environ.get("SERVER_PORT")),
             client=_address(environ.get("REMOTE_ADDR"), environ.get("REMOTE_PORT")),
             http_version=protocol.removeprefix("HTTP/"),
+            server_software=environ.get("SERVER_SOFTWARE", ""),
             app=self,
         )
 

@@ -56,6 +56,9 @@ class Request(RequestHeadersMixin):
             `(host, port)` of the client, or `None`.
         http_version:
             `"1.1"`, `"2"`, etc.
+        server_software:
+            How the server names itself, e.g. `"Granian"`. Empty if it
+            doesn't say, or when the request doesn't come from a server.
         app:
             The app this request belongs to. Defaults to `current.app`.
 
@@ -84,6 +87,7 @@ class Request(RequestHeadersMixin):
         server: "tuple[str, int | None] | None" = None,
         client: "tuple[str, int | None] | None" = None,
         http_version: str = "1.1",
+        server_software: str = "",
         app: "App | None" = None,
     ) -> None:
         self._app = app
@@ -95,6 +99,7 @@ class Request(RequestHeadersMixin):
         self.server = server
         self.client = client
         self.http_version = http_version
+        self.server_software = server_software
         self.headers = MultiDict(headers or ())
         self.form = MultiDict()
         self.body = b""

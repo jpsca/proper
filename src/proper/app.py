@@ -611,6 +611,8 @@ class App(AppWs, AppWsgi):
             server=_split_address(scope.server),
             client=_split_address(scope.client),
             http_version=scope.http_version,
+            # The scope doesn't say it, but RSGI is the protocol of Granian
+            server_software="Granian",
             app=self,
         )
 

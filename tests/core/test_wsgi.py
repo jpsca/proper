@@ -104,11 +104,21 @@ class TestHttp:
         assert request.host == "api.example.com"
         assert request.port == 8443
         assert request.client == ("10.0.0.9", 5555)
+        assert request.server_software == ""
         assert request.headers["x-custom"] == "a"
         assert request.headers["accept"] == "text/html"
         assert status == "200 OK"
         assert header(headers, "content-type") == "text/plain; charset=utf-8"
         assert list(body) == [b"ok"]
+
+    def test_the_name_of_the_server_is_taken_from_the_environ(self, app):
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo")
+        environ["SERVER_SOFTWARE"] = "gunicorn/23.0.0"
+
+        call(app, environ)
+
+        assert SEEN["request"].server_software == "gunicorn/23.0.0"
 
     def test_a_non_ascii_path_is_decoded(self, app):
         _route(app, "/café", Echo.index)
