@@ -132,9 +132,12 @@ class Recordset:
                 number, values = 1, None
             return Page(self, number=number, cursor_values=values)
 
-        try:
-            number = max(int(param), 1)
-        except (TypeError, ValueError):
-            logger.warning("⚠️ [db] invalid page number: %s", param)
+        if param is None:
             number = 1
+        else:
+            try:
+                number = max(int(param), 1)
+            except (TypeError, ValueError):
+                logger.warning("⚠️ [db] invalid page number: %s", param)
+                number = 1
         return Page(self, number=number)
