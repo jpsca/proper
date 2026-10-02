@@ -609,7 +609,8 @@ def _encode_multipart(
                 + b'name="'
                 + key
                 + b'"; filename="'
-                + _to_bytes(str(filename))
+                # Like a browser: the name of the file, without its path
+                + _to_bytes(filepath.name.replace('"', "%22"))
                 + b'"',
                 b"Content-Type: " + ctype,
                 b"",
