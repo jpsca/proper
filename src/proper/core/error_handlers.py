@@ -82,7 +82,8 @@ def is_index(request) -> bool:
 def render_default_index(request, response) -> None:
     data = {
         "proper_version": version("proper"),
-        "server_software": request.scope.get("server_software", ""),
+        # The server that `proper run` starts
+        "server_software": f"Granian {version('granian')}",
         "python_version": sys.version,
     }
     response.body = render("default-index.jx", **data)
