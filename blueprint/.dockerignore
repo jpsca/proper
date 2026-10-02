@@ -18,10 +18,14 @@ Dockerfile*
 # Build hygiene — keep local artifacts out of the production image.
 # (README.md is intentionally NOT ignored: pyproject `readme` needs it.)
 **/__pycache__
+**/_compiled
 **/*.py[cod]
 **/*.egg-info
 **/.pytest_cache
 **/.ruff_cache
-**/storage/*.sqlite3
+# Uploaded files and SQLite databases: they are the data of the running app,
+# mounted as a volume, never part of the image.
+storage/*
+!storage/.keep
 **/log/*.log
 tests
