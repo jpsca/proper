@@ -1,5 +1,7 @@
+from importlib.metadata import version
 from unittest.mock import MagicMock, PropertyMock, patch
 
+from proper import App, TestClient
 from proper.core.error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -15,6 +17,7 @@ from proper.core.error_handlers import (
     render_default_index,
 )
 from proper.errors import MatchNotFound
+from proper.test_client import make_test_request
 
 
 def test_render_no_data_reads_raw_file():
@@ -182,25 +185,38 @@ def test_fallback_error():
 
 
 def test_sets_body():
-    request = MagicMock()
-    request.scope = {}
+    request = make_test_request("/")
     response = MagicMock()
     render_default_index(request, response)
     assert response.body is not None
     body = response.body
     assert isinstance(body, str)
+    assert f"Proper Web Framework {version('proper')}" in body
+    assert f"<strong>Server:</strong> Granian {version('granian')}" in body
 
 
 def test_index_request_renders_default_page():
     app = MagicMock()
-    request = MagicMock(method="GET", path="/")
-    request.scope = {}
+    request = make_test_request("/")
     response = MagicMock()
 
     debug_not_found_handler(app, request, response)
     # Should have rendered the default-index template
     body = response.body
     assert isinstance(body, str)
+    assert "Proper Web Framework" in body
+
+
+def test_new_app_shows_the_default_page():
+    """Regression: the default page of an app without a route for "/"
+    failed with a real request, and the app answered with an error."""
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50], "DEBUG": True})
+
+    response = TestClient(app).get("/")
+
+    assert response.status == 404
+    assert "Proper Web Framework" in response.body
+    assert "Granian" in response.body
 
 
 def test_non_index_renders_not_found_page():
