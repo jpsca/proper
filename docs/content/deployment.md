@@ -114,6 +114,16 @@ Ctrl+C, or a `SIGTERM` to `proper run`, shuts down every process it started.
 
 The views are compiled to Python modules under `_compiled/views/`, next to your app's package. The server compiles them all when it starts, in a few milliseconds. Outside of `DEBUG`, a view that does not compile stops the start, listing every error, instead of failing its first request. In `DEBUG`, the errors are logged and the server starts anyway: each error shows when its view is rendered, and a view you edit is compiled again on the next request that uses it. The folder is in the `.gitignore` of new apps; `COMPILED_PATH` in the config moves it.
 
+You can also compile them before the app starts, with `proper jx compile`. Outside of `DEBUG`, the server does not compile again the views that are already compiled: it only checks that no view is newer than its module. So an app compiled when it is built starts faster, does not need to write to that folder, and a view that does not compile stops the build instead of the start. The `Dockerfile` of new apps does it:
+
+```dockerfile
+RUN APP_ENV=dev .venv/bin/proper jx compile
+```
+
+It runs with the development config because the production one usually needs secrets, like `SECRET_KEYS`, that must not be in the image. The compiled views are the same in both, unless the config changes `TEMPLATE_TAGS` by environment; in that case, the views are compiled again when the app starts.
+
+The user that runs the app must be able to write to `_compiled` when the views were not compiled before, or when one has to be compiled again.
+
 ---
 
 ## Sizing

@@ -4,6 +4,12 @@
 > `proper jx compile`) ya no existen: Proper cambió el Jx vendorizado por minijx,
 > que compila las vistas a módulos Python. `lower()` las compila al arrancar, en
 > todos los modos. Las fases 1 y 2 (dispatch y rutas) siguen vigentes.
+>
+> **Actualización 2026-10-01:** `proper jx compile` existe de nuevo, ahora sobre
+> minijx: compila todas las vistas sin arrancar la app. Fuera de `DEBUG`,
+> `lower()` ya no vuelve a compilar las vistas que tienen un módulo al día
+> (`views_are_compiled`), así que una app compilada al construirse (el
+> `Dockerfile` del blueprint lo hace) arranca sin escribir en `_compiled`.
 
 Estado: las cuatro fases implementadas (2026-09-26). `src/proper/compile/`
 (`dispatch.py`, `routes.py`, `views.py`), `src/proper/jx/catalog.py`
