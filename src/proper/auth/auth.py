@@ -132,14 +132,26 @@ class Auth:
         max_rounds = getattr(hasher, "max_rounds", float("inf"))
         rounds = int(min(max(rounds or default_rounds, min_rounds), max_rounds))
 
+        # `deprecated` and the rounds limits are what `needs_update()` uses
+        # to tell if a stored hash was made with other settings.
         op = {
             "schemes": VALID_HASHERS,
             "default": hash_name,
+            "deprecated": "auto",
             hash_name + "__default_rounds": rounds,
+            hash_name + "__min_rounds": rounds,
+            hash_name + "__max_rounds": rounds,
         }
         self.hasher = CryptContext(**op)
 
     def hash_password(self, secret: str) -> str | None:
+        """Hash a password that a user is setting.
+
+        Raises:
+            `ValueError` if the password is too short, too long, or has
+            characters that aren't allowed in a password.
+
+        """
         if secret is None:
             return None
 
@@ -161,6 +173,16 @@ class Auth:
 
         return self.hasher.hash(secret)
 
+    def _normalize(self, secret: str) -> str:
+        """The password as `hash_password()` hashes it. One that can't be
+        normalized is returned as it is, because it could be the password
+        of a hash that was made somewhere else.
+        """
+        try:
+            return saslprep(secret, param="password")
+        except ValueError:
+            return secret
+
     def password_is_valid(self, secret: str, hashed: str) -> bool:
         if secret is None or hashed is None:
             return False
@@ -169,7 +191,12 @@ class Auth:
             # See: https://www.djangoproject.com/weblog/2013/sep/15/security/
             if len(secret) > self.password_maxlen:
                 return False
-            return self.hasher.verify(secret, hashed)
+            normalized = self._normalize(secret)
+            if self.hasher.verify(normalized, hashed):
+                return True
+            # A hash made somewhere else might be of the password
+            # without normalizing.
+            return secret != normalized and self.hasher.verify(secret, hashed)
         except ValueError:
             return False
 
@@ -199,16 +226,31 @@ class Auth:
             logger.debug("Invalid password for user `%s`", login)
             return None
 
-        if update_hash:
-            # If the hash method has changed, update the
-            # hash to the new format.
-            self.update_password_hash(password, user)
+        if update_hash and self.update_password_hash(password, user):
+            logger.debug("Updated the password hash of user `%s`", login)
+            user.save()
         return user
 
-    def update_password_hash(self, secret: str, user: t.Any) -> None:
-        new_hash = self.hash_password(secret)
-        if not new_hash:
-            return
-        if new_hash.split("$")[:3] == user.password.split("$")[:3]:
-            return
-        user.password = new_hash
+    def update_password_hash(self, secret: str, user: t.Any) -> bool:
+        """Replace `user.password` with a hash made with the current settings,
+        if the one it has was made with another algorithm or another number
+        of rounds. The user is not saved.
+
+        `secret` must be the password of the user, already verified. Its length
+        is not checked: the limits are for the passwords that are being set,
+        and this one was set before.
+
+        Returns:
+            `True` if the hash was replaced.
+
+        """
+        if secret is None or not user.password:
+            return False
+        try:
+            if not self.hasher.needs_update(user.password):
+                return False
+        except ValueError:
+            # Not a hash of any of the known algorithms
+            return False
+        user.password = self.hasher.hash(self._normalize(secret))
+        return True

@@ -93,7 +93,7 @@ AUTH_TOKEN_LIFE = 3 * HOURS     # Password reset token lifetime (seconds)
 | `sha512_crypt`   | System-level crypt.                      |
 | `sha256_crypt`   | System-level crypt.                      |
 
-If you change the hash algorithm after users have already registered, their passwords are automatically re-hashed with the new algorithm on their next successful login.
+If you change the hash algorithm or the rounds after users have already registered, their passwords are automatically re-hashed with the new settings, and saved, on their next successful login. `AUTH_PASSWORD_MINLEN` is only checked when a password is set: raising it doesn't lock out users with shorter passwords.
 
 
 ## The User Model
@@ -490,7 +490,7 @@ Replace `myapp` with your app's command name. The password is hashed automatical
 
 - **Argon2 by default** - memory-hard hashing algorithm resistant to GPU attacks
 - **Unicode normalization** - passwords are SASL-prepped to prevent encoding-based bypasses
-- **Automatic hash upgrades** - when you change the hash algorithm, passwords are re-hashed on next login
+- **Automatic hash upgrades** - when you change the hash algorithm or the rounds, passwords are re-hashed and saved on next login
 - **Timing attack prevention** - a decoy password is verified even when the user doesn't exist, preventing timing-based user enumeration
 - **DoS prevention** - passwords longer than `AUTH_PASSWORD_MAXLEN` (1024 chars) are rejected before hashing
 
