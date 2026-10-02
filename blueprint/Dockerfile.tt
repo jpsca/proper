@@ -49,6 +49,12 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
+# 3) Compile the views to Python modules (into /app/_compiled), so the app
+#    starts without compiling them and a view that does not compile stops the
+#    build instead of the start. It runs with the development config because
+#    the production one needs secrets that must not be in the image.
+RUN APP_ENV=dev .venv/bin/proper jx compile
+
 
 # --- Stage 2: runtime -------------------------------------------------------
 # Minimal image: interpreter + venv + source, no build tooling.
@@ -86,7 +92,9 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
 
 # Writable runtime dirs (uploads, sqlite cache, logs). Mount volumes here in prod.
-RUN mkdir -p storage log && chown -R app:app storage log
+# `_compiled` has the views compiled above: the app only writes to it if one
+# of them has to be compiled again, but without it the app does not start.
+RUN mkdir -p storage log _compiled && chown -R app:app storage log _compiled
 
 USER app
 
