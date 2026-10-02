@@ -8,21 +8,27 @@ from .base import BaseCache, SerializerProtocol
 
 
 CONNECT_ATTEMPTS = 5
+TABLE_NAME = "proper_cache"
 
 
 class Cache(pw.Model):
+    """The table of the cache. A `SqliteCache` doesn't use this model but a
+    subclass of its own (its `Cache` attribute), bound to its database.
+    """
+
     key = pw.TextField(primary_key=True)
     value = pw.BlobField()
     expires_at = pw.IntegerField(index=True)
 
     class Meta:
-        table_name = "proper_cache"
+        table_name = TABLE_NAME
 
 
 class SqliteCache(BaseCache):
     """A simple Sqlite based cache"""
     _counter = itertools.count()
-    models = [Cache]
+    Cache: type[Cache]
+    models: list[type[pw.Model]]
     db_class: type[pw.Database] = pw.SqliteDatabase
     memory_based: bool = False
 
@@ -54,8 +60,12 @@ class SqliteCache(BaseCache):
             database = f"file:proper_cache_{next(self._counter)}?mode=memory&cache=shared"
             uri = True
         self.database = self.db_class(database, pragmas=pragmas, timeout=timeout, uri=uri)
-        for model in self.models:
-            model.bind(self.database)
+        # A model works with one database. Sharing the model would make
+        # every cache of the process read and write in the database of the
+        # last one created, so each one has a model of its own.
+        meta = type("Meta", (), {"database": self.database, "table_name": TABLE_NAME})
+        self.Cache = type("Cache", (Cache,), {"Meta": meta})
+        self.models = [self.Cache]
         if self.memory_based:
             self.create_tables()
 
@@ -99,7 +109,7 @@ class SqliteCache(BaseCache):
         if expires_in is None:
             expires_in = self.expires_in
         expires_at = int(time()) + expires_in
-        Cache.replace(key=key, value=data, expires_at=expires_at).execute()
+        self.Cache.replace(key=key, value=data, expires_at=expires_at).execute()
 
     def get(self, key: str) -> t.Any:
         self.check_conn()
@@ -107,7 +117,7 @@ class SqliteCache(BaseCache):
         # No transaction here: one that reads and then writes fails with
         # "database is locked", without waiting, if another connection
         # wrote in between.
-        row = Cache.get_or_none(Cache.key == key)
+        row = self.Cache.get_or_none(self.Cache.key == key)
         if row is None:
             return None
 
@@ -130,7 +140,7 @@ class SqliteCache(BaseCache):
         if expires_in is None:
             expires_in = self.expires_in
 
-        row = Cache.get_or_none(Cache.key == key)
+        row = self.Cache.get_or_none(self.Cache.key == key)
         curr_time = int(time())
 
         if row is not None:
@@ -143,8 +153,8 @@ class SqliteCache(BaseCache):
                 # Only the caller that extends it recomputes: the others
                 # don't match the row as it was read.
                 extended = (
-                    Cache.update(expires_at=curr_time + race_condition_ttl)
-                    .where(Cache.key == key, Cache.expires_at == row.expires_at)
+                    self.Cache.update(expires_at=curr_time + race_condition_ttl)
+                    .where(self.Cache.key == key, self.Cache.expires_at == row.expires_at)
                     .execute()
                 )
                 if not extended:
@@ -161,7 +171,7 @@ class SqliteCache(BaseCache):
         # Takes the write lock before reading, so concurrent increments wait
         # for each other instead of failing or losing counts.
         with self.database.atomic("IMMEDIATE"):
-            row = Cache.get_or_none(Cache.key == key)
+            row = self.Cache.get_or_none(self.Cache.key == key)
             curr_time = int(time())
             if expires_in is None:
                 expires_in = self.expires_in
@@ -176,7 +186,7 @@ class SqliteCache(BaseCache):
 
             expires_at = curr_time + expires_in
             data = self.serialize(new_value)
-            Cache.replace(key=key, value=data, expires_at=expires_at).execute()
+            self.Cache.replace(key=key, value=data, expires_at=expires_at).execute()
             return new_value
 
     def decrement(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
@@ -189,7 +199,7 @@ class SqliteCache(BaseCache):
         curr_time = int(time())
         expired_keys = []
 
-        rows = Cache.select().where(Cache.key << keys)  # ty: ignore[unsupported-operator]
+        rows = self.Cache.select().where(self.Cache.key << keys)  # ty: ignore[unsupported-operator]
         for row in rows:
             if row.expires_at < curr_time:
                 expired_keys.append(row.key)
@@ -204,9 +214,9 @@ class SqliteCache(BaseCache):
     def _delete_expired_keys(self, keys: list[str], curr_time: int) -> None:
         # The check of the date is repeated because the keys could have
         # been set again after they were read.
-        Cache.delete().where(
-            Cache.key << keys,  # ty: ignore[unsupported-operator]
-            Cache.expires_at < curr_time,
+        self.Cache.delete().where(
+            self.Cache.key << keys,  # ty: ignore[unsupported-operator]
+            self.Cache.expires_at < curr_time,
         ).execute()
 
     def write_multi(self, mapping: dict[str, t.Any], *, expires_in: int | None = None) -> None:
@@ -219,23 +229,23 @@ class SqliteCache(BaseCache):
         with self.database.atomic():
             for key, value in mapping.items():
                 data = self.serialize(value)
-                Cache.replace(key=key, value=data, expires_at=expires_at).execute()
+                self.Cache.replace(key=key, value=data, expires_at=expires_at).execute()
 
     def delete(self, key: str) -> None:
         self.check_conn()
 
-        Cache.delete_by_id(key)
+        self.Cache.delete_by_id(key)
 
     def clear(self) -> None:
         self.check_conn()
-        Cache.delete().execute()
+        self.Cache.delete().execute()
 
     def delete_expired(self) -> None:
         self.check_conn()
 
         curr_time = int(time())
-        Cache.delete().where(Cache.expires_at < curr_time).execute()  # ty: ignore[unsupported-operator]
+        self.Cache.delete().where(self.Cache.expires_at < curr_time).execute()  # ty: ignore[unsupported-operator]
 
     def _count(self):
-        return Cache.select(pw.fn.COUNT(Cache.key)).scalar()
+        return self.Cache.select(pw.fn.COUNT(self.Cache.key)).scalar()
 
