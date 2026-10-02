@@ -6,12 +6,16 @@
 <Layout title="New [[ name_human ]]">
 	<h1>New [[ name_human ]]</h1>
 	<[[ name_pascal ]]Form
+		[%- if "create" in actions %]
 		action={{ url_for('[[nsprefix]][[ name_pascal ]].create') }}
+		[%- endif %]
 		form={{ form }}
 	>
 		<div class="form-group">
 			<button type="submit" class="btn btn--primary">Create [[ name_human ]]</button>
+			[%- if "index" in actions %]
 			<a href={{ url_for('[[nsprefix]][[ name_pascal ]].index') }}>Cancel</a>
+			[%- endif %]
 		</div>
 	</[[ name_pascal ]]Form>
 </Layout>

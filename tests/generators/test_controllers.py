@@ -1,6 +1,8 @@
+import re
+
 import pytest
 
-from proper.generators.controller import gen_controller
+from proper.generators.controller import ACTIONS, gen_controller
 
 
 # --- Fixtures ---
@@ -194,3 +196,254 @@ class TestForce:
         gen_controller(app_in_tmp, "card/closure")
         gen_controller(app_in_tmp, "card/closure", force=True)
         assert _init_text(app_in_tmp).count("from .card import closure_controller") == 1
+
+
+# --- A controller with form and views ---
+
+
+ROUTE_RE = re.compile(r"""(?:url_for|redirect_to)\(\s*['"]([\w:]+)\.(\w+)['"]""")
+
+
+def _read(app, *parts):
+    return app.root_path.joinpath(*parts).read_text()
+
+
+def _add_model(app, name_snake, name_pascal):
+    init = app.root_path / "models" / "__init__.py"
+    text = init.read_text() if init.exists() else ""
+    init.write_text(f"{text}from .{name_snake} import {name_pascal}  # noqa\n")
+
+
+def _linked_actions(app, name_snake, folder=""):
+    """The actions that the generated controller and views link or redirect to."""
+    texts = [_read(app, "controllers", folder, f"{name_snake}_controller.py")]
+    views = app.root_path / "views" / folder / name_snake
+    texts += [path.read_text() for path in views.glob("*.jx")]
+    return {action for text in texts for _route, action in ROUTE_RE.findall(text)}
+
+
+def _assert_valid_python(app, *parts):
+    text = _read(app, *parts)
+    compile(text, parts[-1], "exec")
+    assert text.endswith("\n") and not text.endswith("\n\n")
+    assert all(line == line.rstrip() for line in text.splitlines())
+
+
+class TestWithModel:
+    def test_uses_the_model(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", "title:str")
+
+        controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert "from myapp.models import Note" in controller
+        assert "self.notes = Note.select()" in controller
+        assert "self.note = Note.find(int(note_id))" in controller
+        assert "TODO" not in controller
+
+        form = _read(app_in_tmp, "forms", "note.py")
+        assert "from myapp.models import Note" in form
+        assert "orm_cls = Note" in form
+        assert "title = f.TextField()" in form
+
+        assert "{#def notes #}" in _read(app_in_tmp, "views", "note", "index.jx")
+        assert "{#def note #}" in _read(app_in_tmp, "views", "note", "show.jx")
+        assert "{#def form, note #}" in _read(app_in_tmp, "views", "note", "edit.jx")
+        _assert_valid_python(app_in_tmp, "controllers", "note_controller.py")
+        _assert_valid_python(app_in_tmp, "forms", "note.py")
+
+    def test_a_model_with_a_longer_name_is_not_the_model(self, app_in_tmp):
+        _add_model(app_in_tmp, "notebook", "Notebook")
+        gen_controller(app_in_tmp, "Note")
+        assert "models" not in _read(app_in_tmp, "controllers", "note_controller.py")
+
+
+class TestWithoutModel:
+    """Regression: the generated code imported a model that didn't exist,
+    and the app, with its `proper` command, could no longer start."""
+
+    def test_does_not_import_a_model(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note", "title:str")
+
+        controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert "models" not in controller
+        assert "proper.errors" not in controller
+        assert "data = self.form.save()" in controller
+        assert 'self.note_id = self.params.get("note_id", "")' in controller
+        assert "self.form = NoteForm(self.params)" in controller
+
+        form = _read(app_in_tmp, "forms", "note.py")
+        assert "models" not in form
+        assert "orm_cls" not in form
+        assert "title = f.TextField()" in form
+        _assert_valid_python(app_in_tmp, "controllers", "note_controller.py")
+        _assert_valid_python(app_in_tmp, "forms", "note.py")
+
+    def test_views_do_not_use_a_record(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note", "title:str")
+
+        assert "{#def" not in _read(app_in_tmp, "views", "note", "index.jx")
+        show = _read(app_in_tmp, "views", "note", "show.jx")
+        assert "{#def note_id #}" in show
+        assert "url_for('Note.edit', note_id=note_id)" in show
+        edit = _read(app_in_tmp, "views", "note", "edit.jx")
+        assert "{#def form, note_id #}" in edit
+        assert "url_for('Note.update', note_id=note_id)" in edit
+
+    def test_without_attributes(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note")
+
+        form = _read(app_in_tmp, "forms", "note.py")
+        assert form.endswith("class NoteForm(f.Form):\n    pass\n")
+        _assert_valid_python(app_in_tmp, "controllers", "note_controller.py")
+        _assert_valid_python(app_in_tmp, "forms", "note.py")
+
+    def test_singular(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Setting", singular=True)
+
+        controller = _read(app_in_tmp, "controllers", "setting_controller.py")
+        assert "def set_setting" not in controller
+        assert 'redirect_to("Setting.show", flash=' in controller
+        assert "url_for('Setting.update')" in _read(app_in_tmp, "views", "setting", "edit.jx")
+        assert "{#def form #}" in _read(app_in_tmp, "views", "setting", "edit.jx")
+        _assert_valid_python(app_in_tmp, "controllers", "setting_controller.py")
+
+    def test_only_index(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Report", only="index")
+
+        controller = _read(app_in_tmp, "controllers", "report_controller.py")
+        assert "forms" not in controller
+        assert "before" not in controller
+        assert "# Private" not in controller
+        _assert_valid_python(app_in_tmp, "controllers", "report_controller.py")
+
+
+class TestLinksToGeneratedActions:
+    """Regression: the views and the redirects used routes of actions
+    that were not generated, which fail with `RouteNotFound`."""
+
+    @pytest.mark.parametrize("has_model", [True, False])
+    @pytest.mark.parametrize("singular", [True, False])
+    @pytest.mark.parametrize(
+        "only",
+        [
+            "",
+            "index",
+            "index,show",
+            "show",
+            "new,create",
+            "show,edit,update",
+            "edit,update",
+            "index,new,create,delete",
+            "show,new,create,edit,update,delete",
+            "create,update,delete",
+        ],
+    )
+    def test_only_links_to_generated_actions(self, app_in_tmp, only, singular, has_model):
+        if has_model:
+            _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", "title:str", only=only, singular=singular)
+
+        generated = set(only.split(",")) if only else set(ACTIONS)
+        if singular:
+            generated.discard("index")
+        assert _linked_actions(app_in_tmp, "note") <= generated
+        _assert_valid_python(app_in_tmp, "controllers", "note_controller.py")
+
+    def test_redirects_with_every_action(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note")
+
+        controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert 'redirect_to("Note.show", note, flash="Note was created")' in controller
+        assert 'redirect_to("Note.show", note, flash="Note was updated")' in controller
+        assert 'redirect_to("Note.index", flash="Note was deleted")' in controller
+
+    def test_redirects_without_show(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", exclude="show")
+
+        controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert 'redirect_to("Note.index", flash="Note was created")' in controller
+
+    def test_redirects_without_index_or_show(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", only="new,create,delete")
+
+        controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert 'redirect_to("/", flash="Note was created")' in controller
+        assert 'redirect_to("/", flash="Note was deleted")' in controller
+
+    def test_cancel_of_the_forms(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", exclude="index")
+
+        assert "Cancel" not in _read(app_in_tmp, "views", "note", "new.jx")
+        assert "url_for('Note.show', note) }}>Cancel" in _read(app_in_tmp, "views", "note", "edit.jx")
+
+
+class TestNamespace:
+    """Regression: the controller imported `admin_router` from `router.py`,
+    but nothing defined it there."""
+
+    ROUTER = '"""Routes"""\nfrom .main import app\n\n\nrouter = app.router\n'
+
+    @pytest.fixture(autouse=True)
+    def router_file(self, app_in_tmp):
+        (app_in_tmp.root_path / "router.py").write_text(self.ROUTER)
+
+    def test_adds_the_scoped_router(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note", namespace="admin")
+
+        assert _read(app_in_tmp, "router.py") == (
+            self.ROUTER + '\nadmin_router = router.scope("admin")\n'
+        )
+        controller = _read(app_in_tmp, "controllers", "admin", "note_controller.py")
+        assert "from myapp.router import admin_router" in controller
+        assert '@admin_router.resource("notes")' in controller
+        _assert_valid_python(app_in_tmp, "controllers", "admin", "note_controller.py")
+        _assert_valid_python(app_in_tmp, "forms", "admin", "note.py")
+        _assert_valid_python(app_in_tmp, "router.py")
+
+    def test_adds_the_scoped_router_only_once(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note", namespace="admin")
+        gen_controller(app_in_tmp, "Tag", namespace="admin")
+        gen_controller(app_in_tmp, "Note", namespace="admin", force=True)
+
+        assert _read(app_in_tmp, "router.py").count("admin_router =") == 1
+        init = _init_text(app_in_tmp)
+        assert init.count("from .admin import note_controller") == 1
+        assert init.count("from .admin import tag_controller") == 1
+
+    def test_keeps_a_scoped_router_that_is_already_defined(self, app_in_tmp):
+        text = self.ROUTER + '\nadmin_router = router.scope("backoffice")\n'
+        (app_in_tmp.root_path / "router.py").write_text(text)
+
+        gen_controller(app_in_tmp, "Note", namespace="admin")
+
+        assert _read(app_in_tmp, "router.py") == text
+
+    def test_each_namespace_has_its_router(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note", namespace="admin")
+        gen_controller(app_in_tmp, "Note", namespace="api")
+
+        router = _read(app_in_tmp, "router.py")
+        assert 'admin_router = router.scope("admin")' in router
+        assert 'api_router = router.scope("api")' in router
+
+    def test_creates_the_router_file_if_missing(self, app_in_tmp):
+        (app_in_tmp.root_path / "router.py").unlink()
+        gen_controller(app_in_tmp, "Note", namespace="admin")
+        assert _read(app_in_tmp, "router.py") == 'admin_router = router.scope("admin")\n'
+
+    def test_routes_have_the_prefix_of_the_namespace(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", namespace="admin")
+
+        controller = _read(app_in_tmp, "controllers", "admin", "note_controller.py")
+        assert 'redirect_to("Admin:Note.show", note' in controller
+        assert "url_for('Admin:Note.new')" in _read(app_in_tmp, "views", "admin", "note", "index.jx")
+        assert _linked_actions(app_in_tmp, "note", "admin") <= set(ACTIONS)
+
+    def test_not_namespaced_does_not_touch_the_router(self, app_in_tmp):
+        gen_controller(app_in_tmp, "Note")
+        assert _read(app_in_tmp, "router.py") == self.ROUTER

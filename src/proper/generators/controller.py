@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING
 
 import inflection
@@ -83,6 +84,7 @@ def gen_controller(
     force: bool = False,
     _name_pascal: str = "",
     _name_snake: str = "",
+    _has_model: bool | None = None,
 ) -> None:
     """Stubs out a new controller including views and a form.
 
@@ -125,6 +127,11 @@ def gen_controller(
 
     "show", "edit", "update", and "delete"). You can opt for a subset of these
     or exclude specific ones using the `only` and `exclude` arguments.
+
+    The controller works with the model of the same name, if there is one in
+    `models/__init__.py`. If there isn't, the generated code doesn't use a
+    model and has `TODO` comments where it would. To create the model too,
+    use `proper g resource` instead.
 
     For resources that users always look up without an ID, use `singular=True`
     to create REST routes that do not include `:object_id`.
@@ -203,6 +210,32 @@ def gen_controller(
 
     test_client = "signed_client" if metadata.is_installed(app, "auth") else "client"
 
+    has_model = _model_exists(app, name_pascal) if _has_model is None else _has_model
+    route = f"{nsprefix}{name_pascal}"
+    object_id = pk or f"{name_snake}_id"
+
+    # How the views refer to the record of a member action (show, edit, ...)
+    if has_model:
+        member_def = name_snake
+        member_arg = f", {name_snake}"
+    elif singular:
+        member_def = ""
+        member_arg = ""
+    else:
+        member_def = object_id
+        member_arg = f", {object_id}={object_id}"
+
+    # Where to go after saving or deleting: only to an action that exists
+    if ACTION_SHOW in actions and has_model:
+        after_save = f'"{route}.show", {name_snake}'
+    elif ACTION_INDEX in actions:
+        after_save = f'"{route}.index"'
+    elif ACTION_SHOW in actions and singular:
+        after_save = f'"{route}.show"'
+    else:
+        after_save = '"/"'
+    after_delete = f'"{route}.index"' if ACTION_INDEX in actions else '"/"'
+
     context = {
         "app_name": app.name,
         "name_pascal": name_pascal,
@@ -218,11 +251,16 @@ def gen_controller(
         "render_fields": render_fields,
         "form_class": f"{name_pascal}Form",
         "load_method": f"set_{name_snake}",
-        "object_id": pk or f"{name_snake}_id",
+        "object_id": object_id,
         "pk": pk,
         "namespace": namespace,
         "nsprefix": nsprefix,
         "test_client": test_client,
+        "has_model": has_model,
+        "member_def": member_def,
+        "member_arg": member_arg,
+        "after_save": after_save,
+        "after_delete": after_delete,
     }
 
     if namespace:
@@ -242,11 +280,11 @@ def gen_controller(
         # Overwrite the contents of the rendered __init__
         (ns_controllers / "__init__.py").write_text("")
 
-        # Append to root controllers __init__
-        controllers_init.write_text(
-            controllers_init.read_text() +
-            f"\nfrom .{namespace} import {name_snake}_controller  # noqa"
+        _append_import(
+            controllers_init,
+            f"from .{namespace} import {name_snake}_controller  # noqa",
         )
+        _add_scoped_router(app, namespace)
 
         render_blueprint(
             RESOURCE_BLUEPRINT / "[[app_name]]" / "forms",
@@ -276,6 +314,19 @@ def gen_controller(
 
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
+
+    ns_folder = f"{namespace}/" if namespace else ""
+    _tidy(app.root_path / "controllers" / f"{ns_folder}{name_snake}_controller.py")
+    _tidy(app.root_path / "forms" / f"{ns_folder}{name_snake}.py")
+
+
+def _tidy(path) -> None:
+    """Remove the whitespace that the optional blocks of a template leave
+    at the end of the lines and of the file."""
+    if not path.exists():
+        return
+    lines = [line.rstrip() for line in path.read_text().splitlines()]
+    path.write_text("\n".join(lines).rstrip() + "\n")
 
 
 def _gen_state_change(
@@ -370,6 +421,27 @@ def _gen_state_change(
     root_init = controllers / "__init__.py"
     _append_import(root_init, f"from .{parent_snake} import {child_snake}_controller  # noqa")
     sort_imports_in(root_init)
+
+
+def _model_exists(app: "App", name_pascal: str) -> bool:
+    """Whether `models/__init__.py` imports a model with that name."""
+    models_init = app.root_path / "models" / "__init__.py"
+    if not models_init.exists():
+        return False
+    return bool(re.search(rf"\b{re.escape(name_pascal)}\b", models_init.read_text()))
+
+
+def _add_scoped_router(app: "App", namespace: str) -> None:
+    """Define `{namespace}_router` in `router.py`, the one that the
+    controllers of the namespace use, if it isn't there yet."""
+    router_path = app.root_path / "router.py"
+    text = router_path.read_text() if router_path.exists() else ""
+    router_name = f"{namespace}_router"
+    if re.search(rf"^{re.escape(router_name)}\b", text, re.MULTILINE):
+        return
+    line = f'{router_name} = router.scope("{namespace}")'
+    router_path.write_text(f"{text.rstrip()}\n\n{line}\n".lstrip("\n"))
+    printf("append", str(router_path), color=COLORS.YELLOW)
 
 
 def _touch_init(directory) -> None:

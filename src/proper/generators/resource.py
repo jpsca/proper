@@ -51,6 +51,7 @@ def gen_resource(
         force=force,
         _name_pascal=name_pascal,
         _name_snake=name_snake,
+        _has_model=True,
     )
 
     gen_model(
