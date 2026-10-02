@@ -600,6 +600,31 @@ def test_variant_explicit_save_format_overrides_default(Attachment):
     assert v.filename.endswith(".webp")
 
 
+def test_variant_is_named_after_the_original(Attachment):
+    parent = Attachment(
+        _make_file(b"img", "Él Niño (Óleo).JPG"), content_type="image/jpeg"
+    )
+    parent.save(force_insert=True)
+    with (
+        patch.object(parent, "preview_image", return_value=b"extracted"),
+        patch("proper.storage.attachment.transform_image", return_value=b"thumb"),
+    ):
+        v = parent.variant(resize=(100, 100), save={"format": "webp"})
+    assert parent.filename == "el-nino-oleo.jpg"
+    assert v.filename == "el-nino-oleo.webp"
+
+
+def test_variant_of_an_unnamed_original(Attachment):
+    parent = Attachment(_make_file(b"img", ""), content_type="image/jpeg")
+    parent.save(force_insert=True)
+    with (
+        patch.object(parent, "preview_image", return_value=b"extracted"),
+        patch("proper.storage.attachment.transform_image", return_value=b"thumb"),
+    ):
+        v = parent.variant(resize=(100, 100), save={"format": "webp"})
+    assert v.filename == "variant.webp"
+
+
 def test_variant_fallback_format_is_configurable(app, Attachment):
     # Override the configured fallback for one test.
     original = app.config.get("STORAGE_FALLBACK_FORMAT")

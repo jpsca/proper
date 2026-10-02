@@ -410,7 +410,9 @@ class _Attachment(ProperModel):
                 upload = io.BytesIO(image_bytes)
 
                 ext = save["format"].lstrip(".").lower()
-                variant_filename = f"variant.{ext}"
+                # The filename of the original is already normalized
+                stem = self.filename.rsplit(".", 1)[0] or "variant"
+                variant_filename = f"{stem}.{ext}"
                 variant_content_type = (
                     mimetypes.guess_type(variant_filename, strict=False)[0]
                     or self.content_type
