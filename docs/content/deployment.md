@@ -166,6 +166,8 @@ if env == "prod":
 
 The `prod` branches read their secrets and connection settings from the environment. `.env.example` lists all of them; copy it to `.env` and fill it in.
 
+The app reads that `.env` file by itself when it starts (`load_dotenv()` at the top of `config/main.py`), so it also works outside Docker - in development, for the variables you'd otherwise export in your shell. A variable that is already in the environment is never replaced by the one in the file, and the file is git-ignored.
+
 Variable | What it is
 -------- | ----------
 `SECRET_KEYS` | Comma-separated secret keys, oldest to newest, each 48+ random characters

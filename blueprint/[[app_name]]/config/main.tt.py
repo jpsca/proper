@@ -1,7 +1,13 @@
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from proper.units import MB
 
+
+# Reads the variables of the `.env` file at the root of the project, if there
+# is one. The ones that are already in the environment are not replaced.
+load_dotenv(Path(__file__).parents[2] / ".env")
 
 env = os.getenv("APP_ENV", "dev")
 
