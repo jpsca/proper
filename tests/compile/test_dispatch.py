@@ -417,7 +417,7 @@ class TestLowerApp:
             app.lower()  # does not raise: the server starts
         assert app.router._table is not None
         assert plan_for(PostsController, "index") is not None
-        assert "Some views do not compile" in caplog.text
+        assert "some views do not compile" in caplog.text
         assert "broken.jx:1:" in caplog.text
         assert (compiled_views_path(app) / "good.py").is_file()
         assert app.catalog.render("good.jx") == "<p>ok</p>"
