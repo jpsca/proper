@@ -114,20 +114,22 @@ def get_db_cli(app) -> type[Cli]:
             migrate_dir.mkdir(exist_ok=True)
             return Router(db, migrate_dir=migrate_dir)
 
-        def prepare(self, db: str = "main"):
-            """Bring the DB to a runnable state.
+        def prepare(self, db: str = ""):
+            """Bring the databases to a runnable state.
 
-            Excecutes `db migrate` and `db seed` (if APP_ENV is no "test").
+            Executes `db migrate` and `db seed` (if APP_ENV is not "test").
 
             Arguments:
 
             - db:
-                Database name to prepare. Default is "main".
+                Database name to prepare.
+                Default is "", meaning running the pending migrations
+                for all databases and the seeds of "main".
 
             """
             self.migrate(db=db)
             if app.env != "test":
-                self.seed(db=db)
+                self.seed(db=db or "main")
 
         def create(self, name: str = "auto", db: str = "main"):
             """Create a new migration file for all changes in the models.

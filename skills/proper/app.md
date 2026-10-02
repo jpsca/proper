@@ -497,6 +497,7 @@ proper g model Photo title:str      # Generate model only
 
 proper db create "description"      # Create a migration from model changes
 proper db migrate                   # Run all pending migrations
+proper db prepare                   # Migrate every database, then seed main
 proper db migrate_to TARGET         # Run migrations up to TARGET
 proper db rollback                  # Rollback the latest migration
 proper db merge "name"              # Merge migrations into one
