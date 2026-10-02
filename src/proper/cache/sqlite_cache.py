@@ -104,16 +104,19 @@ class SqliteCache(BaseCache):
     def get(self, key: str) -> t.Any:
         self.check_conn()
 
-        with self.database.atomic():
-            row = Cache.get_or_none(Cache.key == key)
-            if row is None:
-                return None
+        # No transaction here: one that reads and then writes fails with
+        # "database is locked", without waiting, if another connection
+        # wrote in between.
+        row = Cache.get_or_none(Cache.key == key)
+        if row is None:
+            return None
 
-            if row.expires_at < int(time()):
-                Cache.delete_by_id(key)
-                return None
+        curr_time = int(time())
+        if row.expires_at < curr_time:
+            self._delete_expired_keys([key], curr_time)
+            return None
 
-            return self.deserialize(row.value)
+        return self.deserialize(row.value)
 
     def get_or_set(
         self,
@@ -127,20 +130,25 @@ class SqliteCache(BaseCache):
         if expires_in is None:
             expires_in = self.expires_in
 
-        with self.database.atomic():
-            row = Cache.get_or_none(Cache.key == key)
-            curr_time = int(time())
+        row = Cache.get_or_none(Cache.key == key)
+        curr_time = int(time())
 
-            if row is not None:
-                if row.expires_at >= curr_time:
+        if row is not None:
+            if row.expires_at >= curr_time:
+                return self.deserialize(row.value)
+
+            if race_condition_ttl and curr_time < row.expires_at + race_condition_ttl:
+                # Expired but within race window - extend stale entry
+                # so other callers return the old value while we recompute.
+                # Only the caller that extends it recomputes: the others
+                # don't match the row as it was read.
+                extended = (
+                    Cache.update(expires_at=curr_time + race_condition_ttl)
+                    .where(Cache.key == key, Cache.expires_at == row.expires_at)
+                    .execute()
+                )
+                if not extended:
                     return self.deserialize(row.value)
-
-                if race_condition_ttl and curr_time < row.expires_at + race_condition_ttl:
-                    # Expired but within race window - extend stale entry
-                    # so other callers return the old value while we recompute.
-                    Cache.update(expires_at=curr_time + race_condition_ttl).where(
-                        Cache.key == key
-                    ).execute()
 
         if callable(default):
             default = default()
@@ -150,7 +158,9 @@ class SqliteCache(BaseCache):
     def increment(self, key: str, value: int = 1, *, expires_in: int | None = None) -> int:
         self.check_conn()
 
-        with self.database.atomic():
+        # Takes the write lock before reading, so concurrent increments wait
+        # for each other instead of failing or losing counts.
+        with self.database.atomic("IMMEDIATE"):
             row = Cache.get_or_none(Cache.key == key)
             curr_time = int(time())
             if expires_in is None:
@@ -179,18 +189,25 @@ class SqliteCache(BaseCache):
         curr_time = int(time())
         expired_keys = []
 
-        with self.database.atomic():
-            rows = Cache.select().where(Cache.key << keys)  # ty: ignore[unsupported-operator]
-            for row in rows:
-                if row.expires_at < curr_time:
-                    expired_keys.append(row.key)
-                else:
-                    result[row.key] = self.deserialize(row.value)
+        rows = Cache.select().where(Cache.key << keys)  # ty: ignore[unsupported-operator]
+        for row in rows:
+            if row.expires_at < curr_time:
+                expired_keys.append(row.key)
+            else:
+                result[row.key] = self.deserialize(row.value)
 
-            if expired_keys:
-                Cache.delete().where(Cache.key << expired_keys).execute()  # ty: ignore[unsupported-operator]
+        if expired_keys:
+            self._delete_expired_keys(expired_keys, curr_time)
 
         return result
+
+    def _delete_expired_keys(self, keys: list[str], curr_time: int) -> None:
+        # The check of the date is repeated because the keys could have
+        # been set again after they were read.
+        Cache.delete().where(
+            Cache.key << keys,  # ty: ignore[unsupported-operator]
+            Cache.expires_at < curr_time,
+        ).execute()
 
     def write_multi(self, mapping: dict[str, t.Any], *, expires_in: int | None = None) -> None:
         self.check_conn()
