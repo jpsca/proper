@@ -186,13 +186,22 @@ def test_fallback_error():
 
 def test_sets_body():
     request = make_test_request("/")
+    request.server_software = "gunicorn/23.0.0"
     response = MagicMock()
     render_default_index(request, response)
     assert response.body is not None
     body = response.body
     assert isinstance(body, str)
     assert f"Proper Web Framework {version('proper')}" in body
-    assert f"<strong>Server:</strong> Granian {version('granian')}" in body
+    assert "<strong>Server:</strong> gunicorn/23.0.0" in body
+
+
+def test_default_page_without_the_name_of_the_server():
+    request = make_test_request("/")
+    response = MagicMock()
+    render_default_index(request, response)
+    assert "Proper Web Framework" in response.body
+    assert "Server:" not in response.body
 
 
 def test_index_request_renders_default_page():
@@ -216,7 +225,6 @@ def test_new_app_shows_the_default_page():
 
     assert response.status == 404
     assert "Proper Web Framework" in response.body
-    assert "Granian" in response.body
 
 
 def test_non_index_renders_not_found_page():
