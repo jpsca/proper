@@ -216,7 +216,7 @@ class SqliteCache(BaseCache):
         # been set again after they were read.
         self.Cache.delete().where(
             self.Cache.key << keys,  # ty: ignore[unsupported-operator]
-            self.Cache.expires_at < curr_time,
+            self.Cache.expires_at < curr_time,  # ty: ignore[unsupported-operator]
         ).execute()
 
     def write_multi(self, mapping: dict[str, t.Any], *, expires_in: int | None = None) -> None:
