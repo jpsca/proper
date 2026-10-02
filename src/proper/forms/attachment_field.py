@@ -162,6 +162,17 @@ class AttachmentField(Field):
 
     # --- Rendering helpers ---
 
+    @property
+    def attachment(self) -> "_Attachment | None":
+        """The saved attachment of the field, if it has one, to show it in
+        the form. It is `None` when there is none, when it was removed, and
+        when the value is an upload: one that didn't validate comes back in
+        `value`, and it has no URL or variants to show.
+        """
+        if isinstance(self.value, self.attachment_cls):
+            return self.value
+        return None
+
     def file_input(self, **attrs: t.Any) -> str:
         """Renders the `<input type="file" name="<field>[file]">` element.
 

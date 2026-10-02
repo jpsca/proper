@@ -264,7 +264,7 @@ def update(self):
     self.response.redirect_to("User.show", user)
 ```
 
-The matching template helpers are `form.avatar.file_input(...)` and `form.avatar.destroy_input(...)`; the storage blueprint also ships an `<ImageInput>` component that wires drag-and-drop, preview, and remove for image attachments.
+The matching template helpers are `form.avatar.file_input(...)` and `form.avatar.destroy_input(...)`, plus `form.avatar.attachment`: the saved attachment to show, or `None` (don't use `form.avatar.value` for that: after a failed validation it is the upload, which has no `url`); the storage blueprint also ships an `<ImageInput>` component that wires drag-and-drop, preview, and remove for image attachments.
 
 ### Creating attachments manually
 
