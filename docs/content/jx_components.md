@@ -1263,6 +1263,8 @@ The views are compiled when the app starts. Outside of `DEBUG`, a view with an e
 
 In `DEBUG`, the errors are logged and the app starts anyway; each error shows when its view is rendered. `proper jx info` reports the folders of the catalog, where the views are compiled, the custom tags and the views it found; add `--format json` for machine-readable output.
 
+`proper jx compile` compiles every view without starting the app, and ends with an error listing the views that do not compile. Use it to check your views, e.g. in CI, or to compile them when the app is built for production: see [Compiled views](/docs/deployment#compiled-views).
+
 ## What's Not Covered Here
 
 This guide focuses on the day-to-day surface: writing components, using them, and the way Proper hooks into Jx. A few topics are deliberately left out.

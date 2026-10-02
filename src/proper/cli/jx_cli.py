@@ -1,8 +1,12 @@
 """`proper jx`: the tools for the app's views, compiled by minijx."""
 import json
+import sys
 import typing as t
 
+from minijx import CompileError
 from proper_cli import Cli
+
+from ..compile import compile_views
 
 
 if t.TYPE_CHECKING:
@@ -11,7 +15,29 @@ if t.TYPE_CHECKING:
 
 def get_jx_cli(app: "App") -> type[Cli]:
     class JxCLI(Cli):
-        """Inspect the app's views."""
+        """Inspect and compile the app's views."""
+
+        def compile(self):
+            """Compile every view of the app now, instead of when it starts.
+
+            Run it when the app is built for production, e.g. in its
+            Dockerfile: outside of debug mode, an app whose views are already
+            compiled starts without compiling them again, so it starts faster
+            and does not need to write to the folder of the compiled views.
+
+            It ends with an error, listing every view that does not compile.
+            """
+            catalog = app.catalog
+            try:
+                compiled = compile_views(app, force=True)
+            except CompileError as err:
+                print(err, file=sys.stderr)
+                sys.exit(1)
+            if not compiled:
+                print("There is no minijx compiler for this platform.", file=sys.stderr)
+                sys.exit(1)
+            count = sum(1 for folder in catalog.folders for _ in folder.rglob("*.jx"))
+            print(f"Compiled {count} views into {catalog.output}")
 
         def info(self, format: str = "text"):
             """Report the catalog's folders, where the views are compiled,

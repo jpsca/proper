@@ -751,7 +751,7 @@ Renders as `hx-get="/api/items" hx-target="#list" hx-swap="innerHTML"`.
 
 ## Catalog API
 
-In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup, and the template globals, filters and tags are added. It is a `minijx.Catalog`.
+In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup (or before, with `proper jx compile`: outside of `DEBUG`, the views already compiled are not compiled again), and the template globals, filters and tags are added. It is a `minijx.Catalog`.
 
 ### In Proper
 

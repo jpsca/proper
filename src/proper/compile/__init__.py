@@ -16,7 +16,7 @@ from .dispatch import (  # noqa
 )
 from .dispatch import lower as lower_dispatch
 from .routes import RouteTable, lower_routes  # noqa
-from .views import compile_views, compiled_views_path  # noqa
+from .views import compile_views, compiled_views_path, views_are_compiled  # noqa
 
 
 if t.TYPE_CHECKING:

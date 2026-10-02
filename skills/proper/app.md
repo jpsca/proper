@@ -509,6 +509,7 @@ proper install storage              # Install file storage
 proper install channels             # Install channels addon
 
 proper jx info                      # Folders, autoescape, tags and views of the catalog
+proper jx compile                   # Compile every view now; fails listing the ones that don't compile
 ```
 
 All commands accept a `--help` parameter that shows more details.
