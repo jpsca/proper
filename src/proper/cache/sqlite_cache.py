@@ -1,10 +1,13 @@
 import itertools
 import typing as t
-from time import time
+from time import sleep, time
 
 import peewee as pw
 
 from .base import BaseCache, SerializerProtocol
+
+
+CONNECT_ATTEMPTS = 5
 
 
 class Cache(pw.Model):
@@ -59,16 +62,34 @@ class SqliteCache(BaseCache):
     def close(self):
         return self.database.close()
 
+    def connect(self):
+        # Setting the WAL mode of a new database fails with "database is
+        # locked" if another process is doing the same at that moment.
+        attempt = 1
+        while True:
+            try:
+                self.database.connect()
+                return
+            except pw.OperationalError:
+                if attempt == CONNECT_ATTEMPTS:
+                    raise
+                sleep(0.05 * attempt)
+                attempt += 1
+
     def check_conn(self):
         if not self.database.is_connection_usable():
-            self.database.connect()
-            if self.memory_based:
-                with self.database.atomic():
-                    self.database.create_tables(self.models, safe=True)
+            self.connect()
+            # The cache creates its own table when it's missing, so a new
+            # database works without running a migration first.
+            if not all(model.table_exists() for model in self.models):
+                self.create_tables()
 
     def create_tables(self):
-        self.check_conn()
-        with self.database.atomic():
+        if not self.database.is_connection_usable():
+            self.connect()
+        # Takes the write lock from the start. When several processes open
+        # a new database at once, the others wait instead of failing.
+        with self.database.atomic("IMMEDIATE"):
             self.database.create_tables(self.models, safe=True)
 
     def set(self, key: str, value: t.Any, *, expires_in: int | None = None) -> None:

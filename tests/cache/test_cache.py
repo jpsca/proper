@@ -5,6 +5,7 @@ from time import time
 from unittest.mock import MagicMock
 
 import minijx
+import peewee as pw
 import pytest
 
 from proper.cache import (
@@ -17,7 +18,7 @@ from proper.cache import (
     key_for_object,
 )
 from proper.cache.base import NoSerializer, Serializer, SerializerProtocol
-from proper.cache.sqlite_cache import Cache
+from proper.cache.sqlite_cache import CONNECT_ATTEMPTS, Cache
 
 
 class TestSerializerProtocol:
@@ -148,6 +149,109 @@ def cache():
     c = SqliteCache(":memory:")
     yield c
     c.close()
+
+
+@pytest.fixture
+def file_cache(tmp_path):
+    c = SqliteCache(str(tmp_path / "cache.sqlite3"))
+    yield c
+    c.close()
+
+
+class TestSqliteCacheInAFile:
+    """The cache creates its table: a new database needs no migration."""
+
+    def test_new_database_is_not_created_until_used(self, tmp_path, file_cache):
+        assert not (tmp_path / "cache.sqlite3").exists()
+
+    @pytest.mark.parametrize(
+        "use",
+        [
+            lambda cache: cache.set("a", 1),
+            lambda cache: cache.get("a"),
+            lambda cache: cache.get_or_set("a", 1),
+            lambda cache: cache.increment("a"),
+            lambda cache: cache.read_multi("a", "b"),
+            lambda cache: cache.write_multi({"a": 1}),
+            lambda cache: cache.delete("a"),
+            lambda cache: cache.clear(),
+            lambda cache: cache.delete_expired(),
+        ],
+    )
+    def test_new_database(self, file_cache, use):
+        use(file_cache)
+        assert Cache.table_exists()
+
+    def test_existing_database_keeps_its_values(self, tmp_path):
+        path = str(tmp_path / "cache.sqlite3")
+        first = SqliteCache(path)
+        first.set("a", 1)
+        first.close()
+
+        second = SqliteCache(path)
+        assert second.get("a") == 1
+        second.close()
+
+    def test_new_connection_of_another_thread(self, file_cache):
+        file_cache.set("a", 1)
+        values = []
+
+        def read():
+            values.append(file_cache.get("a"))
+            file_cache.close()
+
+        thread = threading.Thread(target=read)
+        thread.start()
+        thread.join()
+        assert values == [1]
+
+    def test_create_tables(self, file_cache):
+        file_cache.create_tables()
+        file_cache.create_tables()
+        assert Cache.table_exists()
+
+
+class LockedDatabase(pw.SqliteDatabase):
+    """A database that is locked the first `failures` times it's opened."""
+
+    failures = 0
+
+    def connect(self, *args, **kwargs):
+        if type(self).failures:
+            type(self).failures -= 1
+            raise pw.OperationalError("database is locked")
+        return super().connect(*args, **kwargs)
+
+
+class LockedCache(SqliteCache):
+    db_class = LockedDatabase
+
+
+class TestSqliteCacheConnect:
+    @pytest.fixture(autouse=True)
+    def no_sleep(self, monkeypatch):
+        monkeypatch.setattr("proper.cache.sqlite_cache.sleep", lambda seconds: None)
+        yield
+        LockedDatabase.failures = 0
+
+    def test_retries_when_the_database_is_locked(self, tmp_path):
+        cache = LockedCache(str(tmp_path / "cache.sqlite3"))
+        LockedDatabase.failures = CONNECT_ATTEMPTS - 1
+
+        cache.set("a", 1)
+
+        assert cache.get("a") == 1
+        assert LockedDatabase.failures == 0
+        cache.close()
+
+    def test_gives_up_after_some_attempts(self, tmp_path):
+        cache = LockedCache(str(tmp_path / "cache.sqlite3"))
+        LockedDatabase.failures = CONNECT_ATTEMPTS
+
+        with pytest.raises(pw.OperationalError, match="locked"):
+            cache.set("a", 1)
+        assert LockedDatabase.failures == 0
+        cache.close()
 
 
 class TestSqliteCache:
