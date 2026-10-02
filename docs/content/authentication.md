@@ -463,7 +463,9 @@ Every key is written into the generated `config/auth.py`.
 
 `AUTH_HASH_NAME` is one of `argon2`, `bcrypt`, `bcrypt_sha256`, `pbkdf2_sha512`, `pbkdf2_sha256`, `sha512_crypt`, `sha256_crypt`. Pass anything else and Proper raises `WrongHashAlgorithm` at startup. The default of `argon2` is the right answer for new applications; the alternatives exist so you can match a hash format you inherited from another system.
 
-Changing `AUTH_HASH_NAME` after you have users in the database isn't disruptive: each user's stored hash records which algorithm was used. The next time they sign in, `User.authenticate` verifies the password against the old hash, then re-hashes with the new algorithm and writes the result back. Old hashes phase out as users sign in.
+Changing `AUTH_HASH_NAME` or `AUTH_ROUNDS` after you have users in the database isn't disruptive: each user's stored hash records which algorithm and cost were used. The next time they sign in, `User.authenticate` verifies the password against the old hash and, only if it was made with other settings, re-hashes the password with the current ones and saves the user. Old hashes phase out as users sign in.
+
+`AUTH_PASSWORD_MINLEN` is checked when a password is set, not at sign-in. If you raise it, the users with a shorter password can still sign in, and their hashes are upgraded like any other.
 
 `AUTH_PASSWORD_MAXLEN` is a denial-of-service cap, not a UX limit. Hashing a 10MB "password" with argon2 is slow on purpose, which means accepting unbounded password length opens you to slow-attack patterns. The default 1024 is generous.
 

@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import passlib.hash
+import peewee as pw
 import pytest
 
 from proper.auth import (
@@ -170,6 +172,52 @@ class TestPasswordIsValid:
     def test_malformed_hash_returns_false(self, auth):
         assert auth.password_is_valid("password", "not-a-valid-hash") is False
 
+    @pytest.mark.parametrize(
+        "password",
+        [
+            "contra\u00a0seña",  # non-breaking space
+            "ｐａｓｓword",  # full-width letters
+            "pass\u00adword",  # soft hyphen
+        ],
+    )
+    def test_password_that_is_normalized(self, auth, password):
+        """Regression: `hash_password` normalizes the password, so the check
+        must do it too or the password that was set doesn't work."""
+        hashed = auth.hash_password(password)
+        assert auth.password_is_valid(password, hashed) is True
+
+    def test_hash_of_a_password_without_normalizing(self, auth):
+        password = "contra\u00a0seña"
+        hashed = auth.hasher.hash(password)
+        assert auth.password_is_valid(password, hashed) is True
+        assert auth.password_is_valid("contra seña", hashed) is False
+
+    def test_password_that_cannot_be_normalized(self, auth):
+        password = "pass\u0007word"
+        with pytest.raises(ValueError):
+            auth.hash_password(password)
+        hashed = auth.hasher.hash(password)
+        assert auth.password_is_valid(password, hashed) is True
+        assert auth.password_is_valid("pass\u0007wor", hashed) is False
+
+
+class User(pw.Model):
+    login = pw.CharField(unique=True)
+    password = pw.CharField()
+
+    @classmethod
+    def get_by_login(cls, login):
+        return cls.get_or_none(cls.login == login)
+
+
+@pytest.fixture()
+def db():
+    database = pw.SqliteDatabase(":memory:")
+    with database.bind_ctx([User]):
+        database.create_tables([User])
+        yield database
+    database.close()
+
 
 def _make_user(password_hash):
     user = MagicMock()
@@ -221,66 +269,125 @@ class TestAuthenticate:
         result = auth.authenticate(model, "alice", "wrong")
         assert result is None
 
-    def test_update_hash_false_skips_update(self, auth):
+    def test_current_hash_is_not_saved(self, auth):
         hashed = auth.hash_password("secret123")
         user = _make_user(hashed)
         model = MagicMock()
         model.get_by_login.return_value = user
 
-        result = auth.authenticate(model, "alice", "secret123", update_hash=False)
-        assert result is user
+        auth.authenticate(model, "alice", "secret123")
+        assert user.password == hashed
+        user.save.assert_not_called()
+
+    def test_outdated_hash_is_updated_and_saved(self, db):
+        old_hash = passlib.hash.sha256_crypt.using(rounds=1000).hash("secret123")
+        User.create(login="alice", password=old_hash)
+        auth = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512", rounds=1000)
+
+        assert auth.authenticate(User, "alice", "secret123") is not None
+
+        new_hash = User.get_by_login("alice").password
+        assert new_hash.startswith("$pbkdf2-sha512$1000$")
+        # The new hash is the one checked from now on, and it is not replaced again
+        assert auth.authenticate(User, "alice", "secret123") is not None
+        assert User.get_by_login("alice").password == new_hash
+
+    def test_wrong_password_does_not_update_the_hash(self, db):
+        old_hash = passlib.hash.sha256_crypt.using(rounds=1000).hash("secret123")
+        User.create(login="alice", password=old_hash)
+        auth = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512", rounds=1000)
+
+        assert auth.authenticate(User, "alice", "wrong") is None
+        assert User.get_by_login("alice").password == old_hash
+
+    def test_update_hash_false_skips_update(self, db):
+        old_hash = passlib.hash.sha256_crypt.using(rounds=1000).hash("secret123")
+        User.create(login="alice", password=old_hash)
+        auth = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512", rounds=1000)
+
+        user = auth.authenticate(User, "alice", "secret123", update_hash=False)
+        assert user.password == old_hash
+        assert User.get_by_login("alice").password == old_hash
+
+    def test_password_shorter_than_the_minimum(self, db):
+        """Regression: a password set when the minimum length was lower
+        must keep working, with or without an outdated hash."""
+        old_hash = passlib.hash.sha256_crypt.using(rounds=1000).hash("abc")
+        User.create(login="alice", password=old_hash)
+        auth = Auth(
+            secret_keys=SECRET_KEYS,
+            hash_name="pbkdf2_sha512",
+            rounds=1000,
+            password_minlen=8,
+        )
+
+        assert auth.authenticate(User, "alice", "abc") is not None
+        new_hash = User.get_by_login("alice").password
+        assert new_hash.startswith("$pbkdf2-sha512$1000$")
+
+        assert auth.authenticate(User, "alice", "abc") is not None
+        assert User.get_by_login("alice").password == new_hash
+
+
+class FakeUser:
+    def __init__(self, password):
+        self.password = password
 
 
 class TestUpdatePasswordHash:
-    def test_same_scheme_no_update(self, auth):
+    def test_same_settings_no_update(self, auth):
         hashed = auth.hash_password("secret123")
-        user = MagicMock()
-        user.password = hashed
-        original = user.password
+        user = FakeUser(hashed)
+
+        assert auth.update_password_hash("secret123", user) is False
+        assert user.password == hashed
+
+    def test_does_not_hash_when_there_is_nothing_to_update(self, auth):
+        user = FakeUser(auth.hash_password("secret123"))
+        auth.hasher = MagicMock(wraps=auth.hasher)
 
         auth.update_password_hash("secret123", user)
-        # Same scheme → password should not be reassigned
-        assert user.password == original
+        auth.hasher.hash.assert_not_called()
 
     def test_different_scheme_updates(self):
-        # Create auth with one scheme, hash with another
-        auth_old = Auth(secret_keys=SECRET_KEYS, hash_name="sha256_crypt")
-        old_hash = auth_old.hash_password("secret123")
-
-        auth_new = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512")
-        user = MagicMock()
-        user.password = old_hash
-
-        auth_new.update_password_hash("secret123", user)
-        # password should be updated to the new scheme
-        assert user.password != old_hash
-        assert user.password.startswith("$pbkdf2-sha512$")
-
-    def test_different_scheme_sets_password_not_typo(self):
-        """Regression: update_password_hash must set user.password,
-        not a misspelled attribute like user.pasword."""
-        auth_old = Auth(secret_keys=SECRET_KEYS, hash_name="sha256_crypt")
-        old_hash = auth_old.hash_password("secret123")
-
-        auth_new = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512")
-
-        class FakeUser:
-            def __init__(self, password):
-                self.password = password
-
+        old_hash = passlib.hash.sha256_crypt.using(rounds=1000).hash("secret123")
+        auth = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512", rounds=1000)
         user = FakeUser(old_hash)
-        auth_new.update_password_hash("secret123", user)
 
-        # The correct attribute was updated
-        assert user.password != old_hash
-        assert user.password.startswith("$pbkdf2-sha512$")
-        # No misspelled attribute was created
-        assert not hasattr(user, "pasword")
+        assert auth.update_password_hash("secret123", user) is True
+        assert user.password.startswith("$pbkdf2-sha512$1000$")
+        assert auth.password_is_valid("secret123", user.password)
+        # Regression: it must set `user.password`, not a misspelled attribute
+        assert vars(user).keys() == {"password"}
 
-    def test_none_hash_returns_early(self, auth):
-        user = MagicMock()
-        user.password = "somehash"
+    @pytest.mark.parametrize("rounds", [1000, 3000])
+    def test_different_rounds_updates(self, rounds):
+        old_hash = passlib.hash.pbkdf2_sha512.using(rounds=rounds).hash("secret123")
+        auth = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512", rounds=2000)
+        user = FakeUser(old_hash)
+
+        assert auth.update_password_hash("secret123", user) is True
+        assert user.password.startswith("$pbkdf2-sha512$2000$")
+
+    def test_password_is_normalized(self):
+        password = "contra\u00a0seña"
+        old_hash = passlib.hash.sha256_crypt.using(rounds=1000).hash(password)
+        auth = Auth(secret_keys=SECRET_KEYS, hash_name="pbkdf2_sha512", rounds=1000)
+        user = FakeUser(old_hash)
+
+        assert auth.update_password_hash(password, user) is True
+        assert auth.hasher.verify("contra seña", user.password)
+
+    def test_none_secret_returns_early(self, auth):
+        user = FakeUser(passlib.hash.sha256_crypt.using(rounds=1000).hash("x"))
         original = user.password
-        # hash_password returns None for None input
-        auth.update_password_hash(None, user)
+
+        assert auth.update_password_hash(None, user) is False
         assert user.password == original
+
+    @pytest.mark.parametrize("password", ["", None, "not-a-valid-hash"])
+    def test_no_valid_hash_returns_early(self, auth, password):
+        user = FakeUser(password)
+
+        assert auth.update_password_hash("secret123", user) is False
+        assert user.password == password
