@@ -1,7 +1,10 @@
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 
+import proper
+from proper.core.request.formparser import MultipartPart
 from proper.forms import AttachmentField, errors
 from proper.storage import _Attachment
 
@@ -228,3 +231,69 @@ def test_max_size_args_round_trip_through_format_size(raw_size, expected):
     _bind(field, _make_upload(size=raw_size + 1))
     field.validate()
     assert field.error_args == {"max_size": expected}
+
+
+# --- The saved attachment, and the components that show it ---
+
+
+VIEWS = Path(proper.__file__).parent / "_blueprints" / "addon_storage" / "[[app_name]]" / "views"
+
+
+def test_attachment_is_the_saved_one():
+    saved = FakeAttachment()
+    field = AttachmentField(FakeAttachment)
+    field.set(None, saved)
+    assert field.attachment is saved
+
+
+def test_attachment_is_none_without_a_value():
+    field = AttachmentField(FakeAttachment, required=False)
+    field.set(None)
+    assert field.attachment is None
+
+
+def test_attachment_is_none_for_an_upload():
+    field = AttachmentField(FakeAttachment)
+    field.set({"file": _make_upload(filename="photo.png")}, FakeAttachment())
+    assert field.attachment is None
+
+
+def test_attachment_is_none_when_removed():
+    field = AttachmentField(FakeAttachment, required=False)
+    field.set({"_destroy": "1"}, FakeAttachment())
+    assert field.attachment is None
+
+
+@pytest.mark.parametrize("component", ["image_input.jx", "file_input.jx"])
+def test_component_with_an_upload_that_did_not_validate(app, component):
+    """Regression: the components asked the upload for its `url`,
+    and the form failed instead of showing the error."""
+    app.catalog.add_folder(VIEWS)
+    field = AttachmentField(FakeAttachment, max_size=10)
+    field.field_name = "photo"
+    upload = MultipartPart()
+    upload.filename = "big.png"
+    upload.content_type = "image/png"
+    upload.size = 100
+    field.set({"file": upload})
+    assert field.validate_value() is False
+
+    html = str(app.catalog.render(component, field=field))
+
+    assert 'name="photo[file]"' in html
+    # The component is not marked as having a file
+    assert '<div class="image-input"' in html or '<div class="file-input"' in html
+    assert "File size should be 10 Bytes or less" in html
+
+
+@pytest.mark.parametrize("component", ["image_input.jx", "file_input.jx"])
+def test_component_without_a_value(app, component):
+    app.catalog.add_folder(VIEWS)
+    field = AttachmentField(FakeAttachment, required=False)
+    field.field_name = "photo"
+    field.set(None)
+
+    html = str(app.catalog.render(component, field=field))
+
+    assert 'name="photo[file]"' in html
+    assert 'name="photo[_destroy]"' in html

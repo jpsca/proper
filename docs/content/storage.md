@@ -390,7 +390,7 @@ Uploaded a new file  | populated       | (any)               | Save new attachme
 Clicked "Remove"     | empty           | `"1"`               | Clear the FK, queue old one for deletion.
 Left the field alone | empty           | `"0"` or absent     | Preserve the existing attachment unchanged.
 
-The render helpers `file_input()` and `destroy_input()` produce the two HTML inputs, and the `image_input.jx` component the storage addon ships does the JS work for drag-and-drop, preview, and the "Remove" toggle. See [Rendering Forms - Attachment uploads](/docs/form_rendering#attachment-uploads) for the HTML side.
+The render helpers `file_input()` and `destroy_input()` produce the two HTML inputs, `field.attachment` is the saved attachment to show next to them (or `None`: `field.value` can also be an upload that didn't validate), and the `image_input.jx` component the storage addon ships does the JS work for drag-and-drop, preview, and the "Remove" toggle. See [Rendering Forms - Attachment uploads](/docs/form_rendering#attachment-uploads) for the HTML side.
 
 For uploads that don't fit the foreign-key pattern - a one-off CSV import, a webhook from an outside service, a parser that reads bytes and discards the file - work directly with `Attachment` ([Attaching File or IO Objects](#attaching-file-or-io-objects)).
 
