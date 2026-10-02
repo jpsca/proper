@@ -211,6 +211,82 @@ class TestSqliteCacheInAFile:
         assert Cache.table_exists()
 
 
+class TestSqliteCacheConcurrency:
+    """Each thread has its own connection to the database, like each
+    process of the app does."""
+
+    def run_in_threads(self, cache, work, threads=8):
+        errors = []
+
+        def run(number):
+            try:
+                work(number)
+            except Exception as error:
+                errors.append(error)
+            finally:
+                cache.close()
+
+        workers = [threading.Thread(target=run, args=(n,)) for n in range(threads)]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+        return errors
+
+    def test_increments_are_not_lost(self, file_cache):
+        """Regression: concurrent increments failed with "database is locked"."""
+
+        def work(number):
+            for _ in range(50):
+                file_cache.increment("counter")
+
+        errors = self.run_in_threads(file_cache, work)
+
+        assert errors == []
+        assert file_cache.get("counter") == 8 * 50
+
+    def test_reads_of_expired_keys_while_writing(self, file_cache):
+        """Regression: reading an expired key deletes it, and that failed with
+        "database is locked" if another connection wrote at that moment."""
+
+        def work(number):
+            for i in range(50):
+                key = f"key-{number}-{i}"
+                file_cache.set(key, i, expires_in=-1)
+                assert file_cache.get(key) is None
+                file_cache.set(key, i, expires_in=-1)
+                assert file_cache.read_multi(key, "shared") == {}
+                file_cache.get_or_set("stale", i, expires_in=-1, race_condition_ttl=5)
+
+        errors = self.run_in_threads(file_cache, work)
+
+        assert errors == []
+
+    def test_expired_key_set_again_is_not_deleted(self, cache):
+        cache.set("fresh", 1)
+        cache.set("expired", 2, expires_in=-10)
+
+        cache._delete_expired_keys(["fresh", "expired"], int(time()))
+
+        assert cache.get("fresh") == 1
+        assert cache._count() == 1
+
+    def test_get_or_set_stale_extended_by_another_caller(self, cache, monkeypatch):
+        """Only the caller that extends the stale entry recomputes it."""
+        cache.set("a", "stale", expires_in=-1)
+
+        def time_after_another_caller():
+            # Runs after the row was read: another caller extends it first
+            Cache.update(expires_at=int(time()) + 5).where(Cache.key == "a").execute()
+            return time()
+
+        monkeypatch.setattr("proper.cache.sqlite_cache.time", time_after_another_caller)
+        compute = MagicMock(return_value="new")
+
+        assert cache.get_or_set("a", compute, race_condition_ttl=10) == "stale"
+        compute.assert_not_called()
+
+
 class LockedDatabase(pw.SqliteDatabase):
     """A database that is locked the first `failures` times it's opened."""
 
