@@ -103,6 +103,8 @@ Option       | Default              | Description
 
 Any additional keys are passed as SQLite pragmas. The cache always opens its database in WAL mode so reads and writes can happen concurrently - a `set()` from one request doesn't block a `get()` from another.
 
+The cache creates its table the first time it connects to a database that doesn't have it. There is no migration to write or to run for it: a new `storage/cache.sqlite3` works as soon as the app uses it.
+
 ### `RedisCache`
 
 Redis is an optional dependency. The `redis` package is only imported if you actually use this backend. Install it with:

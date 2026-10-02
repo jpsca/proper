@@ -54,6 +54,8 @@ if env == "prod":
 
 Any additional keys are passed as SQLite pragmas. The cache always enables WAL mode for concurrent reads and writes.
 
+The cache creates its own table (`proper_cache`) when it's missing. It needs no migration.
+
 ### Backends
 
 | Backend      | Import path                | Description                                   |
