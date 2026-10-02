@@ -390,7 +390,7 @@ result = client.post(
 )
 ```
 
-The file is read from disk and added as a multipart part with its `Content-Type` guessed from the extension (via the stdlib `mimetypes` module). Form fields in `body` become text parts of the same multipart message.
+The file is read from disk and added as a multipart part with its `Content-Type` guessed from the extension (via the stdlib `mimetypes` module). Like a browser, the client sends only the name of the file (`sunset.jpg`), not the path you gave it. Form fields in `body` become text parts of the same multipart message.
 
 Upload multiple files under the same field name to test array-style inputs:
 
