@@ -38,7 +38,7 @@ def lower(app: "App", *, strict: bool = True) -> list[DispatchPlan]:
     except CompileError as err:
         if strict:
             raise
-        logger.error("❌ Some views do not compile:\n%s", err)
+        logger.error("❌ [jx] some views do not compile:\n%s", err)
     return plans
 
 
