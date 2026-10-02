@@ -48,7 +48,7 @@ This creates:
 
 - `config/channels.py` file (sets `CABLE_PATH` and the `CABLE` backend dict)
 - `channels/app_channel.py` - the `AppChannel` base your channels inherit from
-- Adds `cable.js` to your `assets/js` folder, registers it in the import map (as `"cable"`), and adds `import "cable"` to `application.js`
+- Adds `cable.js` to the `assets/js` folder at the project root, registers it in the import map (as `"cable"`), and adds `import "cable"` to `application.js`
 
 
 ## Defining Channels

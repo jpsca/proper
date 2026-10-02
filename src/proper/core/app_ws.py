@@ -51,7 +51,7 @@ class AppWs:
         token = (await protocol()).decode("utf-8", "replace")
         payload = self.loads(token, salt=CABLE_SALT, max_age=FORWARD_MAX_AGE)
         if not isinstance(payload, dict) or "stream" not in payload:
-            logger.warning("[cable] refused a broadcast with a bad signature")
+            logger.warning("⚠️ [cable] refused a broadcast with a bad signature")
             protocol.response_empty(403, [])
             return
         self.cable._deliver_local(payload["stream"], payload.get("data"))

@@ -545,7 +545,7 @@ app.url_for("/some/hardcoded/path")   # /some/hardcoded/path
 
 ## Assets
 
-Proper includes a built-in `StaticFilesController` for serving files from your `assets` folder. The route is configured in your application's `router.py`:
+Proper includes a built-in `StaticFilesController` for serving files from the `assets/` folder at the project root. The route is configured in your application's `router.py`:
 
 ```python
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")

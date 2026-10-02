@@ -150,13 +150,13 @@ class Cable:
                 conn.close()
         except OSError as error:
             logger.warning(
-                "[cable] could not reach the cable process at %s: %s",
+                "⚠️ [cable] could not reach the cable process at %s: %s",
                 self._forward_url, error,
             )
             return
         if status != 204:
             logger.warning(
-                "[cable] the cable process at %s refused a broadcast: HTTP %s",
+                "⚠️ [cable] the cable process at %s refused a broadcast: HTTP %s",
                 self._forward_url, status,
             )
 
@@ -294,7 +294,7 @@ class RedisCable(Cable):
                 # Let go of the dead connection before waiting, not after.
                 await self._close_subscriber()
                 logger.warning(
-                    "[cable] Redis %s, reconnecting in %ds", reason, delay,
+                    "⚠️ [cable] Redis %s, reconnecting in %ds", reason, delay,
                 )
                 await asyncio.sleep(delay)
         finally:

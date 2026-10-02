@@ -679,7 +679,7 @@ The generator's `form.jx` already includes:
 {#js "js/nestedform.js" #}
 ```
 
-`{#js #}` is a Jx directive that adds the script to the page's `<head>`. The file lives in your app's `assets/js/` directory, alongside the rest of your front-end code. If you wrote the controller by hand and don't have the file, copy it from the [Formidable repository](https://github.com/jpsca/formidable/blob/main/src/formidable/nestedform.js).
+`{#js #}` is a Jx directive that adds the script to the page's `<head>`. The file lives in the `assets/js/` folder at the root of your project, alongside the rest of your front-end code. If you wrote the controller by hand and don't have the file, copy it from the [Formidable repository](https://github.com/jpsca/formidable/blob/main/src/formidable/nestedform.js).
 
 ### Step 2. The forms
 

@@ -48,7 +48,7 @@ class Reader:
         for ipath in ipaths:
             path = Path(ipath).resolve()
             if not path.exists():
-                logger.warning("Path %s does not exist, skipping", path)
+                logger.warning("⚠️ [i18n] Path %s does not exist, skipping", path)
                 continue
             if not path.is_dir():
                 path = path.parent

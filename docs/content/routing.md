@@ -721,7 +721,7 @@ This is occasionally useful in templates that accept either a route name or a li
 
 ## Assets
 
-Proper ships with a built-in `StaticFilesController` for serving files from your application's `assets/` folder. The route is registered in `router.py`:
+Proper ships with a built-in `StaticFilesController` for serving files from the `assets/` folder at the root of your project. The route is registered in `router.py`:
 
 ```python
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")

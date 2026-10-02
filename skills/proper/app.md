@@ -56,12 +56,12 @@ myapp/                    # Application package
   forms/                  # Form validation classes
   emails/                 # Email message classes
   tasks/                  # Background job definitions (Huey tasks)
-  assets/                 # Static files (CSS, JS, images, fonts)
   cli/                    # Custom CLI commands
   router.py               # Route definitions
   main.py                 # App instantiation
 db/                       # Database migrations
   main/                   # Migrations for the main database
+assets/                   # Static files (CSS, JS, images, fonts)
 storage/                  # Uploaded files and SQLite databases
 tests/                    # Test suite
 ```
@@ -253,7 +253,7 @@ class Attachment(app.attachment_for(BaseModel)):
 
 ## Static Assets
 
-Static files in the `assets/` directory are served via a static route registered in `router.py`. The `ASSETS_URL` config controls the URL prefix (default: `/assets/`).
+Static files in the `assets/` folder at the project root (next to `storage/`, not inside the app package) are served via a static route registered in `router.py`. The `ASSETS_URL` config controls the URL prefix (default: `/assets/`).
 
 ### Fingerprinting
 
