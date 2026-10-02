@@ -75,6 +75,8 @@ To generate a controller WITHOUT a model **ALWAYS** use the command `proper g co
 
 In both cases, in addition to the controller file, a form and several view files will be generated as well. Edit them as needed.
 
+`proper g controller` uses the model of the same name if `models/__init__.py` already imports one. Otherwise the generated code has no model: the actions are stubs with `TODO` comments. In both cases the views and redirects only use the actions that were generated (`--only` / `--exclude`).
+
 Read the output of `proper g resource --help`, `proper g controller --help`, and  `proper g model --help` to see all the options.
 
 If you are only adding a model, use the model generator `proper g model NAME ...` instead.

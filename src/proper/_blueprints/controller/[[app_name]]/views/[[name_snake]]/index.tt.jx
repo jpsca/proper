@@ -1,20 +1,26 @@
 {#import "layouts/app.jx" as Layout #}
-
+[% if has_model %]
 {#def [[ plural_snake ]] #}
-
+[% endif %]
 <Layout title="[[ plural_human | title ]]">
   <h1>[[ plural_human | title ]]</h1>
+  [%- if "new" in actions %]
   <a class="btn" href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].new') }}">New [[ name_human ]]</a>
+  [%- endif %]
+  [%- if has_model %]
 
   {% for [[ name_snake ]] in [[ plural_snake ]] -%}
     <div id="[[ name_snake ]]-{{ [[ name_snake ]].id }}">
-      [% for f in render_fields -%]
+      [%- for f in render_fields %]
       <div>
         <strong>[[ f.label ]]</strong>
         {{ [[ name_snake ]].[[ f.name ]] }}
       </div>
-      [% endfor -%]
+      [%- endfor %]
+      [%- if "show" in actions %]
       <a href="{{ url_for('[[ nsprefix ]][[ name_pascal ]].show', [[ name_snake ]]) }}">Show this [[ name_human ]]</a>
+      [%- endif %]
     </div>
   {% endfor -%}
+  [%- endif %]
 </Layout>

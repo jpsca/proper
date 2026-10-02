@@ -112,6 +112,8 @@ proper g controller Dashboard
 
 This produces the controller, an empty form (you can delete it if you don't need one), and the view files.
 
+The generated code has no model in it: the actions are stubs with `TODO` comments where a model would be used, and the views only link to the actions you generated (`--only` and `--exclude` work here too). If a model with the same name already exists, the controller uses it, exactly like the one `proper g resource` makes.
+
 ### If You Only Need a Model
 
 If you have a model but no new controller - say, a `Tag` model that's only ever managed through the admin UI - use the model generator instead:
@@ -121,7 +123,7 @@ proper g model Tag name:str
 ```
 
 :::note | Namespaced controllers
-You can scope a controller under a subfolder with `--namespace=admin`. The generator creates `controllers/admin/post_controller.py`, mounts its routes under `/admin/...`, and gives them prefixed names like `Admin:Post.show`. The [Routing guide](/docs/routing) covers the details.
+You can scope a controller under a subfolder with `--namespace=admin`. The generator creates `controllers/admin/post_controller.py`, adds `admin_router = router.scope("admin")` to `router.py` if it isn't there, mounts its routes under `/admin/...`, and gives them prefixed names like `Admin:Post.show`. The [Routing guide](/docs/routing) covers the details.
 :::
 
 :::tip | Why the generator matters
