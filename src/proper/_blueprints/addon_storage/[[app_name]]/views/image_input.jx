@@ -2,8 +2,9 @@
 {#css "css/image-input.css" #}
 {#js "js/image-input-controller.js" #}
 
-{# An existing attachment exposes `.url`; a fresh upload (MultipartPart) does not. #}
-{% set existing = field.value if (field.value and field.value.url) else None %}
+{# The saved attachment. When the form comes back with an upload that
+   didn't validate, there is nothing to show: the file must be chosen again. #}
+{% set existing = field.attachment %}
 {% set accept = accept or (field.accept | join(',')) or "image/*" %}
 
 <div class="image-input{{ ' has-image' if existing else '' }}"
