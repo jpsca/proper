@@ -38,6 +38,7 @@ This:
 - Adds the Lexxy editor (JS + CSS) into your assets.
 - Creates three Jx components: `rich_text_editor.jx`, `rich_text_toolbar.jx`, and `rich_text_attachment.jx`.
 - Adds a periodic task at `tasks/abandoned_uploads_sweep.tt.py` for cleaning up abandoned pre-uploads.
+- Adds `config/rich_text.py` (the allowlist of the [sanitizer](#sanitizing)) and the `nh3` dependency.
 
 The migration is for the `attachment` table added by the storage addon — rich_text itself doesn't add or change columns. The field stores the HTML on whatever text column you already have.
 
@@ -101,7 +102,7 @@ The form field knows to coerce a `RichTextDocument` (the runtime value of the mo
 {{ post.body }}
 ```
 
-`__html__()` returns the HTML. `__str__()` returns plain text (paragraph breaks, list bullets, alt text for embeds) — useful for OG tags, search indices, email previews.
+`__html__()` returns the sanitized HTML. `__str__()` returns plain text (paragraph breaks, list bullets, alt text for embeds) — useful for OG tags, search indices, email previews.
 
 For visual parity with the editor, include `lexxy-content.css` and wrap the content in a `lexxy-content` element:
 
@@ -112,6 +113,25 @@ For visual parity with the editor, include `lexxy-content.css` and wrap the cont
   {{ post.body }}
 </div>
 ```
+
+### Sanitizing
+
+The stored HTML is whatever the form sent; it is sanitized with `nh3` **every time it is rendered** (`__html__`), never on save. The allowlist is in `config/rich_text.py` (installed by the addon, which also adds `nh3` to the dependencies):
+
+| Setting                         | Description                                                          |
+|---------------------------------|----------------------------------------------------------------------|
+| `RICH_TEXT_SANITIZE`            | `True`. `False` renders the stored HTML as is (trusted authors only) |
+| `RICH_TEXT_ALLOWED_TAGS`        | List of tags                                                         |
+| `RICH_TEXT_ALLOWED_ATTRIBUTES`  | Dict of tag -> list of attributes; `"*"` applies to every tag        |
+| `RICH_TEXT_ALLOWED_STYLES`      | CSS properties kept in `style` attributes                            |
+| `RICH_TEXT_ALLOWED_URL_SCHEMES` | URL schemes for `href`/`src`; relative URLs are always allowed       |
+
+- If the editor is extended to write other tags or attributes, add them to the lists or they won't be rendered.
+- `<proper-attachment>` tags are always kept; the output of `rich_text_attachment.jx` is not sanitized.
+- Never allow `data-controller` / `data-action`: a document could run the app's Stimulus controllers.
+- `doc.to_html()` is the raw stored HTML (unsafe to render). `doc.to_safe_html()` is the sanitized HTML with the attachment tags still in place.
+- Links get `rel="noopener noreferrer"` unless `rel` is an allowed attribute of `a`.
+- Without `nh3` installed, rendering raises `ConfigError`.
 
 ### How attachment embeds render
 

@@ -3,6 +3,7 @@ import typing as t
 from .. import storage as storage_installer
 from ..helpers import BLUEPRINTS
 from ..helpers.render import (
+    add_dependencies,
     echo,
     render_blueprint,
     sort_imports_in,
@@ -18,6 +19,10 @@ RICH_TEXT_BLUEPRINT = BLUEPRINTS / "addon_rich_text"
 
 SORT_IMPORTS_IN = [
     "tasks/__init__.py",
+]
+
+DEPENDENCIES = [
+    "nh3",
 ]
 
 
@@ -40,4 +45,5 @@ def install(app: "App") -> None:
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
 
+    add_dependencies(app.root_path, DEPENDENCIES)
     record_install(app, "rich_text")

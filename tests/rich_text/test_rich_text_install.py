@@ -1,9 +1,19 @@
 import pytest
 
 from proper import metadata, rich_text
+from proper.rich_text import sanitizer
 
 
 APP_NAME = "myapp"
+
+
+@pytest.fixture(autouse=True)
+def commands(monkeypatch):
+    """The commands that the installer would run, like the one that adds
+    the dependencies. They are recorded instead of run."""
+    commands = []
+    monkeypatch.setattr("proper.helpers.render.call", commands.append)
+    return commands
 
 
 @pytest.fixture()
@@ -18,6 +28,7 @@ def app_in_tmp(tmp_path, app):
 
     (app_root / "controllers" / "__init__.py").write_text("")
     (app_root / "tasks" / "__init__.py").write_text("")
+    (app_root / "config" / "__init__.py").write_text("")
     (app_root / "config" / "import_map.py").write_text(
         "IMPORT_MAP = {\n}\n"
     )
@@ -92,3 +103,32 @@ def test_install_wires_sweep_task_into_init(app_in_tmp):
     rich_text.install(app_in_tmp)
     tasks_init = (app_in_tmp.root_path / "tasks" / "__init__.py").read_text()
     assert "from . import abandoned_uploads_sweep" in tasks_init
+
+
+def test_install_adds_the_config_of_the_sanitizer(app_in_tmp):
+    rich_text.install(app_in_tmp)
+    config = app_in_tmp.root_path / "config"
+
+    assert "from .rich_text import *" in (config / "__init__.py").read_text()
+
+    settings: dict = {}
+    exec((config / "rich_text.py").read_text(), settings)  # noqa: S102
+    assert settings["RICH_TEXT_SANITIZE"] is True
+    # The config that is installed is the default of the sanitizer
+    assert tuple(settings["RICH_TEXT_ALLOWED_TAGS"]) == sanitizer.ALLOWED_TAGS
+    assert {
+        tag: tuple(names) for tag, names in settings["RICH_TEXT_ALLOWED_ATTRIBUTES"].items()
+    } == sanitizer.ALLOWED_ATTRIBUTES
+    assert tuple(settings["RICH_TEXT_ALLOWED_STYLES"]) == sanitizer.ALLOWED_STYLES
+    assert tuple(settings["RICH_TEXT_ALLOWED_URL_SCHEMES"]) == sanitizer.ALLOWED_URL_SCHEMES
+
+
+def test_install_adds_the_dependency_of_the_sanitizer(app_in_tmp, commands):
+    rich_text.install(app_in_tmp)
+    assert 'pip install "nh3"' in commands
+
+
+def test_install_adds_the_dependency_with_uv(app_in_tmp, commands):
+    (app_in_tmp.root_path.parent / "uv.lock").write_text("")
+    rich_text.install(app_in_tmp)
+    assert 'uv add "nh3"' in commands

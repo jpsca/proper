@@ -69,6 +69,7 @@ test = [
     "pyvips >= 2.0.0",
     "redis >= 7.0.0",
     "smtpdfix",
+    "nh3>=0.2.18",
 ]
 docs = [
     "writeadoc>=0.28.0",

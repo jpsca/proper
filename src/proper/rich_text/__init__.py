@@ -15,6 +15,7 @@ from .concerns import HasRichText
 from .document import RichTextDocument
 from .field import RichTextField, make_rich_text_field
 from .install import install
+from .sanitizer import sanitize
 from .tasks import purge_abandoned_uploads
 
 
@@ -25,4 +26,5 @@ __all__ = (
     "install",
     "make_rich_text_field",
     "purge_abandoned_uploads",
+    "sanitize",
 )

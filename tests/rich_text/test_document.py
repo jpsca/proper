@@ -1,8 +1,13 @@
 from io import BytesIO
+from pathlib import Path
 
+import pytest
 from markupsafe import Markup
 
+import proper
+from proper import Controller
 from proper.rich_text import RichTextDocument
+from proper.router import Route
 
 
 def _make_file(content=b"hello", filename="test.txt", content_type=""):
@@ -146,6 +151,12 @@ def test_attachments_handles_non_string_html(Attachment):
     assert doc.attachments == []
 
 
+def test_non_string_html_renders_empty(Attachment):
+    doc = RichTextDocument(123, attachment_cls=Attachment)  # type: ignore
+    assert doc.attachments == []
+    assert str(doc.__html__()) == ""
+
+
 # --- __html__ ---
 
 
@@ -174,3 +185,128 @@ def test_html_embed_without_attachment_cls_collapses():
     assert "<p>before</p>" in out
     assert "<p>after</p>" in out
     assert "proper-attachment" not in out
+
+
+# --- __html__ is sanitized ---
+
+
+ATTACHMENT_VIEW = (
+    Path(proper.__file__).parent
+    / "_blueprints"
+    / "addon_rich_text"
+    / "[[app_name]]"
+    / "views"
+    / "rich_text_attachment.jx"
+)
+
+
+class StorageRedirectController(Controller):
+    """Gives `attachment.url` a route to point at (named `StorageRedirect.show`)."""
+
+    def show(self):
+        pass
+
+
+@pytest.fixture()
+def attachment_view(app, tmp_path):
+    """The app renders the attachments with the component of the addon."""
+    views = tmp_path / "views"
+    views.mkdir()
+    (views / "rich_text_attachment.jx").write_text(ATTACHMENT_VIEW.read_text())
+    app.catalog.add_folder(views)
+    app.router.add_route(
+        Route(
+            method="GET",
+            path="storage/redirect/:token/:filename",
+            to=StorageRedirectController.show,
+        )
+    )
+
+
+def test_html_is_sanitized(app):
+    doc = RichTextDocument(
+        '<p onclick="x()">Hi <a href="javascript:x">there</a></p><script>alert(1)</script>'
+    )
+    assert str(doc.__html__()) == '<p>Hi <a rel="noopener noreferrer">there</a></p>'
+
+
+def test_html_is_sanitized_without_an_app():
+    from proper import current
+
+    current.app = None
+    doc = RichTextDocument("<p>Hi</p><script>alert(1)</script>")
+    assert str(doc.__html__()) == "<p>Hi</p>"
+
+
+def test_stored_html_is_not_changed(app):
+    html = "<p>Hi</p><script>alert(1)</script>"
+    doc = RichTextDocument(html)
+    doc.__html__()
+    assert doc.to_html() == html
+
+
+def test_html_uses_the_config_of_the_app(app):
+    app.config["RICH_TEXT_ALLOWED_TAGS"] = ["p"]
+    doc = RichTextDocument("<p>Hi <strong>there</strong></p>")
+    assert str(doc.__html__()) == "<p>Hi there</p>"
+
+
+def test_html_is_not_sanitized_if_the_config_says_so(app):
+    app.config["RICH_TEXT_SANITIZE"] = False
+    html = '<p onclick="x()">Hi</p><script>alert(1)</script>'
+    doc = RichTextDocument(html)
+    assert str(doc.__html__()) == html
+    assert doc.to_safe_html() == html
+
+
+def test_to_safe_html_keeps_the_attachment_tags(app):
+    html = "<p>Hi</p>" + _attachment_tag("1", alt="x") + "<script>alert(1)</script>"
+    doc = RichTextDocument(html)
+    assert doc.to_safe_html() == "<p>Hi</p>" + _attachment_tag("1", alt="x")
+
+
+def test_html_renders_the_attachments_after_sanitizing(Attachment, attachment_view):
+    """The output of the attachment component is trusted: it is not sanitized."""
+    att = Attachment(_make_file(b"x", "report.pdf", "application/pdf"))
+    att.save()
+    html = (
+        '<p onclick="x()">before</p>'
+        + _attachment_tag(str(att.id), onclick="x()")
+        + "<script>alert(1)</script>"
+    )
+    doc = RichTextDocument(html, attachment_cls=Attachment)
+
+    out = str(doc.__html__())
+
+    assert out.startswith("<p>before</p>")
+    assert "onclick" not in out
+    assert "<script" not in out
+    # `target` and `data-content-type` are not in the allowlist of the documents
+    assert f'<a href="{att.url}" target="_blank" rel="noopener">' in out
+    assert 'data-content-type="application/pdf"' in out
+    assert '<strong class="attachment__name">report.pdf</strong>' in out
+
+
+def test_html_attachment_attributes_are_escaped_once(app, tmp_path, Attachment):
+    views = tmp_path / "views"
+    views.mkdir()
+    (views / "rich_text_attachment.jx").write_text(
+        '{#def attachment, alt: str = "", caption: str = "" #}'
+        '<img alt="{{ alt }}"><figcaption>{{ caption }}</figcaption>'
+    )
+    app.catalog.add_folder(views)
+    att = Attachment(_make_file(b"x", "photo.png", "image/png"))
+    att.save()
+    doc = RichTextDocument(
+        _attachment_tag(
+            str(att.id),
+            alt="Tom &amp; &quot;Jerry&quot;",
+            caption="1 &lt; 2 &lt;script&gt;",
+        ),
+        attachment_cls=Attachment,
+    )
+
+    assert str(doc.__html__()) == (
+        '<img alt="Tom &amp; &#34;Jerry&#34;">'
+        "<figcaption>1 &lt; 2 &lt;script&gt;</figcaption>"
+    )

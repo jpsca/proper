@@ -47,6 +47,7 @@ It does the following:
 - Adds the js and css files for the Lexxy editor
 - Creates the components for the editor and for rendering attachments.
 - Adds a task for cleaning up abandoned uploads.
+- Adds `config/rich_text.py`, with the settings of the [sanitizer](#sanitizing), and the `nh3` library to the dependencies of your project.
 
 Now run the migrations to create the `attachment` table added by the _storage_ addon.
 
@@ -161,13 +162,13 @@ The editor has many ways to customize it - adding or removing features, editing 
 
 ## Rendering Rich Text content
 
-Instances of `rich_text.RichTextField` can be directly embedded into a page because they have already sanitized their content for a safe render. You can display the content as follows:
+The value of a `rich_text.RichTextField` can be directly embedded into a page, because it sanitizes its content when it is rendered. You can display the content as follows:
 
 ```html+jinja
 {{ post.body }}
 ```
 
-`RichTextDocument.__html__` safely transforms the data into an HTML String, including attachments. On the other hand `RichTextDocument.__str__` returns a plain text string without HTML tags, useful for using it in metadata.
+`RichTextDocument.__html__` transforms the data into a sanitized HTML string, including attachments. On the other hand `RichTextDocument.__str__` returns a plain text string without HTML tags, useful for using it in metadata.
 
 To be honest, you probably also want to include the `lexxy-content.css`
 stylesheet - to give your content the same styles it has in the editor - and to wrap the field with a `lexxy-content` class, since that's what the syles use:
@@ -179,6 +180,43 @@ stylesheet - to give your content the same styles it has in the editor - and to 
   {{ post.body }}
 </div>
 ```
+
+### Sanitizing
+
+The HTML of a document comes from a form, so it can be anything: the editor cleans what is pasted into it, but nothing stops someone from sending a request with a `<script>` tag in it. That's why the HTML is sanitized on the server, every time a document is rendered. Only the tags, attributes, CSS properties and URL schemes of an allowlist are kept; the rest is removed.
+
+The allowlist lives in `config/rich_text.py`:
+
+Setting                         | Description
+------------------------------- | ---------------------------------------------------------------
+`RICH_TEXT_SANITIZE`            | `True` by default. `False` renders the documents as they are stored.
+`RICH_TEXT_ALLOWED_TAGS`        | List of the tags that are kept.
+`RICH_TEXT_ALLOWED_ATTRIBUTES`  | Dict of tag name to the list of its allowed attributes. The ones under `"*"` are allowed in every tag.
+`RICH_TEXT_ALLOWED_STYLES`      | List of the CSS properties kept in a `style` attribute.
+`RICH_TEXT_ALLOWED_URL_SCHEMES` | List of the URL schemes allowed in attributes like `href` and `src`. Relative URLs are always allowed.
+
+The installed file allows what the editor can produce. If you add a feature to the editor that writes other tags or attributes, add them to these lists too. For example, to let the documents have links that open in a new tab:
+
+```python
+RICH_TEXT_ALLOWED_ATTRIBUTES = {
+    ...
+    "a": ["href", "target"],
+}
+```
+
+Some things to know:
+
+- **What is stored is never changed.** The sanitizer runs when the document is rendered, so a change in these settings applies to every document, old and new, and nothing is lost if you allow more later.
+- **Links get `rel="noopener noreferrer"`**, unless you add `rel` to the allowed attributes of `a`.
+- **The `<proper-attachment>` tags are always kept**, and the output of the `rich_text_attachment.jx` component isn't sanitized: it's your code.
+- **Don't allow `data-controller` or `data-action`.** A document could then run the Stimulus controllers of your app.
+- **Only `{{ post.body }}` is sanitized.** `post.body.to_html()` returns the HTML as it is stored. If you need the sanitized HTML as a string, with the attachment tags still in place, use `post.body.to_safe_html()`.
+
+:::warning | Turning the sanitizer off
+With `RICH_TEXT_SANITIZE = False`, whoever can write a document can run JavaScript in the browser of whoever reads it. Do it only if every author of rich text in your app is trusted, like in a back-office with a few known editors.
+:::
+
+An app that had the addon before the sanitizer existed doesn't have `config/rich_text.py`: the defaults are used, and you only need to add `nh3` to its dependencies (`uv add nh3`).
 
 ### Rendering embedded images and attachments
 
