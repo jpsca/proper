@@ -3,9 +3,11 @@
 A thin wrapper over `TextField` that hydrates the raw HTML string into a
 `RichTextDocument` on read.
 
-Intentionally does *not* validate the HTML on write. If callers want to ensure
-structural validity before persisting, they should validate at the boundary
-(a form field, an API deserializer) where the user can see and fix the error.
+Intentionally does *not* validate nor sanitize the HTML on write: the document
+is sanitized when it is rendered (see `sanitizer.py`), so what is stored is
+what the author sent. If callers want to ensure structural validity before
+persisting, they should validate at the boundary (a form field, an API
+deserializer) where the user can see and fix the error.
 
 The parent used (`peewee.TextField` by default) can be swapped out if you
 want to store the document in a different way (e.g. Postgres's native `text`

@@ -4,10 +4,10 @@ Holds the HTML string produced by the editor (Lexxy, configured to emit
 `<proper-attachment sgid="...">` tags as attachment placeholders) plus
 enough wiring to render it. Two display paths:
 
-- `__html__()` returns the HTML with each `<proper-attachment>` tag
-  replaced by the `RichTextAttachment` Jx partial. Pre-fetches all
-  referenced `Attachment` rows in one query so embeds render without
-  N+1.
+- `__html__()` returns the HTML, sanitized (see `sanitizer.py`), with
+  each `<proper-attachment>` tag replaced by the `RichTextAttachment`
+  Jx partial. Pre-fetches all referenced `Attachment` rows in one query
+  so embeds render without N+1.
 - `__str__()` returns plain text (paragraph breaks, list bullets,
   bracketed alt text or filenames for embeds). Useful for search
   indices, OG tags, email previews.
@@ -34,11 +34,13 @@ What is stored is just `sgid` plus what the author typed (`alt`,
 import re
 import typing as t
 from collections.abc import Callable
+from html import unescape
 
 from markupsafe import Markup, escape
 
 from ..global_context import current
 from . import plain_text
+from .sanitizer import sanitize
 
 
 if t.TYPE_CHECKING:
@@ -102,8 +104,21 @@ class RichTextDocument:
 
     def __html__(self) -> Markup:
         resolved = self._resolve_attachments()
-        html = replace_attachments(self._html, _make_renderer(resolved))
+        # Sanitized before the attachments are replaced, so the output of the
+        # `rich_text_attachment.jx` component, which is trusted, is left as is.
+        html = replace_attachments(self.to_safe_html(), _make_renderer(resolved))
         return Markup(html)
+
+    def to_safe_html(self) -> str:
+        """Return the stored HTML sanitized with the `RICH_TEXT_*` settings
+        of the app (see `sanitizer.py`), with the `<proper-attachment>` tags
+        still in place. If `RICH_TEXT_SANITIZE` is `False`, it's the stored
+        HTML as it is.
+        """
+        config = current.app.config if current.app is not None else {}
+        if not config.get("RICH_TEXT_SANITIZE", True):
+            return self._html
+        return sanitize(self._html, config)
 
     def __str__(self) -> str:
         resolved = self._resolve_attachments()
@@ -254,7 +269,11 @@ def replace_attachments(
         return _ATTACHMENT_TAG_RE.sub("", html)
 
     def _sub(match: re.Match[str]) -> str:
-        attrs = {name.lower(): value for name, value in _ATTR_RE.findall(match.group(1))}
+        # The values are text for the renderer, not HTML: without decoding
+        # the entities, a template would escape them a second time.
+        attrs = {
+            name: unescape(value) for name, value in _parse_attrs(match.group(1)).items()
+        }
         return renderer(attrs) or ""
 
     return _ATTACHMENT_TAG_RE.sub(_sub, html)
