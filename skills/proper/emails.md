@@ -124,10 +124,10 @@ msg.send(via="ses_smtp")
 
 ### Auto-Rendering Templates
 
-If `send()` is called and the body is empty, the email auto-discovers templates based on the class module name. For a class in `emails/welcome_email.py`, it looks for:
+If `send()` is called and the body is empty, the email auto-discovers templates based on the class module name, without its `_email` suffix. For a class in `emails/welcome_email.py`, it looks for:
 
-- `views/emails/welcome_email.jx` — HTML version (becomes the body with `content_subtype="html"`)
-- `views/emails/welcome_email.txt.jx` — plain text alternative
+- `views/emails/welcome.jx` — HTML version (becomes the body with `content_subtype="html"`)
+- `views/emails/welcome.txt.jx` — plain text alternative
 
 If only the HTML template exists, a plain text alternative is auto-generated. If only the text template exists, it becomes the body with `content_subtype="plain"`. All instance attributes are passed to the template as variables.
 
