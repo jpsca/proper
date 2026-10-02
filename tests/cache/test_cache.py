@@ -18,7 +18,7 @@ from proper.cache import (
     key_for_object,
 )
 from proper.cache.base import NoSerializer, Serializer, SerializerProtocol
-from proper.cache.sqlite_cache import CONNECT_ATTEMPTS, Cache
+from proper.cache.sqlite_cache import CONNECT_ATTEMPTS
 
 
 class TestSerializerProtocol:
@@ -180,7 +180,7 @@ class TestSqliteCacheInAFile:
     )
     def test_new_database(self, file_cache, use):
         use(file_cache)
-        assert Cache.table_exists()
+        assert file_cache.Cache.table_exists()
 
     def test_existing_database_keeps_its_values(self, tmp_path):
         path = str(tmp_path / "cache.sqlite3")
@@ -208,7 +208,7 @@ class TestSqliteCacheInAFile:
     def test_create_tables(self, file_cache):
         file_cache.create_tables()
         file_cache.create_tables()
-        assert Cache.table_exists()
+        assert file_cache.Cache.table_exists()
 
 
 class TestSqliteCacheConcurrency:
@@ -277,7 +277,7 @@ class TestSqliteCacheConcurrency:
 
         def time_after_another_caller():
             # Runs after the row was read: another caller extends it first
-            Cache.update(expires_at=int(time()) + 5).where(Cache.key == "a").execute()
+            cache.Cache.update(expires_at=int(time()) + 5).where(cache.Cache.key == "a").execute()
             return time()
 
         monkeypatch.setattr("proper.cache.sqlite_cache.time", time_after_another_caller)
@@ -358,13 +358,13 @@ class TestSqliteCache:
     def test_set_with_short_expires_in(self, cache):
         cache.set("key1", "value1", expires_in=1)
         # Simulate expiration by setting expires_at to the past
-        Cache.update(expires_at=0).where(Cache.key == "key1").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "key1").execute()
         assert cache.get("key1") is None
 
     def test_get_expired_key(self, cache):
         cache.set("key1", "value1", expires_in=1)
         # Simulate expiration by updating expires_at directly
-        Cache.update(expires_at=0).where(Cache.key == "key1").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "key1").execute()
         assert cache.get("key1") is None
 
     def test_get_not_expired(self, cache):
@@ -373,7 +373,7 @@ class TestSqliteCache:
 
     def test_get_expired_deletes_key(self, cache):
         cache.set("key1", "value1", expires_in=1)
-        Cache.update(expires_at=0).where(Cache.key == "key1").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "key1").execute()
         cache.get("key1")
         # Key should be deleted
         assert cache._count() == 0
@@ -410,14 +410,14 @@ class TestSqliteCache:
     def test_get_or_set_with_expires_in(self, cache):
         cache.get_or_set("key", "value", expires_in=1)
         assert cache.get("key") == "value"
-        Cache.update(expires_at=0).where(Cache.key == "key").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "key").execute()
         assert cache.get("key") is None
 
     def test_get_or_set_race_condition_ttl_serves_stale(self, cache):
         """Within the race window, other callers get the stale value."""
         cache.set("key", "original", expires_in=100)
         # Expire the key 2 seconds ago
-        Cache.update(expires_at=int(time()) - 2).where(Cache.key == "key").execute()
+        cache.Cache.update(expires_at=int(time()) - 2).where(cache.Cache.key == "key").execute()
 
         # First caller recomputes
         result = cache.get_or_set(
@@ -437,24 +437,24 @@ class TestSqliteCache:
         """The stale entry's TTL is extended so others don't also recompute."""
         cache.set("key", "original", expires_in=100)
         # Expire the key 2 seconds ago
-        Cache.update(expires_at=int(time()) - 2).where(Cache.key == "key").execute()
+        cache.Cache.update(expires_at=int(time()) - 2).where(cache.Cache.key == "key").execute()
 
         # Simulate what happens between the TTL bump and the recompute:
         # read the row, check it's in the race window, bump it
-        row_before = Cache.get_or_none(Cache.key == "key")
+        row_before = cache.Cache.get_or_none(cache.Cache.key == "key")
         old_expires = row_before.expires_at
 
         cache.get_or_set("key", lambda: "new", expires_in=100, race_condition_ttl=10)
 
         # The key now has a fresh expires_at from the set() call
-        row_after = Cache.get_or_none(Cache.key == "key")
+        row_after = cache.Cache.get_or_none(cache.Cache.key == "key")
         assert row_after.expires_at > old_expires
 
     def test_get_or_set_race_condition_ttl_expired_beyond_window(self, cache):
         """Beyond the race window, treat as a normal miss."""
         cache.set("key", "original", expires_in=100)
         # Expire the key 20 seconds ago, beyond the 10s window
-        Cache.update(expires_at=int(time()) - 20).where(Cache.key == "key").execute()
+        cache.Cache.update(expires_at=int(time()) - 20).where(cache.Cache.key == "key").execute()
 
         result = cache.get_or_set(
             "key", lambda: "fresh", expires_in=100, race_condition_ttl=10
@@ -488,7 +488,7 @@ class TestSqliteCache:
     def test_increment_expired_key_resets(self, cache):
         cache.increment("counter", 10, expires_in=1)
         # Simulate expiration
-        Cache.update(expires_at=0).where(Cache.key == "counter").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "counter").execute()
         result = cache.increment("counter", 1, expires_in=1)
         assert result == 1
 
@@ -529,14 +529,14 @@ class TestSqliteCache:
         cache.set("old", "value", expires_in=1)
         cache.set("new", "value")
         # Simulate expiration of "old"
-        Cache.update(expires_at=0).where(Cache.key == "old").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "old").execute()
         cache.delete_expired()
         assert cache.get("old") is None
         assert cache.get("new") == "value"
 
     def test_delete_expired_default(self, cache):
         cache.set("old", "value", expires_in=1)
-        Cache.update(expires_at=0).where(Cache.key == "old").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "old").execute()
         cache.delete_expired()
         assert cache._count() == 0
 
@@ -619,7 +619,7 @@ class TestSqliteCache:
     def test_read_multi_skips_expired(self, cache):
         cache.set("fresh", "yes")
         cache.set("stale", "no", expires_in=1)
-        Cache.update(expires_at=0).where(Cache.key == "stale").execute()
+        cache.Cache.update(expires_at=0).where(cache.Cache.key == "stale").execute()
         result = cache.read_multi("fresh", "stale")
         assert result == {"fresh": "yes"}
         # Expired key should be deleted
@@ -805,7 +805,7 @@ class TestCacheTag:
         cache = SqliteCache(":memory:")
         cache.set("my-key", "stale", expires_in=100)
         # Expire the key 2 seconds ago
-        Cache.update(expires_at=int(time()) - 2).where(Cache.key == "my-key").execute()
+        cache.Cache.update(expires_at=int(time()) - 2).where(cache.Cache.key == "my-key").execute()
         result = cache_tag(cache)(
             "my-key",
             caller=lambda: "fresh",
@@ -851,3 +851,45 @@ class TestCacheTag:
         assert "cache" in app.catalog.tags
 
 
+
+
+class TestSeveralSqliteCaches:
+    """Regression: every cache used the database of the last one created."""
+
+    def test_each_cache_has_its_database(self, tmp_path):
+        first = SqliteCache(str(tmp_path / "first.sqlite3"))
+        second = SqliteCache(str(tmp_path / "second.sqlite3"))
+        first.set("key", "of the first")
+        second.set("key", "of the second")
+
+        assert first.get("key") == "of the first"
+        assert second.get("key") == "of the second"
+        first.clear()
+        assert first.get("key") is None
+        assert second.get("key") == "of the second"
+        first.close()
+        second.close()
+
+    def test_in_memory_caches_are_separate(self):
+        first = SqliteCache(":memory:")
+        first.set("key", 1)
+        second = SqliteCache(":memory:")
+
+        assert first.get("key") == 1
+        assert second.get("key") is None
+        assert first.increment("key") == 2
+        assert first.read_multi("key") == {"key": 2}
+        first.close()
+        second.close()
+
+    def test_each_cache_has_its_model(self):
+        first = SqliteCache(":memory:")
+        second = SqliteCache(":memory:")
+
+        assert first.Cache is not second.Cache
+        assert first.models == [first.Cache]
+        # The name and the table are the ones a migration is created from
+        assert first.Cache.__name__ == "Cache"
+        assert first.Cache._meta.table_name == "proper_cache"
+        first.close()
+        second.close()
