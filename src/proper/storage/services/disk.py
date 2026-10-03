@@ -49,14 +49,8 @@ class Disk(Service):
 
     def purge(self, att: "_Attachment") -> None:
         path = self._get_path(att)
-        parent_l1 = path.parent
-        parent_l2 = parent_l1.parent
-
         path.unlink(missing_ok=True)
-        if parent_l1.is_dir() and is_dir_empty(parent_l1):
-            parent_l1.rmdir()
-        if parent_l2.is_dir() and is_dir_empty(parent_l2):
-            parent_l2.rmdir()
+        self._remove_empty_dirs(path.parent)
 
     def direct_upload_url(
         self, att: "_Attachment", *, checksum: str = ""
@@ -75,10 +69,45 @@ class Disk(Service):
             headers["Content-MD5"] = checksum
         return {"url": url, "headers": headers}
 
+    def move_from_legacy_path(self, att: "_Attachment") -> bool:
+        """Moves the file of `att` from where versions before 0.33 stored it
+        to its current path. Returns whether it was moved.
+
+        Run it once for every attachment of an app that stored files with
+        an older version. The old paths only used the first four characters
+        of the id, so two attachments with the same filename could share
+        the same file. When that happened, only the last one written is
+        there, and the first attachment to move it takes it.
+        """
+        legacy_path = self._get_legacy_path(att)
+        path = self._get_path(att)
+        if path.exists() or not legacy_path.is_file():
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        legacy_path.rename(path)
+        self._remove_empty_dirs(legacy_path.parent)
+        return True
+
     def _get_path(self, att: "_Attachment") -> Path:
+        # The full id is part of the path, so two attachments with the same
+        # filename never share a file. The first two levels only spread the
+        # folders, so no folder gets too many.
+        key = str(att.id)
+        filename = secure_filename(att.filename or key)
+        return self.root / key[:2] / key[2:4] / key / filename
+
+    def _get_legacy_path(self, att: "_Attachment") -> Path:
         key = str(att.id)
         filename = secure_filename(att.filename or key)
         return self.root / key[:2] / key[2:4] / filename
+
+    def _remove_empty_dirs(self, path: Path) -> None:
+        """Removes `path` and its parents, up to `self.root`, while empty."""
+        while path != self.root and self.root in path.parents:
+            if not path.is_dir() or not is_dir_empty(path):
+                return
+            path.rmdir()
+            path = path.parent
 
 
 def is_dir_empty(path):

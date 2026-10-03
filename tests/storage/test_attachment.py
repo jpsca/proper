@@ -315,8 +315,69 @@ def test_path_uses_id_sharding(Attachment):
     service = Attachment._get_service("local")
     path = service._get_path(att)
     key = str(att.id)
-    assert path.parent.parent.name == key[:2]
-    assert path.parent.name == key[2:4]
+    assert path.parent.parent.parent.name == key[:2]
+    assert path.parent.parent.name == key[2:4]
+    assert path.parent.name == key
+
+
+def test_same_filename_and_id_prefix_dont_share_a_file(Attachment):
+    a = Attachment(_make_file(b"aaa", "variant.webp"), id="abcd" + "1" * 28)
+    a.save(force_insert=True)
+    b = Attachment(_make_file(b"bbb", "variant.webp"), id="abcd" + "2" * 28)
+    b.save(force_insert=True)
+
+    assert a.download() == b"aaa"
+    assert b.download() == b"bbb"
+
+
+def test_purge_removes_the_empty_folders(Attachment):
+    att = Attachment(_make_file(b"data", "f.txt"))
+    att.save(force_insert=True)
+    service = Attachment._get_service("local")
+    path = service._get_path(att)
+
+    att.purge()
+
+    assert not path.parent.exists()
+    assert not path.parent.parent.parent.exists()
+    assert service.root.exists()
+
+
+def test_purge_keeps_the_folders_of_other_files(Attachment):
+    a = Attachment(_make_file(b"aaa", "f.txt"), id="abcd" + "1" * 28)
+    a.save(force_insert=True)
+    b = Attachment(_make_file(b"bbb", "f.txt"), id="abcd" + "2" * 28)
+    b.save(force_insert=True)
+
+    a.purge()
+
+    assert b.download() == b"bbb"
+
+
+def test_move_from_legacy_path(Attachment):
+    att = Attachment(_make_file(b"data", "f.txt"))
+    att.save(force_insert=True)
+    service = Attachment._get_service("local")
+    path = service._get_path(att)
+    legacy_path = service._get_legacy_path(att)
+    # Where versions before 0.33 stored it
+    path.rename(legacy_path)
+
+    assert service.move_from_legacy_path(att) is True
+
+    assert att.download() == b"data"
+    assert not legacy_path.exists()
+    # Already moved
+    assert service.move_from_legacy_path(att) is False
+
+
+def test_move_from_legacy_path_without_a_legacy_file(Attachment):
+    att = Attachment(_make_file(b"data", "f.txt"))
+    att.save(force_insert=True)
+    service = Attachment._get_service("local")
+
+    assert service.move_from_legacy_path(att) is False
+    assert att.download() == b"data"
 
 
 # --- Storage.get_service ---
