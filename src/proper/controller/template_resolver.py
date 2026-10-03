@@ -32,11 +32,17 @@ def formats_for(accept: Iterable[str], default_format: str) -> tuple[str, ...]:
     order, or `default_format` alone when it named none we know.
 
     Stops at `*/*` since anything after it is a wildcard fallback, not a
-    preference. Mimes with no registered extension are skipped.
+    preference. But `*/*` means the client takes anything, so
+    `default_format` goes after the formats it named: e.g. HTTP libraries
+    that send `application/json, text/plain, */*` still get the HTML
+    template when there's no JSON or text one.
+    Mimes with no registered extension are skipped.
     """
     formats = []
     for mime in accept:
         if mime == "*/*":
+            if default_format not in formats:
+                formats.append(default_format)
             break
         ext = _EXTENSIONS.get(mime)
         if ext is None:

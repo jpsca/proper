@@ -384,6 +384,73 @@ class TestCall:
         with pytest.raises(ComponentNotFoundError):
             co._call("show")
 
+    def test_wildcard_falls_back_to_the_default_format(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.posts_controller"
+
+            def show(self):
+                pass
+
+        # What many HTTP libraries send
+        co = _make_controller(
+            cls=MyController,
+            headers=[("accept", "application/json, text/plain, */*")],
+        )
+        co.app.catalog.has_component.side_effect = _only_allow("posts/show.html.jx")
+        co.app.catalog.render.return_value = "<p>hi</p>"
+        co._call("show")
+        assert co.app.catalog.render.call_args[0][0] == "posts/show.html.jx"
+        assert co.response.status == 200
+
+    def test_not_acceptable_when_no_template_has_an_accepted_format(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.posts_controller"
+
+            def show(self):
+                pass
+
+        co = _make_controller(
+            cls=MyController,
+            headers=[("accept", "application/json")],
+        )
+        co.app.catalog.has_component.side_effect = _only_allow("posts/show.html.jx")
+        co._call("show")
+        assert co.response.status == 406
+        assert co.response.body == ""
+        co.app.catalog.render.assert_not_called()
+
+    def test_error_page_keeps_its_status_when_no_template_is_acceptable(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.public_controller"
+
+            def not_found(self):
+                pass
+
+        co = _make_controller(
+            cls=MyController,
+            headers=[("accept", "application/json")],
+        )
+        co.response.status = 404
+        co.app.catalog.has_component.side_effect = _only_allow("public/not_found.html.jx")
+        co._call("not_found")
+        assert co.response.status == 404
+        assert co.response.body == ""
+
+    def test_missing_template_raises_whatever_the_client_accepts(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.posts_controller"
+
+            def show(self):
+                pass
+
+        co = _make_controller(
+            cls=MyController,
+            headers=[("accept", "application/json")],
+        )
+        co.app.catalog.has_component.return_value = False
+        with pytest.raises(ComponentNotFoundError):
+            co._call("show")
+
 
 
 class TestDispatch:
