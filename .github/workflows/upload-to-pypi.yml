@@ -8,6 +8,43 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate:
+    name: validate
+    strategy:
+      matrix:
+        python: ['3.14t', '3.15.0rc2t']
+      fail-fast: false
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental || false }}
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+
+      - name: "Installs dependencies"
+        run: uv sync --group test --python ${{ matrix.python }}
+
+      - name: "Lint"
+        run: make lint
+
+      - name: "Test"
+        run: make test
+
   upload:
     runs-on: ubuntu-latest
     steps:
