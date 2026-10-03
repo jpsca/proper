@@ -214,6 +214,14 @@ class TestFormatsFor:
     def test_stops_at_wildcard(self):
         assert formats_for(["text/html", "*/*", "application/json"], "html") == ("html",)
 
+    def test_wildcard_adds_the_default_format(self):
+        assert formats_for(
+            ["application/json", "text/plain", "*/*"], "html"
+        ) == ("json", "txt", "html")
+
+    def test_no_default_format_without_wildcard(self):
+        assert formats_for(["application/json"], "html") == ("json",)
+
     def test_unknown_mimes_are_skipped(self):
         assert formats_for(["x-made/up", "application/json"], "html") == ("json",)
 

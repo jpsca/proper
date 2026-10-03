@@ -4,11 +4,12 @@ must inherit from. Stores data available to the views.
 import typing as t
 
 from markupsafe import Markup
+from minijx import ComponentNotFoundError
 
 from ..compile.dispatch import callback_applies, plan_for, resolve_view
 from ..constants import TURBO_STREAM_MIME
 from ..helpers import MultiDict, jsonplus, logger, make_list
-from ..status import not_modified, unprocessable
+from ..status import not_acceptable, not_modified, unprocessable
 from .template_resolver import formats_for
 
 
@@ -140,7 +141,19 @@ class Controller:
             return
 
         if not self.response.has_body:
-            inferred_view = self._resolve_view(action_name)
+            try:
+                inferred_view = self._resolve_view(action_name)
+            except ComponentNotFoundError:
+                # Without a template in the default format either, the
+                # template is missing: a bug, so it keeps failing.
+                if not self._has_default_view(action_name):
+                    raise
+                # The action has a template, but not in a format the client
+                # accepts. An error page keeps its status (e.g. 404).
+                if self.response.status < 400:
+                    self.response.status = not_acceptable
+                self.response.body = ""
+                return
             logger.debug(
                 "[%s.%s] rendering inferred template: %s",
                 self.__class__.__name__, action_name, inferred_view,
@@ -149,13 +162,25 @@ class Controller:
             return
 
     def _resolve_view(self, action_name: str) -> str:
+        request = self.request
+        return self._find_view(
+            action_name, formats_for(request.accept, request.default_format)
+        )
+
+    def _has_default_view(self, action_name: str) -> bool:
+        try:
+            self._find_view(action_name, (self.request.default_format,))
+        except ComponentNotFoundError:
+            return False
+        return True
+
+    def _find_view(self, action_name: str, formats: tuple[str, ...]) -> str:
         catalog = self.app.catalog
         assert catalog
-        request = self.request
         return resolve_view(
             plan_for(type(self), action_name),
             catalog,
-            formats_for(request.accept, request.default_format),
+            formats,
             # While templates can change on disk, the answer can change too.
             cache=catalog.auto_reload is False,
         )
