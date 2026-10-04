@@ -410,6 +410,87 @@ class TestPipeline:
         client.get("/hello")
         assert called == []
 
+    def test_around_request_wraps_the_request(self, app, client):
+        called = []
+
+        @app.around_request
+        def outer(request, response, call_next):
+            called.append(("outer", request.path))
+            response = call_next(request, response)
+            called.append(("outer", response.body))
+            return response
+
+        @app.around_request
+        def inner(request, response, call_next):
+            called.append(("inner", current.response is response))
+            return call_next(request, response)
+
+        app.on_teardown(lambda: called.append(("teardown", None)))
+        app.router.add_route(
+            Route(method="GET", path="/hello", to=GreetController.index)
+        )
+        result = client.get("/hello")
+        assert result.body == "hello"
+        assert called == [
+            ("outer", "/hello"),
+            ("inner", True),
+            ("teardown", None),
+            ("outer", "hello"),
+        ]
+
+    def test_around_request_returns_the_function(self, app):
+        def hook(request, response, call_next):
+            return call_next(request, response)
+
+        assert app.around_request(hook) is hook
+
+    def test_around_request_sees_handled_errors(self, app, client):
+        seen = []
+
+        @app.around_request
+        def hook(request, response, call_next):
+            response = call_next(request, response)
+            seen.append(response.error)
+            return response
+
+        app.router.add_route(
+            Route(method="GET", path="/explode", to=GreetController.explode)
+        )
+        result = client.get("/explode")
+        assert result.status == status.internal_server_error
+        assert isinstance(seen[0], ValueError)
+
+    def test_around_request_sees_unhandled_errors(self, app, client):
+        app.config.CATCH_ALL_ERRORS = False
+        seen = []
+
+        @app.around_request
+        def hook(request, response, call_next):
+            try:
+                return call_next(request, response)
+            except ValueError as error:
+                seen.append(error)
+                raise
+
+        app.router.add_route(
+            Route(method="GET", path="/explode", to=GreetController.explode)
+        )
+        with pytest.raises(ValueError):
+            client.get("/explode")
+        assert len(seen) == 1
+
+    def test_around_request_can_replace_the_response(self, app, client):
+        @app.around_request
+        def hook(request, response, call_next):
+            call_next(request, response)
+            response.body = "replaced"
+            return response
+
+        app.router.add_route(
+            Route(method="GET", path="/hello", to=GreetController.index)
+        )
+        assert client.get("/hello").body == "replaced"
+
     def test_redirect_stops_pipeline(self, app, client):
         """A redirect route should never reach dispatch."""
         app.router.add_route(

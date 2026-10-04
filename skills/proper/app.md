@@ -220,6 +220,19 @@ def cleanup():
 
 Multiple handlers can be registered for each hook. They run in registration order.
 
+To do something before *and* after every request, use `around_request`. The function gets the request, the response, and `call_next`, and must return the response:
+
+```python
+@app.around_request
+def timer(request, response, call_next):
+    start = time.perf_counter()
+    response = call_next(request, response)
+    logger.info("%s took %.3fs", request.path, time.perf_counter() - start)
+    return response
+```
+
+If the request failed, `response.error` has the exception, even when the app already showed an error page. The first function registered is the outermost one. Monitoring integrations like `proper-sentry` use this hook.
+
 
 ## Signed Serialization
 

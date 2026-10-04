@@ -110,6 +110,7 @@ Accessed via `current.app` or directly from the app instance.
 | `loads`            | `(value, *, max_age=None, return_timestamp=False, salt=None) -> Any` | Deserialize and verify a signed value. Tries all secret keys. Returns `None` if invalid. |
 | `on_error`         | `(func) -> func`                                           | Decorator to register error handlers                     |
 | `on_teardown`      | `(func) -> func`                                           | Decorator to register teardown handlers                  |
+| `around_request`   | `(func) -> func`                                           | Decorator to register a function `func(request, response, call_next)` that wraps every request |
 | `attachment_for`   | `(base_model_cls) -> type[_Attachment]`                    | Build an `Attachment` model subclass for the storage addon (memoized per app+base) |
 
 

@@ -2,6 +2,16 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `app.around_request(func)`: registers a function that wraps the whole run
+  of every request, called as `func(request, response, call_next)`. If the
+  request failed, `response.error` has the exception, even after the error
+  page was rendered. Meant for monitoring integrations (timing, tracing,
+  error reporting).
+
 ## 0.33
 
 ### ⚠️ Upgrading: move the uploaded files
