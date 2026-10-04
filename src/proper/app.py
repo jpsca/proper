@@ -1,6 +1,7 @@
 import asyncio
 import contextvars
 import copy
+import functools
 import hashlib
 import logging
 import os
@@ -79,6 +80,11 @@ def _split_address(address: str | None) -> "tuple[str, int | None] | None":
     return (host.strip("[]"), int(port))
 
 
+def _call_around(hook, call_next, request, response):
+    """One link of the `around_request` chain."""
+    return hook(request, response, call_next)
+
+
 def _default_max_threads() -> int:
     """Python's own default for a `ThreadPoolExecutor`."""
     return min(32, (os.process_cpu_count() or 1) + 4)
@@ -131,6 +137,11 @@ class App(AppWs, AppWsgi):
     # A list of functions that are all *always* called at the end of a request,
     # even if an exception was raised before.
     _on_teardown: tuple[THandler, ...] = ()
+
+    # A list of functions that wrap the whole run of a request, and the
+    # chain made of them, built once when they are added.
+    _around_request: tuple[THandler, ...] = ()
+    _wrapped_pipeline: "Callable[[Request, Response], Response] | None" = None
 
     name: str
     root_path: Path
@@ -370,6 +381,35 @@ class App(AppWs, AppWsgi):
         """Decorator to add a function that *always* run at the end of
         a request, even if an exception was raised before."""
         self._on_teardown = self._on_teardown + (func,)
+        return func
+
+    def around_request(self, func: THandler) -> THandler:
+        """Decorator to add a function that wraps the whole run of a request.
+
+        It is called as `func(request, response, call_next)` and must return
+        a response, normally the one from `call_next(request, response)`.
+        Use it to do something before and after every request, like timing
+        it or reporting it to a monitoring service.
+
+        ```python
+        @app.around_request
+        def timer(request, response, call_next):
+            start = time.perf_counter()
+            response = call_next(request, response)
+            print(request.path, time.perf_counter() - start)
+            return response
+        ```
+
+        If the request failed, `response.error` has the exception, even
+        when the app already showed an error page for it.
+
+        The first function added is the outermost one.
+        """
+        self._around_request = self._around_request + (func,)
+        call_next = self._run_pipeline_steps
+        for hook in reversed(self._around_request):
+            call_next = functools.partial(_call_around, hook, call_next)
+        self._wrapped_pipeline = call_next
         return func
 
     def attachment_for(self, base_model_cls: type) -> "type[_Attachment]":
@@ -684,6 +724,12 @@ class App(AppWs, AppWsgi):
                 body_close()
 
     def _run_pipeline(self, request, response) -> Response:
+        wrapped = self._wrapped_pipeline
+        if wrapped is None:
+            return self._run_pipeline_steps(request, response)
+        return wrapped(request, response)
+
+    def _run_pipeline_steps(self, request, response) -> Response:
         # Asked once here rather than on every step: each check is cheap,
         # but there are several per request.
         debug = logger.isEnabledFor(logging.DEBUG)
