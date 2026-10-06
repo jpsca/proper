@@ -1,6 +1,6 @@
 ## About Proper
 
-Proper is an opinionated, batteries-included Python web framework. It uses ASGI with sync Python controllers, Peewee ORM, Huey task queue, Jx components, and Formidable forms. Deep reference docs are bundled in the `proper` skill.
+Proper is an opinionated, batteries-included Python web framework. It runs only on free-threaded Python (3.14t and later) and serves WSGI through Granian. Controllers are synchronous, with no `async`/`await`. It uses Peewee ORM, Huey task queue, minijx components, and Formidable forms. WebSockets are served by WseCable (the optional `proper[wse]` extra). Deep reference docs are bundled in the `proper` skill (`skills/proper/`).
 
 ## General Guidelines
 
@@ -18,11 +18,18 @@ The docstrings are written in Markdown (not reStructuredText).
 
 Always run `uv run pytest` as the test runner command. Do not use `pytest` directly or any other test runner unless explicitly told otherwise.
 
-When writing tests, use real filesystem and real objects instead of mocks unless it requires running separated service or asked to mock. Avoid unittest.mock patterns for integration-style tests.
+When writing tests, use the real filesystem and real objects instead of mocks, unless the test needs a separate running service or you are asked to mock. Avoid unittest.mock patterns for integration-style tests.
 
 Target 100% test coverage on all new and modified files. Run coverage checks after writing tests: `uv run pytest --cov=<module> --cov-report=term-missing`
 
-When debugging test failures, check for framework-specific behaviors
+When debugging test failures, check for framework-specific behaviors.
+
+## Documentation
+
+When a change alters user-visible behavior, update in the same commit:
+- `CHANGELOG.md`
+- the human docs in `docs/content/`
+- the agent docs in `skills/proper/`
 
 ## Dependencies
 
