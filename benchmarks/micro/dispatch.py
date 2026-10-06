@@ -61,7 +61,7 @@ class ItemsController(Controller):
 
 def make_app(views: Path) -> App:
     module = types.ModuleType(ItemsController.__module__)
-    module.ItemsController = ItemsController
+    module.__dict__["ItemsController"] = ItemsController
     sys.modules[module.__name__] = module
 
     (views / "items").mkdir(parents=True)

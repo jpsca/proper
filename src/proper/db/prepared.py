@@ -37,7 +37,7 @@ from peewee import (
     Node,
     SelectBase,
     _WriteQuery,
-    is_model,
+    is_model,  # ty: ignore[unresolved-import] - missing from types-peewee
 )
 
 

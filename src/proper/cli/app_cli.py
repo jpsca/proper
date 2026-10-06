@@ -16,6 +16,7 @@ if t.TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from ..app import App
+    from ..channels.wse import WseCable
 
 
 def get_cli(app: "App") -> type[Cli]:
@@ -189,8 +190,9 @@ def _serve_group(
     to it.
     """
     owner = _load_app(web["target"]) if start_cable else None
-    if owner is not None:
-        owner.cable.start_server()
+    cable = t.cast("WseCable", owner.cable) if owner is not None else None
+    if cable is not None:
+        cable.start_server()
     ctx = multiprocessing.get_context("spawn")
     children = []
     for n in range(2, processes + 1):
@@ -205,8 +207,8 @@ def _serve_group(
                 child.terminate()
         for child in children:
             child.join(timeout=10)
-        if owner is not None:
-            owner.cable.stop_server()
+        if cable is not None:
+            cable.stop_server()
     return children
 
 
