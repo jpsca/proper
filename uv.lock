@@ -801,6 +801,11 @@ dependencies = [
     { name = "tzdata" },
 ]
 
+[package.optional-dependencies]
+wse = [
+    { name = "proper-wse" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "ipdb" },
@@ -818,6 +823,7 @@ test = [
     { name = "nh3" },
     { name = "poyo" },
     { name = "proper-new" },
+    { name = "proper-wse" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
@@ -843,12 +849,14 @@ requires-dist = [
     { name = "peewee", specifier = ">=4.5.1,<5" },
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
     { name = "proper-cli", specifier = ">=2.1.0" },
+    { name = "proper-wse", marker = "extra == 'wse'", specifier = ">=2.6.0" },
     { name = "python-dateutil", specifier = "~=2.9.0" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "traceback-with-variables", specifier = "~=2.0.4" },
     { name = "types-peewee", specifier = ">=4.5.1" },
     { name = "tzdata", specifier = ">=2025.3" },
 ]
+provides-extras = ["wse"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -865,6 +873,7 @@ test = [
     { name = "nh3", specifier = ">=0.2.18" },
     { name = "poyo" },
     { name = "proper-new" },
+    { name = "proper-wse", specifier = ">=2.6.0" },
     { name = "pytest", specifier = ">=7.2" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
@@ -893,6 +902,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c8/0d/9010f01995db6a7e07d56bf387097ede8788c0542374eaeb6d0ac2a8f32a/proper_new-0.8.tar.gz", hash = "sha256:6f6858bd142dbf6eb4c3b2c04a9661d02395fe1c194e7f185c2633cc3c2c4bbe", size = 3571, upload-time = "2026-03-19T18:12:58.914Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/07/33/51b89abf64cb69757b43bcaafa7dd7a0bd328ec9662d8b9b27fca99981f8/proper_new-0.8-py3-none-any.whl", hash = "sha256:4f75226d8573d9abb9d0ed3b673c748e13a88c299475c0a1050838c155aa22e6", size = 3312, upload-time = "2026-03-19T18:12:57.801Z" },
+]
+
+[[package]]
+name = "proper-wse"
+version = "2.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/45/e42c8b9cc0cb0c89c42ec55e266c9ff33344104c61fce8fbdd205c9dd671/proper_wse-2.6.0.tar.gz", hash = "sha256:84b914d2d216af5baf1f80f94dca19e9a4aac61a5a2f0843e8a175700e558c71", size = 172212, upload-time = "2026-10-06T01:53:56.715Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/53/2f/0de991d13e4bf179cd8b466fec4f7a68a0153e8375612cdf9ff325b77b88/proper_wse-2.6.0-cp312-abi3-macosx_10_12_x86_64.whl", hash = "sha256:71a33e56c221a1c1a0eea4f783aae6653d11e529ccf3c148a69e40e0eab087d1", size = 4160659, upload-time = "2026-10-06T01:53:40.511Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/37/d71ca5be1a4565cd2d864df338e14db102c00c041cba1d38c7a4c652752d/proper_wse-2.6.0-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:0202537314e8e21c00492f8716dc5b6e06c399562429ba2a38615991b1188dcd", size = 3869832, upload-time = "2026-10-06T01:53:42.36Z" },
+    { url = "https://files.pythonhosted.org/packages/36/53/cb606b24626995d43f208aa90be576aeacb45a78977cbb83dcca23b1107b/proper_wse-2.6.0-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7533f4b1441bf3348c7d97fdc64c0f18df05369e10da04efdb29e0574ff666e9", size = 4390003, upload-time = "2026-10-06T01:53:43.934Z" },
+    { url = "https://files.pythonhosted.org/packages/81/82/9806df8adf363a8fdd7a527e7864753cb2bb4a6737d0609e9f8d8c8385d6/proper_wse-2.6.0-cp312-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:d803d7df7212ab36b541a22fad64fe344b05e05fce891324e0ddd4017c418b30", size = 4037479, upload-time = "2026-10-06T01:53:45.446Z" },
+    { url = "https://files.pythonhosted.org/packages/90/6a/698f08b9a9628c3daf68751e0883ed1f6b88b9c85258b0993dd7b6a623bc/proper_wse-2.6.0-cp312-abi3-win_amd64.whl", hash = "sha256:aa6576041183a0c140525e25aa090343f6b21567eebf578ac45b2c1903218282", size = 4038951, upload-time = "2026-10-06T01:53:46.989Z" },
+    { url = "https://files.pythonhosted.org/packages/79/33/59a7242af725fada3d9b304284a29b13b59a6add1b119d41791b15856636/proper_wse-2.6.0-cp314-cp314t-macosx_10_12_x86_64.whl", hash = "sha256:c31cd4101fcdd6acec057a0e4e08341439b51085f88c06c87a675a345becf71b", size = 4160456, upload-time = "2026-10-06T01:53:48.502Z" },
+    { url = "https://files.pythonhosted.org/packages/76/e0/05b8f224608107bc93da9232a9a3ddfb539f62903f7c74539c452b5b6686/proper_wse-2.6.0-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:c9a25080789292c69c835adb3bc7148bde34402b23b1e6c16879b4e7bcff8ee3", size = 3869242, upload-time = "2026-10-06T01:53:50.28Z" },
+    { url = "https://files.pythonhosted.org/packages/22/b4/15450cf9ee81f13a2a51f73c6101d0b0d5b42800071456756c99993f39ae/proper_wse-2.6.0-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c763e8b21bc33ca34b489368407e519e81e07c5f5b5f5b7bd31fcd002fd18ee2", size = 4388819, upload-time = "2026-10-06T01:53:52.043Z" },
+    { url = "https://files.pythonhosted.org/packages/78/2d/ca597185195665ddd3bbbafd4fda2b9a876529fecd35500f1a16b317438e/proper_wse-2.6.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:fa9ceee4dea45f2f1dcf7d2d83c13842e55c6bfa28cc4003d7c326114ed4b5d4", size = 4036462, upload-time = "2026-10-06T01:53:53.535Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/7f/38c0883cd595221a455fd61b37107e8c7528831d2c4a62fecedb8ea85edc/proper_wse-2.6.0-cp314-cp314t-win_amd64.whl", hash = "sha256:0407b784c4e94db5109acda731e5d80faeddbdeeeef2a98e8c8cc63ce375575b", size = 4037540, upload-time = "2026-10-06T01:53:55.021Z" },
 ]
 
 [[package]]

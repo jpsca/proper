@@ -96,13 +96,17 @@ Three settings decide how much work the server does at once.
 
 Why more than one process, if threads already run in parallel? Threads of one interpreter still contend for the objects they share. On a machine with four or more cores, two smaller groups of threads do better than one big one: a second process adds about 10% throughput at 16 threads on a 10-core desktop. The price is a second copy of the app in memory.
 
-### The cable process
+### The cable
 
-WSGI has no WebSockets. When the app uses [channels](/docs/channels), `proper run` starts a second process that serves them over RSGI on `CABLE_PORT`. The channels addon sets `CABLE_PORT` to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. With `CABLE_PORT = 0`, the default, no cable process starts. With `INTERFACE = "rsgi"` there is no cable process either, since the web server handles WebSockets itself.
+WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. Who serves them depends on the `CABLE` backend:
+
+- `WseCable`, the one the channels addon configures: the web process itself, with proper-wse (Rust), started by `proper run` before the first request. No second process, and no Redis. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
+- `RedisCable`, for several machines: the same as `WseCable` on each machine, with Redis carrying the broadcasts between them. The other processes publish to Redis instead of forwarding.
+- The in-process `Cable` (`CABLE = {}`): a second process that `proper run` starts, over RSGI. With `CABLE_PORT = 0`, the default, no cable process starts. With `INTERFACE = "rsgi"` there is no cable process either, since the web server handles WebSockets itself.
 
 In production, the reverse proxy routes `CABLE_PATH` (default `/cable`) to that port, with the WebSocket upgrade headers; the [nginx config](#the-reverse-proxy) below has that block. In development there is no proxy: when `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same hostname.
 
-Broadcasts made in the web process are forwarded to the cable process as a signed `POST` to `CABLE_PATH`. If the cable process is down, the message is lost and a warning is logged. For more than one machine, use `RedisCable`. The [Channels guide](/docs/channels) covers both.
+With `WseCable` and `Cable`, broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. For more than one machine, use `RedisCable`. The [Channels guide](/docs/channels) covers the backends.
 
 ### Reloading and stopping
 

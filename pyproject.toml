@@ -49,6 +49,11 @@ homepage = "https://ProperProject.org/"
 repository = "https://github.com/jpsca/proper"
 documentation = "https://properproject.org/docs/"
 
+[project.optional-dependencies]
+wse = [
+    "proper-wse>=2.6.0",
+]
+
 
 [dependency-groups]
 dev = [
@@ -71,6 +76,7 @@ test = [
     "redis >= 7.0.0",
     "smtpdfix",
     "nh3>=0.2.18",
+    "proper-wse>=2.6.0",
 ]
 docs = [
     "writeadoc>=0.28.0",

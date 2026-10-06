@@ -3,6 +3,7 @@ import asyncio
 import multiprocessing
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -75,6 +76,24 @@ def fake_serve(**options):
     can import it."""
     if multiprocessing.parent_process() is not None:
         time.sleep(60)
+
+
+class _OwnCable:
+    """A cable that serves its own WebSockets, recording what happens."""
+
+    serves_websockets = True
+
+    def __init__(self):
+        self.events = []
+
+    def start_server(self):
+        self.events.append("start")
+
+    def stop_server(self):
+        self.events.append("stop")
+
+
+OWNER = SimpleNamespace(cable=_OwnCable())
 
 
 def _route(app, path, action, method="GET"):
@@ -269,7 +288,9 @@ class TestRunCommand:
         calls = {}
         monkeypatch.setattr(
             "proper.cli.app_cli._serve_group",
-            lambda web, cable, processes: calls.update(web=web, cable=cable, processes=processes),
+            lambda web, cable, processes, start_cable=False: calls.update(
+                web=web, cable=cable, processes=processes, start_cable=start_cable
+            ),
         )
         return calls
 
@@ -446,6 +467,36 @@ class TestRunCommand:
         assert cable["workers"] == 1
         assert cable["target"] == calls["web"]["target"]
         assert calls["web"]["workers"] == 4
+
+    def test_a_cable_that_serves_itself_starts_with_the_group(self, app, monkeypatch):
+        from proper.cli.app_cli import get_run_cli
+
+        calls = self._capture_group(monkeypatch)
+        app.config.CABLE_PORT = 2301
+        app.cable = _OwnCable()
+
+        get_run_cli(app)(None, port=2300)
+
+        assert calls["cable"] is None  # no RSGI process for the WebSockets
+        assert calls["start_cable"] is True
+
+    def test_the_group_runs_the_cable_around_the_web_server(self):
+        from proper.cli.app_cli import _serve_group
+
+        OWNER.cable.events.clear()
+        _serve_group(
+            {"target": f"{__name__}:OWNER", "interface": "wsgi"},
+            start_cable=True,
+            serve=lambda **web: OWNER.cable.events.append("serve"),
+        )
+        assert OWNER.cable.events == ["start", "serve", "stop"]
+
+    def test_load_app_defaults_to_the_app_attribute(self, monkeypatch):
+        from proper.cli.app_cli import _load_app
+
+        monkeypatch.setattr(sys.modules[__name__], "app", OWNER, raising=False)
+        assert _load_app(__name__) is OWNER
+        assert _load_app(f"{__name__}:OWNER") is OWNER
 
     def test_processes_come_from_the_config(self, app, monkeypatch):
         from proper.cli.app_cli import get_run_cli

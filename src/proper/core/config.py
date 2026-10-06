@@ -125,6 +125,30 @@ default_config = {
     # port directly.
     "CABLE_PORT": 0,
 
+    # Browser origins allowed to open a WebSocket besides the app's own
+    # (`HOST`, or the `Host` the browser connected to), such as
+    # `["https://app.example.com"]`. Other sites' pages are refused.
+    "CABLE_ALLOWED_ORIGINS": [],
+
+    # Seconds between the pings the server sends on every WebSocket, so
+    # clients can tell a dead connection from a quiet one. `0` sends none.
+    "CABLE_PING_INTERVAL": 3,
+
+    # A connection with more than `CABLE_MAX_PENDING` messages waiting, none
+    # of which got through in `CABLE_STALL_TIMEOUT` seconds, is a client that
+    # is not reading, and the server closes it. So is one with ten times as
+    # many, at any speed. `0` is no limit.
+    "CABLE_MAX_PENDING": 1000,
+    "CABLE_STALL_TIMEOUT": 10,
+
+    # The same, in bytes, for `WseCable` (proper-wse counts bytes, not
+    # messages): a connection with more than this queued that got nothing
+    # through in `CABLE_STALL_TIMEOUT` seconds is closed, and so is one with
+    # ten times as many, at any speed. Keep ten times it below the cable's
+    # `max_outbound_queue_bytes` (64 MB), where wse starts dropping
+    # broadcasts instead. `0` is no limit.
+    "CABLE_MAX_PENDING_BYTES": 4 * 1024 * 1024,
+
     "IMPORT_MAP": {
         "@hotwired/stimulus": "js/vendor/stimulus.js",
         "@hotwired/turbo": "js/vendor/turbo.js",

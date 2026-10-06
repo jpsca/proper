@@ -1,3 +1,4 @@
+import importlib
 import multiprocessing
 import sys
 import sysconfig
@@ -162,11 +163,19 @@ def _closing_worker_loops() -> "Iterator[None]":
                 loop.close()
 
 
+def _load_app(target: str) -> "App":
+    """The app a server target (`"module:attribute"`) names. In the process
+    that serves it, the same object the server gets."""
+    module, _, attr = target.partition(":")
+    return getattr(importlib.import_module(module), attr or "app")
+
+
 def _serve_group(
     web: dict,
     cable: dict | None = None,
     processes: int = 1,
     *,
+    start_cable: bool = False,
     serve: "Callable" = _serve,
 ) -> list[multiprocessing.Process]:
     """Run the web server here, plus in child processes the WebSocket server
@@ -179,7 +188,14 @@ def _serve_group(
     request. The extra web processes are for machines with many cores:
     threads of one interpreter contend for its shared objects, and two
     smaller groups of them do better than one big one.
+
+    With `start_cable`, the app's cable serves the WebSockets itself
+    (`WseCable`), from this process only: the other processes forward
+    their broadcasts to it.
     """
+    owner = _load_app(web["target"]) if start_cable else None
+    if owner is not None:
+        owner.cable.start_server()
     ctx = multiprocessing.get_context("spawn")
     children = []
     if cable:
@@ -196,6 +212,8 @@ def _serve_group(
                 child.terminate()
         for child in children:
             child.join(timeout=10)
+        if owner is not None:
+            owner.cable.stop_server()
     return children
 
 
@@ -237,7 +255,8 @@ def get_run_cli(app: "App") -> t.Callable:
         The app is loaded from `config.APP_TARGET`, or from `app` in the
         module that created it when that is empty. `config.INTERFACE`
         picks WSGI (the default) or RSGI. With WSGI and a `CABLE_PORT`, a
-        second process serves the WebSockets over RSGI on that port.
+        second process serves the WebSockets over RSGI on that port, unless
+        the cable serves them itself (`WseCable`), from this process.
         `config.PROCESSES` starts that many copies of the web server.
         """
         from ..helpers import show_banner, show_welcome
@@ -259,10 +278,16 @@ def get_run_cli(app: "App") -> t.Callable:
             "debug": bool(config.DEBUG),
         }
         cable_port = int(config.CABLE_PORT or 0)
+        own_server = bool(getattr(app.cable, "serves_websockets", False))
         cable = None
-        if cable_port and interface == "wsgi":
+        if cable_port and interface == "wsgi" and not own_server:
             cable = {**web, "interface": "rsgi", "port": cable_port, "workers": 1}
-        group: dict[str, t.Any] = {"web": web, "cable": cable, "processes": max(1, int(config.PROCESSES or 1))}
+        group: dict[str, t.Any] = {
+            "web": web,
+            "cable": cable,
+            "processes": max(1, int(config.PROCESSES or 1)),
+            "start_cable": own_server,
+        }
 
         if config.DEBUG:
             show_banner()
