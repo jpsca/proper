@@ -371,15 +371,21 @@ class WebSocketTestSession:
         while self._memory.is_open(self._conn_id):
             await asyncio.sleep(0.01)
 
-    async def subscribe(self, channel: str, **params) -> dict:
-        """Send a subscribe command and return the response."""
-        self.client_send(
-            {
-                "command": "subscribe",
-                "channel": channel,
-                "params": params or {},
-            }
-        )
+    async def subscribe(
+        self, channel: str, *, positions: dict | None = None, **params
+    ) -> dict:
+        """Send a subscribe command and return the response. `positions`,
+        `{stream: {"e": epoch, "o": offset}}` as the stamps of the broadcasts
+        carry them, asks for the ones broadcast since; they come before
+        the confirmation."""
+        msg: dict[str, t.Any] = {
+            "command": "subscribe",
+            "channel": channel,
+            "params": params or {},
+        }
+        if positions:
+            msg["positions"] = positions
+        self.client_send(msg)
         return await self.receive()
 
     async def send_action(

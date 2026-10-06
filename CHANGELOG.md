@@ -42,6 +42,18 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
 
 ### Added
 
+- Missed broadcasts are recovered. `WseCable` keeps the last broadcasts of
+  each stream (`recovery=True`; wse's `recovery_buffer_size`, 128 per stream,
+  `recovery_ttl`, 300 seconds, and `recovery_memory_budget`, 256 MB, size the
+  buffers), and a `cable.js` that reconnects, or notices a hole in a stream,
+  asks for the ones it missed; they come through `received()`, in order,
+  with no duplicates. `connected()` now gets `{reconnected, recovered}`;
+  `recovered === false` (the server restarted, another machine, too many
+  missed) is the moment to load the state again, and
+  `<turbo-stream-channel>` dispatches `turbo-stream-channel:gap` then. On the
+  wire, broadcasts carry wse's `tp`/`e`/`o` stamp, `subscribe` may carry
+  `positions`, and `confirm_subscription` has `positions` and `recovered`.
+  `WebSocketTestSession.subscribe()` takes `positions=`.
 - Replies to actions. `perform()` in `cable.js` returns a promise that
   resolves with what the action returned, and rejects with the data of an
   `ActionError` the action raised (`raise ActionError("too_long", max=500)`

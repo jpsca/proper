@@ -721,3 +721,159 @@ class TestRejectedSubscription:
         await nothing_more(ws)
         await ws.close()
         await task
+
+
+# --- Recovery ---
+
+
+class RoomChannel(Channel):
+    def subscribed(self):
+        self.stream_from(f"room_{self.params['room']}")
+
+
+class TestRecovery:
+    """The broadcasts a connection missed are sent again when it subscribes
+    with where it was in the streams (see `WseCable._confirm`)."""
+
+    def position(self, frame: dict) -> dict:
+        return {"e": frame["e"], "o": frame["o"]}
+
+    @pytest.mark.asyncio
+    async def test_broadcasts_are_stamped_and_positions_confirmed(self, app):
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        confirm = await ws.subscribe("RoomChannel", room="a")
+        # No broadcast yet: no position, and nothing asked for
+        assert confirm["positions"] == {"room_a": None}
+        assert confirm["recovered"] is None
+
+        app.cable.broadcast("room_a", {"n": 1})
+        app.cable.broadcast("room_a", {"n": 2})
+        first, second = await ws.receive(), await ws.receive()
+        assert first["tp"] == "room_a" and first["stream"] == "room_a"
+        assert first["data"] == {"n": 1} and second["data"] == {"n": 2}
+        assert first["e"] == second["e"] and second["o"] == first["o"] + 1
+
+        # Another connection subscribing now is told where the stream is
+        ws2, task2 = await open_ws(app)
+        confirm = await ws2.subscribe("RoomChannel", room="a")
+        assert confirm["positions"] == {"room_a": self.position(second)}
+        for w, tk in ((ws, task), (ws2, task2)):
+            await w.close()
+            await tk
+
+    @pytest.mark.asyncio
+    async def test_missed_broadcasts_are_sent_again(self, app):
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        await ws.subscribe("RoomChannel", room="a")
+        app.cable.broadcast("room_a", {"n": 1})
+        seen = await ws.receive()
+        await ws.close()
+        await task
+
+        # Missed while away
+        app.cable.broadcast("room_a", {"n": 2})
+        app.cable.broadcast("room_a", {"n": 3})
+        app.cable.broadcast("room_b", {"n": 9})  # another stream
+
+        ws, task = await open_ws(app)
+        positions = {"room_a": self.position(seen), "room_b": {"e": "0000abcd", "o": 0}}
+        missed = await ws.subscribe("RoomChannel", positions=positions, room="a")
+        assert missed["data"] == {"n": 2}
+        assert (await ws.receive())["data"] == {"n": 3}
+        confirm = await ws.receive()
+        assert confirm["type"] == "confirm_subscription"
+        assert confirm["recovered"] is True
+        assert confirm["positions"]["room_a"]["o"] == seen["o"] + 2
+        # Only the streams the channel streams from: nothing of room_b
+        await nothing_more(ws)
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_up_to_date_recovers_nothing(self, app):
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        await ws.subscribe("RoomChannel", room="a")
+        app.cable.broadcast("room_a", {"n": 1})
+        seen = await ws.receive()
+        confirm = await ws.subscribe("RoomChannel", positions={"room_a": self.position(seen)}, room="a")
+        assert confirm["type"] == "confirm_subscription"
+        assert confirm["recovered"] is True
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_not_recovered(self, app):
+        """Another epoch (the server restarted), a gap longer than the
+        buffer, or a stream without history: the client is told to load
+        the state again, and gets the current position."""
+        app.cable = type(app.cable)(recovery_buffer_size=4)
+        app.cable.bind(app)
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        await ws.subscribe("RoomChannel", room="a")
+        app.cable.broadcast("room_a", {"n": 0})
+        seen = await ws.receive()
+
+        other_epoch = {"e": "0000abcd" if seen["e"] != "0000abcd" else "0000abce", "o": seen["o"]}
+        confirm = await ws.subscribe("RoomChannel", positions={"room_a": other_epoch}, room="a")
+        assert confirm["recovered"] is False
+        assert confirm["positions"] == {"room_a": self.position(seen)}
+
+        for n in range(1, 6):  # more than the buffer holds
+            app.cable.broadcast("room_a", {"n": n})
+        for _ in range(5):
+            await ws.receive()
+        confirm = await ws.subscribe("RoomChannel", positions={"room_a": self.position(seen)}, room="a")
+        assert confirm["recovered"] is False
+        assert confirm["positions"]["room_a"]["o"] == seen["o"] + 5
+        # The oldest the buffer holds is recoverable
+        confirm = await ws.subscribe(
+            "RoomChannel", positions={"room_a": {"e": seen["e"], "o": seen["o"] + 1}}, room="a"
+        )
+        assert confirm["type"] == "broadcast" and confirm["data"] == {"n": 2}
+
+        ws2, task2 = await open_ws(app)
+        confirm = await ws2.subscribe("RoomChannel", positions={"room_z": {"e": seen["e"], "o": 0}}, room="z")
+        assert confirm["recovered"] is False
+        assert confirm["positions"] == {"room_z": None}
+        for w, tk in ((ws, task), (ws2, task2)):
+            await w.close()
+            await tk
+
+    @pytest.mark.asyncio
+    async def test_malformed_positions_are_ignored(self, app):
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        for positions in (
+            "nope", {"room_a": "nope"}, {"room_a": {"e": "xyz", "o": 1}},
+            {"room_a": {"e": "0000abcd", "o": -1}}, {"room_a": {"e": "0000abcd", "o": True}},
+            {3: {"e": "0000abcd", "o": 1}},
+        ):
+            ws.client_send({
+                "command": "subscribe", "channel": "RoomChannel",
+                "params": {"room": "a"}, "positions": positions,
+            })
+            confirm = await ws.receive()
+            assert confirm["type"] == "confirm_subscription"
+            assert confirm["recovered"] is None
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_recovery_off(self, app):
+        app.cable = type(app.cable)(recovery=False)
+        app.cable.bind(app)
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        confirm = await ws.subscribe("RoomChannel", room="a")
+        assert confirm["positions"] == {"room_a": None}
+        app.cable.broadcast("room_a", {"n": 1})
+        frame = await ws.receive()
+        assert "e" not in frame
+        confirm = await ws.subscribe("RoomChannel", positions={"room_a": {"e": "0000abcd", "o": 0}}, room="a")
+        assert confirm["recovered"] is None
+        await ws.close()
+        await task

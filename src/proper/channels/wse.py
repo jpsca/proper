@@ -38,6 +38,8 @@ import contextvars
 import json
 import os
 import queue
+import re
+import secrets
 import threading
 import time
 import typing as t
@@ -75,6 +77,41 @@ def _broadcast_frame(stream_name: str, data: t.Any) -> str:
 
 def _subscription_key(channel_name: str, params: dict) -> str:
     return f"{channel_name}:{sorted(params.items())}"
+
+
+_EPOCH = re.compile(r"^[0-9a-f]{8}$")
+
+
+def _client_positions(value: t.Any) -> dict[str, tuple[str, int]]:
+    """The positions a `subscribe` command carries, `{stream: {"e": epoch,
+    "o": offset}}`, as `{stream: (epoch, offset)}`; the malformed ones left
+    out. The epoch is wse's: eight hex digits."""
+    positions: dict[str, tuple[str, int]] = {}
+    if not isinstance(value, dict):
+        return positions
+    for stream, pos in value.items():
+        if not (isinstance(stream, str) and isinstance(pos, dict)):
+            continue
+        epoch, offset = pos.get("e"), pos.get("o")
+        if (
+            isinstance(epoch, str) and _EPOCH.match(epoch)
+            and isinstance(offset, int) and not isinstance(offset, bool) and offset >= 0
+        ):
+            positions[stream] = (epoch, offset)
+    return positions
+
+
+def _position(topic_result: dict) -> dict | None:
+    """A stream's position as the client gets it, from what wse returned."""
+    if topic_result.get("epoch") is None:
+        return None
+    return {"e": topic_result["epoch"], "o": topic_result["offset"]}
+
+
+def _stamp(frame: str, topic: str, epoch: str, offset: int) -> str:
+    """Stamp a frame as wse does when recovery is on: the topic, the epoch
+    of its buffer and the offset of the message, first."""
+    return '{"tp": %s, "e": "%s", "o": %d, %s' % (jsonplus.dumps(topic), epoch, offset, frame[1:])
 
 
 class WseConnection:
@@ -186,6 +223,17 @@ class _InlineExecutor:
         fn()
 
 
+class _Buffer:
+    """The recovery buffer of a topic, as `InMemoryServer` keeps it."""
+
+    __slots__ = ("epoch", "offset", "frames")
+
+    def __init__(self, size: int) -> None:
+        self.epoch = secrets.token_hex(4)
+        self.offset = -1  # of the last message
+        self.frames: deque[tuple[int, str]] = deque(maxlen=size)
+
+
 class InMemoryServer:
     """The parts of `wse_server.RustWSEServer` that `WseCable` uses, in
     memory, for tests (`WseCable.serve_in_memory()`). A connection is a queue
@@ -201,6 +249,11 @@ class InMemoryServer:
         self._open: set[str] = set()
         self._topics: dict[str, set[str]] = {}
         self._count = 0
+        # Recovery, as wse keeps it: per topic, the epoch of its buffer, the
+        # offset of the last message, and the last `buffer_size` frames.
+        self.recovery_enabled = cable._recovery
+        self.buffer_size = int(cable._server_options.get("recovery_buffer_size") or 128)
+        self._buffers: dict[str, _Buffer] = {}
 
     # The client side
 
@@ -249,8 +302,44 @@ class InMemoryServer:
     def broadcast_local(self, topic: str, text: str) -> None:
         with self._lock:
             conn_ids = list(self._topics.get(topic, ()))
+            if self.recovery_enabled:
+                buffer = self._buffers.get(topic)
+                if buffer is None:
+                    buffer = self._buffers[topic] = _Buffer(self.buffer_size)
+                buffer.offset += 1
+                text = _stamp(text, topic, buffer.epoch, buffer.offset)
+                buffer.frames.append((buffer.offset, text))
         for conn_id in conn_ids:
             self.send(conn_id, text)
+
+    def subscribe_with_recovery(
+        self, conn_id: str, topics: list[str], recover: bool = False,
+        epoch: str | None = None, offset: int | None = None,
+    ) -> dict:
+        """Subscribe, and with `recover`, write to the connection the frames
+        of the topics after `offset` in `epoch`. Returns, as wse does, the
+        position of each topic and whether it was recovered."""
+        self.subscribe_connection(conn_id, topics)
+        result: dict[str, t.Any] = {"recovered": recover and bool(topics), "topics": {}}
+        for topic in topics:
+            with self._lock:
+                buffer = self._buffers.get(topic)
+                frames = list(buffer.frames) if buffer else []
+            recovered = False
+            if buffer is None:
+                position: dict[str, t.Any] = {"epoch": None, "offset": 0, "recoverable": False}
+            else:
+                position = {"epoch": buffer.epoch, "offset": buffer.offset, "recoverable": True}
+                oldest = frames[0][0]  # a buffer is made with its first frame
+                if recover and epoch == buffer.epoch and offset is not None and offset >= oldest - 1:
+                    for frame_offset, text in frames:
+                        if frame_offset > offset:
+                            self.send(conn_id, text)
+                    recovered = True
+            if not recovered:
+                result["recovered"] = False
+            result["topics"][topic] = {**position, "recovered": recovered}
+        return result
 
     def broadcast_all(self, text: str) -> None:
         for conn_id in list(self._open):
@@ -297,9 +386,15 @@ class WseCable(Cable):
         max_outbound_queue_bytes: int = 64 * 1024 * 1024,
         backpressure_bytes: int = 128 * 1024,
         backpressure_timeout: float = 1.0,
+        recovery: bool = True,
         **server_options: t.Any,
     ) -> None:
-        """`max_outbound_queue_bytes` is how far behind a connection can fall
+        """`recovery`: keep the last broadcasts of each stream, so a client
+        that reconnects gets the ones it missed (see `_subscribe`). wse's
+        `recovery_buffer_size` (128 per stream), `recovery_ttl` (300 seconds)
+        and `recovery_memory_budget` (256 MB) size the buffers.
+
+        `max_outbound_queue_bytes` is how far behind a connection can fall
         before wse drops broadcasts for it. The default is four times wse's:
         a broadcast frame is shared by every connection it goes to, so a
         backlog costs memory once, not once per connection.
@@ -318,8 +413,10 @@ class WseCable(Cable):
         self._port = port
         self._forward_port = forward_port
         self._max_connections = max_connections
+        self._recovery = recovery
         self._server_options = {
-            "max_outbound_queue_bytes": max_outbound_queue_bytes, **server_options,
+            "max_outbound_queue_bytes": max_outbound_queue_bytes,
+            "recovery_enabled": recovery, **server_options,
         }
         self._workers = workers
         self._backpressure_bytes = backpressure_bytes
@@ -654,7 +751,7 @@ class WseCable(Cable):
         params = msg.get("params") or {}
         key = _subscription_key(channel_name, params)
         if command == "subscribe":
-            self._subscribe(conn, channel_name, params, key)
+            self._subscribe(conn, channel_name, params, key, _client_positions(msg.get("positions")))
         elif command == "unsubscribe":
             channel = conn.subscriptions.pop(key, None)
             if channel is not None:
@@ -665,11 +762,14 @@ class WseCable(Cable):
         else:
             conn.put({"type": "error", "reason": "unknown_command"})
 
-    def _subscribe(self, conn, channel_name, params, key) -> None:
+    def _subscribe(self, conn, channel_name, params, key, positions) -> None:
+        """Subscribe, or confirm again a subscription that exists. With
+        `positions`, where the client last was in some streams, the broadcasts
+        it missed in the ones the channel streams from are sent to it."""
         confirm = {"type": "confirm_subscription", "channel": channel_name, "params": params}
         existing = conn.subscriptions.get(key)
         if existing is not None:
-            conn.put({**confirm, "streams": sorted(existing._streams)})
+            self._confirm(conn, confirm, existing, positions)
             return
         channel_cls = self.app.router.channels.get(channel_name)
         if channel_cls is None:
@@ -703,7 +803,35 @@ class WseCable(Cable):
         channel._send = conn.put
         for msg in pending:
             conn.put(msg)
-        conn.put({**confirm, "streams": sorted(channel._streams)})
+        self._confirm(conn, confirm, channel, positions)
+
+    def _confirm(self, conn, confirm: dict, channel, positions) -> None:
+        """Confirm the subscription, with its streams, where each of them is
+        now (`positions`, `null` for one without broadcasts yet), and whether
+        the broadcasts the client missed were all sent to it (`recovered`:
+        `null` when it asked for none). The missed ones are written straight
+        to the connection by the server, so they can arrive before this."""
+        streams = sorted(channel._streams)
+        current: dict[str, dict | None] = dict.fromkeys(streams)
+        recovered: bool | None = None
+        if self._recovery and streams:
+            server = self.server
+            to_recover = [stream for stream in streams if stream in positions]
+            if to_recover:
+                recovered = True
+            for stream in to_recover:
+                epoch, offset = positions[stream]
+                result = server.subscribe_with_recovery(
+                    conn.conn_id, [stream], recover=True, epoch=epoch, offset=offset
+                )
+                recovered = recovered and result["recovered"]
+                current[stream] = _position(result["topics"][stream])
+            rest = [stream for stream in streams if stream not in positions]
+            if rest:
+                result = server.subscribe_with_recovery(conn.conn_id, rest)
+                for stream in rest:
+                    current[stream] = _position(result["topics"][stream])
+        conn.put({**confirm, "streams": streams, "positions": current, "recovered": recovered})
 
     def _message(self, conn, msg, key) -> None:
         """Run an action. A message with an `id` gets a reply: what the

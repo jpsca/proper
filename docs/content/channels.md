@@ -474,12 +474,12 @@ The four callbacks are optional:
 
 Callback         | Called when
 ---------------- | ------------------------------------------
-`connected()`    | The server confirmed the subscription (again after each reconnection)
+`connected(info)` | The server confirmed the subscription (again after each reconnection). `info` is `{reconnected, recovered}`, see [Missed broadcasts](#missed-broadcasts-recovery)
 `received(data)` | A `send()` or a broadcast arrived for this subscription
 `rejected()`     | The channel called `reject()`, or no channel has that name
 `disconnected()` | The connection closed, or you called `unsubscribe()`
 
-When the connection drops, `cable.js` reconnects on its own and subscribes everything again, so a short network problem is invisible to your code. A `perform()` made meanwhile waits, and is sent once the connection and its subscriptions are back; its promise still rejects with `{reason: "timeout"}` if that takes longer than its timeout, and with `{reason: "offline"}` if more than 100 calls pile up. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every few seconds; a connection that goes silent for 10 seconds is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
+When the connection drops, `cable.js` reconnects on its own, subscribes everything again, and gets the broadcasts it missed (see [Missed broadcasts](#missed-broadcasts-recovery)), so a short network problem is invisible to your code. A `perform()` made meanwhile waits, and is sent once the connection and its subscriptions are back; its promise still rejects with `{reason: "timeout"}` if that takes longer than its timeout, and with `{reason: "offline"}` if more than 100 calls pile up. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every few seconds; a connection that goes silent for 10 seconds is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
 
 All subscriptions share the one connection, so holding several is normal and cheap:
 
@@ -491,6 +491,30 @@ const random  = cable.subscribe(
 const inbox   = cable.subscribe(
     "InboxChannel", { received: showToast })
 ```
+
+### Missed broadcasts (recovery)
+
+The server keeps the last broadcasts of each stream: 128 by default, for 5 minutes after the last one. When a connection comes back, `cable.js` tells the server where it was in each stream, and the server sends what was broadcast since. They arrive through `received()` like any other, in order, and nothing arrives twice. The same happens when a connection falls so far behind that wse drops broadcasts for it (see [Slow clients](#slow-clients)): the broadcasts after the hole wait while the missed ones are fetched.
+
+So `connected()` is the place to know whether the page is up to date. It gets an object:
+
+```javascript
+cable.subscribe("ChatChannel", { room: "general" }, {
+  connected({ reconnected, recovered }) {
+    if (reconnected && recovered === false) loadMessages()  // too much was missed
+  },
+  received: render,
+})
+```
+
+Field         | Value
+------------- | -----------------------------------------------
+`reconnected` | `false` the first time, `true` after each reconnection
+`recovered`   | `true` when every missed broadcast was sent; `false` when some couldn't be: the server restarted (or it is another machine, with `RedisCable`), more than the buffer holds were missed, or the stream had no history; `null` when there was nothing to ask for (the first subscription, or a stream without broadcasts before the connection dropped)
+
+With `recovered === false`, load the state again from the server, as the page did when it first rendered. The `<turbo-stream-channel>` element does this by dispatching an event (see [Broadcasting HTML](#broadcasting-html-turbo-streams)).
+
+What recovery does not cover: a stream that had no broadcasts before the connection dropped has no position to recover from, so what it broadcast meanwhile is lost (`recovered` is `null` for it); and `send()` messages to one subscription are not kept, only broadcasts. On the server, `recovery=False` in `CABLE` turns it off, and wse's `recovery_buffer_size`, `recovery_ttl` and `recovery_memory_budget` size the buffers (see [The cable server](#the-cable-server-wsecable)).
 
 ---
 
@@ -590,6 +614,16 @@ const subscription = streamFrom("ChatChannel", { room_id: 42 })
 
 Authorization doesn't change: the element sends `params`, never a stream name, and the channel's `subscribed()` still decides with `reject()` and picks the stream on the server (see [Authorizing versus authenticating](#authorizing-versus-authenticating)).
 
+After a reconnection, the `<turbo-stream>` fragments the page missed are applied as they arrive. When they can't be recovered (see [Missed broadcasts](#missed-broadcasts-recovery)), the element dispatches a `turbo-stream-channel:gap` event, which bubbles, so the page can load the content again:
+
+```javascript
+document.addEventListener("turbo-stream-channel:gap", (event) => {
+  Turbo.visit(location.href, { action: "replace" })  // or reload a frame
+})
+```
+
+`streamFrom(channel, params, { onGap })` takes the same as a function.
+
 :::note
 The same fragment can also be the response of a controller, to a form submitted with Turbo. See [Turbo](/docs/turbo) for `*.turbo_stream.jx` views and the `stream` tag.
 :::
@@ -641,8 +675,9 @@ Option                     | Default      | What it is
 `max_outbound_queue_bytes` | 64 MB        | How far behind a connection can fall before wse drops broadcasts for it
 `backpressure_bytes`       | 128 KB       | A `broadcast()` waits while the subscribers of its stream have more than this queued, on average. `0` never waits
 `backpressure_timeout`     | `1.0`        | The longest a `broadcast()` waits, in seconds; then it is sent anyway
+`recovery`                 | `True`       | Keep the last broadcasts of each stream, for clients that reconnect (see [Missed broadcasts](#missed-broadcasts-recovery))
 
-Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_handshakes`, how many handshakes can be in progress at once; raise it if thousands of clients may reconnect together after a restart.
+Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_handshakes`, how many handshakes can be in progress at once; raise it if thousands of clients may reconnect together after a restart. Or the size of the recovery buffers: `recovery_buffer_size` (128 broadcasts per stream, rounded to a power of two), `recovery_ttl` (300 seconds without broadcasts before a stream's buffer is dropped) and `recovery_memory_budget` (256 MB for all of them; past it, the least used are dropped). The buffers share the bytes of the frames with the connections, so they cost memory once per broadcast, not once per subscriber.
 
 ```python {title="config/channels.py"}
 CABLE = {
@@ -657,7 +692,7 @@ CABLE = {
 A client that stops reading - a frozen tab, a very bad network - would make messages pile up in memory. Two mechanisms deal with it:
 
 - **Backpressure.** A `broadcast()` waits, up to `backpressure_timeout`, while the subscribers of its stream are behind. Whoever broadcasts slows down to the pace of delivery, instead of every message arriving later and later. It looks at the average, so one stuck client doesn't slow everyone down.
-- **Closing stuck clients.** A connection with more than `CABLE_MAX_PENDING_BYTES` waiting, that got nothing through in `CABLE_STALL_TIMEOUT` seconds, is closed; so is one with ten times that much waiting, at any speed. `cable.js` reconnects and subscribes again. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse starts dropping broadcasts instead.
+- **Closing stuck clients.** A connection with more than `CABLE_MAX_PENDING_BYTES` waiting, that got nothing through in `CABLE_STALL_TIMEOUT` seconds, is closed; so is one with ten times that much waiting, at any speed. `cable.js` reconnects and subscribes again, and gets what it missed. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse starts dropping broadcasts instead; `cable.js` notices the hole and asks for them too.
 
 ---
 
@@ -685,6 +720,8 @@ Option   | Default                      | What it is
 It takes every option of `WseCable` as well.
 
 If the connection to Redis drops, the cable reconnects on its own, waiting longer each time, up to 30 seconds. Meanwhile, each machine's clients still get the broadcasts made on that machine; what other machines publish in that time is lost, and a broadcast that can't reach Redis is lost with a warning. Backpressure only sees the subscribers of the machine that broadcasts.
+
+Each machine keeps its own recovery buffers, with their own positions. A client that reconnects to the same machine gets what it missed; one the load balancer sends to another machine gets `recovered: false`, and should load the state again. Pin a client to a machine (sticky sessions on `CABLE_PATH`) if that matters.
 
 Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. A list of who is online, or the last value for a client that subscribes late, is something you keep yourself. [Deployment](/docs/deployment) covers running the server and choosing the number of processes.
 
@@ -754,7 +791,7 @@ The session's methods:
 Method                                   | What it does
 ---------------------------------------- | ------------------------------------
 `await ws.connect()`                     | Opens the connection. Returns a task that ends when the connection closes; `await` it after `close()`
-`await ws.subscribe(channel, **params)`  | Subscribes, and returns the first frame the app sends back
+`await ws.subscribe(channel, positions=None, **params)` | Subscribes, and returns the first frame the app sends back. `positions`, `{stream: {"e": ..., "o": ...}}` from the stamps of received broadcasts, asks for the ones broadcast since
 `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply
 `await ws.perform(channel, action, data, **params)` | Calls an action and returns its reply: `{"type": "reply", "status": "ok", "data": <what it returned>}`, or `"status": "error"` with `{"reason": ...}` in `data`. Skips what the action sent before replying
 `await ws.unsubscribe(channel, **params)`| Unsubscribes
@@ -806,7 +843,8 @@ The client sends three commands - `subscribe`, `message` (call an action), and `
 
 ```json
 { "command": "subscribe", "channel": "ChatChannel",
-    "params": {"room": "general"} }
+    "params": {"room": "general"},
+    "positions": {"chat_general": {"e": "0000abcd", "o": 41}} }
 
 { "command": "message", "channel": "ChatChannel",
     "params": {"room": "general"}, "action": "speak",
@@ -822,7 +860,9 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 
 ```json
 { "type": "confirm_subscription", "channel": "ChatChannel",
-    "params": {"room": "general"}, "streams": ["chat_general"] }
+    "params": {"room": "general"}, "streams": ["chat_general"],
+    "positions": {"chat_general": {"e": "0000abcd", "o": 42}},
+    "recovered": true }
 
 { "type": "reject_subscription", "channel": "ChatChannel",
     "params": {"room": "general"} }
@@ -830,7 +870,8 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 { "type": "message", "channel": "ChatChannel",
     "params": {"room": "general"}, "data": {"message": "hi"} }
 
-{ "c": "P", "type": "broadcast", "stream": "chat_general",
+{ "tp": "chat_general", "e": "0000abcd", "o": 42,
+    "c": "P", "type": "broadcast", "stream": "chat_general",
     "data": {"message": "hi"} }
 
 { "type": "reply", "id": 7, "channel": "ChatChannel",
@@ -846,6 +887,8 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 ```
 
 A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
+
+The `tp`, `e` and `o` fields are wse's recovery stamp: the stream, the epoch of its buffer (eight hex digits; it changes when the server restarts) and the offset of the broadcast in it. A `subscribe` may carry `positions`, the last `e` and `o` the client saw per stream; the server sends again the broadcasts after them, for the streams the channel streams from, and they may arrive before the confirmation. The confirmation has the current `positions` of the streams (`null` for one without broadcasts yet) and `recovered`: `true` when everything asked for was sent again, `false` when some couldn't be, `null` when nothing was asked. Sending `subscribe` again for an existing subscription, with `positions`, also recovers. Without recovery (`recovery=False`), broadcasts carry no stamp and `recovered` is always `null`.
 
 Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name, and `"reason": "error"` when `subscribed()` raised an exception; a subscription your own `reject()` turned away has no reason.
 
