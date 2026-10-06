@@ -101,7 +101,7 @@ default_config = {
 
     "CABLE_PATH": "/cable",
 
-    # Port where the cable (`WseCable`) serves the WebSockets of the
+    # Port where the cable (`Cable`) serves the WebSockets of the
     # channels, from the process `proper run` starts. In production a proxy
     # routes `CABLE_PATH` here; in `DEBUG` the browser connects to this port
     # directly.

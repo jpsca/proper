@@ -18,7 +18,7 @@ class FakeApp:
 
 
 def _wse_app():
-    app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.wse.WseCable"}})
+    app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.Cable"}})
     current.app = app
     return app
 
@@ -33,7 +33,7 @@ def _frames(server, conn_id):
 
 class TestSendIsForThisConnectionOnly:
     """`send()` is how a channel messages its own connection. A broadcast
-    doesn't go through it: every subscriber gets the same frame (WseCable
+    doesn't go through it: every subscriber gets the same frame (Cable
     can't call Python per subscriber)."""
 
     def test_a_broadcast_skips_an_overridden_send(self):

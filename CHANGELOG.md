@@ -4,24 +4,29 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
-### ⚠️ Upgrading: the WebSockets need `WseCable`
+### ⚠️ Upgrading: the WebSockets need `proper.channels.Cable`
 
 The in-process cable is gone, and with it RSGI: `proper run` always serves
-over WSGI, and the only cable that serves WebSockets is `WseCable`
-(`RedisCable` on several machines). An app that used `CABLE = {}` with a
-`CABLE_PORT` now fails to start with a `ConfigError`. Install `proper-wse`
-and set the cable:
+over WSGI, and the only cable that serves WebSockets is
+`proper.channels.Cable`, served by proper-wse. It was `WseCable`, in
+`proper.channels.wse`, for a few days on `main`; the base class without
+WebSockets, what `CABLE = {}` gives, is now `BaseCable`. An app that used
+`CABLE = {}` with a `CABLE_PORT` now fails to start with a `ConfigError`.
+Install `proper-wse` and set the cable:
 
 ```bash
 uv add "proper-wse>=2.6.2"
 ```
 
 ```python {title="config/channels.py"}
-CABLE = {"type": "proper.channels.wse.WseCable"}
+CABLE = {"type": "proper.channels.Cable"}
 ```
 
 ### Removed
 
+- `RedisCable`, the cable for several machines. The cable serves one machine;
+  running the WebSockets on several will come back on wse's own cluster,
+  which also syncs recovery and presence, something Redis pub/sub couldn't.
 - The in-process cable and its WebSocket process: `proper.core.app_ws`, and
   the second, RSGI, process that `proper run` started on `CABLE_PORT`.
   `CABLE = {}` (the default) is now a `Cable` that serves no WebSockets: a
@@ -29,20 +34,20 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
   `ConfigError`.
 - RSGI: `App.__rsgi__`, `App.startup()` and `App.shutdown()` (`app.lower()`
   stays), the app's own thread pool, and `Cable.start()`/`Cable.stop()`
-  (`WseCable` has `start_server()`/`stop_server()`, which `proper run`
+  (`Cable` has `start_server()`/`stop_server()`, which `proper run`
   calls).
 - The settings `INTERFACE`, `THREAD_WAIT_WARNING`, `LOOP_STALL_WARNING` and
   `CABLE_MAX_PENDING` (`CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`
   stay).
 - From `proper.test_client`: `make_test_scope`, `make_test_ws_scope`,
   `HttpProtocolStub` and `WsProtocolStub`. `client.websocket()` always runs
-  the app's `WseCable` from memory, and no longer takes a path, which the
+  the app's `Cable` from memory, and no longer takes a path, which the
   in-memory server doesn't use; with a cable that serves no WebSockets,
   `connect()` raises `RuntimeError`.
 
 ### Added
 
-- Missed broadcasts are recovered. `WseCable` keeps the last broadcasts of
+- Missed broadcasts are recovered. `Cable` keeps the last broadcasts of
   each stream (`recovery=True`; wse's `recovery_buffer_size`, 128 per stream,
   `recovery_ttl`, 300 seconds, and `recovery_memory_budget`, 256 MB, size the
   buffers), and a `cable.js` that reconnects, or notices a hole in a stream,
@@ -91,7 +96,7 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
   `uv add "proper-wse>=2.6.2"`.
 - A client could call a channel's `find_user()` as an action. It is now
   refused, like the other channel internals.
-- `WseCable`: what a channel set on `current` in one command (such as
+- `Cable`: what a channel set on `current` in one command (such as
   `current.auth_session` in `subscribed()`) was still there for the next
   command run on the same worker thread, from any connection. Each command
   now runs in a context of its own.

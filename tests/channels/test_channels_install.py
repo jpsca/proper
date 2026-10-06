@@ -38,11 +38,7 @@ def test_file_creation(app_in_tmp):
     assert "CABLE_PATH" in text
     assert "CABLE_PORT" in text
     assert "CABLE:" in text
-    # WseCable, with no Redis to run; RedisCable is left as a comment
-    assert 'CABLE: dict = {"type": "proper.channels.wse.WseCable"}' in text
-    assert '#         "type": "proper.channels.RedisCable"' in text
-    assert '#         "type": "proper.channels.RedisCable",' in text
-    assert '"prefix": "myapp:cable:"' in text
+    assert 'CABLE: dict = {"type": "proper.channels.Cable"}' in text
 
     # cable.js asset
     path = app_in_tmp.root_path.parent / "assets" / "js" / "cable.js"
@@ -75,7 +71,7 @@ def test_the_generated_config_serves_with_wse_cable(app_in_tmp, monkeypatch):
     channels.install(app_in_tmp)
     namespace = {}
     exec((app_in_tmp.root_path / "config" / "channels.py").read_text(), namespace)
-    assert namespace["CABLE"] == {"type": "proper.channels.wse.WseCable"}
+    assert namespace["CABLE"] == {"type": "proper.channels.Cable"}
     assert namespace["CABLE_PORT"] == 2301
 
 

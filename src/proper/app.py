@@ -14,7 +14,7 @@ import itsdangerous
 import minijx
 
 from . import pipeline, status, tools
-from .channels import Cable
+from .channels import BaseCable
 from .cli.app_cli import get_cli
 from .compile import install
 from .core.app_wsgi import AppWsgi
@@ -135,7 +135,7 @@ class App(AppWsgi):
     mailers: "Mailers"
     auth: "Auth"
     i18n: "I18n | None"
-    cable: Cable
+    cable: BaseCable
 
     request_cls: type[Request] = Request
     response_cls: type[Response] = Response

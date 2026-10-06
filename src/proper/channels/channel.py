@@ -19,7 +19,7 @@ if t.TYPE_CHECKING:
 
     from ..app import App
     from ..models import ProperModel
-    from .wse import WseConnection
+    from .cable import WseConnection
 
 
 class ActionError(Exception):

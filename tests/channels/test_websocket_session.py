@@ -53,9 +53,7 @@ class RoomChannel(Channel):
 
 
 CABLES = {
-    "WseCable": {"type": "proper.channels.wse.WseCable"},
-    # From memory it never touches Redis: this one isn't there.
-    "RedisCable": {"type": "proper.channels.RedisCable", "url": "redis://127.0.0.1:1/0"},
+    "Cable": {"type": "proper.channels.Cable"},
 }
 
 
@@ -183,7 +181,7 @@ async def test_an_app_without_websockets_says_so():
 
 class TestInMemoryServer:
     def _cable(self):
-        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": CABLES["WseCable"]})
+        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": CABLES["Cable"]})
         current.app = app
         app.router.channels["RoomChannel"] = RoomChannel
         EVENTS.clear()

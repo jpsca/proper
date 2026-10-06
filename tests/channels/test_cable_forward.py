@@ -1,5 +1,5 @@
 """Broadcasts made in a process without WebSockets reach the one that
-serves them: what `Cable` sends, and what it does with what it receives."""
+serves them: what `BaseCable` sends, and what it does with what it receives."""
 import logging
 import threading
 from functools import partial
@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from proper import App
-from proper.channels import CABLE_SALT, Cable
+from proper.channels import CABLE_SALT, BaseCable
 
 
 def make_app(**config):
@@ -46,7 +46,7 @@ def cable_server():
 class TestForwarding:
     def test_the_cable_forwards_to_the_port_after_the_cable_port(self):
         app = make_app(
-            CABLE={"type": "proper.channels.wse.WseCable"}, CABLE_PORT=2301, CABLE_PATH="/ws"
+            CABLE={"type": "proper.channels.Cable"}, CABLE_PORT=2301, CABLE_PATH="/ws"
         )
         assert app.cable._forward_url == "http://127.0.0.1:2302/ws"
 
@@ -56,7 +56,7 @@ class TestForwarding:
 
     def test_a_broadcast_is_posted_signed(self, cable_server):
         app = make_app()
-        cable = Cable()
+        cable = BaseCable()
         cable.forward_to(cable_server, sign=partial(app.dumps, salt=CABLE_SALT))
 
         cable.broadcast("chat", {"text": "hi"})
@@ -67,7 +67,7 @@ class TestForwarding:
 
     def test_a_batch_is_one_request(self, cable_server):
         app = make_app()
-        cable = Cable()
+        cable = BaseCable()
         cable.forward_to(cable_server, sign=partial(app.dumps, salt=CABLE_SALT))
 
         with cable.batch():
@@ -94,7 +94,7 @@ class TestForwarding:
 
     def test_a_cable_that_is_down_is_a_warning(self, caplog):
         app = make_app()
-        cable = Cable()
+        cable = BaseCable()
         cable.forward_to("http://127.0.0.1:1/cable", sign=partial(app.dumps, salt=CABLE_SALT))
 
         with caplog.at_level(logging.WARNING, logger="proper"):
@@ -105,7 +105,7 @@ class TestForwarding:
     def test_a_refusal_is_a_warning(self, cable_server, caplog):
         Recorder.status = 403
         app = make_app()
-        cable = Cable()
+        cable = BaseCable()
         cable.forward_to(cable_server, sign=partial(app.dumps, salt=CABLE_SALT))
 
         with caplog.at_level(logging.WARNING, logger="proper"):

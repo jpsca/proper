@@ -174,7 +174,7 @@ assert data["title"] == "Sunset"
 
 ## Testing WebSockets
 
-The `TestClient` includes an async WebSocket helper for testing channels. The app's cable (`WseCable`) serves the session from memory, with no port; with an app that has no channels (`CABLE = {}`), `connect()` raises `RuntimeError`.
+The `TestClient` includes an async WebSocket helper for testing channels. The app's cable (`Cable`) serves the session from memory, with no port; with an app that has no channels (`CABLE = {}`), `connect()` raises `RuntimeError`.
 
 ```python
 import asyncio

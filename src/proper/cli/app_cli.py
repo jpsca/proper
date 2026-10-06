@@ -16,7 +16,7 @@ if t.TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from ..app import App
-    from ..channels.wse import WseCable
+    from ..channels.cable import Cable
 
 
 def get_cli(app: "App") -> type[Cli]:
@@ -185,12 +185,12 @@ def _serve_group(
     interpreter contend for its shared objects, and two smaller groups of
     them do better than one big one.
 
-    With `start_cable`, the app's cable (`WseCable`) serves the WebSockets
+    With `start_cable`, the app's cable (`Cable`) serves the WebSockets
     from this process only: the other processes forward their broadcasts
     to it.
     """
     owner = _load_app(web["target"]) if start_cable else None
-    cable = t.cast("WseCable", owner.cable) if owner is not None else None
+    cable = t.cast("Cable", owner.cable) if owner is not None else None
     if cable is not None:
         cable.start_server()
     ctx = multiprocessing.get_context("spawn")
@@ -249,7 +249,7 @@ def get_run_cli(app: "App") -> t.Callable:
 
         The app is loaded from `config.APP_TARGET`, or from `app` in the
         module that created it when that is empty. Granian serves it over
-        WSGI. A cable that serves WebSockets (`WseCable`) starts in this
+        WSGI. A cable that serves WebSockets (`Cable`) starts in this
         process, on `CABLE_PORT`. `config.PROCESSES` starts that many
         copies of the web server.
         """

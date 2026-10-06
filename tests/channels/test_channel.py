@@ -3,7 +3,7 @@ import typing as t
 import pytest
 
 from proper.app import App
-from proper.channels import Cable, Channel
+from proper.channels import BaseCable, Channel
 from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
 from proper.helpers import DotDict
 from proper.test_client import make_test_request
@@ -12,7 +12,7 @@ from proper.test_client import make_test_request
 class FakeApp:
     def __init__(self):
         self.config = DotDict({"SECRET_KEYS": ["*" * 50], "DEBUG": False})
-        self.cable = Cable()
+        self.cable = BaseCable()
 
 
 def _make_channel(cls=Channel, params=None, app=None):
