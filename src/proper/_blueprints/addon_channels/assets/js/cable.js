@@ -48,6 +48,17 @@ connected({ reconnected, recovered }) {
   if (reconnected && recovered === false) reloadMessages()
 }
 ```
+
+A channel that calls `track()` lists who is in a stream. The `presence`
+callback gets the list, `{key: data}`, when the subscription is confirmed
+(`change` is `null`) and each time it changes:
+
+```
+presence(users, change) {
+  renderWhoIsHere(Object.values(users))
+  if (change?.event === "join") toast(`${change.data.name} is here`)
+}
+```
 **/
 import { renderStreamMessage } from "@hotwired/turbo"
 
@@ -110,6 +121,12 @@ export class Subscription {
       this.callbacks.rejected()
     }
   }
+
+  _presence(users, change) {
+    if (this.callbacks.presence) {
+      this.callbacks.presence(users, change)
+    }
+  }
 }
 
 // The server pings every `CABLE_PING_INTERVAL` seconds. A connection that
@@ -152,6 +169,8 @@ export class Cable {
     // The broadcasts that arrived after a gap, held until the missed ones
     // fill it, so they are delivered in order.
     this._held = new Map()  // stream -> {frames: Map<o, msg>, timer}
+    // Who is in each stream a channel tracks: stream -> {key: data}
+    this._present = new Map()
   }
 
   connect(url) {
@@ -180,7 +199,7 @@ export class Cable {
   }
 
   subscribe(channel, params, callbacks) {
-    if (typeof params === "object" && !callbacks && (params.connected || params.disconnected || params.received || params.rejected)) {
+    if (typeof params === "object" && !callbacks && (params.connected || params.disconnected || params.received || params.rejected || params.presence)) {
       callbacks = params
       params = {}
     }
@@ -232,6 +251,8 @@ export class Cable {
           const now = Date.now()
           if (this._lastPing) this._staleAfter = Math.max(STALE_AFTER, 3 * (now - this._lastPing))
           this._lastPing = now
+        } else if (msg.t === "presence_join" || msg.t === "presence_leave" || msg.t === "presence_update") {
+          this._presenceChange(msg.t.slice("presence_".length), msg.p)
         }
         return
       }
@@ -318,6 +339,11 @@ export class Cable {
       const reconnected = sub.confirmed === true
       sub.confirmed = true
       sub._connected({ reconnected, recovered: msg.recovered ?? null })
+      // Who is in the streams the channel tracks, as of now
+      for (const [stream, users] of Object.entries(msg.presence || {})) {
+        this._present.set(stream, users)
+        sub._presence({ ...users }, null)
+      }
     } else if (msg.type === "reject_subscription") {
       sub._rejected()
       this._removeSubscription(sub)
@@ -352,6 +378,19 @@ export class Cable {
     }
     if (any) msg.positions = positions
     this._send(msg)
+  }
+
+  // Someone joined, left or changed in a stream: update the list and tell
+  // the subscriptions streaming from it.
+  _presenceChange(event, { topic, user_id, data }) {
+    const users = this._present.get(topic) || {}
+    if (event === "leave") delete users[user_id]
+    else users[user_id] = data
+    this._present.set(topic, users)
+    const change = { event, userId: user_id, data }
+    for (const sub of this._subscriptions) {
+      if (sub.streams && sub.streams.has(topic)) sub._presence({ ...users }, change)
+    }
   }
 
   _deliver(msg) {

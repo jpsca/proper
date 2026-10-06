@@ -157,6 +157,10 @@ Every other public method is reachable from the client: prefix helpers with `_`.
 
 One action name is conventional: `receive`. The client's `sub.send(data)` is shorthand for `perform("receive", data)`, so defining a `receive(self, data)` method makes it the default handler for messages sent that way.
 
+### Presence
+
+`self.track(stream, data=None, *, key=None)` lists the connection among those present in a stream (after `stream_from(stream)`; `ValueError` otherwise). Key: `key` if given, else the user's id, else a random `anon:...` per connection. Decide the key on the server, never from `params`. One key per connection (a second `track()` with another raises). The stream's subscribers get `presence_join` on a user's first connection and `presence_leave` on their last (three tabs count once); `self.untrack(stream)`, `stop_stream_from()`, unsubscribing and disconnecting all leave; `self.update_presence(data)` changes the data everywhere the connection is present (`presence_update`). `app.cable.presence(stream)` → `{key: {"data", "connections"}}`, `app.cable.presence_stats(stream)` → `{"users", "connections"}`. The confirmation carries `presence: {stream: {key: data}}` for the tracked streams. Client: the `presence(users, change)` callback (list on confirmation with `change=null`; then `change={event: "join"|"leave"|"update", userId, data}`). `Cable(presence=False)` turns it off (`track()` raises); wse's `presence_max_data_size`, `presence_max_members` bound it. One machine only.
+
 ### Replies
 
 `sub.perform()` returns a promise that resolves with what the action returned (`null` if nothing). To report an error to the caller, raise `ActionError(reason, **data)` (from `proper.channels`): the promise rejects with `{reason, ...data}`. It is the action's answer, not a failure: nothing is logged. Any other exception is logged and the promise rejects with `{reason: "error"}`, without details. The promise also rejects with `{reason: "not_subscribed" | "invalid_action" | "unknown_action"}` when there is nothing to run, and `{reason: "timeout"}` after 10 seconds without a reply (`sub.perform(action, data, {timeout})` sets it, in milliseconds). A timeout doesn't cancel the action: the server may still run it, and a late reply is dropped, so a retry can run it twice. Calling `perform()` without awaiting is fine: an unawaited rejection is not reported.
@@ -353,6 +357,7 @@ cable.connect()
 // Subscribe to a channel
 const chat = cable.subscribe("ChatChannel", { room: "general" }, {
   connected({ reconnected, recovered }) { if (reconnected && recovered === false) reload() },
+  presence(users, change) { renderWhoIsHere(users) },
   disconnected() { console.log("disconnected") },
   rejected()     { console.log("subscription denied") },
   received(data) { console.log("got:", data) },
@@ -464,8 +469,10 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 **Subscription confirmed** (with the streams of the subscription; subscribing again to an existing subscription only re-sends this):
 
 ```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat_general"], "positions": {"chat_general": {"e": "0000abcd", "o": 42}}, "recovered": true}
+{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat_general"], "positions": {"chat_general": {"e": "0000abcd", "o": 42}}, "recovered": true, "presence": {}}
 ```
+
+`presence` is `{stream: {key: data}}` for the streams the channel tracks. Presence changes arrive as wse frames to every subscriber of the stream, possibly before the confirmation of the subscription that caused them: `{"c": "WSE", "t": "presence_join" | "presence_leave" | "presence_update", "p": {"topic", "user_id", "data"}}`.
 
 `positions` is where each stream is now (`null` for one with no broadcasts yet); `recovered` is `true` when every missed broadcast asked for was sent again, `false` when some couldn't be, `null` when none were asked (always `null` with `recovery=False`).
 
@@ -567,7 +574,7 @@ The default backend, the one the channels addon writes. `CABLE = {"type": "prope
 
 - `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server. The web server (Granian, WSGI) has no WebSockets. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
 - Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.
-- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most), `recovery` (True: keep the last broadcasts of each stream for reconnecting clients); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`, `recovery_buffer_size`, `recovery_ttl`, `recovery_memory_budget`).
+- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most), `recovery` (True: keep the last broadcasts of each stream for reconnecting clients), `presence` (True: who is in each stream, for `track()`); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`, `recovery_buffer_size`, `recovery_ttl`, `recovery_memory_budget`, `presence_max_data_size`, `presence_max_members`).
 - Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`; `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup; the channels addon requires >= 2.6.2.
 
 

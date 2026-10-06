@@ -79,6 +79,7 @@ class Channel:
         self.user_id: t.Any = None
         self._send = _send
         self._streams: set[str] = set()
+        self._tracked: set[str] = set()  # the streams it is present in
         self._rejected = False
         self._request = request
         self._connection = _connection
@@ -133,14 +134,55 @@ class Channel:
         self.app.cable.subscribe(stream_name, self)
 
     def stop_stream_from(self, stream_name: str) -> None:
-        """Unsubscribe this connection from a named broadcast stream."""
+        """Unsubscribe this connection from a named broadcast stream (and
+        leave its presence)."""
         self._streams.discard(stream_name)
+        self._tracked.discard(stream_name)
         self.app.cable.unsubscribe(stream_name, self)
 
     def stop_all_streams(self) -> None:
-        """Unsubscribe this connection from all streams."""
+        """Unsubscribe this connection from all streams (and leave their
+        presence)."""
         self.app.cable.unsubscribe_all(self)
         self._streams.clear()
+        self._tracked.clear()
+
+    def track(self, stream_name: str, data: dict | None = None, *, key: t.Any = None) -> None:
+        """List this connection among those present in a stream it streams
+        from (`stream_from()` first), with `data` for the others to see (a
+        name, an avatar). The subscribers of the stream get `presence_join`
+        the first time the user appears, and `presence_leave` when their
+        last connection leaves (on `untrack()`, `stop_stream_from()`,
+        `unsubscribe` or disconnect), so three tabs count once.
+
+        Who it is listed as: `key` if given, else the user's id, else a
+        random key for the connection (an anonymous visitor with three tabs
+        counts three times). The key is decided here, on the server; never
+        take it from `params`, or a client can pose as anyone. One per
+        connection: a second `track()` with another key is an error.
+
+        ```python
+        def subscribed(self):
+            stream = f"room_{self.params['room']}"
+            self.stream_from(stream)
+            self.track(stream, {"name": current.user.name})
+        ```
+        """
+        if stream_name not in self._streams:
+            raise ValueError(f"track() needs stream_from({stream_name!r}) first")
+        self.app.cable.track(stream_name, data or {}, self, key=key)
+        self._tracked.add(stream_name)
+
+    def untrack(self, stream_name: str) -> None:
+        """Take this connection off the list of a stream, still streaming
+        from it."""
+        self._tracked.discard(stream_name)
+        self.app.cable.untrack(stream_name, self)
+
+    def update_presence(self, data: dict) -> None:
+        """Change the data this connection's user is listed with, in every
+        stream they are present in: the others get `presence_update`."""
+        self.app.cable.update_presence(self, data)
 
     def send(self, data: t.Any) -> None:
         """Send data directly to this connection."""

@@ -148,6 +148,18 @@ class HandshakeChannel(Channel):
         self.send({"ok": True})
 
 
+class PresenceChannel(Channel):
+    Session = FakeSessionModel
+
+    def find_user(self, user_id):
+        return FakeUser(user_id)
+
+    def subscribed(self):
+        self.stream_from("presence:room")
+        if self.params.get("track"):
+            self.track("presence:room", {"name": self.params["track"]})
+
+
 class LobbyChannel(Channel):
     """Streams from a room too: two channels of one connection, one stream."""
 
@@ -213,6 +225,7 @@ def _new_app(port, cable=None, **extra):
     app.router.channels["RoomChannel"] = RoomChannel
     app.router.channels["LobbyChannel"] = LobbyChannel
     app.router.channels["HandshakeChannel"] = HandshakeChannel
+    app.router.channels["PresenceChannel"] = PresenceChannel
     return app
 
 
@@ -379,6 +392,30 @@ class TestWseCable:
         assert HandshakeChannel.captured["remote_ip"] == "127.0.0.1"
         assert HandshakeChannel.captured["authorization"] is None
         plain.close()
+
+    def test_presence(self, wse_app):
+        """wse lists who is in a stream, under the key the cable gives the
+        connection, and tells the subscribers who joins and leaves."""
+        watcher = WsClient(wse_app.config.CABLE_PORT)
+        watcher.send({"command": "subscribe", "channel": "PresenceChannel", "params": {}})
+        assert watcher.recv_type("confirm_subscription")["presence"] == {}
+
+        ana = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        ana.send({"command": "subscribe", "channel": "PresenceChannel", "params": {"track": "Ana"}})
+        confirm = ana.recv_type("confirm_subscription")
+        assert confirm["presence"] == {"presence:room": {"7": {"name": "Ana"}}}
+        join = watcher.recv()
+        assert (join["t"], join["p"]) == (
+            "presence_join", {"topic": "presence:room", "user_id": "7", "data": {"name": "Ana"}},
+        )
+        assert wse_app.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}}
+        assert wse_app.cable.presence_stats("presence:room") == {"users": 1, "connections": 1}
+
+        ana.close()
+        leave = watcher.recv()
+        assert (leave["t"], leave["p"]["user_id"]) == ("presence_leave", "7")
+        assert _wait(lambda: wse_app.cable.presence("presence:room") == {})
+        watcher.close()
 
     def test_a_client_that_reconnects_gets_what_it_missed(self, wse_app):
         """wse stamps each broadcast with where it is in its stream, and

@@ -68,7 +68,8 @@ _BLOCKED_ACTIONS = (
     "subscribed", "unsubscribed",
     "send", "broadcast", "reject",
     "stream_from", "stop_stream_from", "stop_all_streams",
-    "find_user",
+    "track", "untrack", "update_presence",
+    "find_user", "find_session",
 )
 
 
@@ -151,6 +152,8 @@ class WseConnection:
         self.subscriptions: dict[str, "Channel"] = {}
         self.identified = False
         self.user_id: t.Any = None
+        # What presence lists the connection as, once it is tracked somewhere
+        self.presence_key: str | None = None
         self.closing = False
         # Commands run one at a time, in order, in the worker threads.
         self._commands: deque = deque()
@@ -164,6 +167,20 @@ class WseConnection:
         self.user_id = user_id
         if user_id is not None:
             self.cable._register(self)
+
+    def presence_identity(self, key: t.Any = None) -> None:
+        """Give the connection the key presence lists it as, once: `key`,
+        else the user's id, else a random one for the connection."""
+        if key is None:
+            key = self.user_id if self.user_id is not None else f"anon:{secrets.token_urlsafe(9)}"
+        key = str(key)
+        if self.presence_key is None:
+            self.cable.server.set_connection_user(self.conn_id, key)
+            self.presence_key = key
+        elif self.presence_key != key:
+            raise ValueError(
+                f"the connection is already present as {self.presence_key!r}, not {key!r}"
+            )
 
     def close_threadsafe(self, code: int = 1000) -> None:
         self.cable.server.disconnect(self.conn_id)
@@ -258,6 +275,16 @@ class _Buffer:
         self.frames: deque[tuple[int, str]] = deque(maxlen=size)
 
 
+class _Present:
+    """A user present in a topic, as `InMemoryServer` keeps it."""
+
+    __slots__ = ("data", "connections")
+
+    def __init__(self, data: dict) -> None:
+        self.data = data
+        self.connections: set[str] = set()
+
+
 class InMemoryServer:
     """The parts of `wse_server.RustWSEServer` that `Cable` uses, in
     memory, for tests (`Cable.serve_in_memory()`). A connection is a queue
@@ -278,6 +305,11 @@ class InMemoryServer:
         self.recovery_enabled = cable._recovery
         self.buffer_size = int(cable._server_options.get("recovery_buffer_size") or 128)
         self._buffers: dict[str, _Buffer] = {}
+        # Presence, as wse keeps it: a connection's user, and per topic and
+        # user, their data and connections.
+        self.presence_enabled = cable._presence
+        self._users: dict[str, str] = {}
+        self._presence: dict[str, dict[str, _Present]] = {}
 
     # The client side
 
@@ -316,15 +348,93 @@ class InMemoryServer:
         if conn_id in self._open:
             self._frames[conn_id].put(text)
 
-    def subscribe_connection(self, conn_id: str, topics: list[str]) -> None:
+    def subscribe_connection(
+        self, conn_id: str, topics: list[str], presence_data: dict | None = None
+    ) -> None:
         with self._lock:
             for topic in topics:
                 self._topics.setdefault(topic, set()).add(conn_id)
+        # With presence data, the connection is listed in the topics, as the
+        # user `set_connection_user` gave it; wse skips one without a user.
+        user = self._users.get(conn_id) if self.presence_enabled else None
+        if presence_data is None or user is None:
+            return
+        for topic in topics:
+            with self._lock:
+                members = self._presence.setdefault(topic, {})
+                entry = members.get(user)
+                first = entry is None
+                if entry is None:
+                    entry = members[user] = _Present(presence_data)
+                entry.connections.add(conn_id)
+            if first:
+                self._presence_frame("presence_join", topic, user, presence_data)
 
     def unsubscribe_connection(self, conn_id: str, topics: list[str]) -> None:
         with self._lock:
             for topic in topics:
                 self._topics.get(topic, set()).discard(conn_id)
+        self.untrack_presence(conn_id, topics)
+
+    # Presence (`presence_enabled`)
+
+    def set_connection_user(self, conn_id: str, user_id: str) -> None:
+        self._need_presence()
+        self._users[conn_id] = user_id
+
+    def untrack_presence(self, conn_id: str, topics: list[str]) -> None:
+        self._need_presence()
+        for topic in topics:
+            with self._lock:
+                members = self._presence.get(topic, {})
+                gone = [
+                    (user, entry.data) for user, entry in members.items()
+                    if conn_id in entry.connections
+                    and not (entry.connections.discard(conn_id) or entry.connections)
+                ]
+                for user, _ in gone:
+                    del members[user]
+            for user, data in gone:
+                self._presence_frame("presence_leave", topic, user, data)
+
+    def update_presence(self, conn_id: str, data: dict) -> None:
+        self._need_presence()
+        user = self._users.get(conn_id)
+        if user is None:
+            raise RuntimeError("Failed to update presence data (size limit or unknown connection)")
+        for topic, members in list(self._presence.items()):
+            if user in members and conn_id in members[user].connections:
+                members[user].data = data
+                self._presence_frame("presence_update", topic, user, data)
+
+    def presence(self, topic: str) -> dict:
+        with self._lock:
+            return {
+                user: {"data": entry.data, "connections": len(entry.connections)}
+                for user, entry in self._presence.get(topic, {}).items()
+            }
+
+    def presence_stats(self, topic: str) -> dict:
+        with self._lock:
+            members = self._presence.get(topic, {})
+            return {
+                "num_users": len(members),
+                "num_connections": sum(len(e.connections) for e in members.values()),
+            }
+
+    def _need_presence(self) -> None:
+        if not self.presence_enabled:
+            raise RuntimeError("Presence is not enabled")
+
+    def _presence_frame(self, kind: str, topic: str, user: str, data: dict) -> None:
+        """A presence event, to the subscribers of the topic, as wse writes it."""
+        text = jsonplus.dumps({
+            "c": "WSE", "t": kind, "p": {"topic": topic, "user_id": user, "data": data},
+        })
+        with self._lock:
+            conn_ids = list(self._topics.get(topic, ()))
+        for conn_id in conn_ids:
+            self.send(conn_id, text)
 
     def broadcast_local(self, topic: str, text: str) -> None:
         with self._lock:
@@ -388,6 +498,11 @@ class InMemoryServer:
             self._open.discard(conn_id)
             for conn_ids in self._topics.values():
                 conn_ids.discard(conn_id)
+            tracked = [topic for topic, members in self._presence.items()
+                       if any(conn_id in e.connections for e in members.values())]
+        if tracked:
+            self.untrack_presence(conn_id, tracked)
+        self._users.pop(conn_id, None)
         if notify:
             self._frames[conn_id].put(None)
         return True
@@ -411,12 +526,17 @@ class Cable(BaseCable):
         backpressure_bytes: int = 128 * 1024,
         backpressure_timeout: float = 1.0,
         recovery: bool = True,
+        presence: bool = True,
         **server_options: t.Any,
     ) -> None:
         """`recovery`: keep the last broadcasts of each stream, so a client
         that reconnects gets the ones it missed (see `_subscribe`). wse's
         `recovery_buffer_size` (128 per stream), `recovery_ttl` (300 seconds)
         and `recovery_memory_budget` (256 MB) size the buffers.
+
+        `presence`: keep who is in each stream (`Channel.track()`). wse's
+        `presence_max_data_size` (4 KB per user) and `presence_max_members`
+        (0: no limit) bound it.
 
         `max_outbound_queue_bytes` is how far behind a connection can fall
         before wse drops broadcasts for it. The default is four times wse's:
@@ -438,9 +558,10 @@ class Cable(BaseCable):
         self._forward_port = forward_port
         self._max_connections = max_connections
         self._recovery = recovery
+        self._presence = presence
         self._server_options = {
             "max_outbound_queue_bytes": max_outbound_queue_bytes,
-            "recovery_enabled": recovery, **server_options,
+            "recovery_enabled": recovery, "presence_enabled": presence, **server_options,
         }
         self._workers = workers
         self._backpressure_bytes = backpressure_bytes
@@ -728,6 +849,35 @@ class Cable(BaseCable):
                 return  # still behind: send it anyway, later than asked
             time.sleep(0.002)
 
+    # Presence
+
+    def track(self, stream_name: str, data: dict, channel: "Channel", key: t.Any = None) -> None:
+        conn = t.cast(WseConnection, channel._connection)
+        conn.presence_identity(key)
+        self.server.subscribe_connection(conn.conn_id, [stream_name], data)
+
+    def untrack(self, stream_name: str, channel: "Channel") -> None:
+        conn = t.cast(WseConnection, channel._connection)
+        if conn.presence_key is not None and not conn.closing:
+            self.server.untrack_presence(conn.conn_id, [stream_name])
+
+    def update_presence(self, channel: "Channel", data: dict) -> None:
+        conn = t.cast(WseConnection, channel._connection)
+        if conn.presence_key is None:
+            raise ValueError("the connection is not present anywhere: track() first")
+        self.server.update_presence(conn.conn_id, data)
+
+    def presence(self, stream_name: str) -> dict[str, dict]:
+        if not self.serving or not self._presence:
+            return {}
+        return self.server.presence(stream_name)
+
+    def presence_stats(self, stream_name: str) -> dict[str, int]:
+        if not self.serving or not self._presence:
+            return {"users": 0, "connections": 0}
+        stats = self.server.presence_stats(stream_name)
+        return {"users": stats["num_users"], "connections": stats["num_connections"]}
+
     # Users
 
     def _register(self, connection) -> None:
@@ -839,7 +989,14 @@ class Cable(BaseCable):
                 result = server.subscribe_with_recovery(conn.conn_id, rest)
                 for stream in rest:
                     current[stream] = _position(result["topics"][stream])
-        conn.put({**confirm, "streams": streams, "positions": current, "recovered": recovered})
+        present = {
+            stream: {key: entry["data"] for key, entry in self.server.presence(stream).items()}
+            for stream in sorted(channel._tracked)
+        }
+        conn.put({
+            **confirm, "streams": streams, "positions": current, "recovered": recovered,
+            "presence": present,
+        })
 
     def _message(self, conn, msg, key) -> None:
         """Run an action. A message with an `id` gets a reply: what the
