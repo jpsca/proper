@@ -186,7 +186,6 @@ def _config(port, **extra):
         "SECRET_KEYS": [SECRET],
         "CABLE_PORT": port,
         "CABLE": {"type": "proper.channels.Cable", "host": "127.0.0.1"},
-        "CABLE_PING_INTERVAL": 0,
         **extra,
     }
 
@@ -432,10 +431,13 @@ class TestWseCable:
         client.close()
 
     def test_pings_reach_every_connection(self, make_app):
-        app = make_app(CABLE_PING_INTERVAL=0.1)
+        """wse pings every `CABLE_PING_INTERVAL` seconds."""
+        app = make_app(CABLE_PING_INTERVAL=1)
         client = WsClient(app.config.CABLE_PORT)
-        ping = client.recv_type("ping")
-        assert isinstance(ping["message"], int)
+        while True:
+            msg = client.recv()
+            if msg and msg.get("c") == "WSE" and msg.get("t") == "ping":
+                break
         client.close()
 
 
@@ -684,7 +686,7 @@ class TestIdleClients:
         return re.search(r"const WSE_PONG = '(.+)'", source).group(1)
 
     def test_a_client_that_answers_the_pings_stays(self, make_app):
-        app = make_app(cable={"ping_interval": 1, "idle_timeout": 2})
+        app = make_app(cable={"idle_timeout": 2}, CABLE_PING_INTERVAL=1)
         pong = self._pong()
         listener = WsClient(app.config.CABLE_PORT, _cookie(app))
         listener.subscribe(1)

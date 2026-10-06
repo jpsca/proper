@@ -30,9 +30,10 @@ worker, a shell) has no WebSockets: its broadcasts and `disconnect()`s are
 forwarded to that one, signed with the app's keys, over HTTP on
 `127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given).
 
-The server sends `{"type": "ping"}` to every connection each
-`CABLE_PING_INTERVAL` seconds, which `cable.js` uses to notice a dead
-connection, and refuses handshakes from other sites' pages (see
+wse pings every connection each `CABLE_PING_INTERVAL` seconds
+(`{"c": "WSE", "t": "ping"}`), which `cable.js` answers and uses to notice
+a dead connection; one that answers no ping for `idle_timeout` seconds (60)
+is closed. Handshakes from other sites' pages are refused (see
 `origin_allowed`). Requires `proper-wse` (`uv add proper-wse`), our fork
 of wse-server, with wheels for free-threaded Python; it imports as
 `wse_server`, and the original wse-server is refused.
@@ -426,7 +427,6 @@ class Cable(BaseCable):
         self._owner_pid: int | None = None
         self._receiver: _ForwardedServer | None = None
         self._stopping = threading.Event()
-        self._pinger: threading.Thread | None = None
         self._watcher: threading.Thread | None = None
         self._connections: dict[str, WseConnection] = {}  # type: ignore[assignment]
         self._users: dict[t.Any, set[WseConnection]] = {}
@@ -477,8 +477,7 @@ class Cable(BaseCable):
             try:
                 server = self._new_server(port)
             except BaseException:
-                if receiver is not None:
-                    receiver.server_close()
+                receiver.server_close()
                 raise
             server.enable_drain_mode()
             server.start()
@@ -498,13 +497,6 @@ class Cable(BaseCable):
                 target=receiver.serve_forever, args=(0.1,), name="proper-cable-forwarded",
                 daemon=True,
             ).start()
-            interval = float(self.app.config.get("CABLE_PING_INTERVAL") or 0)
-            if interval > 0:
-                self._pinger = threading.Thread(
-                    target=self._ping, args=(interval,), name="proper-cable-ping",
-                    daemon=True,
-                )
-                self._pinger.start()
             limit = int(self.app.config.get("CABLE_MAX_PENDING_BYTES") or 0)
             if limit > 0:
                 stall = float(self.app.config.get("CABLE_STALL_TIMEOUT") or 10)
@@ -542,15 +534,13 @@ class Cable(BaseCable):
                 "Cable needs proper-wse >= 2.6.2, not an older one or the original "
                 "wse-server (they all import as wse_server): uv add proper-wse"
             )
-        options: dict[str, t.Any] = {"max_connections": self._max_connections, **self._server_options}
+        options: dict[str, t.Any] = {
+            "max_connections": self._max_connections,
+            "ping_interval": int(self.app.config.get("CABLE_PING_INTERVAL") or 3),
+            **self._server_options,
+        }
         options.setdefault("allowed_origins", allowed_origins(self.app.config))
         return RustWSEServer(self._host, port, **options)
-
-    def _ping(self, interval: float) -> None:
-        """Ping every connection: `cable.js` treats a connection that stops
-        getting them as dead, and reconnects."""
-        while not self._stopping.wait(interval):  # set before the server stops
-            self.server.broadcast_all('{"type": "ping", "message": %d}' % int(time.time()))
 
     def _watch(self, limit: int, stall: float) -> None:
         """Close the connections of clients that stopped reading: more than
@@ -590,14 +580,13 @@ class Cable(BaseCable):
                 self._owner_pid = None
                 return
             self._stopping.set()
-            for thread in (self._pinger, self._watcher):
-                if thread is not None:
-                    thread.join()
-            self._pinger = self._watcher = None
-            if self._receiver is not None:
-                self._receiver.shutdown()
-                self._receiver.server_close()
-                self._receiver = None
+            if self._watcher is not None:
+                self._watcher.join()
+                self._watcher = None
+            receiver = t.cast(_ForwardedServer, self._receiver)
+            receiver.shutdown()
+            receiver.server_close()
+            self._receiver = None
             self._draining = False
             t.cast(threading.Thread, self._drain_thread).join()
             self._end_open_connections()

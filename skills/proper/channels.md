@@ -406,7 +406,7 @@ On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... u
 
 ### Recovery
 
-The server keeps the last broadcasts of each stream (`recovery=True` in `Cable`, the default; wse's `recovery_buffer_size` 128 per stream, `recovery_ttl` 300 s, `recovery_memory_budget` 256 MB). Each broadcast carries a stamp (`tp` stream, `e` epoch, `o` offset); `cable.js` tracks the position per stream, sends it with each `subscribe`, drops duplicates, and when it sees a hole (wse dropped frames for a slow connection) holds the later frames and subscribes again to fetch the missed ones. The missed broadcasts come through `received()` in order. `connected(info)` gets `{reconnected, recovered}`: `recovered` is `true` when all missed ones were sent, `false` when they couldn't be (server restarted, more than the buffer holds, stream without history) — reload the state then — and `null` when nothing was asked (first subscription, or a stream with no broadcasts before the drop; what it broadcast meanwhile is lost). `send()` messages are not recovered, only broadcasts. The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for 10 seconds is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
+The server keeps the last broadcasts of each stream (`recovery=True` in `Cable`, the default; wse's `recovery_buffer_size` 128 per stream, `recovery_ttl` 300 s, `recovery_memory_budget` 256 MB). Each broadcast carries a stamp (`tp` stream, `e` epoch, `o` offset); `cable.js` tracks the position per stream, sends it with each `subscribe`, drops duplicates, and when it sees a hole (wse dropped frames for a slow connection) holds the later frames and subscribes again to fetch the missed ones. The missed broadcasts come through `received()` in order. `connected(info)` gets `{reconnected, recovered}`: `recovered` is `true` when all missed ones were sent, `false` when they couldn't be (server restarted, more than the buffer holds, stream without history) — reload the state then — and `null` when nothing was asked (first subscription, or a stream with no broadcasts before the drop; what it broadcast meanwhile is lost). `send()` messages are not recovered, only broadcasts. The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for three intervals (at least 10 s) is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
 
 ### Multiple Subscriptions
 
@@ -500,10 +500,10 @@ A reject for an unregistered channel carries `"reason": "unknown_channel"`; one 
 
 Error reasons: `invalid_json`, `unknown_command`, `invalid_message` (JSON that is not an object), `not_subscribed`, `invalid_action`, `unknown_action`, and an `ActionError`'s reason.
 
-**Ping**, every `CABLE_PING_INTERVAL` seconds (`message` is the server's time):
+**Ping**, wse's own, every `CABLE_PING_INTERVAL` seconds. The client answers `{"c":"WSE","t":"PONG","p":{}}`; one that answers none for the cable's `idle_timeout` (60 s) is closed:
 
 ```json
-{"type": "ping", "message": 1791230000}
+{"c": "WSE", "t": "ping", "p": {"server_time": "2026-10-06T12:00:00.000Z"}}
 ```
 
 A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_ORIGINS`).
@@ -516,11 +516,11 @@ A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_O
 | `CABLE_PATH` | `"/cable"` | Path the proxy routes to `CABLE_PORT`, and where other processes `POST` forwarded broadcasts. `cable.js` hardcodes `/cable` |
 | `CABLE_PORT` | `0`        | Port where `Cable` serves the WebSockets, from the web process `proper run` starts. The channels addon sets it to `PORT + 1`. Set with an empty `CABLE`, it is a `ConfigError` |
 | `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the handshake's own `Host`, the app's `HOST` (http and https) and, in `DEBUG`, `localhost`/`127.0.0.1` on `PORT` (`allowed_origins()`, passed to wse). Handshakes without `Origin` (not browsers) are always allowed; others get a 403 |
-| `CABLE_PING_INTERVAL` | `3` | Seconds between the server's pings on every connection; `0` sends none |
+| `CABLE_PING_INTERVAL` | `3` | Seconds between wse's pings on every connection: an integer, at least 1, less than `CABLE['idle_timeout']` (60) |
 | `CABLE_MAX_PENDING_BYTES` | `4194304` | A client with more than this many bytes waiting and nothing through in `CABLE_STALL_TIMEOUT` seconds is closed (no close handshake), and so is one with ten times as many; `0` is no limit |
 | `CABLE_STALL_TIMEOUT` | `10` | See `CABLE_MAX_PENDING_BYTES` |
 
-They go in `config/channels.py` (imported from `config/__init__.py`). Changing `CABLE_PATH` also means changing the proxy location and passing the URL to `cable.connect()`.
+They go in `config/channels.py` (imported from `config/__init__.py`). Changing `CABLE_PATH` also means changing the proxy location and passing the URL to `cable.connect()`. With a `CABLE` set, they are validated at startup (`ConfigError`): `CABLE_PORT` 0–65535, `CABLE_PATH` starting with `/`, the ping interval and `idle_timeout` as above, `CABLE_MAX_PENDING_BYTES` ≥ 0, `CABLE_STALL_TIMEOUT` > 0; and `CABLE` may not set `ping_interval`, `allowed_origins` or `recovery_enabled`, which the settings and `recovery` decide.
 
 
 ## Testing

@@ -478,7 +478,7 @@ Callback         | Called when
 `rejected()`     | The channel called `reject()`, or no channel has that name
 `disconnected()` | The connection closed, or you called `unsubscribe()`
 
-When the connection drops, `cable.js` reconnects on its own, subscribes everything again, and gets the broadcasts it missed (see [Missed broadcasts](#missed-broadcasts-recovery)), so a short network problem is invisible to your code. A `perform()` made meanwhile waits, and is sent once the connection and its subscriptions are back; its promise still rejects with `{reason: "timeout"}` if that takes longer than its timeout, and with `{reason: "offline"}` if more than 100 calls pile up. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every few seconds; a connection that goes silent for 10 seconds is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
+When the connection drops, `cable.js` reconnects on its own, subscribes everything again, and gets the broadcasts it missed (see [Missed broadcasts](#missed-broadcasts-recovery)), so a short network problem is invisible to your code. A `perform()` made meanwhile waits, and is sent once the connection and its subscriptions are back; its promise still rejects with `{reason: "timeout"}` if that takes longer than its timeout, and with `{reason: "offline"}` if more than 100 calls pile up. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every `CABLE_PING_INTERVAL` seconds; a connection that goes silent for three intervals (and at least 10 seconds) is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
 
 All subscriptions share the one connection, so holding several is normal and cheap:
 
@@ -658,7 +658,7 @@ Setting                   | Default   | What it is
 `CABLE_PATH`              | `"/cable"`| The URL path of the WebSockets, behind the proxy
 `CABLE_PORT`              | `0`       | The port of the WebSockets (the addon sets `PORT + 1`)
 `CABLE_ALLOWED_ORIGINS`   | `[]`      | Other sites allowed to open a WebSocket (see [below](#checking-where-a-websocket-comes-from))
-`CABLE_PING_INTERVAL`     | `3`       | Seconds between pings to every connection. `0` sends none
+`CABLE_PING_INTERVAL`     | `3`       | Seconds between the server's pings to every connection: a whole number, at least 1, and less than the cable's `idle_timeout` (60), which closes a connection that answers no ping for that long
 `CABLE_MAX_PENDING_BYTES` | 4 MB      | See "Slow clients" below. `0` is no limit
 `CABLE_STALL_TIMEOUT`     | `10`      | See "Slow clients" below
 
@@ -824,7 +824,7 @@ The client sends three commands - `subscribe`, `message` (call an action), and `
 
 The `id` of a `message` is optional: with one, the server answers with a `reply`.
 
-The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `reply`, `error`, and `ping`:
+The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `reply` and `error`, plus wse's own `ping`:
 
 ```json
 { "type": "confirm_subscription", "channel": "ChatChannel",
@@ -851,7 +851,7 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 
 { "type": "error", "reason": "not_subscribed" }
 
-{ "type": "ping", "message": 1791230000 }
+{ "c": "WSE", "t": "ping", "p": {"server_time": "2026-10-06T12:00:00.000Z"} }
 ```
 
 A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
@@ -864,7 +864,7 @@ A `reply` answers the `message` with the same `id`: `status: "ok"` with what the
 
 A `message` without an `id` gets no reply. What would have been an error reply is an `error` frame instead, with the `reason` (and the data of an `ActionError`) at the top level; an action that raises anything else sends nothing. An `error` also reports a command the server couldn't read: `invalid_json`, `invalid_message` (JSON that is not an object), or `unknown_command`.
 
-The `ping` arrives every `CABLE_PING_INTERVAL` seconds, with the server's time; the client uses it to tell a dead connection from a quiet one.
+The `ping` is wse's, every `CABLE_PING_INTERVAL` seconds. The client answers it with `{"c": "WSE", "t": "PONG", "p": {}}`; a connection that answers none for `idle_timeout` seconds is closed. `cable.js` also uses it to tell a dead connection from a quiet one: three intervals of silence (and at least 10 seconds), and it reconnects.
 
 ---
 
