@@ -27,6 +27,10 @@ def setup(app):
     validate_config(config)
     app.config[NAME] = config
     app.cable = get_instance(**config)
+    # A backend that serves the WebSockets itself (WseCable) needs the app,
+    # to run the channels.
+    if hasattr(app.cable, "bind"):
+        app.cable.bind(app)
 
 
 def validate_config(config):

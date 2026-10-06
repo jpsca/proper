@@ -11,14 +11,29 @@ import typing as t
 from ..constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
 from ..core.request import Request
 from ..global_context import current
-from ..helpers import logger
+from ..helpers import jsonplus, logger
 
 
 if t.TYPE_CHECKING:
     from collections.abc import Callable
 
     from ..app import App
+    from ..core.app_ws import Connection
     from ..models import ProperModel
+
+
+class Message(dict):
+    """A message to a subscription, and its JSON, encoded once.
+
+    A broadcast reaches every subscriber of a stream; they all get the same
+    `Message`, so its data is encoded once, not once per subscriber.
+    """
+
+    __slots__ = ("json",)
+
+    def __init__(self, prefix: str, channel_name: str, params: dict, data: t.Any, encoded: str):
+        super().__init__(type="message", channel=channel_name, params=params, data=data)
+        self.json = prefix + encoded + "}"
 
 
 class Channel:
@@ -35,7 +50,8 @@ class Channel:
         params: dict[str, t.Any],
         *,
         request: Request | None = None,
-        _send: "Callable[[dict], t.Any]",
+        _send: "Callable[[t.Any], t.Any]",
+        _connection: "Connection | None" = None,
     ) -> None:
         """`request` is the WebSocket handshake, which carries the
         connection's headers and cookies. It is `None` only when a channel
@@ -47,6 +63,13 @@ class Channel:
         self._streams: set[str] = set()
         self._rejected = False
         self._request = request
+        self._connection = _connection
+        # Every message to this subscription starts the same way: encoded
+        # once, so a broadcast only has to encode its data.
+        self._frame_prefix = (
+            '{"type": "message", "channel": %s, "params": %s, "data": '
+            % (jsonplus.dumps(self.channel_name), jsonplus.dumps(params))
+        )
 
     @property
     def channel_name(self) -> str:
@@ -98,12 +121,10 @@ class Channel:
 
     def send(self, data: t.Any) -> None:
         """Send data directly to this connection."""
-        self._send({
-            "type": "message",
-            "channel": self.channel_name,
-            "params": self.params,
-            "data": data,
-        })
+        self._send(self._message(data, jsonplus.dumps(data)))
+
+    def _message(self, data: t.Any, encoded: str) -> Message:
+        return Message(self._frame_prefix, self.channel_name, self.params, data, encoded)
 
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Broadcast data to all subscribers of a stream."""
@@ -126,15 +147,26 @@ class Channel:
         )
 
     def _authenticate(self) -> None:
-        """Resolve the connection's session from its signed cookie — once, at
-        subscription time. Stores the user's id on the instance and exposes
-        `current.auth_session` / `current.user` for `subscribed()`. A no-op
-        when no `Session` model is set (the connection stays anonymous)."""
+        """Resolve the connection's session from its signed cookie — once per
+        connection, by the first channel that subscribes. The others reuse
+        the user's id it found. Exposes `current.user` for `subscribed()`,
+        and `current.auth_session` in the `subscribed()` of that first
+        channel. A no-op when no `Session` model is set (the connection
+        stays anonymous)."""
+        if self.Session is None:
+            return
+        conn = self._connection
+        if conn is not None and conn.identified:
+            self.user_id = conn.user_id
+            current.user = self.find_user(self.user_id) if self.user_id is not None else None
+            return
         if session := self._find_session_by_cookie():
             session.touch()  # type: ignore
             self.user_id = session.user_id  # type: ignore
             current.auth_session = session
             current.user = session.user  # type: ignore
+        if conn is not None:
+            conn.identify(self.user_id)
 
     def _find_session_by_cookie(self) -> "ProperModel | None":
         if self.Session is None:

@@ -218,6 +218,36 @@ class TestChannelIntegration:
         assert len(sent2) == 2  # ch2 did
 
 
+class TestSendIsForThisConnectionOnly:
+    """`send()` is how a channel messages its own connection. A broadcast
+    doesn't go through it: every subscriber gets the same frame, as with any
+    cable (WseCable can't call Python per subscriber)."""
+
+    def test_a_broadcast_skips_an_overridden_send(self):
+        app = FakeApp()
+        sent = []
+
+        class Filtering(Channel):
+            def send(self, data):
+                raise AssertionError("a broadcast must not call send()")
+
+        channel = Filtering(t.cast(App, app), {}, _send=sent.append)
+        channel.stream_from("chat")
+        app.cable.broadcast("chat", {"msg": "hi"})
+        assert len(sent) == 1
+        assert sent[0]["data"] == {"msg": "hi"}
+
+    def test_a_direct_send_uses_the_override(self):
+        sent = []
+
+        class Upper(Channel):
+            def send(self, data):
+                super().send(data.upper())
+
+        Upper(t.cast(App, FakeApp()), {}, _send=sent.append).send("hi")
+        assert sent[0]["data"] == "HI"
+
+
 class StubChannel:
     """The cable only needs a name and a `send`, not a whole Channel."""
 
@@ -307,13 +337,13 @@ class TestConcurrency:
         channel, _ = _make_channel()
         reached = []
 
-        def send(data):
+        def send(message):
             # Re-entering the cable from a send would deadlock if the
             # broadcast still held the lock.
             cable.unsubscribe("room", channel)
-            reached.append(data)
+            reached.append(message["data"])
 
-        channel.send = send
+        channel._send = send
         cable.subscribe("room", channel)
 
         finished = threading.Event()

@@ -32,7 +32,7 @@ Outbound messages go the other way. Everything a connection sends — `send()`, 
 - [Client-Side Usage](#client-side-usage)
 - [Wire Protocol](#wire-protocol)
 - [Configuration](#configuration)
-- [Scaling with Redis](#scaling-with-redis)
+- [Several Machines (RedisCable)](#several-machines-rediscable)
 - [Full Example](#full-example)
 
 
@@ -44,9 +44,9 @@ Install the channels addon with:
 proper install channels
 ```
 
-This creates:
+This creates the files below and adds `proper-wse` to the app's dependencies:
 
-- `config/channels.py` file (sets `CABLE_PATH` and the `CABLE` backend dict)
+- `config/channels.py` file (sets `CABLE_PATH`, `CABLE_PORT` and the `CABLE` backend dict: `WseCable`, see below)
 - `channels/app_channel.py` - the `AppChannel` base your channels inherit from
 - Adds `cable.js` to the `assets/js` folder at the project root, registers it in the import map (as `"cable"`), and adds `import "cable"` to `application.js`
 
@@ -166,6 +166,8 @@ Streams are named pub/sub topics. Multiple channels can subscribe to the same st
 | `self.send(data)`                   | Send data to **this connection only**                    |
 | `self.broadcast(stream_name, data)` | Send data to **all subscribers** of a stream             |
 
+A broadcast doesn't go through `send()`, even an overridden one: every subscriber of a stream gets the same data. To tell different users different things, use different streams (e.g. `f"user:{user.id}:notices"`).
+
 ### Stream Naming
 
 Stream names are arbitrary strings. The convention is to use a descriptive prefix and a dynamic suffix:
@@ -179,6 +181,9 @@ self.stream_from(f"document_{doc_id}_edits")
 ### Broadcasting from Outside a Channel
 
 Any part of the application can broadcast to a stream via `app.cable`. This is the key integration point between HTTP and WebSocket: controllers and background tasks can push real-time updates to connected clients.
+
+From the web process, each broadcast is a request to the cable process. Wrap
+several in `with app.cable.batch():` to send them in one.
 
 ```python {title="myapp/controllers/message_controller.py"}
 @router.resource("messages")
@@ -281,6 +286,16 @@ the framework calls `find_user(user_id)` — defined in `AppChannel` — to refr
 with no `Session` stays anonymous (`current.user` is `None`). For custom schemes,
 `self.request.get_signed_cookie(...)` is still available.
 
+The cookie is read once per connection: the first channel that subscribes on a
+socket resolves the session, and the others reuse its `user_id` (each loads the
+user with `find_user`). `current.auth_session` is set only in that first
+`subscribed()`.
+
+To close a user's open connections after revoking access (a membership
+removed, a ban, a sign-out), call `app.cable.disconnect(user_id=...)`. It
+works from any process; the clients reconnect and subscribe again, and the
+channels that no longer authorize them reject the subscription.
+
 
 ## Client-Side Usage
 
@@ -348,7 +363,7 @@ Returns a `Subscription` object.
 
 ### Automatic Reconnection
 
-On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ...) up to 10 attempts. On reconnect, all existing subscriptions are automatically re-subscribed. Call `cable.disconnect()` to stop reconnection.
+On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s, with jitter), for as long as the page is open. On reconnect, all existing subscriptions are automatically re-subscribed. The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for 10 seconds is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
 
 ### Multiple Subscriptions
 
@@ -425,7 +440,22 @@ A reject for an unregistered channel carries `"reason": "unknown_channel"`; a re
 {"type": "error", "reason": "not_subscribed"}
 ```
 
-Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`.
+Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`; `WseCable` also sends `invalid_message` (JSON that is not an object).
+
+**Ping**, every `CABLE_PING_INTERVAL` seconds (`message` is the server's time):
+
+```json
+{"type": "ping", "message": 1791230000}
+```
+
+**Stream-named broadcast.** A cable that writes one frame for every subscriber (`WseCable`) names the stream instead of the channel and params, and lists the streams in `confirm_subscription`; clients route the broadcast to every subscription streaming from it. Ignore the `c` field (wse's category):
+
+```json
+{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat:general"]}
+{"c": "P", "type": "broadcast", "stream": "chat:general", "data": {"message": "hello"}}
+```
+
+A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_ORIGINS`).
 
 
 ## Configuration
@@ -434,6 +464,11 @@ Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_act
 |--------------|------------|------------------------------------|
 | `CABLE_PATH` | `"/cable"` | WebSocket endpoint path            |
 | `CABLE_PORT` | `0`        | Port of the WebSocket process `proper run` starts next to the web server; `0` starts none. The channels addon sets it to `PORT + 1` |
+| `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the app's own (`HOST`, or the `Host` of the handshake; in `DEBUG`, any port of that host name). Handshakes without `Origin` (not browsers) are always allowed |
+| `CABLE_PING_INTERVAL` | `3` | Seconds between the server's pings on every connection; `0` sends none |
+| `CABLE_MAX_PENDING` | `1000` | Messages that may wait for a client that got none of them in `CABLE_STALL_TIMEOUT` seconds before it is disconnected as not reading (or ten times as many, at any speed); `0` is no limit |
+| `CABLE_STALL_TIMEOUT` | `10` | See `CABLE_MAX_PENDING` and `CABLE_MAX_PENDING_BYTES` |
+| `CABLE_MAX_PENDING_BYTES` | `4194304` | `WseCable`'s `CABLE_MAX_PENDING`, in bytes: a client with more than this waiting and nothing through in `CABLE_STALL_TIMEOUT` seconds is closed (no close handshake), and so is one with ten times as many; `0` is no limit |
 
 Set in your app config:
 
@@ -442,96 +477,43 @@ CABLE_PATH = "/ws"
 ```
 
 
-## The Cable Process
+## WseCable (proper-wse)
 
-The web server speaks WSGI, which has no WebSockets, so `proper run` serves them from a second process, over RSGI, on `CABLE_PORT`. In production, the reverse proxy routes `CABLE_PATH` to that port (the blueprint's nginx config has the block). In development there is no proxy: the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()` when `DEBUG` is on, and `cable.js` connects to it directly.
+The default backend, the one the channels addon writes. `CABLE = {"type": "proper.channels.wse.WseCable"}` serves the WebSockets with `proper-wse` (our fork of wse-server, Rust; imports as `wse_server`) on `CABLE_PORT`, inside the web process; install with `uv add "proper[wse]"` (wheels for free-threaded Python included). Channels don't change. A `broadcast()` is one frame that wse writes to every subscriber without Python, using the stream-named frames above.
 
-A `broadcast()` made in the web process, from a controller or a task, has no WebSockets to reach there. The default `Cable` forwards it to the cable process as a `POST` to `CABLE_PATH`, signed with the app's secret keys, and the cable process delivers it to its subscribers. Nothing to configure, no Redis. If the cable process is down, the message is lost with a warning; the page still renders.
+- `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server; no RSGI cable process, and the web server refuses WebSockets on its port.
+- Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.
+- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`).
+- Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT` (`CABLE_MAX_PENDING`, in messages, doesn't apply); `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup.
+
+
+## The Cable Process (in-process `Cable`)
+
+With `CABLE = {}` (the in-process `Cable`): the web server speaks WSGI, which has no WebSockets, so `proper run` serves them from a second process, over RSGI, on `CABLE_PORT`. In production, the reverse proxy routes `CABLE_PATH` to that port (the blueprint's nginx config has the block). In development there is no proxy: the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()` when `DEBUG` is on, and `cable.js` connects to it directly.
+
+A `broadcast()` made in the web process, from a controller or a task, has no WebSockets to reach there. `Cable` forwards it to the cable process as a `POST` to `CABLE_PATH`, signed with the app's secret keys, and the cable process delivers it to its subscribers. Nothing to configure, no Redis. If the cable process is down, the message is lost with a warning; the page still renders.
 
 With `INTERFACE = "rsgi"` there is one process for everything and the cable is purely in-process.
 
 
-## Scaling with Redis
+## Several Machines (RedisCable)
 
-The forwarding above covers one web process and one cable process on one machine. To run the cable on several machines, or several cable processes, use `RedisCable` — a Redis-backed backend that relays broadcasts across processes via Redis pub/sub.
-
-
-### How It Works
-
-1. When any code calls `cable.broadcast(stream, data)`, `RedisCable` publishes the message to a Redis pub/sub channel.
-2. A background listener in each process receives the message via a pattern subscription (`psubscribe`).
-3. The listener delivers the message to all local channels subscribed to that stream.
-
-This means every process — including the one that published — receives the message through Redis, ensuring consistent delivery.
-
-
-### Configuration
-
-Set the `CABLE` dict in your config to enable `RedisCable`:
+`RedisCable` is `WseCable` on several machines, with Redis carrying broadcasts between them. Code doesn't change, only the config:
 
 ```python {title="myapp/config/channels.py"}
-import os
-
-env = os.getenv("APP_ENV", "dev")
-
-CABLE = {}
-
-if env == "prod":
-    CABLE = {
-        "type": "proper.channels.RedisCable",
-        "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-        "prefix": "myapp:cable:",
-    }
+CABLE = {
+    "type": "proper.channels.RedisCable",
+    "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    "prefix": "myapp:cable:",   # unique per app sharing a Redis
+}
 ```
 
-When `CABLE` is empty (or not set), the framework uses the default in-memory `Cable`.
-
-| Option   | Default                    | Description                                         |
-|----------|----------------------------|-----------------------------------------------------|
-| `type`   | —                          | Class path, e.g. `"proper.channels.RedisCable"`        |
-| `url`    | `redis://localhost:6379/0` | Redis connection URL                                |
-| `prefix` | `proper:cable:`            | Prefix for Redis pub/sub channel names              |
-
-The `prefix` prevents collisions when multiple apps share the same Redis instance. Each app should use a unique prefix.
-
-
-### Requirements
-
-`RedisCable` requires the `redis` package:
-
-```bash
-uv add redis
-```
-
-An `ImportError` is raised at startup if `redis` is not installed and `CABLE` is configured to use `RedisCable`.
-
-
-### Lifecycle
-
-`RedisCable` hooks into the RSGI server's startup and shutdown automatically:
-
-- **Startup** — starts a background listener task that subscribes to Redis and delivers messages to local channels.
-- **Shutdown** — cancels the listener and closes all Redis connections.
-
-No manual setup is needed beyond the config.
-
-
-### Reconnection
-
-If the Redis connection drops (server restart, network issue), the listener reconnects automatically with exponential backoff (1s, 2s, 4s, ... up to 30s). Once reconnected, it re-subscribes and resumes delivery. No messages are lost for clients connected to the same process; messages published while disconnected are missed (this is inherent to Redis pub/sub).
-
-
-### Usage
-
-Application code does not change when switching from `Cable` to `RedisCable`. Broadcasting works the same way:
-
-```python
-# From a channel
-self.broadcast(f"chat_{room_id}", {"message": text})
-
-# From a controller or task
-app.cable.broadcast(f"chat_{room_id}", {"message": text})
-```
+- Each machine's web process serves its own WebSockets (proper-wse). A `broadcast()` goes straight to the local subscribers of the process that makes it and to Redis; the other machines' web processes deliver it to theirs and skip their own messages.
+- Processes without WebSockets (Huey workers, shells) publish to Redis directly: no HTTP forwarding, no `CABLE_PORT + 1`. `disconnect()` reaches every machine too.
+- Options: `url` (`redis://localhost:6379/0`), `prefix` (`proper:cable:`), plus every `WseCable` option. Needs the `redis` package (`uv add redis`); raises if it's missing.
+- Subscribes when `proper run` starts the server (waits up to 1 s), reconnects with backoff (up to 30 s). A broadcast that can't reach Redis is lost with a warning; local clients still get it. Backpressure only sees the publishing machine.
+- `client.websocket()` tests run from memory, without Redis.
+- Redis pub/sub carries events, not state: a presence roster or "last value" replay is up to you.
 
 
 ## Full Example

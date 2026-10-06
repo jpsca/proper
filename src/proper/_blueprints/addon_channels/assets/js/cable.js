@@ -60,7 +60,7 @@ export class Subscription {
     }
   }
 
-  Private
+  // Private
 
   _receive(data) {
     if (this.callbacks.received) {
@@ -87,6 +87,12 @@ export class Subscription {
   }
 }
 
+// The server pings every few seconds (`CABLE_PING_INTERVAL`). A connection
+// that has been silent for this long is dead, even if the socket says it is
+// open: a laptop that slept, a proxy that dropped it.
+const STALE_AFTER = 10000
+const MAX_RECONNECT_DELAY = 30000
+
 export class Cable {
   constructor() {
     this._ws = null
@@ -94,12 +100,18 @@ export class Cable {
     this._subscriptions = []
     this._pendingSubscriptions = []
     this._reconnectAttempts = 0
-    this._maxReconnectAttempts = 10
     this._reconnectDelay = 1000
+    this._reconnectTimer = null
     this._shouldReconnect = true
+    this._lastSeen = 0
+    this._pinged = false
+    this._monitor = null
   }
 
   connect(url) {
+    // One socket for every subscription of the page: calling this again
+    // while connected, or connecting, does nothing.
+    if (this._ws && this._ws.readyState <= WebSocket.OPEN) return
     if (!url) {
       const protocol = location.protocol === "https:" ? "wss:" : "ws:"
       // In development the cable runs on its own port, announced by the page.
@@ -114,6 +126,8 @@ export class Cable {
 
   disconnect() {
     this._shouldReconnect = false
+    clearTimeout(this._reconnectTimer)
+    this._stopMonitor()
     if (this._ws) {
       this._ws.close()
     }
@@ -139,25 +153,36 @@ export class Cable {
     return subscription
   }
 
-  Private
+  // Private
 
   _open() {
-    this._ws = new WebSocket(this._url)
+    const ws = this._ws = new WebSocket(this._url)
 
-    this._ws.onopen = () => {
+    ws.onopen = () => {
       this._reconnectAttempts = 0
+      this._lastSeen = Date.now()
+      this._pinged = false
+      this._startMonitor()
       for (const sub of this._pendingSubscriptions) {
         this._sendSubscribe(sub)
       }
       this._pendingSubscriptions = []
     }
 
-    this._ws.onmessage = (event) => {
+    ws.onmessage = (event) => {
+      this._lastSeen = Date.now()
       const msg = JSON.parse(event.data)
+      if (msg.type === "ping") {
+        this._pinged = true
+        return
+      }
       this._dispatch(msg)
     }
 
-    this._ws.onclose = () => {
+    ws.onclose = () => {
+      // A socket replaced by a newer one is no longer this cable's.
+      if (ws !== this._ws) return
+      this._stopMonitor()
       for (const sub of this._subscriptions) {
         sub._disconnected()
       }
@@ -168,22 +193,50 @@ export class Cable {
   }
 
   _reconnect() {
-    if (this._reconnectAttempts >= this._maxReconnectAttempts) {
-      return
-    }
     this._reconnectAttempts++
-    const delay = this._reconnectDelay * Math.pow(2, this._reconnectAttempts - 1)
-    setTimeout(() => {
+    const delay = Math.min(
+      this._reconnectDelay * Math.pow(2, this._reconnectAttempts - 1),
+      MAX_RECONNECT_DELAY,
+    ) * (0.8 + Math.random() * 0.4)
+    clearTimeout(this._reconnectTimer)
+    this._reconnectTimer = setTimeout(() => {
       this._pendingSubscriptions = [...this._subscriptions]
       this._open()
     }, delay)
   }
 
+  _startMonitor() {
+    this._stopMonitor()
+    this._monitor = setInterval(() => {
+      // Only once the server has shown it pings: one that does not would
+      // have every quiet connection taken for dead.
+      if (this._pinged && Date.now() - this._lastSeen > STALE_AFTER && this._ws) {
+        // Silent for too long: drop it and open a new one.
+        this._ws.close()
+      }
+    }, STALE_AFTER / 2)
+  }
+
+  _stopMonitor() {
+    clearInterval(this._monitor)
+    this._monitor = null
+  }
+
   _dispatch(msg) {
+    // A broadcast that names its stream (a cable that writes one frame for
+    // every subscriber, like WseCable) goes to the subscriptions streaming
+    // from it, as listed in their confirmations.
+    if (msg.type === "broadcast") {
+      for (const sub of this._subscriptions) {
+        if (sub.streams && sub.streams.has(msg.stream)) sub._receive(msg.data)
+      }
+      return
+    }
     const sub = this._findSubscription(msg.channel, msg.params)
     if (!sub) return
 
     if (msg.type === "confirm_subscription") {
+      sub.streams = new Set(msg.streams || [])
       sub._connected()
     } else if (msg.type === "reject_subscription") {
       sub._rejected()

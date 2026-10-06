@@ -46,6 +46,36 @@ class TestConnection:
         await task
 
     @pytest.mark.asyncio
+    async def test_refuses_when_the_cable_serves_its_own_websockets(self, app):
+        app.cable.serves_websockets = True  # as WseCable does
+        q = WsProtocolStub()
+        task = await run_ws(app, q)
+        assert await q.client_recv() == {"type": "close", "code": 404}
+        await task
+
+    @pytest.mark.asyncio
+    async def test_refuses_other_sites_pages(self, app):
+        q = WsProtocolStub()
+        scope = make_test_ws_scope(
+            headers={"origin": "https://evil.example", "host": "example.com"}
+        )
+        task = await run_ws(app, q, scope)
+        assert await q.client_recv() == {"type": "close", "code": 403}
+        await task
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("headers", [
+        {"origin": "https://example.com", "host": "example.com"},
+        {"host": "example.com"},  # not a browser
+    ])
+    async def test_accepts_its_own_pages_and_non_browsers(self, app, headers):
+        q = WsProtocolStub()
+        q.client_disconnect()
+        task = await run_ws(app, q, make_test_ws_scope(headers=headers))
+        assert await q.client_recv() == {"type": "accept"}
+        await task
+
+    @pytest.mark.asyncio
     async def test_custom_cable_path(self, app):
         app.config.CABLE_PATH = "/ws"
         q = WsProtocolStub()

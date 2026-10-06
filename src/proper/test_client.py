@@ -1,6 +1,7 @@
 import asyncio
 import enum
 import mimetypes
+import queue
 import secrets
 import typing as t
 from io import BytesIO
@@ -328,7 +329,7 @@ class TestClient:
             await task
         """
         path = url or self.app.config.get("CABLE_PATH", "/cable")
-        return WebSocketTestSession(self.app, path)
+        return WebSocketTestSession(self.app, path, headers=self.default_headers)
 
     def sign_in(self, session):
         """Adds an authenticated session cookie to the client, for testing authenticated endpoints."""
@@ -416,14 +417,15 @@ class TestClient:
         return result
 
 
-def make_test_ws_scope(path: str = "/cable") -> SimpleNamespace:
-    """A stand-in for the server's WebSocket scope."""
+def make_test_ws_scope(path: str = "/cable", headers: dict | None = None) -> SimpleNamespace:
+    """A stand-in for the server's WebSocket scope; `headers` with
+    lowercase names."""
     return SimpleNamespace(
         proto="ws",
         method="GET",
         path=path,
         query_string="",
-        headers={},
+        headers=headers or {},
         scheme="ws",
         server="example.com:80",
         client="127.0.0.1:1234",
@@ -492,28 +494,43 @@ class WsProtocolStub:
 
 
 class WebSocketTestSession:
-    """Async helper for testing WebSocket channels.
+    """Async helper for testing WebSocket channels, with any cable: the
+    in-process one runs the app's WebSocket handler; one that serves its own
+    WebSockets (`WseCable`) runs from memory, with no port.
 
     Arguments:
         app: The Proper `App` instance.
         path: The WebSocket path (defaults to `/cable`).
+        headers: Headers of the handshake, such as the `cookie` that
+            `TestClient.sign_in()` sets.
     """
 
-    def __init__(self, app: "App", path: str) -> None:
+    def __init__(self, app: "App", path: str, headers: dict | None = None) -> None:
         self.app = app
         self.protocol = WsProtocolStub()
         self._path = path
+        self._headers = {name.lower(): value for name, value in (headers or {}).items()}
+        self._memory: t.Any = None  # the InMemoryServer, with WseCable
+        self._conn_id = ""
+        self._accepted = False  # the accept of the in-memory server, not read yet
 
     async def connect(self) -> asyncio.Task:
-        """Start the WebSocket handler as a background task.
-
-        Returns the task so you can `await` it after `close()`.
-        """
-        scope = make_test_ws_scope(self._path)
+        """Open the connection. Returns a task that ends with it, to
+        `await` after `close()`. The handshake's answer is the first raw
+        event: `{"type": "accept"}`, or a `close` with the refusal's code."""
+        if getattr(self.app.cable, "serves_websockets", False):
+            self._memory = self.app.cable.serve_in_memory()
+            self._conn_id = self._memory.connect(self._headers.get("cookie", ""))
+            self._accepted = True
+            return asyncio.create_task(self._wait_closed())
+        scope = make_test_ws_scope(self._path, headers=self._headers)
         task = asyncio.create_task(self.app.__rsgi__(scope, self.protocol))
-        # Wait for the accept/reject
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.01)  # let the handshake happen
         return task
+
+    async def _wait_closed(self) -> None:
+        while self._memory.is_open(self._conn_id):
+            await asyncio.sleep(0.01)
 
     async def subscribe(self, channel: str, **params) -> dict:
         """Send a subscribe command and return the response."""
@@ -551,28 +568,54 @@ class WebSocketTestSession:
         )
 
     async def receive(self, timeout: float = 1.0) -> dict:
-        """Receive the next message from the app, parsed from JSON."""
-        msg = await self.protocol.client_recv(timeout=timeout)
+        """Receive the next message from the app, parsed from JSON. The
+        handshake's accept is skipped: `receive_raw()` shows it."""
+        msg = await self.receive_raw(timeout=timeout)
+        if msg == {"type": "accept"}:
+            msg = await self.receive_raw(timeout=timeout)
         if msg.get("type") == "text":
             return jsonplus.loads(msg["text"])
         return msg
 
     async def receive_raw(self, timeout: float = 1.0) -> dict:
-        """Receive the next raw event from the app: an accept, a close, or
-        a frame as sent."""
-        return await self.protocol.client_recv(timeout=timeout)
+        """Receive the next raw event from the app: a frame as sent
+        (`{"type": "text", "text": ...}`), or `{"type": "close", ...}`."""
+        if self._memory is None:
+            return await self.protocol.client_recv(timeout=timeout)
+        if self._accepted:
+            self._accepted = False
+            return {"type": "accept"}
+        frames = self._memory.frames(self._conn_id)
+        until = asyncio.get_running_loop().time() + timeout
+        while True:
+            try:
+                text = frames.get_nowait()
+            except queue.Empty:
+                if asyncio.get_running_loop().time() >= until:
+                    raise TimeoutError("nothing from the app") from None
+                await asyncio.sleep(0.005)
+                continue
+            if text is None:
+                return {"type": "close", "code": 1000}
+            return {"type": "text", "text": text}
 
     def client_send(self, data: dict) -> None:
-        """Queue a JSON message from the client to the app."""
-        self.protocol.client_send(data)
+        """Send a JSON message from the client to the app."""
+        self.client_send_text(jsonplus.dumps(data))
 
     def client_send_text(self, text: str) -> None:
-        """Queue a raw text frame from the client to the app."""
-        self.protocol.client_send_text(text)
+        """Send a raw text frame from the client to the app."""
+        if self._memory is None:
+            self.protocol.client_send_text(text)
+        else:
+            self._memory.client_send(self._conn_id, text)
 
     async def close(self) -> None:
         """Disconnect the client."""
-        self.protocol.client_disconnect()
+        if self._memory is None:
+            self.protocol.client_disconnect()
+        else:
+            self._memory.client_close(self._conn_id)
 
 
 # --- encoding helpers ---

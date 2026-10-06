@@ -1,7 +1,7 @@
 import typing as t
 
 from ..helpers import BLUEPRINTS
-from ..helpers.render import echo, render_blueprint, sort_imports_in
+from ..helpers.render import add_dependencies, echo, render_blueprint, sort_imports_in
 from ..metadata import record_install
 
 
@@ -13,6 +13,11 @@ CHANNELS_BLUEPRINT = BLUEPRINTS / "addon_channels"
 
 SORT_IMPORTS_IN = [
     "config/__init__.py",
+]
+
+# The WebSocket server of `WseCable`, the cable the blueprint configures.
+DEPENDENCIES = [
+    "proper-wse >= 2.6.0",
 ]
 
 
@@ -29,4 +34,5 @@ def install(app: "App") -> None:
     for filename in SORT_IMPORTS_IN:
         sort_imports_in(app.root_path / filename)
 
+    add_dependencies(app.root_path, DEPENDENCIES)
     record_install(app, "channels")

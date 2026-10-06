@@ -13,7 +13,7 @@ from proper.storage import imageops
 def _import_and_report():
     code = (
         "import sys\n"
-        "import proper.app, proper.storage.attachment, proper.channels.cable, "
+        "import proper.app, proper.storage.attachment, proper.channels, "
         "proper.cache.redis_cache, proper.storage.services.s3\n"
         "print(sorted(m for m in ('boto3', 'botocore', 'redis', 'pyvips') "
         "if m in sys.modules))\n"
@@ -30,22 +30,19 @@ def test_nothing_heavy_is_imported_with_the_framework():
 
 class TestRedisCable:
     def test_missing_library_is_reported(self, monkeypatch):
-        import proper.channels.cable as mod
+        import proper.channels.redis_cable as mod
 
         monkeypatch.setattr(mod, "redis", None)
-        monkeypatch.setattr(mod, "aioredis", None)
         monkeypatch.setitem(sys.modules, "redis", None)
         with pytest.raises(ImportError, match="redis is required"):
             mod.RedisCable()
 
     def test_the_library_is_loaded_on_first_use(self, monkeypatch):
-        import proper.channels.cable as mod
+        import proper.channels.redis_cable as mod
 
         monkeypatch.setattr(mod, "redis", None)
-        monkeypatch.setattr(mod, "aioredis", None)
         mod.RedisCable()
         assert mod.redis is not None
-        assert mod.aioredis is not None
 
 
 class TestS3:
