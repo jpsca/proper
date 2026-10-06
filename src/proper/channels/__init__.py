@@ -1,14 +1,14 @@
-from .cable import CABLE_SALT, Cable, allowed_origins, origin_allowed
+from .base import CABLE_SALT, BaseCable, allowed_origins, origin_allowed
+from .cable import Cable
 from .channel import ActionError, Channel
 from .install import install
-from .redis_cable import RedisCable
 
 
 __all__ = (
     "CABLE_SALT",
-    "Cable",
-    "RedisCable",
     "ActionError",
+    "BaseCable",
+    "Cable",
     "Channel",
     "install",
     "allowed_origins",

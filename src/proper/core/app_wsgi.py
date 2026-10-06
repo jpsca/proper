@@ -2,7 +2,7 @@
 
 The server calls `app(environ, start_response)` on one of its own threads, so
 the pipeline runs right there: no event loop, no hand-off to a worker. The
-WebSockets are the cable's (`proper.channels.wse`).
+WebSockets are the cable's (`proper.channels.cable`).
 """
 import contextvars
 import typing as t

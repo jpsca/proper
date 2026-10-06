@@ -26,7 +26,7 @@ from .helpers import CIMultiDict, DotDict, jsonplus
 
 if t.TYPE_CHECKING:
     from .app import App
-    from .channels.wse import WseCable
+    from .channels.cable import Cable
 
 
 __all__ = (
@@ -337,7 +337,7 @@ class TestClient:
 
 class WebSocketTestSession:
     """Async helper for testing WebSocket channels. The app's cable
-    (`WseCable`) serves the connection from memory, with no port.
+    (`Cable`) serves the connection from memory, with no port.
 
     Arguments:
         app: The Proper `App` instance.
@@ -360,9 +360,9 @@ class WebSocketTestSession:
         if not getattr(self.app.cable, "serves_websockets", False):
             raise RuntimeError(
                 "The app's cable serves no WebSockets: set "
-                'CABLE = {"type": "proper.channels.wse.WseCable"}'
+                'CABLE = {"type": "proper.channels.Cable"}'
             )
-        self._memory = t.cast("WseCable", self.app.cable).serve_in_memory()
+        self._memory = t.cast("Cable", self.app.cable).serve_in_memory()
         self._conn_id = self._memory.connect(self._headers.get("cookie", ""))
         self._accepted = True
         return asyncio.create_task(self._wait_closed())

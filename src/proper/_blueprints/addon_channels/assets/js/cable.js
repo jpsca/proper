@@ -280,7 +280,7 @@ export class Cable {
 
   _dispatch(msg) {
     // A broadcast that names its stream (a cable that writes one frame for
-    // every subscriber, like WseCable) goes to the subscriptions streaming
+    // every subscriber, like Cable) goes to the subscriptions streaming
     // from it, as listed in their confirmations.
     if (msg.type === "broadcast") {
       if (msg.e !== undefined) this._advance(msg)

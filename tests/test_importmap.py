@@ -96,7 +96,7 @@ def test_import_map_default_config():
     }
 
 
-WSE_CABLE = {"type": "proper.channels.wse.WseCable"}
+WSE_CABLE = {"type": "proper.channels.Cable"}
 
 
 def test_the_cable_port_is_announced_in_debug():

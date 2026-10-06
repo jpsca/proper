@@ -725,7 +725,7 @@ For the deeper testing patterns - asserting on the task's return value, exercisi
 
 ## Testing channels (WebSockets)
 
-Channels are tested through `client.websocket()`, which returns an async `WebSocketTestSession`. The app's cable (`WseCable`) serves the session from memory, with no port and no server. The session is an `async`-only API, so a channel test is a coroutine that you drive with `asyncio.run()`:
+Channels are tested through `client.websocket()`, which returns an async `WebSocketTestSession`. The app's cable (`Cable`) serves the session from memory, with no port and no server. The session is an `async`-only API, so a channel test is a coroutine that you drive with `asyncio.run()`:
 
 ```python
 import asyncio

@@ -1,7 +1,7 @@
 ---
 title: Real-Time Updates (Channels)
 description: |
-  How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, Turbo Streams over the cable, the WseCable server, several machines with Redis, and testing it all.
+  How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, Turbo Streams over the cable, the cable server, recovery of missed broadcasts, and testing it all.
 number_headers: true
 ---
 
@@ -19,7 +19,7 @@ After reading this guide, you will know:
 - How to define a channel, authenticate the connection, and authorize a subscription.
 - How to broadcast - from inside a channel, and from a controller or background task.
 - How to use the `cable.js` client, or skip JavaScript entirely with Turbo Streams.
-- How the WebSockets are served, how to run them on several machines with Redis, and how to test channels without a server.
+- How the WebSockets are served, and how to test channels without a server.
 
 ---
 
@@ -438,9 +438,8 @@ That is enough for join and leave notices and "X is typing". Know its limits, th
 - It tells you about *events* (someone joined, someone left), not *state* (who is here right now). A page that opens later doesn't learn who was already there. For a live list of members, keep it yourself in a shared store.
 - A user with three tabs joins three times. Counting each user once is up to you.
 - `unsubscribed()` doesn't run if the server process dies, so a crash can leave members that never leave.
-- With `RedisCable`, each machine runs the channels of its own connections. A list kept in the memory of one doesn't see the users of the others; keep it in Redis instead (a set per room, with an expiry to clean up after a crash).
 
-A built-in presence API that handles several tabs and several machines is one of the things Channels doesn't have yet - see [Where this could grow](#where-this-could-grow).
+A built-in presence API that handles several tabs is one of the things Channels doesn't have yet - see [Where this could grow](#where-this-could-grow).
 
 ---
 
@@ -510,7 +509,7 @@ cable.subscribe("ChatChannel", { room: "general" }, {
 Field         | Value
 ------------- | -----------------------------------------------
 `reconnected` | `false` the first time, `true` after each reconnection
-`recovered`   | `true` when every missed broadcast was sent; `false` when some couldn't be: the server restarted (or it is another machine, with `RedisCable`), more than the buffer holds were missed, or the stream had no history; `null` when there was nothing to ask for (the first subscription, or a stream without broadcasts before the connection dropped)
+`recovered`   | `true` when every missed broadcast was sent; `false` when some couldn't be: the server restarted, more than the buffer holds were missed, or the stream had no history; `null` when there was nothing to ask for (the first subscription, or a stream without broadcasts before the connection dropped)
 
 With `recovered === false`, load the state again from the server, as the page did when it first rendered. The `<turbo-stream-channel>` element does this by dispatching an event (see [Broadcasting HTML](#broadcasting-html-turbo-streams)).
 
@@ -630,19 +629,19 @@ The same fragment can also be the response of a controller, to a form submitted 
 
 ---
 
-## The cable server: WseCable
+## The cable server: Cable
 
 The channels addon configures this cable:
 
 ```python {title="config/channels.py"}
 CABLE_PATH = "/cable"
 CABLE_PORT = int(os.getenv("CABLE_PORT", int(os.getenv("PORT", 2300)) + 1))
-CABLE: dict = {"type": "proper.channels.wse.WseCable"}
+CABLE: dict = {"type": "proper.channels.Cable"}
 ```
 
-`WseCable` serves the WebSockets with [proper-wse](https://github.com/jpsca/proper-wse), our fork of [wse-server](https://github.com/silvermpx/wse): a WebSocket server written in Rust, with wheels for free-threaded Python, that runs inside the web process. Your channels run in Python, in its worker threads. Underneath, a stream is a wse topic, and a `broadcast()` gives wse one encoded frame, which it writes to every subscriber without going back to Python. With thousands of clients on one stream, this is what keeps up.
+`Cable` serves the WebSockets with [proper-wse](https://github.com/jpsca/proper-wse), our fork of [wse-server](https://github.com/silvermpx/wse): a WebSocket server written in Rust, with wheels for free-threaded Python, that runs inside the web process. Your channels run in Python, in its worker threads. Underneath, a stream is a wse topic, and a `broadcast()` gives wse one encoded frame, which it writes to every subscriber without going back to Python. With thousands of clients on one stream, this is what keeps up.
 
-`proper-wse` imports as `wse_server`, so don't install the original `wse-server` next to it; `WseCable` refuses to start with it.
+`proper-wse` imports as `wse_server`, so don't install the original `wse-server` next to it; `Cable` refuses to start with it.
 
 How it runs:
 
@@ -663,7 +662,7 @@ Setting                   | Default   | What it is
 `CABLE_MAX_PENDING_BYTES` | 4 MB      | See "Slow clients" below. `0` is no limit
 `CABLE_STALL_TIMEOUT`     | `10`      | See "Slow clients" below
 
-And the options of `WseCable`, in `CABLE`:
+And the options of `Cable`, in `CABLE`:
 
 Option                     | Default      | What it is
 -------------------------- | ------------ | -----------------------------
@@ -681,7 +680,7 @@ Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_h
 
 ```python {title="config/channels.py"}
 CABLE = {
-    "type": "proper.channels.wse.WseCable",
+    "type": "proper.channels.Cable",
     "workers": 8,
     "max_pending_handshakes": 2000,
 }
@@ -693,37 +692,6 @@ A client that stops reading - a frozen tab, a very bad network - would make mess
 
 - **Backpressure.** A `broadcast()` waits, up to `backpressure_timeout`, while the subscribers of its stream are behind. Whoever broadcasts slows down to the pace of delivery, instead of every message arriving later and later. It looks at the average, so one stuck client doesn't slow everyone down.
 - **Closing stuck clients.** A connection with more than `CABLE_MAX_PENDING_BYTES` waiting, that got nothing through in `CABLE_STALL_TIMEOUT` seconds, is closed; so is one with ten times that much waiting, at any speed. `cable.js` reconnects and subscribes again, and gets what it missed. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse starts dropping broadcasts instead; `cable.js` notices the hole and asks for them too.
-
----
-
-## Several machines: RedisCable
-
-`WseCable` serves the WebSockets of one machine. To run the app on several, behind a load balancer, use `RedisCable`: the same cable, with Redis carrying the broadcasts between machines. Your channels and your code don't change, only the config:
-
-```python {title="config/channels.py"}
-CABLE = {
-    "type": "proper.channels.RedisCable",
-    "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    "prefix": "myapp:cable:",
-}
-```
-
-It needs the `redis` package (`uv add redis`).
-
-Each machine's web process serves its own WebSockets, as with `WseCable`. A `broadcast()` goes to the subscribers of the process that makes it, if it serves any, and to Redis, from where the web processes of the other machines deliver it to theirs. A process without WebSockets - a task worker, a shell - only publishes to Redis, so nothing is sent over `CABLE_PORT + 1`. `disconnect()` reaches every machine the same way.
-
-Option   | Default                      | What it is
--------- | ---------------------------- | -----------------------------
-`url`    | `"redis://localhost:6379/0"` | Redis connection URL
-`prefix` | `"proper:cable:"`            | Prefix of its Redis channel; give each app its own if several share one Redis
-
-It takes every option of `WseCable` as well.
-
-If the connection to Redis drops, the cable reconnects on its own, waiting longer each time, up to 30 seconds. Meanwhile, each machine's clients still get the broadcasts made on that machine; what other machines publish in that time is lost, and a broadcast that can't reach Redis is lost with a warning. Backpressure only sees the subscribers of the machine that broadcasts.
-
-Each machine keeps its own recovery buffers, with their own positions. A client that reconnects to the same machine gets what it missed; one the load balancer sends to another machine gets `recovered: false`, and should load the state again. Pin a client to a machine (sticky sessions on `CABLE_PATH`) if that matters.
-
-Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. A list of who is online, or the last value for a client that subscribes late, is something you keep yourself. [Deployment](/docs/deployment) covers running the server and choosing the number of processes.
 
 ---
 
@@ -827,7 +795,7 @@ async def test_users_get_their_inbox(client, session):
     await task
 ```
 
-The session runs the app's cable from memory (`app.cable.serve_in_memory()`): no port, no threads, and each message is handled right away. The same test works with `WseCable` and with `RedisCable`, which doesn't use Redis in this mode. With an app whose cable serves no WebSockets (`CABLE = {}`), `connect()` raises a `RuntimeError`. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()`.
+The session runs the app's cable from memory (`app.cable.serve_in_memory()`): no port, no threads, and each message is handled right away. With an app whose cable serves no WebSockets (`CABLE = {}`), `connect()` raises a `RuntimeError`. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()`.
 
 :::note
 As you can see, testing channels is one of the few places where the well-hidden `async` nature of Proper leaks into __your__ code. Sorry about that.
@@ -975,7 +943,7 @@ The channel guards the room with the server-verified user. The controller saves 
 
 ## Where this could grow
 
-Channels covers the core - one shared connection, authenticated subscriptions, streams, broadcasting, a reconnecting client, Turbo Streams, and Redis for several machines. Some things that other real-time stacks offer are not here yet. None of them block you - there are workarounds - but they are where the framework will likely grow.
+Channels covers the core - one shared connection, authenticated subscriptions, streams, broadcasting, a reconnecting client, recovery of missed broadcasts, replies to actions, and Turbo Streams. Some things that other real-time stacks offer are not here yet. None of them block you - there are workarounds - but they are where the framework will likely grow.
 
 - **A presence API.** A real who-is-online list that handles several tabs and several machines, instead of the manual pattern shown above. The WebSocket server, wse, already keeps one: per user, across tabs, and synced between its own cluster nodes. What is missing is connecting it to Proper: wse only knows who a connection belongs to when it authenticates with a JWT, not with the session cookie, and `cable.js` doesn't understand its join and leave messages.
 - **Stream names from models.** `broadcast_to(record, data)` and `stream_for(record)`, which would build the stream name from a model, so a typo can't break it silently.
@@ -993,4 +961,4 @@ Channels touches several other parts of Proper:
 - [Turbo](/docs/turbo) - Turbo Frames and Streams, also as responses to forms.
 - [Background Tasks](/docs/tasks) - the worker behind broadcasting from a task, plus scheduling and retries.
 - [Jx Components](/docs/jx_components) - the components you render into a `<turbo-stream>` to broadcast.
-- [Deployment](/docs/deployment) - processes, the cable port behind nginx, and running Redis for `RedisCable`.
+- [Deployment](/docs/deployment) - processes, and the cable port behind nginx.

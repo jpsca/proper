@@ -82,7 +82,7 @@ Read the documentation of these libraries to understand how to work with them in
 
 Proper serves on free-threaded Python (a `3.14t` build) with Granian, and the code of the web applications that use Proper (meaning, the code that you write) is regular sync Python: controllers, models, channels, tasks.
 
-The server talks to the app over WSGI: Granian runs each request on one of its own threads, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. The WebSockets of an app with channels are served by its cable (`WseCable`), from the web process, on `CABLE_PORT` (see the channels doc).
+The server talks to the app over WSGI: Granian runs each request on one of its own threads, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. The WebSockets of an app with channels are served by its cable (`Cable`), from the web process, on `CABLE_PORT` (see the channels doc).
 
 `MAX_THREADS` is per process, split between the `WORKERS` of the process as Granian's threads. It is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue.
 
@@ -157,7 +157,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
 | `WORKERS`                  | `1`               | Server workers per process; `MAX_THREADS` is split between them |
 | `PROCESSES`                | `1`               | Copies of the web server on the same port; try `2` with four or more cores |
-| `CABLE_PORT`               | `0`               | Port where the cable (`WseCable`) serves the WebSockets (`0` = none) |
+| `CABLE_PORT`               | `0`               | Port where the cable (`Cable`) serves the WebSockets (`0` = none) |
 | `ALLOW_GIL`                | `False`           | Let `proper run` serve on a Python with the GIL; it refuses otherwise |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |
@@ -530,7 +530,7 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 What it starts, from the config:
 
 - `WORKERS` Granian workers, threads of one process, each with `MAX_THREADS / WORKERS` request threads, over WSGI.
-- With a cable that serves WebSockets (`WseCable`), that server, in the first web process, on `CABLE_PORT`.
+- With a cable that serves WebSockets (`Cable`), that server, in the first web process, on `CABLE_PORT`.
 - `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
 - With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes.
 

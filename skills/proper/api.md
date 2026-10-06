@@ -88,7 +88,7 @@ Accessed via `current.app` or directly from the app instance.
 | `mailers`        | `Mailers`                     | Mailer registry — `app.mailers[name]` selects a backend by config name |
 | `auth`           | `Auth`                        | Auth instance (password hashing, token helpers)      |
 | `i18n`           | `I18n \| None`                | Internationalization instance (`None` if not installed) |
-| `cable`          | `Cable`                       | The cable of the channels: `WseCable` with the channels addon; without it, a `Cable` that serves no WebSockets |
+| `cable`          | `Cable`                       | The cable of the channels: `Cable` with the channels addon; without it, a `Cable` that serves no WebSockets |
 | `request_cls`    | `type[Request]`               | Request class used for creating request objects      |
 | `response_cls`   | `type[Response]`              | Response class used for creating response objects    |
 

@@ -1,4 +1,4 @@
-"""The WebSocket protocol of the channels, as the cable (`WseCable`) serves
+"""The WebSocket protocol of the channels, as the cable (`Cable`) serves
 it, driven from memory through `TestClient.websocket()`."""
 import logging
 
@@ -13,11 +13,11 @@ SECRET = "*" * 50
 
 
 def make_wse_app() -> App:
-    """An app whose cable is `WseCable`."""
+    """An app whose cable is `Cable`."""
     app = App("proper", {
         "SECRET_KEYS": [SECRET],
         "DEBUG": False,
-        "CABLE": {"type": "proper.channels.wse.WseCable"},
+        "CABLE": {"type": "proper.channels.Cable"},
     })
     current.app = app
     return app
@@ -733,7 +733,7 @@ class RoomChannel(Channel):
 
 class TestRecovery:
     """The broadcasts a connection missed are sent again when it subscribes
-    with where it was in the streams (see `WseCable._confirm`)."""
+    with where it was in the streams (see `Cable._confirm`)."""
 
     def position(self, frame: dict) -> dict:
         return {"e": frame["e"], "o": frame["o"]}

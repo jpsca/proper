@@ -89,16 +89,13 @@ Why more than one process, if threads already run in parallel? Threads of one in
 
 ### The cable
 
-WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. Who serves them depends on the `CABLE` backend:
-
-- `WseCable`, the one the channels addon configures: the web process itself, with proper-wse (Rust), started by `proper run` before the first request. No second process, and no Redis. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
-- `RedisCable`, for several machines: the same as `WseCable` on each machine, with Redis carrying the broadcasts between them. The other processes publish to Redis instead of forwarding.
+WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. The channels addon configures `Cable`: the web process itself serves them, with proper-wse (Rust), started by `proper run` before the first request. No second process. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
 
 An app without channels has `CABLE = {}` and `CABLE_PORT = 0`, the defaults: no WebSockets. Setting `CABLE_PORT` without a `CABLE` that serves them is a configuration error.
 
 In production, the reverse proxy routes `CABLE_PATH` (default `/cable`) to that port, with the WebSocket upgrade headers; the [nginx config](#the-reverse-proxy) below has that block. In development there is no proxy: when `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same hostname.
 
-With `WseCable`, broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. For more than one machine, use `RedisCable`. The [Channels guide](/docs/channels) covers the backends.
+Broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. The cable serves one machine; running the WebSockets on several is not supported yet. The [Channels guide](/docs/channels) covers the cable.
 
 ### Reloading and stopping
 
@@ -138,7 +135,7 @@ Setting | Default | Blueprint reads it from | What it controls
 `WORKERS` | `1` | `WORKERS` | Granian workers (threads) per process
 `MAX_THREADS` | `0` (`min(32, cpus + 4)`) | - | Threads running your code per process; also database connections
 `PROCESSES` | `1` | `PROCESSES` | Copies of the web server on the same port
-`CABLE_PORT` | `0` (none) | `CABLE_PORT` (channels addon) | Port of the WebSockets (`WseCable`)
+`CABLE_PORT` | `0` (none) | `CABLE_PORT` (channels addon) | Port of the WebSockets (`Cable`)
 `CABLE_PATH` | `"/cable"` | - | URL path the proxy routes to `CABLE_PORT`
 `RELOAD` | `None` (follows `DEBUG`) | - | Restart on code changes
 `ALLOW_GIL` | `False` | - | Serve on a Python with the GIL

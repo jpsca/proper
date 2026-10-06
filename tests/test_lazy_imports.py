@@ -28,23 +28,6 @@ def test_nothing_heavy_is_imported_with_the_framework():
     assert _import_and_report() == "[]"
 
 
-class TestRedisCable:
-    def test_missing_library_is_reported(self, monkeypatch):
-        import proper.channels.redis_cable as mod
-
-        monkeypatch.setattr(mod, "redis", None)
-        monkeypatch.setitem(sys.modules, "redis", None)
-        with pytest.raises(ImportError, match="redis is required"):
-            mod.RedisCable()
-
-    def test_the_library_is_loaded_on_first_use(self, monkeypatch):
-        import proper.channels.redis_cable as mod
-
-        monkeypatch.setattr(mod, "redis", None)
-        mod.RedisCable()
-        assert mod.redis is not None
-
-
 class TestS3:
     def test_missing_library_is_reported(self, monkeypatch):
         import proper.storage.services.s3 as mod

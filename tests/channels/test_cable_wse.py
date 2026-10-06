@@ -1,4 +1,4 @@
-"""WseCable against a real proper-wse server. Skipped without `wse_server`."""
+"""Cable against a real proper-wse server. Skipped without `wse_server`."""
 import base64
 import http.client
 import json
@@ -185,7 +185,7 @@ def _config(port, **extra):
     return {
         "SECRET_KEYS": [SECRET],
         "CABLE_PORT": port,
-        "CABLE": {"type": "proper.channels.wse.WseCable", "host": "127.0.0.1"},
+        "CABLE": {"type": "proper.channels.Cable", "host": "127.0.0.1"},
         "CABLE_PING_INTERVAL": 0,
         **extra,
     }
@@ -474,7 +474,7 @@ class TestLifecycle:
     def test_a_server_that_fails_to_build_leaves_the_forwarding_port_free(self):
         port = _free_ports()
         app = App("proper", {**_config(port), "CABLE": {
-            "type": "proper.channels.wse.WseCable", "host": "127.0.0.1", "bogus": 1,
+            "type": "proper.channels.Cable", "host": "127.0.0.1", "bogus": 1,
         }})
         with pytest.raises(TypeError):
             app.cable.start_server()
@@ -491,7 +491,7 @@ class TestLifecycle:
         assert not app.cable.serving
 
     def test_a_port_is_required(self):
-        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.wse.WseCable"}})
+        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.Cable"}})
         with pytest.raises(RuntimeError, match="CABLE_PORT"):
             app.cable.start_server()
 
@@ -508,13 +508,13 @@ class TestLifecycle:
 
     def test_unknown_server_options_are_not_swallowed(self):
         app = App("proper", {**_config(_free_ports()), "CABLE": {
-            "type": "proper.channels.wse.WseCable", "host": "127.0.0.1", "bogus": 1,
+            "type": "proper.channels.Cable", "host": "127.0.0.1", "bogus": 1,
         }})
         with pytest.raises(TypeError, match="bogus"):
             app.cable.start_server()
 
     def test_a_broadcast_with_nowhere_to_go_is_logged(self, caplog):
-        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.wse.WseCable"}})
+        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.Cable"}})
         with caplog.at_level(logging.WARNING, logger="proper"):
             app.cable.broadcast("room:1", "lost")
         assert "is lost" in caplog.text
