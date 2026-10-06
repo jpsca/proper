@@ -1,8 +1,8 @@
 """WSGI: the sync face of the app.
 
 The server calls `app(environ, start_response)` on one of its own threads, so
-the pipeline runs right there: no event loop, no hand-off to a worker. This is
-the fast path for HTTP; WebSockets need RSGI (see `app_ws.py`).
+the pipeline runs right there: no event loop, no hand-off to a worker. The
+WebSockets are the cable's (`proper.channels.wse`).
 """
 import contextvars
 import typing as t

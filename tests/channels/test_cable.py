@@ -1,241 +1,61 @@
+"""Streams on the cable: `send()` and broadcasts, and subscriptions changing
+from many threads at once."""
+import json
 import threading
 import time
 import typing as t
 
-from proper.app import App
-from proper.channels import Cable, Channel
+from proper import App, Channel, current
 from proper.helpers import DotDict
+
+
+SECRET = "*" * 50
 
 
 class FakeApp:
     def __init__(self):
-        self.config = DotDict({"SECRET_KEYS": ["*" * 50], "DEBUG": False})
-        self.cable = Cable()
+        self.config = DotDict({"SECRET_KEYS": [SECRET], "DEBUG": False})
 
 
-def _make_channel(app=None, params=None):
-    app = t.cast(App, app or FakeApp())
-    params = params or {}
-    sent = []
-
-    def send(msg):
-        sent.append(msg)
-
-    ch = Channel(app, params, _send=send)
-    return ch, sent
+def _wse_app():
+    app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.wse.WseCable"}})
+    current.app = app
+    return app
 
 
-
-class TestCableInit:
-    def test_starts_empty(self):
-        cable = Cable()
-        assert cable.streams == {}
-
-
-class TestSubscribe:
-    def test_adds_channel_to_stream(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.subscribe("chat", ch)
-        assert cable.streams == {"chat": 1}
-
-    def test_multiple_channels_same_stream(self):
-        cable = Cable()
-        ch1, _ = _make_channel()
-        ch2, _ = _make_channel()
-        cable.subscribe("chat", ch1)
-        cable.subscribe("chat", ch2)
-        assert cable.streams == {"chat": 2}
-
-    def test_same_channel_multiple_streams(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.subscribe("chat", ch)
-        cable.subscribe("notifications", ch)
-        assert cable.streams == {"chat": 1, "notifications": 1}
-
-    def test_idempotent(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.subscribe("chat", ch)
-        cable.subscribe("chat", ch)
-        assert cable.streams == {"chat": 1}
-
-
-class TestUnsubscribe:
-    def test_removes_channel_from_stream(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.subscribe("chat", ch)
-        cable.unsubscribe("chat", ch)
-        assert cable.streams == {}
-
-    def test_noop_if_stream_does_not_exist(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.unsubscribe("nonexistent", ch)
-        assert cable.streams == {}
-
-    def test_noop_if_channel_not_in_stream(self):
-        cable = Cable()
-        ch1, _ = _make_channel()
-        ch2, _ = _make_channel()
-        cable.subscribe("chat", ch1)
-        cable.unsubscribe("chat", ch2)
-        assert cable.streams == {"chat": 1}
-
-    def test_cleans_up_empty_streams(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.subscribe("chat", ch)
-        cable.unsubscribe("chat", ch)
-        assert "chat" not in cable._streams
-
-
-class TestUnsubscribeAll:
-    def test_removes_from_all_streams(self):
-        cable = Cable()
-        ch, _ = _make_channel()
-        cable.subscribe("chat", ch)
-        cable.subscribe("notifications", ch)
-        cable.unsubscribe_all(ch)
-        assert cable.streams == {}
-
-    def test_does_not_affect_other_channels(self):
-        cable = Cable()
-        ch1, _ = _make_channel()
-        ch2, _ = _make_channel()
-        cable.subscribe("chat", ch1)
-        cable.subscribe("chat", ch2)
-        cable.unsubscribe_all(ch1)
-        assert cable.streams == {"chat": 1}
-
-
-class TestBroadcast:
-    def test_sends_to_all_subscribers(self):
-        app = FakeApp()
-        ch1, sent1 = _make_channel(app=app)
-        ch2, sent2 = _make_channel(app=app)
-        app.cable.subscribe("chat", ch1)
-        app.cable.subscribe("chat", ch2)
-
-        app.cable.broadcast("chat", {"text": "hello"})
-
-        assert len(sent1) == 1
-        assert sent1[0]["data"] == {"text": "hello"}
-        assert len(sent2) == 1
-        assert sent2[0]["data"] == {"text": "hello"}
-
-    def test_does_not_send_to_other_streams(self):
-        app = FakeApp()
-        ch1, sent1 = _make_channel(app=app)
-        ch2, sent2 = _make_channel(app=app)
-        app.cable.subscribe("chat", ch1)
-        app.cable.subscribe("notifications", ch2)
-
-        app.cable.broadcast("chat", {"text": "hello"})
-
-        assert len(sent1) == 1
-        assert len(sent2) == 0
-
-    def test_noop_if_no_subscribers(self):
-        cable = Cable()
-        cable.broadcast("empty_stream", {"text": "hello"})
-
-    def test_error_in_one_send_does_not_break_others(self):
-        app = FakeApp()
-
-        def bad_send(msg):
-            raise RuntimeError("broken")
-
-        ch_bad = Channel(app, {}, _send=bad_send)
-        ch_good, sent_good = _make_channel(app=app)
-
-        app.cable.subscribe("chat", ch_bad)
-        app.cable.subscribe("chat", ch_good)
-
-        app.cable.broadcast("chat", {"text": "hello"})
-
-        # ch_good still received the message
-        assert len(sent_good) == 1
-        assert sent_good[0]["data"] == {"text": "hello"}
-
-
-class TestChannelIntegration:
-    def test_stream_from_registers_with_cable(self):
-        app = FakeApp()
-        ch, _ = _make_channel(app=app)
-        ch.stream_from("chat")
-        assert app.cable.streams == {"chat": 1}
-
-    def test_stop_stream_from_unregisters(self):
-        app = FakeApp()
-        ch, _ = _make_channel(app=app)
-        ch.stream_from("chat")
-        ch.stop_stream_from("chat")
-        assert app.cable.streams == {}
-
-    def test_stop_all_streams(self):
-        app = FakeApp()
-        ch, _ = _make_channel(app=app)
-        ch.stream_from("chat")
-        ch.stream_from("notifications")
-        ch.stop_all_streams()
-        assert app.cable.streams == {}
-        assert ch._streams == set()
-
-    def test_broadcast_from_channel(self):
-        app = FakeApp()
-        ch1, sent1 = _make_channel(app=app)
-        ch2, sent2 = _make_channel(app=app)
-        ch1.stream_from("chat")
-        ch2.stream_from("chat")
-
-        ch1.broadcast("chat", {"text": "hello from ch1"})
-
-        assert len(sent1) == 1
-        assert len(sent2) == 1
-        assert sent1[0]["data"] == {"text": "hello from ch1"}
-        assert sent2[0]["data"] == {"text": "hello from ch1"}
-
-    def test_full_lifecycle(self):
-        """stream_from -> broadcast -> stop_stream_from -> broadcast again"""
-        app = FakeApp()
-        ch1, sent1 = _make_channel(app=app)
-        ch2, sent2 = _make_channel(app=app)
-
-        ch1.stream_from("chat")
-        ch2.stream_from("chat")
-
-        app.cable.broadcast("chat", {"msg": "first"})
-        assert len(sent1) == 1
-        assert len(sent2) == 1
-
-        ch1.stop_stream_from("chat")
-
-        app.cable.broadcast("chat", {"msg": "second"})
-        assert len(sent1) == 1  # ch1 didn't get it
-        assert len(sent2) == 2  # ch2 did
+def _frames(server, conn_id):
+    frames = server.frames(conn_id)
+    out = []
+    while not frames.empty():
+        out.append(json.loads(frames.get_nowait()))
+    return out
 
 
 class TestSendIsForThisConnectionOnly:
     """`send()` is how a channel messages its own connection. A broadcast
-    doesn't go through it: every subscriber gets the same frame, as with any
-    cable (WseCable can't call Python per subscriber)."""
+    doesn't go through it: every subscriber gets the same frame (WseCable
+    can't call Python per subscriber)."""
 
     def test_a_broadcast_skips_an_overridden_send(self):
-        app = FakeApp()
-        sent = []
-
         class Filtering(Channel):
+            def subscribed(self):
+                self.stream_from("chat")
+
             def send(self, data):
                 raise AssertionError("a broadcast must not call send()")
 
-        channel = Filtering(t.cast(App, app), {}, _send=sent.append)
-        channel.stream_from("chat")
+        app = _wse_app()
+        app.router.channels["Filtering"] = Filtering
+        server = app.cable.serve_in_memory()
+        conn_id = server.connect()
+        server.client_send(conn_id, '{"command": "subscribe", "channel": "Filtering"}')
+        _frames(server, conn_id)  # the confirmation
+
         app.cable.broadcast("chat", {"msg": "hi"})
-        assert len(sent) == 1
-        assert sent[0]["data"] == {"msg": "hi"}
+
+        [frame] = _frames(server, conn_id)
+        assert (frame["type"], frame["stream"], frame["data"]) == ("broadcast", "chat", {"msg": "hi"})
+        app.cable.stop_server()
 
     def test_a_direct_send_uses_the_override(self):
         sent = []
@@ -248,46 +68,57 @@ class TestSendIsForThisConnectionOnly:
         assert sent[0]["data"] == "HI"
 
 
-class StubChannel:
-    """The cable only needs a name and a `send`, not a whole Channel."""
-
-    channel_name = "StubChannel"
-
-    def send(self, data):
-        pass
+class TestWithoutWebSockets:
+    def test_a_channel_on_a_cable_without_websockets_streams_nothing(self):
+        app = App("proper", {"SECRET_KEYS": [SECRET]})
+        channel = Channel(app, {}, _send=[].append)
+        channel.stream_from("chat")
+        channel.stream_from("room")
+        assert app.cable.streams == {}
+        channel.stop_all_streams()
+        assert channel._streams == set()
 
 
 class TestConcurrency:
-    """Channels subscribe from worker threads while broadcasts are delivered
-    from others. Without a lock, `_streams` loses subscriptions and raises."""
+    """Channels subscribe and unsubscribe from worker threads while
+    broadcasts are made from others. The count of channels of each connection
+    streaming each stream has to stay right."""
+
+    def _connections(self, app, count):
+        server = app.cable.serve_in_memory()
+        conns = []
+        for _ in range(count):
+            conn = app.cable._connections[server.connect()]
+            conns.append((conn, Channel(app, {}, _send=conn.put, _connection=conn)))
+        return server, conns
 
     def test_subscribing_and_unsubscribing_from_many_threads(self, fast_switching):
-        cable = Cable()
+        app = _wse_app()
+        workers = 6
+        server, conns = self._connections(app, workers)
+        cable = app.cable
         errors: list[str] = []
         lost: list[int] = []
         streams = [f"room:{n}" for n in range(3)]
-        workers = 6
-        rounds = 20000
+        rounds = 5000
         ready = threading.Barrier(workers)
 
         def churn(i):
-            channel = StubChannel()
+            conn, channel = conns[i]
             ready.wait()
             for r in range(rounds):
                 name = streams[r % len(streams)]
                 try:
-                    cable.subscribe(name, channel)
+                    channel.stream_from(name)
                     # A subscription must be visible the moment it is made.
-                    if channel not in cable._streams.get(name, ()):
+                    if conn.conn_id not in server._topics.get(name, ()):
                         lost.append(i)
-                    cable.unsubscribe(name, channel)
+                    channel.stop_stream_from(name)
                 except Exception as error:  # noqa: BLE001
                     errors.append(repr(error))
                     return
 
-        threads = [
-            threading.Thread(target=churn, args=(i,)) for i in range(workers)
-        ]
+        threads = [threading.Thread(target=churn, args=(i,)) for i in range(workers)]
         for thread in threads:
             thread.start()
         for thread in threads:
@@ -296,18 +127,21 @@ class TestConcurrency:
         assert errors == []
         assert lost == []
         assert cable.streams == {}
+        assert all(not conn_ids for conn_ids in server._topics.values())
+        cable.stop_server()
 
     def test_broadcasting_while_subscriptions_change(self, fast_switching):
-        cable = Cable()
+        app = _wse_app()
+        server, conns = self._connections(app, 3)
+        cable = app.cable
         errors: list[str] = []
         stop = threading.Event()
 
-        def churn():
-            channel, _ = _make_channel()
+        def churn(channel):
             while not stop.is_set():
                 try:
-                    cable.subscribe("room", channel)
-                    cable.unsubscribe("room", channel)
+                    channel.stream_from("room")
+                    channel.stop_stream_from("room")
                 except Exception as error:  # noqa: BLE001
                     errors.append(repr(error))
                     return
@@ -320,7 +154,7 @@ class TestConcurrency:
                     errors.append(repr(error))
                     return
 
-        threads = [threading.Thread(target=churn) for _ in range(3)]
+        threads = [threading.Thread(target=churn, args=(channel,)) for _, channel in conns]
         threads += [threading.Thread(target=broadcast) for _ in range(3)]
         for thread in threads:
             thread.start()
@@ -330,30 +164,5 @@ class TestConcurrency:
             thread.join()
 
         assert errors == []
-
-    def test_a_broadcast_does_not_hold_the_lock_while_sending(self):
-        """Channel code runs outside the lock, so it can touch the cable."""
-        cable = Cable()
-        channel, _ = _make_channel()
-        reached = []
-
-        def send(message):
-            # Re-entering the cable from a send would deadlock if the
-            # broadcast still held the lock.
-            cable.unsubscribe("room", channel)
-            reached.append(message["data"])
-
-        channel._send = send
-        cable.subscribe("room", channel)
-
-        finished = threading.Event()
-
-        def run():
-            cable.broadcast("room", {"msg": "hi"})
-            finished.set()
-
-        thread = threading.Thread(target=run, daemon=True)
-        thread.start()
-        assert finished.wait(timeout=2), "broadcast deadlocked while sending"
-        assert reached == [{"msg": "hi"}]
         assert cable.streams == {}
+        cable.stop_server()

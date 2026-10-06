@@ -6,7 +6,6 @@ import secrets
 import typing as t
 from io import BytesIO
 from pathlib import Path
-from types import SimpleNamespace
 from urllib.parse import urlencode, urlparse
 
 from .constants import (
@@ -32,10 +31,6 @@ if t.TYPE_CHECKING:
 __all__ = (
     "TestClient",
     "make_test_request",
-    "make_test_scope",
-    "make_test_ws_scope",
-    "HttpProtocolStub",
-    "WsProtocolStub",
 )
 
 
@@ -108,83 +103,6 @@ def make_test_request(
         http_version=http_version,
         app=app,
     )
-
-
-def make_test_scope(
-    url: str = "/",
-    *,
-    method: str = GET,
-    headers: "dict[str, str] | t.Iterable[tuple[str, str]] | None" = None,
-    client: str = "127.0.0.1:1234",
-) -> SimpleNamespace:
-    """A stand-in for the server's HTTP scope, for driving `app.__rsgi__`
-    directly."""
-    upa = urlparse(url)
-    scheme = upa.scheme or "http"
-    netloc = upa.netloc or "example.com"
-    pairs = _header_pairs(headers)
-    if not any(name.lower() == "host" for name, _ in pairs):
-        pairs.insert(0, ("host", netloc))
-    if ":" not in netloc:
-        netloc = f"{netloc}:{SCHEME_DEFAULT_PORTS.get(scheme, 80)}"
-    return SimpleNamespace(
-        proto="http",
-        method=method.upper(),
-        path=upa.path or "/",
-        query_string=upa.query or "",
-        headers=_HeadersStub(pairs),
-        scheme=scheme,
-        server=netloc,
-        client=client,
-        http_version="1.1",
-    )
-
-
-class _HeadersStub:
-    def __init__(self, pairs):
-        self._pairs = pairs
-
-    def items(self):
-        return list(self._pairs)
-
-
-class HttpProtocolStub:
-    """Stands in for the server's HTTP protocol object: hands the app the
-    request body and records what it sends back in `status`, `headers`,
-    `body` and `file`."""
-
-    def __init__(self, body: bytes = b"") -> None:
-        self._body = body
-        self.status: int = 0
-        self.headers: list[tuple[str, str]] = []
-        self.body = b""
-        self.file: str | None = None
-        self.streamed = False
-
-    async def __call__(self) -> bytes:
-        return self._body
-
-    def response_empty(self, status, headers) -> None:
-        self.status, self.headers = status, list(headers)
-
-    def response_str(self, status, headers, body: str) -> None:
-        self.status, self.headers, self.body = status, list(headers), body.encode()
-
-    def response_bytes(self, status, headers, body: bytes) -> None:
-        self.status, self.headers, self.body = status, list(headers), body
-
-    def response_file(self, status, headers, path: str) -> None:
-        self.status, self.headers, self.file = status, list(headers), path
-
-    async def response_stream(self, status, headers) -> "HttpProtocolStub":
-        self.status, self.headers, self.streamed = status, list(headers), True
-        return self
-
-    async def send_bytes(self, data: bytes) -> None:
-        self.body += data
-
-    async def send_str(self, data: str) -> None:
-        self.body += data.encode()
 
 
 def _to_bytes(value, charset="latin1"):
@@ -314,7 +232,7 @@ class TestClient:
             url, method=DELETE, body=body, upload_files=upload_files, headers=headers
         )
 
-    def websocket(self, url: str = "") -> "WebSocketTestSession":
+    def websocket(self) -> "WebSocketTestSession":
         """Create a WebSocket test session.
 
         Usage:
@@ -328,8 +246,7 @@ class TestClient:
             await ws.close()
             await task
         """
-        path = url or self.app.config.get("CABLE_PATH", "/cable")
-        return WebSocketTestSession(self.app, path, headers=self.default_headers)
+        return WebSocketTestSession(self.app, headers=self.default_headers)
 
     def sign_in(self, session):
         """Adds an authenticated session cookie to the client, for testing authenticated endpoints."""
@@ -417,116 +334,36 @@ class TestClient:
         return result
 
 
-def make_test_ws_scope(path: str = "/cable", headers: dict | None = None) -> SimpleNamespace:
-    """A stand-in for the server's WebSocket scope; `headers` with
-    lowercase names."""
-    return SimpleNamespace(
-        proto="ws",
-        method="GET",
-        path=path,
-        query_string="",
-        headers=headers or {},
-        scheme="ws",
-        server="example.com:80",
-        client="127.0.0.1:1234",
-        http_version="1.1",
-    )
-
-
-class WsMessage:
-    """What the server hands over for each frame: a `kind` (0 close,
-    1 bytes, 2 text) and its `data`."""
-
-    def __init__(self, kind: int, data: "bytes | str | None" = None) -> None:
-        self.kind = kind
-        self.data = data
-
-
-class WsProtocolStub:
-    """Stands in for the server's WebSocket protocol object.
-
-    Frames from the client are queued with `client_send`; what the app
-    sends to the client, and whether it accepted or closed, come out of
-    `from_app` as dicts: `{"type": "accept"}`, `{"type": "text", "text": ...}`,
-    `{"type": "close", "code": ...}`.
-    """
-
-    def __init__(self) -> None:
-        self.to_app: asyncio.Queue = asyncio.Queue()
-        self.from_app: asyncio.Queue = asyncio.Queue()
-
-    # -- server side, called by the app --
-
-    async def accept(self) -> "WsProtocolStub":
-        await self.from_app.put({"type": "accept"})
-        return self
-
-    def close(self, code: int) -> None:
-        self.from_app.put_nowait({"type": "close", "code": code})
-
-    async def receive(self) -> WsMessage:
-        return await self.to_app.get()
-
-    async def send_str(self, text: str) -> None:
-        await self.from_app.put({"type": "text", "text": text})
-
-    async def send_bytes(self, data: bytes) -> None:
-        await self.from_app.put({"type": "bytes", "bytes": data})
-
-    # -- client side, called by the test --
-
-    def client_send(self, data: dict) -> None:
-        """Queue a JSON message from the client to the app."""
-        self.to_app.put_nowait(WsMessage(2, jsonplus.dumps(data)))
-
-    def client_send_text(self, text: str) -> None:
-        self.to_app.put_nowait(WsMessage(2, text))
-
-    def client_send_bytes(self, data: bytes) -> None:
-        self.to_app.put_nowait(WsMessage(1, data))
-
-    def client_disconnect(self) -> None:
-        self.to_app.put_nowait(WsMessage(0))
-
-    async def client_recv(self, timeout: float = 1.0) -> dict:
-        """The next thing the app sent to the client."""
-        return await asyncio.wait_for(self.from_app.get(), timeout=timeout)
-
-
 class WebSocketTestSession:
-    """Async helper for testing WebSocket channels, with any cable: the
-    in-process one runs the app's WebSocket handler; one that serves its own
-    WebSockets (`WseCable`) runs from memory, with no port.
+    """Async helper for testing WebSocket channels. The app's cable
+    (`WseCable`) serves the connection from memory, with no port.
 
     Arguments:
         app: The Proper `App` instance.
-        path: The WebSocket path (defaults to `/cable`).
         headers: Headers of the handshake, such as the `cookie` that
             `TestClient.sign_in()` sets.
     """
 
-    def __init__(self, app: "App", path: str, headers: dict | None = None) -> None:
+    def __init__(self, app: "App", headers: dict | None = None) -> None:
         self.app = app
-        self.protocol = WsProtocolStub()
-        self._path = path
         self._headers = {name.lower(): value for name, value in (headers or {}).items()}
-        self._memory: t.Any = None  # the InMemoryServer, with WseCable
+        self._memory: t.Any = None  # the cable's InMemoryServer
         self._conn_id = ""
-        self._accepted = False  # the accept of the in-memory server, not read yet
+        self._accepted = False  # the accept, not read yet
 
     async def connect(self) -> asyncio.Task:
         """Open the connection. Returns a task that ends with it, to
         `await` after `close()`. The handshake's answer is the first raw
-        event: `{"type": "accept"}`, or a `close` with the refusal's code."""
-        if getattr(self.app.cable, "serves_websockets", False):
-            self._memory = self.app.cable.serve_in_memory()
-            self._conn_id = self._memory.connect(self._headers.get("cookie", ""))
-            self._accepted = True
-            return asyncio.create_task(self._wait_closed())
-        scope = make_test_ws_scope(self._path, headers=self._headers)
-        task = asyncio.create_task(self.app.__rsgi__(scope, self.protocol))
-        await asyncio.sleep(0.01)  # let the handshake happen
-        return task
+        event: `{"type": "accept"}`."""
+        if not getattr(self.app.cable, "serves_websockets", False):
+            raise RuntimeError(
+                "The app's cable serves no WebSockets: set "
+                'CABLE = {"type": "proper.channels.wse.WseCable"}'
+            )
+        self._memory = self.app.cable.serve_in_memory()
+        self._conn_id = self._memory.connect(self._headers.get("cookie", ""))
+        self._accepted = True
+        return asyncio.create_task(self._wait_closed())
 
     async def _wait_closed(self) -> None:
         while self._memory.is_open(self._conn_id):
@@ -580,8 +417,6 @@ class WebSocketTestSession:
     async def receive_raw(self, timeout: float = 1.0) -> dict:
         """Receive the next raw event from the app: a frame as sent
         (`{"type": "text", "text": ...}`), or `{"type": "close", ...}`."""
-        if self._memory is None:
-            return await self.protocol.client_recv(timeout=timeout)
         if self._accepted:
             self._accepted = False
             return {"type": "accept"}
@@ -605,20 +440,11 @@ class WebSocketTestSession:
 
     def client_send_text(self, text: str) -> None:
         """Send a raw text frame from the client to the app."""
-        if self._memory is None:
-            self.protocol.client_send_text(text)
-        else:
-            self._memory.client_send(self._conn_id, text)
+        self._memory.client_send(self._conn_id, text)
 
     async def close(self) -> None:
         """Disconnect the client."""
-        if self._memory is None:
-            self.protocol.client_disconnect()
-        else:
-            self._memory.client_close(self._conn_id)
-
-
-# --- encoding helpers ---
+        self._memory.client_close(self._conn_id)
 
 
 def _encode_body(body: dict | str | bytes | BytesIO) -> bytes:

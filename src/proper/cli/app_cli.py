@@ -95,14 +95,13 @@ def _blocking_threads(max_threads: int, workers: int) -> int:
 def _serve(
     *,
     target: str,
-    interface: str,
     address: str,
     port: int,
     workers: int,
     blocking_threads: int,
     debug: bool,
 ) -> None:
-    """Start Granian and block until it stops.
+    """Start Granian, over WSGI, and block until it stops.
 
     A plain function, with plain arguments, so it can run in a fresh
     process: the reloader's, or one of `PROCESSES`.
@@ -114,12 +113,12 @@ def _serve(
     with _closing_worker_loops():
         Granian(
             target=target,
-            interface=Interfaces(interface),
+            interface=Interfaces.WSGI,
             address=address,
             port=port,
             workers=workers,
-            blocking_threads=blocking_threads if interface == "wsgi" else None,
-            websockets=interface == "rsgi",
+            blocking_threads=blocking_threads,
+            websockets=False,
             log_level=LogLevels.debug if debug else LogLevels.info,
             log_access=debug,
         ).serve()
@@ -172,34 +171,28 @@ def _load_app(target: str) -> "App":
 
 def _serve_group(
     web: dict,
-    cable: dict | None = None,
     processes: int = 1,
     *,
     start_cable: bool = False,
     serve: "Callable" = _serve,
 ) -> list[multiprocessing.Process]:
-    """Run the web server here, plus in child processes the WebSocket server
-    (`cable`) and `processes - 1` more copies of the web server, all on the
-    same port. Take the children down when this server stops, and return
-    them, once they have.
+    """Run the web server here, plus `processes - 1` more copies of it in
+    child processes, all on the same port. Take the children down when this
+    server stops, and return them, once they have.
 
-    The cable is a separate process because it speaks another interface:
-    WSGI has no WebSockets, and RSGI pays for its event loop on every
-    request. The extra web processes are for machines with many cores:
-    threads of one interpreter contend for its shared objects, and two
-    smaller groups of them do better than one big one.
+    The extra processes are for machines with many cores: threads of one
+    interpreter contend for its shared objects, and two smaller groups of
+    them do better than one big one.
 
-    With `start_cable`, the app's cable serves the WebSockets itself
-    (`WseCable`), from this process only: the other processes forward
-    their broadcasts to it.
+    With `start_cable`, the app's cable (`WseCable`) serves the WebSockets
+    from this process only: the other processes forward their broadcasts
+    to it.
     """
     owner = _load_app(web["target"]) if start_cable else None
     if owner is not None:
         owner.cable.start_server()
     ctx = multiprocessing.get_context("spawn")
     children = []
-    if cable:
-        children.append(ctx.Process(target=serve, kwargs=cable, name="proper-cable", daemon=True))
     for n in range(2, processes + 1):
         children.append(ctx.Process(target=serve, kwargs=web, name=f"proper-web-{n}", daemon=True))
     for child in children:
@@ -253,40 +246,29 @@ def get_run_cli(app: "App") -> t.Callable:
                 start in each process.
 
         The app is loaded from `config.APP_TARGET`, or from `app` in the
-        module that created it when that is empty. `config.INTERFACE`
-        picks WSGI (the default) or RSGI. With WSGI and a `CABLE_PORT`, a
-        second process serves the WebSockets over RSGI on that port, unless
-        the cable serves them itself (`WseCable`), from this process.
-        `config.PROCESSES` starts that many copies of the web server.
+        module that created it when that is empty. Granian serves it over
+        WSGI. A cable that serves WebSockets (`WseCable`) starts in this
+        process, on `CABLE_PORT`. `config.PROCESSES` starts that many
+        copies of the web server.
         """
         from ..helpers import show_banner, show_welcome
 
         config = app.config
         _check_free_threading(config)
         reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
-        interface = str(config.INTERFACE or "wsgi").lower()
-        if interface not in ("wsgi", "rsgi"):
-            raise ValueError(f"INTERFACE must be 'wsgi' or 'rsgi', not {config.INTERFACE!r}")
         workers = int(workers or config.WORKERS or 1)
         web = {
             "target": config.APP_TARGET or f"{app.import_name}:app",
-            "interface": interface,
             "address": host,
             "port": int(port or config["PORT"] or 2300),
             "workers": workers,
             "blocking_threads": _blocking_threads(app.max_threads, workers),
             "debug": bool(config.DEBUG),
         }
-        cable_port = int(config.CABLE_PORT or 0)
-        own_server = bool(getattr(app.cable, "serves_websockets", False))
-        cable = None
-        if cable_port and interface == "wsgi" and not own_server:
-            cable = {**web, "interface": "rsgi", "port": cable_port, "workers": 1}
         group: dict[str, t.Any] = {
             "web": web,
-            "cable": cable,
             "processes": max(1, int(config.PROCESSES or 1)),
-            "start_cable": own_server,
+            "start_cable": bool(getattr(app.cable, "serves_websockets", False)),
         }
 
         if config.DEBUG:

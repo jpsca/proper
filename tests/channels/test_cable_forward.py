@@ -1,4 +1,5 @@
-"""Broadcasts made in a process without WebSockets reach the cable process."""
+"""Broadcasts made in a process without WebSockets reach the one that
+serves them: what `Cable` sends, and what it does with what it receives."""
 import logging
 import threading
 from functools import partial
@@ -6,9 +7,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from proper import App, Channel
+from proper import App
 from proper.channels import CABLE_SALT, Cable
-from proper.test_client import HttpProtocolStub, make_test_scope
 
 
 def make_app(**config):
@@ -43,14 +43,12 @@ def cable_server():
     server.server_close()
 
 
-def _channel(app, sent):
-    return Channel(app, {}, _send=sent.append)
-
-
 class TestForwarding:
-    def test_the_cable_tool_forwards_when_there_is_a_cable_port(self):
-        app = make_app(CABLE_PORT=2301, CABLE_PATH="/ws")
-        assert app.cable._forward_url == "http://127.0.0.1:2301/ws"
+    def test_the_cable_forwards_to_the_port_after_the_cable_port(self):
+        app = make_app(
+            CABLE={"type": "proper.channels.wse.WseCable"}, CABLE_PORT=2301, CABLE_PATH="/ws"
+        )
+        assert app.cable._forward_url == "http://127.0.0.1:2302/ws"
 
     def test_no_cable_port_no_forwarding(self):
         app = make_app()
@@ -60,28 +58,39 @@ class TestForwarding:
         app = make_app()
         cable = Cable()
         cable.forward_to(cable_server, sign=partial(app.dumps, salt=CABLE_SALT))
-        sent = []
-        cable.subscribe("chat", _channel(app, sent))
 
         cable.broadcast("chat", {"text": "hi"})
 
-        assert sent == []  # not delivered here: this process has no sockets
         [(path, token)] = Recorder.received
         assert path == "/cable"
         assert app.loads(token, salt=CABLE_SALT) == {"stream": "chat", "data": {"text": "hi"}}
 
-    async def test_once_started_the_cable_delivers_locally(self, cable_server):
+    def test_a_batch_is_one_request(self, cable_server):
         app = make_app()
         cable = Cable()
         cable.forward_to(cable_server, sign=partial(app.dumps, salt=CABLE_SALT))
-        sent = []
-        cable.subscribe("chat", _channel(app, sent))
-        await cable.start()
 
-        cable.broadcast("chat", {"text": "hi"})
+        with cable.batch():
+            cable.broadcast("a", 1)
+            with cable.batch():  # nested: the outer one sends
+                cable.broadcast("b", 2)
+            cable.disconnect(user_id=7)  # not batched
 
-        assert [msg["data"] for msg in sent] == [{"text": "hi"}]
-        assert Recorder.received == []
+        [(_, disconnect), (_, batch)] = Recorder.received
+        assert app.loads(disconnect, salt=CABLE_SALT) == {"disconnect": {"user_id": 7}}
+        assert app.loads(batch, salt=CABLE_SALT) == {
+            "batch": [{"stream": "a", "data": 1}, {"stream": "b", "data": 2}]
+        }
+
+    def test_without_forwarding_a_broadcast_reaches_no_one(self, caplog):
+        cable = make_app().cable
+
+        with caplog.at_level(logging.DEBUG, logger="proper"):
+            cable.broadcast("chat", {"text": "hi"})
+            cable.disconnect(user_id=7)
+
+        assert "the broadcast to chat reaches no one" in caplog.text
+        assert cable.streams == {}
 
     def test_a_cable_that_is_down_is_a_warning(self, caplog):
         app = make_app()
@@ -106,47 +115,30 @@ class TestForwarding:
 
 
 class TestReceiving:
-    async def _post(self, app, body: bytes):
-        protocol = HttpProtocolStub(body)
-        scope = make_test_scope(
-            app.config.CABLE_PATH, method="POST",
-            headers=[("content-length", str(len(body)))],
+    def test_a_signed_broadcast_is_delivered(self, caplog):
+        app = make_app()
+        token = app.dumps(
+            {"stream": "chat", "data": {}, "batch": [{"stream": "room", "data": {}}],
+             "disconnect": {"user_id": 7}},
+            salt=CABLE_SALT,
         )
-        await app.__rsgi__(scope, protocol)
-        return protocol
 
-    async def test_a_signed_broadcast_is_delivered(self):
+        with caplog.at_level(logging.DEBUG, logger="proper"):
+            assert app.cable.receive_forwarded(token, app.loads) is True
+
+        assert "the broadcast to chat reaches no one" in caplog.text
+        assert "the broadcast to room reaches no one" in caplog.text
+
+    def test_a_bad_signature_is_refused(self, caplog):
         app = make_app()
-        sent = []
-        app.cable.subscribe("chat", _channel(app, sent))
-        token = app.dumps({"stream": "chat", "data": {"text": "hi"}}, salt=CABLE_SALT)
-
-        protocol = await self._post(app, token.encode())
-
-        assert protocol.status == 204
-        assert [msg["data"] for msg in sent] == [{"text": "hi"}]
-
-    async def test_a_bad_signature_is_refused(self, caplog):
-        app = make_app()
-        sent = []
-        app.cable.subscribe("chat", _channel(app, sent))
         forged = app.dumps({"stream": "chat", "data": {}}, salt="other")
 
         with caplog.at_level(logging.WARNING, logger="proper"):
-            protocol = await self._post(app, forged.encode())
+            assert app.cable.receive_forwarded(forged, app.loads) is False
 
-        assert protocol.status == 403
-        assert sent == []
         assert "bad signature" in caplog.text
 
-    async def test_a_signed_token_without_a_stream_is_refused(self):
+    def test_a_signed_token_without_a_stream_is_refused(self):
         app = make_app()
         token = app.dumps(["not", "a", "broadcast"], salt=CABLE_SALT)
-        protocol = await self._post(app, token.encode())
-        assert protocol.status == 403
-
-    async def test_a_get_on_the_cable_path_is_still_a_page(self):
-        app = make_app()
-        protocol = HttpProtocolStub()
-        await app.__rsgi__(make_test_scope(app.config.CABLE_PATH), protocol)
-        assert protocol.status == 404  # no such route, as before
+        assert app.cable.receive_forwarded(token, app.loads) is False

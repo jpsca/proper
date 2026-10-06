@@ -14,7 +14,7 @@ Proper answers most of them with defaults and with the files a new app already h
 After reading this guide, you will know:
 
 - Why Proper serves on free-threaded Python, and what happens when it isn't.
-- What `proper run` starts, and what `INTERFACE`, `WORKERS`, `MAX_THREADS` and `PROCESSES` control.
+- What `proper run` starts, and what `WORKERS`, `MAX_THREADS` and `PROCESSES` control.
 - How to size those settings for your machine.
 - Which environment variables and settings matter in production.
 - How the Docker image is built, and how one image runs the web server, the worker and the migrations.
@@ -71,25 +71,16 @@ proper run [--host 0.0.0.0] [--port PORT] [--workers N]
 
 `--host` defaults to `0.0.0.0`; `--port` and `--workers` default to the `PORT` and `WORKERS` settings. Everything else comes from the config.
 
+Granian runs each request on one of its own threads, over WSGI. Proper controllers are sync, so the thread that received the request runs it to the end, with no event loop and no hand-off.
+
 `PORT` is the port the server binds to: 2300 in the blueprint, read from the `PORT` environment variable. Don't confuse it with `HOST`, which is the public base URL of the app (`"YOUR-DOMAIN.com"` in production) and is only used to build absolute URLs.
-
-### Interfaces: WSGI and RSGI
-
-`INTERFACE` picks how Granian talks to the app.
-
-Interface | How it runs a request | WebSockets
---------- | --------------------- | ----------
-`"wsgi"` (default) | On one of Granian's own threads. No event loop, no hand-off. | No
-`"rsgi"` | An async entry point hands the request to a thread pool that runs the sync pipeline. | Yes, in the same process
-
-Proper controllers are sync, so WSGI is the fastest way to serve them: the thread that received the request runs it to the end. RSGI costs one thread hop per request, and in exchange serves WebSockets from the same process. Keep the default unless you have a reason; with WSGI, WebSockets are served by a separate process, described below.
 
 ### Workers, threads and processes
 
 Three settings decide how much work the server does at once.
 
-- **`WORKERS`** is the number of Granian workers in each process. On free-threaded Python they are threads, each with its own event loop, sharing the process and its memory.
-- **`MAX_THREADS`** is how many threads run your code in each process. Each request holds one thread from start to finish, so this is how many requests the app works on at once. Under WSGI it is split between the workers of the process (rounded up, at least one per worker). `0` means `min(32, cpu_count + 4)`.
+- **`WORKERS`** is the number of Granian workers in each process. On free-threaded Python they are threads, sharing the process and its memory.
+- **`MAX_THREADS`** is how many threads run your code in each process. Each request holds one thread from start to finish, so this is how many requests the app works on at once. It is split between the workers of the process (rounded up, at least one per worker). `0` means `min(32, cpu_count + 4)`.
 - **`PROCESSES`** is the number of copies of the web server `proper run` starts, all on the same port (the operating system spreads connections between them with `SO_REUSEPORT`).
 
 `MAX_THREADS` has a second meaning worth keeping in mind: each thread opens its own database connection, so it is also how many connections a process can hold. Granian's own default for these threads is in the hundreds, which would flood the database with connections and buy nothing for Python code that uses the CPU, so Proper sets it explicitly.
@@ -102,15 +93,16 @@ WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are s
 
 - `WseCable`, the one the channels addon configures: the web process itself, with proper-wse (Rust), started by `proper run` before the first request. No second process, and no Redis. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
 - `RedisCable`, for several machines: the same as `WseCable` on each machine, with Redis carrying the broadcasts between them. The other processes publish to Redis instead of forwarding.
-- The in-process `Cable` (`CABLE = {}`): a second process that `proper run` starts, over RSGI. With `CABLE_PORT = 0`, the default, no cable process starts. With `INTERFACE = "rsgi"` there is no cable process either, since the web server handles WebSockets itself.
+
+An app without channels has `CABLE = {}` and `CABLE_PORT = 0`, the defaults: no WebSockets. Setting `CABLE_PORT` without a `CABLE` that serves them is a configuration error.
 
 In production, the reverse proxy routes `CABLE_PATH` (default `/cable`) to that port, with the WebSocket upgrade headers; the [nginx config](#the-reverse-proxy) below has that block. In development there is no proxy: when `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same hostname.
 
-With `WseCable` and `Cable`, broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. For more than one machine, use `RedisCable`. The [Channels guide](/docs/channels) covers the backends.
+With `WseCable`, broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. For more than one machine, use `RedisCable`. The [Channels guide](/docs/channels) covers the backends.
 
 ### Reloading and stopping
 
-`RELOAD` restarts the server when a file under the app changes. The default, `None`, follows `DEBUG`: on in development, off in production. The restart is done by a supervisor outside the server and covers the whole group - every web process and the cable process - not only Granian's workers.
+`RELOAD` restarts the server when a file under the app changes. The default, `None`, follows `DEBUG`: on in development, off in production. The restart is done by a supervisor outside the server and covers the whole group - every web process, and the cable in the first one - not only Granian's workers.
 
 Ctrl+C, or a `SIGTERM` to `proper run`, shuts down every process it started.
 
@@ -143,12 +135,11 @@ These are starting points, not rules. Measure with your own pages before changin
 Setting | Default | Blueprint reads it from | What it controls
 ------- | ------- | ----------------------- | ----------------
 `PORT` | `2300` | `PORT` | The port the server binds to
-`INTERFACE` | `"wsgi"` | - | `"wsgi"` or `"rsgi"`
 `WORKERS` | `1` | `WORKERS` | Granian workers (threads) per process
 `MAX_THREADS` | `0` (`min(32, cpus + 4)`) | - | Threads running your code per process; also database connections
 `PROCESSES` | `1` | `PROCESSES` | Copies of the web server on the same port
-`CABLE_PORT` | `0` (none) | `CABLE_PORT` (channels addon) | Port of the WebSocket process
-`CABLE_PATH` | `"/cable"` | - | URL path the proxy routes to the cable process
+`CABLE_PORT` | `0` (none) | `CABLE_PORT` (channels addon) | Port of the WebSockets (`WseCable`)
+`CABLE_PATH` | `"/cable"` | - | URL path the proxy routes to `CABLE_PORT`
 `RELOAD` | `None` (follows `DEBUG`) | - | Restart on code changes
 `ALLOW_GIL` | `False` | - | Serve on a Python with the GIL
 
@@ -357,7 +348,7 @@ location /assets/ {
   add_header Cache-Control "public, max-age=0, must-revalidate";
 }
 
-# WebSockets: the cable process
+# WebSockets: the cable, on CABLE_PORT
 location /cable {
   proxy_pass http://127.0.0.1:2301;
   proxy_http_version 1.1;

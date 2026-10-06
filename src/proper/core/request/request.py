@@ -17,12 +17,10 @@ from .headers import RequestHeadersMixin
 
 
 if t.TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
 
     from ...app import App
     from ...router import Route
-
-    TReadBody = Callable[[], Awaitable[bytes]]
 
 
 __all__ = ("Request", )
@@ -109,20 +107,14 @@ class Request(RequestHeadersMixin):
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
 
-    async def _read_body(self, read: "TReadBody") -> None:
-        """Read and parse the body, with `read()` being the server's
-        awaitable that returns the whole body as bytes.
+    def _read_body_sync(self, read: "Callable[[int], bytes]") -> None:
+        """Read and parse the body, with `read(size)` being the server's
+        blocking reader (WSGI's `wsgi.input`).
 
         Requests without a `content-length` carry no body for us: the
         length is checked against `MAX_CONTENT_LENGTH` before a single
         byte is read, so an oversized upload is refused, not buffered.
         """
-        if self._expects_body():
-            self._parse_body_bytes(await read())
-
-    def _read_body_sync(self, read: "Callable[[int], bytes]") -> None:
-        """`_read_body` for a server that hands us a blocking `read(size)`,
-        like WSGI's `wsgi.input`."""
         if self._expects_body():
             self._parse_body_bytes(read(self.content_length))
 

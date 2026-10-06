@@ -38,9 +38,9 @@ def test_file_creation(app_in_tmp):
     assert "CABLE_PATH" in text
     assert "CABLE_PORT" in text
     assert "CABLE:" in text
-    # WseCable, with no Redis to run; the other backends are left as comments
+    # WseCable, with no Redis to run; RedisCable is left as a comment
     assert 'CABLE: dict = {"type": "proper.channels.wse.WseCable"}' in text
-    assert "#     CABLE = {}" in text
+    assert '#         "type": "proper.channels.RedisCable"' in text
     assert '#         "type": "proper.channels.RedisCable",' in text
     assert '"prefix": "myapp:cable:"' in text
 

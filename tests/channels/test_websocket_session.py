@@ -53,7 +53,6 @@ class RoomChannel(Channel):
 
 
 CABLES = {
-    "Cable": {},
     "WseCable": {"type": "proper.channels.wse.WseCable"},
     # From memory it never touches Redis: this one isn't there.
     "RedisCable": {"type": "proper.channels.RedisCable", "url": "redis://127.0.0.1:1/0"},
@@ -77,9 +76,8 @@ def _signed_in(client):
 
 
 def _data(msg):
-    """What a broadcast carries: a `message` frame from the in-process
-    cable, a `broadcast` frame (named by its stream) from WseCable."""
-    assert msg["type"] in ("message", "broadcast"), msg
+    """What a broadcast carries: a `broadcast` frame, named by its stream."""
+    assert msg["type"] == "broadcast", msg
     return msg["data"]
 
 
@@ -176,13 +174,11 @@ async def test_the_handshake_is_the_first_raw_event(client):
     await task
 
 
-async def test_a_refused_handshake_is_a_close():
+async def test_an_app_without_websockets_says_so():
     app = App("proper", {"SECRET_KEYS": [SECRET]})
     current.app = app
-    ws = TestClient(app).websocket("/elsewhere")
-    task = await ws.connect()
-    assert await ws.receive_raw() == {"type": "close", "code": 404}
-    await task
+    with pytest.raises(RuntimeError, match="serves no WebSockets"):
+        await TestClient(app).websocket().connect()
 
 
 class TestInMemoryServer:

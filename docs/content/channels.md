@@ -27,7 +27,7 @@ After reading this guide, you will know:
 A real-time feature in Proper has three moving parts:
 
 - **The channel** - a Python class, the WebSocket equivalent of a controller. It decides who may subscribe, handles messages from the client, and pushes data back.
-- **The cable** - the pub/sub broker. Channels subscribe to named *streams*; when anything broadcasts to a stream, the cable fans the message out to every subscriber. It comes in two flavors: in-process (`Cable`) and Redis-backed (`RedisCable`).
+- **The cable** - the pub/sub broker. Channels subscribe to named *streams*; when anything broadcasts to a stream, the cable fans the message out to every subscriber. `WseCable` serves the WebSockets of one machine; `RedisCable` is the same cable across several, through Redis.
 - **`cable.js`** - the browser client. It opens the one WebSocket, manages your subscriptions, reconnects when the connection drops, and hands incoming data to your callbacks.
 
 The connecting concept is the **stream**: a plain string like `chat_42`. A channel calls `stream_from("chat_42")` to start listening, and any code anywhere calls `broadcast("chat_42", data)` to deliver to every listener. The channel never talks to a specific browser by hand - it talks to a stream, and the cable does the routing.
@@ -333,7 +333,7 @@ def notify_user(user_id, payload):
 
 This is the seam between the request world and the live one: the controller persists the message and redirects as usual, and the broadcast is a side note that lights up every open page. [Background Tasks](/docs/tasks) covers running the worker that the second example needs.
 
-When a request makes several broadcasts, wrap them in `app.cable.batch()`. From the web process, each broadcast is a request to the cable process (see [The cable process](#the-cable-process-and-redis-cable)); inside a batch they all travel in one:
+When a request makes several broadcasts, wrap them in `app.cable.batch()`. From a process that doesn't serve the WebSockets, such as a task worker, each broadcast is a request to the one that does (see [WseCable](#wsecable-the-websockets-on-wse-server)); inside a batch they all travel in one:
 
 ```python
 with self.app.cable.batch():
@@ -543,11 +543,11 @@ The client sends three commands - `subscribe`, `message` (invoke an action), and
     "params": {"room": "general"} }
 ```
 
-The server sends back `confirm_subscription`, `reject_subscription`, `message` (the payload of a `send()` or `broadcast()`), and `error`:
+The server sends back `confirm_subscription`, `reject_subscription`, `message` (the payload of a `send()`), `broadcast` (the payload of a `broadcast()`), and `error`:
 
 ```json
 { "type": "confirm_subscription", "channel": "ChatChannel",
-    "params": {"room": "general"} }
+    "params": {"room": "general"}, "streams": ["chat:general"] }
 
 { "type": "reject_subscription", "channel": "ChatChannel",
     "params": {"room": "general"} }
@@ -555,12 +555,15 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 { "type": "message", "channel": "ChatChannel",
     "params": {"room": "general"}, "data": {"message": "hi"} }
 
+{ "c": "P", "type": "broadcast", "stream": "chat:general",
+    "data": {"message": "hi"} }
+
 { "type": "error", "reason": "not_subscribed" }
 ```
 
 A `reject_subscription` carries `"reason": "unknown_channel"` when no channel by that name is registered; a subscription your own `reject()` turned away has no reason.
 
-An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`, and, from `WseCable`, `invalid_message` (JSON that is not an object).
+An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`, and `invalid_message` (JSON that is not an object).
 
 Every few seconds the server sends a ping, which the client uses to tell a dead connection from a quiet one; `message` is the server's time:
 
@@ -568,17 +571,7 @@ Every few seconds the server sends a ping, which the client uses to tell a dead 
 { "type": "ping", "message": 1791230000 }
 ```
 
-A cable that writes one frame per broadcast for every subscriber (`WseCable`, below) can't put each subscription's `channel` and `params` in it. Its broadcast names the stream instead, and its `confirm_subscription` lists the streams of the subscription, so the client delivers the broadcast to every subscription streaming from it. Messages sent with `send()` stay `message` frames. A client should accept both forms:
-
-```json
-{ "type": "confirm_subscription", "channel": "ChatChannel",
-    "params": {"room": "general"}, "streams": ["chat:general"] }
-
-{ "c": "P", "type": "broadcast", "stream": "chat:general",
-    "data": {"message": "hi"} }
-```
-
-The `c` field is wse's message category; ignore it.
+The cable writes one frame per broadcast for every subscriber, so it can't put each subscription's `channel` and `params` in it. A `broadcast` names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers the broadcast to every subscription streaming from it. The `c` field is wse's message category; ignore it.
 
 The handshake itself is refused, with a 403, when it comes from another site's page: see `CABLE_ALLOWED_ORIGINS` below.
 
@@ -595,11 +588,13 @@ CABLE = {"type": "proper.channels.wse.WseCable"}  # serves on CABLE_PORT
 
 Install it with the `wse` extra (`uv add "proper[wse]"`), which brings `proper-wse`, with wheels for free-threaded Python (3.14t) as well. It imports as `wse_server`, so don't install the original `wse-server` next to it.
 
-- `proper run` starts the server, in its web process, before the first request, and stops it with the server. No RSGI process is started for the WebSockets, and the web server refuses WebSockets on its own port. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself.
-- Every other process that loads the app has no WebSockets: the other copies of `PROCESSES`, a Huey worker, a shell. Their `broadcast()`s and `disconnect()`s are forwarded to the serving process, signed with the app's secret keys, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given). `app.cable.batch()` sends several in one request, as with `Cable`.
+- `proper run` starts the server, in its web process, before the first request, and stops it with the server. The web server itself (Granian, over WSGI) has no WebSockets. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself.
+- Every other process that loads the app has no WebSockets: the other copies of `PROCESSES`, a Huey worker, a shell. Their `broadcast()`s and `disconnect()`s are forwarded to the serving process, signed with the app's secret keys, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given). `app.cable.batch()` sends several in one request.
 - Broadcasts use the stream-named frames of the wire protocol above; `cable.js` understands them.
-- The server pings every connection each `CABLE_PING_INTERVAL` seconds. A client that stops reading is closed, without the close handshake it would never let through, and `cable.js` reconnects: once more than `CABLE_MAX_PENDING_BYTES` (4 MB) are waiting for it and nothing got through in `CABLE_STALL_TIMEOUT` seconds (10), or ten times as many are waiting. wse counts bytes, not messages, so `CABLE_MAX_PENDING` doesn't apply. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse drops broadcasts for a connection instead.
+- The server pings every connection each `CABLE_PING_INTERVAL` seconds. A client that stops reading is closed, without the close handshake it would never let through, and `cable.js` reconnects: once more than `CABLE_MAX_PENDING_BYTES` (4 MB) are waiting for it and nothing got through in `CABLE_STALL_TIMEOUT` seconds (10), or ten times as many are waiting. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse drops broadcasts for a connection instead.
 - The original wse-server is refused at startup: refusing other sites' origins and waiting for delivery need `proper-wse`.
+
+In production, your reverse proxy routes `CABLE_PATH` to `CABLE_PORT`; the blueprint's nginx config has the block ready. In development there is no proxy, so the page tells the browser where the cable is: `render_importmap()` adds a `<meta name="cable-port">` tag when `DEBUG` is on, and `cable.js` connects to that port on the same host.
 
 Option                     | Default    | What it is
 -------------------------- |----------- | -----------------------------
@@ -639,27 +634,23 @@ It takes every option of `WseCable` as well. It needs the `redis` package (`uv a
 
 The line to remember: `RedisCable` shares *broadcasts* across machines, not *state*. Fire-and-forget delivery crosses the cluster cleanly. Anything that needs a shared, durable view - a presence roster, a "replay the last value to a late subscriber" - is not something the cable does for you, because Redis pub/sub carries events, not memory. [Deployment](/docs/deployment) covers choosing a worker count and running the server.
 
-## The in-process cable
-
-With `CABLE = {}` you get the in-process `Cable`, the one that needs no compiled dependency. Proper serves HTTP over WSGI, which has no WebSockets, so with this backend `proper run` starts a second process for them, over RSGI, on `CABLE_PORT` - the channels addon sets it to `PORT + 1`. In production, your reverse proxy routes `CABLE_PATH` to that port; the blueprint's nginx config has the block ready. In development there is no proxy, so the page tells the browser where the cable is: `render_importmap()` adds a `<meta name="cable-port">` tag when `DEBUG` is on, and `cable.js` connects to that port on the same host.
-
-That leaves one question: a `broadcast()` made in the web process - from a controller, or from a task - has no WebSockets to reach there. `Cable` answers it by forwarding the message to the cable process as a `POST` to `CABLE_PATH`, signed with the app's secret keys, on a connection each thread keeps open, and the cable process delivers it to its subscribers. There is nothing to configure and no Redis to run. If the cable process is down, the message is lost and a warning is logged; the page that broadcast still renders. It works on one machine only.
-
-A broadcast is encoded as JSON once, whatever the number of subscribers. The server pings every connection each `CABLE_PING_INTERVAL` seconds (3 by default), so `cable.js` can tell a dead connection from a quiet one and reconnect, and the server finds out about clients that vanished. A client that stops reading is disconnected, instead of the cable process holding every message for it: once `CABLE_MAX_PENDING` messages (1000 by default) are waiting and none got through in `CABLE_STALL_TIMEOUT` seconds (10), or ten times as many are waiting. A server that is merely busy falls behind with every client at once, and keeps them.
-
 ## Checking where a WebSocket comes from
 
-Browsers send a site's cookies with any WebSocket to it, even one opened by a page of another site, so every backend checks the handshake's `Origin`. It accepts a handshake with no `Origin` (not a browser), one from the `Host` it was sent to or from the app's `HOST`, and in `DEBUG` one from any port of the same host name (the page and the cable listen on different ports there). Any other origin gets a 403, unless you list it:
+Browsers send a site's cookies with any WebSocket to it, even one opened by a page of another site, so the cable checks the handshake's `Origin`. It accepts a handshake with no `Origin` (not a browser), one from the `Host` it was sent to or from the app's `HOST`, and in `DEBUG` one from any port of the same host name (the page and the cable listen on different ports there). Any other origin gets a 403, unless you list it:
 
 ```python {title="config/channels.py"}
 CABLE_ALLOWED_ORIGINS = ["https://admin.example.com"]
 ```
 
+## Without channels
+
+An app without the channels addon has `CABLE = {}`: a `Cable` that serves no WebSockets, so a `broadcast()` reaches no one (it is logged at the debug level). Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` when the app starts.
+
 ---
 
 ## Testing channels
 
-You do not need a running server to test a channel. The test client opens an in-process WebSocket session that drives `subscribe`, actions, and disconnect, and lets you assert on the frames that come back:
+You do not need a running server to test a channel. The test client opens a WebSocket session, served from memory, that drives `subscribe`, actions, and disconnect, and lets you assert on the frames that come back:
 
 ```python
 import pytest
@@ -686,9 +677,9 @@ async def test_chat_broadcasts_to_the_room(client):
     await task
 ```
 
-`client.websocket()` returns a session; `connect()` opens the connection and returns a task you await after `close()`; `receive_raw()` shows the handshake's answer, `{"type": "accept"}` or a `close` with the refusal's code, which `receive()` and `subscribe()` skip. `subscribe()` sends a subscribe command and returns the response, `send_action()` invokes an action, and `receive()` returns the next frame parsed from JSON.
+`client.websocket()` returns a session; `connect()` opens the connection and returns a task you await after `close()`; `receive_raw()` shows the handshake's answer, `{"type": "accept"}`, which `receive()` and `subscribe()` skip. `subscribe()` sends a subscribe command and returns the response, `send_action()` invokes an action, and `receive()` returns the next frame parsed from JSON.
 
-The same test works with any cable. With `WseCable`, the session runs the cable from memory instead of a port (`app.cable.serve_in_memory()`): no server, no threads, and each event runs right away through the cable's own code. The one difference you can see is the frame of a broadcast: `{"type": "broadcast", "stream": ...}` instead of `{"type": "message", "channel": ...}`. Both carry the payload in `data`.
+The session runs the cable from memory instead of a port (`app.cable.serve_in_memory()`): no server, no threads, and each event runs right away through the cable's own code. The same test works with `WseCable` and `RedisCable`, which doesn't touch Redis from memory. With an app whose cable serves no WebSockets (`CABLE = {}`), `connect()` raises a `RuntimeError`.
 
 To test an authenticated channel, sign a user in first - the test client carries the same session cookie into the handshake that an HTTP request would. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()` in full.
 

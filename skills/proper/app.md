@@ -82,14 +82,9 @@ Read the documentation of these libraries to understand how to work with them in
 
 Proper serves on free-threaded Python (a `3.14t` build) with Granian, and the code of the web applications that use Proper (meaning, the code that you write) is regular sync Python: controllers, models, channels, tasks.
 
-The server talks to the app over one of two interfaces, picked with the `INTERFACE` setting:
+The server talks to the app over WSGI: Granian runs each request on one of its own threads, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. The WebSockets of an app with channels are served by its cable (`WseCable`), from the web process, on `CABLE_PORT` (see the channels doc).
 
-- **WSGI** (the default): Granian runs each request on one of its own threads, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. WebSockets need the RSGI process described below.
-- **RSGI**: an async entry point receives the request, parses the body, then runs the sync pipeline in a worker thread from a pool sized by `MAX_THREADS`. The event loop is never blocked, and it also serves the WebSockets. It costs a thread hop per request.
-
-With WSGI, an app with channels gets a second process for the WebSockets, over RSGI, on `CABLE_PORT` (see the channels doc). Under RSGI in DEBUG, the app watches its event loop and logs a warning, with a stack trace, whenever the loop stays blocked for longer than `LOOP_STALL_WARNING` seconds: something that belongs in a worker thread is running on the loop instead.
-
-`MAX_THREADS` is per process. Under WSGI it is split between the `WORKERS` of the process as Granian's threads; under RSGI it sizes the shared pool. Either way it is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue; under RSGI the app logs a warning naming the wait when they do.
+`MAX_THREADS` is per process, split between the `WORKERS` of the process as Granian's threads. It is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue.
 
 Every request flows through a pipeline in this exact order:
 
@@ -122,7 +117,7 @@ current.request        # The current Request
 current.response       # The current Response
 ```
 
-It uses Python's `contextvars` module, so it's safe for threaded and async environments. Under WSGI the whole request runs on one thread. Under RSGI the context is copied into the pipeline's worker thread, but only in that direction: what a controller sets on `current` is gone once the pipeline returns, so code running back on the event loop cannot read it. Custom attributes can be set on it too. The following attributes are set by the framework and its built-in tools:
+It uses Python's `contextvars` module, so it's safe for threaded and async environments. The whole request runs on one thread, in a context of its own, so what one request sets on `current` doesn't reach the next one on that thread. Custom attributes can be set on it too. The following attributes are set by the framework and its built-in tools:
 
 | Attribute              | Set by          | Description                                      |
 |------------------------|-----------------|--------------------------------------------------|
@@ -160,13 +155,10 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
 | `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
-| `WORKERS`                  | `1`               | Server workers per process; `MAX_THREADS` is split between them under WSGI |
+| `WORKERS`                  | `1`               | Server workers per process; `MAX_THREADS` is split between them |
 | `PROCESSES`                | `1`               | Copies of the web server on the same port; try `2` with four or more cores |
-| `INTERFACE`                | `"wsgi"`          | How the server calls the app: `"wsgi"` (fastest) or `"rsgi"` (WebSockets in-process) |
-| `CABLE_PORT`               | `0`               | Port of the WebSocket process `proper run` starts next to the web server (`0` = none) |
+| `CABLE_PORT`               | `0`               | Port where the cable (`WseCable`) serves the WebSockets (`0` = none) |
 | `ALLOW_GIL`                | `False`           | Let `proper run` serve on a Python with the GIL; it refuses otherwise |
-| `THREAD_WAIT_WARNING`      | `0.5`             | Warn when a request waits this many seconds for a free thread (`0` disables) |
-| `LOOP_STALL_WARNING`       | `0.1`             | RSGI, in DEBUG: warn when the event loop is blocked for this many seconds (`0` disables) |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |
 | `MAX_FORM_FILES`           | `10`              | Max number of files in a multipart form        |
@@ -537,8 +529,8 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 
 What it starts, from the config:
 
-- `WORKERS` Granian workers, threads of one process, each with `MAX_THREADS / WORKERS` request threads under WSGI.
-- With `CABLE_PORT` set and the WSGI interface, a second process serving the WebSockets over RSGI on that port.
+- `WORKERS` Granian workers, threads of one process, each with `MAX_THREADS / WORKERS` request threads, over WSGI.
+- With a cable that serves WebSockets (`WseCable`), that server, in the first web process, on `CABLE_PORT`.
 - `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
 - With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes.
 

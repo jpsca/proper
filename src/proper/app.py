@@ -1,5 +1,3 @@
-import asyncio
-import contextvars
 import copy
 import functools
 import hashlib
@@ -7,10 +5,8 @@ import logging
 import os
 import sys
 import threading
-import time
 import types
 import typing as t
-from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from pathlib import Path
 
@@ -21,7 +17,6 @@ from . import pipeline, status, tools
 from .channels import Cable
 from .cli.app_cli import get_cli
 from .compile import install
-from .core.app_ws import AppWs
 from .core.app_wsgi import AppWsgi
 from .core.config import load_config
 from .core.error_handlers import (
@@ -31,7 +26,6 @@ from .core.error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
 )
-from .core.loop_debug import LoopWatchdog, enable_asyncio_debug
 from .core.request import Request
 from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
@@ -53,7 +47,6 @@ if t.TYPE_CHECKING:
 
     from .auth import Auth
     from .cache import BaseCache
-    from .core.request.request import TReadBody
     from .emails import BaseMailer
     from .i18n import I18n
     from .storage import _Attachment
@@ -61,23 +54,6 @@ if t.TYPE_CHECKING:
 
 
 __all__ = ("App",)
-
-
-# At most one "the pool is full" warning per this many seconds. A saturated
-# pool would otherwise log once per queued request, and logging from the
-# worker threads is the last thing it needs.
-THREAD_WAIT_WARNING_INTERVAL = 10
-
-
-def _split_address(address: str | None) -> "tuple[str, int | None] | None":
-    """`"host:port"` as the server gives it, to `(host, port)`. IPv6 hosts
-    come in brackets, which are dropped."""
-    if not address:
-        return None
-    host, sep, port = address.rpartition(":")
-    if not sep or not port.isdigit():
-        return (address.strip("[]"), None)
-    return (host.strip("[]"), int(port))
 
 
 def _call_around(hook, call_next, request, response):
@@ -90,35 +66,7 @@ def _default_max_threads() -> int:
     return min(32, (os.process_cpu_count() or 1) + 4)
 
 
-class _ThreadWaits:
-    """Counts requests that had to queue, and says when to report.
-
-    Worker threads all call `record`, so the tally is locked.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._count = 0
-        self._longest = 0.0
-        self._reported_at = 0.0
-
-    def record(self, waited: float, interval: float) -> "tuple[int, float] | None":
-        """Note a wait. Returns `(count, longest)` when it is time to
-        report, having reset the tally, and `None` while holding back."""
-        with self._lock:
-            self._count += 1
-            self._longest = max(self._longest, waited)
-            now = time.monotonic()
-            if self._reported_at and now - self._reported_at < interval:
-                return None
-            self._reported_at = now
-            report = (self._count, self._longest)
-            self._count = 0
-            self._longest = 0.0
-            return report
-
-
-class App(AppWs, AppWsgi):
+class App(AppWsgi):
     """
     A Proper app core.
 
@@ -192,7 +140,6 @@ class App(AppWs, AppWsgi):
     request_cls: type[Request] = Request
     response_cls: type[Response] = Response
 
-    _loop_watchdog: LoopWatchdog | None = None
     max_threads: int
 
     def __init__(
@@ -208,10 +155,6 @@ class App(AppWs, AppWsgi):
         # on the request path.
         logger.setLevel(logging.DEBUG if self.config.DEBUG else logging.INFO)
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
-        self._thread_waits = _ThreadWaits()
-        self._executor: ThreadPoolExecutor | None = None
-        self._executor_lock = threading.Lock()
-        self._executor_users = 0
         self._attachment_class_cache: "dict[type, type[_Attachment]]" = {}
         self._attachment_lock = threading.Lock()
         self._setup_paths(import_name)
@@ -245,34 +188,6 @@ class App(AppWs, AppWsgi):
         self.router.debug = value
         self.catalog.auto_reload = value
 
-    # ---- RSGI ----
-    #
-    # The server (Granian) talks RSGI: one call per connection with a `scope`
-    # describing it and a `protocol` to read the body and send the response
-    # through, plus two hooks around the life of each worker.
-
-    async def __rsgi__(self, scope, protocol) -> None:
-        current.app = self
-        if scope.proto == "http":
-            await self._handle_http(scope, protocol)
-        else:
-            await self._handle_websocket(scope, protocol)
-
-    def __rsgi_init__(self, loop: asyncio.AbstractEventLoop) -> None:
-        loop.run_until_complete(self.startup())
-
-    def __rsgi_del__(self, loop: asyncio.AbstractEventLoop) -> None:
-        loop.run_until_complete(self.shutdown())
-
-    async def startup(self) -> None:
-        """Get ready to serve: the worker pool, the cable, the debug checks.
-        Called once per server worker, all sharing this app."""
-        logger.info("Application is starting up...")
-        self.lower()
-        self._setup_executor()
-        self._start_loop_debug()
-        await self.cable.start()
-
     def lower(self) -> None:
         """Take now every decision about dispatching that does not depend on
         the request, and compile every view (see `proper.compile`). Raises
@@ -281,13 +196,6 @@ class App(AppWs, AppWsgi):
         listing every view that does not compile; in debug mode those errors
         are logged, and each shows when its view is rendered."""
         install(self, strict=not self.config.DEBUG)
-
-    async def shutdown(self) -> None:
-        """Undo `startup`."""
-        logger.info("Application is shutting down...")
-        await self.cable.stop()
-        await self._stop_loop_debug()
-        self._shutdown_executor()
 
     def has_migrations_pending(self) -> bool:
         return False
@@ -448,113 +356,6 @@ class App(AppWs, AppWsgi):
 
     # ---- Private ----
 
-    def _setup_executor(self) -> None:
-        """Install the pool of threads that run the application's code.
-
-        There is one pool per app, however many event loops share it: on
-        free-threaded Python the server runs its workers as threads of one
-        process, and each one calls this on its own loop. The pool is not
-        made the loops' default executor on purpose, because a loop shuts
-        its default executor down when it closes, and the first worker to
-        stop would take the pool away from the rest. Every worker counts
-        itself in here and out in `_shutdown_executor`.
-        """
-        with self._executor_lock:
-            self._executor_users += 1
-            if self._executor is None:
-                self._executor = self._new_executor()
-                logger.info("[app] %s worker threads", self.max_threads)
-
-    def _shutdown_executor(self) -> None:
-        """Let the pool go once the last worker that set it up is done."""
-        with self._executor_lock:
-            self._executor_users = max(0, self._executor_users - 1)
-            if self._executor_users or self._executor is None:
-                return
-            executor = self._executor
-            self._executor = None
-        executor.shutdown(wait=False)
-
-    def _new_executor(self) -> ThreadPoolExecutor:
-        return ThreadPoolExecutor(
-            max_workers=self.max_threads,
-            thread_name_prefix="proper-worker",
-        )
-
-    def _pool(self) -> ThreadPoolExecutor:
-        """The shared pool, built on first use when no one set it up - a
-        test client, or an app driven without the server's startup."""
-        executor = self._executor
-        if executor is None:
-            with self._executor_lock:
-                executor = self._executor
-                if executor is None:
-                    executor = self._executor = self._new_executor()
-        return executor
-
-    def _in_pool(self, func: "Callable", *args) -> "asyncio.Future":
-        """Run `func` in the pool, carrying `current` and the rest of the
-        context along - as `asyncio.to_thread` does - and return an
-        awaitable for its result."""
-        context = contextvars.copy_context()
-        return asyncio.get_running_loop().run_in_executor(
-            self._pool(), lambda: context.run(func, *args)
-        )
-
-    async def _run_in_worker(self, func: "Callable", *args) -> t.Any:
-        """Run `func` in the worker pool.
-
-        Every request spends its whole life in one of these threads, so
-        when they are all busy the next request simply waits - invisibly,
-        unless we say so.
-        """
-        threshold = self.config.THREAD_WAIT_WARNING
-        if not threshold:
-            return await self._in_pool(func, *args)
-
-        submitted = time.monotonic()
-
-        def start():
-            waited = time.monotonic() - submitted
-            if waited >= threshold:
-                self._warn_thread_wait(waited)
-            return func(*args)
-
-        return await self._in_pool(start)
-
-    def _warn_thread_wait(self, waited: float) -> None:
-        """Report a queued request, at most once per interval."""
-        report = self._thread_waits.record(
-            waited, THREAD_WAIT_WARNING_INTERVAL
-        )
-        if report is None:
-            return
-        count, longest = report
-        logger.warning(
-            "⚠️ [app] %s request(s) queued for a worker thread, up to %.1fs:"
-            " all %s are busy. Raise MAX_THREADS, or move slow work"
-            " to the queue.",
-            count,
-            longest,
-            self.max_threads,
-        )
-
-    def _start_loop_debug(self) -> None:
-        """In DEBUG, watch the event loop for work that should be running in
-        a worker thread.
-        """
-        threshold = self.config.LOOP_STALL_WARNING
-        if not threshold or not self.config.DEBUG:
-            return
-        enable_asyncio_debug(threshold)
-        self._loop_watchdog = LoopWatchdog(threshold)
-        self._loop_watchdog.start()
-
-    async def _stop_loop_debug(self) -> None:
-        if self._loop_watchdog is not None:
-            await self._loop_watchdog.stop()
-            self._loop_watchdog = None
-
     def _warn_of_pending_migrations(self):
         if sys.argv[0].endswith("proper") and len(sys.argv) > 1 and sys.argv[1] == "db":
             return
@@ -640,88 +441,6 @@ class App(AppWs, AppWsgi):
             raise
         finally:
             self._dbs_close()
-
-    def _request_from_scope(self, scope) -> Request:
-        return self.request_cls(
-            method=scope.method,
-            path=scope.path,
-            query_string=scope.query_string,
-            headers=scope.headers.items(),
-            scheme=scope.scheme,
-            server=_split_address(scope.server),
-            client=_split_address(scope.client),
-            http_version=scope.http_version,
-            # The scope doesn't say it, but RSGI is the protocol of Granian
-            server_software="Granian",
-            app=self,
-        )
-
-    async def _handle_http(self, scope, protocol) -> None:
-        if scope.method == "POST" and scope.path == self.config.CABLE_PATH:
-            await self._receive_broadcast(scope, protocol)
-            return
-        request = self._request_from_scope(scope)
-        response = await self._respond(request, protocol)
-        await self._send_response(request, response, protocol)
-
-    async def _respond(self, request: Request, read_body: "TReadBody") -> Response:
-        """Run the request through the pipeline and return its response.
-
-        `read_body` is an awaitable returning the request body as bytes:
-        the RSGI protocol itself, or a stand-in from the `TestClient`.
-        """
-        current.request = request
-        current.response = response = self.response_cls(self)
-        try:
-            await request._read_body(read_body)
-        except Exception as error:
-            response.error = error
-            logger.debug(
-                "Error while parsing request body: %s: %s",
-                type(error).__name__,
-                error,
-            )
-            # This error will be handled in the _run_pipeline method
-
-        # The (synchronous) pipeline runs in a worker thread so it doesn't
-        # block the event loop.
-        response = await self._run_in_worker(self._run_pipeline, request, response)
-        current.response = response
-        return response
-
-    async def _send_response(
-        self, request: Request, response: Response, protocol
-    ) -> None:
-        status, headers, body = response.prepare(request)
-        raw_body = response.body
-        try:
-            if isinstance(body, bytes):
-                if body:
-                    protocol.response_bytes(status, headers, body)
-                else:
-                    protocol.response_empty(status, headers)
-                return
-
-            if response.file_path is not None:
-                # The server reads and sends the file itself, off the loop
-                # and outside Python.
-                protocol.response_file(status, headers, str(response.file_path))
-                return
-
-            # Any other iterable is streamed chunk by chunk. Reading it may
-            # block, so each chunk is pulled in a worker thread: the loop
-            # itself must never wait on a file or a slow generator.
-            transport = await protocol.response_stream(status, headers)
-            chunks = iter(body)
-            while True:
-                chunk = await self._in_pool(next, chunks, None)
-                if chunk is None:
-                    break
-                await transport.send_bytes(bytes(chunk))
-        finally:
-            body_close = getattr(raw_body, "close", None)
-            if callable(body_close):
-                body_close()
 
     def _run_pipeline(self, request, response) -> Response:
         wrapped = self._wrapped_pipeline

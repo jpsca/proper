@@ -1,89 +1,49 @@
-import asyncio
+"""The WebSocket protocol of the channels, as the cable (`WseCable`) serves
+it, driven from memory through `TestClient.websocket()`."""
 import logging
-import random
 
 import pytest
 
-from proper import current
+from proper import App, current
 from proper.channels import Channel
-from proper.helpers import jsonplus
-from proper.test_client import WsMessage, WsProtocolStub, make_test_ws_scope
+from proper.test_client import TestClient
 
 
-def ws_scope(path="/cable"):
-    return make_test_ws_scope(path)
+SECRET = "*" * 50
 
 
-async def run_ws(app, q, scope=None):
-    """Run the WebSocket handler as a background task."""
-    scope = scope or ws_scope()
-    task = asyncio.create_task(app._handle_websocket(scope, q))
-    # Let the accept happen
-    await asyncio.sleep(0.01)
-    return task
+def make_wse_app() -> App:
+    """An app whose cable is `WseCable`."""
+    app = App("proper", {
+        "SECRET_KEYS": [SECRET],
+        "DEBUG": False,
+        "CABLE": {"type": "proper.channels.wse.WseCable"},
+    })
+    current.app = app
+    return app
 
 
-# --- Connection ---
+@pytest.fixture()
+def app():
+    app = make_wse_app()
+    yield app
+    app.cable.stop_server()
 
 
-class TestConnection:
-    @pytest.mark.asyncio
-    async def test_accepts_on_cable_path(self, app):
-        q = WsProtocolStub()
-        q.client_disconnect()
-        task = await run_ws(app, q)
-        msg = await q.client_recv()
-        assert msg == {"type": "accept"}
-        await task
+async def open_ws(app, cookie: str = ""):
+    """Connect a client, with `cookie` in its handshake. Returns the session
+    and the task that ends with the connection."""
+    client = TestClient(app)
+    if cookie:
+        client.default_headers["cookie"] = cookie
+    ws = client.websocket()
+    task = await ws.connect()
+    return ws, task
 
-    @pytest.mark.asyncio
-    async def test_rejects_wrong_path(self, app):
-        q = WsProtocolStub()
-        scope = ws_scope("/wrong")
-        task = await run_ws(app, q, scope)
-        msg = await q.client_recv()
-        assert msg == {"type": "close", "code": 404}
-        await task
 
-    @pytest.mark.asyncio
-    async def test_refuses_when_the_cable_serves_its_own_websockets(self, app):
-        app.cable.serves_websockets = True  # as WseCable does
-        q = WsProtocolStub()
-        task = await run_ws(app, q)
-        assert await q.client_recv() == {"type": "close", "code": 404}
-        await task
-
-    @pytest.mark.asyncio
-    async def test_refuses_other_sites_pages(self, app):
-        q = WsProtocolStub()
-        scope = make_test_ws_scope(
-            headers={"origin": "https://evil.example", "host": "example.com"}
-        )
-        task = await run_ws(app, q, scope)
-        assert await q.client_recv() == {"type": "close", "code": 403}
-        await task
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("headers", [
-        {"origin": "https://example.com", "host": "example.com"},
-        {"host": "example.com"},  # not a browser
-    ])
-    async def test_accepts_its_own_pages_and_non_browsers(self, app, headers):
-        q = WsProtocolStub()
-        q.client_disconnect()
-        task = await run_ws(app, q, make_test_ws_scope(headers=headers))
-        assert await q.client_recv() == {"type": "accept"}
-        await task
-
-    @pytest.mark.asyncio
-    async def test_custom_cable_path(self, app):
-        app.config.CABLE_PATH = "/ws"
-        q = WsProtocolStub()
-        q.client_disconnect()
-        task = await run_ws(app, q, ws_scope("/ws"))
-        msg = await q.client_recv()
-        assert msg == {"type": "accept"}
-        await task
+async def nothing_more(ws):
+    with pytest.raises(TimeoutError):
+        await ws.receive(timeout=0.05)
 
 
 # --- Subscribe ---
@@ -98,39 +58,22 @@ class TestSubscribe:
 
         app.router.channels["ChatChannel"] = ChatChannel
 
-        q = WsProtocolStub()
-        q.client_send({
-            "command": "subscribe",
-            "channel": "ChatChannel",
-            "params": {"room": "general"},
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        accept = await q.client_recv()
-        assert accept["type"] == "accept"
-
-        confirm = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        confirm = await ws.subscribe("ChatChannel", room="general")
         assert confirm["type"] == "confirm_subscription"
         assert confirm["channel"] == "ChatChannel"
         assert confirm["params"] == {"room": "general"}
+        assert confirm["streams"] == ["chat"]
+        await ws.close()
         await task
 
     @pytest.mark.asyncio
     async def test_subscribe_unknown_channel(self, app):
-        q = WsProtocolStub()
-        q.client_send({
-            "command": "subscribe",
-            "channel": "NonexistentChannel",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-
-        rejection = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        rejection = await ws.subscribe("NonexistentChannel")
         assert rejection["type"] == "reject_subscription"
         assert rejection["reason"] == "unknown_channel"
+        await ws.close()
         await task
 
     @pytest.mark.asyncio
@@ -141,19 +84,11 @@ class TestSubscribe:
 
         app.router.channels["PrivateChannel"] = PrivateChannel
 
-        q = WsProtocolStub()
-        q.client_send({
-            "command": "subscribe",
-            "channel": "PrivateChannel",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-
-        rejection = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        rejection = await ws.subscribe("PrivateChannel")
         assert rejection["type"] == "reject_subscription"
         assert rejection["channel"] == "PrivateChannel"
+        await ws.close()
         await task
 
 
@@ -175,44 +110,28 @@ class TestMessage:
 
         app.router.channels["EchoChannel"] = EchoChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "EchoChannel"})
-        q.client_send({
-            "command": "message",
-            "channel": "EchoChannel",
-            "action": "speak",
-            "data": {"text": "hello"},
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        confirm = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        confirm = await ws.subscribe("EchoChannel")
         assert confirm["type"] == "confirm_subscription"
+        await ws.send_action("EchoChannel", "speak", {"text": "hello"})
 
-        # The echo response
-        echo = jsonplus.loads((await q.client_recv())["text"])
+        echo = await ws.receive()
         assert echo["type"] == "message"
+        assert echo["channel"] == "EchoChannel"
         assert echo["data"] == {"echo": "hello"}
         assert received == [{"text": "hello"}]
+        await ws.close()
         await task
 
     @pytest.mark.asyncio
     async def test_message_not_subscribed(self, app):
-        q = WsProtocolStub()
-        q.client_send({
-            "command": "message",
-            "channel": "SomeChannel",
-            "action": "speak",
-        })
-        q.client_disconnect()
+        ws, task = await open_ws(app)
+        await ws.send_action("SomeChannel", "speak")
 
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-
-        error = jsonplus.loads((await q.client_recv())["text"])
+        error = await ws.receive()
         assert error["type"] == "error"
         assert error["reason"] == "not_subscribed"
+        await ws.close()
         await task
 
     @pytest.mark.asyncio
@@ -223,42 +142,15 @@ class TestMessage:
 
         app.router.channels["TestChannel"] = TestChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "TestChannel"})
-        # Try calling a private method
-        q.client_send({
-            "command": "message",
-            "channel": "TestChannel",
-            "action": "_dispatch",
-        })
-        # Try calling subscribed directly
-        q.client_send({
-            "command": "message",
-            "channel": "TestChannel",
-            "action": "subscribed",
-        })
-        # Try calling unsubscribed directly
-        q.client_send({
-            "command": "message",
-            "channel": "TestChannel",
-            "action": "unsubscribed",
-        })
-        # Try empty action
-        q.client_send({
-            "command": "message",
-            "channel": "TestChannel",
-            "action": "",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
-
-        for _ in range(4):
-            error = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        await ws.subscribe("TestChannel")
+        # A private method, the lifecycle methods, and no action at all
+        for action in ("_dispatch", "subscribed", "unsubscribed", ""):
+            await ws.send_action("TestChannel", action)
+            error = await ws.receive()
             assert error["type"] == "error"
             assert error["reason"] == "invalid_action"
+        await ws.close()
         await task
 
     @pytest.mark.asyncio
@@ -269,77 +161,57 @@ class TestMessage:
 
         app.router.channels["TestChannel"] = TestChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "TestChannel"})
-        q.client_send({
-            "command": "message",
-            "channel": "TestChannel",
-            "action": "nonexistent",
-        })
-        q.client_disconnect()
+        ws, task = await open_ws(app)
+        await ws.subscribe("TestChannel")
+        await ws.send_action("TestChannel", "nonexistent")
 
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
-
-        error = jsonplus.loads((await q.client_recv())["text"])
+        error = await ws.receive()
         assert error["type"] == "error"
         assert error["reason"] == "unknown_action"
+        await ws.close()
         await task
 
 
 # --- Unsubscribe ---
 
 
+class TrackChannel(Channel):
+    lifecycle: list = []
+
+    def subscribed(self):
+        self.lifecycle.append("subscribed")
+
+    def unsubscribed(self):
+        self.lifecycle.append("unsubscribed")
+
+
 class TestUnsubscribe:
     @pytest.mark.asyncio
     async def test_unsubscribe_calls_lifecycle(self, app):
-        lifecycle = []
-
-        class TrackChannel(Channel):
-            def subscribed(self):
-                lifecycle.append("subscribed")
-
-            def unsubscribed(self):
-                lifecycle.append("unsubscribed")
-
+        TrackChannel.lifecycle = []
         app.router.channels["TrackChannel"] = TrackChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "TrackChannel"})
-        q.client_send({"command": "unsubscribe", "channel": "TrackChannel"})
-        q.client_disconnect()
+        ws, task = await open_ws(app)
+        await ws.subscribe("TrackChannel")
+        await ws.unsubscribe("TrackChannel")
+        assert TrackChannel.lifecycle == ["subscribed", "unsubscribed"]
 
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        await ws.close()
         await task
-
-        assert lifecycle == ["subscribed", "unsubscribed"]
+        # Not again at the disconnect: the subscription was already gone.
+        assert TrackChannel.lifecycle == ["subscribed", "unsubscribed"]
 
     @pytest.mark.asyncio
     async def test_disconnect_calls_unsubscribed(self, app):
-        lifecycle = []
-
-        class TrackChannel(Channel):
-            def subscribed(self):
-                lifecycle.append("subscribed")
-
-            def unsubscribed(self):
-                lifecycle.append("unsubscribed")
-
+        TrackChannel.lifecycle = []
         app.router.channels["TrackChannel"] = TrackChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "TrackChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app)
+        await ws.subscribe("TrackChannel")
+        await ws.close()
         await task
 
-        assert lifecycle == ["subscribed", "unsubscribed"]
+        assert TrackChannel.lifecycle == ["subscribed", "unsubscribed"]
 
 
 # --- Error handling ---
@@ -348,63 +220,30 @@ class TestUnsubscribe:
 class TestProtocolErrors:
     @pytest.mark.asyncio
     async def test_invalid_json(self, app):
-        q = WsProtocolStub()
-        q.client_send_text("not valid json{{{")
-        q.client_disconnect()
+        ws, task = await open_ws(app)
+        ws.client_send_text("not valid json{{{")
 
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-
-        error = jsonplus.loads((await q.client_recv())["text"])
+        error = await ws.receive()
         assert error["type"] == "error"
         assert error["reason"] == "invalid_json"
+        await ws.close()
         await task
 
     @pytest.mark.asyncio
     async def test_unknown_command(self, app):
-        q = WsProtocolStub()
-        q.client_send({"command": "bogus"})
-        q.client_disconnect()
+        ws, task = await open_ws(app)
+        ws.client_send({"command": "bogus"})
 
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-
-        error = jsonplus.loads((await q.client_recv())["text"])
+        error = await ws.receive()
         assert error["type"] == "error"
         assert error["reason"] == "unknown_command"
+        await ws.close()
         await task
-
-    @pytest.mark.asyncio
-    async def test_empty_text_ignored(self, app):
-        q = WsProtocolStub()
-        q.client_send_text("")
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        accept = await q.client_recv()
-        assert accept["type"] == "accept"
-        # No error message - empty text is silently ignored
-        await task
-
-    @pytest.mark.asyncio
-    async def test_non_receive_event_ignored(self, app):
-        q = WsProtocolStub()
-        # Send an unexpected event type
-        q.to_app.put_nowait(WsMessage(1, b"binary frames are ignored"))
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        accept = await q.client_recv()
-        assert accept["type"] == "accept"
-        await task
-
-
-# --- Messages sent during subscribed() ---
 
 
 class TestDisconnectErrorHandling:
     @pytest.mark.asyncio
-    async def test_error_in_unsubscribed_is_logged(self, app):
+    async def test_error_in_unsubscribed_is_logged(self, app, caplog):
         class BadChannel(Channel):
             def subscribed(self):
                 pass
@@ -414,15 +253,17 @@ class TestDisconnectErrorHandling:
 
         app.router.channels["BadChannel"] = BadChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "BadChannel"})
-        q.client_disconnect()
+        ws, task = await open_ws(app)
+        await ws.subscribe("BadChannel")
+        with caplog.at_level(logging.ERROR, logger="proper"):
+            # Should not raise - the error is logged
+            await ws.close()
+            await task
 
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
-        # Should not raise - error is logged
-        await task
+        assert "cleanup failed" in caplog.text
+
+
+# --- Messages sent during subscribed() ---
 
 
 class TestSendDuringSubscribed:
@@ -434,77 +275,56 @@ class TestSendDuringSubscribed:
 
         app.router.channels["GreetChannel"] = GreetChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "GreetChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-
+        ws, task = await open_ws(app)
         # The greeting is flushed before the confirm
-        greeting = jsonplus.loads((await q.client_recv())["text"])
+        greeting = await ws.subscribe("GreetChannel")
         assert greeting["type"] == "message"
         assert greeting["data"] == {"greeting": "welcome!"}
 
-        confirm = jsonplus.loads((await q.client_recv())["text"])
+        confirm = await ws.receive()
         assert confirm["type"] == "confirm_subscription"
+        await ws.close()
         await task
 
 
-# --- Connection scope / signed cookies ---
+# --- The handshake's signed cookies ---
 
 
-class TestConnectionScope:
+class CookieChannel(Channel):
+    captured: dict = {}
+
+    def subscribed(self):
+        self.captured["token"] = self.request.get_signed_cookie(
+            "_auth", salt="auth cookie"
+        )
+
+
+class TestConnectionCookies:
     @pytest.mark.asyncio
-    async def test_channel_reads_signed_cookie_from_scope(self, app):
-        captured = {}
-
-        class CookieChannel(Channel):
-            def subscribed(self):
-                captured["token"] = self.request.get_signed_cookie(
-                    "_auth", salt="auth cookie"
-                )
-
+    async def test_channel_reads_signed_cookie_from_the_handshake(self, app):
+        CookieChannel.captured = {}
         app.router.channels["CookieChannel"] = CookieChannel
 
         signed = app.dumps("session-token-123", salt="auth cookie")
-        scope = ws_scope()
-        scope.headers = {"cookie": f"_auth={signed}"}
-
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "CookieChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q, scope)
-        await q.client_recv()  # accept
-        confirm = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app, f"_auth={signed}")
+        confirm = await ws.subscribe("CookieChannel")
         assert confirm["type"] == "confirm_subscription"
+        await ws.close()
         await task
 
-        assert captured["token"] == "session-token-123"
+        assert CookieChannel.captured["token"] == "session-token-123"
 
     @pytest.mark.asyncio
     async def test_missing_cookie_returns_none(self, app):
-        captured = {}
+        CookieChannel.captured = {}
+        app.router.channels["CookieChannel"] = CookieChannel
 
-        class NoCookieChannel(Channel):
-            def subscribed(self):
-                captured["token"] = self.request.get_signed_cookie(
-                    "_auth", salt="auth cookie"
-                )
-
-        app.router.channels["NoCookieChannel"] = NoCookieChannel
-
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "NoCookieChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q)  # default scope: no cookie header
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app)  # no cookie header
+        await ws.subscribe("CookieChannel")
+        await ws.close()
         await task
 
-        assert captured["token"] is None
+        assert CookieChannel.captured["token"] is None
 
 
 # --- Session-based authentication ---
@@ -557,11 +377,9 @@ def _reset_fakes():
     FakeAuthChannel.find_user_calls = 0
 
 
-def _cookie_scope(app, token):
-    signed = app.dumps(token, salt="auth cookie")
-    scope = ws_scope()
-    scope.headers = {"cookie": f"_auth={signed}"}
-    return scope
+def _cookie(app, token):
+    """The `cookie` header of a client signed in with session `token`."""
+    return "_auth=" + app.dumps(token, salt="auth cookie")
 
 
 class TestSessionAuth:
@@ -577,13 +395,9 @@ class TestSessionAuth:
 
         app.router.channels["AccountChannel"] = AccountChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "AccountChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("AccountChannel")
+        await ws.close()
         await task
 
         assert seen["authenticated"] is True
@@ -604,18 +418,10 @@ class TestSessionAuth:
 
         app.router.channels["AccountChannel2"] = AccountChannel2
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "AccountChannel2"})
-        q.client_send({
-            "command": "message",
-            "channel": "AccountChannel2",
-            "action": "whoami",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("AccountChannel2")
+        await ws.send_action("AccountChannel2", "whoami")
+        await ws.close()
         await task
 
         assert seen["user_id"] == 7
@@ -633,14 +439,10 @@ class TestSessionAuth:
 
         app.router.channels["GuardedChannel"] = GuardedChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q)  # no cookie -> anonymous
-        await q.client_recv()  # accept
-        rejection = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)  # no cookie -> anonymous
+        rejection = await ws.subscribe("GuardedChannel")
         assert rejection["type"] == "reject_subscription"
+        await ws.close()
         await task
 
         assert seen["authenticated"] is False
@@ -659,23 +461,11 @@ class TestSessionAuth:
 
         app.router.channels["TickChannel"] = TickChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "TickChannel"})
-        q.client_send({
-            "command": "message",
-            "channel": "TickChannel",
-            "action": "ping",
-        })
-        q.client_send({
-            "command": "message",
-            "channel": "TickChannel",
-            "action": "ping",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("TickChannel")
+        await ws.send_action("TickChannel", "ping")
+        await ws.send_action("TickChannel", "ping")
+        await ws.close()
         await task
 
         assert seen["user_ids"] == [7, 7]
@@ -704,23 +494,11 @@ class TestSessionAuth:
 
         app.router.channels["FragileChannel"] = FragileChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "FragileChannel"})
-        q.client_send({
-            "command": "message",
-            "channel": "FragileChannel",
-            "action": "vanish",
-        })
-        q.client_send({
-            "command": "message",
-            "channel": "FragileChannel",
-            "action": "whoami",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("FragileChannel")
+        await ws.send_action("FragileChannel", "vanish")
+        await ws.send_action("FragileChannel", "whoami")
+        await ws.close()
         await task
 
         assert seen["user"] is None
@@ -742,119 +520,14 @@ class TestSessionAuth:
 
         app.router.channels["ProbeChannel"] = ProbeChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "ProbeChannel"})
-        q.client_send({
-            "command": "message",
-            "channel": "ProbeChannel",
-            "action": "probe",
-        })
-        q.client_disconnect()
-
-        task = await run_ws(app, q, _cookie_scope(app, "good-token"))
-        await q.client_recv()  # accept
-        await q.client_recv()  # confirm
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("ProbeChannel")
+        await ws.send_action("ProbeChannel", "probe")
+        await ws.close()
         await task
 
         assert seen["in_subscribed"] is FakeSessionModel.instance
         assert seen["in_action"] is None
-
-
-# --- Outbound delivery ---
-
-
-class SlowWsProtocolStub(WsProtocolStub):
-    """Like `WsProtocolStub`, but sending a frame suspends before delivering.
-
-    A real server does the same whenever the transport applies
-    backpressure, which is what pulls concurrent senders out of order.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._rng = random.Random(1234)
-
-    async def send_str(self, text):
-        await asyncio.sleep(self._rng.uniform(0, 0.002))
-        await super().send_str(text)
-
-
-class BrokenWsProtocolStub(WsProtocolStub):
-    """A connection that drops as soon as the app tries to write to it."""
-
-    async def send_str(self, text):
-        raise ConnectionResetError("client went away")
-
-
-class TestOutboundDelivery:
-    @pytest.mark.asyncio
-    async def test_broadcasts_arrive_in_the_order_they_were_sent(self, app):
-        class RoomChannel(Channel):
-            def subscribed(self):
-                self.stream_from("room")
-
-        app.router.channels["RoomChannel"] = RoomChannel
-
-        q = SlowWsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "RoomChannel"})
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        confirm = jsonplus.loads((await q.client_recv())["text"])
-        assert confirm["type"] == "confirm_subscription"
-
-        total = 25
-        # Broadcast from a worker thread, the way a controller does.
-        await asyncio.to_thread(
-            lambda: [app.cable.broadcast("room", {"n": n}) for n in range(total)]
-        )
-
-        received = [
-            jsonplus.loads((await q.client_recv())["text"])["data"]["n"]
-            for _ in range(total)
-        ]
-        assert received == list(range(total))
-
-        q.client_disconnect()
-        await task
-
-    @pytest.mark.asyncio
-    async def test_queued_messages_are_flushed_before_closing(self, app):
-        class RoomChannel(Channel):
-            def subscribed(self):
-                self.stream_from("room")
-
-        app.router.channels["RoomChannel"] = RoomChannel
-
-        q = SlowWsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "RoomChannel"})
-        # The disconnect is already waiting when the confirm is queued.
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        confirm = jsonplus.loads((await q.client_recv())["text"])
-        assert confirm["type"] == "confirm_subscription"
-        await task
-
-    @pytest.mark.asyncio
-    async def test_a_failed_send_is_reported(self, app, caplog):
-        class RoomChannel(Channel):
-            def subscribed(self):
-                self.stream_from("room")
-
-        app.router.channels["RoomChannel"] = RoomChannel
-
-        q = BrokenWsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "RoomChannel"})
-        q.client_disconnect()
-
-        with caplog.at_level(logging.ERROR, logger="proper"):
-            task = await run_ws(app, q)
-            await q.client_recv()  # accept
-            await task
-
-        assert "could not send to the client" in caplog.text
 
 
 class TestRejectedSubscription:
@@ -867,17 +540,15 @@ class TestRejectedSubscription:
 
         app.router.channels["GuardedChannel"] = GuardedChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        rejection = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        rejection = await ws.subscribe("GuardedChannel")
         assert rejection["type"] == "reject_subscription"
-        await task
-
         assert app.cable.streams == {}
+
+        app.cable.broadcast("guarded", {"secret": "should never arrive"})
+        await nothing_more(ws)
+        await ws.close()
+        await task
 
     @pytest.mark.asyncio
     async def test_a_rejected_channel_sends_nothing_to_the_client(self, app):
@@ -888,14 +559,9 @@ class TestRejectedSubscription:
 
         app.router.channels["GuardedChannel"] = GuardedChannel
 
-        q = WsProtocolStub()
-        q.client_send({"command": "subscribe", "channel": "GuardedChannel"})
-        q.client_disconnect()
-
-        task = await run_ws(app, q)
-        await q.client_recv()  # accept
-        rejection = jsonplus.loads((await q.client_recv())["text"])
+        ws, task = await open_ws(app)
+        rejection = await ws.subscribe("GuardedChannel")
         assert rejection["type"] == "reject_subscription"
+        await nothing_more(ws)
+        await ws.close()
         await task
-
-        assert q.from_app.empty()
