@@ -112,9 +112,9 @@ export class Subscription {
   }
 }
 
-// The server pings every few seconds (`CABLE_PING_INTERVAL`). A connection
-// that has been silent for this long is dead, even if the socket says it is
-// open: a laptop that slept, a proxy that dropped it.
+// The server pings every `CABLE_PING_INTERVAL` seconds. A connection that
+// has been silent for three intervals (and at least this long) is dead, even
+// if the socket says it is open: a laptop that slept, a proxy that dropped it.
 const STALE_AFTER = 10000
 const MAX_RECONNECT_DELAY = 30000
 const WSE_PONG = '{"c":"WSE","t":"PONG","p":{}}'
@@ -138,7 +138,8 @@ export class Cable {
     this._reconnectTimer = null
     this._shouldReconnect = true
     this._lastSeen = 0
-    this._pinged = false
+    this._lastPing = 0
+    this._staleAfter = STALE_AFTER
     this._monitor = null
     this._nextId = 1
     this._replies = new Map()  // id -> {resolve, reject, timer}
@@ -206,7 +207,7 @@ export class Cable {
     ws.onopen = () => {
       this._reconnectAttempts = 0
       this._lastSeen = Date.now()
-      this._pinged = false
+      this._lastPing = 0
       this._startMonitor()
       for (const sub of this._pendingSubscriptions) {
         this._sendSubscribe(sub)
@@ -223,13 +224,15 @@ export class Cable {
       this._lastSeen = Date.now()
       const msg = JSON.parse(event.data)
       if (msg.c === "WSE") {
-        // wse-server's own ping. It closes a connection that sends it
-        // nothing for a minute, so a page that only listens answers it.
-        if (msg.t === "ping") ws.send(WSE_PONG)
-        return
-      }
-      if (msg.type === "ping") {
-        this._pinged = true
+        // The server's ping. It closes a connection that answers none for
+        // `idle_timeout`, so a page that only listens answers it. The time
+        // between two of them says how long a silence is too long.
+        if (msg.t === "ping") {
+          ws.send(WSE_PONG)
+          const now = Date.now()
+          if (this._lastPing) this._staleAfter = Math.max(STALE_AFTER, 3 * (now - this._lastPing))
+          this._lastPing = now
+        }
         return
       }
       this._dispatch(msg)
@@ -266,7 +269,7 @@ export class Cable {
     this._monitor = setInterval(() => {
       // Only once the server has shown it pings: one that does not would
       // have every quiet connection taken for dead.
-      if (this._pinged && Date.now() - this._lastSeen > STALE_AFTER && this._ws) {
+      if (this._lastPing && Date.now() - this._lastSeen > this._staleAfter && this._ws) {
         // Silent for too long: drop it and open a new one.
         this._ws.close()
       }

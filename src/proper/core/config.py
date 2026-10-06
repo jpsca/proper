@@ -113,7 +113,9 @@ default_config = {
     "CABLE_ALLOWED_ORIGINS": [],
 
     # Seconds between the pings the server sends on every WebSocket, so
-    # clients can tell a dead connection from a quiet one. `0` sends none.
+    # clients can tell a dead connection from a quiet one. A whole number,
+    # at least 1, and less than the cable's `idle_timeout` (60): a
+    # connection that answers no ping for that long is closed.
     "CABLE_PING_INTERVAL": 3,
 
     # A connection with more than `CABLE_MAX_PENDING_BYTES` queued that got

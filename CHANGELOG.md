@@ -160,6 +160,18 @@ Apps that only use `S3` storage don't need it.
 
 ### Changed
 
+- The pings of the cable are wse's (`{"c": "WSE", "t": "ping"}`), every
+  `CABLE_PING_INTERVAL` seconds, instead of a second ping from a Python
+  thread. `CABLE_PING_INTERVAL` is now a whole number of seconds, at least 1
+  and less than the cable's `idle_timeout` (60), and `0` is a `ConfigError`
+  instead of "no pings". `cable.js` takes a connection for dead after three
+  intervals of silence (at least 10 seconds). Apps created before need the
+  new `assets/js/cable.js`.
+- The `CABLE_*` settings are checked at startup when a cable is set: the
+  port, the path, the ping interval against `idle_timeout`, and the
+  slow-client limits. `CABLE` may not set wse's `ping_interval`,
+  `allowed_origins` or `recovery_enabled`, which `CABLE_PING_INTERVAL`,
+  `CABLE_ALLOWED_ORIGINS` and the `recovery` option decide.
 - Image variants are named after the original file
   (`<original name>.<ext>`) instead of `variant.<ext>`.
 
