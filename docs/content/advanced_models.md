@@ -384,13 +384,20 @@ Because the SQL can't change between executions:
 
 `prepared.sql()` returns the SQL and its parameters, with a `Param` where each value goes.
 
-:::warning | What not raw SQL?
+:::warning | Why not raw SQL?
 In terms of time, executing a prepared query costs about the same as running raw SQL with parameters:
 
 ```python
-Message.raw("SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?", room_id, 40)
+Message.raw(
+    "SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?",
+    room_id, 40
+)
 # or
-db.execute_sql("SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?", (room_id, 40))
+
+db.execute_sql(
+    "SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?",
+    (room_id, 40)
+)
 ```
 
 In both cases, nothing is built or compiled: the SQL is ready, and only the values change.
