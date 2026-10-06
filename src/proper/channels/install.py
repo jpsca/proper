@@ -16,7 +16,7 @@ SORT_IMPORTS_IN = [
 ]
 
 DEPENDENCIES = [
-    "proper-wse >= 2.6.1",
+    "proper-wse >= 2.6.2",
 ]
 
 

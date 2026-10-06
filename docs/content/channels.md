@@ -161,7 +161,7 @@ class ChatChannel(AppChannel):
 `unsubscribed()` runs when the client unsubscribes, when the connection closes - the tab was closed, the network dropped, or the server closed it - and when the server stops. Proper removes the channel from all its streams before calling it, so you only need to undo work that lives elsewhere.
 
 :::warning
-`unsubscribed()` does not run if the server process is killed or crashes, and for a connection that dies without closing (a laptop that went to sleep) it can run late, or not at all. Do not keep anything you cannot afford to lose solely in what `unsubscribed()` cleans up.
+`unsubscribed()` does not run if the server process is killed or crashes, and for a connection that dies without closing (a laptop that went to sleep) it runs late: when the server notices the silence, about a minute later. Do not keep anything you cannot afford to lose solely in what `unsubscribed()` cleans up.
 :::
 
 ---

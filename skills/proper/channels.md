@@ -108,7 +108,7 @@ Messages sent during `subscribed()` are buffered and flushed to the client befor
 
 Called when the client unsubscribes, when the connection closes (tab closed, network drop noticed, server closed it via `disconnect()` or the slow-client watcher), and for every open connection when the server stops cleanly. Use it for cleanup. The framework removes the channel from all streams before calling this method.
 
-It does not run if the process is killed or crashes, and for a connection that dies silently it can run late or not at all: wse closes a connection that sends it nothing for `idle_timeout` (60 s; `cable.js` answers wse's own `{"c":"WSE","t":"ping"}` with a PONG to stay alive), but proper-wse 2.6.1 doesn't report that close to Python. Do not put critical cleanup solely here.
+It does not run if the process is killed or crashes, and for a connection that dies silently it runs late: wse closes a connection that sends it nothing for `idle_timeout` (60 s, checked every `ping_interval`, 25 s), and `unsubscribed()` runs then. `cable.js` answers wse's own `{"c":"WSE","t":"ping"}` with a PONG, so a page that only listens isn't closed. Needs proper-wse >= 2.6.2: older versions deadlocked on that close. Do not put critical cleanup solely here.
 
 ### Rejection
 
@@ -523,7 +523,7 @@ The default backend, the one the channels addon writes. `CABLE = {"type": "prope
 - `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server. The web server (Granian, WSGI) has no WebSockets. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
 - Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.
 - Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`).
-- Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`; `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup.
+- Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`; `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup; the channels addon requires >= 2.6.2.
 
 
 ## Without Channels (`CABLE = {}`)

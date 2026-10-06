@@ -13,7 +13,7 @@ over WSGI, and the only cable that serves WebSockets is `WseCable`
 and set the cable:
 
 ```bash
-uv add proper-wse
+uv add "proper-wse>=2.6.2"
 ```
 
 ```python {title="config/channels.py"}
@@ -56,6 +56,11 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
   sent meanwhile. `cable.js` now answers wse's pings. Apps created before
   need the new `assets/js/cable.js`: copy it from Proper's
   `_blueprints/addon_channels/assets/js/cable.js`.
+- The channels addon requires proper-wse >= 2.6.2. In older versions, closing
+  a connection that had gone silent (a laptop that went to sleep) stopped the
+  server's pings and checks for every connection, `unsubscribed()` never ran
+  for it, and the server didn't stop. Upgrade with
+  `uv add "proper-wse>=2.6.2"`.
 - A client could call a channel's `find_user()` as an action. It is now
   refused, like the other channel internals.
 - `WseCable`: what a channel set on `current` in one command (such as
