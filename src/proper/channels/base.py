@@ -104,6 +104,26 @@ class BaseCable:
         for stream_name in list(getattr(channel, "_streams", ())):
             self.unsubscribe(stream_name, channel)
 
+    # Presence: who is in a stream. None here, there are no connections.
+
+    def track(self, stream_name: str, data: dict, channel: "Channel", key: t.Any = None) -> None:
+        """List the channel's connection among those present in a stream."""
+
+    def untrack(self, stream_name: str, channel: "Channel") -> None:
+        """Take the channel's connection off the list of a stream."""
+
+    def update_presence(self, channel: "Channel", data: dict) -> None:
+        """Change the data shown for the channel's connection, in every
+        stream it is present in."""
+
+    def presence(self, stream_name: str) -> dict[str, dict]:
+        """Who is present in a stream: `{key: {"data": ..., "connections": n}}`."""
+        return {}
+
+    def presence_stats(self, stream_name: str) -> dict[str, int]:
+        """How many are present in a stream: `{"users": n, "connections": n}`."""
+        return {"users": 0, "connections": 0}
+
     def forward_to(self, url: str, sign: "Callable[[t.Any], str]") -> None:
         """Send the broadcasts of any process that is not serving the
         WebSockets to `url`, the cable process's `CABLE_PATH`, signed with

@@ -47,6 +47,15 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### Added
 
+- Presence: `Channel.track(stream, data, key=...)` lists the connection
+  among those present in a stream, under the user's id (three tabs count
+  once), a random key for anonymous connections, or a key the server
+  chooses; `untrack()` and `update_presence()`; `app.cable.presence(stream)`
+  and `presence_stats(stream)`. The stream's subscribers get
+  `presence_join`, `presence_leave` and `presence_update`, the
+  confirmation lists who is there, and `cable.js` has a
+  `presence(users, change)` callback. `Cable(presence=False)` turns it
+  off. Needs proper-wse >= 2.7.0.
 - A channel's `self.request` is now the whole handshake: its path and query
   string (`request.query`), its `Authorization` and `X-Forwarded-For`
   headers, and the client's address (`request.remote_ip`), besides the

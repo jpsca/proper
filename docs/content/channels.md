@@ -428,9 +428,9 @@ self.app.cable.disconnect(user_id=membership.user_id)
 
 ---
 
-## Tracking who is connected
+## Who is here: presence
 
-Channels do not have a presence API, but the lifecycle hooks are enough to build a simple one: announce in `subscribed()`, announce again in `unsubscribed()`, and let every page update its list.
+A channel can list its connection among those present in a stream, with `track()`. The server keeps the list, tells the stream's subscribers who joins and leaves, and gives every new subscriber the list as it stands:
 
 ```python
 @router.channel()
@@ -439,27 +439,34 @@ class RoomChannel(AppChannel):
         if not self.authenticated:
             self.reject()
             return
-        self.room = f"room_{self.params['room_id']}"
-        self.stream_from(self.room)
-        self.broadcast(
-            self.room,
-            {"event": "joined", "user": current.user.login},
-        )
+        stream = f"room_{self.params['room_id']}"
+        self.stream_from(stream)
+        self.track(stream, {"name": current.user.name, "avatar": current.user.avatar_url})
 
-    def unsubscribed(self):
-        self.broadcast(
-            self.room,
-            {"event": "left", "user": current.user.login},
-        )
+    def away(self, data):
+        self.update_presence({"name": current.user.name, "status": "away"})
 ```
 
-That is enough for join and leave notices and "X is typing". Know its limits, though:
+```javascript
+cable.subscribe("RoomChannel", { room_id: 42 }, {
+  presence(users, change) {
+    renderWhoIsHere(Object.values(users))  // {key: data}, as of now
+    if (change?.event === "join") toast(`${change.data.name} is here`)
+  },
+})
+```
 
-- It tells you about *events* (someone joined, someone left), not *state* (who is here right now). A page that opens later doesn't learn who was already there. For a live list of members, keep it yourself in a shared store.
-- A user with three tabs joins three times. Counting each user once is up to you.
-- `unsubscribed()` doesn't run if the server process dies, so a crash can leave members that never leave.
+The `presence` callback runs with the whole list when the subscription is confirmed (`change` is `null`) and each time it changes; `change` is `{event, userId, data}`, with `event` one of `join`, `leave` or `update`. On the server, `app.cable.presence(stream)` returns `{key: {"data": ..., "connections": n}}` and `app.cable.presence_stats(stream)` the counts, from any process that serves the WebSockets.
 
-A built-in presence API that handles several tabs is one of the things Channels doesn't have yet - see [Where this could grow](#where-this-could-grow).
+What the list keys on:
+
+- A logged-in user is listed by their id. Three tabs are one entry: `join` goes out with the first, `leave` with the last. That is also what `unsubscribed()` can't give you, because it runs once per tab.
+- An anonymous connection gets a random key, so a visitor with three tabs counts three times.
+- `track(stream, data, key=...)` lists the connection under a key of your choosing, for example a bot's name. The key is decided in `subscribed()`, on the server. Never take it from `params`: a client could pose as anyone. One key per connection; a second `track()` with another is an error.
+
+A connection leaves a stream's list with `untrack(stream)`, with `stop_stream_from()`, when the client unsubscribes, and when the connection closes, including when the browser is killed: the server notices, so there are no ghosts. `update_presence(data)` changes the data in every stream the connection is present in. `track()` needs `stream_from()` first.
+
+The list lives in the server that serves the WebSockets, so it is one machine's. `presence=False` in `CABLE` turns it off (`track()` then fails), and wse's `presence_max_data_size` (4 KB per user) and `presence_max_members` bound it.
 
 ---
 
@@ -497,6 +504,7 @@ Callback         | Called when
 `received(data)` | A `send()` or a broadcast arrived for this subscription
 `rejected()`     | The channel called `reject()`, or no channel has that name
 `disconnected()` | The connection closed, or you called `unsubscribe()`
+`presence(users, change)` | The channel tracks who is in a stream (see [Who is here](#who-is-here-presence)): the list on confirmation, and each change
 
 When the connection drops, `cable.js` reconnects on its own, subscribes everything again, and gets the broadcasts it missed (see [Missed broadcasts](#missed-broadcasts-recovery)), so a short network problem is invisible to your code. A `perform()` made meanwhile waits, and is sent once the connection and its subscriptions are back; its promise still rejects with `{reason: "timeout"}` if that takes longer than its timeout, and with `{reason: "offline"}` if more than 100 calls pile up. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every `CABLE_PING_INTERVAL` seconds; a connection that goes silent for three intervals (and at least 10 seconds) is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
 
@@ -695,6 +703,7 @@ Option                     | Default      | What it is
 `backpressure_bytes`       | 128 KB       | A `broadcast()` waits while the subscribers of its stream have more than this queued, on average. `0` never waits
 `backpressure_timeout`     | `1.0`        | The longest a `broadcast()` waits, in seconds; then it is sent anyway
 `recovery`                 | `True`       | Keep the last broadcasts of each stream, for clients that reconnect (see [Missed broadcasts](#missed-broadcasts-recovery))
+`presence`                 | `True`       | Keep who is in each stream, for `track()` (see [Who is here](#who-is-here-presence))
 
 Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_handshakes`, how many handshakes can be in progress at once; raise it if thousands of clients may reconnect together after a restart. Or the size of the recovery buffers: `recovery_buffer_size` (128 broadcasts per stream, rounded to a power of two), `recovery_ttl` (300 seconds without broadcasts before a stream's buffer is dropped) and `recovery_memory_budget` (256 MB for all of them; past it, the least used are dropped). The buffers share the bytes of the frames with the connections, so they cost memory once per broadcast, not once per subscriber.
 
@@ -850,7 +859,7 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 { "type": "confirm_subscription", "channel": "ChatChannel",
     "params": {"room": "general"}, "streams": ["chat_general"],
     "positions": {"chat_general": {"e": "0000abcd", "o": 42}},
-    "recovered": true }
+    "recovered": true, "presence": {"chat_general": {"7": {"name": "Ana"}}} }
 
 { "type": "reject_subscription", "channel": "ChatChannel",
     "params": {"room": "general"} }
@@ -872,6 +881,9 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 { "type": "error", "reason": "not_subscribed" }
 
 { "c": "WSE", "t": "ping", "p": {"server_time": "2026-10-06T12:00:00.000Z"} }
+
+{ "c": "WSE", "t": "presence_join", "p": {"topic": "chat_general",
+    "user_id": "7", "data": {"name": "Ana"}} }
 ```
 
 A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
@@ -883,6 +895,8 @@ Subscribing again to a subscription that already exists only sends its confirmat
 A `reply` answers the `message` with the same `id`: `status: "ok"` with what the action returned as `data` (`null` if nothing), or `status: "error"` with a `reason` in `data`: the one of an `ActionError`, along with its other data; `error` when the action raised anything else; or `not_subscribed`, `invalid_action` or `unknown_action` when there was nothing to run.
 
 A `message` without an `id` gets no reply. What would have been an error reply is an `error` frame instead, with the `reason` (and the data of an `ActionError`) at the top level; an action that raises anything else sends nothing. An `error` also reports a command the server couldn't read: `invalid_json`, `invalid_message` (JSON that is not an object), or `unknown_command`.
+
+The confirmation's `presence` lists who is in each stream the channel tracks, `{key: data}`. The `presence_join`, `presence_leave` and `presence_update` frames are wse's too, to every subscriber of the stream (`topic`), when a user's first connection is tracked, their last one leaves, or their data changes; they may arrive before the confirmation of the subscription that caused them.
 
 The `ping` is wse's, every `CABLE_PING_INTERVAL` seconds. The client answers it with `{"c": "WSE", "t": "PONG", "p": {}}`; a connection that answers none for `idle_timeout` seconds is closed. `cable.js` also uses it to tell a dead connection from a quiet one: three intervals of silence (and at least 10 seconds), and it reconnects.
 
@@ -965,7 +979,6 @@ The channel guards the room with the server-verified user. The controller saves 
 
 Channels covers the core - one shared connection, authenticated subscriptions, streams, broadcasting, a reconnecting client, recovery of missed broadcasts, replies to actions, and Turbo Streams. Some things that other real-time stacks offer are not here yet. None of them block you - there are workarounds - but they are where the framework will likely grow.
 
-- **A presence API.** A real who-is-online list that handles several tabs and several machines, instead of the manual pattern shown above. The WebSocket server, wse, already keeps one: per user, across tabs, and synced between its own cluster nodes. What is missing is connecting it to Proper: wse only knows who a connection belongs to when it authenticates with a JWT, not with the session cookie, and `cable.js` doesn't understand its join and leave messages.
 - **Stream names from models.** `broadcast_to(record, data)` and `stream_for(record)`, which would build the stream name from a model, so a typo can't break it silently.
 - **Per-subscription timers.** A `periodically(...)` hook for server-driven updates - counters, clocks, dashboards - that lives as long as the subscription. For now, a periodic background task that broadcasts to a stream covers most of this.
 

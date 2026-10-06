@@ -959,3 +959,173 @@ class TestHandshakeRequest:
         assert FakeSessionModel.find_by_token_calls == 1
         await ws.close()
         await task
+
+
+# --- Presence ---
+
+
+class PresenceChannel(FakeAuthChannel):
+    """Tracks the room's stream; `key` and `data` from params, for the tests
+    only (an app must never take the key from params)."""
+
+    def subscribed(self):
+        stream = f"room_{self.params['room']}"
+        self.stream_from(stream)
+        if self.params.get("track", True):
+            self.track(stream, {"name": self.params.get("name", "?")}, key=self.params.get("key"))
+
+    def rename(self, data):
+        self.update_presence({"name": data["name"]})
+
+    def leave(self, data):
+        self.untrack(f"room_{self.params['room']}")
+
+
+def presence_frame(frame: dict) -> tuple:
+    assert frame["c"] == "WSE"
+    return frame["t"], frame["p"]["topic"], frame["p"]["user_id"], frame["p"]["data"]
+
+
+async def subscribe_tracked(ws, **params) -> tuple[dict, list]:
+    """Subscribe, and return the confirmation and the frames before it: the
+    presence events the server writes while `subscribed()` runs come first,
+    as they go straight to the connection."""
+    before = []
+    frame = await ws.subscribe("PresenceChannel", **params)
+    while frame["type" if "type" in frame else "t"] != "confirm_subscription":
+        before.append(frame)
+        frame = await ws.receive()
+    return frame, before
+
+
+class TestPresence:
+    @pytest.fixture(autouse=True)
+    def _channel(self, app):
+        _reset_fakes()
+        app.router.channels["PresenceChannel"] = PresenceChannel
+
+    @pytest.mark.asyncio
+    async def test_who_is_in_a_stream(self, app):
+        """A user's first connection joins, its last one leaves; the
+        confirmation lists who is there; three tabs count once."""
+        ana_tab1, task1 = await open_ws(app, _cookie(app, "good-token"))
+        confirm, before = await subscribe_tracked(ana_tab1, room="a", name="Ana")
+        assert confirm["presence"] == {"room_a": {"7": {"name": "Ana"}}}
+        assert [presence_frame(f) for f in before] == [("presence_join", "room_a", "7", {"name": "Ana"})]
+        assert app.cable.presence("room_a") == {"7": {"data": {"name": "Ana"}, "connections": 1}}
+
+        ana_tab2, task2 = await open_ws(app, _cookie(app, "good-token"))
+        confirm, before = await subscribe_tracked(ana_tab2, room="a", name="Ana")
+        assert confirm["presence"] == {"room_a": {"7": {"name": "Ana"}}}
+        assert before == []  # no second join
+        await nothing_more(ana_tab1)
+        assert app.cable.presence_stats("room_a") == {"users": 1, "connections": 2}
+
+        # An anonymous visitor gets a key of their own
+        guest, task3 = await open_ws(app)
+        confirm, before = await subscribe_tracked(guest, room="a", name="Guest")
+        (guest_key,) = [k for k in confirm["presence"]["room_a"] if k != "7"]
+        assert guest_key.startswith("anon:")
+        assert presence_frame(await ana_tab1.receive()) == ("presence_join", "room_a", guest_key, {"name": "Guest"})
+
+        # Only the last connection of a user leaves
+        await ana_tab2.close()
+        await task2
+        await nothing_more(guest)
+        await ana_tab1.close()
+        await task1
+        assert presence_frame(await guest.receive()) == ("presence_leave", "room_a", "7", {"name": "Ana"})
+        assert app.cable.presence("room_a") == {guest_key: {"data": {"name": "Guest"}, "connections": 1}}
+        await guest.close()
+        await task3
+        assert app.cable.presence("room_a") == {}
+
+    @pytest.mark.asyncio
+    async def test_update_and_untrack(self, app):
+        ana, task = await open_ws(app, _cookie(app, "good-token"))
+        await subscribe_tracked(ana, room="a", name="Ana")
+        watcher, task2 = await open_ws(app)
+        await subscribe_tracked(watcher, room="a", track=False)
+
+        # Someone else, elsewhere: Ana's update doesn't touch room_b
+        bot, task3 = await open_ws(app)
+        await subscribe_tracked(bot, room="b", name="Bot", key="bot")
+
+        reply = await ana.perform("PresenceChannel", "rename", {"name": "Anna"}, room="a", name="Ana")
+        assert reply["status"] == "ok"
+        assert presence_frame(await watcher.receive()) == ("presence_update", "room_a", "7", {"name": "Anna"})
+        await nothing_more(bot)
+        # Leaving where one was never listed does nothing
+        await watcher.perform("PresenceChannel", "leave", {}, room="a", track=False)
+        await nothing_more(watcher)
+
+        await ana.perform("PresenceChannel", "leave", {}, room="a", name="Ana")
+        assert presence_frame(await watcher.receive()) == ("presence_leave", "room_a", "7", {"name": "Anna"})
+        assert app.cable.presence("room_a") == {}
+        # Still streaming: a broadcast reaches her (`perform()` skipped her
+        # own presence frames)
+        app.cable.broadcast("room_a", {"x": 1})
+        assert (await ana.receive())["type"] == "broadcast"
+        for w, tk in ((ana, task), (watcher, task2), (bot, task3)):
+            await w.close()
+            await tk
+        # As wse: an unknown connection can't be updated
+        with pytest.raises(RuntimeError, match="unknown connection"):
+            app.cable.server.update_presence("nope", {})
+
+    @pytest.mark.asyncio
+    async def test_a_key_of_the_servers_choosing(self, app):
+        """A custom key, the same for every stream of the connection; a
+        second one for the same connection is an error."""
+        ws, task = await open_ws(app)
+        confirm, _ = await subscribe_tracked(ws, room="a", name="Bot", key="bot-1")
+        assert confirm["presence"] == {"room_a": {"bot-1": {"name": "Bot"}}}
+        confirm, _ = await subscribe_tracked(ws, room="c", name="Bot", key="bot-1")
+        assert confirm["presence"] == {"room_c": {"bot-1": {"name": "Bot"}}}
+        rejection = await ws.subscribe("PresenceChannel", room="b", name="Bot", key="bot-2")
+        assert rejection["type"] == "reject_subscription" and rejection["reason"] == "error"
+        assert app.cable.presence("room_b") == {}
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_track_needs_the_stream_and_update_needs_a_track(self, app):
+        class Bad(Channel):
+            def subscribed(self):
+                if self.params.get("update"):
+                    self.update_presence({"a": 1})
+                else:
+                    self.track("nowhere")
+
+        app.router.channels["Bad"] = Bad
+        ws, task = await open_ws(app)
+        with pytest.raises(ValueError, match="stream_from"):
+            Bad(app, {}, _send=lambda m: None).track("nowhere")
+        for params in ({}, {"update": True}):
+            rejection = await ws.subscribe("Bad", **params)
+            assert rejection["type"] == "reject_subscription" and rejection["reason"] == "error"
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_presence_off(self, app):
+        app.cable = type(app.cable)(presence=False)
+        app.cable.bind(app)
+        ws, task = await open_ws(app)
+        rejection = await ws.subscribe("PresenceChannel", room="a", name="Ana")
+        assert rejection["type"] == "reject_subscription"  # track() fails: not enabled
+        assert app.cable.presence("room_a") == {}
+        assert app.cable.presence_stats("room_a") == {"users": 0, "connections": 0}
+        await ws.close()
+        await task
+
+    def test_the_base_cable_has_no_one(self):
+        from proper.channels import BaseCable
+
+        cable = BaseCable()
+        channel = Channel(App("proper", {"SECRET_KEYS": [SECRET]}), {}, _send=lambda m: None)
+        cable.track("s", {}, channel)
+        cable.untrack("s", channel)
+        cable.update_presence(channel, {})
+        assert cable.presence("s") == {}
+        assert cable.presence_stats("s") == {"users": 0, "connections": 0}
