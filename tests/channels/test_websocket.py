@@ -51,6 +51,27 @@ async def nothing_more(ws):
 
 class TestSubscribe:
     @pytest.mark.asyncio
+    async def test_a_channel_registered_under_another_name(self, app):
+        """Its messages carry the name the client subscribed with, so the
+        client can find the subscription."""
+        class ChatChannel(Channel):
+            def subscribed(self):
+                self.send({"hello": 1})
+
+        app.router.channel("chat")(ChatChannel)
+
+        ws, task = await open_ws(app)
+        hello = await ws.subscribe("chat")
+        assert hello == {
+            "type": "message", "channel": "chat", "params": {}, "data": {"hello": 1},
+        }
+        confirm = await ws.receive()
+        assert confirm["type"] == "confirm_subscription"
+        assert confirm["channel"] == "chat"
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
     async def test_subscribe_confirms(self, app):
         class ChatChannel(Channel):
             def subscribed(self):
@@ -144,8 +165,9 @@ class TestMessage:
 
         ws, task = await open_ws(app)
         await ws.subscribe("TestChannel")
-        # A private method, the lifecycle methods, and no action at all
-        for action in ("_dispatch", "subscribed", "unsubscribed", ""):
+        # A private method, the lifecycle methods, the user loader, and no
+        # action at all
+        for action in ("_dispatch", "subscribed", "unsubscribed", "find_user", ""):
             await ws.send_action("TestChannel", action)
             error = await ws.receive()
             assert error["type"] == "error"

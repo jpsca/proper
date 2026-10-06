@@ -801,11 +801,6 @@ dependencies = [
     { name = "tzdata" },
 ]
 
-[package.optional-dependencies]
-wse = [
-    { name = "proper-wse" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "ipdb" },
@@ -849,14 +844,12 @@ requires-dist = [
     { name = "peewee", specifier = ">=4.5.1,<5" },
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
     { name = "proper-cli", specifier = ">=2.1.0" },
-    { name = "proper-wse", marker = "extra == 'wse'", specifier = ">=2.6.0" },
     { name = "python-dateutil", specifier = "~=2.9.0" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "traceback-with-variables", specifier = "~=2.0.4" },
     { name = "types-peewee", specifier = ">=4.5.1" },
     { name = "tzdata", specifier = ">=2025.3" },
 ]
-provides-extras = ["wse"]
 
 [package.metadata.requires-dev]
 dev = [

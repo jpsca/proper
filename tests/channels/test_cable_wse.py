@@ -4,6 +4,7 @@ import http.client
 import json
 import logging
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -14,6 +15,7 @@ import time
 import pytest
 
 from proper import App, Channel, current
+from proper.helpers import BLUEPRINTS
 
 
 wse_server = pytest.importorskip("wse_server")
@@ -633,6 +635,35 @@ class TestStalledClients:
     def test_it_can_be_turned_off(self, make_app):
         app = make_app(CABLE_MAX_PENDING_BYTES=0)
         assert app.cable._watcher is None
+
+
+class TestIdleClients:
+    """wse closes a connection that sends it nothing for `idle_timeout`
+    seconds. `cable.js` answers wse's pings, so a page that only listens
+    stays connected."""
+
+    def _pong(self):
+        source = (BLUEPRINTS / "addon_channels/assets/js/cable.js").read_text()
+        return re.search(r"const WSE_PONG = '(.+)'", source).group(1)
+
+    def test_a_client_that_answers_the_pings_stays(self, make_app):
+        app = make_app(cable={"ping_interval": 1, "idle_timeout": 2})
+        pong = self._pong()
+        listener = WsClient(app.config.CABLE_PORT, _cookie(app))
+        listener.subscribe(1)
+
+        pings = 0
+        until = time.time() + 4.5  # more than twice the idle timeout
+        while time.time() < until:
+            msg = listener.recv()
+            assert msg is not None, "the server closed a client that answers"
+            if msg.get("c") == "WSE" and msg.get("t") == "ping":
+                pings += 1
+                listener.send_text(pong)
+
+        assert pings >= 3
+        assert ("unsubscribed", 1) not in EVENTS
+        listener.close()
 
 
 class TestOrigins:

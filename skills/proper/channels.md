@@ -1,12 +1,12 @@
 ---
 title: Channels
 description: Channels addon — WebSocket system with multiplexed channels, streams, and broadcasting
-last_verified: 2026-09-25
+last_verified: 2026-10-06
 ---
 
 # Channels
 
-Proper Channels is an installable addon that provide a channel-based WebSocket system for real-time communication. All WebSocket traffic is multiplexed over a single endpoint (`/cable` by default). Clients subscribe to named channels, and channels can broadcast messages to all subscribers of a stream.
+Proper Channels is an installable addon that provides a channel-based WebSocket system for real-time communication. All WebSocket traffic of a page is multiplexed over one connection, served on `CABLE_PORT` (behind the proxy, at `CABLE_PATH`, `/cable` by default). Clients subscribe to named channels, and channels can broadcast messages to all subscribers of a stream.
 
 The system has three layers:
 
@@ -32,6 +32,7 @@ Outbound, wse writes the frames: `send()` and subscription confirmations go to o
 - [Client-Side Usage](#client-side-usage)
 - [Wire Protocol](#wire-protocol)
 - [Configuration](#configuration)
+- [Testing](#testing)
 - [Several Machines (RedisCable)](#several-machines-rediscable)
 - [Full Example](#full-example)
 
@@ -48,7 +49,11 @@ This creates the files below and adds `proper-wse` to the app's dependencies:
 
 - `config/channels.py` file (sets `CABLE_PATH`, `CABLE_PORT` and the `CABLE` backend dict: `WseCable`, see below)
 - `channels/app_channel.py` - the `AppChannel` base your channels inherit from
+- `channels/__init__.py` - imports each channel module, so its decorator runs
 - Adds `cable.js` to the `assets/js` folder at the project root, registers it in the import map (as `"cable"`), and adds `import "cable"` to `application.js`
+- `tests/channels/`
+
+`proper g channel Chat` creates `channels/chat_channel.py` and adds its import to `channels/__init__.py`. A channel module that is not imported is never registered.
 
 
 ## Defining Channels
@@ -75,7 +80,7 @@ class ChatChannel(AppChannel):
         })
 ```
 
-The channel is registered under its class name (e.g. `"ChatChannel"`), which is what clients use to subscribe.
+The channel is registered under its class name (e.g. `"ChatChannel"`), which is what clients use to subscribe. `@router.channel("chat")` registers it under another name; clients subscribe with that name, and `channel_name` (in every frame) is that name.
 
 
 ## Channel Lifecycle
@@ -101,9 +106,9 @@ Messages sent during `subscribed()` are buffered and flushed to the client befor
 
 ### `unsubscribed()`
 
-Called when the client explicitly unsubscribes or when the WebSocket connection closes (including unexpected disconnects). Use it for cleanup. The framework automatically removes the channel from all streams before calling this method.
+Called when the client unsubscribes, when the connection closes (tab closed, network drop noticed, server closed it via `disconnect()` or the slow-client watcher), and for every open connection when the server stops cleanly. Use it for cleanup. The framework removes the channel from all streams before calling this method.
 
-It is best-effort on disconnect: a clean close (a `websocket.disconnect` event) calls it, but a browser tab closing hard may not deliver that event, so do not put critical cleanup solely here.
+It does not run if the process is killed or crashes, and for a connection that dies silently it can run late or not at all: wse closes a connection that sends it nothing for `idle_timeout` (60 s; `cable.js` answers wse's own `{"c":"WSE","t":"ping"}` with a PONG to stay alive), but proper-wse 2.6.1 doesn't report that close to Python. Do not put critical cleanup solely here.
 
 ### Rejection
 
@@ -120,7 +125,7 @@ def subscribed(self):
 
 ## Action Methods
 
-Any public method on a channel (other than `subscribed` and `unsubscribed`) can be invoked by the client as an action. The client sends a `message` command with an `action` name and optional `data`.
+Any public method on a channel (other than the blocked names below) can be invoked by the client as an action. The client sends a `message` command with an `action` name and optional `data`. The method is always called as `method(data)`, with `{}` when the client sent no data, so every action takes a `data` argument. An exception in an action is logged; the client gets no frame.
 
 ```python
 @router.channel()
@@ -147,7 +152,9 @@ The framework blocks the following from being called as actions:
 - Empty action names
 - Methods that don't exist or aren't callable
 - Lifecycle-only methods: `subscribed`, `unsubscribed`
-- Channel API methods (calling these from the client would let the client bypass server logic): `send`, `broadcast`, `reject`, `stream_from`, `stop_stream_from`, `stop_all_streams`
+- Channel API methods (calling these from the client would let the client bypass server logic): `send`, `broadcast`, `reject`, `stream_from`, `stop_stream_from`, `stop_all_streams`, `find_user`
+
+Every other public method is reachable from the client: prefix helpers with `_`.
 
 One action name is conventional: `receive`. The client's `sub.send(data)` is shorthand for `perform("receive", data)`, so defining a `receive(self, data)` method makes it the default handler for messages sent that way.
 
@@ -249,8 +256,9 @@ Inside any channel method, the following are available:
 |-------------------|------------------------------------------------------------|
 | `self.app`        | The `App` instance (access DB, config, cable, etc.)        |
 | `self.params`     | Dict of params the client sent when subscribing            |
-| `self.channel_name` | The class name (e.g. `"ChatChannel"`)                   |
+| `self.channel_name` | The name it was registered under (e.g. `"ChatChannel"`) |
 | `self.authenticated` | `True` when the connection has a logged-in user         |
+| `self.user_id`    | The id of that user, or `None`                             |
 | `self.request`    | The connection request, for reading headers and signed cookies |
 
 
@@ -284,8 +292,10 @@ for you. At subscription time `_authenticate()` reads the cookie, stores the
 `current.auth_session` (only inside `subscribed()`). Before every later dispatch
 the framework calls `find_user(user_id)` — defined in `AppChannel` — to refresh
 `current.user` from the database; the cookie itself is not re-read. A channel
-with no `Session` stays anonymous (`current.user` is `None`). For custom schemes,
-`self.request.get_signed_cookie(...)` is still available.
+with no `Session` stays anonymous (`current.user` is `None`). The cookie name and
+salt are the class attributes `auth_cookie_name` and `auth_cookie_salt` (the auth
+addon's by default). For custom schemes, `self.request.get_signed_cookie(...)` is
+still available.
 
 The cookie is read once per connection: the first channel that subscribes on a
 socket resolves the session, and the others reuse its `user_id` (each loads the
@@ -333,12 +343,14 @@ cable.disconnect()
 
 ### `cable.connect(url?)`
 
-Opens the WebSocket connection. If no URL is provided, it auto-detects from the current page:
+Opens the WebSocket connection. If no URL is provided, it connects to `/cable` on the current host (`ws:` on http, `wss:` on https). When the page has a `<meta name="cable-port">` tag (`render_importmap()` adds it in `DEBUG`), it uses that port on the same host name instead:
 
 ```
-ws://localhost:2300/cable   (http)
-wss://example.com/cable     (https)
+ws://localhost:2301/cable   (development, CABLE_PORT from the meta tag)
+wss://example.com/cable     (production, behind the proxy)
 ```
+
+The path is hardcoded: with another `CABLE_PATH`, pass the full URL.
 
 ### `cable.subscribe(channel, params?, callbacks?)`
 
@@ -391,7 +403,7 @@ import { cable } from "cable"
 
 ## Wire Protocol
 
-Clients connect via WebSocket to `/cable` and exchange JSON messages. This section documents the protocol for reference; `cable.js` handles it automatically.
+Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages. This section documents the protocol for reference; `cable.js` handles it automatically.
 
 ### Client-to-Server Commands
 
@@ -415,10 +427,10 @@ Clients connect via WebSocket to `/cable` and exchange JSON messages. This secti
 
 ### Server-to-Client Messages
 
-**Subscription confirmed** (with the streams of the subscription):
+**Subscription confirmed** (with the streams of the subscription; subscribing again to an existing subscription only re-sends this):
 
 ```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat:general"]}
+{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat_general"]}
 ```
 
 **Subscription rejected:**
@@ -438,7 +450,7 @@ A reject for an unregistered channel carries `"reason": "unknown_channel"`; a re
 **Broadcast (from `broadcast()`).** One frame for every subscriber, so it names the stream instead of the channel and params; clients route it to every subscription streaming from it (`confirm_subscription` lists the streams). Ignore the `c` field (wse's category):
 
 ```json
-{"c": "P", "type": "broadcast", "stream": "chat:general", "data": {"message": "hello"}}
+{"c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hello"}}
 ```
 
 **Error:**
@@ -462,23 +474,51 @@ A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_O
 
 | Setting      | Default    | Description                        |
 |--------------|------------|------------------------------------|
-| `CABLE_PATH` | `"/cable"` | WebSocket endpoint path            |
+| `CABLE_PATH` | `"/cable"` | Path the proxy routes to `CABLE_PORT`, and where other processes `POST` forwarded broadcasts. `cable.js` hardcodes `/cable` |
 | `CABLE_PORT` | `0`        | Port where `WseCable` serves the WebSockets, from the web process `proper run` starts. The channels addon sets it to `PORT + 1`. Set with an empty `CABLE`, it is a `ConfigError` |
-| `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the app's own (`HOST`, or the `Host` of the handshake; in `DEBUG`, any port of that host name). Handshakes without `Origin` (not browsers) are always allowed |
+| `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the handshake's own `Host`, the app's `HOST` (http and https) and, in `DEBUG`, `localhost`/`127.0.0.1` on `PORT` (`allowed_origins()`, passed to wse). Handshakes without `Origin` (not browsers) are always allowed; others get a 403 |
 | `CABLE_PING_INTERVAL` | `3` | Seconds between the server's pings on every connection; `0` sends none |
 | `CABLE_MAX_PENDING_BYTES` | `4194304` | A client with more than this many bytes waiting and nothing through in `CABLE_STALL_TIMEOUT` seconds is closed (no close handshake), and so is one with ten times as many; `0` is no limit |
 | `CABLE_STALL_TIMEOUT` | `10` | See `CABLE_MAX_PENDING_BYTES` |
 
-Set in your app config:
+They go in `config/channels.py` (imported from `config/__init__.py`). Changing `CABLE_PATH` also means changing the proxy location and passing the URL to `cable.connect()`.
 
-```python {title="myapp/config/main.py"}
-CABLE_PATH = "/ws"
+
+## Testing
+
+`client.websocket()` (on the `TestClient`) returns a `WebSocketTestSession` that runs the app's cable from memory (`app.cable.serve_in_memory()`): no port, no threads, each frame handled right away. Same test for `WseCable` and `RedisCable` (no Redis touched). With `CABLE = {}`, `connect()` raises `RuntimeError`. Tests are `async`: the app needs `pytest-asyncio` (`uv add --dev pytest-asyncio`) and `@pytest.mark.asyncio` (or `asyncio_mode = "auto"`).
+
+```python {title="myapp/tests/channels/test_chat_channel.py"}
+@pytest.mark.asyncio
+async def test_speak(client):
+    ws = client.websocket()
+    task = await ws.connect()
+    confirm = await ws.subscribe("ChatChannel", room="general")
+    assert confirm["type"] == "confirm_subscription"
+    await ws.send_action("ChatChannel", "speak", {"message": "hi"}, room="general")
+    msg = await ws.receive()
+    assert msg == {"c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hi"}}
+    await ws.close()   # runs unsubscribed()
+    await task
 ```
+
+| Method | Description |
+|--------|-------------|
+| `await ws.connect()` | Opens the connection; returns a task that ends when it closes |
+| `await ws.subscribe(channel, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()` comes before the confirmation) |
+| `await ws.send_action(channel, action, data, **params)` | Calls an action |
+| `await ws.unsubscribe(channel, **params)` | Sends `unsubscribe` |
+| `await ws.receive(timeout=1.0)` | Next frame, parsed; `TimeoutError` if none |
+| `await ws.receive_raw(timeout=1.0)` | Next raw event: `{"type": "accept"}` first, then `{"type": "text", ...}` or `{"type": "close", ...}` |
+| `ws.client_send(dict)` / `ws.client_send_text(str)` | Raw frames, for protocol-error tests |
+| `await ws.close()` | Disconnects |
+
+Several sessions share the cable, and `client.app.cable.broadcast(...)` from the test reaches them. `client.sign_in(session)` before `client.websocket()` puts the auth cookie on the handshake, so the channel sees `current.user`.
 
 
 ## WseCable (proper-wse)
 
-The default backend, the one the channels addon writes. `CABLE = {"type": "proper.channels.wse.WseCable"}` serves the WebSockets with `proper-wse` (our fork of wse-server, Rust; imports as `wse_server`) on `CABLE_PORT`, inside the web process; install with `uv add "proper[wse]"` (wheels for free-threaded Python included). Channels don't change. A `broadcast()` is one frame that wse writes to every subscriber without Python, using the stream-named frames above.
+The default backend, the one the channels addon writes. `CABLE = {"type": "proper.channels.wse.WseCable"}` serves the WebSockets with `proper-wse` (our fork of wse-server, Rust; imports as `wse_server`) on `CABLE_PORT`, inside the web process; `proper install channels` adds it to the app's dependencies, or `uv add proper-wse` (wheels for free-threaded Python included). Channels don't change. A `broadcast()` is one frame that wse writes to every subscriber without Python, using the stream-named frames above.
 
 - `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server. The web server (Granian, WSGI) has no WebSockets. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
 - Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.

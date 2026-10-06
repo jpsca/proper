@@ -9,11 +9,11 @@ All notable changes to Proper are documented in this file.
 The in-process cable is gone, and with it RSGI: `proper run` always serves
 over WSGI, and the only cable that serves WebSockets is `WseCable`
 (`RedisCable` on several machines). An app that used `CABLE = {}` with a
-`CABLE_PORT` now fails to start with a `ConfigError`. Install the extra and
-set the cable:
+`CABLE_PORT` now fails to start with a `ConfigError`. Install `proper-wse`
+and set the cable:
 
 ```bash
-uv add "proper[wse]"
+uv add proper-wse
 ```
 
 ```python {title="config/channels.py"}
@@ -47,6 +47,17 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
 
 ### Fixed
 
+- A channel registered under another name (`@router.channel("chat")`) sent
+  its `send()` messages with the class name, so `cable.js` couldn't find the
+  subscription and dropped them. `channel_name` is now the name the client
+  subscribed with.
+- wse closed every connection that sent it nothing for a minute, so a page
+  that only listened reconnected every minute or so, losing the broadcasts
+  sent meanwhile. `cable.js` now answers wse's pings. Apps created before
+  need the new `assets/js/cable.js`: copy it from Proper's
+  `_blueprints/addon_channels/assets/js/cable.js`.
+- A client could call a channel's `find_user()` as an action. It is now
+  refused, like the other channel internals.
 - `WseCable`: what a channel set on `current` in one command (such as
   `current.auth_session` in `subscribed()`) was still there for the next
   command run on the same worker thread, from any connection. Each command

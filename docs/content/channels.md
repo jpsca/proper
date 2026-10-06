@@ -1,7 +1,7 @@
 ---
 title: Real-Time Updates (Channels)
 description: |
-  How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, scaling across workers with Redis, and testing it all.
+  How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, Turbo Streams over the cable, the WseCable server, several machines with Redis, and testing it all.
 number_headers: true
 ---
 
@@ -11,26 +11,27 @@ number_headers: true
 <p class="admonition-title">Work in progress</p>
 </section>
 
-Most of a web app is request and response: the browser asks for a page, your code answers, and nothing else happens until the user clicks again. Channels are for the other case - when the *server* needs to speak first. A new chat message should appear for everyone in the room without anyone refreshing; a long import should push its progress; a notification should pop the moment it is created. That two-way, server-initiated traffic runs over a WebSocket, and Channels are how Proper organizes it.
+Most of a web app is request and response: the browser asks for a page, your code answers, and nothing else happens until the user clicks again. Channels are for the other case - when the *server* needs to speak first. A new chat message should appear for everyone in the room without anyone refreshing; a long import should push its progress; a notification should pop the moment it is created. That server-initiated traffic runs over a WebSocket, and Channels are how Proper organizes it.
 
 After reading this guide, you will know:
 
 - The three pieces a real-time feature is built from, and how a message travels through them.
 - How to define a channel, authenticate the connection, and authorize a subscription.
 - How to broadcast - from inside a channel, and from a controller or background task.
-- How to use the `cable.js` client, run the cable on several machines with Redis, and test channels without a server.
+- How to use the `cable.js` client, or skip JavaScript entirely with Turbo Streams.
+- How the WebSockets are served, how to run them on several machines with Redis, and how to test channels without a server.
 
 ---
 
 ## The shape of a channel
 
-A real-time feature in Proper has three moving parts:
+A real-time feature in Proper has three parts:
 
-- **The channel** - a Python class, the WebSocket equivalent of a controller. It decides who may subscribe, handles messages from the client, and pushes data back.
-- **The cable** - the pub/sub broker. Channels subscribe to named *streams*; when anything broadcasts to a stream, the cable fans the message out to every subscriber. `WseCable` serves the WebSockets of one machine; `RedisCable` is the same cable across several, through Redis.
-- **`cable.js`** - the browser client. It opens the one WebSocket, manages your subscriptions, reconnects when the connection drops, and hands incoming data to your callbacks.
+- **The channel** - a Python class, the WebSocket equivalent of a controller. It decides who may subscribe, handles messages from the client, and sends data back.
+- **The cable** - the server that holds the WebSocket connections and delivers messages. Channels subscribe to named *streams*; when any code broadcasts to a stream, the cable sends the message to every subscriber.
+- **`cable.js`** - the browser client. It opens one WebSocket, manages your subscriptions, reconnects when the connection drops, and hands incoming data to your callbacks.
 
-The connecting concept is the **stream**: a plain string like `chat_42`. A channel calls `stream_from("chat_42")` to start listening, and any code anywhere calls `broadcast("chat_42", data)` to deliver to every listener. The channel never talks to a specific browser by hand - it talks to a stream, and the cable does the routing.
+What connects them is the **stream**: a plain string like `chat_42`. A channel calls `stream_from("chat_42")` to start listening, and any code anywhere calls `broadcast("chat_42", data)` to deliver to every listener. The channel never addresses a specific browser - it addresses a stream, and the cable does the routing.
 
 Here is the whole loop in miniature. A channel that joins a room's stream and re-broadcasts what it is told:
 
@@ -47,14 +48,14 @@ class ChatChannel(AppChannel):
     def speak(self, data):
         self.broadcast(
             f"chat_{self.params['room']}",
-            {"message": data["message"]}
+            {"message": data["message"]},
         )
 ```
 
 And the browser side - subscribe, render what arrives, send what the user types:
 
 ```javascript
-import { cable } from "/cable.js"
+import { cable } from "cable"
 
 cable.connect()
 const chat = cable.subscribe(
@@ -78,23 +79,27 @@ Channels is an addon. Install it with:
 $ proper install channels
 ```
 
-That creates three things, and adds `proper-wse` to the app's dependencies:
+It adds `proper-wse` to the app's dependencies (the WebSocket server, see [The cable server](#the-cable-server-wsecable)) and creates:
 
-- `config/channels.py` - `CABLE_PATH`, `CABLE_PORT` and the `CABLE` backend config: `WseCable`, which serves the WebSockets from the web process (see [WseCable](#wsecable-the-websockets-on-wse-server) below).
+- `config/channels.py` - `CABLE_PATH`, `CABLE_PORT`, and `CABLE`, the cable backend. It is imported from `config/__init__.py`.
 - `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
-- `assets/js/cable.js` - the browser client, in the `assets/` folder at the root of the project.
+- `channels/__init__.py` - where each channel module is imported, so its `@router.channel()` decorator runs.
+- `assets/js/cable.js` - the browser client. It is added to the import map as `"cable"`, and `assets/js/application.js` imports it, so every page can use it.
+- `tests/channels/` - for your channel tests.
 
-The WebSocket endpoint lives at one path - `/cable` by default - and every channel is multiplexed over it. You never open more than one socket per browser tab, no matter how many channels it subscribes to.
+That is all the setup there is. `proper run` starts the cable in the web process, on `CABLE_PORT` - `PORT + 1` by default, so `2301` in development. All the channels of a page share one WebSocket: a browser tab never opens more than one, however many channels it subscribes to.
 
 ---
 
 ## Defining a channel
 
-A channel is a subclass of `AppChannel`, registered with the router by the `@router.channel()` decorator. Use a generator to add one:
+A channel is a subclass of `AppChannel`, registered with the router by the `@router.channel()` decorator. Use the generator to add one:
 
 ```bash
 $ proper g channel Chat
 ```
+
+It creates `channels/chat_channel.py` and imports it from `channels/__init__.py`. Fill it in:
 
 ```python {title="channels/chat_channel.py"}
 from ..router import router
@@ -113,10 +118,12 @@ class ChatChannel(AppChannel):
         })
 ```
 
-The class is registered under its name - `"ChatChannel"` - and that is the name clients subscribe with. The `params` are whatever the client passed when subscribing (here, `{"room": "general"}`); they are available as `.params` for the life of the subscription. The same `params` dict also identifies the subscription: a client can subscribe to `ChatChannel` twice with different rooms, and each `(channel, params)` pair is a separate, independently-addressed subscription.
+The channel is registered under its class name - `"ChatChannel"` - and that is the name clients subscribe with. To register it under another name, pass it to the decorator: `@router.channel("chat")`.
+
+The `params` are whatever the client passed when subscribing (here, `{"room": "general"}`), available as `self.params` for the life of the subscription. The channel name and the `params` together identify a subscription: a client can subscribe to `ChatChannel` twice with different rooms, and each one is a separate subscription, with its own channel instance.
 
 :::warning
-Like controllers, for the `@router.channel()` decorator to run, the module has to be imported somewhere your app loads, so the generator takes care of adding it to `channels/__init__.py`
+Like controllers, the `@router.channel()` decorator only runs if the module is imported. The generator adds the import to `channels/__init__.py`; if you create a channel file by hand, add it there yourself.
 :::
 
 Inside any channel method you have:
@@ -124,10 +131,11 @@ Inside any channel method you have:
 Property         | What it is
 ---------------- | --------------------
 `.params`        | The dict the client sent when subscribing
-`.app`           | The `App` - database, config, and the cable
-`.channel_name`  | The class name, e.g. `"ChatChannel"`
+`.app`           | The `App` - config, the cable, and the rest
+`.channel_name`  | The name it was registered under, e.g. `"ChatChannel"`
 `.authenticated` | `True` when the connection has a logged-in user
-`.request`       | The connection's request, for reading headers and signed cookies
+`.user_id`       | The id of that user, or `None`
+`.request`       | The WebSocket handshake, for reading headers and signed cookies
 
 ---
 
@@ -139,7 +147,7 @@ Two methods bracket a subscription. Override the ones you need:
 @router.channel()
 class ChatChannel(AppChannel):
     def subscribed(self):
-        # Set up streams, authorize, send a welcome.
+        # Authorize, set up streams, send a welcome.
         self.stream_from(f"chat_{self.params['room']}")
         self.send({"status": "joined"})
 
@@ -148,21 +156,21 @@ class ChatChannel(AppChannel):
         pass
 ```
 
-`subscribed()` runs once, when the client subscribes. It is where you check whether the subscription is allowed (see the next section). Call `stream_from()` to start listening, and optionally `send()` an initial message. Anything you `send()` here is buffered and flushed to the client just before the subscription is confirmed. If you `reject()`, the buffered messages are discarded.
+`subscribed()` runs once, when the client subscribes. It is where you decide whether the subscription is allowed (see [Authorizing versus authenticating](#authorizing-versus-authenticating)). Call `stream_from()` to start listening, and optionally `send()` a first message. What you `send()` here is held back and delivered just before the subscription is confirmed; if you `reject()`, it is discarded and never reaches the client.
 
-`unsubscribed()` runs when the client unsubscribes *or* when the socket closes, including unexpected disconnects. Proper automatically removes the channel from all its streams before calling it, so you only need to undo work that lives elsewhere.
+`unsubscribed()` runs when the client unsubscribes, when the connection closes - the tab was closed, the network dropped, or the server closed it - and when the server stops. Proper removes the channel from all its streams before calling it, so you only need to undo work that lives elsewhere.
 
 :::warning
-`unsubscribed()` is best-effort on disconnect. A clean close calls it but a client closing their browser tab does not. Do not put anything you cannot afford to skip solely in `unsubscribed()`.
+`unsubscribed()` does not run if the server process is killed or crashes, and for a connection that dies without closing (a laptop that went to sleep) it can run late, or not at all. Do not keep anything you cannot afford to lose solely in what `unsubscribed()` cleans up.
 :::
 
 ---
 
 ## Authenticating a connection
 
-A WebSocket handshake is an ordinary HTTP request, so it carries the same cookies your controllers see - including the signed session cookie a logged-in user already has.
+A WebSocket handshake is an ordinary HTTP request, so it carries the same cookies your controllers see - including the signed session cookie of a logged-in user.
 
-Proper uses that: when the auth addon is installed, `AppChannel` is wired to your app's `Session` and `user` models. The logged-in user is exposed as as `current.user`, exactly the way a controller sees it:
+When the [auth addon](/docs/authentication) is installed, `AppChannel` uses that cookie to find the user, and exposes it as `current.user`, the same way a controller sees it:
 
 ```python {title="channels/inbox_channel.py"}
 from proper import current
@@ -180,33 +188,35 @@ class InboxChannel(AppChannel):
         self.stream_from(f"inbox_{current.user.id}")
 ```
 
-`current.user` is the real, server-verified user, and `.authenticated` is the convenience boolean (`current.user is not None`). Because identity is resolved before *every* dispatch, `current.user` is also available inside your action methods, not just `subscribed()`.
+`current.user` is the server-verified user, and `self.authenticated` is `True` when there is one. `current.user` is available in every channel method: `subscribed()`, your actions, and `unsubscribed()`.
 
-This works because of `AppChannel`:
+This is the `AppChannel` the addon creates:
 
 ```python {title="channels/app_channel.py"}
 from proper.channels import Channel
+from proper.models.base import ProperModel
+
 
 try:
     from ..models import Session, User
 except ImportError:
+    # The auth addon is not installed, so channels stay anonymous.
     Session = None
 
 
 class AppChannel(Channel):
     Session = Session
 
-    def find_user(self, user_id):
+    def find_user(self, user_id) -> "User | None":
         return User.get_or_none(User.id == user_id)
-
 ```
 
-`Session` is used to save the `user_id` to the channel instance when `subscribed()` is called, `find_user` to load the `User` record from the database after that.
-If the auth addon is not installed, `Session` is `None`, channels stay anonymous, and `current.user` is `None`.
+Two things make it work:
 
-Authentication is opt-in per connection: a channel with no session model simply never has a user.
+- `Session` is your app's session model. The first channel a connection subscribes to reads the session cookie, finds the session, and remembers the user's id for the whole connection. The other channels of that connection reuse it, so the cookie is read once per connection. `current.auth_session` is set only in the `subscribed()` of that first channel.
+- `find_user()` loads the user by that id. It runs before every other call to the channel - each action, the `subscribed()` of the later channels, and `unsubscribed()` - so `current.user` is always fresh from the database. Change it to fit your app, for example to treat a deactivated user as no user.
 
-The cookie is read once per connection, not once per channel. A page usually opens several subscriptions on its one socket; the first channel that subscribes looks up the session, and the others reuse the user's id it found (they load the user with `find_user`). `current.auth_session` is set only in the `subscribed()` of that first channel.
+Without the auth addon, `Session` is `None`, every connection is anonymous, `current.user` is `None`, and `self.authenticated` is `False`.
 
 ### Authorizing versus authenticating
 
@@ -221,15 +231,18 @@ def subscribed(self):
     self.stream_from(f"room_{room.id}")
 ```
 
-`reject()` denies the subscription: the client gets a `reject_subscription` message and the channel is never stored, so none of its actions can be called. Because the stream name is derived from the server-verified `current.user` and a checked membership - not from a client-supplied id - there is no way for a client to listen in on a room it does not belong to.
+`reject()` denies the subscription: the client gets a `reject_subscription` message, the channel is discarded, and none of its actions can be called. The client never sends a stream name, only `params`; the channel checks them and picks the stream on the server. So a client cannot listen to a room it does not belong to.
 
 ---
 
 ## Actions: messages from the client
 
-Any public method on a channel - anything that is not `subscribed` or `unsubscribed` - can be invoked by the client as an *action*:
+Any public method of a channel can be called by the client as an *action*:
 
 ```python
+from proper import current
+
+
 @router.channel()
 class ChatChannel(AppChannel):
     def subscribed(self):
@@ -238,49 +251,57 @@ class ChatChannel(AppChannel):
     def speak(self, data):
         self.broadcast(
             f"chat_{self.params['room']}",
-            {"message": data["message"], "sender": current.user.login}
+            {"message": data["message"], "sender": current.user.login},
         )
 
     def typing(self, data):
         self.broadcast(
             f"chat_{self.params['room']}",
-            {"typing": current.user.login}
+            {"typing": current.user.login},
         )
 ```
 
-The client calls `chat.perform("speak", {message: "hello"})` and the matching method runs, with the payload as `data`. Action methods run as regular synchronous Python, with a database connection already open - the same execution model as a controller action.
+The client calls `chat.perform("speak", {message: "hello"})` and the `speak` method runs, with the payload as `data`. An action always receives `data` (an empty dict if the client sent nothing), so every action method takes that argument.
 
-The framework refuses to call anything that would let a client reach past your intended surface. These are rejected as actions:
+Actions are plain synchronous Python with a database connection ready, like a controller action. The calls of one connection - its subscriptions, actions and unsubscriptions - run one at a time, in the order they arrived, in a pool of worker threads (four by default, see `workers` in [The cable server](#the-cable-server-wsecable)). A slow action keeps one of those threads busy, so move long work to a [background task](/docs/tasks) that broadcasts when it is done.
 
-Rejected                          | Why
+These names are refused as actions, with an `error` frame:
+
+Refused                           | Why
 --------------------------------- | ---------------------------------
-Names starting with `_`           | Private methods are not part of the action surface
+Names starting with `_`           | Private methods are not actions
 `subscribed`, `unsubscribed`      | Lifecycle hooks, not client-callable
-`send`, `broadcast`, `reject`     | Channel internals - calling them from the client would bypass your logic
+`send`, `broadcast`, `reject`     | Channel internals
 `stream_from`, `stop_stream_from`, `stop_all_streams` | Stream control belongs to the server
 Missing or non-callable names     | There is nothing to run
 
+Any other public method is reachable from the client, so keep helpers private with a leading `_`.
+
 There is one conventional action name: `receive`. The client's `subscription.send(data)` is shorthand for `perform("receive", data)`, so if you define a `receive(self, data)` method it becomes the default handler for that subscription.
+
+If an action raises an exception, the error is logged and the client gets nothing back; the connection and its other subscriptions keep working.
 
 ---
 
 ## Streams and broadcasting
 
-Streams are the unit of delivery. A channel subscribes to as many as it likes, and broadcasting to a stream reaches every channel - across every connection - that is listening to it.
+Streams are the unit of delivery. A channel can stream from as many as it likes, and a broadcast to a stream reaches every channel - on every connection - that is listening to it.
 
 Method                      | What it does
 --------------------------- | -------------------------------
 `.stream_from(name)`        | Start listening to a named stream
 `.stop_stream_from(name)`   | Stop listening to one stream
 `.stop_all_streams()`       | Stop listening to all of them
-`.send(data)`               | Send to **this connection only**
+`.send(data)`               | Send to **this subscription only**
 `.broadcast(name, data)`    | Send to **every subscriber** of a stream
 
-Use `send()` to answer the one client in front of you (a confirmation, a validation error); use `broadcast()` to tell the room. A broadcast doesn't go through `send()`, even one you override: every subscriber of the stream gets the same data. To tell different users different things, give them different streams, such as `f"user:{user.id}:notices"`.
+Use `send()` to answer the one client in front of you (a confirmation, a validation error); use `broadcast()` to tell everyone listening. The data can be anything Proper can encode as JSON, including a string of HTML.
+
+A broadcast is encoded once and every subscriber receives the same frame; it does not go through `send()`, even one you override. To tell different users different things, give them different streams, such as `f"notices_{user.id}"`.
 
 ### Naming streams
 
-Stream names are arbitrary strings, and the convention is a descriptive prefix with a dynamic suffix:
+Stream names are arbitrary strings. The convention is a descriptive prefix with a dynamic suffix:
 
 ```python
 self.stream_from(f"chat_{room_id}")
@@ -288,16 +309,18 @@ self.stream_from(f"inbox_{current.user.id}")
 self.stream_from(f"document_{doc_id}_edits")
 ```
 
-The name is the contract between the channel that listens and the code that broadcasts; both sides have to spell it the same way, and there is nothing today that checks they agree.
+The name is the contract between the channel that listens and the code that broadcasts, and both sides have to spell it the same way. Nothing checks that they agree: a typo on one side delivers to no one, without an error. A small function that builds the name, used on both sides, avoids that:
 
-A typo on one side delivers silently to no one, so a first-class `broadcast_to(model)` that derives the name from a record is on the list in [Where this could grow](#where-this-could-grow).   
+```python
+def chat_stream(room_id):
+    return f"chat_{room_id}"
+```
 
 ### Broadcasting from a controller or a task
 
-The most common broadcast does not come from a channel at all - it comes from an ordinary HTTP request or a background job that just changed something the live page should see. Any code with the app in hand can reach the cable through `app.cable`:
+The most common broadcast does not come from a channel at all - it comes from an ordinary request, or a background task, that just changed something open pages should see. Any code with the app can broadcast through `app.cable`:
 
 ```python {title="controllers/message_controller.py"}
-# 
 from ..models import Message
 from ..router import router
 from .app_controller import AppController
@@ -319,10 +342,9 @@ class MessageController(AppController):
         self.response.redirect_to("Message.index", room_id=room_id)
 ```
 
-A controller reaches it through `.app.cable`; a background task imports the app, or uses the `current.app` proxy:
+A controller reaches the cable through `self.app.cable`; a background task imports the app:
 
-```python
-# tasks/__init__.py
+```python {title="tasks/__init__.py"}
 from ..main import app
 
 
@@ -331,9 +353,11 @@ def notify_user(user_id, payload):
     app.cable.broadcast(f"inbox_{user_id}", payload)
 ```
 
-This is the seam between the request world and the live one: the controller persists the message and redirects as usual, and the broadcast is a side note that lights up every open page. [Background Tasks](/docs/tasks) covers running the worker that the second example needs.
+The controller saves the message and redirects as usual, and the broadcast updates every open page. [Background Tasks](/docs/tasks) covers running the worker that the second example needs.
 
-When a request makes several broadcasts, wrap them in `app.cable.batch()`. From a process that doesn't serve the WebSockets, such as a task worker, each broadcast is a request to the one that does (see [WseCable](#wsecable-the-websockets-on-wse-server)); inside a batch they all travel in one:
+It doesn't matter which process the broadcast comes from. Only one process serves the WebSockets; a broadcast made in any other one - a task worker, a shell, the extra web processes of `PROCESSES` - is sent to it for you (see [The cable server](#the-cable-server-wsecable)).
+
+When one request makes several broadcasts, wrap them in `app.cable.batch()`. From a process that has to send them to the cable, they then travel together, in one request instead of one each:
 
 ```python
 with self.app.cable.batch():
@@ -344,7 +368,7 @@ with self.app.cable.batch():
 
 ### Closing a user's connections
 
-A channel authorizes when it subscribes. If you then take that access away - remove someone from a room, ban them, sign them out - their open subscriptions keep receiving until they disconnect. `app.cable.disconnect(user_id=...)` closes every connection of that user, in whichever process holds it. Their pages reconnect and subscribe again, and the channels that no longer authorize them reject the subscription:
+A channel authorizes when it subscribes. If you take that access away later - remove someone from a room, ban them, sign them out - their open subscriptions keep receiving until they disconnect. `app.cable.disconnect(user_id=...)` closes every connection of that user, from any process. Their pages reconnect and subscribe again, and the channels that no longer authorize them reject the subscription:
 
 ```python
 membership.delete_instance()
@@ -355,7 +379,7 @@ self.app.cable.disconnect(user_id=membership.user_id)
 
 ## Tracking who is connected
 
-Channels do not ship a presence API, but the lifecycle hooks give you the raw material for one: increment a count (or add to a set) in `subscribed()`, undo it in `unsubscribed()`, and broadcast the change so everyone's roster updates.
+Channels do not have a presence API, but the lifecycle hooks are enough to build a simple one: announce in `subscribed()`, announce again in `unsubscribed()`, and let every page update its list.
 
 ```python
 @router.channel()
@@ -378,23 +402,23 @@ class RoomChannel(AppChannel):
         )
 ```
 
-That is enough for join/leave notices and "X is typing". Be honest with yourself about its limits, though:
+That is enough for join and leave notices and "X is typing". Know its limits, though:
 
-- It tells you about *events* (someone joined, someone left), not *state* (who is here right now). For a live roster you have to track membership yourself in a shared store.
-- A user with three tabs counts as three joins. Deduplicating by user is on you.
-- `unsubscribed()` is best-effort, so a hard disconnect can leak a "ghost" member that never leaves.
-- Across multiple machines it gets harder: `RedisCable` relays *broadcasts* between machines, not membership *state*, so a roster kept in one worker's memory does not see users on another. A correct multi-worker roster needs a shared store (a Redis set per room) with a heartbeat to expire the ghosts.
+- It tells you about *events* (someone joined, someone left), not *state* (who is here right now). A page that opens later doesn't learn who was already there. For a live list of members, keep it yourself in a shared store.
+- A user with three tabs joins three times. Counting each user once is up to you.
+- `unsubscribed()` doesn't run if the server process dies, so a crash can leave members that never leave.
+- With `RedisCable`, each machine runs the channels of its own connections. A list kept in the memory of one doesn't see the users of the others; keep it in Redis instead (a set per room, with an expiry to clean up after a crash).
 
-A built-in presence primitive that handles the multi-tab and multi-worker cases is the most-requested thing Channels does not yet have - see [Where this could grow](#where-this-could-grow).
+A built-in presence API that handles several tabs and several machines is one of the things Channels doesn't have yet - see [Where this could grow](#where-this-could-grow).
 
 ---
 
 ## The client: cable.js
 
-The generated `cable.js` is an ES module that owns the single connection, your subscriptions, and reconnection. It is already in your `importmap` so you can import it directly:
+`cable.js` is an ES module that owns the connection, your subscriptions, and reconnection. It is in the import map as `"cable"`:
 
 ```javascript
-import { cable } from "/cable.js"
+import { cable } from "cable"
 
 cable.connect()
 
@@ -405,21 +429,28 @@ const chat = cable.subscribe("ChatChannel", { room: "general" }, {
   received(data) { addMessageToDOM(data) },
 })
 
-chat.perform("speak", { message: "hello" })  // invoke an action
-chat.send({ message: "hello" })  // shorthand for perform("receive", data)
-chat.unsubscribe()               // leave this channel
-cable.disconnect()               // close the socket, stop reconnecting
+chat.perform("speak", { message: "hello" })  // call an action
+chat.send({ message: "hello" })   // shorthand for perform("receive", data)
+chat.unsubscribe()                // leave this channel
+cable.disconnect()                // close the socket, stop reconnecting
 ```
 
-`cable.connect()` takes an optional URL; with none, it points at `/cable` on the current host (`ws://` on http, `wss://` on https).
+`cable.connect()` opens the WebSocket. Calling it again while it is open, or opening, does nothing, so every script of the page can call it. With no argument, it connects to `/cable` on the current host (`ws://` on http, `wss://` on https); in development, to the port the page announces (see [The cable server](#the-cable-server-wsecable)). If you change `CABLE_PATH`, pass the full URL to `connect()`.
 
-If you change `CABLE_PATH`, pass the matching URL to `connect()`. `cable.subscribe(channel, params, callbacks)` returns a subscription; if you pass only two arguments and the second looks like a callbacks object, it is treated as callbacks with empty params.
+`cable.subscribe(channel, params, callbacks)` returns a subscription. You can subscribe before the connection is open: the subscription is sent as soon as it is. If you pass only two arguments and the second has callbacks in it, it is taken as the callbacks, with empty params.
 
-The four callbacks - `connected`, `disconnected`, `received`, `rejected` - are all optional.
+The four callbacks are optional:
 
-When the connection drops, `cable.js` reconnects on its own with exponential backoff (1s, 2s, 4s, up to ten attempts) and re-subscribes everything automatically, so a brief network blip is invisible to your code. `cable.disconnect()` is what stops it.
+Callback         | Called when
+---------------- | ------------------------------------------
+`connected()`    | The server confirmed the subscription (again after each reconnection)
+`received(data)` | A `send()` or a broadcast arrived for this subscription
+`rejected()`     | The channel called `reject()`, or no channel has that name
+`disconnected()` | The connection closed, or you called `unsubscribe()`
 
-Because everything is multiplexed, holding several subscriptions is normal and cheap:
+When the connection drops, `cable.js` reconnects on its own and subscribes everything again, so a short network problem is invisible to your code. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every few seconds; a connection that goes silent for 10 seconds is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
+
+All subscriptions share the one connection, so holding several is normal and cheap:
 
 ```javascript
 const general = cable.subscribe(
@@ -430,15 +461,13 @@ const inbox   = cable.subscribe(
     "InboxChannel", { received: showToast })
 ```
 
-Each is keyed by its channel name plus params, which is how an incoming broadcast finds the right `received` callback.
-
 ---
 
 ## Broadcasting HTML (Turbo Streams)
 
-The broadcasts so far ship JSON, leaving the `received()` callback to rebuild the DOM by hand - re-implementing in JavaScript the markup you already have as a Jx component.
+The broadcasts so far send JSON, and the `received()` callback rebuilds the DOM by hand - writing again, in JavaScript, markup you already have as a Jx component.
 
-Proper bundles [Turbo](https://turbo.hotwired.dev/), so you can instead broadcast the *rendered* component wrapped in a `<turbo-stream>` and let Turbo apply it - a live-updating list then needs no custom JavaScript at all.
+Proper includes [Turbo](https://turbo.hotwired.dev/), so instead you can broadcast the *rendered* component wrapped in a `<turbo-stream>` and let Turbo apply it. A live list then needs no JavaScript of your own.
 
 A `<turbo-stream>` is HTML that names a DOM operation and a target:
 
@@ -448,7 +477,7 @@ A `<turbo-stream>` is HTML that names a DOM operation and a target:
 </turbo-stream>
 ```
 
-The `turbo_stream` builder has a method per action; each builds one from a Jx component, or from raw HTML:
+The `turbo_stream` builder has a method for each operation. Each one renders a Jx component, or takes ready-made HTML:
 
 ```python
 from proper import turbo_stream
@@ -461,9 +490,13 @@ turbo_stream.append(
 # -> <turbo-stream action="append" target="messages">
 #      <template>...</template>
 #    </turbo-stream>
+
+turbo_stream.update("unread_count", html="3")
+turbo_stream.remove(message)                 # a model: its dom_id is the target
+turbo_stream.replace(targets=".draft", html="")  # every element matching a CSS selector
 ```
 
-The first argument is the id of the element to act on, and the method name is the operation. Turbo knows several:
+The first argument is the id of the element to act on, or a model instance, whose `dom_id` is used. `targets=` takes a CSS selector instead, to act on every matching element. The method name is the operation:
 
 Action               | Effect
 -------------------- | ---------------------------------------------------------
@@ -471,32 +504,33 @@ Action               | Effect
 `before` / `after`   | Insert the fragment as a sibling before / after the target
 `replace`            | Swap the target element itself
 `update`             | Replace the target's contents, keep the element
-`remove`             | Remove the target (no `<template>` needed)
-`morph`              | Update the target by morphing, preserving unchanged nodes
+`remove`             | Remove the target (no fragment)
+`morph`              | Update the target by morphing, keeping unchanged nodes
+`refresh`            | Reload the page (takes no target)
 
-Broadcast it like any other payload:
+Broadcast it like any other data:
 
 ```python {title="controllers/message_controller.py"}
-def create(self):
-    room_id = self.params["room_id"]
-    message = Message.create(
-        room_id=room_id,
-        text=self.params["text"],
-        author=current.user
-    )
+from proper import current, turbo_stream
 
-    self.app.cable.broadcast(
-        f"chat_{room_id}",
-        turbo_stream.append(
-            "messages",       # the id of the element to update
-            "message.jx",     # the component to render
-            message=message,  # arguments for the component
-        ),
-    )
-    self.response.redirect_to("Message.index", room_id=room_id)
+...
+
+    def create(self):
+        room_id = self.params["room_id"]
+        message = Message.create(
+            room_id=room_id,
+            text=self.params["text"],
+            author=current.user,
+        )
+
+        self.app.cable.broadcast(
+            f"chat_{room_id}",
+            turbo_stream.append("messages", "message.jx", message=message),
+        )
+        self.response.redirect_to("Message.index", room_id=room_id)
 ```
 
-You don't need to write JavaScript to subscribe a page to the channel, just use the custom element `<turbo-stream-channel>` (it was added by `cable.js`):
+To subscribe a page, you don't need to write JavaScript either. Use the `<turbo-stream-channel>` element, which `cable.js` defines:
 
 ```html+jinja {title="views/message/index.jx", hl_lines="3-4"}
 {#import "message.jx" as Message #}
@@ -513,23 +547,230 @@ You don't need to write JavaScript to subscribe a page to the channel, just use 
 </ul>
 ```
 
-The element subscribes through `cable.js` and feeds every frame to Turbo, which appends the new `<li>` for you. The same `Message` component renders the initial list and every live update, so there is one source of truth for the markup.
+The element connects, subscribes to the channel with those `params`, and hands every message to Turbo, which appends the new `<li>`. When the element leaves the page, it unsubscribes. The same `Message` component renders the initial list and every live update, so the markup is defined in one place.
 
-For an imperative subscription, `import { streamFrom } from "cable"` and call `streamFrom("ChatChannel", { room_id: 42 })`.
+To subscribe from JavaScript instead, use `streamFrom`:
 
-Authorization is unchanged: the client sends `params`, never a stream name. The channel's `subscribed()` still authorizes with `reject()` (see [Authorizing versus authenticating](#authorizing-versus-authenticating)) and derives the stream name on the server, so the Turbo wiring opens no new door.
+```javascript
+import { streamFrom } from "cable"
+
+const subscription = streamFrom("ChatChannel", { room_id: 42 })
+```
+
+Authorization doesn't change: the element sends `params`, never a stream name, and the channel's `subscribed()` still decides with `reject()` and picks the stream on the server (see [Authorizing versus authenticating](#authorizing-versus-authenticating)).
 
 :::note
-The same fragment can also be returned from a controller. Set the response mimetype to `"text/vnd.turbo-stream.html"`, and Turbo will apply the operations to a plain form submit, with no full-page reload. Concatenate several streams to send more than one operation at once.
+The same fragment can also be the response of a controller, to a form submitted with Turbo. See [Turbo](/docs/turbo) for `*.turbo_stream.jx` views and the `stream` tag.
+:::
+
+---
+
+## The cable server: WseCable
+
+The channels addon configures this cable:
+
+```python {title="config/channels.py"}
+CABLE_PATH = "/cable"
+CABLE_PORT = int(os.getenv("CABLE_PORT", int(os.getenv("PORT", 2300)) + 1))
+CABLE: dict = {"type": "proper.channels.wse.WseCable"}
+```
+
+`WseCable` serves the WebSockets with [proper-wse](https://github.com/jpsca/proper-wse), our fork of [wse-server](https://github.com/silvermpx/wse): a WebSocket server written in Rust, with wheels for free-threaded Python, that runs inside the web process. Your channels run in Python, in its worker threads. Underneath, a stream is a wse topic, and a `broadcast()` gives wse one encoded frame, which it writes to every subscriber without going back to Python. With thousands of clients on one stream, this is what keeps up.
+
+`proper-wse` imports as `wse_server`, so don't install the original `wse-server` next to it; `WseCable` refuses to start with it.
+
+How it runs:
+
+- `proper run` starts the cable in its web process, before the first request, and stops it with the server. Granian serves the app over WSGI, which has no WebSockets; the cable listens on its own port, `CABLE_PORT`. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself.
+- Only that process serves the WebSockets. Every other process that loads the app - the extra copies of `PROCESSES`, a task worker, a shell - sends its broadcasts and `disconnect()`s to it, signed with the app's secret keys, as a `POST` to `CABLE_PATH` on `127.0.0.1`, port `CABLE_PORT + 1`. If the cable is down, the broadcast is lost and a warning is logged; the request that made it still finishes normally.
+- In production, your reverse proxy routes `CABLE_PATH` to `CABLE_PORT`. [Deployment](/docs/deployment#the-reverse-proxy) shows the nginx block.
+- In development there is no proxy. When `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same host name.
+
+The settings, in `config/`:
+
+Setting                   | Default   | What it is
+------------------------- | --------- | -----------------------------
+`CABLE`                   | `{}`      | The cable backend: `{"type": ...}` and its options
+`CABLE_PATH`              | `"/cable"`| The URL path of the WebSockets, behind the proxy
+`CABLE_PORT`              | `0`       | The port of the WebSockets (the addon sets `PORT + 1`)
+`CABLE_ALLOWED_ORIGINS`   | `[]`      | Other sites allowed to open a WebSocket (see [below](#checking-where-a-websocket-comes-from))
+`CABLE_PING_INTERVAL`     | `3`       | Seconds between pings to every connection. `0` sends none
+`CABLE_MAX_PENDING_BYTES` | 4 MB      | See "Slow clients" below. `0` is no limit
+`CABLE_STALL_TIMEOUT`     | `10`      | See "Slow clients" below
+
+And the options of `WseCable`, in `CABLE`:
+
+Option                     | Default      | What it is
+-------------------------- | ------------ | -----------------------------
+`port`                     | `CABLE_PORT` | Port of the WebSockets
+`host`                     | `"0.0.0.0"`  | Address to listen on
+`forward_port`             | `port + 1`   | Port, on 127.0.0.1, where the other processes send their broadcasts
+`workers`                  | `4`          | Threads that run the channels' code
+`max_connections`          | `100000`     | Connections it accepts
+`max_outbound_queue_bytes` | 64 MB        | How far behind a connection can fall before wse drops broadcasts for it
+`backpressure_bytes`       | 128 KB       | A `broadcast()` waits while the subscribers of its stream have more than this queued, on average. `0` never waits
+`backpressure_timeout`     | `1.0`        | The longest a `broadcast()` waits, in seconds; then it is sent anyway
+
+Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_handshakes`, how many handshakes can be in progress at once; raise it if thousands of clients may reconnect together after a restart.
+
+```python {title="config/channels.py"}
+CABLE = {
+    "type": "proper.channels.wse.WseCable",
+    "workers": 8,
+    "max_pending_handshakes": 2000,
+}
+```
+
+### Slow clients
+
+A client that stops reading - a frozen tab, a very bad network - would make messages pile up in memory. Two mechanisms deal with it:
+
+- **Backpressure.** A `broadcast()` waits, up to `backpressure_timeout`, while the subscribers of its stream are behind. Whoever broadcasts slows down to the pace of delivery, instead of every message arriving later and later. It looks at the average, so one stuck client doesn't slow everyone down.
+- **Closing stuck clients.** A connection with more than `CABLE_MAX_PENDING_BYTES` waiting, that got nothing through in `CABLE_STALL_TIMEOUT` seconds, is closed; so is one with ten times that much waiting, at any speed. `cable.js` reconnects and subscribes again. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse starts dropping broadcasts instead.
+
+---
+
+## Several machines: RedisCable
+
+`WseCable` serves the WebSockets of one machine. To run the app on several, behind a load balancer, use `RedisCable`: the same cable, with Redis carrying the broadcasts between machines. Your channels and your code don't change, only the config:
+
+```python {title="config/channels.py"}
+CABLE = {
+    "type": "proper.channels.RedisCable",
+    "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    "prefix": "myapp:cable:",
+}
+```
+
+It needs the `redis` package (`uv add redis`).
+
+Each machine's web process serves its own WebSockets, as with `WseCable`. A `broadcast()` goes to the subscribers of the process that makes it, if it serves any, and to Redis, from where the web processes of the other machines deliver it to theirs. A process without WebSockets - a task worker, a shell - only publishes to Redis, so nothing is sent over `CABLE_PORT + 1`. `disconnect()` reaches every machine the same way.
+
+Option   | Default                      | What it is
+-------- | ---------------------------- | -----------------------------
+`url`    | `"redis://localhost:6379/0"` | Redis connection URL
+`prefix` | `"proper:cable:"`            | Prefix of its Redis channel; give each app its own if several share one Redis
+
+It takes every option of `WseCable` as well.
+
+If the connection to Redis drops, the cable reconnects on its own, waiting longer each time, up to 30 seconds. Meanwhile, each machine's clients still get the broadcasts made on that machine; what other machines publish in that time is lost, and a broadcast that can't reach Redis is lost with a warning. Backpressure only sees the subscribers of the machine that broadcasts.
+
+Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. A list of who is online, or the last value for a client that subscribes late, is something you keep yourself. [Deployment](/docs/deployment) covers running the server and choosing the number of processes.
+
+---
+
+## Checking where a WebSocket comes from
+
+Browsers send a site's cookies with any WebSocket to it, even one opened by a page of another site. Without a check, a malicious page could open a WebSocket to your app with your user's session. So the cable checks the `Origin` header of the handshake, and accepts:
+
+- A handshake with no `Origin` (it doesn't come from a browser).
+- One from the same host the WebSocket was opened to, or from the app's `HOST`.
+- In `DEBUG`, one from `localhost` or `127.0.0.1` on the app's `PORT`.
+- One listed in `CABLE_ALLOWED_ORIGINS`.
+
+Any other is refused with a 403. To allow another site, list it:
+
+```python {title="config/channels.py"}
+CABLE_ALLOWED_ORIGINS = ["https://admin.example.com"]
+```
+
+---
+
+## Without channels
+
+An app without the channels addon has `CABLE = {}`: a cable that serves no WebSockets, so `broadcast()` reaches no one (it is logged at the debug level) and doesn't fail. Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` when the app starts.
+
+---
+
+## Testing channels
+
+You don't need a running server to test a channel. The test client opens a WebSocket session served from memory: it subscribes, calls actions, and disconnects, and you check the frames that come back.
+
+These tests are `async`, so they need [pytest-asyncio](https://pytest-asyncio.readthedocs.io/):
+
+```bash
+$ uv add --dev pytest-asyncio
+```
+
+```python {title="tests/channels/test_chat_channel.py"}
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_speak_broadcasts_to_the_room(client):
+    ws = client.websocket()
+    task = await ws.connect()
+
+    confirm = await ws.subscribe("ChatChannel", room="general")
+    assert confirm["type"] == "confirm_subscription"
+
+    await ws.send_action(
+        "ChatChannel",
+        "speak",
+        {"message": "hi"},
+        room="general",
+    )
+    msg = await ws.receive()
+    assert msg["type"] == "broadcast"
+    assert msg["data"] == {"message": "hi"}
+
+    await ws.close()
+    await task
+```
+
+The session's methods:
+
+Method                                   | What it does
+---------------------------------------- | ------------------------------------
+`await ws.connect()`                     | Opens the connection. Returns a task that ends when the connection closes; `await` it after `close()`
+`await ws.subscribe(channel, **params)`  | Subscribes, and returns the first frame the app sends back
+`await ws.send_action(channel, action, data, **params)` | Calls an action
+`await ws.unsubscribe(channel, **params)`| Unsubscribes
+`await ws.receive(timeout=1.0)`          | The next frame, parsed from JSON. Raises `TimeoutError` if nothing arrives
+`await ws.close()`                       | Disconnects, which runs `unsubscribed()`
+`ws.client_send(data)`, `ws.client_send_text(text)` | Sends a raw frame, to test what the app does with bad input
+
+`subscribe()` returns the *first* frame the app sends. If `subscribed()` calls `send()`, that message comes first, and the confirmation is the next `receive()`.
+
+Several sessions in one test share the same cable, so you can open two and check that a broadcast reaches both. A broadcast from your test code, `client.app.cable.broadcast(...)`, reaches them too.
+
+To test an authenticated channel, sign a user in first: the handshake carries the same session cookie an HTTP request would.
+
+```python
+@pytest.mark.asyncio
+async def test_anonymous_users_are_rejected(client):
+    ws = client.websocket()
+    await ws.connect()
+    reply = await ws.subscribe("InboxChannel")
+    assert reply["type"] == "reject_subscription"
+    await ws.close()
+
+
+@pytest.mark.asyncio
+async def test_users_get_their_inbox(client, session):
+    client.sign_in(session)
+    ws = client.websocket()
+    task = await ws.connect()
+    reply = await ws.subscribe("InboxChannel")
+    assert reply["type"] == "confirm_subscription"
+    assert reply["streams"] == [f"inbox_{session.user_id}"]
+    await ws.close()
+    await task
+```
+
+The session runs the app's cable from memory (`app.cable.serve_in_memory()`): no port, no threads, and each message is handled right away. The same test works with `WseCable` and with `RedisCable`, which doesn't use Redis in this mode. With an app whose cable serves no WebSockets (`CABLE = {}`), `connect()` raises a `RuntimeError`. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()`.
+
+:::note
+As you can see, testing channels is one of the few places where the well-hidden `async` nature of Proper leaks into __your__ code. Sorry about that.
 :::
 
 ---
 
 ## The wire protocol
 
-`cable.js` speaks this so you do not have to, but the frames are worth knowing for debugging or for writing a non-JavaScript client. Every message is JSON over the `/cable` WebSocket.
+`cable.js` speaks this so you don't have to, but the frames are useful to know for debugging, or for writing a client in another language. Every message is a JSON object.
 
-The client sends three commands - `subscribe`, `message` (invoke an action), and `unsubscribe`:
+The client sends three commands - `subscribe`, `message` (call an action), and `unsubscribe`:
 
 ```json
 { "command": "subscribe", "channel": "ChatChannel",
@@ -543,11 +784,11 @@ The client sends three commands - `subscribe`, `message` (invoke an action), and
     "params": {"room": "general"} }
 ```
 
-The server sends back `confirm_subscription`, `reject_subscription`, `message` (the payload of a `send()`), `broadcast` (the payload of a `broadcast()`), and `error`:
+The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `error`, and `ping`:
 
 ```json
 { "type": "confirm_subscription", "channel": "ChatChannel",
-    "params": {"room": "general"}, "streams": ["chat:general"] }
+    "params": {"room": "general"}, "streams": ["chat_general"] }
 
 { "type": "reject_subscription", "channel": "ChatChannel",
     "params": {"room": "general"} }
@@ -555,143 +796,27 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 { "type": "message", "channel": "ChatChannel",
     "params": {"room": "general"}, "data": {"message": "hi"} }
 
-{ "c": "P", "type": "broadcast", "stream": "chat:general",
+{ "c": "P", "type": "broadcast", "stream": "chat_general",
     "data": {"message": "hi"} }
 
 { "type": "error", "reason": "not_subscribed" }
-```
 
-A `reject_subscription` carries `"reason": "unknown_channel"` when no channel by that name is registered; a subscription your own `reject()` turned away has no reason.
-
-An `error` carries a `reason`, one of: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`, and `invalid_message` (JSON that is not an object).
-
-Every few seconds the server sends a ping, which the client uses to tell a dead connection from a quiet one; `message` is the server's time:
-
-```json
 { "type": "ping", "message": 1791230000 }
 ```
 
-The cable writes one frame per broadcast for every subscriber, so it can't put each subscription's `channel` and `params` in it. A `broadcast` names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers the broadcast to every subscription streaming from it. The `c` field is wse's message category; ignore it.
+A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
 
-The handshake itself is refused, with a 403, when it comes from another site's page: see `CABLE_ALLOWED_ORIGINS` below.
+Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name; a subscription your own `reject()` turned away has no reason.
 
+An `error` has a `reason`, one of: `invalid_json`, `invalid_message` (JSON that is not an object), `unknown_command`, `not_subscribed`, `invalid_action`, and `unknown_action`.
 
----
-
-## WseCable: the WebSockets on wse-server
-
-This is the backend the channels addon configures. `WseCable` serves the WebSockets with [proper-wse](https://github.com/jpsca/proper-wse), our fork of [wse-server](https://github.com/silvermpx/wse), a server written in Rust (tokio and tungstenite), inside the web process. Channels keep their API: `subscribed()`, the actions and `unsubscribed()` run in Python, in a pool of threads, in order for each connection. What changes is underneath: a stream is a wse topic, and a `broadcast()` hands the encoded frame to wse, which writes it to every subscriber without going back to Python. With thousands of clients on one stream this is the backend that keeps up.
-
-```python {title="config/channels.py"}
-CABLE = {"type": "proper.channels.wse.WseCable"}  # serves on CABLE_PORT
-```
-
-Install it with the `wse` extra (`uv add "proper[wse]"`), which brings `proper-wse`, with wheels for free-threaded Python (3.14t) as well. It imports as `wse_server`, so don't install the original `wse-server` next to it.
-
-- `proper run` starts the server, in its web process, before the first request, and stops it with the server. The web server itself (Granian, over WSGI) has no WebSockets. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself.
-- Every other process that loads the app has no WebSockets: the other copies of `PROCESSES`, a Huey worker, a shell. Their `broadcast()`s and `disconnect()`s are forwarded to the serving process, signed with the app's secret keys, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given). `app.cable.batch()` sends several in one request.
-- Broadcasts use the stream-named frames of the wire protocol above; `cable.js` understands them.
-- The server pings every connection each `CABLE_PING_INTERVAL` seconds. A client that stops reading is closed, without the close handshake it would never let through, and `cable.js` reconnects: once more than `CABLE_MAX_PENDING_BYTES` (4 MB) are waiting for it and nothing got through in `CABLE_STALL_TIMEOUT` seconds (10), or ten times as many are waiting. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse drops broadcasts for a connection instead.
-- The original wse-server is refused at startup: refusing other sites' origins and waiting for delivery need `proper-wse`.
-
-In production, your reverse proxy routes `CABLE_PATH` to `CABLE_PORT`; the blueprint's nginx config has the block ready. In development there is no proxy, so the page tells the browser where the cable is: `render_importmap()` adds a `<meta name="cable-port">` tag when `DEBUG` is on, and `cable.js` connects to that port on the same host.
-
-Option                     | Default    | What it is
--------------------------- |----------- | -----------------------------
-`port`                     | `CABLE_PORT` | Port of the WebSockets
-`host`                     | `0.0.0.0`  | Address to listen on
-`forward_port`             | `port + 1` | Port, on 127.0.0.1, of the broadcasts other processes forward
-`workers`                  | `4`        | Threads that run the channels' code
-`max_connections`          | `100000`   | Connections wse accepts
-`max_outbound_queue_bytes` | 64 MB      | How far behind a connection can fall before wse drops broadcasts for it. A broadcast frame is shared by every connection it goes to, so a backlog costs memory once, not once per connection
-`backpressure_bytes`       | 128 KB     | A `broadcast()` waits while the subscribers of its stream have more than this queued, on average. Whoever publishes slows down to the pace of delivery, so messages don't pile up and arrive late. Higher: more messages per second under load, and more latency. `0` never waits
-`backpressure_timeout`     | `1.0`      | Longest a `broadcast()` waits, in seconds; then it is sent anyway
-
-Any other option goes to `wse_server.RustWSEServer`, such as `max_pending_handshakes` (how many handshakes may be in progress at once; raise it if thousands of clients can reconnect together, after a restart).
-
----
-
-## Several machines: RedisCable
-
-`WseCable` serves the WebSockets of one machine. To run the app on several, behind a load balancer, use `RedisCable`: the same cable, with Redis carrying the broadcasts between machines. The channels and your code don't change, only the config:
-
-```python {title="config/channels.py"}
-CABLE = {
-    "type": "proper.channels.RedisCable",
-    "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    "prefix": "myapp:cable:",
-}
-```
-
-Each machine's web process serves its own WebSockets, as with `WseCable`. A `broadcast()` goes straight to the subscribers of the process that makes it, if it serves any, and to Redis, where the web processes of the other machines get it and hand it to theirs; each one skips what it published itself. A process without WebSockets - a task worker, a shell - only publishes to Redis, so there is no forwarding over HTTP and no `CABLE_PORT + 1`. `disconnect()` reaches every machine the same way.
-
-Option   | Default                      | What it is
--------- |----------------------------- | -----------------------------
-`url`    | `redis://localhost:6379/0`   | Redis connection URL
-`prefix` | `proper:cable:`              | Namespace of its Redis channel; give each app its own if several share one Redis
-
-It takes every option of `WseCable` as well. It needs the `redis` package (`uv add redis`) and raises when it is configured without it. Each web process subscribes when `proper run` starts it, waiting up to a second so that what is published right away isn't missed; if the Redis connection drops, it reconnects with backoff (up to 30 s). Meanwhile its own clients still get their own broadcasts, and a broadcast that can't reach Redis is lost with a warning; the page that made it still renders. Waiting for delivery (`backpressure_bytes`) only sees the machine that publishes. Tests that use `client.websocket()` run the cable from memory, without Redis.
-
-The line to remember: `RedisCable` shares *broadcasts* across machines, not *state*. Fire-and-forget delivery crosses the cluster cleanly. Anything that needs a shared, durable view - a presence roster, a "replay the last value to a late subscriber" - is not something the cable does for you, because Redis pub/sub carries events, not memory. [Deployment](/docs/deployment) covers choosing a worker count and running the server.
-
-## Checking where a WebSocket comes from
-
-Browsers send a site's cookies with any WebSocket to it, even one opened by a page of another site, so the cable checks the handshake's `Origin`. It accepts a handshake with no `Origin` (not a browser), one from the `Host` it was sent to or from the app's `HOST`, and in `DEBUG` one from any port of the same host name (the page and the cable listen on different ports there). Any other origin gets a 403, unless you list it:
-
-```python {title="config/channels.py"}
-CABLE_ALLOWED_ORIGINS = ["https://admin.example.com"]
-```
-
-## Without channels
-
-An app without the channels addon has `CABLE = {}`: a `Cable` that serves no WebSockets, so a `broadcast()` reaches no one (it is logged at the debug level). Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` when the app starts.
-
----
-
-## Testing channels
-
-You do not need a running server to test a channel. The test client opens a WebSocket session, served from memory, that drives `subscribe`, actions, and disconnect, and lets you assert on the frames that come back:
-
-```python
-import pytest
-
-# Requires `pytest-asyncio` to run
-@pytest.mark.asyncio
-async def test_chat_broadcasts_to_the_room(client):
-    ws = client.websocket()
-    task = await ws.connect()
-
-    confirm = await ws.subscribe("ChatChannel", room="general")
-    assert confirm["type"] == "confirm_subscription"
-
-    await ws.send_action(
-        "ChatChannel",
-        "speak",
-        {"message": "hi"},
-        room="general"
-    )
-    msg = await ws.receive()
-    assert msg["data"]["message"] == "hi"
-
-    await ws.close()
-    await task
-```
-
-`client.websocket()` returns a session; `connect()` opens the connection and returns a task you await after `close()`; `receive_raw()` shows the handshake's answer, `{"type": "accept"}`, which `receive()` and `subscribe()` skip. `subscribe()` sends a subscribe command and returns the response, `send_action()` invokes an action, and `receive()` returns the next frame parsed from JSON.
-
-The session runs the cable from memory instead of a port (`app.cable.serve_in_memory()`): no server, no threads, and each event runs right away through the cable's own code. The same test works with `WseCable` and `RedisCable`, which doesn't touch Redis from memory. With an app whose cable serves no WebSockets (`CABLE = {}`), `connect()` raises a `RuntimeError`.
-
-To test an authenticated channel, sign a user in first - the test client carries the same session cookie into the handshake that an HTTP request would. The [Testing guide](/docs/testing) covers the `TestClient` and `sign_in()` in full.
-
-:::note
-As you can see, testing channels is one of the few places where the well-hidden `async` nature of Proper leaks into __your__ code. Sorry about that.
-:::
+The `ping` arrives every `CABLE_PING_INTERVAL` seconds, with the server's time; the client uses it to tell a dead connection from a quiet one.
 
 ---
 
 ## A full example
 
-A complete room chat: an authenticated channel, a controller that persists a message and broadcasts it, and the page that ties them together.
+A room chat: an authenticated channel, a controller that saves a message and broadcasts it, and the page that ties them together.
 
 ```python {title="channels/chat_channel.py"}
 from proper import current
@@ -713,15 +838,11 @@ class ChatChannel(AppChannel):
             self.reject()
             return
         self.stream_from(f"chat_{room.id}")
-
-    def speak(self, data):
-        self.broadcast(f"chat_{self.params['room_id']}", {
-            "message": data["message"],
-            "sender": current.user.login,
-        })
 ```
 
 ```python {title="controllers/message_controller.py"}
+from proper import current, turbo_stream
+
 from ..models import Message
 from ..router import router
 from .app_controller import AppController
@@ -736,56 +857,47 @@ class MessageController(AppController):
             author=current.user,
             text=self.params["text"],
         )
-        self.app.cable.broadcast(f"chat_{room_id}", {
-            "message": message.text,
-            "sender": message.author.login,
-        })
+        self.app.cable.broadcast(
+            f"chat_{room_id}",
+            turbo_stream.append("messages", "message.jx", message=message),
+        )
         self.response.redirect_to("Message.index", room_id=room_id)
 ```
 
-```javascript {title="the room page"}
-import { cable } from "/cable.js"
+```html+jinja {title="views/message/index.jx"}
+{#def room, messages #}
+{#import "message.jx" as Message #}
 
-cable.connect()
+<turbo-stream-channel channel="ChatChannel" params='{"room_id": {{ room.id }}}'>
+</turbo-stream-channel>
 
-const chat = cable.subscribe(
-    "ChatChannel",
-    { room_id: ROOM_ID },
-    {
-        received({ message, sender }) {
-            const el = document.createElement("li")
-            el.textContent = `${sender}: ${message}`
-            document.getElementById("messages").append(el)
-        },
-    }
-)
+<ul id="messages">
+  {% for message in messages %}
+    <Message message={{ message }} />
+  {% endfor %}
+</ul>
 
-document.getElementById("composer").addEventListener(
-    "submit",
-    (e) => {
-        e.preventDefault()
-        const input = e.target.elements.message
-        chat.perform("speak", { message: input.value })
-        input.value = ""
-    }
-)
+<form method="post" action="{{ url_for('Message.create', room_id=room.id) }}">
+  <input name="text" autocomplete="off">
+  <button>Send</button>
+</form>
 ```
 
-The channel guards the room with the server-verified user; the controller is the system of record that persists and broadcasts; the page renders whatever arrives. A message a user sends through the form is saved by the controller and lit up on every open page by the broadcast.
+The channel guards the room with the server-verified user. The controller saves the message and broadcasts it, rendered with the same component as the list. Every open page of the room, including the sender's, gets the new message, and there is no JavaScript of your own.
 
 ---
 
 ## Where this could grow
 
-Channels covers the durable core - a multiplexed connection, authenticated subscriptions, streams, broadcasting, a reconnecting client, and a Redis backend for scale. Several things that mature real-time stacks offer are not here yet. None of them block you - workarounds exist - but they are the obvious places the framework will grow.
+Channels covers the core - one shared connection, authenticated subscriptions, streams, broadcasting, a reconnecting client, Turbo Streams, and Redis for several machines. Some things that other real-time stacks offer are not here yet. None of them block you - there are workarounds - but they are where the framework will likely grow.
 
-- **A presence primitive.** A real who-is-online API that handles the multi-tab and multi-worker cases (a Redis-backed roster with heartbeat expiry) instead of the manual, single-worker pattern shown above.
-- **Model-derived stream names.** `broadcast_to(record, data)` and `stream_for(record)` that derive a stable stream name from a model, removing the stringly-typed names that a typo can silently break.
-- **A subscription reply.** Letting an action return a value the framework sends back to the caller, tagged to that call, so optimistic UIs can confirm success or surface a validation error without a separate correlated message.
-- **Per-subscription timers.** A `periodically(...)` hook for server-driven pushes - live counters, clocks, dashboards - scoped to the subscription's lifetime. For now, a periodic background task that broadcasts to a stream covers most of this.
-- **Channel error hooks.** A `rescue_from`-style way to turn an exception in an action into a clean error frame for the client, rather than only logging it.
+- **A presence API.** A real who-is-online list that handles several tabs and several machines, instead of the manual pattern shown above. The WebSocket server, wse, already keeps one: per user, across tabs, and synced between its own cluster nodes. What is missing is connecting it to Proper: wse only knows who a connection belongs to when it authenticates with a JWT, not with the session cookie, and `cable.js` doesn't understand its join and leave messages.
+- **Stream names from models.** `broadcast_to(record, data)` and `stream_for(record)`, which would build the stream name from a model, so a typo can't break it silently.
+- **Replies to actions.** Letting an action return a value that is sent back to the caller, tied to that call, so a page can confirm success or show a validation error.
+- **Per-subscription timers.** A `periodically(...)` hook for server-driven updates - counters, clocks, dashboards - that lives as long as the subscription. For now, a periodic background task that broadcasts to a stream covers most of this.
+- **Error handling in channels.** A way to turn an exception in an action into an error frame for the client, instead of only logging it.
 
-If you build any of these against the current code, the framework would love a PR.
+If you build any of these, the framework would love a PR.
 
 ---
 
@@ -793,7 +905,8 @@ If you build any of these against the current code, the framework would love a P
 
 Channels touches several other parts of Proper:
 
-- [Authentication](/docs/authentication) - the session and signed-cookie model that `AppChannel` reuses to put `current.user` on a connection.
-- [Background Tasks](/docs/tasks) - the worker process behind broadcasting from a job, plus scheduling and retries.
-- [Jx Components](/docs/jx_components) - the server-rendered components you wrap in a `<turbo-stream>` to broadcast.
-- [Deployment](/docs/deployment) - workers, processes and the cable port behind a proxy, and running Redis so `RedisCable` can carry broadcasts across machines.
+- [Authentication](/docs/authentication) - the session and signed cookie that `AppChannel` uses to put `current.user` on a connection.
+- [Turbo](/docs/turbo) - Turbo Frames and Streams, also as responses to forms.
+- [Background Tasks](/docs/tasks) - the worker behind broadcasting from a task, plus scheduling and retries.
+- [Jx Components](/docs/jx_components) - the components you render into a `<turbo-stream>` to broadcast.
+- [Deployment](/docs/deployment) - processes, the cable port behind nginx, and running Redis for `RedisCable`.

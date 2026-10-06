@@ -30,7 +30,7 @@ forwarded to that one, signed with the app's keys, over HTTP on
 The server sends `{"type": "ping"}` to every connection each
 `CABLE_PING_INTERVAL` seconds, which `cable.js` uses to notice a dead
 connection, and refuses handshakes from other sites' pages (see
-`origin_allowed`). Requires `proper-wse` (`uv add "proper[wse]"`), our fork
+`origin_allowed`). Requires `proper-wse` (`uv add proper-wse`), our fork
 of wse-server, with wheels for free-threaded Python; it imports as
 `wse_server`, and the original wse-server is refused.
 """
@@ -61,6 +61,7 @@ _BLOCKED_ACTIONS = (
     "subscribed", "unsubscribed",
     "send", "broadcast", "reject",
     "stream_from", "stop_stream_from", "stop_all_streams",
+    "find_user",
 )
 
 
@@ -310,7 +311,7 @@ class WseCable(Cable):
         doesn't hold everyone back. It waits `backpressure_timeout` seconds at
         most, less than a forwarded broadcast's timeout. `0` never waits."""
         super().__init__()
-        self.app: "App" = None  # type: ignore[assignment]
+        self.app: "App" = None  # ty: ignore[invalid-assignment] - set by `bind()`
         self.server: t.Any = None
         self._host = host
         self._port = port
@@ -333,7 +334,7 @@ class WseCable(Cable):
         self._users: dict[t.Any, set[WseConnection]] = {}
         # (conn_id, stream) -> how many channels of the connection stream it
         self._stream_refs: dict[tuple[str, str], int] = {}
-        self._executor: ThreadPoolExecutor = None  # type: ignore[assignment]
+        self._executor: ThreadPoolExecutor = None  # ty: ignore[invalid-assignment] - set by `start_server()`
         self._draining = False
         self._drain_thread: threading.Thread | None = None
 
@@ -444,9 +445,9 @@ class WseCable(Cable):
         ):
             raise RuntimeError(
                 "WseCable needs proper-wse >= 2.6.0, not an older one or the original "
-                "wse-server (they all import as wse_server): install proper[wse]"
+                "wse-server (they all import as wse_server): uv add proper-wse"
             )
-        options = {"max_connections": self._max_connections, **self._server_options}
+        options: dict[str, t.Any] = {"max_connections": self._max_connections, **self._server_options}
         options.setdefault("allowed_origins", allowed_origins(self.app.config))
         return RustWSEServer(self._host, port, **options)
 
@@ -550,7 +551,7 @@ class WseCable(Cable):
     # Streams
 
     def subscribe(self, stream_name: str, channel: "Channel") -> None:
-        conn: WseConnection = channel._connection
+        conn = t.cast(WseConnection, channel._connection)
         key = (conn.conn_id, stream_name)
         with self._lock:
             refs = self._stream_refs.get(key, 0)
@@ -559,7 +560,7 @@ class WseCable(Cable):
             self.server.subscribe_connection(conn.conn_id, [stream_name])
 
     def unsubscribe(self, stream_name: str, channel: "Channel") -> None:
-        conn: WseConnection = channel._connection
+        conn = t.cast(WseConnection, channel._connection)
         key = (conn.conn_id, stream_name)
         with self._lock:
             refs = self._stream_refs.get(key, 0) - 1
@@ -681,7 +682,7 @@ class WseCable(Cable):
         # meanwhile: its commands run one at a time.
         pending: list = []
         channel = channel_cls(
-            self.app, params, request=conn.request,
+            self.app, params, request=conn.request, name=channel_name,
             _send=pending.append, _connection=conn,
         )
         self.app._with_db(lambda: channel._dispatch("subscribed"))

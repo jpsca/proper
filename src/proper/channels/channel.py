@@ -22,10 +22,6 @@ if t.TYPE_CHECKING:
     from .wse import WseConnection
 
 
-DEPENDENCIES = [
-    "proper-wse>=2.6.1",
-]
-
 class Message(dict):
     """A message to one subscription (`Channel.send()`), and its JSON."""
 
@@ -50,14 +46,19 @@ class Channel:
         params: dict[str, t.Any],
         *,
         request: Request | None = None,
+        name: str = "",
         _send: "Callable[[t.Any], t.Any]",
         _connection: "WseConnection | None" = None,
     ) -> None:
         """`request` is the WebSocket handshake, which carries the
         connection's headers and cookies. It is `None` only when a channel
-        is constructed directly (for example, in a unit test)."""
+        is constructed directly (for example, in a unit test).
+
+        `name` is the one the client subscribed with, under which the router
+        registered the channel; the class name if not given."""
         self.app = app
         self.params = params
+        self._name = name or type(self).__name__
         self.user_id: t.Any = None
         self._send = _send
         self._streams: set[str] = set()
@@ -73,7 +74,9 @@ class Channel:
 
     @property
     def channel_name(self) -> str:
-        return type(self).__name__
+        """The name the client subscribed with: the class name, unless the
+        channel was registered under another one (`@router.channel("chat")`)."""
+        return self._name
 
     @property
     def authenticated(self) -> bool:
