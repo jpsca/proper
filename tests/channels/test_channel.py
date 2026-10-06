@@ -223,7 +223,7 @@ class TestSessionResolution:
 
     def test_no_session_model_is_anonymous(self):
         ch, _ = _make_channel()
-        assert ch._find_session_by_cookie() is None
+        assert ch.find_session() is None
         ch._authenticate()
         assert ch.user_id is None
         assert ch.authenticated is False

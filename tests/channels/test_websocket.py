@@ -877,3 +877,85 @@ class TestRecovery:
         assert confirm["recovered"] is None
         await ws.close()
         await task
+
+
+# --- The handshake as the channel's request ---
+
+
+class HandshakeChannel(Channel):
+    captured: dict = {}
+
+    def subscribed(self):
+        request = self.request
+        self.captured.update(
+            path=request.path, query=dict(request.query),
+            authorization=request.headers.get("authorization"),
+            remote_ip=request.remote_ip, cookie=request.headers.get("cookie"),
+        )
+
+
+class TestHandshakeRequest:
+    @pytest.mark.asyncio
+    async def test_the_channel_sees_the_handshake(self, app):
+        """Path and query string, `Authorization`, `X-Forwarded-For` and the
+        client's address, as a controller would see them."""
+        HandshakeChannel.captured = {}
+        app.router.channels["HandshakeChannel"] = HandshakeChannel
+        client = TestClient(app)
+        client.default_headers["authorization"] = "Bearer abc"
+        client.default_headers["x-forwarded-for"] = "203.0.113.9"
+        client.default_headers["cookie"] = "a=1"
+        ws = client.websocket("/cable?room=7&x=y")
+        task = await ws.connect()
+        await ws.subscribe("HandshakeChannel")
+        await ws.close()
+        await task
+        assert HandshakeChannel.captured == {
+            "path": "/cable", "query": {"room": "7", "x": "y"},
+            "authorization": "Bearer abc", "remote_ip": "203.0.113.9", "cookie": "a=1",
+        }
+
+    @pytest.mark.asyncio
+    async def test_without_details(self, app):
+        """A bare handshake: `CABLE_PATH`, no headers, the peer's address."""
+        HandshakeChannel.captured = {}
+        app.router.channels["HandshakeChannel"] = HandshakeChannel
+        ws, task = await open_ws(app)
+        await ws.subscribe("HandshakeChannel")
+        await ws.close()
+        await task
+        assert HandshakeChannel.captured == {
+            "path": "/cable", "query": {}, "authorization": None,
+            "remote_ip": "127.0.0.1", "cookie": None,
+        }
+
+    def test_the_request_built_from_details(self, app):
+        from proper.channels.cable import _handshake_request
+
+        request = _handshake_request(app, {})
+        assert (request.path, request.query_string, request.client) == ("/", "", None)
+        request = _handshake_request(app, {"path": "/ws?a=1", "remote_addr": "[::1]:4000"})
+        assert (request.path, request.query_string, request.client) == ("/ws", "a=1", ("::1", 4000))
+        assert _handshake_request(app, {"remote_addr": "nonsense"}).client is None
+
+    @pytest.mark.asyncio
+    async def test_find_session_from_a_bearer_token(self, app):
+        """`find_session()` is the hook for clients without cookies."""
+        class TokenChannel(FakeAuthChannel):
+            def find_session(self):
+                auth = self.request.headers.get("authorization", "")
+                if auth.startswith("Bearer "):
+                    return FakeSessionModel.find_by_token(auth.removeprefix("Bearer "))
+                return super().find_session()
+
+        app.router.channels["TokenChannel"] = TokenChannel
+        client = TestClient(app)
+        _reset_fakes()
+        client.default_headers["authorization"] = "Bearer good-token"
+        ws = client.websocket()
+        task = await ws.connect()
+        confirm = await ws.subscribe("TokenChannel")
+        assert confirm["type"] == "confirm_subscription"
+        assert FakeSessionModel.find_by_token_calls == 1
+        await ws.close()
+        await task

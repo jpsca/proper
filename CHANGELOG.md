@@ -15,7 +15,7 @@ WebSockets, what `CABLE = {}` gives, is now `BaseCable`. An app that used
 Install `proper-wse` and set the cable:
 
 ```bash
-uv add "proper-wse>=2.6.2"
+uv add "proper-wse>=2.7.0"
 ```
 
 ```python {title="config/channels.py"}
@@ -47,6 +47,15 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### Added
 
+- A channel's `self.request` is now the whole handshake: its path and query
+  string (`request.query`), its `Authorization` and `X-Forwarded-For`
+  headers, and the client's address (`request.remote_ip`), besides the
+  cookies. And `Channel.find_session()` is the hook that finds the
+  connection's session, from the signed cookie by default; override it to
+  accept a token from a client without cookies, such as a mobile app. Needs
+  proper-wse >= 2.7.0 (`handshake_details`). `client.websocket(path)` takes
+  the handshake's path, with a query string, and sends the client's
+  `authorization` header.
 - Missed broadcasts are recovered. `Cable` keeps the last broadcasts of
   each stream (`recovery=True`; wse's `recovery_buffer_size`, 128 per stream,
   `recovery_ttl`, 300 seconds, and `recovery_memory_budget`, 256 MB, size the

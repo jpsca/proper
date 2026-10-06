@@ -26,7 +26,9 @@ SECRET = "*" * 50
 class WsClient:
     """A minimal WebSocket client (RFC 6455): text frames only."""
 
-    def __init__(self, port, cookie="", origin=None, expect=101, rcvbuf=None):
+    def __init__(
+        self, port, cookie="", origin=None, expect=101, rcvbuf=None, path="/cable", headers=(),
+    ):
         self.sock = socket.socket()
         if rcvbuf:  # a client that reads slowly: the server's writes back up
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
@@ -34,10 +36,11 @@ class WsClient:
         self.sock.connect(("127.0.0.1", port))
         key = base64.b64encode(os.urandom(16)).decode()
         request = (
-            f"GET /cable HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+            f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
             f"Connection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n"
             + (f"Cookie: {cookie}\r\n" if cookie else "")
             + (f"Origin: {origin}\r\n" if origin else "")
+            + "".join(f"{name}: {value}\r\n" for name, value in headers)
             + "\r\n"
         )
         self.sock.sendall(request.encode())
@@ -132,6 +135,19 @@ class FakeSessionModel:
 EVENTS: list = []
 
 
+class HandshakeChannel(Channel):
+    captured: dict = {}
+
+    def subscribed(self):
+        request = self.request
+        HandshakeChannel.captured = {
+            "path": request.path, "query": dict(request.query),
+            "authorization": request.headers.get("authorization"),
+            "remote_ip": request.remote_ip,
+        }
+        self.send({"ok": True})
+
+
 class LobbyChannel(Channel):
     """Streams from a room too: two channels of one connection, one stream."""
 
@@ -196,6 +212,7 @@ def _new_app(port, cable=None, **extra):
     app = App("proper", config)
     app.router.channels["RoomChannel"] = RoomChannel
     app.router.channels["LobbyChannel"] = LobbyChannel
+    app.router.channels["HandshakeChannel"] = HandshakeChannel
     return app
 
 
@@ -340,6 +357,28 @@ class TestWseCable:
         wse_app.cable.broadcast("room:4", "back")
         assert again.recv_type("broadcast")["data"] == "back"
         again.close()
+
+    def test_the_channel_sees_the_handshake(self, wse_app):
+        """wse hands over the path, the query string, `Authorization` and
+        the client's address (`handshake_details`)."""
+        client = WsClient(
+            wse_app.config.CABLE_PORT, path="/cable?room=7",
+            headers=[("Authorization", "Bearer abc"), ("X-Forwarded-For", "203.0.113.9")],
+        )
+        client.send({"command": "subscribe", "channel": "HandshakeChannel", "params": {}})
+        assert client.recv_type("message")["data"] == {"ok": True}
+        assert HandshakeChannel.captured == {
+            "path": "/cable", "query": {"room": "7"},
+            "authorization": "Bearer abc", "remote_ip": "203.0.113.9",
+        }
+        client.close()
+
+        plain = WsClient(wse_app.config.CABLE_PORT)
+        plain.send({"command": "subscribe", "channel": "HandshakeChannel", "params": {}})
+        plain.recv_type("message")
+        assert HandshakeChannel.captured["remote_ip"] == "127.0.0.1"
+        assert HandshakeChannel.captured["authorization"] is None
+        plain.close()
 
     def test_a_client_that_reconnects_gets_what_it_missed(self, wse_app):
         """wse stamps each broadcast with where it is in its stream, and
