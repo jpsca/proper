@@ -40,6 +40,11 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
   in-memory server doesn't use; with a cable that serves no WebSockets,
   `connect()` raises `RuntimeError`.
 
+### Added
+
+- `proper.db.prepare(query)` and `proper.db.Param`: prepared queries, compiled
+  to SQL once and executed many times with new values, on the released Peewee.
+
 ### Fixed
 
 - `WseCable`: what a channel set on `current` in one command (such as
