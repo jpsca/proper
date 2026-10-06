@@ -1,4 +1,5 @@
 import typing as t
+import weakref
 from collections.abc import Iterator
 
 from ...constants import FLASHES_SESSION_KEY
@@ -10,9 +11,18 @@ if t.TYPE_CHECKING:
 
 class FlashMessages:
     def __init__(self, response: "Response"):
-        self.response = response
+        # A weak reference: the response holds this object, and a strong one
+        # back would make every response, body included, wait for the cycle
+        # collector instead of being freed when the request ends.
+        self._response = weakref.ref(response)
         if FLASHES_SESSION_KEY not in self.response.session:
             self.response.session[FLASHES_SESSION_KEY] = []
+
+    @property
+    def response(self) -> "Response":
+        response = self._response()
+        assert response is not None, "the response of these flash messages is gone"
+        return response
 
     @property
     def flashes(self) -> list[tuple[str, str]]:

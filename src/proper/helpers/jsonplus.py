@@ -18,10 +18,14 @@ class CustomEncoder(json.JSONEncoder):
 
 class CustomDecoder(json.JSONDecoder):
     def __init__(self, *args, object_hook=None, **kw) -> None:
-        self._user_hook = object_hook
-        super().__init__(*args, object_hook=self._object_hook, **kw)
+        # A plain function, not a bound method: a decoder whose hook points
+        # back to it is a reference cycle, garbage for the cycle collector
+        # at every `loads()`.
+        super().__init__(*args, object_hook=_make_object_hook(object_hook), **kw)
 
-    def _object_hook(self, d: dict) -> dict:
+
+def _make_object_hook(user_hook):
+    def object_hook(d: dict) -> t.Any:
         ret = {}
         for key, value in d.items():
             if isinstance(value, str) and value.startswith(DATE_PREFIX):
@@ -35,9 +39,16 @@ class CustomDecoder(json.JSONDecoder):
                 except (ValueError, TypeError):
                     pass
             ret[key] = value
-        if self._user_hook is not None:
-            return self._user_hook(ret)
+        if user_hook is not None:
+            return user_hook(ret)
         return ret
+
+    return object_hook
+
+
+# `loads()` without options decodes with this one, as `json.loads` does with
+# its own default decoder, instead of building a new one at every call.
+_default_decoder = CustomDecoder()
 
 
 def dumps(
@@ -143,6 +154,10 @@ def loads(
     are encountered.
 
     """
+    if not kw and object_hook is object_pairs_hook is parse_float is parse_int is parse_constant is None:
+        if isinstance(s, (bytes, bytearray)):
+            s = s.decode(json.detect_encoding(s), "surrogatepass")
+        return _default_decoder.decode(s)
     kw["cls"] = CustomDecoder
     return json.loads(
         s,
