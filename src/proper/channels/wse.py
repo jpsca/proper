@@ -444,7 +444,7 @@ class WseCable(Cable):
             for name in ("topic_backlog", "connection_backlogs", "abort_connection")
         ):
             raise RuntimeError(
-                "WseCable needs proper-wse >= 2.6.0, not an older one or the original "
+                "WseCable needs proper-wse >= 2.6.2, not an older one or the original "
                 "wse-server (they all import as wse_server): uv add proper-wse"
             )
         options: dict[str, t.Any] = {"max_connections": self._max_connections, **self._server_options}
