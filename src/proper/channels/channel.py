@@ -22,6 +22,10 @@ if t.TYPE_CHECKING:
     from .wse import WseConnection
 
 
+DEPENDENCIES = [
+    "proper-wse>=2.6.1",
+]
+
 class Message(dict):
     """A message to one subscription (`Channel.send()`), and its JSON."""
 

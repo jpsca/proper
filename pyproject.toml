@@ -49,11 +49,6 @@ homepage = "https://ProperProject.org/"
 repository = "https://github.com/jpsca/proper"
 documentation = "https://properproject.org/docs/"
 
-[project.optional-dependencies]
-wse = [
-    "proper-wse>=2.6.0",
-]
-
 
 [dependency-groups]
 dev = [

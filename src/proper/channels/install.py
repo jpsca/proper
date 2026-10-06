@@ -15,7 +15,6 @@ SORT_IMPORTS_IN = [
     "config/__init__.py",
 ]
 
-# The WebSocket server of `WseCable`, the cable the blueprint configures.
 DEPENDENCIES = [
     "proper-wse >= 2.6.0",
 ]
