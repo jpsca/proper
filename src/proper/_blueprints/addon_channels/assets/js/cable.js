@@ -92,6 +92,7 @@ export class Subscription {
 // open: a laptop that slept, a proxy that dropped it.
 const STALE_AFTER = 10000
 const MAX_RECONNECT_DELAY = 30000
+const WSE_PONG = '{"c":"WSE","t":"PONG","p":{}}'
 
 export class Cable {
   constructor() {
@@ -172,6 +173,12 @@ export class Cable {
     ws.onmessage = (event) => {
       this._lastSeen = Date.now()
       const msg = JSON.parse(event.data)
+      if (msg.c === "WSE") {
+        // wse-server's own ping. It closes a connection that sends it
+        // nothing for a minute, so a page that only listens answers it.
+        if (msg.t === "ping") ws.send(WSE_PONG)
+        return
+      }
       if (msg.type === "ping") {
         this._pinged = true
         return

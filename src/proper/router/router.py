@@ -755,17 +755,14 @@ class Router(BaseRouter):
         Example:
 
         ```python
-        @router.channel("chat")
+        @router.channel()
         class ChatChannel(Channel):
             def subscribed(self):
                 self.stream_from(f"chat_{self.params['room']}")
         ```
 
-        The `name` argument is used as a URL-friendly identifier for routing.
-        If omitted, it is derived from the class name (e.g. "ChatChannel" -> "chat").
-
-        The channel class is registered under its full class name (e.g. "ChatChannel")
-        which is what clients use to subscribe.
+        The channel is registered under `name`, which is what clients use to
+        subscribe. If omitted, it is the class name (e.g. "ChatChannel").
         """
         def class_decorator(cls: type[Channel]) -> type[Channel]:
             assert issubclass(cls, Channel), (

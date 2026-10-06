@@ -14,7 +14,7 @@ def setup(app):
             raise ConfigError(
                 f"CABLE_PORT is set but {NAME} is empty, and the default cable serves no "
                 f'WebSockets. Set {NAME} = {{"type": "proper.channels.wse.WseCable"}} '
-                '(and install "proper[wse]"), or remove CABLE_PORT.'
+                '(and `uv add proper-wse`), or remove CABLE_PORT.'
             )
         # No channels: a cable with no WebSockets, where broadcasts reach no one.
         app.cable = Cable()

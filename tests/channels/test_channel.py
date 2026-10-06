@@ -69,6 +69,11 @@ class TestChannel:
         ch, _ = _make_channel(cls=ChatChannel)
         assert ch.channel_name == "ChatChannel"
 
+    def test_returns_the_given_name(self):
+        app = FakeApp()
+        ch = Channel(t.cast(App, app), {}, name="chat", _send=lambda _msg: None)
+        assert ch.channel_name == "chat"
+
 
 
 class TestStream:

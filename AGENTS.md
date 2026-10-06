@@ -1,6 +1,6 @@
 ## About Proper
 
-Proper is an opinionated, batteries-included Python web framework. It runs only on free-threaded Python (3.14t and later) and serves WSGI through Granian. Controllers are synchronous, with no `async`/`await`. It uses Peewee ORM, Huey task queue, minijx components, and Formidable forms. WebSockets are served by WseCable (the optional `proper[wse]` extra). Deep reference docs are bundled in the `proper` skill (`skills/proper/`).
+Proper is an opinionated, batteries-included Python web framework. It runs only on free-threaded Python (3.14t and later) and serves WSGI through Granian. Controllers are synchronous, with no `async`/`await`. It uses Peewee ORM, Huey task queue, minijx components, and Formidable forms. WebSockets are served by WseCable, with `proper-wse`, which the channels addon adds to the app's dependencies. Deep reference docs are bundled in the `proper` skill (`skills/proper/`).
 
 ## General Guidelines
 
