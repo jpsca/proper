@@ -285,7 +285,7 @@ Inside any channel method, the following are available:
 | `self.channel_name` | The name it was registered under (e.g. `"ChatChannel"`) |
 | `self.authenticated` | `True` when the connection has a logged-in user         |
 | `self.user_id`    | The id of that user, or `None`                             |
-| `self.request`    | The connection request, for reading headers and signed cookies |
+| `self.request`    | The handshake as a request: path and `query`, `headers` (`cookie`, `authorization`, `x-forwarded-for`), `remote_ip`, signed cookies |
 
 
 ## Authentication
@@ -333,6 +333,10 @@ removed, a ban, a sign-out), call `app.cable.disconnect(user_id=...)`. It
 works from any process; the clients reconnect and subscribe again, and the
 channels that no longer authorize them reject the subscription.
 
+
+### Clients without cookies
+
+`Channel.find_session()` finds the connection's session, once per connection when its first channel subscribes; by default from the signed auth cookie. Override it in `AppChannel` to accept a token, e.g. `Authorization: Bearer <token>` from `self.request.headers` (`return Session.find_by_token(token)`, falling back to `super().find_session()`); return `None` for anonymous. `self.request` also has `query` (the handshake's query string) and `remote_ip` (honors `X-Forwarded-For`).
 
 ## Client-Side Usage
 
@@ -544,7 +548,7 @@ async def test_speak(client):
 
 | Method | Description |
 |--------|-------------|
-| `await ws.connect()` | Opens the connection; returns a task that ends when it closes |
+| `await ws.connect()` | Opens the connection; returns a task that ends when it closes. The handshake has the client's default headers (`cookie`, `authorization`, `x-forwarded-for`) and the path of `client.websocket(path)` (`CABLE_PATH` by default; a query string is allowed) |
 | `await ws.subscribe(channel, positions=None, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()`, or a recovered broadcast, comes before the confirmation). `positions={stream: {"e", "o"}}` asks for the broadcasts since |
 | `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply |
 | `await ws.perform(channel, action, data, **params)` | Calls an action with an `id` and returns its `reply` frame (`status` `"ok"` or `"error"`, `data`), skipping what the action sent before it |

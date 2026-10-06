@@ -218,6 +218,26 @@ Two things make it work:
 
 Without the auth addon, `Session` is `None`, every connection is anonymous, `current.user` is `None`, and `self.authenticated` is `False`.
 
+### Clients without cookies
+
+A mobile app or a script has no session cookie. The handshake is still an HTTP request, and the channel sees all of it in `self.request`: the path and query string (`request.query`), the `Authorization` header, and the client's address (`request.remote_ip`, which honors `X-Forwarded-For` from your proxy). The session lookup is one method, `find_session()`, that reads the signed cookie by default. Override it in `AppChannel` to accept a token as well:
+
+```python {title="channels/app_channel.py"}
+class AppChannel(Channel):
+    Session = Session
+
+    def find_session(self):
+        auth = self.request.headers.get("authorization", "")
+        if auth.startswith("Bearer "):
+            return Session.find_by_token(auth.removeprefix("Bearer "))
+        return super().find_session()
+
+    def find_user(self, user_id) -> "User | None":
+        return User.get_or_none(User.id == user_id)
+```
+
+It runs once per connection, when its first channel subscribes; return `None` to leave the connection anonymous. Prefer the header to a token in the query string, which ends up in proxy logs.
+
 ### Authorizing versus authenticating
 
 Authentication answers *"who is connected?"*; authorization answers *"may they subscribe to this?"*. Do the second in `subscribed()`, using the first:
@@ -758,7 +778,7 @@ The session's methods:
 
 Method                                   | What it does
 ---------------------------------------- | ------------------------------------
-`await ws.connect()`                     | Opens the connection. Returns a task that ends when the connection closes; `await` it after `close()`
+`await ws.connect()`                     | Opens the connection. Returns a task that ends when the connection closes; `await` it after `close()`. The handshake carries the client's default headers (the cookie from `sign_in()`, an `authorization` header you set) and the path given to `client.websocket(path)`, `CABLE_PATH` by default, which may have a query string
 `await ws.subscribe(channel, positions=None, **params)` | Subscribes, and returns the first frame the app sends back. `positions`, `{stream: {"e": ..., "o": ...}}` from the stamps of received broadcasts, asks for the ones broadcast since
 `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply
 `await ws.perform(channel, action, data, **params)` | Calls an action and returns its reply: `{"type": "reply", "status": "ok", "data": <what it returned>}`, or `"status": "error"` with `{"reason": ...}` in `data`. Skips what the action sent before replying

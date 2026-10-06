@@ -62,7 +62,7 @@ def test_file_creation(app_in_tmp):
 def test_proper_wse_is_added_as_a_dependency(app_in_tmp, commands):
     (app_in_tmp.root_path.parent / "uv.lock").write_text("")
     channels.install(app_in_tmp)
-    assert commands == ['uv add "proper-wse >= 2.6.2"']
+    assert commands == ['uv add "proper-wse >= 2.7.0"']
 
 
 def test_the_generated_config_serves_with_wse_cable(app_in_tmp, monkeypatch):

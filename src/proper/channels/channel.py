@@ -103,11 +103,14 @@ class Channel:
 
     @property
     def request(self) -> Request:
-        """The connection's request, for reading headers and cookies (for
-        example, a signed auth cookie):
+        """The WebSocket handshake as a request: its path and query string
+        (`request.query`), its `Cookie`, `Authorization` and
+        `X-Forwarded-For` headers, and the client's address
+        (`request.remote_ip`). For example:
 
         ```python
         token = self.request.get_signed_cookie("_auth", salt="auth cookie")
+        token = self.request.headers.get("authorization", "").removeprefix("Bearer ")
         ```
 
         A channel built without one gets an empty request.
@@ -180,7 +183,7 @@ class Channel:
             self.user_id = conn.user_id
             current.user = self.find_user(self.user_id) if self.user_id is not None else None
             return
-        if session := self._find_session_by_cookie():
+        if session := self.find_session():
             session.touch()  # type: ignore
             self.user_id = session.user_id  # type: ignore
             current.auth_session = session
@@ -188,7 +191,20 @@ class Channel:
         if conn is not None:
             conn.identify(self.user_id)
 
-    def _find_session_by_cookie(self) -> "ProperModel | None":
+    def find_session(self) -> "ProperModel | None":
+        """Find the connection's session, once per connection, when its
+        first channel subscribes. By default, from the signed auth cookie
+        of the handshake, as a controller would. Override it to accept a
+        token from a client that has no cookies, such as a mobile app:
+
+        ```python
+        def find_session(self):
+            token = self.request.headers.get("authorization", "").removeprefix("Bearer ")
+            return Session.find_by_token(token) if token else super().find_session()
+        ```
+
+        Return `None` to leave the connection anonymous. A no-op when no
+        `Session` model is set."""
         if self.Session is None:
             return None
         token = self.request.get_signed_cookie(

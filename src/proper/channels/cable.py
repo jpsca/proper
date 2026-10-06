@@ -118,16 +118,36 @@ def _stamp(frame: str, topic: str, epoch: str, offset: int) -> str:
     return '{"tp": %s, "e": "%s", "o": %d, %s' % (jsonplus.dumps(topic), epoch, offset, frame[1:])
 
 
+def _handshake_request(app: "App", details: dict) -> t.Any:
+    """The handshake as a request, for the channels: its path and query
+    string, its `Cookie`, `Authorization` and `X-Forwarded-For` headers, and
+    the client's address (`request.remote_ip`). `details` is what wse gives
+    with `handshake_details`."""
+    path, _, query_string = str(details.get("path") or "/").partition("?")
+    headers = [
+        (name, value)
+        for name, value in (
+            ("cookie", details.get("cookies")),
+            ("authorization", details.get("authorization")),
+            ("x-forwarded-for", details.get("forwarded_for")),
+        )
+        if value
+    ]
+    host, _, port = str(details.get("remote_addr") or "").rpartition(":")
+    client = (host.strip("[]"), int(port)) if host and port.isdigit() else None
+    return app.request_cls(
+        method="GET", path=path, query_string=query_string, headers=headers,
+        client=client, app=app,
+    )
+
+
 class WseConnection:
     """One WebSocket of the wse server, as the channels see it."""
 
-    def __init__(self, cable: "Cable", conn_id: str, cookies: str) -> None:
+    def __init__(self, cable: "Cable", conn_id: str, details: dict) -> None:
         self.cable = cable
         self.conn_id = conn_id
-        self.request = cable.app.request_cls(
-            method="GET", path=cable.app.config.get("CABLE_PATH", "/cable"),
-            headers=[("cookie", cookies)] if cookies else [], app=cable.app,
-        )
+        self.request = _handshake_request(cable.app, details)
         self.subscriptions: dict[str, "Channel"] = {}
         self.identified = False
         self.user_id: t.Any = None
@@ -261,13 +281,16 @@ class InMemoryServer:
 
     # The client side
 
-    def connect(self, cookies: str = "") -> str:
+    def connect(self, details: dict | None = None) -> str:
+        """A client connects. `details` is the handshake as wse reports it
+        with `handshake_details`: `cookies`, `authorization`, `path` (with
+        the query string), `remote_addr` and `forwarded_for`."""
         with self._lock:
             self._count += 1
             conn_id = f"memory-{self._count}"
             self._frames[conn_id] = queue.Queue()
             self._open.add(conn_id)
-        self.cable._handle_event("connect", conn_id, cookies)
+        self.cable._handle_event("connect", conn_id, details or {})
         return conn_id
 
     def client_send(self, conn_id: str, text: str) -> None:
@@ -526,16 +549,14 @@ class Cable(BaseCable):
     def _new_server(self, port: int) -> t.Any:
         from wse_server import RustWSEServer
 
-        if not all(
-            hasattr(RustWSEServer, name)
-            for name in ("topic_backlog", "connection_backlogs", "abort_connection")
-        ):
+        if "handshake_details" not in (RustWSEServer.__text_signature__ or ""):
             raise RuntimeError(
-                "Cable needs proper-wse >= 2.6.2, not an older one or the original "
+                "Cable needs proper-wse >= 2.7.0, not an older one or the original "
                 "wse-server (they all import as wse_server): uv add proper-wse"
             )
         options: dict[str, t.Any] = {
             "max_connections": self._max_connections,
+            "handshake_details": True,
             "ping_interval": int(self.app.config.get("CABLE_PING_INTERVAL") or 3),
             **self._server_options,
         }
@@ -613,8 +634,9 @@ class Cable(BaseCable):
         """One event of the server: a connection, a message, a disconnect."""
         connections = self._connections
         if kind == "connect" or kind == "auth_connect":
+            # `auth_connect` is wse's JWT path, which the cable doesn't use
             connections[conn_id] = WseConnection(
-                self, conn_id, payload if kind == "connect" else ""
+                self, conn_id, payload if isinstance(payload, dict) else {}
             )
             return
         conn = connections.get(conn_id)

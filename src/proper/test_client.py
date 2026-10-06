@@ -233,8 +233,11 @@ class TestClient:
             url, method=DELETE, body=body, upload_files=upload_files, headers=headers
         )
 
-    def websocket(self) -> "WebSocketTestSession":
-        """Create a WebSocket test session.
+    def websocket(self, path: str | None = None) -> "WebSocketTestSession":
+        """Create a WebSocket test session. The handshake carries the
+        client's default headers (the auth cookie after `sign_in()`, or
+        an `Authorization` header you set) and `path`, `CABLE_PATH` unless
+        given, which may have a query string: `"/cable?token=abc"`.
 
         Usage:
 
@@ -247,7 +250,7 @@ class TestClient:
             await ws.close()
             await task
         """
-        return WebSocketTestSession(self.app, headers=self.default_headers)
+        return WebSocketTestSession(self.app, headers=self.default_headers, path=path)
 
     def sign_in(self, session):
         """Adds an authenticated session cookie to the client, for testing authenticated endpoints."""
@@ -345,9 +348,10 @@ class WebSocketTestSession:
             `TestClient.sign_in()` sets.
     """
 
-    def __init__(self, app: "App", headers: dict | None = None) -> None:
+    def __init__(self, app: "App", headers: dict | None = None, path: str | None = None) -> None:
         self.app = app
         self._headers = {name.lower(): value for name, value in (headers or {}).items()}
+        self._path = path or app.config.get("CABLE_PATH", "/cable")
         self._memory: t.Any = None  # the cable's InMemoryServer
         self._conn_id = ""
         self._accepted = False  # the accept, not read yet
@@ -363,7 +367,13 @@ class WebSocketTestSession:
                 'CABLE = {"type": "proper.channels.Cable"}'
             )
         self._memory = t.cast("Cable", self.app.cable).serve_in_memory()
-        self._conn_id = self._memory.connect(self._headers.get("cookie", ""))
+        self._conn_id = self._memory.connect({
+            "cookies": self._headers.get("cookie", ""),
+            "authorization": self._headers.get("authorization"),
+            "path": self._path,
+            "remote_addr": "127.0.0.1:54321",
+            "forwarded_for": self._headers.get("x-forwarded-for"),
+        })
         self._accepted = True
         return asyncio.create_task(self._wait_closed())
 
