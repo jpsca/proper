@@ -351,6 +351,7 @@ class WebSocketTestSession:
         self._memory: t.Any = None  # the cable's InMemoryServer
         self._conn_id = ""
         self._accepted = False  # the accept, not read yet
+        self._message_id = 0  # the last `id` `perform()` sent
 
     async def connect(self) -> asyncio.Task:
         """Open the connection. Returns a task that ends with it, to
@@ -382,18 +383,41 @@ class WebSocketTestSession:
         return await self.receive()
 
     async def send_action(
-        self, channel: str, action: str, data: dict | None = None, **params
+        self,
+        channel: str,
+        action: str,
+        data: dict | None = None,
+        *,
+        id: t.Any = None,
+        **params,
     ) -> None:
-        """Send a message/action to a subscribed channel."""
-        self.client_send(
-            {
-                "command": "message",
-                "channel": channel,
-                "action": action,
-                "data": data or {},
-                "params": params or {},
-            }
-        )
+        """Send a message/action to a subscribed channel. With an `id`, the
+        server replies to it (see `perform()`)."""
+        msg: dict[str, t.Any] = {
+            "command": "message",
+            "channel": channel,
+            "action": action,
+            "data": data or {},
+            "params": params or {},
+        }
+        if id is not None:
+            msg["id"] = id
+        self.client_send(msg)
+
+    async def perform(
+        self, channel: str, action: str, data: dict | None = None, **params
+    ) -> dict:
+        """Call an action and return its reply: `{"type": "reply", "status":
+        "ok", "data": <what the action returned>}`, or `"status": "error"`
+        with `{"reason": ...}` in `data`. Anything the action sends to the
+        connection before replying is skipped."""
+        self._message_id += 1
+        msg_id = self._message_id
+        await self.send_action(channel, action, data, id=msg_id, **params)
+        while True:
+            reply = await self.receive()
+            if reply.get("type") == "reply" and reply.get("id") == msg_id:
+                return reply
 
     async def unsubscribe(self, channel: str, **params) -> None:
         """Send an unsubscribe command."""

@@ -42,11 +42,27 @@ CABLE = {"type": "proper.channels.wse.WseCable"}
 
 ### Added
 
+- Replies to actions. `perform()` in `cable.js` returns a promise that
+  resolves with what the action returned, and rejects with the data of an
+  `ActionError` the action raised (`raise ActionError("too_long", max=500)`
+  → `{reason: "too_long", max: 500}`), with `{reason: "error"}` when it
+  raised anything else (logged, as before, but the client no longer waits
+  for nothing), with the reason when there was nothing to run, and with
+  `{reason: "timeout"}` after 10 seconds. On the wire, a `message` with an
+  `id` gets a `reply` frame. `WebSocketTestSession.perform()` returns it.
+- `cable.js` keeps the `perform()` calls made while the connection is down
+  and sends them once it, and its subscriptions, are back. It used to drop
+  them. Apps created before need the new `assets/js/cable.js`, from Proper's
+  `_blueprints/addon_channels/assets/js/cable.js`.
 - `proper.db.prepare(query)` and `proper.db.Param`: prepared queries, compiled
   to SQL once and executed many times with new values, on the released Peewee.
 
 ### Fixed
 
+- A `subscribed()` that raised an exception after `stream_from()` left the
+  connection receiving the broadcasts of that stream, without a subscription,
+  and the client waiting for an answer. The streams are now stopped and the
+  client gets a `reject_subscription` with `"reason": "error"`.
 - A channel registered under another name (`@router.channel("chat")`) sent
   its `send()` messages with the class name, so `cable.js` couldn't find the
   subscription and dropped them. `channel_name` is now the name the client

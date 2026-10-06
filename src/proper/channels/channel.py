@@ -22,6 +22,23 @@ if t.TYPE_CHECKING:
     from .wse import WseConnection
 
 
+class ActionError(Exception):
+    """An error an action reports to the client that called it: the reply
+    gets `status: "error"` and `{"reason": reason, **data}`.
+
+    ```python
+    def speak(self, data):
+        if len(data["text"]) > 500:
+            raise ActionError("too_long", max=500)
+    ```
+    """
+
+    def __init__(self, reason: str = "error", **data: t.Any) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.data = {"reason": reason, **data}
+
+
 class Message(dict):
     """A message to one subscription (`Channel.send()`), and its JSON."""
 
@@ -191,7 +208,9 @@ class Channel:
         else:
             current.user = None
 
-    def _dispatch(self, action_name: str, data: dict | None = None) -> None:
+    def _dispatch(self, action_name: str, data: dict | None = None) -> t.Any:
+        """Run a lifecycle method or an action, with `current.user` set.
+        Returns what it returned: the data of the reply, for an action."""
         if action_name == "subscribed":
             self._authenticate()
         else:
@@ -200,6 +219,5 @@ class Channel:
         logger.debug("[%s] dispatching: %s", c_name, action_name)
         method = getattr(self, action_name)
         if data is not None:
-            method(data)
-        else:
-            method()
+            return method(data)
+        return method()
