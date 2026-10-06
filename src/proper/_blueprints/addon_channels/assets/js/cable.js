@@ -35,6 +35,19 @@ once the connection, and its subscriptions, are back.
 
 A timeout means the reply didn't come, not that the action didn't run: a
 reply that arrives later is dropped. Retrying can run the action twice.
+
+The server keeps the last broadcasts of each stream. After a reconnection,
+or a gap in what it received, the cable asks for the ones it missed, and
+they arrive through `received()` as if nothing had happened. `connected()`
+gets `{reconnected, recovered}`: `recovered` is `false` when some couldn't
+be recovered (the server restarted, or too many were missed), the moment to
+load the state again:
+
+```
+connected({ reconnected, recovered }) {
+  if (reconnected && recovered === false) reloadMessages()
+}
+```
 **/
 import { renderStreamMessage } from "@hotwired/turbo"
 
@@ -80,9 +93,9 @@ export class Subscription {
     }
   }
 
-  _connected() {
+  _connected(info) {
     if (this.callbacks.connected) {
-      this.callbacks.connected()
+      this.callbacks.connected(info)
     }
   }
 
@@ -110,6 +123,9 @@ const REPLY_TIMEOUT = 10000
 // How many `perform()`s wait for the connection to come back. Past it, the
 // oldest is rejected with `{reason: "offline"}`.
 const MAX_QUEUED = 100
+// How long the broadcasts after a gap in a stream wait for the missed ones
+// to be sent again, before being delivered anyway.
+const GAP_TIMEOUT = 5000
 
 export class Cable {
   constructor() {
@@ -127,6 +143,14 @@ export class Cable {
     this._nextId = 1
     this._replies = new Map()  // id -> {resolve, reject, timer}
     this._queued = []  // commands waiting for the connection
+    // Where this connection is in each stream, from the stamps of the
+    // broadcasts (`e`, the epoch of the stream's buffer in the server, and
+    // `o`, the offset of the message in it). Sent with each subscribe, so
+    // the server can send what was missed.
+    this._positions = new Map()  // stream -> {e, o}
+    // The broadcasts that arrived after a gap, held until the missed ones
+    // fill it, so they are delivered in order.
+    this._held = new Map()  // stream -> {frames: Map<o, msg>, timer}
   }
 
   connect(url) {
@@ -259,9 +283,8 @@ export class Cable {
     // every subscriber, like WseCable) goes to the subscriptions streaming
     // from it, as listed in their confirmations.
     if (msg.type === "broadcast") {
-      for (const sub of this._subscriptions) {
-        if (sub.streams && sub.streams.has(msg.stream)) sub._receive(msg.data)
-      }
+      if (msg.e !== undefined) this._advance(msg)
+      else this._deliver(msg)
       return
     }
     if (msg.type === "reply") {
@@ -278,7 +301,20 @@ export class Cable {
 
     if (msg.type === "confirm_subscription") {
       sub.streams = new Set(msg.streams || [])
-      sub._connected()
+      for (const [stream, pos] of Object.entries(msg.positions || {})) {
+        // Where the stream is now: taken when this connection has no
+        // position yet, or its own was useless (the server restarted, or
+        // the stream's history is gone); the missed broadcasts, if they
+        // could be sent, bring their own stamps.
+        // The missed ones can't be sent again: what waited for them goes out
+        if (msg.recovered === false) this._release(stream)
+        if (pos && (!this._positions.has(stream) || msg.recovered === false)) {
+          this._positions.set(stream, pos)
+        }
+      }
+      const reconnected = sub.confirmed === true
+      sub.confirmed = true
+      sub._connected({ reconnected, recovered: msg.recovered ?? null })
     } else if (msg.type === "reject_subscription") {
       sub._rejected()
       this._removeSubscription(sub)
@@ -302,11 +338,79 @@ export class Cable {
   }
 
   _sendSubscribe(sub) {
-    this._send({
-      command: "subscribe",
-      channel: sub.channel,
-      params: sub.params,
-    })
+    const msg = { command: "subscribe", channel: sub.channel, params: sub.params }
+    // Where this connection was in the streams it had: the server sends
+    // what was broadcast since, for the ones the channel streams from again.
+    const positions = {}
+    let any = false
+    for (const stream of sub.streams || []) {
+      const pos = this._positions.get(stream)
+      if (pos) { positions[stream] = pos; any = true }
+    }
+    if (any) msg.positions = positions
+    this._send(msg)
+  }
+
+  _deliver(msg) {
+    for (const sub of this._subscriptions) {
+      if (sub.streams && sub.streams.has(msg.stream)) sub._receive(msg.data)
+    }
+  }
+
+  // A stamped broadcast arrived. One already seen (sent again by a
+  // recovery) is dropped. One that leaves a gap means some were lost (the
+  // server dropped them for a slow connection): it waits, and the
+  // subscriptions of the stream subscribe again, with their position, to
+  // get the missed ones; those fill the gap and the held ones follow.
+  _advance(msg) {
+    const { stream, e, o } = msg
+    const pos = this._positions.get(stream)
+    if (pos && pos.e === e) {
+      if (o <= pos.o) return
+      if (o > pos.o + 1) {
+        this._hold(msg)
+        return
+      }
+    }
+    this._positions.set(stream, { e, o })
+    this._deliver(msg)
+    const held = this._held.get(stream)
+    if (held) {
+      let next
+      while ((next = held.frames.get(this._positions.get(stream).o + 1))) {
+        held.frames.delete(next.o)
+        this._positions.set(stream, { e: next.e, o: next.o })
+        this._deliver(next)
+      }
+      if (held.frames.size === 0) this._release(stream)
+    }
+  }
+
+  _hold(msg) {
+    let held = this._held.get(msg.stream)
+    if (!held) {
+      held = { frames: new Map(), timer: setTimeout(() => this._release(msg.stream), GAP_TIMEOUT) }
+      this._held.set(msg.stream, held)
+      for (const sub of this._subscriptions) {
+        if (sub.streams && sub.streams.has(msg.stream)) this._sendSubscribe(sub)
+      }
+    }
+    held.frames.set(msg.o, msg)
+  }
+
+  // Deliver what waited for a gap, in order, filled or not.
+  _release(stream) {
+    const held = this._held.get(stream)
+    if (!held) return
+    clearTimeout(held.timer)
+    this._held.delete(stream)
+    const frames = [...held.frames.values()].sort((a, b) => a.o - b.o)
+    for (const msg of frames) {
+      const pos = this._positions.get(stream)
+      if (pos && pos.e === msg.e && msg.o <= pos.o) continue
+      this._positions.set(stream, { e: msg.e, o: msg.o })
+      this._deliver(msg)
+    }
   }
 
   _perform(msg, timeout) {
@@ -375,12 +479,21 @@ Or imperatively:
 import { streamFrom } from "cable"
 const sub = streamFrom("ChatChannel", { room_id: 42 })
 ```
+
+Broadcasts missed during a reconnection are applied on return. When they
+can't be (the server restarted, or too many were missed), the element
+dispatches `turbo-stream-channel:gap`, which bubbles: listen to it to load
+the content again, for example with `Turbo.visit(location.href)` or by
+reloading a frame. `streamFrom()` takes the same as `onGap`.
 **/
 
-export function streamFrom(channel, params = {}) {
+export function streamFrom(channel, params = {}, { onGap } = {}) {
   cable.connect()
   return cable.subscribe(channel, params, {
     received(html) { renderStreamMessage(html) },
+    connected({ reconnected, recovered }) {
+      if (reconnected && recovered === false && onGap) onGap()
+    },
   })
 }
 
@@ -389,6 +502,11 @@ class TurboCableSource extends HTMLElement {
     this.subscription = streamFrom(
       this.getAttribute("channel"),
       JSON.parse(this.getAttribute("params") || "{}"),
+      {
+        onGap: () => this.dispatchEvent(
+          new CustomEvent("turbo-stream-channel:gap", { bubbles: true })
+        ),
+      },
     )
   }
 

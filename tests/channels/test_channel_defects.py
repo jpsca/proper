@@ -131,7 +131,10 @@ class TestFanOut:
         app.cable.broadcast("chat", {"html": "<p>hi</p>"})
         frames = [(await ws.receive_raw())["text"] for ws, _ in clients]
         assert len(set(frames)) == 1
-        assert jsonplus.loads(frames[0]) == {
+        frame = jsonplus.loads(frames[0])
+        assert frame == {
+            # wse's recovery stamp, then Proper's frame
+            "tp": "chat", "e": frame["e"], "o": 0,
             "c": "P", "type": "broadcast", "stream": "chat",
             "data": {"html": "<p>hi</p>"},
         }

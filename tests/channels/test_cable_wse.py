@@ -342,6 +342,43 @@ class TestWseCable:
         assert again.recv_type("broadcast")["data"] == "back"
         again.close()
 
+    def test_a_client_that_reconnects_gets_what_it_missed(self, wse_app):
+        """wse stamps each broadcast with where it is in its stream, and
+        sends again the ones after the position a subscribe carries."""
+        first = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        assert first.subscribe(5)["positions"] == {"room:5": None}
+        wse_app.cable.broadcast("room:5", {"n": 1})
+        seen = first.recv_type("broadcast")
+        assert seen["tp"] == "room:5" and seen["o"] == 0
+        first.close()
+        wse_app.cable.broadcast("room:5", {"n": 2})
+        wse_app.cable.broadcast("room:5", {"n": 3})
+
+        again = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        again.send({
+            "command": "subscribe", "channel": "RoomChannel", "params": {"room": 5},
+            "positions": {"room:5": {"e": seen["e"], "o": seen["o"]}},
+        })
+        # The missed ones may come before or after the confirmation
+        frames = [again.recv() for _ in range(4)]
+        kinds = [f["type"] for f in frames]
+        assert sorted(kinds) == ["broadcast", "broadcast", "confirm_subscription", "message"]
+        missed = [f["data"] for f in frames if f["type"] == "broadcast"]
+        assert missed == [{"n": 2}, {"n": 3}]
+        confirm = frames[kinds.index("confirm_subscription")]
+        assert confirm["recovered"] is True
+        assert confirm["positions"] == {"room:5": {"e": seen["e"], "o": 2}}
+
+        # Another epoch: nothing to send again, and the current position
+        again.send({
+            "command": "subscribe", "channel": "RoomChannel", "params": {"room": 5},
+            "positions": {"room:5": {"e": "0000abcd", "o": 0}},
+        })
+        confirm = again.recv_type("confirm_subscription")
+        assert confirm["recovered"] is False
+        assert confirm["positions"] == {"room:5": {"e": seen["e"], "o": 2}}
+        again.close()
+
     def test_a_duplicate_subscription_streams_once(self, wse_app):
         client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
         client.subscribe(3)

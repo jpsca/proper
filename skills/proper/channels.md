@@ -273,6 +273,8 @@ The channels addon ships the bridge inside `cable.js` (imported from `applicatio
 Authorization is unchanged: the client sends `params`, and the channel derives and authorizes the stream name in `subscribed()`. The same fragment also serves an HTTP response — return it from a controller with `render(stream=...)`, or render a `*.turbo_stream.jx` view. The builder, frames, and stream responses are documented in full in [turbo.md](turbo.md).
 
 
+After a reconnection the missed `<turbo-stream>` fragments are applied on arrival. When they can't be recovered, `<turbo-stream-channel>` dispatches a bubbling `turbo-stream-channel:gap` DOM event (`streamFrom(channel, params, {onGap})` takes a function): listen to it to reload the content, e.g. `Turbo.visit(location.href, {action: "replace"})`.
+
 ## Channel Properties
 
 Inside any channel method, the following are available:
@@ -347,7 +349,7 @@ cable.connect()
 
 // Subscribe to a channel
 const chat = cable.subscribe("ChatChannel", { room: "general" }, {
-  connected()    { console.log("subscribed") },
+  connected({ reconnected, recovered }) { if (reconnected && recovered === false) reload() },
   disconnected() { console.log("disconnected") },
   rejected()     { console.log("subscription denied") },
   received(data) { console.log("got:", data) },
@@ -401,7 +403,11 @@ Returns a `Subscription` object.
 
 ### Automatic Reconnection
 
-On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s, with jitter), for as long as the page is open. On reconnect, all existing subscriptions are automatically re-subscribed, and the `perform()` calls made while disconnected are sent after them (at most 100 wait; past that the oldest rejects with `{reason: "offline"}`; their timeouts keep running). The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for 10 seconds is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
+On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s, with jitter), for as long as the page is open. On reconnect, all existing subscriptions are automatically re-subscribed, and the `perform()` calls made while disconnected are sent after them (at most 100 wait; past that the oldest rejects with `{reason: "offline"}`; their timeouts keep running).
+
+### Recovery
+
+The server keeps the last broadcasts of each stream (`recovery=True` in `WseCable`, the default; wse's `recovery_buffer_size` 128 per stream, `recovery_ttl` 300 s, `recovery_memory_budget` 256 MB). Each broadcast carries a stamp (`tp` stream, `e` epoch, `o` offset); `cable.js` tracks the position per stream, sends it with each `subscribe`, drops duplicates, and when it sees a hole (wse dropped frames for a slow connection) holds the later frames and subscribes again to fetch the missed ones. The missed broadcasts come through `received()` in order. `connected(info)` gets `{reconnected, recovered}`: `recovered` is `true` when all missed ones were sent, `false` when they couldn't be (server restarted, another machine with `RedisCable`, more than the buffer holds, stream without history) — reload the state then — and `null` when nothing was asked (first subscription, or a stream with no broadcasts before the drop; what it broadcast meanwhile is lost). `send()` messages are not recovered, only broadcasts. The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for 10 seconds is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
 
 ### Multiple Subscriptions
 
@@ -432,10 +438,10 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 
 ### Client-to-Server Commands
 
-**Subscribe:**
+**Subscribe.** `positions` is optional: the last stamp seen per stream; the server sends again the broadcasts after it, for the streams the channel streams from (they may arrive before the confirmation). Sending it for an existing subscription also recovers:
 
 ```json
-{"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}}
+{"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}, "positions": {"chat_general": {"e": "0000abcd", "o": 41}}}
 ```
 
 **Send a message (invoke an action).** `id` is optional; with one, the server answers with a `reply`:
@@ -455,8 +461,10 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 **Subscription confirmed** (with the streams of the subscription; subscribing again to an existing subscription only re-sends this):
 
 ```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat_general"]}
+{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat_general"], "positions": {"chat_general": {"e": "0000abcd", "o": 42}}, "recovered": true}
 ```
+
+`positions` is where each stream is now (`null` for one with no broadcasts yet); `recovered` is `true` when every missed broadcast asked for was sent again, `false` when some couldn't be, `null` when none were asked (always `null` with `recovery=False`).
 
 **Subscription rejected:**
 
@@ -472,10 +480,10 @@ A reject for an unregistered channel carries `"reason": "unknown_channel"`; one 
 {"type": "message", "channel": "ChatChannel", "params": {"room": "general"}, "data": {"message": "hello"}}
 ```
 
-**Broadcast (from `broadcast()`).** One frame for every subscriber, so it names the stream instead of the channel and params; clients route it to every subscription streaming from it (`confirm_subscription` lists the streams). Ignore the `c` field (wse's category):
+**Broadcast (from `broadcast()`).** One frame for every subscriber, so it names the stream instead of the channel and params; clients route it to every subscription streaming from it (`confirm_subscription` lists the streams). Ignore the `c` field (wse's category). `tp`/`e`/`o` are the recovery stamp (stream, epoch of its buffer, offset); absent with `recovery=False`:
 
 ```json
-{"c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hello"}}
+{"tp": "chat_general", "e": "0000abcd", "o": 42, "c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hello"}}
 ```
 
 **Reply** to a `message` with an `id`: `status: "ok"` with what the action returned as `data` (`null` if nothing), or `status: "error"` with a `reason` in `data` (an `ActionError`'s reason and other data; `error` for any other exception; `not_subscribed`, `invalid_action` or `unknown_action` when there was nothing to run):
@@ -529,7 +537,8 @@ async def test_speak(client):
     assert confirm["type"] == "confirm_subscription"
     await ws.send_action("ChatChannel", "speak", {"message": "hi"}, room="general")
     msg = await ws.receive()
-    assert msg == {"c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hi"}}
+    assert msg["type"] == "broadcast" and msg["stream"] == "chat_general"
+    assert msg["data"] == {"message": "hi"}
     await ws.close()   # runs unsubscribed()
     await task
 ```
@@ -537,7 +546,7 @@ async def test_speak(client):
 | Method | Description |
 |--------|-------------|
 | `await ws.connect()` | Opens the connection; returns a task that ends when it closes |
-| `await ws.subscribe(channel, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()` comes before the confirmation) |
+| `await ws.subscribe(channel, positions=None, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()`, or a recovered broadcast, comes before the confirmation). `positions={stream: {"e", "o"}}` asks for the broadcasts since |
 | `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply |
 | `await ws.perform(channel, action, data, **params)` | Calls an action with an `id` and returns its `reply` frame (`status` `"ok"` or `"error"`, `data`), skipping what the action sent before it |
 | `await ws.unsubscribe(channel, **params)` | Sends `unsubscribe` |
@@ -555,7 +564,7 @@ The default backend, the one the channels addon writes. `CABLE = {"type": "prope
 
 - `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server. The web server (Granian, WSGI) has no WebSockets. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
 - Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.
-- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`).
+- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most), `recovery` (True: keep the last broadcasts of each stream for reconnecting clients); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`, `recovery_buffer_size`, `recovery_ttl`, `recovery_memory_budget`).
 - Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`; `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup; the channels addon requires >= 2.6.2.
 
 
@@ -581,7 +590,7 @@ CABLE = {
 - Options: `url` (`redis://localhost:6379/0`), `prefix` (`proper:cable:`), plus every `WseCable` option. Needs the `redis` package (`uv add redis`); raises if it's missing.
 - Subscribes when `proper run` starts the server (waits up to 1 s), reconnects with backoff (up to 30 s). A broadcast that can't reach Redis is lost with a warning; local clients still get it. Backpressure only sees the publishing machine.
 - `client.websocket()` tests run from memory, without Redis.
-- Redis pub/sub carries events, not state: a presence roster or "last value" replay is up to you.
+- Redis pub/sub carries events, not state: a presence roster is up to you. Recovery buffers are per machine: a client that reconnects to another machine gets `recovered: false`; use sticky sessions on `CABLE_PATH` if that matters.
 
 
 ## Full Example
