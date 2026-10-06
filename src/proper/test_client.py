@@ -26,6 +26,7 @@ from .helpers import CIMultiDict, DotDict, jsonplus
 
 if t.TYPE_CHECKING:
     from .app import App
+    from .channels.wse import WseCable
 
 
 __all__ = (
@@ -360,7 +361,7 @@ class WebSocketTestSession:
                 "The app's cable serves no WebSockets: set "
                 'CABLE = {"type": "proper.channels.wse.WseCable"}'
             )
-        self._memory = self.app.cable.serve_in_memory()
+        self._memory = t.cast("WseCable", self.app.cable).serve_in_memory()
         self._conn_id = self._memory.connect(self._headers.get("cookie", ""))
         self._accepted = True
         return asyncio.create_task(self._wait_closed())
