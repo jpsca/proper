@@ -4,6 +4,7 @@ import pytest
 
 from proper.app import App
 from proper.channels import Cable, Channel
+from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
 from proper.helpers import DotDict
 from proper.test_client import make_test_request
 
@@ -221,6 +222,29 @@ class TestSessionResolution:
         ch._authenticate()
         assert ch.user_id is None
         assert ch.authenticated is False
+
+    def test_a_channel_without_a_connection_reads_the_cookie_itself(self):
+        class FakeSession:
+            user_id = 7
+            user = "the user"
+
+            def touch(self):
+                pass
+
+        class FakeSessionModel:
+            @staticmethod
+            def find_by_token(token):
+                return FakeSession() if token == "good" else None
+
+        class Authed(Channel):
+            Session = FakeSessionModel
+
+        app = App("proper", {"SECRET_KEYS": ["*" * 50]})
+        cookie = f"{AUTH_COOKIE_NAME}={app.dumps('good', salt=AUTH_COOKIE_SALT)}"
+        request = make_test_request("/cable", headers={"cookie": cookie}, app=app)
+        ch = Authed(app, {}, request=request, _send=[].append)
+        ch._authenticate()
+        assert ch.user_id == 7
 
     def test_find_user_must_be_implemented(self):
         ch, _ = _make_channel()

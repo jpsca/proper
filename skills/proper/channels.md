@@ -10,15 +10,15 @@ Proper Channels is an installable addon that provide a channel-based WebSocket s
 
 The system has three layers:
 
-| Layer       | Module            | Role                                                          |
-|-------------|-------------------|---------------------------------------------------------------|
-| **Channel** | `proper.channels`  | Base class you subclass — the "controller" for WebSockets     |
-| **Cable**   | `proper.channels`    | Pub/sub broker — maps stream names to channels                |
-| **AppWs**   | `proper.core.app_ws` | RSGI WebSocket handler — protocol parsing, multiplexing, lifecycle |
+| Layer        | Module                  | Role                                                          |
+|--------------|-------------------------|---------------------------------------------------------------|
+| **Channel**  | `proper.channels`       | Base class you subclass — the "controller" for WebSockets     |
+| **WseCable** | `proper.channels.wse`   | Serves the WebSockets (proper-wse, Rust) — protocol, multiplexing, streams, lifecycle |
+| **Cable**    | `proper.channels`       | Base of the cables: forwarding from other processes. On its own (`CABLE = {}`) it serves no WebSockets |
 
-Channel code is regular sync Python. The framework handles the async boundary: channel methods run in the app's worker threads, off the event loop, with database connections managed automatically.
+Channel code is regular sync Python. Channel methods run in the cable's worker threads (`workers`, 4 by default), with database connections managed automatically. The commands of one connection run one at a time, in the order they arrived, each in a `contextvars` context of its own: what one sets on `current` doesn't reach the next.
 
-Outbound messages go the other way. Everything a connection sends — `send()`, broadcasts, subscription confirmations — passes through one queue per connection, drained by a single task. That is what keeps messages in the order they were sent, no matter which thread produced them.
+Outbound, wse writes the frames: `send()` and subscription confirmations go to one connection, a `broadcast()` is one frame written to every subscriber of the stream.
 
 ## Table of Contents
 
@@ -182,7 +182,8 @@ self.stream_from(f"document_{doc_id}_edits")
 
 Any part of the application can broadcast to a stream via `app.cable`. This is the key integration point between HTTP and WebSocket: controllers and background tasks can push real-time updates to connected clients.
 
-From the web process, each broadcast is a request to the cable process. Wrap
+From a process that doesn't serve the WebSockets (a Huey worker, a shell, the
+extra `PROCESSES`), each broadcast is a request to the one that does. Wrap
 several in `with app.cable.batch():` to send them in one.
 
 ```python {title="myapp/controllers/message_controller.py"}
@@ -414,10 +415,10 @@ Clients connect via WebSocket to `/cable` and exchange JSON messages. This secti
 
 ### Server-to-Client Messages
 
-**Subscription confirmed:**
+**Subscription confirmed** (with the streams of the subscription):
 
 ```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}}
+{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat:general"]}
 ```
 
 **Subscription rejected:**
@@ -428,10 +429,16 @@ Clients connect via WebSocket to `/cable` and exchange JSON messages. This secti
 
 A reject for an unregistered channel carries `"reason": "unknown_channel"`; a reject from your own `reject()` in `subscribed()` has no `reason`.
 
-**Data message (from `send()` or `broadcast()`):**
+**Data message (from `send()`):**
 
 ```json
 {"type": "message", "channel": "ChatChannel", "params": {"room": "general"}, "data": {"message": "hello"}}
+```
+
+**Broadcast (from `broadcast()`).** One frame for every subscriber, so it names the stream instead of the channel and params; clients route it to every subscription streaming from it (`confirm_subscription` lists the streams). Ignore the `c` field (wse's category):
+
+```json
+{"c": "P", "type": "broadcast", "stream": "chat:general", "data": {"message": "hello"}}
 ```
 
 **Error:**
@@ -440,19 +447,12 @@ A reject for an unregistered channel carries `"reason": "unknown_channel"`; a re
 {"type": "error", "reason": "not_subscribed"}
 ```
 
-Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`; `WseCable` also sends `invalid_message` (JSON that is not an object).
+Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`, `invalid_message` (JSON that is not an object).
 
 **Ping**, every `CABLE_PING_INTERVAL` seconds (`message` is the server's time):
 
 ```json
 {"type": "ping", "message": 1791230000}
-```
-
-**Stream-named broadcast.** A cable that writes one frame for every subscriber (`WseCable`) names the stream instead of the channel and params, and lists the streams in `confirm_subscription`; clients route the broadcast to every subscription streaming from it. Ignore the `c` field (wse's category):
-
-```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat:general"]}
-{"c": "P", "type": "broadcast", "stream": "chat:general", "data": {"message": "hello"}}
 ```
 
 A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_ORIGINS`).
@@ -463,12 +463,11 @@ A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_O
 | Setting      | Default    | Description                        |
 |--------------|------------|------------------------------------|
 | `CABLE_PATH` | `"/cable"` | WebSocket endpoint path            |
-| `CABLE_PORT` | `0`        | Port of the WebSocket process `proper run` starts next to the web server; `0` starts none. The channels addon sets it to `PORT + 1` |
+| `CABLE_PORT` | `0`        | Port where `WseCable` serves the WebSockets, from the web process `proper run` starts. The channels addon sets it to `PORT + 1`. Set with an empty `CABLE`, it is a `ConfigError` |
 | `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the app's own (`HOST`, or the `Host` of the handshake; in `DEBUG`, any port of that host name). Handshakes without `Origin` (not browsers) are always allowed |
 | `CABLE_PING_INTERVAL` | `3` | Seconds between the server's pings on every connection; `0` sends none |
-| `CABLE_MAX_PENDING` | `1000` | Messages that may wait for a client that got none of them in `CABLE_STALL_TIMEOUT` seconds before it is disconnected as not reading (or ten times as many, at any speed); `0` is no limit |
-| `CABLE_STALL_TIMEOUT` | `10` | See `CABLE_MAX_PENDING` and `CABLE_MAX_PENDING_BYTES` |
-| `CABLE_MAX_PENDING_BYTES` | `4194304` | `WseCable`'s `CABLE_MAX_PENDING`, in bytes: a client with more than this waiting and nothing through in `CABLE_STALL_TIMEOUT` seconds is closed (no close handshake), and so is one with ten times as many; `0` is no limit |
+| `CABLE_MAX_PENDING_BYTES` | `4194304` | A client with more than this many bytes waiting and nothing through in `CABLE_STALL_TIMEOUT` seconds is closed (no close handshake), and so is one with ten times as many; `0` is no limit |
+| `CABLE_STALL_TIMEOUT` | `10` | See `CABLE_MAX_PENDING_BYTES` |
 
 Set in your app config:
 
@@ -481,19 +480,15 @@ CABLE_PATH = "/ws"
 
 The default backend, the one the channels addon writes. `CABLE = {"type": "proper.channels.wse.WseCable"}` serves the WebSockets with `proper-wse` (our fork of wse-server, Rust; imports as `wse_server`) on `CABLE_PORT`, inside the web process; install with `uv add "proper[wse]"` (wheels for free-threaded Python included). Channels don't change. A `broadcast()` is one frame that wse writes to every subscriber without Python, using the stream-named frames above.
 
-- `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server; no RSGI cable process, and the web server refuses WebSockets on its port.
+- `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server. The web server (Granian, WSGI) has no WebSockets. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
 - Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.
 - Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`).
-- Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT` (`CABLE_MAX_PENDING`, in messages, doesn't apply); `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup.
+- Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`; `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup.
 
 
-## The Cable Process (in-process `Cable`)
+## Without Channels (`CABLE = {}`)
 
-With `CABLE = {}` (the in-process `Cable`): the web server speaks WSGI, which has no WebSockets, so `proper run` serves them from a second process, over RSGI, on `CABLE_PORT`. In production, the reverse proxy routes `CABLE_PATH` to that port (the blueprint's nginx config has the block). In development there is no proxy: the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()` when `DEBUG` is on, and `cable.js` connects to it directly.
-
-A `broadcast()` made in the web process, from a controller or a task, has no WebSockets to reach there. `Cable` forwards it to the cable process as a `POST` to `CABLE_PATH`, signed with the app's secret keys, and the cable process delivers it to its subscribers. Nothing to configure, no Redis. If the cable process is down, the message is lost with a warning; the page still renders.
-
-With `INTERFACE = "rsgi"` there is one process for everything and the cable is purely in-process.
+The default for an app without the addon: a base `Cable` that serves no WebSockets. A `broadcast()` reaches no one (logged at debug level), and `client.websocket()` raises `RuntimeError` on `connect()`. Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` at app setup.
 
 
 ## Several Machines (RedisCable)

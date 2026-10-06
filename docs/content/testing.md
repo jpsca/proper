@@ -725,7 +725,7 @@ For the deeper testing patterns - asserting on the task's return value, exercisi
 
 ## Testing channels (WebSockets)
 
-Channels are tested through `client.websocket()`, which returns an async `WebSocketTestSession`. The session is an `async`-only API because the WebSocket handler is async, so a channel test is a coroutine that you drive with `asyncio.run()`:
+Channels are tested through `client.websocket()`, which returns an async `WebSocketTestSession`. The app's cable (`WseCable`) serves the session from memory, with no port and no server. The session is an `async`-only API, so a channel test is a coroutine that you drive with `asyncio.run()`:
 
 ```python
 import asyncio
@@ -739,7 +739,7 @@ def test_chat_channel_broadcasts(client):
         confirm = await ws.subscribe("ChatChannel", room="general")
         assert confirm["type"] == "confirm_subscription"
 
-        await ws.send_action("ChatChannel", "speak", {"message": "hello"})
+        await ws.send_action("ChatChannel", "speak", {"message": "hello"}, room="general")
 
         msg = await ws.receive()
         assert msg["data"]["message"] == "hello"
@@ -750,31 +750,25 @@ def test_chat_channel_broadcasts(client):
     asyncio.run(scenario())
 ```
 
-The shape is always the same: connect, subscribe, exchange messages, close. The `task` returned by `connect()` is the background coroutine that runs the WebSocket handler - awaiting it after `close()` lets the handler shut down cleanly.
+The shape is always the same: connect, subscribe, exchange messages, close. The `task` returned by `connect()` ends when the connection closes - awaiting it after `close()` waits until the channels' `unsubscribed()` have run.
 
 ### The session API
 
 | Method                                      | Description                                         |
 |---------------------------------------------|-----------------------------------------------------|
-| `ws.connect()`                              | Start the WebSocket handler, returns an async task  |
+| `ws.connect()`                              | Open the connection, returns an async task          |
 | `ws.subscribe(channel, **params)`           | Subscribe and return the confirmation message       |
 | `ws.send_action(channel, action, data)`     | Invoke a channel action                             |
 | `ws.unsubscribe(channel, **params)`         | Unsubscribe from a channel                          |
 | `ws.receive(timeout=1.0)`                   | Receive the next message (parsed JSON)              |
 | `ws.receive_raw(timeout=1.0)`               | Receive the next raw event: `{"type": "accept"}`, a frame, or a close |
-| `ws.client_send(data)`                      | Queue a JSON message to the app                     |
-| `ws.client_send_text(text)`                 | Queue a raw text frame to the app                   |
+| `ws.client_send(data)`                      | Send a JSON message to the app                      |
+| `ws.client_send_text(text)`                 | Send a raw text frame to the app                    |
 | `ws.close()`                                | Disconnect the client                               |
 
-`receive()` parses the next outgoing message as JSON. If you need the raw event (to see the accept or the close, for example), `receive_raw()` returns it as a dict with a `type` key. Both methods take a `timeout=` in seconds; if no message arrives in time, `asyncio.TimeoutError` is raised. Default is one second - generous for an in-process test, tight enough that a hung handler fails fast.
+`receive()` parses the next outgoing message as JSON. If you need the raw event (to see the accept, or the close when the server ends the connection), `receive_raw()` returns it as a dict with a `type` key. Both methods take a `timeout=` in seconds; if no message arrives in time, `asyncio.TimeoutError` is raised. Default is one second - generous for a test served from memory, tight enough that a hung channel fails fast.
 
-### Custom path
-
-By default, `client.websocket()` connects to the `CABLE_PATH` configured on the app (`/cable` if unset). Pass a different path to test a channel mounted somewhere else:
-
-```python
-ws = client.websocket("/custom-ws")
-```
+An app whose cable serves no WebSockets (`CABLE = {}`) can't open a session: `connect()` raises a `RuntimeError`.
 
 For everything channels-specific - subscription parameters, broadcasts, the streams API - see the [Channels guide](/docs/channels).
 

@@ -2,6 +2,51 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### ⚠️ Upgrading: the WebSockets need `WseCable`
+
+The in-process cable is gone, and with it RSGI: `proper run` always serves
+over WSGI, and the only cable that serves WebSockets is `WseCable`
+(`RedisCable` on several machines). An app that used `CABLE = {}` with a
+`CABLE_PORT` now fails to start with a `ConfigError`. Install the extra and
+set the cable:
+
+```bash
+uv add "proper[wse]"
+```
+
+```python {title="config/channels.py"}
+CABLE = {"type": "proper.channels.wse.WseCable"}
+```
+
+### Removed
+
+- The in-process cable and its WebSocket process: `proper.core.app_ws`, and
+  the second, RSGI, process that `proper run` started on `CABLE_PORT`.
+  `CABLE = {}` (the default) is now a `Cable` that serves no WebSockets: a
+  `broadcast()` reaches no one. `CABLE_PORT` with an empty `CABLE` is a
+  `ConfigError`.
+- RSGI: `App.__rsgi__`, `App.startup()` and `App.shutdown()` (`app.lower()`
+  stays), the app's own thread pool, and `Cable.start()`/`Cable.stop()`
+  (`WseCable` has `start_server()`/`stop_server()`, which `proper run`
+  calls).
+- The settings `INTERFACE`, `THREAD_WAIT_WARNING`, `LOOP_STALL_WARNING` and
+  `CABLE_MAX_PENDING` (`CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`
+  stay).
+- From `proper.test_client`: `make_test_scope`, `make_test_ws_scope`,
+  `HttpProtocolStub` and `WsProtocolStub`. `client.websocket()` always runs
+  the app's `WseCable` from memory, and no longer takes a path, which the
+  in-memory server doesn't use; with a cable that serves no WebSockets,
+  `connect()` raises `RuntimeError`.
+
+### Fixed
+
+- `WseCable`: what a channel set on `current` in one command (such as
+  `current.auth_session` in `subscribed()`) was still there for the next
+  command run on the same worker thread, from any connection. Each command
+  now runs in a context of its own.
+
 ## 0.34
 
 ### Added

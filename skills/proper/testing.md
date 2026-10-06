@@ -174,7 +174,7 @@ assert data["title"] == "Sunset"
 
 ## Testing WebSockets
 
-The `TestClient` includes an async WebSocket helper for testing channels:
+The `TestClient` includes an async WebSocket helper for testing channels. The app's cable (`WseCable`) serves the session from memory, with no port; with an app that has no channels (`CABLE = {}`), `connect()` raises `RuntimeError`.
 
 ```python
 import asyncio
@@ -191,7 +191,7 @@ async def test_chat():
     assert confirm["type"] == "confirm_subscription"
 
     # Send an action
-    await ws.send_action("ChatChannel", "speak", {"message": "hello"})
+    await ws.send_action("ChatChannel", "speak", {"message": "hello"}, room="general")
 
     # Receive the broadcast
     msg = await ws.receive()
@@ -208,7 +208,7 @@ asyncio.run(test_chat())
 
 | Method                                      | Description                                         |
 |---------------------------------------------|-----------------------------------------------------|
-| `ws.connect()`                              | Start the WebSocket handler, returns an async task  |
+| `ws.connect()`                              | Open the connection, returns an async task          |
 | `ws.subscribe(channel, **params)`           | Subscribe and return the confirmation message       |
 | `ws.send_action(channel, action, data)`     | Invoke a channel action                             |
 | `ws.unsubscribe(channel, **params)`         | Unsubscribe from a channel                          |
@@ -217,15 +217,6 @@ asyncio.run(test_chat())
 | `ws.client_send(data)`                      | Queue a JSON message to the app                     |
 | `ws.client_send_text(text)`                 | Queue a raw text frame to the app                   |
 | `ws.close()`                                | Disconnect the client                               |
-
-### Custom WebSocket Path
-
-By default, `client.websocket()` connects to the configured `CABLE_PATH` (default: `/cable`). You can override it:
-
-```python
-ws = client.websocket("/custom-ws")
-```
-
 
 ## Database Setup for Tests
 

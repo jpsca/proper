@@ -18,16 +18,12 @@ if t.TYPE_CHECKING:
     from collections.abc import Callable
 
     from ..app import App
-    from ..core.app_ws import Connection
     from ..models import ProperModel
+    from .wse import WseConnection
 
 
 class Message(dict):
-    """A message to a subscription, and its JSON, encoded once.
-
-    A broadcast reaches every subscriber of a stream; they all get the same
-    `Message`, so its data is encoded once, not once per subscriber.
-    """
+    """A message to one subscription (`Channel.send()`), and its JSON."""
 
     __slots__ = ("json",)
 
@@ -51,7 +47,7 @@ class Channel:
         *,
         request: Request | None = None,
         _send: "Callable[[t.Any], t.Any]",
-        _connection: "Connection | None" = None,
+        _connection: "WseConnection | None" = None,
     ) -> None:
         """`request` is the WebSocket handshake, which carries the
         connection's headers and cookies. It is `None` only when a channel
@@ -65,7 +61,7 @@ class Channel:
         self._request = request
         self._connection = _connection
         # Every message to this subscription starts the same way: encoded
-        # once, so a broadcast only has to encode its data.
+        # once, so `send()` only has to encode its data.
         self._frame_prefix = (
             '{"type": "message", "channel": %s, "params": %s, "data": '
             % (jsonplus.dumps(self.channel_name), jsonplus.dumps(params))

@@ -1,14 +1,11 @@
-"""Pub/sub backends for WebSocket channels.
+"""The base of the cables, the backends of the WebSocket channels.
 
-Manages the mapping of stream names to subscribed Channel instances.
-When a message is broadcast to a stream, all channels subscribed to
-that stream receive it.
-
-`Cable` is the in-process backend: enough for one worker process, or for any
-number of worker threads sharing the process. When the WebSockets live in their
-own process (`CABLE_PORT`), broadcasts made anywhere else are forwarded to it
-over the loopback, signed with the app's secret keys. `WseCable` (`wse.py`)
-and `RedisCable` (`redis_cable.py`) build on it.
+`Cable` serves no WebSockets: it is what an app without the channels addon
+gets (`CABLE = {}`), and a broadcast made with it reaches no one. What it has
+is what the cables that serve them build on (`WseCable` in `wse.py`,
+`RedisCable` in `redis_cable.py`): the WebSockets are served by one process,
+and the broadcasts made in any other one are forwarded to it over the
+loopback, signed with the app's secret keys.
 """
 import http.client
 import threading
@@ -16,13 +13,12 @@ import typing as t
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 
-from ..helpers import jsonplus, logger
+from ..helpers import logger
 
 
 if t.TYPE_CHECKING:
     from collections.abc import Callable
 
-    from ..core.app_ws import Connection
     from .channel import Channel
 
 
@@ -79,59 +75,35 @@ def allowed_origins(config: t.Any) -> list[str]:
 
 class Cable:
     def __init__(self) -> None:
-        self._streams: dict[str, set["Channel"]] = {}
-        # Channels subscribe and unsubscribe from the worker threads their
-        # code runs in, while broadcasts are delivered from other threads or
-        # from the event loop. Every read and write of `_streams` is guarded,
-        # or a stream emptied by one thread can be deleted out from under a
-        # subscription another thread just made. Re-entrant because
-        # `unsubscribe_all` works through `unsubscribe`.
+        # Guards the state the cables that serve WebSockets keep, which
+        # channels change from worker threads.
         self._lock = threading.RLock()
         # Set by `forward_to`: where broadcasts go when this process has no
         # WebSockets of its own.
         self._forward_url: str | None = None
         self._sign: "Callable[[t.Any], str] | None" = None
-        # `start()` is what the WebSocket server calls; a process that never
-        # does has no subscribers and forwards instead.
-        self._started = False
-        # The open connections of each user, for `disconnect()`.
-        self._connections: dict[t.Any, set["Connection"]] = {}
         # Per thread: the connection to the cable process, kept open between
         # broadcasts, and the broadcasts of an open `batch()`.
         self._local = threading.local()
 
     @property
     def streams(self) -> dict[str, int]:
-        """Return a dict of stream names to listener counts (for debugging)."""
-        with self._lock:
-            return {
-                name: len(channels) for name, channels in self._streams.items()
-            }
+        """Stream names and how many subscriptions each has (for debugging).
+        None here: no WebSockets, no subscribers."""
+        return {}
 
     def subscribe(self, stream_name: str, channel: "Channel") -> None:
-        """Register a channel to receive broadcasts on a stream."""
-        with self._lock:
-            self._streams.setdefault(stream_name, set()).add(channel)
-        logger.debug(
-            "[cable] %s subscribed to %s", channel.channel_name, stream_name,
-        )
+        """Have a channel receive the broadcasts of a stream. A cable that
+        serves WebSockets does it; this one has no connections to do it for."""
 
     def unsubscribe(self, stream_name: str, channel: "Channel") -> None:
-        """Remove a channel from a stream."""
-        with self._lock:
-            listeners = self._streams.get(stream_name)
-            if not listeners:
-                return
-            listeners.discard(channel)
-            if not listeners:
-                del self._streams[stream_name]
+        """Stop a channel receiving the broadcasts of a stream."""
 
     def unsubscribe_all(self, channel: "Channel") -> None:
-        """Remove a channel from all streams it is subscribed to: the ones it
-        knows about, not every stream of the process."""
-        with self._lock:
-            for stream_name in list(getattr(channel, "_streams", None) or self._streams):
-                self.unsubscribe(stream_name, channel)
+        """Stop a channel receiving the broadcasts of every stream it
+        subscribed to."""
+        for stream_name in list(getattr(channel, "_streams", ())):
+            self.unsubscribe(stream_name, channel)
 
     def forward_to(self, url: str, sign: "Callable[[t.Any], str]") -> None:
         """Send the broadcasts of any process that is not serving the
@@ -142,7 +114,7 @@ class Cable:
 
     @property
     def _forwarding(self) -> bool:
-        return bool(self._forward_url) and not self._started
+        return bool(self._forward_url)
 
     def broadcast(self, stream_name: str, data: t.Any) -> None:
         """Send data to all channels subscribed to a stream."""
@@ -188,24 +160,7 @@ class Cable:
             self._disconnect_local({"user_id": user_id})
 
     def _disconnect_local(self, who: dict) -> None:
-        with self._lock:
-            connections = list(self._connections.get(who.get("user_id"), ()))
-        for connection in connections:
-            connection.close_threadsafe()
-
-    def _register(self, connection: "Connection") -> None:
-        with self._lock:
-            self._connections.setdefault(connection.user_id, set()).add(connection)
-
-    def _unregister(self, connection: "Connection") -> None:
-        if connection.user_id is None:
-            return
-        with self._lock:
-            connections = self._connections.get(connection.user_id)
-            if connections is not None:
-                connections.discard(connection)
-                if not connections:
-                    del self._connections[connection.user_id]
+        """Close the connections of a user served here: none."""
 
     def _forward(self, payload: dict) -> None:
         """POST a broadcast to the cable process, on a connection kept open
@@ -266,45 +221,5 @@ class Cable:
         return True
 
     def _deliver_local(self, stream_name: str, data: t.Any) -> None:
-        """Deliver data to all local channels subscribed to a stream.
-
-        The data is encoded as JSON once, and each distinct subscription
-        (channel and params) gets one frame, shared by all of its
-        subscribers. A broadcast doesn't go through `Channel.send()`: every
-        subscriber gets the same data, as with any other cable.
-        """
-        with self._lock:
-            subscribed = self._streams.get(stream_name)
-            if not subscribed:
-                return
-            # Take a copy and let go of the lock: sending reaches into
-            # channel code, which must never run while the cable is held.
-            listeners = list(subscribed)
-        logger.debug(
-            "[cable] broadcasting to %s (%d listeners)",
-            stream_name, len(listeners),
-        )
-        encoded = None
-        messages: dict[str, t.Any] = {}
-        for channel in listeners:
-            try:
-                if encoded is None:
-                    encoded = jsonplus.dumps(data)
-                prefix = channel._frame_prefix
-                message = messages.get(prefix)
-                if message is None:
-                    message = messages[prefix] = channel._message(data, encoded)
-                channel._send(message)
-            except Exception:
-                logger.exception(
-                    "[cable] error sending to %s", channel.channel_name,
-                )
-
-    async def start(self) -> None:
-        self._started = True
-        # no-op for in-process cable.
-        ...
-
-    async def stop(self) -> None:
-        # no-op for in-process cable.
-        ...
+        """Deliver a broadcast to the subscribers served here: none."""
+        logger.debug("[cable] no WebSockets: the broadcast to %s reaches no one", stream_name)

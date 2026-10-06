@@ -12,10 +12,7 @@ CABLE_PORT = int(os.getenv("CABLE_PORT", int(os.getenv("PORT", 2300)) + 1))
 # shell) are forwarded to it. No Redis needed on one machine.
 CABLE: dict = {"type": "proper.channels.wse.WseCable"}
 
-# Other backends:
-# - The in-process cable, served by a second process over RSGI:
-#     CABLE = {}
-# - The same cable on several machines, through Redis (needs `uv add redis`):
+# On several machines, the same cable through Redis (needs `uv add redis`):
 #     CABLE = {
 #         "type": "proper.channels.RedisCable",
 #         "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),

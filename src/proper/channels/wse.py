@@ -1,8 +1,8 @@
-"""A cable on wse-server: the WebSockets served by a Rust engine.
+"""The cable: the WebSockets of the channels, served by a Rust engine.
 
-PROTOTYPE. The channels keep their API: `subscribed()`, the actions and
-`unsubscribed()` run in Python, in worker threads, and decide what each
-connection streams from. What changes is everything under them:
+`subscribed()`, the actions and `unsubscribed()` of the channels run in
+Python, in worker threads, and decide what each connection streams from.
+Under them:
 
 - The WebSockets are served by wse-server (`wse_server.RustWSEServer`, tokio
   and tungstenite) on `CABLE_PORT`, inside the web process. No second process,
@@ -25,8 +25,7 @@ first request (`start_server()`; call it yourself under another server).
 Every other process that loads the app (the copies of `PROCESSES`, a task
 worker, a shell) has no WebSockets: its broadcasts and `disconnect()`s are
 forwarded to that one, signed with the app's keys, over HTTP on
-`127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given), the same way the
-in-process `Cable` forwards to its own WebSocket process.
+`127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given).
 
 The server sends `{"type": "ping"}` to every connection each
 `CABLE_PING_INTERVAL` seconds, which `cable.js` uses to notice a dead
@@ -35,6 +34,7 @@ connection, and refuses handshakes from other sites' pages (see
 of wse-server, with wheels for free-threaded Python; it imports as
 `wse_server`, and the original wse-server is refused.
 """
+import contextvars
 import json
 import os
 import queue
@@ -128,20 +128,26 @@ class WseConnection:
         self.cable._executor.submit(self._run)
 
     def _run(self) -> None:
-        current.app = self.cable.app
         while True:
             with self._lock:
                 if not self._commands:
                     self._running = False
                     return
                 command = self._commands.popleft()
-            try:
-                if command is _DISCONNECT:
-                    self.cable._cleanup(self)
-                else:
-                    self.cable._command(self, command)
-            except Exception:
-                logger.exception("[cable] error handling a command")
+            # Each command in a context of its own: the worker threads run
+            # the commands of every connection, and what one sets in
+            # `current` (the user, the session) must not reach the next.
+            contextvars.Context().run(self._run_one, command)
+
+    def _run_one(self, command: t.Any) -> None:
+        current.app = self.cable.app
+        try:
+            if command is _DISCONNECT:
+                self.cable._cleanup(self)
+            else:
+                self.cable._command(self, command)
+        except Exception:
+            logger.exception("[cable] error handling a command")
 
 
 class _ForwardedHandler(BaseHTTPRequestHandler):
@@ -272,7 +278,7 @@ class InMemoryServer:
 class WseCable(Cable):
     """See the module."""
 
-    # `proper run` starts no RSGI process for the WebSockets: this serves them.
+    # `proper run` starts it, in its web process (`start_server()`).
     serves_websockets = True
     # Other processes forward their broadcasts here over HTTP (RedisCable
     # doesn't: they publish to Redis).
@@ -384,7 +390,6 @@ class WseCable(Cable):
             )
             self.server = server
             self._owner_pid = os.getpid()
-            self._started = True
             self._stopping.clear()
             self._draining = True
             self._drain_thread = threading.Thread(
@@ -428,7 +433,6 @@ class WseCable(Cable):
             self._executor = t.cast(ThreadPoolExecutor, _InlineExecutor())
             self.server = server
             self._owner_pid = os.getpid()
-            self._started = True
             return server
 
     def _new_server(self, port: int) -> t.Any:
@@ -447,17 +451,17 @@ class WseCable(Cable):
         return RustWSEServer(self._host, port, **options)
 
     def _ping(self, interval: float) -> None:
-        """Ping every connection, as the RSGI cable does: `cable.js` treats a
-        connection that stops getting them as dead, and reconnects."""
+        """Ping every connection: `cable.js` treats a connection that stops
+        getting them as dead, and reconnects."""
         while not self._stopping.wait(interval):  # set before the server stops
             self.server.broadcast_all('{"type": "ping", "message": %d}' % int(time.time()))
 
     def _watch(self, limit: int, stall: float) -> None:
-        """Close the connections of clients that stopped reading, as the RSGI
-        cable does: more than `limit` bytes queued and nothing written for
-        `stall` seconds, or ten times `limit` at any speed. Closed at once,
-        without the close handshake, which they would never let through;
-        `cable.js` reconnects and subscribes again."""
+        """Close the connections of clients that stopped reading: more than
+        `limit` bytes queued and nothing written for `stall` seconds, or ten
+        times `limit` at any speed. Closed at once, without the close
+        handshake, which they would never let through; `cable.js` reconnects
+        and subscribes again."""
         seen: dict[str, tuple[int, float]] = {}  # conn_id -> (written, since)
         while not self._stopping.wait(min(1.0, stall / 2)):  # set before the server stops
             now = time.monotonic()
@@ -477,13 +481,6 @@ class WseCable(Cable):
                     still[conn_id] = (written, now)
             seen = still
 
-    async def start(self) -> None:
-        """Nothing: the RSGI startup runs in every worker, and only the
-        process `proper run` picks serves (`start_server`)."""
-
-    async def stop(self) -> None:
-        self.stop_server()
-
     def stop_server(self) -> None:
         """Stop serving. The drain thread goes first: it holds the server
         object while it waits for events, and `stop()` needs it alone."""
@@ -495,7 +492,6 @@ class WseCable(Cable):
                 self._end_open_connections()
                 self.server = None
                 self._owner_pid = None
-                self._started = False
                 return
             self._stopping.set()
             for thread in (self._pinger, self._watcher):
@@ -513,7 +509,6 @@ class WseCable(Cable):
             server.stop()
             self.server = None
             self._owner_pid = None
-            self._started = False
 
     def _end_open_connections(self) -> None:
         """The connections still open end here: their channels'

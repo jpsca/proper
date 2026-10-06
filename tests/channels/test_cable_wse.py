@@ -474,15 +474,6 @@ class TestLifecycle:
         with pytest.raises(TypeError, match="bogus"):
             app.cable.start_server()
 
-    def test_the_rsgi_hooks_leave_the_server_to_proper_run(self, wse_app):
-        import asyncio
-
-        other = _new_app(wse_app.config.CABLE_PORT)
-        asyncio.run(other.cable.start())
-        assert not other.cable.serving
-        asyncio.run(wse_app.cable.stop())
-        assert not wse_app.cable.serving
-
     def test_a_broadcast_with_nowhere_to_go_is_logged(self, caplog):
         app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.wse.WseCable"}})
         with caplog.at_level(logging.WARNING, logger="proper"):
@@ -598,8 +589,8 @@ def _read_all(client, count):
 
 
 class TestStalledClients:
-    """A client that stops reading is closed, as with the RSGI cable, and
-    `cable.js` reconnects; one that reads slowly is not."""
+    """A client that stops reading is closed, and `cable.js` reconnects;
+    one that reads slowly is not."""
 
     def _app(self, make_app, limit, stall):
         return make_app(

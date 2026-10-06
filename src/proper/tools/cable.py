@@ -1,6 +1,4 @@
-from functools import partial
-
-from ..channels import CABLE_SALT, Cable
+from ..channels import Cable
 from ..errors import ConfigError
 from ..helpers.imports import get_instance
 
@@ -12,16 +10,14 @@ DEFAULT_CONFIG = {}
 def setup(app):
     config = app.config.get(NAME, DEFAULT_CONFIG)
     if not config:
-        app.cable = Cable()
-        port = int(app.config.get("CABLE_PORT") or 0)
-        if port:
-            # The WebSockets run in their own process; a broadcast made
-            # here has to get there.
-            path = app.config.get("CABLE_PATH", "/cable")
-            app.cable.forward_to(
-                f"http://127.0.0.1:{port}{path}",
-                sign=partial(app.dumps, salt=CABLE_SALT),
+        if app.config.get("CABLE_PORT"):
+            raise ConfigError(
+                f"CABLE_PORT is set but {NAME} is empty, and the default cable serves no "
+                f'WebSockets. Set {NAME} = {{"type": "proper.channels.wse.WseCable"}} '
+                '(and install "proper[wse]"), or remove CABLE_PORT.'
             )
+        # No channels: a cable with no WebSockets, where broadcasts reach no one.
+        app.cable = Cable()
         return
 
     validate_config(config)

@@ -20,8 +20,8 @@ default_config = {
     # means the `app` variable of the module that created it.
     "APP_TARGET": "",
 
-    # How many server workers `proper run` starts in each process: threads,
-    # each with its own event loop, sharing the process and its memory.
+    # How many server workers `proper run` starts in each process: threads
+    # sharing the process and its memory.
     "WORKERS": 1,
 
     # How many copies of the web server `proper run` starts, all on the same
@@ -35,12 +35,6 @@ default_config = {
     # run` refuses to start otherwise. Set to True to serve with the GIL
     # anyway, at the cost of memory and parallelism.
     "ALLOW_GIL": False,
-
-    # How the server talks to the app. "wsgi" runs each request on one of the
-    # server's own threads, which is the fastest way to serve sync
-    # controllers, but has no WebSockets. "rsgi" has them, at a cost per
-    # request.
-    "INTERFACE": "wsgi",
 
     # Restart the server when the code changes. `None` follows `DEBUG`.
     "RELOAD": None,
@@ -67,21 +61,9 @@ default_config = {
     # whole duration, so this is how many requests the app can work on at
     # once - and, since every thread opens its own database connection,
     # how many connections it can hold. It is a total for the whole
-    # process: when the server runs several workers as threads, they all
-    # share this one pool. `0` uses Python's default of
+    # process, split between its `WORKERS`. `0` uses Python's default of
     # `min(32, cpu_count + 4)`.
     "MAX_THREADS": 0,
-
-    # Warn when a request has to wait this many seconds for a free thread,
-    # which means every one of them is busy and requests are queuing up.
-    # Set to 0 to turn the check off.
-    "THREAD_WAIT_WARNING": 0.5,
-
-    # In DEBUG, warn when the event loop stays blocked for longer than this
-    # many seconds. Your code runs in worker threads, so the loop should
-    # never be busy for long: a warning means something is running in the
-    # wrong place. Set to 0 to turn the check off.
-    "LOOP_STALL_WARNING": 0.1,
 
     # Limits the total content length (in bytes).
     # Raises a `RequestEntityTooLarge` exception if this value is exceeded.
@@ -119,10 +101,10 @@ default_config = {
 
     "CABLE_PATH": "/cable",
 
-    # Port of the WebSocket (RSGI) process that `proper run` starts next to
-    # the web server, for the channels. `0` starts none. In production a
-    # proxy routes `CABLE_PATH` here; in `DEBUG` the browser connects to this
-    # port directly.
+    # Port where the cable (`WseCable`) serves the WebSockets of the
+    # channels, from the process `proper run` starts. In production a proxy
+    # routes `CABLE_PATH` here; in `DEBUG` the browser connects to this port
+    # directly.
     "CABLE_PORT": 0,
 
     # Browser origins allowed to open a WebSocket besides the app's own
@@ -134,20 +116,14 @@ default_config = {
     # clients can tell a dead connection from a quiet one. `0` sends none.
     "CABLE_PING_INTERVAL": 3,
 
-    # A connection with more than `CABLE_MAX_PENDING` messages waiting, none
-    # of which got through in `CABLE_STALL_TIMEOUT` seconds, is a client that
-    # is not reading, and the server closes it. So is one with ten times as
-    # many, at any speed. `0` is no limit.
-    "CABLE_MAX_PENDING": 1000,
-    "CABLE_STALL_TIMEOUT": 10,
-
-    # The same, in bytes, for `WseCable` (proper-wse counts bytes, not
-    # messages): a connection with more than this queued that got nothing
-    # through in `CABLE_STALL_TIMEOUT` seconds is closed, and so is one with
-    # ten times as many, at any speed. Keep ten times it below the cable's
+    # A connection with more than `CABLE_MAX_PENDING_BYTES` queued that got
+    # nothing through in `CABLE_STALL_TIMEOUT` seconds is a client that is
+    # not reading, and the server closes it. So is one with ten times as
+    # many, at any speed. Keep ten times it below the cable's
     # `max_outbound_queue_bytes` (64 MB), where wse starts dropping
     # broadcasts instead. `0` is no limit.
     "CABLE_MAX_PENDING_BYTES": 4 * 1024 * 1024,
+    "CABLE_STALL_TIMEOUT": 10,
 
     "IMPORT_MAP": {
         "@hotwired/stimulus": "js/vendor/stimulus.js",
@@ -183,8 +159,6 @@ def normalize_config(config: DotDict) -> DotDict:
     config.SESSION_COOKIE_HTTPONLY = bool(config.SESSION_COOKIE_HTTPONLY)
 
     config.MAX_THREADS = int(config.MAX_THREADS)
-    config.THREAD_WAIT_WARNING = float(config.THREAD_WAIT_WARNING)
-    config.LOOP_STALL_WARNING = float(config.LOOP_STALL_WARNING)
 
     config.MAX_CONTENT_LENGTH = int(config.MAX_CONTENT_LENGTH)
     config.MAX_QUERY_SIZE = int(config.MAX_QUERY_SIZE)

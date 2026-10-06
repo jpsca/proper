@@ -18,12 +18,17 @@ def _app(**config):
 
 
 class TestCableTool:
-    def test_no_config_creates_the_in_process_cable(self):
+    def test_no_config_creates_a_cable_without_websockets(self):
         cable = _app().cable
         assert type(cable) is Cable
+        assert not getattr(cable, "serves_websockets", False)
 
-    def test_an_empty_dict_creates_the_in_process_cable(self):
+    def test_an_empty_dict_creates_a_cable_without_websockets(self):
         assert type(_app(CABLE={}).cable) is Cable
+
+    def test_a_cable_port_without_a_cable_is_refused(self):
+        with pytest.raises(ConfigError, match="WseCable"):
+            _app(CABLE={}, CABLE_PORT=2301)
 
     def test_a_class_path(self):
         cable = _app(CABLE={"type": "proper.channels.wse.WseCable"}).cable
@@ -51,21 +56,3 @@ class TestCableToolValidation:
     def test_accepts_valid_config(self):
         validate_config({"type": "proper.channels.RedisCable"})
         validate_config({"type": RedisCable})
-
-
-class TestAppIntegration:
-    async def test_startup_and_shutdown_call_start_and_stop(self, app):
-        started, stopped = [], []
-
-        async def start():
-            started.append(True)
-
-        async def stop():
-            stopped.append(True)
-
-        app.cable.start = start
-        app.cable.stop = stop
-        await app.startup()
-        await app.shutdown()
-        assert started == [True]
-        assert stopped == [True]
