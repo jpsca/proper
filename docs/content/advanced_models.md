@@ -15,6 +15,7 @@ After reading this guide, you will know:
 - How to declare two models that reference each other with `DeferredForeignKey`.
 - Three patterns for modeling a child that can have one of several parent types.
 - How to register a second database, point a model at it, and live with the constraints that come from data living in two places.
+- How to prepare a query that runs often, so it is compiled to SQL once.
 
 ---
 
@@ -337,4 +338,69 @@ It's not as elegant as a join, but it's the only honest answer when the data liv
 `db.atomic()` only wraps the database it's called on. There's no two-phase commit between separate databases - if you write to `main` and `analytics` in the same request and the second write fails, the first one is *not* rolled back automatically.
 
 If you need that guarantee, design so each unit of work touches only one database, and use a background job (or an idempotent retry) to bridge between them.
+:::
+
+## Prepared Queries
+
+This is an optimization you normally don't need unless:
+
+- You are using SQLite.
+- You have a query that runs very often and can't be cached, because its results change very frequently.
+
+Building a Peewee query and compiling it to SQL is Python work that takes some time. With PostgreSQL, MariaDB, etc., this time is negligible compared with the time it takes to send the query and get the results back; but on SQLite it can cost more than running the query itself.
+
+A way around it is to compile the query once and reuse it with `proper.db.prepare`. Mark where each value goes with `Param`:
+
+```python {title="myapp/models/message.py"}
+from proper.db import Param, prepare
+
+from .base import BaseModel
+
+
+class Message(BaseModel):
+    ...
+
+
+LAST_PAGE = prepare(
+    Message.select()
+    .where(Message.room == Param("room"))
+    .order_by(Message.id.desc())
+    .limit(Param("n"))
+)
+```
+
+```python
+messages = list(LAST_PAGE.execute(room=room.id, n=40))
+first = LAST_PAGE.first(room=room.id, n=1)  # or None
+```
+
+The query is compiled on its first execution, once per database; the next ones only put the values in place and run the SQL. Each value is converted the way the compiler would have converted it, by the `db_value()` of the field it is compared to, so a model instance or its id both work for a foreign key. The results are those of the query as you built it: model instances, `.dicts()`, `.tuples()`, joined models. `update()` and `delete()` queries can be prepared too; `execute()` returns what theirs would.
+
+Because the SQL can't change between executions:
+
+- A `Param` can't stand for a list (`IN`), a column or a table. Values that would compile to SQL, such as an expression or a subquery, raise `ValueError`.
+- Every `Param` needs a value, and unknown names raise `ValueError`.
+- Queries with `RETURNING` can't be prepared.
+
+`prepared.sql()` returns the SQL and its parameters, with a `Param` where each value goes.
+
+:::warning | What not raw SQL?
+In terms of time, executing a prepared query costs about the same as running raw SQL with parameters:
+
+```python
+Message.raw("SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?", room_id, 40)
+# or
+db.execute_sql("SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?", (room_id, 40))
+```
+
+In both cases, nothing is built or compiled: the SQL is ready, and only the values change.
+
+The difference is what you give up to get there. With raw SQL:
+
+- You write and maintain the SQL text yourself. Table and column names don't follow the models, so renaming a field doesn't update them.
+- Values aren't converted by their fields: pass room.id, not room, and dates or JSON already in the database's format.
+- raw() puts every column on a single model instance. A join doesn't give you message.author.name; you get each column as a separate attribute, named with an alias.
+- execute_sql() returns a database cursor: tuples, not models.
+
+A prepared query is written with the query builder and compiled once, so it keeps all of that: field conversion, joined models, .dicts() and .tuples(), and SQL that follows the models. For a simple query on one table, raw() is a reasonable alternative.
 :::

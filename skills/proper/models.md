@@ -321,6 +321,23 @@ photo.delete_instance()
 Photo.delete().where(Photo.published == False).execute()
 ```
 
+### Prepared Queries
+
+For a query that runs on most requests, compile it to SQL once with `proper.db.prepare` and mark the values with `Param`. Define it at module level, next to the model:
+
+```python
+from proper.db import Param, prepare
+
+LAST_PAGE = prepare(
+    Message.select().where(Message.room == Param("room")).order_by(Message.id.desc()).limit(Param("n"))
+)
+
+messages = list(LAST_PAGE.execute(room=room.id, n=40))
+message = LAST_PAGE.first(room=room.id, n=1)  # or None
+```
+
+Values are converted by the field they are compared to (a model instance or its id for a foreign key). Results are those of the query as built (models, `.dicts()`, `.tuples()`, joins); `update()`/`delete()` work too. A `Param` can't stand for a list (`IN`), a column or a table; values that would compile to SQL, missing or unknown names, and `RETURNING` raise `ValueError`.
+
 ### Transactions
 
 Use `db.atomic()` for transactions. Proper automatically manages database connections per request, but for operations that must be atomic you should use explicit transactions:
