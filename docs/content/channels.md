@@ -279,7 +279,38 @@ Any other public method is reachable from the client, so keep helpers private wi
 
 There is one conventional action name: `receive`. The client's `subscription.send(data)` is shorthand for `perform("receive", data)`, so if you define a `receive(self, data)` method it becomes the default handler for that subscription.
 
-If an action raises an exception, the error is logged and the client gets nothing back; the connection and its other subscriptions keep working.
+### Replying to the caller
+
+`perform()` returns a promise, and what the action returns is what it resolves with. To tell the caller that something was wrong, raise `ActionError` with a reason and anything else the page needs:
+
+```python
+from proper.channels import ActionError
+
+
+class ChatChannel(AppChannel):
+    def speak(self, data):
+        text = data.get("message", "").strip()
+        if not text:
+            raise ActionError("empty")
+        if len(text) > 500:
+            raise ActionError("too_long", max=500)
+        message = Message.create(room_id=self.params["room"], text=text)
+        self.broadcast(f"chat_{self.params['room']}", {"message": text})
+        return {"id": message.id}
+```
+
+```javascript
+try {
+  const { id } = await chat.perform("speak", { message })
+  input.value = ""
+} catch (error) {
+  showError(error.reason === "too_long" ? `At most ${error.max} characters` : "Try again")
+}
+```
+
+The promise rejects with the `ActionError`'s data (`{reason: "too_long", max: 500}`), with `{reason: "error"}` when the action raised anything else (the error is logged, the client doesn't learn the details), with `{reason: "not_subscribed"}`, `{reason: "invalid_action"}` or `{reason: "unknown_action"}` when there was nothing to run, and with `{reason: "timeout"}` when no reply came in 10 seconds (`perform(action, data, {timeout})` changes that). An action that returns nothing resolves with `null`. The connection and its other subscriptions keep working after any of these.
+
+Two things to keep in mind. A timeout means the reply didn't arrive, not that the action didn't run: the server may have finished it, and a reply that comes later is dropped, so don't retry an action that creates or sends something on a timeout without the user's say-so, or have it take an id from the client so a repeat is ignored. And you don't have to wait for the reply: `chat.perform("typing")` on its own is fine, and a rejection nobody waits for is not reported anywhere.
 
 ---
 
@@ -429,7 +460,7 @@ const chat = cable.subscribe("ChatChannel", { room: "general" }, {
   received(data) { addMessageToDOM(data) },
 })
 
-chat.perform("speak", { message: "hello" })  // call an action
+chat.perform("speak", { message: "hello" })  // call an action; a promise with its reply
 chat.send({ message: "hello" })   // shorthand for perform("receive", data)
 chat.unsubscribe()                // leave this channel
 cable.disconnect()                // close the socket, stop reconnecting
@@ -448,7 +479,7 @@ Callback         | Called when
 `rejected()`     | The channel called `reject()`, or no channel has that name
 `disconnected()` | The connection closed, or you called `unsubscribe()`
 
-When the connection drops, `cable.js` reconnects on its own and subscribes everything again, so a short network problem is invisible to your code. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every few seconds; a connection that goes silent for 10 seconds is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
+When the connection drops, `cable.js` reconnects on its own and subscribes everything again, so a short network problem is invisible to your code. A `perform()` made meanwhile waits, and is sent once the connection and its subscriptions are back; its promise still rejects with `{reason: "timeout"}` if that takes longer than its timeout, and with `{reason: "offline"}` if more than 100 calls pile up. It waits 1 second before the first attempt and twice as long before each next one, up to 30 seconds, and it never gives up. The server pings every connection every few seconds; a connection that goes silent for 10 seconds is treated as dead, closed, and opened again. This catches a laptop that went to sleep or a proxy that dropped the connection without telling anyone. `cable.disconnect()` is the only thing that stops the reconnecting.
 
 All subscriptions share the one connection, so holding several is normal and cheap:
 
@@ -724,7 +755,8 @@ Method                                   | What it does
 ---------------------------------------- | ------------------------------------
 `await ws.connect()`                     | Opens the connection. Returns a task that ends when the connection closes; `await` it after `close()`
 `await ws.subscribe(channel, **params)`  | Subscribes, and returns the first frame the app sends back
-`await ws.send_action(channel, action, data, **params)` | Calls an action
+`await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply
+`await ws.perform(channel, action, data, **params)` | Calls an action and returns its reply: `{"type": "reply", "status": "ok", "data": <what it returned>}`, or `"status": "error"` with `{"reason": ...}` in `data`. Skips what the action sent before replying
 `await ws.unsubscribe(channel, **params)`| Unsubscribes
 `await ws.receive(timeout=1.0)`          | The next frame, parsed from JSON. Raises `TimeoutError` if nothing arrives
 `await ws.close()`                       | Disconnects, which runs `unsubscribed()`
@@ -778,13 +810,15 @@ The client sends three commands - `subscribe`, `message` (call an action), and `
 
 { "command": "message", "channel": "ChatChannel",
     "params": {"room": "general"}, "action": "speak",
-    "data": {"message": "hi"} }
+    "data": {"message": "hi"}, "id": 7 }
 
 { "command": "unsubscribe", "channel": "ChatChannel",
     "params": {"room": "general"} }
 ```
 
-The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `error`, and `ping`:
+The `id` of a `message` is optional: with one, the server answers with a `reply`.
+
+The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `reply`, `error`, and `ping`:
 
 ```json
 { "type": "confirm_subscription", "channel": "ChatChannel",
@@ -799,6 +833,13 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 { "c": "P", "type": "broadcast", "stream": "chat_general",
     "data": {"message": "hi"} }
 
+{ "type": "reply", "id": 7, "channel": "ChatChannel",
+    "params": {"room": "general"}, "status": "ok", "data": {"id": 42} }
+
+{ "type": "reply", "id": 7, "channel": "ChatChannel",
+    "params": {"room": "general"}, "status": "error",
+    "data": {"reason": "too_long", "max": 500} }
+
 { "type": "error", "reason": "not_subscribed" }
 
 { "type": "ping", "message": 1791230000 }
@@ -806,9 +847,11 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 
 A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
 
-Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name; a subscription your own `reject()` turned away has no reason.
+Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name, and `"reason": "error"` when `subscribed()` raised an exception; a subscription your own `reject()` turned away has no reason.
 
-An `error` has a `reason`, one of: `invalid_json`, `invalid_message` (JSON that is not an object), `unknown_command`, `not_subscribed`, `invalid_action`, and `unknown_action`.
+A `reply` answers the `message` with the same `id`: `status: "ok"` with what the action returned as `data` (`null` if nothing), or `status: "error"` with a `reason` in `data`: the one of an `ActionError`, along with its other data; `error` when the action raised anything else; or `not_subscribed`, `invalid_action` or `unknown_action` when there was nothing to run.
+
+A `message` without an `id` gets no reply. What would have been an error reply is an `error` frame instead, with the `reason` (and the data of an `ActionError`) at the top level; an action that raises anything else sends nothing. An `error` also reports a command the server couldn't read: `invalid_json`, `invalid_message` (JSON that is not an object), or `unknown_command`.
 
 The `ping` arrives every `CABLE_PING_INTERVAL` seconds, with the server's time; the client uses it to tell a dead connection from a quiet one.
 
@@ -893,9 +936,7 @@ Channels covers the core - one shared connection, authenticated subscriptions, s
 
 - **A presence API.** A real who-is-online list that handles several tabs and several machines, instead of the manual pattern shown above. The WebSocket server, wse, already keeps one: per user, across tabs, and synced between its own cluster nodes. What is missing is connecting it to Proper: wse only knows who a connection belongs to when it authenticates with a JWT, not with the session cookie, and `cable.js` doesn't understand its join and leave messages.
 - **Stream names from models.** `broadcast_to(record, data)` and `stream_for(record)`, which would build the stream name from a model, so a typo can't break it silently.
-- **Replies to actions.** Letting an action return a value that is sent back to the caller, tied to that call, so a page can confirm success or show a validation error.
 - **Per-subscription timers.** A `periodically(...)` hook for server-driven updates - counters, clocks, dashboards - that lives as long as the subscription. For now, a periodic background task that broadcasts to a stream covers most of this.
-- **Error handling in channels.** A way to turn an exception in an action into an error frame for the client, instead of only logging it.
 
 If you build any of these, the framework would love a PR.
 

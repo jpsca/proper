@@ -125,7 +125,7 @@ def subscribed(self):
 
 ## Action Methods
 
-Any public method on a channel (other than the blocked names below) can be invoked by the client as an action. The client sends a `message` command with an `action` name and optional `data`. The method is always called as `method(data)`, with `{}` when the client sent no data, so every action takes a `data` argument. An exception in an action is logged; the client gets no frame.
+Any public method on a channel (other than the blocked names below) can be invoked by the client as an action. The client sends a `message` command with an `action` name and optional `data`. The method is always called as `method(data)`, with `{}` when the client sent no data, so every action takes a `data` argument.
 
 ```python
 @router.channel()
@@ -157,6 +157,31 @@ The framework blocks the following from being called as actions:
 Every other public method is reachable from the client: prefix helpers with `_`.
 
 One action name is conventional: `receive`. The client's `sub.send(data)` is shorthand for `perform("receive", data)`, so defining a `receive(self, data)` method makes it the default handler for messages sent that way.
+
+### Replies
+
+`sub.perform()` returns a promise that resolves with what the action returned (`null` if nothing). To report an error to the caller, raise `ActionError(reason, **data)` (from `proper.channels`): the promise rejects with `{reason, ...data}`. It is the action's answer, not a failure: nothing is logged. Any other exception is logged and the promise rejects with `{reason: "error"}`, without details. The promise also rejects with `{reason: "not_subscribed" | "invalid_action" | "unknown_action"}` when there is nothing to run, and `{reason: "timeout"}` after 10 seconds without a reply (`sub.perform(action, data, {timeout})` sets it, in milliseconds). A timeout doesn't cancel the action: the server may still run it, and a late reply is dropped, so a retry can run it twice. Calling `perform()` without awaiting is fine: an unawaited rejection is not reported.
+
+```python
+from proper.channels import ActionError
+
+class ChatChannel(AppChannel):
+    def speak(self, data):
+        text = data.get("message", "").strip()
+        if len(text) > 500:
+            raise ActionError("too_long", max=500)
+        message = Message.create(room_id=self.params["room"], text=text)
+        self.broadcast(f"chat_{self.params['room']}", {"message": text})
+        return {"id": message.id}
+```
+
+```javascript
+try {
+  const { id } = await chat.perform("speak", { message })
+} catch (error) {
+  console.log(error.reason, error.max)
+}
+```
 
 
 ## Streams and Broadcasting
@@ -370,13 +395,13 @@ Returns a `Subscription` object.
 
 | Method                      | Description                                 |
 |-----------------------------|---------------------------------------------|
-| `sub.perform(action, data)` | Invoke a channel action with optional data  |
-| `sub.send(data)`            | Shorthand for `perform("receive", data)`    |
+| `sub.perform(action, data, {timeout}?)` | Invoke a channel action; a promise with its reply (see [Replies](#replies)) |
+| `sub.send(data, {timeout}?)` | Shorthand for `perform("receive", data)`    |
 | `sub.unsubscribe()`         | Unsubscribe and trigger `disconnected`      |
 
 ### Automatic Reconnection
 
-On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s, with jitter), for as long as the page is open. On reconnect, all existing subscriptions are automatically re-subscribed. The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for 10 seconds is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
+On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s, with jitter), for as long as the page is open. On reconnect, all existing subscriptions are automatically re-subscribed, and the `perform()` calls made while disconnected are sent after them (at most 100 wait; past that the oldest rejects with `{reason: "offline"}`; their timeouts keep running). The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for 10 seconds is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
 
 ### Multiple Subscriptions
 
@@ -413,10 +438,10 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 {"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}}
 ```
 
-**Send a message (invoke an action):**
+**Send a message (invoke an action).** `id` is optional; with one, the server answers with a `reply`:
 
 ```json
-{"command": "message", "channel": "ChatChannel", "params": {"room": "general"}, "action": "speak", "data": {"message": "hello"}}
+{"command": "message", "channel": "ChatChannel", "params": {"room": "general"}, "action": "speak", "data": {"message": "hello"}, "id": 7}
 ```
 
 **Unsubscribe:**
@@ -439,7 +464,7 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 {"type": "reject_subscription", "channel": "ChatChannel", "params": {"room": "general"}}
 ```
 
-A reject for an unregistered channel carries `"reason": "unknown_channel"`; a reject from your own `reject()` in `subscribed()` has no `reason`.
+A reject for an unregistered channel carries `"reason": "unknown_channel"`; one for a `subscribed()` that raised an exception (logged, its streams stopped) carries `"reason": "error"`; a reject from your own `reject()` in `subscribed()` has no `reason`.
 
 **Data message (from `send()`):**
 
@@ -453,13 +478,20 @@ A reject for an unregistered channel carries `"reason": "unknown_channel"`; a re
 {"c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hello"}}
 ```
 
-**Error:**
+**Reply** to a `message` with an `id`: `status: "ok"` with what the action returned as `data` (`null` if nothing), or `status: "error"` with a `reason` in `data` (an `ActionError`'s reason and other data; `error` for any other exception; `not_subscribed`, `invalid_action` or `unknown_action` when there was nothing to run):
+
+```json
+{"type": "reply", "id": 7, "channel": "ChatChannel", "params": {"room": "general"}, "status": "ok", "data": {"id": 42}}
+{"type": "reply", "id": 7, "channel": "ChatChannel", "params": {"room": "general"}, "status": "error", "data": {"reason": "too_long", "max": 500}}
+```
+
+**Error**, for a `message` without an `id` that couldn't run (its reason and an `ActionError`'s data at the top level; any other exception in the action sends nothing), and for a command the server couldn't read:
 
 ```json
 {"type": "error", "reason": "not_subscribed"}
 ```
 
-Error reasons: `invalid_json`, `unknown_command`, `not_subscribed`, `invalid_action`, `unknown_action`, `invalid_message` (JSON that is not an object).
+Error reasons: `invalid_json`, `unknown_command`, `invalid_message` (JSON that is not an object), `not_subscribed`, `invalid_action`, `unknown_action`, and an `ActionError`'s reason.
 
 **Ping**, every `CABLE_PING_INTERVAL` seconds (`message` is the server's time):
 
@@ -506,7 +538,8 @@ async def test_speak(client):
 |--------|-------------|
 | `await ws.connect()` | Opens the connection; returns a task that ends when it closes |
 | `await ws.subscribe(channel, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()` comes before the confirmation) |
-| `await ws.send_action(channel, action, data, **params)` | Calls an action |
+| `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply |
+| `await ws.perform(channel, action, data, **params)` | Calls an action with an `id` and returns its `reply` frame (`status` `"ok"` or `"error"`, `data`), skipping what the action sent before it |
 | `await ws.unsubscribe(channel, **params)` | Sends `unsubscribe` |
 | `await ws.receive(timeout=1.0)` | Next frame, parsed; `TimeoutError` if none |
 | `await ws.receive_raw(timeout=1.0)` | Next raw event: `{"type": "accept"}` first, then `{"type": "text", ...}` or `{"type": "close", ...}` |

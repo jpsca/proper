@@ -49,6 +49,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ..global_context import current
 from ..helpers import jsonplus, logger
 from .cable import CABLE_SALT, Cable, allowed_origins
+from .channel import ActionError
 
 
 if t.TYPE_CHECKING:
@@ -685,10 +686,18 @@ class WseCable(Cable):
             self.app, params, request=conn.request, name=channel_name,
             _send=pending.append, _connection=conn,
         )
-        self.app._with_db(lambda: channel._dispatch("subscribed"))
+        reject = {"type": "reject_subscription", "channel": channel_name, "params": params}
+        try:
+            self.app._with_db(lambda: channel._dispatch("subscribed"))
+        except Exception:
+            # Not subscribed: the streams it reached before failing must
+            # not stay open. Raised again, to be logged.
+            channel.stop_all_streams()
+            conn.put({**reject, "reason": "error"})
+            raise
         if channel._rejected:
             channel.stop_all_streams()
-            conn.put({"type": "reject_subscription", "channel": channel_name, "params": params})
+            conn.put(reject)
             return
         conn.subscriptions[key] = channel
         channel._send = conn.put
@@ -697,19 +706,55 @@ class WseCable(Cable):
         conn.put({**confirm, "streams": sorted(channel._streams)})
 
     def _message(self, conn, msg, key) -> None:
+        """Run an action. A message with an `id` gets a reply: what the
+        action returned, or the error that stopped it."""
+        msg_id = msg.get("id")
+
+        def fail(reason: str, **data: t.Any) -> None:
+            if msg_id is None:
+                conn.put({"type": "error", "reason": reason, **data})
+            else:
+                conn.put({
+                    "type": "reply", "id": msg_id, "channel": msg.get("channel", ""),
+                    "params": msg.get("params") or {},
+                    "status": "error", "data": {"reason": reason, **data},
+                })
+
         channel = conn.subscriptions.get(key)
         if channel is None:
-            conn.put({"type": "error", "reason": "not_subscribed"})
+            fail("not_subscribed")
             return
         action = msg.get("action", "")
         if not action or action.startswith("_") or action in _BLOCKED_ACTIONS:
-            conn.put({"type": "error", "reason": "invalid_action"})
+            fail("invalid_action")
             return
         if not callable(getattr(channel, action, None)):
-            conn.put({"type": "error", "reason": "unknown_action"})
+            fail("unknown_action")
             return
         data = msg.get("data") or {}
-        self.app._with_db(lambda: channel._dispatch(action, data))
+        # An `ActionError` is the action's answer, not a failure to log.
+        failed: list[ActionError] = []
+
+        def on_error(error: Exception) -> None:
+            if not isinstance(error, ActionError):
+                raise error
+            failed.append(error)
+
+        try:
+            result = self.app._with_db(
+                lambda: channel._dispatch(action, data), on_error=on_error
+            )
+        except Exception:
+            # The client learns that it failed, not why: that goes to the log.
+            fail("error")
+            raise
+        if failed:
+            fail(**failed[0].data)
+        elif msg_id is not None:
+            conn.put({
+                "type": "reply", "id": msg_id, "channel": channel.channel_name,
+                "params": channel.params, "status": "ok", "data": result,
+            })
 
     def _cleanup(self, conn: WseConnection) -> None:
         self._unregister(conn)

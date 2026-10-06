@@ -5,7 +5,7 @@ import logging
 import pytest
 
 from proper import App, current
-from proper.channels import Channel
+from proper.channels import ActionError, Channel
 from proper.test_client import TestClient
 
 
@@ -112,6 +112,34 @@ class TestSubscribe:
         await ws.close()
         await task
 
+    @pytest.mark.asyncio
+    async def test_subscribed_that_fails_is_rejected(self, app, caplog):
+        """The streams it reached before failing are closed: none of their
+        broadcasts get to a client whose subscription was never confirmed."""
+        class BrokenChannel(Channel):
+            def subscribed(self):
+                self.stream_from("secret")
+                self.send({"hello": 1})
+                raise RuntimeError("boom")
+
+        app.router.channels["BrokenChannel"] = BrokenChannel
+
+        ws, task = await open_ws(app)
+        with caplog.at_level(logging.ERROR):
+            rejection = await ws.subscribe("BrokenChannel")
+        assert rejection == {
+            "type": "reject_subscription", "channel": "BrokenChannel",
+            "params": {}, "reason": "error",
+        }
+        assert "error handling a command" in caplog.text
+        assert app.cable.streams == {}
+
+        app.cable.broadcast("secret", {"x": 1})
+        await nothing_more(ws)
+        await ws.close()
+        await task
+        assert app.cable.streams == {}
+
 
 # --- Message ---
 
@@ -141,6 +169,112 @@ class TestMessage:
         assert echo["channel"] == "EchoChannel"
         assert echo["data"] == {"echo": "hello"}
         assert received == [{"text": "hello"}]
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_reply_to_an_action_with_an_id(self, app):
+        """What the action returns is the data of the reply; what it sent
+        before comes first."""
+        class EchoChannel(Channel):
+            def subscribed(self):
+                pass
+
+            def speak(self, data):
+                self.send({"echo": data["text"]})
+                return {"length": len(data["text"])}
+
+            def wave(self, data):
+                pass
+
+        app.router.channels["EchoChannel"] = EchoChannel
+
+        ws, task = await open_ws(app)
+        await ws.subscribe("EchoChannel")
+        await ws.send_action("EchoChannel", "speak", {"text": "hello"}, id=7)
+        assert (await ws.receive())["type"] == "message"
+        assert await ws.receive() == {
+            "type": "reply", "id": 7, "channel": "EchoChannel", "params": {},
+            "status": "ok", "data": {"length": 5},
+        }
+        # Without an id, no reply
+        await ws.send_action("EchoChannel", "speak", {"text": "hello"})
+        assert (await ws.receive())["type"] == "message"
+        await nothing_more(ws)
+        # `perform()` skips what the action sends and returns the reply
+        reply = await ws.perform("EchoChannel", "speak", {"text": "hi"})
+        assert reply["status"] == "ok" and reply["data"] == {"length": 2}
+        # An action that returns nothing replies `null`
+        reply = await ws.perform("EchoChannel", "wave", {})
+        assert reply["status"] == "ok" and reply["data"] is None
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_reply_with_an_action_error(self, app, caplog):
+        class EchoChannel(Channel):
+            def subscribed(self):
+                pass
+
+            def speak(self, data):
+                raise ActionError("too_long", max=5)
+
+        app.router.channels["EchoChannel"] = EchoChannel
+
+        ws, task = await open_ws(app)
+        await ws.subscribe("EchoChannel")
+        with caplog.at_level(logging.ERROR):
+            reply = await ws.perform("EchoChannel", "speak", {"text": "hello world"})
+        assert reply["status"] == "error"
+        assert reply["data"] == {"reason": "too_long", "max": 5}
+        assert caplog.text == ""  # the action's answer, not a failure
+        # Without an id, as an error frame
+        await ws.send_action("EchoChannel", "speak", {"text": "hello world"})
+        assert await ws.receive() == {"type": "error", "reason": "too_long", "max": 5}
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_reply_when_the_action_fails(self, app, caplog):
+        """The client learns that it failed; the log, why."""
+        class EchoChannel(Channel):
+            def subscribed(self):
+                pass
+
+            def speak(self, data):
+                raise RuntimeError("the database is gone")
+
+        app.router.channels["EchoChannel"] = EchoChannel
+
+        ws, task = await open_ws(app)
+        await ws.subscribe("EchoChannel")
+        with caplog.at_level(logging.ERROR):
+            reply = await ws.perform("EchoChannel", "speak", {})
+        assert reply["status"] == "error"
+        assert reply["data"] == {"reason": "error"}
+        assert "the database is gone" in caplog.text
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_protocol_errors_reply_to_an_id(self, app):
+        class TestChannel(Channel):
+            def subscribed(self):
+                pass
+
+        app.router.channels["TestChannel"] = TestChannel
+
+        ws, task = await open_ws(app)
+        reply = await ws.perform("TestChannel", "speak", room="x")
+        assert reply == {
+            "type": "reply", "id": 1, "channel": "TestChannel", "params": {"room": "x"},
+            "status": "error", "data": {"reason": "not_subscribed"},
+        }
+        await ws.subscribe("TestChannel")
+        reply = await ws.perform("TestChannel", "_dispatch")
+        assert reply["data"] == {"reason": "invalid_action"}
+        reply = await ws.perform("TestChannel", "speak")
+        assert reply["data"] == {"reason": "unknown_action"}
         await ws.close()
         await task
 

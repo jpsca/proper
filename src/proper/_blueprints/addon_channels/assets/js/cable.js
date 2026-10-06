@@ -17,6 +17,24 @@ const chat = cable.subscribe("ChatChannel", { room: "general" }, {
 chat.perform("speak", { message: "hello" })
 chat.unsubscribe()
 ```
+
+`perform()` returns a promise with the action's reply: it resolves with what
+the action returned, and rejects with `{reason, ...}` when the action raised
+an `ActionError`, failed, wasn't found, or didn't answer in time:
+
+```
+try {
+  const { id } = await chat.perform("speak", { message: "hello" })
+} catch (error) {
+  if (error.reason === "too_long") ...
+}
+```
+
+A `perform()` made while the connection is down waits in a queue and is sent
+once the connection, and its subscriptions, are back.
+
+A timeout means the reply didn't come, not that the action didn't run: a
+reply that arrives later is dropped. Retrying can run the action twice.
 **/
 import { renderStreamMessage } from "@hotwired/turbo"
 
@@ -28,24 +46,18 @@ export class Subscription {
     this.callbacks = callbacks || {}
   }
 
-  perform(action, data) {
-    this.cable._send({
+  perform(action, data, { timeout = REPLY_TIMEOUT } = {}) {
+    return this.cable._perform({
       command: "message",
       channel: this.channel,
       params: this.params,
       action: action,
       data: data || {},
-    })
+    }, timeout)
   }
 
-  send(data) {
-    this.cable._send({
-      command: "message",
-      channel: this.channel,
-      params: this.params,
-      action: "receive",
-      data: data || {},
-    })
+  send(data, options) {
+    return this.perform("receive", data, options)
   }
 
   unsubscribe() {
@@ -93,6 +105,11 @@ export class Subscription {
 const STALE_AFTER = 10000
 const MAX_RECONNECT_DELAY = 30000
 const WSE_PONG = '{"c":"WSE","t":"PONG","p":{}}'
+// How long `perform()` waits for its reply, in milliseconds.
+const REPLY_TIMEOUT = 10000
+// How many `perform()`s wait for the connection to come back. Past it, the
+// oldest is rejected with `{reason: "offline"}`.
+const MAX_QUEUED = 100
 
 export class Cable {
   constructor() {
@@ -107,6 +124,9 @@ export class Cable {
     this._lastSeen = 0
     this._pinged = false
     this._monitor = null
+    this._nextId = 1
+    this._replies = new Map()  // id -> {resolve, reject, timer}
+    this._queued = []  // commands waiting for the connection
   }
 
   connect(url) {
@@ -168,6 +188,11 @@ export class Cable {
         this._sendSubscribe(sub)
       }
       this._pendingSubscriptions = []
+      // After the subscriptions: the server runs the commands of a
+      // connection in order, so the subscriptions exist by then.
+      const queued = this._queued
+      this._queued = []
+      for (const msg of queued) this._send(msg)
     }
 
     ws.onmessage = (event) => {
@@ -239,6 +264,15 @@ export class Cable {
       }
       return
     }
+    if (msg.type === "reply") {
+      this._settle(msg.id, msg.status === "ok", msg.data)
+      return
+    }
+    if (msg.type === "error") {
+      // A command without an id, or one the server couldn't read.
+      console.warn("[cable] error:", msg.reason)
+      return
+    }
     const sub = this._findSubscription(msg.channel, msg.params)
     if (!sub) return
 
@@ -273,6 +307,37 @@ export class Cable {
       channel: sub.channel,
       params: sub.params,
     })
+  }
+
+  _perform(msg, timeout) {
+    const id = msg.id = this._nextId++
+    const reply = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => this._settle(id, false, { reason: "timeout" }), timeout)
+      this._replies.set(id, { resolve, reject, timer })
+      if (this._isOpen()) {
+        this._send(msg)
+      } else {
+        if (this._queued.length >= MAX_QUEUED) {
+          this._settle(this._queued.shift().id, false, { reason: "offline" })
+        }
+        this._queued.push(msg)
+      }
+    })
+    // A caller that doesn't wait for the reply (`chat.perform("typing")`)
+    // must not get an "unhandled rejection" when it fails; one that does
+    // still gets the rejection.
+    reply.catch(() => {})
+    return reply
+  }
+
+  _settle(id, ok, data) {
+    const reply = this._replies.get(id)
+    if (!reply) return  // already settled: a late reply after its timeout
+    this._replies.delete(id)
+    clearTimeout(reply.timer)
+    this._queued = this._queued.filter((msg) => msg.id !== id)
+    if (ok) reply.resolve(data)
+    else reply.reject(data)
   }
 
   _send(msg) {
