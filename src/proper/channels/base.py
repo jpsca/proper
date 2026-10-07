@@ -104,6 +104,13 @@ class BaseCable:
         for stream_name in list(getattr(channel, "_streams", ())):
             self.unsubscribe(stream_name, channel)
 
+    def health(self) -> dict[str, t.Any]:
+        """How the cable is doing, for a health endpoint or a log line:
+        whether this process serves the WebSockets, and if so how many
+        connections and streams it has and what the server reports. Here:
+        nothing served."""
+        return {"serving": False, "connections": 0, "streams": 0}
+
     # Presence: who is in a stream. None here, there are no connections.
 
     def track(self, stream_name: str, data: dict, channel: "Channel", key: t.Any = None) -> None:

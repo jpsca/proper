@@ -47,6 +47,9 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### Added
 
+- `app.cable.health()`: whether this process serves the WebSockets, its
+  connections, users and streams, and what wse reports (`health_snapshot()`),
+  for a health endpoint.
 - Several machines: `CABLE["cluster"]` (`port`, `peers` or `seeds` and
   `addr`, `tls`) joins the cables in wse's TCP mesh. A `broadcast()` reaches
   every machine's subscribers, `disconnect()` closes a user's connections

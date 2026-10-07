@@ -503,6 +503,20 @@ class InMemoryServer:
     def cluster_info(self) -> list:
         return []
 
+    def health_snapshot(self) -> dict:
+        with self._lock:
+            return {
+                "connections": len(self._open),
+                "inbound_queue_depth": 0,
+                "inbound_dropped": 0,
+                "recovery_enabled": self.recovery_enabled,
+                "recovery_topic_count": len(self._buffers),
+                "presence_enabled": self.presence_enabled,
+                "presence_topics": len(self._presence),
+                "cluster_connected": False,
+                "cluster_peer_count": 0,
+            }
+
     def disconnect(self, conn_id: str) -> None:
         """The server closes a connection; the client sees it end."""
         if self._close(conn_id, notify=True):
@@ -699,6 +713,31 @@ class Cable(BaseCable):
             cluster_addr=cluster.get("addr"),
         )
         logger.info("[cable] in a cluster, on port %s", cluster["port"])
+
+    def health(self) -> dict[str, t.Any]:
+        """How the cable is doing (see `BaseCable.health`). Serving, it adds
+        what wse reports (`health_snapshot()`: `inbound_queue_depth`,
+        `inbound_dropped`, `uptime_secs`, the recovery, presence and cluster
+        counters) under `server`, and the `streams` subscribed here:
+
+        ```python
+        @router.get("/up")
+        def up(self):
+            return self.render_json(self.app.cable.health())
+        ```
+        """
+        if not self.serving:
+            return super().health()
+        with self._lock:
+            connections = len(self._connections)
+            users = len(self._users)
+        return {
+            "serving": True,
+            "connections": connections,
+            "users": users,
+            "streams": len(self.streams),
+            "server": dict(self.server.health_snapshot()),
+        }
 
     def cluster_info(self) -> list[dict]:
         """The other machines this one is connected to, from wse: one dict

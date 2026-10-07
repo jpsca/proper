@@ -855,6 +855,17 @@ class TestCluster:
         assert _wait(lambda: a.cable.presence("presence:room") == {} and b.cable.presence("presence:room") == {})
         assert len(a.cable.cluster_info()) == 1
 
+    def test_health(self, wse_app):
+        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        client.subscribe(1)
+        assert _wait(lambda: wse_app.cable.health()["streams"] == 1)
+        health = wse_app.cable.health()
+        assert (health["serving"], health["connections"], health["users"]) == (True, 1, 1)
+        assert health["server"]["connections"] == 1
+        assert health["server"]["uptime_secs"] >= 0
+        assert health["server"]["cluster_connected"] is False
+        client.close()
+
     def test_a_cluster_that_fails_to_join_leaves_nothing_behind(self):
         """A bad TLS config fails `start_server()`, and both ports are free
         for the next attempt."""
