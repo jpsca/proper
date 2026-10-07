@@ -411,6 +411,65 @@ class TestRouteFormat:
         with pytest.raises(BadRoutePlaceholder):
             r.format(lang="fr")
 
+    @pytest.mark.parametrize(
+        "path, value",
+        [
+            ("/photos/:value<int>", "42abc"),
+            ("/photos/:value<float>", "1.5x"),
+            ("/docs/:value<en|es|pt>", "english"),
+            ("/docs/:value<en|es|pt>", "xen"),
+            ("/photos/:value", "a/b"),
+        ],
+    )
+    def test_format_validates_the_whole_value(self, path, value):
+        r = Route("GET", path)
+        with pytest.raises(BadRoutePlaceholder):
+            r.format(value=value)
+
+    def test_format_percent_encodes_path_values(self):
+        r = Route("GET", "/tags/:tag")
+        assert r.format(tag="a b?c#d%e") == "/tags/a%20b%3Fc%23d%25e"
+        assert r.format(tag="café") == "/tags/caf%C3%A9"
+
+    def test_format_keeps_slashes_in_path_values(self):
+        r = Route("GET", "/docs/:page<path>")
+        assert r.format(page="guide/intro to proper") == "/docs/guide/intro%20to%20proper"
+
+    def test_format_keeps_the_characters_a_path_allows(self):
+        r = Route("GET", "/files/:name")
+        assert r.format(name="a:b@c!$&'()*+,;=d") == "/files/a:b@c!$&'()*+,;=d"
+        assert r.format(name="a b?c#d%e") == "/files/a%20b%3Fc%23d%25e"
+
+    def test_format_keeps_a_placeholder_like_value(self):
+        # A client-side URL template, as the rich-text editor builds for Lexxy.
+        r = Route("GET", "/storage/redirect/:token/:filename")
+        url = r.format(token=":signed_id", filename=":filename")
+        assert url == "/storage/redirect/:signed_id/:filename"
+
+    def test_format_percent_encodes_the_query_string(self):
+        r = Route("GET", "/search")
+        url = r.format(**{"q": "a b&c=d", "sort by": "date/desc", "tag": "café"})
+        assert url == "/search?q=a+b%26c%3Dd&sort+by=date%2Fdesc&tag=caf%C3%A9"
+
+    def test_format_uppercase_colon_text_is_literal(self):
+        r = Route("GET", "/items/:ID/:id")
+        assert r.path_placeholders == {"id": r"[^\/]+"}
+        assert r.format(id="7") == "/items/:ID/7"
+
+    def test_format_colon_not_followed_by_a_name_is_literal(self):
+        r = Route("GET", "/time/10:30/:x:")
+        assert r.format(x="y") == "/time/10:30/y:"
+
+    def test_format_double_colon_as_in_matching(self):
+        r = Route("GET", "/a::b")
+        assert r.match("/a:x") == {"b": "x"}
+        assert r.format(b="x") == "/a:x"
+
+    def test_format_placeholder_with_format_followed_by_letters(self):
+        r = Route("GET", "/:a<int>bc")
+        assert r.match("/1bc") == {"a": 1}
+        assert r.format(a=1) == "/1bc"
+
 
 
 class TestRoutePathReassignment:
@@ -609,3 +668,17 @@ class TestRouteFormatHost:
         r = Route("GET", "/", host=":lang<en|es|pt>.example.com")
         with pytest.raises(BadRoutePlaceholder):
             r.format_host(lang="de")
+
+    def test_placeholder_host_validates_the_whole_value(self):
+        r = Route("GET", "/", host=":lang<en|es|pt>.example.com")
+        with pytest.raises(BadRoutePlaceholder):
+            r.format_host(lang="english")
+
+    def test_host_with_a_port_formats_as_is(self):
+        r = Route("GET", "/", host="localhost:5000")
+        assert r.format_host() == "localhost:5000"
+
+    def test_host_uppercase_colon_text_is_literal(self):
+        r = Route("GET", "/", host="localhost:PORT")
+        assert r.host_placeholders == {}
+        assert r.format_host() == "localhost:PORT"

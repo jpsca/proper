@@ -300,6 +300,8 @@ def show(self): ...
 def show(self): ...
 ```
 
+A placeholder name starts with a lowercase letter or `_`, followed by lowercase letters, digits, or `_`. Any other text after a `:` is literal, both when matching a request and when building a URL: `/items/:ID` matches only the path `/items/:ID`, and `localhost:5000` in a host is a host and a port. In `/a::b` the first `:` is literal and `:b` is a placeholder.
+
 Captured values arrive in the controller as `self.params`. See the [Controllers guide](/docs/controllers) for how to read them.
 
 ### Custom Route Names
@@ -659,6 +661,20 @@ app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 # /posts/42/hello?ref=twitter
 ```
 
+### Values Are Checked and Percent-Encoded
+
+Each placeholder value must match the placeholder's format as a whole, or `url_for` raises `BadRoutePlaceholder`: `"42abc"` is not an `<int>`, and `"english"` is not an `<en|es|pt>`.
+
+`url_for` percent-encodes the values, so a URL built from any text is valid. The characters a path can have as they are stay unencoded: a `/`, which only a placeholder whose format accepts a `/` (such as `<path>`) takes, and ``:@!$&'()*+,;=``. So a value like `":signed_id"`, used as a marker in a URL template for JavaScript, stays as written. Query parameters are encoded like a submitted form (a space becomes `+`):
+
+```python
+app.url_for("Tag.show", tag="rock & roll?")       # /tags/rock%20&%20roll%3F
+app.url_for("Doc.show", page="guide/intro")       # /docs/guide/intro
+app.url_for("Post.index", q="a&b", sort="new")    # /posts?q=a%26b&sort=new
+```
+
+Pass the values as they are, not encoded: an already-encoded `"a%20b"` would become `a%2520b`.
+
 ### `_anchor` and `_full`
 
 `_anchor=` appends a `#fragment` to the URL:
@@ -684,12 +700,16 @@ app.url_is("Photo.index")
 # True if the current path is /photos
 ```
 
+Both compare paths only: the query string and the `#fragment` are ignored, and so are trailing slashes. `/photos?page=2` "is" `Photo.index`, and query arguments given to the helper are ignored as well: `url_is("Photo.index", page=2)` is `True` on `/photos`.
+
 `url_startswith` is the same idea, but matches any path that starts with the route's URL. It's handy for highlighting a parent navigation item when any of its children is active:
 
 ```python
 app.url_startswith("Photo.index")
 # True for /photos, /photos/42, /photos/42/edit, ...
 ```
+
+It compares whole segments: `/photography` doesn't start with `/photo`. Every path starts with a route at `/`, so for a "Home" link use `url_is`.
 
 Both helpers also accept objects and keyword arguments for routes with placeholders:
 

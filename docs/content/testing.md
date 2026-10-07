@@ -323,6 +323,8 @@ result = client.options("/photos")
 
 `params` are appended as a query string. Pass values as strings - a query string is text on the wire, so anything `int` or `bool` should be stringified at the call site.
 
+The path is percent-decoded before routing, as the server does, so a URL from `url_for` works as it is: `client.get(app.url_for("Tag.show", tag="a b"))` requests `/tags/a%20b`, and the controller gets `"a b"`.
+
 `HEAD` returns the same headers as the equivalent `GET` but with an empty body. Don't assert on `result.body` for a `HEAD` request - it's always `""`.
 
 ### POST, PUT, PATCH, DELETE, QUERY

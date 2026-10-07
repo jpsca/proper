@@ -316,16 +316,25 @@ See the [url_for API Documentation](/docs/api/view_helpers#url_for) for more inf
 ### url_is
 
 Tells if the URL for the given route name and parameters is the same as the current URL
-as reported by `current.request.path` (ignoring trailing slashes and anchors).
+as reported by `current.request.path`.
 This is useful for things like active links in navigation bars.
+
+Only the paths are compared, percent-decoded and without trailing slashes: the query
+string and the `#fragment` are ignored, on both sides. Query parameters given to
+`url_is` are ignored too, so `url_is("Photo.index", page=2)` is `True` on any page of
+`/photos`.
 
 If a current URL is not given, it defaults to `current.request.path`.
 This is useful if you want to compare to a different URL than the current
 request's path, for example when you are building a link to a section in the
-same page and want to compare against that URL instead:
+same page and want to compare against that URL instead. `curr_url` is a URL as in
+a link, percent-encoded (`/tags/a%20b`):
 
 ```python
 url_is("Page.show", page_id=123, curr_url="/pages/123#section1")
+# => True
+
+url_is("Page.show", page_id=123, curr_url="/pages/123?tab=photos")
 # => True
 
 url_is("Page.show", page_id=123, curr_url="/pages")
@@ -336,17 +345,23 @@ See the [url_is API Documentation](/docs/api/view_helpers#url_is) for more infor
 
 ### url_startswith
 
-Tells if the URL for the given route name and parameters starts with the current URL
-as reported by `current.request.path` (ignoring trailing slashes and anchors).
+Tells if the current URL, as reported by `current.request.path`, starts with the URL
+for the given route name and parameters, segment by segment (`/photography` does not
+start with `/photo`). Paths are compared as in `url_is`.
 This is useful for things like active links to sections in navigation bars.
 
 ```python
 url_startswith("Page.show", page_id=123, curr_url="/pages/123#section1")
 # => True
 
-url_startswith("Page.show", page_id=123, curr_url="/pages/")
+url_startswith("Page.show", page_id=123, curr_url="/pages/123/edit")
 # => True
+
+url_startswith("Page.show", page_id=123, curr_url="/pages/")
+# => False
 ```
+
+Every path starts with the URL of a route at `/`, so for a "Home" link use `url_is`.
 
 See the [url_startswith API Documentation](/docs/api/view_helpers#url_startswith) for more information.
 

@@ -55,6 +55,8 @@ Pass query string parameters with `params`:
 result = client.get("/photos", params={"page": "2", "sort": "date"})
 ```
 
+The path is percent-decoded before routing, as the server does: `client.get(app.url_for("Tag.show", tag="a b"))` requests `/tags/a%20b` and the controller gets `"a b"`.
+
 ### POST, PUT, PATCH, DELETE
 
 These methods accept a `body` parameter. When `body` is a dict, it is encoded as `application/x-www-form-urlencoded`:

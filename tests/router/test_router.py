@@ -1,7 +1,15 @@
+from urllib.parse import unquote, urlsplit
+
 import pytest
 
 from proper.channels import Channel
-from proper.errors import MatchNotFound, MethodNotAllowed, RouteNotFound
+from proper.core.request import Request
+from proper.errors import (
+    BadRoutePlaceholder,
+    MatchNotFound,
+    MethodNotAllowed,
+    RouteNotFound,
+)
 from proper.global_context import current
 from proper.router.route import Route, StaticRoute, _namespace_prefix
 from proper.router.router import (
@@ -339,6 +347,42 @@ class TestUrlFor:
         url = router.url_for("photos", page="2")
         assert url == "/photos?page=2"
 
+    def test_url_for_percent_encodes(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/tags/:tag", name="tag", to=Handlers.show))
+
+        class Tag:
+            tag = "rock & roll?"
+
+        url = router.url_for("tag", Tag(), next="/a b", _anchor="top")
+        assert url == "/tags/rock%20&%20roll%3F?next=%2Fa+b#top"
+
+    @pytest.mark.parametrize(
+        "path, value",
+        [
+            ("/tags/:value", "café & crème?#"),
+            ("/tags/:value", "a:b@c!$&'()*+,;=d%20"),
+            ("/docs/:value<path>", "guide/intro to proper"),
+            ("/n/:value<int>", 42),
+        ],
+    )
+    def test_url_for_round_trip(self, path, value):
+        # Servers percent-decode the path before the router sees it.
+        router = BaseRouter()
+        router.add_route(Route("GET", path, name="r", to=Handlers.show))
+        url = router.url_for("r", value=value)
+        parts = urlsplit(url)
+        assert (parts.query, parts.fragment) == ("", "")
+        assert " " not in url
+        _, params = router.match("GET", unquote(parts.path))
+        assert params == {"value": value}
+
+    def test_url_for_rejects_a_partial_match(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/photos/:id<int>", name="photo", to=Handlers.show))
+        with pytest.raises(BadRoutePlaceholder):
+            router.url_for("photo", id="42abc")
+
     def test_url_for_missing_route_raises(self):
         router = BaseRouter()
         with pytest.raises(RouteNotFound):
@@ -464,6 +508,47 @@ class TestUrlIs:
         router.add_route(r)
         assert router.url_is("photos", curr_url="/videos") is False
 
+    @pytest.mark.parametrize(
+        "curr_url",
+        ["/pages/123#section1", "/pages/123?page=2", "/pages/123/?page=2#top"],
+    )
+    def test_url_is_ignores_query_and_fragment(self, curr_url):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/pages/:id", name="page", to=Handlers.show))
+        assert router.url_is("page", id=123, curr_url=curr_url) is True
+        assert router.url_is("page", id=12, curr_url=curr_url) is False
+
+    def test_url_is_compares_paths_without_query_kwargs(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/photos", name="photos", to=Handlers.action))
+        assert router.url_is("photos", page=2, curr_url="/photos") is True
+
+    @pytest.mark.parametrize("curr_url", ["/tags/caf%C3%A9", "/tags/café"])
+    def test_url_is_with_encoded_values(self, curr_url):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/tags/:tag", name="tag", to=Handlers.show))
+        assert router.url_is("tag", tag="café", curr_url=curr_url) is True
+
+    def test_url_is_with_a_double_slash_path(self):
+        # A `curr_url` that starts with `//` is a path, not a host and a path.
+        router = BaseRouter()
+        router.add_route(Route("GET", "/x", name="x", to=Handlers.action))
+        assert router.url_is("x", curr_url="//t/x") is False
+        assert router.url_is("x", curr_url="/x//") is True
+
+    def test_url_is_with_a_full_url(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/t/:tag", name="tag", to=Handlers.show))
+        assert router.url_is("tag", tag="a b", curr_url="https://example.com/t/a%20b?x=1") is True
+        assert router.url_is("tag", tag="a b", curr_url="https://example.com/t/x") is False
+
+    def test_url_is_root(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/", name="home", to=Handlers.index))
+        assert router.url_is("home", curr_url="/") is True
+        assert router.url_is("home", curr_url="/?page=2") is True
+        assert router.url_is("home", curr_url="/photos") is False
+
 
 
 class TestUrlStartsWith:
@@ -496,6 +581,28 @@ class TestUrlStartsWith:
         r = Route("GET", "/photos", name="photos", to=Handlers.action)
         router.add_route(r)
         assert router.url_startswith("photos", curr_url="/videos") is False
+
+    @pytest.mark.parametrize(
+        "curr_url",
+        ["/pages/123#section1", "/pages/123?page=2", "/pages/123/edit?page=2#top"],
+    )
+    def test_ignores_query_and_fragment(self, curr_url):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/pages/:id", name="page", to=Handlers.show))
+        assert router.url_startswith("page", id=123, curr_url=curr_url) is True
+        assert router.url_startswith("page", id=12, curr_url=curr_url) is False
+
+    @pytest.mark.parametrize("curr_url", ["/", "/?page=2", "/photos", "/photos/42"])
+    def test_root_route(self, curr_url):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/", name="home", to=Handlers.index))
+        assert router.url_startswith("home", curr_url=curr_url) is True
+
+    def test_with_encoded_values(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/tags/:tag", name="tag", to=Handlers.show))
+        assert router.url_startswith("tag", tag="a b", curr_url="/tags/a b/page/2") is True
+        assert router.url_startswith("tag", tag="a b", curr_url="/tags/a%20b/page/2") is True
 
 
 
@@ -1002,6 +1109,38 @@ class TestEdgeCases:
             assert router.url_is("photos") is True
         finally:
             current.request = None
+
+    def test_url_is_with_a_decoded_request_path(self):
+        # The server gives the path percent-decoded: this `?` was a `%3F`.
+        router = BaseRouter()
+        router.add_route(Route("GET", "/q/:text", name="q", to=Handlers.show))
+
+        current.request = Request(path="/q/what?")
+        try:
+            assert router.url_is("q", text="what?") is True
+            assert router.url_is("q", text="what") is False
+        finally:
+            current.request = None
+
+    def test_url_is_does_not_decode_the_request_path_again(self):
+        # `url_for` gives `/q/a%2520b`; the server decodes it to `/q/a%20b`.
+        router = BaseRouter()
+        router.add_route(Route("GET", "/q/:text", name="q", to=Handlers.show))
+
+        current.request = Request(path="/q/a%20b")
+        try:
+            assert router.url_is("q", text="a%20b") is True
+            assert router.url_is("q", text="a b") is False
+            assert router.url_startswith("q", text="a%20b") is True
+            assert router.url_startswith("q", text="a b") is False
+        finally:
+            current.request = None
+
+    def test_url_is_without_request_or_curr_url(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/photos", name="photos", to=Handlers.action))
+        current.request = None
+        assert router.url_is("photos") is False
 
     def test_url_startswith_uses_current_request_path(self):
         router = BaseRouter()

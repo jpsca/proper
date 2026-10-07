@@ -22,6 +22,51 @@ uv add "proper-wse>=2.7.0"
 CABLE = {"type": "proper.channels.Cable"}
 ```
 
+### ⚠️ Upgrading: `url_for` percent-encodes and checks whole values
+
+`url_for` now percent-encodes the placeholder values and the query string,
+and a value must match its placeholder's format as a whole. In a path value,
+every character is encoded except letters, digits, `-._~`, `/` and
+`:@!$&'()*+,;=` (the ones a path allows as they are), so `url_for`
+gives different URLs for values with a space, `?`, `#`, `%`, `"`, `<`, `>`,
+`[`, `]`, `{`, `}`, `|`, `\`, `^`, a backtick or a non-ASCII character. This
+also applies to URL templates for JavaScript built with `url_for`: a marker
+such as `":signed_id"` stays as written, but one such as `"{id}"` becomes
+`%7Bid%7D`; use a marker made of the characters above. Two things to change:
+
+- Pass raw values. A value you encoded yourself is encoded again:
+  `url_for("Tag.show", tag=quote(name))` gives `/tags/a%2520b` for `"a b"`;
+  write `url_for("Tag.show", tag=name)`.
+- A value that only started with a valid one, such as `"42abc"` for an
+  `<int>` placeholder or `"english"` for `<en|es|pt>`, now raises
+  `BadRoutePlaceholder` instead of building a URL that doesn't match the
+  route. Pass the right value.
+
+### ⚠️ Upgrading: `url_is` and `url_startswith` compare paths only
+
+`url_is` and `url_startswith` now compare only the paths, percent-decoded,
+and ignore the query string and the `#fragment`. Two things to check in the
+templates:
+
+- `url_startswith` is now `True` on every page for a route at `/` (it was
+  always `False`). A "Home" link that used it now looks active everywhere;
+  use `url_is("Home.index")` for it.
+- Query arguments are ignored: `url_is("Photo.index", page=2)` is now `True`
+  on `/photos` and on `/photos?page=3`. To mark the current page of a
+  pagination, compare the page number with `request.query` instead.
+
+`curr_url` is read as a URL, as in a link, so it is percent-decoded; pass
+`quote(path)` to compare with a path you have decoded yourself.
+
+### ⚠️ Upgrading: `TestClient` percent-decodes the path
+
+`TestClient` and `make_test_request` now percent-decode the request path
+before routing, as the WSGI server does. A test that requests an encoded path
+gets the decoded param: `client.get("/tags/a%20b")` gives `"a b"` (it was
+`"a%20b"`), and `client.get("/files/a%2Fb")` gives a 404 for a `/files/:name`
+route, as on a server, since the path is `/files/a/b`. Update the asserts to
+the decoded value, and use a `<path>` placeholder for a value with a `/`.
+
 ### Removed
 
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
@@ -109,6 +154,27 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### Fixed
 
+- `url_for` didn't percent-encode: a value with a space, `?`, `#`, `&` or
+  `%` gave a broken URL, or a query string with other parameters. Path values
+  and query keys and values are now encoded. A query value that is not a
+  string is encoded from its `str()`: `c=[1, 2]` gives `c=%5B1%2C+2%5D`
+  (it was `c=[1, 2]`), which the app reads back as the same `"[1, 2]"`.
+- `url_for` accepted a value that only started with a valid one (`"42abc"`
+  for `<int>`); now the whole value must match.
+- `url_for` (and the host for `_full=True`) read the route with
+  `string.Template` rules, not the placeholder rules used for matching: `:ID`
+  in a path raised `KeyError`, `10:30` or a host with a port
+  (`localhost:5000`) raised `ValueError`, `/:a<int>bc` raised `KeyError`,
+  and `/a::b` lost a `:`. The text that is not a placeholder is now copied
+  as written. `Route` no longer uses `RouteTemplate`, which is kept for
+  compatibility.
+- `url_is` and `url_startswith` didn't ignore the query string and the
+  `#fragment` of `curr_url`, contrary to their docstrings, and
+  `url_startswith` was always `False` for a route at `/`. They now compare
+  the paths only, percent-decoded, and every path starts with `/`.
+- `TestClient` and `make_test_request` didn't percent-decode the path, as
+  the server does: a test that requested `/tags/a%20b` got the param
+  `a%20b`, where the app running on a server gets `a b`.
 - A `subscribed()` that raised an exception after `stream_from()` left the
   connection receiving the broadcasts of that stream, without a subscription,
   and the client waiting for an answer. The streams are now stopped and the

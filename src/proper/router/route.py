@@ -9,6 +9,7 @@ import typing as t
 from hashlib import sha256
 from pathlib import Path
 from string import Template
+from urllib.parse import quote, urlencode
 
 import inflection
 
@@ -32,6 +33,12 @@ __all__ = (
     "StaticRoute",
 )
 
+"""Characters `url_for` doesn't percent-encode in a placeholder value, besides
+the unreserved ones: `/` and the rest of the characters that RFC 3986 allows
+in a path segment (`pchar`), without `%`.
+"""
+PATH_SAFE = "/:@!$&'()*+,;="
+
 """Formats to be replaced with regular expressions.
 Note that these DON'T do any type conversion, just
 validates the section of the route match the regular expression.
@@ -48,18 +55,21 @@ RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
 
 def _compile_pattern(
     pattern: str, *, anchor_suffix: str = ""
-) -> tuple[re.Pattern, str, dict, dict]:
+) -> tuple[re.Pattern, str, dict, dict, list]:
     """Compile a placeholder-aware pattern (path or host).
 
-    Returns a 4-tuple of:
+    Returns a 5-tuple of:
 
     - the compiled regex (with named groups for each placeholder),
-    - a "plain" template string with `:name` markers preserved (for `RouteTemplate`),
+    - a "plain" string with `:name` markers preserved, for reading,
     - a dict of placeholder name → regex source,
-    - a dict of placeholder name → type caster (only for `int`/`float`).
+    - a dict of placeholder name → type caster (only for `int`/`float`),
+    - the pieces to build a URL from: a list of `(literal, name)` pairs,
+      where `name` is `None` for the text after the last placeholder.
     """
     parts: list[str] = []
     parts_re: list[str] = []
+    pieces: list[tuple[str, str | None]] = []
     placeholders: dict = {}
     casters: dict = {}
     index = 0
@@ -73,6 +83,7 @@ def _compile_pattern(
         parts.append(part)
         parts_re.append(re.escape(part))
         index = end
+        pieces.append((part, match.group(1)))
 
         name, fmt = match.groups()
         if name in placeholders:
@@ -92,6 +103,7 @@ def _compile_pattern(
     if tail:
         parts.append(tail)
         parts_re.append(re.escape(tail))
+        pieces.append((tail, None))
 
     str_re = r"".join(parts_re) + anchor_suffix
     try:
@@ -99,10 +111,25 @@ def _compile_pattern(
     except Exception as e:
         raise BadRouteFormat(e) from e
 
-    return compiled, "".join(parts), placeholders, casters
+    return compiled, "".join(parts), placeholders, casters, pieces
+
+
+def _build(pieces: "list[tuple[str, str | None]]", values: dict) -> str:
+    """Join the pieces from `_compile_pattern`, with each placeholder
+    replaced by its value. The literal text is copied as written, so it
+    follows the same placeholder grammar as matching."""
+    return "".join(
+        literal if name is None else literal + values[name]
+        for literal, name in pieces
+    )
 
 
 class RouteTemplate(Template):
+    """A `string.Template` with `:name` placeholders.
+
+    `Route` no longer uses it to build URLs (it doesn't follow the placeholder
+    rules); it is kept for compatibility.
+    """
     delimiter = ":"
 
 
@@ -327,13 +354,26 @@ class Route:
         return params
 
     def format(self, **kw) -> str:
+        """Build the URL path of this route, with the placeholders filled
+        with the values in `kw`.
+
+        Each value must match its placeholder's format as a whole. The values
+        are percent-encoded, except for the characters a path can have as
+        they are (`PATH_SAFE`): a `/`, which only a placeholder whose format
+        matches a `/` (such as `path`) accepts, and `:@!$&'()*+,;=`, so a
+        value like `":signed_id"` stays as written. The arguments that are not
+        placeholders become the query string, percent-encoded as a form
+        (`urlencode`).
+        """
         path_params = self._get_path_params(kw)
-        url = self._path_template.substitute(path_params) or "/"
+        url = _build(
+            self._path_pieces,
+            {name: quote(value, safe=PATH_SAFE) for name, value in path_params.items()},
+        ) or "/"
 
         query_params = self._get_query_params(path_params, kw)
         if query_params:
-            params = "&".join([f"{key}={value}" for key, value in query_params.items()])
-            url = url + "?" + params
+            url = url + "?" + urlencode(query_params)
 
         return url
 
@@ -342,24 +382,24 @@ class Route:
 
         Returns `None` if the route has no host constraint.
         """
-        if self._host_template is None:
+        if self._host_pieces is None:
             return None
         host_params = self._get_host_params(kw)
-        return self._host_template.substitute(host_params)
+        return _build(self._host_pieces, host_params)
 
     # Private
 
     def _compile_path(self) -> None:
-        path_re, path_plain, placeholders, casters = _compile_pattern(
+        path_re, path_plain, placeholders, casters, pieces = _compile_pattern(
             self.path, anchor_suffix=r"/?$"
         )
         self.path_re = path_re
         self.path_plain = path_plain
         self.path_placeholders = placeholders
         self.path_casters = casters
-        # What `format` needs, ready: the template and one compiled regex
-        # per placeholder to validate its value.
-        self._path_template = RouteTemplate(path_plain)
+        # What `format` needs, ready: the pieces of the path and one compiled
+        # regex per placeholder to validate its value.
+        self._path_pieces = pieces
         self._path_placeholder_re = {
             name: re.compile(rx) for name, rx in placeholders.items()
         }
@@ -370,17 +410,17 @@ class Route:
             self.host_plain = None
             self.host_placeholders = {}
             self.host_casters = {}
-            self._host_template = None
+            self._host_pieces = None
             self._host_placeholder_re = {}
             return
-        host_re, host_plain, placeholders, casters = _compile_pattern(
+        host_re, host_plain, placeholders, casters, pieces = _compile_pattern(
             self._host, anchor_suffix=r"$"
         )
         self.host_re = host_re
         self.host_plain = host_plain
         self.host_placeholders = placeholders
         self.host_casters = casters
-        self._host_template = RouteTemplate(host_plain)
+        self._host_pieces = pieces
         self._host_placeholder_re = {
             name: re.compile(rx) for name, rx in placeholders.items()
         }
@@ -405,7 +445,7 @@ class Route:
             if value is None:
                 raise MissingRouteParameter(name, source)
             value = str(value)
-            if not rx.match(value):
+            if not rx.fullmatch(value):
                 raise BadRoutePlaceholder(name, source, rx.pattern)
             params[name] = value
         return params
