@@ -164,8 +164,9 @@ export class Cable {
     // Where this connection is in each stream, from the stamps of the
     // broadcasts (`e`, the epoch of the stream's buffer in the server, and
     // `o`, the offset of the message in it). Sent with each subscribe, so
-    // the server can send what was missed.
-    this._positions = new Map()  // stream -> {e, o}
+    // the server can send what was missed. Several epochs per stream: on
+    // several machines, each stamps what it publishes with its own.
+    this._positions = new Map()  // stream -> Map<e, o>
     // The broadcasts that arrived after a gap, held until the missed ones
     // fill it, so they are delivered in order.
     this._held = new Map()  // stream -> {frames: Map<o, msg>, timer}
@@ -326,14 +327,14 @@ export class Cable {
     if (msg.type === "confirm_subscription") {
       sub.streams = new Set(msg.streams || [])
       for (const [stream, pos] of Object.entries(msg.positions || {})) {
-        // Where the stream is now: taken when this connection has no
-        // position yet, or its own was useless (the server restarted, or
-        // the stream's history is gone); the missed broadcasts, if they
-        // could be sent, bring their own stamps.
+        // Where the stream is now, on this server: taken when this
+        // connection has no position yet, or its own were useless (the
+        // server restarted, or the stream's history is gone); the missed
+        // broadcasts, if they could be sent, bring their own stamps.
         // The missed ones can't be sent again: what waited for them goes out
         if (msg.recovered === false) this._release(stream)
         if (pos && (!this._positions.has(stream) || msg.recovered === false)) {
-          this._positions.set(stream, pos)
+          this._positions.set(stream, new Map([[pos.e, pos.o]]))
         }
       }
       const reconnected = sub.confirmed === true
@@ -373,8 +374,11 @@ export class Cable {
     const positions = {}
     let any = false
     for (const stream of sub.streams || []) {
-      const pos = this._positions.get(stream)
-      if (pos) { positions[stream] = pos; any = true }
+      const epochs = this._positions.get(stream)
+      if (epochs && epochs.size) {
+        positions[stream] = [...epochs].map(([e, o]) => ({ e, o }))
+        any = true
+      }
     }
     if (any) msg.positions = positions
     this._send(msg)
@@ -406,22 +410,24 @@ export class Cable {
   // get the missed ones; those fill the gap and the held ones follow.
   _advance(msg) {
     const { stream, e, o } = msg
-    const pos = this._positions.get(stream)
-    if (pos && pos.e === e) {
-      if (o <= pos.o) return
-      if (o > pos.o + 1) {
+    let epochs = this._positions.get(stream)
+    if (!epochs) this._positions.set(stream, (epochs = new Map()))
+    const last = epochs.get(e)
+    if (last !== undefined) {
+      if (o <= last) return
+      if (o > last + 1) {
         this._hold(msg)
         return
       }
     }
-    this._positions.set(stream, { e, o })
+    epochs.set(e, o)
     this._deliver(msg)
     const held = this._held.get(stream)
     if (held) {
       let next
-      while ((next = held.frames.get(this._positions.get(stream).o + 1))) {
-        held.frames.delete(next.o)
-        this._positions.set(stream, { e: next.e, o: next.o })
+      while ((next = held.frames.get(`${e}:${epochs.get(e) + 1}`))) {
+        held.frames.delete(`${next.e}:${next.o}`)
+        epochs.set(e, next.o)
         this._deliver(next)
       }
       if (held.frames.size === 0) this._release(stream)
@@ -437,7 +443,7 @@ export class Cable {
         if (sub.streams && sub.streams.has(msg.stream)) this._sendSubscribe(sub)
       }
     }
-    held.frames.set(msg.o, msg)
+    held.frames.set(`${msg.e}:${msg.o}`, msg)
   }
 
   // Deliver what waited for a gap, in order, filled or not.
@@ -446,11 +452,13 @@ export class Cable {
     if (!held) return
     clearTimeout(held.timer)
     this._held.delete(stream)
-    const frames = [...held.frames.values()].sort((a, b) => a.o - b.o)
+    const frames = [...held.frames.values()].sort((a, b) => a.e < b.e ? -1 : a.e > b.e ? 1 : a.o - b.o)
+    let epochs = this._positions.get(stream)
+    if (!epochs) this._positions.set(stream, (epochs = new Map()))
     for (const msg of frames) {
-      const pos = this._positions.get(stream)
-      if (pos && pos.e === msg.e && msg.o <= pos.o) continue
-      this._positions.set(stream, { e: msg.e, o: msg.o })
+      const last = epochs.get(msg.e)
+      if (last !== undefined && msg.o <= last) continue
+      epochs.set(msg.e, msg.o)
       this._deliver(msg)
     }
   }

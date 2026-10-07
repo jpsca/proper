@@ -49,9 +49,39 @@ def validate_config(config):
     for option, setting in SETTING_OF.items():
         if option in config:
             raise ConfigError(f"{NAME}['{option}'] is set by {setting}; set that instead")
+    if config.get("cluster") is not None:
+        validate_cluster(config["cluster"])
 
 
-def _positive_int(config, name, *, zero_ok=False, maximum=None):
+def validate_cluster(cluster):
+    """`CABLE['cluster']`: a `port`, then `peers` or `seeds` and `addr`,
+    and `tls` with its three files or nothing."""
+    where = f"{NAME}['cluster']"
+    if not isinstance(cluster, dict):
+        raise ConfigError(f"{where} must be a dictionary")
+    unknown = set(cluster) - {"port", "peers", "seeds", "addr", "tls"}
+    if unknown:
+        raise ConfigError(f"{where} has unknown keys: {', '.join(sorted(unknown))}")
+    _positive_int(cluster, "port", maximum=65535, where=where)
+    for name in ("peers", "seeds"):
+        value = cluster.get(name, [])
+        if not isinstance(value, (list, tuple)) or not all(
+            isinstance(v, str) and ":" in v for v in value
+        ):
+            raise ConfigError(f"{where}['{name}'] must be a list of 'host:port' strings")
+    if not cluster.get("peers") and not cluster.get("seeds"):
+        raise ConfigError(f"{where} needs 'peers' (the other machines) or 'seeds' (for gossip)")
+    if cluster.get("seeds") and not isinstance(cluster.get("addr"), str):
+        raise ConfigError(f"{where}['addr'], this machine's 'host:port', is needed with 'seeds'")
+    tls = cluster.get("tls")
+    if tls is not None and (
+        not isinstance(tls, dict) or set(tls) != {"cert", "key", "ca"}
+        or not all(isinstance(v, str) and v for v in tls.values())
+    ):
+        raise ConfigError(f"{where}['tls'] must have 'cert', 'key' and 'ca', the paths of the PEM files")
+
+
+def _positive_int(config, name, *, zero_ok=False, maximum=None, where=""):
     value = config.get(name)
     if (
         not isinstance(value, int) or isinstance(value, bool)
@@ -59,7 +89,8 @@ def _positive_int(config, name, *, zero_ok=False, maximum=None):
     ):
         at_least = "0" if zero_ok else "1"
         up_to = f" and at most {maximum}" if maximum is not None else ""
-        raise ConfigError(f"{name} must be an integer of at least {at_least}{up_to}, not {value!r}")
+        shown = f"{where}['{name}']" if where else name
+        raise ConfigError(f"{shown} must be an integer of at least {at_least}{up_to}, not {value!r}")
     return value
 
 

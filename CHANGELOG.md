@@ -24,9 +24,9 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### Removed
 
-- `RedisCable`, the cable for several machines. The cable serves one machine;
-  running the WebSockets on several will come back on wse's own cluster,
-  which also syncs recovery and presence, something Redis pub/sub couldn't.
+- `RedisCable`. Several machines are now the `cluster` option of `Cable`,
+  on wse's own mesh (see Added), which also carries presence and recovery
+  between machines, something Redis pub/sub couldn't.
 - The in-process cable and its WebSocket process: `proper.core.app_ws`, and
   the second, RSGI, process that `proper run` started on `CABLE_PORT`.
   `CABLE = {}` (the default) is now a `Cable` that serves no WebSockets: a
@@ -47,6 +47,14 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### Added
 
+- Several machines: `CABLE["cluster"]` (`port`, `peers` or `seeds` and
+  `addr`, `tls`) joins the cables in wse's TCP mesh. A `broadcast()` reaches
+  every machine's subscribers, `disconnect()` closes a user's connections
+  everywhere, presence is one list, and recovery knows the other machines'
+  broadcasts: `cable.js` keeps a position per stream and epoch and sends
+  them all (`positions` is a list per stream now; the old form is still
+  accepted). `app.cable.cluster_info()` lists the peers. Needs proper-wse
+  >= 2.7.0 (`subscribe_node`).
 - Presence: `Channel.track(stream, data, key=...)` lists the connection
   among those present in a stream, under the user's id (three tabs count
   once), a random key for anonymous connections, or a key the server

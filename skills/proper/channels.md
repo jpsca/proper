@@ -33,6 +33,7 @@ Outbound, wse writes the frames: `send()` and subscription confirmations go to o
 - [Wire Protocol](#wire-protocol)
 - [Configuration](#configuration)
 - [Testing](#testing)
+- [Several Machines (cluster)](#several-machines-cluster)
 - [Full Example](#full-example)
 
 
@@ -449,7 +450,7 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 **Subscribe.** `positions` is optional: the last stamp seen per stream; the server sends again the broadcasts after it, for the streams the channel streams from (they may arrive before the confirmation). Sending it for an existing subscription also recovers:
 
 ```json
-{"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}, "positions": {"chat_general": {"e": "0000abcd", "o": 41}}}
+{"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}, "positions": {"chat_general": [{"e": "0000abcd", "o": 41}]}}
 ```
 
 **Send a message (invoke an action).** `id` is optional; with one, the server answers with a `reply`:
@@ -556,7 +557,7 @@ async def test_speak(client):
 | Method | Description |
 |--------|-------------|
 | `await ws.connect()` | Opens the connection; returns a task that ends when it closes. The handshake has the client's default headers (`cookie`, `authorization`, `x-forwarded-for`) and the path of `client.websocket(path)` (`CABLE_PATH` by default; a query string is allowed) |
-| `await ws.subscribe(channel, positions=None, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()`, or a recovered broadcast, comes before the confirmation). `positions={stream: {"e", "o"}}` asks for the broadcasts since |
+| `await ws.subscribe(channel, positions=None, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()`, or a recovered broadcast, comes before the confirmation). `positions={stream: [{"e", "o"}, ...]}` asks for the broadcasts since |
 | `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply |
 | `await ws.perform(channel, action, data, **params)` | Calls an action with an `id` and returns its `reply` frame (`status` `"ok"` or `"error"`, `data`), skipping what the action sent before it |
 | `await ws.unsubscribe(channel, **params)` | Sends `unsubscribe` |
@@ -574,7 +575,7 @@ The default backend, the one the channels addon writes. `CABLE = {"type": "prope
 
 - `proper run` starts it (`app.cable.start_server()`) in its web process and stops it with the server. The web server (Granian, WSGI) has no WebSockets. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
 - Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works.
-- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most), `recovery` (True: keep the last broadcasts of each stream for reconnecting clients), `presence` (True: who is in each stream, for `track()`); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`, `recovery_buffer_size`, `recovery_ttl`, `recovery_memory_budget`, `presence_max_data_size`, `presence_max_members`).
+- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `workers` (4 threads for channel code), `max_connections` (100000), `max_outbound_queue_bytes` (64 MB: broadcasts are dropped for a connection that falls this far behind; frames are shared, so a backlog costs memory once), `backpressure_bytes` (128 KB: `broadcast()` waits while its stream's subscribers average more than this queued, so publishers slow to the pace of delivery; `0` never waits) and `backpressure_timeout` (1.0 s at most), `recovery` (True: keep the last broadcasts of each stream for reconnecting clients), `presence` (True: who is in each stream, for `track()`), `cluster` (see [Several Machines](#several-machines-cluster)); anything else goes to `RustWSEServer` (e.g. `max_pending_handshakes`, `recovery_buffer_size`, `recovery_ttl`, `recovery_memory_budget`, `presence_max_data_size`, `presence_max_members`).
 - Clients that stop reading are closed per `CABLE_MAX_PENDING_BYTES` and `CABLE_STALL_TIMEOUT`; `cable.js` reconnects. The original `wse-server`, or a proper-wse older than 2.6.0, is refused at startup; the channels addon requires >= 2.6.2.
 
 
@@ -582,6 +583,10 @@ The default backend, the one the channels addon writes. `CABLE = {"type": "prope
 
 The default for an app without the addon: a base `Cable` that serves no WebSockets. A `broadcast()` reaches no one (logged at debug level), and `client.websocket()` raises `RuntimeError` on `connect()`. Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` at app setup.
 
+
+## Several Machines (cluster)
+
+`CABLE["cluster"]` joins the web process's cable to wse's TCP mesh with the other machines': `{"port": 9999, "peers": ["10.0.0.2:9999", ...]}`, or `{"port", "seeds": [...], "addr": "<this host:port>"}` for gossip discovery; `"tls": {"cert", "key", "ca"}` (PEM paths) for mTLS, otherwise plain TCP (private network only). Validated at startup. Then `broadcast()` from any process of any machine reaches every subscriber (workers still forward to their machine's web process), `disconnect(user_id=)` closes the user's connections everywhere (the cables listen to an internal topic, `proper:cable:control`, with wse's `subscribe_node`), presence is one list across machines, and recovery spans them: each machine stamps its broadcasts with its own epoch, `cable.js` keeps a position per `(stream, epoch)` and sends them all (`positions: {stream: [{e, o}, ...]}`), and a machine keeps what the others published to the streams its clients had; a client landing on a machine that had no one on the stream gets `recovered: false` (use sticky sessions). Backpressure is per machine. `app.cable.cluster_info()` lists the connected peers. The in-memory test server has no cluster.
 
 ## Full Example
 

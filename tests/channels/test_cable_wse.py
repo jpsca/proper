@@ -788,3 +788,93 @@ class TestOrigins:
         WsClient(port, origin="https://evil.example", expect=403).close()
         WsClient(port, origin="https://app.example").close()
         WsClient(port).close()  # not a browser
+
+
+class TestCluster:
+    """Two cables, one per "machine", in wse's cluster over the loopback."""
+
+    @pytest.fixture()
+    def pair(self, make_app):
+        cluster_a, cluster_b = _free_ports() + 1, _free_ports() + 1  # unlikely to collide
+        while cluster_b in (cluster_a, cluster_a + 1):
+            cluster_b = _free_ports() + 1
+        a = make_app(cable={"cluster": {"port": cluster_a, "peers": [f"127.0.0.1:{cluster_b}"]}})
+        b = make_app(cable={"cluster": {"port": cluster_b, "peers": [f"127.0.0.1:{cluster_a}"]}})
+        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info(), timeout=5), "the cables never met"
+        return a, b
+
+    def test_a_broadcast_reaches_the_other_machine(self, pair):
+        a, b = pair
+        client = WsClient(b.config.CABLE_PORT, _cookie(b))
+        client.subscribe(1)
+        assert _wait(lambda: b.cable.streams == {"room:1": 1})
+        time.sleep(0.3)  # b's interest reaches a
+        a.cable.broadcast("room:1", {"from": "a"})
+        frame = client.recv_type("broadcast")
+        assert frame["data"] == {"from": "a"}
+        assert frame["tp"] == "room:1"  # stamped by a, with a's epoch
+        epoch_a = frame["e"]
+        b.cable.broadcast("room:1", {"from": "b"})
+        frame = client.recv_type("broadcast")
+        assert frame["data"] == {"from": "b"} and frame["e"] != epoch_a
+
+        # Back with both positions: what each machine published since
+        a.cable.broadcast("room:1", {"from": "a", "n": 2})
+        b.cable.broadcast("room:1", {"from": "b", "n": 2})
+        client.recv_type("broadcast")
+        client.recv_type("broadcast")
+        client.close()
+        again = WsClient(b.config.CABLE_PORT, _cookie(b))
+        again.send({
+            "command": "subscribe", "channel": "RoomChannel", "params": {"room": 1},
+            "positions": {"room:1": [{"e": epoch_a, "o": 0}, {"e": frame["e"], "o": 0}]},
+        })
+        got = []
+        while len(got) < 3:
+            msg = again.recv()
+            if msg.get("type") in ("broadcast", "confirm_subscription"):
+                got.append(msg)
+        confirm = [m for m in got if m["type"] == "confirm_subscription"][0]
+        assert confirm["recovered"] is True
+        assert sorted(m["data"]["from"] for m in got if m["type"] == "broadcast") == ["a", "b"]
+        again.close()
+
+    def test_presence_and_disconnect_across_machines(self, pair):
+        a, b = pair
+        on_a = WsClient(a.config.CABLE_PORT, _cookie(a))
+        on_a.send({"command": "subscribe", "channel": "PresenceChannel", "params": {"track": "Ana"}})
+        on_a.recv_type("confirm_subscription")
+        assert _wait(lambda: b.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}})
+
+        on_b = WsClient(b.config.CABLE_PORT, _cookie(b))
+        on_b.subscribe(2)
+        assert _wait(lambda: b.cable.streams == {"room:2": 1})
+        a.cable.disconnect(user_id=7)  # from the other machine
+        assert on_a.recv_type("never") is None
+        assert on_b.recv_type("never") is None
+        assert _wait(lambda: a.cable.presence("presence:room") == {} and b.cable.presence("presence:room") == {})
+        assert len(a.cable.cluster_info()) == 1
+
+    def test_a_cluster_that_fails_to_join_leaves_nothing_behind(self):
+        """A bad TLS config fails `start_server()`, and both ports are free
+        for the next attempt."""
+        port = _free_ports()
+        app = _new_app(port, cable={"cluster": {
+            "port": _free_ports(), "peers": ["127.0.0.1:1"],
+            "tls": {"cert": "/nonexistent.pem", "key": "/nonexistent.key", "ca": "/nonexistent-ca.pem"},
+        }})
+        with pytest.raises(RuntimeError, match="TLS"):
+            app.cable.start_server()
+        assert not app.cable.serving
+        again = _new_app(port)
+        again.cable.start_server()
+        again.cable.stop_server()
+
+    def test_the_rest_ignores_the_control_topic(self, wse_app, caplog):
+        cable = wse_app.cable
+        assert cable.cluster_info() == []  # no cluster
+        cable._control({"topic": "other", "data": "x"})
+        with caplog.at_level(logging.WARNING):
+            cable._control({"topic": "proper:cable:control", "data": "not json"})
+        assert "isn't JSON" in caplog.text
+        cable._control({"topic": "proper:cable:control", "data": "[1]"})  # not a dict: ignored

@@ -23,6 +23,13 @@ CABLE = {"type": "proper.channels.Cable"}   # serves on CABLE_PORT
 Without the channels addon, `CABLE = {}` is a `BaseCable` (`base.py`): no
 WebSockets, and a broadcast reaches no one.
 
+On several machines, the web process of each joins wse's cluster, a TCP
+mesh between the servers (`cluster` option): a broadcast made on one
+machine reaches the subscribers of all, presence is one list, and the
+recovery buffers know the other machines' broadcasts. `disconnect()`
+reaches every machine through a topic the servers themselves listen to
+(`CONTROL_TOPIC`, `subscribe_node`).
+
 `proper run` starts the server, in its web process, before it serves the
 first request (`start_server()`; call it yourself under another server).
 Every other process that loads the app (the copies of `PROCESSES`, a task
@@ -85,24 +92,32 @@ def _subscription_key(channel_name: str, params: dict) -> str:
 
 
 _EPOCH = re.compile(r"^[0-9a-f]{8}$")
+# The topic the servers of a cluster listen to themselves, for what one
+# machine tells the others (`disconnect()`).
+CONTROL_TOPIC = "proper:cable:control"
 
 
-def _client_positions(value: t.Any) -> dict[str, tuple[str, int]]:
-    """The positions a `subscribe` command carries, `{stream: {"e": epoch,
-    "o": offset}}`, as `{stream: (epoch, offset)}`; the malformed ones left
-    out. The epoch is wse's: eight hex digits."""
-    positions: dict[str, tuple[str, int]] = {}
+def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
+    """The positions a `subscribe` command carries, `{stream: [{"e": epoch,
+    "o": offset}, ...]}` (or one `{"e", "o"}`), as `{stream: [(epoch,
+    offset), ...]}`; the malformed ones left out. The epoch is wse's: eight
+    hex digits. Several per stream, because in a cluster each machine
+    stamps what it publishes with its own epoch."""
+    positions: dict[str, list[tuple[str, int]]] = {}
     if not isinstance(value, dict):
         return positions
-    for stream, pos in value.items():
-        if not (isinstance(stream, str) and isinstance(pos, dict)):
+    for stream, given in value.items():
+        if not isinstance(stream, str):
             continue
-        epoch, offset = pos.get("e"), pos.get("o")
-        if (
-            isinstance(epoch, str) and _EPOCH.match(epoch)
-            and isinstance(offset, int) and not isinstance(offset, bool) and offset >= 0
-        ):
-            positions[stream] = (epoch, offset)
+        for pos in given if isinstance(given, list) else [given]:
+            if not isinstance(pos, dict):
+                continue
+            epoch, offset = pos.get("e"), pos.get("o")
+            if (
+                isinstance(epoch, str) and _EPOCH.match(epoch)
+                and isinstance(offset, int) and not isinstance(offset, bool) and offset >= 0
+            ):
+                positions.setdefault(stream, []).append((epoch, offset))
     return positions
 
 
@@ -482,6 +497,12 @@ class InMemoryServer:
         for conn_id in list(self._open):
             self.send(conn_id, text)
 
+    # A cluster of one, for tests of a cable configured with one
+    broadcast = broadcast_local
+
+    def cluster_info(self) -> list:
+        return []
+
     def disconnect(self, conn_id: str) -> None:
         """The server closes a connection; the client sees it end."""
         if self._close(conn_id, notify=True):
@@ -527,6 +548,7 @@ class Cable(BaseCable):
         backpressure_timeout: float = 1.0,
         recovery: bool = True,
         presence: bool = True,
+        cluster: dict | None = None,
         **server_options: t.Any,
     ) -> None:
         """`recovery`: keep the last broadcasts of each stream, so a client
@@ -537,6 +559,12 @@ class Cable(BaseCable):
         `presence`: keep who is in each stream (`Channel.track()`). wse's
         `presence_max_data_size` (4 KB per user) and `presence_max_members`
         (0: no limit) bound it.
+
+        `cluster`: join the servers of the other machines (see the module):
+        `{"port": 9999, "peers": ["10.0.0.2:9999", ...]}`, or `"seeds"` and
+        `"addr"` (this machine's `host:port`) for discovery by gossip, and
+        `"tls": {"cert", "key", "ca"}` for mTLS between them (without it,
+        plain TCP: only on a private network).
 
         `max_outbound_queue_bytes` is how far behind a connection can fall
         before wse drops broadcasts for it. The default is four times wse's:
@@ -559,6 +587,7 @@ class Cable(BaseCable):
         self._max_connections = max_connections
         self._recovery = recovery
         self._presence = presence
+        self._cluster = cluster
         self._server_options = {
             "max_outbound_queue_bytes": max_outbound_queue_bytes,
             "recovery_enabled": recovery, "presence_enabled": presence, **server_options,
@@ -625,6 +654,13 @@ class Cable(BaseCable):
                 raise
             server.enable_drain_mode()
             server.start()
+            if self._cluster:
+                try:
+                    self._join_cluster(server)
+                except BaseException:
+                    server.stop()
+                    receiver.server_close()
+                    raise
             self._executor = ThreadPoolExecutor(
                 self._workers, thread_name_prefix="proper-cable"
             )
@@ -650,6 +686,28 @@ class Cable(BaseCable):
                 )
                 self._watcher.start()
             logger.info("[cable] wse-server listening on %s:%s", self._host, port)
+
+    def _join_cluster(self, server: t.Any) -> None:
+        cluster = t.cast(dict, self._cluster)
+        tls = cluster.get("tls") or {}
+        server.subscribe_node([CONTROL_TOPIC])
+        server.connect_cluster(
+            peers=list(cluster.get("peers") or ()),
+            tls_cert=tls.get("cert"), tls_key=tls.get("key"), tls_ca=tls.get("ca"),
+            cluster_port=cluster["port"],
+            seeds=list(cluster.get("seeds") or ()) or None,
+            cluster_addr=cluster.get("addr"),
+        )
+        logger.info("[cable] in a cluster, on port %s", cluster["port"])
+
+    def cluster_info(self) -> list[dict]:
+        """The other machines this one is connected to, from wse: one dict
+        per peer, with `address`, `instance_id` and `connected`. Empty
+        without a cluster, or in a process that doesn't serve the
+        WebSockets."""
+        if not self.serving or not self._cluster:
+            return []
+        return list(self.server.cluster_info())
 
     def serve_in_memory(self) -> "InMemoryServer":
         """Serve from memory instead of a port, for tests: no socket, no
@@ -754,6 +812,9 @@ class Cable(BaseCable):
     def _handle_event(self, kind: str, conn_id: str, payload: t.Any) -> None:
         """One event of the server: a connection, a message, a disconnect."""
         connections = self._connections
+        if kind == "cluster_msg":
+            self._control(payload)
+            return
         if kind == "connect" or kind == "auth_connect":
             # `auth_connect` is wse's JWT path, which the cable doesn't use
             connections[conn_id] = WseConnection(
@@ -774,6 +835,18 @@ class Cable(BaseCable):
             del connections[conn_id]
             conn.closing = True
             conn.enqueue(_DISCONNECT)
+
+    def _control(self, payload: dict) -> None:
+        """What another machine's cable told this one (`CONTROL_TOPIC`)."""
+        if payload.get("topic") != CONTROL_TOPIC:
+            return
+        try:
+            message = jsonplus.loads(payload["data"])
+        except (ValueError, KeyError, TypeError):
+            logger.warning("⚠️ [cable] ignored a message from the cluster that isn't JSON")
+            return
+        if isinstance(message, dict) and isinstance(message.get("disconnect"), dict):
+            self._disconnect_local(message["disconnect"])
 
     # Streams
 
@@ -833,7 +906,10 @@ class Cable(BaseCable):
         server = self.server
         if self._backpressure_bytes:
             self._wait_for_delivery(server, stream_name)
-        server.broadcast_local(stream_name, frame)
+        if self._cluster:
+            server.broadcast(stream_name, frame)  # here and on the other machines
+        else:
+            server.broadcast_local(stream_name, frame)
 
     def _wait_for_delivery(self, server: t.Any, stream_name: str) -> None:
         """Wait while the stream's subscribers are behind (see `__init__`)."""
@@ -891,6 +967,12 @@ class Cable(BaseCable):
                 users.discard(connection)
                 if not users:
                     del self._users[connection.user_id]
+
+    def disconnect(self, *, user_id: t.Any) -> None:
+        super().disconnect(user_id=user_id)
+        if self.serving and self._cluster:
+            # The other machines' servers listen to the control topic
+            self.server.broadcast(CONTROL_TOPIC, jsonplus.dumps({"disconnect": {"user_id": user_id}}))
 
     def _disconnect_local(self, who: dict) -> None:
         with self._lock:
@@ -978,11 +1060,13 @@ class Cable(BaseCable):
             if to_recover:
                 recovered = True
             for stream in to_recover:
-                epoch, offset = positions[stream]
-                result = server.subscribe_with_recovery(
-                    conn.conn_id, [stream], recover=True, epoch=epoch, offset=offset
-                )
-                recovered = recovered and result["recovered"]
+                # One call per epoch the client saw: in a cluster, each
+                # machine's broadcasts carry its own
+                for epoch, offset in positions[stream]:
+                    result = server.subscribe_with_recovery(
+                        conn.conn_id, [stream], recover=True, epoch=epoch, offset=offset
+                    )
+                    recovered = recovered and result["recovered"]
                 current[stream] = _position(result["topics"][stream])
             rest = [stream for stream in streams if stream not in positions]
             if rest:

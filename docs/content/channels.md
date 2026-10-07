@@ -1,7 +1,7 @@
 ---
 title: Real-Time Updates (Channels)
 description: |
-  How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, Turbo Streams over the cable, the cable server, recovery of missed broadcasts, and testing it all.
+  How real-time works in Proper: defining channels, authenticating a connection from the session cookie, subscribing and broadcasting over streams, the cable.js browser client, Turbo Streams over the cable, the cable server, recovery of missed broadcasts, several machines, and testing it all.
 number_headers: true
 ---
 
@@ -19,7 +19,7 @@ After reading this guide, you will know:
 - How to define a channel, authenticate the connection, and authorize a subscription.
 - How to broadcast - from inside a channel, and from a controller or background task.
 - How to use the `cable.js` client, or skip JavaScript entirely with Turbo Streams.
-- How the WebSockets are served, and how to test channels without a server.
+- How the WebSockets are served, how to run them on several machines, and how to test channels without a server.
 
 ---
 
@@ -704,6 +704,7 @@ Option                     | Default      | What it is
 `backpressure_timeout`     | `1.0`        | The longest a `broadcast()` waits, in seconds; then it is sent anyway
 `recovery`                 | `True`       | Keep the last broadcasts of each stream, for clients that reconnect (see [Missed broadcasts](#missed-broadcasts-recovery))
 `presence`                 | `True`       | Keep who is in each stream, for `track()` (see [Who is here](#who-is-here-presence))
+`cluster`                  | `None`       | Join the cables of other machines (see [Several machines](#several-machines))
 
 Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_handshakes`, how many handshakes can be in progress at once; raise it if thousands of clients may reconnect together after a restart. Or the size of the recovery buffers: `recovery_buffer_size` (128 broadcasts per stream, rounded to a power of two), `recovery_ttl` (300 seconds without broadcasts before a stream's buffer is dropped) and `recovery_memory_budget` (256 MB for all of them; past it, the least used are dropped). The buffers share the bytes of the frames with the connections, so they cost memory once per broadcast, not once per subscriber.
 
@@ -721,6 +722,45 @@ A client that stops reading - a frozen tab, a very bad network - would make mess
 
 - **Backpressure.** A `broadcast()` waits, up to `backpressure_timeout`, while the subscribers of its stream are behind. Whoever broadcasts slows down to the pace of delivery, instead of every message arriving later and later. It looks at the average, so one stuck client doesn't slow everyone down.
 - **Closing stuck clients.** A connection with more than `CABLE_MAX_PENDING_BYTES` waiting, that got nothing through in `CABLE_STALL_TIMEOUT` seconds, is closed; so is one with ten times that much waiting, at any speed. `cable.js` reconnects and subscribes again, and gets what it missed. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse starts dropping broadcasts instead; `cable.js` notices the hole and asks for them too.
+
+---
+
+## Several machines
+
+`Cable` serves the WebSockets of one machine. To run the app on several, behind a load balancer, have the cables join wse's *cluster*: a TCP mesh between the servers. Your channels and your code don't change, only the config, which differs per machine in the addresses:
+
+```python {title="config/channels.py"}
+CABLE = {
+    "type": "proper.channels.Cable",
+    "cluster": {
+        "port": 9999,                                    # where this machine listens to the others
+        "peers": os.getenv("CABLE_PEERS", "").split(),   # "10.0.0.2:9999 10.0.0.3:9999"
+        "tls": {"cert": "/etc/proper/node.pem", "key": "/etc/proper/node.key", "ca": "/etc/proper/ca.pem"},
+    },
+}
+```
+
+Where machines come and go, give one or more `seeds` and this machine's `addr` instead of `peers`; the cluster learns the rest by gossip:
+
+```python
+"cluster": {"port": 9999, "seeds": ["10.0.0.2:9999"], "addr": "10.0.0.1:9999"},
+```
+
+Key     | What it is
+------- | -----------------------------
+`port`  | The port of the mesh, on every machine
+`peers` | The other machines, `host:port`
+`seeds` | Machines to ask for the rest, with `addr`, this one's `host:port`
+`tls`   | The PEM files of this machine's certificate and key, and of the CA all of them trust, for mTLS between the servers. Without it the mesh is plain TCP: only on a private network
+
+What you get:
+
+- A `broadcast()` made on any machine, in any process, reaches the subscribers of all. A process without WebSockets still forwards to the web process of its own machine, which is in the mesh.
+- `disconnect()` closes the user's connections on every machine.
+- Presence is one list: `app.cable.presence(stream)` is the same everywhere, and joins and leaves reach every subscriber.
+- Recovery knows the other machines' broadcasts: each stamps what it publishes with its own epoch, `cable.js` keeps a position per machine, and a machine keeps what the others published to the streams its own clients were subscribed to. A client that reconnects to a machine that had no one on its stream gets `recovered: false`. Sticky sessions on `CABLE_PATH` keep most reconnections on the same machine.
+
+Limits: backpressure sees only the machine that broadcasts; the mesh carries messages, not state, so a machine that joins late knows nothing of what came before. `app.cable.cluster_info()` lists the machines this one is connected to. wse's own [deployment guide](https://github.com/jpsca/proper-wse/blob/main/docs/DEPLOYMENT.md) shows the certificates and a Docker Compose for three nodes.
 
 ---
 
@@ -788,7 +828,7 @@ The session's methods:
 Method                                   | What it does
 ---------------------------------------- | ------------------------------------
 `await ws.connect()`                     | Opens the connection. Returns a task that ends when the connection closes; `await` it after `close()`. The handshake carries the client's default headers (the cookie from `sign_in()`, an `authorization` header you set) and the path given to `client.websocket(path)`, `CABLE_PATH` by default, which may have a query string
-`await ws.subscribe(channel, positions=None, **params)` | Subscribes, and returns the first frame the app sends back. `positions`, `{stream: {"e": ..., "o": ...}}` from the stamps of received broadcasts, asks for the ones broadcast since
+`await ws.subscribe(channel, positions=None, **params)` | Subscribes, and returns the first frame the app sends back. `positions`, `{stream: [{"e": ..., "o": ...}]}` from the stamps of received broadcasts, asks for the ones broadcast since
 `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply
 `await ws.perform(channel, action, data, **params)` | Calls an action and returns its reply: `{"type": "reply", "status": "ok", "data": <what it returned>}`, or `"status": "error"` with `{"reason": ...}` in `data`. Skips what the action sent before replying
 `await ws.unsubscribe(channel, **params)`| Unsubscribes
@@ -841,7 +881,7 @@ The client sends three commands - `subscribe`, `message` (call an action), and `
 ```json
 { "command": "subscribe", "channel": "ChatChannel",
     "params": {"room": "general"},
-    "positions": {"chat_general": {"e": "0000abcd", "o": 41}} }
+    "positions": {"chat_general": [{"e": "0000abcd", "o": 41}]} }
 
 { "command": "message", "channel": "ChatChannel",
     "params": {"room": "general"}, "action": "speak",
@@ -888,7 +928,7 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 
 A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
 
-The `tp`, `e` and `o` fields are wse's recovery stamp: the stream, the epoch of its buffer (eight hex digits; it changes when the server restarts) and the offset of the broadcast in it. A `subscribe` may carry `positions`, the last `e` and `o` the client saw per stream; the server sends again the broadcasts after them, for the streams the channel streams from, and they may arrive before the confirmation. The confirmation has the current `positions` of the streams (`null` for one without broadcasts yet) and `recovered`: `true` when everything asked for was sent again, `false` when some couldn't be, `null` when nothing was asked. Sending `subscribe` again for an existing subscription, with `positions`, also recovers. Without recovery (`recovery=False`), broadcasts carry no stamp and `recovered` is always `null`.
+The `tp`, `e` and `o` fields are wse's recovery stamp: the stream, the epoch of its buffer (eight hex digits; it changes when the server restarts) and the offset of the broadcast in it. A `subscribe` may carry `positions`, the last `o` the client saw per stream and epoch (a list per stream, because on several machines each stamps its broadcasts with its own epoch; one `{"e", "o"}` is accepted too); the server sends again the broadcasts after them, for the streams the channel streams from, and they may arrive before the confirmation. The confirmation has the current `positions` of the streams (`null` for one without broadcasts yet) and `recovered`: `true` when everything asked for was sent again, `false` when some couldn't be, `null` when nothing was asked. Sending `subscribe` again for an existing subscription, with `positions`, also recovers. Without recovery (`recovery=False`), broadcasts carry no stamp and `recovered` is always `null`.
 
 Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name, and `"reason": "error"` when `subscribed()` raised an exception; a subscription your own `reject()` turned away has no reason.
 

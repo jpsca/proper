@@ -95,7 +95,7 @@ An app without channels has `CABLE = {}` and `CABLE_PORT = 0`, the defaults: no 
 
 In production, the reverse proxy routes `CABLE_PATH` (default `/cable`) to that port, with the WebSocket upgrade headers; the [nginx config](#the-reverse-proxy) below has that block. In development there is no proxy: when `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same hostname.
 
-Broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. The cable serves one machine; running the WebSockets on several is not supported yet. The [Channels guide](/docs/channels) covers the cable.
+Broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. On several machines, the cables join a mesh (`cluster` in `CABLE`, with a port of its own between the machines and mTLS); see [Several machines](/docs/channels#several-machines) in the Channels guide.
 
 ### Reloading and stopping
 
