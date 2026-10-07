@@ -111,6 +111,11 @@ class BaseCable:
         nothing served."""
         return {"serving": False, "connections": 0, "streams": 0}
 
+    def metrics(self) -> str:
+        """The cable's metrics in Prometheus' text format, for a scrape.
+        Here: none, nothing is served."""
+        return ""
+
     # Presence: who is in a stream. None here, there are no connections.
 
     def track(self, stream_name: str, data: dict, channel: "Channel", key: t.Any = None) -> None:

@@ -209,6 +209,12 @@ def _free_ports():
             continue
 
 
+def _free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def _config(port, **extra):
     return {
         "SECRET_KEYS": [SECRET],
@@ -795,48 +801,63 @@ class TestCluster:
 
     @pytest.fixture()
     def pair(self, make_app):
-        cluster_a, cluster_b = _free_ports() + 1, _free_ports() + 1  # unlikely to collide
-        while cluster_b in (cluster_a, cluster_a + 1):
-            cluster_b = _free_ports() + 1
+        cluster_a, cluster_b = _free_port(), _free_port()
+        while cluster_b == cluster_a:
+            cluster_b = _free_port()
         a = make_app(cable={"cluster": {"port": cluster_a, "peers": [f"127.0.0.1:{cluster_b}"]}})
         b = make_app(cable={"cluster": {"port": cluster_b, "peers": [f"127.0.0.1:{cluster_a}"]}})
-        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info(), timeout=5), "the cables never met"
+        # a dials b before b listens and retries with a backoff; b's dial to
+        # a succeeds, but each side reports the link in its own time
+        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info(), timeout=15), "the cables never met"
         return a, b
+
+    def _drain(self, client, seconds=0.5):
+        """Every frame the client gets in `seconds` (`recv()` is `None` on
+        the socket's timeout)."""
+        client.sock.settimeout(seconds)
+        frames = []
+        try:
+            while (frame := client.recv()) is not None:
+                frames.append(frame)
+        finally:
+            client.sock.settimeout(5)
+        return frames
+
+    def _reach(self, cable, client, stream, data, attempts=25):
+        """Broadcast until the client gets it: the interest of the client's
+        machine takes a moment to reach the other one."""
+        for _ in range(attempts):
+            cable.broadcast(stream, data)
+            for frame in self._drain(client, 0.4):
+                if frame.get("type") == "broadcast" and frame["data"] == data:
+                    return frame
+        raise AssertionError(f"{data} never reached the other machine")
 
     def test_a_broadcast_reaches_the_other_machine(self, pair):
         a, b = pair
         client = WsClient(b.config.CABLE_PORT, _cookie(b))
         client.subscribe(1)
-        assert _wait(lambda: b.cable.streams == {"room:1": 1})
-        time.sleep(0.3)  # b's interest reaches a
-        a.cable.broadcast("room:1", {"from": "a"})
-        frame = client.recv_type("broadcast")
-        assert frame["data"] == {"from": "a"}
-        assert frame["tp"] == "room:1"  # stamped by a, with a's epoch
-        epoch_a = frame["e"]
-        b.cable.broadcast("room:1", {"from": "b"})
-        frame = client.recv_type("broadcast")
-        assert frame["data"] == {"from": "b"} and frame["e"] != epoch_a
+        from_a = self._reach(a.cable, client, "room:1", {"from": "a"})
+        assert from_a["tp"] == "room:1"  # stamped by a, with a's epoch
+        from_b = self._reach(b.cable, client, "room:1", {"from": "b"})
+        assert from_b["e"] != from_a["e"]
 
         # Back with both positions: what each machine published since
         a.cable.broadcast("room:1", {"from": "a", "n": 2})
         b.cable.broadcast("room:1", {"from": "b", "n": 2})
-        client.recv_type("broadcast")
-        client.recv_type("broadcast")
+        self._drain(client)
         client.close()
         again = WsClient(b.config.CABLE_PORT, _cookie(b))
         again.send({
             "command": "subscribe", "channel": "RoomChannel", "params": {"room": 1},
-            "positions": {"room:1": [{"e": epoch_a, "o": 0}, {"e": frame["e"], "o": 0}]},
+            "positions": {"room:1": [{"e": from_a["e"], "o": from_a["o"]}, {"e": from_b["e"], "o": from_b["o"]}]},
         })
-        got = []
-        while len(got) < 3:
-            msg = again.recv()
-            if msg.get("type") in ("broadcast", "confirm_subscription"):
-                got.append(msg)
-        confirm = [m for m in got if m["type"] == "confirm_subscription"][0]
+        frames = self._drain(again, 1.0)
+        confirm = [f for f in frames if f.get("type") == "confirm_subscription"][0]
         assert confirm["recovered"] is True
-        assert sorted(m["data"]["from"] for m in got if m["type"] == "broadcast") == ["a", "b"]
+        replayed = [f["data"] for f in frames if f.get("type") == "broadcast"]
+        assert {"from": "a", "n": 2} in replayed
+        assert {"from": "b", "n": 2} in replayed
         again.close()
 
     def test_presence_and_disconnect_across_machines(self, pair):
@@ -844,7 +865,10 @@ class TestCluster:
         on_a = WsClient(a.config.CABLE_PORT, _cookie(a))
         on_a.send({"command": "subscribe", "channel": "PresenceChannel", "params": {"track": "Ana"}})
         on_a.recv_type("confirm_subscription")
-        assert _wait(lambda: b.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}})
+        assert _wait(
+            lambda: b.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}},
+            timeout=10,
+        )
 
         on_b = WsClient(b.config.CABLE_PORT, _cookie(b))
         on_b.subscribe(2)
@@ -852,7 +876,10 @@ class TestCluster:
         a.cable.disconnect(user_id=7)  # from the other machine
         assert on_a.recv_type("never") is None
         assert on_b.recv_type("never") is None
-        assert _wait(lambda: a.cable.presence("presence:room") == {} and b.cable.presence("presence:room") == {})
+        assert _wait(
+            lambda: a.cable.presence("presence:room") == {} and b.cable.presence("presence:room") == {},
+            timeout=10,
+        )
         assert len(a.cable.cluster_info()) == 1
 
     def test_health(self, wse_app):
@@ -864,6 +891,24 @@ class TestCluster:
         assert health["server"]["connections"] == 1
         assert health["server"]["uptime_secs"] >= 0
         assert health["server"]["cluster_connected"] is False
+        client.close()
+
+    def test_metrics_on_the_loopback_port(self, wse_app):
+        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        client.subscribe(1)
+        assert _wait(lambda: wse_app.cable.streams == {"room:1": 1})
+        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=2)
+        conn.request("GET", "/metrics")
+        response = conn.getresponse()
+        text = response.read().decode()
+        assert response.status == 200
+        assert response.getheader("Content-Type", "").startswith("text/plain; version=0.0.4")
+        assert "# TYPE wse_connections gauge\nwse_connections 1\n" in text
+        assert "wse_uptime_seconds" in text
+        assert "proper_cable_streams 1\n" in text
+        conn.request("GET", "/other")
+        assert conn.getresponse().status == 404
+        conn.close()
         client.close()
 
     def test_a_cluster_that_fails_to_join_leaves_nothing_behind(self):

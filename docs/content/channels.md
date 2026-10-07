@@ -726,6 +726,15 @@ def up(self):
     return self.render_json(self.app.cable.health())
 ```
 
+For graphs and alerts over time, the cable also speaks Prometheus. The process that serves the WebSockets answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`, with wse's metrics in Prometheus' text format (`wse_connections`, `wse_messages_sent_total`, `wse_slow_consumer_drops_total`, `wse_cluster_peers`, ... the [full list](https://github.com/jpsca/proper-wse/blob/main/docs/INTEGRATION.md#15-prometheus-metrics)) plus the cable's own, `proper_cable_streams` and `proper_cable_users`. Point Prometheus at that port on each machine; it is never public. `app.cable.metrics()` returns the same text, empty where nothing is served.
+
+```yaml {title="prometheus.yml"}
+scrape_configs:
+  - job_name: proper-cable
+    static_configs:
+      - targets: ["10.0.0.1:2302", "10.0.0.2:2302"]
+```
+
 ### Slow clients
 
 A client that stops reading - a frozen tab, a very bad network - would make messages pile up in memory. Two mechanisms deal with it:

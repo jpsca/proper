@@ -246,10 +246,24 @@ class WseConnection:
 
 
 class _ForwardedHandler(BaseHTTPRequestHandler):
-    """Takes the broadcasts other processes forward (`Cable._forward`)."""
+    """Takes the broadcasts other processes forward (`BaseCable._forward`),
+    and serves the metrics (`GET /metrics`), on the loopback port."""
 
     protocol_version = "HTTP/1.1"  # the senders keep their connection open
     server: "_ForwardedServer"
+
+    def do_GET(self) -> None:
+        if self.path != "/metrics":
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        body = self.server.cable.metrics().encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_POST(self) -> None:
         cable = self.server.cable
@@ -503,6 +517,13 @@ class InMemoryServer:
     def cluster_info(self) -> list:
         return []
 
+    def prometheus_metrics(self) -> str:
+        return (
+            "# HELP wse_connections Current active WebSocket connections\n"
+            "# TYPE wse_connections gauge\n"
+            f"wse_connections {len(self._open)}\n"
+        )
+
     def health_snapshot(self) -> dict:
         with self._lock:
             return {
@@ -738,6 +759,27 @@ class Cable(BaseCable):
             "streams": len(self.streams),
             "server": dict(self.server.health_snapshot()),
         }
+
+    def metrics(self) -> str:
+        """The cable's metrics in Prometheus' text format: wse's
+        (`wse_connections`, `wse_messages_sent_total`, `wse_cluster_peers`,
+        ... see proper-wse's docs) and the cable's own, `proper_cable_streams`
+        and `proper_cable_users`. Served on the loopback port the other
+        processes forward to (`CABLE_PORT + 1`) as `GET /metrics`, for
+        Prometheus to scrape; empty where nothing is served."""
+        if not self.serving:
+            return ""
+        with self._lock:
+            users = len(self._users)
+        return (
+            self.server.prometheus_metrics()
+            + "# HELP proper_cable_streams Streams with a subscription here\n"
+            "# TYPE proper_cable_streams gauge\n"
+            f"proper_cable_streams {len(self.streams)}\n"
+            "# HELP proper_cable_users Connections with a logged-in user, by user\n"
+            "# TYPE proper_cable_users gauge\n"
+            f"proper_cable_users {users}\n"
+        )
 
     def cluster_info(self) -> list[dict]:
         """The other machines this one is connected to, from wse: one dict

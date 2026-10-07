@@ -1198,3 +1198,19 @@ class TestHealth:
         await ws.close()
         await task
         assert app.cable.health()["connections"] == 0
+
+    @pytest.mark.asyncio
+    async def test_metrics(self, app):
+        from proper.channels import BaseCable
+
+        assert BaseCable().metrics() == ""
+        assert app.cable.metrics() == ""
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("RoomChannel", room="a")
+        text = app.cable.metrics()
+        assert "wse_connections 1\n" in text
+        assert "proper_cable_streams 1\n" in text
+        assert "proper_cable_users 0\n" in text  # RoomChannel has no Session: anonymous
+        await ws.close()
+        await task
