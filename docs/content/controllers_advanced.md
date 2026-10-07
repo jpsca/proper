@@ -284,7 +284,7 @@ You can also lean on the implicit-rendering machinery, which already understands
 
 ### The `Vary: Accept` Gotcha
 
-Here's the trap. The action above returns two completely different responses for the same URL, depending on the `Accept` header. But caches - the browser's, a CDN's, an intermediate proxy's - look up cached responses by *URL*, not by URL plus headers. Without further instruction, a cache that has stored the HTML version may serve it back for a JSON request, or vice versa.
+The action above returns two completely different responses for the same URL, depending on the `Accept` header. But caches - the browser's, a CDN's, an intermediate proxy's - look up cached responses by *URL*, not by URL plus headers. Without further instruction, a cache that has stored the HTML version may serve it back for a JSON request, or vice versa.
 
 The fix is the `Vary` header. `Vary: Accept` tells caches "this response varies based on the `Accept` header; treat the (URL, Accept) pair as the cache key, not the URL alone." Set it with an `after` callback so it covers both branches:
 
@@ -315,7 +315,7 @@ At that point, the controller wants to be a JSON-only controller: cookies disabl
 
 ## HTTP Caching with `fresh_when`
 
-A page that doesn't change often is a page worth not re-rendering. `fresh_when` is the controller-level tool for turning an action into a *conditional GET*: the browser asks "do you have a newer version than what I already have?", and if the answer is no, the server returns `304 Not Modified` with an empty body.
+A page that doesn't change often doesn't need re-rendering every time. `fresh_when` is the controller-level tool for turning an action into a *conditional GET*: the browser asks "do you have a newer version than what I already have?", and if the answer is no, the server returns `304 Not Modified` with an empty body.
 
 ### Conditional GETs in One Paragraph
 

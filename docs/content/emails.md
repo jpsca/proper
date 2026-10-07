@@ -21,7 +21,7 @@ After reading this guide, you will know:
 
 ## The shape of email in Proper
 
-Before any API reference, it's worth walking through one real email end-to-end. The auth addon ships with a password-reset flow that exercises every part of the system: a class, a template, a layout, a controller, and a background task. Each section after this one decomposes one piece of it.
+This section follows one real email end-to-end. The auth addon ships with a password-reset flow that exercises every part of the system: a class, a template, a layout, a controller, and a background task. Each section after this one decomposes one piece of it.
 
 Here is the layout in a freshly generated app with the auth addon installed:
 
@@ -119,7 +119,7 @@ The email body comes from `views/emails/password_reset.jx`:
 </html>
 ```
 
-That empty `<style>` block with the inline-only comment is honest: most email clients strip or ignore `<style>` tags. The pragmatic answer today is to write inline `style="..."` attributes on the elements that need them. A CSS-inlining pass at render time is a likely future addition - see [Where this could grow](#where-this-could-grow).
+The empty `<style>` block and its comment point at a real constraint: most email clients strip or ignore `<style>` tags. The pragmatic answer today is to write inline `style="..."` attributes on the elements that need them. A CSS-inlining pass at render time is a likely future addition - see [Where this could grow](#where-this-could-grow).
 
 ### The controller call
 
@@ -622,13 +622,13 @@ MAILERS = {
 MAILER = "resend"
 ```
 
-The `render()` method on `BaseMailer` does the heavy lifting (multipart assembly, attachments, IDNA encoding); your `send_now()` only has to translate the result into whatever shape your provider expects. A real implementation would also serialize attachments and alternatives into the provider's payload - the sketch above is just enough to show the seam.
+The `render()` method on `BaseMailer` does most of the work (multipart assembly, attachments, IDNA encoding); your `send_now()` only has to translate the result into whatever shape your provider expects. A real implementation would also serialize attachments and alternatives into the provider's payload - the sketch above is just enough to show the seam.
 
 ---
 
 ## Testing
 
-In tests, `MAILER` is `"memory"` (the in-memory backend), and `send_email_task` runs in immediate mode. Together that means: anything your code sends ends up in `app.mailer.outbox`, synchronously, by the time the call returns. No waiting, no worker, no SMTP server.
+In tests, `MAILER` is `"memory"` (the in-memory backend), and `send_email_task` runs in immediate mode. Together that means: anything your code sends ends up in `app.mailer.outbox`, synchronously, by the time the call returns. Nothing waits on a worker or an SMTP server.
 
 A typical assertion:
 
@@ -687,7 +687,7 @@ Non-ASCII local-parts (the part before `@`) are rejected by default because most
 
 Email in Proper covers the basics well: a class-per-message convention, template auto-discovery, background sending, the three standard backends, working tests. Several features common in mature email systems aren't here yet. None of them are blockers - workarounds exist - but they're the obvious places the framework will grow.
 
-- **Browser previews.** A dev-only route where you can preview your email templates with fixture data.This is probably the highest-ROI feature on the list.
+- **Browser previews.** A dev-only route where you can preview your email templates with fixture data. This is probably the highest-ROI feature on the list.
 - **First-party HTTP backends.** Most production traffic in 2026 goes through Resend, Postmark, SendGrid, or SES rather than SMTP - they handle deliverability, bounces, and metrics that SMTP doesn't. The custom-backend recipe above works, but a curated set of provider mailers (and addons that ship them) would save every app re-implementing the same thing.
 - **CSS inlining at render time.** Today the email layout has an empty `<style>` block with a comment noting that styles must be inline. A premailer-style pass would let users write normal CSS and have it inlined into `style="..."` attributes automatically.
 - **Inline images (CIDs).** `attach_file(path, inline=True)` returning a `cid:` reference for `<img src="cid:...">`. Requires `multipart/related` handling that the current code doesn't expose.

@@ -22,7 +22,7 @@ In this guide, you will learn how controllers work and how they fit into the req
 
 ## Introduction
 
-After the [router](/docs/routing) has matched a controller to an incoming request, the controller is responsible for processing the request and produce a response - usually an HTML page, sometimes a redirect, sometimes JSON.
+After the [router](/docs/routing) has matched a controller to an incoming request, the controller is responsible for processing the request and producing a response - usually an HTML page, sometimes a redirect, sometimes JSON.
 
 Controllers live in `myapp/controllers/`, one class per file. Each class inherits from `AppController`:
 
@@ -194,7 +194,7 @@ class CardController(AppController):
         self.form = CardForm(self.params, object=obj)
 ```
 
-There's a lot in there, but the pattern repeats across every resource you'll ever generate. Let's walk through it.
+There's a lot in there, but the pattern repeats across every resource you'll ever generate.
 
 :::note
 You can tell the generators that you only want _some_ of the actions, e.g.:
@@ -384,7 +384,7 @@ The [Routing guide](/docs/routing) goes deeper - manually-defined routes with `@
 
 In Proper, **every state change is a resource.** You don't add verbs to a controller: you create a controller for the thing that changes.
 
-Records are the common case, not the only one. A card can be closed and reopened. A user can be suspended and restored. A subscription can be cancelled and resumed. Each of those is *also* a resource — a thing you `POST` to make happen and `DELETE` to undo — even though there's no new row in a table.
+Records are the common case, not the only one. A card can be closed and reopened. A user can be suspended and restored. A subscription can be cancelled and resumed. Each of those is *also* a resource - a thing you `POST` to make happen and `DELETE` to undo - even though there's no new row in a table.
 
 ### Don't add a verb to the controller
 
@@ -877,7 +877,7 @@ self.response.send_file(
 
 A callback is a method that runs automatically around your action - either before it (`before`) or after it (`after`). You've already seen one: the generated controller's `set_card` is a `before` callback that loads the card and builds the form on every action that needs them.
 
-The motivation is straightforward: most controllers end up with the same setup at the top of every action. Loading a record, checking permissions, setting response headers. Callbacks let you write that setup once and have it run automatically.
+Most controllers end up with the same setup at the top of every action: loading a record, checking permissions, setting response headers. Callbacks let you write that setup once and have it run automatically.
 
 ### The `before` Callback
 
@@ -1029,7 +1029,7 @@ Those five ship with every Proper application. Three come from the framework (`O
 
 ### `OriginProtection`
 
-Modern CSRF protection. It verifies that state-changing requests (POST, PATCH, PUT, DELETE) come from a trusted origin, using the browser's `Sec-Fetch-Site` and `Origin` headers - no tokens needed. Safe methods (GET, HEAD, OPTIONS, QUERY) are skipped; cross-origin state changes raise `403 Forbidden`.
+Modern CSRF protection. It verifies that state-changing requests (POST, PATCH, PUT, DELETE) come from a trusted origin, using the browser's `Sec-Fetch-Site` and `Origin` headers, so it needs no tokens. Safe methods (GET, HEAD, OPTIONS, QUERY) are skipped; cross-origin state changes raise `403 Forbidden`.
 
 To allow requests from other domains (an admin subdomain, a CDN), list them in your config:
 

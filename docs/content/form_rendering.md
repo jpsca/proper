@@ -145,7 +145,7 @@ This means your controller action sees a `PATCH` request and never has to know t
 The override step only runs for incoming `POST` requests. A `GET` is never rewritten, even if it happens to carry a `_method` parameter. This stops misbehaving links from triggering destructive actions.
 :::
 
-You usually don't think about method override at all. It just works.
+You usually don't need to think about method override at all.
 
 ---
 
@@ -832,7 +832,7 @@ The complete partial:
 </form>
 ```
 
-Six data attributes (`data-nestedform`, `data-nestedform-template`, `data-nestedform-target`, `data-nestedform-add`, `data-nestedform-remove`) and one CSS class (`.nestedform`) - that's the entire surface area of the script.
+Five data attributes (`data-nestedform`, `data-nestedform-template`, `data-nestedform-target`, `data-nestedform-add`, `data-nestedform-remove`) and one CSS class (`.nestedform`) - that's the entire surface area of the script.
 
 ---
 
@@ -858,7 +858,7 @@ class AvatarForm(f.Form):
 `FileField` is a *validation* field - it checks that the user actually attached a file (when `required=True`, the default). It does not move the file, store it, or expose its bytes. For that, see the [File Storage guide](/docs/storage), which covers attaching files to model records, storing them on disk or S3, and serving them back safely.
 
 :::tip | Use `AttachmentField` for model-bound uploads
-When the upload should land on a model column (a user's avatar, a book's cover image), reach for [`f.AttachmentField`](/docs/forms#attachmentfield) instead of `f.FileField`. `AttachmentField` saves the file through the storage service, INSERTs the `Attachment` row, and assigns the FK from inside `form.save()` - no controller plumbing needed. Its render helpers are covered in [Attachment Uploads](#attachment-uploads) below.
+When the upload should land on a model column (a user's avatar, a book's cover image), reach for [`f.AttachmentField`](/docs/forms#attachmentfield) instead of `f.FileField`. `AttachmentField` saves the file through the storage service, INSERTs the `Attachment` row, and assigns the FK from inside `form.save()` - without any controller plumbing. Its render helpers are covered in [Attachment Uploads](#attachment-uploads) below.
 :::
 
 ### The Markup
@@ -997,7 +997,7 @@ Two reasons not to reach for the `<Form>` component here:
 - **Method override won't work.** A `<Form method="patch">` adds a hidden `_method` input, expecting Proper's request layer to rewrite the method. The external server has no idea what `_method` means and will see a `POST`.
 - **Field render helpers don't apply.** The whole point of the helpers is that they're attached to a Formidable form object. For an external endpoint, you're constructing the request body to match the *external* service's expectations, not your own form's.
 
-If you need labels, errors, or pre-filled values, write the HTML manually - this is fundamentally a different kind of form, even if it looks similar.
+If you need labels, errors, or pre-filled values, write the HTML manually - this is a different kind of form, even if it looks similar.
 
 :::warning | CSRF and external POSTs
 Posting from your page to a third-party server is *not* covered by Proper's CSRF protection (which only guards your own endpoints). Make sure the third-party endpoint either accepts cross-origin POSTs intentionally (most public APIs do) or that you have an arrangement that authenticates the request another way (a signed token in a hidden field, a server-to-server call instead of a browser form).

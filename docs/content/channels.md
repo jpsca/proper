@@ -76,7 +76,7 @@ Follow one message through the pieces. Ana types "hello" in room `general`, wher
 3. `speak()` calls `self.broadcast("chat_general", {...})`. The cable looks up who listens to `chat_general` and writes the message to both connections, Ana's and Bo's.
 4. In both browsers, `cable.js` sees that the message belongs to the `ChatChannel` subscription and calls its `received(data)` callback, which adds the line to the page.
 
-Nothing in step 3 knows about Ana or Bo: the channel addressed the stream, and the cable did the rest. That is the pattern every feature in this guide repeats, and every section below takes one piece of it apart.
+Step 3 knows nothing about Ana or Bo. The channel addressed the stream, and the cable found who was listening. Every feature in this guide works this way, and the sections below take the pieces one at a time.
 
 ---
 
@@ -497,7 +497,7 @@ What the list keys on:
 - An anonymous connection gets a random key, so a visitor with three tabs counts three times.
 - `track(stream, data, key=...)` lists the connection under a key of your choosing, for example a bot's name. The key is decided in `subscribed()`, on the server. Never take it from `params`: a client could pose as anyone. One key per connection; a second `track()` with another is an error.
 
-A connection leaves a stream's list with `untrack(stream)`, with `stop_stream_from()`, when the client unsubscribes, and when the connection closes, including when the browser is killed: the server notices, so there are no ghosts. `update_presence(data)` changes the data in every stream the connection is present in. `track()` needs `stream_from()` first.
+A connection leaves a stream's list with `untrack(stream)`, with `stop_stream_from()`, when the client unsubscribes, and when the connection closes, including when the browser is killed: the server notices the connection is gone and removes the entry. `update_presence(data)` changes the data in every stream the connection is present in. `track()` needs `stream_from()` first.
 
 The list lives in the server that serves the WebSockets, so it is one machine's. `presence=False` in `CABLE` turns it off (`track()` then fails), and wse's `presence_max_data_size` (4 KB per user) and `presence_max_members` bound it.
 
@@ -594,7 +594,7 @@ The view loads the controller with the `{#js #}` tag, as the auth addon's `passw
 
 The server keeps the last broadcasts of each stream: 128 by default, for 5 minutes after the last one. When a connection comes back, `cable.js` tells the server where it was in each stream, and the server sends what was broadcast since. They arrive through `received()` like any other, in order, and nothing arrives twice. The same happens when a connection falls so far behind that wse drops broadcasts for it (see [Slow clients](#slow-clients)): the broadcasts after the hole wait while the missed ones are fetched.
 
-So `connected()` is the place to know whether the page is up to date. It gets an object:
+`connected()` is where the page learns whether it is up to date. It gets an object:
 
 ```javascript
 cable.subscribe("ChatChannel", { room: "general" }, {
@@ -797,7 +797,7 @@ def up(self):
     return self.render_json(self.app.cable.health())
 ```
 
-For graphs and alerts over time, the cable also speaks Prometheus. The process that serves the WebSockets answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`, with wse's metrics in Prometheus' text format (`wse_connections`, `wse_messages_sent_total`, `wse_slow_consumer_drops_total`, `wse_cluster_peers`, ... the [full list](https://github.com/jpsca/proper-wse/blob/main/docs/INTEGRATION.md#15-prometheus-metrics)) plus the cable's own, `proper_cable_streams` and `proper_cable_users`. Point Prometheus at that port on each machine; it is never public. `app.cable.metrics()` returns the same text, empty where nothing is served.
+For graphs and alerts over time, the cable also exports Prometheus metrics. The process that serves the WebSockets answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`, with wse's metrics in Prometheus' text format (`wse_connections`, `wse_messages_sent_total`, `wse_slow_consumer_drops_total`, `wse_cluster_peers`, ... the [full list](https://github.com/jpsca/proper-wse/blob/main/docs/INTEGRATION.md#15-prometheus-metrics)) plus the cable's own, `proper_cable_streams` and `proper_cable_users`. Point Prometheus at that port on each machine. It is a loopback port, so the metrics are never exposed to the outside. `app.cable.metrics()` returns the same text, empty where nothing is served.
 
 ```yaml {title="prometheus.yml"}
 scrape_configs:
@@ -879,7 +879,7 @@ An app without the channels addon has `CABLE = {}`: a cable that serves no WebSo
 
 ## When nothing arrives
 
-Real-time code fails quietly: a broadcast to a stream nobody listens to is not an error, it is a broadcast to no one. When a page doesn't update, check in this order:
+A broadcast to a stream nobody listens to is not an error: it reaches no one, and nothing is logged. So when a page doesn't update, there is no message to read, and it helps to check in this order:
 
 1. **Is the page connected?** In the browser's developer tools, the Network panel has a WS filter. The `cable` connection should be there with status 101, and its Messages tab shows every frame in both directions: your `subscribe` command, the server's `confirm_subscription` (or `reject_subscription`), the pings, and each broadcast. In development, the connection goes to `CABLE_PORT` (`2301`), announced by a `<meta name="cable-port">` tag in the page; in production, to `CABLE_PATH` through your proxy (see [Deployment](/docs/deployment#the-reverse-proxy)).
 2. **Was the subscription confirmed?** A `reject_subscription` means `subscribed()` called `reject()`, raised (the server log has the traceback), or no channel has that name: the channel module isn't imported in `channels/__init__.py`, or the name differs from the class name (`@router.channel("chat")` registers `chat`, not `ChatChannel`). The confirmation lists the subscription's `streams`: if the one you broadcast to isn't there, `subscribed()` didn't `stream_from()` it.

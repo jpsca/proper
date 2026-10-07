@@ -59,7 +59,7 @@ $ proper db migrate
 
 This writes a few files into your application:
 
-- An `Attachment` model that lives in your application and inherits its powers from the one in Proper, so you can extend it with extra fields or methods. It uses an UUID as primary key.
+- An `Attachment` model that lives in your application and inherits from the one in Proper, so you can extend it with extra fields or methods. It uses an UUID as primary key.
 - Drop-in Jx components for file inputs with image previews, paired with Stimulus controllers and CSS.
 - Several controllers at `storage_controller.py`:
 
@@ -103,7 +103,7 @@ elif env == "test":
     STORAGE = "test"
 ```
 
-`STORAGES` names tall he available services, `STORAGE` names the default service. You can declare more services than you actively use: a service is instantiated only the first time someone or something writes to it.
+`STORAGES` names all the available services, `STORAGE` names the default service. You can declare more services than you actively use: a service is instantiated only the first time someone or something writes to it.
 
 ### Disk Service
 
@@ -873,7 +873,7 @@ This means you can call `variant()` freely in templates without worrying about d
 {% endfor %}
 ```
 
-Each iteration looks up the same variant by hash. One database query per call, no reprocessing.
+Each iteration looks up the same variant by hash, with one database query per call and no reprocessing.
 
 ### Purging Variants
 

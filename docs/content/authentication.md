@@ -65,7 +65,7 @@ class User(Authenticable, BaseModel):
     created_at = pw.DateTimeField(default=pw.utcnow)
 ```
 
-The heavy lifting lives in `Authenticable`, a model concern in `myapp/models/concerns/authenticable.py`. You own that file too, but you'll change it less often. It adds the two columns auth needs and the methods that operate on them:
+Most of the logic lives in `Authenticable`, a model concern in `myapp/models/concerns/authenticable.py`. You own that file too, but you'll change it less often. It adds the two columns auth needs and the methods that operate on them:
 
 ```python
 class Authenticable(BaseModel):

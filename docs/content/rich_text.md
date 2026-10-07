@@ -23,9 +23,9 @@ The companion [File Storage](/docs/storage) guide covers attachments at the leve
 
 ## Introduction
 
-Proper's rich text addon facilitates the handling and display of text that includes formatting elements beyond plain text such as bold, italics, colors, hyperlinks, and tables.
+Proper's rich text addon stores and displays text that includes formatting beyond plain text, such as bold, italics, colors, hyperlinks, and tables.
 
-It integrates a modern rich text editor called [Lexxy](https://basecamp.github.io/lexxy/) with tons of out-of-the-box features including file uploads and embedding images. The editor can also be easily extended to add things like @mentions, emojis, or whatever advanced text feature your app might need.
+It integrates the [Lexxy](https://basecamp.github.io/lexxy/) rich text editor, which includes file uploads and image embedding out of the box. The editor can also be extended to add things like @mentions, emojis, or whatever other text feature your app needs.
 
 :::figure | The default rich text editor
 ![Lexxy](/assets/images/rich_text/lexxy.png)
@@ -170,8 +170,8 @@ The value of a `rich_text.RichTextField` can be directly embedded into a page, b
 
 `RichTextDocument.__html__` transforms the data into a sanitized HTML string, including attachments. On the other hand `RichTextDocument.__str__` returns a plain text string without HTML tags, useful for using it in metadata.
 
-To be honest, you probably also want to include the `lexxy-content.css`
-stylesheet - to give your content the same styles it has in the editor - and to wrap the field with a `lexxy-content` class, since that's what the syles use:
+You probably also want to include the `lexxy-content.css`
+stylesheet - to give your content the same styles it has in the editor - and to wrap the field with a `lexxy-content` class, since that's what the styles use:
 
 ```html+jinja
 {#css css/lexxy-content.css #}
@@ -255,7 +255,7 @@ See the [File Storage](/docs/storage) guide for details on `variant()`, previewa
 ## Customizing the Editor
 {#customizing_the_editor}
 
-Depending on where you are using the editor, you might want to disable some features, enable others, or update the presentation of the editor. This section guides you on how to do that.
+Depending on where you are using the editor, you might want to disable some features, enable others, or update the presentation of the editor.
 
 ### Customizing the editor features
 
@@ -307,7 +307,7 @@ Lexxy also lets you configure how to load the items: inline or remotely, and how
 
 ### Free HTML attachments
 
-This is the simplest type of prompt, that simply inserts the prompt item HTML directly in the editor. This is useful for things like hashtags, emojis, or other inline elements that don't require server-side processing.
+This is the simplest type of prompt: it inserts the prompt item HTML directly in the editor. This is useful for things like hashtags, emojis, or other inline elements that don't require server-side processing.
 
 To enable these, you must add the `insert-editable-text` attribute to the `<lexxy-prompt>` element:
 
@@ -389,7 +389,7 @@ The `HasRichText` mixin (which you added to your model in the [Models](#models) 
 
 **On delete**, the mixin schedules every attachment referenced by every rich text column on the record for purge. Tearing down a post tears down its embedded files too.
 
-Purges are dispatched as background jobs, so they don't block the save or the user's request. If your record has multiple `RichTextField` columns, the mixin handles them all - no extra configuration needed.
+Purges are dispatched as background jobs, so they don't block the save or the user's request. If your record has multiple `RichTextField` columns, the mixin handles them all without extra configuration.
 
 If you build a model that holds rich text but for some reason should _not_ own its attachments (e.g. attachments shared between records), don't include `HasRichText`. The document will still render fine; you just lose the automatic cleanup.
 

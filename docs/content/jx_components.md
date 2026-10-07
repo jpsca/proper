@@ -731,7 +731,7 @@ A page that does `<Layout class="dashboard">` ends up with `class="dashboard"` o
 
 ## Component Assets
 
-A component often needs styles or scripts to look and behave right. Jx lets you declare those dependencies at the top of the component, and the layout collects them across the whole rendered page and emits the right `<link>` and `<script>` tags. No global stylesheet, no manual list of imports per page.
+A component often needs styles or scripts to look and behave right. Jx lets you declare those dependencies at the top of the component, and the layout collects them across the whole rendered page and emits the right `<link>` and `<script>` tags. You don't need a global stylesheet or a manual list of imports per page.
 
 ### Declaring Assets
 
@@ -850,7 +850,7 @@ When a page is rendered, Jx walks the component tree at render time:
 
 `render_css()` and `render_js()` emit one tag per item in that list. Each component's CSS appears at most once in the final HTML, regardless of how many times the component was used.
 
-The collection happens during rendering, so it picks up exactly the components used on *this* page - no manual asset manifest, no per-page tracking. A page that uses `<Card>` gets card.css; a page that doesn't, doesn't.
+The collection happens during rendering, so it picks up exactly the components used on *this* page, without a manual asset manifest or per-page tracking. A page that uses `<Card>` gets card.css; a page that doesn't, doesn't.
 
 ---
 
@@ -939,7 +939,7 @@ def show(self):
         return self.render("card/not_found.jx", status=404)
 ```
 
-The path is the catalog name, exactly as you'd write it in `#import`. No prefix walk, no format negotiation - just "render this file."
+The path is the catalog name, exactly as you'd write it in `#import`. There is no prefix walk and no format negotiation; Proper renders that file.
 
 For JSON or text responses without a template, the [Controllers Overview](/docs/controllers#rendering-responses) covers `self.render(json=...)` and `self.render(text=...)`.
 

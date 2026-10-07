@@ -7,7 +7,7 @@ number_headers: true
 
 # Caching
 
-Caching is the art of doing the same expensive work only once. Some pages are slow because they aggregate data from many tables; others are slow because they render a large template; others still get hit by the same client over and over, asking the server to recompute a page that hasn't changed. In all three cases, the answer is to keep the result somewhere fast and serve it from there until the underlying data moves.
+Caching means doing the same expensive work only once. Some pages are slow because they aggregate data from many tables; others are slow because they render a large template; others still get hit by the same client over and over, asking the server to recompute a page that hasn't changed. In all three cases, the answer is to keep the result somewhere fast and serve it from there until the underlying data moves.
 
 Proper gives you three cooperating ways to do that:
 
@@ -139,7 +139,7 @@ In production you almost never want this. If you've turned off caching to debug 
 
 ### What happens if `CACHE` is unset
 
-If you don't define `CACHE` at all, Proper falls back to `NoCache`. The application still boots; everything that touches the cache continues to work; nothing is actually cached. This is intentional - a missing config should never crash an app over a non-essential feature - but it means production performance will be quietly bad. The generated `config/storage.py` always sets `CACHE` explicitly so you notice.
+If you don't define `CACHE` at all, Proper falls back to `NoCache`. The application still boots; everything that touches the cache continues to work; nothing is actually cached. This is intentional - a missing config should never crash an app over a non-essential feature - but it means production performance will be bad with no error to tell you why. The generated `config/storage.py` always sets `CACHE` explicitly so you notice.
 
 ---
 
@@ -198,7 +198,7 @@ stats = cache.get_or_set(
 )
 ```
 
-The trade-off is honest: for `race_condition_ttl` seconds after expiry, some clients see the old value. That's almost always better than the alternative (everyone recomputing in parallel and your database falling over). Pick a window that's longer than the recompute takes - 5 to 30 seconds is typical for "expensive but not slow" work.
+The trade-off is that for `race_condition_ttl` seconds after expiry, some clients see the old value. That's almost always better than the alternative (everyone recomputing in parallel and your database falling over). Pick a window that's longer than the recompute takes - 5 to 30 seconds is typical for "expensive but not slow" work.
 
 ### Counters: `increment` and `decrement`
 
@@ -224,7 +224,7 @@ This is the primitive the rate limiter uses internally - see [Controllers Advanc
 
 ### Batch operations
 
-`read_multi` and `write_multi` operate on many keys in one round-trip. With Redis, they map to `MGET` and a pipelined sequence of `SET` commands; with SQLite, they collapse to a single `WHERE key IN (...)` query and a single transaction. Either way, this is dramatically faster than a loop over `get` / `set` when the keys count more than a handful:
+`read_multi` and `write_multi` operate on many keys in one round-trip. With Redis, they map to `MGET` and a pipelined sequence of `SET` commands; with SQLite, they collapse to a single `WHERE key IN (...)` query and a single transaction. Either way, this is much faster than a loop over `get` / `set` when the keys count more than a handful:
 
 ```python
 # Read - returns a dict of hits only (misses are absent)
@@ -270,7 +270,7 @@ Fragment caching stores rendered HTML blocks so the template engine doesn't have
 {% endcache %}
 ```
 
-That's the whole API for the simple case. The first time this block renders, the engine evaluates its body, stores the result under the key `"sidebar"`, and returns it. Every subsequent render fetches the stored HTML directly - no template parsing, no database queries inside the block, nothing.
+That's the whole API for the simple case. The first time this block renders, the engine evaluates its body, stores the result under the key `"sidebar"`, and returns it. Every subsequent render fetches the stored HTML directly, with no template parsing and no database queries inside the block.
 
 The full syntax has four arguments. Only the first is required:
 
