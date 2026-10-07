@@ -13,6 +13,8 @@ number_headers: true
 
 Most of a web app is request and response: the browser asks for a page, your code answers, and nothing else happens until the user clicks again. Channels are for the other case - when the *server* needs to speak first. A new chat message should appear for everyone in the room without anyone refreshing; a long import should push its progress; a notification should pop the moment it is created. That server-initiated traffic runs over a WebSocket, and Channels are how Proper organizes it.
 
+If you have never used one: a WebSocket is a connection the browser opens once, with an ordinary HTTP request that asks to be *upgraded*, and then keeps open for as long as the page lives. After that, either side can send a message at any moment, without a request waiting for it. One connection per tab carries everything. With Channels you never touch the connection itself; you write Python classes that decide who may listen to what, and call `broadcast()` when something happens.
+
 After reading this guide, you will know:
 
 - The three pieces a real-time feature is built from, and how a message travels through them.
@@ -67,7 +69,14 @@ const chat = cable.subscribe(
 chat.perform("speak", { message: "hello" })
 ```
 
-Every section below takes one piece of this apart.
+Follow one message through the pieces. Ana types "hello" in room `general`, where Bo also has the page open:
+
+1. Ana's page called `cable.subscribe("ChatChannel", {room: "general"}, ...)` when it loaded. The cable created a `ChatChannel` for her, ran its `subscribed()`, and the channel started listening to the stream `chat_general`. Bo's page did the same, so there are two subscriptions listening to that stream, on two connections.
+2. Ana's page calls `chat.perform("speak", {message: "hello"})`. The message travels over her WebSocket to the cable, which finds her `ChatChannel` and calls its `speak()` method with `{"message": "hello"}` as `data`.
+3. `speak()` calls `self.broadcast("chat_general", {...})`. The cable looks up who listens to `chat_general` and writes the message to both connections, Ana's and Bo's.
+4. In both browsers, `cable.js` sees that the message belongs to the `ChatChannel` subscription and calls its `received(data)` callback, which adds the line to the page.
+
+Nothing in step 3 knows about Ana or Bo: the channel addressed the stream, and the cable did the rest. That is the pattern every feature in this guide repeats, and every section below takes one piece of it apart.
 
 ---
 
@@ -79,7 +88,7 @@ Channels is an addon. Install it with:
 $ proper install channels
 ```
 
-It adds `proper-wse` to the app's dependencies (the WebSocket server, see [The cable server](#the-cable-server-wsecable)) and creates:
+It adds `proper-wse` to the app's dependencies (the WebSocket server, see [The cable server](#the-cable-server-cable)) and creates:
 
 - `config/channels.py` - `CABLE_PATH`, `CABLE_PORT`, and `CABLE`, the cable backend. It is imported from `config/__init__.py`.
 - `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
@@ -283,7 +292,7 @@ class ChatChannel(AppChannel):
 
 The client calls `chat.perform("speak", {message: "hello"})` and the `speak` method runs, with the payload as `data`. An action always receives `data` (an empty dict if the client sent nothing), so every action method takes that argument.
 
-Actions are plain synchronous Python with a database connection ready, like a controller action. The calls of one connection - its subscriptions, actions and unsubscriptions - run one at a time, in the order they arrived, in a pool of worker threads (four by default, see `workers` in [The cable server](#the-cable-server-wsecable)). A slow action keeps one of those threads busy, so move long work to a [background task](/docs/tasks) that broadcasts when it is done.
+Actions are plain synchronous Python with a database connection ready, like a controller action. The calls of one connection - its subscriptions, actions and unsubscriptions - run one at a time, in the order they arrived, in a pool of worker threads (four by default, see `workers` in [The cable server](#the-cable-server-cable)). A slow action keeps one of those threads busy, so move long work to a [background task](/docs/tasks) that broadcasts when it is done.
 
 These names are refused as actions, with an `error` frame:
 
@@ -350,6 +359,30 @@ Use `send()` to answer the one client in front of you (a confirmation, a validat
 
 A broadcast is encoded once and every subscriber receives the same frame; it does not go through `send()`, even one you override. To tell different users different things, give them different streams, such as `f"notices_{user.id}"`.
 
+### Who should get it
+
+The question "who should see this?" has one answer in Channels: whoever listens to the stream you broadcast to. So the shape of a feature is the shape of its stream names:
+
+```python
+# Everyone: one stream, every channel listens to the same name
+self.stream_from("announcements")
+app.cable.broadcast("announcements", {"text": "Deploying in 5 minutes"})
+
+# A group (a room, a team, a document): one stream per group
+self.stream_from(f"chat_{room.id}")
+app.cable.broadcast(f"chat_{room.id}", {...})
+
+# One person: one stream per user, named after the verified user, never after params
+self.stream_from(f"inbox_{current.user.id}")
+app.cable.broadcast(f"inbox_{user.id}", {"unread": 3})
+
+# Something that is happening: one stream per job, until it is done
+self.stream_from(f"import_{self.params['job_id']}")
+app.cable.broadcast(f"import_{job.id}", {"progress": 80})
+```
+
+A channel can listen to several at once - a `NotificationsChannel` might stream from `announcements` and `inbox_{user.id}` - and the page gets both through the same `received()` callback. Put a field in the data, such as `{"kind": "unread", ...}`, when the page needs to tell them apart.
+
 ### Naming streams
 
 Stream names are arbitrary strings. The convention is a descriptive prefix with a dynamic suffix:
@@ -406,7 +439,7 @@ def notify_user(user_id, payload):
 
 The controller saves the message and redirects as usual, and the broadcast updates every open page. [Background Tasks](/docs/tasks) covers running the worker that the second example needs.
 
-It doesn't matter which process the broadcast comes from. Only one process serves the WebSockets; a broadcast made in any other one - a task worker, a shell, the extra web processes of `PROCESSES` - is sent to it for you (see [The cable server](#the-cable-server-wsecable)).
+It doesn't matter which process the broadcast comes from. Only one process serves the WebSockets; a broadcast made in any other one - a task worker, a shell, the extra web processes of `PROCESSES` - is sent to it for you (see [The cable server](#the-cable-server-cable)).
 
 When one request makes several broadcasts, wrap them in `app.cable.batch()`. From a process that has to send them to the cable, they then travel together, in one request instead of one each:
 
@@ -492,7 +525,7 @@ chat.unsubscribe()                // leave this channel
 cable.disconnect()                // close the socket, stop reconnecting
 ```
 
-`cable.connect()` opens the WebSocket. Calling it again while it is open, or opening, does nothing, so every script of the page can call it. With no argument, it connects to `/cable` on the current host (`ws://` on http, `wss://` on https); in development, to the port the page announces (see [The cable server](#the-cable-server-wsecable)). If you change `CABLE_PATH`, pass the full URL to `connect()`.
+`cable.connect()` opens the WebSocket. Calling it again while it is open, or opening, does nothing, so every script of the page can call it. With no argument, it connects to `/cable` on the current host (`ws://` on http, `wss://` on https); in development, to the port the page announces (see [The cable server](#the-cable-server-cable)). If you change `CABLE_PATH`, pass the full URL to `connect()`.
 
 `cable.subscribe(channel, params, callbacks)` returns a subscription. You can subscribe before the connection is open: the subscription is sent as soon as it is. If you pass only two arguments and the second has callbacks in it, it is taken as the callbacks, with empty params.
 
@@ -519,6 +552,44 @@ const inbox   = cable.subscribe(
     "InboxChannel", { received: showToast })
 ```
 
+### Where the JavaScript goes
+
+New apps load `assets/js/application.js` as a module from the layout and navigate with [Turbo Drive](/docs/turbo), which swaps the `<body>` on each click instead of reloading. Two consequences for subscriptions:
+
+- `cable.connect()` and anything every page needs belong in `application.js`. The module runs once per real page load, and the connection survives Turbo navigations, so a tab opens one WebSocket and keeps it.
+- A subscription for *one page* must end when that page goes away. A `cable.subscribe()` at the top of `application.js` would subscribe once and never let go; one inside a `turbo:load` handler would subscribe again on every visit, piling up. Tie it to an element instead, so it unsubscribes when the element leaves the DOM. For HTML broadcasts, `<turbo-stream-channel>` does exactly that (see [Broadcasting HTML](#broadcasting-html-turbo-streams)). For JSON, a [Stimulus](https://stimulus.hotwired.dev/) controller, which new apps also include, has the same two moments:
+
+```javascript {title="assets/js/room-controller.js"}
+import { Controller } from "@hotwired/stimulus"
+import { cable } from "cable"
+
+class RoomController extends Controller {
+  static values = { id: Number }
+
+  connect() {
+    this.subscription = cable.subscribe("RoomChannel", { room_id: this.idValue }, {
+      received: (data) => this.render(data),
+    })
+  }
+
+  disconnect() {
+    this.subscription.unsubscribe()
+  }
+
+  render(data) { ... }
+}
+
+window.Stimulus.register("room", RoomController)
+```
+
+```html+jinja {title="views/room/show.jx"}
+{#js "js/room-controller.js" #}
+
+<div data-controller="room" data-room-id-value="{{ room.id }}">...</div>
+```
+
+The view loads the controller with the `{#js #}` tag, as the auth addon's `password.jx` does, and the element's `data-controller` attribute starts it. When Turbo replaces the body, `disconnect()` runs and the subscription ends with the page.
+
 ### Missed broadcasts (recovery)
 
 The server keeps the last broadcasts of each stream: 128 by default, for 5 minutes after the last one. When a connection comes back, `cable.js` tells the server where it was in each stream, and the server sends what was broadcast since. They arrive through `received()` like any other, in order, and nothing arrives twice. The same happens when a connection falls so far behind that wse drops broadcasts for it (see [Slow clients](#slow-clients)): the broadcasts after the hole wait while the missed ones are fetched.
@@ -541,7 +612,7 @@ Field         | Value
 
 With `recovered === false`, load the state again from the server, as the page did when it first rendered. The `<turbo-stream-channel>` element does this by dispatching an event (see [Broadcasting HTML](#broadcasting-html-turbo-streams)).
 
-What recovery does not cover: a stream that had no broadcasts before the connection dropped has no position to recover from, so what it broadcast meanwhile is lost (`recovered` is `null` for it); and `send()` messages to one subscription are not kept, only broadcasts. On the server, `recovery=False` in `CABLE` turns it off, and wse's `recovery_buffer_size`, `recovery_ttl` and `recovery_memory_budget` size the buffers (see [The cable server](#the-cable-server-wsecable)).
+What recovery does not cover: a stream that had no broadcasts before the connection dropped has no position to recover from, so what it broadcast meanwhile is lost (`recovered` is `null` for it); and `send()` messages to one subscription are not kept, only broadcasts. On the server, `recovery=False` in `CABLE` turns it off, and wse's `recovery_buffer_size`, `recovery_ttl` and `recovery_memory_budget` size the buffers (see [The cable server](#the-cable-server-cable)).
 
 ---
 
@@ -803,6 +874,18 @@ CABLE_ALLOWED_ORIGINS = ["https://admin.example.com"]
 ## Without channels
 
 An app without the channels addon has `CABLE = {}`: a cable that serves no WebSockets, so `broadcast()` reaches no one (it is logged at the debug level) and doesn't fail. Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` when the app starts.
+
+---
+
+## When nothing arrives
+
+Real-time code fails quietly: a broadcast to a stream nobody listens to is not an error, it is a broadcast to no one. When a page doesn't update, check in this order:
+
+1. **Is the page connected?** In the browser's developer tools, the Network panel has a WS filter. The `cable` connection should be there with status 101, and its Messages tab shows every frame in both directions: your `subscribe` command, the server's `confirm_subscription` (or `reject_subscription`), the pings, and each broadcast. In development, the connection goes to `CABLE_PORT` (`2301`), announced by a `<meta name="cable-port">` tag in the page; in production, to `CABLE_PATH` through your proxy (see [Deployment](/docs/deployment#the-reverse-proxy)).
+2. **Was the subscription confirmed?** A `reject_subscription` means `subscribed()` called `reject()`, raised (the server log has the traceback), or no channel has that name: the channel module isn't imported in `channels/__init__.py`, or the name differs from the class name (`@router.channel("chat")` registers `chat`, not `ChatChannel`). The confirmation lists the subscription's `streams`: if the one you broadcast to isn't there, `subscribed()` didn't `stream_from()` it.
+3. **Do the names match?** The stream in `stream_from()` and the one in `broadcast()` must be the same string. `f"chat_{room.id}"` and `f"chat_{room_id}"` look alike and differ when one is an int and the other a string from the URL. In a shell, `app.cable.streams` shows the streams with subscribers right now, and how many.
+4. **Is the broadcast reaching the cable?** From a task worker or a shell, the broadcast is forwarded to the web process; a warning in the log says when it can't be reached. `app.cable.health()` says whether a process serves the WebSockets and how many connections it has.
+5. **Is it the data?** `received()` gets exactly what you broadcast, after a round trip through JSON: a `date` becomes a string, a model has to be turned into a dict first. The Messages tab shows the frame as it arrived.
 
 ---
 
