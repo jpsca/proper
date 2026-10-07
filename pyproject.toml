@@ -71,7 +71,7 @@ test = [
     "redis >= 7.0.0",
     "smtpdfix",
     "nh3>=0.2.18",
-    "proper-wse>=2.6.0",
+    "proper-wse>=2.7.0",
 ]
 docs = [
     "writeadoc>=0.28.0",
