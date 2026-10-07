@@ -113,7 +113,7 @@ and nothing else changes. (Removing `salt=""` from the read instead also
 works for new cookies, but every cookie set before the upgrade then fails to
 verify, so its users lose what it kept, such as a "remember me" login.)
 
-### ⚠️ Upgrading: JSON bodies that are not an object
+### ⚠️ Upgrading: JSON bodies that are not an object, malformed multipart
 
 `request.form` now gets only the members of a JSON object. A JSON body
 that is a list of pairs (`[["name", "ada"]]`) or of two-character strings
@@ -124,15 +124,20 @@ sends such a body, parse it from `request.body`:
 
 A multipart body that ends before its final boundary is now a
 `MultipartError` (400); before, it was parsed without its last field.
+Malformed multipart framing is also a `MultipartError` now, where it was
+python-multipart's `MultipartParseError` (a 500). An error handler
+registered for python-multipart's exception no longer gets these errors;
+register it for `MultipartError` instead.
 
 ### ⚠️ Upgrading: forwarding headers count only from `TRUSTED_PROXIES`
 
 `request.remote_ip` and `request.protocol` now read the `X-Forwarded-For`,
 `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` headers only when the
 request comes from one of the reverse proxies in the new `TRUSTED_PROXIES`
-setting, or from a peer without an address (a server on a Unix socket, which
-only a process on the same machine can reach). From any other address they
-are ignored, and `remote_ip` is the address the request came from.
+setting, or from a peer without an address (Granian or gunicorn on a Unix
+socket, which only a process on the same machine can reach). From any other
+address they are ignored, and `remote_ip` is the address the request came
+from.
 `request.protocol` decides `request.is_secure`, `default_port`,
 `port_is_default`, `port_string` and `host_with_port`, and whether the
 session and auth cookies are `Secure`: behind a proxy that is not in the
@@ -167,26 +172,40 @@ Three more changes in how `remote_ip` reads the headers:
   address is a trusted proxy, it is still the leftmost one.
 - `X-Forwarded-For` comes before `Forwarded` (it was the other way round),
   because nearly every proxy writes `X-Forwarded-For` and passes a client's
-  `Forwarded` header through untouched. Behind a proxy that writes only
-  `Forwarded` or only `X-Real-IP`, make it remove the `X-Forwarded-For`
-  header the client sends.
+  `Forwarded` header through untouched. A proxy passes the forwarding
+  headers it doesn't write as the client sent them: behind a proxy that
+  writes only `Forwarded`, make it remove the client's `X-Forwarded-For`;
+  behind one that writes only `X-Real-IP`, make it remove the client's
+  `X-Forwarded-For` and `Forwarded`.
 - An `X-Forwarded-For` address is returned without a port that a proxy
-  added (`203.0.113.5:51234` gives `203.0.113.5`). A `Forwarded` value is
-  still returned as written.
-- `TestClient` requests now come from the address `client.remote_ip`
-  (`127.0.0.1`, a trusted proxy), so an `X-Forwarded-For` header you send
-  in a test is used. Before, the client's own `Forwarded` header won over
-  it. A test that sets `client.remote_ip` to a public address now gets the
-  forwarding headers ignored: an `X-Forwarded-Proto: https` sent to test
-  `Secure` cookies no longer makes the request secure. Keep the default
-  address for those tests. `make_test_request()` without `client=`, and
-  `Request(...)` without `client`, have no peer address, which counts as
-  trusted, so their forwarding headers are used as before.
+  added (`203.0.113.5:51234` gives `203.0.113.5`), and an IPv4-mapped
+  address as IPv4 (`::ffff:203.0.113.5` gives `203.0.113.5`). A
+  `Forwarded` value is still returned as written.
 
-### ⚠️ Upgrading: conditional requests follow RFC 9110
+Make the proxy drop the request headers with an underscore in the name,
+such as `X_Forwarded_For`. The WSGI server gives the app `X-Forwarded-For`
+and `X_Forwarded_For` under the same name, so the app can't tell the
+client's header from the proxy's, and Granian can keep the client's value.
+nginx drops these headers unless `underscores_in_headers` is on; a proxy
+built on Go's `httputil.ReverseProxy` passes them through.
+
+In tests, `TestClient` requests now come from the address
+`client.remote_ip` (`127.0.0.1`, a trusted proxy), so an `X-Forwarded-For`
+header you send in a test is used. Before, the client's own `Forwarded`
+header won over it. A test that sets `client.remote_ip` to a public address
+now gets the forwarding headers ignored: an `X-Forwarded-Proto: https` sent
+to test `Secure` cookies no longer makes the request secure. Keep the
+default address for those tests. `make_test_request()` without `client=`,
+and `Request(...)` without `client`, have no peer address, which counts as
+trusted, so their forwarding headers are still used, by the rules above:
+`X-Forwarded-For: 1.2.3.4, 5.6.7.8` now gives `5.6.7.8` (it gave
+`1.2.3.4`), and it wins over `Forwarded`.
+
+### ⚠️ Upgrading: conditional requests follow RFC 9110 more closely
 
 `response.is_fresh()`, and so the automatic `304 Not Modified` after an
-action and the return value of `fresh_when()`, now follow RFC 9110:
+action and the return value of `fresh_when()`, now follow these rules of
+RFC 9110:
 
 - A response can be fresh only for a `GET` or `HEAD` request and with a
   2xx status. Before, a `POST` with a matching `If-None-Match`, or an
@@ -205,6 +224,11 @@ action and the return value of `fresh_when()`, now follow RFC 9110:
 - `If-None-Match` uses the weak comparison (`W/"x"` matches `"x"`), and
   `If-None-Match: *` matches any response with an ETag. Before, only the
   exact string matched, so more requests now get a 304.
+
+Two RFC 9110 rules are not applied: `If-None-Match: *` matches only a
+response with an ETag (the RFC matches any existing resource), and a request
+with another method whose `If-None-Match` matches gets the response as it
+is, not a `412 Precondition Failed`.
 
 A response with the status 304 now always goes out without a body, also
 when the action sets the status itself: the body is emptied, whatever the
@@ -238,7 +262,9 @@ only when the request's headers made the response fresh.
 
 - `TRUSTED_PROXIES`: the IP addresses or networks (CIDR) of the reverse
   proxies in front of the app, whose forwarding headers are used. A value
-  that is not a list of addresses or networks is a `ConfigError`.
+  that is not a list of addresses or networks is a `ConfigError`. The app
+  keeps it in `app.config.TRUSTED_PROXIES` as a tuple of `ipaddress`
+  networks; a list of strings assigned there later is also accepted.
 - `app.cable.health()`: whether this process serves the WebSockets, its
   connections, users and streams, and what wse reports (`health_snapshot()`),
   for a health endpoint.
@@ -304,8 +330,9 @@ only when the request's headers made the response fresh.
 - Any client could set `request.remote_ip` with a `Forwarded`,
   `X-Forwarded-For` or `X-Real-IP` header, and make `request.is_secure`
   true (and so the session and auth cookies `Secure`) with
-  `X-Forwarded-Proto`: the headers were used whoever sent them. Now they are used only from the
-  `TRUSTED_PROXIES`, and the address lists are read from the right.
+  `X-Forwarded-Proto`: the headers were used whoever sent them. Now they
+  are used only from the `TRUSTED_PROXIES` or from a peer without an
+  address (a Unix socket), and the address lists are read from the right.
 - The error handler lookup used the first registered handler whose class
   matched, so a handler for `Exception` registered before one for
   `NotFound` also took the 404s. Now the most specific handler wins, as
@@ -376,11 +403,8 @@ only when the request's headers made the response fresh.
   (`If-Modified-Since: garbage`) was a 500 in every action that used
   `fresh_when()` and for static files. It is now ignored (`None`), as RFC
   9110 says. A date with a time zone offset (`+0200`) was read as if it were
-  UTC; it is now converted to UTC.
-- Setting `app.config.TRUSTED_PROXIES` to a list of strings after the app
-  was created made every request with an `X-Forwarded-Proto` header fail
-  with a `TypeError` outside the error handling (the server's bare 500),
-  and `request.remote_ip` raise. The list is now parsed when it is used.
+  UTC; it is now converted to UTC, and ignored if the conversion takes it
+  past the year 9999 or before the year 1.
 - A request body without `Content-Length` was ignored: a chunked
   (`Transfer-Encoding: chunked`) body in HTTP/1.1, or a body sent without
   the header in HTTP/2, left `request.form` and `request.body` empty. It is
@@ -389,6 +413,9 @@ only when the request's headers made the response fresh.
   `wsgi.input_terminated` (Granian, what `proper run` uses, does), because
   PEP 3333 doesn't promise that `wsgi.input` ends where the body does;
   from other servers such a body is still ignored, as in Werkzeug.
+  `request.content_length` stays `0` for such a body. With
+  `MAX_CONTENT_LENGTH = 0` (no limit), the whole body is read into memory;
+  set a limit if the app gets chunked uploads.
 - A `subscribed()` that raised an exception after `stream_from()` left the
   connection receiving the broadcasts of that stream, without a subscription,
   and the client waiting for an answer. The streams are now stopped and the

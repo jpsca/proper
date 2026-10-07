@@ -337,7 +337,7 @@ class Response(ResponseHeadersMixin):
         """Returns `True` if the response is fresh: the client already has
         this version, so a `304 Not Modified` can replace it.
 
-        Follows RFC 9110 (sections 13.1 and 13.2):
+        Uses these rules of RFC 9110 (sections 13.1 and 13.2):
 
         - Only a `GET` or `HEAD` request with a 2xx response can be fresh.
         - `If-None-Match` matches if it lists the response's ETag, compared
@@ -346,6 +346,11 @@ class Response(ResponseHeadersMixin):
         - `If-Modified-Since` is used only when the request has no
           `If-None-Match`. The dates are compared in whole seconds, because
           HTTP dates have no fractions.
+
+        Two differences from the RFC: `If-None-Match: *` needs a response
+        with an ETag (the RFC matches any existing resource), and a request
+        with another method whose `If-None-Match` matches gets the response
+        as it is (the RFC answers `412 Precondition Failed`).
 
         """
         request = current.request if request is None else request

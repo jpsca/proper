@@ -1069,12 +1069,13 @@ self.response.fresh_when(
 
 If `fresh_when()` determines the response is fresh, the action's rendered output is discarded and a `304 Not Modified` is returned automatically. You don't need to check the return value.
 
-The freshness check (`self.response.is_fresh()`) follows RFC 9110:
+The freshness check (`self.response.is_fresh()`) uses these RFC 9110 rules:
 
 - Only `GET`/`HEAD` requests with a 2xx response can be fresh; a `POST`, an error status or a redirect is never turned into a 304.
 - `If-None-Match` uses the weak comparison (`W/"x"` matches `"x"`); `*` matches any response that has an ETag.
 - `If-Modified-Since` is ignored when the request has `If-None-Match`.
 - `Last-Modified` is compared with `If-Modified-Since` in whole seconds.
+- Not applied: `If-None-Match: *` needs an ETag on the response (the RFC matches any existing resource); a non-GET/HEAD request with a matching `If-None-Match` gets the response as it is, not a 412.
 
 A 304 always goes out without a body: if the action sets `self.response.status = 304` itself, the body is emptied and no template is rendered.
 

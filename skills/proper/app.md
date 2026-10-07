@@ -168,7 +168,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `TIMEZONE_DEFAULT`         | `"UTC"`           | Fallback timezone when none is set on the request |
 | `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets                   |
 | `STATIC_X_SENDFILE_HEADER` | `""`              | Header for web server file serving             |
-| `TRUSTED_PROXIES`          | loopback, private and link-local networks | IPs/CIDRs of the reverse proxies whose `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used; list every proxy in the chain (a CDN too); replaces the default; not a list of IPs/networks = `ConfigError`. A peer without an address (Unix socket) counts as trusted |
+| `TRUSTED_PROXIES`          | loopback, private and link-local networks | IPs/CIDRs of the reverse proxies whose `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used; list every proxy in the chain (a CDN too); replaces the default; not a list of IPs/networks = `ConfigError`. A peer without an address (Granian or gunicorn on a Unix socket) counts as trusted |
 
 ### Session Settings
 

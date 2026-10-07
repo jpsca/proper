@@ -337,12 +337,14 @@ That's the whole API for the common case. The `updated_at` timestamp drives both
 
 You don't have to skip the rest of the action when the response is fresh; the framework will do that for you. After the action returns, Proper checks the cache headers, and if the client already has the latest version, it discards the rendered body and sends `304` with no body.
 
-Proper follows the rules of RFC 9110 for this check:
+Proper uses these rules of RFC 9110 for this check:
 
 - Only `GET` and `HEAD` requests get a 304, and only when the action leaves a 2xx status. A `POST`, or an action that sets a 404 or redirects, is sent as it is, and `fresh_when` returns `False`.
 - `If-None-Match` matches if it lists the response's ETag, comparing weak and strong ETags by their value (`W/"x"` matches `"x"`), or if it is `*` and the response has an ETag.
 - When the request has an `If-None-Match`, its `If-Modified-Since` is ignored, so a changed ETag always gets the full response.
 - `Last-Modified` and `If-Modified-Since` are compared in whole seconds, because HTTP dates have no fractions: an `updated_at` of `10:30:00.75` is fresh for an `If-Modified-Since` of `10:30:00`.
+
+Two RFC 9110 rules are not applied: `If-None-Match: *` matches only a response with an ETag (the RFC matches any existing resource), and a request with another method whose `If-None-Match` matches gets the response as it is, not a `412 Precondition Failed`.
 
 A `304` never has a body. If an action sets `self.response.status = 304` itself, Proper empties the body and skips the template.
 

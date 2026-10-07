@@ -981,7 +981,19 @@ class TestHandshakeRequest:
         assert (request.path, request.query_string, request.client) == ("/", "", None)
         request = _handshake_request(app, {"path": "/ws?a=1", "remote_addr": "[::1]:4000"})
         assert (request.path, request.query_string, request.client) == ("/ws", "a=1", ("::1", 4000))
-        assert _handshake_request(app, {"remote_addr": "nonsense"}).client is None
+        assert _handshake_request(app, {"remote_addr": "nonsense"}).client == ("nonsense", None)
+
+    @pytest.mark.parametrize("remote_addr", ["203.0.113.5", "[2001:db8::5]", "nonsense"])
+    def test_a_peer_without_a_port_is_still_the_peer(self, app, remote_addr):
+        """A request without a peer counts as from a trusted proxy, so a
+        `remote_addr` that isn't `ip:port` must not become no peer: the
+        client's own `X-Forwarded-For` would be used."""
+        from proper.channels.cable import _handshake_request
+
+        request = _handshake_request(
+            app, {"remote_addr": remote_addr, "forwarded_for": "6.6.6.6"}
+        )
+        assert request.remote_ip == remote_addr.strip("[]")
 
     @pytest.mark.asyncio
     async def test_find_session_from_a_bearer_token(self, app):
