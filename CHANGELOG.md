@@ -76,6 +76,17 @@ handler for a subclass (such as `NotFound`), the subclass handler was never
 called and now it is. If you want the base class handler to take those
 errors, remove the subclass handler.
 
+### ⚠️ Upgrading: `set_signed_cookie` signs with the salt `"cookie"`
+
+`response.set_signed_cookie()` now signs with the salt `"cookie"` by
+default, as `set_cookie(signed=True)` and `request.get_signed_cookie()`
+already did. It used `""`, so a cookie set without a salt couldn't be read
+back without one. If you worked around it by reading with
+`get_signed_cookie(name, salt="")`, remove `salt=""` from that call (or add
+it to the `set_signed_cookie()` call too); otherwise the cookies set after
+the upgrade don't verify. Cookies that browsers keep from before the upgrade
+are signed with `""` and are read again only with `salt=""`.
+
 ### Removed
 
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
@@ -191,6 +202,17 @@ errors, remove the subclass handler.
 - `TestClient` and `make_test_request` didn't percent-decode the path, as
   the server does: a test that requested `/tags/a%20b` got the param
   `a%20b`, where the app running on a server gets `a b`.
+- `response.set_signed_cookie()` signed with the salt `""` and
+  `request.get_signed_cookie()` read with `"cookie"`, so a signed cookie set
+  and read with the default salts never verified. Both use `"cookie"` now.
+- `app.loads()` raised instead of returning `None` for a token with a valid
+  signature that it couldn't decode: a payload that isn't valid base64,
+  zlib, UTF-8 or JSON (`itsdangerous.BadPayload`), or a timestamp after year
+  9999 (`ValueError` or `OverflowError`). Reading such a cookie with
+  `get_signed_cookie()`, or as the session, was a 500.
+- A session cookie whose signed value was not a JSON object (a string, a
+  number, `true`) was a 500, and a list of pairs became a session. Any value
+  that is not an object is now no session, as a bad signature is.
 - A `subscribed()` that raised an exception after `stream_from()` left the
   connection receiving the broadcasts of that stream, without a subscription,
   and the client waiting for an answer. The streams are now stopped and the

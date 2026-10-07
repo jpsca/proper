@@ -127,7 +127,8 @@ def _find_session_by_cookie(request: "Request") -> DotDict | None:
         max_age=request.app.config.SESSION_COOKIE_LIFETIME
     )
     logger.debug(">>> %s", session or "")
-    return DotDict(session) if session else None
+    # A session is a JSON object; any other signed value is no session
+    return DotDict(session) if session and isinstance(session, dict) else None
 
 
 # STEP 6

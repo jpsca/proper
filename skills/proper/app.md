@@ -235,7 +235,7 @@ The app provides `dumps()` and `loads()` for signed, URL-safe serialization usin
 token = app.dumps({"user_id": 42}, salt="invite")
 
 # Deserialize and verify (tries all secret keys in order)
-data = app.loads(token, max_age=3600, salt="invite")  # Returns None if expired/invalid
+data = app.loads(token, max_age=3600, salt="invite")  # Returns None if expired/invalid/undecodable
 ```
 
 `dumps()` always signs with the last (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.

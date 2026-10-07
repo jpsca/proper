@@ -3,7 +3,11 @@ from unittest.mock import patch
 import pytest
 
 from proper import TestClient, current, status
-from proper.constants import FLASHES_SESSION_KEY, SESSION_COOKIE_NAME
+from proper.constants import (
+    FLASHES_SESSION_KEY,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_SALT,
+)
 from proper.controller import Controller
 from proper.core.response import Response
 from proper.errors import MatchNotFound
@@ -196,6 +200,23 @@ class TestCopySession:
 
         assert FLASHES_SESSION_KEY not in co.response.session
         assert co.response.session["user"] == "alice"
+
+    def test_reads_the_session_from_a_signed_cookie(self, app, make_co):
+        token = app.dumps({"user": "alice"}, salt=SESSION_COOKIE_SALT)
+        co = make_co(headers=[("cookie", f"{SESSION_COOKIE_NAME}={token}")])
+        copy_session(co.request, co.response)
+        assert co.request.session == {"user": "alice"}
+        assert co.response.session == {"user": "alice"}
+
+    @pytest.mark.parametrize("data", ["alice", 42, True, [["user", "alice"]]])
+    def test_a_session_cookie_that_is_not_an_object_is_no_session(
+        self, app, make_co, data
+    ):
+        token = app.dumps(data, salt=SESSION_COOKIE_SALT)
+        co = make_co(headers=[("cookie", f"{SESSION_COOKIE_NAME}={token}")])
+        copy_session(co.request, co.response)
+        assert co.request.session == {}
+        assert co.response.session == {}
 
     def test_skips_for_options(self, app, make_co):
         co = make_co(method="OPTIONS")

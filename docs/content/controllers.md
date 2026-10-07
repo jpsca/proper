@@ -782,6 +782,8 @@ self.response.session["key"] = value
 self.response.session.key = value
 ```
 
+If the session cookie is missing, its signature doesn't match, it has expired, or its value isn't a JSON object, the session starts empty.
+
 Proper compares the request and response sessions at the end of every request, and only writes a new cookie if anything changed - so reads alone don't cost you a cookie roundtrip.
 
 :::tip | Why two sessions?
@@ -831,6 +833,8 @@ self.response.set_signed_cookie("_auth", user.id, max_age=2592000, httponly=True
 # read - returns None if the signature doesn't match
 user_id = self.request.get_signed_cookie("_auth", max_age=2592000)
 ```
+
+Both calls use the salt `"cookie"` unless you pass `salt=`. A different salt per kind of cookie keeps one from being accepted as another; pass the same one to both calls.
 
 The `max_age` on the read side isn't just a hint: signed cookies older than `max_age` are also rejected, even if the signature is still valid. This protects against an attacker reusing a stolen-but-old cookie.
 

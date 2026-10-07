@@ -107,7 +107,7 @@ Accessed via `current.app` or directly from the app instance.
 | `url_is`           | `(name, object=None, *, curr_url="", **kw) -> bool`       | Check if current URL matches a named route               |
 | `url_startswith`   | `(name, object=None, *, curr_url="", **kw) -> bool`       | Check if current URL starts with a named route path      |
 | `dumps`            | `(obj, salt=None) -> str`                                  | Serialize and sign a value using the first secret key    |
-| `loads`            | `(value, *, max_age=None, return_timestamp=False, salt=None) -> Any` | Deserialize and verify a signed value. Tries all secret keys. Returns `None` if invalid. |
+| `loads`            | `(value, *, max_age=None, return_timestamp=False, salt=None) -> Any` | Deserialize and verify a signed value. Tries all secret keys. Returns `None` if invalid, expired or undecodable. |
 | `on_error`         | `(func) -> func`                                           | Decorator to register error handlers                     |
 | `on_teardown`      | `(func) -> func`                                           | Decorator to register teardown handlers                  |
 | `around_request`   | `(func) -> func`                                           | Decorator to register a function `func(request, response, call_next)` that wraps every request |
@@ -182,7 +182,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 |---------------------|---------------------------------------------------------------------------------|--------------------------------------|
 | `get_url`           | `(include_query=True) -> str`                                                   | Build the full URL                   |
 | `get_cookie`        | `(name, default=None) -> str \| None`                                           | Get a cookie value by name           |
-| `get_signed_cookie` | `(name, default=None, *, salt="", max_age=None) -> str \| Any`                  | Get and verify a signed cookie value |
+| `get_signed_cookie` | `(name, default=None, *, salt="cookie", max_age=None) -> str \| Any`            | Get and verify a signed cookie value |
 
 
 ### Cookies
@@ -263,9 +263,9 @@ All of these are read/write.
 | `fresh_when`         | `(objects=None, *, etag=None, last_modified=None, strong=False, public=False, request=None) -> bool`       | Set cache headers and return whether the response is fresh |
 | `is_fresh`           | `(request=None) -> bool`                                                                                   | Check if response is fresh based on request cache headers |
 | `send_file`          | `(path, *, mimetype=None, as_attachment=False, download_name=None, x_sendfile_header="") -> None`          | Send a file as the response body                         |
-| `set_cookie`         | `(name, value="", *, max_age=None, path="/", domain=None, secure=False, httponly=False, samesite="Lax", comment="", signed=False, salt="") -> None` | Set a response cookie |
+| `set_cookie`         | `(name, value="", *, max_age=None, path="/", domain=None, secure=False, httponly=False, samesite="Lax", comment="", signed=False, salt="cookie") -> None` | Set a response cookie |
 | `unset_cookie`       | `(name) -> None`                                                                                           | Delete a cookie                                          |
-| `set_signed_cookie`  | `(name, value="", *, max_age=None, path="/", domain=None, secure=False, httponly=False, samesite="Lax", comment="", salt="") -> None` | Set a cryptographically signed cookie |
+| `set_signed_cookie`  | `(name, value="", *, max_age=None, path="/", domain=None, secure=False, httponly=False, samesite="Lax", comment="", salt="cookie") -> None` | Set a cryptographically signed cookie |
 | `set_etag`           | `(val, *, strong=False) -> None`                                                                           | Set the `ETag` header (weak or strong)                   |
 | `set_cache_control`  | `(*directives) -> None`                                                                                    | Set `Cache-Control` directives                           |
 | `set_content_type`   | `(mimetype, charset) -> None`                                                                              | Set the `Content-Type` header                            |

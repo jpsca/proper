@@ -1,5 +1,10 @@
-"""`app.dumps(..., timed=False)`: deterministic tokens that cannot expire."""
+"""`app.dumps(..., timed=False)`: deterministic tokens that cannot expire.
+Also `app.loads()` of timed tokens that are signed but malformed."""
+import time
+
+import itsdangerous
 import pytest
+from itsdangerous.encoding import base64_encode, int_to_bytes
 
 from proper import App
 
@@ -73,3 +78,45 @@ def test_dumps_signs_with_the_newest_key():
         token = rotated.dumps({"id": 1}, salt="x", **kwargs)
         assert make_app(KEY_B).loads(token, salt="x", **kwargs) == {"id": 1}
         assert make_app(KEY_A).loads(token, salt="x", **kwargs) is None
+
+
+# The last second of year 9999, the largest timestamp a `datetime` can hold
+MAX_TIMESTAMP = 253402300799
+
+
+def sign_raw(app, payload, timestamp, salt="x"):
+    """Sign `payload` and `timestamp` with the newest key, as `app.dumps()`
+    does, but with any payload bytes and any timestamp."""
+    signer = app.serializers[-1].make_signer(salt)
+    value = payload + b"." + base64_encode(int_to_bytes(timestamp))
+    return itsdangerous.Signer.sign(signer, value).decode()
+
+
+def test_sign_raw_makes_tokens_that_loads_accepts():
+    app = make_app(KEY_A)
+    payload = app.serializers[-1].dump_payload({"id": 1})
+    assert app.loads(sign_raw(app, payload, int(time.time())), salt="x") == {"id": 1}
+    assert app.loads(sign_raw(app, payload, MAX_TIMESTAMP), salt="x") == {"id": 1}
+
+
+@pytest.mark.parametrize("payload", [
+    base64_encode(b"not json"),
+    base64_encode(b"\xff\xfe"),
+    b"!!!",
+    b".not-zlib",
+])
+def test_loads_rejects_a_signed_payload_that_does_not_decode(payload):
+    app = make_app(KEY_B, KEY_A)
+    token = sign_raw(app, payload, int(time.time()))
+    assert app.loads(token, salt="x") is None
+    assert app.loads(token, salt="x", max_age=60) is None
+    assert app.loads(token, salt="x", return_timestamp=True) is None
+
+
+@pytest.mark.parametrize("timestamp", [MAX_TIMESTAMP + 1, 2**64 - 1])
+@pytest.mark.parametrize("kwargs", [{}, {"max_age": 60}, {"return_timestamp": True}])
+def test_loads_rejects_a_signed_timestamp_after_year_9999(timestamp, kwargs):
+    app = make_app(KEY_A)
+    payload = app.serializers[-1].dump_payload({"id": 1})
+    token = sign_raw(app, payload, timestamp)
+    assert app.loads(token, salt="x", **kwargs) is None

@@ -10,6 +10,7 @@ from proper.core.response.cookies import (
     validate_cookie_size,
     validate_domain,
 )
+from proper.test_client import make_test_request
 
 
 def _make_response(*, status=pstatus.ok, app=None):
@@ -147,6 +148,19 @@ def test_unset_cookie():
     resp.unset_cookie("foo")
     assert resp.cookies["foo"].value == " "
     assert resp.cookies["foo"]["max-age"] == 0
+
+
+@pytest.mark.parametrize("signed_kwargs", [{}, {"salt": "prefs"}])
+def test_signed_cookie_reads_back_with_the_same_salt(app, signed_kwargs):
+    """`set_signed_cookie()` and `get_signed_cookie()` share their default salt,
+    so a cookie set without one reads back without one."""
+    resp = _make_response(app=app)
+    resp.set_signed_cookie("prefs", {"theme": "dark"}, **signed_kwargs)
+    resp.set_cookie("flag", "on", signed=True, **signed_kwargs)
+    cookie = f"prefs={resp.cookies['prefs'].value}; flag={resp.cookies['flag'].value}"
+    req = make_test_request("/", app=app, headers=[("cookie", cookie)])
+    assert req.get_signed_cookie("prefs", **signed_kwargs) == {"theme": "dark"}
+    assert req.get_signed_cookie("flag", **signed_kwargs) == "on"
 
 
 def test_set_same_cookie_overwrites():
