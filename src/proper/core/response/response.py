@@ -215,7 +215,7 @@ class Response(ResponseHeadersMixin):
         httponly: bool = False,
         samesite: t.Literal["Lax", "Strict", "None"] | None = "Lax",
         comment: str = "",
-        salt: str = "",
+        salt: str = SIGNED_COOKIE_SALT,
     ) -> None:
         """A shorthand for `.set_cookie(..., signed=True)`"""
         return self.set_cookie(

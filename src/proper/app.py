@@ -248,7 +248,8 @@ class App(AppWsgi):
     ) -> t.Any:
         """Reverse of `dumps`. Tries decoding the value with
         every secret key, in order, and returns `None` if the
-        signature is outdated or not valid for any of the keys.
+        signature is outdated or not valid for any of the keys, or if
+        the signed value or its timestamp can't be decoded.
 
         If `return_timestamp` is `True` this method will return a tuple
         `(value, timestamp)`, with the timestamp as a timezone-aware
@@ -276,8 +277,14 @@ class App(AppWsgi):
                 )
             except itsdangerous.SignatureExpired:
                 logger.debug("SignatureExpired %s...", str(value)[:10])
-            except itsdangerous.BadSignature:
-                logger.debug("BadSignature %s...", str(value)[:10])
+            except itsdangerous.BadData:
+                # A bad signature, or a good one over a payload that
+                # doesn't decode (`BadPayload`)
+                logger.debug("BadData %s...", str(value)[:10])
+            except (ValueError, OverflowError, OSError):
+                # A good signature over a timestamp that `datetime` can't
+                # hold (after year 9999)
+                logger.debug("Bad timestamp %s...", str(value)[:10])
 
     def on_error(self, func: THandler) -> THandler:
         """Decorator to add a function that runs if a request
