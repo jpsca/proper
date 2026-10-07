@@ -1,6 +1,6 @@
 ---
 title: Channels
-description: Channels addon — WebSocket system with multiplexed channels, streams, and broadcasting
+description: Channels addon — WebSockets served by proper-wse; channels, streams and broadcasting, replies to actions, presence, recovery of missed broadcasts, the cable.js client and Turbo Streams, several machines (cluster), testing
 last_verified: 2026-10-06
 ---
 
@@ -13,8 +13,8 @@ The system has three layers:
 | Layer        | Module                  | Role                                                          |
 |--------------|-------------------------|---------------------------------------------------------------|
 | **Channel**  | `proper.channels`       | Base class you subclass — the "controller" for WebSockets     |
-| **Cable** | `proper.channels.cable`   | Serves the WebSockets (proper-wse, Rust) — protocol, multiplexing, streams, lifecycle |
-| **Cable**    | `proper.channels`       | Base of the cables: forwarding from other processes. On its own (`CABLE = {}`) it serves no WebSockets |
+| **Cable**    | `proper.channels.cable` | Serves the WebSockets (proper-wse, Rust) — protocol, multiplexing, streams, presence, recovery, cluster |
+| **BaseCable** | `proper.channels.base` | What `Cable` builds on: forwarding broadcasts from other processes. On its own (`CABLE = {}`) it serves no WebSockets |
 
 Channel code is regular sync Python. Channel methods run in the cable's worker threads (`workers`, 4 by default), with database connections managed automatically. The commands of one connection run one at a time, in the order they arrived, each in a `contextvars` context of its own: what one sets on `current` doesn't reach the next.
 
@@ -32,6 +32,7 @@ Outbound, wse writes the frames: `send()` and subscription confirmations go to o
 - [Client-Side Usage](#client-side-usage)
 - [Wire Protocol](#wire-protocol)
 - [Configuration](#configuration)
+- [When Nothing Arrives](#when-nothing-arrives)
 - [Testing](#testing)
 - [Several Machines (cluster)](#several-machines-cluster)
 - [Full Example](#full-example)
@@ -158,10 +159,6 @@ Every other public method is reachable from the client: prefix helpers with `_`.
 
 One action name is conventional: `receive`. The client's `sub.send(data)` is shorthand for `perform("receive", data)`, so defining a `receive(self, data)` method makes it the default handler for messages sent that way.
 
-### Presence
-
-`self.track(stream, data=None, *, key=None)` lists the connection among those present in a stream (after `stream_from(stream)`; `ValueError` otherwise). Key: `key` if given, else the user's id, else a random `anon:...` per connection. Decide the key on the server, never from `params`. One key per connection (a second `track()` with another raises). The stream's subscribers get `presence_join` on a user's first connection and `presence_leave` on their last (three tabs count once); `self.untrack(stream)`, `stop_stream_from()`, unsubscribing and disconnecting all leave; `self.update_presence(data)` changes the data everywhere the connection is present (`presence_update`). `app.cable.presence(stream)` → `{key: {"data", "connections"}}`, `app.cable.presence_stats(stream)` → `{"users", "connections"}`. The confirmation carries `presence: {stream: {key: data}}` for the tracked streams. Client: the `presence(users, change)` callback (list on confirmation with `change=null`; then `change={event: "join"|"leave"|"update", userId, data}`). `Cable(presence=False)` turns it off (`track()` raises); wse's `presence_max_data_size`, `presence_max_members` bound it. One machine only.
-
 ### Replies
 
 `sub.perform()` returns a promise that resolves with what the action returned (`null` if nothing). To report an error to the caller, raise `ActionError(reason, **data)` (from `proper.channels`): the promise rejects with `{reason, ...data}`. It is the action's answer, not a failure: nothing is logged. Any other exception is logged and the promise rejects with `{reason: "error"}`, without details. The promise also rejects with `{reason: "not_subscribed" | "invalid_action" | "unknown_action"}` when there is nothing to run, and `{reason: "timeout"}` after 10 seconds without a reply (`sub.perform(action, data, {timeout})` sets it, in milliseconds). A timeout doesn't cancel the action: the server may still run it, and a late reply is dropped, so a retry can run it twice. Calling `perform()` without awaiting is fine: an unawaited rejection is not reported.
@@ -201,8 +198,16 @@ Streams are named pub/sub topics. Multiple channels can subscribe to the same st
 | `self.stop_all_streams()`           | Unsubscribe this channel from all streams                |
 | `self.send(data)`                   | Send data to **this connection only**                    |
 | `self.broadcast(stream_name, data)` | Send data to **all subscribers** of a stream             |
+| `self.track(name, data, key=)` / `self.untrack(name)` / `self.update_presence(data)` | Who is in a stream (see [Presence](#presence)) |
 
 A broadcast doesn't go through `send()`, even an overridden one: every subscriber of a stream gets the same data. To tell different users different things, use different streams (e.g. `f"user:{user.id}:notices"`).
+
+Who gets a broadcast is who listens to its stream, so the feature's shape is its stream names: everyone (`"announcements"`), a group (`f"chat_{room.id}"`), one user (`f"inbox_{current.user.id}"`, named after the verified user, never after `params`), something in progress (`f"import_{job.id}"`). A channel can stream from several; put a `kind` field in the data when the page must tell them apart.
+
+### Presence
+
+`self.track(stream, data=None, *, key=None)` lists the connection among those present in a stream (after `stream_from(stream)`; `ValueError` otherwise). Key: `key` if given, else the user's id, else a random `anon:...` per connection. Decide the key on the server, never from `params`. One key per connection (a second `track()` with another raises). The stream's subscribers get `presence_join` on a user's first connection and `presence_leave` on their last (three tabs count once); `self.untrack(stream)`, `stop_stream_from()`, unsubscribing and disconnecting all leave; `self.update_presence(data)` changes the data everywhere the connection is present (`presence_update`). `app.cable.presence(stream)` → `{key: {"data", "connections"}}`, `app.cable.presence_stats(stream)` → `{"users", "connections"}`. The confirmation carries `presence: {stream: {key: data}}` for the tracked streams. Client: the `presence(users, change)` callback (list on confirmation with `change=null`; then `change={event: "join"|"leave"|"update", userId, data}`). `Cable(presence=False)` turns it off (`track()` raises); wse's `presence_max_data_size`, `presence_max_members` bound it. One machine only.
+
 
 ### Stream Naming
 
@@ -638,24 +643,51 @@ class MessageController(AppController):
         self.response.redirect_to("Message.index", room_id=room_id)
 ```
 
-**Client:**
+**Client.** `cable.connect()` lives in `application.js`. A page's subscription is tied to an element, so it ends when Turbo Drive swaps the page: a Stimulus controller (loaded by the view with `{#js "js/chat-controller.js" #}`, registered on `window.Stimulus`):
 
-```javascript
+```javascript {title="myapp/assets/js/chat-controller.js"}
+import { Controller } from "@hotwired/stimulus"
 import { cable } from "cable"
 
-cable.connect()
+class ChatController extends Controller {
+  static targets = ["messages", "input"]
+  static values = { room: String }
 
-const chat = cable.subscribe("ChatChannel", { room: "general" }, {
-  received(data) {
-    const el = document.createElement("div")
-    el.textContent = data.message
-    document.getElementById("messages").appendChild(el)
-  },
-})
+  connect() {
+    this.subscription = cable.subscribe("ChatChannel", { room: this.roomValue }, {
+      received: (data) => {
+        const el = document.createElement("div")
+        el.textContent = data.message
+        this.messagesTarget.appendChild(el)
+      },
+    })
+  }
 
-document.getElementById("send-btn").addEventListener("click", () => {
-  const input = document.getElementById("message-input")
-  chat.perform("speak", { message: input.value })
-  input.value = ""
-})
+  disconnect() {
+    this.subscription.unsubscribe()
+  }
+
+  async speak() {
+    try {
+      await this.subscription.perform("speak", { message: this.inputTarget.value })
+      this.inputTarget.value = ""
+    } catch (error) {
+      alert(error.reason)  // "too_long", "error", "timeout", ...
+    }
+  }
+}
+
+window.Stimulus.register("chat", ChatController)
 ```
+
+```html+jinja {title="myapp/views/room/show.jx"}
+{#js "js/chat-controller.js" #}
+
+<div data-controller="chat" data-chat-room-value="{{ room.name }}">
+  <div data-chat-target="messages"></div>
+  <input data-chat-target="input">
+  <button data-action="chat#speak">Send</button>
+</div>
+```
+
+For HTML broadcasts, `<turbo-stream-channel>` replaces all of this (see [Turbo Streams](#turbo-streams)).
