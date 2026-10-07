@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -244,6 +245,47 @@ class TestCall:
         co._call("index")
         assert co.response.status == not_modified
         assert co.response.body == ""
+
+    def test_fresh_check_skips_non_get_requests(self):
+        class MyController(Controller):
+            def update(self):
+                self.response.set_etag(123)
+                return "Saved"
+
+        etag = 'W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
+        co = _make_controller(
+            cls=MyController, method="POST", headers=[("if-none-match", etag)]
+        )
+        co._call("update")
+        assert co.response.status == 200
+        assert co.response.body == "Saved"
+
+    def test_fresh_check_keeps_error_status(self):
+        class MyController(Controller):
+            def index(self):
+                self.response.set_etag(123)
+                self.response.status = 404
+                return "Not here"
+
+        etag = 'W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
+        co = _make_controller(cls=MyController, headers=[("if-none-match", etag)])
+        co._call("index")
+        assert co.response.status == 404
+        assert co.response.body == "Not here"
+
+    def test_not_modified_set_by_the_action_has_no_body(self):
+        class MyController(Controller):
+            __module__ = "myapp.pages.posts_controller"
+
+            def show(self):
+                self.response.status = not_modified
+
+        co = _make_controller(cls=MyController)
+        co.app.catalog.has_component.return_value = False
+        co._call("show")
+        assert co.response.status == not_modified
+        assert co.response.body == ""
+        co.app.catalog.render.assert_not_called()
 
     def test_no_return_infers_template(self):
         class MyController(Controller):
@@ -786,13 +828,13 @@ class TestRxFingerprint:
 class TestStaticFilesController:
     def _make(self, tmp_path, filename="hello.txt", content="Hello",
               file_param=None, public=True, allowed_ext=None,
-              if_modified_since=None, x_sendfile=""):
+              if_modified_since=None, x_sendfile="", headers=()):
         filepath = tmp_path / filename
         filepath.write_text(content)
 
-        request_kw = {}
+        request_kw = {"headers": list(headers)}
         if if_modified_since:
-            request_kw["headers"] = [("if-modified-since", if_modified_since)]
+            request_kw["headers"].append(("if-modified-since", if_modified_since))
 
         co = _make_controller(cls=StaticFilesController, **request_kw)
 
@@ -867,6 +909,35 @@ class TestStaticFilesController:
         )
         co.show()
         assert co.response.status == not_modified
+
+    def test_not_modified_with_fractional_mtime(self, tmp_path):
+        co, filepath = self._make(
+            tmp_path,
+            if_modified_since="Wed, 21 Oct 2020 07:28:00 GMT",
+        )
+        mtime = 1603265280.5  # 2020-10-21 07:28:00.5 UTC
+        os.utime(filepath, (mtime, mtime))
+        co.show()
+        assert co.response.status == not_modified
+
+    def test_not_modified_through_call(self, tmp_path):
+        co, _ = self._make(
+            tmp_path,
+            if_modified_since="Thu, 01 Jan 2099 00:00:00 GMT",
+        )
+        co._call("show")
+        assert co.response.status == not_modified
+        assert co.response.body == ""
+
+    def test_if_none_match_ignores_if_modified_since(self, tmp_path):
+        co, _ = self._make(
+            tmp_path,
+            if_modified_since="Thu, 01 Jan 2099 00:00:00 GMT",
+            headers=[("if-none-match", 'W/"abc"')],
+        )
+        co.show()
+        assert co.response.status == 200
+        assert co.response.body is not None
 
     def test_sets_last_modified(self, tmp_path):
         co, filepath = self._make(tmp_path)

@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from ... import status as pstatus
-from ...constants import HEAD, SIGNED_COOKIE_SALT
+from ...constants import GET, HEAD, SIGNED_COOKIE_SALT
 from ...global_context import current
 from ...helpers import DotDict
 from ...types import Iterable, TBody
@@ -334,18 +334,42 @@ class Response(ResponseHeadersMixin):
         return self.is_fresh(request)
 
     def is_fresh(self, request: "Request | None" = None) -> bool:
-        """Returns `True` if the response is fresh."""
+        """Returns `True` if the response is fresh: the client already has
+        this version, so a `304 Not Modified` can replace it.
+
+        Follows RFC 9110 (sections 13.1 and 13.2):
+
+        - Only a `GET` or `HEAD` request with a 2xx response can be fresh.
+        - `If-None-Match` matches if it lists the response's ETag, compared
+          with the weak comparison (`W/"x"` matches `"x"`), or if it is `*`
+          and the response has an ETag.
+        - `If-Modified-Since` is used only when the request has no
+          `If-None-Match`. The dates are compared in whole seconds, because
+          HTTP dates have no fractions.
+
+        """
         request = current.request if request is None else request
         if request is None:
             return False
 
+        if request.method not in (GET, HEAD):
+            return False
+        if not 200 <= self.status < 300:
+            return False
+
         # An ETag has priority over Last-Modified
-        if self.etag and request.if_none_match:
-            if self.etag in request.if_none_match:
-                return True
+        if request.if_none_match:
+            if not self.etag:
+                return False
+            etag = self.etag.removeprefix("W/")
+            return any(
+                tag == "*" or tag.removeprefix("W/") == etag
+                for tag in request.if_none_match
+            )
 
         if self.last_modified and request.if_modified_since:
-            if self.last_modified <= request.if_modified_since:
+            last_modified = self.last_modified.replace(microsecond=0)
+            if last_modified <= request.if_modified_since:
                 return True
 
         return False

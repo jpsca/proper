@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from proper import DotDict, Response
 from proper import status as pstatus
 from proper.global_context import current
@@ -155,3 +157,130 @@ class TestIsFresh:
         current.request = request
         assert resp.is_fresh() is True
 
+
+
+class TestIsFreshLastModified:
+    def test_fractional_seconds(self):
+        """HTTP dates have whole seconds, so the client sends back the
+        Last-Modified without its fraction."""
+        resp = _make_response()
+        resp.set_last_modified(datetime(2020, 10, 21, 7, 28, 0, 500_000))
+        request = _make_request(**{"if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT"})
+        assert resp.is_fresh(request=request) is True
+
+    def test_fractional_seconds_from_timestamp(self):
+        resp = _make_response()
+        resp.set_last_modified(1603265280.75)  # 2020-10-21 07:28:00.75 UTC
+        request = _make_request(**{"if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT"})
+        assert resp.is_fresh(request=request) is True
+
+    def test_one_second_later_is_stale(self):
+        resp = _make_response()
+        resp.set_last_modified(datetime(2020, 10, 21, 7, 28, 1))
+        request = _make_request(**{"if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT"})
+        assert resp.is_fresh(request=request) is False
+
+
+class TestIsFreshIfNoneMatch:
+    def test_weak_request_tag_matches_strong_etag(self):
+        resp = _make_response()
+        resp.set_etag(123, strong=True)
+        assert resp.etag
+        request = _make_request(**{"if-none-match": f"W/{resp.etag}"})
+        assert resp.is_fresh(request=request) is True
+
+    def test_strong_request_tag_matches_weak_etag(self):
+        resp = _make_response()
+        resp.set_etag(123)
+        assert resp.etag
+        request = _make_request(**{"if-none-match": resp.etag.removeprefix("W/")})
+        assert resp.is_fresh(request=request) is True
+
+    def test_match_in_list(self):
+        resp = _make_response()
+        resp.set_etag(123)
+        request = _make_request(**{"if-none-match": f'"abc", {resp.etag}, W/"def"'})
+        assert resp.is_fresh(request=request) is True
+
+    def test_star_matches_any_etag(self):
+        resp = _make_response()
+        resp.set_etag(123)
+        request = _make_request(**{"if-none-match": "*"})
+        assert resp.is_fresh(request=request) is True
+
+    def test_star_without_etag(self):
+        resp = _make_response()
+        request = _make_request(**{"if-none-match": "*"})
+        assert resp.is_fresh(request=request) is False
+
+    def test_if_modified_since_ignored_when_etag_differs(self):
+        resp = _make_response()
+        resp.set_etag(123)
+        resp.set_last_modified(datetime(2019, 1, 1))
+        request = _make_request(
+            **{
+                "if-none-match": 'W/"abc"',
+                "if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT",
+            }
+        )
+        assert resp.is_fresh(request=request) is False
+
+    def test_if_modified_since_ignored_without_etag(self):
+        resp = _make_response()
+        resp.set_last_modified(datetime(2019, 1, 1))
+        request = _make_request(
+            **{
+                "if-none-match": 'W/"abc"',
+                "if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT",
+            }
+        )
+        assert resp.is_fresh(request=request) is False
+
+
+class TestIsFreshMethodAndStatus:
+    @pytest.mark.parametrize("method", ["GET", "HEAD"])
+    def test_fresh_for_get_and_head(self, method):
+        resp = _make_response()
+        resp.set_etag(123)
+        request = make_test_request(method=method, headers=[("if-none-match", resp.etag)])
+        assert resp.is_fresh(request=request) is True
+
+    @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+    def test_not_fresh_for_other_methods(self, method):
+        resp = _make_response()
+        resp.set_etag(123)
+        resp.set_last_modified(datetime(2019, 1, 1))
+        request = make_test_request(
+            method=method,
+            headers=[
+                ("if-none-match", resp.etag),
+                ("if-modified-since", "Wed, 21 Oct 2020 07:28:00 GMT"),
+            ],
+        )
+        assert resp.is_fresh(request=request) is False
+
+    @pytest.mark.parametrize("status", [pstatus.created, pstatus.no_content])
+    def test_fresh_for_2xx(self, status):
+        resp = _make_response(status=status)
+        resp.set_etag(123)
+        request = _make_request(**{"if-none-match": resp.etag})
+        assert resp.is_fresh(request=request) is True
+
+    @pytest.mark.parametrize(
+        "status",
+        [pstatus.see_other, pstatus.not_modified, pstatus.not_found, pstatus.server_error],
+    )
+    def test_not_fresh_for_other_statuses(self, status):
+        resp = _make_response(status=status)
+        resp.set_etag(123)
+        resp.set_last_modified(datetime(2019, 1, 1))
+        request = _make_request(**{"if-none-match": resp.etag})
+        assert resp.is_fresh(request=request) is False
+        request = _make_request(**{"if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT"})
+        assert resp.is_fresh(request=request) is False
+
+    def test_fresh_when_returns_false_for_post(self):
+        resp = _make_response()
+        resp.set_etag("abc")
+        request = make_test_request(method="POST", headers=[("if-none-match", resp.etag)])
+        assert resp.fresh_when(etag="abc", request=request) is False
