@@ -6,7 +6,7 @@ import secrets
 import typing as t
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import urlencode, urlparse
+from urllib.parse import unquote, urlencode, urlparse
 
 from .constants import (
     AUTH_COOKIE_NAME,
@@ -75,10 +75,13 @@ def make_test_request(
     `params`, if given, replace the query string. A `host` header is added
     unless `headers` already has one. `server` overrides the `(host, port)`
     taken from the URL.
+
+    The path is percent-decoded, as the server does: `/tags/a%20b` arrives
+    as `/tags/a b`.
     """
     upa = urlparse(url)
     scheme = upa.scheme or "http"
-    path = upa.path or "/"
+    path = unquote(upa.path or "/")
 
     if ":" in upa.netloc:
         host, port_str = upa.netloc.rsplit(":", 1)

@@ -175,6 +175,8 @@ def show(self): ...
 def show(self): ...
 ```
 
+A placeholder name is `[_a-z][_a-z0-9]*`. Any other text after a `:` is literal, both when matching and in `url_for`: `/items/:ID` matches only `/items/:ID`; `localhost:5000` in a host is a host and a port; in `/a::b` the first `:` is literal and `:b` is a placeholder.
+
 #### Custom Route Names
 
 By default, the route name is derived from the controller and method name (e.g., `Item.show`). You can override this with the `name` parameter:
@@ -493,6 +495,13 @@ app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 # /posts/42/hello?ref=twitter
 ```
 
+### Value Checks and Percent-Encoding
+
+- Each placeholder value must match its format as a whole, or `url_for` raises `BadRoutePlaceholder` (`"42abc"` is not an `<int>`).
+- Path values are percent-encoded, except `/` (only a format that accepts `/`, such as `<path>`, takes one) and ``:@!$&'()*+,;=``, which a path allows as they are. `url_for("Tag.show", tag="a b?")` → `/tags/a%20b%3F`; `token=":signed_id"` stays `:signed_id` (for JS URL templates).
+- Query keys and values are encoded like a form (`urlencode`): `url_for("Post.index", q="a&b c")` → `/posts?q=a%26b+c`.
+- Pass raw values, not already-encoded ones (`"a%20b"` becomes `a%2520b`).
+
 ### URL Anchors
 
 Use the `_anchor` keyword argument to append a `#fragment` to the URL:
@@ -519,13 +528,13 @@ These helpers check whether the current request URL matches a named route. They 
 app.url_is("Photo.index")
 ```
 
-Returns `True` if the current request path matches `/photos` exactly (ignoring trailing slashes).
+Returns `True` if the current request path matches `/photos` exactly. Only paths are compared, percent-decoded: the query string, the `#fragment` and trailing slashes are ignored, and so are query kwargs (`url_is("Photo.index", page=2)` is `True` on `/photos`). An explicit `curr_url` is a percent-encoded URL, as in a link; `request.path` is already decoded, so to compare with it leave `curr_url` out.
 
 ```python
 app.url_startswith("Photo.index")
 ```
 
-Returns `True` if the current request path starts with `/photos`. This is useful for highlighting a parent navigation item when any child page is active.
+Returns `True` if the current request path starts with `/photos`, by whole segments (`/photography` does not start with `/photo`). This is useful for highlighting a parent navigation item when any child page is active. Every path starts with a route at `/`; use `url_is` for a "Home" link.
 
 Both helpers accept the same arguments as `url_for()` (objects, keyword arguments) for routes with placeholders:
 

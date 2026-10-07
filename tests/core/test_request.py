@@ -28,6 +28,13 @@ def test_test_request_full_url():
     assert req.headers.get("host") == "myhost:9090"
 
 
+def test_test_request_decodes_the_path():
+    # As the server does; the query string is decoded later, when parsed.
+    req = make_test_request("/tags/caf%C3%A9%20%26%20co/a%2520b?q=a%20b")
+    assert req.path == "/tags/café & co/a%20b"
+    assert req.query_string == "q=a%20b"
+
+
 def test_test_request_https_default_port():
     req = make_test_request("https://secure.example.com/path")
     assert req.scheme == "https"

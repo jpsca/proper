@@ -281,14 +281,14 @@ class TestRouteFormatPrecompiled:
     def test_placeholder_regexes_and_templates(self):
         route = Route("GET", "posts/:id<int>", host=":sub.example.com", redirect="/x")
         assert isinstance(route._path_placeholder_re["id"], re.Pattern)
-        assert route._path_template.substitute({"id": "1"}) == "/posts/1"
-        assert route._host_template.substitute({"sub": "www"}) == "www.example.com"
+        assert route._path_pieces == [("/posts/", "id")]
+        assert route._host_pieces == [("", "sub"), (".example.com", None)]
         assert route.format(id=3, q="a") == "/posts/3?q=a"
         assert route.format_host(sub="www") == "www.example.com"
 
     def test_no_host(self):
         route = Route("GET", "posts", redirect="/x")
-        assert route._host_template is None
+        assert route._host_pieces is None
         assert route._host_placeholder_re == {}
         assert route.format_host() is None
 

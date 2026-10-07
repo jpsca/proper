@@ -4,6 +4,7 @@ import inspect
 import typing as t
 from collections.abc import Callable
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 import inflection
 
@@ -274,8 +275,13 @@ class BaseRouter:
         **kw,
     ) -> bool:
         """Tells if the URL for the given route name and parameters is the same as the current URL
-        as reported by `current.request.path` (ignoring trailing slashes and anchors).
+        as reported by `current.request.path`.
         This is useful for things like active links in navigation bars.
+
+        Only the paths are compared, percent-decoded and without trailing slashes:
+        the query string and the `#fragment` are ignored, on both sides.
+        `curr_url` is a URL, as in a link (`/tags/a%20b`), so it is decoded;
+        `current.request.path` is already decoded by the server.
 
         If a current URL is not given, it defaults to `current.request.path`.
         This is useful if you want to compare to a different URL than the current
@@ -284,6 +290,9 @@ class BaseRouter:
 
         ```python
         url_is("Page.show", page_id=123, curr_url="/pages/123#section1")
+        # => True
+
+        url_is("Page.show", page_id=123, curr_url="/pages/123?tab=photos")
         # => True
 
         url_is("Page.show", page_id=123, curr_url="/pages")
@@ -304,13 +313,13 @@ class BaseRouter:
                 prefix (e.g. for `ItemController`, the placeholder `:item_id` will look
                 for `item_id` and then `id` in the object attributes).
             curr_url:
-                Optional. The URL to compare to.
+                Optional. The URL to compare to, percent-encoded as in a link.
+                To compare to a path you have decoded (such as `request.path`),
+                leave it out or quote it first.
 
         """
-        control = self.url_for(name, object, **kw)
-        if not curr_url and current.request:
-            curr_url = current.request.path
-        return curr_url.rstrip("/") == control.rstrip("/")
+        control = _comparable_path(self.url_for(name, object, **kw))
+        return _current_path(curr_url) == control
 
     def url_startswith(
         self,
@@ -320,27 +329,32 @@ class BaseRouter:
         curr_url: str = "",
         **kw,
     ) -> bool:
-        """Tells if the URL for the given route name and parameters starts with the current URL
-        as reported by `current.request.path` (ignoring trailing slashes and anchors).
+        """Tells if the current URL, as reported by `current.request.path`, starts with
+        the URL for the given route name and parameters, segment by segment
+        (`/photography` does not start with `/photo`).
         This is useful for things like active links to sections in navigation bars.
+
+        Like in `url_is`, only the paths are compared, percent-decoded and without
+        trailing slashes. Every path starts with the URL of a route at `/`.
 
         ```python
         url_startswith("Page.show", page_id=123, curr_url="/pages/123#section1")
         # => True
 
-        url_startswith("Page.show", page_id=123, curr_url="/pages/")
+        url_startswith("Page.show", page_id=123, curr_url="/pages/123/edit")
         # => True
+
+        url_startswith("Page.show", page_id=123, curr_url="/pages/")
+        # => False
         ```
 
         """
-        control = self.url_for(name, object, **kw)
-        if not curr_url and current.request:
-            curr_url = current.request.path
-        curr_url = curr_url.rstrip("/")
+        control = _comparable_path(self.url_for(name, object, **kw))
+        curr = _current_path(curr_url)
 
-        if curr_url == control:
+        if curr == control:
             return True
-        if curr_url.startswith(f"{control}/"):
+        if curr.startswith(f"{control}/"):
             return True
         return False
 
@@ -789,6 +803,30 @@ class Router(BaseRouter):
             return to
 
         return _decorator
+
+
+def _comparable_path(url: str) -> str:
+    """The path of the URL `url`, percent-decoded, without the query string,
+    the fragment, and trailing slashes (so the root is `""`).
+
+    A URL that starts with `/` is a path, even with `//`; any other is read
+    as a full URL (`https://example.com/path`)."""
+    url = url.split("#", 1)[0].split("?", 1)[0]
+    if not url.startswith("/"):
+        url = urlsplit(url).path
+    return unquote(url).rstrip("/")
+
+
+def _current_path(curr_url: str) -> str:
+    """The URL `curr_url` or, if empty, the path of the current request,
+    ready to compare with `_comparable_path`. The request path is already
+    decoded by the server, so it is not decoded again, and a `?` or `#` in
+    it is part of the path."""
+    if curr_url:
+        return _comparable_path(curr_url)
+    if current.request:
+        return current.request.path.rstrip("/")
+    return ""
 
 
 class ScopedRouter(BaseRouter):

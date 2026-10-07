@@ -327,6 +327,15 @@ class TestPipeline:
         assert result.status == status.ok
         assert result.body == "hello alice"
 
+    def test_with_path_params_from_url_for(self, app, client):
+        # The params arrive decoded, as from a server.
+        app.router.add_route(
+            Route(method="GET", path="/hello/:name", name="hello", to=GreetController.show)
+        )
+        result = client.get(app.url_for("hello", DotDict(name="café & co?#a%20b")))
+        assert result.status == status.ok
+        assert result.body == "hello café & co?#a%20b"
+
     def test_head_returns_empty_body(self, app, client):
         app.router.add_route(
             Route(method="GET", path="/hello", to=GreetController.index)
