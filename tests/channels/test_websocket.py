@@ -1174,3 +1174,27 @@ class TestPresence:
         cable.update_presence(channel, {})
         assert cable.presence("s") == {}
         assert cable.presence_stats("s") == {"users": 0, "connections": 0}
+
+
+# --- Health ---
+
+
+class TestHealth:
+    @pytest.mark.asyncio
+    async def test_what_the_cable_reports(self, app):
+        from proper.channels import BaseCable
+
+        assert BaseCable().health() == {"serving": False, "connections": 0, "streams": 0}
+        assert app.cable.health() == {"serving": False, "connections": 0, "streams": 0}
+
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        await ws.subscribe("RoomChannel", room="a")
+        health = app.cable.health()
+        assert health["serving"] is True
+        assert (health["connections"], health["streams"]) == (1, 1)
+        assert health["server"]["connections"] == 1
+        assert health["server"]["recovery_enabled"] is True
+        await ws.close()
+        await task
+        assert app.cable.health()["connections"] == 0

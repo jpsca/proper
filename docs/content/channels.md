@@ -716,6 +716,16 @@ CABLE = {
 }
 ```
 
+### How the cable is doing
+
+`app.cable.health()` returns a dict for a health endpoint or a log line: `serving` (whether this process serves the WebSockets), `connections`, `users` (with a logged-in user), `streams` (subscribed here), and under `server` what wse reports: `inbound_queue_depth` and `inbound_dropped` (commands waiting for, or lost by, the worker threads), `uptime_secs`, and the recovery, presence and cluster counters. In a process that serves none, `{"serving": False, "connections": 0, "streams": 0}`.
+
+```python
+@router.get("/up")
+def up(self):
+    return self.render_json(self.app.cable.health())
+```
+
 ### Slow clients
 
 A client that stops reading - a frozen tab, a very bad network - would make messages pile up in memory. Two mechanisms deal with it:
