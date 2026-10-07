@@ -346,7 +346,7 @@ channels that no longer authorize them reject the subscription.
 
 ### Clients without cookies
 
-`Channel.find_session()` finds the connection's session, once per connection when its first channel subscribes; by default from the signed auth cookie. Override it in `AppChannel` to accept a token, e.g. `Authorization: Bearer <token>` from `self.request.headers` (`return Session.find_by_token(token)`, falling back to `super().find_session()`); return `None` for anonymous. `self.request` also has `query` (the handshake's query string) and `remote_ip` (honors `X-Forwarded-For`).
+`Channel.find_session()` finds the connection's session, once per connection when its first channel subscribes; by default from the signed auth cookie. Override it in `AppChannel` to accept a token, e.g. `Authorization: Bearer <token>` from `self.request.headers` (`return Session.find_by_token(token)`, falling back to `super().find_session()`); return `None` for anonymous. `self.request` also has `query` (the handshake's query string) and `remote_ip` (honors `X-Forwarded-For` when wse's peer is in `TRUSTED_PROXIES`).
 
 ## Client-Side Usage
 

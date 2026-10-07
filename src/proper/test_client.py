@@ -303,6 +303,9 @@ class TestClient:
             params=params,
             headers=req_headers,
             app=self.app,
+            # The peer the request comes from. `127.0.0.1` is a trusted
+            # proxy (`TRUSTED_PROXIES`), so forwarding headers are honored.
+            client=(self.remote_ip, None),
             request_cls=self.app.request_cls,
         )
         # The WSGI entry: the request runs on this thread, so it shares the

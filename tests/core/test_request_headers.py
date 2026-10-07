@@ -2,6 +2,7 @@ import datetime
 
 import pytest
 
+from proper import App, current
 from proper.core.request import Request
 from proper.core.request.formparser import (
     _safe_decode,
@@ -387,19 +388,191 @@ def test_port_string():
     assert _make_request("http://example.com:9090/").port_string == ":9090"
 
 
+# The peer of a request through a local reverse proxy.
+LOCAL_PROXY = ("127.0.0.1", 50000)
+
+
+@pytest.fixture()
+def keep_current_app():
+    """`App()` makes itself `current.app`, which the requests built without
+    an app use: put back the one before."""
+    previous = current.app
+    yield
+    current.app = previous
+
+
 def test_remote_ip_from_forwarded():
-    req = _make_request("/", headers=[("forwarded", "for=1.2.3.4")])
+    req = _make_request("/", headers=[("forwarded", "for=1.2.3.4")], client=LOCAL_PROXY)
     assert req.remote_ip == "1.2.3.4"
 
 
 def test_remote_ip_from_x_forwarded_for():
-    req = _make_request("/", headers=[("x-forwarded-for", "5.6.7.8,proxy")])
+    req = _make_request(
+        "/", headers=[("x-forwarded-for", "5.6.7.8, 10.0.0.1")], client=LOCAL_PROXY
+    )
     assert req.remote_ip == "5.6.7.8"
 
 
 def test_remote_ip_from_x_real_ip():
-    req = _make_request("/", headers=[("x-real-ip", "9.10.11.12")])
+    req = _make_request("/", headers=[("x-real-ip", "9.10.11.12")], client=LOCAL_PROXY)
     assert req.remote_ip == "9.10.11.12"
+
+
+@pytest.mark.parametrize("header", ["forwarded", "x-forwarded-for", "x-real-ip"])
+def test_remote_ip_ignores_forwarding_headers_from_an_untrusted_peer(header):
+    """Any client can send these headers: only a trusted proxy's count."""
+    value = "for=1.2.3.4" if header == "forwarded" else "1.2.3.4"
+    req = _make_request("/", headers=[(header, value)], client=("203.0.113.5", 5000))
+    assert req.remote_ip == "203.0.113.5"
+
+
+@pytest.mark.parametrize("header", ["forwarded", "x-forwarded-for", "x-real-ip"])
+def test_remote_ip_ignores_forwarding_headers_without_a_peer(header):
+    value = "for=1.2.3.4" if header == "forwarded" else "1.2.3.4"
+    req = _make_request("/", headers=[(header, value)])
+    assert req.remote_ip == ""
+
+
+@pytest.mark.parametrize("peer", [
+    "127.0.0.1", "127.8.9.10", "::1", "10.1.2.3", "172.16.0.1", "172.31.255.254",
+    "192.168.1.1", "169.254.1.1", "fc00::1", "fdab::1", "fe80::1", "::ffff:10.0.0.1",
+])
+def test_remote_ip_default_trusted_proxies(peer):
+    req = _make_request("/", headers=[("x-real-ip", "1.2.3.4")], client=(peer, 5000))
+    assert req.remote_ip == "1.2.3.4"
+
+
+@pytest.mark.parametrize("peer", ["172.32.0.1", "8.8.8.8", "2001:db8::1", "not-an-ip"])
+def test_remote_ip_default_untrusted_peers(peer):
+    req = _make_request("/", headers=[("x-real-ip", "1.2.3.4")], client=(peer, 5000))
+    assert req.remote_ip == peer
+
+
+def test_remote_ip_x_forwarded_for_skips_trusted_proxies_from_the_right():
+    """The client can write anything at the left of the list; the address
+    the first untrusted hop connected from is the last it can't fake."""
+    req = _make_request(
+        "/",
+        headers=[("x-forwarded-for", "6.6.6.6, 1.2.3.4 , 10.0.0.2,192.168.0.9")],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "1.2.3.4"
+
+
+def test_remote_ip_x_forwarded_for_all_trusted_is_the_leftmost():
+    req = _make_request(
+        "/", headers=[("x-forwarded-for", " 10.0.0.3, 10.0.0.2")], client=LOCAL_PROXY
+    )
+    assert req.remote_ip == "10.0.0.3"
+
+
+def test_remote_ip_x_forwarded_for_stops_at_a_value_that_is_not_an_ip():
+    req = _make_request(
+        "/", headers=[("x-forwarded-for", "1.2.3.4, unknown, 10.0.0.2")], client=LOCAL_PROXY
+    )
+    assert req.remote_ip == "unknown"
+
+
+def test_remote_ip_x_forwarded_for_with_ports_and_ipv6():
+    req = _make_request(
+        "/",
+        headers=[("x-forwarded-for", "2001:db8::7, [fc00::2]:443, 10.0.0.2:8080")],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "2001:db8::7"
+
+
+def test_remote_ip_forwarded_skips_trusted_proxies_from_the_right():
+    req = _make_request(
+        "/",
+        headers=[(
+            "forwarded",
+            'for=6.6.6.6, for=1.2.3.4:4711;proto=https, by=10.0.0.9, '
+            'for="[fc00::1]:80", for=10.0.0.2',
+        )],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "1.2.3.4:4711"
+
+
+def test_remote_ip_forwarded_all_trusted_is_the_leftmost():
+    req = _make_request(
+        "/", headers=[("forwarded", 'for="[::1]", for=10.0.0.2')], client=LOCAL_PROXY
+    )
+    assert req.remote_ip == "[::1]"
+
+
+def test_remote_ip_forwarded_obfuscated_identifier():
+    req = _make_request(
+        "/", headers=[("forwarded", "for=1.2.3.4, for=_hidden")], client=LOCAL_PROXY
+    )
+    assert req.remote_ip == "_hidden"
+
+
+def test_remote_ip_x_forwarded_for_wins_over_forwarded():
+    """A proxy that writes only `X-Forwarded-For` (nginx, Caddy, ...) passes a
+    `Forwarded` header from the client through untouched."""
+    req = _make_request(
+        "/",
+        headers=[("forwarded", "for=6.6.6.6"), ("x-forwarded-for", "1.2.3.4")],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "1.2.3.4"
+
+
+def test_remote_ip_empty_x_forwarded_for_falls_back():
+    req = _make_request(
+        "/",
+        headers=[("x-forwarded-for", " , "), ("forwarded", "for=1.2.3.4")],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "1.2.3.4"
+
+
+def test_remote_ip_trusted_peer_without_forwarding_headers():
+    req = _make_request("/", client=LOCAL_PROXY)
+    assert req.remote_ip == "127.0.0.1"
+
+
+def test_remote_ip_forwarded_without_for_falls_back():
+    req = _make_request(
+        "/",
+        headers=[("forwarded", "proto=https"), ("x-real-ip", "1.2.3.4")],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "1.2.3.4"
+
+
+def test_remote_ip_without_an_app_uses_the_default_trusted_proxies(keep_current_app):
+    current.app = None
+    headers = [("x-forwarded-for", "1.2.3.4")]
+    assert _make_request("/", headers=headers, client=LOCAL_PROXY).remote_ip == "1.2.3.4"
+    req = _make_request("/", headers=headers, client=("203.0.113.5", 5000))
+    assert req.remote_ip == "203.0.113.5"
+
+
+def test_remote_ip_custom_trusted_proxies(keep_current_app):
+    app = App(__name__, {
+        "SECRET_KEYS": ["*" * 50],
+        "TRUSTED_PROXIES": ["203.0.113.0/24", "2001:db8::1"],
+    })
+    headers = [("x-forwarded-for", "1.2.3.4, 203.0.113.8")]
+
+    req = _make_request("/", headers=headers, client=("203.0.113.7", 5000), app=app)
+    assert req.remote_ip == "1.2.3.4"
+    req = _make_request("/", headers=headers, client=("2001:db8::1", 5000), app=app)
+    assert req.remote_ip == "1.2.3.4"
+    # The defaults are replaced, not extended.
+    req = _make_request("/", headers=headers, client=LOCAL_PROXY, app=app)
+    assert req.remote_ip == "127.0.0.1"
+
+
+def test_remote_ip_no_trusted_proxies(keep_current_app):
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50], "TRUSTED_PROXIES": []})
+    req = _make_request(
+        "/", headers=[("forwarded", "for=1.2.3.4")], client=LOCAL_PROXY, app=app
+    )
+    assert req.remote_ip == "127.0.0.1"
 
 
 def test_remote_ip_from_client():
@@ -433,9 +606,28 @@ def test_user_agent_missing():
 
 
 def test_protocol_from_x_forwarded_proto():
-    req = _make_request("http://example.com/", headers=[("x-forwarded-proto", "https")])
+    req = _make_request(
+        "http://example.com/", headers=[("x-forwarded-proto", "https")], client=LOCAL_PROXY
+    )
     assert req.protocol == "https"
     assert req.is_secure is True
+
+
+def test_protocol_ignores_x_forwarded_proto_from_an_untrusted_peer():
+    req = _make_request(
+        "http://example.com/",
+        headers=[("x-forwarded-proto", "https")],
+        client=("203.0.113.5", 5000),
+    )
+    assert req.protocol == "http"
+    assert req.is_secure is False
+    assert req.default_port == 80
+
+
+def test_protocol_ignores_x_forwarded_proto_without_a_peer():
+    req = _make_request("http://example.com/", headers=[("x-forwarded-proto", "https")])
+    assert req.protocol == "http"
+    assert req.is_secure is False
 
 
 def test_headers_get_missing():
