@@ -537,6 +537,8 @@ Two decorators are stacked here intentionally:
 
 Any exception class works - the built-in HTTP errors, your own subclasses, plain `Exception` for a catch-all.
 
+If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
+
 ### Build-Only Routes
 
 A route with no handler and no `redirect=` is a "build-only" route. It will never match a request, but it can still be used with `url_for` to produce a URL string. This is useful when you need a stable name for a path that's actually handled outside Proper - an OAuth callback, a static file served by your reverse proxy, or anything generated externally:

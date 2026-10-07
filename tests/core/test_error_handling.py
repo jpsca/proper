@@ -1,3 +1,4 @@
+import abc
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -54,6 +55,18 @@ class _ErrorPageController(Controller):
 class _CatchAllErrorPageController(Controller):
     def handle(self):
         self.response.body = "caught"
+
+
+class _NotFoundPageController(Controller):
+    def handle(self):
+        self.response.body = "not found page"
+
+
+class _Retryable(Exception, metaclass=abc.ABCMeta):  # noqa: B024
+    """An ABC that `TimeoutError` is a virtual subclass of."""
+
+
+_Retryable.register(TimeoutError)
 
 
 class _FlakyController(Controller):
@@ -134,6 +147,43 @@ class TestHandleAppError:
         request = _make_request()
         response = _make_response(app=app)
         response.error = ValueError("sub")
+        app._handle_app_error(request, response)
+        assert response.body == "caught"
+
+    def test_most_specific_handler_wins_regardless_of_order(self, app):
+        """A handler for `Exception` registered first doesn't hide the one
+        for `ValueError`."""
+        app.router.add_error_handler(Exception, _CatchAllErrorPageController.handle)
+        app.router.add_error_handler(ValueError, _ErrorPageController.handle)
+
+        request = _make_request()
+        response = _make_response(app=app)
+        response.error = ValueError("bad value")
+        app._handle_app_error(request, response)
+        assert response.body == "custom error page"
+
+    def test_closest_ancestor_handler_wins(self, app):
+        """With no handler for the error's own class, the handler for its
+        closest base class wins."""
+        app.router.add_error_handler(Exception, _CatchAllErrorPageController.handle)
+        app.router.add_error_handler(NotFound, _NotFoundPageController.handle)
+
+        request = _make_request()
+        response = _make_response(app=app)
+        response.error = MatchNotFound()
+        app._handle_app_error(request, response)
+        assert response.body == "not found page"
+        assert response.status == status.not_found
+
+    def test_virtual_subclass_does_not_match(self, app):
+        """Like an `except` clause, the lookup follows the real class
+        hierarchy: a class registered on an ABC doesn't match its handler."""
+        app.router.add_error_handler(_Retryable, _ErrorPageController.handle)
+        app.router.add_error_handler(Exception, _CatchAllErrorPageController.handle)
+
+        request = _make_request()
+        response = _make_response(app=app)
+        response.error = TimeoutError("slow")
         app._handle_app_error(request, response)
         assert response.body == "caught"
 
@@ -443,6 +493,18 @@ class TestDoRequestErrorFlow:
         )
         result = client.get("/explode")
         assert result.body == "custom error page"
+
+    def test_not_found_handler_registered_after_catch_all(self, app, client):
+        app.router.add_error_handler(Exception, _CatchAllErrorPageController.handle)
+        app.router.add_error_handler(NotFound, _NotFoundPageController.handle)
+        app.router.add_route(
+            Route(method="GET", path="/explode", to=_ExplodingController.index)
+        )
+
+        result = client.get("/missing")
+        assert result.status == status.not_found
+        assert result.body == "not found page"
+        assert client.get("/explode").body == "caught"
 
     def test_custom_error_handler_keeps_the_route_intact(self, app, client):
         """A handled error must not hijack the route for later requests."""

@@ -67,6 +67,15 @@ gets the decoded param: `client.get("/tags/a%20b")` gives `"a b"` (it was
 route, as on a server, since the path is `/files/a/b`. Update the asserts to
 the decoded value, and use a `<path>` placeholder for a value with a `/`.
 
+### ⚠️ Upgrading: the most specific error handler wins
+
+An error now goes to the handler registered for the closest class in its
+hierarchy, not to the first registered handler that matches it. If a
+handler for a base class (such as `Exception`) was registered before a
+handler for a subclass (such as `NotFound`), the subclass handler was never
+called and now it is. If you want the base class handler to take those
+errors, remove the subclass handler.
+
 ### Removed
 
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
@@ -154,6 +163,13 @@ the decoded value, and use a `<path>` placeholder for a value with a `/`.
 
 ### Fixed
 
+- The error handler lookup used the first registered handler whose class
+  matched, so a handler for `Exception` registered before one for
+  `NotFound` also took the 404s. Now the most specific handler wins, as
+  with `except` clauses: the one for the closest class in the error's
+  hierarchy, whatever the registration order. A handler registered for an
+  ABC no longer matches the ABC's virtual subclasses (`ABC.register`), as
+  an `except` clause doesn't either.
 - `url_for` didn't percent-encode: a value with a space, `?`, `#`, `&` or
   `%` gave a broken URL, or a query string with other parameters. Path values
   and query keys and values are now encoded. A query value that is not a

@@ -401,6 +401,8 @@ Any exception class works, not just the built-in HTTP errors:
 @router.error(Exception)              # Catch-all for 500 errors
 ```
 
+If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
+
 ## Method Override
 
 HTML forms only support GET and POST. To send PUT, PATCH, or DELETE requests from a form, Proper uses a method override mechanism. When a POST request includes one of the following, the request method is transparently overridden:
