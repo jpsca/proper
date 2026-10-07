@@ -792,6 +792,29 @@ class TestRecovery:
         await task
 
     @pytest.mark.asyncio
+    async def test_several_epochs_per_stream(self, app):
+        """A client of a cluster has a position per machine that published
+        to the stream; each is recovered on its own. One the server doesn't
+        know is not recovered."""
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        await ws.subscribe("RoomChannel", room="a")
+        app.cable.broadcast("room_a", {"n": 1})
+        seen = await ws.receive()
+        app.cable.broadcast("room_a", {"n": 2})
+        await ws.receive()
+        positions = {"room_a": [self.position(seen)]}
+        missed = await ws.subscribe("RoomChannel", positions=positions, room="a")
+        assert missed["data"] == {"n": 2}
+        assert (await ws.receive())["recovered"] is True
+        positions = {"room_a": [self.position(seen), {"e": "0000abcd", "o": 3}]}
+        missed = await ws.subscribe("RoomChannel", positions=positions, room="a")
+        assert missed["data"] == {"n": 2}
+        assert (await ws.receive())["recovered"] is False
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
     async def test_up_to_date_recovers_nothing(self, app):
         app.router.channels["RoomChannel"] = RoomChannel
         ws, task = await open_ws(app)
@@ -848,7 +871,7 @@ class TestRecovery:
         app.router.channels["RoomChannel"] = RoomChannel
         ws, task = await open_ws(app)
         for positions in (
-            "nope", {"room_a": "nope"}, {"room_a": {"e": "xyz", "o": 1}},
+            "nope", {"room_a": "nope"}, {"room_a": {"e": "xyz", "o": 1}}, {"room_a": ["nope"]},
             {"room_a": {"e": "0000abcd", "o": -1}}, {"room_a": {"e": "0000abcd", "o": True}},
             {3: {"e": "0000abcd", "o": 1}},
         ):
@@ -859,6 +882,28 @@ class TestRecovery:
             confirm = await ws.receive()
             assert confirm["type"] == "confirm_subscription"
             assert confirm["recovered"] is None
+        await ws.close()
+        await task
+
+    def test_positions_with_keys_that_are_not_streams(self):
+        from proper.channels.cable import _client_positions
+
+        assert _client_positions({3: {"e": "0000abcd", "o": 1}, "s": [{"e": "0000abcd", "o": 1}]}) == {
+            "s": [("0000abcd", 1)],
+        }
+
+    @pytest.mark.asyncio
+    async def test_a_cluster_of_one_from_memory(self, app):
+        """A cable configured for a cluster, served from memory: the
+        broadcasts go through, and there are no peers."""
+        app.cable = type(app.cable)(cluster={"port": 9999, "peers": ["10.0.0.2:9999"]})
+        app.cable.bind(app)
+        app.router.channels["RoomChannel"] = RoomChannel
+        ws, task = await open_ws(app)
+        await ws.subscribe("RoomChannel", room="a")
+        app.cable.broadcast("room_a", {"n": 1})
+        assert (await ws.receive())["data"] == {"n": 1}
+        assert app.cable.cluster_info() == []
         await ws.close()
         await task
 

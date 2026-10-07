@@ -106,5 +106,26 @@ class TestCableSettings:
 
         assert type(_app(CABLE={"type": Plain}).cable) is Plain
 
+    def test_the_cluster(self):
+        ok = {"port": 9999, "peers": ["10.0.0.2:9999"]}
+        _app(CABLE={**self.CABLE, "cluster": ok})
+        _app(CABLE={**self.CABLE, "cluster": {"port": 9999, "seeds": ["10.0.0.2:9999"], "addr": "10.0.0.1:9999"}})
+        _app(CABLE={**self.CABLE, "cluster": {**ok, "tls": {"cert": "c.pem", "key": "k.pem", "ca": "ca.pem"}}})
+        _app(CABLE={**self.CABLE, "cluster": None})
+        for bad, match in (
+            ("nope", "must be a dictionary"),
+            ({**ok, "nodes": []}, "unknown keys: nodes"),
+            ({"peers": ["a:1"]}, r"cluster'\]\['port'\] must be an integer"),
+            ({"port": 70000, "peers": ["a:1"]}, "port"),
+            ({"port": 9999, "peers": "10.0.0.2:9999"}, "list of 'host:port'"),
+            ({"port": 9999, "peers": ["nope"]}, "list of 'host:port'"),
+            ({"port": 9999}, "needs 'peers'"),
+            ({"port": 9999, "seeds": ["a:1"]}, "'addr'"),
+            ({**ok, "tls": {"cert": "c"}}, "'cert', 'key' and 'ca'"),
+            ({**ok, "tls": {"cert": "c", "key": "", "ca": "a"}}, "'cert', 'key' and 'ca'"),
+        ):
+            with pytest.raises(ConfigError, match=match):
+                _app(CABLE={**self.CABLE, "cluster": bad})
+
     def test_nothing_is_checked_without_a_cable(self):
         _app(CABLE={}, CABLE_PING_INTERVAL=0, CABLE_PATH="x")
