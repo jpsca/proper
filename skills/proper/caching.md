@@ -385,7 +385,7 @@ def index(self):
     self.response.fresh_when(self.cards)
 ```
 
-If the client already has the latest version (matching ETag or Last-Modified), Proper returns `304 Not Modified` with an empty body instead of re-rendering the page.
+If the client already has the latest version (matching ETag or Last-Modified), Proper returns `304 Not Modified` with an empty body instead of re-rendering the page. Only `GET`/`HEAD` requests with a 2xx response get a 304; `If-Modified-Since` is ignored when the request has `If-None-Match`, ETags use the weak comparison, and dates are compared in whole seconds (see [controllers.md](controllers.md#http-caching)).
 
 Options:
 
@@ -415,7 +415,7 @@ self.response.set_cache_control("max-age=31536000", "public", "immutable")
 
 ### Static Assets
 
-Static files are cached automatically. Fingerprinted assets (URLs containing a hash) are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted assets use `Cache-Control: public, max-age=0, must-revalidate` and support conditional requests via ETag and If-Modified-Since.
+Static files are cached automatically. Fingerprinted assets (URLs containing a hash) are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted assets use `Cache-Control: public, max-age=0, must-revalidate` and support conditional requests via If-Modified-Since (static files have no ETag).
 
 
 ## Cache Keys

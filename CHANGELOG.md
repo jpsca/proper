@@ -134,6 +134,34 @@ Three more changes in how `remote_ip` reads the headers:
   in a test is used. Before, the client's own `Forwarded` header won over
   it.
 
+### ⚠️ Upgrading: conditional requests follow RFC 9110
+
+`response.is_fresh()`, and so the automatic `304 Not Modified` after an
+action and the return value of `fresh_when()`, now follow RFC 9110:
+
+- A response can be fresh only for a `GET` or `HEAD` request and with a
+  2xx status. Before, a `POST` with a matching `If-None-Match`, or an
+  action that set a 404 or a redirect, could get its status replaced by
+  304 and lose its body. Now that response is sent in full, and
+  `fresh_when()` and `is_fresh()` return `False` for it. If an action
+  used their return value on another method or status, it must not
+  count on `True` there any more.
+- `If-Modified-Since` is ignored when the request has an
+  `If-None-Match`. Before, an ETag that didn't match could still get a 304
+  from the date. Static files have no ETag, so a request for one that
+  carries an `If-None-Match` now always gets a 200. If a proxy or CDN in
+  front of the app adds its own `If-None-Match` to the requests it
+  revalidates, make it send only `If-Modified-Since` for static files, or
+  they lose their 304s.
+- `If-None-Match` uses the weak comparison (`W/"x"` matches `"x"`), and
+  `If-None-Match: *` matches any response with an ETag. Before, only the
+  exact string matched, so more requests now get a 304.
+
+A response with the status 304 now always goes out without a body, also
+when the action sets the status itself: the body is emptied, whatever the
+action returned, and no template is rendered. Before, the body was emptied
+only when the request's headers made the response fresh.
+
 ### Removed
 
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
@@ -286,6 +314,11 @@ Three more changes in how `remote_ip` reads the headers:
 - A malformed multipart body (no boundary line at the start, a header line
   without a colon) was a 500 with python-multipart's own exception; it is now
   a `MultipartError` (400).
+- A file or a `last_modified` with a fraction of a second (as most file
+  modification times have) never got a `304 Not Modified` from
+  `If-Modified-Since`: the header sent to the client has whole seconds, and
+  the date it sent back was compared with the full time. They are now
+  compared in whole seconds, so unchanged static files get their 304.
 - A request body without `Content-Length` was ignored: a chunked
   (`Transfer-Encoding: chunked`) body in HTTP/1.1, or a body sent without
   the header in HTTP/2, left `request.form` and `request.body` empty. It is

@@ -269,7 +269,7 @@ By default, asset URLs include a hash of the file's modification time for cache 
 /assets/css/app-a1b2c3d4e5f6.css
 ```
 
-Fingerprinted files are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted files use `must-revalidate`. The framework also supports conditional requests via `If-Modified-Since` and `ETag` headers.
+Fingerprinted files are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted files use `must-revalidate`. Non-fingerprinted files answer `If-Modified-Since` with `304 Not Modified` when the file's modification time, in whole seconds, is not newer.
 
 ### X-Sendfile
 

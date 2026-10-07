@@ -131,7 +131,11 @@ class Controller:
         # view and in `resp`.
         ret_value = getattr(self, action_name)()
 
-        if self.response.is_fresh(request=self.request):
+        # A 304 has no body (RFC 9110, 15.4.5), whether the action set it
+        # or the response is fresh.
+        if self.response.status == not_modified or self.response.is_fresh(
+            request=self.request
+        ):
             self.response.status = not_modified
             self.response.body = ""
             return

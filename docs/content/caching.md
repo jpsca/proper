@@ -479,7 +479,7 @@ def show(self):
     self.response.fresh_when(self.card)
 ```
 
-After the action runs, Proper checks the request's `If-None-Match` / `If-Modified-Since`. If the cached version on the client matches, the response body is discarded and the status set to `304`. If not, the rendered HTML is sent as normal.
+After the action runs, Proper checks the request's `If-None-Match` (or, when the request has none, its `If-Modified-Since`). If the cached version on the client matches, the response body is discarded and the status set to `304`. If not, the rendered HTML is sent as normal. Only `GET` and `HEAD` requests with a 2xx response can get a `304`.
 
 Collections work the same way - Proper picks the maximum `updated_at` across them - and a `strong=True` / `public=True` option pair lets you tweak the ETag style and the `Cache-Control` directive. The full reference is in [Controllers Advanced, section 5](/docs/controllers_advanced#http-caching-with-fresh_when), which also covers when to reach for `fresh_when` and when not to.
 

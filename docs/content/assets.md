@@ -314,7 +314,7 @@ Last-Modified: <mtime>
 
 - `max-age=0` means the cached copy is always considered stale.
 - `must-revalidate` forces the browser to check before using it.
-- `Last-Modified` lets Proper answer the check with `304 Not Modified` if nothing changed.
+- `Last-Modified` lets Proper answer the check with `304 Not Modified` if nothing changed. The file's modification time is compared in whole seconds, because HTTP dates have no fractions.
 
 The browser still has to make an HTTP request, but Proper returns a tiny `304` response with no body if the file is unchanged. It's slower than fingerprinted assets but keeps the bytes-on-the-wire down.
 
