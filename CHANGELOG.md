@@ -50,6 +50,10 @@ CABLE = {"type": "proper.channels.Cable"}
 - `app.cable.health()`: whether this process serves the WebSockets, its
   connections, users and streams, and what wse reports (`health_snapshot()`),
   for a health endpoint.
+- Prometheus: the process that serves the WebSockets answers `GET /metrics`
+  on the loopback port `CABLE_PORT + 1` with wse's metrics and the cable's
+  (`proper_cable_streams`, `proper_cable_users`); `app.cable.metrics()` is
+  the same text.
 - Several machines: `CABLE["cluster"]` (`port`, `peers` or `seeds` and
   `addr`, `tls`) joins the cables in wse's TCP mesh. A `broadcast()` reaches
   every machine's subscribers, `disconnect()` closes a user's connections

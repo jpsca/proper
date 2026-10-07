@@ -246,7 +246,7 @@ What each part does:
 - **The builder** installs `3.14t` into `/python`, then installs the dependencies in their own layer, so Docker reuses that layer until `pyproject.toml` or `uv.lock` change. Only then does it copy your code and install the project.
 - **The runtime stage** copies the interpreter and `/app` (code and virtualenv) from the builder. `/python` is the same path in both stages, so the virtualenv's links to the interpreter keep working. It adds `libpq5` for Postgres and `libvips` for image processing; the full file has commented lines for `poppler-utils` and `ffmpeg` if you preview PDFs or videos.
 - **The app runs as `app`**, an unprivileged user. `storage/` and `log/` are its writable directories; mount volumes there.
-- **The health check** requests the app's `/up` route, which every new app has.
+- **The health check** requests the app's `/up` route, which every new app has. With channels, `app.cable.health()` tells how the WebSockets are doing, and Prometheus can scrape `127.0.0.1:CABLE_PORT + 1/metrics` from the web process (see [Channels](/docs/channels#how-the-cable-is-doing)).
 
 Build it with:
 
