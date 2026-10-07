@@ -1006,6 +1006,8 @@ class PublicController(AppController):
 
 The `@router.error()` decorator registers the handler, and the `@router.get()` decorator creates a route to preview the error page during development (e.g., visiting `/_not_found` in the browser). You can stack both decorators on the same method.
 
+If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
+
 
 ## HTTP Caching
 

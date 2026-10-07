@@ -490,6 +490,10 @@ class App(AppWsgi):
     def _handle_app_error(self, request, response) -> None:
         """Call the registered exception handler if exists or the fallback
         handlers if there isn't one for this error.
+
+        When handlers for several of the error's classes are registered, the
+        one for the closest class in the error's hierarchy wins, whatever
+        the registration order.
         """
         logger.error(
             "❌ %s %s -> %s: %s",
@@ -504,9 +508,12 @@ class App(AppWsgi):
         if not self.config.DEBUG:
             error_handlers = self.router.error_handlers
             if error_handlers:
-                error = response.error
-                for error_cls, handler in error_handlers.items():
-                    if isinstance(error, error_cls):
+                # The most specific handler wins, as with `except` clauses:
+                # walk the error's class hierarchy, from its own class up,
+                # and use the first class with a handler.
+                for error_cls in type(response.error).__mro__:
+                    handler = error_handlers.get(error_cls)
+                    if handler is not None:
                         self._custom_error_handler(handler, request, response)
                         return
 

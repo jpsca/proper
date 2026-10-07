@@ -797,6 +797,11 @@ class Router(BaseRouter):
             def not_found(self):
                 ...
         ```
+
+        When handlers for several of an error's classes are registered, the
+        most specific one is called: the one for the closest class in the
+        error's hierarchy, as with `except` clauses. A handler for
+        `Exception` is used only for errors without a more specific one.
         """
         def _decorator(to) -> Callable:
             self.add_error_handler(error_cls, to)

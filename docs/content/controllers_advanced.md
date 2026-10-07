@@ -479,6 +479,8 @@ class PublicController(AppController):
 
 When a `NotFound` is raised anywhere during request processing, the framework instantiates `PublicController`, sets up `self.request` and `self.response`, calls `not_found`, and renders the matching template (`public/not_found.jx` in this case). `@router.error(Exception)` is the catch-all - any unhandled exception lands there.
 
+If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
+
 ### The `_not_found` Trick
 
 Notice the second decorator on each method:
