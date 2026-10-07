@@ -87,6 +87,18 @@ it to the `set_signed_cookie()` call too); otherwise the cookies set after
 the upgrade don't verify. Cookies that browsers keep from before the upgrade
 are signed with `""` and are read again only with `salt=""`.
 
+### ⚠️ Upgrading: JSON bodies that are not an object
+
+`request.form` now gets only the members of a JSON object. A JSON body
+that is a list of pairs (`[["name", "ada"]]`) or of two-character strings
+filled the form before; now it leaves the form empty, as any other JSON
+value that is not an object does (other values were a 500). If a client
+sends such a body, parse it from `request.body`:
+`json.loads(self.request.body)`.
+
+A multipart body that ends before its final boundary is now a
+`MultipartError` (400); before, it was parsed without its last field.
+
 ### Removed
 
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
@@ -213,6 +225,29 @@ are signed with `""` and are read again only with `salt=""`.
 - A session cookie whose signed value was not a JSON object (a string, a
   number, `true`) was a 500, and a list of pairs became a session. Any value
   that is not an object is now no session, as a bad signature is.
+- A malformed parameter in `Accept`, `Accept-Encoding` or `Accept-Language`
+  was a 500: one without a value (`text/html;level`), an empty one
+  (`text/html;`), or a `q` that is not a number (`q=abc`). Such a parameter
+  is now ignored; a `q` that is not a number from 0 to 1 counts as 1.
+- The media type of the request's `Content-Type` was case-sensitive when it
+  had parameters: a body sent as `Multipart/Form-Data; boundary=x` or
+  `Application/JSON; charset=utf-8` was not parsed. The media type is now
+  lowercased, as RFC 9110 says it is case-insensitive. (The parameter names
+  were already case-insensitive.)
+- A JSON body that was not an object (`[1, 2]`, `"x"`, `3`, `true`) was a
+  500. It now leaves `request.form` empty, and the body is in
+  `request.body`.
+- A urlencoded or JSON body with bytes that are not valid in its charset was
+  a 500; it is now a `BadRequest` (400). An unknown charset
+  (`charset=nope`) was a 500; it is now an `UnsupportedMediaType` (415).
+- A malformed multipart body (no boundary line at the start, a header line
+  without a colon) was a 500 with python-multipart's own exception; it is now
+  a `MultipartError` (400).
+- A request body without `Content-Length` was ignored: a chunked
+  (`Transfer-Encoding: chunked`) body in HTTP/1.1, or a body sent without
+  the header in HTTP/2, left `request.form` and `request.body` empty. It is
+  now read, up to `MAX_CONTENT_LENGTH`, and refused with a 413 as soon as
+  it goes over it.
 - A `subscribed()` that raised an exception after `stream_from()` left the
   connection receiving the broadcasts of that stream, without a subscription,
   and the client waiting for an answer. The streams are now stopped and the

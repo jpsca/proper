@@ -551,6 +551,33 @@ self.request.matched_params     # route params only (dict)
 
 Reach for `self.params` first; the merged view is what you almost always want.
 
+### The Request Body
+
+Proper reads the body before the router runs and parses it by its `Content-Type`. The media type and the parameter names are case-insensitive, so `Multipart/Form-Data; Boundary=x` works like `multipart/form-data; boundary=x`.
+
+| Content-Type | `self.request.form` gets |
+|---|---|
+| `multipart/form-data` | the fields as strings, the files as upload objects |
+| `application/x-www-form-urlencoded` | the fields as strings |
+| `application/json` | the members of the JSON object, with their JSON types |
+| anything else | nothing |
+
+The raw bytes are always in `self.request.body`. A JSON body that is not an object (an array, a string, a number) leaves the form empty; parse `self.request.body` yourself to use it:
+
+```python
+import json
+
+def create(self):
+    items = json.loads(self.request.body)  # e.g. [{"id": 1}, {"id": 2}]
+```
+
+The `charset` parameter of the `Content-Type` decodes urlencoded and JSON bodies (UTF-8 if there is none). A request is refused before it reaches your controller when:
+
+- The body is larger than `MAX_CONTENT_LENGTH` (8 MB by default): `413`. A body sent without `Content-Length` (chunked, or over HTTP/2 without the header) is read up to that limit and refused as soon as it goes over it.
+- The body is not valid in its charset: `400`.
+- The charset is unknown: `415`.
+- The JSON or the multipart body is malformed, or a multipart body ends before its final boundary: `400`.
+
 ### File Uploads
 
 Uploaded files arrive in `self.request.form` alongside the regular form fields. Each file is an object with a filename, a content type, and a `.read()` / `.save()` API:

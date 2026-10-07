@@ -260,3 +260,57 @@ def test_file_parts_closed_on_error():
     parser = MultipartParser(boundary, max_fields=2)
     with pytest.raises(MultipartError):
         parser.parse_sync(body)
+
+
+@pytest.mark.parametrize("body", [
+    # No boundary line at the start.
+    b"garbage",
+    # A different boundary.
+    b"--other\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n--other--\r\n",
+    # A header line without a colon.
+    b"--testboundary\r\nbad header line\r\n\r\nv\r\n--testboundary--\r\n",
+])
+def test_framing_error(body):
+    """python-multipart's own parse errors are a `MultipartError` (400)."""
+    parser = MultipartParser("testboundary")
+    with pytest.raises(MultipartError):
+        parser.parse_sync(body)
+
+
+@pytest.mark.parametrize("tail", [
+    b"",
+    b"--testboundary",
+    b"--testboundary\r\n",
+    b"--testboundary-",
+    b"--testboundaryZZ",
+])
+def test_missing_final_boundary(tail):
+    """A body cut before the final boundary is an error, not a form that
+    silently lacks its last fields."""
+    body = b"--testboundary\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n" + tail
+    parser = MultipartParser("testboundary")
+    with pytest.raises(MultipartError, match="final boundary"):
+        parser.parse_sync(body)
+
+
+@pytest.mark.parametrize("tail", [b"--testboundary--", b"--testboundary--\r\nepilogue"])
+def test_final_boundary_without_crlf_or_with_epilogue(tail):
+    body = b"--testboundary\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n" + tail
+    parser = MultipartParser("testboundary")
+    assert parser.parse_sync(body) == [("a", "v")]
+
+
+def test_file_parts_closed_on_framing_error():
+    body = (
+        b"--testboundary\r\n"
+        b'Content-Disposition: form-data; name="f"; filename="f.txt"\r\n'
+        b"\r\n"
+        b"data\r\n"
+        b"--testboundary\r\n"
+        b"bad header line\r\n"
+    )
+    parser = MultipartParser("testboundary")
+    with pytest.raises(MultipartError):
+        parser.parse_sync(body)
+    assert len(parser._files_to_close_on_error) == 1
+    assert parser._files_to_close_on_error[0].closed

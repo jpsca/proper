@@ -46,6 +46,18 @@ class TestParseOptionsHeader:
         assert opts["extra"] == "value"
         assert opts is existing
 
+    @pytest.mark.parametrize("header", [
+        "Multipart/Form-Data; Boundary=x",
+        "MULTIPART/FORM-DATA; BOUNDARY=x",
+        " multipart/form-data ;boundary=x",
+    ])
+    def test_media_type_and_parameter_names_are_case_insensitive(self, header):
+        """RFC 9110 §8.3.1: the type, subtype and parameter names are
+        case-insensitive. The value keeps its case."""
+        ct, opts = parse_options_header(header)
+        assert ct == "multipart/form-data"
+        assert opts == {"boundary": "x"}
+
 
 class TestParseQueryString:
     def test_simple(self):
@@ -81,6 +93,23 @@ class TestParseJson:
 
     def test_invalid_non_strict(self):
         result = parse_json("not json", strict=False)
+        assert len(result) == 0
+
+    @pytest.mark.parametrize("content", [
+        "[1, 2]",
+        '[["a", 1]]',
+        '["ab"]',
+        "[]",
+        '"x"',
+        "3",
+        "true",
+        "null",
+    ])
+    def test_not_an_object_gives_an_empty_form(self, content):
+        """Only the members of an object are form fields. Any other JSON
+        value is valid but has no fields; the controller can read it from
+        `request.body`."""
+        result = parse_json(content)
         assert len(result) == 0
 
 
@@ -475,6 +504,31 @@ def test_accept_with_escaped_quotes():
     )
     assert req.accept[0] == "text/html"
     assert req.accept[1] == "text/plain"
+
+
+@pytest.mark.parametrize("header, expected", [
+    # A parameter without a value is ignored, with or without quotes.
+    ("text/html;level,application/json;q=0.5", ["text/html", "application/json"]),
+    ('text/html;level,application/json;q="0.5"', ["text/html", "application/json"]),
+    # An empty parameter, as after a trailing `;`.
+    ("text/html;,application/json;q=0.5", ["text/html", "application/json"]),
+    ("application/json;q=0.5,text/html;", ["text/html", "application/json"]),
+    # A `q` that isn't a number from 0 to 1 is ignored: the weight is 1.
+    ("application/json;q=0.5,text/html;q=abc", ["text/html", "application/json"]),
+    ('application/json;q=0.5,text/html;q="abc"', ["text/html", "application/json"]),
+    ("application/json;q=0.5,text/html;q=", ["text/html", "application/json"]),
+    ("application/json;q=0.5,text/html;q=nan", ["text/html", "application/json"]),
+    ("application/json;q=0.5,text/html;q=2", ["text/html", "application/json"]),
+    ("text/html;q=-1,application/json;q=0.5", ["text/html", "application/json"]),
+])
+def test_accept_malformed_parameters_are_ignored(header, expected):
+    req = _make_request("/", headers=[("accept", header)])
+    assert req.accept == expected
+
+
+def test_accept_language_malformed_q_is_ignored():
+    req = _make_request("/", headers=[("accept-language", "fr;q=0.5,en-US;q=x")])
+    assert req.accept_language == ["en_US", "fr"]
 
 
 def test_accept_semicolon_without_equals():

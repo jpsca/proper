@@ -8,6 +8,7 @@ from tempfile import SpooledTemporaryFile
 from urllib.parse import parse_qs
 
 import python_multipart as multipart
+from python_multipart.exceptions import FormParserError
 from python_multipart.multipart import parse_options_header as _pm_parse_options_header
 
 from ...errors import MultipartError, UriTooLong
@@ -75,14 +76,22 @@ def parse_query_string(
 
 
 def parse_json(content: str, *, strict: bool = True) -> MultiDict:
+    """Parse a JSON body into a MultiDict.
+
+    The members of a JSON object are the fields. Any other JSON value (an
+    array, a string, a number, `true`, `false` or `null`) gives an empty
+    `MultiDict`.
+    """
     form = MultiDict()
     try:
         data = json.loads(content)
-        form.update(data)
     except json.JSONDecodeError as err:
         if strict:
             raise MultipartError(str(err)) from None
+        return form
 
+    if isinstance(data, dict):
+        form.update(data)
     return form
 
 
@@ -93,7 +102,9 @@ def parse_options_header(
     """Parse a Content-Type style header into a content-type and options dict.
 
     Uses python-multipart's parser internally but returns string keys/values
-    (the upstream returns bytes keys).
+    (the upstream returns bytes keys). The content-type and the parameter
+    names are lowercased, because they are case-insensitive (RFC 9110
+    §8.3.1); the parameter values keep their case.
 
     >>> head = 'form-data; name="Test"; '
     >>> parse_options_header(head + 'filename="Test.txt"')[0]
@@ -115,7 +126,7 @@ def parse_options_header(
         result[k] = v
 
     ct = content_type.decode("latin-1") if isinstance(content_type, bytes) else str(content_type)
-    return ct, result
+    return ct.strip().lower(), result
 
 
 def _safe_decode(src: bytes | bytearray, codec: str) -> str:
@@ -251,6 +262,7 @@ class MultipartParser:
         self._current_partial_header_value: bytes = b""
         self._current_files = 0
         self._current_fields = 0
+        self._ended = False
 
         self.items: list[tuple[str, str | MultipartPart]] = []
         self._file_parts_to_write: list[tuple[MultipartPart, bytes]] = []
@@ -357,6 +369,9 @@ class MultipartParser:
                 )
             part.file = BytesIO()
 
+    def on_end(self) -> None:
+        self._ended = True
+
     # -- Parse methods --
 
     def _build_parser(self) -> multipart.MultipartParser:
@@ -368,7 +383,7 @@ class MultipartParser:
             "on_header_value": self.on_header_value,
             "on_header_end": self.on_header_end,
             "on_headers_finished": self.on_headers_finished,
-            "on_end": lambda: None,
+            "on_end": self.on_end,
         })
 
     def _flush_file_writes(self) -> None:
@@ -383,12 +398,21 @@ class MultipartParser:
         self._file_parts_to_finish.clear()
 
     def parse_sync(self, body: bytes) -> list[tuple[str, str | MultipartPart]]:
-        """Parse multipart from bytes. For use when body is already available."""
+        """Parse multipart from bytes. For use when body is already available.
+
+        Raises a `MultipartError` if the body is not well-formed, including
+        when it ends before the final boundary.
+        """
         parser = self._build_parser()
         try:
-            parser.write(body)
-            self._flush_file_writes()
-            parser.finalize()
+            try:
+                parser.write(body)
+                self._flush_file_writes()
+                parser.finalize()
+            except FormParserError as err:
+                raise MultipartError(str(err)) from None
+            if not self._ended:
+                raise MultipartError("The multipart body ends before the final boundary.")
         except MultipartError:
             for file in self._files_to_close_on_error:
                 file.close()

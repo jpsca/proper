@@ -4,6 +4,7 @@ from ...constants import FLASHES_SESSION_KEY, GET, HEAD, SIGNED_COOKIE_SALT
 from ...errors import (
     BadRequest,
     RequestEntityTooLarge,
+    UnsupportedMediaType,
 )
 from ...global_context import current
 from ...helpers import DotDict, MultiDict, logger
@@ -24,6 +25,9 @@ if t.TYPE_CHECKING:
 
 
 __all__ = ("Request", )
+
+# How much of a body without `content-length` is read at a time.
+READ_CHUNK_SIZE = 64 * 1024
 
 
 
@@ -111,12 +115,16 @@ class Request(RequestHeadersMixin):
         """Read and parse the body, with `read(size)` being the server's
         blocking reader (WSGI's `wsgi.input`).
 
-        Requests without a `content-length` carry no body for us: the
-        length is checked against `MAX_CONTENT_LENGTH` before a single
-        byte is read, so an oversized upload is refused, not buffered.
+        With a `content-length`, the length is checked against
+        `MAX_CONTENT_LENGTH` before a single byte is read, so an oversized
+        upload is refused, not buffered. A body without one (chunked in
+        HTTP/1.1, or any body in HTTP/2 and 3) is read until its end, and
+        refused as soon as it passes `MAX_CONTENT_LENGTH`.
         """
         if self._expects_body():
             self._parse_body_bytes(read(self.content_length))
+        elif self._expects_unsized_body():
+            self._parse_body_bytes(self._read_unsized_body(read))
 
     def _expects_body(self) -> bool:
         if self.method in (GET, HEAD) or not self.content_length:
@@ -125,6 +133,34 @@ class Request(RequestHeadersMixin):
         if max_content_length > 0 and self.content_length > max_content_length:
             raise RequestEntityTooLarge("Maximum content length exceeded")
         return True
+
+    def _expects_unsized_body(self) -> bool:
+        """Whether there is a body without a `content-length`.
+
+        In HTTP/1.1 that is a chunked body (`transfer-encoding`); without
+        either header there is no body (RFC 9112 §6.3). HTTP/2 and 3 have
+        no `transfer-encoding`: there, the `content-length` is optional.
+        """
+        if self.method in (GET, HEAD) or "content-length" in self.headers:
+            return False
+        return "transfer-encoding" in self.headers or not self.http_version.startswith("1")
+
+    def _read_unsized_body(self, read: "Callable[[int], bytes]") -> bytes:
+        """Read until `read()` returns `b""`, but not past `MAX_CONTENT_LENGTH`."""
+        max_content_length = self.app.config.MAX_CONTENT_LENGTH
+        chunks = []
+        size = 0
+        while True:
+            want = READ_CHUNK_SIZE
+            if max_content_length > 0:
+                want = min(want, max_content_length + 1 - size)
+            chunk = read(want)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+            size += len(chunk)
+            if max_content_length > 0 and size > max_content_length:
+                raise RequestEntityTooLarge("Maximum content length exceeded")
 
     def _parse_body_bytes(
         self,
@@ -135,14 +171,16 @@ class Request(RequestHeadersMixin):
         """Parse already-available body bytes. Used by the test helper
         and as the shared logic for non-multipart content types.
         """
-        if self.method in (GET, HEAD) or not self.content_length:
+        if self.method in (GET, HEAD):
             return
 
         max_content_length = self.app.config.MAX_CONTENT_LENGTH
         if max_content_length > 0 and len(body) > max_content_length:
             raise RequestEntityTooLarge("Maximum content length exceeded.")
-        if len(body) != self.content_length:
+        if self.content_length and len(body) != self.content_length:
             raise BadRequest("Body size doesn't match the declared Content-Length.")
+        if not body:
+            return
 
         # Always expose the raw bytes - binary uploads (image/png PUTs,
         # etc.) have no parser but the controller still needs the body.
@@ -168,10 +206,10 @@ class Request(RequestHeadersMixin):
             "application/x-www-form-urlencoded",
             "application/x-url-encoded",
         ):
-            self.form = parse_query_string(body.decode(encoding), encoding=encoding)
+            self.form = parse_query_string(_decode(body, encoding), encoding=encoding)
 
         elif content_type.startswith("application/json"):
-            self.form = parse_json(body.decode(encoding))
+            self.form = parse_json(_decode(body, encoding))
 
         # Other content types: no parser available, but `self.body` carries
         # the raw bytes. The controller decides what to do (binary upload,
@@ -291,3 +329,18 @@ class Request(RequestHeadersMixin):
         if isinstance(value, bytes):
             return value.decode()
         return value
+
+
+def _decode(body: bytes, encoding: str) -> str:
+    """Decode a urlencoded or JSON body with the charset of its
+    `content-type`.
+
+    An unknown charset is a 415; bytes that aren't valid in that charset
+    are a 400.
+    """
+    try:
+        return body.decode(encoding)
+    except LookupError:
+        raise UnsupportedMediaType(f"Unknown charset: {encoding}.") from None
+    except UnicodeError:
+        raise BadRequest(f"The body is not valid {encoding}.") from None

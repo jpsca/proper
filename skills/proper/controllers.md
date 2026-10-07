@@ -594,6 +594,24 @@ self.request.form          # POST body params only (MultiDict, includes file upl
 self.request.matched_params  # Route params only (dict)
 ```
 
+### The Request Body
+
+The body is read and parsed before routing, by `Content-Type` (media type and parameter names are case-insensitive):
+
+- `multipart/form-data` → `request.form`: fields as `str`, files as `MultipartPart`
+- `application/x-www-form-urlencoded` → `request.form`: fields as `str`
+- `application/json` → `request.form`: the members of the JSON **object**, with their JSON types. Any other JSON value (array, string, number, `true`, `null`) leaves `form` empty; parse `request.body` yourself.
+- anything else → only `request.body`
+
+`request.body` always has the raw bytes. Urlencoded and JSON bodies are decoded with the `charset` parameter (default UTF-8). Errors raised before the controller runs:
+
+| Problem | Error |
+|---|---|
+| Body over `MAX_CONTENT_LENGTH` (also for chunked/HTTP/2 bodies without `Content-Length`, which are read up to the limit) | `RequestEntityTooLarge` (413) |
+| Bytes not valid in the charset | `BadRequest` (400) |
+| Unknown charset | `UnsupportedMediaType` (415) |
+| Malformed JSON or multipart (including a missing final boundary) | `MultipartError` (400) |
+
 ### Route Defaults
 
 Routes can define default values that are available in the controller via `self.defaults`:
