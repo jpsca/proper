@@ -179,7 +179,8 @@ class TestHttp:
         assert status.startswith("413")
         assert environ["wsgi.input"].tell() == 5
 
-    def test_a_chunked_body_is_not_read_from_an_unterminated_input(self, app):
+    @pytest.mark.parametrize("terminated", ["missing", False])
+    def test_a_chunked_body_is_not_read_from_an_unterminated_input(self, app, terminated):
         """PEP 3333 doesn't promise that `wsgi.input` ends with the body: a
         server that passes the socket on would block, or give the chunk
         framing as the body."""
@@ -188,7 +189,10 @@ class TestHttp:
             ("content-type", "application/x-www-form-urlencoded"),
             ("transfer-encoding", "chunked"),
         ])
-        del environ["wsgi.input_terminated"]
+        if terminated == "missing":
+            del environ["wsgi.input_terminated"]
+        else:
+            environ["wsgi.input_terminated"] = terminated
 
         status, _, _ = call(app, environ)
 

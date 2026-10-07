@@ -1,4 +1,5 @@
 import datetime
+import time
 
 import pytest
 
@@ -237,12 +238,37 @@ def test_date_header_missing():
     assert req.date is None
 
 
-@pytest.mark.parametrize("value", ["garbage", "", "99999999999999999999"])
+@pytest.mark.parametrize("value", [
+    "garbage",
+    "",
+    "99999999999999999999",
+    # The offset moves these out of the range of `datetime`.
+    "Fri, 31 Dec 9999 23:59:59 -0100",
+    "9999-12-31T23:59:59-01:00",
+    "0001-01-01T00:30:00+01:00",
+])
 def test_invalid_date_is_ignored(value):
     """RFC 9110 §13.1.3: a recipient MUST ignore an invalid date."""
     req = _make_request("/", headers=[("date", value), ("if-modified-since", value)])
     assert req.date is None
     assert req.if_modified_since is None
+
+
+@pytest.fixture()
+def local_time_zone_not_utc(monkeypatch):
+    """A local time zone five hours behind UTC, so a date read as local
+    time doesn't pass for UTC when the tests run with `TZ=UTC`."""
+    monkeypatch.setenv("TZ", "EST5")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+@pytest.mark.usefixtures("local_time_zone_not_utc")
+def test_date_without_a_time_zone_is_utc():
+    req = _make_request("/", headers=[("date", "Sun Nov  6 08:49:37 1994")])
+    assert req.date == datetime.datetime(1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc)
 
 
 def test_date_with_an_offset_is_converted_to_utc():

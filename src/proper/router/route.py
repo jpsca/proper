@@ -358,12 +358,12 @@ class Route:
         with the values in `kw`.
 
         Each value must match its placeholder's format as a whole. The values,
-        and the text of the route around them, are percent-encoded, except for the characters a path can have as
-        they are (`PATH_SAFE`): a `/`, which only a placeholder whose format
-        matches a `/` (such as `path`) accepts, and `:@!$&'()*+,;=`, so a
-        value like `":signed_id"` stays as written. The arguments that are not
-        placeholders become the query string, percent-encoded as a form
-        (`urlencode`).
+        and the text of the route around them, are percent-encoded, except
+        for the characters a path can have as they are (`PATH_SAFE`): a `/`,
+        which only a placeholder whose format matches a `/` (such as `path`)
+        accepts, and `:@!$&'()*+,;=`, so a value like `":signed_id"` stays as
+        written. The arguments that are not placeholders become the query
+        string, percent-encoded as a form (`urlencode`).
         """
         path_params = self._get_path_params(kw)
         url = _build(

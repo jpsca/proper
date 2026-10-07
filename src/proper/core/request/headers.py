@@ -293,10 +293,10 @@ class RequestHeadersMixin:
         (`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and
         `X-Forwarded-Proto`) can be believed.
 
-        A request without a peer address also counts, as in Rack: a server
-        listening on a Unix socket, which only a process on the same machine
-        (such as nginx) can connect to, gives an empty `REMOTE_ADDR`, or
-        `unix:...`.
+        A request without a peer address also counts, as in Rack: Granian
+        or gunicorn listening on a Unix socket, which only a process on the
+        same machine (such as nginx) can connect to, give an empty
+        `REMOTE_ADDR`. A peer `unix:...` counts too.
         """
         peer = self.client[0] if self.client else ""
         if not peer or peer == "unix" or peer.startswith("unix:"):
@@ -370,12 +370,13 @@ class RequestHeadersMixin:
 
         Otherwise, it is the address of the peer that sent the request
         and the forwarding headers are ignored, because any client can
-        send them. A request without a peer address (a server on a Unix
-        socket) counts as coming from a trusted proxy.
+        send them. A request without a peer address (Granian or gunicorn on
+        a Unix socket) counts as coming from a trusted proxy.
 
         Returns:
             A string with the IP address, or `""` if there is none. An
-            `X-Forwarded-For` address is returned without its port. A
+            `X-Forwarded-For` address is returned without its port, and an
+            IPv4-mapped one (`::ffff:1.2.3.4`) as IPv4 (`1.2.3.4`). A
             `Forwarded` value is returned as written: it can have a port
             (`1.2.3.4:8080`, `"[2001:db8::1]:4711"`). A value that is not an
             address is returned as written: an obfuscated identifier
@@ -498,14 +499,16 @@ def parse_date(value: str | None) -> datetime | None:
         return None
     try:
         date = dtparse(value)
+        # The super-old ANSI C's asctime() format doesn't include timezone
+        # information, but the other formats do, so we assume UTC for it.
+        if date.tzinfo is None:
+            return date.replace(tzinfo=timezone.utc)
+        # An OverflowError if the offset moves it out of datetime's range
+        # (`Fri, 31 Dec 9999 23:59:59 -0100`).
+        return date.astimezone(timezone.utc)
     except (ValueError, OverflowError):
         # RFC 9110 §13.1.3: an invalid date is ignored.
         return None
-    # The super-old ANSI C's asctime() format doesn't include timezone
-    # information, but the other formats do, so we assume UTC for it.
-    if date.tzinfo is None:
-        return date.replace(tzinfo=timezone.utc)
-    return date.astimezone(timezone.utc)
 
 
 def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:

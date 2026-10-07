@@ -138,7 +138,12 @@ def _handshake_request(app: "App", details: dict) -> t.Any:
     """The handshake as a request, for the channels: its path and query
     string, its `Cookie`, `Authorization` and `X-Forwarded-For` headers, and
     the client's address (`request.remote_ip`). `details` is what wse gives
-    with `handshake_details`."""
+    with `handshake_details`.
+
+    A `remote_addr` that isn't `ip:port` is still the peer, checked against
+    `TRUSTED_PROXIES`: a request without a peer counts as from a trusted
+    proxy. There is no peer only without `remote_addr` (the in-memory
+    server's `connect()` without details)."""
     path, _, query_string = str(details.get("path") or "/").partition("?")
     headers = [
         (name, value)
@@ -149,8 +154,12 @@ def _handshake_request(app: "App", details: dict) -> t.Any:
         )
         if value
     ]
-    host, _, port = str(details.get("remote_addr") or "").rpartition(":")
-    client = (host.strip("[]"), int(port)) if host and port.isdigit() else None
+    remote_addr = str(details.get("remote_addr") or "")
+    host, _, port = remote_addr.rpartition(":")
+    if host and port.isdigit():
+        client = (host.strip("[]"), int(port))
+    else:
+        client = (remote_addr.strip("[]"), None) if remote_addr else None
     return app.request_cls(
         method="GET", path=path, query_string=query_string, headers=headers,
         client=client, app=app,
