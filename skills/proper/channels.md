@@ -535,6 +535,10 @@ A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_O
 They go in `config/channels.py` (imported from `config/__init__.py`). Changing `CABLE_PATH` also means changing the proxy location and passing the URL to `cable.connect()`. With a `CABLE` set, they are validated at startup (`ConfigError`): `CABLE_PORT` 0–65535, `CABLE_PATH` starting with `/`, the ping interval and `idle_timeout` as above, `CABLE_MAX_PENDING_BYTES` ≥ 0, `CABLE_STALL_TIMEOUT` > 0; and `CABLE` may not set `ping_interval`, `allowed_origins` or `recovery_enabled`, which the settings and `recovery` decide.
 
 
+## When Nothing Arrives
+
+A broadcast to a stream without listeners is not an error. Check: the WS connection in the browser's Network panel (status 101; its frames show `subscribe`, `confirm_subscription`/`reject_subscription`, pings and broadcasts); a reject means `reject()`, an exception in `subscribed()` (server log) or an unregistered name (module not imported in `channels/__init__.py`, or `@router.channel("name")` differs from the class name); the confirmation's `streams` must include the stream broadcast to; `app.cable.streams` lists the streams with subscribers; `app.cable.health()` says whether the process serves WebSockets; a forwarded broadcast that can't reach the web process logs a warning; `received()` gets the data after JSON (dates as strings, models must be dicts). Page-scoped subscriptions must unsubscribe when the page goes away (Turbo Drive swaps the body): use `<turbo-stream-channel>` or a Stimulus controller's `connect()`/`disconnect()`; `cable.connect()` goes in `application.js`.
+
 ## Testing
 
 `client.websocket()` (on the `TestClient`) returns a `WebSocketTestSession` that runs the app's cable from memory (`app.cable.serve_in_memory()`): no port, no threads, each frame handled right away. With `CABLE = {}`, `connect()` raises `RuntimeError`. Tests are `async`: the app needs `pytest-asyncio` (`uv add --dev pytest-asyncio`) and `@pytest.mark.asyncio` (or `asyncio_mode = "auto"`).
