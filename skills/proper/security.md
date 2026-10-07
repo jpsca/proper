@@ -256,7 +256,7 @@ MAX_QUERY_SIZE = 1 * MB        # Query string limit (default: 1 MB)
 - Exceeding `MAX_CONTENT_LENGTH` raises `RequestEntityTooLarge` (413)
 - Exceeding `MAX_QUERY_SIZE` raises `UriTooLong` (414)
 
-These limits are enforced before parsing, so oversized payloads don't consume memory.
+These limits are enforced before parsing, so oversized payloads don't consume memory. A body with a `Content-Length` over the limit is refused before a byte is read; a body without one (chunked, or HTTP/2 without the header) is read until it passes the limit, then refused.
 
 ### Multipart Form Limits
 

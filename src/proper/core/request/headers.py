@@ -399,7 +399,7 @@ def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:
         [
             (
                 format_locale(label) if is_language else label,
-                float(params.get("q", 1.0))
+                parse_qvalue(params.get("q"))
             )
             for label, params in values
         ],
@@ -408,6 +408,21 @@ def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:
     )
     # Return only the labels
     return [label for label, _ in ranking]
+
+
+def parse_qvalue(value: str | None) -> float:
+    """Parse the `q` parameter of an `accept*` header.
+
+    Returns:
+        The weight, from 0 to 1. It is 1 when there is no `q`, or when it
+        is not a number from 0 to 1: a bad parameter is ignored.
+
+    """
+    try:
+        weight = float(value or 1)
+    except ValueError:
+        return 1.0
+    return weight if 0 <= weight <= 1 else 1.0
 
 
 RX_COMMA = re.compile(r",\s*")
@@ -521,8 +536,9 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
             parts = value.split(";")
             values.append((parts[0].strip(), {}))
             for attr in parts[1:]:
-                name, value = attr.split("=", 1)
-                values[-1][1][name.strip()] = value.strip()
+                name, _, value = attr.partition("=")
+                if name.strip():
+                    values[-1][1][name.strip()] = value.strip()
     else:
         lop, key, attrs = ",", None, {}
         for quoted, plain, tok in RX_SPLIT(header):

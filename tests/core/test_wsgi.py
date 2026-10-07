@@ -152,6 +152,75 @@ class TestHttp:
         assert environ["wsgi.input"].tell() == 0
         app.config.MAX_CONTENT_LENGTH = 0
 
+    def test_a_chunked_body_is_read_and_parsed(self, app):
+        _route(app, "/form", Form.create, method="POST")
+        environ = make_environ("/form", method="POST", body=b"name=ada&age=36", headers=[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("transfer-encoding", "chunked"),
+        ])
+
+        status, _, _ = call(app, environ)
+
+        assert SEEN["form"] == {"name": "ada", "age": "36"}
+        assert status == "200 OK"
+
+    def test_an_oversized_chunked_body_is_refused(self, app):
+        _route(app, "/form", Form.create, method="POST")
+        app.config.MAX_CONTENT_LENGTH = 4
+        environ = make_environ("/form", method="POST", body=b"name=ada&age=36", headers=[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("transfer-encoding", "chunked"),
+        ])
+
+        status, _, _ = call(app, environ)
+
+        assert status.startswith("413")
+        assert environ["wsgi.input"].tell() == 5
+
+    @pytest.mark.parametrize("content_type, body, expected", [
+        # Invalid UTF-8.
+        ("application/x-www-form-urlencoded", b"name=\xff", "400 Bad Request"),
+        ("application/json", b'{"name": "\xff"}', "400 Bad Request"),
+        # Unknown charset.
+        ("application/json; charset=nope", b"{}", "415 Unsupported Media Type"),
+        # A JSON value that is not an object.
+        ("application/json", b"[1, 2]", "200 OK"),
+        # A multipart framing error.
+        ("multipart/form-data; boundary=x", b"--x\r\nbad header\r\n\r\n--x--", "400 Bad Request"),
+    ])
+    def test_bad_bodies_are_client_errors(self, app, content_type, body, expected):
+        _route(app, "/form", Form.create, method="POST")
+        environ = make_environ("/form", method="POST", body=body, headers=[
+            ("content-type", content_type),
+            ("content-length", str(len(body))),
+        ])
+
+        status, _, _ = call(app, environ)
+
+        assert status == expected
+
+    def test_the_media_type_is_case_insensitive(self, app):
+        _route(app, "/form", Form.create, method="POST")
+        body = b"--x\r\nContent-Disposition: form-data; name=name\r\n\r\nada\r\n--x--\r\n"
+        environ = make_environ("/form", method="POST", body=body, headers=[
+            ("content-type", "Multipart/Form-Data; Boundary=x"),
+            ("content-length", str(len(body))),
+        ])
+
+        status, _, _ = call(app, environ)
+
+        assert SEEN["form"] == {"name": "ada"}
+        assert status == "200 OK"
+
+    def test_a_malformed_accept_is_ignored(self, app):
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo", headers=[("accept", "text/html;level;q=abc")])
+
+        status, _, _ = call(app, environ)
+
+        assert status == "200 OK"
+        assert SEEN["request"].format == "html"
+
     def test_an_empty_body_is_an_empty_list(self, app):
         _route(app, "/empty", Empty.index)
         status, _, body = call(app, make_environ("/empty"))

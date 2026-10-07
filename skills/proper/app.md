@@ -352,7 +352,7 @@ def show(self):
 | 410    | `Gone`                     |                                      |
 | 413    | `RequestEntityTooLarge`    | Body exceeds `MAX_CONTENT_LENGTH`    |
 | 414    | `UriTooLong`               | Query exceeds `MAX_QUERY_SIZE`       |
-| 415    | `UnsupportedMediaType`     |                                      |
+| 415    | `UnsupportedMediaType`     | Unknown `charset` in a form/JSON body |
 | 422    | `UnprocessableEntity`      |                                      |
 | 429    | `TooManyRequests`          | Rate limit exceeded                  |
 | 451    | `UnavailableForLegalReasons` |                                    |

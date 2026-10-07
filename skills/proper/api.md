@@ -129,9 +129,10 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `host`             | `str`             | The hostname                                                   |
 | `port`             | `int`             | The port number                                                |
 | `content_type`     | `str`             | MIME type from the `Content-Type` header                       |
-| `content_length`   | `int`             | Body size from the `Content-Length` header                     |
+| `content_length`   | `int`             | Body size from the `Content-Length` header (`0` without one)   |
 | `headers`          | `MultiDict`       | HTTP request headers                                           |
-| `form`             | `MultiDict`       | Parsed request body (form fields and uploaded files)           |
+| `body`             | `bytes`           | The raw request body (`b""` for GET and HEAD)                  |
+| `form`             | `MultiDict`       | Parsed request body (form fields and uploaded files; the members of a JSON object) |
 | `matched_route`    | `Route \| None`   | The route matched during routing                               |
 | `matched_params`   | `dict \| None`    | Parameters extracted from the URL pattern                      |
 | `matched_action`   | `str \| None`     | The action name for the matched route                          |
@@ -149,7 +150,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `http_version`     | `str`                      | HTTP version (e.g. `"1.1"`)                                        |
 | `server_software`  | `str`                      | How the server names itself (e.g. `"Granian"`); `""` if unknown     |
 | `flashes`          | `list[tuple[str, str]]`    | Flash messages stored in the session                                |
-| `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality                  |
+| `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality (a malformed parameter or `q` is ignored) |
 | `accept_encoding`  | `list[str]`                | Encodings from `Accept-Encoding`, sorted by quality                 |
 | `accept_language`  | `list[str]`                | Languages from `Accept-Language`, sorted by quality                 |
 | `cookies`          | `dict[str, str]`           | Parsed cookies                                                      |
