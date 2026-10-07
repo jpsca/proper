@@ -911,7 +911,7 @@ For the typical "user uploads an avatar / a cover image / a profile photo" case,
 
 ## CSRF and Form Submissions
 
-Proper protects state-changing requests against CSRF using the `OriginProtection` concern, which is mixed into `AppController` by default. It checks the browser's `Sec-Fetch-Site` and `Origin` headers and rejects cross-origin POSTs - no token in the form, no special template tag.
+Proper protects state-changing requests against CSRF using the `OriginProtection` concern, which is mixed into `AppController` by default. It checks the browser's `Sec-Fetch-Site` and `Origin` headers and rejects cross-origin POSTs - there is no token in the form and no special template tag.
 
 That's why the generated `form.jx` doesn't include a `<input name="_csrf_token">`. You don't need one for browser submissions.
 

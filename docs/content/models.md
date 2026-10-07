@@ -292,7 +292,7 @@ Book.insert_many(data).execute()
 
 ### Read
 
-Peewee provides a rich query API for reading data. All queries start with `Model.select()`.
+Peewee provides a full query API for reading data. All queries start with `Model.select()`.
 
 ```python
 # Return all books
@@ -577,7 +577,7 @@ Each model's scopes are independent - `Article.select()` has `.published()` and 
 When multiple models share the same fields or behavior, you can extract that shared code into a **concern** (also called a mixin). A concern is a regular `BaseModel` subclass that you reuse as a parent for other models.
 
 ::: warning | Important
-You might wonder why a `BaseModel` subclass doesn't get its own database table. The answer is simple: Proper only creates tables for models imported in `models/__init__.py`, and concerns are deliberately *not* imported there. They exist purely to be inherited from.
+You might wonder why a `BaseModel` subclass doesn't get its own database table. Proper only creates tables for models imported in `models/__init__.py`, and concerns are deliberately *not* imported there. They exist purely to be inherited from.
 :::
 
 ### Using a Concern

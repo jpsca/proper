@@ -34,7 +34,7 @@ Migrations exist for two reasons:
 
 ### Your Model File IS the Schema
 
-This is the most important thing to understand about migrations in Proper, **the model is always the source of truth, and migrations are an artifact derived from changes to it**.
+This is the most important thing to understand about migrations in Proper: **the model is always the source of truth, and migrations are an artifact derived from changes to it**.
 
 ```python
 # models/book.py
@@ -72,7 +72,7 @@ db/
 Filenames are `NNN_name.py`, where `NNN` is a three-digit zero-padded sequence number. Migrations run in numeric order.
 
 :::warning | Sequence numbers can collide on branches
-Unlike other framework's timestamp-based naming, Proper uses sequential numbers.
+Unlike the timestamp-based naming of other frameworks, Proper uses sequential numbers.
 
 If two developers each create migration `005_*.py` on separate branches, you'll need to renumber one of them when merging.
 

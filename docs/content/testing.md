@@ -7,7 +7,7 @@ number_headers: true
 
 # Testing Proper Applications
 
-A web application that you can't change without fear of breaking it is a web application that stops moving. Tests are how you keep that fear in proportion: not "I think this still works" but "the suite tells me it does." The earlier you write them and the cheaper they are to run, the more often you'll actually run them - and the more you'll trust the result.
+A web application that you can't change without fear of breaking it is a web application that stops moving. Tests are how you keep that fear in proportion: instead of "I think this still works", you get "the suite tells me it does." The earlier you write them and the cheaper they are to run, the more often you'll actually run them - and the more you'll trust the result.
 
 Proper takes that idea seriously. The framework ships a `TestClient` that drives your app through the **full request pipeline** - the same router, callbacks, controllers, sessions, and database connections that run in production, with no server in between. There is no separate test server to start and no internals to mock. A test is a Python function that calls the client, gets a response, and asserts on it. The generated `tests/conftest.py` wires up a transactional database fixture so tests don't have to clean up after themselves. In the test environment, the cache is a no-op, background tasks run inline, and emails go to an in-memory outbox - so you can assert on the side effects without standing up Redis, a worker, or an SMTP server.
 
@@ -465,7 +465,7 @@ assert result.status == 303
 assert result.headers["location"] == "/photos/1"
 ```
 
-This is deliberate. A test that "follows redirects" silently glues two requests together and turns one HTTP exchange into two - which means a regression in either one looks the same as a regression in the other. Asserting on the redirect itself is cheaper, faster, and more precise. If you want to see what the destination renders, make the next request explicitly:
+This is deliberate. A test that "follows redirects" silently glues two requests together and turns one HTTP exchange into two - which means a regression in either one looks the same as a regression in the other. Asserting on the redirect itself is faster and more precise. If you want to see what the destination renders, make the next request explicitly:
 
 ```python
 result = client.post("/photos", body={"title": "New"})
@@ -515,7 +515,7 @@ def test_dashboard_when_authenticated(client):
     assert "Dashboard" in result.body
 ```
 
-What `sign_in(session)` does is small and direct: it signs the session token and stores it in the client's default headers as the auth cookie. It makes **no HTTP request** and returns nothing. Because the cookie lives on `client.default_headers`, it is sent automatically on every subsequent `client.get(...)`/`client.post(...)` - the client *does* carry it forward, which is exactly what you want for a sequence of authenticated requests in one test. A fresh `TestClient` (such as the one from the `client` fixture) starts with no cookie, so auth state never leaks between tests.
+`sign_in(session)` signs the session token and stores it in the client's default headers as the auth cookie. It makes **no HTTP request** and returns nothing. Because the cookie lives on `client.default_headers`, it is sent automatically on every subsequent `client.get(...)`/`client.post(...)` - the client *does* carry it forward, which is exactly what you want for a sequence of authenticated requests in one test. A fresh `TestClient` (such as the one from the `client` fixture) starts with no cookie, so auth state never leaks between tests.
 
 ### A signed-in user creating a record
 
@@ -583,7 +583,7 @@ This pairs naturally with the "when authenticated" test above. Together they doc
 
 ## Testing models
 
-Models are tested directly. There is no model-test base class, no fixture that constructs a model in a special way - Peewee works the same in a test as it does in production, and the `db_reset` fixture keeps the database honest.
+Models are tested directly. There is no model-test base class, no fixture that constructs a model in a special way - Peewee works the same in a test as it does in production, and the `db_reset` fixture rolls back whatever the test wrote.
 
 ```python {title="tests/test_user_model.py"}
 from myapp.models import User
@@ -608,7 +608,7 @@ def test_login_must_be_unique():
 A few patterns that come up often:
 
 - **Test the boundary you care about.** If a method normalises an email address, test that the normalised form is what gets stored - not the path through whatever method called it. The narrower the assertion, the easier it is to read when it fails.
-- **Don't test the ORM.** "Calling `.create()` then `.get_by_id()` returns the same record" is a Peewee test, not a yours-to-write test.
+- **Don't test the ORM.** "Calling `.create()` then `.get_by_id()` returns the same record" is a test of Peewee, not of your code.
 - **Concerns are model classes too.** A concern (in `models/concerns/`) is just a subclass of `BaseModel` that isn't registered in `models/__init__.py`. Test the methods it adds by attaching it to any model that uses it - or, if the concern stands alone, by writing a tiny test-only model that includes it.
 
 ----
@@ -717,7 +717,7 @@ def test_thumbnail_task_creates_files(tmp_path, db_reset):
 
 calls `generate_thumbnails` *like a regular function*. There is no worker, no queue polling, no `await`. The side effects - rows created, files written, emails sent - are there by the time the call returns, ready to assert on.
 
-The same applies to anything that goes *through* the queue indirectly. `EmailMessage.send_later()` enqueues `send_email_task`, which runs immediately, which calls the mailer, which lands a message in `app.mailer.outbox`. Three layers, no `await`, no `sleep()`.
+The same applies to anything that goes *through* the queue indirectly. `EmailMessage.send_later()` enqueues `send_email_task`, which runs immediately, which calls the mailer, which lands a message in `app.mailer.outbox`. Three layers, and none of them needs an `await` or a `sleep()`.
 
 For the deeper testing patterns - asserting on the task's return value, exercising the actual *queue* (serialization round-trip, retries), and switching modes for an integration test - see the [Background Tasks guide](/docs/tasks).
 
@@ -784,7 +784,7 @@ Tests use the real database (`:memory:`), the real queue (immediate mode), the r
 
 ### A 303 is the success, not a failure to follow
 
-Said in the result-object section, said again here because the surprise can be costly: if your code does a `redirect_to(...)`, the test sees the **redirect response**. `assert result.status == 200` after a successful create will fail every time - the right assertion is `assert result.status == 303` and, if the destination matters, `assert result.headers["location"] == "/photos/1"`.
+This was covered in the result-object section, but it is worth repeating because the surprise can be costly: if your code does a `redirect_to(...)`, the test sees the **redirect response**. `assert result.status == 200` after a successful create will fail every time - the right assertion is `assert result.status == 303` and, if the destination matters, `assert result.headers["location"] == "/photos/1"`.
 
 ### The outbox accumulates
 
@@ -794,7 +794,7 @@ Said in the result-object section, said again here because the surprise can be c
 
 Three things to know about the autouse transactional fixture, in roughly the order you'll meet them.
 
-**The safety check is load-bearing.** The `assert os.getenv("APP_ENV") == "test"` and `assert "test" in db.database or "memory" in db.database` in `db_setup` are not decoration - they're the line standing between you and someone who accidentally ran pytest with `APP_ENV=production` in their shell. The cost of an assertion firing in the wrong place is zero; the cost of dropping a production schema is unbounded. Leave them.
+**The safety check is load-bearing.** The `assert os.getenv("APP_ENV") == "test"` and `assert "test" in db.database or "memory" in db.database` in `db_setup` protect you from someone who accidentally ran pytest with `APP_ENV=production` in their shell. An assertion firing in the wrong place costs nothing; dropping a production schema costs far more. Leave them.
 
 **Explicit naming is a hint, not a requirement.** Because `db_reset` has `autouse=True`, every test runs inside the rollback transaction whether it lists the fixture or not. The generator scaffolds it explicitly (`def test_x(db_reset):`) as a signal to the reader that the test touches the database. Both styles work; pick one and be consistent.
 

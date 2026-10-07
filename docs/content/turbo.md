@@ -64,11 +64,11 @@ Decorate links with both data-turbo-confirm and data-turbo-method, and confirmat
 >Delete the article</a>
 ```
 
-Use `Turbo.config.forms.confirm = confirm` to change the method that gets called for confirmation. The default is the browser’s built in `confirm`.
+Use `Turbo.config.forms.confirm = confirm` to change the method that gets called for confirmation. The default is the browser's built in `confirm`.
 
 ### Form Submissions
 
-Turbo Drive handles form submissions in a manner similar to link clicks. The key difference is that form submissions can issue stateful requests using the HTTP POST method, while link clicks only ever issue stateless HTTP GET requests.
+Turbo Drive handles form submissions in a manner similar to link clicks. The difference is that form submissions can issue stateful requests using the HTTP POST method, while link clicks only ever issue stateless HTTP GET requests.
 
 Throughout a submission, Turbo Drive will dispatch a series of events that target the `<form>` element and bubble up through the document:
 
@@ -77,11 +77,11 @@ Throughout a submission, Turbo Drive will dispatch a series of events that targe
 3. `turbo:before-fetch-response`
 4. `turbo:submit-end`
 
-During a submission, Turbo Drive will set the “submitter” element's disabled attribute when the submission begins, then remove the attribute after the submission ends.
+During a submission, Turbo Drive will set the "submitter" element's disabled attribute when the submission begins, then remove the attribute after the submission ends.
 
 When submitting a `<form>` element, browsers will treat the `<input type="submit">` or `<button>` element that initiated the submission as the submitter. To submit a `<form>` element programmatically, invoke the `HTMLFormElement.requestSubmit(`) method and pass an `<input type="submit">` or `<button>` element as an optional parameter.
 
-If there are other changes you’d like to make during a `<form>` submission (for example, disabling all fields within a submitted `<form>`), you can declare your own event listeners:
+If there are other changes you'd like to make during a `<form>` submission (for example, disabling all fields within a submitted `<form>`), you can declare your own event listeners:
 
 ```js
 addEventListener("turbo:submit-start", ({ target }) => {
@@ -113,7 +113,7 @@ The id ties everything together. [`dom_id`](/docs/view_helpers#dom_id) derives t
 
 The rule Turbo follows is simple: **when a link or form inside a frame navigates, Turbo finds the `<turbo-frame>` with the *same id* in the response and swaps in just that.** So the edit link above loads `/messages/42/edit`, and Turbo pulls the `message_42` frame out of that response - the rest of the page is left alone.
 
-This means you don't have to change anything in your controllers code for this mechanism to work.
+This means you don't have to change anything in your controller code for this mechanism to work.
 
 ### Inline editing
 

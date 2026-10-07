@@ -20,7 +20,7 @@ A good kitchen is opinionated. The knives live where the knives go. You work fas
 
 How do you install `Proper`? That's the neat thing: **you don't**.
 
-You don't even need a working Python interpreter, only the **uv** Python package manager. If you don't have it already, install it right now with just one command:
+You don't even need a working Python interpreter, only the **uv** Python package manager. If you don't have it already, install it with one command:
 
 ::: tab | Linux / macOS
 ```bash
@@ -79,4 +79,4 @@ $ claude
 ... ✨ Magic happens ✨ ...
 ```
 
-Claude reads your prompt, recognizes you're working in Proper, and applies the skill. No slash command, no prefix. Just describe what you want.
+Claude reads your prompt, recognizes you're working in Proper, and applies the skill. You don't need a slash command or a prefix; describe what you want.

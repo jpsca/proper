@@ -73,7 +73,7 @@ Anything beyond that - many-to-many, joining across multiple tables, eager loadi
 
 ## Types of Relationships at a Glance
 
-Before diving in, here's a map of the territory:
+An overview of the shapes:
 
 | Shape                          | Example                                  | How you declare it                                  |
 |--------------------------------|------------------------------------------|-----------------------------------------------------|
@@ -162,10 +162,10 @@ user.articles.order_by(Article.created_at.desc()).limit(5)
 user.articles.count()
 ```
 
-The key thing to understand: `article.author` returns a *loaded model instance*, but `user.articles` returns a *query* - nothing has been fetched yet. You can keep chaining filters onto it, and it only runs when you iterate it, count it, or call `.first()`.
+The distinction to understand: `article.author` returns a *loaded model instance*, but `user.articles` returns a *query* - nothing has been fetched yet. You can keep chaining filters onto it, and it only runs when you iterate it, count it, or call `.first()`.
 
 :::tip
-Because the reverse side is a query, your scopes work seamlessly across relationships:
+Because the reverse side is a query, your scopes work across relationships:
 
 ```python
 user.articles.published().recent().top(5)
@@ -509,7 +509,7 @@ def descendants(root):
     return cte.select_from(cte.c.id, cte.c.parent_id, cte.c.body)
 ```
 
-The result is a query that yields tuples of `(id, parent_id, body)` for every comment underneath `root`. The SQL is one `WITH RECURSIVE ...` statement - no Python recursion, no per-level query.
+The result is a query that yields tuples of `(id, parent_id, body)` for every comment underneath `root`. The SQL is one `WITH RECURSIVE ...` statement - there is no Python recursion and no per-level query.
 
 :::tip
 Wrap CTE queries in a method on the model. They're verbose to write and easy to misread; callers shouldn't have to look at them twice.
@@ -702,9 +702,9 @@ for article in query:
     article.author.name        # already there
 ```
 
-This is the cornerstone of avoiding N+1 - see [Eager Loading: Avoiding the N+1 Problem](#eager-loading-avoiding-the-n1-problem).
+This is how you avoid N+1 - see [Eager Loading: Avoiding the N+1 Problem](#eager-loading-avoiding-the-n1-problem).
 
-###0 Subqueries
+### Subqueries
 
 Sometimes a join is the wrong shape, and a subquery is the right one. A subquery is a `SELECT` used as a value somewhere else.
 
@@ -840,7 +840,7 @@ staff_articles = (
 results = pw.prefetch(staff_articles, Comment.select())
 ```
 
-The join narrows the article set; the prefetch attaches the comments. Two queries, no N+1.
+The join narrows the article set; the prefetch attaches the comments. Two queries and no N+1.
 
 :::tip | Watch the SQL
 The fastest way to spot N+1 problems is to watch the SQL while you load a page. Enable Peewee's query logger - attach a handler to the `peewee` logger and set it to `DEBUG`:
@@ -927,7 +927,7 @@ A grab-bag of things that come up after you've used relationships for a while.
 
 ### Always set `on_delete` explicitly
 
-The default behavior depends on the database engine. Pick the right value (`CASCADE`, `SET NULL`, or `RESTRICT`) and write it down. A relationship without `on_delete` is a bet that you, or whoever inherits this code, will remember the default. Don't make that bet.
+The default behavior depends on the database engine. Pick the right value (`CASCADE`, `SET NULL`, or `RESTRICT`) and write it down. A relationship without `on_delete` relies on you, or whoever inherits this code, remembering the default.
 
 ### `backref` returns a query, not a list
 

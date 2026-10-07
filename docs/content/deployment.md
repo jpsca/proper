@@ -89,7 +89,7 @@ Why more than one process, if threads already run in parallel? Threads of one in
 
 ### The cable
 
-WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. The channels addon configures `Cable`: the web process itself serves them, with proper-wse (Rust), started by `proper run` before the first request. No second process. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
+WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. The channels addon configures `Cable`: the web process itself serves them, with proper-wse (Rust), started by `proper run` before the first request, so no second process is needed. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
 
 An app without channels has `CABLE = {}` and `CABLE_PORT = 0`, the defaults: no WebSockets. Setting `CABLE_PORT` without a `CABLE` that serves them is a configuration error.
 

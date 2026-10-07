@@ -33,7 +33,7 @@ Three pieces cooperate:
 - **The queue.** `app.queue` is the Huey instance. It holds pending task messages until something picks them up. Where those messages actually live - memory, a SQLite file, Redis - is a config choice.
 - **The worker.** In production, a separate process (the Huey *consumer*) watches the queue, pulls task messages off it, and runs them. Your web process enqueues; the worker executes. They are different processes, often on different machines.
 
-The split between enqueuing and executing is the whole point, and it has one consequence worth stating early: the web process and the worker process don't share memory. A task's arguments are *serialized* - turned into bytes, sent through the queue, and rebuilt on the other side. So you pass a user's id, not the `User` object; the task looks the row up itself.
+The split between enqueuing and executing is the whole point, and it has one consequence: the web process and the worker process don't share memory. A task's arguments are *serialized* - turned into bytes, sent through the queue, and rebuilt on the other side. So you pass a user's id, not the `User` object; the task looks the row up itself.
 
 ```
 controller  ─enqueue─▶  app.queue  ─dequeue─▶  worker  ─runs─▶  your task
@@ -44,7 +44,7 @@ controller  ─enqueue─▶  app.queue  ─dequeue─▶  worker  ─runs─▶
 
 There's an exception to the "separate process" picture, and it's the one you'll spend most of your development time in.
 
-When the queue is configured with `immediate: True` - the default in development and testing - calling a task runs it **synchronously, in the same process, right now**. No worker, no serialization round-trip, no waiting. The task behaves like a normal function call.
+When the queue is configured with `immediate: True` - the default in development and testing - calling a task runs it **synchronously, in the same process, right now**. The task behaves like a normal function call, without a worker or a serialization round-trip.
 
 This means you can build and test task code without ever starting a worker. You flip to a real backend (and a real worker) for production, and the same task code runs queued instead of immediate. The mode is a config switch; your tasks don't change.
 
@@ -107,7 +107,7 @@ def send_email_task(message: EmailMessageDict, via: str | None = None):
     mailer.send_now(message)
 ```
 
-This is the task behind `email.send_later()` - the Emails guide's [Sending in the background](/docs/emails) section covers that side. The storage system uses the queue too: `attachment.purge_later()` and variant cleanup are both tasks. You'll see the pattern repeated because it's the right one: anything slow or failure-prone, push to a task.
+This is the task behind `email.send_later()` - the Emails guide's [Sending in the background](/docs/emails) section covers that side. The storage system uses the queue too: `attachment.purge_later()` and variant cleanup are both tasks. The same pattern applies throughout: anything slow or failure-prone goes in a task.
 
 ### Arguments Must Be Serializable
 
@@ -481,7 +481,7 @@ Huey also has `pre_execute` / `post_execute` hooks and an `on_startup` hook for 
 
 ## Running Workers
 
-Everything so far runs in immediate mode without a worker. Production is where the worker earns its keep: a separate, long-lived process that drains the queue.
+Everything so far runs in immediate mode without a worker. In production you need the worker: a separate, long-lived process that drains the queue.
 
 The generated app ships the entry point at the project root, `workers.py`:
 
@@ -607,7 +607,7 @@ QUEUE = {
 }
 ```
 
-Fast, battle-tested, and the natural fit when you're already running Redis for caching or sessions. Requires the `redis` package - `uv add redis`.
+The natural choice when you're already running Redis for caching or sessions. Requires the `redis` package - `uv add redis`.
 
 **SqlHuey** - a SQL database, via Peewee:
 

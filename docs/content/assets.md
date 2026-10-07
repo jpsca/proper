@@ -161,7 +161,7 @@ import "@hotwired/turbo"
 const app = Application.start()
 ```
 
-and the browser knows where `@hotwired/stimulus` and `@hotwired/turbo` actually live. No bundler required.
+and the browser knows where `@hotwired/stimulus` and `@hotwired/turbo` actually live, with no bundler involved.
 
 Import maps are a native browser feature, supported in every modern browser. Proper exposes them through one config key and one layout helper.
 
@@ -236,7 +236,7 @@ IMPORT_MAP = {
 }
 ```
 
-Now `import _ from "lodash-es"` in your `application.js` resolves to esm.sh; the browser fetches it once and caches forever. The URL is passed through verbatim - no fingerprinting (the URL itself already encodes the version), no static-route round-trip.
+Now `import _ from "lodash-es"` in your `application.js` resolves to esm.sh; the browser fetches it once and caches forever. The URL is passed through verbatim: there is no fingerprinting (the URL itself already encodes the version) and no static-route round-trip.
 
 ### Why This Beats a Bundler
 
@@ -248,7 +248,7 @@ Import maps remove the bundler from the picture for the use case Proper targets 
 - **Simpler deploy** - no `node_modules`, no `dist/` directory, no separate build step in CI. Vendor the libraries you depend on in `assets/js/` and they ship with the rest of your app.
 - **Better debugging** - the source you wrote is the source the browser runs. Stack traces line up with files on disk.
 
-For larger JS apps - SPAs, anything with hundreds of components, anything that needs tree-shaking or code-splitting - a bundler still pulls its weight. For everything else, the import map plus a few vendored files is enough.
+For larger JS apps - SPAs, anything with hundreds of components, anything that needs tree-shaking or code-splitting - a bundler is still worth it. For everything else, the import map plus a few vendored files is enough.
 
 ---
 
@@ -303,7 +303,7 @@ Cache-Control: max-age=31536000, public, immutable
 - `public` lets shared caches (CDNs, corporate proxies) cache too.
 - `immutable` tells the browser "do not even revalidate" - skip the `If-Modified-Since` round-trip.
 
-This is the headline result of fingerprinting: your assets are served once, then served from cache forever.
+This is the main result of fingerprinting: your assets are served once, then served from cache forever.
 
 ### Non-Fingerprinted Files
 
@@ -431,7 +431,7 @@ The favicon doesn't need a root redirect at all. The default layout points the b
 ```
 
 :::note
-Of course you can, *and should*, configure this at proxy level (nginx, Caddy, etc.), but the redirects makes it works during development.
+Of course you can, *and should*, configure this at proxy level (nginx, Caddy, etc.), but the redirects make it work during development.
 :::
 
 ---
@@ -519,7 +519,7 @@ CSS files often reference other assets with relative URLs:
 }
 ```
 
-These still work when the CSS is served from the CDN: the browser resolves the relative URL against the CSS file's own URL, which is also on the CDN. No `url_for` substitution needed inside CSS, no special build step, no rewriting of paths.
+These still work when the CSS is served from the CDN: the browser resolves the relative URL against the CSS file's own URL, which is also on the CDN. The CSS needs no `url_for` substitution, build step, or path rewriting.
 
 The exception is if the relative URL points at something *not* fingerprinted. The font file in the example above gets cached by mtime on the CDN, but its URL doesn't change when the file changes - so the browser's cached copy of the CSS will keep pointing at the old font URL, which the CDN will keep serving. Touch the CSS to bust its cache, or move the fonts under a fingerprinted prefix, depending on which is more practical.
 

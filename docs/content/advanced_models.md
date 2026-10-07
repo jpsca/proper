@@ -199,7 +199,7 @@ Reaction.select().where(
 )
 ```
 
-Flexible - but you give up the integrity guarantees that make foreign keys worth declaring in the first place. There's no cascade, no FK constraint, and no protection against orphan rows (delete an article and its reactions are left dangling). Use this only when the parent set is genuinely open-ended.
+This pattern is flexible - but you give up the integrity guarantees that make foreign keys worth declaring in the first place. There's no cascade, no FK constraint, and no protection against orphan rows (delete an article and its reactions are left dangling). Use this only when the parent set is genuinely open-ended.
 
 ### Which to Pick
 
@@ -332,7 +332,7 @@ for row in top_paths:
         print(book.title, row.hits)
 ```
 
-It's not as elegant as a join, but it's the only honest answer when the data lives in two places.
+It's not as elegant as a join, but it's the only way when the data lives in two places.
 
 :::warning | Transactions don't span databases
 `db.atomic()` only wraps the database it's called on. There's no two-phase commit between separate databases - if you write to `main` and `analytics` in the same request and the second write fails, the first one is *not* rolled back automatically.

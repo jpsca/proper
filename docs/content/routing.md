@@ -41,7 +41,7 @@ That's enough. The class is decorated, and the matching CRUD actions become rout
 
 ### Where Routes Live
 
-A route is registered the moment its decorator runs. When Python imports a controller module, the `@router.resource(...)` decorator on the class executes and adds the routes to to the shared `Router` instance. You can also decorate individual methods with `@router.get(...)`, `@router.post(...)`, etc. to do the same. There is no separate registration step.
+A route is registered the moment its decorator runs. When Python imports a controller module, the `@router.resource(...)` decorator on the class executes and adds the routes to the shared `Router` instance. You can also decorate individual methods with `@router.get(...)`, `@router.post(...)`, etc. to do the same. There is no separate registration step.
 
 Two pieces are involved at boot:
 
@@ -243,7 +243,7 @@ class ItemController(AppController):
     def search(self): ...
 ```
 
-Use resource routes when you can. Reach for individual routes when you must.
+Use resource routes when the controller fits the CRUD shape, and individual routes when it doesn't.
 
 ### The HTTP Method Decorators
 
@@ -585,7 +585,7 @@ POST is the only method that can be overridden, and only to PUT, PATCH, DELETE, 
 
 ## URL Generation
 
-Hard-coded URLs in templates and controllers are a maintenance trap: change the route, find every reference. Proper avoids that with named routes and `url_for`.
+Hard-coded URLs in templates and controllers are hard to maintain: change the route, and you have to find every reference. Proper avoids that with named routes and `url_for`.
 
 ### `app.url_for` Basics
 

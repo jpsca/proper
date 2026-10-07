@@ -6,7 +6,7 @@ number_headers: true
 
 # View Helpers
 
-The following outlines the view helpers available in your views. It serves as a good starting point, but reviewing the [full API Documentation](/docs/api/view_helpers) is also recommended, as it covers all of the helpers in more detail.
+This page lists the view helpers available in your views. The [full API Documentation](/docs/api/view_helpers) covers all of the helpers in more detail.
 
 These are the ones **added by Proper**. The [builtin filters of Jinja](https://jinja.palletsprojects.com/en/stable/templates/#builtin-filters){target="_blank"} are available too, except `xmlattr`, `pprint` and `urlize`.
 
@@ -101,7 +101,7 @@ See the [format_interval API Documentation](/docs/api/view_helpers#format_interv
 
 ## Format Numbers
 
-For these helpers, the number formatted van be an integer, a float, a string, or a Decimal.
+For these helpers, the number formatted can be an integer, a float, a string, or a Decimal.
 
 ### format_size
 
@@ -231,7 +231,7 @@ format_list(['omena', 'peruna', 'aplari'], style='or', locale='fi')
 # => 'omena, peruna tai aplari'
 ```
 
-Avaliable styles:
+Available styles:
 
 `standard`
 : A typical 'and' list for arbitrary placeholders. eg. "January, February, and March"
@@ -322,7 +322,7 @@ This is useful for things like active links in navigation bars.
 If a current URL is not given, it defaults to `current.request.path`.
 This is useful if you want to compare to a different URL than the current
 request's path, for example when you are building a link to a section in the
-same page and want to compare
+same page and want to compare against that URL instead:
 
 ```python
 url_is("Page.show", page_id=123, curr_url="/pages/123#section1")
@@ -355,7 +355,7 @@ See the [url_startswith API Documentation](/docs/api/view_helpers#url_startswith
 Generate a stable id for an object, suitable for use in HTML element ids.
 
 It uses the object's class name and primary key (if available) to generate a unique id.
-If there is no primary key, prefix with “new_” instead.
+If there is no primary key, prefix with "new_" instead.
 
 ```python
 dom_id(Post.get(45))   # => "post_45"
