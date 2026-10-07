@@ -57,7 +57,11 @@ class AppWsgi:
         self: "App", environ: dict, start_response: "Callable"
     ) -> "Iterable[bytes]":
         request = self._request_from_environ(environ)
-        response = self._respond_sync(request, environ["wsgi.input"].read)
+        response = self._respond_sync(
+            request,
+            environ["wsgi.input"].read,
+            input_terminated=bool(environ.get("wsgi.input_terminated")),
+        )
         status, headers, body = response.prepare(request)
         start_response(f"{status} {_reason(status)}", headers)
         if isinstance(body, bytes):
@@ -85,7 +89,11 @@ class AppWsgi:
         )
 
     def _respond_sync(
-        self: "App", request: "Request", read: "Callable[[int], bytes]"
+        self: "App",
+        request: "Request",
+        read: "Callable[[int], bytes]",
+        *,
+        input_terminated: bool = True,
     ) -> "Response":
         """`_respond`, on the calling thread, in a context of its own.
 
@@ -93,17 +101,30 @@ class AppWsgi:
         context per request, what one sets in `current` (the user, the
         session, the locale) would still be there for the next request on
         the same thread.
+
+        `input_terminated` is the server's `wsgi.input_terminated`: whether
+        `read()` returns `b""` at the end of the body (see
+        `Request._read_body_sync`).
         """
-        return contextvars.copy_context().run(self._respond_sync_in_context, request, read)
+        return contextvars.copy_context().run(
+            self._respond_sync_in_context,
+            request,
+            read,
+            input_terminated=input_terminated,
+        )
 
     def _respond_sync_in_context(
-        self: "App", request: "Request", read: "Callable[[int], bytes]"
+        self: "App",
+        request: "Request",
+        read: "Callable[[int], bytes]",
+        *,
+        input_terminated: bool = True,
     ) -> "Response":
         current.app = self
         current.request = request
         current.response = response = self.response_cls(self)
         try:
-            request._read_body_sync(read)
+            request._read_body_sync(read, input_terminated=input_terminated)
         except Exception as error:
             response.error = error  # handled by the pipeline
         response = self._run_pipeline(request, response)

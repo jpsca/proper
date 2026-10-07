@@ -383,7 +383,7 @@ The `500.html` page is served by nginx, so visitors see it even when the app is 
 
 ### Trusted proxies
 
-The `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers tell the app who the visitor is and whether they connected over HTTPS: `request.remote_ip` comes from them, and so does `request.is_secure`, which decides whether the session cookie is `Secure`. Any client can send those headers too, so the app uses them only when the request comes from one of the `TRUSTED_PROXIES`. From any other address they are ignored, and `request.remote_ip` is the address the request came from.
+The `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers tell the app who the visitor is and whether they connected over HTTPS: `request.remote_ip` comes from them, and so does `request.protocol`. `request.protocol` decides `request.is_secure`, the default port in `request.host_with_port`, and whether the session and auth cookies are `Secure`. Any client can send those headers too, so the app uses them only when the request comes from one of the `TRUSTED_PROXIES`. From any other address they are ignored, and `request.remote_ip` is the address the request came from.
 
 The default list is the loopback, private and link-local networks: `127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `fc00::/7` and `fe80::/10`. That covers nginx on the same machine, in another container, or on the same private network. If your proxy or load balancer connects to the app from another address, list it in `config/main.py`. The list replaces the default one, so keep the ranges you still need:
 
@@ -391,9 +391,21 @@ The default list is the loopback, private and link-local networks: `127.0.0.0/8`
 TRUSTED_PROXIES = ["127.0.0.1", "203.0.113.0/24"]
 ```
 
-Each item is an IP address or a network in CIDR notation; anything else stops the app at startup with a `ConfigError`. An empty list ignores the forwarding headers always, for an app that faces the internet directly.
+Each item is an IP address or a network in CIDR notation; anything else stops the app at startup with a `ConfigError`. An empty list ignores the forwarding headers from every address, for an app that faces the internet directly.
 
-Each proxy adds the address it got the request from at the end of `X-Forwarded-For`, so the app reads the list from the right and skips the trusted proxies: `remote_ip` is the first address that is not one. Whatever is further left was written by the client or an untrusted hop. `X-Forwarded-For` comes first, then the standard `Forwarded` header, then `X-Real-IP`. A proxy passes the headers it doesn't write through as the client sent them, so if yours writes only `Forwarded` or only `X-Real-IP`, make it remove `X-Forwarded-For`.
+A server listening on a Unix socket instead of a port (gunicorn with `--bind unix:...`, for example) gives the app no address for the peer. Only a process on the same machine can connect to the socket, so such a request counts as coming from a trusted proxy.
+
+Each proxy adds the address it got the request from at the end of `X-Forwarded-For`, so the app reads the list from the right and skips the trusted proxies: `remote_ip` is the first address that is not one, without a port if the proxy added one. Whatever is further left was written by the client or an untrusted hop. `X-Forwarded-For` comes first, then the standard `Forwarded` header, then `X-Real-IP`. A proxy passes the headers it doesn't write through as the client sent them, so if yours writes only `Forwarded` or only `X-Real-IP`, make it remove `X-Forwarded-For`.
+
+Every proxy in the chain must be in the list, also the ones that never connect to the app. With a CDN (Cloudflare, CloudFront) or a public load balancer in front of nginx, `X-Forwarded-For` arrives as `<visitor>, <CDN edge>`: nginx is trusted, but the CDN's address is not, so `remote_ip` is the CDN's address for every visitor. Everything that uses `remote_ip` then sees one client per CDN edge: the default `rate_limit` (one counter for all of them, so they all get 429s together) and the IP address stored with each login session. Add the CDN's published address ranges to `TRUSTED_PROXIES`, along with the default ranges you still need:
+
+```python {title="config/main.py"}
+TRUSTED_PROXIES = [
+    "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+    # Your CDN's ranges, from its documentation, e.g. Cloudflare's:
+    "173.245.48.0/20", "103.21.244.0/22",  # ...
+]
+```
 
 ---
 

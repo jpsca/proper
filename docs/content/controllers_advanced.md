@@ -135,7 +135,7 @@ That's the baseline: ten POSTs to `Session.create` per IP per three minutes. Bey
 
 ### `by`: Limit by Something Other Than IP
 
-The default identity is the client's IP address. That's often the wrong thing - especially for login forms, where attackers cycle through IPs but always submit the same email. Pass a `by` callable to use a different identity:
+The default identity is the client's IP address, `request.remote_ip`. Behind a reverse proxy, a CDN or a load balancer, that address comes from the forwarding headers only if every proxy in the chain is in `TRUSTED_PROXIES`; otherwise all the visitors behind one proxy share one limit (see [Trusted proxies](/docs/deployment#trusted-proxies)). Even then, the IP address is often the wrong thing - especially for login forms, where attackers cycle through IPs but always submit the same email. Pass a `by` callable to use a different identity:
 
 ```python
 class SessionController(AppController):

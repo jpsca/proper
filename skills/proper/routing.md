@@ -499,9 +499,9 @@ app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 
 ### Value Checks and Percent-Encoding
 
-- Each placeholder value must match its format as a whole, or `url_for` raises `BadRoutePlaceholder` (`"42abc"` is not an `<int>`).
-- Path values are percent-encoded, except `/` (only a format that accepts `/`, such as `<path>`, takes one) and ``:@!$&'()*+,;=``, which a path allows as they are. `url_for("Tag.show", tag="a b?")` → `/tags/a%20b%3F`; `token=":signed_id"` stays `:signed_id` (for JS URL templates).
-- Query keys and values are encoded like a form (`urlencode`): `url_for("Post.index", q="a&b c")` → `/posts?q=a%26b+c`.
+- Each placeholder value must match its format as a whole, or `url_for` raises `BadRoutePlaceholder` (`"42abc"` is not an `<int>`; `"a/b"` is not a default `:slug`, only a `<path>` takes a `/`).
+- Path values, and the route's own text (`/über/:id` → `/%C3%BCber/42`), are percent-encoded, except `/` (only a format that accepts `/`, such as `<path>`, takes one in a value) and ``:@!$&'()*+,;=``, which a path allows as they are. `url_for("Tag.show", tag="a b?")` → `/tags/a%20b%3F`; `token=":signed_id"` stays `:signed_id` (for JS URL templates).
+- Query keys and values are encoded like a form (`urlencode`, from `str()` for non-strings): `url_for("Post.index", q="a&b c")` → `/posts?q=a%26b+c`; `next="/admin/x"` → `?next=%2Fadmin%2Fx`.
 - Pass raw values, not already-encoded ones (`"a%20b"` becomes `a%2520b`).
 
 ### URL Anchors

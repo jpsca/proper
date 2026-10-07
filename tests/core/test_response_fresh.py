@@ -180,6 +180,14 @@ class TestIsFreshLastModified:
         request = _make_request(**{"if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT"})
         assert resp.is_fresh(request=request) is False
 
+    @pytest.mark.parametrize("value", ["garbage", "Sun, 99 Nov 1994 08:49:37 GMT"])
+    def test_invalid_date_is_ignored(self, value):
+        """RFC 9110 §13.1.3: an invalid date is ignored, not a 500."""
+        req = _make_request(**{"if-modified-since": value})
+        resp = _make_response()
+        resp.set_last_modified(datetime(2020, 1, 1))
+        assert resp.is_fresh(request=req) is False
+
 
 class TestIsFreshIfNoneMatch:
     def test_weak_request_tag_matches_strong_etag(self):

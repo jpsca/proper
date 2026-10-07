@@ -111,7 +111,9 @@ class Request(RequestHeadersMixin):
     def __repr__(self) -> str:
         return f"<Request {self.method} “{self.path}”>"
 
-    def _read_body_sync(self, read: "Callable[[int], bytes]") -> None:
+    def _read_body_sync(
+        self, read: "Callable[[int], bytes]", *, input_terminated: bool = True
+    ) -> None:
         """Read and parse the body, with `read(size)` being the server's
         blocking reader (WSGI's `wsgi.input`).
 
@@ -120,10 +122,16 @@ class Request(RequestHeadersMixin):
         upload is refused, not buffered. A body without one (chunked in
         HTTP/1.1, or any body in HTTP/2 and 3) is read until its end, and
         refused as soon as it passes `MAX_CONTENT_LENGTH`.
+
+        The end of a body without a `content-length` is where `read()`
+        returns `b""`, which PEP 3333 doesn't promise. A server says it
+        does with `wsgi.input_terminated` (Granian does); `input_terminated`
+        is False when it doesn't, and then such a body is not read, as in
+        Werkzeug.
         """
         if self._expects_body():
             self._parse_body_bytes(read(self.content_length))
-        elif self._expects_unsized_body():
+        elif input_terminated and self._expects_unsized_body():
             self._parse_body_bytes(self._read_unsized_body(read))
 
     def _expects_body(self) -> bool:

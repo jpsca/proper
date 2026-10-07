@@ -60,6 +60,8 @@ def make_environ(url="/", *, method="GET", headers=(), body=b"", client=("10.0.0
         "REMOTE_PORT": client[1],
         "wsgi.url_scheme": scheme,
         "wsgi.input": io.BytesIO(body),
+        # As Granian: `wsgi.input` returns `b""` at the end of the body.
+        "wsgi.input_terminated": True,
         "HTTP_HOST": f"{host}:{port}",
     }
     for name, value in headers:
@@ -177,6 +179,23 @@ class TestHttp:
         assert status.startswith("413")
         assert environ["wsgi.input"].tell() == 5
 
+    def test_a_chunked_body_is_not_read_from_an_unterminated_input(self, app):
+        """PEP 3333 doesn't promise that `wsgi.input` ends with the body: a
+        server that passes the socket on would block, or give the chunk
+        framing as the body."""
+        _route(app, "/form", Form.create, method="POST")
+        environ = make_environ("/form", method="POST", body=b"name=ada", headers=[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("transfer-encoding", "chunked"),
+        ])
+        del environ["wsgi.input_terminated"]
+
+        status, _, _ = call(app, environ)
+
+        assert SEEN["form"] == {}
+        assert environ["wsgi.input"].tell() == 0
+        assert status == "200 OK"
+
     @pytest.mark.parametrize("content_type, body, expected", [
         # Invalid UTF-8.
         ("application/x-www-form-urlencoded", b"name=\xff", "400 Bad Request"),
@@ -259,6 +278,49 @@ class TestHttp:
         call(app, environ)
         assert SEEN["request"].server is None
         assert SEEN["request"].client is None
+
+    @pytest.mark.parametrize("remote_addr, remote_ip, is_secure", [
+        # A proxy in the default TRUSTED_PROXIES: its headers are used.
+        ("127.0.0.1", "198.51.100.7", True),
+        ("10.0.0.9", "198.51.100.7", True),
+        # A server on a Unix socket gives no peer address (gunicorn) or
+        # `unix:...`: only a process on the same machine can connect.
+        ("", "198.51.100.7", True),
+        ("unix:/run/app.sock", "198.51.100.7", True),
+        # Any other peer: the headers are ignored.
+        ("203.0.113.5", "203.0.113.5", False),
+    ])
+    def test_forwarding_headers_count_only_from_a_trusted_peer(
+        self, app, remote_addr, remote_ip, is_secure
+    ):
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo", client=(remote_addr, "5555"), headers=[
+            ("x-forwarded-for", "6.6.6.6, 198.51.100.7"),
+            ("x-forwarded-proto", "https"),
+        ])
+
+        call(app, environ)
+
+        request = SEEN["request"]
+        assert request.remote_ip == remote_ip
+        assert request.is_secure is is_secure
+
+    def test_trusted_proxies_set_after_the_app_was_created(self, app):
+        """A list of strings set at runtime is parsed when it is used."""
+        _route(app, "/echo", Echo.index)
+        trusted = app.config.TRUSTED_PROXIES
+        app.config.TRUSTED_PROXIES = ["203.0.113.5"]
+        try:
+            for peer, remote_ip in [("203.0.113.5", "198.51.100.7"), ("10.0.0.9", "10.0.0.9")]:
+                environ = make_environ("/echo", client=(peer, "5555"), headers=[
+                    ("x-forwarded-for", "198.51.100.7"),
+                    ("x-forwarded-proto", "https"),
+                ])
+                status, _, _ = call(app, environ)
+                assert status == "200 OK"
+                assert SEEN["request"].remote_ip == remote_ip
+        finally:
+            app.config.TRUSTED_PROXIES = trusted
 
     def test_an_unknown_status_has_no_reason(self, app):
         from proper.core.app_wsgi import _reason

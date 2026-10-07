@@ -101,9 +101,11 @@ default_config = {
     # in CIDR notation. The `Forwarded`, `X-Forwarded-For`,
     # `X-Forwarded-Proto` and `X-Real-IP` headers are used (for
     # `request.remote_ip` and `request.is_secure`) only when the request
-    # comes from one of these; any client can send them. The default is
-    # the loopback, private and link-local networks, as Rails does. An
-    # empty list ignores those headers always.
+    # comes from one of these; any client can send them. List every proxy
+    # in the chain, a CDN in front of yours too. The default is the
+    # loopback, private and link-local networks, as Rails does. An empty
+    # list ignores those headers always, except from a server on a Unix
+    # socket, which gives no peer address.
     "TRUSTED_PROXIES": [
         "127.0.0.0/8",
         "::1",

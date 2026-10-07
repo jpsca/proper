@@ -380,6 +380,20 @@ The `TestClient` adds two headers on every request automatically:
 
 If you set either of those in your own `headers` dict, your value wins.
 
+### The client's address and forwarding headers
+
+The requests come from the address in `client.remote_ip`, `127.0.0.1` by default. That address is one of the default `TRUSTED_PROXIES`, so the app believes the forwarding headers a test sends, as it would from your reverse proxy: an `X-Forwarded-For` header sets `request.remote_ip` (and wins over the default `Forwarded` header), and `X-Forwarded-Proto: https` makes `request.is_secure` true and the session cookie `Secure`.
+
+To test what a client that connects directly sees, set a public address. The forwarding headers are then ignored, as the app ignores them from anyone who is not a trusted proxy:
+
+```python
+client.remote_ip = "203.0.113.5"
+result = client.get("/", headers={"x-forwarded-for": "1.2.3.4"})
+# request.remote_ip == "203.0.113.5"
+```
+
+A request built with `make_test_request()` has no peer address unless you pass `client=("127.0.0.1", None)` or another one. A request without one counts as coming through a trusted proxy (as from a server on a Unix socket), so its forwarding headers are used.
+
 ### File uploads
 
 For `multipart/form-data` requests, use the `upload_files` parameter alongside `body`. Each entry is a `(field_name, file_path)` tuple:

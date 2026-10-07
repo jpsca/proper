@@ -12,7 +12,7 @@ from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT, TURBO_STREAM_MIME
 from ...errors import InvalidHeader
 from ...helpers import MultiDict
 from ...helpers.formatters import format_locale
-from ..config import DEFAULT_TRUSTED_PROXIES
+from ..config import DEFAULT_TRUSTED_PROXIES, parse_trusted_proxies
 from .forwarded import parse_forwarded
 
 
@@ -156,7 +156,8 @@ class RequestHeadersMixin:
         The date and time at which the message originated.
 
         Returns:
-            A datetime object or None if the header is not present.
+            A datetime object, or None if the header is not present or is
+            not a valid date.
 
         """
         return parse_date(self.headers.get("date"))
@@ -249,7 +250,8 @@ class RequestHeadersMixin:
         (not modified) response will be returned without any message-body.
 
         Returns:
-            A datetime object or None if the header is not present.
+            A datetime object, or None if the header is not present or is
+            not a valid date (RFC 9110 says to ignore it then).
 
         """
         return parse_date(self.headers.get("if-modified-since"))
@@ -289,14 +291,27 @@ class RequestHeadersMixin:
         """True if the peer that sent this request (the `client` address)
         is one of the `TRUSTED_PROXIES`, so its forwarding headers
         (`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and
-        `X-Forwarded-Proto`) can be believed."""
-        if not self.client:
-            return False
-        return is_trusted_proxy(self.client[0], self._trusted_proxies())
+        `X-Forwarded-Proto`) can be believed.
+
+        A request without a peer address also counts, as in Rack: a server
+        listening on a Unix socket, which only a process on the same machine
+        (such as nginx) can connect to, gives an empty `REMOTE_ADDR`, or
+        `unix:...`.
+        """
+        peer = self.client[0] if self.client else ""
+        if not peer or peer == "unix" or peer.startswith("unix:"):
+            return True
+        return is_trusted_proxy(peer, self._trusted_proxies())
 
     def _trusted_proxies(self) -> "TNetworks":
         app = self.app
-        return app.config.TRUSTED_PROXIES if app else DEFAULT_TRUSTED_PROXIES
+        if not app:
+            return DEFAULT_TRUSTED_PROXIES
+        trusted = app.config.TRUSTED_PROXIES
+        # Parsed when the app is created; parsed here if it was set later.
+        if all(isinstance(network, IPNetwork) for network in trusted):
+            return trusted
+        return parse_trusted_proxies(trusted)
 
     @property
     def is_secure(self) -> bool:
@@ -355,13 +370,16 @@ class RequestHeadersMixin:
 
         Otherwise, it is the address of the peer that sent the request
         and the forwarding headers are ignored, because any client can
-        send them.
+        send them. A request without a peer address (a server on a Unix
+        socket) counts as coming from a trusted proxy.
 
         Returns:
-            A string with the IP address, or `""` if the server didn't
-            give one. A `Forwarded` value is returned as written: it can
-            have a port (`1.2.3.4:8080`, `"[2001:db8::1]:4711"`) or be an
-            obfuscated identifier (`_hidden`, `unknown`).
+            A string with the IP address, or `""` if there is none. An
+            `X-Forwarded-For` address is returned without its port. A
+            `Forwarded` value is returned as written: it can have a port
+            (`1.2.3.4:8080`, `"[2001:db8::1]:4711"`). A value that is not an
+            address is returned as written: an obfuscated identifier
+            (`_hidden`, `unknown`).
 
         """
         peer = self.client[0] if self.client else ""
@@ -374,7 +392,10 @@ class RequestHeadersMixin:
         ]
         hops = [hop for hop in hops if hop]
         if hops:
-            return closest_untrusted_hop(hops, trusted)
+            hop = closest_untrusted_hop(hops, trusted)
+            # Some proxies (Azure Application Gateway) add the port.
+            ip = parse_ip(hop)
+            return str(ip) if ip else hop
 
         hops = [fw["for"] for fw in self.forwarded if "for" in fw]
         if hops:
@@ -418,6 +439,7 @@ class RequestHeadersMixin:
 # --- Parsers ---
 
 
+IPNetwork = (ipaddress.IPv4Network, ipaddress.IPv6Network)
 TNetworks = tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]
 
 
@@ -468,14 +490,22 @@ def parse_date(value: str | None) -> datetime | None:
     The date and time at which the message originated.
 
     Returns:
-        A datetime object or None if the header is not present.
+        A datetime object in UTC, or None if the header is not present or
+        is not a valid date.
 
     """
     if value is None:
         return None
+    try:
+        date = dtparse(value)
+    except (ValueError, OverflowError):
+        # RFC 9110 §13.1.3: an invalid date is ignored.
+        return None
     # The super-old ANSI C's asctime() format doesn't include timezone
     # information, but the other formats do, so we assume UTC for it.
-    return dtparse(value).replace(tzinfo=timezone.utc)
+    if date.tzinfo is None:
+        return date.replace(tzinfo=timezone.utc)
+    return date.astimezone(timezone.utc)
 
 
 def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:

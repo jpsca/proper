@@ -237,6 +237,21 @@ def test_date_header_missing():
     assert req.date is None
 
 
+@pytest.mark.parametrize("value", ["garbage", "", "99999999999999999999"])
+def test_invalid_date_is_ignored(value):
+    """RFC 9110 §13.1.3: a recipient MUST ignore an invalid date."""
+    req = _make_request("/", headers=[("date", value), ("if-modified-since", value)])
+    assert req.date is None
+    assert req.if_modified_since is None
+
+
+def test_date_with_an_offset_is_converted_to_utc():
+    req = _make_request("/", headers=[("if-modified-since", "Sun, 06 Nov 1994 10:49:37 +0200")])
+    assert req.if_modified_since == datetime.datetime(
+        1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc
+    )
+
+
 def test_default_port_http():
     req = _make_request("http://example.com/")
     assert req.default_port == 80
@@ -393,19 +408,24 @@ LOCAL_PROXY = ("127.0.0.1", 50000)
 
 
 @pytest.fixture()
-def keep_current_app():
-    """`App()` makes itself `current.app`, which the requests built without
-    an app use: put back the one before."""
+def no_current_app():
+    """A request built without an app uses `current.app`, whatever app an
+    earlier test left there, and its `TRUSTED_PROXIES`. Start without one,
+    so those requests use the default list, and put back the one before
+    (`App()` makes itself `current.app`)."""
     previous = current.app
+    current.app = None
     yield
     current.app = previous
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_from_forwarded():
     req = _make_request("/", headers=[("forwarded", "for=1.2.3.4")], client=LOCAL_PROXY)
     assert req.remote_ip == "1.2.3.4"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_from_x_forwarded_for():
     req = _make_request(
         "/", headers=[("x-forwarded-for", "5.6.7.8, 10.0.0.1")], client=LOCAL_PROXY
@@ -413,11 +433,13 @@ def test_remote_ip_from_x_forwarded_for():
     assert req.remote_ip == "5.6.7.8"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_from_x_real_ip():
     req = _make_request("/", headers=[("x-real-ip", "9.10.11.12")], client=LOCAL_PROXY)
     assert req.remote_ip == "9.10.11.12"
 
 
+@pytest.mark.usefixtures("no_current_app")
 @pytest.mark.parametrize("header", ["forwarded", "x-forwarded-for", "x-real-ip"])
 def test_remote_ip_ignores_forwarding_headers_from_an_untrusted_peer(header):
     """Any client can send these headers: only a trusted proxy's count."""
@@ -426,13 +448,21 @@ def test_remote_ip_ignores_forwarding_headers_from_an_untrusted_peer(header):
     assert req.remote_ip == "203.0.113.5"
 
 
+@pytest.mark.usefixtures("no_current_app")
 @pytest.mark.parametrize("header", ["forwarded", "x-forwarded-for", "x-real-ip"])
-def test_remote_ip_ignores_forwarding_headers_without_a_peer(header):
+@pytest.mark.parametrize("client", [None, ("", None), ("unix", None), ("unix:/run/a.sock", None)])
+def test_remote_ip_uses_forwarding_headers_without_a_peer_address(header, client):
+    """A server on a Unix socket gives no peer address: only a process on
+    the same machine, such as nginx, can connect to it."""
     value = "for=1.2.3.4" if header == "forwarded" else "1.2.3.4"
-    req = _make_request("/", headers=[(header, value)])
-    assert req.remote_ip == ""
+    req = _make_request(
+        "/", headers=[(header, value), ("x-forwarded-proto", "https")], client=client
+    )
+    assert req.remote_ip == "1.2.3.4"
+    assert req.is_secure is True
 
 
+@pytest.mark.usefixtures("no_current_app")
 @pytest.mark.parametrize("peer", [
     "127.0.0.1", "127.8.9.10", "::1", "10.1.2.3", "172.16.0.1", "172.31.255.254",
     "192.168.1.1", "169.254.1.1", "fc00::1", "fdab::1", "fe80::1", "::ffff:10.0.0.1",
@@ -442,12 +472,14 @@ def test_remote_ip_default_trusted_proxies(peer):
     assert req.remote_ip == "1.2.3.4"
 
 
+@pytest.mark.usefixtures("no_current_app")
 @pytest.mark.parametrize("peer", ["172.32.0.1", "8.8.8.8", "2001:db8::1", "not-an-ip"])
 def test_remote_ip_default_untrusted_peers(peer):
     req = _make_request("/", headers=[("x-real-ip", "1.2.3.4")], client=(peer, 5000))
     assert req.remote_ip == peer
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_x_forwarded_for_skips_trusted_proxies_from_the_right():
     """The client can write anything at the left of the list; the address
     the first untrusted hop connected from is the last it can't fake."""
@@ -459,6 +491,7 @@ def test_remote_ip_x_forwarded_for_skips_trusted_proxies_from_the_right():
     assert req.remote_ip == "1.2.3.4"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_x_forwarded_for_all_trusted_is_the_leftmost():
     req = _make_request(
         "/", headers=[("x-forwarded-for", " 10.0.0.3, 10.0.0.2")], client=LOCAL_PROXY
@@ -466,6 +499,7 @@ def test_remote_ip_x_forwarded_for_all_trusted_is_the_leftmost():
     assert req.remote_ip == "10.0.0.3"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_x_forwarded_for_stops_at_a_value_that_is_not_an_ip():
     req = _make_request(
         "/", headers=[("x-forwarded-for", "1.2.3.4, unknown, 10.0.0.2")], client=LOCAL_PROXY
@@ -473,15 +507,30 @@ def test_remote_ip_x_forwarded_for_stops_at_a_value_that_is_not_an_ip():
     assert req.remote_ip == "unknown"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_x_forwarded_for_with_ports_and_ipv6():
     req = _make_request(
         "/",
-        headers=[("x-forwarded-for", "2001:db8::7, [fc00::2]:443, 10.0.0.2:8080")],
+        headers=[("x-forwarded-for", "6.6.6.6, 2001:db8::7, [fc00::2]:443, 10.0.0.2:8080")],
         client=LOCAL_PROXY,
     )
     assert req.remote_ip == "2001:db8::7"
 
 
+@pytest.mark.usefixtures("no_current_app")
+@pytest.mark.parametrize("hop, expected", [
+    # Azure Application Gateway adds the client's port.
+    ("203.0.113.5:51234", "203.0.113.5"),
+    ("[2001:db8::7]:51234", "2001:db8::7"),
+    ("[2001:db8::7]", "2001:db8::7"),
+    ("::ffff:203.0.113.5", "203.0.113.5"),
+])
+def test_remote_ip_x_forwarded_for_without_the_port(hop, expected):
+    req = _make_request("/", headers=[("x-forwarded-for", f"{hop}, 10.0.0.2")], client=LOCAL_PROXY)
+    assert req.remote_ip == expected
+
+
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_forwarded_skips_trusted_proxies_from_the_right():
     req = _make_request(
         "/",
@@ -495,6 +544,7 @@ def test_remote_ip_forwarded_skips_trusted_proxies_from_the_right():
     assert req.remote_ip == "1.2.3.4:4711"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_forwarded_all_trusted_is_the_leftmost():
     req = _make_request(
         "/", headers=[("forwarded", 'for="[::1]", for=10.0.0.2')], client=LOCAL_PROXY
@@ -502,6 +552,7 @@ def test_remote_ip_forwarded_all_trusted_is_the_leftmost():
     assert req.remote_ip == "[::1]"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_forwarded_obfuscated_identifier():
     req = _make_request(
         "/", headers=[("forwarded", "for=1.2.3.4, for=_hidden")], client=LOCAL_PROXY
@@ -509,6 +560,7 @@ def test_remote_ip_forwarded_obfuscated_identifier():
     assert req.remote_ip == "_hidden"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_x_forwarded_for_wins_over_forwarded():
     """A proxy that writes only `X-Forwarded-For` (nginx, Caddy, ...) passes a
     `Forwarded` header from the client through untouched."""
@@ -520,6 +572,7 @@ def test_remote_ip_x_forwarded_for_wins_over_forwarded():
     assert req.remote_ip == "1.2.3.4"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_empty_x_forwarded_for_falls_back():
     req = _make_request(
         "/",
@@ -529,11 +582,13 @@ def test_remote_ip_empty_x_forwarded_for_falls_back():
     assert req.remote_ip == "1.2.3.4"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_trusted_peer_without_forwarding_headers():
     req = _make_request("/", client=LOCAL_PROXY)
     assert req.remote_ip == "127.0.0.1"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_forwarded_without_for_falls_back():
     req = _make_request(
         "/",
@@ -543,15 +598,16 @@ def test_remote_ip_forwarded_without_for_falls_back():
     assert req.remote_ip == "1.2.3.4"
 
 
-def test_remote_ip_without_an_app_uses_the_default_trusted_proxies(keep_current_app):
-    current.app = None
+@pytest.mark.usefixtures("no_current_app")
+def test_remote_ip_without_an_app_uses_the_default_trusted_proxies():
     headers = [("x-forwarded-for", "1.2.3.4")]
     assert _make_request("/", headers=headers, client=LOCAL_PROXY).remote_ip == "1.2.3.4"
     req = _make_request("/", headers=headers, client=("203.0.113.5", 5000))
     assert req.remote_ip == "203.0.113.5"
 
 
-def test_remote_ip_custom_trusted_proxies(keep_current_app):
+@pytest.mark.usefixtures("no_current_app")
+def test_remote_ip_custom_trusted_proxies():
     app = App(__name__, {
         "SECRET_KEYS": ["*" * 50],
         "TRUSTED_PROXIES": ["203.0.113.0/24", "2001:db8::1"],
@@ -567,7 +623,8 @@ def test_remote_ip_custom_trusted_proxies(keep_current_app):
     assert req.remote_ip == "127.0.0.1"
 
 
-def test_remote_ip_no_trusted_proxies(keep_current_app):
+@pytest.mark.usefixtures("no_current_app")
+def test_remote_ip_no_trusted_proxies():
     app = App(__name__, {"SECRET_KEYS": ["*" * 50], "TRUSTED_PROXIES": []})
     req = _make_request(
         "/", headers=[("forwarded", "for=1.2.3.4")], client=LOCAL_PROXY, app=app
@@ -575,14 +632,32 @@ def test_remote_ip_no_trusted_proxies(keep_current_app):
     assert req.remote_ip == "127.0.0.1"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_from_client():
     req = _make_request("/", client=("192.168.1.1", 5000))
     assert req.remote_ip == "192.168.1.1"
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_no_client():
     req = _make_request("/")
     assert req.remote_ip == ""
+
+
+@pytest.mark.usefixtures("no_current_app")
+def test_trusted_proxies_set_as_strings_after_the_app_was_created():
+    """`TRUSTED_PROXIES` is parsed when the app is created; a list of
+    strings set later is parsed when it is used."""
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50]})
+    app.config.TRUSTED_PROXIES = ["203.0.113.0/24"]
+    headers = [("x-forwarded-for", "1.2.3.4"), ("x-forwarded-proto", "https")]
+
+    req = _make_request("/", headers=headers, client=("203.0.113.7", 5000), app=app)
+    assert req.remote_ip == "1.2.3.4"
+    assert req.is_secure is True
+    req = _make_request("/", headers=headers, client=LOCAL_PROXY, app=app)
+    assert req.remote_ip == "127.0.0.1"
+    assert req.is_secure is False
 
 
 def test_request_id():
@@ -605,6 +680,7 @@ def test_user_agent_missing():
     assert req.user_agent is None
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_protocol_from_x_forwarded_proto():
     req = _make_request(
         "http://example.com/", headers=[("x-forwarded-proto", "https")], client=LOCAL_PROXY
@@ -613,6 +689,7 @@ def test_protocol_from_x_forwarded_proto():
     assert req.is_secure is True
 
 
+@pytest.mark.usefixtures("no_current_app")
 def test_protocol_ignores_x_forwarded_proto_from_an_untrusted_peer():
     req = _make_request(
         "http://example.com/",
@@ -624,10 +701,13 @@ def test_protocol_ignores_x_forwarded_proto_from_an_untrusted_peer():
     assert req.default_port == 80
 
 
-def test_protocol_ignores_x_forwarded_proto_without_a_peer():
+@pytest.mark.usefixtures("no_current_app")
+def test_protocol_from_x_forwarded_proto_without_a_peer_address():
+    """A server on a Unix socket: the peer is a process on the same machine."""
     req = _make_request("http://example.com/", headers=[("x-forwarded-proto", "https")])
-    assert req.protocol == "http"
-    assert req.is_secure is False
+    assert req.protocol == "https"
+    assert req.is_secure is True
+    assert req.default_port == 443
 
 
 def test_headers_get_missing():
@@ -710,7 +790,8 @@ def test_accept_with_escaped_quotes():
     ('application/json;q=0.5,text/html;q="abc"', ["text/html", "application/json"]),
     ("application/json;q=0.5,text/html;q=", ["text/html", "application/json"]),
     ("application/json;q=0.5,text/html;q=nan", ["text/html", "application/json"]),
-    ("application/json;q=0.5,text/html;q=2", ["text/html", "application/json"]),
+    # A q over 1 counts as 1: a tie, so the order in the header stays.
+    ("application/json,text/html;q=2", ["application/json", "text/html"]),
     ("text/html;q=-1,application/json;q=0.5", ["text/html", "application/json"]),
 ])
 def test_accept_malformed_parameters_are_ignored(header, expected):

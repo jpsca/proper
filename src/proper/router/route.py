@@ -116,8 +116,8 @@ def _compile_pattern(
 
 def _build(pieces: "list[tuple[str, str | None]]", values: dict) -> str:
     """Join the pieces from `_compile_pattern`, with each placeholder
-    replaced by its value. The literal text is copied as written, so it
-    follows the same placeholder grammar as matching."""
+    replaced by its value. The literal text is copied as it is in the
+    pieces, so it follows the same placeholder grammar as matching."""
     return "".join(
         literal if name is None else literal + values[name]
         for literal, name in pieces
@@ -357,8 +357,8 @@ class Route:
         """Build the URL path of this route, with the placeholders filled
         with the values in `kw`.
 
-        Each value must match its placeholder's format as a whole. The values
-        are percent-encoded, except for the characters a path can have as
+        Each value must match its placeholder's format as a whole. The values,
+        and the text of the route around them, are percent-encoded, except for the characters a path can have as
         they are (`PATH_SAFE`): a `/`, which only a placeholder whose format
         matches a `/` (such as `path`) accepts, and `:@!$&'()*+,;=`, so a
         value like `":signed_id"` stays as written. The arguments that are not
@@ -397,9 +397,13 @@ class Route:
         self.path_plain = path_plain
         self.path_placeholders = placeholders
         self.path_casters = casters
-        # What `format` needs, ready: the pieces of the path and one compiled
-        # regex per placeholder to validate its value.
-        self._path_pieces = pieces
+        # What `format` needs, ready: the pieces of the path, with the text
+        # percent-encoded as the values are (a route is matched against the
+        # decoded path), and one compiled regex per placeholder to validate
+        # its value.
+        self._path_pieces = [
+            (quote(literal, safe=PATH_SAFE), name) for literal, name in pieces
+        ]
         self._path_placeholder_re = {
             name: re.compile(rx) for name, rx in placeholders.items()
         }
