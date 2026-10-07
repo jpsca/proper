@@ -1,5 +1,7 @@
+import ipaddress
 import mimetypes
 import re
+import typing as t
 from datetime import datetime, timezone
 from functools import cached_property
 from http import cookies as http_cookies
@@ -10,6 +12,7 @@ from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT, TURBO_STREAM_MIME
 from ...errors import InvalidHeader
 from ...helpers import MultiDict
 from ...helpers.formatters import format_locale
+from ..config import DEFAULT_TRUSTED_PROXIES
 from .forwarded import parse_forwarded
 
 
@@ -17,6 +20,7 @@ class RequestHeadersMixin:
     """Mixin with the methods related to the request headers.
     """
 
+    app: t.Any
     headers: MultiDict
     method: str
     request_method: str
@@ -26,7 +30,10 @@ class RequestHeadersMixin:
     default_format = "html"
 
     def __init__(self):
-        self.protocol: str = self.headers.get("x-forwarded-proto") or self.scheme
+        forwarded_proto = self.headers.get("x-forwarded-proto")
+        self.protocol: str = (
+            forwarded_proto if forwarded_proto and self._from_trusted_proxy else self.scheme
+        )
 
         if self.server:
             host, port = self.server
@@ -192,6 +199,10 @@ class RequestHeadersMixin:
         The `Forwarded` header is a comma-separated list of forwarding
         information from the client to the server on its way through proxies.
 
+        This is the header as it arrived, whoever sent it: any client can
+        write one. `remote_ip` uses it only when the request comes from a
+        trusted proxy (`TRUSTED_PROXIES`).
+
         Returns:
             A list of dictionaries with the forwarding information.
 
@@ -273,9 +284,26 @@ class RequestHeadersMixin:
         """True if the method is PUT."""
         return self.method == PUT
 
+    @cached_property
+    def _from_trusted_proxy(self) -> bool:
+        """True if the peer that sent this request (the `client` address)
+        is one of the `TRUSTED_PROXIES`, so its forwarding headers
+        (`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and
+        `X-Forwarded-Proto`) can be believed."""
+        if not self.client:
+            return False
+        return is_trusted_proxy(self.client[0], self._trusted_proxies())
+
+    def _trusted_proxies(self) -> "TNetworks":
+        app = self.app
+        return app.config.TRUSTED_PROXIES if app else DEFAULT_TRUSTED_PROXIES
+
     @property
     def is_secure(self) -> bool:
-        """True if the protocol is HTTPS."""
+        """True if the protocol is HTTPS.
+
+        Behind a trusted proxy (`TRUSTED_PROXIES`), the protocol is the one
+        in its `X-Forwarded-Proto` header."""
         return self.protocol == "https"
 
     is_ssl = is_secure
@@ -311,29 +339,52 @@ class RequestHeadersMixin:
 
     @property
     def remote_ip(self) -> str:
-        """IP address of the closest client or proxy to the server.
+        """IP address of the client.
 
-        This will use the `Forwarded` header to try to find the real
-        IP address of the client if your application is behind one or
-        more reverse proxies.
+        When the request comes from one of the `TRUSTED_PROXIES`, this is
+        the address in its forwarding headers: `X-Forwarded-For`, else
+        `Forwarded`, else `X-Real-IP`. Each proxy adds the address it got
+        the request from at the end of the first two, so they are read
+        from the right, skipping the trusted proxies: whatever is further
+        left could have been written by the client. If every address is a
+        trusted proxy, it is the leftmost one.
+
+        `X-Forwarded-For` comes first because it is the one nearly every
+        proxy writes; most pass a `Forwarded` header from the client
+        through untouched.
+
+        Otherwise, it is the address of the peer that sent the request
+        and the forwarding headers are ignored, because any client can
+        send them.
 
         Returns:
-            A string with the IP address.
+            A string with the IP address, or `""` if the server didn't
+            give one. A `Forwarded` value is returned as written: it can
+            have a port (`1.2.3.4:8080`, `"[2001:db8::1]:4711"`) or be an
+            obfuscated identifier (`_hidden`, `unknown`).
 
         """
-        for fw in self.forwarded:
-            if "for" in fw:
-                return fw["for"]
+        peer = self.client[0] if self.client else ""
+        if not self._from_trusted_proxy:
+            return peer
+        trusted = self._trusted_proxies()
 
-        ff = (self.headers.get("x-forwarded-for") or "").split(",")[0]
-        if ff:
-            return ff
+        hops = [
+            hop.strip() for hop in (self.headers.get("x-forwarded-for") or "").split(",")
+        ]
+        hops = [hop for hop in hops if hop]
+        if hops:
+            return closest_untrusted_hop(hops, trusted)
+
+        hops = [fw["for"] for fw in self.forwarded if "for" in fw]
+        if hops:
+            return closest_untrusted_hop(hops, trusted)
 
         realip = self.headers.get("x-real-ip")
         if realip:
             return realip
 
-        return self.client[0] if self.client else ""
+        return peer
 
     @cached_property
     def request_id(self) -> str | None:
@@ -365,6 +416,50 @@ class RequestHeadersMixin:
 
 
 # --- Parsers ---
+
+
+TNetworks = tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]
+
+
+def parse_ip(value: str) -> "ipaddress.IPv4Address | ipaddress.IPv6Address | None":
+    """Parse the IP address of a `Forwarded` or `X-Forwarded-For` hop, or
+    of the peer: `1.2.3.4`, `1.2.3.4:8080`, `2001:db8::1`, `[2001:db8::1]`
+    or `[2001:db8::1]:4711`. An IPv4-mapped IPv6 address
+    (`::ffff:1.2.3.4`) is returned as the IPv4 one.
+
+    Returns:
+        The address, or `None` if `value` is not one (e.g. `unknown`).
+
+    """
+    value = value.strip()
+    if value.startswith("["):
+        value = value[1:].partition("]")[0]
+    elif value.count(":") == 1:
+        value = value.partition(":")[0]
+    try:
+        ip = ipaddress.ip_address(value)
+    except ValueError:
+        return None
+    return getattr(ip, "ipv4_mapped", None) or ip
+
+
+def is_trusted_proxy(value: str, trusted: TNetworks) -> bool:
+    """True if `value` is an IP address in one of the `trusted` networks."""
+    ip = parse_ip(value)
+    return ip is not None and any(ip in network for network in trusted)
+
+
+def closest_untrusted_hop(hops: list[str], trusted: TNetworks) -> str:
+    """The rightmost of `hops` that isn't a trusted proxy, or the leftmost
+    one if all of them are.
+
+    A value that is not an IP address (`unknown`, `_hidden`) is not a
+    trusted proxy: it is returned, and nothing at its left is read.
+    """
+    for hop in reversed(hops):
+        if not is_trusted_proxy(hop, trusted):
+            return hop
+    return hops[0]
 
 
 def parse_date(value: str | None) -> datetime | None:

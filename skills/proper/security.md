@@ -19,6 +19,7 @@ For user authentication (registration, login, password reset), see [Authenticati
 - [Signed Cookies](#signed-cookies)
 - [Security Headers](#security-headers)
 - [Request Size Limits](#request-size-limits)
+- [Trusted Proxies](#trusted-proxies)
 
 
 ## Origin Protection (CSRF)
@@ -104,7 +105,7 @@ SESSION_COOKIE_HTTPONLY = True          # Block JavaScript access (default: True
 SESSION_COOKIE_SAMESITE = "Lax"        # "Lax", "Strict", or "None" (default: "Lax")
 ```
 
-The `secure` flag is set automatically when the request arrives over HTTPS.
+The `secure` flag is set automatically when the request arrives over HTTPS (`request.is_secure`: the scheme, or `X-Forwarded-Proto` when the peer is in `TRUSTED_PROXIES`).
 
 
 ## Secret Keys
@@ -273,6 +274,23 @@ MAX_FORM_PART_SIZE = 2 * MB  # Max size per individual part (default: 2 MB)
 
 These protect against abuse from forms with excessive fields or oversized individual parts.
 
+
+## Trusted Proxies
+
+`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used (for `request.remote_ip` and `request.is_secure`) only when the peer is in `TRUSTED_PROXIES`; from any other address they are ignored and `remote_ip` is the peer's address.
+
+```python
+# config/main.py. Default: the loopback, private and link-local networks
+# (127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16,
+#  169.254.0.0/16, fc00::/7, fe80::/10). The list replaces the default.
+TRUSTED_PROXIES = ["127.0.0.1", "203.0.113.0/24"]
+TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
+```
+
+- Each item is an IP or a CIDR network; anything else is a `ConfigError` at startup.
+- `remote_ip`: `X-Forwarded-For`, else `Forwarded`, else `X-Real-IP`. The first two are read from the right, skipping trusted proxies; if all are trusted, the leftmost. A value that is not an IP (`unknown`, `_hidden`) stops the walk and is returned. A `Forwarded` value is returned as written (it may keep a port).
+- A proxy that writes only `Forwarded` or `X-Real-IP` must remove the client's `X-Forwarded-For`.
+- `TestClient` requests come from `client.remote_ip` (`127.0.0.1`, trusted), so test headers like `X-Forwarded-For` are honored.
 
 ## Gotchas
 

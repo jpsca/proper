@@ -125,7 +125,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `method`           | `str`             | HTTP method, after HEAD-to-GET and method override processing  |
 | `request_method`   | `str`             | Original HTTP method as sent by the client                     |
 | `path`             | `str`             | The request path                                               |
-| `protocol`         | `str`             | `"http"` or `"https"` (respects `X-Forwarded-Proto`)          |
+| `protocol`         | `str`             | `"http"` or `"https"` (respects `X-Forwarded-Proto` from a `TRUSTED_PROXIES` peer) |
 | `host`             | `str`             | The hostname                                                   |
 | `port`             | `int`             | The port number                                                |
 | `content_type`     | `str`             | MIME type from the `Content-Type` header                       |
@@ -173,7 +173,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `is_xhr`           | `bool`                     | `True` if `X-Requested-With` is `"XMLHttpRequest"`                 |
 | `port_is_default`  | `bool`                     | `True` if port is the default for the protocol                     |
 | `port_string`      | `str`                      | `":port"` or `""` if port is default                               |
-| `remote_ip`        | `str`                      | Client IP (from `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, or connection) |
+| `remote_ip`        | `str`                      | Client IP. From a `TRUSTED_PROXIES` peer: `X-Forwarded-For`, else `Forwarded` (both read from the right, skipping trusted proxies), else `X-Real-IP`. Otherwise the peer's address |
 | `request_id`       | `str \| None`              | Value of the `X-Request-ID` header                                  |
 | `user_agent`       | `str \| None`              | Value of the `User-Agent` header                                    |
 

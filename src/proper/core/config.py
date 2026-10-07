@@ -3,6 +3,7 @@ Default configuration values and validation logic for user-provided config.
 
 For tool-specific configuration (db, auth, etc.), see the `tools/` folder.
 """
+import ipaddress
 import typing as t
 
 from ..errors import BadSecretKey, ConfigError
@@ -96,6 +97,24 @@ default_config = {
     # To that end this attribute is set to "Lax" by default.
     "SESSION_COOKIE_SAMESITE": "Lax",  # Lax | Strict | None
 
+    # The reverse proxies in front of the app, as IP addresses or networks
+    # in CIDR notation. The `Forwarded`, `X-Forwarded-For`,
+    # `X-Forwarded-Proto` and `X-Real-IP` headers are used (for
+    # `request.remote_ip` and `request.is_secure`) only when the request
+    # comes from one of these; any client can send them. The default is
+    # the loopback, private and link-local networks, as Rails does. An
+    # empty list ignores those headers always.
+    "TRUSTED_PROXIES": [
+        "127.0.0.0/8",
+        "::1",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "fc00::/7",
+        "fe80::/10",
+    ],
+
     "LOCALE_DEFAULT": "en",
     "TIMEZONE_DEFAULT": "UTC",
 
@@ -156,6 +175,8 @@ def normalize_config(config: DotDict) -> DotDict:
             "SESSION_COOKIE_SAMESITE must be one of: 'Lax', 'Strict', or 'None'."
         )
 
+    config.TRUSTED_PROXIES = parse_trusted_proxies(config.TRUSTED_PROXIES)
+
     config.DEBUG = bool(config.DEBUG)
     config.CATCH_ALL_ERRORS = bool(config.CATCH_ALL_ERRORS)
     config.SESSION_COOKIE_HTTPONLY = bool(config.SESSION_COOKIE_HTTPONLY)
@@ -171,6 +192,37 @@ def normalize_config(config: DotDict) -> DotDict:
     config.ASSETS_URL = str(config.ASSETS_URL)
 
     return config
+
+
+def parse_trusted_proxies(
+    value: t.Any,
+) -> "tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]":
+    """Parse the `TRUSTED_PROXIES` setting: a list of IP addresses or
+    networks in CIDR notation. A network with host bits set, such as
+    `192.168.1.10/24`, is taken as its network (`192.168.1.0/24`).
+
+    Raises:
+        ConfigError: if it isn't a list or tuple, or an item isn't an IP
+            address or network.
+
+    """
+    if not isinstance(value, (list, tuple)):
+        raise ConfigError(
+            "TRUSTED_PROXIES must be a list of IP addresses or networks, "
+            f"not {value!r}."
+        )
+    networks = []
+    for item in value:
+        try:
+            networks.append(ipaddress.ip_network(item, strict=False))
+        except ValueError:
+            raise ConfigError(
+                f"TRUSTED_PROXIES: {item!r} is not an IP address or network."
+            ) from None
+    return tuple(networks)
+
+
+DEFAULT_TRUSTED_PROXIES = parse_trusted_proxies(default_config["TRUSTED_PROXIES"])
 
 
 def load_config(user_config: dict[str, t.Any] | type) -> DotDict:

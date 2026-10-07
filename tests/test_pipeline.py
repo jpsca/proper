@@ -253,6 +253,20 @@ class TestUpdateSessionCookie:
         cookie_val = session_cookies[0][1]
         assert "max-age=0" in cookie_val.lower() or "expires=" in cookie_val.lower()
 
+    @pytest.mark.parametrize("peer, secure", [
+        (("127.0.0.1", 50000), True),  # a local reverse proxy
+        (("203.0.113.5", 50000), False),  # a client sending the header itself
+    ])
+    def test_secure_from_x_forwarded_proto_only_from_a_trusted_proxy(
+        self, app, make_co, peer, secure
+    ):
+        co = make_co(headers=[("x-forwarded-proto", "https")], client=peer)
+        co.response.session = DotDict({"foo": "bar"})
+        update_session_cookie(co.request, co.response)
+        cookies = co.response.get_cookie_tuples()
+        session_cookie = [c for c in cookies if SESSION_COOKIE_NAME in c[1]][0][1]
+        assert ("; Secure" in session_cookie) is secure
+
 
 class TestFlashThroughPipeline:
     """A flash set by a controller (after `copy_session` has run) must end up

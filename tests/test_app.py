@@ -1,3 +1,5 @@
+import ipaddress
+
 import pytest
 
 from proper import App, TestClient, status
@@ -23,6 +25,9 @@ class GreetController(Controller):
         self.response.headers["real"] = self.request.method
         return ""
 
+    def remote_ip(self):
+        return self.request.remote_ip
+
 
 @pytest.fixture()
 def app():
@@ -42,6 +47,7 @@ def app():
     app.router.add_route(Route(method="DELETE", path="/echo", to=GreetController.echo_method))
     app.router.add_route(Route(method="PATCH", path="/echo", to=GreetController.echo_method))
     app.router.add_route(Route(method="QUERY", path="/echo", to=GreetController.echo_method))
+    app.router.add_route(Route(method="GET", path="/ip", to=GreetController.remote_ip))
     return app
 
 
@@ -60,6 +66,21 @@ def test_path_param_forwarded_to_controller(client):
     result = client.get("/hello/alice")
     assert result.status == status.ok
     assert result.body == "hello alice"
+
+
+def test_test_client_requests_come_from_remote_ip(app, client):
+    assert client.get("/ip").body == "127.0.0.1"
+    # 127.0.0.1 is a trusted proxy.
+    result = client.get("/ip", headers={"X-Forwarded-For": "203.0.113.9"})
+    assert result.body == "203.0.113.9"
+
+    class OutsideClient(TestClient):
+        remote_ip = "198.51.100.7"
+
+    outside = OutsideClient(app)
+    assert outside.get("/ip").body == "198.51.100.7"
+    result = outside.get("/ip", headers={"X-Forwarded-For": "203.0.113.9"})
+    assert result.body == "198.51.100.7"
 
 
 def test_to_seconds():
@@ -85,6 +106,34 @@ def test_invalid_samesite_raises():
             "SECRET_KEYS": ["*" * 50],
             "SESSION_COOKIE_SAMESITE": "Invalid",
         })
+
+
+def test_trusted_proxies_default():
+    config = load_config({"SECRET_KEYS": ["*" * 50]})
+    assert config.TRUSTED_PROXIES == tuple(
+        ipaddress.ip_network(net) for net in (
+            "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+            "169.254.0.0/16", "fc00::/7", "fe80::/10",
+        )
+    )
+
+
+def test_trusted_proxies_are_parsed():
+    config = load_config({
+        "SECRET_KEYS": ["*" * 50],
+        "TRUSTED_PROXIES": ["203.0.113.7", "198.51.100.9/24", ipaddress.ip_network("::1")],
+    })
+    assert config.TRUSTED_PROXIES == (
+        ipaddress.ip_network("203.0.113.7/32"),
+        ipaddress.ip_network("198.51.100.0/24"),
+        ipaddress.ip_network("::1"),
+    )
+
+
+@pytest.mark.parametrize("value", ["10.0.0.1", ["10.0.0.300"], ["proxy.local"], [None]])
+def test_invalid_trusted_proxies_raises(value):
+    with pytest.raises(ConfigError, match="TRUSTED_PROXIES"):
+        load_config({"SECRET_KEYS": ["*" * 50], "TRUSTED_PROXIES": value})
 
 
 def test_load_config_from_class():

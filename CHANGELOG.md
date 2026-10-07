@@ -99,6 +99,41 @@ sends such a body, parse it from `request.body`:
 A multipart body that ends before its final boundary is now a
 `MultipartError` (400); before, it was parsed without its last field.
 
+### ⚠️ Upgrading: forwarding headers count only from `TRUSTED_PROXIES`
+
+`request.remote_ip` and `request.is_secure` (and so the session cookie's
+`Secure` flag) now read the `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and
+`X-Forwarded-Proto` headers only when the request comes from one of the
+reverse proxies in the new `TRUSTED_PROXIES` setting. From any other
+address they are ignored, and `remote_ip` is the address the request came
+from. The default is the loopback, private and link-local networks
+(`127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
+`169.254.0.0/16`, `fc00::/7`, `fe80::/10`), so an app behind a proxy on the
+same machine or the same private network needs no change. If your proxy
+connects to the app from another address (a load balancer with a public
+IP, for example), add it in `config/main.py`, along with the default ranges
+you still need, since the list replaces them:
+
+```python {title="config/main.py"}
+TRUSTED_PROXIES = ["127.0.0.1", "203.0.113.0/24"]
+```
+
+Three more changes in how `remote_ip` reads the headers:
+
+- `X-Forwarded-For` and `Forwarded` are read from the right, skipping the
+  trusted proxies, so it is the address of the first hop that is not one.
+  It was the leftmost address, which the client writes itself. If every
+  address is a trusted proxy, it is still the leftmost one.
+- `X-Forwarded-For` comes before `Forwarded` (it was the other way round),
+  because nearly every proxy writes `X-Forwarded-For` and passes a client's
+  `Forwarded` header through untouched. Behind a proxy that writes only
+  `Forwarded` or only `X-Real-IP`, make it remove the `X-Forwarded-For`
+  header the client sends.
+- `TestClient` requests now come from the address `client.remote_ip`
+  (`127.0.0.1`, a trusted proxy), so an `X-Forwarded-For` header you send
+  in a test is used. Before, the client's own `Forwarded` header won over
+  it.
+
 ### Removed
 
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
@@ -124,6 +159,9 @@ A multipart body that ends before its final boundary is now a
 
 ### Added
 
+- `TRUSTED_PROXIES`: the IP addresses or networks (CIDR) of the reverse
+  proxies in front of the app, whose forwarding headers are used. A value
+  that is not a list of addresses or networks is a `ConfigError`.
 - `app.cable.health()`: whether this process serves the WebSockets, its
   connections, users and streams, and what wse reports (`health_snapshot()`),
   for a health endpoint.
@@ -186,6 +224,11 @@ A multipart body that ends before its final boundary is now a
 
 ### Fixed
 
+- Any client could set `request.remote_ip` with a `Forwarded`,
+  `X-Forwarded-For` or `X-Real-IP` header, and make `request.is_secure`
+  true (and so the session cookie `Secure`) with `X-Forwarded-Proto`:
+  the headers were used whoever sent them. Now they are used only from the
+  `TRUSTED_PROXIES`, and the address lists are read from the right.
 - The error handler lookup used the first registered handler whose class
   matched, so a handler for `Exception` registered before one for
   `NotFound` also took the 404s. Now the most specific handler wins, as
