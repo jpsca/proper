@@ -277,7 +277,7 @@ These protect against abuse from forms with excessive fields or oversized indivi
 
 ## Trusted Proxies
 
-`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used (for `request.remote_ip` and `request.is_secure`) only when the peer is in `TRUSTED_PROXIES`; from any other address they are ignored and `remote_ip` is the peer's address.
+`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used (for `request.remote_ip` and `request.protocol`, so `is_secure`, `host_with_port` and the session and auth cookies' `Secure` flag) only when the peer is in `TRUSTED_PROXIES`, or has no address (a server on a Unix socket); from any other address they are ignored and `remote_ip` is the peer's address.
 
 ```python
 # config/main.py. Default: the loopback, private and link-local networks
@@ -288,9 +288,10 @@ TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
 ```
 
 - Each item is an IP or a CIDR network; anything else is a `ConfigError` at startup.
-- `remote_ip`: `X-Forwarded-For`, else `Forwarded`, else `X-Real-IP`. The first two are read from the right, skipping trusted proxies; if all are trusted, the leftmost. A value that is not an IP (`unknown`, `_hidden`) stops the walk and is returned. A `Forwarded` value is returned as written (it may keep a port).
+- `remote_ip`: `X-Forwarded-For`, else `Forwarded`, else `X-Real-IP`. The first two are read from the right, skipping trusted proxies; if all are trusted, the leftmost. A value that is not an IP (`unknown`, `_hidden`) stops the walk and is returned. An `X-Forwarded-For` address is returned without its port; a `Forwarded` value is returned as written (it may keep a port).
+- List every proxy in the chain, including a CDN or public load balancer in front of a local nginx: otherwise `remote_ip` is the CDN edge's address for every visitor, and the default `rate_limit` puts them all in one bucket.
 - A proxy that writes only `Forwarded` or `X-Real-IP` must remove the client's `X-Forwarded-For`.
-- `TestClient` requests come from `client.remote_ip` (`127.0.0.1`, trusted), so test headers like `X-Forwarded-For` are honored.
+- `TestClient` requests come from `client.remote_ip` (`127.0.0.1`, trusted), so test headers like `X-Forwarded-For` are honored; set a public `client.remote_ip` and they are ignored. `make_test_request()` without `client=` has no peer address, which counts as trusted.
 
 ## Gotchas
 

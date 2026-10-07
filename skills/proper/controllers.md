@@ -1305,7 +1305,7 @@ On JSON responses the concern sets `X-Total-Count` (offset mode only) and a `Lin
 
 #### RateLimiting
 
-Limits the number of requests per time window. By default, rate limits apply per IP address, but you can customize the identity, scope, and reaction.
+Limits the number of requests per time window. By default, rate limits apply per IP address (`request.remote_ip`; behind a CDN or load balancer, list every proxy in the chain in `TRUSTED_PROXIES` or all visitors share the proxy's limit), but you can customize the identity, scope, and reaction.
 
 To enable rate limiting on a controller, set the `rate_limit` class attribute:
 

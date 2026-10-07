@@ -333,6 +333,10 @@ class GreetController(Controller):
     def explode(self):
         raise ValueError("boom")
 
+    def unchanged(self):
+        # No view exists for this action: a 304 renders none.
+        self.response.status = status.not_modified
+
 
 
 class SessionController(Controller):
@@ -370,6 +374,14 @@ class TestPipeline:
         result = client.get(app.url_for("hello", DotDict(name="café & co?#a%20b")))
         assert result.status == status.ok
         assert result.body == "hello café & co?#a%20b"
+
+    def test_not_modified_set_by_the_action_renders_no_view(self, app, client):
+        app.router.add_route(
+            Route(method="GET", path="/unchanged", to=GreetController.unchanged)
+        )
+        result = client.get("/unchanged")
+        assert result.status == status.not_modified
+        assert result.body == ""
 
     def test_head_returns_empty_body(self, app, client):
         app.router.add_route(

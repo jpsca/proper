@@ -311,6 +311,15 @@ url_for("Page.show", page_id=123, _full=True)
 # => "http://www.example.com/pages/123#section1"
 ```
 
+The URL is percent-encoded, so pass the values as they are, not encoded (an encoded
+`"a%20b"` would become `a%2520b`). In the path, every character is encoded except
+letters, digits, `-._~` and `/:@!$&'()*+,;=`; the arguments that are not placeholders
+become the query string, encoded as a form (a space is `+`, a `/` is `%2F`). Each
+placeholder value must match the placeholder's format as a whole, or `url_for` raises
+`BadRoutePlaceholder`: `"42abc"` is not an `<int>`, and a value with a `/` fits only a
+format that accepts it, such as `<path>`. See
+[Values Are Checked and Percent-Encoded](/docs/routing#values-are-checked-and-percent-encoded).
+
 See the [url_for API Documentation](/docs/api/view_helpers#url_for) for more information.
 
 ### url_is

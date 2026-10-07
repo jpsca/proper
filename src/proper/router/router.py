@@ -205,6 +205,16 @@ class BaseRouter:
         # => "http://www.example.com/pages/123#section1"
         ```
 
+        The URL is percent-encoded, so pass the values as they are, not
+        encoded (an encoded `"a%20b"` would become `a%2520b`). In the path,
+        every character is encoded except letters, digits, `-._~` and
+        `/:@!$&'()*+,;=`; the arguments that are not placeholders become
+        the query string, encoded as a form (a space is `+`, a `/` is `%2F`).
+        Each placeholder value must match the placeholder's format as a
+        whole, or `BadRoutePlaceholder` is raised: `"42abc"` is not an
+        `<int>`, and a value with a `/` fits only a format that accepts it,
+        such as `<path>`.
+
         Arguments:
             name:
                 The name of the route to build the URL for. This is usually the

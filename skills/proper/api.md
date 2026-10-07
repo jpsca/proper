@@ -173,7 +173,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `is_xhr`           | `bool`                     | `True` if `X-Requested-With` is `"XMLHttpRequest"`                 |
 | `port_is_default`  | `bool`                     | `True` if port is the default for the protocol                     |
 | `port_string`      | `str`                      | `":port"` or `""` if port is default                               |
-| `remote_ip`        | `str`                      | Client IP. From a `TRUSTED_PROXIES` peer: `X-Forwarded-For`, else `Forwarded` (both read from the right, skipping trusted proxies), else `X-Real-IP`. Otherwise the peer's address |
+| `remote_ip`        | `str`                      | Client IP. From a `TRUSTED_PROXIES` peer: `X-Forwarded-For`, else `Forwarded` (both read from the right, skipping trusted proxies), else `X-Real-IP`. Otherwise the peer's address. An `X-Forwarded-For` address loses its port |
 | `request_id`       | `str \| None`              | Value of the `X-Request-ID` header                                  |
 | `user_agent`       | `str \| None`              | Value of the `User-Agent` header                                    |
 

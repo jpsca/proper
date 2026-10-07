@@ -1,4 +1,5 @@
 import re
+from urllib.parse import unquote
 
 import pytest
 
@@ -430,6 +431,18 @@ class TestRouteFormat:
         r = Route("GET", "/tags/:tag")
         assert r.format(tag="a b?c#d%e") == "/tags/a%20b%3Fc%23d%25e"
         assert r.format(tag="café") == "/tags/caf%C3%A9"
+
+    def test_format_percent_encodes_the_text_of_the_route(self):
+        """A route is matched against the decoded path, so its text is
+        encoded as the values are."""
+        r = Route("GET", "/über/my files/:id")
+        url = r.format(id="a b")
+        assert url == "/%C3%BCber/my%20files/a%20b"
+        assert r.match(unquote(url)) == {"id": "a b"}
+
+    def test_format_percent_encodes_a_query_value_that_is_not_a_string(self):
+        r = Route("GET", "/search")
+        assert r.format(c=[1, 2], n=3) == "/search?c=%5B1%2C+2%5D&n=3"
 
     def test_format_keeps_slashes_in_path_values(self):
         r = Route("GET", "/docs/:page<path>")

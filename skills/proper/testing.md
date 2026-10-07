@@ -57,6 +57,8 @@ result = client.get("/photos", params={"page": "2", "sort": "date"})
 
 The path is percent-decoded before routing, as the server does: `client.get(app.url_for("Tag.show", tag="a b"))` requests `/tags/a%20b` and the controller gets `"a b"`.
 
+Requests come from `client.remote_ip` (`127.0.0.1`, a default trusted proxy), so `X-Forwarded-For` and `X-Forwarded-Proto` sent in a test are used; set `client.remote_ip = "203.0.113.5"` to test a client that connects directly (they are ignored then). `make_test_request()` without `client=` has no peer address, which counts as trusted.
+
 ### POST, PUT, PATCH, DELETE
 
 These methods accept a `body` parameter. When `body` is a dict, it is encoded as `application/x-www-form-urlencoded`:

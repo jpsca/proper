@@ -665,14 +665,15 @@ app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 
 ### Values Are Checked and Percent-Encoded
 
-Each placeholder value must match the placeholder's format as a whole, or `url_for` raises `BadRoutePlaceholder`: `"42abc"` is not an `<int>`, and `"english"` is not an `<en|es|pt>`.
+Each placeholder value must match the placeholder's format as a whole, or `url_for` raises `BadRoutePlaceholder`: `"42abc"` is not an `<int>`, `"english"` is not an `<en|es|pt>`, and `"a/b"` is not a `:slug` (the default format stops at a `/`).
 
-`url_for` percent-encodes the values, so a URL built from any text is valid. The characters a path can have as they are stay unencoded: a `/`, which only a placeholder whose format accepts a `/` (such as `<path>`) takes, and ``:@!$&'()*+,;=``. So a value like `":signed_id"`, used as a marker in a URL template for JavaScript, stays as written. Query parameters are encoded like a submitted form (a space becomes `+`):
+`url_for` percent-encodes the values and the text of the route around them, so a URL built from any text is valid: a route at `/über/:id` gives `/%C3%BCber/42`. The characters a path can have as they are stay unencoded: letters, digits, `-._~`, a `/`, which only a placeholder whose format accepts a `/` (such as `<path>`) takes, and ``:@!$&'()*+,;=``. So a value like `":signed_id"`, used as a marker in a URL template for JavaScript, stays as written. Query parameters are encoded like a submitted form: a space becomes `+`, and `/`, `:`, `@`, `,`, `[` and `]` are encoded too. A value that is not a string is encoded from its `str()`:
 
 ```python
 app.url_for("Tag.show", tag="rock & roll?")       # /tags/rock%20&%20roll%3F
 app.url_for("Doc.show", page="guide/intro")       # /docs/guide/intro
 app.url_for("Post.index", q="a&b", sort="new")    # /posts?q=a%26b&sort=new
+app.url_for("Auth.login", next="/admin/x")        # /login?next=%2Fadmin%2Fx
 ```
 
 Pass the values as they are, not encoded: an already-encoded `"a%20b"` would become `a%2520b`.

@@ -24,21 +24,38 @@ CABLE = {"type": "proper.channels.Cable"}
 
 ### ⚠️ Upgrading: `url_for` percent-encodes and checks whole values
 
-`url_for` now percent-encodes the placeholder values and the query string,
-and a value must match its placeholder's format as a whole. In a path value,
-every character is encoded except letters, digits, `-._~`, `/` and
-`:@!$&'()*+,;=` (the ones a path allows as they are), so `url_for`
-gives different URLs for values with a space, `?`, `#`, `%`, `"`, `<`, `>`,
-`[`, `]`, `{`, `}`, `|`, `\`, `^`, a backtick or a non-ASCII character. This
-also applies to URL templates for JavaScript built with `url_for`: a marker
-such as `":signed_id"` stays as written, but one such as `"{id}"` becomes
-`%7Bid%7D`; use a marker made of the characters above. Two things to change:
+`url_for` now percent-encodes the path (the placeholder values and the text
+of the route around them) and the query string, and a value must match its
+placeholder's format as a whole. In the path, every character is encoded
+except letters, digits, `-._~`, `/` and `:@!$&'()*+,;=` (the ones a path
+allows as they are), so `url_for` gives different URLs for values, or route
+text, with a space, `?`, `#`, `%`, `"`, `<`, `>`, `[`, `]`, `{`, `}`, `|`,
+`\`, `^`, a backtick or a non-ASCII character. This also applies to URL
+templates for JavaScript built with `url_for`: a marker such as
+`":signed_id"` stays as written, but one such as `"{id}"` becomes
+`%7Bid%7D`; use a marker made of the characters above.
+
+Query values are encoded as a form (`urlencode`), so more characters change
+there: a space becomes `+`, and `/`, `:`, `@`, `,`, `[` and `]` are
+percent-encoded. `url_for("Auth.login", next="/admin/x")` was
+`/login?next=/admin/x` and is now `/login?next=%2Fadmin%2Fx`. The app reads
+the value back the same, but a test that asserts an exact URL or a redirect's
+`Location` with such a value must be updated.
+
+Three things to change:
 
 - Pass raw values. A value you encoded yourself is encoded again:
   `url_for("Tag.show", tag=quote(name))` gives `/tags/a%2520b` for `"a b"`;
   write `url_for("Tag.show", tag=name)`.
-- A value that only started with a valid one, such as `"42abc"` for an
-  `<int>` placeholder or `"english"` for `<en|es|pt>`, now raises
+- A value with a `/` now raises `BadRoutePlaceholder`, unless its
+  placeholder's format accepts a `/` (`<path>`). It built a broken link
+  before: `url_for` for `/posts/:slug` with the slug `"a/b"` gave
+  `/posts/a/b`, which doesn't match the route. Now the page that renders the
+  link, with `url_for`, `url_is` or `url_startswith`, fails with a 500. If
+  your data (slugs, titles, codes) can have a `/`, use a `<path>`
+  placeholder, or remove the `/` from the value.
+- Any other value that only started with a valid one, such as `"42abc"` for
+  an `<int>` placeholder or `"english"` for `<en|es|pt>`, also raises
   `BadRoutePlaceholder` instead of building a URL that doesn't match the
   route. Pass the right value.
 
@@ -76,16 +93,25 @@ handler for a subclass (such as `NotFound`), the subclass handler was never
 called and now it is. If you want the base class handler to take those
 errors, remove the subclass handler.
 
+A handler registered for an abstract base class no longer gets the errors of
+the classes registered with `ABC.register()` (its virtual subclasses), as an
+`except` clause doesn't either. Those errors now go to a handler for one of
+their real base classes, or to the default error page. To keep them in that
+handler, register it for the concrete classes too, or make them inherit from
+the ABC.
+
 ### ⚠️ Upgrading: `set_signed_cookie` signs with the salt `"cookie"`
 
 `response.set_signed_cookie()` now signs with the salt `"cookie"` by
 default, as `set_cookie(signed=True)` and `request.get_signed_cookie()`
 already did. It used `""`, so a cookie set without a salt couldn't be read
 back without one. If you worked around it by reading with
-`get_signed_cookie(name, salt="")`, remove `salt=""` from that call (or add
-it to the `set_signed_cookie()` call too); otherwise the cookies set after
-the upgrade don't verify. Cookies that browsers keep from before the upgrade
-are signed with `""` and are read again only with `salt=""`.
+`get_signed_cookie(name, salt="")`, the cookies set after the upgrade don't
+verify. Add `salt=""` to the `set_signed_cookie()` call too: the cookies
+that browsers keep from before the upgrade, signed with `""`, stay valid,
+and nothing else changes. (Removing `salt=""` from the read instead also
+works for new cookies, but every cookie set before the upgrade then fails to
+verify, so its users lose what it kept, such as a "remember me" login.)
 
 ### ⚠️ Upgrading: JSON bodies that are not an object
 
@@ -101,22 +127,37 @@ A multipart body that ends before its final boundary is now a
 
 ### ⚠️ Upgrading: forwarding headers count only from `TRUSTED_PROXIES`
 
-`request.remote_ip` and `request.is_secure` (and so the session cookie's
-`Secure` flag) now read the `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and
-`X-Forwarded-Proto` headers only when the request comes from one of the
-reverse proxies in the new `TRUSTED_PROXIES` setting. From any other
-address they are ignored, and `remote_ip` is the address the request came
-from. The default is the loopback, private and link-local networks
+`request.remote_ip` and `request.protocol` now read the `X-Forwarded-For`,
+`Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` headers only when the
+request comes from one of the reverse proxies in the new `TRUSTED_PROXIES`
+setting, or from a peer without an address (a server on a Unix socket, which
+only a process on the same machine can reach). From any other address they
+are ignored, and `remote_ip` is the address the request came from.
+`request.protocol` decides `request.is_secure`, `default_port`,
+`port_is_default`, `port_string` and `host_with_port`, and whether the
+session and auth cookies are `Secure`: behind a proxy that is not in the
+list, they lose the `Secure` flag without any error.
+
+The default is the loopback, private and link-local networks
 (`127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
-`169.254.0.0/16`, `fc00::/7`, `fe80::/10`), so an app behind a proxy on the
-same machine or the same private network needs no change. If your proxy
-connects to the app from another address (a load balancer with a public
-IP, for example), add it in `config/main.py`, along with the default ranges
-you still need, since the list replaces them:
+`169.254.0.0/16`, `fc00::/7`, `fe80::/10`). An app whose only proxy is on
+the same machine or the same private network needs no change. Every proxy
+in the chain must be in the list, also the ones that never connect to the
+app: if your proxy connects to the app from another address (a load
+balancer with a public IP), or a CDN or public load balancer sits in front
+of your local nginx (Cloudflare or CloudFront in front of nginx, CloudFront
+in front of an ALB), add their addresses in `config/main.py`, along with
+the default ranges you still need, since the list replaces them:
 
 ```python {title="config/main.py"}
 TRUSTED_PROXIES = ["127.0.0.1", "203.0.113.0/24"]
 ```
+
+Without the CDN's ranges, `X-Forwarded-For` arrives as
+`<visitor>, <CDN edge>`, and `remote_ip` is the CDN edge's address for every
+visitor (it was the visitor's, the leftmost). The default `rate_limit` then
+puts every visitor behind one edge in one bucket, so they all get 429s
+together, and the auth sessions record the CDN's address.
 
 Three more changes in how `remote_ip` reads the headers:
 
@@ -129,10 +170,18 @@ Three more changes in how `remote_ip` reads the headers:
   `Forwarded` header through untouched. Behind a proxy that writes only
   `Forwarded` or only `X-Real-IP`, make it remove the `X-Forwarded-For`
   header the client sends.
+- An `X-Forwarded-For` address is returned without a port that a proxy
+  added (`203.0.113.5:51234` gives `203.0.113.5`). A `Forwarded` value is
+  still returned as written.
 - `TestClient` requests now come from the address `client.remote_ip`
   (`127.0.0.1`, a trusted proxy), so an `X-Forwarded-For` header you send
   in a test is used. Before, the client's own `Forwarded` header won over
-  it.
+  it. A test that sets `client.remote_ip` to a public address now gets the
+  forwarding headers ignored: an `X-Forwarded-Proto: https` sent to test
+  `Secure` cookies no longer makes the request secure. Keep the default
+  address for those tests. `make_test_request()` without `client=`, and
+  `Request(...)` without `client`, have no peer address, which counts as
+  trusted, so their forwarding headers are used as before.
 
 ### ⚠️ Upgrading: conditional requests follow RFC 9110
 
@@ -254,8 +303,8 @@ only when the request's headers made the response fresh.
 
 - Any client could set `request.remote_ip` with a `Forwarded`,
   `X-Forwarded-For` or `X-Real-IP` header, and make `request.is_secure`
-  true (and so the session cookie `Secure`) with `X-Forwarded-Proto`:
-  the headers were used whoever sent them. Now they are used only from the
+  true (and so the session and auth cookies `Secure`) with
+  `X-Forwarded-Proto`: the headers were used whoever sent them. Now they are used only from the
   `TRUSTED_PROXIES`, and the address lists are read from the right.
 - The error handler lookup used the first registered handler whose class
   matched, so a handler for `Exception` registered before one for
@@ -271,6 +320,10 @@ only when the request's headers made the response fresh.
   (it was `c=[1, 2]`), which the app reads back as the same `"[1, 2]"`.
 - `url_for` accepted a value that only started with a valid one (`"42abc"`
   for `<int>`); now the whole value must match.
+- `url_for` copied the text of the route as written, so a route such as
+  `/über/:id` or `/my files/:id` gave an invalid URL, and a non-latin-1
+  character in it broke the `Location` header of a redirect. The text is now
+  percent-encoded as the values are: `/%C3%BCber/42`.
 - `url_for` (and the host for `_full=True`) read the route with
   `string.Template` rules, not the placeholder rules used for matching: `:ID`
   in a path raised `KeyError`, `10:30` or a host with a port
@@ -319,11 +372,23 @@ only when the request's headers made the response fresh.
   `If-Modified-Since`: the header sent to the client has whole seconds, and
   the date it sent back was compared with the full time. They are now
   compared in whole seconds, so unchanged static files get their 304.
+- A `Date` or `If-Modified-Since` header that was not a valid date
+  (`If-Modified-Since: garbage`) was a 500 in every action that used
+  `fresh_when()` and for static files. It is now ignored (`None`), as RFC
+  9110 says. A date with a time zone offset (`+0200`) was read as if it were
+  UTC; it is now converted to UTC.
+- Setting `app.config.TRUSTED_PROXIES` to a list of strings after the app
+  was created made every request with an `X-Forwarded-Proto` header fail
+  with a `TypeError` outside the error handling (the server's bare 500),
+  and `request.remote_ip` raise. The list is now parsed when it is used.
 - A request body without `Content-Length` was ignored: a chunked
   (`Transfer-Encoding: chunked`) body in HTTP/1.1, or a body sent without
   the header in HTTP/2, left `request.form` and `request.body` empty. It is
   now read, up to `MAX_CONTENT_LENGTH`, and refused with a 413 as soon as
-  it goes over it.
+  it goes over it. It is read only from a server that sets
+  `wsgi.input_terminated` (Granian, what `proper run` uses, does), because
+  PEP 3333 doesn't promise that `wsgi.input` ends where the body does;
+  from other servers such a body is still ignored, as in Werkzeug.
 - A `subscribed()` that raised an exception after `stream_from()` left the
   connection receiving the broadcasts of that stream, without a subscription,
   and the client waiting for an answer. The streams are now stopped and the

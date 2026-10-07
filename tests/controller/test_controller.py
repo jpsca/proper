@@ -5,6 +5,7 @@ import pytest
 from minijx import ComponentNotFoundError
 
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
+from proper.core.config import DEFAULT_TRUSTED_PROXIES
 from proper.core.response import Response
 from proper.errors import NotFound
 from proper.helpers import DotDict, MultiDict
@@ -24,6 +25,7 @@ def _make_controller(cls=Controller, **request_kw):
     app.config = DotDict({
         "MAX_QUERY_SIZE": 1_048_576,
         "MAX_CONTENT_LENGTH": 8_388_608,
+        "TRUSTED_PROXIES": DEFAULT_TRUSTED_PROXIES,
     })
     request = make_test_request(app=app, **request_kw)
     response = Response(app)
