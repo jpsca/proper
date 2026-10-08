@@ -23,7 +23,10 @@ class RateLimiting(Concern):
     Rate limits are by default unique to the ip address making the request, but
     you can provide your own identity function by passing a method name or a callable
     in the `by` parameter. It's evaluated within the context of the controller processing the
-    request.
+    request. An identity taken from the request (a form value, a header,
+    `request.host`) is whatever the client sends, so a client that changes it
+    gets a new limit: use one when the limit protects what it names (an
+    account, an e-mail domain), and keep a limit by IP next to it.
 
     By default, rate limits are scoped to the controller's path. If you want to
     share rate limits across multiple controllers, you can provide your own scope,
@@ -74,16 +77,28 @@ class RateLimiting(Concern):
             rate_limit = {"to": 10, "within": 3 * MINUTES, "only": "create"}
 
         class SignupsController(AppController):
-            rate_limit={
-                "to": 1000,
-                "within": 10 * SECONDS,
-                "by": lambda self: self.request.host,
-                "react_with": "redirect_to_busy",
-                "only": "new",
-            }
+            rate_limit = [
+                {
+                    "to": 1000,
+                    "within": 10 * SECONDS,
+                    "by": "email_domain",
+                    "react_with": "redirect_to_busy",
+                    "name": "domain",
+                    "only": "create",
+                },
+                {"to": 10, "within": 10 * MINUTES, "only": "create"},
+            ]
+
+            def email_domain(self):
+                # The client chooses it: the limit by IP stops one
+                # client that cycles through domains.
+                email = self.params.get("email") or ""
+                return email.rpartition("@")[2].lower()
 
             def redirect_to_busy(self):
-                redirect_to(busy_controller_url, flash="Too many signups on domain!")
+                self.response.redirect_to(
+                    "Busy.show", flash="Too many signups on domain!"
+                )
 
         class APIController(AppController):
             rate_limit = [

@@ -106,6 +106,31 @@ def test_matching_origin_and_host_default_port_allowed(co, method):
     co._dispatch("action")
 
 
+@pytest.mark.parametrize("host, origin", [
+    ("[2606:4700::1]:8080", "http://[2606:4700::1]:8080"),
+    ("[2606:4700::1]", "http://[2606:4700::1]"),
+])
+def test_matching_origin_and_ipv6_host_allowed(app, host, origin):
+    # A public address, so step 6 (local networks) doesn't apply; no
+    # `Sec-Fetch-Site`, so only step 5 can let it through.
+    co = _make_co(
+        app, method=POST, headers=[("host", host), ("origin", origin)]
+    )
+    co.request.matched_action = "action"
+    co._dispatch("action")
+
+
+def test_origin_of_another_ipv6_host_rejected(app):
+    co = _make_co(
+        app,
+        method=POST,
+        headers=[("host", "[2606:4700::1]:8080"), ("origin", "http://[2606:4700::2]:8080")],
+    )
+    co.request.matched_action = "action"
+    with pytest.raises(InvalidOrigin):
+        co._dispatch("action")
+
+
 # Reject when none of the conditions are met
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_origin_rejected(co, method):

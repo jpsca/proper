@@ -155,6 +155,8 @@ Now eight failed login attempts for the *same email* within fifteen minutes trig
 
 `by` accepts either a callable (typically a `lambda self:`) or a string method name. The latter reads better when the identity logic is non-trivial.
 
+An identity taken from the request (a form value, a header, `request.host`) is whatever the client sends, so a client that changes it gets a new limit. That is fine when the limit protects what the value names, as the login above protects one account; keep a limit by IP next to it (see [Multiple Limits at Once](#multiple-limits-at-once)). `request.host` in particular is the `Host` header, which any route without a `host` accepts, so don't use it as the identity.
+
 ### `react_with`: Don't Raise, Do Something Else
 
 The default reaction to a hit is `raise TooManyRequests`. That returns a 429 with whatever your `Exception` error handler renders. For a public API that's right; for a login form, you usually want to redirect back with a flash message instead:

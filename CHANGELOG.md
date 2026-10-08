@@ -160,7 +160,11 @@ host (its step 5).
   sends the address in `proxy_pass` (`127.0.0.1:2300`), and the routes for
   a host answer 404.
 - An invalid `Host` header (`example.com/x`, a space, `user@example.com`)
-  is now a `400 Bad Request`. It was ignored.
+  is now a `400 Bad Request`. It was ignored. So is a request with more
+  than one `Host` line, as RFC 9112 §3.2 requires, even when the lines are
+  the same: Granian joins them with a comma (`a.com,b.com`), so a `Host`
+  with a comma is refused, and a `Request` built with repeated `host`
+  pairs gets the same 400.
 - `OriginProtection` step 6 (both the `Origin` and the host on the local
   network) now needs the `Host` to be a local address. Before, the host was
   the bind address (`0.0.0.0`, which counts as local), so any `Origin` on
@@ -528,6 +532,25 @@ token as missing, where they were a 500.
   `proper run`), never the `Host` header, so routes with a `host` answered
   404 and `OriginProtection` never matched the `Origin` with the host. It
   is now the `Host` header, and an invalid one is a 400.
+- `request.host_with_port` didn't put an IPv6 address back in brackets:
+  `Host: [2606:4700::1]:8080` gave `2606:4700::1:8080`, which never equals
+  the `Origin`, so `OriginProtection` refused a same-origin `POST` to an
+  IPv6 address unless the browser sent `Sec-Fetch-Site`. It now gives
+  `[2606:4700::1]:8080`, also for the server's address without a `Host`
+  header.
+- `make_test_request` passed the header names as given, and `Request`
+  reads lowercase names only, so `headers={"Host": "api.example.com"}` gave
+  `request.host == "example.com"`, and any other name with a capital letter
+  was not seen. The names are now lowercased, as `TestClient` and the
+  server give them; a name given more than once stays repeated, in order.
+  A URL with an IPv6 address and no port (`http://[::1]/`) raised
+  `ValueError`, and with a port `request.server` kept the brackets
+  (`("[::1]", 8080)`); it is now `("::1", 8080)`, as Granian gives it.
+- The `RateLimiting` docstring keyed a signup limit on `request.host`, the
+  client's `Host` header, so a client following it could pick its own limit.
+  The example now keys on the e-mail domain of the form, next to a limit by
+  IP, and the docs say that an identity taken from the request is chosen by
+  the client.
 - Signing in with the auth addon was a 500 for IPv6 visitors, for IPv4
   visitors of a server listening on `::`, and when `remote_ip` was not an
   address: `Session.ip_address` was an `IPField`, which takes IPv4 only.

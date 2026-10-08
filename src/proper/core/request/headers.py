@@ -38,7 +38,9 @@ class RequestHeadersMixin:
         # As PEP 3333 rebuilds the URL: the `Host` header, else the address
         # the request arrived at. That address is where the server listens
         # (`0.0.0.0`, or a Unix socket), not the name the client asked for.
-        host_header = self.headers.get("host")
+        # Repeated lines are joined with commas, as the server does, so
+        # they are a 400 (RFC 9112 §3.2).
+        host_header = self._combined("host")
         if host_header:
             host, port = parse_host(host_header)
             host = host.lower()
@@ -220,11 +222,13 @@ class RequestHeadersMixin:
     @property
     def host_with_port(self) -> str:
         """Returns a host:port string for this request, such as “example.com” or
-        “example.com:8080”.
+        “example.com:8080”: the netloc of its URL, so an IPv6 address is in
+        brackets, as in the `Host` header (“[2001:db8::1]:8080”).
 
         Port is only included if it is not a default port (80 or 443)
         """
-        return f"{self.host}{self.port_string}"
+        host = f"[{self.host}]" if ":" in self.host else self.host
+        return f"{host}{self.port_string}"
 
     @property
     def if_none_match(self) -> list[str]:
@@ -650,13 +654,17 @@ def parse_cookie(cookie_string: str | None) -> dict[str, str]:
 # Host = uri-host [ ":" port ] per RFC 9112 §3.2 / RFC 3986 §3.2.2-3.2.3.
 # uri-host is a bracketed IP-literal (IPv6), an IPv4 address, or a reg-name
 # (unreserved / pct-encoded / sub-delims); the optional port is *DIGIT.
+# The reg-name here has every sub-delim but the comma: a server joins the
+# lines of a repeated `Host` header with commas (Granian 2.8.3 does), and a
+# request with more than one `Host` line is a 400 (RFC 9112 §3.2). A host
+# name (RFC 1123) has no comma.
 # Anchored with \A...\Z (not ^...$) so a trailing newline can't sneak past.
 RX_VALID_HOST = re.compile(
     r"\A"
     r"(?:"
     r"\[[0-9A-Fa-f:.]+\]"  # IP-literal (IPv6)
     r"|"
-    r"(?:[A-Za-z0-9\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})+"  # IPv4 / reg-name
+    r"(?:[A-Za-z0-9\-._~!$&'()*+;=]|%[0-9A-Fa-f]{2})+"  # IPv4 / reg-name
     r")"
     r"(?::[0-9]*)?"  # optional port
     r"\Z"
