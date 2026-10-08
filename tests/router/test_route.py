@@ -1,3 +1,4 @@
+import importlib
 import re
 from urllib.parse import unquote
 
@@ -764,3 +765,22 @@ class TestRouteFormatHost:
         r = Route("GET", "/", host="localhost:PORT")
         assert r.host_placeholders == {}
         assert r.format_host() == "localhost:PORT"
+
+
+class TestRouteTemplateIsRemoved:
+    """The CHANGELOG says `RouteTemplate` is removed and importing it raises
+    `ImportError`. Before, both `proper.router` and `proper.router.route`
+    exported it."""
+
+    def test_importing_it_raises_import_error(self):
+        with pytest.raises(ImportError, match="RouteTemplate"):
+            from proper.router import RouteTemplate  # noqa: F401, PLC0415
+        with pytest.raises(ImportError, match="RouteTemplate"):
+            from proper.router.route import RouteTemplate  # noqa: F401, PLC0415
+
+    @pytest.mark.parametrize("module", ["proper.router", "proper.router.route"])
+    def test_it_is_not_an_attribute(self, module):
+        mod = importlib.import_module(module)
+        with pytest.raises(AttributeError):
+            mod.RouteTemplate  # noqa: B018
+        assert "RouteTemplate" not in mod.__all__
