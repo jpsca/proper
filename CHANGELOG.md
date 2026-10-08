@@ -713,9 +713,9 @@ class RouteTemplate(Template):
   the same characters took time that grows as a power of the length of the
   path or host, which the client chooses: Python's `re` tries every way to
   split the text between the placeholders before it gives up. A `Host` of
-  2 001 dots against `:a.:b.:c.example.com` took 12.8 s, and a path of
-  2 001 characters against `/x/:a-:b-:c.html` 10.8 s, each blocking a
-  worker. Such patterns are now matched in time linear in the length (a
+  2 000 dots and an `x` against `:a.:b.:c.example.com` took 12.8 s, and a
+  path of 2 001 characters against `/x/:a-:b-:c.html` 10.8 s, each
+  blocking a worker. Such patterns are now matched in time linear in the length (a
   path of 64 001 characters: 0.05 s), with the same results as `re`, by a
   matcher that marks, from the right, where the rest of the pattern can
   still match, and then gives each placeholder the first choice `re`
