@@ -80,10 +80,15 @@ class TestForwarding:
             cable.disconnect(user_id=7)  # not batched
 
         [(_, disconnect), (_, batch)] = Recorder.received
-        disconnect, batch = app.loads(disconnect, salt=CABLE_SALT), app.loads(batch, salt=CABLE_SALT)
+        disconnect, batch = (
+            app.loads(disconnect, salt=CABLE_SALT),
+            app.loads(batch, salt=CABLE_SALT),
+        )
         assert disconnect.pop("id") != batch.pop("id")
         assert disconnect == {"disconnect": {"user_id": 7}}
-        assert batch == {"batch": [{"stream": "a", "data": 1}, {"stream": "b", "data": 2}]}
+        assert batch == {
+            "batch": [{"stream": "a", "data": 1}, {"stream": "b", "data": 2}]
+        }
 
     def test_without_forwarding_a_broadcast_reaches_no_one(self, caplog):
         cable = make_app().cable

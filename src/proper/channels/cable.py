@@ -131,7 +131,9 @@ def _bind_error(host: str, port: int) -> OSError | None:
     can be now."""
     error: OSError | None = None
     try:
-        addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE)
+        addresses = socket.getaddrinfo(
+            host, port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE
+        )
     except OSError as lookup_error:
         return lookup_error
     for family, _, _, _, address in addresses:

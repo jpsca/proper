@@ -610,7 +610,9 @@ class TestLifecycle:
             taken.bind(("127.0.0.1", port))
             taken.listen()
             start = time.monotonic()
-            with pytest.raises(RuntimeError, match=f"could not listen on 127.0.0.1:{port}: .*in use"):
+            with pytest.raises(
+                RuntimeError, match=f"could not listen on 127.0.0.1:{port}: .*in use"
+            ):
                 app.cable.start_server()
             assert time.monotonic() - start < TIMEOUT
         assert not app.cable.serving
@@ -622,7 +624,9 @@ class TestLifecycle:
         not the time."""
         monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.0)
         app = _new_app(_free_ports(), cable={"host": "no-such-host.invalid"})
-        with pytest.raises(RuntimeError, match="could not listen on no-such-host.invalid:"):
+        with pytest.raises(
+            RuntimeError, match="could not listen on no-such-host.invalid:"
+        ):
             app.cable.start_server()
         assert not app.cable.serving
 
@@ -646,7 +650,9 @@ class TestLifecycle:
         else:
             pytest.fail("wse was never late")
         assert not app.cable.serving
-        for family, kind, _, _, address in socket.getaddrinfo("localhost", port, type=socket.SOCK_STREAM):
+        for family, kind, _, _, address in socket.getaddrinfo(
+            "localhost", port, type=socket.SOCK_STREAM
+        ):
             with socket.socket(family, kind) as s:
                 assert s.connect_ex(address) != 0, f"{address} still listening"
         monkeypatch.setattr(cable_module, "START_TIMEOUT", 10.0)
@@ -786,7 +792,9 @@ class TestForwarding:
         ("/elsewhere", "forged", 404),
     ])
     def test_forged_or_misdirected_broadcasts_are_refused(self, wse_app, path, token, status):
-        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT)
+        conn = http.client.HTTPConnection(
+            "127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT
+        )
         conn.request("POST", path, body=token.encode())
         assert conn.getresponse().status == status
         conn.close()
@@ -952,8 +960,15 @@ class TestIdleClients:
 
         assert pings > 0
         assert _wait(lambda: ("unsubscribed", 2) in EVENTS)
-        listener.send({"command": "message", "channel": "RoomChannel", "params": {"room": 1},
-                       "action": "count", "data": {"n": 1}})
+        listener.send(
+            {
+                "command": "message",
+                "channel": "RoomChannel",
+                "params": {"room": 1},
+                "action": "count",
+                "data": {"n": 1},
+            }
+        )
         assert listener.recv_type("message")["data"] == {"n": 1}  # still open
         assert ("unsubscribed", 1) not in EVENTS
         listener.close()
@@ -980,7 +995,9 @@ class TestCluster:
         b = make_app(cable={"cluster": {"port": cluster_b, "peers": [f"127.0.0.1:{cluster_a}"]}})
         # a dials b before b listens and retries with a backoff; b's dial to
         # a succeeds, but each side reports the link in its own time
-        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info()), "the cables never met"
+        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info()), (
+            "the cables never met"
+        )
         return a, b
 
     def _drain(self, client, seconds=0.5):
@@ -1030,18 +1047,25 @@ class TestCluster:
         # Back with both positions: what each machine published since
         a.cable.broadcast("room:1", {"from": "a", "n": 2})
         b.cable.broadcast("room:1", {"from": "b", "n": 2})
-        self._read_until(client, lambda frames: all(
-            {"from": who, "n": 2} in self._broadcasts(frames) for who in "ab"
-        ))  # in b's buffer
+        self._read_until(
+            client,
+            lambda frames: all(
+                {"from": who, "n": 2} in self._broadcasts(frames) for who in "ab"
+            ),
+        )  # in b's buffer
         client.close()
         again = WsClient(b.config.CABLE_PORT, _cookie(b))
         again.send({
             "command": "subscribe", "channel": "RoomChannel", "params": {"room": 1},
             "positions": {"room:1": [{"e": from_a["e"], "o": from_a["o"]}, {"e": from_b["e"], "o": from_b["o"]}]},
         })
-        frames = self._read_until(again, lambda frames: any(
-            f.get("type") == "confirm_subscription" for f in frames
-        ) and all({"from": who, "n": 2} in self._broadcasts(frames) for who in "ab"))
+        frames = self._read_until(
+            again,
+            lambda frames: (
+                any(f.get("type") == "confirm_subscription" for f in frames)
+                and all({"from": who, "n": 2} in self._broadcasts(frames) for who in "ab")
+            ),
+        )
         confirm = [f for f in frames if f.get("type") == "confirm_subscription"][0]
         assert confirm["recovered"] is True
         replayed = [f["data"] for f in frames if f.get("type") == "broadcast"]
@@ -1084,7 +1108,9 @@ class TestCluster:
         client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
         client.subscribe(1)
         assert _wait(lambda: wse_app.cable.streams == {"room:1": 1})
-        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT)
+        conn = http.client.HTTPConnection(
+            "127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT
+        )
         conn.request("GET", "/metrics")
         response = conn.getresponse()
         text = response.read().decode()
