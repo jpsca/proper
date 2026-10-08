@@ -148,6 +148,96 @@ class TestMatch:
         assert co.request.matched_route is not None
 
 
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "localhost",
+            "localhost.",
+            "LOCALHOST",
+            "127.0.0.1",
+            "127.0.0.1.",
+            "127.000.000.001",
+            "127.1",
+            "127.0.1",
+            "127.255.255.254",
+            "2130706433",
+            "0x7f.0.0.1",
+            "0x7F000001",
+            "0177.0.0.1",
+            "0177.0.0.1.",
+            "%31%32%37.0.0.1",
+            "%6Cocalhost",
+            "0.0.0.0",
+            "0",
+            "0.0",
+            "0x",
+            "[::1]",
+            "[0:0:0:0:0:0:0:1]",
+            "[0000::0001]",
+            "[::ffff:127.0.0.1]",
+            "[::ffff:7f00:1]",
+            "[::FFFF:127.1.2.3]",
+            "[::]",
+            "[0:0:0:0:0:0:0:0]",
+            "[::ffff:0.0.0.0]",
+            "127.0.0.1:8000",
+            "[::1]:8000",
+        ],
+    )
+    def test_every_spelling_of_a_local_host_matches_no_host_route(
+        self, app, make_co, host
+    ):
+        class Dummy(Controller):
+            def index(self):
+                pass
+
+        app.router.add_route(
+            Route(method="GET", path="/ok", host=":h<.+>", to=Dummy.index)
+        )
+        co = make_co(method="GET", url="/ok", headers=[("host", host)])
+        with pytest.raises(MatchNotFound):
+            match(co.request, None)
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "example.com",
+            "localhost.example.com",
+            "localhost..",
+            "app.localhost",
+            "127.0.0.1.example.com",
+            "127.0.0.1..",
+            "128.0.0.1",
+            "126.255.255.255",
+            "0.0.0.1",
+            "1",
+            "127.0.0.256",
+            "127.0.0.1.1",
+            "0x7g.0.0.1",
+            "08.0.0.1",
+            "127.0.0.1x",
+            "1.2.3.4",
+            "[::2]",
+            "[::ffff:128.0.0.1]",
+            "[::127.0.0.1]",
+            "[fe80::1]",
+            "%31%32%38.0.0.1",
+            "127%3a0",
+            "127..0.1",
+        ],
+    )
+    def test_other_hosts_match_host_routes(self, app, make_co, host):
+        class Dummy(Controller):
+            def index(self):
+                pass
+
+        app.router.add_route(
+            Route(method="GET", path="/ok", host=":h<.+>", to=Dummy.index)
+        )
+        co = make_co(method="GET", url="/ok", headers=[("host", host)])
+        match(co.request, None)
+        assert co.request.matched_route is not None
+
 
 class TestRedirect:
     def test_returns_none_when_no_route(self, co):
