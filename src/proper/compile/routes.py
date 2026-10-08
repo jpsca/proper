@@ -49,6 +49,16 @@ class Combined:
     groups: tuple[tuple[tuple[str, str, TCaster], ...], ...]
 
     def lookup(self, path: str, host: str | None) -> TFound:
+        if "/." in path:
+            # The path may have a `.` or `..` segment, and `Route.match`
+            # refuses a route whose placeholder value is part of one. The
+            # combined regex would stop at that route, so try the routes
+            # one by one.
+            for route in self.routes:
+                params = route.match(path)
+                if params is not None:
+                    return route, params
+            return None
         m = self.pattern.match(path)
         if m is None:
             return None

@@ -42,7 +42,7 @@ percent-encoded. `url_for("Auth.login", next="/admin/x")` was
 the value back the same, but a test that asserts an exact URL or a redirect's
 `Location` with such a value must be updated.
 
-Three things to change:
+Five things to change:
 
 - Pass raw values. A value you encoded yourself is encoded again:
   `url_for("Tag.show", tag=quote(name))` gives `/tags/a%2520b` for `"a b"`;
@@ -63,7 +63,12 @@ Three things to change:
   raises `BadRoutePlaceholder`. Browsers and HTTP clients remove those
   segments, and the one before a `..`, so `/files/..` opened `/`. If your
   data can be `.` or `..` (file or folder names), pass it in the query
-  string, or prefix it.
+  string, or prefix it. For the same reason, a route no longer matches a
+  request whose value for a placeholder is a `.` or `..` segment, which
+  only a client that keeps those segments sends (`curl --path-as-is
+  /files/..`): the router tries the next routes, and without another
+  match the response is a 404. Before, the action got `".."` as the
+  param.
 - `_anchor` is percent-encoded like the path, keeping `?` as it is:
   `_anchor="a b#c"` gives `#a%20b%23c` (it was `#a b#c`). Pass the anchor
   unencoded; an anchor you encoded yourself (`"a%20b"`) is encoded again
@@ -389,7 +394,9 @@ the action, where they were 500s:
 - Bytes that are not valid in the charset of a urlencoded or JSON body:
   `BadRequest` (400).
 - An unknown charset (`charset=nope`, or a name that Python can't look up,
-  such as one with a NUL): `UnsupportedMediaType` (415).
+  such as one with a NUL), or a charset that can't decode the
+  percent-escapes of a urlencoded body (`charset=idna`):
+  `UnsupportedMediaType` (415).
 - JSON with an integer of more than 4300 digits, or with arrays and
   objects nested deeper than the stack allows: `MultipartError` (400), as
   malformed JSON already was.
@@ -602,7 +609,10 @@ token as missing, where they were a 500.
   (`charset=nope`) was a 500; it is now an `UnsupportedMediaType` (415).
   So is a charset name with a NUL, which RFC 2231 decoding gives for
   `charset*=utf-8''utf-8%00`; in a multipart body such a charset was a 500
-  too, and is now read as Latin-1, as other unknown charsets are.
+  too, and is now read as Latin-1, as other unknown charsets are. A
+  urlencoded body with a percent-escape and `charset=idna` was a 500 too
+  (the `idna` codec has no `replace` error handler, which decoding the
+  escapes uses); it is now a 415.
 - A JSON body that `json.loads()` refuses with something other than a
   `JSONDecodeError` was a 500: an integer with more than 4300 digits
   (`ValueError`), or about 100,000 nested arrays (`RecursionError`). Both

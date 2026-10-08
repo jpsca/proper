@@ -160,6 +160,24 @@ class TestMatch:
         matched, _ = router.match("GET", "/photos/42")
         assert matched is r1
 
+    @pytest.mark.parametrize("host", [None, "example.com"])
+    def test_match_skips_a_route_whose_value_is_a_dot_segment(self, host):
+        """A later route that matches the path is used, here one with the
+        `..` in its own text; without one, the path doesn't match."""
+        router = BaseRouter()
+        files = Route("GET", "/files/:name", name="files", to=Handlers.show, host=host)
+        router.add_route(files)
+        rest = Route("GET", "/files/:rest<.+>", name="rest", to=Handlers.search, host=host)
+        router.add_route(rest)
+        with pytest.raises(MatchNotFound):
+            router.match("GET", "/files/..", host=host)
+
+        up = Route("GET", "/:dir/..", name="up", to=Handlers.action, host=host)
+        router.add_route(up)
+        assert router.match("GET", "/files/..", host=host) == (up, {"dir": "files"})
+        assert router.match("GET", "/files/.env", host=host) == (files, {"name": ".env"})
+        assert router.match("GET", "/files/a", host=host) == (files, {"name": "a"})
+
     def test_match_not_found_raises(self):
         router = BaseRouter()
         with pytest.raises(MatchNotFound):
