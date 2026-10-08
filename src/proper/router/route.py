@@ -72,8 +72,9 @@ RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
 
 """A host longer than this matches no route with a host. A DNS name has at
 most 253 characters (RFC 1035 §2.3.4: 255 bytes on the wire), 254 with a
-trailing dot. The limit keeps the time `re` takes with a custom format
-small."""
+trailing dot. The limit shortens the text `re` reads for a host pattern
+with a custom format, but does not bound that time, which depends on the
+format."""
 MAX_HOST_LENGTH = 255
 
 
