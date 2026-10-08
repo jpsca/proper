@@ -481,11 +481,37 @@ def test_parse_date_rfc850_two_digit_year_in_three_centuries(now_year, value, ex
         # ...and `00` is 2100 throughout 2051.
         ((2051, 1, 1, 0, 0, 0), "31-Dec-00 23:59:59", 2100),
         ((2051, 12, 31, 23, 59, 59), "01-Jan-00 00:00:00", 2100),
+        # ...except `29-Feb-00`, which is 2000: 2100 has no 29 February.
+        ((2051, 1, 1, 0, 0, 0), "29-Feb-00 00:00:00", 2000),
     ],
 )
 def test_parse_date_rfc850_two_digit_year_changelog_examples(now, value, expected):
     now = datetime.datetime(*now, tzinfo=UTC)
     assert parse_date(f"Monday, {value} GMT", now=now).year == expected
+
+
+@pytest.mark.parametrize(
+    "now_year, value, expected",
+    [
+        # A year without that date is skipped: the latest year that has it.
+        (2026, "29-Feb-00 00:00:00", datetime.datetime(2000, 2, 29, tzinfo=UTC)),
+        (2051, "29-Feb-00 00:00:00", datetime.datetime(2000, 2, 29, tzinfo=UTC)),
+        (2051, "28-Feb-00 00:00:00", datetime.datetime(2100, 2, 28, tzinfo=UTC)),
+        # 2200 and 2100 have no 29 February, 2000 has.
+        (2150, "29-Feb-00 00:00:00", datetime.datetime(2000, 2, 29, tzinfo=UTC)),
+        (2051, "29-Feb-04 00:00:00", datetime.datetime(2004, 2, 29, tzinfo=UTC)),
+        (2051, "29-Feb-48 00:00:00", datetime.datetime(2048, 2, 29, tzinfo=UTC)),
+        (2051, "29-Feb-96 00:00:00", datetime.datetime(2096, 2, 29, tzinfo=UTC)),
+        # No year with those last two digits has that date.
+        (2051, "29-Feb-01 00:00:00", None),
+        (2051, "31-Apr-00 00:00:00", None),
+    ],
+)
+def test_parse_date_rfc850_two_digit_year_skips_a_year_without_the_date(
+    now_year, value, expected
+):
+    now = datetime.datetime(now_year, 1, 1, tzinfo=UTC)
+    assert parse_date(f"Monday, {value} GMT", now=now) == expected
 
 
 @pytest.mark.parametrize("offset_hours", [-5, 0, 5, 14, -12])

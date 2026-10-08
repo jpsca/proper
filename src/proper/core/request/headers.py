@@ -581,8 +581,10 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     after `now` (the current time by default): in the next century, this
     one or the one before. So the year can depend on the day and time:
     with `now` at 2026-10-08 12:00:00 UTC, `08-Oct-76 12:00:00` is in 2076
-    and `08-Oct-76 12:00:01` is in 1976. `now` is compared in UTC: an
-    aware `now` is converted to UTC, and a naive one is taken to be in UTC.
+    and `08-Oct-76 12:00:01` is in 1976. A year without that date is
+    skipped: with `now` in 2051, `29-Feb-00` is in 2000, because 2100 has
+    no 29 February. `now` is compared in UTC: an aware `now` is converted
+    to UTC, and a naive one is taken to be in UTC.
 
     Returns:
         A datetime object in UTC, or None if the header is not present or
@@ -609,33 +611,39 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
         59 if match["second"] == "60" else int(match["second"]),
     )
     if match.re is RX_RFC850_DATE:
-        fields = _rfc850_full_year(fields, now or datetime.now(timezone.utc))
+        return _rfc850_date(fields, now or datetime.now(timezone.utc))
     try:
         return datetime(*fields, tzinfo=timezone.utc)
     except ValueError:
         return None
 
 
-def _rfc850_full_year(
+def _rfc850_date(
     fields: tuple[int, int, int, int, int, int], now: datetime
-) -> tuple[int, int, int, int, int, int]:
+) -> datetime | None:
     """RFC 9110 §5.6.7: a two-digit year that appears to be more than 50
     years in the future is the most recent year in the past with the same
     last two digits.
 
     The year is the one with those last two digits in the next century,
-    this one or the one before: the latest whose date is not more than 50
-    years after `now`.
+    this one or the one before: the latest whose date exists and is not
+    more than 50 years after `now`.
     """
     if now.tzinfo is not None:
         now = now.astimezone(timezone.utc)
-    year = now.year - now.year % 100 + 100 + fields[0]
-    rest = fields[1:]
     limit = (now.year + 50, now.month, now.day, now.hour, now.minute, now.second)
-    # At most twice: the year in the century before is before `now`.
-    while (year, *rest) > limit:
-        year -= 100
-    return (year, *rest)
+    rest = fields[1:]
+    first = now.year - now.year % 100 + 100 + fields[0]
+    # The year in the century before is before `now`, so not after `limit`.
+    for year in (first, first - 100, first - 200):
+        if (year, *rest) > limit:
+            continue
+        try:
+            return datetime(year, *rest, tzinfo=timezone.utc)
+        except ValueError:
+            # No such date in that year (29 February, or out of range).
+            continue
+    return None
 
 
 def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:
