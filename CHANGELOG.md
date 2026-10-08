@@ -438,9 +438,10 @@ two-digit year is the latest year with those last two digits that makes the
 date, to the second, not more than 50 years in the future, as RFC 9110
 says. So the year can depend on the day: on 8 October 2026 at 12:00 UTC,
 `08-Oct-76 12:00:00` is 2076, but `08-Oct-76 12:00:01` and `09-Oct-76` are
-1976. Throughout 2026, `77` is 1977; throughout 2051, `00` is 2100. Second 60 is read as second 59
-at any time of day (`08:49:60` as `08:49:59`, not only `23:59:60`): the
-grammar of RFC 9110 allows seconds from 00 to 60.
+1976. Throughout 2026, `77` is 1977; throughout 2051, `00` is 2100.
+Second 60 is read as second 59 at any time of day (`08:49:60` as
+`08:49:59`, not only `23:59:60`): the grammar of RFC 9110 allows seconds
+from 00 to 60.
 
 ### ⚠️ Upgrading: Proper no longer installs python-dateutil
 
