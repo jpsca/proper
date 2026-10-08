@@ -433,8 +433,9 @@ client or a test that builds its own dates in another form.
 The day name is not checked against the date. In the RFC 850 form, a
 two-digit year is the latest year with those last two digits that is not
 more than 50 years in the future, as RFC 9110 says: in 2026, `76` is 2076
-and `77` is 1977; in 2051, `00` is 2100. A leap second (`23:59:60`) is read
-as second 59.
+and `77` is 1977; in 2051, `00` is 2100. Second 60 is read as second 59
+at any time of day (`08:49:60` as `08:49:59`, not only `23:59:60`): the
+grammar of RFC 9110 allows seconds from 00 to 60.
 
 ### ⚠️ Upgrading: `Accept` weights outside 0 to 1, and `Q`
 
