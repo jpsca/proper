@@ -159,6 +159,7 @@ def test_sign_in_with_a_legacy_ip_field_stores_ipv4(app, legacy_session):
         ("::ffff:203.0.113.5", 5000),
         ("2001:db8::1", 5000),
         ("unknown", None),
+        ("_hidden", None),
         None,
     ],
 )
