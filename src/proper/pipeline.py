@@ -45,9 +45,9 @@ def is_local_host(host: str) -> bool:
     """Is `host` (as in `request.host`: lowercase, without the port and the
     brackets of an IPv6 address) a name of this machine?
 
-    It is when, after its percent-escapes are decoded and one trailing dot
-    is removed, it is `localhost`, an IPv4 address in 127.0.0.0/8 or
-    0.0.0.0, or the IPv6 address `::1` or `::`, or one of those IPv4
+    It is when, after its percent-escapes are decoded, it is `localhost` or
+    an IPv4 address in 127.0.0.0/8 or 0.0.0.0, with or without one
+    trailing dot, or the IPv6 address `::1` or `::`, or one of those IPv4
     addresses mapped to IPv6 (`::ffff:127.0.0.1`). An IPv4 address is read
     as browsers read the host of a URL (the WHATWG URL Standard), so
     `127.1`, `127.000.000.001`, `0x7f.0.0.1`, `0177.0.0.1` and
