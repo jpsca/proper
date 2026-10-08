@@ -395,6 +395,15 @@ def test_parse_body_unknown_charset(app, content_type):
         req._read_body_sync(_reader(body))
 
 
+def test_parse_body_form_charset_without_replace_handler(app):
+    """`idna` decodes the body, but not its percent-escapes: those are
+    decoded with the "replace" error handler, which `idna` doesn't have."""
+    body = b"a=%ff"
+    req = _post(app, body, content_type="application/x-www-form-urlencoded; charset=idna")
+    with pytest.raises(UnsupportedMediaType, match="charset"):
+        req._read_body_sync(_reader(body))
+
+
 @pytest.mark.parametrize("charset", ["nope", "charset*=utf-8''utf-8%00"])
 def test_parse_body_multipart_unknown_charset_falls_back_to_latin1(app, charset):
     param = charset if "*" in charset else f"charset={charset}"

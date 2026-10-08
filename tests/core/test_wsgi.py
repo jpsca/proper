@@ -207,6 +207,7 @@ class TestHttp:
         # Unknown charset.
         ("application/json; charset=nope", b"{}", "415 Unsupported Media Type"),
         ("application/json; charset*=utf-8''utf-8%00", b"{}", "415 Unsupported Media Type"),
+        ("application/x-www-form-urlencoded; charset=idna", b"a=%ff", "415 Unsupported Media Type"),
         # JSON that Python can't read: too many digits, too deep.
         pytest.param("application/json", b"1" * 5000, "400 Bad Request", id="long-int"),
         pytest.param(
@@ -281,6 +282,18 @@ class TestHttp:
     def test_not_found(self, app):
         status, _, _ = call(app, make_environ("/nowhere"))
         assert status == "404 Not Found"
+
+    @pytest.mark.parametrize("url, expected", [
+        ("/files/..", "404 Not Found"),
+        ("/files/.", "404 Not Found"),
+        ("/files/.env", "200 OK"),
+    ])
+    def test_a_dot_segment_value_does_not_match(self, app, url, expected):
+        """A client that doesn't remove dot segments (`curl --path-as-is`)
+        gets a 404: `url_for` can't build a URL with such a value."""
+        _route(app, "/files/:name", Echo.index)
+        status, _, _ = call(app, make_environ(url))
+        assert status == expected
 
     def test_missing_addresses_are_none(self, app):
         _route(app, "/echo", Echo.index)

@@ -57,6 +57,19 @@ class TestCombine:
         assert combined.lookup("/files/a/b/c.txt", None) == (routes[2], {"file": "a/b/c.txt"})
         assert combined.lookup("/nope/12", None) is None
 
+    def test_a_route_whose_value_is_a_dot_segment_is_skipped(self):
+        """The combined regex would stop at the first route; the next one
+        that accepts the path is used."""
+        routes = [
+            _route("GET", "posts/:slug"),
+            _route("GET", "posts/:rest<.+>"),
+            _route("GET", ":section/.."),
+        ]
+        combined = combine(routes)
+        assert combined.lookup("/posts/..", None) == (routes[2], {"section": "posts"})
+        assert combined.lookup("/posts/.x", None) == (routes[0], {"slug": ".x"})
+        assert combine(routes[:2]).lookup("/posts/..", None) is None
+
     def test_first_registered_wins(self):
         routes = [_route("GET", "posts/:slug"), _route("GET", "posts/:id<int>")]
         combined = combine(routes)

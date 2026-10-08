@@ -302,6 +302,8 @@ def show(self): ...
 
 A placeholder name starts with a lowercase letter or `_`, followed by lowercase letters, digits, or `_`. Any other text after a `:` is literal, both when matching a request and when building a URL: `/items/:ID` matches only the path `/items/:ID`, and `localhost:5000` in a host is a host and a port. In `/a::b` the first `:` is literal and `:b` is a placeholder.
 
+A route doesn't match a path where a placeholder's value is a `.` or `..` segment, or part of one: `/files/:name` doesn't match `/files/..`, and `/docs/:page<path>` doesn't match `/docs/a/../b`. Browsers remove those segments before sending the request, so only a client that keeps them (`curl --path-as-is`) sends one, and [`url_for`](#values-are-checked-and-percent-encoded) can't build a URL with such a value. The router tries the next routes, and without another match the response is a `404`. A dot in a longer segment is matched as usual: `/files/.env` or `/files/...`.
+
 Captured values arrive in the controller as `self.params`. See the [Controllers guide](/docs/controllers) for how to read them.
 
 ### Custom Route Names

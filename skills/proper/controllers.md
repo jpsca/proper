@@ -609,7 +609,7 @@ The body is read and parsed before routing, by `Content-Type` (media type and pa
 |---|---|
 | Body over `MAX_CONTENT_LENGTH` (also for chunked/HTTP/2 bodies without `Content-Length`, which are read up to the limit) | `RequestEntityTooLarge` (413) |
 | Bytes not valid in the charset | `BadRequest` (400) |
-| Unknown charset | `UnsupportedMediaType` (415) |
+| Unknown charset, or one that can't decode a urlencoded body's percent-escapes (`idna`) | `UnsupportedMediaType` (415) |
 | Malformed JSON or multipart (including a missing final boundary), JSON with an integer over 4300 digits, or nested too deep for the stack | `MultipartError` (400) |
 
 A multipart body is never refused for its charset: with an unknown charset, or for a field not valid in it, the field is read as Latin-1.

@@ -167,6 +167,13 @@ def _dot_segment_placeholder(
     return None
 
 
+def has_dot_segment(path: str) -> bool:
+    """Does `path` have a `.` or `..` segment?"""
+    return "/." in path and any(
+        segment in DOT_SEGMENTS for segment in path.split("/")
+    )
+
+
 class RouteTemplate(Template):
     """A `string.Template` with `:name` placeholders.
 
@@ -363,11 +370,22 @@ class Route:
         return not (self.to or self.redirect)
 
     def match(self, path: str) -> dict | None:
+        """The parameters of `path` if it matches this route, or `None`.
+
+        A path where a placeholder's value is part of a `.` or `..` segment
+        (`/files/..` for `/files/:name`) doesn't match: `format` can't
+        build a URL with that value, because clients remove those segments.
+        """
         assert self.path_re
         m = self.path_re.match(path)
         if m is None:
             return None
         params = m.groupdict()
+        if has_dot_segment(path) and _dot_segment_placeholder(
+            self._raw_path_pieces,
+            {name: params[name] for name in self.path_placeholders},
+        ):
+            return None
         for name, caster in self.path_casters.items():
             if name in params:
                 params[name] = caster(params[name])
@@ -457,6 +475,7 @@ class Route:
         # percent-encoded as the values are (a route is matched against the
         # decoded path), and one compiled regex per placeholder to validate
         # its value.
+        self._raw_path_pieces = pieces
         self._path_pieces = [
             (quote(literal, safe=PATH_SAFE), name) for literal, name in pieces
         ]

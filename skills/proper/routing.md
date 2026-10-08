@@ -177,6 +177,8 @@ def show(self): ...
 
 A placeholder name is `[_a-z][_a-z0-9]*`. Any other text after a `:` is literal, both when matching and in `url_for`: `/items/:ID` matches only `/items/:ID`; `localhost:5000` in a host is a host and a port; in `/a::b` the first `:` is literal and `:b` is a placeholder.
 
+A route doesn't match when a placeholder's value is (part of) a `.` or `..` segment: `/files/:name` doesn't match `/files/..`, `<path>` doesn't match `a/../b`. The router tries the next routes, else `404`. Browsers never send such paths, and `url_for` can't build them. `/files/.env` and `/files/...` match.
+
 #### Custom Route Names
 
 By default, the route name is derived from the controller and method name (e.g., `Item.show`). You can override this with the `name` parameter:

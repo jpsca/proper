@@ -215,7 +215,15 @@ class Request(RequestHeadersMixin):
             "application/x-www-form-urlencoded",
             "application/x-url-encoded",
         ):
-            self.form = parse_query_string(_decode(body, encoding), encoding=encoding)
+            text = _decode(body, encoding)
+            try:
+                self.form = parse_query_string(text, encoding=encoding)
+            except UnicodeError:
+                # The percent-escapes are decoded with the "replace" error
+                # handler, which a codec such as `idna` doesn't support.
+                raise UnsupportedMediaType(
+                    f"Unsupported charset for a form: {encoding!r}."
+                ) from None
 
         elif content_type.startswith("application/json"):
             self.form = parse_json(_decode(body, encoding))

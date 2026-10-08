@@ -575,7 +575,7 @@ The `charset` parameter of the `Content-Type` decodes urlencoded and JSON bodies
 
 - The body is larger than `MAX_CONTENT_LENGTH` (8 MB by default): `413`. A body sent without `Content-Length` (chunked, or over HTTP/2 without the header) is read up to that limit and refused as soon as it goes over it.
 - The body is not valid in its charset: `400`.
-- The charset is unknown: `415`.
+- The charset is unknown, or can't decode the percent-escapes of a urlencoded body (`idna`): `415`.
 - The JSON or the multipart body is malformed, or a multipart body ends before its final boundary: `400`. JSON that Python's `json` module can't read is malformed too: an integer with more than 4300 digits, or arrays and objects nested too deep.
 
 A multipart body is never refused for its charset: with an unknown charset its fields are read as Latin-1, and so is a field that is not valid in the charset.
