@@ -567,7 +567,7 @@ def test_remote_ip_forwarded_skips_trusted_proxies_from_the_right():
         )],
         client=LOCAL_PROXY,
     )
-    assert req.remote_ip == "1.2.3.4:4711"
+    assert req.remote_ip == "1.2.3.4"
 
 
 @pytest.mark.usefixtures("no_current_app")
@@ -575,7 +575,39 @@ def test_remote_ip_forwarded_all_trusted_is_the_leftmost():
     req = _make_request(
         "/", headers=[("forwarded", 'for="[::1]", for=10.0.0.2')], client=LOCAL_PROXY
     )
-    assert req.remote_ip == "[::1]"
+    assert req.remote_ip == "::1"
+
+
+@pytest.mark.usefixtures("no_current_app")
+@pytest.mark.parametrize("hop, expected", [
+    ("1.2.3.4:4711", "1.2.3.4"),
+    ('"[2001:db8::7]:4711"', "2001:db8::7"),
+    ('"[2001:db8::7]"', "2001:db8::7"),
+    ('"[::ffff:203.0.113.5]"', "203.0.113.5"),
+    ('"_hidden:4711"', "_hidden:4711"),
+])
+def test_remote_ip_forwarded_without_the_port(hop, expected):
+    """With the port, the default `rate_limit` key would change with each
+    connection the client opens."""
+    req = _make_request(
+        "/", headers=[("forwarded", f"for={hop}, for=10.0.0.2")], client=LOCAL_PROXY
+    )
+    assert req.remote_ip == expected
+
+
+@pytest.mark.usefixtures("no_current_app")
+@pytest.mark.parametrize("client_part", ['for=1.2.3.4;by="x', 'for="r4nd0m-123'])
+def test_remote_ip_forwarded_a_quote_the_client_leaves_open(client_part):
+    """The client's part of `Forwarded` ends in a quoted string it doesn't
+    close. The element the proxy appends has a quoted value (an IPv6
+    address, or one with a port), and its first quote must not close the
+    client's string: the client would choose `remote_ip`."""
+    req = _make_request(
+        "/",
+        headers=[("forwarded", f'{client_part}, for="[2001:db8::66]:4711";proto=https')],
+        client=LOCAL_PROXY,
+    )
+    assert req.remote_ip == "2001:db8::66"
 
 
 @pytest.mark.usefixtures("no_current_app")

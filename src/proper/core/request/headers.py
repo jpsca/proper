@@ -375,12 +375,11 @@ class RequestHeadersMixin:
 
         Returns:
             A string with the IP address, or `""` if there is none. An
-            `X-Forwarded-For` address is returned without its port, and an
-            IPv4-mapped one (`::ffff:1.2.3.4`) as IPv4 (`1.2.3.4`). A
-            `Forwarded` value is returned as written: it can have a port
-            (`1.2.3.4:8080`, `"[2001:db8::1]:4711"`). A value that is not an
-            address is returned as written: an obfuscated identifier
-            (`_hidden`, `unknown`).
+            address from `X-Forwarded-For` or `Forwarded` is returned
+            without its port and brackets (`[2001:db8::1]:4711` gives
+            `2001:db8::1`), and an IPv4-mapped one (`::ffff:1.2.3.4`) as
+            IPv4 (`1.2.3.4`). A value that is not an address is returned as
+            written: an obfuscated identifier (`_hidden`, `unknown`).
 
         """
         peer = self.client[0] if self.client else ""
@@ -392,15 +391,22 @@ class RequestHeadersMixin:
             hop.strip() for hop in (self.headers.get("x-forwarded-for") or "").split(",")
         ]
         hops = [hop for hop in hops if hop]
+        if not hops:
+            # Each element is parsed on its own, as Rack does: a quoted
+            # string that the client leaves open must not take in the
+            # element that a trusted proxy appends.
+            hops = [
+                fw["for"]
+                for element in (self.headers.get("forwarded") or "").split(",")
+                for fw in parse_forwarded(element)
+                if "for" in fw
+            ]
         if hops:
             hop = closest_untrusted_hop(hops, trusted)
-            # Some proxies (Azure Application Gateway) add the port.
+            # Without the port that some proxies add (Azure Application
+            # Gateway), which changes with each connection of the client.
             ip = parse_ip(hop)
             return str(ip) if ip else hop
-
-        hops = [fw["for"] for fw in self.forwarded if "for" in fw]
-        if hops:
-            return closest_untrusted_hop(hops, trusted)
 
         realip = self.headers.get("x-real-ip")
         if realip:

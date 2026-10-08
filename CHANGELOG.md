@@ -177,17 +177,21 @@ Three more changes in how `remote_ip` reads the headers:
   writes only `Forwarded`, make it remove the client's `X-Forwarded-For`;
   behind one that writes only `X-Real-IP`, make it remove the client's
   `X-Forwarded-For` and `Forwarded`.
-- An `X-Forwarded-For` address is returned without a port that a proxy
-  added (`203.0.113.5:51234` gives `203.0.113.5`), and an IPv4-mapped
-  address as IPv4 (`::ffff:203.0.113.5` gives `203.0.113.5`). A
-  `Forwarded` value is still returned as written.
+- An `X-Forwarded-For` or `Forwarded` address is returned without a port
+  or brackets that a proxy added (`203.0.113.5:51234` gives `203.0.113.5`,
+  `"[2001:db8::7]:4711"` gives `2001:db8::7`), and an IPv4-mapped address
+  as IPv4 (`::ffff:203.0.113.5` gives `203.0.113.5`). With the port, the
+  default `rate_limit` counted each connection of a client on its own. Each
+  element of `Forwarded` is parsed on its own, so a quoted string that the
+  client leaves open can't take in the element a trusted proxy appends.
 
 Make the proxy drop the request headers with an underscore in the name,
 such as `X_Forwarded_For`. The WSGI server gives the app `X-Forwarded-For`
 and `X_Forwarded_For` under the same name, so the app can't tell the
 client's header from the proxy's, and Granian can keep the client's value.
-nginx drops these headers unless `underscores_in_headers` is on; a proxy
-built on Go's `httputil.ReverseProxy` passes them through.
+nginx drops these headers unless `underscores_in_headers` is on or
+`ignore_invalid_headers` is off; a proxy built on Go's
+`httputil.ReverseProxy` passes them through.
 
 In tests, `TestClient` requests now come from the address
 `client.remote_ip` (`127.0.0.1`, a trusted proxy), so an `X-Forwarded-For`
