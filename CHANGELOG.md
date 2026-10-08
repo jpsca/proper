@@ -32,9 +32,12 @@ request, now returns only once wse listens on `CABLE_PORT`, and raises
   or the cable's `host` is not an address of this machine or can't be looked
   up (`wse-server could not listen on 0.0.0.0:2301: [Errno 98] Address
   already in use`);
-- after 10 seconds, when wse has not bound the port by then (a machine too
-  busy to run it, a slow lookup of `host`). It is stopped once it binds, so
-  nothing is left listening on the port.
+- when wse has neither bound the port nor given up after 10 seconds (a
+  machine too busy to run it, a slow lookup of `host`). `start_server()`
+  then keeps waiting until wse does one or the other, with no upper limit,
+  because wse can't be stopped before it binds; it raises only then, and
+  stops wse if it bound late, so nothing is left listening on the port
+  when it raises.
 
 Before, `start_server()` returned in those cases with a cable that served
 nothing: the app ran, and its WebSockets never connected, or connected to
