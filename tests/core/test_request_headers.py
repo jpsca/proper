@@ -1174,6 +1174,7 @@ def test_host_from_header_simple():
     "[::1]",
     "[::1]:9090",
     "[2001:db8::1]:443",
+    "[::ffff:1.2.3.4]",  # an IPv6 address with the IPv4 form at its end
     "my-host_1.example~test",  # unreserved chars
     "xn--80ak6aa92e.com",  # punycode (IDN)
 ])
@@ -1199,6 +1200,13 @@ def test_accepts_valid_host(value):
     "a.com, b.com",
     "a.com,",
     "[::1],[::2]",
+    # RFC 3986 §3.2.2: an IPv6 address in the brackets, nothing else.
+    "[abc]",
+    "[1.2.3.4]",
+    "[127.0.0.1]:81",
+    "[::1::2]",
+    "[]",
+    "[v1.x]",  # IPvFuture
 ])
 def test_rejects_invalid_host(value):
     with pytest.raises(InvalidHeader, match="Host"):

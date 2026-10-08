@@ -1,11 +1,12 @@
 import pytest
 
-from proper import Response
+from proper import App, Response
 from proper.concerns import OriginProtection
 from proper.constants import DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY
 from proper.controller import Controller
 from proper.errors import InvalidOrigin
-from proper.test_client import make_test_request
+from proper.router import Route
+from proper.test_client import TestClient, make_test_request
 
 
 class _TestController(OriginProtection, Controller):
@@ -350,3 +351,43 @@ def test_local_origin_to_a_public_host_header_rejected(app, method):
 
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
+
+
+# An `Origin` that `urlparse` refuses matches no host: a 403, not a 500.
+UNPARSEABLE_ORIGINS = [
+    "http://[abc]",  # brackets around something that is not an IPv6 address
+    "http://[127.0.0.1]",  # an IPv4 address in brackets
+    "http://[::1",  # a bracket left open
+    "http://example.com]",  # a stray bracket
+]
+
+
+@pytest.mark.parametrize("origin", UNPARSEABLE_ORIGINS)
+@pytest.mark.parametrize("host", ["example.com", "127.0.0.1"])
+def test_unparseable_origin_rejected(app, origin, host):
+    co = _make_local_co(app, origin, host)
+    with pytest.raises(InvalidOrigin):
+        co._dispatch("action")
+
+
+class _PostsController(OriginProtection, Controller):
+    def create(self):
+        return self.render(text="posted")
+
+
+@pytest.mark.parametrize("origin", UNPARSEABLE_ORIGINS)
+def test_unparseable_origin_is_a_403(origin):
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50]})
+    app.router.add_route(Route(method="POST", path="/p", to=_PostsController.create))
+    client = TestClient(app)
+    assert client.post("/p", headers={"origin": origin}).status == 403
+    # Whatever the trusted origins are.
+    app.config["TRUSTED_ORIGINS"] = ["http://example.com"]
+    assert client.post("/p", headers={"origin": origin}).status == 403
+
+
+def test_unparseable_origin_allowed_by_sec_fetch_site(app):
+    """Step 4 comes before the `Origin` is parsed."""
+    co = _make_local_co(app, "http://[abc]", "example.com")
+    co.request.headers["sec-fetch-site"] = "same-origin"
+    co._dispatch("action")
