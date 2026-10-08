@@ -7,8 +7,11 @@ WebSockets are served by one process, and the broadcasts made in any other
 one are forwarded to it over the loopback, signed with the app's secret keys.
 """
 import http.client
+import secrets
 import threading
+import time
 import typing as t
+from collections import deque
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 
@@ -26,8 +29,11 @@ __all__ = ("BaseCable", "CABLE_SALT", "origin_allowed", "allowed_origins")
 # Salt of the signature on broadcasts forwarded to the cable process.
 CABLE_SALT = "cable-broadcast"
 # How long such a broadcast stays valid, in seconds. Loopback is instant;
-# this only bounds a replay.
+# this bounds how long the cable process remembers the ids of what it got.
 FORWARD_MAX_AGE = 30
+# How long a forwarded broadcast waits for its answer before it is sent
+# again. The cable process answers once it has delivered it, which can take
+# longer (backpressure, a busy machine): it ignores the second one by its id.
 FORWARD_TIMEOUT = 2.0
 
 
@@ -91,6 +97,10 @@ class BaseCable:
         # Per thread: the connection to the cable process, kept open between
         # broadcasts, and the broadcasts of an open `batch()`.
         self._local = threading.local()
+        # The ids of the forwarded broadcasts received, and when each was
+        # (oldest first): what is sent again is delivered once.
+        self._received: set[str] = set()
+        self._received_order: deque[tuple[float, str]] = deque()
 
     @property
     def streams(self) -> dict[str, int]:
@@ -205,7 +215,9 @@ class BaseCable:
         between broadcasts (one per thread). A cable that is down loses the
         message and logs it; the page that broadcast still renders."""
         assert self._forward_url and self._sign
-        body = self._sign(payload).encode()
+        # The id makes the second attempt below the same broadcast as the
+        # first, which the cable process may have received and delivered.
+        body = self._sign({**payload, "id": secrets.token_urlsafe(12)}).encode()
         url = urlsplit(self._forward_url)
         for attempt in (1, 2):
             conn = getattr(self._local, "conn", None)
@@ -243,13 +255,17 @@ class BaseCable:
         """Act on what `_forward` sent from another process: a token signed
         with the app's keys (`loads` is `app.loads`), carrying a broadcast
         (`stream` and `data`), several (`batch`), or the user whose
-        connections to close (`disconnect`). Return whether it was valid."""
+        connections to close (`disconnect`). Return whether it was valid.
+        One with the id of one received before (sent again because its
+        answer was late) is valid, and ignored."""
         payload = loads(token, salt=CABLE_SALT, max_age=FORWARD_MAX_AGE)
         if not isinstance(payload, dict) or not (
             "stream" in payload or "batch" in payload or "disconnect" in payload
         ):
             logger.warning("⚠️ [cable] refused a broadcast with a bad signature")
             return False
+        if not self._first_time(payload.get("id")):
+            return True
         if "stream" in payload:
             self._deliver_local(payload["stream"], payload.get("data"))
         for item in payload.get("batch") or ():
@@ -257,6 +273,23 @@ class BaseCable:
         if "disconnect" in payload:
             self._disconnect_local(payload["disconnect"])
         return True
+
+    def _first_time(self, forward_id: t.Any) -> bool:
+        """Whether a forwarded broadcast with this id is new. Its token is
+        valid for `FORWARD_MAX_AGE` seconds, so its id is remembered for as
+        long (and one more, for the token's whole seconds)."""
+        if not isinstance(forward_id, str):
+            return True  # sent by a Proper without ids
+        now = time.monotonic()
+        with self._lock:
+            order = self._received_order
+            while order and order[0][0] < now - FORWARD_MAX_AGE - 1:
+                self._received.discard(order.popleft()[1])
+            if forward_id in self._received:
+                return False
+            self._received.add(forward_id)
+            order.append((now, forward_id))
+            return True
 
     def _deliver_local(self, stream_name: str, data: t.Any) -> None:
         """Deliver a broadcast to the subscribers served here: none."""

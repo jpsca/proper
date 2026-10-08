@@ -9,6 +9,7 @@ import pytest
 
 from proper import App
 from proper.channels import CABLE_SALT, BaseCable
+from proper.channels import base as base_module
 
 
 def make_app(**config):
@@ -63,7 +64,9 @@ class TestForwarding:
 
         [(path, token)] = Recorder.received
         assert path == "/cable"
-        assert app.loads(token, salt=CABLE_SALT) == {"stream": "chat", "data": {"text": "hi"}}
+        payload = app.loads(token, salt=CABLE_SALT)
+        assert len(payload.pop("id")) == 16  # what a second attempt is known by
+        assert payload == {"stream": "chat", "data": {"text": "hi"}}
 
     def test_a_batch_is_one_request(self, cable_server):
         app = make_app()
@@ -77,10 +80,10 @@ class TestForwarding:
             cable.disconnect(user_id=7)  # not batched
 
         [(_, disconnect), (_, batch)] = Recorder.received
-        assert app.loads(disconnect, salt=CABLE_SALT) == {"disconnect": {"user_id": 7}}
-        assert app.loads(batch, salt=CABLE_SALT) == {
-            "batch": [{"stream": "a", "data": 1}, {"stream": "b", "data": 2}]
-        }
+        disconnect, batch = app.loads(disconnect, salt=CABLE_SALT), app.loads(batch, salt=CABLE_SALT)
+        assert disconnect.pop("id") != batch.pop("id")
+        assert disconnect == {"disconnect": {"user_id": 7}}
+        assert batch == {"batch": [{"stream": "a", "data": 1}, {"stream": "b", "data": 2}]}
 
     def test_without_forwarding_a_broadcast_reaches_no_one(self, caplog):
         cable = make_app().cable
@@ -128,6 +131,40 @@ class TestReceiving:
 
         assert "the broadcast to chat reaches no one" in caplog.text
         assert "the broadcast to room reaches no one" in caplog.text
+
+    def test_a_broadcast_sent_again_is_delivered_once(self, caplog):
+        """`_forward` sends a broadcast again when its answer is late, with
+        the same id; the first may have been delivered."""
+        app = make_app()
+        token = app.dumps({"stream": "chat", "data": {}, "id": "abc"}, salt=CABLE_SALT)
+        other = app.dumps({"stream": "chat", "data": {}, "id": "abd"}, salt=CABLE_SALT)
+
+        with caplog.at_level(logging.DEBUG, logger="proper"):
+            assert app.cable.receive_forwarded(token, app.loads) is True
+            assert app.cable.receive_forwarded(token, app.loads) is True  # ignored
+            assert app.cable.receive_forwarded(other, app.loads) is True
+
+        assert caplog.text.count("the broadcast to chat reaches no one") == 2
+
+    def test_a_broadcast_without_an_id_is_always_delivered(self, caplog):
+        """As an older Proper sends them."""
+        app = make_app()
+        token = app.dumps({"stream": "chat", "data": {}}, salt=CABLE_SALT)
+
+        with caplog.at_level(logging.DEBUG, logger="proper"):
+            assert app.cable.receive_forwarded(token, app.loads) is True
+            assert app.cable.receive_forwarded(token, app.loads) is True
+
+        assert caplog.text.count("the broadcast to chat reaches no one") == 2
+
+    def test_ids_are_forgotten_once_their_tokens_expire(self, monkeypatch):
+        cable = make_app().cable
+        assert cable._first_time("a") is True
+        assert cable._first_time("a") is False
+        monkeypatch.setattr(base_module, "FORWARD_MAX_AGE", -2)  # long expired
+        assert cable._first_time("b") is True
+        assert cable._received == {"b"}
+        assert [forward_id for _, forward_id in cable._received_order] == ["b"]
 
     def test_a_bad_signature_is_refused(self, caplog):
         app = make_app()
