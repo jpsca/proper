@@ -34,12 +34,16 @@ class WsClient:
 
     def __init__(
         self, port, cookie="", origin=None, expect=101, rcvbuf=None, path="/cable", headers=(),
+        host="127.0.0.1", read_pause=0.0,
     ):
-        self.sock = socket.socket()
+        # The first address of `host`: the one wse listens on
+        family, _, _, _, address = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)[0]
+        self.sock = socket.socket(family)
         if rcvbuf:  # a client that reads slowly: the server's writes back up
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
+        self.read_pause = read_pause  # after each read from the socket
         self.sock.settimeout(TIMEOUT)
-        self.sock.connect(("127.0.0.1", port))
+        self.sock.connect(address)
         key = base64.b64encode(os.urandom(16)).decode()
         request = (
             f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
@@ -79,6 +83,8 @@ class WsClient:
             if not chunk:
                 raise ConnectionError("closed")
             self.buffer += chunk
+            if self.read_pause:
+                time.sleep(self.read_pause)
         data, self.buffer = self.buffer[:n], self.buffer[n:]
         return data
 
@@ -272,8 +278,8 @@ def _cookie(app, token="good"):
 
 
 def _wait(predicate, timeout=TIMEOUT):
-    until = time.time() + timeout
-    while time.time() < until:
+    until = time.monotonic() + timeout
+    while time.monotonic() < until:
         if predicate():
             return True
         time.sleep(0.02)
@@ -357,11 +363,11 @@ class TestWseCable:
         assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         client.sock.close()  # no close frame: the client just vanished
         assert _wait(lambda: ("unsubscribed", 2) in EVENTS)
-        time.sleep(0.2)
+        assert _wait(lambda: wse_app.cable.streams == {})
+        wse_app.cable.stop_server()  # every command has run: nothing more can come
         assert sorted(EVENTS) == [
             ("subscribed", 1), ("subscribed", 2), ("unsubscribed", 1), ("unsubscribed", 2),
         ]
-        assert _wait(lambda: wse_app.cable.streams == {})
 
     def test_disconnect_a_user_and_clean_up(self, wse_app):
         client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
@@ -578,8 +584,10 @@ class TestLifecycle:
                 app.cable.start_server()
                 apps.append(app)
                 assert app.cable.server.is_running()
-            time.sleep(0.05)  # what the drain thread does at once
-            assert all(app.cable._drain_thread.is_alive() for app in apps)
+            for app in apps:
+                client = WsClient(app.config.CABLE_PORT, _cookie(app), host="localhost")
+                assert client.subscribe(1) is not None, "a cable that answers nothing"
+                client.close()
         finally:  # together: each takes wse a while
             stops = [threading.Thread(target=app.cable.stop_server) for app in apps]
             for stop in stops:
@@ -874,16 +882,21 @@ class TestStalledClients:
         assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         reader.close()
 
-    def test_a_client_that_reads_stays(self, make_app):
-        app = self._app(make_app, limit=100_000, stall=0.6)
-        reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
+    def test_a_client_that_reads_slowly_stays(self, make_app):
+        """wse writes to a client as it reads, in steps of about 120 KB
+        (what its socket's buffer frees), and each step counts as progress.
+        This client reads about 4 KB every 10 ms: more than `limit` waits
+        for it for about 3.5 seconds, longer than the stall timeout, so it
+        would be closed if its progress didn't count; and a step takes about
+        0.3 seconds, so it would take a machine six times slower than that
+        to stall it for the 2 seconds of the timeout."""
+        app = self._app(make_app, limit=200_000, stall=2)
+        reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096, read_pause=0.01)
         reader.subscribe(1)
-        got, thread = _read_all(reader, 4)
-        for _ in range(4):  # under ten times the limit (five frames are over it)
+        for _ in range(9):  # 1.8 MB: under ten times the limit
             app.cable.broadcast("room:1", BIG)
-        thread.join(timeout=TIMEOUT)
-        assert len(got) == 4
-        time.sleep(1.5)
+        for n in range(9):
+            assert reader.recv_type("broadcast") is not None, f"closed after {n} frames"
         assert ("unsubscribed", 1) not in EVENTS
         reader.close()
 
@@ -902,21 +915,40 @@ class TestIdleClients:
         return re.search(r"const WSE_PONG = '(.+)'", source).group(1)
 
     def test_a_client_that_answers_the_pings_stays(self, make_app):
-        app = make_app(cable={"idle_timeout": 2}, CABLE_PING_INTERVAL=1)
+        """Two clients that only listen, one of which answers the pings.
+        The test lasts until wse closes the silent one: by then both have
+        been connected for more than `idle_timeout`, and the one that
+        answers must still be open. Pings every second and an
+        `idle_timeout` of 5: an answer can be about 4 seconds late (a busy
+        machine) before wse takes the client for idle."""
+        app = make_app(cable={"idle_timeout": 5}, CABLE_PING_INTERVAL=1)
         pong = self._pong()
         listener = WsClient(app.config.CABLE_PORT, _cookie(app))
         listener.subscribe(1)
+        silent = WsClient(app.config.CABLE_PORT, _cookie(app))
+        silent.subscribe(2)
+        closed = threading.Event()
 
+        def until_closed():
+            silent.recv_type("never")  # `None` once wse closes it
+            closed.set()
+
+        threading.Thread(target=until_closed, daemon=True).start()
         pings = 0
-        until = time.time() + 4.5  # more than twice the idle timeout
-        while time.time() < until:
-            msg = listener.recv(pings=True)
+        until = time.monotonic() + 5 + TIMEOUT
+        while not closed.is_set():
+            assert time.monotonic() < until, "wse never closed the silent client"
+            msg = listener.recv(pings=True)  # one at least every second
             assert msg is not None, "the server closed a client that answers"
             if msg.get("c") == "WSE" and msg.get("t") == "ping":
                 pings += 1
                 listener.send_text(pong)
 
-        assert pings >= 3
+        assert pings > 0
+        assert _wait(lambda: ("unsubscribed", 2) in EVENTS)
+        listener.send({"command": "message", "channel": "RoomChannel", "params": {"room": 1},
+                       "action": "count", "data": {"n": 1}})
+        assert listener.recv_type("message")["data"] == {"n": 1}  # still open
         assert ("unsubscribed", 1) not in EVENTS
         listener.close()
 
@@ -969,10 +1001,11 @@ class TestCluster:
     def _broadcasts(self, frames):
         return [f["data"] for f in frames if f.get("type") == "broadcast"]
 
-    def _reach(self, cable, client, stream, data, attempts=25):
+    def _reach(self, cable, client, stream, data):
         """Broadcast until the client gets it: the interest of the client's
         machine takes a moment to reach the other one."""
-        for _ in range(attempts):
+        until = time.monotonic() + TIMEOUT
+        while time.monotonic() < until:
             cable.broadcast(stream, data)
             for frame in self._drain(client, 0.4):
                 if frame.get("type") == "broadcast" and frame["data"] == data:
