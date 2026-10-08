@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 from proper.constants import SIGNED_COOKIE_SALT
 from proper.core.request import Request
 from proper.helpers import DotDict, MultiDict
@@ -66,6 +68,37 @@ def test_test_request_headers_mapping():
     req = make_test_request("/", headers={"x-custom": "value", "host": "given.test"})
     assert req.headers.get("x-custom") == "value"
     assert req.headers.get("host") == "given.test"
+
+
+def test_test_request_lowercases_header_names():
+    # As `TestClient` and the server do: `Request` reads lowercase names.
+    req = make_test_request(
+        "/", headers={"Host": "api.example.com", "X-Requested-With": "XMLHttpRequest"}
+    )
+    assert req.host == "api.example.com"
+    assert req.headers.getall("host") == ["api.example.com"]
+    assert req.is_xhr
+
+
+def test_test_request_keeps_repeated_headers_in_order():
+    req = make_test_request(
+        "/", headers=[("X-Forwarded-For", "1.1.1.1"), ("x-forwarded-for", "2.2.2.2")]
+    )
+    assert req.headers.getall("x-forwarded-for") == ["1.1.1.1", "2.2.2.2"]
+
+
+@pytest.mark.parametrize("url, server, host_header, host_with_port", [
+    ("http://[2606:4700::1]:8080/", ("2606:4700::1", 8080), "[2606:4700::1]:8080",
+     "[2606:4700::1]:8080"),
+    ("http://[2606:4700::1]/", ("2606:4700::1", 80), "[2606:4700::1]", "[2606:4700::1]"),
+    ("https://[::1]/", ("::1", 443), "[::1]", "[::1]"),
+])
+def test_test_request_ipv6_url(url, server, host_header, host_with_port):
+    # `server` as Granian gives it (`SERVER_NAME` without brackets).
+    req = make_test_request(url)
+    assert req.server == server
+    assert req.headers.get("host") == host_header
+    assert req.host_with_port == host_with_port
 
 
 def test_test_request_path_only_url():

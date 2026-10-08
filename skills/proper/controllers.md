@@ -1334,6 +1334,8 @@ All options:
 | `name`       | Name to distinguish multiple limits with same scope  | `""`
 | `react_with` | Method name or callable to handle exceeding limit    | raise `TooManyRequests`
 
+A `by` identity taken from the request (a form value, a header, `request.host`) is chosen by the client: changing it gives a new limit. Use one only for what the limit protects (the login of an account) and keep a limit by IP next to it. Never key on `request.host`: it is the client's `Host` header, which every route without a `host` accepts.
+
 Multiple rate limits on the same controller:
 
 ```python

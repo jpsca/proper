@@ -159,7 +159,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `default_port`     | `int`                      | Default port for the protocol (443 or 80)                           |
 | `format`           | `str`                      | Response format from `Accept` header (e.g. `"html"`, `"json"`)     |
 | `forwarded`        | `list[dict[str, str]]`     | Parsed `Forwarded` header                                           |
-| `host_with_port`   | `str`                      | `host:port` (omits port if default)                                 |
+| `host_with_port`   | `str`                      | `host:port` (omits port if default; an IPv6 host in brackets: `[::1]:8080`) |
 | `if_none_match`    | `list[str]`                | ETags from `If-None-Match` header                                   |
 | `if_modified_since`| `datetime \| None`         | Parsed `If-Modified-Since` header                                   |
 | `is_delete`        | `bool`                     | `True` if method is DELETE                                          |

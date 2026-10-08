@@ -300,7 +300,7 @@ TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
 ## Host header
 
 - `request.host` and `request.port` come from the `Host` header (PEP 3333), else from the address the server listens on (`SERVER_NAME`, `0.0.0.0` under `proper run`). Host-constrained routes and `OriginProtection` compare with it. The proxy must pass the client's `Host` (nginx: `proxy_set_header Host $host;`; its default sends the upstream's address).
-- An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400.
+- An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400, and so is a request with more than one `Host` line (RFC 9112 §3.2): Granian joins them with a comma, so a `Host` with a comma is refused.
 - The client chooses the `Host` header. Proper uses it only to pick the route and to compare with `Origin`; it never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config (or the route's own host). Do the same in your code: build absolute URLs that leave the request (emails, links stored or sent to others) with `url_for(_full=True)`, not from `request.host`.
 - `X-Forwarded-Host` and `Forwarded: host=` are not read.
 

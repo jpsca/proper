@@ -1033,6 +1033,37 @@ def test_host_with_port_from_the_host_header():
     assert req.host_with_port == "example.com"
 
 
+@pytest.mark.parametrize("headers, server, expected", [
+    # An IPv6 address goes back in brackets, as in the `Host` header and the
+    # netloc of an `Origin`; the port only when it is not the default one.
+    ([("host", "[2606:4700::1]:8080")], None, "[2606:4700::1]:8080"),
+    ([("host", "[2606:4700::1]")], None, "[2606:4700::1]"),
+    ([("host", "[2606:4700::1]:80")], None, "[2606:4700::1]"),
+    ([("host", "[::FFFF:192.0.2.1]:8080")], None, "[::ffff:192.0.2.1]:8080"),
+    # Without a `Host` header, the server's address has no brackets.
+    ([], ("::1", 8080), "[::1]:8080"),
+    ([], ("::1", None), "[::1]"),
+    ([("host", "192.0.2.1:8080")], None, "192.0.2.1:8080"),
+])
+def test_host_with_port_puts_an_ipv6_address_in_brackets(headers, server, expected):
+    req = Request(headers=headers, server=server)
+    assert req.host_with_port == expected
+
+
+@pytest.mark.parametrize("hosts", [["a.com", "b.com"], ["a.com", "a.com"]])
+def test_more_than_one_host_header_is_refused(hosts):
+    # RFC 9112 §3.2. Granian joins the lines with a comma; a `Request`
+    # built with repeated pairs gets the same answer.
+    with pytest.raises(InvalidHeader, match="Host"):
+        Request(headers=[("host", host) for host in hosts], server=("0.0.0.0", 2300))
+
+
+def test_a_host_header_with_an_ipv6_zone_id_is_refused():
+    # Proper does not accept an IPv6 zone id (RFC 6874, `%25eth0`) in it.
+    with pytest.raises(InvalidHeader, match="Host"):
+        Request(headers=[("host", "[fe80::1%25eth0]:8080")])
+
+
 def test_an_invalid_host_header_is_refused_even_with_a_server():
     with pytest.raises(InvalidHeader, match="Host"):
         Request(headers=[("host", "example.com/x?y")], server=("0.0.0.0", 2300))
@@ -1095,6 +1126,10 @@ def test_accepts_valid_host(value):
     "exam\tple.com",  # control character
     "::1",  # unbracketed IPv6
     "",  # empty
+    "a.com,b.com",  # two `Host` lines, joined by the server (RFC 9112 §3.2)
+    "a.com, b.com",
+    "a.com,",
+    "[::1],[::2]",
 ])
 def test_rejects_invalid_host(value):
     with pytest.raises(InvalidHeader, match="Host"):

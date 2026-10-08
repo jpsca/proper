@@ -72,10 +72,13 @@ def make_test_request(
     """Build a `Request` the way the server would, from a URL.
 
     The URL may carry a scheme, a host and port, a path and a query string.
-    `params`, if given, replace the query string. A `host` header is added
-    unless `headers` already has one; `request.host` and `request.port`
-    come from it. `server` overrides the address the request arrived at
-    (`request.server`), which is the `(host, port)` of the URL.
+    `params`, if given, replace the query string. The header names are
+    lowercased, as the server gives them; a name given more than once is
+    kept as repeated pairs, in order. A `host` header is added unless
+    `headers` already has one; `request.host` and `request.port` come from
+    it. `server` overrides the address the request arrived at
+    (`request.server`), which is the `(host, port)` of the URL, with an
+    IPv6 address without its brackets.
 
     The path is percent-decoded, as the server does: `/tags/a%20b` arrives
     as `/tags/a b`.
@@ -84,17 +87,20 @@ def make_test_request(
     scheme = upa.scheme or "http"
     path = unquote(upa.path or "/")
 
-    if ":" in upa.netloc:
-        host, port_str = upa.netloc.rsplit(":", 1)
+    host, colon, port_str = upa.netloc.rpartition(":")
+    if colon and "]" not in port_str:
         port = int(port_str)
-    else:
+    else:  # No port, or the last `:` is inside an IPv6 address
         host = upa.netloc or "example.com"
         port = SCHEME_DEFAULT_PORTS.get(scheme, 80)
+    # The server gives an IPv6 address without its brackets.
+    host = host.removeprefix("[").removesuffix("]")
 
     query_string = urlencode(params) if params else (upa.query or "")
 
-    pairs = _header_pairs(headers)
-    if not any(name.lower() == "host" for name, _ in pairs):
+    # Lowercased, as the server and `TestClient` give them to `Request`.
+    pairs = [(name.lower(), value) for name, value in _header_pairs(headers)]
+    if not any(name == "host" for name, _ in pairs):
         pairs.insert(0, ("host", upa.netloc or host))
 
     return request_cls(

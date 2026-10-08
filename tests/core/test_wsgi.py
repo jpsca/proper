@@ -348,6 +348,21 @@ class TestHttp:
 
         assert status == "400 Bad Request"
 
+    @pytest.mark.parametrize("host", [
+        "a.com,b.com",  # Granian 2.8.3: `Host: a.com` and `Host: b.com`
+        "a.com,a.com",  # two identical `Host` lines
+        "a.com, b.com",  # one line with two values
+    ])
+    def test_more_than_one_host_is_a_400(self, app, host):
+        """RFC 9112 §3.2: a request with more than one `Host` line is a 400.
+        The server joins the lines with a comma, so a comma is refused."""
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo", headers=[("host", host)])
+
+        status, _, _ = call(app, environ)
+
+        assert status == "400 Bad Request"
+
     @pytest.mark.parametrize("remote_addr, remote_ip, is_secure", [
         # A proxy in the default TRUSTED_PROXIES: its headers are used.
         ("127.0.0.1", "198.51.100.7", True),
