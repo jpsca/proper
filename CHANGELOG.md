@@ -426,23 +426,29 @@ forms of RFC 9110 §5.6.7, all in UTC:
 
 Any other date is ignored (`None`), as an invalid date already was. Before,
 python-dateutil read almost anything: ISO 8601 (`1994-11-06T08:49:37Z`),
-numeric offsets (`+0200`), `UTC` instead of `GMT`, a day without its leading
-zero, lowercase names, extra spaces, `Sun Nov 6 08:49:37 1994` with one
-space. Those are now ignored, so an `If-Modified-Since` in such a form gets
-the full response instead of a 304. Browsers and HTTP clients send the date
-of `Last-Modified` back as it came, so nothing changes for them; update a
+numeric offsets (`+0200`), `UTC` instead of `GMT`, a one-digit day in
+IMF-fixdate or RFC 850 (`Sun, 6 Nov 1994 08:49:37 GMT`), an asctime
+one-digit day with one space before it instead of two
+(`Sun Nov 6 08:49:37 1994`), lowercase names, extra spaces. Those are now
+ignored, so an `If-Modified-Since` in such a form gets the full response
+instead of a 304. Browsers and HTTP clients send the date of
+`Last-Modified` back as it came, so nothing changes for them; update a
 client or a test that builds its own dates in another form.
 
 The day name is not checked against the date. In the RFC 850 form, a
 two-digit year is the latest year with those last two digits that makes the
 date, to the second, not more than 50 years in the future, as RFC 9110
-says. So the year can depend on the day: on 8 October 2026 at 12:00 UTC,
+says; only the next century, this one and the one before are tried. So the
+year can depend on the day: on 8 October 2026 at 12:00 UTC,
 `08-Oct-76 12:00:00` is 2076, but `08-Oct-76 12:00:01` and `09-Oct-76` are
 1976. Throughout 2026, `77` is 1977; throughout 2051, `00` is 2100, but
 `29-Feb-00` is 2000, because a year without that date is skipped and 2100
-has no 29 February. Second 60 is read as second 59 at any time of day
-(`08:49:60` as `08:49:59`, not only `23:59:60`): the grammar of RFC 9110
-allows seconds from 00 to 60.
+has no 29 February. When none of the three years has the date not more
+than 50 years in the future, the header is ignored (`None`): from 2200 to
+2349, `29-Feb-00` is `None`, because 2100, 2200 and 2300 have no 29
+February and 29 February 2400 is more than 50 years ahead. Second 60 is read as second 59 at any time of day (`08:49:60` as
+`08:49:59`, not only `23:59:60`): the grammar of RFC 9110 allows seconds
+from 00 to 60.
 
 ### ⚠️ Upgrading: Proper no longer installs python-dateutil
 
