@@ -219,7 +219,8 @@ The auth addon's `Session.ip_address` was a `pw.IPField`, which stores IPv4
 addresses only: signing in was a 500 (`OSError`) for a visitor with an IPv6
 address, for an IPv4 visitor of Granian listening on `::`
 (`::ffff:203.0.113.5`), and for a `remote_ip` that is not an address
-(`unknown`, or `""` without one). New apps get
+(an identifier a proxy wrote, such as `unknown` or `_hidden`, or `""`
+without one). New apps get
 `pw.CharField(max_length=255, null=True)`, and `create_for_user` stores
 `remote_ip` cut to 255 characters, or `None` if it is empty. `remote_ip`
 has no length limit (a proxy can write any identifier), but an address is
@@ -227,9 +228,11 @@ at most 45 characters.
 
 An app made before has the old field, and **must run the migration below
 when it upgrades**. Without it, the app still runs and IPv4 visitors sign
-in as before, but signing in is still a 500 (`OSError`) for every other
-`remote_ip`: an IPv6 address, an IPv4 address of Granian listening on `::`
-(`::ffff:203.0.113.5`), `unknown`, or `""`. Proper doesn't work around the
+in as before, but signing in is still a 500 (`OSError`) for any
+`remote_ip` that `socket.inet_aton()` refuses, which includes an IPv6
+address, an IPv4 address of Granian listening on `::`
+(`::ffff:203.0.113.5`), an identifier a proxy wrote instead of an address
+(`unknown`, `_hidden`), and `""`. Proper doesn't work around the
 old field. Change the field in `models/session.py`:
 
 ```python {title="models/session.py"}

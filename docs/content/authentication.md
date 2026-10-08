@@ -166,7 +166,7 @@ class Session(BaseModel):
     revoked = pw.BooleanField(...)
 ```
 
-`ip_address` is `request.remote_ip` at sign-in: an IPv4 or IPv6 address, or what a proxy wrote instead of one (`unknown`), cut to 255 characters, and `None` without one. An app made before this field changed has `ip_address = pw.IPField(null=True)`, which holds only IPv4 addresses. Until the app runs the migration to text in the CHANGELOG, signing in is a 500 (`OSError`) for every other `remote_ip`: an IPv6 address, an IPv4 address through Granian listening on `::` (`::ffff:203.0.113.5`), a proxy's `unknown`, or no address (`""`).
+`ip_address` is `request.remote_ip` at sign-in: an IPv4 or IPv6 address, or what a proxy wrote instead of one (`unknown`, `_hidden`), cut to 255 characters, and `None` without one. An app made before this field changed has `ip_address = pw.IPField(null=True)`, which holds only IPv4 addresses. Until the app runs the migration to text in the CHANGELOG, signing in is a 500 (`OSError`) for any `remote_ip` that `socket.inet_aton()` refuses, which includes an IPv6 address, an IPv4 address through Granian listening on `::` (`::ffff:203.0.113.5`), an identifier a proxy wrote instead of an address (`unknown`, `_hidden`), and no address (`""`).
 
 Note that there's both an absolute `expires_at` and a rolling `last_seen_at`.
 
