@@ -736,6 +736,15 @@ token as missing, where they were a 500.
   listens, and raises `RuntimeError` when wse can't bind the port, or binds
   it only after 10 seconds; it returned before, and the cable served
   nothing (see Upgrading).
+- A broadcast forwarded to the cable process (from a task worker, a shell or
+  another copy of `PROCESSES`) could reach the clients twice. The cable
+  process answers once it has delivered it, and delivery waits while the
+  stream's subscribers are behind (backpressure, up to a second per
+  broadcast); an answer later than 2 seconds, as for a `batch()` of three
+  such broadcasts, made the sender send it again, and the copy was
+  delivered too, with a warning that the cable process could not be
+  reached. Each forwarded broadcast now carries an id, and the cable
+  process ignores one it has already received.
 
 ## 0.34
 

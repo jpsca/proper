@@ -16,6 +16,7 @@ import time
 import pytest
 
 from proper import App, Channel, current
+from proper.channels import base as base_module
 from proper.channels import cable as cable_module
 from proper.helpers import BLUEPRINTS
 
@@ -710,6 +711,40 @@ class TestForwarding:
         subprocess.run([sys.executable, "-c", code], check=True, timeout=60)
         assert client.recv_type("broadcast")["data"] == {"from": "a task"}
         client.close()
+
+    def test_a_broadcast_answered_late_is_delivered_once(self, make_app, monkeypatch):
+        """A forwarded broadcast is answered once it is delivered, and
+        delivery waits while the subscribers are behind (backpressure). An
+        answer later than `FORWARD_TIMEOUT` makes the sender try again, and
+        the cable process must not deliver it a second time."""
+        monkeypatch.setattr(base_module, "FORWARD_TIMEOUT", 0.3)
+        app = make_app(cable={"backpressure_timeout": 1.0})
+        port = app.config.CABLE_PORT
+        stalled = WsClient(port, _cookie(app), rcvbuf=4096)  # never reads
+        stalled.subscribe(1)
+        reader = WsClient(port, _cookie(app))
+        reader.subscribe(1)
+        waits, app.cable._backpressure_bytes = app.cable._backpressure_bytes, 0
+        for _ in range(10):  # a backlog, after which each broadcast waits a second
+            app.cable.broadcast("room:1", BIG)
+        app.cable._backpressure_bytes = waits
+        got, thread = _read_all(reader, 10)
+        thread.join(timeout=TIMEOUT)
+
+        other = App("proper", _config(port))  # another process of the app
+        assert not other.cable.serving
+        other.cable.broadcast("room:1", "once")  # sent twice: answered late
+        frames = [reader.recv_type("broadcast")["data"]]
+        # A second delivery would start before this one, and wait as long:
+        # wse would send it first.
+        app.cable.broadcast("room:1", "last")
+        while frames[-1] != "last":
+            msg = reader.recv_type("broadcast")
+            assert msg is not None, frames
+            frames.append(msg["data"])
+        assert frames == ["once", "last"]
+        stalled.close()
+        reader.close()
 
     def test_batches_and_disconnects_are_forwarded(self, wse_app):
         client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))

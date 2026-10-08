@@ -669,7 +669,9 @@ class Cable(BaseCable):
         slows down to the pace of delivery, instead of a backlog growing and
         every message arriving later. The average, so that one stalled client
         doesn't hold everyone back. It waits `backpressure_timeout` seconds at
-        most, less than a forwarded broadcast's timeout. `0` never waits."""
+        most per broadcast. A forwarded broadcast is answered once delivered;
+        one answered later than the sender waits (a batch of them, a busy
+        machine) is sent again, and the copy is ignored. `0` never waits."""
         super().__init__()
         self.app: "App" = None  # ty: ignore[invalid-assignment] - set by `bind()`
         self.server: t.Any = None
