@@ -17,6 +17,7 @@ from proper.pipeline import (
     copy_session,
     dispatch,
     head_to_get,
+    is_local_host,
     match,
     method_override,
     redirect,
@@ -165,6 +166,8 @@ class TestMatch:
             "0x7F000001",
             "0177.0.0.1",
             "0177.0.0.1.",
+            pytest.param("0x" + "0" * 5000 + "7f000001", id="0x0...07f000001"),
+            pytest.param("0" * 5000 + "177.0.0.1", id="00...0177.0.0.1"),
             "%31%32%37.0.0.1",
             "%6Cocalhost",
             "0.0.0.0",
@@ -234,6 +237,28 @@ class TestMatch:
         app.router.add_route(
             Route(method="GET", path="/ok", host=":h<.+>", to=Dummy.index)
         )
+        co = make_co(method="GET", url="/ok", headers=[("host", host)])
+        match(co.request, None)
+        assert co.request.matched_route is not None
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "111111111111",
+            "4294967296",
+            pytest.param("1" * 4301, id="1...1"),
+            pytest.param("127.0.0." + "1" * 4301, id="127.0.0.1...1"),
+        ],
+    )
+    def test_a_long_decimal_part_is_not_local(self, app, make_co, host):
+        # `int` raises `ValueError` for a decimal text of more than 4300
+        # digits; such a host is not an IPv4 address.
+        class Dummy(Controller):
+            def index(self):
+                pass
+
+        app.router.add_route(Route(method="GET", path="/ok", to=Dummy.index))
+        assert is_local_host(host) is False
         co = make_co(method="GET", url="/ok", headers=[("host", host)])
         match(co.request, None)
         assert co.request.matched_route is not None
@@ -448,6 +473,14 @@ class TestPipeline:
             Route(method="GET", path="/hello", to=GreetController.index)
         )
         result = client.get("/hello")
+        assert result.status == status.ok
+        assert result.body == "hello"
+
+    def test_a_host_with_a_long_decimal_part(self, app, client):
+        app.router.add_route(
+            Route(method="GET", path="/hello", to=GreetController.index)
+        )
+        result = client.get("/hello", headers={"host": "1" * 8000})
         assert result.status == status.ok
         assert result.body == "hello"
 
