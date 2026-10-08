@@ -490,8 +490,25 @@ caught those exceptions around `loads()` must check for `None` instead; the
 `except` clauses no longer run. Signed cookies and the session read such a
 token as missing, where they were a 500.
 
+### ⚠️ Upgrading: `RouteTemplate` is removed
+
+`proper.router.RouteTemplate`, the `string.Template` with `:name`
+placeholders that `url_for` used to build URLs, is gone; nothing in Proper
+uses it now. Importing it raises `ImportError`. To build the URL of a
+route, use `url_for`, which follows the placeholder rules of the routes
+(`RouteTemplate` didn't). Code that used the class for its own strings can
+define it, as it was:
+
+```python
+from string import Template
+
+class RouteTemplate(Template):
+    delimiter = ":"
+```
+
 ### Removed
 
+- `proper.router.RouteTemplate` (see "Upgrading" above).
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
   on wse's own mesh (see Added), which also carries presence and recovery
   between machines, something Redis pub/sub couldn't.
@@ -644,8 +661,8 @@ token as missing, where they were a 500.
   in a path raised `KeyError`, `10:30` or a host with a port
   (`localhost:5000`) raised `ValueError`, `/:a<int>bc` raised `KeyError`,
   and `/a::b` lost a `:`. The text that is not a placeholder is now copied
-  as written. `Route` no longer uses `RouteTemplate`, which is kept for
-  compatibility.
+  as written. `Route` no longer uses `RouteTemplate`, which is removed
+  (see "Removed").
 - `url_for` copied `_anchor` as it was: `_anchor="a b#c"` gave
   `/photos#a b#c`. It is now percent-encoded with the characters RFC 3986
   allows in a fragment kept: `/photos#a%20b%23c`.

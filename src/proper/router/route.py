@@ -8,7 +8,6 @@ import re
 import typing as t
 from hashlib import sha256
 from pathlib import Path
-from string import Template
 from urllib.parse import quote, urlencode
 
 import inflection
@@ -28,7 +27,6 @@ from ..types import Iterable, THandler
 
 __all__ = (
     "FORMATS",
-    "RouteTemplate",
     "Route",
     "StaticRoute",
 )
@@ -169,16 +167,6 @@ def _dot_segment_placeholder(
 def has_dot_segment(path: str) -> bool:
     """Does `path` have a `.` or `..` segment?"""
     return "/." in path and any(segment in DOT_SEGMENTS for segment in path.split("/"))
-
-
-class RouteTemplate(Template):
-    """A `string.Template` with `:name` placeholders.
-
-    `Route` no longer uses it to build URLs (it doesn't follow the placeholder
-    rules); it is kept for compatibility.
-    """
-
-    delimiter = ":"
 
 
 def _namespace_prefix(module: str) -> str:

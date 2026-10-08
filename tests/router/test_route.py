@@ -13,7 +13,6 @@ from proper.router.route import (
     FORMATS,
     RE_PLACEHOLDERS,
     Route,
-    RouteTemplate,
     StaticRoute,
 )
 
@@ -37,17 +36,6 @@ class PhotoController:
 
 class Items:
     def list(self): ...
-
-
-
-class TestRouteTemplate:
-    def test_uses_colon_delimiter(self):
-        t = RouteTemplate(":name/:id")
-        assert t.substitute(name="hello", id="42") == "hello/42"
-
-    def test_safe_substitute(self):
-        t = RouteTemplate(":name/:missing")
-        assert t.safe_substitute(name="ok") == "ok/:missing"
 
 
 

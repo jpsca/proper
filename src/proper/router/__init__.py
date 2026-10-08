@@ -1,7 +1,6 @@
 from .route import (
     FORMATS,
     Route,
-    RouteTemplate,
     StaticRoute,
 )
 from .router import (
@@ -17,7 +16,6 @@ from .router import (
 __all__ = (
     "FORMATS",
     "Route",
-    "RouteTemplate",
     "StaticRoute",
     "GROUP_ROUTES",
     "SINGLE_ROUTES",
