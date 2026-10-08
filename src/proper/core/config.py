@@ -103,7 +103,8 @@ default_config = {
     # `request.remote_ip` and `request.is_secure`) only when the request
     # comes from one of these; any client can send them. List every proxy
     # in the chain, a CDN in front of yours too. The default is the
-    # loopback, private and link-local networks, as Rails does. An empty
+    # loopback, private and link-local networks, as Rails does: a client
+    # that connects from one of them counts as a proxy too. An empty
     # list ignores those headers always, except from a peer without an
     # address (Granian or gunicorn on a Unix socket).
     "TRUSTED_PROXIES": [
@@ -196,12 +197,21 @@ def normalize_config(config: DotDict) -> DotDict:
     return config
 
 
+IP_TYPES = (
+    ipaddress.IPv4Address,
+    ipaddress.IPv6Address,
+    ipaddress.IPv4Network,
+    ipaddress.IPv6Network,
+)
+
+
 def parse_trusted_proxies(
     value: t.Any,
 ) -> "tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]":
     """Parse the `TRUSTED_PROXIES` setting: a list of IP addresses or
-    networks in CIDR notation. A network with host bits set, such as
-    `192.168.1.10/24`, is taken as its network (`192.168.1.0/24`).
+    networks in CIDR notation, as strings or as `ipaddress` objects. A
+    network with host bits set, such as `192.168.1.10/24`, is taken as its
+    network (`192.168.1.0/24`).
 
     Raises:
         ConfigError: if it isn't a list or tuple, or an item isn't an IP
@@ -215,6 +225,12 @@ def parse_trusted_proxies(
         )
     networks = []
     for item in value:
+        # `ip_network` also takes an int (`1` is `0.0.0.1/32`), bytes and
+        # tuples, which are more likely a mistake than an address.
+        if not isinstance(item, (str, *IP_TYPES)):
+            raise ConfigError(
+                f"TRUSTED_PROXIES: {item!r} is not an IP address or network."
+            )
         try:
             networks.append(ipaddress.ip_network(item, strict=False))
         except ValueError:

@@ -126,8 +126,8 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `request_method`   | `str`             | Original HTTP method as sent by the client                     |
 | `path`             | `str`             | The request path                                               |
 | `protocol`         | `str`             | `"http"` or `"https"` (respects `X-Forwarded-Proto` from a `TRUSTED_PROXIES` peer) |
-| `host`             | `str`             | The hostname                                                   |
-| `port`             | `int`             | The port number                                                |
+| `host`             | `str`             | The host from the `Host` header (lowercased), else the address the server listens on (`SERVER_NAME`); the client chooses it: never build URLs sent to others from it |
+| `port`             | `int`             | The port from the `Host` header, else the server's port; the protocol's default port without one |
 | `content_type`     | `str`             | MIME type from the `Content-Type` header                       |
 | `content_length`   | `int`             | Body size from the `Content-Length` header (`0` without one)   |
 | `headers`          | `MultiDict`       | HTTP request headers                                           |
@@ -146,7 +146,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `session`          | `DotDict`                  | Session data (read/write)                                           |
 | `query`            | `MultiDict`                | Query string parameters                                             |
 | `query_string`     | `str`                      | Raw query string                                                    |
-| `url`              | `str`                      | Full URL including query string                                     |
+| `url`              | `str`                      | The path and the query string (no scheme or host)                   |
 | `http_version`     | `str`                      | HTTP version (e.g. `"1.1"`)                                        |
 | `server_software`  | `str`                      | How the server names itself (e.g. `"Granian"`); `""` if unknown     |
 | `flashes`          | `list[tuple[str, str]]`    | Flash messages stored in the session                                |

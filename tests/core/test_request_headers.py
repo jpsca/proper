@@ -11,7 +11,7 @@ from proper.core.request.formparser import (
     parse_options_header,
     parse_query_string,
 )
-from proper.core.request.headers import parse_host, parse_request_id
+from proper.core.request.headers import parse_host, parse_request_id, split_forwarded
 from proper.errors import (
     InvalidHeader,
     MultipartError,
@@ -611,6 +611,55 @@ def test_remote_ip_forwarded_a_quote_the_client_leaves_open(client_part):
 
 
 @pytest.mark.usefixtures("no_current_app")
+@pytest.mark.parametrize("proxy_part, expected", [
+    ('host="a,b";for=1.2.3.4', "1.2.3.4"),
+    ('by="x,y";for="[2001:db8::66]:4711"', "2001:db8::66"),
+    ('host="a\\",b";for=1.2.3.4', "1.2.3.4"),
+])
+def test_remote_ip_forwarded_a_comma_in_a_quoted_value_of_the_proxy(proxy_part, expected):
+    """A comma inside a quoted value of the proxy's own element doesn't end
+    the element: its `for=` must not be lost, or `remote_ip` would be the
+    address the client wrote."""
+    req = _make_request(
+        "/", headers=[("forwarded", f"for=6.6.6.6, {proxy_part}")], client=LOCAL_PROXY
+    )
+    assert req.remote_ip == expected
+
+
+@pytest.mark.parametrize("value, elements", [
+    ("", [""]),
+    ("for=1.2.3.4, for=5.6.7.8", ["for=1.2.3.4", " for=5.6.7.8"]),
+    ('for=1, host="a,b";for=2', ["for=1", ' host="a,b";for=2']),
+    ('for="1, for=2', ['for="1', " for=2"]),
+    ('for="1, host="a,b"', ['for="1', ' host="a,b"']),
+    ('a="x\\",y", b="\\\\", c', ['a="x\\",y"', ' b="\\\\"', " c"]),
+])
+def test_split_forwarded(value, elements):
+    assert split_forwarded(value) == elements
+
+
+@pytest.mark.usefixtures("no_current_app")
+@pytest.mark.parametrize("name, lines", [
+    ("x-forwarded-for", ["198.51.100.7", "10.0.0.2"]),
+    ("forwarded", ["for=198.51.100.7", "for=10.0.0.2"]),
+])
+def test_remote_ip_reads_every_line_of_a_forwarding_header(name, lines):
+    """A header sent in several lines is one list, the lines in order (RFC
+    9110 §5.3): the client's address can be in an earlier line than the
+    trusted proxy's."""
+    req = _make_request("/", headers=[(name, line) for line in lines], client=LOCAL_PROXY)
+    assert req.remote_ip == "198.51.100.7"
+
+
+@pytest.mark.usefixtures("no_current_app")
+def test_forwarded_reads_every_line():
+    req = _make_request(
+        "/", headers=[("forwarded", "for=1.2.3.4"), ("forwarded", "for=5.6.7.8;proto=https")]
+    )
+    assert req.forwarded == [{"for": "1.2.3.4"}, {"for": "5.6.7.8", "proto": "https"}]
+
+
+@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_forwarded_obfuscated_identifier():
     req = _make_request(
         "/", headers=[("forwarded", "for=1.2.3.4, for=_hidden")], client=LOCAL_PROXY
@@ -930,6 +979,37 @@ def test_server_none_fallback_to_host_header():
 def test_allow_no_host():
     req = Request()
     assert req.host == ""
+
+
+@pytest.mark.parametrize("host_header, server, host, port", [
+    # The server listens on every address, or on a Unix socket: the name
+    # the client asked for is in the `Host` header (PEP 3333).
+    ("api.example.com", ("0.0.0.0", 2300), "api.example.com", 80),
+    ("api.example.com:8443", ("0.0.0.0", 2300), "api.example.com", 8443),
+    ("API.Example.com", ("/run/app.sock", None), "api.example.com", 80),
+    ("[2001:db8::1]:8080", ("::", 2300), "2001:db8::1", 8080),
+    # Without a `Host` header (HTTP/1.0), or with an empty one, the address
+    # the request arrived at.
+    (None, ("10.0.0.5", 2300), "10.0.0.5", 2300),
+    ("", ("10.0.0.5", 2300), "10.0.0.5", 2300),
+    (None, ("10.0.0.5", None), "10.0.0.5", 80),
+])
+def test_host_from_the_host_header_else_the_server(host_header, server, host, port):
+    headers = [] if host_header is None else [("host", host_header)]
+    req = Request(headers=headers, server=server)
+    assert (req.host, req.port) == (host, port)
+
+
+def test_host_with_port_from_the_host_header():
+    req = Request(headers=[("host", "example.com:8080")], server=("0.0.0.0", 2300))
+    assert req.host_with_port == "example.com:8080"
+    req = Request(headers=[("host", "example.com")], server=("0.0.0.0", 2300))
+    assert req.host_with_port == "example.com"
+
+
+def test_an_invalid_host_header_is_refused_even_with_a_server():
+    with pytest.raises(InvalidHeader, match="Host"):
+        Request(headers=[("host", "example.com/x?y")], server=("0.0.0.0", 2300))
 
 
 def test_host_from_header_ipv6():

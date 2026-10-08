@@ -8,6 +8,7 @@ import contextvars
 import typing as t
 from http import HTTPStatus
 
+from ..errors import BadRequest
 from ..global_context import current
 
 
@@ -56,11 +57,20 @@ class AppWsgi:
     def __call__(
         self: "App", environ: dict, start_response: "Callable"
     ) -> "Iterable[bytes]":
-        request = self._request_from_environ(environ)
+        try:
+            request = self._request_from_environ(environ)
+            error = None
+        except BadRequest as exc:
+            # A header the request can't be built with, such as an invalid
+            # `Host` (the server passes it as the client sent it): a 400 from
+            # the error handlers, for the request without its headers.
+            request = self._request_from_environ(environ, with_headers=False)
+            error = exc
         response = self._respond_sync(
             request,
             environ["wsgi.input"].read,
             input_terminated=bool(environ.get("wsgi.input_terminated")),
+            error=error,
         )
         status, headers, body = response.prepare(request)
         start_response(f"{status} {_reason(status)}", headers)
@@ -70,7 +80,9 @@ class AppWsgi:
         # WSGI servers call `close()` on it when they are done.
         return body
 
-    def _request_from_environ(self, environ: dict) -> "Request":
+    def _request_from_environ(
+        self, environ: dict, *, with_headers: bool = True
+    ) -> "Request":
         # PEP 3333: the path comes as latin-1 "bytes in a str".
         path = environ.get("PATH_INFO", "") or "/"
         path = path.encode("latin-1", "replace").decode("utf-8", "replace")
@@ -79,7 +91,7 @@ class AppWsgi:
             method=environ.get("REQUEST_METHOD", "GET"),
             path=path,
             query_string=environ.get("QUERY_STRING", ""),
-            headers=_headers_from_environ(environ),
+            headers=_headers_from_environ(environ) if with_headers else (),
             scheme=environ.get("wsgi.url_scheme", "http"),
             server=_address(environ.get("SERVER_NAME"), environ.get("SERVER_PORT")),
             client=_address(environ.get("REMOTE_ADDR"), environ.get("REMOTE_PORT")),
@@ -94,6 +106,7 @@ class AppWsgi:
         read: "Callable[[int], bytes]",
         *,
         input_terminated: bool = True,
+        error: Exception | None = None,
     ) -> "Response":
         """`_respond`, on the calling thread, in a context of its own.
 
@@ -105,12 +118,16 @@ class AppWsgi:
         `input_terminated` is the server's `wsgi.input_terminated`: whether
         `read()` returns `b""` at the end of the body (see
         `Request._read_body_sync`).
+
+        `error`, if given, is the response's error from the start: the body
+        is not read, and the error handlers answer.
         """
         return contextvars.copy_context().run(
             self._respond_sync_in_context,
             request,
             read,
             input_terminated=input_terminated,
+            error=error,
         )
 
     def _respond_sync_in_context(
@@ -119,14 +136,18 @@ class AppWsgi:
         read: "Callable[[int], bytes]",
         *,
         input_terminated: bool = True,
+        error: Exception | None = None,
     ) -> "Response":
         current.app = self
         current.request = request
         current.response = response = self.response_cls(self)
-        try:
-            request._read_body_sync(read, input_terminated=input_terminated)
-        except Exception as error:
+        if error is not None:
             response.error = error  # handled by the pipeline
+        else:
+            try:
+                request._read_body_sync(read, input_terminated=input_terminated)
+            except Exception as body_error:
+                response.error = body_error  # handled by the pipeline
         response = self._run_pipeline(request, response)
         current.response = response
         return response

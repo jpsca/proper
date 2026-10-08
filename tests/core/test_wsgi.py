@@ -283,6 +283,51 @@ class TestHttp:
         assert SEEN["request"].server is None
         assert SEEN["request"].client is None
 
+    @pytest.mark.parametrize("server_name, server_port", [
+        ("0.0.0.0", "2300"),  # `proper run` on every address
+        ("::", "2300"),
+        ("/run/app.sock", ""),  # Granian on a Unix socket
+    ])
+    def test_the_host_is_the_host_header(self, app, server_name, server_port):
+        """`SERVER_NAME` is where the server listens, not the name the
+        client asked for: a route for a host must match the `Host`."""
+        app.router.add_route(
+            Route(method="GET", path="/echo", to=Echo.index, host="api.example.com")
+        )
+        environ = make_environ("/echo")
+        environ.update({
+            "SERVER_NAME": server_name,
+            "SERVER_PORT": server_port,
+            "HTTP_HOST": "api.example.com:8443",
+        })
+
+        status, _, _ = call(app, environ)
+
+        assert status == "200 OK"
+        request = SEEN["request"]
+        assert (request.host, request.port) == ("api.example.com", 8443)
+        assert request.host_with_port == "api.example.com:8443"
+
+    def test_without_a_host_header_the_host_is_the_server(self, app):
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo")
+        del environ["HTTP_HOST"]
+        environ.update({"SERVER_NAME": "10.0.0.5", "SERVER_PORT": "2300"})
+
+        call(app, environ)
+
+        assert (SEEN["request"].host, SEEN["request"].port) == ("10.0.0.5", 2300)
+
+    @pytest.mark.parametrize("host", ["example.com/x?y=1", "exa mple.com", "a@b"])
+    def test_an_invalid_host_header_is_a_400(self, app, host):
+        """The server passes the `Host` header as the client sent it."""
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo", headers=[("host", host)])
+
+        status, _, _ = call(app, environ)
+
+        assert status == "400 Bad Request"
+
     @pytest.mark.parametrize("remote_addr, remote_ip, is_secure", [
         # A proxy in the default TRUSTED_PROXIES: its headers are used.
         ("127.0.0.1", "198.51.100.7", True),

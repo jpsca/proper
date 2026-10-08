@@ -880,7 +880,8 @@ Most of what you read from `self.request` and write to `self.response` has come 
 ```python
 self.request.method            # "GET", "POST", "PATCH", ...
 self.request.path              # "/cards/42"
-self.request.url               # full URL including scheme and host
+self.request.url               # "/cards/42?page=2": the path and the query string
+self.request.host              # "example.com": from the Host header, which the client chooses
 self.request.headers           # incoming headers, MultiDict with lowercase keys
 self.request.format            # "html", "json", ... (from the Accept header)
 self.request.is_xhr            # True if X-Requested-With: XMLHttpRequest

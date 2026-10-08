@@ -141,20 +141,22 @@ def _handshake_request(app: "App", details: dict) -> t.Any:
     with `handshake_details`.
 
     A `remote_addr` that isn't `ip:port` is still the peer, checked against
-    `TRUSTED_PROXIES`: a request without a peer counts as from a trusted
-    proxy. There is no peer only without `remote_addr` (the in-memory
-    server's `connect()` without details)."""
+    `TRUSTED_PROXIES`. Without `remote_addr` (the in-memory server's
+    `connect()` without details) the handshake has no peer, and its
+    `X-Forwarded-For` is left out: a request without a peer counts as from
+    a trusted proxy, which here nothing says it came from, so the client
+    could choose its `remote_ip`."""
     path, _, query_string = str(details.get("path") or "/").partition("?")
+    remote_addr = str(details.get("remote_addr") or "")
     headers = [
         (name, value)
         for name, value in (
             ("cookie", details.get("cookies")),
             ("authorization", details.get("authorization")),
-            ("x-forwarded-for", details.get("forwarded_for")),
+            ("x-forwarded-for", details.get("forwarded_for") if remote_addr else None),
         )
         if value
     ]
-    remote_addr = str(details.get("remote_addr") or "")
     host, _, port = remote_addr.rpartition(":")
     if host and port.isdigit():
         client = (host.strip("[]"), int(port))

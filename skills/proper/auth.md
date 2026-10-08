@@ -172,11 +172,13 @@ class Session(BaseModel):
     created_at = pw.DateTimeField(default=pw.utcnow)
     expires_at = pw.DateTimeField()
     last_seen_at = pw.DateTimeField(default=pw.utcnow)
-    ip_address = pw.IPField(null=True)
+    ip_address = pw.CharField(max_length=255, null=True)  # request.remote_ip
     user_agent_hash = pw.CharField(max_length=64)
     user = pw.ForeignKeyField(User, backref="sessions", on_delete="CASCADE")
     revoked = pw.BooleanField(default=False)
 ```
+
+`ip_address` is `request.remote_ip` at sign-in (IPv4, IPv6, or a proxy's `unknown`/`_hidden`), cut to 255 chars, `None` if empty. An older app's `pw.IPField(null=True)` holds only IPv4: `new_session_for` then stores other values as `None` (no 500); migrate the column to `CharField(max_length=255, null=True)` with the migration in the CHANGELOG.
 
 ### Session Lifetime
 

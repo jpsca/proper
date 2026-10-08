@@ -10,6 +10,11 @@ from .base import BaseModel
 from .user import User
 
 
+# An IPv6 address is at most 45 characters long; the rest is room for the
+# values that are not an address, cut to this length.
+IP_ADDRESS_MAX_LENGTH = 255
+
+
 def generate_session_token() -> str:
     """Generate 256-bit cryptographically secure session token (URL-safe, no padding)."""
     return base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
@@ -45,7 +50,9 @@ class Session(BaseModel):
     created_at = pw.DateTimeField(default=pw.utcnow, index=True)
     expires_at = pw.DateTimeField(index=True)  # absolute expiry
     last_seen_at = pw.DateTimeField(default=pw.utcnow, index=True)
-    ip_address = pw.IPField(null=True)
+    # `request.remote_ip`: an IPv4 or IPv6 address, or what a proxy wrote
+    # instead (`unknown`, `_hidden`).
+    ip_address = pw.CharField(max_length=IP_ADDRESS_MAX_LENGTH, null=True)
     user_agent_hash = pw.CharField(max_length=64, index=True)
     user = pw.ForeignKeyField(User, backref="sessions", on_delete="CASCADE")
     revoked = pw.BooleanField(default=False, index=True)
@@ -72,7 +79,7 @@ class Session(BaseModel):
         user_agent_hash = sha256(user_agent.encode("utf-8")).hexdigest() if user_agent else ""
         return cls.create(
             user=user,
-            ip_address=ip_address,
+            ip_address=ip_address[:IP_ADDRESS_MAX_LENGTH] if ip_address else None,
             user_agent_hash=user_agent_hash,
             expires_at=pw.utcnow() + lifetime,  # type: ignore
         )

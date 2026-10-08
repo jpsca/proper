@@ -129,6 +129,96 @@ python-multipart's `MultipartParseError` (a 500). An error handler
 registered for python-multipart's exception no longer gets these errors;
 register it for `MultipartError` instead.
 
+### ⚠️ Upgrading: `request.host` is the `Host` header
+
+`request.host` and `request.port` (and so `host_with_port`, `port_string`
+and `port_is_default`) now come from the `Host` header, as PEP 3333
+rebuilds the URL, and the host is lowercased. Only a request without a
+`Host` header (HTTP/1.0), or with an empty one, gets the address the server
+listens on. Before, they were always that address (`SERVER_NAME`), which
+under `proper run` is `0.0.0.0` or the Unix socket: routes with a `host`
+answered 404, and `OriginProtection` never matched the `Origin` with the
+host (its step 5).
+
+- Behind a proxy, make it pass the client's `Host` through: nginx needs
+  `proxy_set_header Host $host;` (in the deployment guide's example), or it
+  sends the address in `proxy_pass` (`127.0.0.1:2300`), and the routes for
+  a host answer 404.
+- An invalid `Host` header (`example.com/x`, a space, `user@example.com`)
+  is now a `400 Bad Request`. It was ignored.
+- `OriginProtection` step 6 (both the `Origin` and the host on the local
+  network) now needs the `Host` to be a local address. Before, the host was
+  the bind address (`0.0.0.0`, which counts as local), so any `Origin` on
+  the local network passed, also for a request to your public host name.
+- `make_test_request(server=...)` and `Request(server=...)` no longer
+  override the `Host` header: a test that set both gets the header's host.
+
+The client chooses the `Host` header. Proper uses it only to pick the route
+and to compare it with `Origin`: `url_for(..., _full=True)`, the
+password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the
+config, or the route's own host, so a forged `Host` can't put another host
+in a link sent to someone else. Do the same in your code: build absolute
+URLs that leave the request with `url_for(..., _full=True)`, not from
+`request.host`. `X-Forwarded-Host` and `Forwarded: host=` are not read.
+
+### ⚠️ Upgrading: the auth `Session` stores any IP address
+
+The auth addon's `Session.ip_address` was a `pw.IPField`, which stores IPv4
+addresses only: signing in was a 500 (`OSError`) for a visitor with an IPv6
+address, for an IPv4 visitor of Granian listening on `::`
+(`::ffff:203.0.113.5`), and for a `remote_ip` that is not an address
+(`unknown`, or `""` without one). New apps get
+`pw.CharField(max_length=255, null=True)`, and `create_for_user` stores
+`remote_ip` cut to 255 characters, or `None` if it is empty. `remote_ip`
+has no length limit (a proxy can write any identifier), but an address is
+at most 45 characters.
+
+An app with the old field no longer gets the 500: `new_session_for` stores
+an IPv4 address (an IPv4-mapped one as IPv4) and `None` for any other
+value. An `AppController` that overrides `new_session_for` and passes
+`request.remote_ip` to `create_for_user` itself (as the "remember me"
+example in the authentication guide does) still gets it, until the column
+changes. To store every value, change the field in `models/session.py`:
+
+```python {title="models/session.py"}
+ip_address = pw.CharField(max_length=255, null=True)
+```
+
+and in `create_for_user`, `ip_address=ip_address[:255] if ip_address else
+None`. Then run `proper db create session_ip_address_text`. It writes the
+`change_fields` call; add the conversion of the stored numbers (an
+`IPField` keeps each address as a number), and replace the rollback, which
+Postgres can't run as written (it can't change a text column into a
+number without a `USING` clause):
+
+```python {title="db/main/NNN_session_ip_address_text.py"}
+import ipaddress
+
+import peewee as pw
+from peewee_migrate import Migrator
+
+
+def ip_numbers_to_text(migrator):
+    """`IPField` stored each IPv4 address as a number."""
+    Session = migrator.orm["session"]
+    for session in Session.select().where(Session.ip_address.is_null(False)):
+        session.ip_address = str(ipaddress.IPv4Address(int(session.ip_address)))
+        session.save(only=[Session.ip_address])
+
+
+def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
+    migrator.change_fields("session", ip_address=pw.CharField(max_length=255, null=True))
+    migrator.run(ip_numbers_to_text, migrator)
+
+
+def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
+    # `IPField` takes only IPv4 addresses: the stored addresses are dropped.
+    migrator.remove_fields("session", "ip_address")
+    migrator.add_fields("session", ip_address=pw.IPField(null=True))
+```
+
+and run `proper db migrate`.
+
 ### ⚠️ Upgrading: forwarding headers count only from `TRUSTED_PROXIES`
 
 `request.remote_ip` and `request.protocol` now read the `X-Forwarded-For`,
@@ -158,13 +248,29 @@ the default ranges you still need, since the list replaces them:
 TRUSTED_PROXIES = ["127.0.0.1", "203.0.113.0/24"]
 ```
 
+Each item is an IP address or network, as a string or an `ipaddress`
+object; anything else (an int, bytes, a host name) stops the app with a
+`ConfigError`.
+
+The default trusts every loopback, private and link-local address, so a
+client that reaches the app, or the first proxy, from one of them counts as
+a proxy: another machine on the same LAN or VPC, a container on the same
+host, or every visitor behind a load balancer that replaces their address
+with its own private one (SNAT). Such a client can choose its `remote_ip`
+(`X-Forwarded-For`, `X-Real-IP`) and make the request secure
+(`X-Forwarded-Proto: https`). If clients can connect from those networks,
+list only your proxies' addresses. And the proxy must overwrite
+`X-Forwarded-Proto` with the scheme it got the request on (nginx:
+`proxy_set_header X-Forwarded-Proto $scheme;`), not append to it or pass
+the client's through: the app uses the header's whole value.
+
 Without the CDN's ranges, `X-Forwarded-For` arrives as
 `<visitor>, <CDN edge>`, and `remote_ip` is the CDN edge's address for every
 visitor (it was the visitor's, the leftmost). The default `rate_limit` then
 puts every visitor behind one edge in one bucket, so they all get 429s
 together, and the auth sessions record the CDN's address.
 
-Three more changes in how `remote_ip` reads the headers:
+Four more changes in how `remote_ip` reads the headers:
 
 - `X-Forwarded-For` and `Forwarded` are read from the right, skipping the
   trusted proxies, so it is the address of the first hop that is not one.
@@ -181,9 +287,16 @@ Three more changes in how `remote_ip` reads the headers:
   or brackets that a proxy added (`203.0.113.5:51234` gives `203.0.113.5`,
   `"[2001:db8::7]:4711"` gives `2001:db8::7`), and an IPv4-mapped address
   as IPv4 (`::ffff:203.0.113.5` gives `203.0.113.5`). With the port, the
-  default `rate_limit` counted each connection of a client on its own. Each
-  element of `Forwarded` is parsed on its own, so a quoted string that the
-  client leaves open can't take in the element a trusted proxy appends.
+  default `rate_limit` counted each connection of a client on its own.
+  `Forwarded` is split into its elements at the commas outside quoted
+  strings, from the right, where the trusted proxies' elements are: a comma
+  in a quoted value of a proxy's element (`host="a,b"`) doesn't split it,
+  and a quoted string that the client leaves open can't take in the element
+  a trusted proxy appends.
+- A forwarding header sent in several lines is read as one list, the lines
+  joined in order (RFC 9110 §5.3). Only the last line was read. (Granian
+  already joins the lines into one value; this is for a `Request` built
+  with repeated headers, as in tests.)
 
 Make the proxy drop the request headers with an underscore in the name,
 such as `X_Forwarded_For`. The WSGI server gives the app `X-Forwarded-For`
@@ -203,7 +316,10 @@ default address for those tests. `make_test_request()` without `client=`,
 and `Request(...)` without `client`, have no peer address, which counts as
 trusted, so their forwarding headers are still used, by the rules above:
 `X-Forwarded-For: 1.2.3.4, 5.6.7.8` now gives `5.6.7.8` (it gave
-`1.2.3.4`), and it wins over `Forwarded`.
+`1.2.3.4`), and it wins over `Forwarded`. A WebSocket handshake without a
+peer address, which only the in-memory test server's `connect()` without
+details gives (wse always sends one), does not count as trusted: its
+`X-Forwarded-For` is dropped, and `remote_ip` is `""`.
 
 ### ⚠️ Upgrading: conditional requests follow RFC 9110 more closely
 
@@ -331,6 +447,13 @@ only when the request's headers made the response fresh.
 
 ### Fixed
 
+- `request.host` was the address the server listens on (`0.0.0.0` under
+  `proper run`), never the `Host` header, so routes with a `host` answered
+  404 and `OriginProtection` never matched the `Origin` with the host. It
+  is now the `Host` header, and an invalid one is a 400.
+- Signing in with the auth addon was a 500 for IPv6 visitors, for IPv4
+  visitors of a server listening on `::`, and when `remote_ip` was not an
+  address: `Session.ip_address` was an `IPField`, which takes IPv4 only.
 - Any client could set `request.remote_ip` with a `Forwarded`,
   `X-Forwarded-For` or `X-Real-IP` header, and make `request.is_secure`
   true (and so the session and auth cookies `Secure`) with

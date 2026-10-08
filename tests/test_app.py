@@ -121,16 +121,32 @@ def test_trusted_proxies_default():
 def test_trusted_proxies_are_parsed():
     config = load_config({
         "SECRET_KEYS": ["*" * 50],
-        "TRUSTED_PROXIES": ["203.0.113.7", "198.51.100.9/24", ipaddress.ip_network("::1")],
+        "TRUSTED_PROXIES": [
+            "203.0.113.7",
+            "198.51.100.9/24",
+            ipaddress.ip_network("::1"),
+            ipaddress.ip_address("192.0.2.1"),
+        ],
     })
     assert config.TRUSTED_PROXIES == (
         ipaddress.ip_network("203.0.113.7/32"),
         ipaddress.ip_network("198.51.100.0/24"),
         ipaddress.ip_network("::1"),
+        ipaddress.ip_network("192.0.2.1/32"),
     )
 
 
-@pytest.mark.parametrize("value", ["10.0.0.1", ["10.0.0.300"], ["proxy.local"], [None]])
+@pytest.mark.parametrize("value", [
+    "10.0.0.1",
+    ["10.0.0.300"],
+    ["proxy.local"],
+    [None],
+    # `ipaddress.ip_network` takes these too: `1` is `0.0.0.1/32`.
+    [1],
+    [True],
+    [b"\x7f\x00\x00\x01"],
+    [("10.0.0.0", 8)],
+])
 def test_invalid_trusted_proxies_raises(value):
     with pytest.raises(ConfigError, match="TRUSTED_PROXIES"):
         load_config({"SECRET_KEYS": ["*" * 50], "TRUSTED_PROXIES": value})
