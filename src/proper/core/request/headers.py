@@ -580,8 +580,9 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     digits that makes the date, to the second, not more than 50 years
     after `now` (the current time by default): in the next century, this
     one or the one before. So the year can depend on the day and time:
-    with `now` at 2026-10-08 12:00:00, `08-Oct-76 12:00:00` is in 2076 and
-    `08-Oct-76 12:00:01` is in 1976.
+    with `now` at 2026-10-08 12:00:00 UTC, `08-Oct-76 12:00:00` is in 2076
+    and `08-Oct-76 12:00:01` is in 1976. `now` is compared in UTC: an
+    aware `now` is converted to UTC, and a naive one is taken to be in UTC.
 
     Returns:
         A datetime object in UTC, or None if the header is not present or
@@ -626,6 +627,8 @@ def _rfc850_full_year(
     this one or the one before: the latest whose date is not more than 50
     years after `now`.
     """
+    if now.tzinfo is not None:
+        now = now.astimezone(timezone.utc)
     year = now.year - now.year % 100 + 100 + fields[0]
     rest = fields[1:]
     limit = (now.year + 50, now.month, now.day, now.hour, now.minute, now.second)

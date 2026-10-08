@@ -488,6 +488,26 @@ def test_parse_date_rfc850_two_digit_year_changelog_examples(now, value, expecte
     assert parse_date(f"Monday, {value} GMT", now=now).year == expected
 
 
+@pytest.mark.parametrize("offset_hours", [-5, 0, 5, 14, -12])
+def test_parse_date_rfc850_two_digit_year_now_in_another_timezone(offset_hours):
+    # The same instant gives the same year, whatever the timezone of `now`.
+    now_utc = datetime.datetime(2026, 10, 8, 12, 0, 0, tzinfo=UTC)
+    now = now_utc.astimezone(
+        datetime.timezone(datetime.timedelta(hours=offset_hours))
+    )
+    assert now == now_utc
+    assert parse_date("Friday, 08-Oct-76 12:00:00 GMT", now=now).year == 2076
+    assert parse_date("Friday, 08-Oct-76 12:00:01 GMT", now=now).year == 1976
+    # At UTC-5, `now` reads 07:00; the limit is still 2076-10-08 12:00 UTC.
+    assert parse_date("Friday, 08-Oct-76 08:00:00 GMT", now=now).year == 2076
+
+
+def test_parse_date_rfc850_two_digit_year_naive_now_is_utc():
+    now = datetime.datetime(2026, 10, 8, 12, 0, 0)
+    assert parse_date("Friday, 08-Oct-76 12:00:00 GMT", now=now).year == 2076
+    assert parse_date("Friday, 08-Oct-76 12:00:01 GMT", now=now).year == 1976
+
+
 def test_parse_date_rfc850_two_digit_year_uses_the_current_date():
     year = datetime.datetime.now(UTC).year
     future = (year + 49) % 100
