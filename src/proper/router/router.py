@@ -238,7 +238,10 @@ class BaseRouter:
             _full:
                 Optional. If `True`, builds a full URL including the protocol and host.
                 The host is determined by the route's host constraint if it has one,
-                or by the application's default host otherwise.
+                or by the application's default host otherwise. A value for a
+                host placeholder may have only letters, digits and `-._~`
+                (the characters of a host name), or `BadRoutePlaceholder`
+                is raised.
             **kw:
                 Additional keyword arguments to fill in the placeholders of the route.
                 These take precedence over the attributes of the given object.
