@@ -178,7 +178,7 @@ class Session(BaseModel):
     revoked = pw.BooleanField(default=False)
 ```
 
-`ip_address` is `request.remote_ip` at sign-in (IPv4, IPv6, or a proxy's `unknown`/`_hidden`), cut to 255 chars, `None` if empty. An older app's `pw.IPField(null=True)` holds only IPv4: `new_session_for` then stores other values as `None` (no 500); migrate the column to `CharField(max_length=255, null=True)` with the migration in the CHANGELOG.
+`ip_address` is `request.remote_ip` at sign-in (IPv4, IPv6, or a proxy's `unknown`/`_hidden`), cut to 255 chars, `None` if empty. An older app's `pw.IPField(null=True)` holds only IPv4: any other `remote_ip` makes sign-in raise `OSError` (a 500). The migration in the CHANGELOG, to `CharField(max_length=255, null=True)`, is required.
 
 ### Session Lifetime
 

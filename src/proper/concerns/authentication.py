@@ -1,10 +1,6 @@
-import ipaddress
 from collections.abc import Sequence
 
-import peewee as pw
-
 from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
-from proper.core.request.headers import parse_ip
 from proper.global_context import current
 from proper.models import ProperModel
 from .concern import Concern
@@ -36,7 +32,7 @@ class Authentication(Concern):
     def new_session_for(self, user: ProperModel) -> ProperModel:
         session = self.Session.create_for_user(  # type: ignore
             user=user,
-            ip_address=self._session_ip_address(),
+            ip_address=self.request.remote_ip,
             user_agent=self.request.user_agent,
         )
         return self._set_current_session(session)
@@ -63,22 +59,6 @@ class Authentication(Concern):
         self.response.redirect_to(redirect_path, flash=flash)
 
     # Private
-
-    def _session_ip_address(self) -> str | None:
-        """`request.remote_ip` as the `Session` model can store it: `None`
-        if there is none.
-
-        The `Session` model of an app made before had an `ip_address =
-        pw.IPField()`, which takes only IPv4 addresses and raises `OSError`
-        for any other value (an IPv6 address, `unknown`). Such a model gets
-        the IPv4 address, from an IPv4-mapped one too, and `None` for the
-        rest, until the app moves the column to text (see the CHANGELOG).
-        """
-        ip = self.request.remote_ip or None
-        if ip and isinstance(getattr(self.Session, "ip_address", None), pw.IPField):
-            address = parse_ip(ip)
-            return str(address) if isinstance(address, ipaddress.IPv4Address) else None
-        return ip
 
     def _request_authentication(self):
         self.response.session.setdefault("_redirect", self.request.path)
