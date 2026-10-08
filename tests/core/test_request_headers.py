@@ -514,6 +514,29 @@ def test_parse_date_rfc850_two_digit_year_skips_a_year_without_the_date(
     assert parse_date(f"Monday, {value} GMT", now=now) == expected
 
 
+@pytest.mark.parametrize(
+    "now, value, expected",
+    [
+        # The limits of the CHANGELOG's range where `29-Feb-00` is None:
+        # from 1 January 2200 to 28 February 2350, whatever the time.
+        ((2199, 12, 31, 23, 59, 59), "29-Feb-00 00:00:00", 2000),
+        ((2200, 1, 1, 0, 0, 0), "29-Feb-00 00:00:00", None),
+        ((2200, 1, 1, 0, 0, 0), "29-Feb-00 23:59:59", None),
+        ((2299, 12, 31, 23, 59, 59), "29-Feb-00 00:00:00", None),
+        ((2300, 1, 1, 0, 0, 0), "29-Feb-00 00:00:00", None),
+        ((2350, 2, 28, 0, 0, 0), "29-Feb-00 00:00:00", None),
+        ((2350, 2, 28, 23, 59, 59), "29-Feb-00 00:00:00", None),
+        # 29 February 2400 is then not more than 50 years ahead.
+        ((2350, 3, 1, 0, 0, 0), "29-Feb-00 00:00:00", 2400),
+        ((2350, 3, 1, 0, 0, 0), "29-Feb-00 23:59:59", 2400),
+    ],
+)
+def test_parse_date_rfc850_two_digit_year_none_range(now, value, expected):
+    now = datetime.datetime(*now, tzinfo=UTC)
+    result = parse_date(f"Monday, {value} GMT", now=now)
+    assert (result and result.year) == expected
+
+
 @pytest.mark.parametrize("offset_hours", [-5, 0, 5, 14, -12])
 def test_parse_date_rfc850_two_digit_year_now_in_another_timezone(offset_hours):
     # The same instant gives the same year, whatever the timezone of `now`.
