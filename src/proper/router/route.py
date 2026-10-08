@@ -23,6 +23,7 @@ from ..errors import (
 )
 from ..helpers import import_string
 from ..types import Iterable, THandler
+from .matcher import LinearPattern, linear_pattern
 
 
 __all__ = (
@@ -69,25 +70,35 @@ FORMATS = {
 
 RE_PLACEHOLDERS = re.compile(r":([_a-z][_a-z0-9]*)(?:<([^>]+)>)?")
 
+"""A host longer than this matches no route with a host. A DNS name has at
+most 253 characters (RFC 1035 §2.3.4: 255 bytes on the wire), 254 with a
+trailing dot. The limit keeps the time `re` takes with a custom format
+small."""
+MAX_HOST_LENGTH = 255
+
 
 def _compile_pattern(
     pattern: str, *, anchor_suffix: str = ""
-) -> tuple[re.Pattern, str, dict, dict, list]:
+) -> tuple[re.Pattern, str, dict, dict, list, LinearPattern | None]:
     """Compile a placeholder-aware pattern (path or host).
 
-    Returns a 5-tuple of:
+    Returns a 6-tuple of:
 
     - the compiled regex (with named groups for each placeholder),
     - a "plain" string with `:name` markers preserved, for reading,
     - a dict of placeholder name → regex source,
     - a dict of placeholder name → type caster (only for `int`/`float`),
     - the pieces to build a URL from: a list of `(literal, name)` pairs,
-      where `name` is `None` for the text after the last placeholder.
+      where `name` is `None` for the text after the last placeholder,
+    - a `LinearPattern` that matches as the regex does without
+      backtracking, or `None` when the regex is used (see
+      `matcher.linear_pattern`).
     """
     parts: list[str] = []
     parts_re: list[str] = []
     pieces: list[tuple[str, str | None]] = []
     placeholders: dict = {}
+    formats: dict = {}
     casters: dict = {}
     index = 0
 
@@ -113,6 +124,7 @@ def _compile_pattern(
 
         rx = FORMATS.get(fmt, fmt)
         placeholders[name] = rx
+        formats[name] = fmt
         parts.append(f":{name}")
         parts_re.append(rf"(?P<{name}>{rx})")
 
@@ -128,7 +140,8 @@ def _compile_pattern(
     except Exception as e:
         raise BadRouteFormat(e) from e
 
-    return compiled, "".join(parts), placeholders, casters, pieces
+    linear = linear_pattern(pieces, formats, anchor_suffix, compiled)
+    return compiled, "".join(parts), placeholders, casters, pieces, linear
 
 
 def _build(pieces: "list[tuple[str, str | None]]", values: dict) -> str:
@@ -362,6 +375,13 @@ class Route:
         return True
 
     @property
+    def path_backtracks(self) -> bool:
+        """Could `re` backtrack on the path, so that it is matched with a
+        `matcher.LinearPattern` (see `matcher.linear_pattern`)? Such a
+        route can't be combined with others in one regex."""
+        return self._path_linear is not None
+
+    @property
     def build_only(self) -> bool:
         """Is this a route only for `url_for()`
         and not for matching?"""
@@ -375,10 +395,15 @@ class Route:
         build a URL with that value, because clients remove those segments.
         """
         assert self.path_re
-        m = self.path_re.match(path)
-        if m is None:
-            return None
-        params = m.groupdict()
+        if self._path_linear is not None:
+            params = self._path_linear.match(path)
+            if params is None:
+                return None
+        else:
+            m = self.path_re.match(path)
+            if m is None:
+                return None
+            params = m.groupdict()
         if has_dot_segment(path) and _dot_segment_placeholder(
             self._raw_path_pieces,
             {name: params[name] for name in self.path_placeholders},
@@ -398,15 +423,23 @@ class Route:
         - An empty dict `{}` if the route has no host constraint
           (always matches, no extra params).
         - A dict of captured placeholder values if the host pattern matches.
+
+        A host longer than `MAX_HOST_LENGTH` (255) characters matches no
+        host pattern: no host name is that long.
         """
         if self.host_re is None:
             return {}
-        if host is None:
+        if host is None or len(host) > MAX_HOST_LENGTH:
             return None
-        m = self.host_re.match(host)
-        if m is None:
-            return None
-        params = m.groupdict()
+        if self._host_linear is not None:
+            params = self._host_linear.match(host)
+            if params is None:
+                return None
+        else:
+            m = self.host_re.match(host)
+            if m is None:
+                return None
+            params = m.groupdict()
         for name, caster in self.host_casters.items():
             if name in params:
                 params[name] = caster(params[name])
@@ -480,10 +513,11 @@ class Route:
     # Private
 
     def _compile_path(self) -> None:
-        path_re, path_plain, placeholders, casters, pieces = _compile_pattern(
-            self.path, anchor_suffix=r"/?$"
+        path_re, path_plain, placeholders, casters, pieces, linear = (
+            _compile_pattern(self.path, anchor_suffix=r"/?$")
         )
         self.path_re = path_re
+        self._path_linear = linear
         self.path_plain = path_plain
         self.path_placeholders = placeholders
         self.path_casters = casters
@@ -507,11 +541,13 @@ class Route:
             self.host_casters = {}
             self._host_pieces = None
             self._host_placeholder_re = {}
+            self._host_linear = None
             return
-        host_re, host_plain, placeholders, casters, pieces = _compile_pattern(
-            self._host, anchor_suffix=r"$"
+        host_re, host_plain, placeholders, casters, pieces, linear = (
+            _compile_pattern(self._host, anchor_suffix=r"$")
         )
         self.host_re = host_re
+        self._host_linear = linear
         self.host_plain = host_plain
         self.host_placeholders = placeholders
         self.host_casters = casters

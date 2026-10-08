@@ -525,6 +525,15 @@ caught those exceptions around `loads()` must check for `None` instead; the
 `except` clauses no longer run. Signed cookies and the session read such a
 token as missing, where they were a 500.
 
+### ⚠️ Upgrading: a host longer than 255 characters matches no host route
+
+A request whose host (`request.host`, without the port) is longer than 255
+characters now matches no route with a `host`, whatever its pattern; the
+routes without a `host` still match it. A DNS name has at most 253
+characters, so no browser sends such a host. The limit bounds the time a
+host pattern with a custom format that Proper matches with `re` can take
+(see "Fixed").
+
 ### ⚠️ Upgrading: `RouteTemplate` is removed
 
 `proper.router.RouteTemplate`, the `string.Template` with `:name`
@@ -700,6 +709,27 @@ class RouteTemplate(Template):
   (it was `c=[1, 2]`), which the app reads back as the same `"[1, 2]"`.
 - `url_for` accepted a value that only started with a valid one (`"42abc"`
   for `<int>`); now the whole value must match.
+- Matching a route whose pattern has several placeholders that can match
+  the same characters took time that grows as a power of the length of the
+  path or host, which the client chooses: Python's `re` tries every way to
+  split the text between the placeholders before it gives up. A `Host` of
+  2 001 dots against `:a.:b.:c.example.com` took 12.8 s, and a path of
+  2 001 characters against `/x/:a-:b-:c.html` 10.8 s, each blocking a
+  worker. Such patterns are now matched in time linear in the length (a
+  path of 64 001 characters: 0.05 s), with the same results as `re`, by a
+  matcher that marks, from the right, where the rest of the pattern can
+  still match, and then gives each placeholder the first choice `re`
+  would take. It is used for the built-in formats and for custom formats
+  that are a run of one class of characters (`[a-z]+`, `\d{4}`) or
+  literal texts separated by `|`. `re` is still used where it is fast: on
+  short subjects, and for patterns on which it can't backtrack much (no
+  placeholder but the last can end in more than one place, as in
+  `/posts/:id/edit`). A length limit alone would not have been enough:
+  paths have no natural limit, and with four placeholders `re` took 1.6 s
+  for a host of 255 characters. A route with any other custom format is
+  matched with `re` as before; for hosts, the 255-character limit (see
+  "Upgrading") bounds that time, to 0.03 s with three such placeholders
+  and 2.7 s with four.
 - `url_for(..., _full=True)` put the value of a host placeholder into the
   URL as it was: with `host=":sub.example.com"`, `sub="evil.com?"` gave
   `http://evil.com?.example.com/h/1`, a link to `evil.com`, and `@`, `/`

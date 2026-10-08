@@ -177,6 +177,8 @@ def show(self): ...
 
 A placeholder name is `[_a-z][_a-z0-9]*`. Any other text after a `:` is literal, both when matching and in `url_for`: `/items/:ID` matches only `/items/:ID`; `localhost:5000` in a host is a host and a port; in `/a::b` the first `:` is literal and `:b` is a placeholder.
 
+Matching takes time linear in the length of the path or host, with the same results as `re`, for the built-in formats and for custom formats that are one class run (`[a-z]+`, `\d{4}`) or `|`-separated literals (`en|es|pt`). Any other custom format is matched with `re`, which can backtrack: avoid two such placeholders that can match the same characters.
+
 A route doesn't match when a placeholder's value is (part of) a `.` or `..` segment: `/files/:name` doesn't match `/files/..`, `<path>` doesn't match `a/../b`. The router tries the next routes, else `404`. Browsers never send such paths, and `url_for` can't build them. `/files/.env` and `/files/...` match.
 
 #### Custom Route Names
@@ -306,7 +308,7 @@ class ApiController(AppController):
     def index(self): ...    # Only matches when Host is api.example.com
 ```
 
-A request whose `Host` is local (`localhost`, 127.0.0.0/8, `0.0.0.0`, `::1`, `::`, in any spelling: `127.1`, `localhost.`, `[::ffff:127.0.0.1]`) matches no route with a `host`.
+A request whose `Host` is local (`localhost`, 127.0.0.0/8, `0.0.0.0`, `::1`, `::`, in any spelling: `127.1`, `localhost.`, `[::ffff:127.0.0.1]`) matches no route with a `host`. Neither does a host longer than 255 characters.
 
 #### Host Placeholders
 
