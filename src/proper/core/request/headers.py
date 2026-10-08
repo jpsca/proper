@@ -567,9 +567,15 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     - obsolete RFC 850: `Sunday, 06-Nov-94 08:49:37 GMT`
     - ANSI C's asctime(): `Sun Nov  6 08:49:37 1994`
 
-    All of them are in UTC. The day name is not checked against the date.
+    All of them are in UTC.
+
+    The day name must be one of the names of the form, but it is not
+    checked against the date: `Mon, 06 Nov 1994 08:49:37 GMT` is read as
+    6 November 1994, which was a Sunday.
+
     Second 60, which the grammar of RFC 9110 allows at any time of day (a
     leap second), is read as second 59.
+
     A two-digit year (RFC 850) is the latest year with those last two
     digits that is not more than 50 years after `now` (the current time by
     default): in the next century, this one or the one before.
