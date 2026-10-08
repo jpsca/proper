@@ -51,6 +51,7 @@ import os
 import queue
 import re
 import secrets
+import socket
 import threading
 import time
 import typing as t
@@ -97,6 +98,49 @@ _EPOCH = re.compile(r"^[0-9a-f]{8}$")
 CONTROL_TOPIC = "proper:cable:control"
 # How long `start_server()` waits for wse to listen on `CABLE_PORT`.
 START_TIMEOUT = 10.0
+
+
+def _wse_gave_up(server: t.Any) -> bool:
+    """Whether wse's thread ended without listening (it could not bind its
+    port). wse has no call that says so; but the thread owns the receiving
+    end of wse's command channel, so once it has ended a command fails with
+    "Channel closed". `disconnect()` of an id no connection has is a command
+    that does nothing, whether wse is listening yet or not."""
+    try:
+        server.disconnect("")
+    except RuntimeError:
+        return True
+    return False
+
+
+def _wse_settled(server: t.Any) -> bool:
+    """Wait until wse listens (`True`) or its thread ends without listening
+    (`False`). Until one or the other, `stop()` does nothing: it stops only a
+    server that `is_running()`, and that turns true once wse has bound its
+    port."""
+    while not server.is_running():
+        if _wse_gave_up(server):
+            return False
+        time.sleep(0.002)
+    return True
+
+
+def _bind_error(host: str, port: int) -> OSError | None:
+    """Why `host:port` can't be listened on, found by binding it as wse
+    does (each address the name gives, until one works), or `None` if it
+    can be now."""
+    error: OSError | None = None
+    try:
+        addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE)
+    except OSError as lookup_error:
+        return lookup_error
+    for family, _, _, _, address in addresses:
+        try:
+            socket.create_server(address, family=family).close()
+            return None
+        except OSError as bind_error:
+            error = bind_error
+    return error
 
 
 def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
@@ -707,7 +751,8 @@ class Cable(BaseCable):
                 if self._cluster:
                     self._join_cluster(server)
             except BaseException:
-                server.stop()
+                if _wse_settled(server):  # what is listening, stops
+                    server.stop()
                 receiver.server_close()
                 raise
             self._executor = ThreadPoolExecutor(
@@ -740,16 +785,30 @@ class Cable(BaseCable):
         """Wait until wse listens on its port. `start()` returns before wse
         has bound it, and `is_running()` turns true only once it has: the
         drain thread, which stops when the server isn't running, would stop
-        before it began, and no event would reach the channels. A port that
-        wse can't bind (taken) is never listened on."""
+        before it began, and no event would reach the channels.
+
+        A port wse can't bind (taken, or a host that is not this machine's)
+        fails as soon as wse gives up, with the reason. If wse has neither
+        bound nor given up within `START_TIMEOUT` seconds (a machine too busy
+        to run its thread, a slow lookup of the host name), this waits for
+        one or the other, because a server that hasn't bound yet can't be
+        stopped: one that then binds fails as too slow, and `start_server()`
+        stops it, so nothing is left listening on the port."""
         deadline = time.monotonic() + START_TIMEOUT
         while not server.is_running():
-            if time.monotonic() >= deadline:
-                raise RuntimeError(
-                    f"wse-server did not listen on {self._host}:{port} within "
-                    f"{START_TIMEOUT} seconds: is the port taken? (wse logs why)"
+            if time.monotonic() >= deadline and _wse_settled(server):
+                raise RuntimeError(  # listening, late: `start_server()` stops it
+                    f"wse-server took more than {START_TIMEOUT} seconds to listen on "
+                    f"{self._host}:{port} (a busy machine, or a slow lookup of the "
+                    "host name), and was stopped"
                 )
-            time.sleep(0.001)
+            if _wse_gave_up(server):
+                error = _bind_error(self._host, port)
+                raise RuntimeError(
+                    f"wse-server could not listen on {self._host}:{port}: "
+                    + (str(error) if error else "see wse's log")
+                )
+            time.sleep(0.002)
 
     def _join_cluster(self, server: t.Any) -> None:
         cluster = t.cast(dict, self._cluster)

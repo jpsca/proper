@@ -712,8 +712,9 @@ token as missing, where they were a 500.
   accepted, and their `subscribe` commands never confirmed. It happened in
   about 1 start in 200 with `host="127.0.0.1"`, and in most starts with a
   host name such as `localhost`. `start_server()` now returns once wse
-  listens, and raises `RuntimeError` if it doesn't within 10 seconds (a
-  port that is taken); it returned before, and the cable served nothing.
+  listens, and raises `RuntimeError` when wse can't bind the port, or binds
+  it only after 10 seconds; it returned before, and the cable served
+  nothing.
 
 ## 0.34
 
