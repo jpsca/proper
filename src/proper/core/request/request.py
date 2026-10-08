@@ -30,7 +30,6 @@ __all__ = ("Request", )
 READ_CHUNK_SIZE = 64 * 1024
 
 
-
 class Request(RequestHeadersMixin):
     """An HTTP request.
 
@@ -363,6 +362,6 @@ def _decode(body: bytes, encoding: str) -> str:
         return body.decode(encoding)
     except UnicodeError:
         raise BadRequest(f"The body is not valid {encoding}.") from None
-    except (LookupError, ValueError):
+    except LookupError, ValueError:
         # `UnicodeError` is a `ValueError`, so it is caught first.
         raise UnsupportedMediaType(f"Unknown charset: {encoding!r}.") from None

@@ -141,7 +141,7 @@ def _safe_decode(src: bytes | bytearray, codec: str) -> str:
         return src.decode(codec)
     # `ValueError` (which `UnicodeDecodeError` is) for a codec name that
     # can't be looked up at all, such as one with a NUL.
-    except (ValueError, LookupError):
+    except ValueError, LookupError:
         return src.decode("latin-1")
 
 

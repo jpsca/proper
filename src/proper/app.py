@@ -281,7 +281,7 @@ class App(AppWsgi):
                 # A bad signature, or a good one over a payload that
                 # doesn't decode (`BadPayload`)
                 logger.debug("BadData %s...", str(value)[:10])
-            except (ValueError, OverflowError, OSError):
+            except ValueError, OverflowError, OSError:
                 # A good signature over a timestamp that `datetime` can't
                 # hold (after year 9999)
                 logger.debug("Bad timestamp %s...", str(value)[:10])

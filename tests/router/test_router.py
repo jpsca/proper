@@ -593,7 +593,6 @@ class TestUrlIs:
         assert router.url_is("home", curr_url="/photos") is False
 
 
-
 class TestUrlStartsWith:
     def test_exact_match(self):
         router = BaseRouter()

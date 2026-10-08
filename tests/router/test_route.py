@@ -384,7 +384,6 @@ class TestRouteMatch:
         assert r.match(url) == expected
 
 
-
 class TestRouteFormat:
     def test_format_static_path(self):
         r = Route("GET", "/photos")

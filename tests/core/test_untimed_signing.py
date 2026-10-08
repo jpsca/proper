@@ -1,5 +1,6 @@
 """`app.dumps(..., timed=False)`: deterministic tokens that cannot expire.
 Also `app.loads()` of timed tokens that are signed but malformed."""
+
 import time
 
 import itsdangerous
