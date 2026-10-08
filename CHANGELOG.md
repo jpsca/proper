@@ -431,8 +431,9 @@ of `Last-Modified` back as it came, so nothing changes for them; update a
 client or a test that builds its own dates in another form.
 
 The day name is not checked against the date. In the RFC 850 form, a
-two-digit year that would be more than 50 years in the future is read as
-the century before (RFC 9110 says so). A leap second (`23:59:60`) is read
+two-digit year is the latest year with those last two digits that is not
+more than 50 years in the future, as RFC 9110 says: in 2026, `76` is 2076
+and `77` is 1977; in 2051, `00` is 2100. A leap second (`23:59:60`) is read
 as second 59.
 
 ### ⚠️ Upgrading: `Accept` weights outside 0 to 1, and `Q`

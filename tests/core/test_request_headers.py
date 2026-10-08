@@ -408,6 +408,63 @@ def test_parse_date_rfc850_two_digit_year(value, expected):
     assert parse_date(value, now=now).year == expected
 
 
+@pytest.mark.parametrize(
+    "now_year, value, expected",
+    [
+        # RFC 9110 §5.6.7: the year with those last two digits in this
+        # century, the next one or the one before: the latest one that is
+        # not more than 50 years after `now` (`now_year`-10-08 12:00:00).
+        (2026, "08-Oct-76 12:00:00", 2076),  # exactly 50 years ahead
+        (2026, "08-Oct-76 12:00:01", 1976),  # one second more
+        (2026, "08-Oct-77 12:00:00", 1977),  # 2077 is 51 years ahead
+        (2026, "08-Oct-26 12:00:00", 2026),
+        (2026, "08-Oct-25 12:00:00", 2025),
+        (2026, "08-Oct-00 12:00:00", 2000),
+        (2049, "08-Oct-99 12:00:00", 2099),  # exactly 50 years ahead
+        (2049, "08-Oct-99 12:00:01", 1999),
+        (2049, "08-Oct-98 12:00:00", 2098),
+        (2049, "08-Oct-00 12:00:00", 2000),  # 2100 is 51 years ahead
+        (2050, "08-Oct-00 12:00:00", 2100),  # exactly 50 years ahead
+        (2050, "08-Oct-00 12:00:01", 2000),
+        (2050, "08-Oct-01 12:00:00", 2001),  # 2101 is 51 years ahead
+        (2050, "08-Oct-50 12:00:00", 2050),
+        (2050, "08-Oct-99 12:00:00", 2099),
+        (2051, "08-Oct-01 12:00:00", 2101),  # exactly 50 years ahead
+        (2051, "08-Oct-01 12:00:01", 2001),
+        (2051, "08-Oct-02 12:00:00", 2002),  # 2102 is 51 years ahead
+        (2051, "08-Oct-00 12:00:00", 2100),  # 49 years ahead
+        (2051, "08-Oct-51 12:00:00", 2051),
+        (2051, "08-Oct-99 12:00:00", 2099),
+        (2075, "08-Oct-25 12:00:00", 2125),  # exactly 50 years ahead
+        (2075, "08-Oct-25 12:00:01", 2025),
+        (2075, "08-Oct-26 12:00:00", 2026),  # 2126 is 51 years ahead
+        (2075, "08-Oct-24 12:00:00", 2124),
+        (2075, "08-Oct-00 12:00:00", 2100),
+        (2075, "08-Oct-75 12:00:00", 2075),
+        (2075, "08-Oct-76 12:00:00", 2076),
+        (2090, "08-Oct-40 12:00:00", 2140),  # exactly 50 years ahead
+        (2090, "08-Oct-40 12:00:01", 2040),
+        (2090, "08-Oct-41 12:00:00", 2041),  # 2141 is 51 years ahead
+        (2090, "08-Oct-39 12:00:00", 2139),
+        (2090, "08-Oct-00 12:00:00", 2100),
+        (2090, "08-Oct-89 12:00:00", 2089),
+        (2090, "08-Oct-91 12:00:00", 2091),
+        (2099, "08-Oct-49 12:00:00", 2149),  # exactly 50 years ahead
+        (2099, "08-Oct-49 12:00:01", 2049),
+        (2099, "08-Oct-50 12:00:00", 2050),  # 2150 is 51 years ahead
+        (2099, "08-Oct-00 12:00:00", 2100),
+        (2099, "08-Oct-98 12:00:00", 2098),
+        (2099, "08-Oct-99 12:00:00", 2099),
+    ],
+)
+def test_parse_date_rfc850_two_digit_year_in_three_centuries(
+    now_year, value, expected
+):
+    now = datetime.datetime(now_year, 10, 8, 12, 0, 0, tzinfo=UTC)
+    # The day name is not checked against the date.
+    assert parse_date(f"Monday, {value} GMT", now=now).year == expected
+
+
 def test_parse_date_rfc850_two_digit_year_uses_the_current_date():
     year = datetime.datetime.now(UTC).year
     future = (year + 49) % 100

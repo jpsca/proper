@@ -568,8 +568,9 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     - ANSI C's asctime(): `Sun Nov  6 08:49:37 1994`
 
     All of them are in UTC. The day name is not checked against the date.
-    A two-digit year (RFC 850) that would be more than 50 years after `now`
-    (the current time by default) is in the century before.
+    A two-digit year (RFC 850) is the latest year with those last two
+    digits that is not more than 50 years after `now` (the current time by
+    default): in the next century, this one or the one before.
 
     Returns:
         A datetime object in UTC, or None if the header is not present or
@@ -607,11 +608,17 @@ def _rfc850_full_year(
 ) -> tuple[int, int, int, int, int, int]:
     """RFC 9110 §5.6.7: a two-digit year that appears to be more than 50
     years in the future is the most recent year in the past with the same
-    last two digits."""
-    year = now.year - now.year % 100 + fields[0]
+    last two digits.
+
+    The year is the one with those last two digits in the next century,
+    this one or the one before: the latest whose date is not more than 50
+    years after `now`.
+    """
+    year = now.year - now.year % 100 + 100 + fields[0]
     rest = fields[1:]
-    now_rest = (now.month, now.day, now.hour, now.minute, now.second)
-    if (year - now.year, *rest) > (50, *now_rest):
+    limit = (now.year + 50, now.month, now.day, now.hour, now.minute, now.second)
+    # At most twice: the year in the century before is before `now`.
+    while (year, *rest) > limit:
         year -= 100
     return (year, *rest)
 
