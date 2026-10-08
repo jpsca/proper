@@ -16,7 +16,9 @@ with different first segments can never match the same path, so a run of
 those is further split by first segment: a dict lookup picks the one
 combined regex that can match. Routes that start with a placeholder, and
 routes with a host constraint, stay at their position as their own
-segment, so priority is exactly what the registration order says.
+segment, so priority is exactly what the registration order says. So do
+the routes whose path `re` could backtrack on (`Route.path_backtracks`),
+which `Route.match` matches with a `proper.router.matcher.LinearPattern`.
 """
 import re
 import typing as t
@@ -88,7 +90,9 @@ class Bucketed:
 
 @dataclass(slots=True)
 class Hosted:
-    """One dynamic route with a host constraint, matched as before."""
+    """One dynamic route matched on its own: a route with a host
+    constraint, or one whose path `re` could backtrack on
+    (`Route.path_backtracks`)."""
 
     route: "Route"
 
@@ -188,7 +192,7 @@ def _segments(routes: "list[Route]") -> tuple[TSegment, ...]:
             run.clear()
 
     for route in routes:
-        if route.host:
+        if route.host or route.path_backtracks:
             flush()
             result.append(Hosted(route))
             continue

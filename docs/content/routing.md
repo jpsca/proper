@@ -304,6 +304,8 @@ A placeholder name starts with a lowercase letter or `_`, followed by lowercase 
 
 A route doesn't match a path where a placeholder's value is a `.` or `..` segment, or part of one: `/files/:name` doesn't match `/files/..`, and `/docs/:page<path>` doesn't match `/docs/a/../b`. Browsers remove those segments before sending the request, so only a client that keeps them (`curl --path-as-is`) sends one, and [`url_for`](#values-are-checked-and-percent-encoded) can't build a URL with such a value. The router tries the next routes, and without another match the response is a `404`. A dot in a longer segment is matched as usual: `/files/.env` or `/files/...`.
 
+Matching takes time proportional to the length of the path or host, also for patterns where several placeholders can match the same characters (`/x/:a-:b-:c.html`, `:a.:b.example.com`), with the same results as Python's `re`. That holds for the built-in formats and for custom formats that are a run of one class of characters (`[a-z]+`, `\d{4}`, `[^.]{1,63}`) or literal texts separated by `|` (`en|es|pt`). A route with any other custom format (`(?:a|b)+`, `[a-z]+?`) is matched with `re`, and when two of its placeholders can match the same characters, the time to refuse a long path grows as a power of its length: write the format in one of those forms, or so that the text around it can't be part of it.
+
 Captured values arrive in the controller as `self.params`. See the [Controllers guide](/docs/controllers) for how to read them.
 
 ### Custom Route Names
@@ -419,6 +421,8 @@ class ApiController(AppController):
 A request to `/users` on `www.example.com` will not match this route.
 
 A request to this machine by a local name or address matches only the routes without a `host`: one whose `Host` is `localhost`, an IPv4 address in 127.0.0.0/8, `0.0.0.0`, `::1` or `::`, in any spelling (`localhost.`, `127.1`, `127.000.000.001`, `2130706433`, `[0:0:0:0:0:0:0:1]`, `[::ffff:127.0.0.1]`, percent-escapes). IPv4 addresses are read as browsers read them in a URL.
+
+A host longer than 255 characters matches no route with a `host` (a DNS name has at most 253).
 
 ### Host Placeholders
 
