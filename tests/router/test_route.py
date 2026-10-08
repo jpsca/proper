@@ -359,32 +359,38 @@ class TestRouteMatch:
         # The dot should be escaped in the regex
         assert r.match("/api/v1X0/items") is None
 
-    @pytest.mark.parametrize("path, url", [
-        ("/files/:name", "/files/."),
-        ("/files/:name", "/files/.."),
-        ("/files/:name", "/files/../"),
-        ("/files/:name/edit", "/files/../edit"),
-        ("/docs/:page<path>", "/docs/a/../b"),
-        ("/docs/:page<path>", "/docs/a/."),
-        ("/docs/:page<path>", "/docs/../a"),
-        ("/x/:a:b", "/x/.."),
-        ("/x/.:a", "/x/.."),
-    ])
+    @pytest.mark.parametrize(
+        "path, url",
+        [
+            ("/files/:name", "/files/."),
+            ("/files/:name", "/files/.."),
+            ("/files/:name", "/files/../"),
+            ("/files/:name/edit", "/files/../edit"),
+            ("/docs/:page<path>", "/docs/a/../b"),
+            ("/docs/:page<path>", "/docs/a/."),
+            ("/docs/:page<path>", "/docs/../a"),
+            ("/x/:a:b", "/x/.."),
+            ("/x/.:a", "/x/.."),
+        ],
+    )
     def test_no_match_when_a_value_is_a_dot_segment(self, path, url):
         """`format` can't build a URL with such a value, because clients
         remove `.` and `..` segments, so the route doesn't match it."""
         r = Route("GET", path)
         assert r.match(url) is None
 
-    @pytest.mark.parametrize("path, url, expected", [
-        ("/files/:name", "/files/...", {"name": "..."}),
-        ("/files/:name", "/files/.env", {"name": ".env"}),
-        ("/files/:name", "/files/a..", {"name": "a.."}),
-        ("/docs/:page<path>", "/docs/a/.b/c", {"page": "a/.b/c"}),
-        # The dot segment is the route's own text.
-        ("/a/../:name", "/a/../b", {"name": "b"}),
-        ("/:year<int>/./:slug", "/2024/./x", {"year": 2024, "slug": "x"}),
-    ])
+    @pytest.mark.parametrize(
+        "path, url, expected",
+        [
+            ("/files/:name", "/files/...", {"name": "..."}),
+            ("/files/:name", "/files/.env", {"name": ".env"}),
+            ("/files/:name", "/files/a..", {"name": "a.."}),
+            ("/docs/:page<path>", "/docs/a/.b/c", {"page": "a/.b/c"}),
+            # The dot segment is the route's own text.
+            ("/a/../:name", "/a/../b", {"name": "b"}),
+            ("/:year<int>/./:slug", "/2024/./x", {"year": 2024, "slug": "x"}),
+        ],
+    )
     def test_match_dots_that_are_not_a_value_dot_segment(self, path, url, expected):
         r = Route("GET", path)
         assert r.match(url) == expected
@@ -513,19 +519,22 @@ class TestRouteFormat:
         assert r.match("/1bc") == {"a": 1}
         assert r.format(a=1) == "/1bc"
 
-    @pytest.mark.parametrize("path, values, name", [
-        ("/files/:name", {"name": "."}, "name"),
-        ("/files/:name", {"name": ".."}, "name"),
-        ("/files/:name/edit", {"name": ".."}, "name"),
-        ("/:name", {"name": "."}, "name"),
-        ("/docs/:page<path>", {"page": "a/../b"}, "page"),
-        ("/docs/:page<path>", {"page": "a/."}, "page"),
-        ("/docs/:page<path>", {"page": "../a"}, "page"),
-        # Two values that make one `..` segment together.
-        ("/x/:a:b", {"a": ".", "b": "."}, "a"),
-        # The value is next to the text of the route.
-        ("/x/.:a", {"a": "."}, "a"),
-    ])
+    @pytest.mark.parametrize(
+        "path, values, name",
+        [
+            ("/files/:name", {"name": "."}, "name"),
+            ("/files/:name", {"name": ".."}, "name"),
+            ("/files/:name/edit", {"name": ".."}, "name"),
+            ("/:name", {"name": "."}, "name"),
+            ("/docs/:page<path>", {"page": "a/../b"}, "page"),
+            ("/docs/:page<path>", {"page": "a/."}, "page"),
+            ("/docs/:page<path>", {"page": "../a"}, "page"),
+            # Two values that make one `..` segment together.
+            ("/x/:a:b", {"a": ".", "b": "."}, "a"),
+            # The value is next to the text of the route.
+            ("/x/.:a", {"a": "."}, "a"),
+        ],
+    )
     def test_format_rejects_a_dot_segment(self, path, values, name):
         """Clients remove `.` and `..` segments (RFC 3986 §5.2.4), so the
         URL would not lead to the route."""
@@ -533,17 +542,20 @@ class TestRouteFormat:
         with pytest.raises(BadRoutePlaceholder, match=f"placeholder {name} would make"):
             r.format(**values)
 
-    @pytest.mark.parametrize("path, values, expected", [
-        ("/files/:name", {"name": "..."}, "/files/..."),
-        ("/files/:name", {"name": ".x"}, "/files/.x"),
-        ("/files/:name", {"name": "a.."}, "/files/a.."),
-        ("/files/x:name", {"name": "."}, "/files/x."),
-        ("/files/:name.json", {"name": "."}, "/files/..json"),
-        ("/docs/:page<path>", {"page": "a/.b/c"}, "/docs/a/.b/c"),
-        # Percent-encoded dots stay encoded: `%2e` is `%252e`.
-        ("/files/:name", {"name": "%2e%2e"}, "/files/%252e%252e"),
-        ("/files/:name", {"name": "a"}, "/files/a"),
-    ])
+    @pytest.mark.parametrize(
+        "path, values, expected",
+        [
+            ("/files/:name", {"name": "..."}, "/files/..."),
+            ("/files/:name", {"name": ".x"}, "/files/.x"),
+            ("/files/:name", {"name": "a.."}, "/files/a.."),
+            ("/files/x:name", {"name": "."}, "/files/x."),
+            ("/files/:name.json", {"name": "."}, "/files/..json"),
+            ("/docs/:page<path>", {"page": "a/.b/c"}, "/docs/a/.b/c"),
+            # Percent-encoded dots stay encoded: `%2e` is `%252e`.
+            ("/files/:name", {"name": "%2e%2e"}, "/files/%252e%252e"),
+            ("/files/:name", {"name": "a"}, "/files/a"),
+        ],
+    )
     def test_format_accepts_dots_that_are_not_a_dot_segment(self, path, values, expected):
         r = Route("GET", path)
         assert r.format(**values) == expected

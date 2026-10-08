@@ -253,10 +253,13 @@ class TestUpdateSessionCookie:
         cookie_val = session_cookies[0][1]
         assert "max-age=0" in cookie_val.lower() or "expires=" in cookie_val.lower()
 
-    @pytest.mark.parametrize("peer, secure", [
-        (("127.0.0.1", 50000), True),  # a local reverse proxy
-        (("203.0.113.5", 50000), False),  # a client sending the header itself
-    ])
+    @pytest.mark.parametrize(
+        "peer, secure",
+        [
+            (("127.0.0.1", 50000), True),  # a local reverse proxy
+            (("203.0.113.5", 50000), False),  # a client sending the header itself
+        ],
+    )
     def test_secure_from_x_forwarded_proto_only_from_a_trusted_proxy(
         self, app, make_co, peer, secure
     ):
@@ -369,7 +372,9 @@ class TestPipeline:
     def test_with_path_params_from_url_for(self, app, client):
         # The params arrive decoded, as from a server.
         app.router.add_route(
-            Route(method="GET", path="/hello/:name", name="hello", to=GreetController.show)
+            Route(
+                method="GET", path="/hello/:name", name="hello", to=GreetController.show
+            )
         )
         result = client.get(app.url_for("hello", DotDict(name="café & co?#a%20b")))
         assert result.status == status.ok

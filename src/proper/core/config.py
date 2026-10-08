@@ -117,7 +117,6 @@ default_config = {
         "fc00::/7",
         "fe80::/10",
     ],
-
     "LOCALE_DEFAULT": "en",
     "TIMEZONE_DEFAULT": "UTC",
 
@@ -220,8 +219,7 @@ def parse_trusted_proxies(
     """
     if not isinstance(value, (list, tuple)):
         raise ConfigError(
-            "TRUSTED_PROXIES must be a list of IP addresses or networks, "
-            f"not {value!r}."
+            f"TRUSTED_PROXIES must be a list of IP addresses or networks, not {value!r}."
         )
     networks = []
     for item in value:

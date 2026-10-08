@@ -53,11 +53,14 @@ class TestParseOptionsHeader:
         assert opts["extra"] == "value"
         assert opts is existing
 
-    @pytest.mark.parametrize("header", [
-        "Multipart/Form-Data; Boundary=x",
-        "MULTIPART/FORM-DATA; BOUNDARY=x",
-        " multipart/form-data ;boundary=x",
-    ])
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "Multipart/Form-Data; Boundary=x",
+            "MULTIPART/FORM-DATA; BOUNDARY=x",
+            " multipart/form-data ;boundary=x",
+        ],
+    )
     def test_media_type_and_parameter_names_are_case_insensitive(self, header):
         """RFC 9110 §8.3.1: the type, subtype and parameter names are
         case-insensitive. The value keeps its case."""
@@ -102,16 +105,19 @@ class TestParseJson:
         result = parse_json("not json", strict=False)
         assert len(result) == 0
 
-    @pytest.mark.parametrize("content", [
-        "[1, 2]",
-        '[["a", 1]]',
-        '["ab"]',
-        "[]",
-        '"x"',
-        "3",
-        "true",
-        "null",
-    ])
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "[1, 2]",
+            '[["a", 1]]',
+            '["ab"]',
+            "[]",
+            '"x"',
+            "3",
+            "true",
+            "null",
+        ],
+    )
     def test_not_an_object_gives_an_empty_form(self, content):
         """Only the members of an object are form fields. Any other JSON
         value is valid but has no fields; the controller can read it from
@@ -243,15 +249,18 @@ def test_date_header_missing():
     assert req.date is None
 
 
-@pytest.mark.parametrize("value", [
-    "garbage",
-    "",
-    "99999999999999999999",
-    # The offset moves these out of the range of `datetime`.
-    "Fri, 31 Dec 9999 23:59:59 -0100",
-    "9999-12-31T23:59:59-01:00",
-    "0001-01-01T00:30:00+01:00",
-])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "garbage",
+        "",
+        "99999999999999999999",
+        # The offset moves these out of the range of `datetime`.
+        "Fri, 31 Dec 9999 23:59:59 -0100",
+        "9999-12-31T23:59:59-01:00",
+        "0001-01-01T00:30:00+01:00",
+    ],
+)
 def test_invalid_date_is_ignored(value):
     """RFC 9110 §13.1.3: a recipient MUST ignore an invalid date."""
     req = _make_request("/", headers=[("date", value), ("if-modified-since", value)])
@@ -273,11 +282,15 @@ def local_time_zone_not_utc(monkeypatch):
 @pytest.mark.usefixtures("local_time_zone_not_utc")
 def test_date_without_a_time_zone_is_utc():
     req = _make_request("/", headers=[("date", "Sun Nov  6 08:49:37 1994")])
-    assert req.date == datetime.datetime(1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc)
+    assert req.date == datetime.datetime(
+        1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc
+    )
 
 
 def test_date_with_an_offset_is_converted_to_utc():
-    req = _make_request("/", headers=[("if-modified-since", "Sun, 06 Nov 1994 10:49:37 +0200")])
+    req = _make_request(
+        "/", headers=[("if-modified-since", "Sun, 06 Nov 1994 10:49:37 +0200")]
+    )
     assert req.if_modified_since == datetime.datetime(
         1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc
     )
@@ -481,7 +494,9 @@ def test_remote_ip_ignores_forwarding_headers_from_an_untrusted_peer(header):
 
 @pytest.mark.usefixtures("no_current_app")
 @pytest.mark.parametrize("header", ["forwarded", "x-forwarded-for", "x-real-ip"])
-@pytest.mark.parametrize("client", [None, ("", None), ("unix", None), ("unix:/run/a.sock", None)])
+@pytest.mark.parametrize(
+    "client", [None, ("", None), ("unix", None), ("unix:/run/a.sock", None)]
+)
 def test_remote_ip_uses_forwarding_headers_without_a_peer_address(header, client):
     """A server on a Unix socket gives no peer address: only a process on
     the same machine, such as nginx, can connect to it."""
@@ -494,10 +509,23 @@ def test_remote_ip_uses_forwarding_headers_without_a_peer_address(header, client
 
 
 @pytest.mark.usefixtures("no_current_app")
-@pytest.mark.parametrize("peer", [
-    "127.0.0.1", "127.8.9.10", "::1", "10.1.2.3", "172.16.0.1", "172.31.255.254",
-    "192.168.1.1", "169.254.1.1", "fc00::1", "fdab::1", "fe80::1", "::ffff:10.0.0.1",
-])
+@pytest.mark.parametrize(
+    "peer",
+    [
+        "127.0.0.1",
+        "127.8.9.10",
+        "::1",
+        "10.1.2.3",
+        "172.16.0.1",
+        "172.31.255.254",
+        "192.168.1.1",
+        "169.254.1.1",
+        "fc00::1",
+        "fdab::1",
+        "fe80::1",
+        "::ffff:10.0.0.1",
+    ],
+)
 def test_remote_ip_default_trusted_proxies(peer):
     req = _make_request("/", headers=[("x-real-ip", "1.2.3.4")], client=(peer, 5000))
     assert req.remote_ip == "1.2.3.4"
@@ -533,7 +561,9 @@ def test_remote_ip_x_forwarded_for_all_trusted_is_the_leftmost():
 @pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_x_forwarded_for_stops_at_a_value_that_is_not_an_ip():
     req = _make_request(
-        "/", headers=[("x-forwarded-for", "1.2.3.4, unknown, 10.0.0.2")], client=LOCAL_PROXY
+        "/",
+        headers=[("x-forwarded-for", "1.2.3.4, unknown, 10.0.0.2")],
+        client=LOCAL_PROXY,
     )
     assert req.remote_ip == "unknown"
 
@@ -542,22 +572,29 @@ def test_remote_ip_x_forwarded_for_stops_at_a_value_that_is_not_an_ip():
 def test_remote_ip_x_forwarded_for_with_ports_and_ipv6():
     req = _make_request(
         "/",
-        headers=[("x-forwarded-for", "6.6.6.6, 2001:db8::7, [fc00::2]:443, 10.0.0.2:8080")],
+        headers=[
+            ("x-forwarded-for", "6.6.6.6, 2001:db8::7, [fc00::2]:443, 10.0.0.2:8080")
+        ],
         client=LOCAL_PROXY,
     )
     assert req.remote_ip == "2001:db8::7"
 
 
 @pytest.mark.usefixtures("no_current_app")
-@pytest.mark.parametrize("hop, expected", [
-    # Azure Application Gateway adds the client's port.
-    ("203.0.113.5:51234", "203.0.113.5"),
-    ("[2001:db8::7]:51234", "2001:db8::7"),
-    ("[2001:db8::7]", "2001:db8::7"),
-    ("::ffff:203.0.113.5", "203.0.113.5"),
-])
+@pytest.mark.parametrize(
+    "hop, expected",
+    [
+        # Azure Application Gateway adds the client's port.
+        ("203.0.113.5:51234", "203.0.113.5"),
+        ("[2001:db8::7]:51234", "2001:db8::7"),
+        ("[2001:db8::7]", "2001:db8::7"),
+        ("::ffff:203.0.113.5", "203.0.113.5"),
+    ],
+)
 def test_remote_ip_x_forwarded_for_without_the_port(hop, expected):
-    req = _make_request("/", headers=[("x-forwarded-for", f"{hop}, 10.0.0.2")], client=LOCAL_PROXY)
+    req = _make_request(
+        "/", headers=[("x-forwarded-for", f"{hop}, 10.0.0.2")], client=LOCAL_PROXY
+    )
     assert req.remote_ip == expected
 
 
@@ -565,11 +602,13 @@ def test_remote_ip_x_forwarded_for_without_the_port(hop, expected):
 def test_remote_ip_forwarded_skips_trusted_proxies_from_the_right():
     req = _make_request(
         "/",
-        headers=[(
-            "forwarded",
-            'for=6.6.6.6, for=1.2.3.4:4711;proto=https, by=10.0.0.9, '
-            'for="[fc00::1]:80", for=10.0.0.2',
-        )],
+        headers=[
+            (
+                "forwarded",
+                "for=6.6.6.6, for=1.2.3.4:4711;proto=https, by=10.0.0.9, "
+                'for="[fc00::1]:80", for=10.0.0.2',
+            )
+        ],
         client=LOCAL_PROXY,
     )
     assert req.remote_ip == "1.2.3.4"
@@ -584,13 +623,16 @@ def test_remote_ip_forwarded_all_trusted_is_the_leftmost():
 
 
 @pytest.mark.usefixtures("no_current_app")
-@pytest.mark.parametrize("hop, expected", [
-    ("1.2.3.4:4711", "1.2.3.4"),
-    ('"[2001:db8::7]:4711"', "2001:db8::7"),
-    ('"[2001:db8::7]"', "2001:db8::7"),
-    ('"[::ffff:203.0.113.5]"', "203.0.113.5"),
-    ('"_hidden:4711"', "_hidden:4711"),
-])
+@pytest.mark.parametrize(
+    "hop, expected",
+    [
+        ("1.2.3.4:4711", "1.2.3.4"),
+        ('"[2001:db8::7]:4711"', "2001:db8::7"),
+        ('"[2001:db8::7]"', "2001:db8::7"),
+        ('"[::ffff:203.0.113.5]"', "203.0.113.5"),
+        ('"_hidden:4711"', "_hidden:4711"),
+    ],
+)
 def test_remote_ip_forwarded_without_the_port(hop, expected):
     """With the port, the default `rate_limit` key would change with each
     connection the client opens."""
@@ -616,11 +658,14 @@ def test_remote_ip_forwarded_a_quote_the_client_leaves_open(client_part):
 
 
 @pytest.mark.usefixtures("no_current_app")
-@pytest.mark.parametrize("proxy_part, expected", [
-    ('host="a,b";for=1.2.3.4', "1.2.3.4"),
-    ('by="x,y";for="[2001:db8::66]:4711"', "2001:db8::66"),
-    ('host="a\\",b";for=1.2.3.4', "1.2.3.4"),
-])
+@pytest.mark.parametrize(
+    "proxy_part, expected",
+    [
+        ('host="a,b";for=1.2.3.4', "1.2.3.4"),
+        ('by="x,y";for="[2001:db8::66]:4711"', "2001:db8::66"),
+        ('host="a\\",b";for=1.2.3.4', "1.2.3.4"),
+    ],
+)
 def test_remote_ip_forwarded_a_comma_in_a_quoted_value_of_the_proxy(proxy_part, expected):
     """A comma inside a quoted value of the proxy's own element doesn't end
     the element: its `for=` must not be lost, or `remote_ip` would be the
@@ -631,23 +676,29 @@ def test_remote_ip_forwarded_a_comma_in_a_quoted_value_of_the_proxy(proxy_part, 
     assert req.remote_ip == expected
 
 
-@pytest.mark.parametrize("value, elements", [
-    ("", [""]),
-    ("for=1.2.3.4, for=5.6.7.8", ["for=1.2.3.4", " for=5.6.7.8"]),
-    ('for=1, host="a,b";for=2', ["for=1", ' host="a,b";for=2']),
-    ('for="1, for=2', ['for="1', " for=2"]),
-    ('for="1, host="a,b"', ['for="1', ' host="a,b"']),
-    ('a="x\\",y", b="\\\\", c', ['a="x\\",y"', ' b="\\\\"', " c"]),
-])
+@pytest.mark.parametrize(
+    "value, elements",
+    [
+        ("", [""]),
+        ("for=1.2.3.4, for=5.6.7.8", ["for=1.2.3.4", " for=5.6.7.8"]),
+        ('for=1, host="a,b";for=2', ["for=1", ' host="a,b";for=2']),
+        ('for="1, for=2', ['for="1', " for=2"]),
+        ('for="1, host="a,b"', ['for="1', ' host="a,b"']),
+        ('a="x\\",y", b="\\\\", c', ['a="x\\",y"', ' b="\\\\"', " c"]),
+    ],
+)
 def test_split_forwarded(value, elements):
     assert split_forwarded(value) == elements
 
 
 @pytest.mark.usefixtures("no_current_app")
-@pytest.mark.parametrize("name, lines", [
-    ("x-forwarded-for", ["198.51.100.7", "10.0.0.2"]),
-    ("forwarded", ["for=198.51.100.7", "for=10.0.0.2"]),
-])
+@pytest.mark.parametrize(
+    "name, lines",
+    [
+        ("x-forwarded-for", ["198.51.100.7", "10.0.0.2"]),
+        ("forwarded", ["for=198.51.100.7", "for=10.0.0.2"]),
+    ],
+)
 def test_remote_ip_reads_every_line_of_a_forwarding_header(name, lines):
     """A header sent in several lines is one list, the lines in order (RFC
     9110 §5.3): the client's address can be in an earlier line than the
@@ -659,7 +710,8 @@ def test_remote_ip_reads_every_line_of_a_forwarding_header(name, lines):
 @pytest.mark.usefixtures("no_current_app")
 def test_forwarded_reads_every_line():
     req = _make_request(
-        "/", headers=[("forwarded", "for=1.2.3.4"), ("forwarded", "for=5.6.7.8;proto=https")]
+        "/",
+        headers=[("forwarded", "for=1.2.3.4"), ("forwarded", "for=5.6.7.8;proto=https")],
     )
     assert req.forwarded == [{"for": "1.2.3.4"}, {"for": "5.6.7.8", "proto": "https"}]
 
@@ -720,10 +772,13 @@ def test_remote_ip_without_an_app_uses_the_default_trusted_proxies():
 
 @pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_custom_trusted_proxies():
-    app = App(__name__, {
-        "SECRET_KEYS": ["*" * 50],
-        "TRUSTED_PROXIES": ["203.0.113.0/24", "2001:db8::1"],
-    })
+    app = App(
+        __name__,
+        {
+            "SECRET_KEYS": ["*" * 50],
+            "TRUSTED_PROXIES": ["203.0.113.0/24", "2001:db8::1"],
+        },
+    )
     headers = [("x-forwarded-for", "1.2.3.4, 203.0.113.8")]
 
     req = _make_request("/", headers=headers, client=("203.0.113.7", 5000), app=app)
@@ -795,7 +850,9 @@ def test_user_agent_missing():
 @pytest.mark.usefixtures("no_current_app")
 def test_protocol_from_x_forwarded_proto():
     req = _make_request(
-        "http://example.com/", headers=[("x-forwarded-proto", "https")], client=LOCAL_PROXY
+        "http://example.com/",
+        headers=[("x-forwarded-proto", "https")],
+        client=LOCAL_PROXY,
     )
     assert req.protocol == "https"
     assert req.is_secure is True
@@ -890,32 +947,38 @@ def test_accept_with_escaped_quotes():
     assert req.accept[1] == "text/plain"
 
 
-@pytest.mark.parametrize("header, expected", [
-    # A parameter without a value is ignored, with or without quotes.
-    ("text/html;level,application/json;q=0.5", ["text/html", "application/json"]),
-    ('text/html;level,application/json;q="0.5"', ["text/html", "application/json"]),
-    # An empty parameter, as after a trailing `;`.
-    ("text/html;,application/json;q=0.5", ["text/html", "application/json"]),
-    ("application/json;q=0.5,text/html;", ["text/html", "application/json"]),
-    # A `q` that isn't a number from 0 to 1 is ignored: the weight is 1.
-    ("application/json;q=0.5,text/html;q=abc", ["text/html", "application/json"]),
-    ('application/json;q=0.5,text/html;q="abc"', ["text/html", "application/json"]),
-    ("application/json;q=0.5,text/html;q=", ["text/html", "application/json"]),
-    ("application/json;q=0.5,text/html;q=nan", ["text/html", "application/json"]),
-    # A q over 1 counts as 1: a tie, so the order in the header stays.
-    ("application/json,text/html;q=2", ["application/json", "text/html"]),
-    ("text/html;q=-1,application/json;q=0.5", ["text/html", "application/json"]),
-])
+@pytest.mark.parametrize(
+    "header, expected",
+    [
+        # A parameter without a value is ignored, with or without quotes.
+        ("text/html;level,application/json;q=0.5", ["text/html", "application/json"]),
+        ('text/html;level,application/json;q="0.5"', ["text/html", "application/json"]),
+        # An empty parameter, as after a trailing `;`.
+        ("text/html;,application/json;q=0.5", ["text/html", "application/json"]),
+        ("application/json;q=0.5,text/html;", ["text/html", "application/json"]),
+        # A `q` that isn't a number from 0 to 1 is ignored: the weight is 1.
+        ("application/json;q=0.5,text/html;q=abc", ["text/html", "application/json"]),
+        ('application/json;q=0.5,text/html;q="abc"', ["text/html", "application/json"]),
+        ("application/json;q=0.5,text/html;q=", ["text/html", "application/json"]),
+        ("application/json;q=0.5,text/html;q=nan", ["text/html", "application/json"]),
+        # A q over 1 counts as 1: a tie, so the order in the header stays.
+        ("application/json,text/html;q=2", ["application/json", "text/html"]),
+        ("text/html;q=-1,application/json;q=0.5", ["text/html", "application/json"]),
+    ],
+)
 def test_accept_malformed_parameters_are_ignored(header, expected):
     req = _make_request("/", headers=[("accept", header)])
     assert req.accept == expected
 
 
-@pytest.mark.parametrize("header, expected", [
-    ("text/html;Q=0.1,application/json", ["application/json", "text/html"]),
-    ('text/html;Q=0.1;level="1",application/json', ["application/json", "text/html"]),
-    ("text/html;LEVEL;Q=0.1,application/json", ["application/json", "text/html"]),
-])
+@pytest.mark.parametrize(
+    "header, expected",
+    [
+        ("text/html;Q=0.1,application/json", ["application/json", "text/html"]),
+        ('text/html;Q=0.1;level="1",application/json', ["application/json", "text/html"]),
+        ("text/html;LEVEL;Q=0.1,application/json", ["application/json", "text/html"]),
+    ],
+)
 def test_accept_parameter_names_are_case_insensitive(header, expected):
     """RFC 9110 §5.6.6: parameter names are case-insensitive, so `Q` is `q`."""
     req = _make_request("/", headers=[("accept", header)])
@@ -1007,19 +1070,22 @@ def test_allow_no_host():
     assert req.host == ""
 
 
-@pytest.mark.parametrize("host_header, server, host, port", [
-    # The server listens on every address, or on a Unix socket: the name
-    # the client asked for is in the `Host` header (PEP 3333).
-    ("api.example.com", ("0.0.0.0", 2300), "api.example.com", 80),
-    ("api.example.com:8443", ("0.0.0.0", 2300), "api.example.com", 8443),
-    ("API.Example.com", ("/run/app.sock", None), "api.example.com", 80),
-    ("[2001:db8::1]:8080", ("::", 2300), "2001:db8::1", 8080),
-    # Without a `Host` header (HTTP/1.0), or with an empty one, the address
-    # the request arrived at.
-    (None, ("10.0.0.5", 2300), "10.0.0.5", 2300),
-    ("", ("10.0.0.5", 2300), "10.0.0.5", 2300),
-    (None, ("10.0.0.5", None), "10.0.0.5", 80),
-])
+@pytest.mark.parametrize(
+    "host_header, server, host, port",
+    [
+        # The server listens on every address, or on a Unix socket: the name
+        # the client asked for is in the `Host` header (PEP 3333).
+        ("api.example.com", ("0.0.0.0", 2300), "api.example.com", 80),
+        ("api.example.com:8443", ("0.0.0.0", 2300), "api.example.com", 8443),
+        ("API.Example.com", ("/run/app.sock", None), "api.example.com", 80),
+        ("[2001:db8::1]:8080", ("::", 2300), "2001:db8::1", 8080),
+        # Without a `Host` header (HTTP/1.0), or with an empty one, the address
+        # the request arrived at.
+        (None, ("10.0.0.5", 2300), "10.0.0.5", 2300),
+        ("", ("10.0.0.5", 2300), "10.0.0.5", 2300),
+        (None, ("10.0.0.5", None), "10.0.0.5", 80),
+    ],
+)
 def test_host_from_the_host_header_else_the_server(host_header, server, host, port):
     headers = [] if host_header is None else [("host", host_header)]
     req = Request(headers=headers, server=server)
@@ -1033,18 +1099,21 @@ def test_host_with_port_from_the_host_header():
     assert req.host_with_port == "example.com"
 
 
-@pytest.mark.parametrize("headers, server, expected", [
-    # An IPv6 address goes back in brackets, as in the `Host` header and the
-    # netloc of an `Origin`; the port only when it is not the default one.
-    ([("host", "[2606:4700::1]:8080")], None, "[2606:4700::1]:8080"),
-    ([("host", "[2606:4700::1]")], None, "[2606:4700::1]"),
-    ([("host", "[2606:4700::1]:80")], None, "[2606:4700::1]"),
-    ([("host", "[::FFFF:192.0.2.1]:8080")], None, "[::ffff:192.0.2.1]:8080"),
-    # Without a `Host` header, the server's address has no brackets.
-    ([], ("::1", 8080), "[::1]:8080"),
-    ([], ("::1", None), "[::1]"),
-    ([("host", "192.0.2.1:8080")], None, "192.0.2.1:8080"),
-])
+@pytest.mark.parametrize(
+    "headers, server, expected",
+    [
+        # An IPv6 address goes back in brackets, as in the `Host` header and the
+        # netloc of an `Origin`; the port only when it is not the default one.
+        ([("host", "[2606:4700::1]:8080")], None, "[2606:4700::1]:8080"),
+        ([("host", "[2606:4700::1]")], None, "[2606:4700::1]"),
+        ([("host", "[2606:4700::1]:80")], None, "[2606:4700::1]"),
+        ([("host", "[::FFFF:192.0.2.1]:8080")], None, "[::ffff:192.0.2.1]:8080"),
+        # Without a `Host` header, the server's address has no brackets.
+        ([], ("::1", 8080), "[::1]:8080"),
+        ([], ("::1", None), "[::1]"),
+        ([("host", "192.0.2.1:8080")], None, "192.0.2.1:8080"),
+    ],
+)
 def test_host_with_port_puts_an_ipv6_address_in_brackets(headers, server, expected):
     req = Request(headers=headers, server=server)
     assert req.host_with_port == expected

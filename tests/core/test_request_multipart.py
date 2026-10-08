@@ -262,14 +262,17 @@ def test_file_parts_closed_on_error():
         parser.parse_sync(body)
 
 
-@pytest.mark.parametrize("body", [
-    # No boundary line at the start.
-    b"garbage",
-    # A different boundary.
-    b"--other\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n--other--\r\n",
-    # A header line without a colon.
-    b"--testboundary\r\nbad header line\r\n\r\nv\r\n--testboundary--\r\n",
-])
+@pytest.mark.parametrize(
+    "body",
+    [
+        # No boundary line at the start.
+        b"garbage",
+        # A different boundary.
+        b"--other\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n--other--\r\n",
+        # A header line without a colon.
+        b"--testboundary\r\nbad header line\r\n\r\nv\r\n--testboundary--\r\n",
+    ],
+)
 def test_framing_error(body):
     """python-multipart's own parse errors are a `MultipartError` (400)."""
     parser = MultipartParser("testboundary")
@@ -277,13 +280,16 @@ def test_framing_error(body):
         parser.parse_sync(body)
 
 
-@pytest.mark.parametrize("tail", [
-    b"",
-    b"--testboundary",
-    b"--testboundary\r\n",
-    b"--testboundary-",
-    b"--testboundaryZZ",
-])
+@pytest.mark.parametrize(
+    "tail",
+    [
+        b"",
+        b"--testboundary",
+        b"--testboundary\r\n",
+        b"--testboundary-",
+        b"--testboundaryZZ",
+    ],
+)
 def test_missing_final_boundary(tail):
     """A body cut before the final boundary is an error, not a form that
     silently lacks its last fields."""

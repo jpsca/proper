@@ -1,5 +1,6 @@
 """The IP address stored with each login session: any value
 `request.remote_ip` can return, in a new app and in one made before."""
+
 import importlib
 import ipaddress
 import sys
@@ -97,20 +98,24 @@ def user(models):
     return models.User.create(login="ada@example.com", password="correct horse battery")
 
 
-@pytest.mark.parametrize("ip, stored", [
-    ("203.0.113.5", "203.0.113.5"),
-    ("2001:db8::1", "2001:db8::1"),
-    # The peer of a dual-stack server (Granian on `::`), as it gives it
-    ("::ffff:203.0.113.5", "::ffff:203.0.113.5"),
-    ("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255",) * 2,
-    ("fe80::1%eth0", "fe80::1%eth0"),
-    # What a proxy writes instead of an address
-    ("unknown", "unknown"),
-    ("_hidden", "_hidden"),
-    ("", None),
-    (None, None),
-    ("x" * 300, "x" * 255),
-], ids=lambda value: value[:50] if isinstance(value, str) else value)
+@pytest.mark.parametrize(
+    "ip, stored",
+    [
+        ("203.0.113.5", "203.0.113.5"),
+        ("2001:db8::1", "2001:db8::1"),
+        # The peer of a dual-stack server (Granian on `::`), as it gives it
+        ("::ffff:203.0.113.5", "::ffff:203.0.113.5"),
+        ("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255",) * 2,
+        ("fe80::1%eth0", "fe80::1%eth0"),
+        # What a proxy writes instead of an address
+        ("unknown", "unknown"),
+        ("_hidden", "_hidden"),
+        ("", None),
+        (None, None),
+        ("x" * 300, "x" * 255),
+    ],
+    ids=lambda value: value[:50] if isinstance(value, str) else value,
+)
 def test_the_session_stores_any_remote_ip(models, user, ip, stored):
     session = models.Session.create_for_user(user, ip_address=ip, user_agent="UA")
     assert models.Session.get_by_id(session.id).ip_address == stored
@@ -118,6 +123,7 @@ def test_the_session_stores_any_remote_ip(models, user, ip, stored):
 
 class _LegacySession(pw.Model):
     """The `Session` model of an app made before: an `IPField`."""
+
     ip_address = pw.IPField(null=True)
 
     @classmethod
@@ -142,14 +148,17 @@ def _signed_in_session(app, session_model, client, user=None):
     return controller.new_session_for(user=user)
 
 
-@pytest.mark.parametrize("peer, stored", [
-    (("203.0.113.5", 5000), "203.0.113.5"),
-    (("::ffff:203.0.113.5", 5000), "203.0.113.5"),
-    # `IPField` can't store these: they are left out, instead of a 500.
-    (("2001:db8::1", 5000), None),
-    (("unknown", None), None),
-    (None, None),
-])
+@pytest.mark.parametrize(
+    "peer, stored",
+    [
+        (("203.0.113.5", 5000), "203.0.113.5"),
+        (("::ffff:203.0.113.5", 5000), "203.0.113.5"),
+        # `IPField` can't store these: they are left out, instead of a 500.
+        (("2001:db8::1", 5000), None),
+        (("unknown", None), None),
+        (None, None),
+    ],
+)
 def test_sign_in_with_a_legacy_ip_field(app, legacy_session, peer, stored):
     session = _signed_in_session(app, legacy_session, peer)
     assert legacy_session.get_by_id(session.id).ip_address == stored
@@ -206,7 +215,8 @@ def test_the_migration_from_the_ip_field(tmp_path):
     (migrations / f"{name}.py").write_text(MIGRATION)
     assert Router(db, migrate_dir=migrations).run() == [name]
     assert [s.ip_address for s in NewSession.select().order_by(NewSession.id)] == [
-        "203.0.113.5", None,
+        "203.0.113.5",
+        None,
     ]
     NewSession.create(ip_address="2001:db8::1", user=user)
     assert NewSession.get(NewSession.ip_address == "2001:db8::1")
@@ -214,4 +224,6 @@ def test_the_migration_from_the_ip_field(tmp_path):
     Router(db, migrate_dir=migrations).rollback()
     assert [s.ip_address for s in OldSession.select()] == [None, None, None]
     OldSession.create(ip_address="198.51.100.7", user=user)
-    assert ipaddress.ip_address(OldSession.select().order_by(OldSession.id.desc()).get().ip_address)
+    assert ipaddress.ip_address(
+        OldSession.select().order_by(OldSession.id.desc()).get().ip_address
+    )

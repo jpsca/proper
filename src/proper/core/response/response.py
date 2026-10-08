@@ -376,9 +376,7 @@ class Response(ResponseHeadersMixin):
             if not self.etag:
                 return False
             etag = self.etag.removeprefix("W/")
-            return any(
-                tag.removeprefix("W/") == etag for tag in request.if_none_match
-            )
+            return any(tag.removeprefix("W/") == etag for tag in request.if_none_match)
 
         if self.last_modified and request.if_modified_since:
             last_modified = self.last_modified.replace(microsecond=0)
