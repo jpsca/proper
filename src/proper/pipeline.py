@@ -95,6 +95,12 @@ def _ipv4_number(host: str) -> int | None:
             return None
         if not allowed.issuperset(digits):
             return None
+        # 12 digits are at least 8 ** 11 = 2 ** 33 in any of the three
+        # bases, more than any part can be, and `int` raises `ValueError`
+        # for a decimal text longer than 4300 digits.
+        digits = digits.lstrip("0")
+        if len(digits) > 11:
+            return None
         numbers.append(int(digits, base) if digits else 0)
     *first, last = numbers
     if any(n > 255 for n in first) or last >= 256 ** (5 - len(numbers)):
