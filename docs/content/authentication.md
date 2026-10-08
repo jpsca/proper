@@ -160,11 +160,13 @@ class Session(BaseModel):
     created_at = pw.DateTimeField(...)
     expires_at = pw.DateTimeField(...)   # absolute expiry
     last_seen_at = pw.DateTimeField(...) # rolling, updated on each request
-    ip_address = pw.IPField(null=True)
+    ip_address = pw.CharField(max_length=255, null=True)  # request.remote_ip
     user_agent_hash = pw.CharField(...)  # SHA-256, never the raw UA
     user = pw.ForeignKeyField(User, ...)
     revoked = pw.BooleanField(...)
 ```
+
+`ip_address` is `request.remote_ip` at sign-in: an IPv4 or IPv6 address, or what a proxy wrote instead of one (`unknown`), cut to 255 characters, and `None` without one. In an app whose `Session` model still has `ip_address = pw.IPField(null=True)` (apps made before this field changed), it can hold only IPv4 addresses, so the others are stored as `None`; the CHANGELOG has the migration to text.
 
 Note that there's both an absolute `expires_at` and a rolling `last_seen_at`.
 

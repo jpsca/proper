@@ -995,6 +995,17 @@ class TestHandshakeRequest:
         )
         assert request.remote_ip == remote_addr.strip("[]")
 
+    def test_without_a_peer_the_forwarding_header_is_not_used(self, app):
+        """A handshake without `remote_addr` has no peer, which would count
+        as a trusted proxy: the client's `X-Forwarded-For` would set
+        `remote_ip`."""
+        from proper.channels.cable import _handshake_request
+
+        request = _handshake_request(app, {"forwarded_for": "6.6.6.6"})
+        assert request.client is None
+        assert request.remote_ip == ""
+        assert "x-forwarded-for" not in request.headers
+
     @pytest.mark.asyncio
     async def test_find_session_from_a_bearer_token(self, app):
         """`find_session()` is the hook for clients without cookies."""

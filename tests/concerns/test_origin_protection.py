@@ -287,3 +287,37 @@ def test_non_ip_local_hostname_not_trusted(app):
     co = _make_local_co(app, "http://mypc.local:2300", "192.168.1.100")
     with pytest.raises(InvalidOrigin):
         co._dispatch("action")
+
+
+# The server listens on every address (`proper run`): the host the browser
+# asked for is the `Host` header, not the address the server is bound to.
+@pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
+def test_origin_matches_the_host_header_not_the_bind_address(app, method):
+    co = _make_co(
+        app,
+        url="http://example.com:8080/",
+        server=("0.0.0.0", 2300),
+        headers=[("origin", "http://example.com:8080")],
+    )
+    co.request.method = method
+    co.request.matched_action = "action"
+
+    # Should not raise InvalidOrigin
+    co._dispatch("action")
+
+
+@pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
+def test_local_origin_to_a_public_host_header_rejected(app, method):
+    """Step 6 needs both the `Origin` and the `Host` on the local network;
+    the bind address (`0.0.0.0`) is not the `Host`."""
+    co = _make_co(
+        app,
+        url="http://example.com/",
+        server=("0.0.0.0", 2300),
+        headers=[("origin", "http://192.168.1.10:2300")],
+    )
+    co.request.method = method
+    co.request.matched_action = "action"
+
+    with pytest.raises(InvalidOrigin):
+        co._dispatch("action")

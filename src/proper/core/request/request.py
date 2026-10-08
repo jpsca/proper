@@ -52,8 +52,9 @@ class Request(RequestHeadersMixin):
         scheme:
             `http` or `https`.
         server:
-            `(host, port)` of the address the request arrived at, or `None`
-            to take it from the `host` header.
+            `(host, port)` of the address the request arrived at, or `None`.
+            `host` and `port` come from the `host` header, as PEP 3333
+            rebuilds the URL; this address is used only without one.
         client:
             `(host, port)` of the client, or `None`.
         http_version:

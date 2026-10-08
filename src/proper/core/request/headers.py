@@ -35,10 +35,17 @@ class RequestHeadersMixin:
             forwarded_proto if forwarded_proto and self._from_trusted_proxy else self.scheme
         )
 
-        if self.server:
+        # As PEP 3333 rebuilds the URL: the `Host` header, else the address
+        # the request arrived at. That address is where the server listens
+        # (`0.0.0.0`, or a Unix socket), not the name the client asked for.
+        host_header = self.headers.get("host")
+        if host_header:
+            host, port = parse_host(host_header)
+            host = host.lower()
+        elif self.server:
             host, port = self.server
         else:
-            host, port = parse_host(self.headers.get("host"))
+            host, port = "", 0
         self.host: str = host
         self.port: int = port or self.default_port
 
@@ -208,7 +215,7 @@ class RequestHeadersMixin:
             A list of dictionaries with the forwarding information.
 
         """
-        return parse_forwarded(self.headers.get("forwarded"))
+        return parse_forwarded(self._combined("forwarded"))
 
     @property
     def host_with_port(self) -> str:
@@ -366,7 +373,8 @@ class RequestHeadersMixin:
 
         `X-Forwarded-For` comes first because it is the one nearly every
         proxy writes; most pass a `Forwarded` header from the client
-        through untouched.
+        through untouched. A header sent in several lines is read as one
+        list, its lines joined in order (RFC 9110 §5.3).
 
         Otherwise, it is the address of the peer that sent the request
         and the forwarding headers are ignored, because any client can
@@ -388,16 +396,16 @@ class RequestHeadersMixin:
         trusted = self._trusted_proxies()
 
         hops = [
-            hop.strip() for hop in (self.headers.get("x-forwarded-for") or "").split(",")
+            hop.strip() for hop in (self._combined("x-forwarded-for") or "").split(",")
         ]
         hops = [hop for hop in hops if hop]
         if not hops:
-            # Each element is parsed on its own, as Rack does: a quoted
-            # string that the client leaves open must not take in the
-            # element that a trusted proxy appends.
+            # Each element is parsed on its own, so a quoted string that the
+            # client leaves open can't take in the element that a trusted
+            # proxy appends.
             hops = [
                 fw["for"]
-                for element in (self.headers.get("forwarded") or "").split(",")
+                for element in split_forwarded(self._combined("forwarded") or "")
                 for fw in parse_forwarded(element)
                 if "for" in fw
             ]
@@ -413,6 +421,13 @@ class RequestHeadersMixin:
             return realip
 
         return peer
+
+    def _combined(self, name: str) -> str | None:
+        """The values of a list header sent in several field lines, joined
+        with commas in the order they came, as RFC 9110 §5.3 combines them.
+        `None` if the header isn't there."""
+        values = self.headers.getall(name)
+        return ",".join(values) if values else None
 
     @cached_property
     def request_id(self) -> str | None:
@@ -489,6 +504,36 @@ def closest_untrusted_hop(hops: list[str], trusted: TNetworks) -> str:
         if not is_trusted_proxy(hop, trusted):
             return hop
     return hops[0]
+
+
+def split_forwarded(value: str) -> list[str]:
+    """Split a `Forwarded` header into its elements: at the commas that are
+    not inside a quoted string (`host="a,b"`).
+
+    The header is read from the right, because the elements the trusted
+    proxies append are there and are well formed: a quoted string that the
+    client leaves open (`for="1.2.3.4`) takes in only what is at its left.
+    """
+    if '"' not in value:
+        return value.split(",")
+    elements = []
+    end = len(value)
+    in_quotes = False
+    for pos in range(len(value) - 1, -1, -1):
+        char = value[pos]
+        if char == '"':
+            # Inside a quoted string, `\"` is a quote, not its start.
+            start = pos
+            while start and value[start - 1] == "\\":
+                start -= 1
+            if not (in_quotes and (pos - start) % 2):
+                in_quotes = not in_quotes
+        elif char == "," and not in_quotes:
+            elements.append(value[pos + 1:end])
+            end = pos
+    elements.append(value[:end])
+    elements.reverse()
+    return elements
 
 
 def parse_date(value: str | None) -> datetime | None:

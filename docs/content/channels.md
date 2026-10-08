@@ -229,7 +229,7 @@ Without the auth addon, `Session` is `None`, every connection is anonymous, `cur
 
 ### Clients without cookies
 
-A mobile app or a script has no session cookie. The handshake is still an HTTP request, and the channel sees all of it in `self.request`: the path and query string (`request.query`), the `Authorization` header, and the client's address (`request.remote_ip`, which honors `X-Forwarded-For` from your proxy when it is one of the `TRUSTED_PROXIES`; see [Deployment](/docs/deployment#trusted-proxies)). The session lookup is one method, `find_session()`, that reads the signed cookie by default. Override it in `AppChannel` to accept a token as well:
+A mobile app or a script has no session cookie. The handshake is still an HTTP request, and the channel sees all of it in `self.request`: the path and query string (`request.query`), the `Authorization` header, and the client's address (`request.remote_ip`, which honors `X-Forwarded-For` from your proxy when it is one of the `TRUSTED_PROXIES`; see [Deployment](/docs/deployment#trusted-proxies)). A handshake without a peer address (only the in-memory test server's `connect()` without details sends none; wse always does) gets no `X-Forwarded-For`, and its `remote_ip` is `""`. The session lookup is one method, `find_session()`, that reads the signed cookie by default. Override it in `AppChannel` to accept a token as well:
 
 ```python {title="channels/app_channel.py"}
 class AppChannel(Channel):

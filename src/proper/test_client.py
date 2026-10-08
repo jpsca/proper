@@ -73,8 +73,9 @@ def make_test_request(
 
     The URL may carry a scheme, a host and port, a path and a query string.
     `params`, if given, replace the query string. A `host` header is added
-    unless `headers` already has one. `server` overrides the `(host, port)`
-    taken from the URL.
+    unless `headers` already has one; `request.host` and `request.port`
+    come from it. `server` overrides the address the request arrived at
+    (`request.server`), which is the `(host, port)` of the URL.
 
     The path is percent-decoded, as the server does: `/tags/a%20b` arrives
     as `/tags/a b`.

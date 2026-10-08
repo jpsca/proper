@@ -381,6 +381,12 @@ The two `/assets/` blocks send the same `Cache-Control` headers the app sends wh
 
 The `500.html` page is served by nginx, so visitors see it even when the app is down.
 
+### The `Host` header
+
+`request.host` and `request.port` come from the `Host` header, as PEP 3333 rebuilds the URL; only a request without one (HTTP/1.0) gets the address the server listens on, which under `proper run` is `0.0.0.0` or the Unix socket. Routes with a `host`, and `OriginProtection`, compare with it. So the proxy must pass the client's `Host` through, as `proxy_set_header Host $host;` does in the nginx example: by default nginx sends the address in `proxy_pass` (`127.0.0.1:2300`), and the routes for a host then answer 404. An invalid `Host` (`example.com/x`, a space, `user@example.com`) gets a 400.
+
+The client chooses the `Host` header, so the app never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config, or the host of the route. Set `HOST` to your public host name, and build the absolute URLs that leave the request (emails, links you store or send to others) with `url_for(..., _full=True)`, not from `request.host`. `X-Forwarded-Host` and `Forwarded: host=` are not read.
+
 ### Trusted proxies
 
 The `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers tell the app who the visitor is and whether they connected over HTTPS: `request.remote_ip` comes from them, and so does `request.protocol`. `request.protocol` decides `request.is_secure`, the default port in `request.host_with_port`, and whether the session and auth cookies are `Secure`. Any client can send those headers too, so the app uses them only when the request comes from one of the `TRUSTED_PROXIES`. From any other address they are ignored, and `request.remote_ip` is the address the request came from.
@@ -391,11 +397,17 @@ The default list is the loopback, private and link-local networks: `127.0.0.0/8`
 TRUSTED_PROXIES = ["127.0.0.1", "203.0.113.0/24"]
 ```
 
-Each item is an IP address or a network in CIDR notation; anything else stops the app at startup with a `ConfigError`. An empty list ignores the forwarding headers from every address, for an app that faces the internet directly.
+Each item is an IP address or a network in CIDR notation, as a string or an `ipaddress` object; anything else (an int, bytes, a host name) stops the app at startup with a `ConfigError`. An empty list ignores the forwarding headers from every address, for an app that faces the internet directly.
+
+:::warning | The default trusts your whole private network
+With the default list, every loopback, private and link-local address counts as a proxy. A client that reaches the app, or the first proxy, from one of those addresses is believed: another machine on the same LAN or VPC, a container on the same host, or any visitor behind a load balancer that replaces the source address with its own private one (SNAT). Such a client can choose its `request.remote_ip` with `X-Forwarded-For` or `X-Real-IP`, and make the request secure with `X-Forwarded-Proto: https`. If clients can connect from those networks, replace the default with the addresses of your proxies only.
+:::
+
+The proxy must overwrite `X-Forwarded-Proto` with the scheme it got the request on, as `proxy_set_header X-Forwarded-Proto $scheme;` does in the nginx example: the app uses the whole value of the header, so a proxy that appends to it (`https, http`) or passes the client's header through lets the client decide whether the request is secure.
 
 Granian (`--uds`) or gunicorn (`--bind unix:...`) listening on a Unix socket instead of a port gives the app no address for the peer. Only a process on the same machine can connect to the socket, so such a request counts as coming from a trusted proxy. Some other servers give a made-up address instead (waitress gives `localhost`, uWSGI `0.0.0.0`), which is not trusted: there, every request gets the same `remote_ip` and is not secure.
 
-Each proxy adds the address it got the request from at the end of `X-Forwarded-For`, so the app reads the list from the right and skips the trusted proxies: `remote_ip` is the first address that is not one, without a port if the proxy added one (and an IPv4-mapped address, `::ffff:203.0.113.5`, as `203.0.113.5`). Whatever is further left was written by the client or an untrusted hop. `X-Forwarded-For` comes first, then the standard `Forwarded` header, read the same way (its `for=` values, without port or brackets), then `X-Real-IP`. A proxy passes the headers it doesn't write through as the client sent them, so make yours remove the ones that come before the one it writes: if it writes only `Forwarded`, make it remove `X-Forwarded-For`; if it writes only `X-Real-IP`, make it remove `X-Forwarded-For` and `Forwarded`.
+Each proxy adds the address it got the request from at the end of `X-Forwarded-For`, so the app reads the list from the right and skips the trusted proxies: `remote_ip` is the first address that is not one, without a port if the proxy added one (and an IPv4-mapped address, `::ffff:203.0.113.5`, as `203.0.113.5`). Whatever is further left was written by the client or an untrusted hop. `X-Forwarded-For` comes first, then the standard `Forwarded` header, read the same way (its `for=` values, without port or brackets), then `X-Real-IP`. A header sent in several lines counts as one list, the lines in the order they came. A proxy passes the headers it doesn't write through as the client sent them, so make yours remove the ones that come before the one it writes: if it writes only `Forwarded`, make it remove `X-Forwarded-For`; if it writes only `X-Real-IP`, make it remove `X-Forwarded-For` and `Forwarded`.
 
 The proxy must also drop the request headers with an underscore in the name, such as `X_Forwarded_For`. The WSGI server gives the app `X-Forwarded-For` and `X_Forwarded_For` under the same name, so the app can't tell the client's header from the proxy's: Granian keeps one of the two values, and it can be the client's. A client could then choose `remote_ip` and, with `X_Forwarded_Proto: https`, make the request secure. nginx drops these headers unless `underscores_in_headers` is on or `ignore_invalid_headers` is off, so keep both at their defaults (`underscores_in_headers off`, `ignore_invalid_headers on`). A proxy built on Go's `httputil.ReverseProxy` passes them through; check yours.
 
