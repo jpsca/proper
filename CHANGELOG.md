@@ -437,6 +437,17 @@ and `77` is 1977; in 2051, `00` is 2100. Second 60 is read as second 59
 at any time of day (`08:49:60` as `08:49:59`, not only `23:59:60`): the
 grammar of RFC 9110 allows seconds from 00 to 60.
 
+### ⚠️ Upgrading: Proper no longer installs python-dateutil
+
+Proper read the dates in headers with python-dateutil; it now reads them
+itself (see above), and python-dateutil is no longer one of its
+dependencies. An app that imports `dateutil` and got it only because Proper
+installed it must add it to its own dependencies:
+
+```bash
+uv add python-dateutil
+```
+
 ### ⚠️ Upgrading: `Accept` weights outside 0 to 1, and `Q`
 
 In `Accept`, `Accept-Encoding` and `Accept-Language`, a `q` that is not a
@@ -514,6 +525,7 @@ class RouteTemplate(Template):
 ### Removed
 
 - `proper.router.RouteTemplate` (see "Upgrading" above).
+- The dependency on python-dateutil (see "Upgrading" above).
 - `RedisCable`. Several machines are now the `cluster` option of `Cable`,
   on wse's own mesh (see Added), which also carries presence and recovery
   between machines, something Redis pub/sub couldn't.
