@@ -405,6 +405,21 @@ class TestUrlFor:
         url = router.url_for("photos", _anchor="top")
         assert url == "/photos#top"
 
+    @pytest.mark.parametrize("anchor, expected", [
+        ("a b#c", "/photos#a%20b%23c"),
+        ("café", "/photos#caf%C3%A9"),
+        ("100%", "/photos#100%25"),
+        # The characters RFC 3986 allows in a fragment stay as they are.
+        ("a/b?c=d:e@f!$&'()*+,;", "/photos#a/b?c=d:e@f!$&'()*+,;"),
+        ('a"<>`{}', "/photos#a%22%3C%3E%60%7B%7D"),
+    ])
+    def test_url_for_percent_encodes_the_anchor(self, anchor, expected):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/photos", name="photos", to=Handlers.action))
+        url = router.url_for("photos", _anchor=anchor)
+        assert url == expected
+        assert unquote(urlsplit(url).fragment) == anchor
+
     def test_url_for_with_param_and_anchor(self):
         router = BaseRouter()
         r = Route("GET", "/photos/:id", name="photo", to=Handlers.action)

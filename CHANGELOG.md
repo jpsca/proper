@@ -58,6 +58,16 @@ Three things to change:
   an `<int>` placeholder or `"english"` for `<en|es|pt>`, also raises
   `BadRoutePlaceholder` instead of building a URL that doesn't match the
   route. Pass the right value.
+- A value that makes a `.` or `..` segment of the path, such as `"."` or
+  `".."` for `/files/:name`, or `"a/../b"` for a `<path>` placeholder, also
+  raises `BadRoutePlaceholder`. Browsers and HTTP clients remove those
+  segments, and the one before a `..`, so `/files/..` opened `/`. If your
+  data can be `.` or `..` (file or folder names), pass it in the query
+  string, or prefix it.
+- `_anchor` is percent-encoded like the path, keeping `?` as it is:
+  `_anchor="a b#c"` gives `#a%20b%23c` (it was `#a b#c`). Pass the anchor
+  unencoded; an anchor you encoded yourself (`"a%20b"`) is encoded again
+  (`#a%2520b`), and then no longer finds the element with the `id` `a b`.
 
 ### ⚠️ Upgrading: `url_is` and `url_startswith` compare paths only
 
@@ -331,29 +341,89 @@ RFC 9110:
   2xx status. Before, a `POST` with a matching `If-None-Match`, or an
   action that set a 404 or a redirect, could get its status replaced by
   304 and lose its body. Now that response is sent in full, and
-  `fresh_when()` and `is_fresh()` return `False` for it. If an action
+  `fresh_when()` and `is_fresh()` return `False` for it when the status is
+  already set (`fresh_when()` can't know a status the action sets after
+  calling it, but the 304 is decided with the final status). If an action
   used their return value on another method or status, it must not
   count on `True` there any more.
 - `If-Modified-Since` is ignored when the request has an
   `If-None-Match`. Before, an ETag that didn't match could still get a 304
   from the date. Static files have no ETag, so a request for one that
-  carries an `If-None-Match` now always gets a 200. If a proxy or CDN in
-  front of the app adds its own `If-None-Match` to the requests it
-  revalidates, make it send only `If-Modified-Since` for static files, or
-  they lose their 304s.
+  carries an `If-None-Match` other than `*` now always gets a 200. If a
+  proxy or CDN in front of the app adds its own `If-None-Match` to the
+  requests it revalidates, make it send only `If-Modified-Since` for
+  static files, or they lose their 304s.
 - `If-None-Match` uses the weak comparison (`W/"x"` matches `"x"`), and
-  `If-None-Match: *` matches any response with an ETag. Before, only the
-  exact string matched, so more requests now get a 304.
+  `If-None-Match: *` matches any 2xx response to a `GET` or `HEAD`, with or
+  without an ETag, static files included (RFC 9110 §13.1.2: the resource
+  exists). Before, only the exact string matched, so more requests now get
+  a 304. An action that answers 2xx to a `GET` with `If-None-Match: *` now
+  sends a 304 without a body even if it never calls `fresh_when()`.
 
-Two RFC 9110 rules are not applied: `If-None-Match: *` matches only a
-response with an ETag (the RFC matches any existing resource), and a request
-with another method whose `If-None-Match` matches gets the response as it
-is, not a `412 Precondition Failed`.
+One RFC 9110 rule is not applied: a request with another method whose
+`If-None-Match` matches gets the response as it is, not a
+`412 Precondition Failed`.
 
 A response with the status 304 now always goes out without a body, also
 when the action sets the status itself: the body is emptied, whatever the
 action returned, and no template is rendered. Before, the body was emptied
 only when the request's headers made the response fresh.
+
+### ⚠️ Upgrading: `Accept` weights outside 0 to 1, and `Q`
+
+In `Accept`, `Accept-Encoding` and `Accept-Language`, a `q` that is not a
+number from 0 to 1 now counts as 1, as if it were not there. Before, `q=2`
+put the value first and `q=-1` put it last (and `q=abc` was a 500). The
+parameter names are now case-insensitive, as RFC 9110 says, so `Q=0.1` is
+a weight: `text/html;Q=0.1, application/json` now prefers JSON (before,
+`Q` was ignored and HTML came first). `request.accept`,
+`request.accept_language` and the template that an action renders for a
+format follow this order. Nothing to change unless a client (or a test)
+counted on `q` over 1 or on an uppercase `Q` being ignored.
+
+### ⚠️ Upgrading: bodies that can't be read are client errors, chunked bodies are read
+
+Request bodies that the app can't read are now 4xx errors, raised before
+the action, where they were 500s:
+
+- Bytes that are not valid in the charset of a urlencoded or JSON body:
+  `BadRequest` (400).
+- An unknown charset (`charset=nope`, or a name that Python can't look up,
+  such as one with a NUL): `UnsupportedMediaType` (415).
+- JSON with an integer of more than 4300 digits, or with arrays and
+  objects nested deeper than the stack allows: `MultipartError` (400), as
+  malformed JSON already was.
+- Malformed multipart framing: `MultipartError` (400), as described above.
+
+They go to your error handlers for those classes (or for `BadRequest`), not
+to a handler for `UnicodeDecodeError`, `LookupError`, `ValueError` or
+`RecursionError`, and the client gets the 4xx page. If you had such a
+handler, register it for `BadRequest` or `UnsupportedMediaType` instead.
+
+Chunked bodies (`Transfer-Encoding: chunked`) and HTTP/2 bodies without
+`Content-Length` are now read from servers that set
+`wsgi.input_terminated` (Granian, gunicorn and waitress do), up to
+`MAX_CONTENT_LENGTH`; one over it is a 413. Before, such a body was
+ignored and the action got an empty `request.form` and `request.body`.
+Check that:
+
+- An action that accepted these requests and ignored the empty body now
+  gets the body, and validates it.
+- `request.content_length` stays `0` for such a body. Code that reads
+  `content_length` to know whether there is a body should check
+  `request.body` instead.
+- With `MAX_CONTENT_LENGTH = 0` (no limit), the whole body is read into
+  memory; set a limit if the app gets chunked uploads.
+
+### ⚠️ Upgrading: `app.loads()` returns `None` for tokens it can't decode
+
+`app.loads()` now returns `None`, as for a bad signature, for a token whose
+signature is valid but whose payload it can't decode (not valid base64,
+zlib, UTF-8 or JSON) or whose timestamp is after the year 9999. It raised
+`itsdangerous.BadPayload`, `ValueError` or `OverflowError`. Code that
+caught those exceptions around `loads()` must check for `None` instead; the
+`except` clauses no longer run. Signed cookies and the session read such a
+token as missing, where they were a 500.
 
 ### Removed
 
@@ -485,6 +555,15 @@ only when the request's headers made the response fresh.
   and `/a::b` lost a `:`. The text that is not a placeholder is now copied
   as written. `Route` no longer uses `RouteTemplate`, which is kept for
   compatibility.
+- `url_for` copied `_anchor` as it was: `_anchor="a b#c"` gave
+  `/photos#a b#c`. It is now percent-encoded with the characters RFC 3986
+  allows in a fragment kept: `/photos#a%20b%23c`.
+- `url_for` built URLs with a `.` or `..` segment from values such as
+  `".."` (`/files/..`), which browsers and HTTP clients turn into another
+  URL (`/`). Such a value now raises `BadRoutePlaceholder`.
+- `If-None-Match: *` matched only a response with an ETag, so a `GET` for a
+  page or a static file without one got a 200. It now matches any 2xx
+  response to a `GET` or `HEAD` (RFC 9110 §13.1.2), which gets a 304.
 - `url_is` and `url_startswith` didn't ignore the query string and the
   `#fragment` of `curr_url`, contrary to their docstrings, and
   `url_startswith` was always `False` for a route at `/`. They now compare
@@ -507,6 +586,9 @@ only when the request's headers made the response fresh.
   was a 500: one without a value (`text/html;level`), an empty one
   (`text/html;`), or a `q` that is not a number (`q=abc`). Such a parameter
   is now ignored; a `q` that is not a number from 0 to 1 counts as 1.
+- The parameter names of `Accept`, `Accept-Encoding` and `Accept-Language`
+  were case-sensitive, so `text/html;Q=0.1` had the weight 1. They are
+  now case-insensitive (RFC 9110 §5.6.6).
 - The media type of the request's `Content-Type` was case-sensitive when it
   had parameters: a body sent as `Multipart/Form-Data; boundary=x` or
   `Application/JSON; charset=utf-8` was not parsed. The media type is now
@@ -518,6 +600,13 @@ only when the request's headers made the response fresh.
 - A urlencoded or JSON body with bytes that are not valid in its charset was
   a 500; it is now a `BadRequest` (400). An unknown charset
   (`charset=nope`) was a 500; it is now an `UnsupportedMediaType` (415).
+  So is a charset name with a NUL, which RFC 2231 decoding gives for
+  `charset*=utf-8''utf-8%00`; in a multipart body such a charset was a 500
+  too, and is now read as Latin-1, as other unknown charsets are.
+- A JSON body that `json.loads()` refuses with something other than a
+  `JSONDecodeError` was a 500: an integer with more than 4300 digits
+  (`ValueError`), or about 100,000 nested arrays (`RecursionError`). Both
+  are now a `MultipartError` (400), as invalid JSON is.
 - A malformed multipart body (no boundary line at the start, a header line
   without a colon) was a 500 with python-multipart's own exception; it is now
   a `MultipartError` (400).

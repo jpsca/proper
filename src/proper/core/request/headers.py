@@ -706,7 +706,8 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
 
     Return:
         List of (value, params) tuples. The second element is a
-        (possibly empty) dict.
+        (possibly empty) dict. The parameter names are lowercased, because
+        they are case-insensitive (RFC 9110 §5.6.6): `Q=0.5` is `q`.
 
     """
     values = []
@@ -716,8 +717,9 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
             values.append((parts[0].strip(), {}))
             for attr in parts[1:]:
                 name, _, value = attr.partition("=")
-                if name.strip():
-                    values[-1][1][name.strip()] = value.strip()
+                name = name.strip().lower()
+                if name:
+                    values[-1][1][name] = value.strip()
     else:
         lop, key, attrs = ",", None, {}
         for quoted, plain, tok in RX_SPLIT(header):
@@ -727,9 +729,9 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
                 values.append((value, attrs))
             elif lop == ";":
                 if tok == "=":
-                    key = value
+                    key = value.lower()
                 else:
-                    attrs[value] = ""
+                    attrs[value.lower()] = ""
             elif lop == "=" and key:
                 attrs[key] = value
                 key = None

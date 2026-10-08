@@ -610,7 +610,9 @@ The body is read and parsed before routing, by `Content-Type` (media type and pa
 | Body over `MAX_CONTENT_LENGTH` (also for chunked/HTTP/2 bodies without `Content-Length`, which are read up to the limit) | `RequestEntityTooLarge` (413) |
 | Bytes not valid in the charset | `BadRequest` (400) |
 | Unknown charset | `UnsupportedMediaType` (415) |
-| Malformed JSON or multipart (including a missing final boundary) | `MultipartError` (400) |
+| Malformed JSON or multipart (including a missing final boundary), JSON with an integer over 4300 digits, or nested too deep for the stack | `MultipartError` (400) |
+
+A multipart body is never refused for its charset: with an unknown charset, or for a field not valid in it, the field is read as Latin-1.
 
 ### Route Defaults
 
@@ -1071,11 +1073,11 @@ If `fresh_when()` determines the response is fresh, the action's rendered output
 
 The freshness check (`self.response.is_fresh()`) uses these RFC 9110 rules:
 
-- Only `GET`/`HEAD` requests with a 2xx response can be fresh; a `POST`, an error status or a redirect is never turned into a 304.
-- `If-None-Match` uses the weak comparison (`W/"x"` matches `"x"`); `*` matches any response that has an ETag.
+- Only `GET`/`HEAD` requests with a 2xx response can be fresh; a `POST`, an error status or a redirect is never turned into a 304. The 304 is decided with the status the action leaves: `fresh_when()` returns what holds when it is called, so it can return `True` before the action sets a 404.
+- `If-None-Match: *` matches any GET/HEAD 2xx response, with or without an ETag (RFC 9110 §13.1.2). Other values use the weak comparison (`W/"x"` matches `"x"`).
 - `If-Modified-Since` is ignored when the request has `If-None-Match`.
 - `Last-Modified` is compared with `If-Modified-Since` in whole seconds.
-- Not applied: `If-None-Match: *` needs an ETag on the response (the RFC matches any existing resource); a non-GET/HEAD request with a matching `If-None-Match` gets the response as it is, not a 412.
+- Not applied: a non-GET/HEAD request with a matching `If-None-Match` gets the response as it is, not a 412.
 
 A 304 always goes out without a body: if the action sets `self.response.status = 304` itself, the body is emptied and no template is rendered.
 

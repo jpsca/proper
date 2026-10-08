@@ -150,7 +150,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `http_version`     | `str`                      | HTTP version (e.g. `"1.1"`)                                        |
 | `server_software`  | `str`                      | How the server names itself (e.g. `"Granian"`); `""` if unknown     |
 | `flashes`          | `list[tuple[str, str]]`    | Flash messages stored in the session                                |
-| `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality (a malformed parameter or `q` is ignored) |
+| `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality (`q`, or `Q`: parameter names are case-insensitive; a malformed parameter or `q` is ignored) |
 | `accept_encoding`  | `list[str]`                | Encodings from `Accept-Encoding`, sorted by quality                 |
 | `accept_language`  | `list[str]`                | Languages from `Accept-Language`, sorted by quality                 |
 | `cookies`          | `dict[str, str]`           | Parsed cookies                                                      |

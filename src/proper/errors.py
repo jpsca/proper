@@ -23,8 +23,9 @@ class MissingRouteParameter(ConfigError):
 
 
 class BadRoutePlaceholder(ConfigError):
-    def __init__(self, name: str, path: str, rx: str) -> None:
-        msg = f"placeholder {name} doesn't have the expected format <{rx}> in {path}"
+    def __init__(self, name: str, path: str, rx: str, *, reason: str = "") -> None:
+        reason = reason or f"doesn't have the expected format <{rx}>"
+        msg = f"placeholder {name} {reason} in {path}"
         super().__init__(msg)
 
 

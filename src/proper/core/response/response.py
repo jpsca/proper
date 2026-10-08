@@ -310,6 +310,12 @@ class Response(ResponseHeadersMixin):
                 By default the Cache-Control header is private, set this to `True` if you want
                 your application to be cacheable by other devices (proxy caches).
 
+        Returns:
+            `is_fresh()` for the response as it is when called. The 304 after
+            the action is decided with the status the action leaves, so a 404
+            or a redirect set after this call is sent as it is, even if this
+            returned `True`.
+
         """
         if objects:
             if not is_iterable(objects):
@@ -340,17 +346,17 @@ class Response(ResponseHeadersMixin):
         Uses these rules of RFC 9110 (sections 13.1 and 13.2):
 
         - Only a `GET` or `HEAD` request with a 2xx response can be fresh.
-        - `If-None-Match` matches if it lists the response's ETag, compared
-          with the weak comparison (`W/"x"` matches `"x"`), or if it is `*`
-          and the response has an ETag.
+        - `If-None-Match: *` matches any such response, with or without an
+          ETag: the resource exists.
+        - Otherwise `If-None-Match` matches if it lists the response's ETag,
+          compared with the weak comparison (`W/"x"` matches `"x"`).
         - `If-Modified-Since` is used only when the request has no
           `If-None-Match`. The dates are compared in whole seconds, because
           HTTP dates have no fractions.
 
-        Two differences from the RFC: `If-None-Match: *` needs a response
-        with an ETag (the RFC matches any existing resource), and a request
-        with another method whose `If-None-Match` matches gets the response
-        as it is (the RFC answers `412 Precondition Failed`).
+        One difference from the RFC: a request with another method whose
+        `If-None-Match` matches gets the response as it is (the RFC answers
+        `412 Precondition Failed`).
 
         """
         request = current.request if request is None else request
@@ -364,12 +370,14 @@ class Response(ResponseHeadersMixin):
 
         # An ETag has priority over Last-Modified
         if request.if_none_match:
+            # RFC 9110 §13.1.2: `*` matches any current representation.
+            if "*" in request.if_none_match:
+                return True
             if not self.etag:
                 return False
             etag = self.etag.removeprefix("W/")
             return any(
-                tag == "*" or tag.removeprefix("W/") == etag
-                for tag in request.if_none_match
+                tag.removeprefix("W/") == etag for tag in request.if_none_match
             )
 
         if self.last_modified and request.if_modified_since:

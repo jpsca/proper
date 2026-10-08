@@ -4,7 +4,7 @@ import inspect
 import typing as t
 from collections.abc import Callable
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 import inflection
 
@@ -30,7 +30,7 @@ from ..constants import (
 from ..errors import MatchNotFound, MethodNotAllowed, RouteNotFound
 from ..global_context import current
 from ..types import Iterable, TException, THandler
-from .route import Route, StaticRoute, _namespace_prefix
+from .route import FRAGMENT_SAFE, Route, StaticRoute, _namespace_prefix
 
 
 if t.TYPE_CHECKING:
@@ -213,7 +213,9 @@ class BaseRouter:
         Each placeholder value must match the placeholder's format as a
         whole, or `BadRoutePlaceholder` is raised: `"42abc"` is not an
         `<int>`, and a value with a `/` fits only a format that accepts it,
-        such as `<path>`.
+        such as `<path>`. A value that makes a `.` or `..` segment of the
+        path (`".."` for `/files/:name`) also raises it: clients remove
+        those segments, so the URL would lead to another page.
 
         Arguments:
             name:
@@ -230,6 +232,9 @@ class BaseRouter:
                 for `item_id` and then `id` in the object attributes).
             _anchor:
                 Optional. If given, appends an anchor to the URL (e.g. `#section1`).
+                It is percent-encoded as the path is, but a `?` stays as it
+                is too (the characters RFC 3986 allows in a fragment):
+                `_anchor="a b#c"` gives `#a%20b%23c`.
             _full:
                 Optional. If `True`, builds a full URL including the protocol and host.
                 The host is determined by the route's host constraint if it has one,
@@ -267,7 +272,7 @@ class BaseRouter:
         url = route.format(**path_kw)
 
         if _anchor:
-            url += "#" + _anchor
+            url += "#" + quote(_anchor, safe=FRAGMENT_SAFE)
 
         if _full and current.app:
             config = current.app.config
