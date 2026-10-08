@@ -461,11 +461,30 @@ def test_parse_date_rfc850_two_digit_year(value, expected):
         (2099, "08-Oct-99 12:00:00", 2099),
     ],
 )
-def test_parse_date_rfc850_two_digit_year_in_three_centuries(
-    now_year, value, expected
-):
+def test_parse_date_rfc850_two_digit_year_in_three_centuries(now_year, value, expected):
     now = datetime.datetime(now_year, 10, 8, 12, 0, 0, tzinfo=UTC)
     # The day name is not checked against the date.
+    assert parse_date(f"Monday, {value} GMT", now=now).year == expected
+
+
+@pytest.mark.parametrize(
+    "now, value, expected",
+    [
+        # The examples of the CHANGELOG: the year can depend on the day...
+        ((2026, 10, 8, 12, 0, 0), "08-Oct-76 12:00:00", 2076),
+        ((2026, 10, 8, 12, 0, 0), "08-Oct-76 12:00:01", 1976),
+        ((2026, 10, 8, 12, 0, 0), "09-Oct-76 00:00:00", 1976),
+        # ...but `77` is 1977 throughout 2026...
+        ((2026, 1, 1, 0, 0, 0), "01-Jan-77 00:00:00", 1977),
+        ((2026, 12, 31, 23, 59, 59), "01-Jan-77 00:00:00", 1977),
+        ((2026, 1, 1, 0, 0, 0), "31-Dec-77 23:59:59", 1977),
+        # ...and `00` is 2100 throughout 2051.
+        ((2051, 1, 1, 0, 0, 0), "31-Dec-00 23:59:59", 2100),
+        ((2051, 12, 31, 23, 59, 59), "01-Jan-00 00:00:00", 2100),
+    ],
+)
+def test_parse_date_rfc850_two_digit_year_changelog_examples(now, value, expected):
+    now = datetime.datetime(*now, tzinfo=UTC)
     assert parse_date(f"Monday, {value} GMT", now=now).year == expected
 
 
