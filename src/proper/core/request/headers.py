@@ -576,17 +576,14 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     Second 60, which the grammar of RFC 9110 allows at any time of day (a
     leap second), is read as second 59.
 
-    A two-digit year (RFC 850) is the latest year with those last two
-    digits that makes the date, to the second, not more than 50 years
-    after `now` (the current time by default): in the next century, this
-    one or the one before. So the year can depend on the day and time:
-    with `now` at 2026-10-08 12:00:00 UTC, `08-Oct-76 12:00:00` is in 2076
-    and `08-Oct-76 12:00:01` is in 1976. A year without that date is
-    skipped: with `now` in 2051, `29-Feb-00` is in 2000, because 2100 has
-    no 29 February. When none of the three years has the date not more
-    than 50 years after `now`, the result is None: with `now` from
-    1 January 2200 to 28 February 2350, `29-Feb-00` is None (from 1 March
-    2350 it is in 2400). `now` is compared in UTC: an aware `now` is
+    A two-digit year (RFC 850) is taken in the next century, this one or
+    the one before: the latest of those three years that has the date and
+    makes it, to the second, not more than 50 years after `now` (the
+    current time by default). When none of them does, the result is None.
+    So the year can depend on the day and time: with `now` at 2026-10-08
+    12:00:00 UTC, `08-Oct-76 12:00:00` is in 2076 and `08-Oct-76 12:00:01`
+    is in 1976. With `now` in 2051, `29-Feb-00` is in 2000, because 2100
+    has no 29 February. `now` is compared in UTC: an aware `now` is
     converted to UTC, and a naive one is taken to be in UTC.
 
     Returns:

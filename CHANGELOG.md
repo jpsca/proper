@@ -436,20 +436,16 @@ instead of a 304. Browsers and HTTP clients send the date of
 client or a test that builds its own dates in another form.
 
 The day name is not checked against the date. In the RFC 850 form, a
-two-digit year is the latest year with those last two digits that makes the
-date, to the second, not more than 50 years in the future, as RFC 9110
-says; only the next century, this one and the one before are tried. So the
-year can depend on the day: on 8 October 2026 at 12:00 UTC,
-`08-Oct-76 12:00:00` is 2076, but `08-Oct-76 12:00:01` and `09-Oct-76` are
-1976. Throughout 2026, `77` is 1977; throughout 2051, `00` is 2100, but
-`29-Feb-00` is 2000, because a year without that date is skipped and 2100
-has no 29 February. When none of the three years has the date not more
-than 50 years in the future, the header is ignored (`None`): from
-1 January 2200 to 28 February 2350, `29-Feb-00` is `None`, because 2100,
-2200 and 2300 have no 29 February and 29 February 2400 is more than 50
-years ahead; from 1 March 2350 it is 2400. Second 60 is read as second 59
-at any time of day (`08:49:60` as `08:49:59`, not only `23:59:60`): the
-grammar of RFC 9110 allows seconds from 00 to 60.
+two-digit year is taken in the next century, this one or the one before:
+the latest of those three years that has the date and makes it, to the
+second, not more than 50 years in the future, as RFC 9110 says. When none
+of them does, the header is ignored (`None`). So the year can depend on
+the day: on 8 October 2026 at 12:00 UTC, `08-Oct-76 12:00:00` is 2076, but
+`08-Oct-76 12:00:01` and `09-Oct-76` are 1976. Throughout 2026, `77` is
+1977; throughout 2051, `00` is 2100, but `29-Feb-00` is 2000, because 2100
+has no 29 February. Second 60 is read as second 59 at any time of day
+(`08:49:60` as `08:49:59`, not only `23:59:60`): the grammar of RFC 9110
+allows seconds from 00 to 60.
 
 ### ⚠️ Upgrading: Proper no longer installs python-dateutil
 
