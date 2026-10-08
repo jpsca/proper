@@ -185,11 +185,11 @@ host (its step 5).
   a host answer 404.
 - An invalid `Host` header (`example.com/x`, a space, `user@example.com`,
   brackets around something that is not an IPv6 address: `[abc]`,
-  `[127.0.0.1]`) is now a `400 Bad Request`. It was ignored. So is a request with more
-  than one `Host` line, as RFC 9112 §3.2 requires, even when the lines are
-  the same: Granian joins them with a comma (`a.com,b.com`), so a `Host`
-  with a comma is refused, and a `Request` built with repeated `host`
-  pairs gets the same 400.
+  `[127.0.0.1]`) is now a `400 Bad Request`. It was ignored. So is a
+  request with more than one `Host` line, as RFC 9112 §3.2 requires, even
+  when the lines are the same: Granian joins them with a comma
+  (`a.com,b.com`), so a `Host` with a comma is refused, and a `Request`
+  built with repeated `host` pairs gets the same 400.
 - `OriginProtection` step 6 (both the `Origin` and the host on the local
   network) now needs the `Host` to be a local address. Before, the host was
   the bind address (`0.0.0.0`, which counts as local), so any `Origin` on
@@ -446,9 +446,9 @@ year can depend on the day: on 8 October 2026 at 12:00 UTC,
 has no 29 February. When none of the three years has the date not more
 than 50 years in the future, the header is ignored (`None`): from 2200 to
 2349, `29-Feb-00` is `None`, because 2100, 2200 and 2300 have no 29
-February and 29 February 2400 is more than 50 years ahead. Second 60 is read as second 59 at any time of day (`08:49:60` as
-`08:49:59`, not only `23:59:60`): the grammar of RFC 9110 allows seconds
-from 00 to 60.
+February and 29 February 2400 is more than 50 years ahead. Second 60 is
+read as second 59 at any time of day (`08:49:60` as `08:49:59`, not only
+`23:59:60`): the grammar of RFC 9110 allows seconds from 00 to 60.
 
 ### ⚠️ Upgrading: Proper no longer installs python-dateutil
 
