@@ -99,14 +99,21 @@ def test_sign_raw_makes_tokens_that_loads_accepts():
     assert app.loads(sign_raw(app, payload, MAX_TIMESTAMP), salt="x") == {"id": 1}
 
 
-@pytest.mark.parametrize("payload", [
-    base64_encode(b"not json"),
-    base64_encode(b"\xff\xfe"),
-    b"!!!",
-    b".not-zlib",
+@pytest.mark.parametrize("payload, step", [
+    (base64_encode(b"not json"), "unserializing"),
+    (base64_encode(b"\xff\xfe"), "unserializing"),
+    # itsdangerous drops the characters outside the base64 alphabet, so
+    # `!!!` is an empty payload: a JSON error, not a base64 one.
+    (b"!!!", "unserializing"),
+    # Five characters can't be base64 (a length of 4n + 1).
+    (b"abcde", "base64 decode"),
+    (b".not-zlib", "zlib decompress"),
 ])
-def test_loads_rejects_a_signed_payload_that_does_not_decode(payload):
+def test_loads_rejects_a_signed_payload_that_does_not_decode(payload, step):
     app = make_app(KEY_B, KEY_A)
+    # The payload fails at the step the case is for.
+    with pytest.raises(itsdangerous.BadPayload, match=step):
+        app.serializers[-1].load_payload(payload)
     token = sign_raw(app, payload, int(time.time()))
     assert app.loads(token, salt="x") is None
     assert app.loads(token, salt="x", max_age=60) is None

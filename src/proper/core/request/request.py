@@ -345,11 +345,14 @@ def _decode(body: bytes, encoding: str) -> str:
     `content-type`.
 
     An unknown charset is a 415; bytes that aren't valid in that charset
-    are a 400.
+    are a 400. A charset name that Python can't look up at all (one with a
+    NUL, which RFC 2231 decoding gives for `charset*=utf-8''utf-8%00`)
+    raises `ValueError`, and is an unknown charset too.
     """
     try:
         return body.decode(encoding)
-    except LookupError:
-        raise UnsupportedMediaType(f"Unknown charset: {encoding}.") from None
     except UnicodeError:
         raise BadRequest(f"The body is not valid {encoding}.") from None
+    except (LookupError, ValueError):
+        # `UnicodeError` is a `ValueError`, so it is caught first.
+        raise UnsupportedMediaType(f"Unknown charset: {encoding!r}.") from None

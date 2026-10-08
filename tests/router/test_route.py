@@ -483,6 +483,46 @@ class TestRouteFormat:
         assert r.match("/1bc") == {"a": 1}
         assert r.format(a=1) == "/1bc"
 
+    @pytest.mark.parametrize("path, values, name", [
+        ("/files/:name", {"name": "."}, "name"),
+        ("/files/:name", {"name": ".."}, "name"),
+        ("/files/:name/edit", {"name": ".."}, "name"),
+        ("/:name", {"name": "."}, "name"),
+        ("/docs/:page<path>", {"page": "a/../b"}, "page"),
+        ("/docs/:page<path>", {"page": "a/."}, "page"),
+        ("/docs/:page<path>", {"page": "../a"}, "page"),
+        # Two values that make one `..` segment together.
+        ("/x/:a:b", {"a": ".", "b": "."}, "a"),
+        # The value is next to the text of the route.
+        ("/x/.:a", {"a": "."}, "a"),
+    ])
+    def test_format_rejects_a_dot_segment(self, path, values, name):
+        """Clients remove `.` and `..` segments (RFC 3986 §5.2.4), so the
+        URL would not lead to the route."""
+        r = Route("GET", path)
+        with pytest.raises(BadRoutePlaceholder, match=f"placeholder {name} would make"):
+            r.format(**values)
+
+    @pytest.mark.parametrize("path, values, expected", [
+        ("/files/:name", {"name": "..."}, "/files/..."),
+        ("/files/:name", {"name": ".x"}, "/files/.x"),
+        ("/files/:name", {"name": "a.."}, "/files/a.."),
+        ("/files/x:name", {"name": "."}, "/files/x."),
+        ("/files/:name.json", {"name": "."}, "/files/..json"),
+        ("/docs/:page<path>", {"page": "a/.b/c"}, "/docs/a/.b/c"),
+        # Percent-encoded dots stay encoded: `%2e` is `%252e`.
+        ("/files/:name", {"name": "%2e%2e"}, "/files/%252e%252e"),
+        ("/files/:name", {"name": "a"}, "/files/a"),
+    ])
+    def test_format_accepts_dots_that_are_not_a_dot_segment(self, path, values, expected):
+        r = Route("GET", path)
+        assert r.format(**values) == expected
+
+    def test_format_dot_segments_in_the_route_text_are_its_own(self):
+        r = Route("GET", "/a/../:name")
+        assert r.format(name="b") == "/a/../b"
+        assert r.format(name="...") == "/a/../..."
+
 
 
 class TestRoutePathReassignment:

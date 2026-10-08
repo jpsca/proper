@@ -39,6 +39,13 @@ in a path segment (`pchar`), without `%`.
 """
 PATH_SAFE = "/:@!$&'()*+,;="
 
+"""Characters `url_for` doesn't percent-encode in the `#fragment`, besides
+the unreserved ones: those of `PATH_SAFE` and `?` (RFC 3986 §3.5).
+"""
+FRAGMENT_SAFE = PATH_SAFE + "?"
+
+DOT_SEGMENTS = (".", "..")
+
 """Formats to be replaced with regular expressions.
 Note that these DON'T do any type conversion, just
 validates the section of the route match the regular expression.
@@ -122,6 +129,42 @@ def _build(pieces: "list[tuple[str, str | None]]", values: dict) -> str:
         literal if name is None else literal + values[name]
         for literal, name in pieces
     )
+
+
+def _dot_segment_placeholder(
+    pieces: "list[tuple[str, str | None]]", values: dict
+) -> str | None:
+    """The name of a placeholder whose value is part of a `.` or `..`
+    segment of the path built from `pieces`, or `None`.
+
+    Clients remove those segments, with the one before a `..` (RFC 3986
+    §5.2.4), so such a URL doesn't lead to the route.
+    """
+    # Fast path: such a value has a part between slashes made only of dots.
+    if not any(
+        part and part.strip(".") == ""
+        for value in values.values()
+        for part in value.split("/")
+    ):
+        return None
+
+    spans = []
+    pos = 0
+    for literal, name in pieces:
+        pos += len(literal)
+        if name is not None:
+            spans.append((pos, pos + len(values[name]), name))
+            pos += len(values[name])
+
+    start = 0
+    for segment in _build(pieces, values).split("/"):
+        end = start + len(segment)
+        if segment in DOT_SEGMENTS:
+            for span_start, span_end, name in spans:
+                if span_start < end and start < span_end:
+                    return name
+        start = end + 1
+    return None
 
 
 class RouteTemplate(Template):
@@ -364,12 +407,25 @@ class Route:
         accepts, and `:@!$&'()*+,;=`, so a value like `":signed_id"` stays as
         written. The arguments that are not placeholders become the query
         string, percent-encoded as a form (`urlencode`).
+
+        A value that would make a `.` or `..` segment of the path (`"."` or
+        `".."` for `/files/:name`, or `"a/../b"` for a `<path>`) raises
+        `BadRoutePlaceholder`: browsers and HTTP clients remove those
+        segments, with the one before a `..` (RFC 3986 §5.2.4), so the URL
+        would lead to another page. Percent-encoding them doesn't help:
+        `%2e` is a dot to them too.
         """
         path_params = self._get_path_params(kw)
-        url = _build(
-            self._path_pieces,
-            {name: quote(value, safe=PATH_SAFE) for name, value in path_params.items()},
-        ) or "/"
+        values = {
+            name: quote(value, safe=PATH_SAFE) for name, value in path_params.items()
+        }
+        name = _dot_segment_placeholder(self._path_pieces, values)
+        if name is not None:
+            raise BadRoutePlaceholder(
+                name, self.path, self._path_placeholder_re[name].pattern,
+                reason="would make a `.` or `..` segment, which clients remove",
+            )
+        url = _build(self._path_pieces, values) or "/"
 
         query_params = self._get_query_params(path_params, kw)
         if query_params:

@@ -678,13 +678,17 @@ app.url_for("Auth.login", next="/admin/x")        # /login?next=%2Fadmin%2Fx
 
 Pass the values as they are, not encoded: an already-encoded `"a%20b"` would become `a%2520b`.
 
+A value that would make a `.` or `..` segment of the path also raises `BadRoutePlaceholder`: `"."` or `".."` for `/files/:name`, or `"a/../b"` for a `<path>`. Browsers and HTTP clients remove those segments, and the one before a `..` (RFC 3986 §5.2.4), so `/files/..` would open `/`. Encoding the dots doesn't help, because browsers read `%2e` as a dot too. A dot that is part of a longer segment is fine: `"..."`, `".env"` or `"v1.2"`.
+
 ### `_anchor` and `_full`
 
-`_anchor=` appends a `#fragment` to the URL:
+`_anchor=` appends a `#fragment` to the URL. It is percent-encoded as the path is, and a `?` stays unencoded too (RFC 3986 allows it in a fragment):
 
 ```python
 app.url_for("Post.show", post_id=42, post_slug="hello", _anchor="comments")
 # /posts/42/hello#comments
+app.url_for("Page.show", page_id=1, _anchor="a b#c")
+# /pages/1#a%20b%23c
 ```
 
 `_full=True` returns an absolute URL with protocol and host. Use this when the URL will leave the request - emails, RSS feeds, third-party callbacks:

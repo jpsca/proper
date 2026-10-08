@@ -11,7 +11,12 @@ from proper.core.request.formparser import (
     parse_options_header,
     parse_query_string,
 )
-from proper.core.request.headers import parse_host, parse_request_id, split_forwarded
+from proper.core.request.headers import (
+    parse_host,
+    parse_multivalue,
+    parse_request_id,
+    split_forwarded,
+)
 from proper.errors import (
     InvalidHeader,
     MultipartError,
@@ -904,6 +909,27 @@ def test_accept_with_escaped_quotes():
 def test_accept_malformed_parameters_are_ignored(header, expected):
     req = _make_request("/", headers=[("accept", header)])
     assert req.accept == expected
+
+
+@pytest.mark.parametrize("header, expected", [
+    ("text/html;Q=0.1,application/json", ["application/json", "text/html"]),
+    ('text/html;Q=0.1;level="1",application/json', ["application/json", "text/html"]),
+    ("text/html;LEVEL;Q=0.1,application/json", ["application/json", "text/html"]),
+])
+def test_accept_parameter_names_are_case_insensitive(header, expected):
+    """RFC 9110 §5.6.6: parameter names are case-insensitive, so `Q` is `q`."""
+    req = _make_request("/", headers=[("accept", header)])
+    assert req.accept == expected
+
+
+def test_accept_language_q_is_case_insensitive():
+    req = _make_request("/", headers=[("accept-language", "fr;Q=0.5,en-US")])
+    assert req.accept_language == ["en_US", "fr"]
+
+
+@pytest.mark.parametrize("header", ["a;Level=X;Q=1", 'a;Level="X";Q=1'])
+def test_parse_multivalue_lowercases_parameter_names(header):
+    assert parse_multivalue(header) == [("a", {"level": "X", "q": "1"})]
 
 
 def test_accept_language_malformed_q_is_ignored():

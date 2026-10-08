@@ -3,6 +3,7 @@ from io import BytesIO
 
 import pytest
 
+from proper.core.request.formparser import parse_json
 from proper.errors import (
     BadRequest,
     ClientDisconnected,
@@ -338,6 +339,27 @@ def test_parse_body_invalid_json(app):
         req._read_body_sync(_reader(body))
 
 
+@pytest.mark.parametrize("body", [
+    # An integer with more digits than Python converts (a ValueError).
+    b'{"n": ' + b"1" * 5000 + b"}",
+    b"1" * 5000,
+    # Nested deeper than the stack allows (a RecursionError).
+    b"[" * 100_000 + b"]" * 100_000,
+    b'{"a": ' * 100_000 + b"1" + b"}" * 100_000,
+], ids=["long-int-member", "long-int", "deep-arrays", "deep-objects"])
+def test_parse_body_json_that_python_cannot_read(app, body):
+    req = _post(app, body)
+    with pytest.raises(MultipartError):
+        req._read_body_sync(_reader(body))
+
+
+@pytest.mark.parametrize(
+    "body", [b"1" * 5000, b"[" * 100_000 + b"]" * 100_000], ids=["long-int", "deep-arrays"]
+)
+def test_parse_json_not_strict_gives_an_empty_form(body):
+    assert len(parse_json(body.decode(), strict=False)) == 0
+
+
 def test_parse_body_urlencoded_charset(app):
     body = "name=Jos\xe9".encode("latin-1")
     req = _post(app, body, content_type="application/x-www-form-urlencoded; charset=latin-1")
@@ -362,12 +384,24 @@ def test_parse_body_invalid_utf8(app, content_type):
     "application/json; charset=nope",
     # A codec that is not a text encoding.
     "application/json; charset=base64",
+    # RFC 2231 decoding gives a name with a NUL, which Python can't look up.
+    "application/json; charset*=utf-8''utf-8%00",
+    "application/x-www-form-urlencoded; charset*=utf-8''utf-8%00",
 ])
 def test_parse_body_unknown_charset(app, content_type):
     body = b"e30="
     req = _post(app, body, content_type=content_type)
     with pytest.raises(UnsupportedMediaType, match="charset"):
         req._read_body_sync(_reader(body))
+
+
+@pytest.mark.parametrize("charset", ["nope", "charset*=utf-8''utf-8%00"])
+def test_parse_body_multipart_unknown_charset_falls_back_to_latin1(app, charset):
+    param = charset if "*" in charset else f"charset={charset}"
+    body = _build_multipart([{"name": "a", "value": b"v\xff"}])
+    req = _post(app, body, content_type=f"multipart/form-data; boundary=testboundary; {param}")
+    req._read_body_sync(_reader(body))
+    assert req.form["a"] == "v\xff"
 
 
 def test_parse_body_multipart_framing_error(app):

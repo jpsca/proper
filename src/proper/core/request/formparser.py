@@ -81,11 +81,17 @@ def parse_json(content: str, *, strict: bool = True) -> MultiDict:
     The members of a JSON object are the fields. Any other JSON value (an
     array, a string, a number, `true`, `false` or `null`) gives an empty
     `MultiDict`.
+
+    A body that `json` cannot read is a `MultipartError` (400): invalid
+    JSON, an integer with more digits than Python converts (4300 by
+    default, a `ValueError`), or arrays and objects nested deeper than the
+    interpreter's stack allows (a `RecursionError`).
     """
     form = MultiDict()
     try:
         data = json.loads(content)
-    except json.JSONDecodeError as err:
+    except (ValueError, RecursionError) as err:
+        # `json.JSONDecodeError` is a `ValueError`.
         if strict:
             raise MultipartError(str(err)) from None
         return form
@@ -133,7 +139,9 @@ def _safe_decode(src: bytes | bytearray, codec: str) -> str:
     """Decode bytes, falling back to latin-1 on errors."""
     try:
         return src.decode(codec)
-    except (UnicodeDecodeError, LookupError):
+    # `ValueError` (which `UnicodeDecodeError` is) for a codec name that
+    # can't be looked up at all, such as one with a NUL.
+    except (ValueError, LookupError):
         return src.decode("latin-1")
 
 

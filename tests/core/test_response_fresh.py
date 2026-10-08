@@ -222,7 +222,30 @@ class TestIsFreshIfNoneMatch:
         assert resp.is_fresh(request=request) is True
 
     def test_star_without_etag(self):
+        """RFC 9110 §13.1.2: `*` matches whenever the resource has a current
+        representation, which a 2xx response to a GET or HEAD is."""
         resp = _make_response()
+        request = _make_request(**{"if-none-match": "*"})
+        assert resp.is_fresh(request=request) is True
+
+    def test_star_without_etag_ignores_if_modified_since(self):
+        resp = _make_response()
+        resp.set_last_modified(datetime(2021, 1, 1))
+        request = _make_request(**{
+            "if-none-match": "*",
+            "if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT",
+        })
+        assert resp.is_fresh(request=request) is True
+
+    @pytest.mark.parametrize("method", ["POST", "PUT", "DELETE"])
+    def test_star_is_not_fresh_for_other_methods(self, method):
+        resp = _make_response()
+        request = make_test_request(method=method, headers=[("if-none-match", "*")])
+        assert resp.is_fresh(request=request) is False
+
+    @pytest.mark.parametrize("status", [pstatus.see_other, pstatus.not_found])
+    def test_star_is_not_fresh_for_other_statuses(self, status):
+        resp = _make_response(status=status)
         request = _make_request(**{"if-none-match": "*"})
         assert resp.is_fresh(request=request) is False
 

@@ -206,6 +206,13 @@ class TestHttp:
         ("application/json", b'{"name": "\xff"}', "400 Bad Request"),
         # Unknown charset.
         ("application/json; charset=nope", b"{}", "415 Unsupported Media Type"),
+        ("application/json; charset*=utf-8''utf-8%00", b"{}", "415 Unsupported Media Type"),
+        # JSON that Python can't read: too many digits, too deep.
+        pytest.param("application/json", b"1" * 5000, "400 Bad Request", id="long-int"),
+        pytest.param(
+            "application/json", b"[" * 100_000 + b"]" * 100_000, "400 Bad Request",
+            id="deep-arrays",
+        ),
         # A JSON value that is not an object.
         ("application/json", b"[1, 2]", "200 OK"),
         # A multipart framing error.

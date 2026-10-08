@@ -503,10 +503,11 @@ app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 - Path values, and the route's own text (`/über/:id` → `/%C3%BCber/42`), are percent-encoded, except `/` (only a format that accepts `/`, such as `<path>`, takes one in a value) and ``:@!$&'()*+,;=``, which a path allows as they are. `url_for("Tag.show", tag="a b?")` → `/tags/a%20b%3F`; `token=":signed_id"` stays `:signed_id` (for JS URL templates).
 - Query keys and values are encoded like a form (`urlencode`, from `str()` for non-strings): `url_for("Post.index", q="a&b c")` → `/posts?q=a%26b+c`; `next="/admin/x"` → `?next=%2Fadmin%2Fx`.
 - Pass raw values, not already-encoded ones (`"a%20b"` becomes `a%2520b`).
+- A value that makes a `.` or `..` path segment raises `BadRoutePlaceholder` (`name="."` or `".."` for `/files/:name`, `page="a/../b"` for `<path>`): clients remove those segments (RFC 3986 §5.2.4), and `%2e` is a dot to browsers, so encoding can't help. `"..."` or `".env"` are fine.
 
 ### URL Anchors
 
-Use the `_anchor` keyword argument to append a `#fragment` to the URL:
+Use the `_anchor` keyword argument to append a `#fragment` to the URL. It is percent-encoded like a path value (`?` also stays): `_anchor="a b#c"` → `#a%20b%23c`. Pass it unencoded.
 
 ```python
 app.url_for("Post.show", post_id=42, post_slug="hello", _anchor="comments")

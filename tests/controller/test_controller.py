@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from minijx import ComponentNotFoundError
 
+from proper import App
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
 from proper.core.config import DEFAULT_TRUSTED_PROXIES
 from proper.core.response import Response
@@ -275,19 +276,60 @@ class TestCall:
         assert co.response.status == 404
         assert co.response.body == "Not here"
 
-    def test_not_modified_set_by_the_action_has_no_body(self):
+    def test_fresh_when_before_an_error_status_keeps_the_error(self):
+        """`fresh_when()` answers for the status at the time it is called;
+        the 304 is decided with the status the action leaves."""
+        seen = {}
+
+        class MyController(Controller):
+            def index(self):
+                seen["fresh"] = self.response.fresh_when(etag=123, request=self.request)
+                self.response.status = 404
+                return "Not here"
+
+        etag = 'W/"40bd001563085fc35165329ea1ff5c5ecbdbbeef"'
+        co = _make_controller(cls=MyController, headers=[("if-none-match", etag)])
+        co._call("index")
+        assert seen["fresh"] is True
+        assert co.response.status == 404
+        assert co.response.body == "Not here"
+
+    def test_if_none_match_star_without_etag_is_not_modified(self):
+        class MyController(Controller):
+            def index(self):
+                return "Hello"
+
+        co = _make_controller(cls=MyController, headers=[("if-none-match", "*")])
+        co._call("index")
+        assert co.response.status == not_modified
+        assert co.response.body == ""
+
+    def test_not_modified_set_by_the_action_has_no_body(self, tmp_path):
+        """With a real catalog that has the action's template: the
+        template is not rendered for a 304."""
+        views = tmp_path / "views"
+        (views / "posts").mkdir(parents=True)
+        (views / "posts" / "show.jx").write_text("<p>shown</p>")
+        app = App(__name__, {"SECRET_KEYS": ["*" * 50], "DEBUG": False})
+        app.views_path = views
+        app.catalog.add_folder(views)
+
         class MyController(Controller):
             __module__ = "myapp.pages.posts_controller"
 
             def show(self):
-                self.response.status = not_modified
+                if self.request.query.get("cached"):
+                    self.response.status = not_modified
 
-        co = _make_controller(cls=MyController)
-        co.app.catalog.has_component.return_value = False
+        co = MyController(make_test_request("/", app=app), Response(app))
+        co._call("show")
+        assert co.response.status == 200
+        assert co.response.body == "<p>shown</p>"
+
+        co = MyController(make_test_request("/?cached=1", app=app), Response(app))
         co._call("show")
         assert co.response.status == not_modified
         assert co.response.body == ""
-        co.app.catalog.render.assert_not_called()
 
     def test_no_return_infers_template(self):
         class MyController(Controller):
@@ -930,6 +972,13 @@ class TestStaticFilesController:
         co._call("show")
         assert co.response.status == not_modified
         assert co.response.body == ""
+
+    def test_if_none_match_star_matches_a_file(self, tmp_path):
+        """RFC 9110 §13.1.2: `*` matches any existing file, which has no
+        ETag."""
+        co, _ = self._make(tmp_path, headers=[("if-none-match", "*")])
+        co.show()
+        assert co.response.status == not_modified
 
     def test_if_none_match_ignores_if_modified_since(self, tmp_path):
         co, _ = self._make(

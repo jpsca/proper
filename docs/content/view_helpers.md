@@ -316,8 +316,10 @@ The URL is percent-encoded, so pass the values as they are, not encoded (an enco
 letters, digits, `-._~` and `/:@!$&'()*+,;=`; the arguments that are not placeholders
 become the query string, encoded as a form (a space is `+`, a `/` is `%2F`). Each
 placeholder value must match the placeholder's format as a whole, or `url_for` raises
-`BadRoutePlaceholder`: `"42abc"` is not an `<int>`, and a value with a `/` fits only a
-format that accepts it, such as `<path>`. See
+`BadRoutePlaceholder`: `"42abc"` is not an `<int>`, a value with a `/` fits only a
+format that accepts it, such as `<path>`, and a value can't make a `.` or `..` segment
+(`"."` or `".."` for `/files/:name`), which browsers remove. The `_anchor` is
+percent-encoded as the path is (a `?` stays as it is). See
 [Values Are Checked and Percent-Encoded](/docs/routing#values-are-checked-and-percent-encoded).
 
 See the [url_for API Documentation](/docs/api/view_helpers#url_for) for more information.
