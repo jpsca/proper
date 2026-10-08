@@ -534,12 +534,26 @@ def test_parse_date_rfc850_two_digit_year_naive_now_is_utc():
     assert parse_date("Friday, 08-Oct-76 12:00:01 GMT", now=now).year == 1976
 
 
-def test_parse_date_rfc850_two_digit_year_uses_the_current_date():
-    year = datetime.datetime.now(UTC).year
+def test_parse_date_rfc850_two_digit_year_uses_the_current_date(monkeypatch):
+    # The clock is read once, here, so the test cannot see two different
+    # years (across New Year UTC); parse_date's default `now` gets this
+    # same reading of `datetime.now`.
+    clock = datetime.datetime.now(UTC)
+    calls = []
+
+    class Clock(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            calls.append(tz)
+            return clock
+
+    monkeypatch.setattr("proper.core.request.headers.datetime", Clock)
+    year = clock.year
     future = (year + 49) % 100
     past = (year + 51) % 100
     assert parse_date(f"Monday, 01-Jan-{future:02d} 00:00:00 GMT").year == year + 49
     assert parse_date(f"Monday, 01-Jan-{past:02d} 00:00:00 GMT").year == year - 49
+    assert calls == [UTC, UTC]
 
 
 def test_parse_date_rfc850_two_digit_year_out_of_range():
