@@ -98,8 +98,8 @@ Six things to change:
   unencoded; an anchor you encoded yourself (`"a%20b"`) is encoded again
   (`#a%2520b`), and then no longer finds the element with the `id` `a b`.
 - With `_full=True`, a value for a host placeholder (`host=":user.app.com"`)
-  may have only letters, digits and `-._~`, the characters of a host name;
-  any other character raises `BadRoutePlaceholder`, whatever the
+  may have only letters, digits and `-._~` (the unreserved characters of
+  RFC 3986); any other character raises `BadRoutePlaceholder`, whatever the
   placeholder's format. Host values are not encoded, so `"evil.com?"` gave
   `http://evil.com?.example.com/...`, a link to `evil.com`. Convert an
   international name to its `xn--` form first
