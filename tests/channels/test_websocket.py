@@ -981,7 +981,10 @@ class TestHandshakeRequest:
         assert (request.path, request.query_string, request.client) == ("/", "", None)
         request = _handshake_request(app, {"path": "/ws?a=1", "remote_addr": "[::1]:4000"})
         assert (request.path, request.query_string, request.client) == ("/ws", "a=1", ("::1", 4000))
-        assert _handshake_request(app, {"remote_addr": "nonsense"}).client == ("nonsense", None)
+        assert _handshake_request(app, {"remote_addr": "nonsense"}).client == (
+            "nonsense",
+            None,
+        )
 
     @pytest.mark.parametrize("remote_addr", ["203.0.113.5", "[2001:db8::5]", "nonsense"])
     def test_a_peer_without_a_port_is_still_the_peer(self, app, remote_addr):
