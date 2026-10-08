@@ -345,6 +345,7 @@ Proper uses these rules of RFC 9110 for this check:
 - `If-None-Match: *` matches any of those responses, with or without an ETag, because it asks whether the resource exists. Otherwise `If-None-Match` matches if it lists the response's ETag, comparing weak and strong ETags by their value (`W/"x"` matches `"x"`).
 - When the request has an `If-None-Match`, its `If-Modified-Since` is ignored, so a changed ETag always gets the full response.
 - `Last-Modified` and `If-Modified-Since` are compared in whole seconds, because HTTP dates have no fractions: an `updated_at` of `10:30:00.75` is fresh for an `If-Modified-Since` of `10:30:00`.
+- `If-Modified-Since` is read only in the three date forms of RFC 9110 (`Sun, 06 Nov 1994 08:49:37 GMT`, `Sunday, 06-Nov-94 08:49:37 GMT` and `Sun Nov  6 08:49:37 1994`). A date in any other form, or an invalid one, is ignored, and the response is sent in full.
 
 One RFC 9110 rule is not applied: a request with another method whose `If-None-Match` matches gets the response as it is, not a `412 Precondition Failed`.
 

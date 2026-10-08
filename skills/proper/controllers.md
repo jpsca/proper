@@ -1077,6 +1077,7 @@ The freshness check (`self.response.is_fresh()`) uses these RFC 9110 rules:
 - `If-None-Match: *` matches any GET/HEAD 2xx response, with or without an ETag (RFC 9110 §13.1.2). Other values use the weak comparison (`W/"x"` matches `"x"`).
 - `If-Modified-Since` is ignored when the request has `If-None-Match`.
 - `Last-Modified` is compared with `If-Modified-Since` in whole seconds.
+- `If-Modified-Since` (and `Date`) are read only in the three RFC 9110 date forms: `Sun, 06 Nov 1994 08:49:37 GMT`, `Sunday, 06-Nov-94 08:49:37 GMT`, `Sun Nov  6 08:49:37 1994`. Any other form (ISO 8601, a `+0200` offset, `UTC`) is ignored: `request.if_modified_since` is `None`.
 - Not applied: a non-GET/HEAD request with a matching `If-None-Match` gets the response as it is, not a 412.
 
 A 304 always goes out without a body: if the action sets `self.response.status = 304` itself, the body is emptied and no template is rendered.

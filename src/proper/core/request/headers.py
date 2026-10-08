@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 from functools import cached_property
 from http import cookies as http_cookies
 
-from dateutil.parser import parse as dtparse
-
 from ...constants import DELETE, GET, HEAD, PATCH, POST, PUT, TURBO_STREAM_MIME
 from ...errors import InvalidHeader
 from ...helpers import MultiDict
@@ -542,30 +540,80 @@ def split_forwarded(value: str) -> list[str]:
     return elements
 
 
-def parse_date(value: str | None) -> datetime | None:
+_DAY_NAME = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)"
+_DAY_NAME_L = "(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
+_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+_MONTH = f"(?P<month>{'|'.join(_MONTHS)})"
+_TIME_OF_DAY = "(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})"
+
+# RFC 9110 §5.6.7. The names are case-sensitive.
+RX_IMF_FIXDATE = re.compile(
+    rf"{_DAY_NAME}, (?P<day>[0-9]{{2}}) {_MONTH} (?P<year>[0-9]{{4}}) {_TIME_OF_DAY} GMT"
+)
+RX_RFC850_DATE = re.compile(
+    rf"{_DAY_NAME_L}, (?P<day>[0-9]{{2}})-{_MONTH}-(?P<year>[0-9]{{2}}) {_TIME_OF_DAY} GMT"
+)
+RX_ASCTIME_DATE = re.compile(
+    rf"{_DAY_NAME} {_MONTH} (?P<day>[0-9]{{2}}| [0-9]) {_TIME_OF_DAY} (?P<year>[0-9]{{4}})"
+)
+
+
+def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | None:
     """Parse a date header.
 
-    The date and time at which the message originated.
+    Only the three forms of RFC 9110 §5.6.7 are dates:
+
+    - IMF-fixdate: `Sun, 06 Nov 1994 08:49:37 GMT`
+    - obsolete RFC 850: `Sunday, 06-Nov-94 08:49:37 GMT`
+    - ANSI C's asctime(): `Sun Nov  6 08:49:37 1994`
+
+    All of them are in UTC. The day name is not checked against the date.
+    A two-digit year (RFC 850) that would be more than 50 years after `now`
+    (the current time by default) is in the century before.
 
     Returns:
         A datetime object in UTC, or None if the header is not present or
-        is not a valid date.
+        is not a valid date (RFC 9110 §13.1.3: an invalid date is ignored).
 
     """
     if value is None:
         return None
-    try:
-        date = dtparse(value)
-        # The super-old ANSI C's asctime() format doesn't include timezone
-        # information, but the other formats do, so we assume UTC for it.
-        if date.tzinfo is None:
-            return date.replace(tzinfo=timezone.utc)
-        # An OverflowError if the offset moves it out of datetime's range
-        # (`Fri, 31 Dec 9999 23:59:59 -0100`).
-        return date.astimezone(timezone.utc)
-    except (ValueError, OverflowError):
-        # RFC 9110 §13.1.3: an invalid date is ignored.
+    match = (
+        RX_IMF_FIXDATE.fullmatch(value)
+        or RX_RFC850_DATE.fullmatch(value)
+        or RX_ASCTIME_DATE.fullmatch(value)
+    )
+    if match is None:
         return None
+    fields = (
+        int(match["year"]),
+        _MONTHS.index(match["month"]) + 1,
+        int(match["day"]),
+        int(match["hour"]),
+        int(match["minute"]),
+        # A leap second; `datetime` has no second 60.
+        59 if match["second"] == "60" else int(match["second"]),
+    )
+    if match.re is RX_RFC850_DATE:
+        fields = _rfc850_full_year(fields, now or datetime.now(timezone.utc))
+    try:
+        return datetime(*fields, tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _rfc850_full_year(
+    fields: tuple[int, int, int, int, int, int], now: datetime
+) -> tuple[int, int, int, int, int, int]:
+    """RFC 9110 §5.6.7: a two-digit year that appears to be more than 50
+    years in the future is the most recent year in the past with the same
+    last two digits."""
+    year = now.year - now.year % 100 + fields[0]
+    rest = fields[1:]
+    now_rest = (now.month, now.day, now.hour, now.minute, now.second)
+    if (year - now.year, *rest) > (50, *now_rest):
+        year -= 100
+    return (year, *rest)
 
 
 def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:

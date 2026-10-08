@@ -155,13 +155,13 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `accept_language`  | `list[str]`                | Languages from `Accept-Language`, sorted by quality                 |
 | `cookies`          | `dict[str, str]`           | Parsed cookies                                                      |
 | `cookie`           | `dict[str, str]`           | Alias for `cookies`                                                 |
-| `date`             | `datetime \| None`         | Parsed `Date` header                                                |
+| `date`             | `datetime \| None`         | Parsed `Date` header (RFC 9110 date forms only, else `None`)        |
 | `default_port`     | `int`                      | Default port for the protocol (443 or 80)                           |
 | `format`           | `str`                      | Response format from `Accept` header (e.g. `"html"`, `"json"`)     |
 | `forwarded`        | `list[dict[str, str]]`     | Parsed `Forwarded` header                                           |
 | `host_with_port`   | `str`                      | `host:port` (omits port if default; an IPv6 host in brackets: `[::1]:8080`) |
 | `if_none_match`    | `list[str]`                | ETags from `If-None-Match` header                                   |
-| `if_modified_since`| `datetime \| None`         | Parsed `If-Modified-Since` header                                   |
+| `if_modified_since`| `datetime \| None`         | Parsed `If-Modified-Since` header (RFC 9110 date forms only, else `None`) |
 | `is_delete`        | `bool`                     | `True` if method is DELETE                                          |
 | `is_get`           | `bool`                     | `True` if method is GET                                             |
 | `is_head`          | `bool`                     | `True` if original method is HEAD                                   |

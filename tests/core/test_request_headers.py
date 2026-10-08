@@ -12,6 +12,7 @@ from proper.core.request.formparser import (
     parse_query_string,
 )
 from proper.core.request.headers import (
+    parse_date,
     parse_host,
     parse_multivalue,
     parse_request_id,
@@ -255,7 +256,7 @@ def test_date_header_missing():
         "garbage",
         "",
         "99999999999999999999",
-        # The offset moves these out of the range of `datetime`.
+        # Not in an RFC 9110 form (and the offset moves them out of range).
         "Fri, 31 Dec 9999 23:59:59 -0100",
         "9999-12-31T23:59:59-01:00",
         "0001-01-01T00:30:00+01:00",
@@ -287,13 +288,142 @@ def test_date_without_a_time_zone_is_utc():
     )
 
 
-def test_date_with_an_offset_is_converted_to_utc():
-    req = _make_request(
-        "/", headers=[("if-modified-since", "Sun, 06 Nov 1994 10:49:37 +0200")]
+UTC = datetime.timezone.utc
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("Sun, 06 Nov 1994 08:49:37 GMT", (1994, 11, 6, 8, 49, 37)),
+        ("Sat, 01 Jan 0001 00:00:00 GMT", (1, 1, 1, 0, 0, 0)),
+        ("Fri, 31 Dec 9999 23:59:59 GMT", (9999, 12, 31, 23, 59, 59)),
+        ("Thu, 29 Feb 2024 12:00:00 GMT", (2024, 2, 29, 12, 0, 0)),
+        # A leap second is valid (RFC 9110 §5.6.7); `datetime` has no
+        # second 60, so it is read as second 59.
+        ("Sat, 31 Dec 2016 23:59:60 GMT", (2016, 12, 31, 23, 59, 59)),
+        # Recipients don't check the day name against the date.
+        ("Mon, 06 Nov 1994 08:49:37 GMT", (1994, 11, 6, 8, 49, 37)),
+        ("Monday, 06-Nov-94 08:49:37 GMT", (1994, 11, 6, 8, 49, 37)),
+        ("Sun Nov 06 08:49:37 1994", (1994, 11, 6, 8, 49, 37)),
+        ("Sun Nov 16 08:49:37 1994", (1994, 11, 16, 8, 49, 37)),
+        ("Sun Nov  6 08:49:37 1994", (1994, 11, 6, 8, 49, 37)),
+    ],
+)
+def test_parse_date_rfc9110_forms(value, expected):
+    assert parse_date(value) == datetime.datetime(*expected, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        # Dropped: forms that are not one of the three of RFC 9110 §5.6.7.
+        "Sun, 06 Nov 1994 10:49:37 +0200",
+        "Sun, 06 Nov 1994 08:49:37 +0000",
+        "Sun, 06 Nov 1994 08:49:37 UTC",
+        "Sun, 06 Nov 1994 08:49:37 UT",
+        "Sun, 6 Nov 1994 08:49:37 GMT",
+        "06 Nov 1994 08:49:37 GMT",
+        "Sun, 06 Nov 94 08:49:37 GMT",
+        "Sun, 06 November 1994 08:49:37 GMT",
+        "Sun, 06 Nov 1994 08:49 GMT",
+        "1994-11-06T08:49:37Z",
+        "1994-11-06T08:49:37+00:00",
+        "1994-11-06 08:49:37",
+        "1994-11-06",
+        "Nov 6 1994",
+        "6 Nov 1994",
+        "784111777",
+        "Sun Nov 6 08:49:37 1994",
+        "Sun Nov  6 08:49:37 1994 GMT",
+        "Sunday, 06-Nov-1994 08:49:37 GMT",
+        "Sun, 06-Nov-94 08:49:37 GMT",
+        "Sunday, 06 Nov 94 08:49:37 GMT",
+        "Sunday, 06-Nov-94 08:49:37 +0000",
+        # Day and month names are case-sensitive.
+        "sun, 06 Nov 1994 08:49:37 GMT",
+        "SUN, 06 Nov 1994 08:49:37 GMT",
+        "Sun, 06 nov 1994 08:49:37 GMT",
+        "Sun, 06 NOV 1994 08:49:37 GMT",
+        "Sun, 06 Nov 1994 08:49:37 gmt",
+        "sunday, 06-Nov-94 08:49:37 GMT",
+        "Sun nov  6 08:49:37 1994",
+        "Sund, 06 Nov 1994 08:49:37 GMT",
+        "Sunday, 06-Nov-94 08:49:37 GMT ",
+        # Missing GMT.
+        "Sun, 06 Nov 1994 08:49:37",
+        "Sunday, 06-Nov-94 08:49:37",
+        # Extra or missing spaces.
+        " Sun, 06 Nov 1994 08:49:37 GMT",
+        "Sun, 06 Nov 1994 08:49:37 GMT ",
+        "Sun,  06 Nov 1994 08:49:37 GMT",
+        "Sun, 06  Nov 1994 08:49:37 GMT",
+        "Sun, 06 Nov 1994  08:49:37 GMT",
+        "Sun,06 Nov 1994 08:49:37 GMT",
+        "Sun, 06 Nov 1994 08:49:37GMT",
+        "Sun Nov   6 08:49:37 1994",
+        "Sun  Nov  6 08:49:37 1994",
+        "Sun Nov  6 08:49:37  1994",
+        "Sun\tNov  6 08:49:37 1994",
+        # Out-of-range fields.
+        "Sun, 00 Nov 1994 08:49:37 GMT",
+        "Sun, 31 Nov 1994 08:49:37 GMT",
+        "Sun, 29 Feb 2023 08:49:37 GMT",
+        "Sun, 06 Nov 0000 08:49:37 GMT",
+        "Sun, 06 Nov 1994 24:00:00 GMT",
+        "Sun, 06 Nov 1994 08:60:37 GMT",
+        "Sun, 06 Nov 1994 08:49:61 GMT",
+        "Sunday, 32-Nov-94 08:49:37 GMT",
+        "Sun Nov  0 08:49:37 1994",
+        "Sun Nov 31 08:49:37 1994",
+        # Digits that are not ASCII.
+        "Sun, \u0660\u0666 Nov 1994 08:49:37 GMT",
+        "Sun, 06 Nov 1994 08:49:37 GMT\n",
+    ],
+)
+def test_parse_date_other_forms_are_ignored(value):
+    assert parse_date(value) is None
+
+
+def test_parse_date_none():
+    assert parse_date(None) is None
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        # RFC 9110 §5.6.7: a two-digit year that appears to be more than 50
+        # years in the future is the most recent past year with those digits.
+        ("Sunday, 06-Nov-94 08:49:37 GMT", 1994),
+        ("Thursday, 08-Oct-26 12:00:00 GMT", 2026),
+        ("Friday, 08-Oct-76 12:00:00 GMT", 2076),
+        ("Friday, 08-Oct-76 12:00:01 GMT", 1976),
+        ("Friday, 09-Oct-76 00:00:00 GMT", 1976),
+        ("Saturday, 01-Jan-00 00:00:00 GMT", 2000),
+        ("Saturday, 01-Jan-77 00:00:00 GMT", 1977),
+        ("Saturday, 01-Jan-99 00:00:00 GMT", 1999),
+    ],
+)
+def test_parse_date_rfc850_two_digit_year(value, expected):
+    now = datetime.datetime(2026, 10, 8, 12, 0, 0, tzinfo=UTC)
+    assert parse_date(value, now=now).year == expected
+
+
+def test_parse_date_rfc850_two_digit_year_uses_the_current_date():
+    year = datetime.datetime.now(UTC).year
+    future = (year + 49) % 100
+    past = (year + 51) % 100
+    assert parse_date(f"Monday, 01-Jan-{future:02d} 00:00:00 GMT").year == year + 49
+    assert parse_date(f"Monday, 01-Jan-{past:02d} 00:00:00 GMT").year == year - 49
+
+
+def test_parse_date_rfc850_two_digit_year_out_of_range():
+    # At the ends of `datetime`'s range.
+    now = datetime.datetime(9999, 1, 1, tzinfo=UTC)
+    assert parse_date("Monday, 01-Jan-99 00:00:00 GMT", now=now) == (
+        datetime.datetime(9999, 1, 1, tzinfo=UTC)
     )
-    assert req.if_modified_since == datetime.datetime(
-        1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc
-    )
+    now = datetime.datetime(1, 1, 1, tzinfo=UTC)
+    assert parse_date("Monday, 01-Jan-99 00:00:00 GMT", now=now) is None
 
 
 def test_default_port_http():

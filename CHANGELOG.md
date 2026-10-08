@@ -408,6 +408,30 @@ when the action sets the status itself: the body is emptied, whatever the
 action returned, and no template is rendered. Before, the body was emptied
 only when the request's headers made the response fresh.
 
+### ⚠️ Upgrading: dates in headers must be in an RFC 9110 form
+
+`request.date` and `request.if_modified_since` now read only the three date
+forms of RFC 9110 §5.6.7, all in UTC:
+
+- `Sun, 06 Nov 1994 08:49:37 GMT` (IMF-fixdate, what `Last-Modified` has);
+- `Sunday, 06-Nov-94 08:49:37 GMT` (obsolete RFC 850);
+- `Sun Nov  6 08:49:37 1994` (ANSI C's `asctime()`, with two spaces before a
+  one-digit day, or `Nov 06`).
+
+Any other date is ignored (`None`), as an invalid date already was. Before,
+python-dateutil read almost anything: ISO 8601 (`1994-11-06T08:49:37Z`),
+numeric offsets (`+0200`), `UTC` instead of `GMT`, a day without its leading
+zero, lowercase names, extra spaces, `Sun Nov 6 08:49:37 1994` with one
+space. Those are now ignored, so an `If-Modified-Since` in such a form gets
+the full response instead of a 304. Browsers and HTTP clients send the date
+of `Last-Modified` back as it came, so nothing changes for them; update a
+client or a test that builds its own dates in another form.
+
+The day name is not checked against the date. In the RFC 850 form, a
+two-digit year that would be more than 50 years in the future is read as
+the century before (RFC 9110 says so). A leap second (`23:59:60`) is read
+as second 59.
+
 ### ⚠️ Upgrading: `Accept` weights outside 0 to 1, and `Q`
 
 In `Accept`, `Accept-Encoding` and `Accept-Language`, a `q` that is not a
@@ -689,8 +713,8 @@ token as missing, where they were a 500.
   (`If-Modified-Since: garbage`) was a 500 in every action that used
   `fresh_when()` and for static files. It is now ignored (`None`), as RFC
   9110 says. A date with a time zone offset (`+0200`) was read as if it were
-  UTC; it is now converted to UTC, and ignored if the conversion takes it
-  past the year 9999 or before the year 1.
+  UTC; it is now ignored, like every date that is not in one of the forms
+  of RFC 9110 (see "Upgrading" above).
 - A request body without `Content-Length` was ignored: a chunked
   (`Transfer-Encoding: chunked`) body in HTTP/1.1, or a body sent without
   the header in HTTP/2, left `request.form` and `request.body` empty. It is
