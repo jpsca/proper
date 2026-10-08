@@ -499,10 +499,10 @@ token as missing, where they were a 500.
 
 `proper.router.RouteTemplate`, the `string.Template` with `:name`
 placeholders that `url_for` used to build URLs, is gone; nothing in Proper
-uses it now. Importing it raises `ImportError`. To build the URL of a
-route, use `url_for`, which follows the placeholder rules of the routes
-(`RouteTemplate` didn't). Code that used the class for its own strings can
-define it, as it was:
+uses it now. Importing it, from `proper.router` or `proper.router.route`,
+raises `ImportError`. To build the URL of a route, use `url_for`, which
+follows the placeholder rules of the routes (`RouteTemplate` didn't). Code
+that used the class for its own strings can define it, as it was:
 
 ```python
 from string import Template
