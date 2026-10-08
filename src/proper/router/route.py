@@ -488,9 +488,9 @@ class Route:
         """Build the host string for this route, substituting placeholders.
 
         Each value must match its placeholder's format as a whole and have
-        only the characters of a host name (`HOST_SAFE`: letters, digits and
-        `-._~`), or `BadRoutePlaceholder` is raised: the value is not
-        encoded, so `"evil.com?"` would make the host `evil.com`.
+        only letters, digits and `-._~` (`HOST_SAFE`), or `BadRoutePlaceholder`
+        is raised: the value is not encoded, so `"evil.com?"` would make the
+        host `evil.com`.
 
         Returns `None` if the route has no host constraint.
         """
