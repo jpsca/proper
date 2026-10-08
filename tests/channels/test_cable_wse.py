@@ -32,18 +32,18 @@ TIMEOUT = 15
 class WsClient:
     """A minimal WebSocket client (RFC 6455): text frames only."""
 
+    host = "127.0.0.1"  # it connects to the first address: the one wse listens on
+    read_pause = 0.0  # seconds it waits after each read from the socket
+
     def __init__(
         self, port, cookie="", origin=None, expect=101, rcvbuf=None, path="/cable", headers=(),
-        host="127.0.0.1", read_pause=0.0,
     ):
-        # The first address of `host`: the one wse listens on
-        family, _, _, _, address = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)[0]
-        self.sock = socket.socket(family)
+        first = socket.getaddrinfo(self.host, port, type=socket.SOCK_STREAM)[0]
+        self.sock = socket.socket(first[0])
         if rcvbuf:  # a client that reads slowly: the server's writes back up
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
-        self.read_pause = read_pause  # after each read from the socket
         self.sock.settimeout(TIMEOUT)
-        self.sock.connect(address)
+        self.sock.connect(first[4])
         key = base64.b64encode(os.urandom(16)).decode()
         request = (
             f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
@@ -126,6 +126,10 @@ class WsClient:
 
     def close(self):
         self.sock.close()
+
+
+class LocalhostClient(WsClient):
+    host = "localhost"
 
 
 class FakeUser:
@@ -585,7 +589,7 @@ class TestLifecycle:
                 apps.append(app)
                 assert app.cable.server.is_running()
             for app in apps:
-                client = WsClient(app.config.CABLE_PORT, _cookie(app), host="localhost")
+                client = LocalhostClient(app.config.CABLE_PORT, _cookie(app))
                 assert client.subscribe(1) is not None, "a cable that answers nothing"
                 client.close()
         finally:  # together: each takes wse a while
@@ -635,7 +639,8 @@ class TestLifecycle:
             try:
                 app.cable.start_server()
             except RuntimeError as error:
-                assert f"took more than 0.0 seconds to listen on localhost:{port}" in str(error)
+                late = f"took more than 0.0 seconds to listen on localhost:{port}"
+                assert late in str(error)
                 break
             app.cable.stop_server()  # in time: try again
         else:
@@ -891,7 +896,8 @@ class TestStalledClients:
         0.3 seconds, so it would take a machine six times slower than that
         to stall it for the 2 seconds of the timeout."""
         app = self._app(make_app, limit=200_000, stall=2)
-        reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096, read_pause=0.01)
+        reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
+        reader.read_pause = 0.01
         reader.subscribe(1)
         for _ in range(9):  # 1.8 MB: under ten times the limit
             app.cable.broadcast("room:1", BIG)
