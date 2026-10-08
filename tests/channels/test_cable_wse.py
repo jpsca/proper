@@ -1,5 +1,6 @@
 """Cable against a real proper-wse server. Skipped without `wse_server`."""
 import base64
+import errno
 import http.client
 import json
 import logging
@@ -585,20 +586,67 @@ class TestLifecycle:
             for stop in stops:
                 stop.join()
 
-    def test_a_taken_websocket_port_fails_before_anything_serves(self, monkeypatch):
+    def test_a_taken_websocket_port_fails_at_once_with_the_reason(self, monkeypatch):
         """wse never listens on a port it can't bind: `start_server()` raises
-        instead of returning with a cable that serves nothing."""
-        monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.5)
+        as soon as wse gives up, saying why, instead of returning with a
+        cable that serves nothing."""
+        monkeypatch.setattr(cable_module, "START_TIMEOUT", 60.0)  # not the reason
         port = _free_ports()
         app = _new_app(port)
         with socket.socket() as taken:
             taken.bind(("127.0.0.1", port))
             taken.listen()
-            with pytest.raises(RuntimeError, match="did not listen"):
+            start = time.monotonic()
+            with pytest.raises(RuntimeError, match=f"could not listen on 127.0.0.1:{port}: .*in use"):
                 app.cable.start_server()
+            assert time.monotonic() - start < TIMEOUT
         assert not app.cable.serving
         with socket.socket() as s:  # the forwarding port is free again
             s.bind(("127.0.0.1", port + 1))
+
+    def test_a_host_that_cannot_be_found_fails_with_the_reason(self, monkeypatch):
+        """Also when wse gives up after `START_TIMEOUT`: the reason is that,
+        not the time."""
+        monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.0)
+        app = _new_app(_free_ports(), cable={"host": "no-such-host.invalid"})
+        with pytest.raises(RuntimeError, match="could not listen on no-such-host.invalid:"):
+            app.cable.start_server()
+        assert not app.cable.serving
+
+    def test_a_server_that_listens_too_late_is_stopped(self, monkeypatch):
+        """wse can't be stopped before it has bound its port: one that binds
+        after `START_TIMEOUT` is waited for and stopped, so nothing is left
+        listening, and the next start can bind the port. `localhost` has to
+        be looked up first, so with no time at all most starts are late."""
+        monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.0)
+        for _ in range(20):
+            port = _free_ports()
+            app = _new_app(port, cable={"host": "localhost"})
+            current.app = app
+            try:
+                app.cable.start_server()
+            except RuntimeError as error:
+                assert f"took more than 0.0 seconds to listen on localhost:{port}" in str(error)
+                break
+            app.cable.stop_server()  # in time: try again
+        else:
+            pytest.fail("wse was never late")
+        assert not app.cable.serving
+        for family, kind, _, _, address in socket.getaddrinfo("localhost", port, type=socket.SOCK_STREAM):
+            with socket.socket(family, kind) as s:
+                assert s.connect_ex(address) != 0, f"{address} still listening"
+        monkeypatch.setattr(cable_module, "START_TIMEOUT", 10.0)
+        app.cable.start_server()  # again, on the same port
+        assert app.cable.serving
+        app.cable.stop_server()
+
+    def test_the_reason_a_port_cannot_be_listened_on(self):
+        port = _free_port()
+        assert cable_module._bind_error("127.0.0.1", port) is None
+        with socket.socket() as taken:
+            taken.bind(("127.0.0.1", port))
+            taken.listen()
+            assert cable_module._bind_error("127.0.0.1", port).errno == errno.EADDRINUSE
 
     def test_a_server_that_fails_to_build_leaves_the_forwarding_port_free(self):
         port = _free_ports()
