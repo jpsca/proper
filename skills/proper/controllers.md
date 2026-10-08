@@ -1266,6 +1266,8 @@ The verification algorithm:
 6. If both the `Origin` and the `Host` are on the local network (private IPs, loopback, or link-local addresses), allow the request.
 7. Otherwise, raise `InvalidOrigin` (403 Forbidden).
 
+An `Origin` that is not a valid URL (`http://[abc]`) matches no host in steps 5 and 6.
+
 Configuration:
 
 ```python

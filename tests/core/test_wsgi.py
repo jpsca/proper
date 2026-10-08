@@ -390,7 +390,9 @@ class TestHttp:
 
         assert (SEEN["request"].host, SEEN["request"].port) == ("10.0.0.5", 2300)
 
-    @pytest.mark.parametrize("host", ["example.com/x?y=1", "exa mple.com", "a@b"])
+    @pytest.mark.parametrize(
+        "host", ["example.com/x?y=1", "exa mple.com", "a@b", "[abc]", "[127.0.0.1]:81"]
+    )
     def test_an_invalid_host_header_is_a_400(self, app, host):
         """The server passes the `Host` header as the client sent it."""
         _route(app, "/echo", Echo.index)

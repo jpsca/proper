@@ -40,6 +40,7 @@ def origin_allowed(origin: str | None, host: str, config: t.Any) -> bool:
     `CABLE_ALLOWED_ORIGINS`, one whose host is the `Host` of the handshake
     or the app's `HOST`, and, in `DEBUG`, any port of the handshake's host
     name (the page and the cable listen on different ports there).
+    An origin, or a `Host`, that can't be parsed as a URL is not allowed.
     """
     if not origin:
         return True
@@ -47,14 +48,20 @@ def origin_allowed(origin: str | None, host: str, config: t.Any) -> bool:
     listed = {o.rstrip("/").lower() for o in config.get("CABLE_ALLOWED_ORIGINS") or ()}
     if origin in listed:
         return True
-    parts = urlsplit(origin)
     host = (host or "").lower()
-    if parts.netloc and parts.netloc in (host, str(config.get("HOST") or "").lower()):
-        return True
-    return bool(
-        config.get("DEBUG") and parts.hostname
-        and parts.hostname == urlsplit(f"//{host}").hostname
-    )
+    try:
+        parts = urlsplit(origin)
+        if parts.netloc and parts.netloc in (host, str(config.get("HOST") or "").lower()):
+            return True
+        return bool(
+            config.get("DEBUG")
+            and parts.hostname
+            and parts.hostname == urlsplit(f"//{host}").hostname
+        )
+    except ValueError:
+        # `urlsplit` refuses a bracketed host that is not an IPv6 address
+        # (`http://[abc]`) and an unmatched bracket (`http://[::1`).
+        return False
 
 
 def allowed_origins(config: t.Any) -> list[str]:

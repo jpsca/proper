@@ -159,8 +159,9 @@ host (its step 5).
   `proxy_set_header Host $host;` (in the deployment guide's example), or it
   sends the address in `proxy_pass` (`127.0.0.1:2300`), and the routes for
   a host answer 404.
-- An invalid `Host` header (`example.com/x`, a space, `user@example.com`)
-  is now a `400 Bad Request`. It was ignored. So is a request with more
+- An invalid `Host` header (`example.com/x`, a space, `user@example.com`,
+  brackets around something that is not an IPv6 address: `[abc]`,
+  `[127.0.0.1]`) is now a `400 Bad Request`. It was ignored. So is a request with more
   than one `Host` line, as RFC 9112 §3.2 requires, even when the lines are
   the same: Granian joins them with a comma (`a.com,b.com`), so a `Host`
   with a comma is refused, and a `Request` built with repeated `host`
@@ -171,6 +172,14 @@ host (its step 5).
   the local network passed, also for a request to your public host name.
 - `make_test_request(server=...)` and `Request(server=...)` no longer
   override the `Host` header: a test that set both gets the header's host.
+- `host_with_port` gives an IPv6 host in brackets, as in the `Host`
+  header: `[2606:4700::1]:8080`, not `2606:4700::1:8080`. Code that splits
+  it at the last `:` or adds the brackets itself must not do so any more.
+- `make_test_request` lowercases the header names, as the server does:
+  a test that passed `headers={"Host": ...}` or `{"X-Api-Key": ...}`, which
+  the request didn't see before, now has them. With an IPv6 URL,
+  `request.server` is the address without brackets (`("::1", 8080)`, it
+  was `("[::1]", 8080)`), as Granian gives it.
 
 The client chooses the `Host` header. Proper uses it only to pick the route
 and to compare it with `Origin`: `url_for(..., _full=True)`, the
@@ -546,6 +555,13 @@ token as missing, where they were a 500.
   A URL with an IPv6 address and no port (`http://[::1]/`) raised
   `ValueError`, and with a port `request.server` kept the brackets
   (`("[::1]", 8080)`); it is now `("::1", 8080)`, as Granian gives it.
+- An `Origin` header that `urlparse` refuses (`http://[abc]`,
+  `http://[::1`, `http://example.com]`) made every `POST` to a controller
+  with `OriginProtection`, `AppController` included, a 500. Such an origin
+  now matches no host, so the request is refused with a 403 unless
+  `Sec-Fetch-Site` allows it. `proper.channels.origin_allowed` raised
+  `ValueError` for the same origins, and for a handshake `Host` such as
+  `[abc]`; it now returns `False`.
 - The `RateLimiting` docstring keyed a signup limit on `request.host`, the
   client's `Host` header, so a client following it could pick its own limit.
   The example now keys on the e-mail domain of the form, next to a limit by

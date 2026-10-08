@@ -656,6 +656,9 @@ def parse_cookie(cookie_string: str | None) -> dict[str, str]:
 # Host = uri-host [ ":" port ] per RFC 9112 §3.2 / RFC 3986 §3.2.2-3.2.3.
 # uri-host is a bracketed IP-literal (IPv6), an IPv4 address, or a reg-name
 # (unreserved / pct-encoded / sub-delims); the optional port is *DIGIT.
+# What is in the brackets must also be an IPv6 address: `parse_host` checks
+# it with `ipaddress` (so `[abc]` and `[1.2.3.4]` are refused). IPvFuture
+# (`[v1.x]`) and an IPv6 zone id (RFC 6874) are refused too.
 # The reg-name here has every sub-delim but the comma: a server joins the
 # lines of a repeated `Host` header with commas (Granian 2.8.3 does), and a
 # request with more than one `Host` line is a 400 (RFC 9112 §3.2). A host
@@ -689,11 +692,16 @@ def parse_host(value: str | None) -> tuple[str, int]:
     host = value
     sport = ""
 
-    if "]:" in value:
-        host, sport = value.rsplit("]:", 1)
-        host = host[1:]
-    elif host[0] == "[":
-        host = host[1:-1]
+    if value[0] == "[":
+        host, _, sport = value[1:].partition("]")
+        sport = sport[1:]
+        try:
+            ipaddress.IPv6Address(host)
+        except ValueError:
+            raise InvalidHeader(
+                "The Host header has brackets around something that is not "
+                "an IPv6 address."
+            ) from None
     elif ":" in host:
         host, sport = value.rsplit(":", 1)
 

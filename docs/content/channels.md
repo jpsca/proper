@@ -863,7 +863,7 @@ Browsers send a site's cookies with any WebSocket to it, even one opened by a pa
 - In `DEBUG`, one from `localhost` or `127.0.0.1` on the app's `PORT`.
 - One listed in `CABLE_ALLOWED_ORIGINS`.
 
-Any other is refused with a 403. To allow another site, list it:
+Any other is refused with a 403, and so is an `Origin` that is not a valid URL (`http://[abc]`). To allow another site, list it:
 
 ```python {title="config/channels.py"}
 CABLE_ALLOWED_ORIGINS = ["https://admin.example.com"]

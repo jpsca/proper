@@ -33,6 +33,25 @@ def test_in_debug_any_port_of_the_host_is_allowed():
     assert not origin_allowed("http://elsewhere:2300", "localhost:2301", config)
 
 
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://[abc]",  # brackets around something that is not an IPv6 address
+        "http://[::1",  # a bracket left open
+        "http://app.example]",  # a stray bracket
+    ],
+)
+@pytest.mark.parametrize("debug", [False, True])
+def test_an_origin_that_is_not_a_url_is_not_allowed(origin, debug):
+    config = {**CONFIG, "DEBUG": debug}
+    assert origin_allowed(origin, "app.example", config) is False
+
+
+def test_a_host_that_is_not_a_url_does_not_allow_the_origin():
+    config = {**CONFIG, "DEBUG": True}
+    assert origin_allowed("http://abc", "[abc]:2301", config) is False
+
+
 def test_allowed_origins_as_a_list():
     assert allowed_origins(CONFIG) == ["http://app.example", "https://app.example"]
     config = {**CONFIG, "DEBUG": True, "HOST": "localhost:2300",

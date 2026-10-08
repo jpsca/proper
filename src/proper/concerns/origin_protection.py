@@ -27,6 +27,21 @@ def _is_local_network(hostname: str) -> bool:
     return addr.is_private or addr.is_loopback or addr.is_link_local
 
 
+def _parse_origin(origin: str | None) -> tuple[str, str]:
+    """The netloc and the host name of an `Origin`, or two empty strings
+    when it has none or it can't be parsed: `urlparse` raises `ValueError`
+    for a bracketed host that is not an IPv6 address (`http://[abc]`), a
+    bracket left open (`http://[::1`) and a stray one (`http://a.com]`).
+    """
+    if not origin:
+        return "", ""
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return "", ""
+    return parsed.netloc, parsed.hostname or ""
+
+
 class OriginProtection(Concern):
     """Verify that the request comes from the same site or an allowed origin.
 
@@ -55,6 +70,9 @@ class OriginProtection(Concern):
 
     7. Otherwise, reject the request raising an `InvalidOrigin` error.
 
+    An `Origin` that can't be parsed as a URL (`http://[abc]`) matches no
+    host in steps 5 and 6.
+
     """
     before = {"do": "check_request_origin"}
 
@@ -69,16 +87,20 @@ class OriginProtection(Concern):
             (origin is None and sec_fetch_site is None)  # 2
             or (origin in self.app.config.get("TRUSTED_ORIGINS", []))  # 3
             or (sec_fetch_site in ("same-origin", "none"))  # 4
-            or (origin and urlparse(origin).netloc == self.request.host_with_port)  # 5
         ):
             return
 
+        origin_netloc, origin_host = _parse_origin(origin)
+        if origin_netloc and origin_netloc == self.request.host_with_port:  # 5
+            return
+
         # 6 - allow local-network to local-network requests
-        if origin:
-            origin_host = urlparse(origin).hostname or ""
-            request_host = self.request.host
-            if _is_local_network(origin_host) and _is_local_network(request_host):
-                return
+        if (
+            origin_host
+            and _is_local_network(origin_host)
+            and _is_local_network(self.request.host)
+        ):
+            return
 
         # 7
         raise InvalidOrigin()
