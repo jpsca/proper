@@ -15,12 +15,16 @@ import time
 import pytest
 
 from proper import App, Channel, current
+from proper.channels import cable as cable_module
 from proper.helpers import BLUEPRINTS
 
 
 wse_server = pytest.importorskip("wse_server")
 
 SECRET = "*" * 50
+# How long a test waits for what it expects: only an upper bound, reached
+# when something is wrong (or the machine is very busy), never waited out.
+TIMEOUT = 15
 
 
 class WsClient:
@@ -32,7 +36,7 @@ class WsClient:
         self.sock = socket.socket()
         if rcvbuf:  # a client that reads slowly: the server's writes back up
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
-        self.sock.settimeout(5)
+        self.sock.settimeout(TIMEOUT)
         self.sock.connect(("127.0.0.1", port))
         key = base64.b64encode(os.urandom(16)).decode()
         request = (
@@ -76,8 +80,10 @@ class WsClient:
         data, self.buffer = self.buffer[:n], self.buffer[n:]
         return data
 
-    def recv(self) -> dict | None:
-        """The next text frame, as JSON; `None` once the server closes."""
+    def recv(self, pings=False) -> dict | None:
+        """The next text frame, as JSON; `None` once the server closes. wse
+        pings every `CABLE_PING_INTERVAL` seconds, between any two frames:
+        its pings are skipped, unless `pings`."""
         while True:
             try:
                 head = self._read(2)
@@ -96,7 +102,9 @@ class WsClient:
                 self.sock.close()
                 return None
             if opcode == 0x1:
-                return json.loads(payload)
+                msg = json.loads(payload)
+                if pings or not (msg.get("c") == "WSE" and msg.get("t") == "ping"):
+                    return msg
 
     def recv_type(self, kind):
         while True:
@@ -242,8 +250,7 @@ def make_app():
     def make(cable=None, **extra):
         app = _new_app(_free_ports(), cable, **extra)
         current.app = app
-        app.cable.start_server()
-        time.sleep(0.1)
+        app.cable.start_server()  # returns once the server listens
         apps.append(app)
         return app
 
@@ -262,7 +269,7 @@ def _cookie(app, token="good"):
     return "_auth=" + app.dumps(token, salt="auth cookie")
 
 
-def _wait(predicate, timeout=3):
+def _wait(predicate, timeout=TIMEOUT):
     until = time.time() + timeout
     while time.time() < until:
         if predicate():
@@ -517,8 +524,9 @@ class TestWseCable:
         app = make_app(CABLE_PING_INTERVAL=1)
         client = WsClient(app.config.CABLE_PORT)
         while True:
-            msg = client.recv()
-            if msg and msg.get("c") == "WSE" and msg.get("t") == "ping":
+            msg = client.recv(pings=True)
+            assert msg is not None, "no ping"
+            if msg.get("c") == "WSE" and msg.get("t") == "ping":
                 break
         client.close()
 
@@ -538,7 +546,6 @@ class TestLifecycle:
 
         wse_app.cable.start_server()
         wse_app.cable.start_server()  # once is enough
-        time.sleep(0.1)
         again = WsClient(port, _cookie(wse_app))
         assert again.subscribe(1)["streams"] == ["room:1"]
         again.close()
@@ -554,6 +561,44 @@ class TestLifecycle:
         assert not app.cable.serving
         with socket.socket() as s:  # the WebSocket port was never opened
             s.bind(("127.0.0.1", port))
+
+    def test_start_server_returns_once_wse_listens(self):
+        """wse binds its port after `start()` returns, and the drain thread,
+        which hands its events to the channels, stops when wse isn't
+        running: started before wse listened, it stopped at once, and no
+        command was ever answered. `localhost` has to be looked up first,
+        which leaves more time for that."""
+        apps = []
+        try:
+            for _ in range(3):
+                app = _new_app(_free_ports(), cable={"host": "localhost"})
+                current.app = app
+                app.cable.start_server()
+                apps.append(app)
+                assert app.cable.server.is_running()
+            time.sleep(0.05)  # what the drain thread does at once
+            assert all(app.cable._drain_thread.is_alive() for app in apps)
+        finally:  # together: each takes wse a while
+            stops = [threading.Thread(target=app.cable.stop_server) for app in apps]
+            for stop in stops:
+                stop.start()
+            for stop in stops:
+                stop.join()
+
+    def test_a_taken_websocket_port_fails_before_anything_serves(self, monkeypatch):
+        """wse never listens on a port it can't bind: `start_server()` raises
+        instead of returning with a cable that serves nothing."""
+        monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.5)
+        port = _free_ports()
+        app = _new_app(port)
+        with socket.socket() as taken:
+            taken.bind(("127.0.0.1", port))
+            taken.listen()
+            with pytest.raises(RuntimeError, match="did not listen"):
+                app.cable.start_server()
+        assert not app.cable.serving
+        with socket.socket() as s:  # the forwarding port is free again
+            s.bind(("127.0.0.1", port + 1))
 
     def test_a_server_that_fails_to_build_leaves_the_forwarding_port_free(self):
         port = _free_ports()
@@ -645,7 +690,7 @@ class TestForwarding:
         ("/elsewhere", "forged", 404),
     ])
     def test_forged_or_misdirected_broadcasts_are_refused(self, wse_app, path, token, status):
-        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=5)
+        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT)
         conn.request("POST", path, body=token.encode())
         assert conn.getresponse().status == status
         conn.close()
@@ -677,9 +722,13 @@ class TestBackpressure:
         got = 0
         while got < 11:  # the client catches up, and the backlog with it
             got += reader.recv_type("broadcast") is not None
+        # Caught up, a broadcast doesn't wait. One that waited would take
+        # the whole timeout, made long so that a busy machine can't look
+        # like one.
+        app.cable._backpressure_timeout = 60
         start = time.monotonic()
         app.cable.broadcast("room:1", "small")
-        assert time.monotonic() - start < 0.2
+        assert time.monotonic() - start < TIMEOUT
         assert reader.recv_type("broadcast")["data"] == "small"
         reader.close()
 
@@ -690,7 +739,9 @@ class TestBackpressure:
         start = time.monotonic()
         for _ in range(11):
             app.cable.broadcast("room:1", BIG)
-        assert time.monotonic() - start < 0.3
+        # Waiting, each of the last ten would take `backpressure_timeout`
+        # (one second)
+        assert time.monotonic() - start < 5
         reader.close()
 
 
@@ -728,7 +779,7 @@ class TestStalledClients:
         reader.subscribe(1)
         for _ in range(10):  # ~2 MB: over the limit, under ten times it
             app.cable.broadcast("room:1", BIG)
-        assert _wait(lambda: ("unsubscribed", 1) in EVENTS, timeout=4)
+        assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         reader.close()
 
     def test_ten_times_the_limit_at_any_speed(self, make_app):
@@ -737,18 +788,18 @@ class TestStalledClients:
         reader.subscribe(1)
         for _ in range(10):  # ~2 MB: over ten times the limit
             app.cable.broadcast("room:1", BIG)
-        assert _wait(lambda: ("unsubscribed", 1) in EVENTS, timeout=3)
+        assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         reader.close()
 
     def test_a_client_that_reads_stays(self, make_app):
         app = self._app(make_app, limit=100_000, stall=0.6)
         reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
         reader.subscribe(1)
-        got, thread = _read_all(reader, 5)
-        for _ in range(5):  # under ten times the limit
+        got, thread = _read_all(reader, 4)
+        for _ in range(4):  # under ten times the limit (five frames are over it)
             app.cable.broadcast("room:1", BIG)
-        thread.join(timeout=10)
-        assert len(got) == 5
+        thread.join(timeout=TIMEOUT)
+        assert len(got) == 4
         time.sleep(1.5)
         assert ("unsubscribed", 1) not in EVENTS
         reader.close()
@@ -776,7 +827,7 @@ class TestIdleClients:
         pings = 0
         until = time.time() + 4.5  # more than twice the idle timeout
         while time.time() < until:
-            msg = listener.recv()
+            msg = listener.recv(pings=True)
             assert msg is not None, "the server closed a client that answers"
             if msg.get("c") == "WSE" and msg.get("t") == "ping":
                 pings += 1
@@ -808,7 +859,7 @@ class TestCluster:
         b = make_app(cable={"cluster": {"port": cluster_b, "peers": [f"127.0.0.1:{cluster_a}"]}})
         # a dials b before b listens and retries with a backoff; b's dial to
         # a succeeds, but each side reports the link in its own time
-        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info(), timeout=15), "the cables never met"
+        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info()), "the cables never met"
         return a, b
 
     def _drain(self, client, seconds=0.5):
@@ -820,8 +871,20 @@ class TestCluster:
             while (frame := client.recv()) is not None:
                 frames.append(frame)
         finally:
-            client.sock.settimeout(5)
+            client.sock.settimeout(TIMEOUT)
         return frames
+
+    def _read_until(self, client, done):
+        """The frames the client gets until `done(frames)`."""
+        frames = []
+        while not done(frames):
+            frame = client.recv()
+            assert frame is not None, frames
+            frames.append(frame)
+        return frames
+
+    def _broadcasts(self, frames):
+        return [f["data"] for f in frames if f.get("type") == "broadcast"]
 
     def _reach(self, cable, client, stream, data, attempts=25):
         """Broadcast until the client gets it: the interest of the client's
@@ -845,14 +908,18 @@ class TestCluster:
         # Back with both positions: what each machine published since
         a.cable.broadcast("room:1", {"from": "a", "n": 2})
         b.cable.broadcast("room:1", {"from": "b", "n": 2})
-        self._drain(client)
+        self._read_until(client, lambda frames: all(
+            {"from": who, "n": 2} in self._broadcasts(frames) for who in "ab"
+        ))  # in b's buffer
         client.close()
         again = WsClient(b.config.CABLE_PORT, _cookie(b))
         again.send({
             "command": "subscribe", "channel": "RoomChannel", "params": {"room": 1},
             "positions": {"room:1": [{"e": from_a["e"], "o": from_a["o"]}, {"e": from_b["e"], "o": from_b["o"]}]},
         })
-        frames = self._drain(again, 1.0)
+        frames = self._read_until(again, lambda frames: any(
+            f.get("type") == "confirm_subscription" for f in frames
+        ) and all({"from": who, "n": 2} in self._broadcasts(frames) for who in "ab"))
         confirm = [f for f in frames if f.get("type") == "confirm_subscription"][0]
         assert confirm["recovered"] is True
         replayed = [f["data"] for f in frames if f.get("type") == "broadcast"]
@@ -867,7 +934,6 @@ class TestCluster:
         on_a.recv_type("confirm_subscription")
         assert _wait(
             lambda: b.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}},
-            timeout=10,
         )
 
         on_b = WsClient(b.config.CABLE_PORT, _cookie(b))
@@ -878,7 +944,6 @@ class TestCluster:
         assert on_b.recv_type("never") is None
         assert _wait(
             lambda: a.cable.presence("presence:room") == {} and b.cable.presence("presence:room") == {},
-            timeout=10,
         )
         assert len(a.cable.cluster_info()) == 1
 
@@ -897,7 +962,7 @@ class TestCluster:
         client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
         client.subscribe(1)
         assert _wait(lambda: wse_app.cable.streams == {"room:1": 1})
-        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=2)
+        conn = http.client.HTTPConnection("127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT)
         conn.request("GET", "/metrics")
         response = conn.getresponse()
         text = response.read().decode()

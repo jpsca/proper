@@ -705,6 +705,15 @@ token as missing, where they were a 500.
   `current.auth_session` in `subscribed()`) was still there for the next
   command run on the same worker thread, from any connection. Each command
   now runs in a context of its own.
+- `Cable.start_server()` (what `proper run` calls) sometimes left a cable
+  that never answered its clients: wse binds `CABLE_PORT` after its
+  `start()` returns, and the thread that hands wse's events to the
+  channels stopped at once if it looked before then. The connections were
+  accepted, and their `subscribe` commands never confirmed. It happened in
+  about 1 start in 200 with `host="127.0.0.1"`, and in most starts with a
+  host name such as `localhost`. `start_server()` now returns once wse
+  listens, and raises `RuntimeError` if it doesn't within 10 seconds (a
+  port that is taken); it returned before, and the cable served nothing.
 
 ## 0.34
 

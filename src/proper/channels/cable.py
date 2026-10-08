@@ -95,6 +95,8 @@ _EPOCH = re.compile(r"^[0-9a-f]{8}$")
 # The topic the servers of a cluster listen to themselves, for what one
 # machine tells the others (`disconnect()`).
 CONTROL_TOPIC = "proper:cable:control"
+# How long `start_server()` waits for wse to listen on `CABLE_PORT`.
+START_TIMEOUT = 10.0
 
 
 def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
@@ -700,13 +702,14 @@ class Cable(BaseCable):
                 raise
             server.enable_drain_mode()
             server.start()
-            if self._cluster:
-                try:
+            try:
+                self._wait_until_listening(server, port)
+                if self._cluster:
                     self._join_cluster(server)
-                except BaseException:
-                    server.stop()
-                    receiver.server_close()
-                    raise
+            except BaseException:
+                server.stop()
+                receiver.server_close()
+                raise
             self._executor = ThreadPoolExecutor(
                 self._workers, thread_name_prefix="proper-cable"
             )
@@ -732,6 +735,21 @@ class Cable(BaseCable):
                 )
                 self._watcher.start()
             logger.info("[cable] wse-server listening on %s:%s", self._host, port)
+
+    def _wait_until_listening(self, server: t.Any, port: int) -> None:
+        """Wait until wse listens on its port. `start()` returns before wse
+        has bound it, and `is_running()` turns true only once it has: the
+        drain thread, which stops when the server isn't running, would stop
+        before it began, and no event would reach the channels. A port that
+        wse can't bind (taken) is never listened on."""
+        deadline = time.monotonic() + START_TIMEOUT
+        while not server.is_running():
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"wse-server did not listen on {self._host}:{port} within "
+                    f"{START_TIMEOUT} seconds: is the port taken? (wse logs why)"
+                )
+            time.sleep(0.001)
 
     def _join_cluster(self, server: t.Any) -> None:
         cluster = t.cast(dict, self._cluster)

@@ -744,7 +744,7 @@ CABLE: dict = {"type": "proper.channels.Cable"}
 
 How it runs:
 
-- `proper run` starts the cable in its web process, before the first request, and stops it with the server. Granian serves the app over WSGI, which has no WebSockets; the cable listens on its own port, `CABLE_PORT`. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself.
+- `proper run` starts the cable in its web process, before the first request, and stops it with the server. Granian serves the app over WSGI, which has no WebSockets; the cable listens on its own port, `CABLE_PORT`. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself. `start_server()` returns once the cable listens on `CABLE_PORT`, and raises `RuntimeError` if it doesn't within 10 seconds (the port is taken, for example).
 - Only that process serves the WebSockets. Every other process that loads the app - the extra copies of `PROCESSES`, a task worker, a shell - sends its broadcasts and `disconnect()`s to it, signed with the app's secret keys, as a `POST` to `CABLE_PATH` on `127.0.0.1`, port `CABLE_PORT + 1`. If the cable is down, the broadcast is lost and a warning is logged; the request that made it still finishes normally.
 - In production, your reverse proxy routes `CABLE_PATH` to `CABLE_PORT`. [Deployment](/docs/deployment#the-reverse-proxy) shows the nginx block.
 - In development there is no proxy. When `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same host name.
