@@ -306,6 +306,8 @@ class ApiController(AppController):
     def index(self): ...    # Only matches when Host is api.example.com
 ```
 
+A request whose `Host` is local (`localhost`, 127.0.0.0/8, `0.0.0.0`, `::1`, `::`, in any spelling: `127.1`, `localhost.`, `[::ffff:127.0.0.1]`) matches no route with a `host`.
+
 #### Host Placeholders
 
 The `host` parameter supports the same placeholder syntax as paths. This lets you extract dynamic subdomains:

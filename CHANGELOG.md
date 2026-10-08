@@ -639,6 +639,16 @@ class RouteTemplate(Template):
   `proper run`), never the `Host` header, so routes with a `host` answered
   404 and `OriginProtection` never matched the `Origin` with the host. It
   is now the `Host` header, and an invalid one is a 400.
+- A request to a local host matches only the routes without a `host`, but
+  the host was compared with five exact strings (`localhost`, `0.0.0.0`,
+  `127.0.0.1`, `::`, `::1`), so `127.0.0.1.`, `127.000.000.001`, `127.1`,
+  `localhost.`, `[0:0:0:0:0:0:0:1]` or `[::ffff:127.0.0.1]` matched the
+  routes with a `host` (`:sub<.+>` takes any host). Now every spelling of
+  those addresses counts as local: `localhost` and any IPv4 address in
+  127.0.0.0/8 or 0.0.0.0, read as browsers read the host of a URL
+  (decimal, octal, hex, one to four parts), or `::1` and `::` in any IPv6
+  form, also mapped from IPv4; with or without one trailing dot, and with
+  percent-escapes decoded. `proper.pipeline.is_local_host` tells it.
 - `request.host_with_port` didn't put an IPv6 address back in brackets:
   `Host: [2606:4700::1]:8080` gave `2606:4700::1:8080`, which never equals
   the `Origin`, so `OriginProtection` refused a same-origin `POST` to an

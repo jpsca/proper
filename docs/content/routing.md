@@ -418,6 +418,8 @@ class ApiController(AppController):
 
 A request to `/users` on `www.example.com` will not match this route.
 
+A request to this machine by a local name or address matches only the routes without a `host`: one whose `Host` is `localhost`, an IPv4 address in 127.0.0.0/8, `0.0.0.0`, `::1` or `::`, in any spelling (`localhost.`, `127.1`, `127.000.000.001`, `2130706433`, `[0:0:0:0:0:0:0:1]`, `[::ffff:127.0.0.1]`, percent-escapes). IPv4 addresses are read as browsers read them in a URL.
+
 ### Host Placeholders
 
 The `host` parameter accepts placeholders, with the same syntax as paths. This is how you extract a dynamic subdomain:

@@ -1,4 +1,6 @@
+import ipaddress
 import typing as t
+from urllib.parse import unquote
 
 from .constants import (
     DELETE,
@@ -23,6 +25,7 @@ if t.TYPE_CHECKING:
 
 __all__ = (
     "head_to_get",
+    "is_local_host",
     "method_override",
     "match",
     "redirect",
@@ -33,6 +36,73 @@ __all__ = (
 
 TController = type[Controller]
 LOCAL_HOSTS = ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1")
+_HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
+_OCTAL_DIGITS = frozenset("01234567")
+_DECIMAL_DIGITS = frozenset("0123456789")
+
+
+def is_local_host(host: str) -> bool:
+    """Is `host` (as in `request.host`: lowercase, without the port and the
+    brackets of an IPv6 address) a name of this machine?
+
+    It is when, after its percent-escapes are decoded and one trailing dot
+    is removed, it is `localhost`, an IPv4 address in 127.0.0.0/8 or
+    0.0.0.0, or the IPv6 address `::1` or `::`, or one of those IPv4
+    addresses mapped to IPv6 (`::ffff:127.0.0.1`). An IPv4 address is read
+    as browsers read the host of a URL (the WHATWG URL Standard), so
+    `127.1`, `127.000.000.001`, `0x7f.0.0.1`, `0177.0.0.1` and
+    `2130706433` are all 127.0.0.1.
+    """
+    if host in LOCAL_HOSTS:
+        return True
+    if "%" in host:
+        host = unquote(host).lower()
+    if ":" in host:
+        try:
+            address = ipaddress.IPv6Address(host)
+        except ValueError:
+            return False
+        mapped = address.ipv4_mapped
+        if mapped is not None:
+            return mapped.is_loopback or mapped.is_unspecified
+        return address.is_loopback or address.is_unspecified
+    host = host.removesuffix(".")
+    if host == "localhost":
+        return True
+    number = _ipv4_number(host)
+    return number is not None and (number >> 24 == 127 or number == 0)
+
+
+def _ipv4_number(host: str) -> int | None:
+    """The IPv4 address `host` is, as a number, or `None` if it is not one.
+
+    As the IPv4 parser of the WHATWG URL Standard: one to four parts
+    joined by dots, each decimal, octal (with a leading `0`) or hex (with
+    `0x`); the last part fills the bytes the others leave.
+    """
+    parts = host.split(".")
+    if len(parts) > 4:
+        return None
+    numbers = []
+    for part in parts:
+        if part[:2] in ("0x", "0X"):
+            digits, base, allowed = part[2:], 16, _HEX_DIGITS
+        elif len(part) > 1 and part[0] == "0":
+            digits, base, allowed = part[1:], 8, _OCTAL_DIGITS
+        elif part:
+            digits, base, allowed = part, 10, _DECIMAL_DIGITS
+        else:
+            return None
+        if not allowed.issuperset(digits):
+            return None
+        numbers.append(int(digits, base) if digits else 0)
+    *first, last = numbers
+    if any(n > 255 for n in first) or last >= 256 ** (5 - len(numbers)):
+        return None
+    number = last
+    for index, n in enumerate(first):
+        number += n << (8 * (3 - index))
+    return number
 
 
 # STEP 1
@@ -74,7 +144,7 @@ def method_override(request: "Request", _response) -> None:
 def match(request: "Request", response) -> "Response | None":
     """Match the request url to a route."""
     host: str | None = request.host
-    if host in LOCAL_HOSTS:
+    if host is not None and is_local_host(host):
         host = None
     router = request.app.router
     route, params = router.match(request.method, request.path, host)
