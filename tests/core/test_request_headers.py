@@ -298,9 +298,13 @@ UTC = datetime.timezone.utc
         ("Sat, 01 Jan 0001 00:00:00 GMT", (1, 1, 1, 0, 0, 0)),
         ("Fri, 31 Dec 9999 23:59:59 GMT", (9999, 12, 31, 23, 59, 59)),
         ("Thu, 29 Feb 2024 12:00:00 GMT", (2024, 2, 29, 12, 0, 0)),
-        # A leap second is valid (RFC 9110 §5.6.7); `datetime` has no
-        # second 60, so it is read as second 59.
+        # Second 60 is valid at any time (the grammar of RFC 9110 §5.6.7
+        # allows 00 to 60); `datetime` has no second 60, so it is read as
+        # second 59.
         ("Sat, 31 Dec 2016 23:59:60 GMT", (2016, 12, 31, 23, 59, 59)),
+        ("Sun, 06 Nov 1994 08:49:60 GMT", (1994, 11, 6, 8, 49, 59)),
+        ("Sunday, 06-Nov-94 08:49:60 GMT", (1994, 11, 6, 8, 49, 59)),
+        ("Sun Nov  6 08:49:60 1994", (1994, 11, 6, 8, 49, 59)),
         # Recipients don't check the day name against the date.
         ("Mon, 06 Nov 1994 08:49:37 GMT", (1994, 11, 6, 8, 49, 37)),
         ("Monday, 06-Nov-94 08:49:37 GMT", (1994, 11, 6, 8, 49, 37)),

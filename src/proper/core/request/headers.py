@@ -568,6 +568,8 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     - ANSI C's asctime(): `Sun Nov  6 08:49:37 1994`
 
     All of them are in UTC. The day name is not checked against the date.
+    Second 60, which the grammar of RFC 9110 allows at any time of day (a
+    leap second), is read as second 59.
     A two-digit year (RFC 850) is the latest year with those last two
     digits that is not more than 50 years after `now` (the current time by
     default): in the next century, this one or the one before.
@@ -592,7 +594,8 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
         int(match["day"]),
         int(match["hour"]),
         int(match["minute"]),
-        # A leap second; `datetime` has no second 60.
+        # Second 60, which the grammar allows at any time, not only at
+        # 23:59:60; `datetime` has no second 60.
         59 if match["second"] == "60" else int(match["second"]),
     )
     if match.re is RX_RFC850_DATE:
