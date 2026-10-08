@@ -577,8 +577,11 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     leap second), is read as second 59.
 
     A two-digit year (RFC 850) is the latest year with those last two
-    digits that is not more than 50 years after `now` (the current time by
-    default): in the next century, this one or the one before.
+    digits that makes the date, to the second, not more than 50 years
+    after `now` (the current time by default): in the next century, this
+    one or the one before. So the year can depend on the day and time:
+    with `now` at 2026-10-08 12:00:00, `08-Oct-76 12:00:00` is in 2076 and
+    `08-Oct-76 12:00:01` is in 1976.
 
     Returns:
         A datetime object in UTC, or None if the header is not present or
