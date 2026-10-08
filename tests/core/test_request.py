@@ -87,12 +87,24 @@ def test_test_request_keeps_repeated_headers_in_order():
     assert req.headers.getall("x-forwarded-for") == ["1.1.1.1", "2.2.2.2"]
 
 
-@pytest.mark.parametrize("url, server, host_header, host_with_port", [
-    ("http://[2606:4700::1]:8080/", ("2606:4700::1", 8080), "[2606:4700::1]:8080",
-     "[2606:4700::1]:8080"),
-    ("http://[2606:4700::1]/", ("2606:4700::1", 80), "[2606:4700::1]", "[2606:4700::1]"),
-    ("https://[::1]/", ("::1", 443), "[::1]", "[::1]"),
-])
+@pytest.mark.parametrize(
+    "url, server, host_header, host_with_port",
+    [
+        (
+            "http://[2606:4700::1]:8080/",
+            ("2606:4700::1", 8080),
+            "[2606:4700::1]:8080",
+            "[2606:4700::1]:8080",
+        ),
+        (
+            "http://[2606:4700::1]/",
+            ("2606:4700::1", 80),
+            "[2606:4700::1]",
+            "[2606:4700::1]",
+        ),
+        ("https://[::1]/", ("::1", 443), "[::1]", "[::1]"),
+    ],
+)
 def test_test_request_ipv6_url(url, server, host_header, host_with_port):
     # `server` as Granian gives it (`SERVER_NAME` without brackets).
     req = make_test_request(url)

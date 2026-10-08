@@ -156,10 +156,15 @@ class TestHttp:
 
     def test_a_chunked_body_is_read_and_parsed(self, app):
         _route(app, "/form", Form.create, method="POST")
-        environ = make_environ("/form", method="POST", body=b"name=ada&age=36", headers=[
-            ("content-type", "application/x-www-form-urlencoded"),
-            ("transfer-encoding", "chunked"),
-        ])
+        environ = make_environ(
+            "/form",
+            method="POST",
+            body=b"name=ada&age=36",
+            headers=[
+                ("content-type", "application/x-www-form-urlencoded"),
+                ("transfer-encoding", "chunked"),
+            ],
+        )
 
         status, _, _ = call(app, environ)
 
@@ -169,10 +174,15 @@ class TestHttp:
     def test_an_oversized_chunked_body_is_refused(self, app):
         _route(app, "/form", Form.create, method="POST")
         app.config.MAX_CONTENT_LENGTH = 4
-        environ = make_environ("/form", method="POST", body=b"name=ada&age=36", headers=[
-            ("content-type", "application/x-www-form-urlencoded"),
-            ("transfer-encoding", "chunked"),
-        ])
+        environ = make_environ(
+            "/form",
+            method="POST",
+            body=b"name=ada&age=36",
+            headers=[
+                ("content-type", "application/x-www-form-urlencoded"),
+                ("transfer-encoding", "chunked"),
+            ],
+        )
 
         status, _, _ = call(app, environ)
 
@@ -185,10 +195,15 @@ class TestHttp:
         server that passes the socket on would block, or give the chunk
         framing as the body."""
         _route(app, "/form", Form.create, method="POST")
-        environ = make_environ("/form", method="POST", body=b"name=ada", headers=[
-            ("content-type", "application/x-www-form-urlencoded"),
-            ("transfer-encoding", "chunked"),
-        ])
+        environ = make_environ(
+            "/form",
+            method="POST",
+            body=b"name=ada",
+            headers=[
+                ("content-type", "application/x-www-form-urlencoded"),
+                ("transfer-encoding", "chunked"),
+            ],
+        )
         if terminated == "missing":
             del environ["wsgi.input_terminated"]
         else:
@@ -200,31 +215,55 @@ class TestHttp:
         assert environ["wsgi.input"].tell() == 0
         assert status == "200 OK"
 
-    @pytest.mark.parametrize("content_type, body, expected", [
-        # Invalid UTF-8.
-        ("application/x-www-form-urlencoded", b"name=\xff", "400 Bad Request"),
-        ("application/json", b'{"name": "\xff"}', "400 Bad Request"),
-        # Unknown charset.
-        ("application/json; charset=nope", b"{}", "415 Unsupported Media Type"),
-        ("application/json; charset*=utf-8''utf-8%00", b"{}", "415 Unsupported Media Type"),
-        ("application/x-www-form-urlencoded; charset=idna", b"a=%ff", "415 Unsupported Media Type"),
-        # JSON that Python can't read: too many digits, too deep.
-        pytest.param("application/json", b"1" * 5000, "400 Bad Request", id="long-int"),
-        pytest.param(
-            "application/json", b"[" * 100_000 + b"]" * 100_000, "400 Bad Request",
-            id="deep-arrays",
-        ),
-        # A JSON value that is not an object.
-        ("application/json", b"[1, 2]", "200 OK"),
-        # A multipart framing error.
-        ("multipart/form-data; boundary=x", b"--x\r\nbad header\r\n\r\n--x--", "400 Bad Request"),
-    ])
+    @pytest.mark.parametrize(
+        "content_type, body, expected",
+        [
+            # Invalid UTF-8.
+            ("application/x-www-form-urlencoded", b"name=\xff", "400 Bad Request"),
+            ("application/json", b'{"name": "\xff"}', "400 Bad Request"),
+            # Unknown charset.
+            ("application/json; charset=nope", b"{}", "415 Unsupported Media Type"),
+            (
+                "application/json; charset*=utf-8''utf-8%00",
+                b"{}",
+                "415 Unsupported Media Type",
+            ),
+            (
+                "application/x-www-form-urlencoded; charset=idna",
+                b"a=%ff",
+                "415 Unsupported Media Type",
+            ),
+            # JSON that Python can't read: too many digits, too deep.
+            pytest.param(
+                "application/json", b"1" * 5000, "400 Bad Request", id="long-int"
+            ),
+            pytest.param(
+                "application/json",
+                b"[" * 100_000 + b"]" * 100_000,
+                "400 Bad Request",
+                id="deep-arrays",
+            ),
+            # A JSON value that is not an object.
+            ("application/json", b"[1, 2]", "200 OK"),
+            # A multipart framing error.
+            (
+                "multipart/form-data; boundary=x",
+                b"--x\r\nbad header\r\n\r\n--x--",
+                "400 Bad Request",
+            ),
+        ],
+    )
     def test_bad_bodies_are_client_errors(self, app, content_type, body, expected):
         _route(app, "/form", Form.create, method="POST")
-        environ = make_environ("/form", method="POST", body=body, headers=[
-            ("content-type", content_type),
-            ("content-length", str(len(body))),
-        ])
+        environ = make_environ(
+            "/form",
+            method="POST",
+            body=body,
+            headers=[
+                ("content-type", content_type),
+                ("content-length", str(len(body))),
+            ],
+        )
 
         status, _, _ = call(app, environ)
 
@@ -233,10 +272,15 @@ class TestHttp:
     def test_the_media_type_is_case_insensitive(self, app):
         _route(app, "/form", Form.create, method="POST")
         body = b"--x\r\nContent-Disposition: form-data; name=name\r\n\r\nada\r\n--x--\r\n"
-        environ = make_environ("/form", method="POST", body=body, headers=[
-            ("content-type", "Multipart/Form-Data; Boundary=x"),
-            ("content-length", str(len(body))),
-        ])
+        environ = make_environ(
+            "/form",
+            method="POST",
+            body=body,
+            headers=[
+                ("content-type", "Multipart/Form-Data; Boundary=x"),
+                ("content-length", str(len(body))),
+            ],
+        )
 
         status, _, _ = call(app, environ)
 
@@ -283,11 +327,14 @@ class TestHttp:
         status, _, _ = call(app, make_environ("/nowhere"))
         assert status == "404 Not Found"
 
-    @pytest.mark.parametrize("url, expected", [
-        ("/files/..", "404 Not Found"),
-        ("/files/.", "404 Not Found"),
-        ("/files/.env", "200 OK"),
-    ])
+    @pytest.mark.parametrize(
+        "url, expected",
+        [
+            ("/files/..", "404 Not Found"),
+            ("/files/.", "404 Not Found"),
+            ("/files/.env", "200 OK"),
+        ],
+    )
     def test_a_dot_segment_value_does_not_match(self, app, url, expected):
         """A client that doesn't remove dot segments (`curl --path-as-is`)
         gets a 404: `url_for` can't build a URL with such a value."""
@@ -303,11 +350,14 @@ class TestHttp:
         assert SEEN["request"].server is None
         assert SEEN["request"].client is None
 
-    @pytest.mark.parametrize("server_name, server_port", [
-        ("0.0.0.0", "2300"),  # `proper run` on every address
-        ("::", "2300"),
-        ("/run/app.sock", ""),  # Granian on a Unix socket
-    ])
+    @pytest.mark.parametrize(
+        "server_name, server_port",
+        [
+            ("0.0.0.0", "2300"),  # `proper run` on every address
+            ("::", "2300"),
+            ("/run/app.sock", ""),  # Granian on a Unix socket
+        ],
+    )
     def test_the_host_is_the_host_header(self, app, server_name, server_port):
         """`SERVER_NAME` is where the server listens, not the name the
         client asked for: a route for a host must match the `Host`."""
@@ -315,11 +365,13 @@ class TestHttp:
             Route(method="GET", path="/echo", to=Echo.index, host="api.example.com")
         )
         environ = make_environ("/echo")
-        environ.update({
-            "SERVER_NAME": server_name,
-            "SERVER_PORT": server_port,
-            "HTTP_HOST": "api.example.com:8443",
-        })
+        environ.update(
+            {
+                "SERVER_NAME": server_name,
+                "SERVER_PORT": server_port,
+                "HTTP_HOST": "api.example.com:8443",
+            }
+        )
 
         status, _, _ = call(app, environ)
 
@@ -348,11 +400,14 @@ class TestHttp:
 
         assert status == "400 Bad Request"
 
-    @pytest.mark.parametrize("host", [
-        "a.com,b.com",  # Granian 2.8.3: `Host: a.com` and `Host: b.com`
-        "a.com,a.com",  # two identical `Host` lines
-        "a.com, b.com",  # one line with two values
-    ])
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "a.com,b.com",  # Granian 2.8.3: `Host: a.com` and `Host: b.com`
+            "a.com,a.com",  # two identical `Host` lines
+            "a.com, b.com",  # one line with two values
+        ],
+    )
     def test_more_than_one_host_is_a_400(self, app, host):
         """RFC 9112 §3.2: a request with more than one `Host` line is a 400.
         The server joins the lines with a comma, so a comma is refused."""
@@ -363,25 +418,32 @@ class TestHttp:
 
         assert status == "400 Bad Request"
 
-    @pytest.mark.parametrize("remote_addr, remote_ip, is_secure", [
-        # A proxy in the default TRUSTED_PROXIES: its headers are used.
-        ("127.0.0.1", "198.51.100.7", True),
-        ("10.0.0.9", "198.51.100.7", True),
-        # A server on a Unix socket gives no peer address (gunicorn) or
-        # `unix:...`: only a process on the same machine can connect.
-        ("", "198.51.100.7", True),
-        ("unix:/run/app.sock", "198.51.100.7", True),
-        # Any other peer: the headers are ignored.
-        ("203.0.113.5", "203.0.113.5", False),
-    ])
+    @pytest.mark.parametrize(
+        "remote_addr, remote_ip, is_secure",
+        [
+            # A proxy in the default TRUSTED_PROXIES: its headers are used.
+            ("127.0.0.1", "198.51.100.7", True),
+            ("10.0.0.9", "198.51.100.7", True),
+            # A server on a Unix socket gives no peer address (gunicorn) or
+            # `unix:...`: only a process on the same machine can connect.
+            ("", "198.51.100.7", True),
+            ("unix:/run/app.sock", "198.51.100.7", True),
+            # Any other peer: the headers are ignored.
+            ("203.0.113.5", "203.0.113.5", False),
+        ],
+    )
     def test_forwarding_headers_count_only_from_a_trusted_peer(
         self, app, remote_addr, remote_ip, is_secure
     ):
         _route(app, "/echo", Echo.index)
-        environ = make_environ("/echo", client=(remote_addr, "5555"), headers=[
-            ("x-forwarded-for", "6.6.6.6, 198.51.100.7"),
-            ("x-forwarded-proto", "https"),
-        ])
+        environ = make_environ(
+            "/echo",
+            client=(remote_addr, "5555"),
+            headers=[
+                ("x-forwarded-for", "6.6.6.6, 198.51.100.7"),
+                ("x-forwarded-proto", "https"),
+            ],
+        )
 
         call(app, environ)
 
@@ -395,11 +457,18 @@ class TestHttp:
         trusted = app.config.TRUSTED_PROXIES
         app.config.TRUSTED_PROXIES = ["203.0.113.5"]
         try:
-            for peer, remote_ip in [("203.0.113.5", "198.51.100.7"), ("10.0.0.9", "10.0.0.9")]:
-                environ = make_environ("/echo", client=(peer, "5555"), headers=[
-                    ("x-forwarded-for", "198.51.100.7"),
-                    ("x-forwarded-proto", "https"),
-                ])
+            for peer, remote_ip in [
+                ("203.0.113.5", "198.51.100.7"),
+                ("10.0.0.9", "10.0.0.9"),
+            ]:
+                environ = make_environ(
+                    "/echo",
+                    client=(peer, "5555"),
+                    headers=[
+                        ("x-forwarded-for", "198.51.100.7"),
+                        ("x-forwarded-proto", "https"),
+                    ],
+                )
                 status, _, _ = call(app, environ)
                 assert status == "200 OK"
                 assert SEEN["request"].remote_ip == remote_ip

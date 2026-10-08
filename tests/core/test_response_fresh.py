@@ -180,12 +180,15 @@ class TestIsFreshLastModified:
         request = _make_request(**{"if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT"})
         assert resp.is_fresh(request=request) is False
 
-    @pytest.mark.parametrize("value", [
-        "garbage",
-        "Sun, 99 Nov 1994 08:49:37 GMT",
-        # The offset moves it past year 9999.
-        "Fri, 31 Dec 9999 23:59:59 -0100",
-    ])
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "garbage",
+            "Sun, 99 Nov 1994 08:49:37 GMT",
+            # The offset moves it past year 9999.
+            "Fri, 31 Dec 9999 23:59:59 -0100",
+        ],
+    )
     def test_invalid_date_is_ignored(self, value):
         """RFC 9110 §13.1.3: an invalid date is ignored, not a 500."""
         req = _make_request(**{"if-modified-since": value})
@@ -231,10 +234,12 @@ class TestIsFreshIfNoneMatch:
     def test_star_without_etag_ignores_if_modified_since(self):
         resp = _make_response()
         resp.set_last_modified(datetime(2021, 1, 1))
-        request = _make_request(**{
-            "if-none-match": "*",
-            "if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT",
-        })
+        request = _make_request(
+            **{
+                "if-none-match": "*",
+                "if-modified-since": "Wed, 21 Oct 2020 07:28:00 GMT",
+            }
+        )
         assert resp.is_fresh(request=request) is True
 
     @pytest.mark.parametrize("method", ["POST", "PUT", "DELETE"])
@@ -304,7 +309,12 @@ class TestIsFreshMethodAndStatus:
 
     @pytest.mark.parametrize(
         "status",
-        [pstatus.see_other, pstatus.not_modified, pstatus.not_found, pstatus.server_error],
+        [
+            pstatus.see_other,
+            pstatus.not_modified,
+            pstatus.not_found,
+            pstatus.server_error,
+        ],
     )
     def test_not_fresh_for_other_statuses(self, status):
         resp = _make_response(status=status)

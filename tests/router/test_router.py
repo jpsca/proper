@@ -167,7 +167,9 @@ class TestMatch:
         router = BaseRouter()
         files = Route("GET", "/files/:name", name="files", to=Handlers.show, host=host)
         router.add_route(files)
-        rest = Route("GET", "/files/:rest<.+>", name="rest", to=Handlers.search, host=host)
+        rest = Route(
+            "GET", "/files/:rest<.+>", name="rest", to=Handlers.search, host=host
+        )
         router.add_route(rest)
         with pytest.raises(MatchNotFound):
             router.match("GET", "/files/..", host=host)
@@ -423,14 +425,17 @@ class TestUrlFor:
         url = router.url_for("photos", _anchor="top")
         assert url == "/photos#top"
 
-    @pytest.mark.parametrize("anchor, expected", [
-        ("a b#c", "/photos#a%20b%23c"),
-        ("café", "/photos#caf%C3%A9"),
-        ("100%", "/photos#100%25"),
-        # The characters RFC 3986 allows in a fragment stay as they are.
-        ("a/b?c=d:e@f!$&'()*+,;", "/photos#a/b?c=d:e@f!$&'()*+,;"),
-        ('a"<>`{}', "/photos#a%22%3C%3E%60%7B%7D"),
-    ])
+    @pytest.mark.parametrize(
+        "anchor, expected",
+        [
+            ("a b#c", "/photos#a%20b%23c"),
+            ("café", "/photos#caf%C3%A9"),
+            ("100%", "/photos#100%25"),
+            # The characters RFC 3986 allows in a fragment stay as they are.
+            ("a/b?c=d:e@f!$&'()*+,;", "/photos#a/b?c=d:e@f!$&'()*+,;"),
+            ('a"<>`{}', "/photos#a%22%3C%3E%60%7B%7D"),
+        ],
+    )
     def test_url_for_percent_encodes_the_anchor(self, anchor, expected):
         router = BaseRouter()
         router.add_route(Route("GET", "/photos", name="photos", to=Handlers.action))
@@ -572,8 +577,13 @@ class TestUrlIs:
     def test_url_is_with_a_full_url(self):
         router = BaseRouter()
         router.add_route(Route("GET", "/t/:tag", name="tag", to=Handlers.show))
-        assert router.url_is("tag", tag="a b", curr_url="https://example.com/t/a%20b?x=1") is True
-        assert router.url_is("tag", tag="a b", curr_url="https://example.com/t/x") is False
+        assert (
+            router.url_is("tag", tag="a b", curr_url="https://example.com/t/a%20b?x=1")
+            is True
+        )
+        assert (
+            router.url_is("tag", tag="a b", curr_url="https://example.com/t/x") is False
+        )
 
     def test_url_is_root(self):
         router = BaseRouter()
@@ -634,9 +644,12 @@ class TestUrlStartsWith:
     def test_with_encoded_values(self):
         router = BaseRouter()
         router.add_route(Route("GET", "/tags/:tag", name="tag", to=Handlers.show))
-        assert router.url_startswith("tag", tag="a b", curr_url="/tags/a b/page/2") is True
-        assert router.url_startswith("tag", tag="a b", curr_url="/tags/a%20b/page/2") is True
-
+        assert (
+            router.url_startswith("tag", tag="a b", curr_url="/tags/a b/page/2") is True
+        )
+        assert (
+            router.url_startswith("tag", tag="a b", curr_url="/tags/a%20b/page/2") is True
+        )
 
 
 class TestHTTPMethodDecorators:

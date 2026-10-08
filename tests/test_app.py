@@ -111,23 +111,32 @@ def test_invalid_samesite_raises():
 def test_trusted_proxies_default():
     config = load_config({"SECRET_KEYS": ["*" * 50]})
     assert config.TRUSTED_PROXIES == tuple(
-        ipaddress.ip_network(net) for net in (
-            "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
-            "169.254.0.0/16", "fc00::/7", "fe80::/10",
+        ipaddress.ip_network(net)
+        for net in (
+            "127.0.0.0/8",
+            "::1",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "169.254.0.0/16",
+            "fc00::/7",
+            "fe80::/10",
         )
     )
 
 
 def test_trusted_proxies_are_parsed():
-    config = load_config({
-        "SECRET_KEYS": ["*" * 50],
-        "TRUSTED_PROXIES": [
-            "203.0.113.7",
-            "198.51.100.9/24",
-            ipaddress.ip_network("::1"),
-            ipaddress.ip_address("192.0.2.1"),
-        ],
-    })
+    config = load_config(
+        {
+            "SECRET_KEYS": ["*" * 50],
+            "TRUSTED_PROXIES": [
+                "203.0.113.7",
+                "198.51.100.9/24",
+                ipaddress.ip_network("::1"),
+                ipaddress.ip_address("192.0.2.1"),
+            ],
+        }
+    )
     assert config.TRUSTED_PROXIES == (
         ipaddress.ip_network("203.0.113.7/32"),
         ipaddress.ip_network("198.51.100.0/24"),
@@ -136,17 +145,20 @@ def test_trusted_proxies_are_parsed():
     )
 
 
-@pytest.mark.parametrize("value", [
-    "10.0.0.1",
-    ["10.0.0.300"],
-    ["proxy.local"],
-    [None],
-    # `ipaddress.ip_network` takes these too: `1` is `0.0.0.1/32`.
-    [1],
-    [True],
-    [b"\x7f\x00\x00\x01"],
-    [("10.0.0.0", 8)],
-])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "10.0.0.1",
+        ["10.0.0.300"],
+        ["proxy.local"],
+        [None],
+        # `ipaddress.ip_network` takes these too: `1` is `0.0.0.1/32`.
+        [1],
+        [True],
+        [b"\x7f\x00\x00\x01"],
+        [("10.0.0.0", 8)],
+    ],
+)
 def test_invalid_trusted_proxies_raises(value):
     with pytest.raises(ConfigError, match="TRUSTED_PROXIES"):
         load_config({"SECRET_KEYS": ["*" * 50], "TRUSTED_PROXIES": value})

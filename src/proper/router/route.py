@@ -126,8 +126,7 @@ def _build(pieces: "list[tuple[str, str | None]]", values: dict) -> str:
     replaced by its value. The literal text is copied as it is in the
     pieces, so it follows the same placeholder grammar as matching."""
     return "".join(
-        literal if name is None else literal + values[name]
-        for literal, name in pieces
+        literal if name is None else literal + values[name] for literal, name in pieces
     )
 
 
@@ -169,9 +168,7 @@ def _dot_segment_placeholder(
 
 def has_dot_segment(path: str) -> bool:
     """Does `path` have a `.` or `..` segment?"""
-    return "/." in path and any(
-        segment in DOT_SEGMENTS for segment in path.split("/")
-    )
+    return "/." in path and any(segment in DOT_SEGMENTS for segment in path.split("/"))
 
 
 class RouteTemplate(Template):
@@ -180,6 +177,7 @@ class RouteTemplate(Template):
     `Route` no longer uses it to build URLs (it doesn't follow the placeholder
     rules); it is kept for compatibility.
     """
+
     delimiter = ":"
 
 
@@ -440,7 +438,9 @@ class Route:
         name = _dot_segment_placeholder(self._path_pieces, values)
         if name is not None:
             raise BadRoutePlaceholder(
-                name, self.path, self._path_placeholder_re[name].pattern,
+                name,
+                self.path,
+                self._path_placeholder_re[name].pattern,
                 reason="would make a `.` or `..` segment, which clients remove",
             )
         url = _build(self._path_pieces, values) or "/"

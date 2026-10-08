@@ -152,7 +152,9 @@ class Request(RequestHeadersMixin):
         """
         if self.method in (GET, HEAD) or "content-length" in self.headers:
             return False
-        return "transfer-encoding" in self.headers or not self.http_version.startswith("1")
+        return "transfer-encoding" in self.headers or not self.http_version.startswith(
+            "1"
+        )
 
     def _read_unsized_body(self, read: "Callable[[int], bytes]") -> bytes:
         """Read until `read()` returns `b""`, but not past `MAX_CONTENT_LENGTH`."""

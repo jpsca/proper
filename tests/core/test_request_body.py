@@ -89,9 +89,14 @@ def test_read_body_shorter_than_content_length(app):
 
 
 def test_parse_body_bytes_get_skips(app):
-    req = make_test_request("/", method="GET", app=app, headers=[
-        ("content-type", "application/json"),
-    ])
+    req = make_test_request(
+        "/",
+        method="GET",
+        app=app,
+        headers=[
+            ("content-type", "application/json"),
+        ],
+    )
     req._parse_body_bytes(b'{"a": 1}')
     assert req.body == b""
     assert len(req.form) == 0
@@ -206,11 +211,17 @@ def _chunks(body: bytes, size: int = 3):
 
 
 def _post_chunked(app, content_type, method="POST", headers=(), **kwargs):
-    return make_test_request("/", method=method, app=app, headers=[
-        ("transfer-encoding", "chunked"),
-        ("content-type", content_type),
-        *headers,
-    ], **kwargs)
+    return make_test_request(
+        "/",
+        method=method,
+        app=app,
+        headers=[
+            ("transfer-encoding", "chunked"),
+            ("content-type", content_type),
+            *headers,
+        ],
+        **kwargs,
+    )
 
 
 def test_read_chunked_body(app):
@@ -282,9 +293,15 @@ def test_read_http2_body_without_content_length(app):
     """HTTP/2 and 3 have no `transfer-encoding`: the end of the stream ends
     the body, and `content-length` is optional."""
     body = b'{"a": 1}'
-    req = make_test_request("/", method="POST", app=app, http_version="2", headers=[
-        ("content-type", "application/json"),
-    ])
+    req = make_test_request(
+        "/",
+        method="POST",
+        app=app,
+        http_version="2",
+        headers=[
+            ("content-type", "application/json"),
+        ],
+    )
     req._read_body_sync(_chunks(body))
     assert req.form["a"] == 1
 
@@ -292,11 +309,14 @@ def test_read_http2_body_without_content_length(app):
 # --- Content types ---
 
 
-@pytest.mark.parametrize("content_type", [
-    "Multipart/Form-Data; boundary=testboundary",
-    "multipart/form-data; Boundary=testboundary",
-    "MULTIPART/FORM-DATA; BOUNDARY=testboundary",
-])
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "Multipart/Form-Data; boundary=testboundary",
+        "multipart/form-data; Boundary=testboundary",
+        "MULTIPART/FORM-DATA; BOUNDARY=testboundary",
+    ],
+)
 def test_parse_body_multipart_content_type_is_case_insensitive(app, content_type):
     body = _build_multipart([{"name": "field1", "value": "hello"}])
     req = _post(app, body, content_type=content_type)
@@ -304,10 +324,13 @@ def test_parse_body_multipart_content_type_is_case_insensitive(app, content_type
     assert req.form.get("field1") == "hello"
 
 
-@pytest.mark.parametrize("content_type", [
-    "Application/JSON",
-    "APPLICATION/JSON; Charset=UTF-8",
-])
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "Application/JSON",
+        "APPLICATION/JSON; Charset=UTF-8",
+    ],
+)
 def test_parse_body_json_content_type_is_case_insensitive(app, content_type):
     body = b'{"a": 1}'
     req = _post(app, body, content_type=content_type)
@@ -317,12 +340,16 @@ def test_parse_body_json_content_type_is_case_insensitive(app, content_type):
 
 def test_parse_body_urlencoded_content_type_is_case_insensitive(app):
     body = b"a=1"
-    req = _post(app, body, content_type="Application/X-WWW-Form-Urlencoded; charset=utf-8")
+    req = _post(
+        app, body, content_type="Application/X-WWW-Form-Urlencoded; charset=utf-8"
+    )
     req._read_body_sync(_reader(body))
     assert req.form["a"] == "1"
 
 
-@pytest.mark.parametrize("body", [b"[1, 2]", b'[["a", 1]]', b'"x"', b"3", b"true", b"null"])
+@pytest.mark.parametrize(
+    "body", [b"[1, 2]", b'[["a", 1]]', b'"x"', b"3", b"true", b"null"]
+)
 def test_parse_body_json_not_an_object(app, body):
     """The form only has the members of a JSON object; any other value is
     still in `request.body`."""
@@ -339,14 +366,18 @@ def test_parse_body_invalid_json(app):
         req._read_body_sync(_reader(body))
 
 
-@pytest.mark.parametrize("body", [
-    # An integer with more digits than Python converts (a ValueError).
-    b'{"n": ' + b"1" * 5000 + b"}",
-    b"1" * 5000,
-    # Nested deeper than the stack allows (a RecursionError).
-    b"[" * 100_000 + b"]" * 100_000,
-    b'{"a": ' * 100_000 + b"1" + b"}" * 100_000,
-], ids=["long-int-member", "long-int", "deep-arrays", "deep-objects"])
+@pytest.mark.parametrize(
+    "body",
+    [
+        # An integer with more digits than Python converts (a ValueError).
+        b'{"n": ' + b"1" * 5000 + b"}",
+        b"1" * 5000,
+        # Nested deeper than the stack allows (a RecursionError).
+        b"[" * 100_000 + b"]" * 100_000,
+        b'{"a": ' * 100_000 + b"1" + b"}" * 100_000,
+    ],
+    ids=["long-int-member", "long-int", "deep-arrays", "deep-objects"],
+)
 def test_parse_body_json_that_python_cannot_read(app, body):
     req = _post(app, body)
     with pytest.raises(MultipartError):
@@ -354,7 +385,9 @@ def test_parse_body_json_that_python_cannot_read(app, body):
 
 
 @pytest.mark.parametrize(
-    "body", [b"1" * 5000, b"[" * 100_000 + b"]" * 100_000], ids=["long-int", "deep-arrays"]
+    "body",
+    [b"1" * 5000, b"[" * 100_000 + b"]" * 100_000],
+    ids=["long-int", "deep-arrays"],
 )
 def test_parse_json_not_strict_gives_an_empty_form(body):
     assert len(parse_json(body.decode(), strict=False)) == 0
@@ -362,16 +395,21 @@ def test_parse_json_not_strict_gives_an_empty_form(body):
 
 def test_parse_body_urlencoded_charset(app):
     body = "name=Jos\xe9".encode("latin-1")
-    req = _post(app, body, content_type="application/x-www-form-urlencoded; charset=latin-1")
+    req = _post(
+        app, body, content_type="application/x-www-form-urlencoded; charset=latin-1"
+    )
     req._read_body_sync(_reader(body))
     assert req.form["name"] == "Jos\xe9"
 
 
-@pytest.mark.parametrize("content_type", [
-    "application/x-www-form-urlencoded",
-    "application/json",
-    "application/json; charset=utf-8",
-])
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/x-www-form-urlencoded",
+        "application/json",
+        "application/json; charset=utf-8",
+    ],
+)
 def test_parse_body_invalid_utf8(app, content_type):
     body = b'{"name": "\xff"}' if "json" in content_type else b"name=\xff"
     req = _post(app, body, content_type=content_type)
@@ -379,15 +417,18 @@ def test_parse_body_invalid_utf8(app, content_type):
         req._read_body_sync(_reader(body))
 
 
-@pytest.mark.parametrize("content_type", [
-    "application/x-www-form-urlencoded; charset=nope",
-    "application/json; charset=nope",
-    # A codec that is not a text encoding.
-    "application/json; charset=base64",
-    # RFC 2231 decoding gives a name with a NUL, which Python can't look up.
-    "application/json; charset*=utf-8''utf-8%00",
-    "application/x-www-form-urlencoded; charset*=utf-8''utf-8%00",
-])
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/x-www-form-urlencoded; charset=nope",
+        "application/json; charset=nope",
+        # A codec that is not a text encoding.
+        "application/json; charset=base64",
+        # RFC 2231 decoding gives a name with a NUL, which Python can't look up.
+        "application/json; charset*=utf-8''utf-8%00",
+        "application/x-www-form-urlencoded; charset*=utf-8''utf-8%00",
+    ],
+)
 def test_parse_body_unknown_charset(app, content_type):
     body = b"e30="
     req = _post(app, body, content_type=content_type)
@@ -408,7 +449,9 @@ def test_parse_body_form_charset_without_replace_handler(app):
 def test_parse_body_multipart_unknown_charset_falls_back_to_latin1(app, charset):
     param = charset if "*" in charset else f"charset={charset}"
     body = _build_multipart([{"name": "a", "value": b"v\xff"}])
-    req = _post(app, body, content_type=f"multipart/form-data; boundary=testboundary; {param}")
+    req = _post(
+        app, body, content_type=f"multipart/form-data; boundary=testboundary; {param}"
+    )
     req._read_body_sync(_reader(body))
     assert req.form["a"] == "v\xff"
 

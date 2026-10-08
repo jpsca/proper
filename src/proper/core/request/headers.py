@@ -32,7 +32,9 @@ class RequestHeadersMixin:
     def __init__(self):
         forwarded_proto = self.headers.get("x-forwarded-proto")
         self.protocol: str = (
-            forwarded_proto if forwarded_proto and self._from_trusted_proxy else self.scheme
+            forwarded_proto
+            if forwarded_proto and self._from_trusted_proxy
+            else self.scheme
         )
 
         # As PEP 3333 rebuilds the URL: the `Host` header, else the address
@@ -533,7 +535,7 @@ def split_forwarded(value: str) -> list[str]:
             if not (in_quotes and (pos - start) % 2):
                 in_quotes = not in_quotes
         elif char == "," and not in_quotes:
-            elements.append(value[pos + 1:end])
+            elements.append(value[pos + 1 : end])
             end = pos
     elements.append(value[:end])
     elements.reverse()
@@ -582,7 +584,7 @@ def parse_accept(value: str | None, *, is_language: bool = False) -> list[str]:
         [
             (
                 format_locale(label) if is_language else label,
-                parse_qvalue(params.get("q"))
+                parse_qvalue(params.get("q")),
             )
             for label, params in values
         ],
