@@ -148,20 +148,25 @@ def _signed_in_session(app, session_model, client, user=None):
     return controller.new_session_for(user=user)
 
 
+def test_sign_in_with_a_legacy_ip_field_stores_ipv4(app, legacy_session):
+    session = _signed_in_session(app, legacy_session, ("203.0.113.5", 5000))
+    assert legacy_session.get_by_id(session.id).ip_address == "203.0.113.5"
+
+
 @pytest.mark.parametrize(
-    "peer, stored",
+    "peer",
     [
-        (("203.0.113.5", 5000), "203.0.113.5"),
-        (("::ffff:203.0.113.5", 5000), "203.0.113.5"),
-        # `IPField` can't store these: they are left out, instead of a 500.
-        (("2001:db8::1", 5000), None),
-        (("unknown", None), None),
-        (None, None),
+        ("::ffff:203.0.113.5", 5000),
+        ("2001:db8::1", 5000),
+        ("unknown", None),
+        None,
     ],
 )
-def test_sign_in_with_a_legacy_ip_field(app, legacy_session, peer, stored):
-    session = _signed_in_session(app, legacy_session, peer)
-    assert legacy_session.get_by_id(session.id).ip_address == stored
+def test_sign_in_with_a_legacy_ip_field_needs_the_migration(app, legacy_session, peer):
+    """Without the migration in the CHANGELOG, `IPField` can't store
+    anything but an IPv4 address: signing in raises (a 500)."""
+    with pytest.raises(OSError):
+        _signed_in_session(app, legacy_session, peer)
 
 
 def test_sign_in_stores_the_remote_ip_as_it_is(app, models, user):

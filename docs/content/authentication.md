@@ -166,7 +166,7 @@ class Session(BaseModel):
     revoked = pw.BooleanField(...)
 ```
 
-`ip_address` is `request.remote_ip` at sign-in: an IPv4 or IPv6 address, or what a proxy wrote instead of one (`unknown`), cut to 255 characters, and `None` without one. In an app whose `Session` model still has `ip_address = pw.IPField(null=True)` (apps made before this field changed), it can hold only IPv4 addresses, so the others are stored as `None`; the CHANGELOG has the migration to text.
+`ip_address` is `request.remote_ip` at sign-in: an IPv4 or IPv6 address, or what a proxy wrote instead of one (`unknown`), cut to 255 characters, and `None` without one. An app made before this field changed has `ip_address = pw.IPField(null=True)`, which holds only IPv4 addresses: signing in from any other address (IPv6, or IPv4 through Granian listening on `::`) is a 500 until the app runs the migration to text in the CHANGELOG.
 
 Note that there's both an absolute `expires_at` and a rolling `last_seen_at`.
 

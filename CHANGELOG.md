@@ -222,12 +222,12 @@ address, for an IPv4 visitor of Granian listening on `::`
 has no length limit (a proxy can write any identifier), but an address is
 at most 45 characters.
 
-An app with the old field no longer gets the 500: `new_session_for` stores
-an IPv4 address (an IPv4-mapped one as IPv4) and `None` for any other
-value. An `AppController` that overrides `new_session_for` and passes
-`request.remote_ip` to `create_for_user` itself (as the "remember me"
-example in the authentication guide does) still gets it, until the column
-changes. To store every value, change the field in `models/session.py`:
+An app made before has the old field, and **must run the migration below
+when it upgrades**. Without it, the app still runs and IPv4 visitors sign
+in as before, but signing in is still a 500 (`OSError`) for every other
+`remote_ip`: an IPv6 address, an IPv4 address of Granian listening on `::`
+(`::ffff:203.0.113.5`), `unknown`, or `""`. Proper doesn't work around the
+old field. Change the field in `models/session.py`:
 
 ```python {title="models/session.py"}
 ip_address = pw.CharField(max_length=255, null=True)
@@ -632,6 +632,8 @@ class RouteTemplate(Template):
 - Signing in with the auth addon was a 500 for IPv6 visitors, for IPv4
   visitors of a server listening on `::`, and when `remote_ip` was not an
   address: `Session.ip_address` was an `IPField`, which takes IPv4 only.
+  It is now text in new apps; apps made before need the migration in
+  "Upgrading" above.
 - Any client could set `request.remote_ip` with a `Forwarded`,
   `X-Forwarded-For` or `X-Real-IP` header, and make `request.is_secure`
   true (and so the session and auth cookies `Secure`) with
