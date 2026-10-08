@@ -22,6 +22,27 @@ uv add "proper-wse>=2.7.0"
 CABLE = {"type": "proper.channels.Cable"}
 ```
 
+### ⚠️ Upgrading: `Cable.start_server()` raises when wse can't listen
+
+`Cable.start_server()`, which `proper run` calls before it serves the first
+request, now returns only once wse listens on `CABLE_PORT`, and raises
+`RuntimeError` when it doesn't:
+
+- at once, with the reason, when wse can't bind the port: the port is taken,
+  or the cable's `host` is not an address of this machine or can't be looked
+  up (`wse-server could not listen on 0.0.0.0:2301: [Errno 98] Address
+  already in use`);
+- after 10 seconds, when wse has not bound the port by then (a machine too
+  busy to run it, a slow lookup of `host`). It is stopped once it binds, so
+  nothing is left listening on the port.
+
+Before, `start_server()` returned in those cases with a cable that served
+nothing: the app ran, and its WebSockets never connected, or connected to
+whatever held the port. Now `proper run` fails to start with that error. An
+app that calls `start_server()` itself, under another server, gets the
+exception where it calls it: free the port (or set another `CABLE_PORT`), or
+fix the `host` of `CABLE`.
+
 ### ⚠️ Upgrading: `url_for` percent-encodes and checks whole values
 
 `url_for` now percent-encodes the path (the placeholder values and the text
@@ -714,7 +735,7 @@ token as missing, where they were a 500.
   host name such as `localhost`. `start_server()` now returns once wse
   listens, and raises `RuntimeError` when wse can't bind the port, or binds
   it only after 10 seconds; it returned before, and the cable served
-  nothing.
+  nothing (see Upgrading).
 
 ## 0.34
 
