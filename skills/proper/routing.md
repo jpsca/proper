@@ -525,6 +525,8 @@ app.url_for("Post.show", post, _full=True)
 # https://example.com/posts/42/hello-world
 ```
 
+A host placeholder value (`host=":username.myapp.com"`) may have only letters, digits and `-._~`; any other character raises `BadRoutePlaceholder` with `_full=True`, whatever the placeholder's format.
+
 ### `url_is` and `url_startswith`
 
 These helpers check whether the current request URL matches a named route. They are useful for highlighting the active link in navigation menus:

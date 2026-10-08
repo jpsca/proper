@@ -66,7 +66,7 @@ percent-encoded. `url_for("Auth.login", next="/admin/x")` was
 the value back the same, but a test that asserts an exact URL or a redirect's
 `Location` with such a value must be updated.
 
-Five things to change:
+Six things to change:
 
 - Pass raw values. A value you encoded yourself is encoded again:
   `url_for("Tag.show", tag=quote(name))` gives `/tags/a%2520b` for `"a b"`;
@@ -97,6 +97,15 @@ Five things to change:
   `_anchor="a b#c"` gives `#a%20b%23c` (it was `#a b#c`). Pass the anchor
   unencoded; an anchor you encoded yourself (`"a%20b"`) is encoded again
   (`#a%2520b`), and then no longer finds the element with the `id` `a b`.
+- With `_full=True`, a value for a host placeholder (`host=":user.app.com"`)
+  may have only letters, digits and `-._~`, the characters of a host name;
+  any other character raises `BadRoutePlaceholder`, whatever the
+  placeholder's format. Host values are not encoded, so `"evil.com?"` gave
+  `http://evil.com?.example.com/...`, a link to `evil.com`. Convert an
+  international name to its `xn--` form first
+  (`"josé".encode("idna").decode()`); a value with `!`, `$`, `&`, `'`, `(`,
+  `)`, `*`, `+`, `,`, `;`, `=`, `%`, `@`, `:` or a space can't be a host
+  label.
 
 ### ⚠️ Upgrading: `url_is` and `url_startswith` compare paths only
 
@@ -681,6 +690,12 @@ class RouteTemplate(Template):
   (it was `c=[1, 2]`), which the app reads back as the same `"[1, 2]"`.
 - `url_for` accepted a value that only started with a valid one (`"42abc"`
   for `<int>`); now the whole value must match.
+- `url_for(..., _full=True)` put the value of a host placeholder into the
+  URL as it was: with `host=":sub.example.com"`, `sub="evil.com?"` gave
+  `http://evil.com?.example.com/h/1`, a link to `evil.com`, and `@`, `/`
+  (with a format that accepts it), a space, CR or LF changed the URL too. A
+  host value with a character other than letters, digits and `-._~` now
+  raises `BadRoutePlaceholder`.
 - `url_for` copied the text of the route as written, so a route such as
   `/über/:id` or `/my files/:id` gave an invalid URL, and a non-latin-1
   character in it broke the `Location` header of a redirect. The text is now

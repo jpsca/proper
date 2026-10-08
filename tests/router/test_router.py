@@ -505,6 +505,22 @@ class TestUrlFor:
         url = router.url_for("docs", lang="pt", _full=True)
         assert url.endswith("://pt.example.com/docs")
 
+    @pytest.mark.parametrize(
+        "value", ["evil.com?", "u@evil.com", "a\r\nSet-Cookie: s=1", "a b"]
+    )
+    def test_url_for_full_refuses_a_host_value_that_is_not_a_host_name(
+        self, app, value
+    ):
+        # It gave `http://evil.com?.example.com/h/1`.
+        router = app.router
+        r = Route("GET", "/h/:id", name="h", to=Handlers.action,
+                  host=":sub.example.com")
+        router.add_route(r)
+        with pytest.raises(BadRoutePlaceholder, match="host name"):
+            router.url_for("h", id=1, sub=value, _full=True)
+        # Without `_full`, the host is not built, so the value is not used.
+        assert router.url_for("h", id=1, sub=value) == "/h/1"
+
     def test_url_for_full_with_literal_host_uses_route_host(self, app):
         router = app.router
         r = Route("GET", "/api", name="api", to=Handlers.action,

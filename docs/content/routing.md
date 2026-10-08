@@ -700,6 +700,8 @@ app.url_for("Post.show", post, _full=True)
 # https://example.com/posts/42/hello-world
 ```
 
+The host is the route's own host, with its placeholders filled, or `HOST` from the config. A value for a host placeholder is not encoded, so it may have only the characters of a host name: letters, digits and `-._~`. Any other character (`?`, `@`, `:`, a space, a line break, a non-ASCII letter) raises `BadRoutePlaceholder`, also when the placeholder's format accepts it. Convert an international name to its `xn--` form first (`"josé".encode("idna").decode()`).
+
 ### Active-Link Helpers: `url_is` and `url_startswith`
 
 Two helpers check whether the *current* request matches a named route. They take the same arguments as `url_for`:

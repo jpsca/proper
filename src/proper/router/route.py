@@ -27,6 +27,7 @@ from ..types import Iterable, THandler
 
 __all__ = (
     "FORMATS",
+    "HOST_SAFE",
     "Route",
     "StaticRoute",
 )
@@ -41,6 +42,17 @@ PATH_SAFE = "/:@!$&'()*+,;="
 the unreserved ones: those of `PATH_SAFE` and `?` (RFC 3986 §3.5).
 """
 FRAGMENT_SAFE = PATH_SAFE + "?"
+
+"""Characters `url_for` accepts in a host placeholder value: the unreserved
+characters of RFC 3986 (letters, digits, `-._~`). They are the characters of
+a host name (RFC 1123: letters, digits and `-`, in labels joined by `.`),
+plus `_` and `~`, which a reg-name (RFC 3986 §3.2.2) allows as they are. A
+reg-name's sub-delims (`!$&'()*+,;=`) and percent-escapes are left out: no
+host name has them.
+"""
+HOST_SAFE = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+)
 
 DOT_SEGMENTS = (".", "..")
 
@@ -442,11 +454,27 @@ class Route:
     def format_host(self, **kw) -> str | None:
         """Build the host string for this route, substituting placeholders.
 
+        Each value must match its placeholder's format as a whole and have
+        only the characters of a host name (`HOST_SAFE`: letters, digits and
+        `-._~`), or `BadRoutePlaceholder` is raised: the value is not
+        encoded, so `"evil.com?"` would make the host `evil.com`.
+
         Returns `None` if the route has no host constraint.
         """
         if self._host_pieces is None:
             return None
         host_params = self._get_host_params(kw)
+        for name, value in host_params.items():
+            if not HOST_SAFE.issuperset(value):
+                raise BadRoutePlaceholder(
+                    name,
+                    self.host or "",
+                    self._host_placeholder_re[name].pattern,
+                    reason=(
+                        "has a character that a host name can't have "
+                        "(only letters, digits and -._~)"
+                    ),
+                )
         return _build(self._host_pieces, host_params)
 
     # Private

@@ -766,6 +766,57 @@ class TestRouteFormatHost:
         assert r.host_placeholders == {}
         assert r.format_host() == "localhost:PORT"
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "evil.com?",
+            "evil.com#",
+            "u@evil.com",
+            "evil.com:80",
+            "a b",
+            "a\r\nSet-Cookie: s=1",
+            "a\n",
+            "a\t",
+            "%41",
+            "[::1]",
+            "a\\b",
+            "a!b",
+            "a$b",
+            "a&b",
+            "a'b",
+            "a(b",
+            "a*b",
+            "a+b",
+            "a,b",
+            "a;b",
+            "a=b",
+            "jos\u00e9",
+            "a\x00",
+        ],
+    )
+    def test_placeholder_host_refuses_a_character_a_host_name_cannot_have(
+        self, value
+    ):
+        # The default format `[^/]+` accepts all of these, and the value
+        # becomes the host of the URL as it is.
+        r = Route("GET", "/h/1", host=":sub.example.com")
+        assert re.fullmatch(FORMATS[None], value)
+        with pytest.raises(BadRoutePlaceholder, match="host name"):
+            r.format_host(sub=value)
+
+    @pytest.mark.parametrize(
+        "value", ["alice", "Alice-2", "a.b", "a_b", "a~b", "0", "xn--jos-dma"]
+    )
+    def test_placeholder_host_accepts_host_name_characters(self, value):
+        r = Route("GET", "/h/1", host=":sub.example.com")
+        assert r.format_host(sub=value) == f"{value}.example.com"
+
+    def test_placeholder_host_custom_format_is_checked_too(self):
+        # A format that accepts the character doesn't make it valid in a host.
+        r = Route("GET", "/", host=":sub<.+>.example.com")
+        with pytest.raises(BadRoutePlaceholder, match="host name"):
+            r.format_host(sub="a?b")
+
 
 class TestRouteTemplateIsRemoved:
     """The CHANGELOG says `RouteTemplate` is removed and importing it raises
