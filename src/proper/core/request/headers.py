@@ -584,9 +584,10 @@ def parse_date(value: str | None, *, now: datetime | None = None) -> datetime | 
     and `08-Oct-76 12:00:01` is in 1976. A year without that date is
     skipped: with `now` in 2051, `29-Feb-00` is in 2000, because 2100 has
     no 29 February. When none of the three years has the date not more
-    than 50 years after `now`, the result is None: with `now` from 2200
-    to 2349, `29-Feb-00` is None. `now` is compared in UTC: an aware
-    `now` is converted to UTC, and a naive one is taken to be in UTC.
+    than 50 years after `now`, the result is None: with `now` from
+    1 January 2200 to 28 February 2350, `29-Feb-00` is None (from 1 March
+    2350 it is in 2400). `now` is compared in UTC: an aware `now` is
+    converted to UTC, and a naive one is taken to be in UTC.
 
     Returns:
         A datetime object in UTC, or None if the header is not present or
