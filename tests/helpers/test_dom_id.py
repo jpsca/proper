@@ -10,9 +10,12 @@ def test_dom_id():
     assert dom_id(Post(None)) == "new_post"
     assert dom_id(Post((12, 36))) == "post_12_36"
     assert dom_id(Post(("lorem", "ipsum"))) == "post_lorem_ipsum"
+    assert dom_id(Post(45), "custom") == "post_45_custom"
+    assert dom_id(Post(45), "a", "b") == "post_45_a_b"
 
     assert dom_id(Post) == "post"
-    assert dom_id(Post, "custom") == "custom_post"
+    assert dom_id(Post, "edit") == "post_edit"
+    assert dom_id(Post, "edit", "special") == "post_edit_special"
 
 
 def test_dom_id_to_key():
@@ -32,8 +35,7 @@ def test_dom_id_to_key():
     assert dom_id(Post(None, 0)) == "post_0"
 
     assert dom_id(Post(None, None)) == "new_post"
-    assert dom_id(Post(None, "")) == "new_post"
     assert dom_id(Post(None, False)) == "new_post"
+    assert dom_id(Post(None, "")) == "new_post"
 
-    assert dom_id(Post) == "post"
-    assert dom_id(Post, "custom") == "custom_post"
+

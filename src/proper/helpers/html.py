@@ -51,58 +51,64 @@ def render_importmap(_app) -> str:
     return Markup(tags)
 
 
-def dom_id(obj: t.Any, prefix: str = "") -> str:
-    """Generate a stable id for an object, suitable for use in HTML element ids.
+def dom_id(*parts: t.Any) -> str:
+    """Generate a stable id for a collection of objects and/or strings, suitable
+    for use in HTML element ids.
 
-    It uses the object's class name and primary key (if available) to generate a unique id.
-    If there is no primary key, prefix with “new_” instead.
+    All parts will be converted to strings and joined with underscores.
+    If a part is an object, its class name and primary key (if available) will be used
+    to generate a string for that part. Composite primary keys are also supported.
 
     ```python
-    dom_id(Post.get(45))   # => "post_45"
-    dom_id(Post.create())  # => "new_post"
+    dom_id(Post.get(45))                     # => "post_45"
+    dom_id(Post.get(45), "edit")             # => "post_45_edit"
+    dom_id(Post.get(45), "edit", "special")  # => "post_45_edit_special"
     ```
 
-    The `prefix` argument can be used to add a namespace to the id, for example:
+    If there is no primary key, the class name is prefixed with "new_" instead.
 
     ```python
-    dom_id(Post.get(45), "edit")  # => "edit_post_45"
+    dom_id(Post.create())  # => "new_post"
     ```
 
     If the object has a `to_key()` method, it will be used to get the key instead of the primary key.
     This allows you to customize the key generation for privacy-sensitive or more complex models.
+    If this method returns `None`, `False`, or an empty value, the object will be treated as if it
+    has no primary key. If it returns a composite key (tuple), the parts will be joined with underscores.
 
     If the object is a class rather than an instance, only the class name is used:
 
     ```python
     dom_id(Post)            # => "post"
-    dom_id(Post, "custom")  # => "custom_post"
+    dom_id(Post, "custom")  # => "post_custom"
     ```
 
     Arguments:
-        obj:
-            The object to generate a DOM id for. Can be a model instance or a class.
-        prefix:
-            An optional string to prefix the id with, for namespacing.
+        parts:
+            The objects to generate a DOM id for. Can be strings, model instances, or classes.
 
     """
-    JOIN = "_"
-    prefix = f"{prefix}{JOIN}" if prefix else ""
+    JOINER = "_"
+    result = []
 
-    if inspect.isclass(obj):
-        name = inflection.underscore(obj.__name__)
-        key = ""
-    else:
-        name = inflection.underscore(obj.__class__.__name__)
-        key = _record_key_for_dom_id(obj, JOIN)
-        if not key:
-            prefix = f"{prefix}new{JOIN}"
+    for part in parts:
+        if isinstance(part, str):
+            result.append(part)
+        elif inspect.isclass(part):
+            name = inflection.underscore(part.__name__)
+            result.append(name)
+        else:
+            name = inflection.underscore(part.__class__.__name__)
+            key = _record_key_for_dom_id(part, JOINER)
+            if not key:
+                result.append(f"new{JOINER}{name}")
+            else:
+                result.append(f"{name}{JOINER}{key}")
 
-    key = f"{JOIN}{key}" if key else ""
-
-    return f"{prefix}{name}{key}"
+    return JOINER.join(result)
 
 
-def _record_key_for_dom_id(obj: t.Any, JOIN: str) -> str:
+def _record_key_for_dom_id(obj: t.Any, JOINER: str) -> str:
     """Get the key to use in a DOM id for a model instance. By default, this is the primary key,
     but if the object has a `to_key()` method, it will be used instead.
     """
@@ -117,6 +123,6 @@ def _record_key_for_dom_id(obj: t.Any, JOIN: str) -> str:
         return ""
 
     if isinstance(key, tuple):
-        return JOIN.join(str(part) for part in key)
+        return JOINER.join(str(part) for part in key)
     else:
         return str(key)
