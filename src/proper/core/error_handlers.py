@@ -58,33 +58,45 @@ def debug_not_found_handler(app, request, response) -> None:
 
 
 def redact_sensitive_info(data: dict) -> dict:
-    """A copy of `data` in which the `SECRET_KEYS` and the values of the
-    `password` keys, at any depth, are redacted with `redact_value`.
+    """A copy of `data` in which the value of every `SECRET_KEYS` key and
+    every `password` key (in any case), at any depth, is redacted.
 
-    Each item of a `SECRET_KEYS` list or tuple is redacted on its own; any
-    other `SECRET_KEYS` value, and any `password` value that is not a dict,
-    is redacted whole, as text. A dict is copied with the same rules.
+    Everything under such a key is redacted: a dict, list or tuple is
+    copied with each of its values redacted the same way, at any depth, and
+    any other value is replaced by `redact_value(value)`, except an empty or
+    false one (`""`, `None`, `0`, `False`), which is kept. Other values are
+    kept as they are, and the dicts among them are copied with the same
+    rules.
     """
     redacted_data = {}
     for name, value in data.items():
-        if name == "SECRET_KEYS" and isinstance(value, list | tuple):
-            value = [redact_value(key) for key in value]
+        if name == "SECRET_KEYS" or (
+            isinstance(name, str) and name.lower() == "password"
+        ):
+            value = _redact_all(value)
         elif isinstance(value, dict):
             value = redact_sensitive_info(value)
-        elif name == "SECRET_KEYS" or (
-            isinstance(name, str) and name.lower() == "password" and value
-        ):
-            value = redact_value(value)
         redacted_data[name] = value
 
     return redacted_data
 
 
+def _redact_all(value: "Any") -> "Any":
+    """`value` with everything in it redacted (see `redact_sensitive_info`)."""
+    if isinstance(value, dict):
+        return {key: _redact_all(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return type(value)(_redact_all(item) for item in value)
+    if not value:
+        return value
+    return redact_value(value)
+
+
 def redact_value(val: "Any") -> str:
     """The text of `val` with each character after the fourth replaced by
-    `▒`. A value that is not a string is redacted as its `str()`, so a list
-    of passwords (`['hunter2']`) becomes `['hu▒▒▒▒▒▒▒`; one whose `str()`
-    raises becomes `▒▒▒▒`."""
+    `▒`. A value that is not a string is redacted as its `str()`, so
+    `12345678` becomes `1234▒▒▒▒`; one whose `str()` raises becomes
+    `▒▒▒▒`."""
     if isinstance(val, str):
         text = val
     else:
