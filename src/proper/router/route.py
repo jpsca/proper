@@ -514,8 +514,8 @@ class Route:
     # Private
 
     def _compile_path(self) -> None:
-        path_re, path_plain, placeholders, casters, pieces, linear = (
-            _compile_pattern(self.path, anchor_suffix=r"/?$")
+        path_re, path_plain, placeholders, casters, pieces, linear = _compile_pattern(
+            self.path, anchor_suffix=r"/?$"
         )
         self.path_re = path_re
         self._path_linear = linear
@@ -544,8 +544,8 @@ class Route:
             self._host_placeholder_re = {}
             self._host_linear = None
             return
-        host_re, host_plain, placeholders, casters, pieces, linear = (
-            _compile_pattern(self._host, anchor_suffix=r"$")
+        host_re, host_plain, placeholders, casters, pieces, linear = _compile_pattern(
+            self._host, anchor_suffix=r"$"
         )
         self.host_re = host_re
         self._host_linear = linear

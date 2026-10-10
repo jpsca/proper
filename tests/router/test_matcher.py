@@ -1,4 +1,5 @@
 """The linear matcher gives the results of `re` without backtracking."""
+
 import random
 import re
 import time
@@ -25,10 +26,26 @@ class H:
 
 # The formats the matcher reads: the built-in ones and custom ones.
 FORMATS = [
-    "", "", "<path>", "<int>", "<float>",
-    "<[a-z]+>", "<[a-z.]+>", "<[^.]+>", r"<\d{2}>", "<[0-9]{1,3}>",
-    "<a|ab|b>", "<en|es>", "<[a-z]*>", "<.?>", "<-+>", r"<\w+>",
-    "<[^/]{2,}>", r"<\.+>", "<x>", r"<[a\]]{,2}>",
+    "",
+    "",
+    "<path>",
+    "<int>",
+    "<float>",
+    "<[a-z]+>",
+    "<[a-z.]+>",
+    "<[^.]+>",
+    r"<\d{2}>",
+    "<[0-9]{1,3}>",
+    "<a|ab|b>",
+    "<en|es>",
+    "<[a-z]*>",
+    "<.?>",
+    "<-+>",
+    r"<\w+>",
+    "<[^/]{2,}>",
+    r"<\.+>",
+    "<x>",
+    r"<[a\]]{,2}>",
 ]
 LITERAL_CHARS = ["/", ".", "-", "a", "b", "x", "1", "é", "\n"]
 SUBJECT_CHARS = ["/", ".", "-", "a", "b", "x", "1", "2", "é", "\n", "e", "]"]

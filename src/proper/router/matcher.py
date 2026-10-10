@@ -30,6 +30,7 @@ linear in the length of the subject. On a subject short enough that `re`
 reads at most `RE_BUDGET` characters, `LinearPattern.match` uses `re`,
 which is faster there.
 """
+
 import re
 from math import comb
 
@@ -149,9 +150,7 @@ class LinearPattern:
         self.groups = tuple(groups)
         self.anchor = anchor
         self.classes = {
-            element[1]: _Class(element[1])
-            for element in elements
-            if element[0] == RUN
+            element[1]: _Class(element[1]) for element in elements if element[0] == RUN
         }
         self.regex = regex
         self.re_max_size = _re_max_size(self.elements)
