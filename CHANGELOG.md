@@ -882,6 +882,14 @@ class RouteTemplate(Template):
   delivered too, with a warning that the cable process could not be
   reached. Each forwarded broadcast now carries an id, and the cable
   process ignores one it has already received.
+- The debug error and not-found pages showed a `password` value that was
+  not a string as it was (`{"password": ["hunter2"]}` as `['hunter2']`),
+  and a `SECRET_KEYS` that was a tuple or a string in full. An `int` or
+  `float` password or `SECRET_KEYS` item raised `TypeError`, and a config
+  key that was not a string `AttributeError`, so the page was not
+  shown. Such values are now redacted as their text, as strings are: the
+  first four characters, then `▒` (`['hu▒▒▒▒▒▒▒`); each item of a
+  `SECRET_KEYS` list or tuple is redacted on its own.
 
 ## 0.34
 

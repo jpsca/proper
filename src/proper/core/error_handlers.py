@@ -58,21 +58,41 @@ def debug_not_found_handler(app, request, response) -> None:
 
 
 def redact_sensitive_info(data: dict) -> dict:
+    """A copy of `data` in which the `SECRET_KEYS` and the values of the
+    `password` keys, at any depth, are redacted with `redact_value`.
+
+    Each item of a `SECRET_KEYS` list or tuple is redacted on its own; any
+    other `SECRET_KEYS` value, and any `password` value that is not a dict,
+    is redacted whole, as text. A dict is copied with the same rules.
+    """
     redacted_data = {}
     for name, value in data.items():
-        if name == "SECRET_KEYS" and isinstance(value, list):
+        if name == "SECRET_KEYS" and isinstance(value, list | tuple):
             value = [redact_value(key) for key in value]
         elif isinstance(value, dict):
             value = redact_sensitive_info(value)
-        elif name.lower() == "password" and value:
+        elif name == "SECRET_KEYS" or (
+            isinstance(name, str) and name.lower() == "password" and value
+        ):
             value = redact_value(value)
         redacted_data[name] = value
 
     return redacted_data
 
 
-def redact_value(val: str) -> str:
-    return f"{val[:4]}{'▒' * (len(val) - 4)}"
+def redact_value(val: "Any") -> str:
+    """The text of `val` with each character after the fourth replaced by
+    `▒`. A value that is not a string is redacted as its `str()`, so a list
+    of passwords (`['hunter2']`) becomes `['hu▒▒▒▒▒▒▒`; one whose `str()`
+    raises becomes `▒▒▒▒`."""
+    if isinstance(val, str):
+        text = val
+    else:
+        try:
+            text = str(val)
+        except Exception:
+            return "▒" * 4
+    return f"{text[:4]}{'▒' * (len(text) - 4)}"
 
 
 def is_index(request) -> bool:
