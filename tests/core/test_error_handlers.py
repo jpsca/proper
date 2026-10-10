@@ -91,6 +91,57 @@ def test_falsy_password_not_redacted():
     assert result["password"] == ""
 
 
+def test_redact_value_of_a_value_that_is_not_a_string():
+    assert redact_value(["hunter2", "s3cret"]) == "['hu" + "▒" * 17
+    assert redact_value(12345678) == "1234▒▒▒▒"
+    assert redact_value(1234.5678) == "1234▒▒▒▒▒"
+    assert redact_value(b"abcdefgh") == "b'ab▒▒▒▒▒▒▒"
+
+
+def test_redact_value_of_a_value_whose_str_raises():
+    class Bad:
+        def __str__(self):
+            raise RuntimeError("no")
+
+    assert redact_value(Bad()) == "▒▒▒▒"
+
+
+def test_redacts_a_password_that_is_not_a_string():
+    # A list was shown as it was, and an int or float raised in redact_value.
+    data = {
+        "password": ["hunter2", "s3cret"],
+        "DB": {"PASSWORD": 12345678, "Password": 1234.5678, "pw": ("abc",)},
+    }
+    result = redact_sensitive_info(data)
+    assert result["password"] == "['hu" + "▒" * 17
+    assert result["DB"]["PASSWORD"] == "1234▒▒▒▒"
+    assert result["DB"]["Password"] == "1234▒▒▒▒▒"
+    assert result["DB"]["pw"] == ("abc",)
+    assert "hunter2" not in str(result) and "5678" not in str(result)
+
+
+def test_redacts_secret_keys_that_are_not_a_list_of_strings():
+    data = {"SECRET_KEYS": ("supersecretkey123", b"bytessecret", 123456789)}
+    assert redact_sensitive_info(data)["SECRET_KEYS"] == [
+        "supe" + "▒" * 13,
+        "b'by" + "▒" * 10,
+        "1234" + "▒" * 5,
+    ]
+    assert redact_sensitive_info({"SECRET_KEYS": "supersecretkey123"}) == {
+        "SECRET_KEYS": "supe" + "▒" * 13
+    }
+    assert redact_sensitive_info({"SECRET_KEYS": [["nestedsecret"]]}) == {
+        "SECRET_KEYS": ["['ne" + "▒" * 12]
+    }
+
+
+def test_redact_keeps_keys_that_are_not_strings():
+    data = {1: "one", ("a", "b"): {"password": "mysecretpass"}}
+    result = redact_sensitive_info(data)
+    assert result[1] == "one"
+    assert result[("a", "b")]["password"] == "myse" + "▒" * 8
+
+
 def test_get_root():
     request = MagicMock(method="GET", path="/")
     assert is_index(request) is True
