@@ -774,6 +774,15 @@ class RouteTemplate(Template):
   zlib, UTF-8 or JSON (`itsdangerous.BadPayload`), or a timestamp after year
   9999 (`ValueError` or `OverflowError`). Reading such a cookie with
   `get_signed_cookie()`, or as the session, was a 500.
+- `app.loads(token, timed=False)` accepted some timed tokens made with the
+  same salt, so a token meant to expire could be read forever where the app
+  reads untimed tokens. A timed token is `payload.timestamp.signature`, and
+  its signature also covers `payload.timestamp`; when the payload was
+  compressed and its base64 text, after the leading `.`, had a length of 2
+  modulo 4, `payload.timestamp` decoded to the zlib data with the
+  timestamp's bytes after it, which zlib ignores. An untimed load now
+  refuses a payload with a `.` after its first character, which no untimed
+  token has. Untimed tokens made before still load.
 - A session cookie whose signed value was not a JSON object (a string, a
   number, `true`) was a 500, and a list of pairs became a session. Any value
   that is not an object is now no session, as a bad signature is.

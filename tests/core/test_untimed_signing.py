@@ -55,6 +55,57 @@ def test_the_two_kinds_of_token_are_not_interchangeable():
     assert app.loads(timed, salt="x", timed=False) is None
 
 
+def timed_token_with_a_compressed_payload(app, size_mod_4):
+    """A timed token whose payload is compressed (starts with `.`) and has,
+    after that `.`, a length of `size_mod_4` modulo 4, and its value."""
+    for length in range(100, 400):
+        value = {"v": "ab" * length}
+        token = app.dumps(value, salt="x")
+        payload = token.rsplit(".", 2)[0]
+        if payload.startswith(".") and len(payload[1:]) % 4 == size_mod_4:
+            return token, value
+    raise AssertionError("no such token")  # pragma: no cover
+
+
+@pytest.mark.parametrize("size_mod_4", [0, 2, 3])
+def test_untimed_loads_refuses_a_timed_token_with_a_compressed_payload(size_mod_4):
+    # A timed token is `payload.timestamp.signature`, signed over
+    # `payload.timestamp` with the same key and salt. With a length of
+    # 2 modulo 4, `payload.timestamp` decoded as base64 gave the zlib data
+    # and the timestamp's bytes after it, which zlib ignored: the timed
+    # token loaded as an untimed one, and never expired.
+    app = make_app(KEY_A)
+    token, value = timed_token_with_a_compressed_payload(app, size_mod_4)
+    assert app.loads(token, salt="x") == value
+    assert app.loads(token, salt="x", timed=False) is None
+
+
+def test_untimed_serializer_refuses_a_payload_with_a_dot_after_its_first_character():
+    serializer = make_app(KEY_A).untimed_serializers[-1]
+    payload = serializer.dump_payload({"id": 1})
+    assert serializer.load_payload(payload) == {"id": 1}
+    for bad in (
+        payload + b".AAAA",
+        b"." + payload + b".AAAA",
+        payload[:2] + b"." + payload[2:],
+    ):
+        with pytest.raises(itsdangerous.BadPayload, match="timed token"):
+            serializer.load_payload(bad)
+
+
+def test_no_token_loads_as_the_other_kind():
+    app = make_app(KEY_A)
+    for length in range(0, 600, 3):
+        # Short values are not compressed; long, repetitive ones are.
+        value = {"v": "ab" * length}
+        timed = app.dumps(value, salt="x")
+        untimed = app.dumps(value, salt="x", timed=False)
+        assert app.loads(timed, salt="x") == value
+        assert app.loads(untimed, salt="x", timed=False) == value
+        assert app.loads(timed, salt="x", timed=False) is None
+        assert app.loads(untimed, salt="x") is None
+
+
 def test_timed_is_still_the_default():
     app = make_app(KEY_A)
     token = app.dumps({"id": 1}, salt="x")
