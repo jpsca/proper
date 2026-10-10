@@ -302,14 +302,22 @@ def get_routes_cmd(app: "App") -> t.Callable:
             if route.redirect:
                 to = f"↪ {route.redirect}"
             elif route.to:
+                # The class the request runs on: the route's controller (an
+                # inherited action routed by `resource()`) or the class that
+                # defines `to`.
+                qualname = route.to.__qualname__
                 mod = route.to.__module__
+                if route.controller is not None:
+                    action = qualname.rsplit(".", 1)[-1]
+                    qualname = f"{route.controller.__qualname__}.{action}"
+                    mod = route.controller.__module__
                 prefix = ""
                 if ".controllers." in mod:
                     parts = mod.split(".controllers.", 1)[1]
                     segments = parts.split(".")
                     if len(segments) > 1:
                         prefix = "/".join(segments[:-1]) + "/"
-                to = prefix + route.to.__qualname__
+                to = prefix + qualname
             else:
                 to = "-"
             name = route.name or "-"
