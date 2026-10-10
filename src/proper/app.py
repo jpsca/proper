@@ -12,6 +12,7 @@ from pathlib import Path
 
 import itsdangerous
 import minijx
+from itsdangerous.encoding import want_bytes
 
 from . import pipeline, status, tools
 from .channels import BaseCable
@@ -61,6 +62,30 @@ def _call_around(hook, call_next, request, response):
     return hook(request, response, call_next)
 
 
+class UntimedSerializer(itsdangerous.URLSafeSerializer):
+    """The serializer of `App.dumps(..., timed=False)`: a
+    `URLSafeSerializer` that refuses a payload with a `.` after its first
+    character.
+
+    A timed token is `payload.timestamp.signature`, and its signature,
+    made with the same key and salt, covers `payload.timestamp`. So
+    `URLSafeSerializer` reads a timed token as an untimed one whose payload
+    is `payload.timestamp`. It drops the `.` while it decodes the base64
+    text. When the payload is compressed (it starts with `.`) and the rest
+    of it has a length of 2 modulo 4, the timestamp becomes extra bytes
+    after the zlib data, which zlib ignores, so the timed token loads and
+    never expires. An untimed payload is URL-safe base64, which has no
+    `.`, with one `.` before it when it is compressed.
+    """
+
+    def load_payload(self, payload: bytes, *args: t.Any, **kwargs: t.Any) -> t.Any:
+        if b"." in want_bytes(payload)[1:]:
+            raise itsdangerous.BadPayload(
+                "The payload has a `.` after its first character: it is a timed token"
+            )
+        return super().load_payload(payload, *args, **kwargs)
+
+
 def _default_max_threads() -> int:
     """Python's own default for a `ThreadPoolExecutor`."""
     return min(32, (os.process_cpu_count() or 1) + 4)
@@ -104,6 +129,7 @@ class App(AppWsgi):
     CLI: "type[Cli]"
     signers: tuple[itsdangerous.TimestampSigner, ...]
     serializers: tuple[itsdangerous.URLSafeTimedSerializer, ...]
+    untimed_serializers: tuple[UntimedSerializer, ...]
     catalog: minijx.Catalog
 
     pipeline: tuple[types.FunctionType, ...] = (
@@ -404,7 +430,7 @@ class App(AppWsgi):
         # expire anyway and benefit from being stable, like URLs that
         # browsers and CDNs should be able to cache.
         self.untimed_serializers = tuple(
-            itsdangerous.URLSafeSerializer(secret_key, **kwargs)
+            UntimedSerializer(secret_key, **kwargs)
             for secret_key in self.config.SECRET_KEYS
         )
 
