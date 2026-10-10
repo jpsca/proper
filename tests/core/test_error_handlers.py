@@ -113,7 +113,7 @@ def test_redacts_a_password_that_is_not_a_string():
         "DB": {"PASSWORD": 12345678, "Password": 1234.5678, "pw": ("abc",)},
     }
     result = redact_sensitive_info(data)
-    assert result["password"] == "['hu" + "▒" * 17
+    assert result["password"] == ["hunt▒▒▒", "s3cr▒▒"]
     assert result["DB"]["PASSWORD"] == "1234▒▒▒▒"
     assert result["DB"]["Password"] == "1234▒▒▒▒▒"
     assert result["DB"]["pw"] == ("abc",)
@@ -122,16 +122,46 @@ def test_redacts_a_password_that_is_not_a_string():
 
 def test_redacts_secret_keys_that_are_not_a_list_of_strings():
     data = {"SECRET_KEYS": ("supersecretkey123", b"bytessecret", 123456789)}
-    assert redact_sensitive_info(data)["SECRET_KEYS"] == [
+    assert redact_sensitive_info(data)["SECRET_KEYS"] == (
         "supe" + "▒" * 13,
         "b'by" + "▒" * 10,
         "1234" + "▒" * 5,
-    ]
+    )
     assert redact_sensitive_info({"SECRET_KEYS": "supersecretkey123"}) == {
         "SECRET_KEYS": "supe" + "▒" * 13
     }
     assert redact_sensitive_info({"SECRET_KEYS": [["nestedsecret"]]}) == {
-        "SECRET_KEYS": ["['ne" + "▒" * 12]
+        "SECRET_KEYS": [["nest" + "▒" * 8]]
+    }
+
+
+def test_redacts_everything_under_a_sensitive_key():
+    # A dict under SECRET_KEYS or a password key was copied with only its
+    # own `password` keys redacted, so these were shown in clear.
+    assert redact_sensitive_info({"SECRET_KEYS": {"old": "supersecretvalue1"}}) == {
+        "SECRET_KEYS": {"old": "supe" + "▒" * 13}
+    }
+    data = {
+        "DB": {
+            "password": {
+                "db": "hunter2hunter2",
+                "more": [{"x": "abcdefgh"}, ("ijklmnop", 123456789)],
+                "empty": "",
+                "none": None,
+            },
+            "host": "localhost",
+        }
+    }
+    assert redact_sensitive_info(data) == {
+        "DB": {
+            "password": {
+                "db": "hunt" + "▒" * 10,
+                "more": [{"x": "abcd▒▒▒▒"}, ("ijkl▒▒▒▒", "1234▒▒▒▒▒")],
+                "empty": "",
+                "none": None,
+            },
+            "host": "localhost",
+        }
     }
 
 

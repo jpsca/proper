@@ -882,14 +882,18 @@ class RouteTemplate(Template):
   delivered too, with a warning that the cable process could not be
   reached. Each forwarded broadcast now carries an id, and the cable
   process ignores one it has already received.
-- The debug error and not-found pages showed a `password` value that was
-  not a string as it was (`{"password": ["hunter2"]}` as `['hunter2']`),
-  and a `SECRET_KEYS` that was a tuple or a string in full. An `int` or
-  `float` password or `SECRET_KEYS` item raised `TypeError`, and a config
-  key that was not a string `AttributeError`, so the page was not
-  shown. Such values are now redacted as their text, as strings are: the
-  first four characters, then `▒` (`['hu▒▒▒▒▒▒▒`); each item of a
-  `SECRET_KEYS` list or tuple is redacted on its own.
+- The debug error and not-found pages showed a `password` value that was not
+  a string as it was (`{"password": ["hunter2"]}` as `['hunter2']`), a
+  `SECRET_KEYS` that was a tuple or a string in full, and the values of a
+  dict under `SECRET_KEYS` or a `password` key in full unless their own key
+  was `password` (`{"password": {"db": "hunter2"}}`). An `int` or `float`
+  password or `SECRET_KEYS` item raised `TypeError`, and a config key that
+  was not a string `AttributeError`, so the page was not shown. Now
+  everything under a `SECRET_KEYS` key or a `password` key (in any letter
+  case), at any depth, is redacted: in a dict, list or tuple, each value on
+  its own, at any depth; any other value as its text, as a string was: the
+  first four characters, then `▒` (`12345678` as `1234▒▒▒▒`). An empty or
+  false value (`""`, `None`, `0`, `False`) is kept.
 - `@router.resource()` on a controller that inherits an action from a parent
   controller named the route after the decorated class (`Article.index`),
   but ran the request on an instance of the parent
