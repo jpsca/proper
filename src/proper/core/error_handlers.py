@@ -57,6 +57,9 @@ def debug_not_found_handler(app, request, response) -> None:
     response.body = render("debug-not-found.jx", **data)
 
 
+MASK = "▒" * 4
+
+
 def redact_sensitive_info(data: dict) -> dict:
     """A copy of `data` in which the value of every `SECRET_KEYS` key and
     every `password` key (in any letter case) is redacted, in `data` and in
@@ -68,15 +71,27 @@ def redact_sensitive_info(data: dict) -> dict:
     false one (`""`, `None`, `0`, `False`), which is kept. The values under
     other keys are kept as they are, except that a dict, list or tuple among
     them is copied with these rules applied to the dicts in it.
+
+    The copies are plain: a dict subclass becomes a `dict`, a tuple subclass
+    (a named tuple, `sys.version_info`) a `tuple`, a list subclass a `list`.
+    It never raises: a value that can't be read or copied is shown as
+    `▒▒▒▒`, and a `data` whose items can't be read gives `{}`.
     """
+    try:
+        items = list(data.items())
+    except Exception:
+        return {}
     redacted_data = {}
-    for name, value in data.items():
-        if name == "SECRET_KEYS" or (
-            isinstance(name, str) and name.lower() == "password"
-        ):
-            value = _redact_all(value)
-        else:
-            value = _redact_keys(value)
+    for name, value in items:
+        try:
+            if name == "SECRET_KEYS" or (
+                isinstance(name, str) and name.lower() == "password"
+            ):
+                value = _redact_all(value)
+            else:
+                value = _redact_keys(value)
+        except Exception:
+            value = MASK
         redacted_data[name] = value
 
     return redacted_data
@@ -84,23 +99,34 @@ def redact_sensitive_info(data: dict) -> dict:
 
 def _redact_keys(value: "Any") -> "Any":
     """`value` with the rules of `redact_sensitive_info` applied to every
-    dict in it."""
-    if isinstance(value, dict):
-        return redact_sensitive_info(value)
-    if isinstance(value, list | tuple):
-        return type(value)(_redact_keys(item) for item in value)
-    return value
+    dict in it, or `▒▒▒▒` if it can't be read."""
+    try:
+        if isinstance(value, dict):
+            return redact_sensitive_info(value)
+        if isinstance(value, list):
+            return [_redact_keys(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(_redact_keys(item) for item in value)
+        return value
+    except Exception:
+        return MASK
 
 
 def _redact_all(value: "Any") -> "Any":
-    """`value` with everything in it redacted (see `redact_sensitive_info`)."""
-    if isinstance(value, dict):
-        return {key: _redact_all(item) for key, item in value.items()}
-    if isinstance(value, list | tuple):
-        return type(value)(_redact_all(item) for item in value)
-    if not value:
-        return value
-    return redact_value(value)
+    """`value` with everything in it redacted (see `redact_sensitive_info`),
+    or `▒▒▒▒` if it can't be read."""
+    try:
+        if isinstance(value, dict):
+            return {key: _redact_all(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [_redact_all(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(_redact_all(item) for item in value)
+        if not value:
+            return value
+        return redact_value(value)
+    except Exception:
+        return MASK
 
 
 def redact_value(val: "Any") -> str:
@@ -114,7 +140,7 @@ def redact_value(val: "Any") -> str:
         try:
             text = str(val)
         except Exception:
-            return "▒" * 4
+            return MASK
     return f"{text[:4]}{'▒' * (len(text) - 4)}"
 
 
