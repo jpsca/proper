@@ -892,14 +892,17 @@ class RouteTemplate(Template):
   `TypeError`, and a config key that was not a string `AttributeError`, so
   the page was not shown. Now the value of every `SECRET_KEYS` key and every
   `password` key (in any letter case) is redacted, in the config and in
-  every dict, list or tuple inside it, at any depth. Everything under such a
-  key is redacted: in a dict, list or tuple, each value on its own, at any
-  depth; any other value as its text, as a string was: the first four
-  characters, then `▒` (`12345678` as `1234▒▒▒▒`). An empty or false value
-  (`""`, `None`, `0`, `False`) is kept. Any other value is shown as it is.
-  Dicts, lists and tuples are shown as plain copies (a named tuple as a
-  tuple), and the redaction never raises: a value that it can't read or copy
-  is shown as `▒▒▒▒`.
+  every dict, list, tuple or named tuple inside it, at any depth: every
+  value under such a key, at any depth, is shown as its text with each
+  character after the fourth replaced by `▒` (`12345678` as `1234▒▒▒▒`),
+  except an empty or false value (`""`, `None`, `0`, `False`), which is
+  kept. Other values are shown as they are. The pages show plain copies: a
+  dict as a `dict`, a named tuple as a `dict` of its fields (so a field
+  named `password` is redacted), any other tuple as a `tuple`, a list as a
+  `list`. The redaction never raises and reads a bounded number of values:
+  it shows `▒▒▒▒` for a container that contains itself (a cycle), for a
+  container more than 32 levels deep, for every value after the first 10
+  000, and for a value or key that raises when it is read.
 - `@router.resource()` on a controller that inherits an action from a parent
   controller named the route after the decorated class (`Article.index`),
   but ran the request on an instance of the parent

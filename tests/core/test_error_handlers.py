@@ -1,4 +1,5 @@
 import sys
+import time
 from collections import namedtuple
 from importlib.metadata import version
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -7,6 +8,8 @@ import pytest
 
 from proper import App, Controller, Route, TestClient
 from proper.core.error_handlers import (
+    MAX_REDACT_DEPTH,
+    MAX_REDACT_VALUES,
     debug_error_handler,
     debug_not_found_handler,
     fallback_error_handler,
@@ -392,9 +395,10 @@ class BrokenKey:
         return 1
 
 
-def test_redact_tuple_subclasses_become_plain_tuples():
+def test_redact_named_tuples_become_dicts_and_tuple_subclasses_tuples():
     # `type(value)(generator)` raised TypeError for a named tuple and for
-    # `sys.version_info`, so every debug page failed.
+    # `sys.version_info`, so every debug page failed. A named tuple is now
+    # a dict of its fields, so a `password` field is redacted.
     data = {
         "DB": Point("db.example.com", 5432),
         "VERSION": sys.version_info,
@@ -403,13 +407,89 @@ def test_redact_tuple_subclasses_become_plain_tuples():
         "NESTED": [{"password": sys.version_info}],
     }
     result = redact_sensitive_info(data)
-    assert result["DB"] == ("db.example.com", 5432)
-    assert type(result["DB"]) is tuple
+    assert result["DB"] == {"host": "db.example.com", "port": 5432}
+    assert type(result["DB"]) is dict
     assert result["VERSION"] == tuple(sys.version_info)
     assert type(result["VERSION"]) is tuple
-    assert result["password"] == ("hunt" + "▒" * 10, "1234▒▒▒▒")
-    assert result["SECRET_KEYS"] == ("supe" + "▒" * 13, "anot" + "▒" * 9)
+    assert result["password"] == {"host": "hunt" + "▒" * 10, "port": "1234▒▒▒▒"}
+    assert result["SECRET_KEYS"] == {
+        "host": "supe" + "▒" * 13,
+        "port": "anot" + "▒" * 9,
+    }
     assert type(result["NESTED"][0]["password"]) is tuple
+
+
+def test_redacts_a_password_field_of_a_named_tuple():
+    Creds = namedtuple("Creds", "user password SECRET_KEYS")
+    data = {"DB": [Creds("admin", "hunter2hunter2", ("supersecretkey123",))]}
+    assert redact_sensitive_info(data) == {
+        "DB": [
+            {
+                "user": "admin",
+                "password": "hunt" + "▒" * 10,
+                "SECRET_KEYS": ("supe" + "▒" * 13,),
+            }
+        ]
+    }
+
+
+def timed_redact(data):
+    start = time.perf_counter()
+    result = redact_sensitive_info(data)
+    assert time.perf_counter() - start < 1
+    return result
+
+
+def test_redact_shows_a_cycle_as_the_mask():
+    # With two references to itself, each level doubled the work, and the
+    # catch of RecursionError made it go on for ever.
+    a = []
+    a.extend([a, a])
+    d = {}
+    d["k0"] = d["k1"] = d
+    d["password"] = "hunter2hunter2"
+    result = timed_redact({"A": a, "D": d, "password": [a, d]})
+    assert result["A"] == ["▒▒▒▒", "▒▒▒▒"]
+    assert result["D"] == {"k0": "▒▒▒▒", "k1": "▒▒▒▒", "password": "hunt" + "▒" * 10}
+    assert result["password"] == [
+        ["▒▒▒▒", "▒▒▒▒"],
+        {
+            "k0": "▒▒▒▒",
+            "k1": "▒▒▒▒",
+            "password": "hunt" + "▒" * 10,
+        },
+    ]
+    # A container shared by two branches, but not a cycle, is shown twice.
+    shared = ["x"]
+    assert timed_redact({"S": [shared, shared]}) == {"S": [["x"], ["x"]]}
+
+
+def test_redact_shows_containers_below_the_depth_cap_as_the_mask():
+    deep = "bottom"
+    for _ in range(100):
+        deep = [deep]
+    result = timed_redact({"DEEP": deep})
+    level = result["DEEP"]
+    for _ in range(MAX_REDACT_DEPTH - 1):
+        assert isinstance(level, list) and len(level) == 1
+        level = level[0]
+    assert level == "▒▒▒▒"
+
+
+def test_redact_reads_a_bounded_number_of_values():
+    # Shared lists, no cycle: 2 ** 31 paths without the value limit.
+    level = ["x"]
+    for _ in range(30):
+        level = [level, level]
+    result = timed_redact({"WIDE": level, "password": "hunter2hunter2"})
+    assert "▒▒▒▒" in str(result["WIDE"])
+    # The values after the limit are masked too, also the ones that are not
+    # secret.
+    assert result["password"] == "▒▒▒▒"
+    many = {"MANY": list(range(MAX_REDACT_VALUES * 2))}
+    values = timed_redact(many)["MANY"]
+    assert values[:3] == [0, 1, 2]
+    assert values[-1] == "▒▒▒▒"
 
 
 def test_redact_never_raises():
@@ -427,8 +507,8 @@ def test_redact_never_raises():
     assert result["a"] is data["a"]
     assert result["password"] == "▒▒▒▒"
     assert result["SECRET_KEYS"] == ["▒▒▒▒", "supe" + "▒" * 13]
-    assert result["b"] == {}
-    assert result["c"] == [{}]
+    assert result["b"] == "▒▒▒▒"
+    assert result["c"] == ["▒▒▒▒"]
     assert result["d"] == "▒▒▒▒"
     assert result["password2"] == {"password": "▒▒▒▒"}
     key = BrokenKey()
@@ -436,9 +516,28 @@ def test_redact_never_raises():
     assert redact_sensitive_info(BrokenDict(x=1)) == {}
 
 
+def _cycle():
+    a = []
+    a.extend([a, a])
+    return a
+
+
+def _deep():
+    deep = []
+    for _ in range(100):
+        deep = [deep, deep]
+    return deep
+
+
 @pytest.mark.parametrize(
     "value",
-    [Point("h", 1), sys.version_info, {"password": Point("hunter2hunter2", 1)}],
+    [
+        Point("h", 1),
+        sys.version_info,
+        {"password": Point("hunter2hunter2", 1)},
+        _cycle(),
+        _deep(),
+    ],
 )
 def test_debug_pages_render_with_tuple_subclasses_in_the_config(value):
     app = App(__name__, {"SECRET_KEYS": ["*" * 50], "DEBUG": True})
