@@ -905,10 +905,11 @@ class RouteTemplate(Template):
   `ConfigError` when `to` is not the method that this class has under the
   action's name), so the request runs on an instance of the decorated class,
   with its callbacks and its views (`article/`, then the parents' folders),
-  and `:article_id` is read from `id` too. A route made from a method object
-  (`router.get("feed")(ArticleController.index)`, `Route(to=...)`) still
-  belongs to the class that defines the method (`Application.index`): a
-  function doesn't know the class it was read from.
+  and `:article_id` is read from `id` too. `proper routes` shows that class
+  in its TO column (`ArticleController.index`). A route made from a method
+  object (`router.get("feed")(ArticleController.index)`, `Route(to=...)`)
+  still belongs to the class that defines the method (`Application.index`):
+  a function doesn't know the class it was read from.
 
 ## 0.34
 
