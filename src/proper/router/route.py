@@ -18,6 +18,7 @@ from ..controller import StaticFilesController
 from ..errors import (
     BadRouteFormat,
     BadRoutePlaceholder,
+    ConfigError,
     DuplicatedRoutePlaceholder,
     MissingRouteParameter,
 )
@@ -268,7 +269,11 @@ class Route:
             it). The request then runs on an instance of this class, with its
             callbacks, and `controller_prefix` is made from its name. Without
             it, the class that defines the method is used. `resource()`
-            passes it; the name of the route is not changed by it.
+            passes it; the name of the route is not changed by it. `to` must
+            be the function that this class has under that action's name,
+            or `ConfigError` is raised: with `to=ParentController.index` and
+            a `controller` that overrides `index`, the request would run the
+            override.
 
     """
 
@@ -333,6 +338,20 @@ class Route:
         self._to = value
         self._resolved = None
         self._controller_prefix = None
+        if value and self._controller is not None:
+            action = value.__qualname__.rsplit(".", 1)[-1]
+            found = getattr(self._controller, action, None)
+            if found is not value:
+                cname = self._controller.__qualname__
+                raise ConfigError(
+                    f"`{value.__qualname__}` is not the `{action}` action of "
+                    f"`{cname}`: "
+                    + (
+                        f"`{cname}` has no `{action}`."
+                        if found is None
+                        else f"the request would run `{cname}.{action}` instead."
+                    )
+                )
         if not self.name and value:
             cls, method = value.__qualname__.rsplit(".", 1)
             prefix = _namespace_prefix(getattr(value, "__module__", "") or "")
