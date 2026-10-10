@@ -59,72 +59,81 @@ def debug_not_found_handler(app, request, response) -> None:
 
 MASK = "▒" * 4
 
+#: Dicts, lists and tuples deeper than this are shown as `MASK`.
+MAX_REDACT_DEPTH = 32
+
+#: After this many values, the rest are shown as `MASK`.
+MAX_REDACT_VALUES = 10_000
+
 
 def redact_sensitive_info(data: dict) -> dict:
-    """A copy of `data` in which the value of every `SECRET_KEYS` key and
-    every `password` key (in any letter case) is redacted, in `data` and in
-    every dict, list or tuple inside it, at any depth.
+    """A copy of `data` for the debug pages, with the value of every
+    `SECRET_KEYS` key and every `password` key (in any letter case)
+    redacted, in `data` and in every dict, list, tuple or named tuple
+    inside it, at any depth.
 
-    Everything under such a key is redacted: a dict, list or tuple is
-    copied with each of its values redacted the same way, at any depth, and
-    any other value is replaced by `redact_value(value)`, except an empty or
-    false one (`""`, `None`, `0`, `False`), which is kept. The values under
-    other keys are kept as they are, except that a dict, list or tuple among
-    them is copied with these rules applied to the dicts in it.
+    Under such a key, every value at any depth is replaced by
+    `redact_value(value)`, except an empty or false one (`""`, `None`, `0`,
+    `False`), which is kept. Other values are kept as they are.
 
-    The copies are plain: a dict subclass becomes a `dict`, a tuple subclass
-    (a named tuple, `sys.version_info`) a `tuple`, a list subclass a `list`.
-    It never raises: a value that can't be read or copied is shown as
-    `▒▒▒▒`, and a `data` whose items can't be read gives `{}`.
+    The copy is made of plain containers: a dict (or dict subclass) becomes
+    a `dict`, a named tuple a `dict` of its fields (so its field names
+    follow the key rules), any other tuple a `tuple`, and a list a `list`.
+    These are shown as `MASK` (`▒▒▒▒`) instead:
+
+    - a container that is already on the path from `data` to it (a cycle);
+    - a container more than `MAX_REDACT_DEPTH` (32) levels deep;
+    - every value after the first `MAX_REDACT_VALUES` (10 000);
+    - a value or key that raises when it is read or compared.
+
+    So it never raises, and it reads at most `MAX_REDACT_VALUES` values.
     """
-    try:
-        items = list(data.items())
-    except Exception:
-        return {}
-    redacted_data = {}
-    for name, value in items:
-        try:
-            if name == "SECRET_KEYS" or (
-                isinstance(name, str) and name.lower() == "password"
-            ):
-                value = _redact_all(value)
-            else:
-                value = _redact_keys(value)
-        except Exception:
-            value = MASK
-        redacted_data[name] = value
-
-    return redacted_data
+    budget = [MAX_REDACT_VALUES]
+    result = _redact(data, False, frozenset(), 0, budget)
+    return result if isinstance(result, dict) else {}
 
 
-def _redact_keys(value: "Any") -> "Any":
-    """`value` with the rules of `redact_sensitive_info` applied to every
-    dict in it, or `▒▒▒▒` if it can't be read."""
-    try:
-        if isinstance(value, dict):
-            return redact_sensitive_info(value)
-        if isinstance(value, list):
-            return [_redact_keys(item) for item in value]
-        if isinstance(value, tuple):
-            return tuple(_redact_keys(item) for item in value)
-        return value
-    except Exception:
+def _is_sensitive(key: "Any") -> bool:
+    return key == "SECRET_KEYS" or (isinstance(key, str) and key.lower() == "password")
+
+
+def _redact(
+    value: "Any", secret: bool, path: frozenset, depth: int, budget: list
+) -> "Any":
+    """`value` copied by the rules of `redact_sensitive_info`; `secret` is
+    true under a sensitive key, `path` holds the `id()` of the containers
+    above `value`, and `budget[0]` is the number of values left to read."""
+    budget[0] -= 1
+    if budget[0] < 0:
         return MASK
-
-
-def _redact_all(value: "Any") -> "Any":
-    """`value` with everything in it redacted (see `redact_sensitive_info`),
-    or `▒▒▒▒` if it can't be read."""
     try:
-        if isinstance(value, dict):
-            return {key: _redact_all(item) for key, item in value.items()}
-        if isinstance(value, list):
-            return [_redact_all(item) for item in value]
-        if isinstance(value, tuple):
-            return tuple(_redact_all(item) for item in value)
-        if not value:
+        if isinstance(value, tuple) and hasattr(value, "_asdict"):
+            value_id = id(value)
+            value = dict(value._asdict())
+        elif isinstance(value, dict | list | tuple):
+            value_id = id(value)
+        else:
+            if secret and value:
+                return redact_value(value)
             return value
-        return redact_value(value)
+
+        if value_id in path or depth >= MAX_REDACT_DEPTH:
+            return MASK
+        path = path | {value_id}
+        depth += 1
+
+        if isinstance(value, dict):
+            result = {}
+            for key, item in value.items():
+                try:
+                    item_secret = secret or _is_sensitive(key)
+                except Exception:
+                    result[key] = MASK
+                    continue
+                result[key] = _redact(item, item_secret, path, depth, budget)
+            return result
+        items = [_redact(item, secret, path, depth, budget) for item in value]
+        return items if isinstance(value, list) else tuple(items)
     except Exception:
         return MASK
 
