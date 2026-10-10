@@ -897,6 +897,9 @@ class RouteTemplate(Template):
   depth; any other value as its text, as a string was: the first four
   characters, then `▒` (`12345678` as `1234▒▒▒▒`). An empty or false value
   (`""`, `None`, `0`, `False`) is kept. Any other value is shown as it is.
+  Dicts, lists and tuples are shown as plain copies (a named tuple as a
+  tuple), and a value that can't be read or copied is shown as `▒▒▒▒`, so
+  the page is always shown.
 - `@router.resource()` on a controller that inherits an action from a parent
   controller named the route after the decorated class (`Article.index`),
   but ran the request on an instance of the parent

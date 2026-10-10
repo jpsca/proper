@@ -1,7 +1,11 @@
+import sys
+from collections import namedtuple
 from importlib.metadata import version
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from proper import App, TestClient
+import pytest
+
+from proper import App, Controller, Route, TestClient
 from proper.core.error_handlers import (
     debug_error_handler,
     debug_not_found_handler,
@@ -355,3 +359,105 @@ def test_renders_error_page():
 
     body = response.body
     assert isinstance(body, str)
+
+
+# --- Values that can't be rebuilt or read ---
+
+Point = namedtuple("Point", "host port")
+
+
+class Unreadable:
+    def __bool__(self):
+        raise RuntimeError("no bool")
+
+    def __str__(self):
+        raise RuntimeError("no str")
+
+
+class BrokenDict(dict):
+    def items(self):
+        raise RuntimeError("no items")
+
+
+class BrokenList(list):
+    def __iter__(self):
+        raise RuntimeError("no iter")
+
+
+class BrokenKey:
+    def __eq__(self, other):
+        raise RuntimeError("no eq")
+
+    def __hash__(self):
+        return 1
+
+
+def test_redact_tuple_subclasses_become_plain_tuples():
+    # `type(value)(generator)` raised TypeError for a named tuple and for
+    # `sys.version_info`, so every debug page failed.
+    data = {
+        "DB": Point("db.example.com", 5432),
+        "VERSION": sys.version_info,
+        "password": Point("hunter2hunter2", 12345678),
+        "SECRET_KEYS": Point("supersecretkey123", "anothersecret"),
+        "NESTED": [{"password": sys.version_info}],
+    }
+    result = redact_sensitive_info(data)
+    assert result["DB"] == ("db.example.com", 5432)
+    assert type(result["DB"]) is tuple
+    assert result["VERSION"] == tuple(sys.version_info)
+    assert type(result["VERSION"]) is tuple
+    assert result["password"] == ("hunt" + "▒" * 10, "1234▒▒▒▒")
+    assert result["SECRET_KEYS"] == ("supe" + "▒" * 13, "anot" + "▒" * 9)
+    assert type(result["NESTED"][0]["password"]) is tuple
+
+
+def test_redact_never_raises():
+    data = {
+        "a": Unreadable(),
+        "password": Unreadable(),
+        "SECRET_KEYS": [Unreadable(), "supersecretkey123"],
+        "b": BrokenDict(x=1),
+        "c": [BrokenDict(x=1)],
+        "d": BrokenList([1]),
+        "password2": {"password": BrokenList([1])},
+    }
+    result = redact_sensitive_info(data)
+    # An ordinary value is kept as it is, unread.
+    assert result["a"] is data["a"]
+    assert result["password"] == "▒▒▒▒"
+    assert result["SECRET_KEYS"] == ["▒▒▒▒", "supe" + "▒" * 13]
+    assert result["b"] == {}
+    assert result["c"] == [{}]
+    assert result["d"] == "▒▒▒▒"
+    assert result["password2"] == {"password": "▒▒▒▒"}
+    key = BrokenKey()
+    assert redact_sensitive_info({key: "x"}) == {key: "▒▒▒▒"}
+    assert redact_sensitive_info(BrokenDict(x=1)) == {}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [Point("h", 1), sys.version_info, {"password": Point("hunter2hunter2", 1)}],
+)
+def test_debug_pages_render_with_tuple_subclasses_in_the_config(value):
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50], "DEBUG": True})
+    # Set after loading: the config loader copies values, and
+    # `sys.version_info` can't be copied.
+    app.config["DB"] = value
+    app.config["OTHER"] = [value]
+    client = TestClient(app)
+
+    response = client.get("/nope")
+    assert response.status == 404
+    assert "Not Found" in response.body or "not match" in response.body
+
+    app.router.add_route(Route("GET", "/boom", to=BoomController.boom))
+    response = client.get("/boom")
+    assert response.status == 500
+    assert "boom" in response.body
+
+
+class BoomController(Controller):
+    def boom(self):
+        raise ValueError("boom")
