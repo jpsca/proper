@@ -704,6 +704,7 @@ class BaseRouter:
                     path=f"{path}{action_path}",
                     name=f"{ns_prefix}{c_name}.{action}",
                     to=method,
+                    controller=Controller,
                 )
                 self.add_route(route)
 

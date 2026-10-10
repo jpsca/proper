@@ -890,6 +890,20 @@ class RouteTemplate(Template):
   shown. Such values are now redacted as their text, as strings are: the
   first four characters, then `▒` (`['hu▒▒▒▒▒▒▒`); each item of a
   `SECRET_KEYS` list or tuple is redacted on its own.
+- `@router.resource()` on a controller that inherits an action from a parent
+  controller named the route after the decorated class (`Article.index`),
+  but ran the request on an instance of the parent
+  (`ApplicationController`): without the `before` and `after` callbacks of
+  the subclass, and looking up only the parent's views. `url_for` with an
+  object did not read the placeholder `:article_id` from the object's `id`,
+  as it does for the class's own actions. `resource()` now gives each route
+  its class (the new `controller` argument of `Route`), so the request runs
+  on an instance of the decorated class, with its callbacks and its views
+  (`article/`, then the parents' folders), and `:article_id` is read from
+  `id` too. A route made from a method object
+  (`router.get("feed")(ArticleController.index)`, `Route(to=...)`) still
+  belongs to the class that defines the method (`Application.index`): a
+  function doesn't know the class it was read from.
 
 ## 0.34
 

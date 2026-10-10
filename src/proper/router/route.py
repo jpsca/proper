@@ -259,6 +259,16 @@ class Route:
             The status "307 Temporary Redirect" is the default.
         defaults:
             Optional. A dict with extra values that will be sent to the view.
+        controller:
+            Optional. The controller class that `to` is routed on, when it is
+            not the class that defines the method: `to` may be an action that
+            the class inherits, and a function doesn't know the class it was
+            read from (`ArticleController.index` is the same function as
+            `ApplicationController.index` when `ArticleController` inherits
+            it). The request then runs on an instance of this class, with its
+            callbacks, and `controller_prefix` is made from its name. Without
+            it, the class that defines the method is used. `resource()`
+            passes it; the name of the route is not changed by it.
 
     """
 
@@ -273,6 +283,7 @@ class Route:
         redirect: str | None = None,
         redirect_status: int = status.temporary_redirect,
         defaults: dict | None = None,
+        controller: type | None = None,
     ) -> None:
         self.name = name
         self.host = host
@@ -284,6 +295,7 @@ class Route:
         self.path = path
         self._resolved: "tuple[type, str] | None" = None
         self._controller_prefix: str | None = None
+        self._controller = controller
         self.to = to
 
     @property
@@ -327,14 +339,26 @@ class Route:
             self.name = f"{prefix}{cls.removesuffix('Controller')}.{method}"
 
     @property
+    def controller(self) -> type | None:
+        """The controller class given to the route (see `Route`), or `None`
+        when the class that defines `to` is used."""
+        return self._controller
+
+    @property
     def controller_prefix(self) -> str:
         """The snake-cased controller name of `to` plus `_`, so that for
         `ItemController.show` the placeholder `:item_id` can also be read as
-        `id` from an object. Empty without a `to`."""
+        `id` from an object. Empty without a `to`. The controller is the
+        route's `controller` if it has one, else the class that defines
+        `to`."""
         prefix = self._controller_prefix
         if prefix is None:
             if self._to:
-                cname = self._to.__qualname__.split(".")[0].removesuffix("Controller")
+                if self._controller is not None:
+                    cname = self._controller.__name__
+                else:
+                    cname = self._to.__qualname__.split(".")[0]
+                cname = cname.removesuffix("Controller")
                 prefix = inflection.underscore(cname) + "_"
             else:
                 prefix = ""
@@ -342,13 +366,18 @@ class Route:
         return prefix
 
     def resolve(self) -> "tuple[type, str]":
-        """The controller class and action name behind `to`, imported and
-        looked up once, on the first request, and kept for the next ones."""
+        """The controller class and action name behind `to`, looked up once,
+        on the first request, and kept for the next ones. The class is the
+        route's `controller` if it has one; otherwise it is the class that
+        defines `to`, imported from the function's module."""
         if self._resolved is None:
             assert self._to
             cls_name, action_name = self._to.__qualname__.rsplit(".", 1)
-            module = import_string(self._to.__module__)
-            self._resolved = (getattr(module, cls_name), action_name)
+            if self._controller is not None:
+                self._resolved = (self._controller, action_name)
+            else:
+                module = import_string(self._to.__module__)
+                self._resolved = (getattr(module, cls_name), action_name)
         return self._resolved
 
     def __repr__(self) -> str:
@@ -370,6 +399,7 @@ class Route:
             "redirect",
             "redirect_status",
             "defaults",
+            "controller",
         ):
             if not hasattr(other, attr) or getattr(self, attr) != getattr(other, attr):
                 return False

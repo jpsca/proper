@@ -131,6 +131,8 @@ class ArticleController(AppController):
 
 This is the natural way to mark a resource as read-only. There's no separate `only=` or `except=` parameter; the methods you write are the routes you get.
 
+Inherited methods count too. An action that `ArticleController` inherits from a parent controller gets a route like its own actions: the route is named `Article.<action>`, the request runs on an `ArticleController` instance, with the `before` and `after` callbacks of `ArticleController` and its parents, and the view is looked up in `article/` first, then in the parents' folders.
+
 ### PATCH and PUT Both Map to `update`
 
 The `update` action is reachable via either `PATCH` or `PUT`. PATCH is the preferred verb for partial updates and is what HTML forms use via [method override](#method-override). PUT is accepted because some HTTP clients still send it.
@@ -318,6 +320,8 @@ def new(self): ...
 ```
 
 Then `app.url_for("login")` returns `/sign-in`. Custom names are most useful when the URL doesn't reflect the action's purpose, or when you want to keep a stable name across a refactor.
+
+A route added by passing a method (`router.get("feed")(ArticleController.index)`, or `Route(..., to=ArticleController.index)`) belongs to the class that defines that method. When `ArticleController` inherits `index` from `ApplicationController`, `ArticleController.index` is the same function as `ApplicationController.index`, so the route is named `Application.index` and the request runs on an `ApplicationController` instance. To route an inherited action on the subclass, use `@router.resource(...)`, or define the method in the subclass (it can call `super().index()`).
 
 ### Route Defaults
 
