@@ -884,16 +884,19 @@ class RouteTemplate(Template):
   process ignores one it has already received.
 - The debug error and not-found pages showed a `password` value that was not
   a string as it was (`{"password": ["hunter2"]}` as `['hunter2']`), a
-  `SECRET_KEYS` that was a tuple or a string in full, and the values of a
-  dict under `SECRET_KEYS` or a `password` key in full unless their own key
-  was `password` (`{"password": {"db": "hunter2"}}`). An `int` or `float`
-  password or `SECRET_KEYS` item raised `TypeError`, and a config key that
-  was not a string `AttributeError`, so the page was not shown. Now
-  everything under a `SECRET_KEYS` key or a `password` key (in any letter
-  case), at any depth, is redacted: in a dict, list or tuple, each value on
-  its own, at any depth; any other value as its text, as a string was: the
-  first four characters, then `▒` (`12345678` as `1234▒▒▒▒`). An empty or
-  false value (`""`, `None`, `0`, `False`) is kept.
+  `SECRET_KEYS` that was a tuple or a string in full, the values of a dict
+  under `SECRET_KEYS` or a `password` key in full unless their own key was
+  `password` (`{"password": {"db": "hunter2"}}`), and a `password` key in a
+  dict inside a list or tuple in full (`{"DATABASES": [{"password":
+  "hunter2"}]}`). An `int` or `float` password or `SECRET_KEYS` item raised
+  `TypeError`, and a config key that was not a string `AttributeError`, so
+  the page was not shown. Now the value of every `SECRET_KEYS` key and every
+  `password` key (in any letter case) is redacted, in the config and in
+  every dict, list or tuple inside it, at any depth. Everything under such a
+  key is redacted: in a dict, list or tuple, each value on its own, at any
+  depth; any other value as its text, as a string was: the first four
+  characters, then `▒` (`12345678` as `1234▒▒▒▒`). An empty or false value
+  (`""`, `None`, `0`, `False`) is kept. Any other value is shown as it is.
 - `@router.resource()` on a controller that inherits an action from a parent
   controller named the route after the decorated class (`Article.index`),
   but ran the request on an instance of the parent

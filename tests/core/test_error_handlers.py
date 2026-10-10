@@ -165,6 +165,20 @@ def test_redacts_everything_under_a_sensitive_key():
     }
 
 
+def test_redacts_password_keys_in_dicts_inside_lists_and_tuples():
+    # The dicts inside a list were not looked into.
+    data = {
+        "DATABASES": [{"password": "hunter2hunter2", "host": "db1"}],
+        "REPLICAS": ({"name": "r", "creds": [{"PASSWORD": "s3cret-s3cret"}]},),
+        "HOSTS": ["localhost", "example.com"],
+    }
+    assert redact_sensitive_info(data) == {
+        "DATABASES": [{"password": "hunt" + "▒" * 10, "host": "db1"}],
+        "REPLICAS": ({"name": "r", "creds": [{"PASSWORD": "s3cr" + "▒" * 9}]},),
+        "HOSTS": ["localhost", "example.com"],
+    }
+
+
 def test_redact_keeps_keys_that_are_not_strings():
     data = {1: "one", ("a", "b"): {"password": "mysecretpass"}}
     result = redact_sensitive_info(data)
