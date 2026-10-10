@@ -52,6 +52,8 @@ GET    /photos/:photo_id/edit | Photo.edit
 PATCH  /photos/:photo_id      | Photo.update
 DELETE /photos/:photo_id      | Photo.delete
 
+Inherited actions are routed on the decorated class: an `index` that `ArticleController` inherits is `Article.index` and runs on an `ArticleController` instance, with its callbacks and views (`article/`, then the parents' folders).
+
 #### Custom Primary Key
 
 You can change the primary key placeholder by passing the `pk` parameter:
@@ -191,6 +193,8 @@ def new(self): ...
 ```
 
 Then use `app.url_for("login")` to generate the URL.
+
+A route made from a method object (`router.get("feed")(ArticleController.index)`, `Route(..., to=...)`) belongs to the class that defines the method: an inherited `index` gives `Application.index`, running on `ApplicationController`. Use `resource()` or define the method in the subclass to route it on the subclass.
 
 #### Route Defaults
 
