@@ -901,10 +901,11 @@ class RouteTemplate(Template):
   the subclass, and looking up only the parent's views. `url_for` with an
   object did not read the placeholder `:article_id` from the object's `id`,
   as it does for the class's own actions. `resource()` now gives each route
-  its class (the new `controller` argument of `Route`), so the request runs
-  on an instance of the decorated class, with its callbacks and its views
-  (`article/`, then the parents' folders), and `:article_id` is read from
-  `id` too. A route made from a method object
+  its class (the new `controller` argument of `Route`, which raises
+  `ConfigError` when `to` is not the method that this class has under the
+  action's name), so the request runs on an instance of the decorated class,
+  with its callbacks and its views (`article/`, then the parents' folders),
+  and `:article_id` is read from `id` too. A route made from a method object
   (`router.get("feed")(ArticleController.index)`, `Route(to=...)`) still
   belongs to the class that defines the method (`Application.index`): a
   function doesn't know the class it was read from.

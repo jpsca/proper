@@ -14,6 +14,7 @@ import pytest
 
 import proper.compile.dispatch as lowering
 from proper import App, Controller, Route, TestClient
+from proper.errors import ConfigError
 
 
 CALLS: list[str] = []
@@ -161,3 +162,33 @@ def test_route_controller_argument():
     assert route == Route(
         "GET", "/a", to=ApplicationController.index, controller=ArticleController
     )
+
+
+class OverridingController(ApplicationController):
+    __module__ = "myapp.controllers.overriding_controller"
+
+    def index(self):
+        return "override"
+
+
+def test_route_controller_must_have_to_as_its_action():
+    # The request would run `OverridingController.index`, not `to`.
+    with pytest.raises(ConfigError, match="not the `index` action of"):
+        Route(
+            "GET", "/a", to=ApplicationController.index, controller=OverridingController
+        )
+    with pytest.raises(ConfigError, match="`ApplicationController` has no `edit`"):
+        Route("GET", "/a", to=ArticleController.edit, controller=ApplicationController)
+    route = Route(
+        "GET", "/a", to=OverridingController.index, controller=OverridingController
+    )
+    assert route.resolve() == (OverridingController, "index")
+    # Setting `to` later is checked too.
+    with pytest.raises(ConfigError):
+        route.to = ApplicationController.index
+
+
+def test_resource_on_a_class_that_overrides_an_action(tmp_path):
+    app = make_app(tmp_path)
+    app.router.resource("things")(OverridingController)
+    assert TestClient(app).get("/things").body == "override"
