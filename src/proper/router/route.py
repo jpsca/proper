@@ -341,7 +341,9 @@ class Route:
         if value and self._controller is not None:
             action = value.__qualname__.rsplit(".", 1)[-1]
             found = getattr(self._controller, action, None)
-            if found is not value:
+            # A classmethod gives a new bound method on each access: compare
+            # the functions behind them.
+            if getattr(found, "__func__", found) is not getattr(value, "__func__", value):
                 cname = self._controller.__qualname__
                 raise ConfigError(
                     f"`{value.__qualname__}` is not the `{action}` action of "

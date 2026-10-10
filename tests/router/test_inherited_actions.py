@@ -192,3 +192,61 @@ def test_resource_on_a_class_that_overrides_an_action(tmp_path):
     app = make_app(tmp_path)
     app.router.resource("things")(OverridingController)
     assert TestClient(app).get("/things").body == "override"
+
+
+class MethodKindsController(Controller):
+    __module__ = "myapp.controllers.method_kinds_controller"
+
+    @classmethod
+    def index(cls):
+        return f"classmethod on {cls.__name__}"
+
+    @staticmethod
+    def show():
+        return "staticmethod"
+
+
+class MethodKindsChildController(MethodKindsController):
+    __module__ = "myapp.controllers.method_kinds_child_controller"
+
+
+class MethodKindsOverrideController(MethodKindsController):
+    __module__ = "myapp.controllers.method_kinds_override_controller"
+
+    @classmethod
+    def index(cls):
+        return "override"
+
+
+def test_resource_with_classmethod_and_staticmethod_actions(tmp_path):
+    # A classmethod is a new bound method on each access, so the check of
+    # `to` against the controller compares the functions behind them.
+    app = make_app(tmp_path)
+    app.router.resource("kinds")(MethodKindsController)
+    app.router.resource("children")(MethodKindsChildController)
+    client = TestClient(app)
+    assert client.get("/kinds").body == "classmethod on MethodKindsController"
+    assert client.get("/kinds/1").body == "staticmethod"
+    assert client.get("/children").body == "classmethod on MethodKindsChildController"
+    assert client.get("/children/1").body == "staticmethod"
+
+
+def test_route_controller_with_classmethod_and_staticmethod():
+    for cls in (MethodKindsController, MethodKindsChildController):
+        route = Route("GET", "/a", to=cls.index, controller=cls)
+        assert route.resolve() == (cls, "index")
+        route = Route("GET", "/a", to=cls.show, controller=cls)
+        assert route.resolve() == (cls, "show")
+    # An inherited classmethod read from the parent is the same function.
+    route = Route(
+        "GET", "/a", to=MethodKindsController.index, controller=MethodKindsChildController
+    )
+    assert route.resolve() == (MethodKindsChildController, "index")
+    # An overriding classmethod is still refused.
+    with pytest.raises(ConfigError, match="would run"):
+        Route(
+            "GET",
+            "/a",
+            to=MethodKindsController.index,
+            controller=MethodKindsOverrideController,
+        )
