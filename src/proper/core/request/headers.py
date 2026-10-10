@@ -399,7 +399,7 @@ class RequestHeadersMixin:
             return peer
         trusted = self._trusted_proxies()
 
-        hops = [
+        hops: list[str] = [
             hop.strip() for hop in (self._combined("x-forwarded-for") or "").split(",")
         ]
         hops = [hop for hop in hops if hop]
@@ -542,7 +542,9 @@ def split_forwarded(value: str) -> list[str]:
 
 _DAY_NAME = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)"
 _DAY_NAME_L = "(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
-_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+_MONTHS: tuple[str, ...] = tuple(
+    "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+)
 _MONTH = f"(?P<month>{'|'.join(_MONTHS)})"
 _TIME_OF_DAY = "(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})"
 
