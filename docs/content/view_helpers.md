@@ -378,33 +378,35 @@ See the [url_startswith API Documentation](/docs/api/view_helpers#url_startswith
 
 ### dom_id
 
-Generate a stable id for an object, suitable for use in HTML element ids.
+Generate a stable id for a collection of objects and/or strings, suitable
+for use in HTML element ids.
 
-It uses the object's class name and primary key (if available) to generate a unique id.
-If there is no primary key, prefix with "new_" instead.
+All parts will be converted to strings and joined with underscores.
+If a part is an object, its class name and primary key (if available) will be used
+to generate a string for that part. Composite primary keys are also supported.
 
 ```python
-dom_id(Post.get(45))   # => "post_45"
+dom_id(Post.get(45))                     # => "post_45"
+dom_id(Post.get(45), "edit")             # => "post_45_edit"
+dom_id(Post.get(45), "edit", "special")  # => "post_45_edit_special"
+```
+
+If there is no primary key, the class name is prefixed with "new_" instead.
+
+```python
 dom_id(Post.create())  # => "new_post"
 ```
 
-The `prefix` argument can be used to add a namespace to the id, for example:
+If the object has a `to_key()` method, it will be used to get the key instead of the primary key. This allows you to customize the key generation for privacy-sensitive or more complex models. If it returns a composite key (tuple), the parts will be joined with underscores.
 
-```python
-dom_id(Post.get(45), prefix="edit")  # => "edit_post_45"
-```
-
-If the object has a `to_key()` method, it will be used to get the key instead of the primary key.
-This allows you to customize the key generation for privacy-sensitive or more complex models.
+However, if this method returns `None`, `False`, or an empty value, the object will be treated as if it has no primary key. 
 
 If the object is a class rather than an instance, only the class name is used:
 
 ```python
 dom_id(Post)            # => "post"
-dom_id(Post, "custom")  # => "custom_post"
+dom_id(Post, "custom")  # => "post_custom"
 ```
-
-See the [dom_id API Documentation](/docs/api/view_helpers#dom_id) for more information.
 
 ---
 

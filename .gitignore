@@ -37,8 +37,6 @@ site/*
 var/
 wheels/
 
-.venv-ft
-
 
 # Views compiled by minijx
 _compiled/

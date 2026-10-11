@@ -19,6 +19,6 @@ Code: [MIT](https://github.com/jpsca/proper/blob/main/MIT-LICENSE). Documentatio
 
 ## For the press release
 
-> Proper is the Python web framework I built for myself after years in the trade, once I understood that hard conventions do not lock you in - they free you to focus on what's important.
+> Proper is the Python web framework he built for himself after years in the trade. It was not an act of rebellion so much as of recognition: once he understood that hard conventions do not lock you in — they free you to focus on what matters—the shape of the tool became clear.
 
-(It also works for the back cover of my future biography by Walter Isaacson).
+(It also works for the back cover of my future biography by Walter Isaacson. Get to work Walter).

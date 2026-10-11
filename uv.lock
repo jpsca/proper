@@ -776,7 +776,7 @@ wheels = [
 
 [[package]]
 name = "proper"
-version = "0.34.0"
+version = "0.40.0"
 source = { editable = "." }
 dependencies = [
     { name = "babel" },
