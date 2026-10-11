@@ -1,4 +1,5 @@
 import json
+import threading
 from io import BytesIO
 
 import pytest
@@ -39,6 +40,34 @@ def _reader(body: bytes):
         return body
 
     return read
+
+
+def _in_small_stack(fn):
+    """Call `fn` in a thread with a 1 MB stack and return its result.
+
+    Since Python 3.14, how deep `json` can nest depends on how much C stack
+    is left, not on `sys.getrecursionlimit()`. A thread with a small, fixed
+    stack makes the deep-nesting cases raise a `RecursionError` on every
+    machine, whatever the process stack size is (`ulimit -s`).
+    """
+    out = {}
+
+    def target():
+        try:
+            out["result"] = fn()
+        except BaseException as err:
+            out["error"] = err
+
+    old_size = threading.stack_size(1024 * 1024)
+    try:
+        thread = threading.Thread(target=target)
+        thread.start()
+    finally:
+        threading.stack_size(old_size)
+    thread.join()
+    if "error" in out:
+        raise out["error"]
+    return out["result"]
 
 
 def _post(app, body: bytes, content_type="application/json", method="POST"):
@@ -381,7 +410,7 @@ def test_parse_body_invalid_json(app):
 def test_parse_body_json_that_python_cannot_read(app, body):
     req = _post(app, body)
     with pytest.raises(MultipartError):
-        req._read_body_sync(_reader(body))
+        _in_small_stack(lambda: req._read_body_sync(_reader(body)))
 
 
 @pytest.mark.parametrize(
@@ -390,7 +419,8 @@ def test_parse_body_json_that_python_cannot_read(app, body):
     ids=["long-int", "deep-arrays"],
 )
 def test_parse_json_not_strict_gives_an_empty_form(body):
-    assert len(parse_json(body.decode(), strict=False)) == 0
+    form = _in_small_stack(lambda: parse_json(body.decode(), strict=False))
+    assert len(form) == 0
 
 
 def test_parse_body_urlencoded_charset(app):
