@@ -1,6 +1,4 @@
 """Defects found porting Campfire to Proper. Each test fails on 0.34."""
-import gc
-import weakref
 
 import pytest
 
