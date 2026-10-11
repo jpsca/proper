@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proper"
-version = "0.34.0"
+version = "0.40.0"
 description = "Opinionated and batteries-included Python web framework"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
@@ -147,7 +147,7 @@ legacy_tox_ini = """
 [tox]
 env_list =
     3.14t
-    3.15.0rc2t
+    3.15t
 
 [testenv]
 runner = uv-venv-lock-runner

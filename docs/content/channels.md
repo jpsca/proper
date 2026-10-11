@@ -7,10 +7,6 @@ number_headers: true
 
 # Real-Time Updates (Channels)
 
-<section class="admonition wip">
-<p class="admonition-title">Work in progress</p>
-</section>
-
 Most of a web app is request and response: the browser asks for a page, your code answers, and nothing else happens until the user clicks again. Channels are for the other case - when the *server* needs to speak first. A new chat message should appear for everyone in the room without anyone refreshing; a long import should push its progress; a notification should pop the moment it is created. That server-initiated traffic runs over a WebSocket, and Channels are how Proper organizes it.
 
 If you have never used one: a WebSocket is a connection the browser opens once, with an ordinary HTTP request that asks to be *upgraded*, and then keeps open for as long as the page lives. After that, either side can send a message at any moment, without a request waiting for it. One connection per tab carries everything. With Channels you never touch the connection itself; you write Python classes that decide who may listen to what, and call `broadcast()` when something happens.
@@ -645,7 +641,8 @@ turbo_stream.append(
 #    </turbo-stream>
 
 turbo_stream.update("unread_count", html="3")
-turbo_stream.remove(message)                 # a model: its dom_id is the target
+turbo_stream.remove(message)  # a model: its dom_id is the target
+turbo_stream.remove(dom_id(message, "list"))
 turbo_stream.replace(targets=".draft", html="")  # every element matching a CSS selector
 ```
 
@@ -1123,8 +1120,6 @@ Channels covers the core - one shared connection, authenticated subscriptions, s
 
 - **Stream names from models.** `broadcast_to(record, data)` and `stream_for(record)`, which would build the stream name from a model, so a typo can't break it silently.
 - **Per-subscription timers.** A `periodically(...)` hook for server-driven updates - counters, clocks, dashboards - that lives as long as the subscription. For now, a periodic background task that broadcasts to a stream covers most of this.
-
-If you build any of these, the framework would love a PR.
 
 ---
 

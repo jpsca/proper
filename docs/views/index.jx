@@ -13,7 +13,7 @@
 <Layout title="Proper web framework">
   <HeroSection />
   {# <VideoSection /> #}
-  <FastSection />
+  {# <FastSection /> #}
   <ExampleSection />
   <BatteriesSection />
   <ScaffoldsSection />

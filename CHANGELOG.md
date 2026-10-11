@@ -2,7 +2,7 @@
 
 All notable changes to Proper are documented in this file.
 
-## Unreleased
+## 0.40.0
 
 ### ⚠️ Upgrading: the WebSockets need `proper.channels.Cable`
 

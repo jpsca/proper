@@ -786,7 +786,7 @@ See the [Assets guide](/docs/assets) for the full story on how fingerprinting, t
 
 ## The QUERY Method
 
-Alongside the standard methods, Proper supports the proposed [`QUERY` method](https://httpwg.org/http-extensions/draft-ietf-httpbis-safe-method-w-body.html). A QUERY request is like GET but allows a request body. It exists for the case where you need to send structured search criteria that don't fit cleanly into a URL's query string - think a search form with arrays of filters, or a complex JSON predicate.
+Alongside the standard methods, Proper supports the new [`QUERY` method](https://httpwg.org/http-extensions/draft-ietf-httpbis-safe-method-w-body.html). A QUERY request is like GET but allows a request body. It exists for the case where you need to send structured search criteria that don't fit cleanly into a URL's query string - think a search form with arrays of filters, or a complex JSON predicate.
 
 ```python
 class SearchController(AppController):

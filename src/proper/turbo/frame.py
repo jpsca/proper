@@ -16,8 +16,7 @@ def turbo_frame(
 ) -> Markup:
     """Render a `<turbo-frame>`, the unit Turbo navigates and replaces on its own.
 
-    `ids` build the frame's id: strings are used as-is, model instances are
-    converted with `dom_id`, and several are joined with `_`.
+    `ids` are passed to `dom_id` to generate the frame's id.
 
     Use it two ways from a template. As an expression for an empty or lazily
     loaded frame:
@@ -39,7 +38,7 @@ def turbo_frame(
     navigations to another frame. Any extra keyword becomes an attribute, with
     underscores turned into dashes (`data_turbo="false"` -> `data-turbo="false"`).
     """
-    frame_id = "_".join(i if isinstance(i, str) else dom_id(i) for i in ids)
+    frame_id = dom_id(*ids)
     parts = [f'id="{escape(frame_id)}"']
     if src:
         parts.append(f'src="{escape(src)}"')
