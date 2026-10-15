@@ -893,21 +893,6 @@ class TestRecovery:
         }
 
     @pytest.mark.asyncio
-    async def test_a_cluster_of_one_from_memory(self, app):
-        """A cable configured for a cluster, served from memory: the
-        broadcasts go through, and there are no peers."""
-        app.cable = type(app.cable)(cluster={"port": 9999, "peers": ["10.0.0.2:9999"]})
-        app.cable.bind(app)
-        app.router.channels["RoomChannel"] = RoomChannel
-        ws, task = await open_ws(app)
-        await ws.subscribe("RoomChannel", room="a")
-        app.cable.broadcast("room_a", {"n": 1})
-        assert (await ws.receive())["data"] == {"n": 1}
-        assert app.cable.cluster_info() == []
-        await ws.close()
-        await task
-
-    @pytest.mark.asyncio
     async def test_recovery_off(self, app):
         app.cable = type(app.cable)(recovery=False)
         app.cable.bind(app)
@@ -1235,7 +1220,7 @@ class TestHealth:
         ws, task = await open_ws(app, _cookie(app, "good-token"))
         await ws.subscribe("RoomChannel", room="a")
         text = app.cable.metrics()
-        assert "wse_connections 1\n" in text
+        assert "proper_cable_connections 1\n" in text
         assert "proper_cable_streams 1\n" in text
         assert "proper_cable_users 0\n" in text  # RoomChannel has no Session: anonymous
         await ws.close()

@@ -80,11 +80,11 @@ Read the documentation of these libraries to understand how to work with them in
 
 ## Request Lifecycle
 
-Proper serves on free-threaded Python (a `3.14t` build) with Granian, and the code of the web applications that use Proper (meaning, the code that you write) is regular sync Python: controllers, models, channels, tasks.
+Proper serves on free-threaded Python (a `3.14t` build) with Bearings (Linux only: WSL on Windows, a container on macOS), and the code of the web applications that use Proper (meaning, the code that you write) is regular sync Python: controllers, models, channels, tasks.
 
-The server talks to the app over WSGI: Granian runs each request on one of its own threads, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. The WebSockets of an app with channels are served by its cable (`Cable`), from the web process, on `CABLE_PORT` (see the channels doc).
+The server talks to the app over WSGI: Bearings runs each request on a thread of its worker pool, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. The WebSockets of an app with channels are served by its cable (`Cable`), from the web process, on `CABLE_PORT` (see the channels doc).
 
-`MAX_THREADS` is per process, split between the `WORKERS` of the process as Granian's threads. It is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue.
+`MAX_THREADS` is per process: the threads of Bearings' worker pool. `WORKERS` are its event loops, which never run Python. It is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue.
 
 Every request flows through a pipeline in this exact order:
 
@@ -168,7 +168,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `TIMEZONE_DEFAULT`         | `"UTC"`           | Fallback timezone when none is set on the request |
 | `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets                   |
 | `STATIC_X_SENDFILE_HEADER` | `""`              | Header for web server file serving             |
-| `TRUSTED_PROXIES`          | loopback, private and link-local networks | IPs/CIDRs of the reverse proxies whose `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used; list every proxy in the chain (a CDN too); replaces the default; not a list of IPs/networks (strings or `ipaddress` objects) = `ConfigError`. The default also trusts any client on those networks: it can set `remote_ip` and `X-Forwarded-Proto`. A peer without an address (Granian or gunicorn on a Unix socket) counts as trusted |
+| `TRUSTED_PROXIES`          | loopback, private and link-local networks | IPs/CIDRs of the reverse proxies whose `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used; list every proxy in the chain (a CDN too); replaces the default; not a list of IPs/networks (strings or `ipaddress` objects) = `ConfigError`. The default also trusts any client on those networks: it can set `remote_ip` and `X-Forwarded-Proto`. A peer without an address (`proper run` or gunicorn on a Unix socket) counts as trusted |
 
 ### Session Settings
 
@@ -495,7 +495,7 @@ request.query.get("count", type=int) # type-casts the value
 The `proper` command provides these subcommands:
 
 ```bash
-proper run                          # Start the server (Granian, port 2300)
+proper run                          # Start the server (Bearings, port 2300)
 proper routes                       # Display all registered routes
 
 proper g resource Photo title:str   # Generate model + controller + form + views
@@ -526,11 +526,11 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 
 ## Serving
 
-`proper run` starts Granian with the app. It refuses to start on a Python with the GIL: install a free-threaded one with `uv python install 3.14t` (the blueprint pins it in `.python-version` and its Dockerfile installs it), or set `ALLOW_GIL = True` to serve with the GIL anyway, at the cost of memory and parallelism. On a free-threaded Python, an extension module that has not declared itself safe turns the GIL back on when imported; Python names it in a `RuntimeWarning`, and `proper run` stops with the same error.
+`proper run` starts Bearings with the app. It refuses to start on a Python with the GIL: install a free-threaded one with `uv python install 3.14t` (the blueprint pins it in `.python-version` and its Dockerfile installs it), or set `ALLOW_GIL = True` to serve with the GIL anyway, at the cost of memory and parallelism. On a free-threaded Python, an extension module that has not declared itself safe turns the GIL back on when imported; Python names it in a `RuntimeWarning`, and `proper run` stops with the same error.
 
 What it starts, from the config:
 
-- `WORKERS` Granian workers, threads of one process, each with `MAX_THREADS / WORKERS` request threads, over WSGI.
+- `WORKERS` Bearings event loops per process, which never run Python; the app runs on one pool of `MAX_THREADS` threads, over WSGI.
 - With a cable that serves WebSockets (`Cable`), that server, in the first web process, on `CABLE_PORT`.
 - `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
 - With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes.

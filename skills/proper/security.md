@@ -277,7 +277,7 @@ These protect against abuse from forms with excessive fields or oversized indivi
 
 ## Trusted Proxies
 
-`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used (for `request.remote_ip` and `request.protocol`, so `is_secure`, `host_with_port` and the session and auth cookies' `Secure` flag) only when the peer is in `TRUSTED_PROXIES`, or has no address (Granian or gunicorn on a Unix socket); from any other address they are ignored and `remote_ip` is the peer's address.
+`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used (for `request.remote_ip` and `request.protocol`, so `is_secure`, `host_with_port` and the session and auth cookies' `Secure` flag) only when the peer is in `TRUSTED_PROXIES`, or has no address (`proper run` or gunicorn on a Unix socket); from any other address they are ignored and `remote_ip` is the peer's address.
 
 ```python
 # config/main.py. Default: the loopback, private and link-local networks
@@ -293,14 +293,14 @@ TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
 - `remote_ip`: `X-Forwarded-For`, else `Forwarded`, else `X-Real-IP`. The first two are read from the right, skipping trusted proxies; if all are trusted, the leftmost. A value that is not an IP (`unknown`, `_hidden`) stops the walk and is returned. An `X-Forwarded-For` or `Forwarded` address is returned without its port and brackets (`"[2001:db8::1]:4711"` gives `2001:db8::1`), and `::ffff:1.2.3.4` as `1.2.3.4`. `Forwarded` is split into elements at the commas outside quoted strings, from the right, so a comma in a quoted value of the proxy's element (`host="a,b"`) doesn't split it, and a quote the client leaves open can't take in the proxy's element. A header sent in several lines is read as one list, the lines in order.
 - List every proxy in the chain, including a CDN or public load balancer in front of a local nginx: otherwise `remote_ip` is the CDN edge's address for every visitor, and the default `rate_limit` puts them all in one bucket.
 - A proxy passes the client's forwarding headers through. One that writes only `Forwarded` must remove the client's `X-Forwarded-For`; one that writes only `X-Real-IP` must remove `X-Forwarded-For` and `Forwarded`.
-- The proxy must drop request headers with `_` in the name (`X_Forwarded_For`, `X_Forwarded_Proto`): WSGI gives them to the app under the same name as the `-` ones, and Granian can keep the client's value. nginx drops them unless `underscores_in_headers` is on or `ignore_invalid_headers` is off; Go's `httputil.ReverseProxy` passes them.
+- The proxy must drop request headers with `_` in the name (`X_Forwarded_For`, `X_Forwarded_Proto`): WSGI gives them to the app under the same name as the `-` ones, `proper run` drops them, but other WSGI servers can keep the client's value. nginx drops them unless `underscores_in_headers` is on or `ignore_invalid_headers` is off; Go's `httputil.ReverseProxy` passes them.
 - waitress and uWSGI on a Unix socket give a made-up peer address (`localhost`, `0.0.0.0`), which is not trusted.
 - `TestClient` requests come from `client.remote_ip` (`127.0.0.1`, trusted), so test headers like `X-Forwarded-For` are honored; set a public `client.remote_ip` and they are ignored. `make_test_request()` without `client=` has no peer address, which counts as trusted. A WebSocket handshake without a peer address (the in-memory server's `connect()` without details) doesn't count: its `X-Forwarded-For` is dropped.
 
 ## Host header
 
 - `request.host` and `request.port` come from the `Host` header (PEP 3333), else from the address the server listens on (`SERVER_NAME`, `0.0.0.0` under `proper run`). Host-constrained routes and `OriginProtection` compare with it. The proxy must pass the client's `Host` (nginx: `proxy_set_header Host $host;`; its default sends the upstream's address).
-- An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400, and so is a request with more than one `Host` line (RFC 9112 §3.2): Granian joins them with a comma, so a `Host` with a comma is refused.
+- An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400, and so is a request with more than one `Host` line (RFC 9112 §3.2): the server joins them with a comma, so a `Host` with a comma is refused.
 - The client chooses the `Host` header. Proper uses it only to pick the route and to compare with `Origin`; it never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config (or the route's own host). Do the same in your code: build absolute URLs that leave the request (emails, links stored or sent to others) with `url_for(_full=True)`, not from `request.host`.
 - `X-Forwarded-Host` and `Forwarded: host=` are not read.
 

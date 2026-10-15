@@ -84,7 +84,7 @@ Channels is an addon. Install it with:
 $ proper install channels
 ```
 
-It adds `proper-wse` to the app's dependencies (the WebSocket server, see [The cable server](#the-cable-server-cable)) and creates:
+It creates:
 
 - `config/channels.py` - `CABLE_PATH`, `CABLE_PORT`, and `CABLE`, the cable backend. It is imported from `config/__init__.py`.
 - `channels/app_channel.py` - the `AppChannel` base your own channels inherit from. It is to channels what `AppController` is to controllers.
@@ -225,7 +225,7 @@ Without the auth addon, `Session` is `None`, every connection is anonymous, `cur
 
 ### Clients without cookies
 
-A mobile app or a script has no session cookie. The handshake is still an HTTP request, and the channel sees all of it in `self.request`: the path and query string (`request.query`), the `Authorization` header, and the client's address (`request.remote_ip`, which honors `X-Forwarded-For` from your proxy when it is one of the `TRUSTED_PROXIES`; see [Deployment](/docs/deployment#trusted-proxies)). A handshake without a peer address (only the in-memory test server's `connect()` without details sends none; wse always does) gets no `X-Forwarded-For`, and its `remote_ip` is `""`. The session lookup is one method, `find_session()`, that reads the signed cookie by default. Override it in `AppChannel` to accept a token as well:
+A mobile app or a script has no session cookie. The handshake is still an HTTP request, and the channel sees all of it in `self.request`: the path and query string (`request.query`), the `Authorization` header, and the client's address (`request.remote_ip`, which honors `X-Forwarded-For` from your proxy when it is one of the `TRUSTED_PROXIES`; see [Deployment](/docs/deployment#trusted-proxies)). A handshake without a peer address (only the in-memory test server's `connect()` without details sends none; the cable always does) gets no `X-Forwarded-For`, and its `remote_ip` is `""`. The session lookup is one method, `find_session()`, that reads the signed cookie by default. Override it in `AppChannel` to accept a token as well:
 
 ```python {title="channels/app_channel.py"}
 class AppChannel(Channel):
@@ -495,7 +495,7 @@ What the list keys on:
 
 A connection leaves a stream's list with `untrack(stream)`, with `stop_stream_from()`, when the client unsubscribes, and when the connection closes, including when the browser is killed: the server notices the connection is gone and removes the entry. `update_presence(data)` changes the data in every stream the connection is present in. `track()` needs `stream_from()` first.
 
-The list lives in the server that serves the WebSockets, so it is one machine's. `presence=False` in `CABLE` turns it off (`track()` then fails), and wse's `presence_max_data_size` (4 KB per user) and `presence_max_members` bound it.
+The list lives in the server that serves the WebSockets, so it is one machine's. `presence=False` in `CABLE` turns it off (`track()` then fails).
 
 ---
 
@@ -588,7 +588,7 @@ The view loads the controller with the `{#js #}` tag, as the auth addon's `passw
 
 ### Missed broadcasts (recovery)
 
-The server keeps the last broadcasts of each stream: 128 by default, for 5 minutes after the last one. When a connection comes back, `cable.js` tells the server where it was in each stream, and the server sends what was broadcast since. They arrive through `received()` like any other, in order, and nothing arrives twice. The same happens when a connection falls so far behind that wse drops broadcasts for it (see [Slow clients](#slow-clients)): the broadcasts after the hole wait while the missed ones are fetched.
+The server keeps the last broadcasts of each stream: 128 by default, for 5 minutes after the last one. When a connection comes back, `cable.js` tells the server where it was in each stream, and the server sends what was broadcast since. They arrive through `received()` like any other, in order, and nothing arrives twice. A connection that falls too far behind is closed (see [Slow clients](#slow-clients)), and gets what it missed when it reconnects, the same way.
 
 `connected()` is where the page learns whether it is up to date. It gets an object:
 
@@ -608,7 +608,7 @@ Field         | Value
 
 With `recovered === false`, load the state again from the server, as the page did when it first rendered. The `<turbo-stream-channel>` element does this by dispatching an event (see [Broadcasting HTML](#broadcasting-html-turbo-streams)).
 
-What recovery does not cover: a stream that had no broadcasts before the connection dropped has no position to recover from, so what it broadcast meanwhile is lost (`recovered` is `null` for it); and `send()` messages to one subscription are not kept, only broadcasts. On the server, `recovery=False` in `CABLE` turns it off, and wse's `recovery_buffer_size`, `recovery_ttl` and `recovery_memory_budget` size the buffers (see [The cable server](#the-cable-server-cable)).
+What recovery does not cover: a stream that had no broadcasts before the connection dropped has no position to recover from, so what it broadcast meanwhile is lost (`recovered` is `null` for it); and `send()` messages to one subscription are not kept, only broadcasts. On the server, `recovery=False` in `CABLE` turns it off, and `recovery_buffer_size`, `recovery_ttl` and `recovery_memory_budget` size the buffers (see [The cable server](#the-cable-server-cable)).
 
 ---
 
@@ -735,13 +735,11 @@ CABLE_PORT = int(os.getenv("CABLE_PORT", int(os.getenv("PORT", 2300)) + 1))
 CABLE: dict = {"type": "proper.channels.Cable"}
 ```
 
-`Cable` serves the WebSockets with [proper-wse](https://github.com/jpsca/proper-wse), our fork of [wse-server](https://github.com/silvermpx/wse): a WebSocket server written in Rust, with wheels for free-threaded Python, that runs inside the web process. Your channels run in Python, in its worker threads. Underneath, a stream is a wse topic, and a `broadcast()` gives wse one encoded frame, which it writes to every subscriber without going back to Python. With thousands of clients on one stream, this is what keeps up.
-
-`proper-wse` imports as `wse_server`, so don't install the original `wse-server` next to it; `Cable` refuses to start with it.
+`Cable` serves the WebSockets with Bearings, the same server that runs the app, inside the web process. Your channels run in Python, in its worker threads. Underneath, a stream is a Bearings topic, and a `broadcast()` gives Bearings one encoded frame, which it writes to every subscriber without going back to Python. With thousands of clients on one stream, this is what keeps up.
 
 How it runs:
 
-- `proper run` starts the cable in its web process, before the first request, and stops it with the server. Granian serves the app over WSGI, which has no WebSockets; the cable listens on its own port, `CABLE_PORT`. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself. `start_server()` returns once the cable listens on `CABLE_PORT`. It raises `RuntimeError` at once, with the reason, when the port can't be bound (it is taken, or the cable's `host` is not an address of this machine). When the cable has neither bound the port nor given up after 10 seconds (a machine too busy to run it, a slow lookup of `host`), `start_server()` keeps waiting until it does one or the other, with no upper limit, because a cable that hasn't bound yet can't be stopped. It raises `RuntimeError` only then: with the reason if the cable gave up, and after stopping it if it bound late. Either way, nothing is left listening on the port when it raises.
+- `proper run` starts the cable in its web process, before the first request, and stops it with the server. The cable listens on its own port, `CABLE_PORT`. Under another server, call `app.cable.start_server()` and `app.cable.stop_server()` yourself. `start_server()` returns once the cable listens, and raises `OSError`, with the reason, when the port can't be listened on (it is taken, or the cable's `host` is not an address of this machine).
 - Only that process serves the WebSockets. Every other process that loads the app - the extra copies of `PROCESSES`, a task worker, a shell - sends its broadcasts and `disconnect()`s to it, signed with the app's secret keys, as a `POST` to `CABLE_PATH` on `127.0.0.1`, port `CABLE_PORT + 1`. If the cable is down, the broadcast is lost and a warning is logged; the request that made it still finishes normally. One whose answer takes more than 2 seconds (the cable answers once it has delivered it) is sent again, and the cable ignores the copy.
 - In production, your reverse proxy routes `CABLE_PATH` to `CABLE_PORT`. [Deployment](/docs/deployment#the-reverse-proxy) shows the nginx block.
 - In development there is no proxy. When `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same host name.
@@ -754,39 +752,37 @@ Setting                   | Default   | What it is
 `CABLE_PATH`              | `"/cable"`| The URL path of the WebSockets, behind the proxy
 `CABLE_PORT`              | `0`       | The port of the WebSockets (the addon sets `PORT + 1`)
 `CABLE_ALLOWED_ORIGINS`   | `[]`      | Other sites allowed to open a WebSocket (see [below](#checking-where-a-websocket-comes-from))
-`CABLE_PING_INTERVAL`     | `3`       | Seconds between the server's pings to every connection: a whole number, at least 1, and less than the cable's `idle_timeout` (60), which closes a connection that answers no ping for that long
-`CABLE_MAX_PENDING_BYTES` | 4 MB      | See "Slow clients" below. `0` is no limit
-`CABLE_STALL_TIMEOUT`     | `10`      | See "Slow clients" below
+`CABLE_PING_INTERVAL`     | `3`       | Seconds between the cable's pings to every connection: a whole number, at least 1, and less than the cable's `idle_timeout` (60), which closes a connection that answers no ping for that long
+`CABLE_MAX_PENDING_BYTES` | 4 MB      | How far behind a client may fall; see "Slow clients" below
 
 And the options of `Cable`, in `CABLE`:
 
-Option                     | Default      | What it is
--------------------------- | ------------ | -----------------------------
-`port`                     | `CABLE_PORT` | Port of the WebSockets
-`host`                     | `"0.0.0.0"`  | Address to listen on
-`forward_port`             | `port + 1`   | Port, on 127.0.0.1, where the other processes send their broadcasts
-`workers`                  | `4`          | Threads that run the channels' code
-`max_connections`          | `100000`     | Connections it accepts
-`max_outbound_queue_bytes` | 64 MB        | How far behind a connection can fall before wse drops broadcasts for it
-`backpressure_bytes`       | 128 KB       | A `broadcast()` waits while the subscribers of its stream have more than this queued, on average. `0` never waits
-`backpressure_timeout`     | `1.0`        | The longest a `broadcast()` waits, in seconds; then it is sent anyway
-`recovery`                 | `True`       | Keep the last broadcasts of each stream, for clients that reconnect (see [Missed broadcasts](#missed-broadcasts-recovery))
-`presence`                 | `True`       | Keep who is in each stream, for `track()` (see [Who is here](#who-is-here-presence))
-`cluster`                  | `None`       | Join the cables of other machines (see [Several machines](#several-machines))
-
-Any other option goes to `wse_server.RustWSEServer`. For example, `max_pending_handshakes`, how many handshakes can be in progress at once; raise it if thousands of clients may reconnect together after a restart. Or the size of the recovery buffers: `recovery_buffer_size` (128 broadcasts per stream, rounded to a power of two), `recovery_ttl` (300 seconds without broadcasts before a stream's buffer is dropped) and `recovery_memory_budget` (256 MB for all of them; past it, the least used are dropped). The buffers share the bytes of the frames with the connections, so they cost memory once per broadcast, not once per subscriber.
+Option                 | Default      | What it is
+---------------------- | ------------ | -----------------------------
+`port`                 | `CABLE_PORT` | Port of the WebSockets
+`host`                 | `"0.0.0.0"`  | Address to listen on; a host name is looked up
+`forward_port`         | `port + 1`   | Port, on 127.0.0.1, where the other processes send their broadcasts
+`loops`                | `1`          | Threads that read and write the WebSockets
+`workers`              | `4`          | Threads that run the channels' code
+`max_connections`      | `100000`     | Connections open at once; more wait to be accepted
+`idle_timeout`         | `60`         | Seconds; a connection that answers no ping for that long is closed
+`recovery`             | `True`       | Keep the last broadcasts of each stream, for clients that reconnect (see [Missed broadcasts](#missed-broadcasts-recovery))
+`recovery_buffer_size` | `128`        | How many broadcasts of each stream it keeps
+`recovery_ttl`         | `300`        | Seconds without broadcasts before a stream's are dropped
+`recovery_memory_budget` | 256 MB     | Bytes for the broadcasts of all the streams; past it, those of the streams with the oldest last broadcast are dropped
+`presence`             | `True`       | Keep who is in each stream, for `track()` (see [Who is here](#who-is-here-presence))
+`shutdown_grace`       | `1`          | Seconds the WebSockets have to close when the server stops
 
 ```python {title="config/channels.py"}
 CABLE = {
     "type": "proper.channels.Cable",
     "workers": 8,
-    "max_pending_handshakes": 2000,
 }
 ```
 
 ### How the cable is doing
 
-`app.cable.health()` returns a dict for a health endpoint or a log line: `serving` (whether this process serves the WebSockets), `connections`, `users` (with a logged-in user), `streams` (subscribed here), and under `server` what wse reports: `inbound_queue_depth` and `inbound_dropped` (commands waiting for, or lost by, the worker threads), `uptime_secs`, and the recovery, presence and cluster counters. In a process that serves none, `{"serving": False, "connections": 0, "streams": 0}`.
+`app.cable.health()` returns a dict for a health endpoint or a log line: `serving` (whether this process serves the WebSockets), `connections`, `users` (with a logged-in user), `streams` (subscribed here), and under `server` the server's counters: `connections`, and how many streams have a recovery buffer and a presence list. In a process that serves none, `{"serving": False, "connections": 0, "streams": 0}`.
 
 ```python
 @router.get("/up")
@@ -794,7 +790,7 @@ def up(self):
     return self.render_json(self.app.cable.health())
 ```
 
-For graphs and alerts over time, the cable also exports Prometheus metrics. The process that serves the WebSockets answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`, with wse's metrics in Prometheus' text format (`wse_connections`, `wse_messages_sent_total`, `wse_slow_consumer_drops_total`, `wse_cluster_peers`, ... the [full list](https://github.com/jpsca/proper-wse/blob/main/docs/INTEGRATION.md#15-prometheus-metrics)) plus the cable's own, `proper_cable_streams` and `proper_cable_users`. Point Prometheus at that port on each machine. It is a loopback port, so the metrics are never exposed to the outside. `app.cable.metrics()` returns the same text, empty where nothing is served.
+For graphs and alerts over time, the cable also exports Prometheus metrics. The process that serves the WebSockets answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`: `proper_cable_connections`, `proper_cable_streams` and `proper_cable_users`. Point Prometheus at that port on each machine. It is a loopback port, so the metrics are never exposed to the outside. `app.cable.metrics()` returns the same text, empty where nothing is served.
 
 ```yaml {title="prometheus.yml"}
 scrape_configs:
@@ -805,49 +801,38 @@ scrape_configs:
 
 ### Slow clients
 
-A client that stops reading - a frozen tab, a very bad network - would make messages pile up in memory. Two mechanisms deal with it:
-
-- **Backpressure.** A `broadcast()` waits, up to `backpressure_timeout`, while the subscribers of its stream are behind. Whoever broadcasts slows down to the pace of delivery, instead of every message arriving later and later. It looks at the average, so one stuck client doesn't slow everyone down.
-- **Closing stuck clients.** A connection with more than `CABLE_MAX_PENDING_BYTES` waiting, that got nothing through in `CABLE_STALL_TIMEOUT` seconds, is closed; so is one with ten times that much waiting, at any speed. `cable.js` reconnects and subscribes again, and gets what it missed. Keep ten times `CABLE_MAX_PENDING_BYTES` below `max_outbound_queue_bytes`, where wse starts dropping broadcasts instead; `cable.js` notices the hole and asks for them too.
+A client that stops reading - a frozen tab, a very bad network - would make messages pile up in memory. So each connection has a limit, `CABLE_MAX_PENDING_BYTES` (4 MB): a client that falls that far behind is closed. `cable.js` reconnects and subscribes again, and gets what it missed. A client that reads slowly but keeps up stays.
 
 ---
 
-## Several machines
+## Several machines: RedisCable
 
-`Cable` serves the WebSockets of one machine. To run the app on several, behind a load balancer, have the cables join wse's *cluster*: a TCP mesh between the servers. Your channels and your code don't change, only the config, which differs per machine in the addresses:
+`Cable` serves the WebSockets of one machine. To run the app on several, behind a load balancer, use `RedisCable`: the same cable, with Redis carrying the broadcasts between machines. Your channels and your code don't change, only the config:
 
 ```python {title="config/channels.py"}
 CABLE = {
-    "type": "proper.channels.Cable",
-    "cluster": {
-        "port": 9999,                                    # where this machine listens to the others
-        "peers": os.getenv("CABLE_PEERS", "").split(),   # "10.0.0.2:9999 10.0.0.3:9999"
-        "tls": {"cert": "/etc/proper/node.pem", "key": "/etc/proper/node.key", "ca": "/etc/proper/ca.pem"},
-    },
+    "type": "proper.channels.RedisCable",
+    "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    "prefix": "myapp:cable:",
 }
 ```
 
-Where machines come and go, give one or more `seeds` and this machine's `addr` instead of `peers`; the cluster learns the rest by gossip:
+It needs the `redis` package (`uv add redis`).
 
-```python
-"cluster": {"port": 9999, "seeds": ["10.0.0.2:9999"], "addr": "10.0.0.1:9999"},
-```
+Each machine's web process serves its own WebSockets, as with `Cable`. A `broadcast()` goes to the subscribers of the process that makes it, if it serves any, and to Redis, from where the web processes of the other machines deliver it to theirs. A process without WebSockets - a task worker, a shell - only publishes to Redis, so nothing is sent over `CABLE_PORT + 1`. `disconnect()` reaches every machine the same way.
 
-Key     | What it is
-------- | -----------------------------
-`port`  | The port of the mesh, on every machine
-`peers` | The other machines, `host:port`
-`seeds` | Machines to ask for the rest, with `addr`, this one's `host:port`
-`tls`   | The PEM files of this machine's certificate and key, and of the CA all of them trust, for mTLS between the servers. Without it the mesh is plain TCP: only on a private network
+Option   | Default                      | What it is
+-------- | ---------------------------- | -----------------------------
+`url`    | `"redis://localhost:6379/0"` | Redis connection URL
+`prefix` | `"proper:cable:"`            | Prefix of its Redis channel; give each app its own if several share one Redis
 
-What you get:
+It takes every option of `Cable` as well.
 
-- A `broadcast()` made on any machine, in any process, reaches the subscribers of all. A process without WebSockets still forwards to the web process of its own machine, which is in the mesh.
-- `disconnect()` closes the user's connections on every machine.
-- Presence is one list: `app.cable.presence(stream)` is the same everywhere, and joins and leaves reach every subscriber.
-- Recovery knows the other machines' broadcasts: each stamps what it publishes with its own epoch, `cable.js` keeps a position per machine, and a machine keeps what the others published to the streams its own clients were subscribed to. A client that reconnects to a machine that had no one on its stream gets `recovered: false`. Sticky sessions on `CABLE_PATH` keep most reconnections on the same machine.
+If the connection to Redis drops, the cable reconnects on its own, waiting longer each time, up to 30 seconds. Meanwhile, each machine's clients still get the broadcasts made on that machine; what other machines publish in that time is lost, and a broadcast that can't reach Redis is lost with a warning.
 
-Limits: backpressure sees only the machine that broadcasts; the mesh carries messages, not state, so a machine that joins late knows nothing of what came before. `app.cable.cluster_info()` lists the machines this one is connected to. wse's own [deployment guide](https://github.com/jpsca/proper-wse/blob/main/docs/DEPLOYMENT.md) shows the certificates and a Docker Compose for three nodes.
+Each machine keeps its own recovery buffers, with their own positions, and its own presence lists. A client that reconnects to the same machine gets what it missed; one the load balancer sends to another machine gets `recovered: false`, and should load the state again. Pin a client to a machine (sticky sessions on `CABLE_PATH`) if that matters.
+
+Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. A list of who is online across machines, or the last value for a client that subscribes late, is something you keep yourself.
 
 ---
 
@@ -992,7 +977,7 @@ The client sends three commands - `subscribe`, `message` (call an action), and `
 
 The `id` of a `message` is optional: with one, the server answers with a `reply`.
 
-The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `reply` and `error`, plus wse's own `ping`:
+The server sends back `confirm_subscription`, `reject_subscription`, `message` (from `send()`), `broadcast` (from `broadcast()`), `reply` and `error`, plus the cable's `ping`:
 
 ```json
 { "type": "confirm_subscription", "channel": "ChatChannel",
@@ -1019,15 +1004,15 @@ The server sends back `confirm_subscription`, `reject_subscription`, `message` (
 
 { "type": "error", "reason": "not_subscribed" }
 
-{ "c": "WSE", "t": "ping", "p": {"server_time": "2026-10-06T12:00:00.000Z"} }
+{ "c": "WSE", "t": "ping", "p": {} }
 
 { "c": "WSE", "t": "presence_join", "p": {"topic": "chat_general",
     "user_id": "7", "data": {"name": "Ana"}} }
 ```
 
-A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. The `c` field is used by wse; ignore it.
+A broadcast is one frame, the same for every subscriber, so it can't carry each subscription's `channel` and `params`. It names the stream instead, and `confirm_subscription` lists the streams of the subscription, so the client delivers a broadcast to every subscription that streams from it. Ignore the `c` field.
 
-The `tp`, `e` and `o` fields are wse's recovery stamp: the stream, the epoch of its buffer (eight hex digits; it changes when the server restarts) and the offset of the broadcast in it. A `subscribe` may carry `positions`, the last `o` the client saw per stream and epoch (a list per stream, because on several machines each stamps its broadcasts with its own epoch; one `{"e", "o"}` is accepted too); the server sends again the broadcasts after them, for the streams the channel streams from, and they may arrive before the confirmation. The confirmation has the current `positions` of the streams (`null` for one without broadcasts yet) and `recovered`: `true` when everything asked for was sent again, `false` when some couldn't be, `null` when nothing was asked. Sending `subscribe` again for an existing subscription, with `positions`, also recovers. Without recovery (`recovery=False`), broadcasts carry no stamp and `recovered` is always `null`.
+The `tp`, `e` and `o` fields are the recovery stamp: the stream, the epoch of its buffer (eight hex digits; it changes when the server restarts) and the offset of the broadcast in it. A `subscribe` may carry `positions`, the last `o` the client saw per stream and epoch (a list per stream, because on several machines each stamps its broadcasts with its own epoch; one `{"e", "o"}` is accepted too); the server sends again the broadcasts after them, for the streams the channel streams from, and they may arrive before the confirmation. The confirmation has the current `positions` of the streams (`null` for one without broadcasts yet) and `recovered`: `true` when everything asked for was sent again, `false` when some couldn't be, `null` when nothing was asked. Sending `subscribe` again for an existing subscription, with `positions`, also recovers. Without recovery (`recovery=False`), broadcasts carry no stamp and `recovered` is always `null`.
 
 Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name, and `"reason": "error"` when `subscribed()` raised an exception; a subscription your own `reject()` turned away has no reason.
 
@@ -1035,9 +1020,9 @@ A `reply` answers the `message` with the same `id`: `status: "ok"` with what the
 
 A `message` without an `id` gets no reply. What would have been an error reply is an `error` frame instead, with the `reason` (and the data of an `ActionError`) at the top level; an action that raises anything else sends nothing. An `error` also reports a command the server couldn't read: `invalid_json`, `invalid_message` (JSON that is not an object), or `unknown_command`.
 
-The confirmation's `presence` lists who is in each stream the channel tracks, `{key: data}`. The `presence_join`, `presence_leave` and `presence_update` frames are wse's too, to every subscriber of the stream (`topic`), when a user's first connection is tracked, their last one leaves, or their data changes; they may arrive before the confirmation of the subscription that caused them.
+The confirmation's `presence` lists who is in each stream the channel tracks, `{key: data}`. The `presence_join`, `presence_leave` and `presence_update` frames go to every subscriber of the stream (`topic`), when a user's first connection is tracked, their last one leaves, or their data changes; they may arrive before the confirmation of the subscription that caused them.
 
-The `ping` is wse's, every `CABLE_PING_INTERVAL` seconds. The client answers it with `{"c": "WSE", "t": "PONG", "p": {}}`; a connection that answers none for `idle_timeout` seconds is closed. `cable.js` also uses it to tell a dead connection from a quiet one: three intervals of silence (and at least 10 seconds), and it reconnects.
+The `ping` is the cable's, every `CABLE_PING_INTERVAL` seconds. The client answers it with `{"c": "WSE", "t": "PONG", "p": {}}`; a connection that answers none for `idle_timeout` seconds is closed. `cable.js` also uses it to tell a dead connection from a quiet one: three intervals of silence (and at least 10 seconds), and it reconnects.
 
 ---
 

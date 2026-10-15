@@ -227,14 +227,99 @@ class TestInMemoryServer:
         assert frames.get_nowait() is None
         assert frames.empty()
 
-    def test_everyone_gets_a_broadcast_to_all(self):
+    def test_a_command_that_comes_while_one_runs_waits_its_turn(self):
         cable = self._cable()
         server = cable.serve_in_memory()
-        first, second = server.connect(), server.connect()
-        server.broadcast_all("ping")
-        assert server.frames(first).get_nowait() == "ping"
-        assert server.frames(second).get_nowait() == "ping"
-        assert server.topic_backlog("nowhere") == (0, 0, 0)
+        conn = cable._connections[server.connect()]
+        order = []
+
+        def command(connection, msg):
+            order.append(("start", msg))
+            if msg == 1:
+                conn.enqueue(2)  # runs after this one ends
+            order.append(("end", msg))
+
+        cable._command = command
+        conn.enqueue(1)
+        assert order == [("start", 1), ("end", 1), ("start", 2), ("end", 2)]
+
+    def test_leaving_a_stream_never_joined_does_nothing(self):
+        cable = self._cable()
+        server = cable.serve_in_memory()
+        conn_id = server.connect()
+        server.unsubscribe_connection(conn_id, ["never"])
+        assert server.is_open(conn_id)
+
+    def test_nothing_is_written_to_a_closed_connection(self):
+        cable = self._cable()
+        server = cable.serve_in_memory()
+        conn_id = server.connect()
+        server.client_close(conn_id)
+        server._write(conn_id, "late")  # a broadcast that raced the close
+        assert server.frames(conn_id).empty()
+
+    def test_a_stream_without_broadcasts_for_a_while_loses_its_buffer(self):
+        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {
+            "type": "proper.channels.Cable", "recovery_ttl": 0,
+        }})
+        server = app.cable.serve_in_memory()
+        server.broadcast_local("old", '{"n": 1}')
+        assert "old" in server._buffers
+        server.broadcast_local("new", '{"n": 1}')  # within a second: no purge yet
+        assert "old" in server._buffers
+        server._next_purge = 0
+        server.broadcast_local("new", '{"n": 2}')
+        assert set(server._buffers) == {"new"}
+
+    def _memory_server(self, **cable):
+        app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {
+            "type": "proper.channels.Cable", **cable,
+        }})
+        return app.cable.serve_in_memory()
+
+    def test_past_the_memory_budget_the_oldest_streams_go(self):
+        server = self._memory_server(recovery_memory_budget=1000)
+        frame = '{"data": "%s"}' % ("x" * 200)
+        for topic in ("a", "b", "c"):
+            server.broadcast_local(topic, frame)
+        server.broadcast_local("a", frame)  # "a" is the newest now
+        assert set(server._buffers) == {"a", "b", "c"}
+        server.broadcast_local("d", frame)  # past 1000: "b" broadcast last the longest ago
+        assert list(server._buffers) == ["c", "a", "d"]
+        assert server._buffers_size == sum(b.size for b in server._buffers.values())
+        assert server._buffers_size <= 1000
+
+    def test_a_stream_alone_past_the_budget_keeps_its_buffer(self):
+        server = self._memory_server(recovery_memory_budget=10)
+        server.broadcast_local("big", '{"data": "%s"}' % ("x" * 100))
+        assert list(server._buffers) == ["big"]
+
+    def test_the_size_follows_the_frames_a_buffer_keeps(self):
+        server = self._memory_server(recovery_buffer_size=2, recovery_ttl=0)
+        for n in range(5):
+            server.broadcast_local("a", '{"n": %d}' % n)
+        (buffer,) = server._buffers.values()
+        assert buffer.size == sum(len(text) for _, text in buffer.frames)
+        assert server._buffers_size == buffer.size
+        server._next_purge = 0
+        server.broadcast_local("b", '{"n": 0}')  # "a" is stale: dropped, and its bytes
+        assert list(server._buffers) == ["b"]
+        assert server._buffers_size == server._buffers["b"].size
+
+    def test_a_stream_nobody_streams_from_is_forgotten(self):
+        cable = self._cable()
+        server = cable.serve_in_memory()
+        conn_id = server.connect()
+        server.subscribe_connection(conn_id, ["a", "b"])
+        server.unsubscribe_connection(conn_id, ["a"])
+        assert set(server._topics) == {"b"}
+        server.client_close(conn_id)
+        assert server._topics == {}
+
+    def test_a_client_closes_once(self):
+        cable = self._cable()
+        server = cable.serve_in_memory()
+        first = server.connect()
         server.client_close(first)
         server.client_close(first)  # once is enough
         assert not server.is_open(first)

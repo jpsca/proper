@@ -1,34 +1,30 @@
-"""The cable: the WebSockets of the channels, served by a Rust engine.
+"""The cable: the WebSockets of the channels, served by Bearings.
 
 `subscribed()`, the actions and `unsubscribed()` of the channels run in
-Python, in worker threads, and decide what each connection streams from.
-Under them:
+Python, in Bearings' worker threads, and decide what each connection streams
+from. Under them:
 
-- The WebSockets are served by wse-server (`wse_server.RustWSEServer`, tokio
-  and tungstenite) on `CABLE_PORT`, inside the web process. No second process,
-  and a `broadcast()` made by a controller needs no forwarding.
-- A stream is a wse topic. `stream_from()` subscribes the connection to it,
-  and `broadcast()` hands the encoded frame to wse, which writes it to every
-  subscriber without Python: one frame, built once.
+- The WebSockets are served by Bearings (`bearings.Server`, the same server
+  as the app's HTTP) on `CABLE_PORT`, inside the web process. No second
+  process, and a `broadcast()` made by a controller needs no forwarding.
+- A stream is a Bearings topic. `stream_from()` subscribes the connection to
+  it, and `broadcast()` publishes the encoded frame, which Bearings writes to
+  every subscriber without Python: one frame, built once.
 - Because a broadcast is the same text for every subscriber, its frame names
   the stream, not the channel and params of each subscription:
   `{"c": "P", "type": "broadcast", "stream": ..., "data": ...}`. The
   confirmation of a subscription lists its streams, so the client routes by
   stream. Messages sent with `send()` keep their channel and params.
+- Recovery (the last broadcasts of each stream, for a client that
+  reconnects) and presence (who is in each stream) are kept in Python.
 
 ```python
 CABLE = {"type": "proper.channels.Cable"}   # serves on CABLE_PORT
 ```
 
 Without the channels addon, `CABLE = {}` is a `BaseCable` (`base.py`): no
-WebSockets, and a broadcast reaches no one.
-
-On several machines, the web process of each joins wse's cluster, a TCP
-mesh between the servers (`cluster` option): a broadcast made on one
-machine reaches the subscribers of all, presence is one list, and the
-recovery buffers know the other machines' broadcasts. `disconnect()`
-reaches every machine through a topic the servers themselves listen to
-(`CONTROL_TOPIC`, `subscribe_node`).
+WebSockets, and a broadcast reaches no one. On several machines, use
+`RedisCable` (`redis_cable.py`).
 
 `proper run` starts the server, in its web process, before it serves the
 first request (`start_server()`; call it yourself under another server).
@@ -37,13 +33,11 @@ worker, a shell) has no WebSockets: its broadcasts and `disconnect()`s are
 forwarded to that one, signed with the app's keys, over HTTP on
 `127.0.0.1:forward_port` (`CABLE_PORT + 1` unless given).
 
-wse pings every connection each `CABLE_PING_INTERVAL` seconds
+The cable pings every connection each `CABLE_PING_INTERVAL` seconds
 (`{"c": "WSE", "t": "ping"}`), which `cable.js` answers and uses to notice
 a dead connection; one that answers no ping for `idle_timeout` seconds (60)
 is closed. Handshakes from other sites' pages are refused (see
-`origin_allowed`). Requires `proper-wse` (`uv add proper-wse`), our fork
-of wse-server, with wheels for free-threaded Python; it imports as
-`wse_server`, and the original wse-server is refused.
+`origin_allowed`).
 """
 import contextvars
 import json
@@ -51,14 +45,14 @@ import os
 import queue
 import re
 import secrets
-import socket
 import threading
 import time
 import typing as t
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from bearings import Server, WebSocketHandler
 
 from ..global_context import current
 from ..helpers import jsonplus, logger
@@ -93,64 +87,14 @@ def _subscription_key(channel_name: str, params: dict) -> str:
 
 
 _EPOCH = re.compile(r"^[0-9a-f]{8}$")
-# The topic the servers of a cluster listen to themselves, for what one
-# machine tells the others (`disconnect()`).
-CONTROL_TOPIC = "proper:cable:control"
-# How long `start_server()` waits for wse to listen on `CABLE_PORT`.
-START_TIMEOUT = 10.0
-
-
-def _wse_gave_up(server: t.Any) -> bool:
-    """Whether wse's thread ended without listening (it could not bind its
-    port). wse has no call that says so; but the thread owns the receiving
-    end of wse's command channel, so once it has ended a command fails with
-    "Channel closed". `disconnect()` of an id no connection has is a command
-    that does nothing, whether wse is listening yet or not."""
-    try:
-        server.disconnect("")
-    except RuntimeError:
-        return True
-    return False
-
-
-def _wse_settled(server: t.Any) -> bool:
-    """Wait until wse listens (`True`) or its thread ends without listening
-    (`False`). Until one or the other, `stop()` does nothing: it stops only a
-    server that `is_running()`, and that turns true once wse has bound its
-    port."""
-    while not server.is_running():
-        if _wse_gave_up(server):
-            return False
-        time.sleep(0.002)
-    return True
-
-
-def _bind_error(host: str, port: int) -> OSError | None:
-    """Why `host:port` can't be listened on, found by binding it as wse
-    does (each address the name gives, until one works), or `None` if it
-    can be now."""
-    error: OSError | None = None
-    try:
-        addresses = socket.getaddrinfo(
-            host, port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE
-        )
-    except OSError as lookup_error:
-        return lookup_error
-    for family, _, _, _, address in addresses:
-        try:
-            socket.create_server(address, family=family).close()
-            return None
-        except OSError as bind_error:
-            error = bind_error
-    return error
 
 
 def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
     """The positions a `subscribe` command carries, `{stream: [{"e": epoch,
     "o": offset}, ...]}` (or one `{"e", "o"}`), as `{stream: [(epoch,
-    offset), ...]}`; the malformed ones left out. The epoch is wse's: eight
-    hex digits. Several per stream, because in a cluster each machine
-    stamps what it publishes with its own epoch."""
+    offset), ...]}`; the malformed ones left out. The epoch is eight hex
+    digits. Several per stream: the server's buffer of a stream gets a new
+    epoch when it starts again, and the client may have seen both."""
     positions: dict[str, list[tuple[str, int]]] = {}
     if not isinstance(value, dict):
         return positions
@@ -170,23 +114,24 @@ def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
 
 
 def _position(topic_result: dict) -> dict | None:
-    """A stream's position as the client gets it, from what wse returned."""
+    """A stream's position as the client gets it, from what the server returned."""
     if topic_result.get("epoch") is None:
         return None
     return {"e": topic_result["epoch"], "o": topic_result["offset"]}
 
 
 def _stamp(frame: str, topic: str, epoch: str, offset: int) -> str:
-    """Stamp a frame as wse does when recovery is on: the topic, the epoch
-    of its buffer and the offset of the message, first."""
+    """Stamp a frame when recovery is on: the topic, the epoch of its
+    buffer and the offset of the message, first."""
     return '{"tp": %s, "e": "%s", "o": %d, %s' % (jsonplus.dumps(topic), epoch, offset, frame[1:])
 
 
 def _handshake_request(app: "App", details: dict) -> t.Any:
     """The handshake as a request, for the channels: its path and query
     string, its `Cookie`, `Authorization` and `X-Forwarded-For` headers, and
-    the client's address (`request.remote_ip`). `details` is what wse gives
-    with `handshake_details`.
+    the client's address (`request.remote_ip`). `details` is what
+    `BearingsServer.opened()` takes from the handshake, or what a test gives
+    `InMemoryServer.connect()`.
 
     A `remote_addr` that isn't `ip:port` is still the peer, checked against
     `TRUSTED_PROXIES`. Without `remote_addr` (the in-memory server's
@@ -216,8 +161,8 @@ def _handshake_request(app: "App", details: dict) -> t.Any:
     )
 
 
-class WseConnection:
-    """One WebSocket of the wse server, as the channels see it."""
+class Connection:
+    """One WebSocket of the cable, as the channels see it."""
 
     def __init__(self, cable: "Cable", conn_id: str, details: dict) -> None:
         self.cable = cable
@@ -353,97 +298,93 @@ class _InlineExecutor:
 
 
 class _Buffer:
-    """The recovery buffer of a topic, as `InMemoryServer` keeps it."""
+    """The recovery buffer of a stream."""
 
-    __slots__ = ("epoch", "offset", "frames")
+    __slots__ = ("epoch", "offset", "frames", "last", "size")
 
     def __init__(self, size: int) -> None:
         self.epoch = secrets.token_hex(4)
         self.offset = -1  # of the last message
         self.frames: deque[tuple[int, str]] = deque(maxlen=size)
+        self.last = time.monotonic()  # when the last message came
+        self.size = 0  # the length of its frames
 
 
 class _Present:
-    """A user present in a topic, as `InMemoryServer` keeps it."""
+    """A user present in a stream."""
 
     __slots__ = ("data", "connections")
 
     def __init__(self, data: dict) -> None:
         self.data = data
-        self.connections: set[str] = set()
+        self.connections: set[t.Any] = set()
 
 
-class InMemoryServer:
-    """The parts of `wse_server.RustWSEServer` that `Cable` uses, in
-    memory, for tests (`Cable.serve_in_memory()`). A connection is a queue
-    of the text frames written to it; `None` marks that the server closed it.
-    The client side (`connect`, `client_send`, `client_close`, `frames`) is
-    what `TestClient.websocket()` drives."""
+class _Streams:
+    """What a cable's server keeps in Python: who streams from what, the
+    recovery buffers and presence. Writing to the connections is the
+    transport's (`_write`, `_fanout`, `_joined`, `_left`): in memory for
+    tests (`InMemoryServer`), or Bearings (`BearingsServer`)."""
 
     def __init__(self, cable: "Cable") -> None:
         self.cable = cable
-        self._lock = threading.Lock()
-        # Kept after a connection closes, so its client can read the rest.
-        self._frames: dict[str, "queue.Queue[str | None]"] = {}
-        self._open: set[str] = set()
-        self._topics: dict[str, set[str]] = {}
-        self._count = 0
-        # Recovery, as wse keeps it: per topic, the epoch of its buffer, the
-        # offset of the last message, and the last `buffer_size` frames.
+        # Reentrant: a recovery subscribes and writes under it, so that no
+        # broadcast to the stream comes in between.
+        self._lock = threading.RLock()
+        self._open: set[t.Any] = set()
+        self._topics: dict[str, set[t.Any]] = {}
+        # Recovery: per stream, the epoch of its buffer, the offset of the
+        # last message, and the last `recovery_buffer_size` frames.
         self.recovery_enabled = cable._recovery
-        self.buffer_size = int(cable._server_options.get("recovery_buffer_size") or 128)
+        self.buffer_size = cable._recovery_buffer_size
+        self.buffer_ttl = cable._recovery_ttl
+        self.memory_budget = cable._recovery_memory_budget
+        # Ordered by the last broadcast, oldest first: the first to drop
         self._buffers: dict[str, _Buffer] = {}
-        # Presence, as wse keeps it: a connection's user, and per topic and
-        # user, their data and connections.
+        self._buffers_size = 0
+        self._next_purge = 0.0
+        # Presence: a connection's user, and per stream and user, their
+        # data and connections.
         self.presence_enabled = cable._presence
-        self._users: dict[str, str] = {}
+        self._users: dict[t.Any, str] = {}
         self._presence: dict[str, dict[str, _Present]] = {}
 
-    # The client side
+    # The transport
 
-    def connect(self, details: dict | None = None) -> str:
-        """A client connects. `details` is the handshake as wse reports it
-        with `handshake_details`: `cookies`, `authorization`, `path` (with
-        the query string), `remote_addr` and `forwarded_for`."""
+    def _write(self, conn_id: t.Any, text: str) -> None:  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def _fanout(self, topic: str, text: str) -> None:
+        """Write `text` to every connection that streams from `topic`."""
         with self._lock:
-            self._count += 1
-            conn_id = f"memory-{self._count}"
-            self._frames[conn_id] = queue.Queue()
-            self._open.add(conn_id)
-        self.cable._handle_event("connect", conn_id, details or {})
-        return conn_id
+            conn_ids = list(self._topics.get(topic, ()))
+        for conn_id in conn_ids:
+            self._write(conn_id, text)
 
-    def client_send(self, conn_id: str, text: str) -> None:
-        """A text frame from the client, sorted as wse sorts it."""
-        try:
-            self.cable._handle_event("msg", conn_id, json.loads(text))
-        except ValueError:
-            self.cable._handle_event("raw", conn_id, text)
+    def _joined(self, conn_id: t.Any, topic: str) -> None:
+        """The connection streams from `topic` now."""
 
-    def client_close(self, conn_id: str) -> None:
-        if self._close(conn_id):
-            self.cable._handle_event("disconnect", conn_id, "")
-
-    def frames(self, conn_id: str) -> "queue.Queue[str | None]":
-        return self._frames[conn_id]
-
-    def is_open(self, conn_id: str) -> bool:
-        return conn_id in self._open
+    def _left(self, conn_id: t.Any, topic: str) -> None:
+        """The connection no longer streams from `topic`."""
 
     # What Cable calls
 
-    def send(self, conn_id: str, text: str) -> None:
+    def send(self, conn_id: t.Any, text: str) -> None:
         if conn_id in self._open:
-            self._frames[conn_id].put(text)
+            self._write(conn_id, text)
 
     def subscribe_connection(
-        self, conn_id: str, topics: list[str], presence_data: dict | None = None
+        self, conn_id: t.Any, topics: list[str], presence_data: dict | None = None
     ) -> None:
-        with self._lock:
-            for topic in topics:
-                self._topics.setdefault(topic, set()).add(conn_id)
+        for topic in topics:
+            with self._lock:
+                conn_ids = self._topics.setdefault(topic, set())
+                new = conn_id not in conn_ids
+                conn_ids.add(conn_id)
+            if new:
+                self._joined(conn_id, topic)
         # With presence data, the connection is listed in the topics, as the
-        # user `set_connection_user` gave it; wse skips one without a user.
+        # user `set_connection_user` gave it; one without a user is not.
         user = self._users.get(conn_id) if self.presence_enabled else None
         if presence_data is None or user is None:
             return
@@ -458,19 +399,25 @@ class InMemoryServer:
             if first:
                 self._presence_frame("presence_join", topic, user, presence_data)
 
-    def unsubscribe_connection(self, conn_id: str, topics: list[str]) -> None:
-        with self._lock:
-            for topic in topics:
-                self._topics.get(topic, set()).discard(conn_id)
+    def unsubscribe_connection(self, conn_id: t.Any, topics: list[str]) -> None:
+        for topic in topics:
+            with self._lock:
+                conn_ids = self._topics.get(topic, set())
+                was = conn_id in conn_ids
+                conn_ids.discard(conn_id)
+                if was and not conn_ids:
+                    del self._topics[topic]
+            if was:
+                self._left(conn_id, topic)
         self.untrack_presence(conn_id, topics)
 
     # Presence (`presence_enabled`)
 
-    def set_connection_user(self, conn_id: str, user_id: str) -> None:
+    def set_connection_user(self, conn_id: t.Any, user_id: str) -> None:
         self._need_presence()
         self._users[conn_id] = user_id
 
-    def untrack_presence(self, conn_id: str, topics: list[str]) -> None:
+    def untrack_presence(self, conn_id: t.Any, topics: list[str]) -> None:
         self._need_presence()
         for topic in topics:
             with self._lock:
@@ -485,11 +432,11 @@ class InMemoryServer:
             for user, data in gone:
                 self._presence_frame("presence_leave", topic, user, data)
 
-    def update_presence(self, conn_id: str, data: dict) -> None:
+    def update_presence(self, conn_id: t.Any, data: dict) -> None:
         self._need_presence()
         user = self._users.get(conn_id)
         if user is None:
-            raise RuntimeError("Failed to update presence data (size limit or unknown connection)")
+            raise RuntimeError("Failed to update presence data (unknown connection)")
         for topic, members in list(self._presence.items()):
             if user in members and conn_id in members[user].connections:
                 members[user].data = data
@@ -515,112 +462,305 @@ class InMemoryServer:
             raise RuntimeError("Presence is not enabled")
 
     def _presence_frame(self, kind: str, topic: str, user: str, data: dict) -> None:
-        """A presence event, to the subscribers of the topic, as wse writes it."""
-        text = jsonplus.dumps({
+        """A presence event, to the subscribers of the stream, as
+        `cable.js` reads it."""
+        self._fanout(topic, jsonplus.dumps({
             "c": "WSE", "t": kind, "p": {"topic": topic, "user_id": user, "data": data},
-        })
-        with self._lock:
-            conn_ids = list(self._topics.get(topic, ()))
-        for conn_id in conn_ids:
-            self.send(conn_id, text)
+        }))
 
     def broadcast_local(self, topic: str, text: str) -> None:
+        # Stamped and handed over under the lock: the offsets of a stream
+        # reach its subscribers in order.
         with self._lock:
-            conn_ids = list(self._topics.get(topic, ()))
             if self.recovery_enabled:
-                buffer = self._buffers.get(topic)
+                self._purge()
+                buffer = self._buffers.pop(topic, None)  # to the end: the newest
                 if buffer is None:
-                    buffer = self._buffers[topic] = _Buffer(self.buffer_size)
+                    buffer = _Buffer(self.buffer_size)
+                self._buffers[topic] = buffer
+                buffer.last = time.monotonic()
                 buffer.offset += 1
                 text = _stamp(text, topic, buffer.epoch, buffer.offset)
+                if len(buffer.frames) == buffer.frames.maxlen:  # the oldest goes
+                    self._resize(buffer, -len(buffer.frames[0][1]))
                 buffer.frames.append((buffer.offset, text))
-        for conn_id in conn_ids:
-            self.send(conn_id, text)
+                self._resize(buffer, len(text))
+                self._keep_to_budget(topic)
+            self._fanout(topic, text)
+
+    def _purge(self) -> None:
+        """Drop the buffers of the streams with no broadcast for `buffer_ttl`
+        seconds; a client that comes back to one gets `recovered: false`.
+        At most once a second, under the lock."""
+        now = time.monotonic()
+        if now < self._next_purge:
+            return
+        self._next_purge = now + 1
+        stale = now - self.buffer_ttl
+        for topic in [topic for topic, buffer in self._buffers.items() if buffer.last < stale]:
+            self._drop_buffer(topic)
+
+    def _resize(self, buffer: _Buffer, change: int) -> None:
+        buffer.size += change
+        self._buffers_size += change
+
+    def _drop_buffer(self, topic: str) -> None:
+        self._buffers_size -= self._buffers.pop(topic).size
+
+    def _keep_to_budget(self, topic: str) -> None:
+        """Past `memory_budget`, drop the buffers of the streams whose last
+        broadcast is the oldest, but never the one just broadcast to."""
+        while self._buffers_size > self.memory_budget:
+            oldest = next(iter(self._buffers))
+            if oldest == topic:
+                return
+            self._drop_buffer(oldest)
 
     def subscribe_with_recovery(
-        self, conn_id: str, topics: list[str], recover: bool = False,
+        self, conn_id: t.Any, topics: list[str], recover: bool = False,
         epoch: str | None = None, offset: int | None = None,
     ) -> dict:
         """Subscribe, and with `recover`, write to the connection the frames
-        of the topics after `offset` in `epoch`. Returns, as wse does, the
-        position of each topic and whether it was recovered."""
-        self.subscribe_connection(conn_id, topics)
+        of the topics after `offset` in `epoch`. Returns the position of each
+        topic and whether it was recovered."""
         result: dict[str, t.Any] = {"recovered": recover and bool(topics), "topics": {}}
-        for topic in topics:
-            with self._lock:
+        with self._lock:  # no broadcast between the missed frames and the next
+            self.subscribe_connection(conn_id, topics)
+            for topic in topics:
                 buffer = self._buffers.get(topic)
-                frames = list(buffer.frames) if buffer else []
-            recovered = False
-            if buffer is None:
-                position: dict[str, t.Any] = {"epoch": None, "offset": 0, "recoverable": False}
-            else:
-                position = {"epoch": buffer.epoch, "offset": buffer.offset, "recoverable": True}
-                oldest = frames[0][0]  # a buffer is made with its first frame
-                if recover and epoch == buffer.epoch and offset is not None and offset >= oldest - 1:
-                    for frame_offset, text in frames:
-                        if frame_offset > offset:
-                            self.send(conn_id, text)
-                    recovered = True
-            if not recovered:
-                result["recovered"] = False
-            result["topics"][topic] = {**position, "recovered": recovered}
+                recovered = False
+                if buffer is None:
+                    position: dict[str, t.Any] = {"epoch": None, "offset": 0, "recoverable": False}
+                else:
+                    frames = list(buffer.frames)
+                    position = {"epoch": buffer.epoch, "offset": buffer.offset, "recoverable": True}
+                    oldest = frames[0][0]  # a buffer is made with its first frame
+                    if (
+                        recover and epoch == buffer.epoch and offset is not None
+                        and offset >= oldest - 1
+                    ):
+                        for frame_offset, text in frames:
+                            if frame_offset > offset:
+                                self.send(conn_id, text)
+                        recovered = True
+                if not recovered:
+                    result["recovered"] = False
+                result["topics"][topic] = {**position, "recovered": recovered}
         return result
-
-    def broadcast_all(self, text: str) -> None:
-        for conn_id in list(self._open):
-            self.send(conn_id, text)
-
-    # A cluster of one, for tests of a cable configured with one
-    broadcast = broadcast_local
-
-    def cluster_info(self) -> list:
-        return []
-
-    def prometheus_metrics(self) -> str:
-        return (
-            "# HELP wse_connections Current active WebSocket connections\n"
-            "# TYPE wse_connections gauge\n"
-            f"wse_connections {len(self._open)}\n"
-        )
 
     def health_snapshot(self) -> dict:
         with self._lock:
             return {
                 "connections": len(self._open),
-                "inbound_queue_depth": 0,
-                "inbound_dropped": 0,
                 "recovery_enabled": self.recovery_enabled,
                 "recovery_topic_count": len(self._buffers),
+                "recovery_bytes": self._buffers_size,
                 "presence_enabled": self.presence_enabled,
                 "presence_topics": len(self._presence),
-                "cluster_connected": False,
-                "cluster_peer_count": 0,
             }
 
-    def disconnect(self, conn_id: str) -> None:
-        """The server closes a connection; the client sees it end."""
-        if self._close(conn_id, notify=True):
-            self.cable._handle_event("disconnect", conn_id, "")
+    def prometheus_metrics(self) -> str:
+        return (
+            "# HELP proper_cable_connections WebSockets open\n"
+            "# TYPE proper_cable_connections gauge\n"
+            f"proper_cable_connections {len(self._open)}\n"
+        )
 
-    def topic_backlog(self, topic: str) -> tuple[int, int, int]:
-        with self._lock:
-            return (len(self._topics.get(topic, ())), 0, 0)  # delivered at once
-
-    def _close(self, conn_id: str, notify: bool = False) -> bool:
+    def _forget(self, conn_id: t.Any) -> bool:
+        """The connection ended: out of every stream and presence list.
+        False if it had already."""
         with self._lock:
             if conn_id not in self._open:
                 return False
             self._open.discard(conn_id)
-            for conn_ids in self._topics.values():
+            for topic, conn_ids in list(self._topics.items()):
                 conn_ids.discard(conn_id)
+                if not conn_ids:
+                    del self._topics[topic]
             tracked = [topic for topic, members in self._presence.items()
                        if any(conn_id in e.connections for e in members.values())]
         if tracked:
             self.untrack_presence(conn_id, tracked)
         self._users.pop(conn_id, None)
-        if notify:
-            self._frames[conn_id].put(None)
         return True
+
+
+class InMemoryServer(_Streams):
+    """The cable's server in memory, for tests (`Cable.serve_in_memory()`).
+    A connection is a queue of the text frames written to it; `None` marks
+    that the server closed it. The client side (`connect`, `client_send`,
+    `client_close`, `frames`) is what `TestClient.websocket()` drives."""
+
+    def __init__(self, cable: "Cable") -> None:
+        super().__init__(cable)
+        # Kept after a connection closes, so its client can read the rest.
+        self._frames: dict[str, "queue.Queue[str | None]"] = {}
+        self._count = 0
+
+    # The client side
+
+    def connect(self, details: dict | None = None) -> str:
+        """A client connects. `details` is its handshake: `cookies`,
+        `authorization`, `path` (with the query string), `remote_addr` and
+        `forwarded_for`."""
+        with self._lock:
+            self._count += 1
+            conn_id = f"memory-{self._count}"
+            self._frames[conn_id] = queue.Queue()
+            self._open.add(conn_id)
+        self.cable._handle_event("connect", conn_id, details or {})
+        return conn_id
+
+    def client_send(self, conn_id: str, text: str) -> None:
+        """A text frame from the client."""
+        self.cable._handle_event("raw", conn_id, text)
+
+    def client_close(self, conn_id: str) -> None:
+        if self._forget(conn_id):
+            self.cable._handle_event("disconnect", conn_id, "")
+
+    def frames(self, conn_id: str) -> "queue.Queue[str | None]":
+        return self._frames[conn_id]
+
+    def is_open(self, conn_id: str) -> bool:
+        return conn_id in self._open
+
+    # The transport
+
+    def _write(self, conn_id: str, text: str) -> None:
+        if conn_id in self._open:
+            self._frames[conn_id].put(text)
+
+    def disconnect(self, conn_id: str) -> None:
+        """The server closes a connection; the client sees it end."""
+        if self._forget(conn_id):
+            self._frames[conn_id].put(None)
+            self.cable._handle_event("disconnect", conn_id, "")
+
+
+# What `cable.js` gets every `CABLE_PING_INTERVAL` seconds, and answers.
+PING = '{"c": "WSE", "t": "ping", "p": {}}'
+PONG = '{"c":"WSE","t":"PONG","p":{}}'
+# The topic every connection is subscribed to, for the pings; a stream's
+# topic is its name in hex, after an "s" (`_topic`), so it can't be this.
+ALL = "all"
+# Close code for a connection that fell too far behind (RFC 6455: "try again
+# later"): `cable.js` reconnects, and recovers what it missed.
+TOO_FAR_BEHIND = 1013
+
+
+def _topic(stream: str) -> str:
+    """Bearings' topic for a stream: any text, as one level without
+    Bearings' wildcards."""
+    return "s" + stream.encode().hex()
+
+
+class BearingsServer(_Streams, WebSocketHandler):
+    """The cable's server: the WebSockets on Bearings, on `CABLE_PORT`.
+
+    A broadcast is one publish to the stream's topic: Bearings encodes the
+    frame once and writes it to every subscriber, on its event loops,
+    without Python. The events of each connection come one at a time, in
+    order, on Bearings' worker threads, which also run the channels.
+    """
+
+    def __init__(self, cable: "Cable", port: int) -> None:
+        super().__init__(cable)
+        config = cable.app.config
+        self.port = port
+        self.ping_interval = float(config.get("CABLE_PING_INTERVAL") or 3)
+        high_water = int(config.get("CABLE_MAX_PENDING_BYTES") or 4 * 1024 * 1024)
+        self.server = Server(
+            _no_http,
+            host=cable._host,
+            port=port,
+            loops=cable._loops,
+            workers=cable._workers,
+            max_connections=cable._max_connections,
+            websocket=self,
+            ws_path=config.get("CABLE_PATH", "/cable"),
+            origins=allowed_origins(config),
+            any_port_origin=bool(config.get("DEBUG")),
+            # The pings are the application's own (`PING`), which `cable.js`
+            # answers; a client that answers none for `idle_timeout` is closed.
+            ping_interval=0,
+            idle_timeout=cable._idle_timeout,
+            send_high_water=high_water,
+            close_on_backpressure=True,
+            ignore_text=PONG,
+        )
+        self._stopping = threading.Event()
+        self._pinger: threading.Thread | None = None
+
+    def start(self) -> None:
+        self.server.start()
+        self._stopping.clear()
+        self._pinger = threading.Thread(target=self._ping, name="proper-cable-ping", daemon=True)
+        self._pinger.start()
+
+    def stop(self, grace: float) -> None:
+        self._stopping.set()
+        t.cast(threading.Thread, self._pinger).join()
+        self._pinger = None
+        self.server.stop(grace)
+        self.server.wait()
+
+    def _ping(self) -> None:
+        while not self._stopping.wait(self.ping_interval):
+            self.server.publish(ALL, PING)
+
+    # Bearings' events
+
+    def opened(self, ws: int, environ: dict) -> None:
+        with self._lock:
+            self._open.add(ws)
+        self.server.subscribe(ws, ALL)
+        address, port = environ.get("REMOTE_ADDR", ""), environ.get("REMOTE_PORT", "")
+        if address and ":" in address:
+            address = f"[{address}]"
+        self.cable._handle_event("connect", ws, {
+            "path": environ.get("RAW_URI") or "/",
+            "cookies": environ.get("HTTP_COOKIE"),
+            "authorization": environ.get("HTTP_AUTHORIZATION"),
+            "forwarded_for": environ.get("HTTP_X_FORWARDED_FOR"),
+            "remote_addr": f"{address}:{port}" if address else "",
+        })
+
+    def received(self, ws: int, message: str | bytes) -> None:
+        if isinstance(message, bytes):
+            message = message.decode(errors="replace")
+        self.cable._handle_event("raw", ws, message)
+
+    def closed(self, ws: int, code: int, reason: str) -> None:
+        self._forget(ws)
+        self.cable._handle_event("disconnect", ws, "")
+
+    # The transport
+
+    def _write(self, conn_id: int, text: str) -> None:
+        if not self.server.ws_send(conn_id, text) and conn_id in self._open:
+            # Too far behind to take more: closed, so it reconnects and
+            # recovers instead of missing messages without knowing.
+            self.server.ws_close(conn_id, TOO_FAR_BEHIND, "too far behind")
+
+    def _fanout(self, topic: str, text: str) -> None:
+        self.server.publish(_topic(topic), text)
+
+    def _joined(self, conn_id: int, topic: str) -> None:
+        self.server.subscribe(conn_id, _topic(topic))
+
+    def _left(self, conn_id: int, topic: str) -> None:
+        self.server.unsubscribe(conn_id, _topic(topic))
+
+    def disconnect(self, conn_id: int) -> None:
+        self.server.ws_close(conn_id)
+
+
+
+def _no_http(environ: dict, start_response: t.Callable) -> list[bytes]:
+    """The cable's port answers only WebSockets on `CABLE_PATH`."""
+    start_response("404 Not Found", [("Content-Type", "text/plain")])
+    return [b"Not Found\n"]
 
 
 class Cable(BaseCable):
@@ -628,6 +768,9 @@ class Cable(BaseCable):
 
     # `proper run` starts it, in its web process (`start_server()`).
     serves_websockets = True
+    # Other processes forward their broadcasts here over HTTP (RedisCable
+    # doesn't: they publish to Redis).
+    takes_forwarded = True
 
     def __init__(
         self,
@@ -635,75 +778,61 @@ class Cable(BaseCable):
         port: int | None = None,
         host: str = "0.0.0.0",
         forward_port: int | None = None,
+        loops: int = 1,
         workers: int = 4,
         max_connections: int = 100_000,
-        max_outbound_queue_bytes: int = 64 * 1024 * 1024,
-        backpressure_bytes: int = 128 * 1024,
-        backpressure_timeout: float = 1.0,
+        idle_timeout: float = 60,
         recovery: bool = True,
+        recovery_buffer_size: int = 128,
+        recovery_ttl: float = 300,
+        recovery_memory_budget: int = 256 * 1024 * 1024,
         presence: bool = True,
-        cluster: dict | None = None,
-        **server_options: t.Any,
+        shutdown_grace: float = 1,
     ) -> None:
-        """`recovery`: keep the last broadcasts of each stream, so a client
-        that reconnects gets the ones it missed (see `_subscribe`). wse's
-        `recovery_buffer_size` (128 per stream), `recovery_ttl` (300 seconds)
-        and `recovery_memory_budget` (256 MB) size the buffers.
+        """`loops`: Bearings' event loops, the threads that read and write
+        the WebSockets. `workers`: the threads that run the channels.
 
-        `presence`: keep who is in each stream (`Channel.track()`). wse's
-        `presence_max_data_size` (4 KB per user) and `presence_max_members`
-        (0: no limit) bound it.
+        `idle_timeout`: seconds; a connection that answers no ping for that
+        long is closed (`cable.js` answers them).
 
-        `cluster`: join the servers of the other machines (see the module):
-        `{"port": 9999, "peers": ["10.0.0.2:9999", ...]}`, or `"seeds"` and
-        `"addr"` (this machine's `host:port`) for discovery by gossip, and
-        `"tls": {"cert", "key", "ca"}` for mTLS between them (without it,
-        plain TCP: only on a private network).
+        `recovery`: keep the last `recovery_buffer_size` broadcasts of each
+        stream, so a client that reconnects gets the ones it missed (see
+        `_subscribe`). A stream's are dropped after `recovery_ttl` seconds
+        without a broadcast, and, past `recovery_memory_budget` bytes for all
+        of them, those of the streams with the oldest last broadcast.
 
-        `max_outbound_queue_bytes` is how far behind a connection can fall
-        before wse drops broadcasts for it. The default is four times wse's:
-        a broadcast frame is shared by every connection it goes to, so a
-        backlog costs memory once, not once per connection.
+        `presence`: keep who is in each stream (`Channel.track()`).
 
-        `backpressure_bytes`: a broadcast waits while the subscribers of its
-        stream have more than this many bytes each, on average, queued and
-        not yet written; so whoever publishes (a request, a channel action)
-        slows down to the pace of delivery, instead of a backlog growing and
-        every message arriving later. The average, so that one stalled client
-        doesn't hold everyone back. It waits `backpressure_timeout` seconds at
-        most per broadcast. A forwarded broadcast is answered once delivered;
-        one answered later than the sender waits (a batch of them, a busy
-        machine) is sent again, and the copy is ignored. `0` never waits."""
+        `shutdown_grace`: seconds the WebSockets have to close when the
+        server stops; the ones still open then are cut."""
         super().__init__()
         self.app: "App" = None  # ty: ignore[invalid-assignment] - set by `bind()`
         self.server: t.Any = None
         self._host = host
         self._port = port
         self._forward_port = forward_port
-        self._max_connections = max_connections
-        self._recovery = recovery
-        self._presence = presence
-        self._cluster = cluster
-        self._server_options = {
-            "max_outbound_queue_bytes": max_outbound_queue_bytes,
-            "recovery_enabled": recovery, "presence_enabled": presence, **server_options,
-        }
+        self._loops = loops
         self._workers = workers
-        self._backpressure_bytes = backpressure_bytes
-        self._backpressure_timeout = backpressure_timeout
+        self._max_connections = max_connections
+        self._idle_timeout = idle_timeout
+        self._recovery = recovery
+        self._recovery_buffer_size = recovery_buffer_size
+        self._recovery_ttl = recovery_ttl
+        self._recovery_memory_budget = recovery_memory_budget
+        self._presence = presence
+        self._shutdown_grace = shutdown_grace
         self._start_lock = threading.Lock()
         # The process that started the server; a forked copy of it has none.
         self._owner_pid: int | None = None
         self._receiver: _ForwardedServer | None = None
-        self._stopping = threading.Event()
-        self._watcher: threading.Thread | None = None
-        self._connections: dict[str, WseConnection] = {}  # type: ignore[assignment]
-        self._users: dict[t.Any, set[WseConnection]] = {}
+        self._connections: dict[t.Any, Connection] = {}  # type: ignore[assignment]
+        self._users: dict[t.Any, set[Connection]] = {}
         # (conn_id, stream) -> how many channels of the connection stream it
-        self._stream_refs: dict[tuple[str, str], int] = {}
-        self._executor: ThreadPoolExecutor = None  # ty: ignore[invalid-assignment] - set by `start_server()`
-        self._draining = False
-        self._drain_thread: threading.Thread | None = None
+        self._stream_refs: dict[tuple[t.Any, str], int] = {}
+        # Runs a connection's commands: in the thread that brings them, which
+        # is one of Bearings' workers (in order, one at a time per connection)
+        # or, in memory, the test's.
+        self._executor = _InlineExecutor()
 
     def bind(self, app: "App") -> None:
         self.app = app
@@ -731,107 +860,43 @@ class Cable(BaseCable):
 
     def start_server(self) -> None:
         """Serve the WebSockets from this process, and take the broadcasts
-        the other processes forward. `proper run` calls it."""
+        the other processes forward. Returns once both listen; raises
+        `OSError`, with the reason, when a port can't be listened on.
+        `proper run` calls it."""
         with self._start_lock:
             if self.serving:
                 return
             port = self._ws_port()
             if not port:
                 raise RuntimeError("Cable needs a port: set CABLE_PORT")
-            # Bound first: a port already taken fails here, before anything runs.
-            receiver = _ForwardedServer(
-                ("127.0.0.1", self._forward_port or port + 1), _ForwardedHandler
-            )
-            receiver.cable = self
+            receiver = None
+            if self.takes_forwarded:  # bound first: a port taken fails before the rest
+                receiver = _ForwardedServer(
+                    ("127.0.0.1", self._forward_port or port + 1), _ForwardedHandler
+                )
+                receiver.cable = self
+            server = BearingsServer(self, port)
             try:
-                server = self._new_server(port)
+                server.start()
             except BaseException:
-                receiver.server_close()
+                if receiver is not None:
+                    receiver.server_close()
                 raise
-            server.enable_drain_mode()
-            server.start()
-            try:
-                self._wait_until_listening(server, port)
-                if self._cluster:
-                    self._join_cluster(server)
-            except BaseException:
-                if _wse_settled(server):  # what is listening, stops
-                    server.stop()
-                receiver.server_close()
-                raise
-            self._executor = ThreadPoolExecutor(
-                self._workers, thread_name_prefix="proper-cable"
-            )
             self.server = server
             self._owner_pid = os.getpid()
-            self._stopping.clear()
-            self._draining = True
-            self._drain_thread = threading.Thread(
-                target=self._drain, name="proper-cable-drain", daemon=True
-            )
-            self._drain_thread.start()
             self._receiver = receiver
-            threading.Thread(
-                target=receiver.serve_forever, args=(0.1,), name="proper-cable-forwarded",
-                daemon=True,
-            ).start()
-            limit = int(self.app.config.get("CABLE_MAX_PENDING_BYTES") or 0)
-            if limit > 0:
-                stall = float(self.app.config.get("CABLE_STALL_TIMEOUT") or 10)
-                self._watcher = threading.Thread(
-                    target=self._watch, args=(limit, stall), name="proper-cable-watch",
+            if receiver is not None:
+                threading.Thread(
+                    target=receiver.serve_forever, args=(0.1,), name="proper-cable-forwarded",
                     daemon=True,
-                )
-                self._watcher.start()
-            logger.info("[cable] wse-server listening on %s:%s", self._host, port)
-
-    def _wait_until_listening(self, server: t.Any, port: int) -> None:
-        """Wait until wse listens on its port. `start()` returns before wse
-        has bound it, and `is_running()` turns true only once it has: the
-        drain thread, which stops when the server isn't running, would stop
-        before it began, and no event would reach the channels.
-
-        A port wse can't bind (taken, or a host that is not this machine's)
-        fails as soon as wse gives up, with the reason. If wse has neither
-        bound nor given up within `START_TIMEOUT` seconds (a machine too busy
-        to run its thread, a slow lookup of the host name), this waits for
-        one or the other, because a server that hasn't bound yet can't be
-        stopped: one that then binds fails as too slow, and `start_server()`
-        stops it, so nothing is left listening on the port."""
-        deadline = time.monotonic() + START_TIMEOUT
-        while not server.is_running():
-            if time.monotonic() >= deadline and _wse_settled(server):
-                raise RuntimeError(  # listening, late: `start_server()` stops it
-                    f"wse-server took more than {START_TIMEOUT} seconds to listen on "
-                    f"{self._host}:{port} (a busy machine, or a slow lookup of the "
-                    "host name), and was stopped"
-                )
-            if _wse_gave_up(server):
-                error = _bind_error(self._host, port)
-                raise RuntimeError(
-                    f"wse-server could not listen on {self._host}:{port}: "
-                    + (str(error) if error else "see wse's log")
-                )
-            time.sleep(0.002)
-
-    def _join_cluster(self, server: t.Any) -> None:
-        cluster = t.cast(dict, self._cluster)
-        tls = cluster.get("tls") or {}
-        server.subscribe_node([CONTROL_TOPIC])
-        server.connect_cluster(
-            peers=list(cluster.get("peers") or ()),
-            tls_cert=tls.get("cert"), tls_key=tls.get("key"), tls_ca=tls.get("ca"),
-            cluster_port=cluster["port"],
-            seeds=list(cluster.get("seeds") or ()) or None,
-            cluster_addr=cluster.get("addr"),
-        )
-        logger.info("[cable] in a cluster, on port %s", cluster["port"])
+                ).start()
+            logger.info("[cable] listening on %s:%s", self._host, port)
 
     def health(self) -> dict[str, t.Any]:
         """How the cable is doing (see `BaseCable.health`). Serving, it adds
-        what wse reports (`health_snapshot()`: `inbound_queue_depth`,
-        `inbound_dropped`, `uptime_secs`, the recovery, presence and cluster
-        counters) under `server`, and the `streams` subscribed here:
+        the server's counters (`connections`, and the streams with a recovery
+        buffer and with presence) under `server`, and the `streams`
+        subscribed here:
 
         ```python
         @router.get("/up")
@@ -853,10 +918,9 @@ class Cable(BaseCable):
         }
 
     def metrics(self) -> str:
-        """The cable's metrics in Prometheus' text format: wse's
-        (`wse_connections`, `wse_messages_sent_total`, `wse_cluster_peers`,
-        ... see proper-wse's docs) and the cable's own, `proper_cable_streams`
-        and `proper_cable_users`. Served on the loopback port the other
+        """The cable's metrics in Prometheus' text format:
+        `proper_cable_connections`, `proper_cable_streams` and
+        `proper_cable_users`. Served on the loopback port the other
         processes forward to (`CABLE_PORT + 1`) as `GET /metrics`, for
         Prometheus to scrape; empty where nothing is served."""
         if not self.serving:
@@ -873,15 +937,6 @@ class Cable(BaseCable):
             f"proper_cable_users {users}\n"
         )
 
-    def cluster_info(self) -> list[dict]:
-        """The other machines this one is connected to, from wse: one dict
-        per peer, with `address`, `instance_id` and `connected`. Empty
-        without a cluster, or in a process that doesn't serve the
-        WebSockets."""
-        if not self.serving or not self._cluster:
-            return []
-        return list(self.server.cluster_info())
-
     def serve_in_memory(self) -> "InMemoryServer":
         """Serve from memory instead of a port, for tests: no socket, no
         threads; each event and command runs in the thread that causes it,
@@ -893,56 +948,13 @@ class Cable(BaseCable):
             if self.serving:
                 raise RuntimeError("Cable is already serving on a port")
             server = InMemoryServer(self)
-            self._executor = t.cast(ThreadPoolExecutor, _InlineExecutor())
             self.server = server
             self._owner_pid = os.getpid()
             return server
 
-    def _new_server(self, port: int) -> t.Any:
-        from wse_server import RustWSEServer
-
-        if "handshake_details" not in (RustWSEServer.__text_signature__ or ""):
-            raise RuntimeError(
-                "Cable needs proper-wse >= 2.7.0, not an older one or the original "
-                "wse-server (they all import as wse_server): uv add proper-wse"
-            )
-        options: dict[str, t.Any] = {
-            "max_connections": self._max_connections,
-            "handshake_details": True,
-            "ping_interval": int(self.app.config.get("CABLE_PING_INTERVAL") or 3),
-            **self._server_options,
-        }
-        options.setdefault("allowed_origins", allowed_origins(self.app.config))
-        return RustWSEServer(self._host, port, **options)
-
-    def _watch(self, limit: int, stall: float) -> None:
-        """Close the connections of clients that stopped reading: more than
-        `limit` bytes queued and nothing written for `stall` seconds, or ten
-        times `limit` at any speed. Closed at once, without the close
-        handshake, which they would never let through; `cable.js` reconnects
-        and subscribes again."""
-        seen: dict[str, tuple[int, float]] = {}  # conn_id -> (written, since)
-        while not self._stopping.wait(min(1.0, stall / 2)):  # set before the server stops
-            now = time.monotonic()
-            still: dict[str, tuple[int, float]] = {}
-            for conn_id, pending, written in self.server.connection_backlogs(limit):
-                last = seen.get(conn_id)
-                stalled = last is not None and last[0] == written and now - last[1] >= stall
-                if pending >= 10 * limit or stalled:
-                    logger.warning(
-                        "⚠️ [cable] closed a client that stopped reading "
-                        "(%d bytes waiting)", pending,
-                    )
-                    self.server.abort_connection(conn_id)
-                elif last is not None and last[0] == written:
-                    still[conn_id] = last
-                else:
-                    still[conn_id] = (written, now)
-            seen = still
-
     def stop_server(self) -> None:
-        """Stop serving. The drain thread goes first: it holds the server
-        object while it waits for events, and `stop()` needs it alone."""
+        """Stop serving. The channels of the connections still open end
+        first (`unsubscribed()`), then the WebSockets close."""
         with self._start_lock:
             server = self.server
             if server is None or not self.serving:
@@ -952,19 +964,13 @@ class Cable(BaseCable):
                 self.server = None
                 self._owner_pid = None
                 return
-            self._stopping.set()
-            if self._watcher is not None:
-                self._watcher.join()
-                self._watcher = None
-            receiver = t.cast(_ForwardedServer, self._receiver)
-            receiver.shutdown()
-            receiver.server_close()
-            self._receiver = None
-            self._draining = False
-            t.cast(threading.Thread, self._drain_thread).join()
+            receiver = self._receiver
+            if receiver is not None:
+                receiver.shutdown()
+                receiver.server_close()
+                self._receiver = None
             self._end_open_connections()
-            self._executor.shutdown(wait=True)
-            server.stop()
+            server.stop(self._shutdown_grace)
             self.server = None
             self._owner_pid = None
 
@@ -976,30 +982,16 @@ class Cable(BaseCable):
             conn.enqueue(_DISCONNECT)
         self._connections.clear()
 
-    def _drain(self) -> None:
-        server = self.server
-        while self._draining and server.is_running():
-            for kind, conn_id, payload in server.drain_inbound(256, 50):
-                self._handle_event(kind, conn_id, payload)
-
-    def _handle_event(self, kind: str, conn_id: str, payload: t.Any) -> None:
+    def _handle_event(self, kind: str, conn_id: t.Any, payload: t.Any) -> None:
         """One event of the server: a connection, a message, a disconnect."""
         connections = self._connections
-        if kind == "cluster_msg":
-            self._control(payload)
-            return
-        if kind == "connect" or kind == "auth_connect":
-            # `auth_connect` is wse's JWT path, which the cable doesn't use
-            connections[conn_id] = WseConnection(
-                self, conn_id, payload if isinstance(payload, dict) else {}
-            )
+        if kind == "connect":
+            connections[conn_id] = Connection(self, conn_id, payload)
             return
         conn = connections.get(conn_id)
-        if conn is None:  # pragma: no cover - wse sends connect first
+        if conn is None:  # ended by `stop_server()` while the event came
             return
-        if kind == "msg":
-            conn.enqueue(payload)
-        elif kind == "raw":
+        if kind == "raw":
             try:
                 conn.enqueue(json.loads(payload))
             except ValueError:
@@ -1009,22 +1001,10 @@ class Cable(BaseCable):
             conn.closing = True
             conn.enqueue(_DISCONNECT)
 
-    def _control(self, payload: dict) -> None:
-        """What another machine's cable told this one (`CONTROL_TOPIC`)."""
-        if payload.get("topic") != CONTROL_TOPIC:
-            return
-        try:
-            message = jsonplus.loads(payload["data"])
-        except (ValueError, KeyError, TypeError):
-            logger.warning("⚠️ [cable] ignored a message from the cluster that isn't JSON")
-            return
-        if isinstance(message, dict) and isinstance(message.get("disconnect"), dict):
-            self._disconnect_local(message["disconnect"])
-
     # Streams
 
     def subscribe(self, stream_name: str, channel: "Channel") -> None:
-        conn = t.cast(WseConnection, channel._connection)
+        conn = t.cast(Connection, channel._connection)
         key = (conn.conn_id, stream_name)
         with self._lock:
             refs = self._stream_refs.get(key, 0)
@@ -1033,7 +1013,7 @@ class Cable(BaseCable):
             self.server.subscribe_connection(conn.conn_id, [stream_name])
 
     def unsubscribe(self, stream_name: str, channel: "Channel") -> None:
-        conn = t.cast(WseConnection, channel._connection)
+        conn = t.cast(Connection, channel._connection)
         key = (conn.conn_id, stream_name)
         with self._lock:
             refs = self._stream_refs.get(key, 0) - 1
@@ -1075,43 +1055,23 @@ class Cable(BaseCable):
         self._send_frame(stream_name, _broadcast_frame(stream_name, data))
 
     def _send_frame(self, stream_name: str, frame: str) -> None:
-        """Hand an encoded broadcast to the server, once delivery has caught up."""
-        server = self.server
-        if self._backpressure_bytes:
-            self._wait_for_delivery(server, stream_name)
-        if self._cluster:
-            server.broadcast(stream_name, frame)  # here and on the other machines
-        else:
-            server.broadcast_local(stream_name, frame)
-
-    def _wait_for_delivery(self, server: t.Any, stream_name: str) -> None:
-        """Wait while the stream's subscribers are behind (see `__init__`)."""
-        deadline = 0.0
-        while True:
-            count, total, _ = server.topic_backlog(stream_name)
-            if not count or total <= self._backpressure_bytes * count:
-                return
-            now = time.monotonic()
-            if not deadline:
-                deadline = now + self._backpressure_timeout
-            elif now >= deadline:
-                return  # still behind: send it anyway, later than asked
-            time.sleep(0.002)
+        """Hand an encoded broadcast to the server."""
+        self.server.broadcast_local(stream_name, frame)
 
     # Presence
 
     def track(self, stream_name: str, data: dict, channel: "Channel", key: t.Any = None) -> None:
-        conn = t.cast(WseConnection, channel._connection)
+        conn = t.cast(Connection, channel._connection)
         conn.presence_identity(key)
         self.server.subscribe_connection(conn.conn_id, [stream_name], data)
 
     def untrack(self, stream_name: str, channel: "Channel") -> None:
-        conn = t.cast(WseConnection, channel._connection)
+        conn = t.cast(Connection, channel._connection)
         if conn.presence_key is not None and not conn.closing:
             self.server.untrack_presence(conn.conn_id, [stream_name])
 
     def update_presence(self, channel: "Channel", data: dict) -> None:
-        conn = t.cast(WseConnection, channel._connection)
+        conn = t.cast(Connection, channel._connection)
         if conn.presence_key is None:
             raise ValueError("the connection is not present anywhere: track() first")
         self.server.update_presence(conn.conn_id, data)
@@ -1141,12 +1101,6 @@ class Cable(BaseCable):
                 if not users:
                     del self._users[connection.user_id]
 
-    def disconnect(self, *, user_id: t.Any) -> None:
-        super().disconnect(user_id=user_id)
-        if self.serving and self._cluster:
-            # The other machines' servers listen to the control topic
-            self.server.broadcast(CONTROL_TOPIC, jsonplus.dumps({"disconnect": {"user_id": user_id}}))
-
     def _disconnect_local(self, who: dict) -> None:
         with self._lock:
             connections = list(self._users.get(who.get("user_id"), ()))
@@ -1155,7 +1109,7 @@ class Cable(BaseCable):
 
     # Commands, in a worker thread, one connection at a time
 
-    def _command(self, conn: WseConnection, msg: t.Any) -> None:
+    def _command(self, conn: Connection, msg: t.Any) -> None:
         if not isinstance(msg, dict):
             conn.put({"type": "error", "reason": "invalid_message"})
             return
@@ -1233,8 +1187,8 @@ class Cable(BaseCable):
             if to_recover:
                 recovered = True
             for stream in to_recover:
-                # One call per epoch the client saw: in a cluster, each
-                # machine's broadcasts carry its own
+                # One call per epoch the client saw: a server that started
+                # again, or another machine, gives a stream a new one
                 for epoch, offset in positions[stream]:
                     result = server.subscribe_with_recovery(
                         conn.conn_id, [stream], recover=True, epoch=epoch, offset=offset
@@ -1306,7 +1260,7 @@ class Cable(BaseCable):
                 "params": channel.params, "status": "ok", "data": result,
             })
 
-    def _cleanup(self, conn: WseConnection) -> None:
+    def _cleanup(self, conn: Connection) -> None:
         self._unregister(conn)
         for channel in conn.subscriptions.values():
             try:

@@ -1,4 +1,4 @@
-"""Cable against a real proper-wse server. Skipped without `wse_server`."""
+"""Cable against a real server: Bearings, on a port."""
 import base64
 import errno
 import http.client
@@ -17,11 +17,8 @@ import pytest
 
 from proper import App, Channel, current
 from proper.channels import base as base_module
-from proper.channels import cable as cable_module
 from proper.helpers import BLUEPRINTS
 
-
-wse_server = pytest.importorskip("wse_server")
 
 SECRET = "*" * 50
 # How long a test waits for what it expects: only an upper bound, reached
@@ -32,7 +29,7 @@ TIMEOUT = 15
 class WsClient:
     """A minimal WebSocket client (RFC 6455): text frames only."""
 
-    host = "127.0.0.1"  # it connects to the first address: the one wse listens on
+    host = "127.0.0.1"  # it connects to the first address: the one the cable listens on
     read_pause = 0.0  # seconds it waits after each read from the socket
 
     def __init__(
@@ -64,10 +61,10 @@ class WsClient:
         assert self.status == expect, response
         self.buffer = b""
 
-    def send_text(self, text: str):
+    def send_text(self, text: str, opcode=0x1):
         payload = text.encode()
         mask = os.urandom(4)
-        header = bytes([0x81])
+        header = bytes([0x80 | opcode])
         if len(payload) < 126:
             header += bytes([0x80 | len(payload)])
         else:
@@ -89,8 +86,8 @@ class WsClient:
         return data
 
     def recv(self, pings=False) -> dict | None:
-        """The next text frame, as JSON; `None` once the server closes. wse
-        pings every `CABLE_PING_INTERVAL` seconds, between any two frames:
+        """The next text frame, as JSON; `None` once the server closes. The
+        cable pings every `CABLE_PING_INTERVAL` seconds, between any two frames:
         its pings are skipped, unless `pings`."""
         while True:
             try:
@@ -273,7 +270,7 @@ def make_app():
 
 
 @pytest.fixture()
-def wse_app(make_app):
+def cable_app(make_app):
     return make_app()
 
 
@@ -290,10 +287,10 @@ def _wait(predicate, timeout=TIMEOUT):
     return False
 
 
-class TestWseCable:
-    def test_subscribe_receive_and_broadcast(self, wse_app):
-        a = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
-        b = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+class TestCable:
+    def test_subscribe_receive_and_broadcast(self, cable_app):
+        a = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
+        b = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         for client in (a, b):
             client.send({"command": "subscribe", "channel": "RoomChannel", "params": {"room": 1}})
             assert client.recv() == {
@@ -310,16 +307,16 @@ class TestWseCable:
             assert msg["stream"] == "room:1"
             assert msg["data"] == {"said": "hi"}
 
-        wse_app.cable.broadcast("room:1", {"from": "controller"})
+        cable_app.cable.broadcast("room:1", {"from": "controller"})
         assert b.recv_type("broadcast")["data"] == {"from": "controller"}
         a.close()
         b.close()
 
-    def test_rejections(self, wse_app):
-        anonymous = WsClient(wse_app.config.CABLE_PORT)
+    def test_rejections(self, cable_app):
+        anonymous = WsClient(cable_app.config.CABLE_PORT)
         anonymous.send({"command": "subscribe", "channel": "RoomChannel", "params": {"room": 1}})
         assert anonymous.recv_type("reject_subscription")["channel"] == "RoomChannel"
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.send({"command": "subscribe", "channel": "RoomChannel", "params": {"room": "closed"}})
         assert client.recv_type("reject_subscription")["params"] == {"room": "closed"}
         client.send({"command": "subscribe", "channel": "Nope"})
@@ -327,8 +324,8 @@ class TestWseCable:
         anonymous.close()
         client.close()
 
-    def test_protocol_errors(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_protocol_errors(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         message = {"command": "message", "channel": "RoomChannel", "params": {"room": 1}}
 
         client.send_text("not json")
@@ -348,8 +345,8 @@ class TestWseCable:
         assert client.recv_type("error")["reason"] == "unknown_action"
         client.close()
 
-    def test_messages_of_a_connection_keep_their_order(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_messages_of_a_connection_keep_their_order(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
         for n in range(100):
             client.send({"command": "message", "channel": "RoomChannel", "params": {"room": 1},
@@ -358,49 +355,49 @@ class TestWseCable:
         assert got == list(range(100))
         client.close()
 
-    def test_subscribed_and_unsubscribed_run_once_each(self, wse_app):
+    def test_subscribed_and_unsubscribed_run_once_each(self, cable_app):
         """What a presence channel counts on, however the connection ends."""
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
         client.subscribe(2)
         client.send({"command": "unsubscribe", "channel": "RoomChannel", "params": {"room": 1}})
         assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         client.sock.close()  # no close frame: the client just vanished
         assert _wait(lambda: ("unsubscribed", 2) in EVENTS)
-        assert _wait(lambda: wse_app.cable.streams == {})
-        wse_app.cable.stop_server()  # every command has run: nothing more can come
+        assert _wait(lambda: cable_app.cable.streams == {})
+        cable_app.cable.stop_server()  # every command has run: nothing more can come
         assert sorted(EVENTS) == [
             ("subscribed", 1), ("subscribed", 2), ("unsubscribed", 1), ("unsubscribed", 2),
         ]
 
-    def test_disconnect_a_user_and_clean_up(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_disconnect_a_user_and_clean_up(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(2)
-        assert wse_app.cable.streams == {"room:2": 1}
+        assert cable_app.cable.streams == {"room:2": 1}
 
-        wse_app.cable.disconnect(user_id=7)
+        cable_app.cable.disconnect(user_id=7)
         assert client.recv_type("never") is None  # closed by the server
-        assert _wait(lambda: wse_app.cable.streams == {})
+        assert _wait(lambda: cable_app.cable.streams == {})
         client.close()
 
-    def test_a_client_reconnects_and_subscribes_again(self, wse_app):
-        first = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_a_client_reconnects_and_subscribes_again(self, cable_app):
+        first = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         first.subscribe(4)
-        wse_app.cable.disconnect(user_id=7)
+        cable_app.cable.disconnect(user_id=7)
         assert first.recv_type("never") is None
 
-        again = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        again = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         assert again.subscribe(4)["streams"] == ["room:4"]
-        assert _wait(lambda: wse_app.cable.streams == {"room:4": 1})
-        wse_app.cable.broadcast("room:4", "back")
+        assert _wait(lambda: cable_app.cable.streams == {"room:4": 1})
+        cable_app.cable.broadcast("room:4", "back")
         assert again.recv_type("broadcast")["data"] == "back"
         again.close()
 
-    def test_the_channel_sees_the_handshake(self, wse_app):
-        """wse hands over the path, the query string, `Authorization` and
-        the client's address (`handshake_details`)."""
+    def test_the_channel_sees_the_handshake(self, cable_app):
+        """The channel gets the path, the query string, `Authorization` and
+        the client's address of the handshake."""
         client = WsClient(
-            wse_app.config.CABLE_PORT, path="/cable?room=7",
+            cable_app.config.CABLE_PORT, path="/cable?room=7",
             headers=[("Authorization", "Bearer abc"), ("X-Forwarded-For", "203.0.113.9")],
         )
         client.send({"command": "subscribe", "channel": "HandshakeChannel", "params": {}})
@@ -411,21 +408,21 @@ class TestWseCable:
         }
         client.close()
 
-        plain = WsClient(wse_app.config.CABLE_PORT)
+        plain = WsClient(cable_app.config.CABLE_PORT)
         plain.send({"command": "subscribe", "channel": "HandshakeChannel", "params": {}})
         plain.recv_type("message")
         assert HandshakeChannel.captured["remote_ip"] == "127.0.0.1"
         assert HandshakeChannel.captured["authorization"] is None
         plain.close()
 
-    def test_presence(self, wse_app):
-        """wse lists who is in a stream, under the key the cable gives the
+    def test_presence(self, cable_app):
+        """The cable lists who is in a stream, under the key it gives the
         connection, and tells the subscribers who joins and leaves."""
-        watcher = WsClient(wse_app.config.CABLE_PORT)
+        watcher = WsClient(cable_app.config.CABLE_PORT)
         watcher.send({"command": "subscribe", "channel": "PresenceChannel", "params": {}})
         assert watcher.recv_type("confirm_subscription")["presence"] == {}
 
-        ana = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        ana = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         ana.send({"command": "subscribe", "channel": "PresenceChannel", "params": {"track": "Ana"}})
         confirm = ana.recv_type("confirm_subscription")
         assert confirm["presence"] == {"presence:room": {"7": {"name": "Ana"}}}
@@ -433,28 +430,28 @@ class TestWseCable:
         assert (join["t"], join["p"]) == (
             "presence_join", {"topic": "presence:room", "user_id": "7", "data": {"name": "Ana"}},
         )
-        assert wse_app.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}}
-        assert wse_app.cable.presence_stats("presence:room") == {"users": 1, "connections": 1}
+        assert cable_app.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}}
+        assert cable_app.cable.presence_stats("presence:room") == {"users": 1, "connections": 1}
 
         ana.close()
         leave = watcher.recv()
         assert (leave["t"], leave["p"]["user_id"]) == ("presence_leave", "7")
-        assert _wait(lambda: wse_app.cable.presence("presence:room") == {})
+        assert _wait(lambda: cable_app.cable.presence("presence:room") == {})
         watcher.close()
 
-    def test_a_client_that_reconnects_gets_what_it_missed(self, wse_app):
-        """wse stamps each broadcast with where it is in its stream, and
+    def test_a_client_that_reconnects_gets_what_it_missed(self, cable_app):
+        """The cable stamps each broadcast with where it is in its stream, and
         sends again the ones after the position a subscribe carries."""
-        first = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        first = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         assert first.subscribe(5)["positions"] == {"room:5": None}
-        wse_app.cable.broadcast("room:5", {"n": 1})
+        cable_app.cable.broadcast("room:5", {"n": 1})
         seen = first.recv_type("broadcast")
         assert seen["tp"] == "room:5" and seen["o"] == 0
         first.close()
-        wse_app.cable.broadcast("room:5", {"n": 2})
-        wse_app.cable.broadcast("room:5", {"n": 3})
+        cable_app.cable.broadcast("room:5", {"n": 2})
+        cable_app.cable.broadcast("room:5", {"n": 3})
 
-        again = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        again = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         again.send({
             "command": "subscribe", "channel": "RoomChannel", "params": {"room": 5},
             "positions": {"room:5": {"e": seen["e"], "o": seen["o"]}},
@@ -479,38 +476,38 @@ class TestWseCable:
         assert confirm["positions"] == {"room:5": {"e": seen["e"], "o": 2}}
         again.close()
 
-    def test_a_duplicate_subscription_streams_once(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_a_duplicate_subscription_streams_once(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(3)
         assert client.subscribe(3)["streams"] == ["room:3"]
-        assert wse_app.cable.streams == {"room:3": 1}
+        assert cable_app.cable.streams == {"room:3": 1}
         client.close()
-        assert _wait(lambda: wse_app.cable.streams == {})
+        assert _wait(lambda: cable_app.cable.streams == {})
 
-    def test_two_channels_of_a_connection_share_a_stream(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_two_channels_of_a_connection_share_a_stream(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(5)
         client.send({"command": "subscribe", "channel": "LobbyChannel", "params": {"room": 5}})
         client.recv_type("confirm_subscription")
-        assert wse_app.cable.streams == {"room:5": 2}
+        assert cable_app.cable.streams == {"room:5": 2}
 
         client.send({"command": "unsubscribe", "channel": "LobbyChannel", "params": {"room": 5}})
-        assert _wait(lambda: wse_app.cable.streams == {"room:5": 1})
-        wse_app.cable.broadcast("room:5", "still here")
+        assert _wait(lambda: cable_app.cable.streams == {"room:5": 1})
+        cable_app.cable.broadcast("room:5", "still here")
         assert client.recv_type("broadcast")["data"] == "still here"
         client.close()
 
-    def test_unsubscribing_what_was_never_subscribed_does_nothing(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_unsubscribing_what_was_never_subscribed_does_nothing(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.send({"command": "unsubscribe", "channel": "RoomChannel", "params": {"room": 9}})
         client.subscribe(1)  # the connection still works
         assert EVENTS == [("subscribed", 1)]
         client.close()
 
     def test_errors_in_channel_code_are_logged_and_the_connection_goes_on(
-        self, wse_app, caplog
+        self, cable_app, caplog
     ):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe("fragile")
         with caplog.at_level(logging.ERROR, logger="proper"):
             client.send({"command": "message", "channel": "RoomChannel",
@@ -521,18 +518,24 @@ class TestWseCable:
             client.sock.close()
             assert _wait(lambda: "unsubscribed failed" in caplog.text)
         assert "the action failed" in caplog.text
-        assert _wait(lambda: wse_app.cable.streams == {})
+        assert _wait(lambda: cable_app.cable.streams == {})
 
-    def test_a_connection_can_send_text_already_encoded(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT)
-        assert _wait(lambda: wse_app.cable._connections)
-        (conn,) = wse_app.cable._connections.values()
+    def test_a_binary_message_is_read_as_text(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
+        client.send_text(json.dumps({"command": "dance"}), opcode=0x2)
+        assert client.recv_type("error")["reason"] == "unknown_command"
+        client.close()
+
+    def test_a_connection_can_send_text_already_encoded(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT)
+        assert _wait(lambda: cable_app.cable._connections)
+        (conn,) = cable_app.cable._connections.values()
         conn.put('{"type": "custom"}')
         assert client.recv_type("custom") == {"type": "custom"}
         client.close()
 
     def test_pings_reach_every_connection(self, make_app):
-        """wse pings every `CABLE_PING_INTERVAL` seconds."""
+        """The cable pings every `CABLE_PING_INTERVAL` seconds."""
         app = make_app(CABLE_PING_INTERVAL=1)
         client = WsClient(app.config.CABLE_PORT)
         while True:
@@ -544,21 +547,21 @@ class TestWseCable:
 
 
 class TestLifecycle:
-    def test_stop_is_clean_and_the_server_can_start_again(self, wse_app):
-        port = wse_app.config.CABLE_PORT
-        client = WsClient(port, _cookie(wse_app))
+    def test_stop_is_clean_and_the_server_can_start_again(self, cable_app):
+        port = cable_app.config.CABLE_PORT
+        client = WsClient(port, _cookie(cable_app))
         client.subscribe(1)
-        wse_app.cable.stop_server()
-        assert not wse_app.cable.serving
+        cable_app.cable.stop_server()
+        assert not cable_app.cable.serving
         assert EVENTS == [("subscribed", 1), ("unsubscribed", 1)]  # still open: cleaned up
-        assert wse_app.cable.streams == {}
+        assert cable_app.cable.streams == {}
         client.close()
         with socket.socket() as s:  # the forwarding port is free again
             s.bind(("127.0.0.1", port + 1))
 
-        wse_app.cable.start_server()
-        wse_app.cable.start_server()  # once is enough
-        again = WsClient(port, _cookie(wse_app))
+        cable_app.cable.start_server()
+        cable_app.cable.start_server()  # once is enough
+        again = WsClient(port, _cookie(cable_app))
         assert again.subscribe(1)["streams"] == ["room:1"]
         again.close()
 
@@ -574,113 +577,41 @@ class TestLifecycle:
         with socket.socket() as s:  # the WebSocket port was never opened
             s.bind(("127.0.0.1", port))
 
-    def test_start_server_returns_once_wse_listens(self):
-        """wse binds its port after `start()` returns, and the drain thread,
-        which hands its events to the channels, stops when wse isn't
-        running: started before wse listened, it stopped at once, and no
-        command was ever answered. `localhost` has to be looked up first,
-        which leaves more time for that."""
-        apps = []
+    def test_start_server_returns_once_it_listens(self):
+        """`localhost` is looked up, and the cable listens on its first
+        address, the one a client connects to."""
+        app = _new_app(_free_ports(), cable={"host": "localhost"})
+        current.app = app
+        app.cable.start_server()
         try:
-            for _ in range(3):
-                app = _new_app(_free_ports(), cable={"host": "localhost"})
-                current.app = app
-                app.cable.start_server()
-                apps.append(app)
-                assert app.cable.server.is_running()
-            for app in apps:
-                client = LocalhostClient(app.config.CABLE_PORT, _cookie(app))
-                assert client.subscribe(1) is not None, "a cable that answers nothing"
-                client.close()
-        finally:  # together: each takes wse a while
-            stops = [threading.Thread(target=app.cable.stop_server) for app in apps]
-            for stop in stops:
-                stop.start()
-            for stop in stops:
-                stop.join()
+            client = LocalhostClient(app.config.CABLE_PORT, _cookie(app))
+            assert client.subscribe(1) is not None, "a cable that answers nothing"
+            client.close()
+        finally:
+            app.cable.stop_server()
 
-    def test_a_taken_websocket_port_fails_at_once_with_the_reason(self, monkeypatch):
-        """wse never listens on a port it can't bind: `start_server()` raises
-        as soon as wse gives up, saying why, instead of returning with a
-        cable that serves nothing."""
-        monkeypatch.setattr(cable_module, "START_TIMEOUT", 60.0)  # not the reason
+    def test_a_taken_websocket_port_fails_at_once_with_the_reason(self):
         port = _free_ports()
         app = _new_app(port)
         with socket.socket() as taken:
             taken.bind(("127.0.0.1", port))
             taken.listen()
-            start = time.monotonic()
-            with pytest.raises(
-                RuntimeError, match=f"could not listen on 127.0.0.1:{port}: .*in use"
-            ):
+            with pytest.raises(OSError, match="in use") as error:
                 app.cable.start_server()
-            assert time.monotonic() - start < TIMEOUT
+            assert error.value.errno == errno.EADDRINUSE
         assert not app.cable.serving
         with socket.socket() as s:  # the forwarding port is free again
             s.bind(("127.0.0.1", port + 1))
 
-    def test_a_host_that_cannot_be_found_fails_with_the_reason(self, monkeypatch):
-        """Also when wse gives up after `START_TIMEOUT`: the reason is that,
-        not the time."""
-        monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.0)
+    def test_a_host_that_cannot_be_found_fails_with_the_reason(self):
         app = _new_app(_free_ports(), cable={"host": "no-such-host.invalid"})
-        with pytest.raises(
-            RuntimeError, match="could not listen on no-such-host.invalid:"
-        ):
+        with pytest.raises(socket.gaierror):
             app.cable.start_server()
         assert not app.cable.serving
 
-    def test_a_server_that_listens_too_late_is_stopped(self, monkeypatch):
-        """wse can't be stopped before it has bound its port: one that binds
-        after `START_TIMEOUT` is waited for and stopped, so nothing is left
-        listening, and the next start can bind the port. `localhost` has to
-        be looked up first, so with no time at all most starts are late."""
-        monkeypatch.setattr(cable_module, "START_TIMEOUT", 0.0)
-        for _ in range(20):
-            port = _free_ports()
-            app = _new_app(port, cable={"host": "localhost"})
-            current.app = app
-            try:
-                app.cable.start_server()
-            except RuntimeError as error:
-                late = f"took more than 0.0 seconds to listen on localhost:{port}"
-                assert late in str(error)
-                break
-            app.cable.stop_server()  # in time: try again
-        else:
-            pytest.fail("wse was never late")
-        assert not app.cable.serving
-        for family, kind, _, _, address in socket.getaddrinfo(
-            "localhost", port, type=socket.SOCK_STREAM
-        ):
-            with socket.socket(family, kind) as s:
-                assert s.connect_ex(address) != 0, f"{address} still listening"
-        monkeypatch.setattr(cable_module, "START_TIMEOUT", 10.0)
-        app.cable.start_server()  # again, on the same port
-        assert app.cable.serving
-        app.cable.stop_server()
-
-    def test_the_reason_a_port_cannot_be_listened_on(self):
-        port = _free_port()
-        assert cable_module._bind_error("127.0.0.1", port) is None
-        with socket.socket() as taken:
-            taken.bind(("127.0.0.1", port))
-            taken.listen()
-            assert cable_module._bind_error("127.0.0.1", port).errno == errno.EADDRINUSE
-
-    def test_a_server_that_fails_to_build_leaves_the_forwarding_port_free(self):
-        port = _free_ports()
-        app = App("proper", {**_config(port), "CABLE": {
-            "type": "proper.channels.Cable", "host": "127.0.0.1", "bogus": 1,
-        }})
-        with pytest.raises(TypeError):
-            app.cable.start_server()
-        with socket.socket() as s:
-            s.bind(("127.0.0.1", port + 1))
-
-    def test_a_cable_serving_on_a_port_cannot_serve_from_memory(self, wse_app):
+    def test_a_cable_serving_on_a_port_cannot_serve_from_memory(self, cable_app):
         with pytest.raises(RuntimeError, match="already serving"):
-            wse_app.cable.serve_in_memory()
+            cable_app.cable.serve_in_memory()
 
     def test_stopping_a_cable_that_never_started_does_nothing(self):
         app = _new_app(_free_ports())
@@ -692,23 +623,11 @@ class TestLifecycle:
         with pytest.raises(RuntimeError, match="CABLE_PORT"):
             app.cable.start_server()
 
-    def test_the_original_wse_server_is_refused(self, monkeypatch):
-        class OriginalWseServer:  # what wse-server 2.4 lacks: topic_backlog
-            def __init__(self, *args, **kwargs):
-                pass
-
-        monkeypatch.setattr(wse_server, "RustWSEServer", OriginalWseServer)
-        app = _new_app(_free_ports())
-        with pytest.raises(RuntimeError, match="proper-wse"):
-            app.cable.start_server()
-        assert not app.cable.serving
-
-    def test_unknown_server_options_are_not_swallowed(self):
-        app = App("proper", {**_config(_free_ports()), "CABLE": {
-            "type": "proper.channels.Cable", "host": "127.0.0.1", "bogus": 1,
-        }})
+    def test_unknown_options_are_not_swallowed(self):
         with pytest.raises(TypeError, match="bogus"):
-            app.cable.start_server()
+            App("proper", {**_config(_free_ports()), "CABLE": {
+                "type": "proper.channels.Cable", "host": "127.0.0.1", "bogus": 1,
+            }})
 
     def test_a_broadcast_with_nowhere_to_go_is_logged(self, caplog):
         app = App("proper", {"SECRET_KEYS": [SECRET], "CABLE": {"type": "proper.channels.Cable"}})
@@ -718,12 +637,12 @@ class TestLifecycle:
 
 
 class TestForwarding:
-    def test_a_broadcast_from_another_process_arrives(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_a_broadcast_from_another_process_arrives(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
         code = (
             "from proper import App\n"
-            f"app = App('proper', {_config(wse_app.config.CABLE_PORT)!r})\n"
+            f"app = App('proper', {_config(cable_app.config.CABLE_PORT)!r})\n"
             "assert not app.cable.serving\n"
             "app.cable.broadcast('room:1', {'from': 'a task'})\n"
         )
@@ -731,44 +650,39 @@ class TestForwarding:
         assert client.recv_type("broadcast")["data"] == {"from": "a task"}
         client.close()
 
-    def test_a_broadcast_answered_late_is_delivered_once(self, make_app, monkeypatch):
-        """A forwarded broadcast is answered once it is delivered, and
-        delivery waits while the subscribers are behind (backpressure). An
-        answer later than `FORWARD_TIMEOUT` makes the sender try again, and
-        the cable process must not deliver it a second time."""
+    def test_a_broadcast_answered_late_is_delivered_once(self, cable_app, monkeypatch):
+        """A forwarded broadcast is answered once it is delivered. An answer
+        later than `FORWARD_TIMEOUT` makes the sender try again, and the
+        cable process must not deliver it a second time."""
         monkeypatch.setattr(base_module, "FORWARD_TIMEOUT", 0.3)
-        app = make_app(cable={"backpressure_timeout": 1.0})
-        port = app.config.CABLE_PORT
-        stalled = WsClient(port, _cookie(app), rcvbuf=4096)  # never reads
-        stalled.subscribe(1)
-        reader = WsClient(port, _cookie(app))
+        reader = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         reader.subscribe(1)
-        waits, app.cable._backpressure_bytes = app.cable._backpressure_bytes, 0
-        for _ in range(10):  # a backlog, after which each broadcast waits a second
-            app.cable.broadcast("room:1", BIG)
-        app.cable._backpressure_bytes = waits
-        got, thread = _read_all(reader, 10)
-        thread.join(timeout=TIMEOUT)
+        send_frame = cable_app.cable._send_frame
+        delays = [0.6]  # the first delivery takes longer than the sender waits
 
-        other = App("proper", _config(port))  # another process of the app
+        def slow_send_frame(stream_name, frame):
+            if delays:
+                time.sleep(delays.pop())
+            send_frame(stream_name, frame)
+
+        monkeypatch.setattr(cable_app.cable, "_send_frame", slow_send_frame)
+        other = App("proper", _config(cable_app.config.CABLE_PORT))  # another process
         assert not other.cable.serving
         other.cable.broadcast("room:1", "once")  # sent twice: answered late
         frames = [reader.recv_type("broadcast")["data"]]
-        # A second delivery would start before this one, and wait as long:
-        # wse would send it first.
-        app.cable.broadcast("room:1", "last")
+        # A second delivery of the copy would come before this one
+        cable_app.cable.broadcast("room:1", "last")
         while frames[-1] != "last":
             msg = reader.recv_type("broadcast")
             assert msg is not None, frames
             frames.append(msg["data"])
         assert frames == ["once", "last"]
-        stalled.close()
         reader.close()
 
-    def test_batches_and_disconnects_are_forwarded(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_batches_and_disconnects_are_forwarded(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
-        elsewhere = _new_app(wse_app.config.CABLE_PORT)  # not serving: forwards
+        elsewhere = _new_app(cable_app.config.CABLE_PORT)  # not serving: forwards
 
         with elsewhere.cable.batch():
             elsewhere.cable.broadcast("room:1", "one")
@@ -779,11 +693,11 @@ class TestForwarding:
         elsewhere.cable.disconnect(user_id=7)
         assert client.recv_type("never") is None
 
-    def test_the_serving_process_broadcasts_directly_even_in_a_batch(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_the_serving_process_broadcasts_directly_even_in_a_batch(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
-        with wse_app.cable.batch():
-            wse_app.cable.broadcast("room:1", "here")
+        with cable_app.cable.batch():
+            cable_app.cable.broadcast("room:1", "here")
             assert client.recv_type("broadcast")["data"] == "here"
         client.close()
 
@@ -791,138 +705,74 @@ class TestForwarding:
         ("/cable", "forged", 403),
         ("/elsewhere", "forged", 404),
     ])
-    def test_forged_or_misdirected_broadcasts_are_refused(self, wse_app, path, token, status):
+    def test_forged_or_misdirected_broadcasts_are_refused(self, cable_app, path, token, status):
         conn = http.client.HTTPConnection(
-            "127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT
+            "127.0.0.1", cable_app.config.CABLE_PORT + 1, timeout=TIMEOUT
         )
         conn.request("POST", path, body=token.encode())
         assert conn.getresponse().status == status
         conn.close()
 
-    def test_a_forked_copy_forwards_instead_of_serving(self, wse_app):
-        pid = wse_app.cable._owner_pid
-        wse_app.cable._owner_pid = pid + 1  # as a fork sees it
+    def test_a_forked_copy_forwards_instead_of_serving(self, cable_app):
+        pid = cable_app.cable._owner_pid
+        cable_app.cable._owner_pid = pid + 1  # as a fork sees it
         try:
-            assert not wse_app.cable.serving
-            assert wse_app.cable._forwarding
+            assert not cable_app.cable.serving
+            assert cable_app.cable._forwarding
         finally:
-            wse_app.cable._owner_pid = pid
+            cable_app.cable._owner_pid = pid
 
 
 BIG = "x" * 200_000
 
 
-class TestBackpressure:
-    def test_a_broadcast_waits_while_the_subscribers_are_behind(self, make_app):
-        app = make_app(cable={"backpressure_bytes": 100_000, "backpressure_timeout": 0.5})
-        reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
-        reader.subscribe(1)
-        for _ in range(10):  # far more than the socket takes: a backlog
-            app.cable.broadcast("room:1", BIG)
-        start = time.monotonic()
-        app.cable.broadcast("room:1", BIG)
-        assert time.monotonic() - start >= 0.45  # waited, then sent anyway
-
-        got = 0
-        while got < 11:  # the client catches up, and the backlog with it
-            got += reader.recv_type("broadcast") is not None
-        # Caught up, a broadcast doesn't wait. One that waited would take
-        # the whole timeout, made long so that a busy machine can't look
-        # like one.
-        app.cable._backpressure_timeout = 60
-        start = time.monotonic()
-        app.cable.broadcast("room:1", "small")
-        assert time.monotonic() - start < TIMEOUT
-        assert reader.recv_type("broadcast")["data"] == "small"
-        reader.close()
-
-    def test_it_can_be_turned_off(self, make_app):
-        app = make_app(cable={"backpressure_bytes": 0})
-        reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
-        reader.subscribe(1)
-        start = time.monotonic()
-        for _ in range(11):
-            app.cable.broadcast("room:1", BIG)
-        # Waiting, each of the last ten would take `backpressure_timeout`
-        # (one second)
-        assert time.monotonic() - start < 5
-        reader.close()
-
-
-def _read_all(client, count):
-    """Read `count` broadcasts in a thread, as a live client would."""
-    got = []
-
-    def read():
-        while len(got) < count:
-            msg = client.recv()
-            if msg is None:
-                return
-            if msg.get("type") == "broadcast":
-                got.append(msg)
-
-    thread = threading.Thread(target=read, daemon=True)
-    thread.start()
-    return got, thread
-
-
 class TestStalledClients:
-    """A client that stops reading is closed, and `cable.js` reconnects;
-    one that reads slowly is not."""
+    """A client that stops reading is closed when it falls
+    `CABLE_MAX_PENDING_BYTES` behind, and `cable.js` reconnects; one that
+    reads slowly is not."""
 
-    def _app(self, make_app, limit, stall):
-        return make_app(
-            cable={"backpressure_bytes": 0},  # nothing waits: the backlog stays
-            CABLE_MAX_PENDING_BYTES=limit,
-            CABLE_STALL_TIMEOUT=stall,
-        )
-
-    def test_nothing_through_for_the_stall_timeout(self, make_app):
-        app = self._app(make_app, limit=300_000, stall=0.6)
+    def test_a_client_too_far_behind_is_closed(self, make_app):
+        app = make_app(CABLE_MAX_PENDING_BYTES=300_000)
         reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
         reader.subscribe(1)
-        for _ in range(10):  # ~2 MB: over the limit, under ten times it
+        # ~10 MB, which the client doesn't read: more than the kernel's
+        # buffers take, so the rest waits in the cable's queue
+        for _ in range(50):
             app.cable.broadcast("room:1", BIG)
+            if ("unsubscribed", 1) in EVENTS:
+                break
         assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         reader.close()
 
-    def test_ten_times_the_limit_at_any_speed(self, make_app):
-        app = self._app(make_app, limit=100_000, stall=30)
+    def test_a_client_too_far_behind_for_its_own_messages_is_closed(self, make_app):
+        app = make_app(CABLE_MAX_PENDING_BYTES=300_000)
         reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
         reader.subscribe(1)
-        for _ in range(10):  # ~2 MB: over ten times the limit
-            app.cable.broadcast("room:1", BIG)
+        (conn,) = app.cable._connections.values()
+        for _ in range(50):  # sent to it alone, not broadcast
+            conn.put(json.dumps({"type": "big", "data": BIG}))
+            if ("unsubscribed", 1) in EVENTS:
+                break
         assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
         reader.close()
 
     def test_a_client_that_reads_slowly_stays(self, make_app):
-        """wse writes to a client as it reads, in steps of about 120 KB
-        (what its socket's buffer frees), and each step counts as progress.
-        This client reads about 4 KB every 10 ms: more than `limit` waits
-        for it for about 3.5 seconds, longer than the stall timeout, so it
-        would be closed if its progress didn't count; and a step takes about
-        0.3 seconds, so it would take a machine six times slower than that
-        to stall it for the 2 seconds of the timeout."""
-        app = self._app(make_app, limit=200_000, stall=2)
+        app = make_app()  # 4 MB: more than all that is sent
         reader = WsClient(app.config.CABLE_PORT, _cookie(app), rcvbuf=4096)
-        reader.read_pause = 0.01
+        reader.read_pause = 0.005
         reader.subscribe(1)
-        for _ in range(9):  # 1.8 MB: under ten times the limit
+        for _ in range(9):
             app.cable.broadcast("room:1", BIG)
         for n in range(9):
             assert reader.recv_type("broadcast") is not None, f"closed after {n} frames"
         assert ("unsubscribed", 1) not in EVENTS
         reader.close()
 
-    def test_it_can_be_turned_off(self, make_app):
-        app = make_app(CABLE_MAX_PENDING_BYTES=0)
-        assert app.cable._watcher is None
-
 
 class TestIdleClients:
-    """wse closes a connection that sends it nothing for `idle_timeout`
-    seconds. `cable.js` answers wse's pings, so a page that only listens
-    stays connected."""
+    """The cable closes a connection that sends it nothing for
+    `idle_timeout` seconds. `cable.js` answers the pings, so a page that
+    only listens stays connected."""
 
     def _pong(self):
         source = (BLUEPRINTS / "addon_channels/assets/js/cable.js").read_text()
@@ -930,12 +780,12 @@ class TestIdleClients:
 
     def test_a_client_that_answers_the_pings_stays(self, make_app):
         """Two clients that only listen, one of which answers the pings.
-        The test lasts until wse closes the silent one: by then both have
-        been connected for more than `idle_timeout`, and the one that
+        The test lasts until the cable closes the silent one: by then both
+        have been connected for more than `idle_timeout`, and the one that
         answers must still be open. Pings every second and an
-        `idle_timeout` of 5: an answer can be about 4 seconds late (a busy
-        machine) before wse takes the client for idle."""
-        app = make_app(cable={"idle_timeout": 5}, CABLE_PING_INTERVAL=1)
+        `idle_timeout` of 3: an answer can be about 2 seconds late (a busy
+        machine) before the client is taken for idle."""
+        app = make_app(cable={"idle_timeout": 3}, CABLE_PING_INTERVAL=1)
         pong = self._pong()
         listener = WsClient(app.config.CABLE_PORT, _cookie(app))
         listener.subscribe(1)
@@ -944,14 +794,14 @@ class TestIdleClients:
         closed = threading.Event()
 
         def until_closed():
-            silent.recv_type("never")  # `None` once wse closes it
+            silent.recv_type("never")  # `None` once the cable closes it
             closed.set()
 
         threading.Thread(target=until_closed, daemon=True).start()
         pings = 0
-        until = time.monotonic() + 5 + TIMEOUT
+        until = time.monotonic() + 3 + TIMEOUT
         while not closed.is_set():
-            assert time.monotonic() < until, "wse never closed the silent client"
+            assert time.monotonic() < until, "the cable never closed the silent client"
             msg = listener.recv(pings=True)  # one at least every second
             assert msg is not None, "the server closed a client that answers"
             if msg.get("c") == "WSE" and msg.get("t") == "ping":
@@ -983,167 +833,41 @@ class TestOrigins:
         WsClient(port).close()  # not a browser
 
 
-class TestCluster:
-    """Two cables, one per "machine", in wse's cluster over the loopback."""
-
-    @pytest.fixture()
-    def pair(self, make_app):
-        cluster_a, cluster_b = _free_port(), _free_port()
-        while cluster_b == cluster_a:
-            cluster_b = _free_port()
-        a = make_app(cable={"cluster": {"port": cluster_a, "peers": [f"127.0.0.1:{cluster_b}"]}})
-        b = make_app(cable={"cluster": {"port": cluster_b, "peers": [f"127.0.0.1:{cluster_a}"]}})
-        # a dials b before b listens and retries with a backoff; b's dial to
-        # a succeeds, but each side reports the link in its own time
-        assert _wait(lambda: a.cable.cluster_info() and b.cable.cluster_info()), (
-            "the cables never met"
-        )
-        return a, b
-
-    def _drain(self, client, seconds=0.5):
-        """Every frame the client gets in `seconds` (`recv()` is `None` on
-        the socket's timeout)."""
-        client.sock.settimeout(seconds)
-        frames = []
-        try:
-            while (frame := client.recv()) is not None:
-                frames.append(frame)
-        finally:
-            client.sock.settimeout(TIMEOUT)
-        return frames
-
-    def _read_until(self, client, done):
-        """The frames the client gets until `done(frames)`."""
-        frames = []
-        while not done(frames):
-            frame = client.recv()
-            assert frame is not None, frames
-            frames.append(frame)
-        return frames
-
-    def _broadcasts(self, frames):
-        return [f["data"] for f in frames if f.get("type") == "broadcast"]
-
-    def _reach(self, cable, client, stream, data):
-        """Broadcast until the client gets it: the interest of the client's
-        machine takes a moment to reach the other one."""
-        until = time.monotonic() + TIMEOUT
-        while time.monotonic() < until:
-            cable.broadcast(stream, data)
-            for frame in self._drain(client, 0.4):
-                if frame.get("type") == "broadcast" and frame["data"] == data:
-                    return frame
-        raise AssertionError(f"{data} never reached the other machine")
-
-    def test_a_broadcast_reaches_the_other_machine(self, pair):
-        a, b = pair
-        client = WsClient(b.config.CABLE_PORT, _cookie(b))
+class TestObserving:
+    def test_health(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
-        from_a = self._reach(a.cable, client, "room:1", {"from": "a"})
-        assert from_a["tp"] == "room:1"  # stamped by a, with a's epoch
-        from_b = self._reach(b.cable, client, "room:1", {"from": "b"})
-        assert from_b["e"] != from_a["e"]
-
-        # Back with both positions: what each machine published since
-        a.cable.broadcast("room:1", {"from": "a", "n": 2})
-        b.cable.broadcast("room:1", {"from": "b", "n": 2})
-        self._read_until(
-            client,
-            lambda frames: all(
-                {"from": who, "n": 2} in self._broadcasts(frames) for who in "ab"
-            ),
-        )  # in b's buffer
-        client.close()
-        again = WsClient(b.config.CABLE_PORT, _cookie(b))
-        again.send({
-            "command": "subscribe", "channel": "RoomChannel", "params": {"room": 1},
-            "positions": {"room:1": [{"e": from_a["e"], "o": from_a["o"]}, {"e": from_b["e"], "o": from_b["o"]}]},
-        })
-        frames = self._read_until(
-            again,
-            lambda frames: (
-                any(f.get("type") == "confirm_subscription" for f in frames)
-                and all({"from": who, "n": 2} in self._broadcasts(frames) for who in "ab")
-            ),
-        )
-        confirm = [f for f in frames if f.get("type") == "confirm_subscription"][0]
-        assert confirm["recovered"] is True
-        replayed = [f["data"] for f in frames if f.get("type") == "broadcast"]
-        assert {"from": "a", "n": 2} in replayed
-        assert {"from": "b", "n": 2} in replayed
-        again.close()
-
-    def test_presence_and_disconnect_across_machines(self, pair):
-        a, b = pair
-        on_a = WsClient(a.config.CABLE_PORT, _cookie(a))
-        on_a.send({"command": "subscribe", "channel": "PresenceChannel", "params": {"track": "Ana"}})
-        on_a.recv_type("confirm_subscription")
-        assert _wait(
-            lambda: b.cable.presence("presence:room") == {"7": {"data": {"name": "Ana"}, "connections": 1}},
-        )
-
-        on_b = WsClient(b.config.CABLE_PORT, _cookie(b))
-        on_b.subscribe(2)
-        assert _wait(lambda: b.cable.streams == {"room:2": 1})
-        a.cable.disconnect(user_id=7)  # from the other machine
-        assert on_a.recv_type("never") is None
-        assert on_b.recv_type("never") is None
-        assert _wait(
-            lambda: a.cable.presence("presence:room") == {} and b.cable.presence("presence:room") == {},
-        )
-        assert len(a.cable.cluster_info()) == 1
-
-    def test_health(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
-        client.subscribe(1)
-        assert _wait(lambda: wse_app.cable.health()["streams"] == 1)
-        health = wse_app.cable.health()
+        assert _wait(lambda: cable_app.cable.health()["streams"] == 1)
+        health = cable_app.cable.health()
         assert (health["serving"], health["connections"], health["users"]) == (True, 1, 1)
-        assert health["server"]["connections"] == 1
-        assert health["server"]["uptime_secs"] >= 0
-        assert health["server"]["cluster_connected"] is False
+        assert health["server"] == {
+            "connections": 1, "recovery_enabled": True, "recovery_topic_count": 0,
+            "recovery_bytes": 0,
+            "presence_enabled": True, "presence_topics": 0,
+        }
         client.close()
 
-    def test_metrics_on_the_loopback_port(self, wse_app):
-        client = WsClient(wse_app.config.CABLE_PORT, _cookie(wse_app))
+    def test_metrics_on_the_loopback_port(self, cable_app):
+        client = WsClient(cable_app.config.CABLE_PORT, _cookie(cable_app))
         client.subscribe(1)
-        assert _wait(lambda: wse_app.cable.streams == {"room:1": 1})
+        assert _wait(lambda: cable_app.cable.streams == {"room:1": 1})
         conn = http.client.HTTPConnection(
-            "127.0.0.1", wse_app.config.CABLE_PORT + 1, timeout=TIMEOUT
+            "127.0.0.1", cable_app.config.CABLE_PORT + 1, timeout=TIMEOUT
         )
         conn.request("GET", "/metrics")
         response = conn.getresponse()
         text = response.read().decode()
         assert response.status == 200
         assert response.getheader("Content-Type", "").startswith("text/plain; version=0.0.4")
-        assert "# TYPE wse_connections gauge\nwse_connections 1\n" in text
-        assert "wse_uptime_seconds" in text
+        assert "# TYPE proper_cable_connections gauge\nproper_cable_connections 1\n" in text
         assert "proper_cable_streams 1\n" in text
         conn.request("GET", "/other")
         assert conn.getresponse().status == 404
         conn.close()
         client.close()
 
-    def test_a_cluster_that_fails_to_join_leaves_nothing_behind(self):
-        """A bad TLS config fails `start_server()`, and both ports are free
-        for the next attempt."""
-        port = _free_ports()
-        app = _new_app(port, cable={"cluster": {
-            "port": _free_ports(), "peers": ["127.0.0.1:1"],
-            "tls": {"cert": "/nonexistent.pem", "key": "/nonexistent.key", "ca": "/nonexistent-ca.pem"},
-        }})
-        with pytest.raises(RuntimeError, match="TLS"):
-            app.cable.start_server()
-        assert not app.cable.serving
-        again = _new_app(port)
-        again.cable.start_server()
-        again.cable.stop_server()
-
-    def test_the_rest_ignores_the_control_topic(self, wse_app, caplog):
-        cable = wse_app.cable
-        assert cable.cluster_info() == []  # no cluster
-        cable._control({"topic": "other", "data": "x"})
-        with caplog.at_level(logging.WARNING):
-            cable._control({"topic": "proper:cable:control", "data": "not json"})
-        assert "isn't JSON" in caplog.text
-        cable._control({"topic": "proper:cable:control", "data": "[1]"})  # not a dict: ignored
+    def test_the_cable_port_answers_only_websockets(self, cable_app):
+        conn = http.client.HTTPConnection("127.0.0.1", cable_app.config.CABLE_PORT, timeout=TIMEOUT)
+        conn.request("GET", "/cable")
+        assert conn.getresponse().status == 404
+        conn.close()

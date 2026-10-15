@@ -60,7 +60,7 @@ def make_environ(url="/", *, method="GET", headers=(), body=b"", client=("10.0.0
         "REMOTE_PORT": client[1],
         "wsgi.url_scheme": scheme,
         "wsgi.input": io.BytesIO(body),
-        # As Granian: `wsgi.input` returns `b""` at the end of the body.
+        # As Bearings: `wsgi.input` returns `b""` at the end of the body.
         "wsgi.input_terminated": True,
         "HTTP_HOST": f"{host}:{port}",
     }
@@ -355,7 +355,7 @@ class TestHttp:
         [
             ("0.0.0.0", "2300"),  # `proper run` on every address
             ("::", "2300"),
-            ("/run/app.sock", ""),  # Granian on a Unix socket
+            ("/run/app.sock", ""),  # `proper run` on a Unix socket
         ],
     )
     def test_the_host_is_the_host_header(self, app, server_name, server_port):
@@ -405,7 +405,7 @@ class TestHttp:
     @pytest.mark.parametrize(
         "host",
         [
-            "a.com,b.com",  # Granian 2.8.3: `Host: a.com` and `Host: b.com`
+            "a.com,b.com",  # Bearings: `Host: a.com` and `Host: b.com`
             "a.com,a.com",  # two identical `Host` lines
             "a.com, b.com",  # one line with two values
         ],

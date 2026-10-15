@@ -1414,7 +1414,7 @@ def test_host_with_port_puts_an_ipv6_address_in_brackets(headers, server, expect
 
 @pytest.mark.parametrize("hosts", [["a.com", "b.com"], ["a.com", "a.com"]])
 def test_more_than_one_host_header_is_refused(hosts):
-    # RFC 9112 §3.2. Granian joins the lines with a comma; a `Request`
+    # RFC 9112 §3.2. Bearings joins the lines with a comma; a `Request`
     # built with repeated pairs gets the same answer.
     with pytest.raises(InvalidHeader, match="Host"):
         Request(headers=[("host", host) for host in hosts], server=("0.0.0.0", 2300))

@@ -230,7 +230,7 @@ def test_parse_body_unparsed_content_type_exposes_raw_body(app):
 
 def _chunks(body: bytes, size: int = 3):
     """A reader that returns at most `size` bytes per call, then `b""`, as
-    Granian's `wsgi.input.read(n)` does for a chunked body."""
+    some servers' `wsgi.input.read(n)` do for a chunked body."""
     data = BytesIO(body)
 
     def read(n):

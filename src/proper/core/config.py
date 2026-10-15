@@ -106,7 +106,7 @@ default_config = {
     # loopback, private and link-local networks, as Rails does: a client
     # that connects from one of them counts as a proxy too. An empty
     # list ignores those headers always, except from a peer without an
-    # address (Granian or gunicorn on a Unix socket).
+    # address (`proper run` or gunicorn on a Unix socket).
     "TRUSTED_PROXIES": [
         "127.0.0.0/8",
         "::1",
@@ -139,14 +139,10 @@ default_config = {
     # connection that answers no ping for that long is closed.
     "CABLE_PING_INTERVAL": 3,
 
-    # A connection with more than `CABLE_MAX_PENDING_BYTES` queued that got
-    # nothing through in `CABLE_STALL_TIMEOUT` seconds is a client that is
-    # not reading, and the server closes it. So is one with ten times as
-    # many, at any speed. Keep ten times it below the cable's
-    # `max_outbound_queue_bytes` (64 MB), where wse starts dropping
-    # broadcasts instead. `0` is no limit.
+    # A connection that falls this many bytes behind (sent to it and not
+    # yet taken by its client) is a client that is not reading, and the
+    # server closes it. `cable.js` connects again and gets what it missed.
     "CABLE_MAX_PENDING_BYTES": 4 * 1024 * 1024,
-    "CABLE_STALL_TIMEOUT": 10,
 
     "IMPORT_MAP": {
         "@hotwired/stimulus": "js/vendor/stimulus.js",

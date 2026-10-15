@@ -2,6 +2,56 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### ⚠️ Upgrading: Proper needs Linux
+
+`proper run` now serves with [Bearings](https://github.com/fp-40/bearings), an
+HTTP/1.1 server written in Free Pascal, instead of Granian. Bearings runs only
+on Linux, so Proper does too: on Windows use WSL, and on macOS a container
+(the blueprint's Docker image already is one).
+
+Nothing changes in the app. The settings mean what they did: `WORKERS` is the
+number of event loops per process, `MAX_THREADS` the threads that run the app,
+`PROCESSES` the copies of the server on the same port.
+
+- `MAX_THREADS` is no longer split between the `WORKERS` of a process: the
+  event loops never run Python, and every request runs on one shared pool of
+  `MAX_THREADS` threads.
+- With `DEBUG`, every request is logged on one line (Combined Log Format).
+- The server drops request headers with an underscore in the name
+  (`X_Forwarded_For`), which WSGI can't tell apart from the ones with a dash.
+- It starts with one line: `[INFO] Listening on 0.0.0.0:2300 (1 workers, 20 threads, pid 1234)`.
+- A shutdown no longer waits for idle keep-alive connections.
+
+### ⚠️ Upgrading: the cable is served by Bearings, and RedisCable is back
+
+`proper.channels.Cable` now serves the WebSockets with Bearings, the same
+server as the app, instead of proper-wse. Remove `proper-wse` from the app's
+dependencies (`uv remove proper-wse`); nothing else changes for the channels,
+`cable.js` or the proxy. The test suite of the cable went from two minutes
+to 13 seconds.
+
+- Several machines use `RedisCable` again, instead of wse's cluster: the
+  `cluster` option is gone, and so is `app.cable.cluster_info()`.
+- `CABLE_MAX_PENDING_BYTES` (4 MB) is how far behind a client may fall
+  before it is closed; `cable.js` reconnects and gets what it missed. It
+  must be at least 1. `CABLE_STALL_TIMEOUT` is gone.
+- The options `backpressure_bytes`, `backpressure_timeout` and
+  `max_outbound_queue_bytes` are gone, and so are wse's own options; an
+  unknown option is a `TypeError` at startup. New options: `loops` (1),
+  `idle_timeout` (60), `recovery_buffer_size` (128), `recovery_ttl` (300),
+  `recovery_memory_budget` (256 MB) and `shutdown_grace` (1 second).
+- `start_server()` raises `OSError`, with the reason, when the port can't
+  be listened on (it raised `RuntimeError`), and a host name that can't be
+  looked up is a `socket.gaierror`.
+- The metrics are `proper_cable_connections`, `proper_cable_streams` and
+  `proper_cable_users`; wse's `wse_*` are gone. `health()["server"]` has
+  `connections` and the recovery (`recovery_bytes` among them) and presence
+  counters.
+- The cable's port answers only the WebSockets on `CABLE_PATH`; any other
+  request gets a 404.
+
 ## 0.40.0
 
 ### ⚠️ Upgrading: the WebSockets need `proper.channels.Cable`

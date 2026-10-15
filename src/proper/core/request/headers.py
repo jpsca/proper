@@ -304,7 +304,7 @@ class RequestHeadersMixin:
         (`X-Forwarded-For`, `Forwarded`, `X-Real-IP` and
         `X-Forwarded-Proto`) can be believed.
 
-        A request without a peer address also counts, as in Rack: Granian
+        A request without a peer address also counts, as in Rack: Bearings
         or gunicorn listening on a Unix socket, which only a process on the
         same machine (such as nginx) can connect to, give an empty
         `REMOTE_ADDR`. A peer `unix:...` counts too.
@@ -382,7 +382,7 @@ class RequestHeadersMixin:
 
         Otherwise, it is the address of the peer that sent the request
         and the forwarding headers are ignored, because any client can
-        send them. A request without a peer address (Granian or gunicorn on
+        send them. A request without a peer address (Bearings or gunicorn on
         a Unix socket) counts as coming from a trusted proxy.
 
         Returns:
@@ -740,7 +740,7 @@ def parse_cookie(cookie_string: str | None) -> dict[str, str]:
 # it with `ipaddress` (so `[abc]` and `[1.2.3.4]` are refused). IPvFuture
 # (`[v1.x]`) and an IPv6 zone id (RFC 6874) are refused too.
 # The reg-name here has every sub-delim but the comma: a server joins the
-# lines of a repeated `Host` header with commas (Granian 2.8.3 does), and a
+# lines of a repeated `Host` header with commas (Bearings does), and a
 # request with more than one `Host` line is a 400 (RFC 9112 §3.2). A host
 # name (RFC 1123) has no comma.
 # Anchored with \A...\Z (not ^...$) so a trailing newline can't sneak past.

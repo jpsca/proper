@@ -1,5 +1,9 @@
 """`proper run`: what it starts, and how."""
+import http.client
 import multiprocessing
+import os
+import signal
+import socket
 import sys
 import time
 from types import SimpleNamespace
@@ -34,6 +38,12 @@ class _OwnCable:
 
 
 OWNER = SimpleNamespace(cable=_OwnCable())
+
+
+def hello_app(environ, start_response):
+    """A WSGI app a spawned process can import."""
+    start_response("200 OK", [("Content-Type", "text/plain")])
+    return [b"hello"]
 
 
 class TestMaxThreads:
@@ -81,7 +91,7 @@ class TestRunCommand:
         assert web["address"] == "0.0.0.0"
         assert web["port"] == 4321
         assert web["workers"] == 3
-        assert web["blocking_threads"] >= 1
+        assert web["threads"] == app.max_threads
         assert web["debug"] is False
         assert calls["processes"] == 1
         assert calls["start_cable"] is False
@@ -130,45 +140,68 @@ class TestRunCommand:
         assert calls["web"]["port"] == 9000
         assert calls["web"]["workers"] == 2
 
-    def test_granian_gets_the_options(self, monkeypatch):
-        import granian
+    def test_bearings_gets_the_options(self, monkeypatch, capsys):
+        import bearings
 
         from proper.cli.app_cli import _serve
 
         calls = {}
 
-        class FakeGranian:
-            def __init__(self, **kwargs):
-                calls.update(kwargs)
+        def fake_serve(app, **options):
+            calls.update(app=app, **options)
+            options["started"](SimpleNamespace(port=2300))
 
-            def serve(self):
-                calls["served"] = True
-
-        monkeypatch.setattr(granian, "Granian", FakeGranian)
+        monkeypatch.setattr(bearings, "serve", fake_serve)
         _serve(
-            target="myapp:app", address="0.0.0.0", port=2300,
-            workers=2, blocking_threads=5, debug=False,
+            target=f"{__name__}:OWNER", address="0.0.0.0", port=2300,
+            workers=2, threads=5, debug=False,
         )
-        assert calls["target"] == "myapp:app"
-        assert calls["interface"] == "wsgi"
-        assert calls["blocking_threads"] == 5
-        assert calls["websockets"] is False
-        assert calls["log_access"] is False
-        assert calls["served"] is True
+        assert calls["app"] is OWNER
+        assert calls["host"] == "0.0.0.0"
+        assert calls["port"] == 2300
+        assert calls["loops"] == 2
+        assert calls["workers"] == 5
+        assert calls["access_log"] is None
+        assert "[INFO] Listening on 0.0.0.0:2300 (2 workers, 5 threads" in (
+            capsys.readouterr().out
+        )
 
         _serve(
-            target="myapp:app", address="0.0.0.0", port=2300,
-            workers=1, blocking_threads=5, debug=True,
+            target=f"{__name__}:OWNER", address="0.0.0.0", port=2300,
+            workers=1, threads=5, debug=True,
         )
-        assert calls["log_access"] is True
+        assert calls["access_log"] == "combined"
 
-    def test_the_thread_budget_is_split_between_workers(self):
-        from proper.cli.app_cli import _blocking_threads
+    def test_it_serves_until_sigterm(self):
+        from proper.cli.app_cli import _serve
 
-        assert _blocking_threads(20, 4) == 5
-        assert _blocking_threads(20, 3) == 7  # rounded up
-        assert _blocking_threads(2, 8) == 1
-        assert _blocking_threads(0, 4) == 1
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        web = {
+            "target": f"{__name__}:hello_app", "address": "127.0.0.1", "port": port,
+            "workers": 1, "threads": 2, "debug": False,
+        }
+        child = multiprocessing.get_context("spawn").Process(target=_serve, kwargs=web)
+        child.start()
+        try:
+            body = None
+            for _ in range(100):  # until it listens
+                try:
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("GET", "/")
+                    body = conn.getresponse().read()
+                    conn.close()
+                    break
+                except OSError:
+                    time.sleep(0.05)
+            assert body == b"hello"
+            os.kill(child.pid, signal.SIGTERM)
+            child.join(10)
+            assert child.exitcode == 0
+        finally:
+            if child.is_alive():
+                child.kill()
 
     def test_reloading_restarts_the_whole_group_from_outside(self, app, monkeypatch):
         import watchfiles
