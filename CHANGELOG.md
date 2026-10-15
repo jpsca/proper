@@ -2,7 +2,7 @@
 
 All notable changes to Proper are documented in this file.
 
-## Unreleased
+## 0.41.0
 
 ### ⚠️ Upgrading: Proper needs Linux
 
