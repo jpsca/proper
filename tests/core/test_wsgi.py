@@ -86,11 +86,16 @@ def call(app, environ):
     return sent["status"], sent["headers"], body
 
 
-def call_on_a_server_thread(app, environ, stack_size=4 * 1024 * 1024):
-    """`call()` on a thread with a stack of `stack_size` bytes, as a server's
-    worker runs it: how deep `json` nests before a `RecursionError` depends
-    on the stack of the thread, and the main thread's is `ulimit -s`, which
-    changes from machine to machine."""
+def call_on_a_small_stack(app, environ):
+    """`call()` on a thread with a stack of at most 4 MB.
+
+    How deep `json` nests before a `RecursionError` depends on the stack of
+    the thread, and the main thread's is `ulimit -s`, which changes from
+    machine to machine. A thread gets the size it asks for, or a stack of a
+    finished thread that glibc kept, of up to 4 times that size: 1 MB asked,
+    at most 4 MB used (about 29 000 nested arrays).
+    """
+    stack_size = 1024 * 1024
     result = {}
     context = contextvars.copy_context()
     previous = threading.stack_size(stack_size)
@@ -286,7 +291,7 @@ class TestHttp:
             ],
         )
 
-        status, _, _ = call_on_a_server_thread(app, environ)
+        status, _, _ = call_on_a_small_stack(app, environ)
 
         assert status == expected
 
