@@ -73,7 +73,7 @@ def origin_allowed(origin: str | None, host: str, config: t.Any) -> bool:
 def allowed_origins(config: t.Any) -> list[str]:
     """The origins of `origin_allowed` as a fixed list, for a server that
     allows the handshake's own `Host` by itself and the rest from a list
-    (wse-server): `CABLE_ALLOWED_ORIGINS`, the app's `HOST` over http and
+    (Bearings): `CABLE_ALLOWED_ORIGINS`, the app's `HOST` over http and
     https, and in `DEBUG` localhost and 127.0.0.1 on the app's `PORT`."""
     origins = list(config.get("CABLE_ALLOWED_ORIGINS") or ())
     host = config.get("HOST")
@@ -219,7 +219,7 @@ class BaseCable:
         # first, which the cable process may have received and delivered.
         body = self._sign({**payload, "id": secrets.token_urlsafe(12)}).encode()
         url = urlsplit(self._forward_url)
-        for attempt in (1, 2):
+        for attempt in (1, 2):  # pragma: no branch - the second one breaks or returns
             conn = getattr(self._local, "conn", None)
             if conn is None:
                 conn = self._local.conn = http.client.HTTPConnection(

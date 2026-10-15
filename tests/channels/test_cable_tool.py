@@ -92,13 +92,11 @@ class TestCableSettings:
         with pytest.raises(ConfigError, match="CABLE_PATH"):
             _app(CABLE=self.CABLE, CABLE_PATH=value)
 
-    def test_the_slow_client_settings(self):
-        _app(CABLE=self.CABLE, CABLE_MAX_PENDING_BYTES=0, CABLE_STALL_TIMEOUT=0.5)
-        with pytest.raises(ConfigError, match="CABLE_MAX_PENDING_BYTES"):
-            _app(CABLE=self.CABLE, CABLE_MAX_PENDING_BYTES=-1)
-        for value in (0, "10", True):
-            with pytest.raises(ConfigError, match="CABLE_STALL_TIMEOUT"):
-                _app(CABLE=self.CABLE, CABLE_STALL_TIMEOUT=value)
+    def test_the_slow_client_setting(self):
+        _app(CABLE=self.CABLE, CABLE_MAX_PENDING_BYTES=65536)
+        for value in (0, -1, "4MB", True):
+            with pytest.raises(ConfigError, match="CABLE_MAX_PENDING_BYTES"):
+                _app(CABLE=self.CABLE, CABLE_MAX_PENDING_BYTES=value)
 
     def test_a_cable_class_without_bind(self):
         class Plain(BaseCable):
@@ -106,26 +104,11 @@ class TestCableSettings:
 
         assert type(_app(CABLE={"type": Plain}).cable) is Plain
 
-    def test_the_cluster(self):
-        ok = {"port": 9999, "peers": ["10.0.0.2:9999"]}
-        _app(CABLE={**self.CABLE, "cluster": ok})
-        _app(CABLE={**self.CABLE, "cluster": {"port": 9999, "seeds": ["10.0.0.2:9999"], "addr": "10.0.0.1:9999"}})
-        _app(CABLE={**self.CABLE, "cluster": {**ok, "tls": {"cert": "c.pem", "key": "k.pem", "ca": "ca.pem"}}})
-        _app(CABLE={**self.CABLE, "cluster": None})
-        for bad, match in (
-            ("nope", "must be a dictionary"),
-            ({**ok, "nodes": []}, "unknown keys: nodes"),
-            ({"peers": ["a:1"]}, r"cluster'\]\['port'\] must be an integer"),
-            ({"port": 70000, "peers": ["a:1"]}, "port"),
-            ({"port": 9999, "peers": "10.0.0.2:9999"}, "list of 'host:port'"),
-            ({"port": 9999, "peers": ["nope"]}, "list of 'host:port'"),
-            ({"port": 9999}, "needs 'peers'"),
-            ({"port": 9999, "seeds": ["a:1"]}, "'addr'"),
-            ({**ok, "tls": {"cert": "c"}}, "'cert', 'key' and 'ca'"),
-            ({**ok, "tls": {"cert": "c", "key": "", "ca": "a"}}, "'cert', 'key' and 'ca'"),
-        ):
-            with pytest.raises(ConfigError, match=match):
-                _app(CABLE={**self.CABLE, "cluster": bad})
+    def test_the_options_of_wse_are_gone(self):
+        # Several machines are RedisCable's now
+        for option in ("cluster", "backpressure_bytes", "max_outbound_queue_bytes"):
+            with pytest.raises(TypeError, match=option):
+                _app(CABLE={**self.CABLE, option: 1})
 
     def test_nothing_is_checked_without_a_cable(self):
         _app(CABLE={}, CABLE_PING_INTERVAL=0, CABLE_PATH="x")

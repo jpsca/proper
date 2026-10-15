@@ -1,9 +1,9 @@
 import importlib
 import multiprocessing
+import os
 import sys
 import sysconfig
 import typing as t
-from contextlib import contextmanager
 from functools import wraps
 
 from proper_cli import Cli
@@ -13,7 +13,9 @@ from .jx_cli import get_jx_cli
 
 
 if t.TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable
+
+    from bearings import Server
 
     from ..app import App
     from ..channels.cable import Cable
@@ -83,84 +85,41 @@ def _check_free_threading(config) -> None:
     raise SystemExit(1)
 
 
-def _blocking_threads(max_threads: int, workers: int) -> int:
-    """Threads per worker for the WSGI server: the app's `MAX_THREADS`,
-    which is per process, shared between the workers of that process.
-
-    Granian's own default is in the hundreds, which floods a database with
-    connections and buys nothing for CPU-bound Python.
-    """
-    return max(1, -(-max(0, max_threads) // max(1, workers)))
-
-
 def _serve(
     *,
     target: str,
     address: str,
     port: int,
     workers: int,
-    blocking_threads: int,
+    threads: int,
     debug: bool,
 ) -> None:
-    """Start Granian, over WSGI, and block until it stops.
+    """Start Bearings, over WSGI, and block until SIGINT or SIGTERM.
+
+    `workers` are Bearings' event loops, which do the network I/O and never
+    run Python; `threads` are its worker pool, which runs the app.
 
     A plain function, with plain arguments, so it can run in a fresh
     process: the reloader's, or one of `PROCESSES`.
     """
-    from granian import Granian
-    from granian.constants import Interfaces
-    from granian.log import LogLevels
+    from bearings import serve
 
-    with _closing_worker_loops():
-        Granian(
-            target=target,
-            interface=Interfaces.WSGI,
-            address=address,
-            port=port,
-            workers=workers,
-            blocking_threads=blocking_threads,
-            websockets=False,
-            log_level=LogLevels.debug if debug else LogLevels.info,
-            log_access=debug,
-        ).serve()
+    def started(server: "Server") -> None:
+        print(
+            f"[INFO] Listening on {address}:{server.port} "
+            f"({workers} workers, {threads} threads, pid {os.getpid()})",
+            flush=True,
+        )
 
-
-@contextmanager
-def _closing_worker_loops() -> "Iterator[None]":
-    """Close the event loops that Granian creates for its workers once
-    the server stops.
-
-    Granian never closes them. When a worker thread ends, its loop is
-    garbage-collected together with the socket it uses to wake itself
-    up, and if the socket goes first, the loop prints a
-    "ValueError: Invalid file descriptor: -1" traceback as it is
-    deleted. Closing the loops ourselves avoids it.
-    """
-    from granian._loops import loops as registry
-
-    created = []
-    originals = dict(registry._data)
-
-    def tracking(builder: "Callable") -> "Callable":
-        @wraps(builder)
-        def build(**packages):
-            loop = builder(**packages)
-            created.append(loop)
-            return loop
-
-        return build
-
-    registry._data = {
-        key: (tracking(builder), packages)
-        for key, (builder, packages) in originals.items()
-    }
-    try:
-        yield
-    finally:
-        registry._data = originals
-        for loop in created:
-            if not loop.is_running():
-                loop.close()
+    serve(
+        _load_app(target),
+        host=address,
+        port=port,
+        loops=workers,
+        workers=threads,
+        access_log="combined" if debug else None,
+        started=started,
+    )
 
 
 def _load_app(target: str) -> "App":
@@ -214,7 +173,7 @@ def _serve_group(
 
 def _log_changes(changes: set) -> None:
     # Printed rather than logged: the `proper` logger has no handler of its
-    # own, and this must show up next to Granian's lines.
+    # own, and this must show up next to the server's lines.
     files = ", ".join(sorted(path for _change, path in changes))
     print(f"[INFO] Changes detected, restarting the server: {files}", flush=True)
 
@@ -225,9 +184,8 @@ def _serve_restarting_on_changes(
     """Run `target(**kwargs)` in a child process, and start a new one
     whenever a file under `path` changes.
 
-    Granian's own reloader replaces its worker processes, which does not
-    exist when the workers are threads, nor covers the other servers of
-    the group. Restarting the whole group from outside does both.
+    Bearings has no reloader of its own, and restarting the whole group
+    from outside also covers the other servers of the group.
     """
     import watchfiles
 
@@ -248,7 +206,7 @@ def get_run_cli(app: "App") -> t.Callable:
                 start in each process.
 
         The app is loaded from `config.APP_TARGET`, or from `app` in the
-        module that created it when that is empty. Granian serves it over
+        module that created it when that is empty. Bearings serves it over
         WSGI. A cable that serves WebSockets (`Cable`) starts in this
         process, on `CABLE_PORT`. `config.PROCESSES` starts that many
         copies of the web server.
@@ -264,7 +222,7 @@ def get_run_cli(app: "App") -> t.Callable:
             "address": host,
             "port": int(port or config["PORT"] or 2300),
             "workers": workers,
-            "blocking_threads": _blocking_threads(app.max_threads, workers),
+            "threads": app.max_threads,
             "debug": bool(config.DEBUG),
         }
         group: dict[str, t.Any] = {

@@ -19,7 +19,7 @@ if t.TYPE_CHECKING:
 
     from ..app import App
     from ..models import ProperModel
-    from .cable import WseConnection
+    from .cable import Connection
 
 
 class ActionError(Exception):
@@ -65,7 +65,7 @@ class Channel:
         request: Request | None = None,
         name: str = "",
         _send: "Callable[[t.Any], t.Any]",
-        _connection: "WseConnection | None" = None,
+        _connection: "Connection | None" = None,
     ) -> None:
         """`request` is the WebSocket handshake, which carries the
         connection's headers and cookies. It is `None` only when a channel

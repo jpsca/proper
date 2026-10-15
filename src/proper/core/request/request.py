@@ -59,7 +59,7 @@ class Request(RequestHeadersMixin):
         http_version:
             `"1.1"`, `"2"`, etc.
         server_software:
-            How the server names itself, e.g. `"Granian"`. Empty if it
+            How the server names itself, e.g. `"bearings/0.1.0"`. Empty if it
             doesn't say, or when the request doesn't come from a server.
         app:
             The app this request belongs to. Defaults to `current.app`.
@@ -125,7 +125,7 @@ class Request(RequestHeadersMixin):
 
         The end of a body without a `content-length` is where `read()`
         returns `b""`, which PEP 3333 doesn't promise. A server says it
-        does with `wsgi.input_terminated` (Granian does); `input_terminated`
+        does with `wsgi.input_terminated` (Bearings does); `input_terminated`
         is False when it doesn't, and then such a body is not read, as in
         Werkzeug.
         """

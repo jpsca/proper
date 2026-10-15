@@ -103,7 +103,7 @@ def user(models):
     [
         ("203.0.113.5", "203.0.113.5"),
         ("2001:db8::1", "2001:db8::1"),
-        # The peer of a dual-stack server (Granian on `::`), as it gives it
+        # The peer of a dual-stack server on `::`, as some servers give it
         ("::ffff:203.0.113.5", "::ffff:203.0.113.5"),
         ("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255",) * 2,
         ("fe80::1%eth0", "fe80::1%eth0"),

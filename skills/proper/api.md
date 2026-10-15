@@ -148,7 +148,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `query_string`     | `str`                      | Raw query string                                                    |
 | `url`              | `str`                      | The path and the query string (no scheme or host)                   |
 | `http_version`     | `str`                      | HTTP version (e.g. `"1.1"`)                                        |
-| `server_software`  | `str`                      | How the server names itself (e.g. `"Granian"`); `""` if unknown     |
+| `server_software`  | `str`                      | How the server names itself (e.g. `"bearings/0.1.0"`); `""` if unknown     |
 | `flashes`          | `list[tuple[str, str]]`    | Flash messages stored in the session                                |
 | `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality (`q`, or `Q`: parameter names are case-insensitive; a malformed parameter or `q` is ignored) |
 | `accept_encoding`  | `list[str]`                | Encodings from `Accept-Encoding`, sorted by quality                 |

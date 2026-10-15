@@ -24,7 +24,6 @@ requires-python = ">=3.14"
 dependencies = [
     "babel >= 2.17.0",
     "formidable >= 0.21",
-    "granian[reload] >= 2.8.3",
     "hecto >= 2.4.0",
     "huey >= 3.4,<4",
     "inflection >= 0.5.1",
@@ -37,10 +36,12 @@ dependencies = [
     "peewee >= 4.5.1,<5",
     "peewee-migrate >= 2.3,<3",
     "proper-cli >= 2.1.0",
+    "pybearings>=0.1.0",
     "python-multipart >= 0.0.22",
     "traceback-with-variables ~= 2.0.4",
     "types-peewee >= 4.5.1",
     "tzdata >= 2025.3",
+    "watchfiles>=1.1",
 ]
 
 [project.urls]
@@ -70,7 +71,6 @@ test = [
     "redis >= 7.0.0",
     "smtpdfix",
     "nh3>=0.2.18",
-    "proper-wse>=2.7.0",
 ]
 docs = [
     "writeadoc>=0.28.0",
@@ -234,3 +234,6 @@ no-lines-before = ["local-folder"]
 relative-imports-order = "furthest-to-closest"
 # Use two line after imports.
 lines-after-imports = 2
+
+[tool.uv.sources]
+pybearings = { path = "../fp40/Bearings/python", editable = true }

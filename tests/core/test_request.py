@@ -106,7 +106,7 @@ def test_test_request_keeps_repeated_headers_in_order():
     ],
 )
 def test_test_request_ipv6_url(url, server, host_header, host_with_port):
-    # `server` as Granian gives it (`SERVER_NAME` without brackets).
+    # `server` as `proper run` gives it (`SERVER_NAME` without brackets).
     req = make_test_request(url)
     assert req.server == server
     assert req.headers.get("host") == host_header

@@ -1,7 +1,7 @@
 ---
 title: Deployment
 description: |
-  How to run a Proper application in production. Covers free-threaded Python, the `proper run` server and its settings, sizing workers, threads and processes, production configuration, the Docker image, Compose and nginx, the background worker, a deploy checklist, and how Proper performs against other frameworks.
+  How to run a Proper application in production. Covers the Linux requirement, free-threaded Python, the `proper run` server and its settings, sizing workers, threads and processes, production configuration, the Docker image, Compose and nginx, the background worker, a deploy checklist, and how Proper performs against other frameworks.
 number_headers: true
 ---
 
@@ -21,6 +21,12 @@ After reading this guide, you will know:
 - How to put nginx in front of the app, including the WebSocket port.
 - What to do, in order, on each deploy.
 - How Proper performs compared to other Python, Ruby, Go and Rust frameworks.
+
+---
+
+## Linux
+
+Proper runs on Linux. On Windows, use WSL; on macOS, run the app in a container, like the one the blueprint's `Dockerfile` builds.
 
 ---
 
@@ -63,7 +69,7 @@ If you can't, set `ALLOW_GIL = True` in the config. `proper run` then serves wit
 
 ## The server
 
-`proper run` starts [Granian](https://github.com/emmett-framework/granian){target=_blank}, a server written in Rust, with your app:
+`proper run` starts [Bearings](https://github.com/fp-40/bearings){target=_blank}, a server written in Free Pascal, with your app:
 
 ```bash
 proper run [--host 0.0.0.0] [--port PORT] [--workers N]
@@ -71,7 +77,7 @@ proper run [--host 0.0.0.0] [--port PORT] [--workers N]
 
 `--host` defaults to `0.0.0.0`; `--port` and `--workers` default to the `PORT` and `WORKERS` settings. Everything else comes from the config.
 
-Granian runs each request on one of its own threads, over WSGI. Proper controllers are sync, so the thread that received the request runs it to the end, with no event loop and no hand-off.
+Bearings reads and writes the network on a few threads of its own, and runs each request on one thread of a pool, over WSGI. Proper controllers are sync, so that thread runs the request to the end, with no event loop and no hand-off.
 
 `PORT` is the port the server binds to: 2300 in the blueprint, read from the `PORT` environment variable. Don't confuse it with `HOST`, which is the public base URL of the app (`"YOUR-DOMAIN.com"` in production) and is only used to build absolute URLs.
 
@@ -79,27 +85,27 @@ Granian runs each request on one of its own threads, over WSGI. Proper controlle
 
 Three settings decide how much work the server does at once.
 
-- **`WORKERS`** is the number of Granian workers in each process. On free-threaded Python they are threads, sharing the process and its memory.
-- **`MAX_THREADS`** is how many threads run your code in each process. Each request holds one thread from start to finish, so this is how many requests the app works on at once. It is split between the workers of the process (rounded up, at least one per worker). `0` means `min(32, cpu_count + 4)`.
+- **`WORKERS`** is the number of threads that read and write the network in each process. They never run your code, so one is enough for most apps.
+- **`MAX_THREADS`** is how many threads run your code in each process. Each request holds one thread from start to finish, so this is how many requests the app works on at once. `0` means `min(32, cpu_count + 4)`.
 - **`PROCESSES`** is the number of copies of the web server `proper run` starts, all on the same port (the operating system spreads connections between them with `SO_REUSEPORT`).
 
-`MAX_THREADS` has a second meaning worth keeping in mind: each thread opens its own database connection, so it is also how many connections a process can hold. Granian's own default for these threads is in the hundreds, which would flood the database with connections and buy nothing for Python code that uses the CPU, so Proper sets it explicitly.
+`MAX_THREADS` has a second meaning worth keeping in mind: each thread opens its own database connection, so it is also how many connections a process can hold.
 
 Why more than one process, if threads already run in parallel? Threads of one interpreter still contend for the objects they share. On a machine with four or more cores, two smaller groups of threads do better than one big one: a second process adds about 10% throughput at 16 threads on a 10-core desktop. The price is a second copy of the app in memory.
 
 ### The cable
 
-WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. The channels addon configures `Cable`: the web process itself serves them, with proper-wse (Rust), started by `proper run` before the first request, so no second process is needed. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
+WSGI has no WebSockets. When the app uses [channels](/docs/channels), they are served on `CABLE_PORT`, which the channels addon sets to `PORT + 1` (2301), from the `CABLE_PORT` environment variable if set. The channels addon configures `Cable`: the web process itself serves them, with Bearings, started by `proper run` before the first request, so no second process is needed. The other processes that load the app (the extra `PROCESSES`, the task worker) forward their broadcasts to it over `127.0.0.1:CABLE_PORT + 1`.
 
 An app without channels has `CABLE = {}` and `CABLE_PORT = 0`, the defaults: no WebSockets. Setting `CABLE_PORT` without a `CABLE` that serves them is a configuration error.
 
 In production, the reverse proxy routes `CABLE_PATH` (default `/cable`) to that port, with the WebSocket upgrade headers; the [nginx config](#the-reverse-proxy) below has that block. In development there is no proxy: when `DEBUG` is on, `render_importmap()` adds a `<meta name="cable-port">` tag to the page, and `cable.js` connects to that port on the same hostname.
 
-Broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. On several machines, the cables join a mesh (`cluster` in `CABLE`, with a port of its own between the machines and mTLS); see [Several machines](/docs/channels#several-machines) in the Channels guide.
+Broadcasts made in a process without the WebSockets are forwarded as a signed `POST` to `CABLE_PATH`. If the process that serves them is down, the message is lost and a warning is logged. On several machines, use `RedisCable`; see [Several machines](/docs/channels#several-machines-rediscable) in the Channels guide.
 
 ### Reloading and stopping
 
-`RELOAD` restarts the server when a file under the app changes. The default, `None`, follows `DEBUG`: on in development, off in production. The restart is done by a supervisor outside the server and covers the whole group - every web process, and the cable in the first one - not only Granian's workers.
+`RELOAD` restarts the server when a file under the app changes. The default, `None`, follows `DEBUG`: on in development, off in production. The restart is done by a supervisor outside the server and covers the whole group - every web process, and the cable in the first one.
 
 Ctrl+C, or a `SIGTERM` to `proper run`, shuts down every process it started.
 
@@ -132,7 +138,7 @@ These are starting points, not rules. Measure with your own pages before changin
 Setting | Default | Blueprint reads it from | What it controls
 ------- | ------- | ----------------------- | ----------------
 `PORT` | `2300` | `PORT` | The port the server binds to
-`WORKERS` | `1` | `WORKERS` | Granian workers (threads) per process
+`WORKERS` | `1` | `WORKERS` | Threads that read and write the network, per process
 `MAX_THREADS` | `0` (`min(32, cpus + 4)`) | - | Threads running your code per process; also database connections
 `PROCESSES` | `1` | `PROCESSES` | Copies of the web server on the same port
 `CABLE_PORT` | `0` (none) | `CABLE_PORT` (channels addon) | Port of the WebSockets (`Cable`)
@@ -383,7 +389,7 @@ The `500.html` page is served by nginx, so visitors see it even when the app is 
 
 ### The `Host` header
 
-`request.host` and `request.port` come from the `Host` header, as PEP 3333 rebuilds the URL; only a request without one (HTTP/1.0) gets the address the server listens on, which under `proper run` is `0.0.0.0` or the Unix socket. Routes with a `host`, and `OriginProtection`, compare with it. So the proxy must pass the client's `Host` through, as `proxy_set_header Host $host;` does in the nginx example: by default nginx sends the address in `proxy_pass` (`127.0.0.1:2300`), and the routes for a host then answer 404. An invalid `Host` (`example.com/x`, a space, `user@example.com`, brackets around something that is not an IPv6 address such as `[abc]`) gets a 400, and so does a request with more than one `Host` line, as RFC 9112 requires: Granian joins the lines with a comma, so a `Host` with a comma is refused.
+`request.host` and `request.port` come from the `Host` header, as PEP 3333 rebuilds the URL; only a request without one (HTTP/1.0) gets the address the server listens on, which under `proper run` is `0.0.0.0` or the Unix socket. Routes with a `host`, and `OriginProtection`, compare with it. So the proxy must pass the client's `Host` through, as `proxy_set_header Host $host;` does in the nginx example: by default nginx sends the address in `proxy_pass` (`127.0.0.1:2300`), and the routes for a host then answer 404. An invalid `Host` (`example.com/x`, a space, `user@example.com`, brackets around something that is not an IPv6 address such as `[abc]`) gets a 400, and so does a request with more than one `Host` line, as RFC 9112 requires: the server joins the lines with a comma, so a `Host` with a comma is refused.
 
 The client chooses the `Host` header, so the app never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config, or the host of the route. Set `HOST` to your public host name, and build the absolute URLs that leave the request (emails, links you store or send to others) with `url_for(..., _full=True)`, not from `request.host`. `X-Forwarded-Host` and `Forwarded: host=` are not read.
 
@@ -405,11 +411,11 @@ With the default list, every loopback, private and link-local address counts as 
 
 The proxy must overwrite `X-Forwarded-Proto` with the scheme it got the request on, as `proxy_set_header X-Forwarded-Proto $scheme;` does in the nginx example: the app uses the whole value of the header, so a proxy that appends to it (`https, http`) or passes the client's header through lets the client decide whether the request is secure.
 
-Granian (`--uds`) or gunicorn (`--bind unix:...`) listening on a Unix socket instead of a port gives the app no address for the peer. Only a process on the same machine can connect to the socket, so such a request counts as coming from a trusted proxy. Some other servers give a made-up address instead (waitress gives `localhost`, uWSGI `0.0.0.0`), which is not trusted: there, every request gets the same `remote_ip` and is not secure.
+`proper run` or gunicorn (`--bind unix:...`) listening on a Unix socket instead of a port gives the app no address for the peer. Only a process on the same machine can connect to the socket, so such a request counts as coming from a trusted proxy. Some other servers give a made-up address instead (waitress gives `localhost`, uWSGI `0.0.0.0`), which is not trusted: there, every request gets the same `remote_ip` and is not secure.
 
 Each proxy adds the address it got the request from at the end of `X-Forwarded-For`, so the app reads the list from the right and skips the trusted proxies: `remote_ip` is the first address that is not one, without a port if the proxy added one (and an IPv4-mapped address, `::ffff:203.0.113.5`, as `203.0.113.5`). Whatever is further left was written by the client or an untrusted hop. `X-Forwarded-For` comes first, then the standard `Forwarded` header, read the same way (its `for=` values, without port or brackets), then `X-Real-IP`. A header sent in several lines counts as one list, the lines in the order they came. A proxy passes the headers it doesn't write through as the client sent them, so make yours remove the ones that come before the one it writes: if it writes only `Forwarded`, make it remove `X-Forwarded-For`; if it writes only `X-Real-IP`, make it remove `X-Forwarded-For` and `Forwarded`.
 
-The proxy must also drop the request headers with an underscore in the name, such as `X_Forwarded_For`. The WSGI server gives the app `X-Forwarded-For` and `X_Forwarded_For` under the same name, so the app can't tell the client's header from the proxy's: Granian keeps one of the two values, and it can be the client's. A client could then choose `remote_ip` and, with `X_Forwarded_Proto: https`, make the request secure. nginx drops these headers unless `underscores_in_headers` is on or `ignore_invalid_headers` is off, so keep both at their defaults (`underscores_in_headers off`, `ignore_invalid_headers on`). A proxy built on Go's `httputil.ReverseProxy` passes them through; check yours.
+The proxy must also drop the request headers with an underscore in the name, such as `X_Forwarded_For`. The WSGI server gives the app `X-Forwarded-For` and `X_Forwarded_For` under the same name, so the app can't tell the client's header from the proxy's: `proper run` drops the headers with an underscore, but other WSGI servers keep one of the two values, and it can be the client's. A client could then choose `remote_ip` and, with `X_Forwarded_Proto: https`, make the request secure. nginx drops these headers unless `underscores_in_headers` is on or `ignore_invalid_headers` is off, so keep both at their defaults (`underscores_in_headers off`, `ignore_invalid_headers on`). A proxy built on Go's `httputil.ReverseProxy` passes them through; check yours.
 
 Every proxy in the chain must be in the list, also the ones that never connect to the app. With a CDN (Cloudflare, CloudFront) or a public load balancer in front of nginx, `X-Forwarded-For` arrives as `<visitor>, <CDN edge>`: nginx is trusted, but the CDN's address is not, so `remote_ip` is the CDN's address for every visitor. Everything that uses `remote_ip` then sees one client per CDN edge: the default `rate_limit` (one counter for all of them, so they all get 429s together) and the IP address stored with each login session. Add the CDN's published address ranges to `TRUSTED_PROXIES`, along with the default ranges you still need:
 
