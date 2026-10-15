@@ -20,6 +20,9 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental || false }}
+    env:
+      # `uv run` would otherwise switch to the .python-version of the repo
+      UV_PYTHON: ${{ matrix.python }}
 
     services:
       redis:
