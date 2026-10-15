@@ -38,6 +38,8 @@ class _OwnCable:
 
 
 OWNER = SimpleNamespace(cable=_OwnCable())
+# A target with `_bearings`, as every Proper app has
+RAW_OWNER = SimpleNamespace(_bearings=lambda head, input, listener: (200, [], b""))
 
 
 def hello_app(environ, start_response):
@@ -157,6 +159,7 @@ class TestRunCommand:
             workers=2, threads=5, debug=False,
         )
         assert calls["app"] is OWNER
+        assert calls["raw"] is False
         assert calls["host"] == "0.0.0.0"
         assert calls["port"] == 2300
         assert calls["loops"] == 2
@@ -171,6 +174,22 @@ class TestRunCommand:
             workers=1, threads=5, debug=True,
         )
         assert calls["access_log"] == "combined"
+
+    def test_a_proper_app_is_served_raw(self, monkeypatch):
+        import bearings
+
+        from proper.cli.app_cli import _serve
+
+        calls = {}
+        monkeypatch.setattr(bearings, "serve", lambda app, **options: calls.update(
+            app=app, **options
+        ))
+        _serve(
+            target=f"{__name__}:RAW_OWNER", address="0.0.0.0", port=2300,
+            workers=1, threads=1, debug=False,
+        )
+        assert calls["app"] == RAW_OWNER._bearings
+        assert calls["raw"] is True
 
     def test_it_serves_until_sigterm(self):
         from proper.cli.app_cli import _serve

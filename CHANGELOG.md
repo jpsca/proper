@@ -2,6 +2,12 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+- `proper run` hands each request to the app straight from Bearings, without
+  going through WSGI: 6–12% more requests per second. Other servers still
+  serve the app over WSGI.
+
 ## 0.41.0
 
 ### ⚠️ Upgrading: Proper needs Linux

@@ -82,7 +82,7 @@ Read the documentation of these libraries to understand how to work with them in
 
 Proper serves on free-threaded Python (a `3.14t` build) with Bearings (Linux only: WSL on Windows, a container on macOS), and the code of the web applications that use Proper (meaning, the code that you write) is regular sync Python: controllers, models, channels, tasks.
 
-The server talks to the app over WSGI: Bearings runs each request on a thread of its worker pool, calling `app(environ, start_response)`. No event loop, no hand-off; this is the fastest way to serve sync code. The WebSockets of an app with channels are served by its cable (`Cable`), from the web process, on `CABLE_PORT` (see the channels doc).
+`proper run` serves the app with Bearings' raw interface: Bearings runs each request on a thread of its worker pool, calling `app._bearings(head, input, listener)`, which builds the `Request` from the head Bearings parsed. Any other server uses the app as a WSGI app (`app(environ, start_response)`), with the same pipeline. No event loop, no hand-off. The WebSockets of an app with channels are served by its cable (`Cable`), from the web process, on `CABLE_PORT` (see the channels doc).
 
 `MAX_THREADS` is per process: the threads of Bearings' worker pool. `WORKERS` are its event loops, which never run Python. It is how many requests the app works on at once, and, since each thread opens its own database connection, how many connections it can hold. Past that, requests queue.
 
@@ -530,7 +530,7 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 
 What it starts, from the config:
 
-- `WORKERS` Bearings event loops per process, which never run Python; the app runs on one pool of `MAX_THREADS` threads, over WSGI.
+- `WORKERS` Bearings event loops per process, which never run Python; the app runs on one pool of `MAX_THREADS` threads.
 - With a cable that serves WebSockets (`Cable`), that server, in the first web process, on `CABLE_PORT`.
 - `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
 - With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes.
