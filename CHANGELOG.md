@@ -41,7 +41,7 @@ to 13 seconds.
   must be at least 1. `CABLE_STALL_TIMEOUT` is gone.
 - The options `backpressure_bytes`, `backpressure_timeout` and
   `max_outbound_queue_bytes` are gone, and so are wse's own options; an
-  unknown option is a `TypeError` at startup. New options: `loops` (1),
+  unknown option is a `TypeError` at startup. New options: `loops` (4; `0` is one per CPU),
   `max_message` (1 MB, as wse's), `max_subscriptions` (0: no limit),
   `idle_timeout` (60), `recovery_buffer_size` (128), `recovery_ttl` (300),
   `recovery_memory_budget` (256 MB) and `shutdown_grace` (1 second).

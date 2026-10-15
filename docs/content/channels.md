@@ -762,7 +762,7 @@ Option                 | Default      | What it is
 `port`                 | `CABLE_PORT` | Port of the WebSockets
 `host`                 | `"0.0.0.0"`  | Address to listen on; a host name is looked up
 `forward_port`         | `port + 1`   | Port, on 127.0.0.1, where the other processes send their broadcasts
-`loops`                | `1`          | Threads that read and write the WebSockets
+`loops`                | `4`          | Threads that read and write the WebSockets; `0` is one per CPU
 `workers`              | `4`          | Threads that run the channels' code
 `max_connections`      | `100000`     | Connections open at once; more wait to be accepted
 `max_message`          | 1 MB         | Bytes of a message from a client; a larger one closes its connection
@@ -780,9 +780,12 @@ Option                 | Default      | What it is
 ```python {title="config/channels.py"}
 CABLE = {
     "type": "proper.channels.Cable",
+    "loops": 8,
     "workers": 8,
 }
 ```
+
+`loops` decides how many broadcasts per second the cable delivers. On a 16-core machine, one stream with 1000 clients got about 5 million messages a second with one loop, 14 million with the default 4, and 25 million with 16; each costs about the same CPU. The cable shares the machine with the threads that run your app, so raise it when the WebSockets are the busy part, and lower it on a small server.
 
 ### How the cable is doing
 
