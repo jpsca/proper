@@ -22,17 +22,13 @@ How do you install `Proper`? That's the neat thing: **you don't**.
 
 You don't even need a working Python interpreter, only the **uv** Python package manager. If you don't have it already, install it with one command:
 
-::: tab | Linux / macOS
+:::note
+Proper runs on Linux. On Windows, work inside [WSL](https://learn.microsoft.com/windows/wsl/install){target=_blank}; on macOS, run the app in a container, like the one the blueprint's `Dockerfile` builds.
+:::
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-:::
-
-::: tab | Windows
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-:::
 
 :::tip
 uv can also be installed with Homebrew, among other ways. See the [uv installation page](https://docs.astral.sh/uv/getting-started/installation/){target=_blank}.
