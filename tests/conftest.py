@@ -12,6 +12,23 @@ from proper import App, current
 from proper.models import ProperModel
 
 
+_UNSET = object()
+
+
+@pytest.fixture(autouse=True)
+def _restore_current():
+    """What a test sets in `current` outside a request (a channel's
+    `_authenticate()` sets `current.user`) is undone after it: every
+    request runs in a copy of the context of its thread, so it would be
+    there for the requests of the tests that follow."""
+    before = {name: var.get(_UNSET) for name, var in current._vars.items()}
+    yield
+    for name, var in list(current._vars.items()):
+        value = before.get(name, _UNSET)
+        if var.get(_UNSET) is not value:
+            var.set(None if value is _UNSET else value)
+
+
 @pytest.fixture(autouse=True)
 def _compiled_views(tmp_path, monkeypatch):
     """Every test compiles the views of its apps into a folder of its own,
