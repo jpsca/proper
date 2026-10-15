@@ -778,7 +778,7 @@ class Cable(BaseCable):
         port: int | None = None,
         host: str = "0.0.0.0",
         forward_port: int | None = None,
-        loops: int = 1,
+        loops: int = 4,
         workers: int = 4,
         max_connections: int = 100_000,
         max_message: int = 1024 * 1024,
@@ -794,7 +794,8 @@ class Cable(BaseCable):
         shutdown_grace: float = 1,
     ) -> None:
         """`loops`: Bearings' event loops, the threads that read and write
-        the WebSockets. `workers`: the threads that run the channels.
+        the WebSockets (4; `0` is one per CPU). `workers`: the threads that
+        run the channels.
 
         `idle_timeout`: seconds; a connection that answers no ping for that
         long is closed (`cable.js` answers them).
