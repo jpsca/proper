@@ -34,6 +34,8 @@ to 13 seconds.
 
 - Several machines use `RedisCable` again, instead of wse's cluster: the
   `cluster` option is gone, and so is `app.cable.cluster_info()`.
+- Presence: `presence_max_data_size` (4 KB) and `presence_max_members` (0)
+  bound it, and with `RedisCable` it is one list for all the machines.
 - `CABLE_MAX_PENDING_BYTES` (4 MB) is how far behind a client may fall
   before it is closed; `cable.js` reconnects and gets what it missed. It
   must be at least 1. `CABLE_STALL_TIMEOUT` is gone.

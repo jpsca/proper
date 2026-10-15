@@ -495,7 +495,7 @@ What the list keys on:
 
 A connection leaves a stream's list with `untrack(stream)`, with `stop_stream_from()`, when the client unsubscribes, and when the connection closes, including when the browser is killed: the server notices the connection is gone and removes the entry. `update_presence(data)` changes the data in every stream the connection is present in. `track()` needs `stream_from()` first.
 
-The list lives in the server that serves the WebSockets, so it is one machine's. `presence=False` in `CABLE` turns it off (`track()` then fails).
+`presence=False` in `CABLE` turns it off (`track()` then fails). The data of a user may be 4 KB at most as JSON (`presence_max_data_size`), and `presence_max_members` caps the users of a stream (`0`, the default, is no limit); past either, `track()` and `update_presence()` raise `ValueError`. With `RedisCable` the list is one for all the machines (see [Several machines](#several-machines-rediscable)).
 
 ---
 
@@ -771,6 +771,8 @@ Option                 | Default      | What it is
 `recovery_ttl`         | `300`        | Seconds without broadcasts before a stream's are dropped
 `recovery_memory_budget` | 256 MB     | Bytes for the broadcasts of all the streams; past it, those of the streams with the oldest last broadcast are dropped
 `presence`             | `True`       | Keep who is in each stream, for `track()` (see [Who is here](#who-is-here-presence))
+`presence_max_data_size` | `4096`     | Bytes of a user's presence data, as JSON
+`presence_max_members`   | `0`        | Users present in a stream; `0` is no limit
 `shutdown_grace`       | `1`          | Seconds the WebSockets have to close when the server stops
 
 ```python {title="config/channels.py"}
@@ -830,7 +832,9 @@ It takes every option of `Cable` as well.
 
 If the connection to Redis drops, the cable reconnects on its own, waiting longer each time, up to 30 seconds. Meanwhile, each machine's clients still get the broadcasts made on that machine; what other machines publish in that time is lost, and a broadcast that can't reach Redis is lost with a warning.
 
-Each machine keeps its own recovery buffers, with their own positions, and its own presence lists. A client that reconnects to the same machine gets what it missed; one the load balancer sends to another machine gets `recovered: false`, and should load the state again. Pin a client to a machine (sticky sessions on `CABLE_PATH`) if that matters.
+Each machine keeps its own recovery buffers, with their own positions. A client that reconnects to the same machine gets what it missed; one the load balancer sends to another machine gets `recovered: false`, and should load the state again. Pin a client to a machine (sticky sessions on `CABLE_PATH`) if that matters.
+
+Presence is one list for all the machines, kept in Redis: `presence()` shows who is in a stream anywhere, and a user joins with their first connection on any machine and leaves with their last. A machine that dies is noticed within 15 seconds, and its users leave. Without Redis, each machine lists only its own.
 
 Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. A list of who is online across machines, or the last value for a client that subscribes late, is something you keep yourself.
 
