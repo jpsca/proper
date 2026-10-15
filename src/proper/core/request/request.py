@@ -47,7 +47,8 @@ class Request(RequestHeadersMixin):
         headers:
             A mapping, or an iterable of `(name, value)` pairs, with the
             header names in lowercase. A header sent more than once is a
-            repeated pair.
+            repeated pair. A `MultiDict` becomes `request.headers` as it
+            is, not a copy.
         scheme:
             `http` or `https`.
         server:
@@ -102,7 +103,9 @@ class Request(RequestHeadersMixin):
         self.client = client
         self.http_version = http_version
         self.server_software = server_software
-        self.headers = MultiDict(headers or ())
+        self.headers = (
+            headers if type(headers) is MultiDict else MultiDict(headers or ())
+        )
         self.form = MultiDict()
         self.body = b""
         self._session = DotDict()

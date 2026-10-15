@@ -77,7 +77,7 @@ proper run [--host 0.0.0.0] [--port PORT] [--workers N]
 
 `--host` defaults to `0.0.0.0`; `--port` and `--workers` default to the `PORT` and `WORKERS` settings. Everything else comes from the config.
 
-Bearings reads and writes the network on a few threads of its own, and runs each request on one thread of a pool, over WSGI. Proper controllers are sync, so that thread runs the request to the end, with no event loop and no hand-off.
+Bearings reads and writes the network on a few threads of its own, and runs each request on one thread of a pool. Proper controllers are sync, so that thread runs the request to the end, with no event loop and no hand-off.
 
 `PORT` is the port the server binds to: 2300 in the blueprint, read from the `PORT` environment variable. Don't confuse it with `HOST`, which is the public base URL of the app (`"YOUR-DOMAIN.com"` in production) and is only used to build absolute URLs.
 

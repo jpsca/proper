@@ -94,10 +94,14 @@ def _serve(
     threads: int,
     debug: bool,
 ) -> None:
-    """Start Bearings, over WSGI, and block until SIGINT or SIGTERM.
+    """Start Bearings and block until SIGINT or SIGTERM.
 
     `workers` are Bearings' event loops, which do the network I/O and never
     run Python; `threads` are its worker pool, which runs the app.
+
+    A Proper app is served with Bearings' raw interface (`App._bearings`),
+    which builds the request from the head Bearings parsed; anything else,
+    as a WSGI app.
 
     A plain function, with plain arguments, so it can run in a fresh
     process: the reloader's, or one of `PROCESSES`.
@@ -111,8 +115,11 @@ def _serve(
             flush=True,
         )
 
+    app = _load_app(target)
+    raw_app = getattr(app, "_bearings", None)
     serve(
-        _load_app(target),
+        raw_app or app,
+        raw=raw_app is not None,
         host=address,
         port=port,
         loops=workers,
