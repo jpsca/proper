@@ -1,5 +1,7 @@
 """The WSGI face of the app: what a sync server calls, and what it gets back."""
+import contextvars
 import io
+import threading
 from urllib.parse import urlparse
 
 import pytest
@@ -82,6 +84,25 @@ def call(app, environ):
 
     body = app(environ, start_response)
     return sent["status"], sent["headers"], body
+
+
+def call_on_a_server_thread(app, environ, stack_size=4 * 1024 * 1024):
+    """`call()` on a thread with a stack of `stack_size` bytes, as a server's
+    worker runs it: how deep `json` nests before a `RecursionError` depends
+    on the stack of the thread, and the main thread's is `ulimit -s`, which
+    changes from machine to machine."""
+    result = {}
+    context = contextvars.copy_context()
+    previous = threading.stack_size(stack_size)
+    try:
+        thread = threading.Thread(
+            target=lambda: result.update(sent=context.run(call, app, environ))
+        )
+        thread.start()
+    finally:
+        threading.stack_size(previous)
+    thread.join()
+    return result["sent"]
 
 
 def header(headers, name):
@@ -265,7 +286,7 @@ class TestHttp:
             ],
         )
 
-        status, _, _ = call(app, environ)
+        status, _, _ = call_on_a_server_thread(app, environ)
 
         assert status == expected
 
