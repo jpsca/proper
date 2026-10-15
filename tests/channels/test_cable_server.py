@@ -312,6 +312,24 @@ class TestCable:
         a.close()
         b.close()
 
+    def test_a_message_too_large_closes_the_connection(self, make_app):
+        app = make_app(cable={"max_message": 1000})
+        client = WsClient(app.config.CABLE_PORT, _cookie(app))
+        client.subscribe(1)
+        client.send({"command": "message", "channel": "RoomChannel", "params": {"room": 1},
+                     "action": "count", "data": {"n": "x" * 1000}})
+        assert client.recv_type("never") is None
+        assert _wait(lambda: ("unsubscribed", 1) in EVENTS)
+
+    def test_too_many_subscriptions(self, make_app):
+        app = make_app(cable={"max_subscriptions": 1})
+        client = WsClient(app.config.CABLE_PORT, _cookie(app))
+        assert client.subscribe(1)["type"] == "confirm_subscription"
+        client.send({"command": "subscribe", "channel": "RoomChannel", "params": {"room": 2}})
+        assert client.recv_type("reject_subscription")["reason"] == "too_many_subscriptions"
+        assert client.subscribe(1)["type"] == "confirm_subscription"  # the one it has
+        client.close()
+
     def test_rejections(self, cable_app):
         anonymous = WsClient(cable_app.config.CABLE_PORT)
         anonymous.send({"command": "subscribe", "channel": "RoomChannel", "params": {"room": 1}})
