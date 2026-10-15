@@ -7,7 +7,8 @@ import uuid
 
 import pytest
 
-from proper import App, current
+from proper import App, Channel, current
+from proper.channels import redis_cable
 from .test_cable_server import (
     EVENTS,
     SECRET,
@@ -21,6 +22,19 @@ from .test_cable_server import (
 
 
 redis = pytest.importorskip("redis")
+
+
+class WhoChannel(Channel):
+    """Present in "who" as the key the test gives (a real app decides the
+    key on the server, never from `params`)."""
+
+    def subscribed(self):
+        self.stream_from("who")
+        if self.params.get("as"):
+            self.track("who", {"name": self.params["as"]}, key=self.params["as"])
+
+    def rename(self, data):
+        self.update_presence({"name": data["name"]})
 
 
 @pytest.fixture()
@@ -38,6 +52,7 @@ def machines(redis_url):
         })
         current.app = app
         app.router.channels["RoomChannel"] = RoomChannel
+        app.router.channels["WhoChannel"] = WhoChannel
         made.append(app)
         if start:
             app.cable.start_server()
@@ -47,6 +62,10 @@ def machines(redis_url):
     yield make
     for app in made:
         app.cable.stop_server()
+    client = redis.from_url(redis_url)
+    keys = list(client.scan_iter(f"{prefix}*"))
+    if keys:
+        client.delete(*keys)
 
 
 def _subscribed(app, room=1, **kwargs):
@@ -197,3 +216,166 @@ def test_from_memory_nothing_goes_to_redis(machines):
     app.cable.disconnect(user_id=7)  # nobody here: nothing happens, nothing published
     assert server.is_open(conn_id)
     app.cable.stop_server()
+
+
+# Presence, one list for all the machines
+
+def _who(app, name=None):
+    """A client in WhoChannel: present as `name`, or only watching."""
+    client = WsClient(app.config.CABLE_PORT)
+    params = {"as": name} if name else {}
+    client.send({"command": "subscribe", "channel": "WhoChannel", "params": params})
+    client.confirm = client.recv_type("confirm_subscription")
+    return client
+
+
+def _events(client, wait=0.5):
+    """The presence events the client gets in `wait` seconds."""
+    client.sock.settimeout(wait)
+    got = []
+    while (msg := client.recv()) is not None:
+        if msg.get("c") == "WSE":
+            got.append((msg["t"], msg["p"]["user_id"], msg["p"]["data"]))
+    return got
+
+
+def _next_event(client):
+    while True:
+        msg = client.recv()
+        assert msg is not None, "closed"
+        if msg.get("c") == "WSE":
+            return (msg["t"], msg["p"]["user_id"], msg["p"]["data"])
+
+
+def test_presence_is_one_list_for_every_machine(machines):
+    one, two = machines(), machines()
+    watcher = _who(two)
+    ana = _who(one, "ana")  # noqa: F841 - kept open: present while it is
+    assert _next_event(watcher) == ("presence_join", "ana", {"name": "ana"})
+    assert two.cable.presence("who") == {"ana": {"data": {"name": "ana"}, "connections": 1}}
+    assert one.cable.presence_stats("who") == {"users": 1, "connections": 1}
+    # The confirmation lists who is in the streams the channel tracks, on
+    # every machine
+    bea = _who(two, "bea")
+    assert bea.confirm["presence"] == {"who": {"ana": {"name": "ana"}, "bea": {"name": "bea"}}}
+
+
+def test_a_user_on_two_machines_joins_once_and_leaves_once(machines):
+    one, two = machines(), machines()
+    watcher = _who(two)
+    on_one = _who(one, "ana")
+    assert _next_event(watcher)[:2] == ("presence_join", "ana")
+    on_two = _who(two, "ana")  # the same user, on the other machine
+    assert _wait(lambda: one.cable.presence("who")["ana"]["connections"] == 2)
+    on_one.close()
+    assert _wait(lambda: one.cable.presence("who")["ana"]["connections"] == 1)
+    assert _events(watcher) == []  # still present, on the other machine
+    on_two.close()
+    assert _next_event(watcher)[:2] == ("presence_leave", "ana")
+    assert two.cable.presence("who") == {}
+
+
+def test_new_data_reaches_every_machine(machines):
+    one, two = machines(), machines()
+    watcher = _who(two)
+    ana = _who(one, "ana")
+    _next_event(watcher)
+    ana.send({"command": "message", "channel": "WhoChannel", "params": {"as": "ana"},
+              "action": "rename", "data": {"name": "Ana"}})
+    assert _next_event(watcher) == ("presence_update", "ana", {"name": "Ana"})
+    assert two.cable.presence("who")["ana"]["data"] == {"name": "Ana"}
+
+
+def test_a_machine_that_dies_leaves(machines):
+    one, two = machines(), machines()
+    watcher = _who(two)
+    ana = _who(one, "ana")  # noqa: F841 - kept open
+    _next_event(watcher)
+    # one dies: no more heartbeats, and its key runs out
+    one.cable._beating.clear()
+    one.cable._beater.join()
+    one.cable._beater = None
+    redis.from_url(one.cable._url).delete(one.cable._alive_key(one.cable._origin))
+    two.cable._beat()  # two notices, and drops what one had
+    assert _next_event(watcher) == ("presence_leave", "ana", {"name": "ana"})
+    assert two.cable.presence("who") == {}
+    two.cable._beat()  # once is enough: nothing left to drop
+    assert _events(watcher, wait=0.2) == []
+
+
+def test_the_heartbeat_keeps_running(machines, monkeypatch):
+    monkeypatch.setattr(redis_cable, "ALIVE_EVERY", 0.05)
+    one = machines()
+    client = redis.from_url(one.cable._url)
+    client.delete(one.cable._alive_key(one.cable._origin))
+    assert _wait(lambda: client.exists(one.cable._alive_key(one.cable._origin)))
+
+
+def test_a_machine_that_stops_takes_its_users_out(machines):
+    one, two = machines(), machines()
+    watcher = _who(two)
+    ana = _who(one, "ana")  # noqa: F841 - kept open
+    _next_event(watcher)
+    one.cable.stop_server()
+    assert _next_event(watcher)[:2] == ("presence_leave", "ana")
+    assert two.cable.presence("who") == {}
+    client = redis.from_url(one.cable._url)
+    assert not client.exists(one.cable._alive_key(one.cable._origin))
+    assert not client.exists(one.cable._streams_key(one.cable._origin))
+
+
+def test_without_redis_presence_is_this_machines(machines, caplog):
+    with caplog.at_level(logging.WARNING, logger="proper"):
+        lonely = machines(url="redis://127.0.0.1:1/0")
+        watcher = _who(lonely)
+        ana = _who(lonely, "ana")  # noqa: F841 - kept open
+        assert _next_event(watcher) == ("presence_join", "ana", {"name": "ana"})
+        assert lonely.cable.presence("who") == {"ana": {"data": {"name": "ana"}, "connections": 1}}
+    assert "could not share presence through Redis" in caplog.text
+    assert "could not read presence from Redis" in caplog.text
+    assert "could not keep presence in Redis" in caplog.text
+
+
+def test_a_machine_with_presence_off_keeps_out_of_redis(machines):
+    one = machines(presence=False)
+    assert one.cable._beater is None
+    assert one.cable.presence("who") == {}
+
+
+
+def test_from_memory_presence_is_local(machines):
+    app = machines(start=False)
+    server = app.cable.serve_in_memory()
+    conn_id = server.connect()
+    server.client_send(conn_id, '{"command": "subscribe", "channel": "WhoChannel", '
+                                '"params": {"as": "ana"}}')
+    assert app.cable.presence("who") == {"ana": {"data": {"name": "ana"}, "connections": 1}}
+    app.cable.stop_server()
+
+
+def test_what_this_machine_left_in_redis_goes_when_it_stops(machines):
+    """An entry whose leave was lost (Redis was down at that moment): the
+    machine takes it out when it stops, and the others hear the leave."""
+    one, two = machines(), machines()
+    watcher = _who(two)
+    one.cable._script("set", redis_cable._SET_PRESENCE)(
+        keys=[one.cable._presence_key("who")],
+        args=["ghost", one.cable._origin, '[{"name": "ghost"}, 1, 0]'],
+    )
+    redis.from_url(one.cable._url).sadd(one.cable._streams_key(one.cable._origin), "who")
+    one.cable.stop_server()
+    assert _next_event(watcher) == ("presence_leave", "ghost", {"name": "ghost"})
+
+
+def test_a_dead_machine_another_is_dropping_is_skipped(machines):
+    one, two = machines(), machines()
+    ana = _who(one, "ana")  # noqa: F841 - kept open
+    assert _wait(lambda: two.cable.presence("who"))
+    one.cable._beating.clear()
+    one.cable._beater.join()
+    one.cable._beater = None
+    client = redis.from_url(one.cable._url)
+    client.delete(one.cable._alive_key(one.cable._origin))
+    client.set(f"{one.cable._prefix}purging:{one.cable._origin}", "1", ex=30)  # another's
+    two.cable._beat()
+    assert "ana" in two.cable.presence("who")

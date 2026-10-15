@@ -1175,6 +1175,37 @@ class TestPresence:
         await ws.close()
         await task
 
+    @pytest.mark.asyncio
+    async def test_data_too_large_is_refused(self, app):
+        app.cable = type(app.cable)(presence_max_data_size=30)
+        app.cable.bind(app)
+        ws, task = await open_ws(app, _cookie(app, "good-token"))
+        rejection = await ws.subscribe("PresenceChannel", room="a", name="x" * 30)
+        assert rejection["type"] == "reject_subscription"  # track() refuses it
+        confirm, _ = await subscribe_tracked(ws, room="b", name="Ana")
+        reply = await ws.perform("PresenceChannel", "rename", {"name": "y" * 30}, room="b", name="Ana")
+        assert reply["status"] == "error"
+        assert app.cable.presence("room_b") == {"7": {"data": {"name": "Ana"}, "connections": 1}}
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_a_stream_full_of_users_refuses_one_more(self, app):
+        app.cable = type(app.cable)(presence_max_members=1)
+        app.cable.bind(app)
+        ana, task1 = await open_ws(app, _cookie(app, "good-token"))
+        await subscribe_tracked(ana, room="a", name="Ana")
+        ana_again, task2 = await open_ws(app, _cookie(app, "good-token"))
+        confirm, _ = await subscribe_tracked(ana_again, room="a", name="Ana")  # the same user
+        assert confirm["presence"] == {"room_a": {"7": {"name": "Ana"}}}
+        guest, task3 = await open_ws(app)
+        rejection = await guest.subscribe("PresenceChannel", room="a", name="Guest")
+        assert rejection["type"] == "reject_subscription"
+        assert list(app.cable.presence("room_a")) == ["7"]
+        for ws, task in ((ana, task1), (ana_again, task2), (guest, task3)):
+            await ws.close()
+            await task
+
     def test_the_base_cable_has_no_one(self):
         from proper.channels import BaseCable
 

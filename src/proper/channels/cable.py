@@ -396,8 +396,10 @@ class _Streams:
                 if entry is None:
                     entry = members[user] = _Present(presence_data)
                 entry.connections.add(conn_id)
-            if first:
-                self._presence_frame("presence_join", topic, user, presence_data)
+                data, count = entry.data, len(entry.connections)
+            self.cable._presence_changed(
+                "join" if first else "connections", topic, user, data, count
+            )
 
     def unsubscribe_connection(self, conn_id: t.Any, topics: list[str]) -> None:
         for topic in topics:
@@ -422,15 +424,17 @@ class _Streams:
         for topic in topics:
             with self._lock:
                 members = self._presence.get(topic, {})
-                gone = [
-                    (user, entry.data) for user, entry in members.items()
-                    if conn_id in entry.connections
-                    and not (entry.connections.discard(conn_id) or entry.connections)
-                ]
-                for user, _ in gone:
-                    del members[user]
-            for user, data in gone:
-                self._presence_frame("presence_leave", topic, user, data)
+                changed = []  # (user, data, the connections it has left)
+                for user, entry in list(members.items()):
+                    if conn_id in entry.connections:
+                        entry.connections.discard(conn_id)
+                        changed.append((user, entry.data, len(entry.connections)))
+                        if not entry.connections:
+                            del members[user]
+            for user, data, count in changed:
+                self.cable._presence_changed(
+                    "leave" if not count else "connections", topic, user, data, count
+                )
 
     def update_presence(self, conn_id: t.Any, data: dict) -> None:
         self._need_presence()
@@ -438,23 +442,18 @@ class _Streams:
         if user is None:
             raise RuntimeError("Failed to update presence data (unknown connection)")
         for topic, members in list(self._presence.items()):
-            if user in members and conn_id in members[user].connections:
-                members[user].data = data
-                self._presence_frame("presence_update", topic, user, data)
+            entry = members.get(user)
+            if entry is not None and conn_id in entry.connections:
+                entry.data = data
+                self.cable._presence_changed(
+                    "update", topic, user, data, len(entry.connections)
+                )
 
     def presence(self, topic: str) -> dict:
         with self._lock:
             return {
                 user: {"data": entry.data, "connections": len(entry.connections)}
                 for user, entry in self._presence.get(topic, {}).items()
-            }
-
-    def presence_stats(self, topic: str) -> dict:
-        with self._lock:
-            members = self._presence.get(topic, {})
-            return {
-                "num_users": len(members),
-                "num_connections": sum(len(e.connections) for e in members.values()),
             }
 
     def _need_presence(self) -> None:
@@ -787,6 +786,8 @@ class Cable(BaseCable):
         recovery_ttl: float = 300,
         recovery_memory_budget: int = 256 * 1024 * 1024,
         presence: bool = True,
+        presence_max_data_size: int = 4096,
+        presence_max_members: int = 0,
         shutdown_grace: float = 1,
     ) -> None:
         """`loops`: Bearings' event loops, the threads that read and write
@@ -801,7 +802,9 @@ class Cable(BaseCable):
         without a broadcast, and, past `recovery_memory_budget` bytes for all
         of them, those of the streams with the oldest last broadcast.
 
-        `presence`: keep who is in each stream (`Channel.track()`).
+        `presence`: keep who is in each stream (`Channel.track()`). The data
+        of a user may be `presence_max_data_size` bytes at most, as JSON, and
+        a stream may have `presence_max_members` users (`0`: no limit).
 
         `shutdown_grace`: seconds the WebSockets have to close when the
         server stops; the ones still open then are cut."""
@@ -820,6 +823,8 @@ class Cable(BaseCable):
         self._recovery_ttl = recovery_ttl
         self._recovery_memory_budget = recovery_memory_budget
         self._presence = presence
+        self._presence_max_data_size = presence_max_data_size
+        self._presence_max_members = presence_max_members
         self._shutdown_grace = shutdown_grace
         self._start_lock = threading.Lock()
         # The process that started the server; a forked copy of it has none.
@@ -1062,8 +1067,34 @@ class Cable(BaseCable):
 
     def track(self, stream_name: str, data: dict, channel: "Channel", key: t.Any = None) -> None:
         conn = t.cast(Connection, channel._connection)
+        self._check_presence_data(data)
         conn.presence_identity(key)
+        limit = self._presence_max_members
+        if limit:
+            present = self.presence(stream_name)
+            if conn.presence_key not in present and len(present) >= limit:
+                raise ValueError(
+                    f"{stream_name!r} already has {limit} present: presence_max_members"
+                )
         self.server.subscribe_connection(conn.conn_id, [stream_name], data)
+
+    def _check_presence_data(self, data: t.Any) -> None:
+        size = len(jsonplus.dumps(data).encode())
+        if size > self._presence_max_data_size:
+            raise ValueError(
+                f"the presence data is {size} bytes as JSON, more than "
+                f"presence_max_data_size ({self._presence_max_data_size})"
+            )
+
+    def _presence_changed(
+        self, kind: str, stream_name: str, user: str, data: t.Any, connections: int
+    ) -> None:
+        """What `_Streams` calls when presence changes here: a user's first
+        connection to the stream (`"join"`), their last one gone (`"leave"`),
+        new data (`"update"`), or another connection count (`"connections"`).
+        The stream's subscribers hear of the first three."""
+        if kind != "connections":
+            self.server._presence_frame(f"presence_{kind}", stream_name, user, data)
 
     def untrack(self, stream_name: str, channel: "Channel") -> None:
         conn = t.cast(Connection, channel._connection)
@@ -1074,6 +1105,7 @@ class Cable(BaseCable):
         conn = t.cast(Connection, channel._connection)
         if conn.presence_key is None:
             raise ValueError("the connection is not present anywhere: track() first")
+        self._check_presence_data(data)
         self.server.update_presence(conn.conn_id, data)
 
     def presence(self, stream_name: str) -> dict[str, dict]:
@@ -1082,10 +1114,11 @@ class Cable(BaseCable):
         return self.server.presence(stream_name)
 
     def presence_stats(self, stream_name: str) -> dict[str, int]:
-        if not self.serving or not self._presence:
-            return {"users": 0, "connections": 0}
-        stats = self.server.presence_stats(stream_name)
-        return {"users": stats["num_users"], "connections": stats["num_connections"]}
+        present = self.presence(stream_name)
+        return {
+            "users": len(present),
+            "connections": sum(entry["connections"] for entry in present.values()),
+        }
 
     # Users
 
@@ -1201,7 +1234,7 @@ class Cable(BaseCable):
                 for stream in rest:
                     current[stream] = _position(result["topics"][stream])
         present = {
-            stream: {key: entry["data"] for key, entry in self.server.presence(stream).items()}
+            stream: {key: entry["data"] for key, entry in self.presence(stream).items()}
             for stream in sorted(channel._tracked)
         }
         conn.put({
