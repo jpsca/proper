@@ -676,6 +676,7 @@ class BearingsServer(_Streams, WebSocketHandler):
             loops=cable._loops,
             workers=cable._workers,
             max_connections=cable._max_connections,
+            max_message=cable._max_message,
             websocket=self,
             ws_path=config.get("CABLE_PATH", "/cable"),
             origins=allowed_origins(config),
@@ -780,6 +781,8 @@ class Cable(BaseCable):
         loops: int = 1,
         workers: int = 4,
         max_connections: int = 100_000,
+        max_message: int = 1024 * 1024,
+        max_subscriptions: int = 0,
         idle_timeout: float = 60,
         recovery: bool = True,
         recovery_buffer_size: int = 128,
@@ -795,6 +798,10 @@ class Cable(BaseCable):
 
         `idle_timeout`: seconds; a connection that answers no ping for that
         long is closed (`cable.js` answers them).
+
+        `max_message`: bytes; a client that sends a larger message is
+        closed. `max_subscriptions`: how many channels a connection may
+        subscribe to; past it, a subscription is rejected (`0`: no limit).
 
         `recovery`: keep the last `recovery_buffer_size` broadcasts of each
         stream, so a client that reconnects gets the ones it missed (see
@@ -817,6 +824,8 @@ class Cable(BaseCable):
         self._loops = loops
         self._workers = workers
         self._max_connections = max_connections
+        self._max_message = max_message
+        self._max_subscriptions = max_subscriptions
         self._idle_timeout = idle_timeout
         self._recovery = recovery
         self._recovery_buffer_size = recovery_buffer_size
@@ -1170,6 +1179,13 @@ class Cable(BaseCable):
         existing = conn.subscriptions.get(key)
         if existing is not None:
             self._confirm(conn, confirm, existing, positions)
+            return
+        limit = self._max_subscriptions
+        if limit and len(conn.subscriptions) >= limit:
+            conn.put({
+                "type": "reject_subscription", "channel": channel_name,
+                "params": params, "reason": "too_many_subscriptions",
+            })
             return
         channel_cls = self.app.router.channels.get(channel_name)
         if channel_cls is None:

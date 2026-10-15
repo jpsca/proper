@@ -765,6 +765,8 @@ Option                 | Default      | What it is
 `loops`                | `1`          | Threads that read and write the WebSockets
 `workers`              | `4`          | Threads that run the channels' code
 `max_connections`      | `100000`     | Connections open at once; more wait to be accepted
+`max_message`          | 1 MB         | Bytes of a message from a client; a larger one closes its connection
+`max_subscriptions`    | `0`          | Channels a connection may subscribe to; past it, a subscription is rejected with `too_many_subscriptions`. `0` is no limit
 `idle_timeout`         | `60`         | Seconds; a connection that answers no ping for that long is closed
 `recovery`             | `True`       | Keep the last broadcasts of each stream, for clients that reconnect (see [Missed broadcasts](#missed-broadcasts-recovery))
 `recovery_buffer_size` | `128`        | How many broadcasts of each stream it keeps
