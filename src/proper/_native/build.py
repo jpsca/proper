@@ -36,6 +36,7 @@ def build(out: Path = HERE / "libproper_native.so", fpc: str | None = None) -> P
                 f"-Fu{HERE}",
                 f"-Fu{HERE / 'sha256'}",
                 f"-Fi{HERE / 'sha256'}",
+                f"-Fi{HERE}",
                 f"-FU{units}",
                 f"-o{out}",
                 str(HERE / "proper_native.pas"),

@@ -50,3 +50,12 @@ long long proper_parse_multipart(const char *body, size_t len, const char *bound
                                  long long *parts, ptrdiff_t max_parts, long long max_fields,
                                  long long max_files, long long max_field_size,
                                  long long *recs, ptrdiff_t max_recs);
+
+/* HTML to plain text (proper_text.pas): the length of the text, or -4 when
+   out, scratch or links is too small. names: the filename of each
+   attachment by its sgid, as records of offsets and lengths into the names
+   bytes (4); links: room for links_cap open links (3 words each). */
+long long proper_html2text(const char *html, size_t len, const char *names,
+                           const long long *name_recs, ptrdiff_t name_count, char *out,
+                           size_t cap, char *scratch, size_t scratch_cap, long long *links,
+                           ptrdiff_t links_cap);

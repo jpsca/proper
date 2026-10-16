@@ -2,8 +2,9 @@
 the sources in this directory (`build.py`), loaded with cffi in ABI mode.
 
 What it does now: sign tokens and check them (`Signing`), for `App.dumps`
-and `App.loads`; and parse request bodies and headers (`parse_form`,
-`parse_params`, `parse_multipart`), for `proper.core.request.formparser`.
+and `App.loads`; parse request bodies and headers (`parse_form`,
+`parse_params`, `parse_multipart`), for `proper.core.request.formparser`;
+and turn HTML into plain text (`html2text`), for `proper.helpers.html2text`.
 """
 import threading
 import typing as t
@@ -13,8 +14,8 @@ from cffi import FFI
 
 
 __all__ = (
-    "BAD_SIGNATURE", "EXPIRED", "MALFORMED", "Rejected", "Signing", "ffi", "lib",
-    "parse_form", "parse_multipart", "parse_params",
+    "BAD_SIGNATURE", "EXPIRED", "MALFORMED", "Rejected", "Signing", "ffi", "html2text",
+    "lib", "parse_form", "parse_multipart", "parse_params",
 )
 
 HERE = Path(__file__).parent
@@ -29,14 +30,17 @@ TOO_SMALL = -4
 
 # The buffers each thread starts with; a larger token or body gets larger ones.
 BUFFER_SIZE = 64 * 1024
-# Records each thread starts with: the parts of a multipart body, and the
-# parameters of one header.
+# Records each thread starts with: the parts of a multipart body, the
+# parameters of one header, and the links open at once in an HTML.
 PARTS = 64
 PARAMS = 64
+LINKS = 64
 # Words per record
 FIELD_WORDS = 4
 PARAM_WORDS = 4
 PART_WORDS = 10
+NAME_WORDS = 4
+LINK_WORDS = 3
 
 
 def _load(library: Path = LIBRARY) -> tuple[FFI, t.Any]:
@@ -84,6 +88,8 @@ class _Buffers(threading.local):
         self.part_records = ffi.new("long long[]", PARTS * PART_WORDS)
         self.params = PARAMS
         self.param_records = ffi.new("long long[]", PARAMS * PARAM_WORDS)
+        self.links = LINKS
+        self.link_records = ffi.new("long long[]", LINKS * LINK_WORDS)
 
     def grow(self, size: int) -> None:
         self.size = size
@@ -95,6 +101,8 @@ class _Buffers(threading.local):
         self.part_records = ffi.new("long long[]", self.parts * PART_WORDS)
         self.params *= 4
         self.param_records = ffi.new("long long[]", self.params * PARAM_WORDS)
+        self.links *= 4
+        self.link_records = ffi.new("long long[]", self.links * LINK_WORDS)
 
 
 _buffers = _Buffers()
@@ -222,3 +230,29 @@ def parse_multipart(
     for i in range(0, len(words), PART_WORDS):
         end = max(end, words[i] + words[i + 1], words[i + 2] + words[i + 3])
     return ffi.buffer(buffers.out, end)[:], words
+
+
+def html2text(html: bytes, filenames: "dict[bytes, bytes]") -> bytes:
+    """The plain text of an HTML (UTF-8), as `proper_text.pas` describes it.
+    `filenames`: the filename of each attachment, by its sgid."""
+    names = b"".join(sgid + name for sgid, name in filenames.items())
+    records = []
+    at = 0
+    for sgid, name in filenames.items():
+        records += [at, len(sgid), at + len(sgid), len(name)]
+        at += len(sgid) + len(name)
+    name_records = ffi.new("long long[]", records) if records else ffi.NULL
+    buffers = _buffers
+    # The text is at most a few times the HTML (an "<hr>" is 20 "-")
+    need = 2 * len(html) + len(names) + 256
+    if buffers.size < need:
+        buffers.grow(max(buffers.size * 4, need))
+    while True:
+        n = lib.proper_html2text(
+            html, len(html), names, name_records, len(filenames), buffers.out, buffers.size,
+            buffers.scratch, buffers.size, buffers.link_records, buffers.links,
+        )
+        if n >= 0:
+            return ffi.unpack(buffers.out, n)
+        buffers.grow(buffers.size * 4)
+        buffers.grow_records()

@@ -168,7 +168,7 @@ The value of a `rich_text.RichTextField` can be directly embedded into a page, b
 {{ post.body }}
 ```
 
-`RichTextDocument.__html__` transforms the data into a sanitized HTML string, including attachments. On the other hand `RichTextDocument.__str__` returns a plain text string without HTML tags, useful for using it in metadata.
+`RichTextDocument.__html__` transforms the data into a sanitized HTML string, including attachments. On the other hand, `RichTextDocument.__str__` returns the text without HTML tags, useful for metadata or search indexes: paragraphs separated by a blank line, `- ` before each list item, links followed by their address in parentheses, and images and attachments as their alt text (or file name) in brackets.
 
 You probably also want to include the `lexxy-content.css`
 stylesheet - to give your content the same styles it has in the editor - and to wrap the field with a `lexxy-content` class, since that's what the styles use:

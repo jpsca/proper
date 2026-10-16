@@ -102,7 +102,7 @@ The form field knows to coerce a `RichTextDocument` (the runtime value of the mo
 {{ post.body }}
 ```
 
-`__html__()` returns the sanitized HTML. `__str__()` returns plain text (paragraph breaks, list bullets, alt text for embeds) — useful for OG tags, search indices, email previews.
+`__html__()` returns the sanitized HTML. `__str__()` returns plain text, by the same rules as `proper.helpers.html2text` (the text of HTML emails): blank lines between blocks, `- ` list items, `text (href)` links, `[alt]` for images, `[alt]`/`[caption]`/`[filename]`/`[file]` for attachments, three backticks around `<pre>` — useful for OG tags, search indices, email previews.
 
 For visual parity with the editor, include `lexxy-content.css` and wrap the content in a `lexxy-content` element:
 
