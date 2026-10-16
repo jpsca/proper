@@ -269,10 +269,10 @@ from proper.units import MB
 
 MAX_FORM_FILES = 10          # Max number of file fields (default: 10)
 MAX_FORM_FIELDS = 100        # Max number of non-file fields (default: 100)
-MAX_FORM_PART_SIZE = 2 * MB  # Max size per individual part (default: 2 MB)
+MAX_FORM_PART_SIZE = 2 * MB  # Max size of each non-file field (default: 2 MB)
 ```
 
-These protect against abuse from forms with excessive fields or oversized individual parts.
+These protect against abuse from forms with excessive fields or oversized fields. Uploaded files are limited by `MAX_CONTENT_LENGTH`, the size of the whole request body.
 
 
 ## Trusted Proxies

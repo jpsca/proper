@@ -448,7 +448,7 @@ class BookForm(f.Form):
 
 `accept` patterns mirror the syntax of the HTML `accept` attribute on `<input type="file">`, so the Python list and the rendered `accept="..."` string can use the same patterns.
 
-`max_size` is a soft, application-level limit on top of the framework's hard `MAX_FORM_PART_SIZE` (which protects the request parser from runaway uploads). Use `max_size` for per-field business rules; configure `MAX_FORM_PART_SIZE` for the global ceiling.
+`max_size` is a soft, application-level limit, checked after the request is parsed. The hard ceiling for uploads is `MAX_CONTENT_LENGTH`, the largest request body the app reads (a larger one is refused before it is read); `MAX_FORM_PART_SIZE` limits only the fields that aren't files. Use `max_size` for per-field business rules; configure `MAX_CONTENT_LENGTH` for the global ceiling.
 
 #### Subclass extension
 
