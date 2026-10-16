@@ -57,6 +57,52 @@ def test_setdefault_missing():
     assert d.get("X-Custom") == "new"
 
 
+def test_setdefault_none_sets_nothing():
+    d = ResponseHeadersDict()
+    d.setdefault("X-Custom", None)
+    assert "X-Custom" not in d
+
+
+def test_setdefault_with_params():
+    d = ResponseHeadersDict()
+    d.setdefault("Content-Type", "text/plain", charset="utf-8")
+    assert d["Content-Type"] == ("Content-Type", "text/plain; charset=utf-8")
+
+
+def test_a_header_is_a_namedtuple():
+    d = ResponseHeadersDict()
+    d.set("x_custom", "v")
+    d.setdefault("X-Other", "w")
+    for header in (d["X-Custom"], d["X-Other"]):
+        assert type(header).__name__ == "Header"
+        assert header == (header.name, header.value)
+    assert d["X-Custom"].name == "x-custom"  # as written, "_" made "-"
+
+
+def test_a_value_that_is_not_a_str():
+    """Only a `str` is a header value as it is; anything else must be
+    formatted first (`set_*`), as before."""
+    d = ResponseHeadersDict()
+    with pytest.raises(TypeError):
+        d.set("X-Custom", 5)
+
+
+def test_a_str_subclass_value():
+    class Value(str):
+        pass
+
+    resp = _make_response()
+    resp.headers.set("X-Custom", Value("v"))
+    assert ("X-Custom", "v") in resp.get_header_tuples()
+
+
+def test_delitem():
+    d = ResponseHeadersDict()
+    d["X-Custom"] = "value"
+    del d["x_custom"]
+    assert "X-Custom" not in d
+
+
 def test_update():
     d = ResponseHeadersDict()
     d.update({"X-One": "1", "X-Two": "2"})
