@@ -58,6 +58,10 @@ HOST_SAFE = frozenset(
 
 DOT_SEGMENTS = (".", "..")
 
+"""Finds a character that `quote(value, safe=PATH_SAFE)` would encode: one
+that is neither unreserved nor in `PATH_SAFE`."""
+NEEDS_QUOTING = re.compile(r"[^A-Za-z0-9_.\-~/:@!$&'()*+,;=]").search
+
 """Formats to be replaced with regular expressions.
 Note that these DON'T do any type conversion, just
 validates the section of the route match the regular expression.
@@ -516,24 +520,53 @@ class Route:
         would lead to another page. Percent-encoding them doesn't help:
         `%2e` is a dot to them too.
         """
-        path_params = self._get_path_params(kw)
-        values = {
-            name: quote(value, safe=PATH_SAFE) for name, value in path_params.items()
-        }
-        name = _dot_segment_placeholder(self._path_pieces, values)
-        if name is not None:
-            raise BadRoutePlaceholder(
-                name,
-                self.path,
-                self._path_placeholder_re[name].pattern,
-                reason="would make a `.` or `..` segment, which clients remove",
+        return self._format(kw)
+
+    def _format(self, kw: dict) -> str:
+        """`format`, with the values in a dict: what `url_for` calls.
+
+        The checks and the text of the path were prepared with the route
+        (`_compile_path`). A non-negative `int` for an `<int>` placeholder
+        is what `[0-9]+` matches, with nothing to encode and no dot, so it
+        skips the rest; a value is percent-encoded only if it has something
+        to encode, and checked for dot segments only if it has a dot.
+        """
+        values = []
+        dotted = False
+        for name, rx, digits in self._path_checks:
+            value = kw.get(name)
+            if value is None:
+                raise MissingRouteParameter(name, self.path)
+            if digits and type(value) is int and value >= 0:
+                values.append(str(value))
+                continue
+            value = str(value)
+            if not rx.fullmatch(value):
+                raise BadRoutePlaceholder(name, self.path, rx.pattern)
+            if NEEDS_QUOTING(value):
+                value = quote(value, safe=PATH_SAFE)
+            if "." in value:
+                dotted = True
+            values.append(value)
+
+        if dotted:
+            name = _dot_segment_placeholder(
+                self._path_pieces, dict(zip(self.path_placeholders, values, strict=True))
             )
-        url = _build(self._path_pieces, values) or "/"
+            if name is not None:
+                raise BadRoutePlaceholder(
+                    name,
+                    self.path,
+                    self._path_placeholder_re[name].pattern,
+                    reason="would make a `.` or `..` segment, which clients remove",
+                )
+        url = self._path_template % tuple(values) or "/"
 
-        query_params = self._get_query_params(path_params, kw)
-        if query_params:
-            url = url + "?" + urlencode(query_params)
-
+        # Every placeholder is in `kw` (or one would be missing): more keys
+        # than placeholders are the query string.
+        if len(kw) > len(values):
+            placeholders = self.path_placeholders
+            url += "?" + urlencode({k: v for k, v in kw.items() if k not in placeholders})
         return url
 
     def format_host(self, **kw) -> str | None:
@@ -584,6 +617,16 @@ class Route:
         self._path_placeholder_re = {
             name: re.compile(rx) for name, rx in placeholders.items()
         }
+        # The path with a `%s` for each placeholder, and for each one its
+        # name, regex, and whether it is an `<int>`.
+        self._path_template = "".join(
+            literal.replace("%", "%%") + ("%s" if name is not None else "")
+            for literal, name in self._path_pieces
+        )
+        self._path_checks = tuple(
+            (name, self._path_placeholder_re[name], rx == FORMATS["int"])
+            for name, rx in placeholders.items()
+        )
 
     def _compile_host(self) -> None:
         if self._host is None:
@@ -608,11 +651,6 @@ class Route:
             name: re.compile(rx) for name, rx in placeholders.items()
         }
 
-    def _get_path_params(self, kwargs: dict) -> dict:
-        return self._get_pattern_params(
-            self._path_placeholder_re, kwargs, source=self.path
-        )
-
     def _get_host_params(self, kwargs: dict) -> dict:
         return self._get_pattern_params(
             self._host_placeholder_re, kwargs, source=self.host or ""
@@ -633,14 +671,6 @@ class Route:
             params[name] = value
         return params
 
-    def _get_query_params(self, path_params: dict, kwargs: dict) -> dict:
-        query_params = {}
-
-        for name, value in kwargs.items():
-            if name not in path_params:
-                query_params[name] = value
-
-        return query_params
 
 
 class StaticRoute(Route):
@@ -703,9 +733,9 @@ class StaticRoute(Route):
             defaults=defaults,
         )
 
-    def format(self, **kw) -> str:
+    def _format(self, kw: dict) -> str:
         if not self.defaults["fp"]:
-            return super().format(**kw)
+            return super()._format(kw)
 
         if "file" not in kw:
             raise MissingRouteParameter("file", self.path)
@@ -715,7 +745,7 @@ class StaticRoute(Route):
         relpath = Path(filename.lstrip(os.path.sep))
         filepath = root / relpath
         if not filepath.is_file():
-            return super().format(**kw)
+            return super()._format(kw)
 
         stat = filepath.stat()
         fingerprint = sha256(str(stat.st_mtime).encode()).hexdigest()
@@ -725,6 +755,4 @@ class StaticRoute(Route):
         parent = str(relpath.parent)
         parent = "" if parent == "." else f"{parent}/"
 
-        kw["file"] = f"{parent}{stem}-{fingerprint}{ext}"
-
-        return super().format(**kw)
+        return super()._format({**kw, "file": f"{parent}{stem}-{fingerprint}{ext}"})

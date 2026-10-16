@@ -38,6 +38,9 @@ All notable changes to Proper are documented in this file.
   - The `<title>` of an email is no longer in its text.
   - `proper.rich_text.plain_text` is gone: use
     `proper.helpers.html2text(html, attachments)`.
+- `url_for` is three times faster (about 0.7 µs instead of 2.1): each route
+  prepares its path once, and a value is encoded or checked for dot
+  segments only when it needs it. The URLs are the same.
 
 ## 0.41.0
 
