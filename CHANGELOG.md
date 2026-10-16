@@ -56,6 +56,9 @@ instead of `session.key = value`. A request costs 2–3 µs less.
 - `url_for` is three times faster (about 0.7 µs instead of 2.1): each route
   prepares its path once, and a value is encoded or checked for dot
   segments only when it needs it. The URLs are the same.
+- The view of an action is found without parsing the `Accept` header on
+  every request: its formats are remembered per header (up to 256 headers).
+  A page with an inferred view is about 5 µs faster.
 - Setting a response header costs half of what it did (`set` 0.54 µs →
   0.26, `setdefault` 0.76 → 0.29): a header name is looked up once, and a
   value without parameters is stored as it is. A page that sets the five
