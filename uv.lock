@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [[package]]
@@ -750,12 +750,12 @@ version = "0.41.0"
 source = { editable = "." }
 dependencies = [
     { name = "babel" },
+    { name = "cffi" },
     { name = "formidable" },
     { name = "hecto" },
     { name = "huey" },
     { name = "inflection" },
     { name = "isort" },
-    { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "markupsafe" },
     { name = "minijx" },
@@ -785,6 +785,7 @@ docs = [
 ]
 test = [
     { name = "boto3" },
+    { name = "itsdangerous" },
     { name = "nh3" },
     { name = "poyo" },
     { name = "proper-new" },
@@ -799,12 +800,12 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "babel", specifier = ">=2.17.0" },
+    { name = "cffi", specifier = ">=2.0" },
     { name = "formidable", specifier = ">=0.21" },
     { name = "hecto", specifier = ">=2.4.0" },
     { name = "huey", specifier = ">=3.4,<4" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },
-    { name = "itsdangerous", specifier = ">=2.2" },
     { name = "jinja2", specifier = ">=3.0" },
     { name = "markupsafe", specifier = ">=2.0" },
     { name = "minijx", specifier = ">=0.1.0" },
@@ -832,6 +833,7 @@ dev = [
 docs = [{ name = "writeadoc", specifier = ">=0.28.0" }]
 test = [
     { name = "boto3", specifier = ">=1.35.71" },
+    { name = "itsdangerous", specifier = ">=2.2" },
     { name = "nh3", specifier = ">=0.2.18" },
     { name = "poyo" },
     { name = "proper-new" },

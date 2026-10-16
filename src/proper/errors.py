@@ -1,7 +1,5 @@
 import typing as t
 
-import itsdangerous
-
 from . import status
 
 
@@ -51,9 +49,12 @@ class WrongHashAlgorithm(ConfigError):
     pass
 
 
-class BadSignature(ConfigError, itsdangerous.BadSignature):
+class BadSignature(ConfigError):
     def __init__(self, message: str = "Bad signature", payload: t.Any = None):
         super().__init__(message, payload)
+        self.message = message
+        # The data that was signed, if any (`None` when it can't be trusted)
+        self.payload = payload
 
 
 # --- Pagination Errors ------

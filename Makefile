@@ -2,6 +2,10 @@
 install:
 	uv sync --all-groups
 
+.PHONY: native
+native:
+	uv run python src/proper/_native/build.py
+
 .PHONY: test
 test:
 	uv run pytest -x src/proper tests

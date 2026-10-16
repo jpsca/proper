@@ -70,7 +70,7 @@ def test_round_trip_for(Account):
 
 def test_expired_token_returns_none(Item):
     item = Item.create(name="thing")
-    with patch("itsdangerous.TimestampSigner.get_timestamp", return_value=int(time()) - 10):
+    with patch("proper.app.time.time", return_value=time() - 10):
         token = item.generate_token()
     found = Item.resolve_token(token, max_age=1)
     assert found is None
@@ -78,7 +78,7 @@ def test_expired_token_returns_none(Item):
 
 def test_expired_token_for_returns_none(Account):
     acct = Account.create(email="alice@test.com")
-    with patch("itsdangerous.TimestampSigner.get_timestamp", return_value=int(time()) - 10):
+    with patch("proper.app.time.time", return_value=time() - 10):
         token = acct.generate_token_for("password_reset")
     found = Account.resolve_token_for("password_reset", token, max_age=1)
     assert found is None

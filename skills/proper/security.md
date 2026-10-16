@@ -145,7 +145,7 @@ token = app.dumps({"user_id": 42}, salt="my-feature")
 data = app.loads(token, max_age=3600, salt="my-feature")
 ```
 
-These use [itsdangerous](https://itsdangerous.palletsprojects.com/) `URLSafeTimedSerializer` with HMAC key derivation, producing URL-safe tokens that include a timestamp. Only the newest secret key is used for signing; all keys are tried for verification.
+These tokens have the format of itsdangerous' `URLSafeTimedSerializer` with HMAC-SHA256 key derivation: URL-safe, with a timestamp. Proper makes and checks them with its own compiled code (`proper._native`). Only the newest secret key is used for signing; all keys are tried for verification.
 
 For model-level token workflows (password resets, email verification, signed URLs), use the `generate_token()` / `resolve_token()` API on `ProperModel` instead of calling `app.dumps()` / `app.loads()` directly. See [Token Generation](models.md#token-generation).
 

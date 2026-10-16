@@ -1,6 +1,9 @@
+import base64
 import copy
+import datetime
 import functools
 import hashlib
+import hmac
 import logging
 import os
 import sys
@@ -8,14 +11,13 @@ import threading
 import time
 import types
 import typing as t
+import zlib
 from importlib import import_module
 from pathlib import Path
 
-import itsdangerous
 import minijx
-from itsdangerous.encoding import base64_decode, bytes_to_int, want_bytes
 
-from . import pipeline, status, tools
+from . import _native, pipeline, status, tools
 from .channels import BaseCable
 from .cli.app_cli import get_cli
 from .compile import install
@@ -57,39 +59,17 @@ if t.TYPE_CHECKING:
 
 __all__ = ("App",)
 
-# What `App._quick_loads` returns when it can't vouch for a value
-_UNSURE = object()
-# 9999-12-31 23:59:59 UTC, the last second a `datetime` holds
-_LAST_TIMESTAMP = 253402300799
+# Why `App.loads` refuses a token, for the log
+_REJECTED = {
+    _native.BAD_SIGNATURE: "BadSignature",
+    _native.EXPIRED: "SignatureExpired",
+    _native.MALFORMED: "BadData",
+}
 
 
 def _call_around(hook, call_next, request, response):
     """One link of the `around_request` chain."""
     return hook(request, response, call_next)
-
-
-class UntimedSerializer(itsdangerous.URLSafeSerializer):
-    """The serializer of `App.dumps(..., timed=False)`: a
-    `URLSafeSerializer` that refuses a payload with a `.` after its first
-    character.
-
-    A timed token is `payload.timestamp.signature`, and its signature,
-    made with the same key and salt, covers `payload.timestamp`. So
-    `URLSafeSerializer` reads a timed token as an untimed one whose payload
-    is `payload.timestamp`. It drops the `.` while it decodes the base64
-    text. When the payload is compressed (it starts with `.`) and the rest
-    of it has a length of 2 modulo 4, the timestamp becomes extra bytes
-    after the zlib data, which zlib ignores, so the timed token loads and
-    never expires. An untimed payload is URL-safe base64, which has no
-    `.`, with one `.` before it when it is compressed.
-    """
-
-    def load_payload(self, payload: bytes, *args: t.Any, **kwargs: t.Any) -> t.Any:
-        if b"." in want_bytes(payload)[1:]:
-            raise itsdangerous.BadPayload(
-                "The payload has a `.` after its first character: it is a timed token"
-            )
-        return super().load_payload(payload, *args, **kwargs)
 
 
 def _default_max_threads() -> int:
@@ -133,9 +113,8 @@ class App(AppWsgi):
     router: Router
     config: DotDict
     CLI: "type[Cli]"
-    signers: tuple[itsdangerous.TimestampSigner, ...]
-    serializers: tuple[itsdangerous.URLSafeTimedSerializer, ...]
-    untimed_serializers: tuple[UntimedSerializer, ...]
+    # The signing of `dumps` and `loads`, per salt
+    _signings: "dict[str | None, _native.Signing]"
     catalog: minijx.Catalog
 
     pipeline: tuple[types.FunctionType, ...] = (
@@ -192,7 +171,7 @@ class App(AppWsgi):
         self._setup_paths(import_name)
         self.router = Router()
         self.CLI = get_cli(self)
-        self._setup_serializers()
+        self._setup_signing()
 
         for tool_module in self.tools:
             tool_module.setup(self)
@@ -265,13 +244,25 @@ class App(AppWsgi):
         With `timed=False` the token carries no timestamp, so it is
         deterministic (same input, same token) and can never expire. Read it
         back with `loads(..., timed=False)`.
+
+        The tokens are those of itsdangerous' `URLSafeTimedSerializer` (and
+        `URLSafeSerializer`, untimed) with HMAC-SHA256 key derivation: the
+        JSON, compressed with zlib when that makes it shorter, in URL-safe
+        base64, then the timestamp and the signature, which the native code
+        makes (`proper._native`).
         """
-        serializers = self.serializers if timed else self.untimed_serializers
-        return str(serializers[-1].dumps(obj, salt=salt))
+        json = jsonplus.dumps(obj).encode()
+        compressed = zlib.compress(json)
+        if len(compressed) < len(json) - 1:
+            payload = b"." + _base64(compressed)
+        else:
+            payload = _base64(json)
+        signed = self._signing(salt).sign(payload, int(time.time()) if timed else None)
+        return signed.decode()
 
     def loads(
         self,
-        value: str,
+        value: str | bytes,
         *,
         max_age: int | None = None,
         return_timestamp: bool = False,
@@ -292,80 +283,45 @@ class App(AppWsgi):
         tokens. `max_age` and `return_timestamp` need a timestamp, so they
         can't be combined with `timed=False`.
         """
-        if timed and not return_timestamp:
-            obj = self._quick_loads(value, max_age, salt)
-            if obj is not _UNSURE:
-                return obj
-        if not timed:
-            if max_age is not None or return_timestamp:
-                raise ValueError("Untimed values have no timestamp to check or return")
-            for serializer in self.untimed_serializers:
-                try:
-                    return serializer.loads(value, salt=salt)
-                except itsdangerous.BadData:
-                    logger.debug("BadData %s...", str(value)[:10])
-            return None
-
-        for serializer in self.serializers:
-            try:
-                return serializer.loads(
-                    value, max_age=max_age, return_timestamp=return_timestamp, salt=salt
-                )
-            except itsdangerous.SignatureExpired:
-                logger.debug("SignatureExpired %s...", str(value)[:10])
-            except itsdangerous.BadData:
-                # A bad signature, or a good one over a payload that
-                # doesn't decode (`BadPayload`)
-                logger.debug("BadData %s...", str(value)[:10])
-            except ValueError, OverflowError, OSError:
-                # A good signature over a timestamp that `datetime` can't
-                # hold (after year 9999)
-                logger.debug("Bad timestamp %s...", str(value)[:10])
-
-    def _quick_loads(self, value: str | bytes, max_age: int | None, salt: str | None) -> t.Any:
-        """`loads` of a timed value, for the common case: a good signature,
-        not expired, over a payload that decodes. The same steps the
-        serializers take, without making a signer and deriving its key at
-        every call: the keys are derived once per salt.
-
-        Returns `_UNSURE` for anything else (a bad signature, expired, a
-        malformed value), and `loads` asks the serializers, which say why.
-        """
-        unsigners = self._unsigners.get(salt)
-        if unsigners is None:
-            unsigners = self._unsigners[salt] = self._make_unsigners(salt)
+        if not timed and (max_age is not None or return_timestamp):
+            raise ValueError("Untimed values have no timestamp to check or return")
+        token = value.encode() if isinstance(value, str) else value
         try:
-            signed = want_bytes(value)
-            body, _, sig = signed.rpartition(b".")
-            payload, dot, ts = body.rpartition(b".")
-            if not dot:
-                return _UNSURE
-            sig = base64_decode(sig)
-            for serializer, key, algorithm in unsigners:
-                if not algorithm.verify_signature(key, body, sig):
-                    continue
-                # The serializers make a `datetime` of it even without a
-                # `max_age`, and refuse one it can't hold (after year 9999)
-                signed_at = bytes_to_int(base64_decode(ts))
-                if not 0 <= signed_at <= _LAST_TIMESTAMP:
-                    return _UNSURE
-                if max_age is not None:
-                    age = int(time.time()) - signed_at
-                    if age > max_age or age < 0:
-                        return _UNSURE
-                return serializer.load_payload(payload)
-        except Exception:
-            pass
-        return _UNSURE
+            data, signed_at = self._signing(salt).unsign(
+                token,
+                timed=timed,
+                now=int(time.time()),
+                # A negative one refuses every token, below
+                max_age=None if max_age is None or max_age < 0 else int(max_age),
+            )
+            obj = jsonplus.loads(data.decode())
+        except _native.Rejected as rejected:
+            logger.debug("%s %s...", _REJECTED[rejected.code], str(value)[:10])
+            return None
+        except ValueError:  # not UTF-8, or not JSON
+            logger.debug("BadData %s...", str(value)[:10])
+            return None
+        if max_age is not None and max_age < 0:
+            logger.debug("SignatureExpired %s...", str(value)[:10])
+            return None
+        if return_timestamp:
+            return obj, datetime.datetime.fromtimestamp(signed_at, tz=datetime.UTC)
+        return obj
 
-    def _make_unsigners(self, salt: str | None) -> "list[tuple[t.Any, bytes, t.Any]]":
-        """`(serializer, derived key, algorithm)` for each secret key, oldest
-        first, as `loads` tries them."""
-        unsigners = []
-        for serializer in self.serializers:
-            signer = serializer.make_signer(salt)
-            unsigners.append((serializer, signer.derive_key(), signer.algorithm))
-        return unsigners
+    def _signing(self, salt: str | None) -> "_native.Signing":
+        """The keys of `salt` (the app's namespace when `None`): one per
+        secret key, oldest first, each the HMAC-SHA256 of the salt keyed with
+        the secret key, as itsdangerous derives them. Made once per salt."""
+        signing = self._signings.get(salt)
+        if signing is None:
+            salted = (self._namespace if salt is None else salt).encode()
+            signing = self._signings[salt] = _native.Signing([
+                hmac.new(
+                    key.encode() if isinstance(key, str) else key, salted, hashlib.sha256
+                ).digest()
+                for key in self.config.SECRET_KEYS
+            ])
+        return signing
 
     def on_error(self, func: THandler) -> THandler:
         """Decorator to add a function that runs if a request
@@ -469,27 +425,12 @@ class App(AppWsgi):
         self.locales_path = self.config_path / "locales"
         self.storage_path = self.root_path.parent / "storage"
 
-    def _setup_serializers(self, namespace: str = "", **kwargs) -> None:
-        kwargs["salt"] = namespace.encode()
-        kwargs.setdefault("serializer", jsonplus)
-        kwargs.setdefault("signer_kwargs", {})
-        kwargs["signer_kwargs"].setdefault("key_derivation", "hmac")
-        kwargs["signer_kwargs"].setdefault("digest_method", hashlib.sha256)
-
-        self.serializers = tuple(
-            itsdangerous.URLSafeTimedSerializer(secret_key, **kwargs)
-            for secret_key in self.config.SECRET_KEYS
-        )
-        # The derived keys of `_quick_loads`, per salt
-        self._unsigners: dict[str | None, list] = {}
-        # Same keys and signing parameters, but no timestamp in the token:
-        # the same input always gives the same output. For values that never
-        # expire anyway and benefit from being stable, like URLs that
-        # browsers and CDNs should be able to cache.
-        self.untimed_serializers = tuple(
-            UntimedSerializer(secret_key, **kwargs)
-            for secret_key in self.config.SECRET_KEYS
-        )
+    def _setup_signing(self, namespace: str = "") -> None:
+        """Forget the keys of `dumps` and `loads`: they are derived again
+        from `SECRET_KEYS`, as they are now. `namespace` is the salt of
+        `dumps` and `loads` without one."""
+        self._namespace = namespace
+        self._signings = {}
 
     def _with_db(self, work, *, on_error=None) -> None:
         """Run `work()` with DB connections, error/teardown hooks, and cleanup.
@@ -656,3 +597,8 @@ class App(AppWsgi):
 
     def _dbs_rollback(self) -> None:
         self._dbs_op("rollback")
+
+
+def _base64(data: bytes) -> bytes:
+    """URL-safe base64 without the `=` padding, as in the tokens."""
+    return base64.urlsafe_b64encode(data).rstrip(b"=")

@@ -38,11 +38,16 @@ Ready to contribute? Here's how to set up the project for local development.
 git clone git@github.com:jpscaletti/proper.git
 ```
 
-3.  Install your local copy into a virtualenv.
+3.  Install Free Pascal 3.2.2 (`sudo apt install fpc-3.2.2` on Debian or
+    Ubuntu), then your local copy into a virtualenv. The install compiles
+    Proper's native code (`src/proper/_native/`) with it.
 
 ```bash
 make install
 ```
+
+    After changing the Pascal sources in `src/proper/_native/`, compile
+    them again with `make native`.
 
 5.  Create a branch for local development:
 

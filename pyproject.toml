@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
 
 [project]
 name = "proper"
@@ -23,12 +23,12 @@ classifiers = [
 requires-python = ">=3.14"
 dependencies = [
     "babel >= 2.17.0",
+    "cffi>=2.0",
     "formidable >= 0.21",
     "hecto >= 2.4.0",
     "huey >= 3.4,<4",
     "inflection >= 0.5.1",
     "isort ~= 5.0",
-    "itsdangerous >= 2.2",
     "jinja2 >= 3.0",
     "markupsafe >= 2.0",
     "minijx >= 0.1.0",
@@ -71,22 +71,29 @@ test = [
     "redis >= 7.0.0",
     "smtpdfix",
     "nh3>=0.2.18",
+    "itsdangerous>=2.2",
 ]
 docs = [
     "writeadoc>=0.28.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-proper = [
-    "blueprint/**/*",
-    "_blueprints/**/*",
-    "core/templates/**/*",
+[tool.hatch.build.targets.wheel]
+packages = ["src/proper"]
+exclude = [
+    "**/__pycache__",
+    "*.pyc",
+    "*.pyo",
 ]
-[tool.setuptools.exclude-package-data]
-"*" = [
+
+# Compiles src/proper/_native/ with Free Pascal (libproper_native.so)
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
+
+# The Pascal sources are in src/proper/_native/: a wheel built from the
+# sdist compiles them (hatch_build.py)
+[tool.hatch.build.targets.sdist]
+only-include = ["src/proper", "hatch_build.py", "README.md"]
+exclude = [
     "**/__pycache__",
     "*.pyc",
     "*.pyo",

@@ -7,6 +7,13 @@ All notable changes to Proper are documented in this file.
 - `proper run` hands each request to the app straight from Bearings, without
   going through WSGI: 6–12% more requests per second. Other servers still
   serve the app over WSGI.
+- Signed tokens and cookies (`app.dumps()`, `app.loads()`, the session) are
+  made and checked by Proper's own compiled code instead of itsdangerous.
+  The tokens are the same: cookies and links made before keep working.
+  A request with a session cookie costs about 30% less, and a bad cookie
+  is refused six times faster.
+- itsdangerous is no longer a dependency, and `proper.errors.BadSignature`
+  no longer inherits from `itsdangerous.BadSignature`.
 
 ## 0.41.0
 

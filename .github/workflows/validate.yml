@@ -25,6 +25,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      # the install compiles Proper's native code (hatch_build.py)
+      - name: Install Free Pascal
+        run: sudo apt-get install -y fpc-3.2.2
+
       # ty needs the runtime and the addon (`test` group) packages to resolve imports.
       - name: "Install dependencies"
         run: uv sync --group test --python 3.14t

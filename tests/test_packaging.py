@@ -1,8 +1,11 @@
-"""Verify that bundled templates are actually included when the package is built.
+"""Verify that bundled templates and the native library are actually included
+when the package is built.
 
 These are *data* files (Jx scaffolds and core templates) that the framework reads
-at runtime, so a `package-data` glob typo would silently ship a broken Proper
-without any unit test noticing. We build a real wheel and inspect its contents.
+at runtime, and `libproper_native.so` with its header, which `hatch_build.py`
+compiles and which Proper can't import without. A packaging mistake would
+silently ship a broken Proper without any unit test noticing. We build a real
+wheel and inspect its contents.
 """
 import shutil
 import subprocess
@@ -42,17 +45,17 @@ def wheel_members(tmp_path_factory) -> set[str]:
     if shutil.which("uv") is None:
         pytest.skip("uv is required to build the wheel")
 
-    # Build from a clean copy of the source. A stale `build/` or `*.egg-info` in
-    # the working tree leaks files into the artifact (setuptools assembles from
-    # `build/lib` and reuses `SOURCES.txt`), which would mask a broken
-    # `package-data` glob and let this test pass for the wrong reason.
+    # Build from a clean copy of the source, without the library compiled for
+    # the editable install: the wheel must get the one its build compiles.
     project_copy = tmp_path_factory.mktemp("proper_src")
-    for name in ("pyproject.toml", "README.md", "MIT-LICENSE"):
+    for name in ("pyproject.toml", "README.md", "MIT-LICENSE", "hatch_build.py"):
         shutil.copy(PROJECT_ROOT / name, project_copy / name)
     shutil.copytree(
         SRC,
         project_copy / "src",
-        ignore=shutil.ignore_patterns("*.egg-info", "__pycache__", "*.pyc", "*.pyo"),
+        ignore=shutil.ignore_patterns(
+            "*.egg-info", "__pycache__", "*.pyc", "*.pyo", "*.so"
+        ),
     )
 
     out_dir = project_copy / "_wheel"
@@ -81,3 +84,8 @@ def test_expected_template_set_is_discovered():
 def test_templates_are_packed(wheel_members):
     missing = [m for m in _expected_members() if m not in wheel_members]
     assert not missing, "Templates missing from built wheel:\n" + "\n".join(missing)
+
+
+def test_the_native_library_is_packed(wheel_members):
+    assert "proper/_native/libproper_native.so" in wheel_members
+    assert "proper/_native/proper_native.h" in wheel_members
