@@ -41,7 +41,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvips-dev
+          sudo apt-get install -y libvips-dev fpc-3.2.2
 
       - name: "Installs dependencies"
         run: uv sync --group test --python ${{ matrix.python }}
@@ -52,8 +52,47 @@ jobs:
       - name: "Test"
         run: make test
 
-  upload:
+  build:
     needs: validate
+    name: build ${{ matrix.runner }}
+    strategy:
+      matrix:
+        # x86_64 and aarch64: hatch_build.py tags each wheel for the CPU it
+        # built on, and for the newest glibc symbol libproper_native.so needs
+        include:
+          # the sdist too, once: its wheel is built from it, which tests it
+          - runner: ubuntu-24.04
+            build: uv build
+          - runner: ubuntu-24.04-arm
+            build: uv build --wheel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Free Pascal
+        run: sudo apt-get install -y fpc-3.2.2
+
+      - name: "Builds the package"
+        run: ${{ matrix.build }}
+
+      - name: "Lists the files"
+        run: ls -l dist
+
+      # manylinux_2_34_<cpu>, and auditwheel agrees: a runner with a newer
+      # glibc must not raise the tag unnoticed
+      - name: "Checks the wheels"
+        run: python3 bin/check-wheels.py dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.runner }}
+          path: dist/*
+
+  upload:
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -63,13 +102,14 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: "Builds the package"
-        run: uv build
-
       - name: "Uploads to PyPI"
-        run: uv publish --trusted-publishing always
+        run: uv publish --trusted-publishing always dist/*

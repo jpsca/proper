@@ -1,6 +1,7 @@
 """`app.dumps(..., timed=False)`: deterministic tokens that cannot expire.
 Also `app.loads()` of timed tokens that are signed but malformed."""
 
+import hashlib
 import time
 
 import itsdangerous
@@ -8,6 +9,7 @@ import pytest
 from itsdangerous.encoding import base64_encode, int_to_bytes
 
 from proper import App
+from proper.helpers import jsonplus
 
 
 KEY_A = "a" * 50
@@ -16,6 +18,15 @@ KEY_B = "b" * 50
 
 def make_app(*keys):
     return App(__name__, {"SECRET_KEYS": list(keys)})
+
+
+def reference(key, salt="x"):
+    """itsdangerous' untimed serializer and signer with the settings of
+    Proper's tokens, to make tokens with any payload."""
+    kwargs = {"key_derivation": "hmac", "digest_method": hashlib.sha256}
+    serializer = itsdangerous.URLSafeSerializer(key, salt=salt, serializer=jsonplus,
+                                                signer_kwargs=kwargs)
+    return serializer, serializer.make_signer(salt)
 
 
 def test_untimed_tokens_are_deterministic():
@@ -80,17 +91,17 @@ def test_untimed_loads_refuses_a_timed_token_with_a_compressed_payload(size_mod_
     assert app.loads(token, salt="x", timed=False) is None
 
 
-def test_untimed_serializer_refuses_a_payload_with_a_dot_after_its_first_character():
-    serializer = make_app(KEY_A).untimed_serializers[-1]
+def test_untimed_loads_refuses_a_payload_with_a_dot_after_its_first_character():
+    app = make_app(KEY_A)
+    serializer, signer = reference(KEY_A)
     payload = serializer.dump_payload({"id": 1})
-    assert serializer.load_payload(payload) == {"id": 1}
+    assert app.loads(signer.sign(payload).decode(), salt="x", timed=False) == {"id": 1}
     for bad in (
         payload + b".AAAA",
         b"." + payload + b".AAAA",
         payload[:2] + b"." + payload[2:],
     ):
-        with pytest.raises(itsdangerous.BadPayload, match="timed token"):
-            serializer.load_payload(bad)
+        assert app.loads(signer.sign(bad).decode(), salt="x", timed=False) is None
 
 
 def test_no_token_loads_as_the_other_kind():
@@ -139,14 +150,14 @@ MAX_TIMESTAMP = 253402300799
 def sign_raw(app, payload, timestamp, salt="x"):
     """Sign `payload` and `timestamp` with the newest key, as `app.dumps()`
     does, but with any payload bytes and any timestamp."""
-    signer = app.serializers[-1].make_signer(salt)
+    _, signer = reference(app.config.SECRET_KEYS[-1], salt)
     value = payload + b"." + base64_encode(int_to_bytes(timestamp))
-    return itsdangerous.Signer.sign(signer, value).decode()
+    return signer.sign(value).decode()
 
 
 def test_sign_raw_makes_tokens_that_loads_accepts():
     app = make_app(KEY_A)
-    payload = app.serializers[-1].dump_payload({"id": 1})
+    payload = reference(KEY_A)[0].dump_payload({"id": 1})
     assert app.loads(sign_raw(app, payload, int(time.time())), salt="x") == {"id": 1}
     assert app.loads(sign_raw(app, payload, MAX_TIMESTAMP), salt="x") == {"id": 1}
 
@@ -168,7 +179,7 @@ def test_loads_rejects_a_signed_payload_that_does_not_decode(payload, step):
     app = make_app(KEY_B, KEY_A)
     # The payload fails at the step the case is for.
     with pytest.raises(itsdangerous.BadPayload, match=step):
-        app.serializers[-1].load_payload(payload)
+        reference(KEY_A)[0].load_payload(payload)
     token = sign_raw(app, payload, int(time.time()))
     assert app.loads(token, salt="x") is None
     assert app.loads(token, salt="x", max_age=60) is None
@@ -179,6 +190,6 @@ def test_loads_rejects_a_signed_payload_that_does_not_decode(payload, step):
 @pytest.mark.parametrize("kwargs", [{}, {"max_age": 60}, {"return_timestamp": True}])
 def test_loads_rejects_a_signed_timestamp_after_year_9999(timestamp, kwargs):
     app = make_app(KEY_A)
-    payload = app.serializers[-1].dump_payload({"id": 1})
+    payload = reference(KEY_A)[0].dump_payload({"id": 1})
     token = sign_raw(app, payload, timestamp)
     assert app.loads(token, salt="x", **kwargs) is None
