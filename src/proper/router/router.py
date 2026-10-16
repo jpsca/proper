@@ -271,8 +271,11 @@ class BaseRouter:
 
         # Host placeholders are consumed by format_host(); strip them from path
         # kwargs so they don't leak into the query string.
-        path_kw = {k: v for k, v in kw.items() if k not in route.host_placeholders}
-        url = route.format(**path_kw)
+        if route.host_placeholders:
+            path_kw = {k: v for k, v in kw.items() if k not in route.host_placeholders}
+        else:
+            path_kw = kw
+        url = route._format(path_kw)
 
         if _anchor:
             url += "#" + quote(_anchor, safe=FRAGMENT_SAFE)
