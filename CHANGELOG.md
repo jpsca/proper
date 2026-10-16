@@ -4,6 +4,13 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### ⚠️ Upgrading: the session is a plain dict
+
+`request.session` and `response.session` are plain dicts, no longer
+`DotDict`s: attribute access is gone. Use `session["key"]` or
+`session.get("key")` instead of `session.key`, and `session["key"] = value`
+instead of `session.key = value`. A request costs 2–3 µs less.
+
 - `proper run` hands each request to the app straight from Bearings, without
   going through WSGI: 6–12% more requests per second. Other servers still
   serve the app over WSGI.

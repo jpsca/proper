@@ -799,16 +799,14 @@ In your templates, flash messages are available as a list of `(category, message
 
 The session is a small bag of data that follows the user across requests. It's stored in a signed cookie, so users can't tamper with it - which is why it's safe to use for things like the current user's ID.
 
-Read from `self.request.session`, write to `self.response.session`. The session is a `DotDict`, so dict-style and attribute-style access both work:
+Read from `self.request.session`, write to `self.response.session`. Both are plain dicts:
 
 ```python
 # read
 value = self.request.session.get("key")
-value = self.request.session.key
 
 # write
 self.response.session["key"] = value
-self.response.session.key = value
 ```
 
 If the session cookie is missing, its signature doesn't match, it has expired, or its value isn't a JSON object, the session starts empty.

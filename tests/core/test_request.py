@@ -4,7 +4,7 @@ import pytest
 
 from proper.constants import SIGNED_COOKIE_SALT
 from proper.core.request import Request
-from proper.helpers import DotDict, MultiDict
+from proper.helpers import MultiDict
 from proper.test_client import make_test_request
 
 
@@ -133,15 +133,15 @@ def test_app(app):
 
 def test_session_default():
     req = _make_request("/")
-    assert isinstance(req.session, DotDict)
+    assert type(req.session) is dict
     assert len(req.session) == 0
 
 
 def test_session_setter():
     req = _make_request("/")
     req.session = {"key": "val"}
-    assert isinstance(req.session, DotDict)
-    assert req.session.key == "val"
+    assert type(req.session) is dict
+    assert req.session["key"] == "val"
 
 
 def test_http_version():

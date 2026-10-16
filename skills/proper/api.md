@@ -143,7 +143,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | Property           | Type                       | Description                                                         |
 |--------------------|----------------------------|---------------------------------------------------------------------|
 | `app`              | `App`                      | The application instance                                            |
-| `session`          | `DotDict`                  | Session data (read/write)                                           |
+| `session`          | `dict`                     | Session data (read/write)                                           |
 | `query`            | `MultiDict`                | Query string parameters                                             |
 | `query_string`     | `str`                      | Raw query string                                                    |
 | `url`              | `str`                      | The path and the query string (no scheme or host)                   |
@@ -230,7 +230,7 @@ Accessed via `current.response` or as `self.response` inside a controller. See a
 | Property       | Type      | Description                           |
 |----------------|-----------|---------------------------------------|
 | `app`          | `App`     | The application instance              |
-| `session`      | `DotDict` | Session data (read/write)             |
+| `session`      | `dict`    | Session data (read/write)             |
 | `has_body`     | `bool`    | `True` if the response has a body     |
 | `status_code`  | `int`     | Alias for `status`                    |
 

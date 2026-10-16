@@ -94,7 +94,7 @@ class TestMethodOverride:
             method="POST",
             headers=[("content-type", "application/x-www-form-urlencoded")],
         )
-        co.request.form = DotDict({"_method": "PATCH"})
+        co.request.form = {"_method": "PATCH"}
         method_override(co.request, None)
         assert co.request.method == "PATCH"
 
@@ -300,10 +300,10 @@ class TestCopySession:
         assert co.response.session == {}
 
     def test_strips_flashes_from_response_session(self, app, make_co):
-        session_data = DotDict({
+        session_data = {
             "user": "alice",
             FLASHES_SESSION_KEY: [("info", "saved!")],
-        })
+        }
         with patch(
             "proper.pipeline._find_session_by_cookie",
             return_value=session_data,
@@ -337,14 +337,53 @@ class TestCopySession:
     def test_skips_for_options(self, app, make_co):
         co = make_co(method="OPTIONS")
         copy_session(co.request, co.response)
-        assert not hasattr(co.request, "session") or co.request.session == DotDict()
+        assert co.request.session == {}
 
+
+
+    def test_the_sessions_share_no_value_that_can_change(self, app, make_co):
+        data = {"user": "alice", "cart": [1, 2], "prefs": {"theme": "dark", "tags": ["a"]}}
+        token = app.dumps(data, salt=SESSION_COOKIE_SALT)
+        co = make_co(headers=[("cookie", f"{SESSION_COOKIE_NAME}={token}")])
+        copy_session(co.request, co.response)
+        assert type(co.request.session) is dict
+        assert co.response.session == co.request.session
+        assert co.response.session["cart"] is not co.request.session["cart"]
+        assert co.response.session["prefs"] is not co.request.session["prefs"]
+        assert co.response.session["prefs"]["tags"] is not co.request.session["prefs"]["tags"]
+
+    def test_without_a_cookie_the_sessions_are_apart(self, app, make_co):
+        co = make_co(method="GET")
+        copy_session(co.request, co.response)
+        co.response.session["user"] = "alice"
+        assert co.request.session == {}
+
+
+class TestSessionChangesInPlace:
+    """A list or a dict changed in place in `response.session` is a change:
+    the cookie is written again."""
+
+    @pytest.mark.parametrize("change", [
+        lambda session: session["cart"].append(3),
+        lambda session: session["prefs"].update(theme="light"),
+        lambda session: session["prefs"]["tags"].append("b"),
+    ])
+    def test_a_change_in_place_is_saved(self, app, make_co, change):
+        current.app = app
+        data = {"cart": [1, 2], "prefs": {"theme": "dark", "tags": ["a"]}}
+        token = app.dumps(data, salt=SESSION_COOKIE_SALT)
+        co = make_co(headers=[("cookie", f"{SESSION_COOKIE_NAME}={token}")])
+        copy_session(co.request, co.response)
+        change(co.response.session)
+        update_session_cookie(co.request, co.response)
+        cookies = co.response.get_cookie_tuples()
+        assert [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
 
 
 class TestUpdateSessionCookie:
     def test_no_cookie_when_session_unchanged(self, app, co):
-        co.request.session = DotDict({"foo": "bar"})
-        co.response.session = DotDict({"foo": "bar"})
+        co.request.session = {"foo": "bar"}
+        co.response.session = {"foo": "bar"}
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
@@ -352,16 +391,16 @@ class TestUpdateSessionCookie:
 
     def test_sets_cookie_when_session_modified(self, app, co):
         current.app = app
-        co.request.session = DotDict({})
-        co.response.session = DotDict({"foo": "bar"})
+        co.request.session = {}
+        co.response.session = {"foo": "bar"}
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
         assert len(session_cookies) == 1
 
     def test_unsets_cookie_when_session_cleared(self, app, co):
-        co.request.session = DotDict({"foo": "bar"})
-        co.response.session = DotDict()
+        co.request.session = {"foo": "bar"}
+        co.response.session = {}
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
         session_cookies = [c for c in cookies if SESSION_COOKIE_NAME in c[1]]
@@ -380,7 +419,7 @@ class TestUpdateSessionCookie:
         self, app, make_co, peer, secure
     ):
         co = make_co(headers=[("x-forwarded-proto", "https")], client=peer)
-        co.response.session = DotDict({"foo": "bar"})
+        co.response.session = {"foo": "bar"}
         update_session_cookie(co.request, co.response)
         cookies = co.response.get_cookie_tuples()
         session_cookie = [c for c in cookies if SESSION_COOKIE_NAME in c[1]][0][1]

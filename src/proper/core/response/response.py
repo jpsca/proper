@@ -12,7 +12,6 @@ from urllib.parse import quote
 from ... import status as pstatus
 from ...constants import GET, HEAD, SIGNED_COOKIE_SALT
 from ...global_context import current
-from ...helpers import DotDict
 from ...types import Iterable, TBody
 from .cookies import make_cookie, validate_cookie_size
 from .file_wrapper import FileWrapper
@@ -54,7 +53,7 @@ class Response(ResponseHeadersMixin):
     disable_cookies: bool = False
 
     _error: Exception | None = None
-    _session: DotDict
+    _session: dict
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class Response(ResponseHeadersMixin):
         self.status = status
         # Set by `send_file`: the server sends this file itself.
         self.file_path: Path | None = None
-        self._session = DotDict()
+        self._session = {}
         self.flash = FlashMessages(self)
         self.cookies = {}
         super().__init__()
@@ -79,12 +78,12 @@ class Response(ResponseHeadersMixin):
         return self._app or current.app
 
     @property
-    def session(self) -> DotDict:
+    def session(self) -> dict:
         return self._session
 
     @session.setter
-    def session(self, value: dict | DotDict) -> None:
-        self._session = value if isinstance(value, DotDict) else DotDict(value)
+    def session(self, value: dict) -> None:
+        self._session = value if type(value) is dict else dict(value)
 
     @property
     def has_body(self) -> bool:
