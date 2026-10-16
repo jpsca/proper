@@ -14,7 +14,7 @@ from proper.views import (
     ComponentNotFoundError,
 )
 from proper.views.catalog import module_path
-from .helpers import BIN, collapse, run_minijx
+from .helpers import BIN, collapse, run_jxc
 
 
 def write(folder, files):
@@ -35,7 +35,7 @@ def touch_later(path, seconds=5):
 
 def test_dots_in_the_name_become_underscores(tmp_path):
     write(tmp_path, {"sitemap.xml.jx": "<urlset/>", "sub/robots.txt.jx": "User-agent: *", "plain.jx": "x"})
-    result = run_minijx(tmp_path)
+    result = run_jxc(tmp_path)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "sitemap_xml.py").is_file()
     assert (tmp_path / "sub" / "robots_txt.py").is_file()
@@ -45,7 +45,7 @@ def test_dots_in_the_name_become_underscores(tmp_path):
 
 def test_two_sources_for_one_output_is_an_error(tmp_path):
     write(tmp_path, {"a.b.jx": "one", "a_b.jx": "two"})
-    result = run_minijx(tmp_path)
+    result = run_jxc(tmp_path)
     assert result.returncode == 1
     assert "a_b.py would overwrite the one compiled from" in result.stderr
 
@@ -73,7 +73,7 @@ def components(tmp_path):
         "pages/card.jx": '{# css "card.css" #}{# def title #}<div class="card">{{ title | upper }}</div>',
         "sitemap.xml.jx": "{# def urls #}<urlset>{% for u in urls %}<url>{{ u }}</url>{% endfor %}</urlset>",
     })
-    result = run_minijx(folder)
+    result = run_jxc(folder)
     assert result.returncode == 0, result.stderr
     return folder
 
@@ -123,7 +123,7 @@ def test_render_globals_override_catalog_globals(components):
 
 def test_random_id_global(tmp_path):
     write(tmp_path, {"a.jx": '{{ _get_random_id("btn") }}'})
-    run_minijx(tmp_path)
+    run_jxc(tmp_path)
     html = Catalog(tmp_path).render("a.jx")
     assert html.startswith("btn-") and len(html) == 36
 
@@ -140,7 +140,7 @@ def test_first_folder_wins(tmp_path):
     a, b = tmp_path / "a", tmp_path / "b"
     write(a, {"x.jx": "from a"})
     write(b, {"x.jx": "from b", "y.jx": "only b"})
-    assert run_minijx(a, b).returncode == 0
+    assert run_jxc(a, b).returncode == 0
     catalog = Catalog(a)
     catalog.add_folder(b)
     assert catalog.render("x.jx") == "from a"
@@ -171,7 +171,7 @@ def test_recompiles_when_a_dependency_changes(tmp_path):
 
 def test_stale_module_without_compiler_is_an_error(tmp_path):
     write(tmp_path, {"a.jx": "old"})
-    run_minijx(tmp_path)
+    run_jxc(tmp_path)
     catalog = Catalog(tmp_path, compiler=False)
     assert catalog.render("a.jx") == "old"
     touch_later(tmp_path / "a.jx")
@@ -181,19 +181,19 @@ def test_stale_module_without_compiler_is_an_error(tmp_path):
 
 def test_reloads_a_recompiled_module(tmp_path):
     write(tmp_path, {"a.jx": "one"})
-    run_minijx(tmp_path)
+    run_jxc(tmp_path)
     catalog = Catalog(tmp_path)
     assert catalog.render("a.jx") == "one"
     (tmp_path / "a.jx").write_text("two")
     touch_later(tmp_path / "a.jx", 5)
-    run_minijx(tmp_path)
+    run_jxc(tmp_path)
     touch_later(tmp_path / "a.py", 10)
     assert catalog.render("a.jx") == "two"
 
 
 def test_auto_reload_off_keeps_the_loaded_module(tmp_path):
     write(tmp_path, {"a.jx": "one"})
-    run_minijx(tmp_path)
+    run_jxc(tmp_path)
     catalog = Catalog(tmp_path, auto_reload=False, compiler=BIN)
     assert catalog.render("a.jx") == "one"
     (tmp_path / "a.jx").write_text("two")
@@ -265,8 +265,8 @@ def test_default_compiler_is_the_bundled_one(tmp_path):
     assert (tmp_path / "a.py").is_file()
 
 
-def test_a_minijx_in_the_path_is_not_used(tmp_path, monkeypatch):
-    """It would be the standalone minijx, whose modules import its own runtime."""
+def test_a_compiler_in_the_path_is_not_used(tmp_path, monkeypatch):
+    """Only the one built with Proper: another could be of another version."""
     import proper.views.catalog
 
     monkeypatch.setattr(proper.views.catalog, "bundled_compiler", lambda: None)
@@ -280,14 +280,14 @@ def test_compile_without_a_binary(tmp_path, monkeypatch):
 
     monkeypatch.setattr(proper.views.catalog, "bundled_compiler", lambda: None)
     monkeypatch.setenv("PATH", str(tmp_path / "empty"))
-    with pytest.raises(FileNotFoundError, match="No minijx compiler"):
+    with pytest.raises(FileNotFoundError, match="No views compiler"):
         Catalog(tmp_path).compile()
     with pytest.raises(FileNotFoundError, match="compiler=False"):
         Catalog(tmp_path, compiler=False).compile()
 
 
 def fake_compiler(tmp_path, version_line: str):
-    script = tmp_path / "fake-minijx"
+    script = tmp_path / "fake-jxc"
     script.write_text(f"#!/bin/sh\necho '{version_line}'\n")
     script.chmod(0o755)
     return script
@@ -296,7 +296,7 @@ def fake_compiler(tmp_path, version_line: str):
 def test_compiler_with_another_module_format_is_refused(tmp_path):
     from proper.views.catalog import MODULE_FORMAT
 
-    fake = fake_compiler(tmp_path, f"minijx 9.9.9 (module format {MODULE_FORMAT + 1})")
+    fake = fake_compiler(tmp_path, f"jxc 9.9.9 (module format {MODULE_FORMAT + 1})")
     write(tmp_path, {"a.jx": "a"})
     with pytest.raises(CompileError, match=f"generates modules of format {MODULE_FORMAT + 1}"):
         Catalog(tmp_path, compiler=fake).compile()
@@ -304,9 +304,9 @@ def test_compiler_with_another_module_format_is_refused(tmp_path):
         Catalog(tmp_path, compiler=fake).render("a.jx")
 
 
-def test_something_else_named_minijx_is_refused(tmp_path):
+def test_something_else_named_jxc_is_refused(tmp_path):
     fake = fake_compiler(tmp_path, "hello")
-    with pytest.raises(CompileError, match="does not look like the minijx compiler"):
+    with pytest.raises(CompileError, match="does not look like the views compiler"):
         Catalog(tmp_path, compiler=fake).compile()
 
 
@@ -321,15 +321,15 @@ def test_compiler_args_are_the_folders_in_order(tmp_path):
     ]
 
 
-def test_module_from_another_minijx_version_is_stale(tmp_path):
+def test_module_from_another_version_is_stale(tmp_path):
     write(tmp_path, {"a.jx": "new"})
     # format 2 stored assets as (prefix, url) pairs
     (tmp_path / "a.py").write_text(
-        "MINIJX_FORMAT = 2\nCSS = (('', 'x.css'),)\nJS = ()\nSOURCES = ('a.jx',)\n"
+        "VIEWS_FORMAT = 2\nCSS = (('', 'x.css'),)\nJS = ()\nSOURCES = ('a.jx',)\n"
         "render = lambda **kw: 'old'\n"
     )
     os.utime(tmp_path / "a.py", (2e9, 2e9))  # newer than a.jx
-    with pytest.raises(ComponentNotCompiledError, match="different version"):
+    with pytest.raises(ComponentNotCompiledError, match="another version"):
         Catalog(tmp_path, compiler=False, auto_reload=False).render("a.jx")
     # checked when first loaded, in any mode: compiled again
     assert Catalog(tmp_path, compiler=BIN, auto_reload=False).render("a.jx") == "new"

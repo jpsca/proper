@@ -4,11 +4,11 @@ All notable changes to Proper are documented in this file.
 
 ## 0.42.0
 
-### minijx is part of Proper
+### The views compiler is part of Proper
 
-The views compiler, minijx, is now part of Proper: its runtime is
-`proper.views` and its compiler is built with Proper's native code. The
-`minijx` dependency is gone. Code that imports it directly changes
+Proper compiles its views itself: the runtime is `proper.views`, and the
+compiler, `jxc`, is built with Proper's native code. The `minijx`
+dependency is gone. Code that imports it directly changes
 `from minijx import ...` to `from proper.views import ...`. The views an
 app compiled before are compiled again when it starts.
 

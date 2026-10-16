@@ -6,7 +6,7 @@ last_verified: 2026-09-28
 
 # Jx Components
 
-Jx is a component-based template system with Jinja's syntax. Components are `.jx` files with explicit imports, prop declarations, and an HTML-like call syntax. Proper compiles each component to a Python function with [minijx](https://github.com/jpsca/minijx) (part of Proper: `proper.views`), at startup.
+Jx is a component-based template system with Jinja's syntax. Components are `.jx` files with explicit imports, prop declarations, and an HTML-like call syntax. Proper compiles each component to a Python function at startup, with its own compiler (`jxc`, in `proper/_native/`; the runtime is `proper.views`).
 
 **Syntax available:** `{{ }}`, `if`/`elif`/`else`, `for` (with `loop`, `else`, `recursive`), `set name = value`, `do`, `raw`, `filter`, `macro`, Jinja's builtin filters (except `xmlattr`, `pprint`, `urlize`) and tests, custom filters and tests, and block tags: Proper's `{% cache %}`, `{% frame %}`, `{% stream %}`.
 **Not available:** `include`, `extends`, `block` (use components and layouts), `with`, `call`, block `set`, `namespace()`, imports with a `@prefix/`, Jinja extensions.
@@ -751,7 +751,7 @@ Renders as `hx-get="/api/items" hx-target="#list" hx-swap="innerHTML"`.
 
 ## Catalog API
 
-In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup (or before, with `proper jx compile`: outside of `DEBUG`, the views already compiled are not compiled again), and the template globals, filters and tags are added. It is a `proper.views.Catalog` (minijx, vendored into Proper).
+In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup (or before, with `proper jx compile`: outside of `DEBUG`, the views already compiled are not compiled again), and the template globals, filters and tags are added. It is a `proper.views.Catalog`.
 
 ### In Proper
 
@@ -778,7 +778,7 @@ Catalog(
     folder=None,            # Optional initial component folder
     *,
     auto_reload=True,       # Check the .jx files on every render (off in production)
-    compiler=None,          # The minijx binary: None = the one built with Proper; False = never compile
+    compiler=None,          # The compiler: None = jxc, built with Proper; False = never compile
     filters=None,           # Custom filters {name: callable}
     tests=None,             # Custom tests {name: callable}
     autoescape=True,        # Extensions escaped: True = ("html", "jx", "xml"); False = none

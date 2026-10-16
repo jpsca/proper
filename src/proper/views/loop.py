@@ -1,5 +1,5 @@
 """
-minijx runtime: the `loop` object of a `{% for %}`.
+Views runtime: the `loop` object of a `{% for %}`.
 
 Only created when the loop body mentions `loop`. Mirrors
 `jinja2.runtime.LoopContext`. The compiler emits:

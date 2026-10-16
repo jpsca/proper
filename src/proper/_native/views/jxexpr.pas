@@ -1,4 +1,4 @@
-(* minijx: Jinja expression -> Python expression.
+(* jxc: Jinja expression -> Python expression.
 
   Two steps. The parser builds a small tree (TExpr) with Jinja's precedence,
   lowest first:
@@ -13,14 +13,14 @@
   - any other name is a global: `_globals["name"]`.
   Constructs that need to know what their operand is (`x | default`,
   `x is defined`, `attrs.x`, `{% call f(a) %}`) look at its node. *)
-unit mjexpr;
+unit jxexpr;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  SysUtils, Classes, mjerrors, mjutil;
+  SysUtils, Classes, jxerrors, jxutil;
 
 type
   TScope = class
@@ -956,7 +956,7 @@ end;
 
 (* TExprTranslator: generator *)
 
-(* `attrs` and `loop` are minijx's own objects: `attrs.render` needs no
+(* `attrs` and `loop` are the runtime's own objects: `attrs.render` needs no
    getattr/getitem fallback *)
 function TExprTranslator.IsRuntimeObject(E: TExpr): Boolean;
 begin
@@ -985,7 +985,7 @@ begin
   end;
   if InList(E.Value, ['caller', 'varargs', 'kwargs']) and FScope.InMacro
     and not FScope.IsLocal(E.Value) then
-    Fail(E.Pos, '`' + E.Value + '` is not supported in minijx macros');
+    Fail(E.Pos, '`' + E.Value + '` is not supported in macros');
   if IsGlobal(E) then
     Result := '_globals[' + PyStr(E.Value) + ']'
   else
@@ -1396,7 +1396,7 @@ begin
   Name := FTokVal;
   Next;
   if IsOp(',') or IsOp('.') or IsOp('[') then
-    Fail(FTokPos, 'minijx only supports `{% set name = value %}`');
+    Fail(FTokPos, 'Only `{% set name = value %}` is supported');
   Expect('=');
   E := ParseExpression;
   ParseEnd(' in set statement');
@@ -1484,7 +1484,7 @@ begin
           Params[i] := A.Name;
         end;
     else
-      Fail(A.Value.Pos, 'minijx macros do not take `*args` or `**kwargs`');
+      Fail(A.Value.Pos, 'Macros do not take `*args` or `**kwargs`');
     end;
     if IsPyKeyword(Params[i]) then
       Fail(A.Value.Pos, '`' + Params[i] + '` cannot be the name of a parameter');

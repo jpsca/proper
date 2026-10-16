@@ -84,7 +84,7 @@ exclude = [
     "*.pyo",
     # built for this machine by `make native`; the wheel gets the one its
     # build compiles (hatch_build.py)
-    "src/proper/_native/minijx",
+    "src/proper/_native/jxc",
 ]
 
 # Compiles src/proper/_native/ with Free Pascal (libproper_native.so)
@@ -99,7 +99,7 @@ exclude = [
     "**/__pycache__",
     "*.pyc",
     "*.pyo",
-    "src/proper/_native/minijx",
+    "src/proper/_native/jxc",
 ]
 
 [tool.coverage.run]

@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from .helpers import JX_VIEWS, run_minijx
+from .helpers import JX_VIEWS, run_jxc
 
 
 ERROR_RE = re.compile(r"^(.+?):(\d+):(\d+): (.+)$", re.MULTILINE)
@@ -40,8 +40,8 @@ def compile_error(project, source: str, name="a.jx"):
         ('{# import "b.jx" as B #}<B a="1" a="2" />', 1, 34, "Duplicate attribute `a` on `B`"),
         ('{# import "b.jx" as B #}<B data-id="1" data_id="2" />', 1, 40, "Duplicate attribute `data_id`"),
         ('{# def x="a".upper() #}', 1, 14, "Use of upper not allowed"),
-        ("{% set a, b = 1, 2 %}", 1, 9, "only supports"),
-        ("{% set x %}y{% endset %}", 1, 1, "only supports"),
+        ("{% set a, b = 1, 2 %}", 1, 9, "Only `{% set name = value %}`"),
+        ("{% set x %}y{% endset %}", 1, 1, "Only `{% set name = value %}`"),
         ("{% fill x %}{% endfill %}", 1, 1, "fill"),
         ("{{ x | }}", 1, 8, "filter name"),
         ("<p>{{ (1 + 2 }}</p>", 1, 14, "Expected `)`"),
@@ -79,7 +79,7 @@ def test_other_files_still_compile_after_an_error(project):
 
 
 def test_usage_without_arguments():
-    result = run_minijx()
+    result = run_jxc()
     assert result.returncode == 2
     assert "usage" in result.stderr
 
@@ -91,7 +91,7 @@ def test_absolute_imports_search_roots_in_order(tmp_path):
     b.mkdir()
     (a / "x" / "page.jx").write_text('{# import "shared.jx" as S #}<S />')
     (b / "shared.jx").write_text("from b")
-    result = run_minijx(a, b)
+    result = run_jxc(a, b)
     assert result.returncode == 0, result.stderr
     from .helpers import load_module
 
@@ -104,7 +104,7 @@ def test_jx_docs_views_compile(tmp_path):
     dest = tmp_path / "views"
     dest.mkdir()
     sources = {p.name: p.read_text(encoding="utf-8") for p in JX_VIEWS.glob("*.jx")}
-    # Templates using macros are out of minijx's scope by design, and so is
+    # Templates using `call`, `include` or `extends` are out of scope by design, and so is
     # anything that imports them.
     skipped = {n for n, s in sources.items() if re.search(r"\{%-?\s*(macro|call|include|extends)\b", s)}
     while True:
@@ -120,7 +120,7 @@ def test_jx_docs_views_compile(tmp_path):
             continue
         (dest / name).write_text(src, encoding="utf-8")
     assert len(sources) - len(skipped) >= 10, skipped
-    result = run_minijx(dest)
+    result = run_jxc(dest)
     assert result.returncode == 0, result.stderr
     assert "0 failed" in result.stderr
 
@@ -130,7 +130,7 @@ def test_colliding_function_names_get_a_suffix(tmp_path):
     (tmp_path / "page.jx").write_text('{# import "a/b.jx" as AB #}{# import "a_b.jx" as A_B #}<AB /> <A_B />')
     (tmp_path / "a" / "b.jx").write_text("slash")
     (tmp_path / "a_b.jx").write_text("underscore")
-    assert run_minijx(tmp_path).returncode == 0
+    assert run_jxc(tmp_path).returncode == 0
     source = (tmp_path / "page.py").read_text()
     assert "def _c_a_b(" in source and "def _c_a_b_2(" in source
     from .helpers import load_module
@@ -143,12 +143,12 @@ def test_relative_import_cannot_leave_its_folder(tmp_path):
     (root / "sub").mkdir(parents=True)
     (root / "sub" / "page.jx").write_text('{# import "../../secret.jx" as S #}<S />')
     (tmp_path / "secret.jx").write_text("secret")
-    result = run_minijx(root)
+    result = run_jxc(root)
     assert result.returncode == 1
     assert "page.jx:1:1: Import `../../secret.jx` goes outside of the folder" in result.stderr
 
 
 def test_unknown_option(tmp_path):
-    result = run_minijx("--package", f"ui={tmp_path}")
+    result = run_jxc("--package", f"ui={tmp_path}")
     assert result.returncode == 2
     assert "unknown option --package" in result.stderr

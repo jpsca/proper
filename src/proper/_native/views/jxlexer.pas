@@ -1,17 +1,17 @@
-(* minijx: template lexer.
+(* jxc: template lexer.
 
   Turns a .jx source into a flat token stream: text, `{{ expr }}`,
   `{% stmt %}`, `<Component ...>`, `</Component>`. Comments are dropped and
   `{% raw %}` blocks come out as text. The lexer decides where each construct
   ends but does not look inside expressions. *)
-unit mjlexer;
+unit jxlexer;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  SysUtils, StrUtils, mjerrors, mjutil;
+  SysUtils, StrUtils, jxerrors, jxutil;
 
 type
   TTokKind = (tkText, tkExpr, tkStmt, tkTagOpen, tkTagClose, tkDecl, tkComment, tkRaw);

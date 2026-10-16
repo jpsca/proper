@@ -79,9 +79,9 @@ def test_missing_argument_is_an_error(tmp_path):
     ("{% macro m(a, a) %}{% endmacro %}", "Duplicate parameter `a`"),
     ("{% macro m(a.b) %}{% endmacro %}", "A macro parameter is a name"),
     ("{% macro m(*a) %}{% endmacro %}", "do not take `*args` or `**kwargs`"),
-    ("{% macro m() %}{{ caller() }}{% endmacro %}", "1:19: `caller` is not supported in minijx macros"),
-    ("{% macro m() %}{{ varargs }}{% endmacro %}", "`varargs` is not supported in minijx macros"),
-    ("{% macro m() %}{{ kwargs }}{% endmacro %}", "`kwargs` is not supported in minijx macros"),
+    ("{% macro m() %}{{ caller() }}{% endmacro %}", "1:19: `caller` is not supported in macros"),
+    ("{% macro m() %}{{ varargs }}{% endmacro %}", "`varargs` is not supported in macros"),
+    ("{% macro m() %}{{ kwargs }}{% endmacro %}", "`kwargs` is not supported in macros"),
     ("{% macro class() %}{% endmacro %}", "`class` cannot be the name of a macro"),
     ("{% macro m(x) %}{% endmacro %}x{% endmacro %}", "Unexpected `{% endmacro %}`"),
 ])

@@ -9,7 +9,7 @@ in `PLAN_COMPILE.md` came from.
 ```sh
 uv run python benchmarks/micro/dispatch.py   # a request through a controller with callbacks and an inferred view
 uv run python benchmarks/micro/routes.py     # router.match and url_for with 50 resources registered
-uv run python benchmarks/micro/views.py      # compiling a catalog of 41 views with minijx, first and steady renders
+uv run python benchmarks/micro/views.py      # compiling a catalog of 41 views, first and steady renders
 ```
 
 Compare against the previous commit with `git stash`, run, `git stash pop`,

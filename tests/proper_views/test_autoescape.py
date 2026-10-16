@@ -12,7 +12,7 @@ from proper.views import Catalog, ComponentNotCompiledError
 from proper.views.attrs import Attrs
 from proper.views.catalog import normalize_autoescape
 from proper.views.runtime import escape_output, mconcat
-from .helpers import BIN, Project, load_module, run_minijx
+from .helpers import BIN, Project, load_module, run_jxc
 
 
 M = Markup("<i>m</i>")
@@ -183,13 +183,13 @@ def test_content_is_plain_for_a_component_without_autoescape(tmp_path):
         "plain.txt.jx": "{{ content }}",
         "page.jx": '{# import "plain.txt.jx" as Plain #}<Plain>x</Plain>',
     })
-    assert run_minijx("--autoescape=", tmp_path).returncode == 0
+    assert run_jxc("--autoescape=", tmp_path).returncode == 0
     assert "_M(" not in (tmp_path / "page.py").read_text()
 
 
 def test_module_declares_its_mode(tmp_path):
     write(tmp_path, {"card.jx": "x", "mail.txt.jx": "x"})
-    assert run_minijx(tmp_path).returncode == 0
+    assert run_jxc(tmp_path).returncode == 0
     card = load_module(tmp_path / "card.py")
     mail = load_module(tmp_path / "mail_txt.py")
     assert card.AUTOESCAPE == mail.AUTOESCAPE == ("html", "jx", "xml")
@@ -199,7 +199,7 @@ def test_module_declares_its_mode(tmp_path):
 
 def test_cli_extensions_are_normalized(tmp_path):
     write(tmp_path, {"card.jx": "x"})
-    assert run_minijx("--autoescape= .TXT,html,,txt", tmp_path).returncode == 0
+    assert run_jxc("--autoescape= .TXT,html,,txt", tmp_path).returncode == 0
     assert load_module(tmp_path / "card.py").AUTOESCAPE == ("html", "txt")
 
 
@@ -220,14 +220,14 @@ def test_cli_needs_a_folder():
 
 def test_module_compiled_with_other_extensions_is_recompiled(tmp_path):
     write(tmp_path, {"card.jx": "{# def s #}{{ s }}"})
-    assert run_minijx("--autoescape=", tmp_path).returncode == 0
+    assert run_jxc("--autoescape=", tmp_path).returncode == 0
     catalog = Catalog(tmp_path, compiler=BIN)
     assert catalog.render("card.jx", s="<a>") == "&lt;a&gt;"
 
 
 def test_module_compiled_with_other_extensions_without_compiler(tmp_path):
     write(tmp_path, {"card.jx": "{# def s #}{{ s }}"})
-    assert run_minijx("--autoescape=", tmp_path).returncode == 0
+    assert run_jxc("--autoescape=", tmp_path).returncode == 0
     catalog = Catalog(tmp_path, compiler=False, auto_reload=False)
     with pytest.raises(ComponentNotCompiledError, match="compiled with autoescape for \\(\\)"):
         catalog.render("card.jx", s="<a>")

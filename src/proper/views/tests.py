@@ -1,5 +1,5 @@
 """
-minijx runtime: Jinja's builtin tests.
+Views runtime: Jinja's builtin tests.
 
 Each function takes the tested value first, then the test's arguments.
 `defined`/`undefined` cannot see Jinja's Undefined, so the compiler emits

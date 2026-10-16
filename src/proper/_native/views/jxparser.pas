@@ -1,17 +1,17 @@
-(* minijx: template parser.
+(* jxc: template parser.
 
   Builds a tree from the lexer's tokens and collects the header declarations
   (`{# def #}`, `{# import #}`, `{# css #}`, `{# js #}`). Expressions are
   kept as source text; the code generator translates them with the scope
   they appear in. *)
-unit mjparser;
+unit jxparser;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  SysUtils, Classes, StrUtils, mjerrors, mjutil, mjlexer;
+  SysUtils, Classes, StrUtils, jxerrors, jxutil, jxlexer;
 
 type
   TNodeKind = (nkText, nkOutput, nkIf, nkFor, nkSet, nkDo, nkFilter, nkSlot,
@@ -102,7 +102,7 @@ function TagNameError(const Name: string): string;
 implementation
 
 const
-  (* the statements of Jinja and minijx, which a custom tag cannot shadow *)
+  (* the statements of Jinja and of the views, which a custom tag cannot shadow *)
   ReservedTags: array[0..31] of string = ('if', 'elif', 'else', 'for', 'set',
     'do', 'filter', 'call', 'slot', 'fill', 'raw', 'def', 'import', 'css', 'js',
     'extends', 'include', 'macro', 'block', 'with', 'autoescape', 'from', 'trans',
@@ -587,7 +587,7 @@ begin
             'set':
               begin
                 if Pos('=', T.Value) = 0 then
-                  Fail(T.Pos, 'minijx only supports `{% set name = value %}`');
+                  Fail(T.Pos, 'Only `{% set name = value %}` is supported');
                 N := TNode.Create(nkSet, T.Pos);
                 N.Expr := T.Value;
                 N.ExprPos := T.ValuePos;
@@ -660,7 +660,7 @@ begin
             'elif', 'else', 'endif', 'endfor', 'endfilter', 'endslot', 'endfill', 'endmacro':
               Fail(T.Pos, 'Unexpected `{% ' + T.Name + ' %}`');
             'extends', 'include', 'call', 'endcall', 'block', 'with', 'autoescape', 'endraw', 'endset', 'endblock', 'endwith', 'endautoescape':
-              Fail(T.Pos, '`{% ' + T.Name + ' %}` is not supported by minijx');
+              Fail(T.Pos, '`{% ' + T.Name + ' %}` is not supported');
           else
             if IsTag(T.Name) then
             begin

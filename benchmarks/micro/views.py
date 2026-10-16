@@ -1,4 +1,4 @@
-"""Getting a catalog of 41 components ready to render with minijx:
+"""Getting a catalog of 41 components ready to render with `proper.views`:
 compiling them all (what the app does when it starts), the first render of a
 page in a new catalog (loading its module), and the render in steady state.
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from _common import best_of, once
-from minijx import Catalog
+from proper.views import Catalog
 
 
 PAGES = 40

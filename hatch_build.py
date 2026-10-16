@@ -1,6 +1,6 @@
 """Compiles Proper's native code (`src/proper/_native/`) with Free Pascal.
 
-An editable install gets `libproper_native.so` and `minijx` (the compiler
+An editable install gets `libproper_native.so` and `jxc` (the compiler
 of the views) next to the package's modules, for this machine. A wheel gets it from `build/native-<cpu>/`, so a
 wheel for another CPU leaves the editable install alone: `PROPER_FPC`
 names the compiler, for example an ARM64 cross compiler, and the wheel is
@@ -83,10 +83,10 @@ class CustomBuildHook(BuildHookInterface):
             out = root / "build" / f"native-{cpu}"
             out.mkdir(parents=True, exist_ok=True)
         library = build.build(out / "libproper_native.so", fpc=fpc)
-        compiler = build.build_views_compiler(out / "minijx", fpc=fpc)
+        compiler = build.build_views_compiler(out / "jxc", fpc=fpc)
 
         if version != "editable":
             build_data["force_include"][str(library)] = "proper/_native/libproper_native.so"
-            build_data["force_include"][str(compiler)] = "proper/_native/minijx"
+            build_data["force_include"][str(compiler)] = "proper/_native/jxc"
         build_data["pure_python"] = False
         build_data["tag"] = f"py3-none-{manylinux(library)}_{CPUS[cpu]}"

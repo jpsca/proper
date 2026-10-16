@@ -1,5 +1,5 @@
 """
-minijx runtime: Jinja's builtin filters, minus `xmlattr`, `pprint` and `urlize`.
+Views runtime: Jinja's builtin filters, minus `xmlattr`, `pprint` and `urlize`.
 
 Every function takes the filtered value first, then the filter's arguments,
 exactly as Jinja passes them. Filters that in Jinja need the environment or

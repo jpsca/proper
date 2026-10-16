@@ -1092,7 +1092,7 @@ self.request.method           # "GET", "POST", etc.
 self.request.path             # "/cards/42"
 self.request.query            # Query string params (MultiDict)
 self.request.form             # POST body params (MultiDict)
-self.request.session          # Session data (DotDict)
+self.request.session          # Session data (dict)
 self.request.headers          # Request headers
 self.request.format           # "html", "json", etc. (from Accept header)
 self.request.is_xhr           # True if X-Requested-With: XMLHttpRequest

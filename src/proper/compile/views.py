@@ -1,4 +1,4 @@
-"""The views as Python modules, compiled by minijx.
+"""The views as Python modules, compiled by jxc.
 
 `compile_views` is what `lower` does when the app starts: compile every view
 of the app's catalog into `COMPILED_PATH`. The compiler writes each module
@@ -36,7 +36,7 @@ def views_are_compiled(app: "App") -> bool:
 
     This only compares the modification times of the files. A module can
     still be out of date for another reason, like a view it imports that
-    changed or other custom tags: minijx checks that the first time it loads
+    changed or other custom tags: the catalog checks that the first time it loads
     the module, and compiles it again."""
     catalog = app.catalog
     assert catalog.output is not None
@@ -57,13 +57,13 @@ def compile_views(app: "App", *, force: bool = False) -> bool:
 
     It returns `False`, and the compiled modules are used as they are:
 
-    - When there is no minijx compiler for this platform.
+    - When there is no views compiler for this platform.
     - Outside of debug mode, when every view is already compiled (see
       `views_are_compiled`), unless `force` is true. In debug mode the views
       are always compiled, so the errors of all of them are reported.
     """
     if not app.catalog.compiler:
-        logger.info("No minijx compiler: using the compiled views in %s", app.catalog.output)
+        logger.info("No views compiler: using the compiled views in %s", app.catalog.output)
         return False
     if not force and not app.config.DEBUG and views_are_compiled(app):
         logger.info("Using the compiled views in %s", app.catalog.output)

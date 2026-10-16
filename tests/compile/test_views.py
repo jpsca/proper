@@ -50,7 +50,7 @@ def test_without_a_compiler_the_compiled_views_are_used(tmp_path, caplog):
     shipped.catalog.compiler = None
     with caplog.at_level(logging.INFO, logger=logger.name):
         assert compile_views(shipped) is False
-    assert "No minijx compiler" in caplog.text
+    assert "No views compiler" in caplog.text
     assert shipped.catalog.render("page.jx", name="x") == "<p>x</p>"
 
 

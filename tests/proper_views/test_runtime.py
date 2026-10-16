@@ -56,7 +56,7 @@ def jinja_value(fn, obj, name):
 @pytest.mark.parametrize("obj,name", cases(), ids=lambda x: repr(x)[:20])
 def test_getattr_matches_jinja(obj, name):
     # Jinja compiles `x.0` to a subscript, so it never calls getattr with a
-    # number; minijx's `getattr_` goes straight to the item for those.
+    # number; the runtime's `getattr_` goes straight to the item for those.
     lookup = ENV.getattr if isinstance(name, str) else ENV.getitem
     expected = jinja_value(lookup, obj, name)
     if expected is None:

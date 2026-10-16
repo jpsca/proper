@@ -1,4 +1,4 @@
-(* minijx: one component's template -> one Python function.
+(* jxc: one component's template -> one Python function.
 
   The function appends pieces of text to a list `_b` (through `_a`, its
   bound `append`) and returns them joined. Blocks whose surrounding code
@@ -12,14 +12,14 @@
   component with autoescape is always `Markup`, whatever the mode of the
   caller. Components and fills are appended as they are: they return HTML
   already. *)
-unit mjgen;
+unit jxgen;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  SysUtils, mjerrors, mjutil, mjlexer, mjparser, mjexpr, mjcomponent;
+  SysUtils, jxerrors, jxutil, jxlexer, jxparser, jxexpr, jxcomponent;
 
 type
   TFuncGen = class
@@ -1018,14 +1018,14 @@ begin
       W.Line('attrs = _extra["attrs"] if isinstance(_extra.get("attrs"), Attrs) else Attrs(_extra)');
     (* custom filters and tests come from the catalog, through `_globals` *)
     if FUsesFilters and FComp.Autoescape then
-      W.Line('_f = _globals.get("__minijx_filters_ae__", _FILTERS_AE)')
+      W.Line('_f = _globals.get("__views_filters_ae__", _FILTERS_AE)')
     else if FUsesFilters then
-      W.Line('_f = _globals.get("__minijx_filters__", _FILTERS)');
+      W.Line('_f = _globals.get("__views_filters__", _FILTERS)');
     if FUsesTests then
-      W.Line('_t = _globals.get("__minijx_tests__", _TESTS)');
+      W.Line('_t = _globals.get("__views_tests__", _TESTS)');
     (* the functions of the custom tags come from the catalog *)
     if FUsesTags then
-      W.Line('_tags = _globals.get("__minijx_tags__", _NO_TAGS)');
+      W.Line('_tags = _globals.get("__views_tags__", _NO_TAGS)');
     W.Append(BodyW);
     Result := W.Text;
     Maps := W.Maps;

@@ -1,5 +1,5 @@
 """
-minijx runtime: helpers the generated code calls.
+Views runtime: helpers the generated code calls.
 
 Everything the compiler emits goes through the names re-exported here, so
 generated modules only need `from proper.views.runtime import ...`.
@@ -32,7 +32,7 @@ _MISSING = object()
 class _Undefined:
     """
     What `x | default(...)` receives when `x` does not exist: a missing
-    global, attribute or item. minijx is otherwise strict and has no
+    global, attribute or item. The views are otherwise strict and have no
     Undefined; this sentinel exists so `default` can tell "missing" from a
     real `None`, as Jinja does. It never reaches the output: `default`
     always replaces it.

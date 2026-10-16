@@ -100,7 +100,7 @@ def test_locals_are_the_templates_variables(tmp_path):
     assert variables == {"items": [{"x": None}], "content": "", "n": 2, "it": {"x": None}}
 
 
-def test_minijx_frames_are_hidden(tmp_path):
+def test_runtime_frames_are_hidden(tmp_path):
     write(tmp_path, {"page.jx": "{# def user #}{{ user.nme }}"})
     exc = failure(Catalog(tmp_path), "page.jx", user=User())
     files = [f[0] for f in frames(exc)]
@@ -208,7 +208,7 @@ def test_find_entry_fallbacks():
     assert _find_entry(module, 12, 15, 1)[5] == 0        # between spans: the first one
     assert _find_entry(module, 11, None, 1)[4] == 1      # no entry: the closest above
     assert _find_entry(module, 9, None, 5) is None       # nothing above, in the function
-    assert "__minijx_lineindex__" in module
+    assert "__views_lineindex__" in module
 
 
 def test_a_module_without_valid_sources_keeps_its_frames(tmp_path):
