@@ -1,10 +1,14 @@
 import pytest
 
+from proper.controller import template_resolver
 from proper.controller.template_resolver import (
+    formats_for,
+    formats_for_header,
     iter_candidates,
     iter_format_extensions,
     resolve_template,
 )
+from proper.core.request.headers import parse_accept
 from proper.views import ComponentNotFoundError
 
 
@@ -127,3 +131,40 @@ class TestResolveTemplate:
         # Message should list what was tried, for debugging
         assert "posts/show.html.jx" in str(exc.value)
         assert "posts/show.jx" in str(exc.value)
+
+
+# --- formats_for_header ---
+
+ACCEPTS = [
+    None,
+    "",
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "application/json",
+    "application/json, text/plain, */*",
+    "text/plain;q=0.5, application/json",
+    "image/avif,image/webp,*/*",
+    "x/unknown",
+]
+
+
+@pytest.mark.parametrize("accept", ACCEPTS)
+@pytest.mark.parametrize("default_format", ["html", "json"])
+def test_formats_for_header_is_formats_for_of_the_parsed_header(
+    accept, default_format, monkeypatch
+):
+    monkeypatch.setattr(template_resolver, "_FORMATS", {})
+    expected = formats_for(parse_accept(accept), default_format)
+    assert formats_for_header(accept, default_format) == expected
+    # and the second time, from what it remembered
+    assert formats_for_header(accept, default_format) == expected
+    assert template_resolver._FORMATS[(accept, default_format)] == expected
+
+
+def test_formats_for_header_remembers_a_bounded_number(monkeypatch):
+    monkeypatch.setattr(template_resolver, "_FORMATS", {})
+    monkeypatch.setattr(template_resolver, "MAX_ACCEPT_HEADERS", 2)
+    formats_for_header("text/html", "html")
+    formats_for_header("application/json", "html")
+    assert formats_for_header("text/plain", "html") == ("txt",)
+    assert len(template_resolver._FORMATS) == 2
+    assert ("text/plain", "html") not in template_resolver._FORMATS

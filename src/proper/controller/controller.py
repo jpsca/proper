@@ -10,7 +10,7 @@ from ..constants import TURBO_STREAM_MIME
 from ..helpers import MultiDict, jsonplus, logger, make_list
 from ..status import not_acceptable, not_modified, unprocessable
 from ..views import ComponentNotFoundError
-from .template_resolver import formats_for
+from .template_resolver import formats_for_header
 
 
 if t.TYPE_CHECKING:
@@ -168,7 +168,8 @@ class Controller:
     def _resolve_view(self, action_name: str) -> str:
         request = self.request
         return self._find_view(
-            action_name, formats_for(request.accept, request.default_format)
+            action_name,
+            formats_for_header(request.headers.get("accept"), request.default_format),
         )
 
     def _has_default_view(self, action_name: str) -> bool:

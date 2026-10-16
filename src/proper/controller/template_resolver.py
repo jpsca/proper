@@ -9,12 +9,14 @@ import mimetypes
 import typing as t
 from collections.abc import Iterable, Iterator, Sequence
 
+from ..core.request.headers import parse_accept
 from ..views import ComponentNotFoundError
 
 
 __all__ = (
     "find_template",
     "formats_for",
+    "formats_for_header",
     "iter_candidates",
     "iter_format_extensions",
     "resolve_template",
@@ -52,6 +54,26 @@ def formats_for(accept: Iterable[str], default_format: str) -> tuple[str, ...]:
             ext = _EXTENSIONS[mime] = guess[1:]
         formats.append(ext)
     return tuple(formats) or (default_format,)
+
+
+# The formats of each `Accept` header seen so far. Browsers and HTTP
+# libraries send the same few, and parsing one costs some microseconds. The
+# client chooses the header, so the number kept is bounded: past it, a new
+# header is parsed every time.
+_FORMATS: dict[tuple[str | None, str], tuple[str, ...]] = {}
+MAX_ACCEPT_HEADERS = 256
+
+
+def formats_for_header(accept: str | None, default_format: str) -> tuple[str, ...]:
+    """`formats_for` of an `Accept` header (`None` without one), remembered
+    per header."""
+    key = (accept, default_format)
+    formats = _FORMATS.get(key)
+    if formats is None:
+        formats = formats_for(parse_accept(accept), default_format)
+        if len(_FORMATS) < MAX_ACCEPT_HEADERS:
+            _FORMATS[key] = formats
+    return formats
 
 
 def iter_format_extensions(accept: Iterable[str]) -> Iterator[str]:
