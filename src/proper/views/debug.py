@@ -1,5 +1,5 @@
 """
-minijx runtime: tracebacks that point to the templates.
+Views runtime: tracebacks that point to the templates.
 
 A compiled component is Python code, so an error while rendering it would
 show lines of that code. Each module has a `LINEMAP`: for its lines (and, in
@@ -13,7 +13,7 @@ When a render fails, the catalog rewrites the traceback, as Jinja does: each
 frame of a compiled module is replaced by a frame "in" the template, at its
 line, with the template's variables as its locals. Python then shows the
 `.jx` line, with `^^^` under the expression that failed. The frames of
-minijx itself are dropped, unless there is no template frame to show.
+this runtime are dropped, unless there is no template frame to show.
 
 Two messages are made clearer: a name that is neither an argument nor a
 global (a `KeyError` of `_globals`) and a component called without a
@@ -53,7 +53,7 @@ def rewrite_traceback(exc: BaseException) -> BaseException:
     while tb is not None:
         module = tb.tb_frame.f_globals
         fake = None
-        if "LINEMAP" in module and "MINIJX_FORMAT" in module:
+        if "LINEMAP" in module and "VIEWS_FORMAT" in module:
             fake = _template_frame(exc, tb, module)
         if fake is not None:
             found = True
@@ -118,7 +118,7 @@ def _last_template_frame(exc: BaseException):
     tb = exc.__traceback__
     while tb is not None:
         module = tb.tb_frame.f_globals
-        if "LINEMAP" in module and "MINIJX_FORMAT" in module:
+        if "LINEMAP" in module and "VIEWS_FORMAT" in module:
             found = (tb.tb_frame, module)
         tb = tb.tb_next
     return found
@@ -159,12 +159,12 @@ def _find_entry(module: dict[str, t.Any], lineno: int, col: "int | None", first_
     """The LINEMAP entry for a module line and, if known, the column of the
     instruction that failed. A line with no entry takes the closest one
     above it in the same function."""
-    index = module.get("__minijx_lineindex__")
+    index = module.get("__views_lineindex__")
     if index is None:
         index = {}
         for entry in module["LINEMAP"]:
             index.setdefault(entry[0], []).append(entry)
-        module["__minijx_lineindex__"] = index
+        module["__views_lineindex__"] = index
     for number in range(lineno, first_line - 1, -1):
         entries = index.get(number)
         if not entries:

@@ -1,6 +1,6 @@
-(* minijx: compile .jx components to Python functions.
+(* jxc: compile .jx components to Python functions.
 
-  Usage: minijx [--autoescape=EXT,...] [--tags=NAME,...] [--pure=NAME,...] [--output=DIR] [--only=FILE] FOLDER [FOLDER ...]
+  Usage: jxc [--autoescape=EXT,...] [--tags=NAME,...] [--pure=NAME,...] [--output=DIR] [--only=FILE] FOLDER [FOLDER ...]
 
   Every `name.jx` under the folders becomes `name.py` next to it; dots in the
   name become `_` (`sitemap.xml.jx` -> `sitemap_xml.py`). Absolute imports
@@ -26,19 +26,19 @@
 
   `--only` compiles that file alone, one of the folders' .jx; the folders
   are still where its imports are looked for. *)
-program minijx;
+program jxc;
 
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, mjerrors, mjutil, mjparser, mjcompiler, mjcomponent;
+  SysUtils, Classes, jxerrors, jxutil, jxparser, jxcompiler, jxcomponent;
 
 procedure Usage(const Msg: string = '');
 begin
   if Msg <> '' then
-    WriteLn(StdErr, 'minijx: ', Msg);
-  WriteLn(StdErr, 'usage: minijx [--autoescape=EXT,...] [--tags=NAME,...] [--output=DIR] FOLDER [FOLDER ...]');
-  WriteLn(StdErr, '       minijx --version');
+    WriteLn(StdErr, 'jxc: ', Msg);
+  WriteLn(StdErr, 'usage: jxc [--autoescape=EXT,...] [--tags=NAME,...] [--pure=NAME,...] [--output=DIR] FOLDER [FOLDER ...]');
+  WriteLn(StdErr, '       jxc --version');
   WriteLn(StdErr, '  Compiles every .jx file under the folders to a sibling .py file.');
   WriteLn(StdErr, '  --autoescape: extensions (before .jx; `jx` if none) whose {{ }} are');
   WriteLn(StdErr, '  escaped. Default: html,jx,xml. Empty (`--autoescape=`) turns it off.');
@@ -232,17 +232,17 @@ begin
     begin
       (* the runtime reads the format to refuse a binary that generates
          modules it cannot load *)
-      Version := MinijxVersion; (* a variable: the constant may be empty *)
+      Version := CompilerVersion; (* a variable: the constant may be empty *)
       if Version = '' then
         Version := 'unknown';
-      WriteLn('minijx ', Version, ' (module format ', ModuleFormat, ')');
+      WriteLn('jxc ', Version, ' (module format ', ModuleFormat, ')');
       Halt(0);
     end;
     if StartsWith(Arg, '-') then
       Usage('unknown option ' + Arg);
     if not DirectoryExists(Arg) then
     begin
-      WriteLn(StdErr, 'minijx: not a folder: ', Arg);
+      WriteLn(StdErr, 'jxc: not a folder: ', Arg);
       Halt(2);
     end;
     Roots[NRoots] := IncludeTrailingPathDelimiter(ExpandFileName(Arg));
@@ -302,7 +302,7 @@ begin
     OutputSrcs.Free;
     Compiler.Free;
   end;
-  WriteLn(StdErr, 'minijx: ', Written, ' file(s) written, ', Failed, ' failed');
+  WriteLn(StdErr, 'jxc: ', Written, ' file(s) written, ', Failed, ' failed');
   (* not Halt(1): the program has to end normally so its strings are freed *)
   if Failed > 0 then
     ExitCode := 1;

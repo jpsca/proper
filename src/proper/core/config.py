@@ -39,7 +39,7 @@ default_config = {
 
     # Restart the server when the code changes. `None` follows `DEBUG`.
     "RELOAD": None,
-    # Where the views are compiled to, as Python modules (by minijx).
+    # Where the views are compiled to, as Python modules (by jxc).
     # Relative to the app's parent folder. See `proper.compile`.
     "COMPILED_PATH": "_compiled",
 

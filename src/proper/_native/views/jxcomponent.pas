@@ -1,12 +1,12 @@
-(* minijx: a loaded component, as the compiler and the generator share it. *)
-unit mjcomponent;
+(* jxc: a loaded component, as the compiler and the generator share it. *)
+unit jxcomponent;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, mjparser;
+  Classes, jxparser;
 
 type
   TComponent = class;

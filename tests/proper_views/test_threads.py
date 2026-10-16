@@ -104,6 +104,7 @@ def test_concurrent_first_loads_compile_once(tmp_path):
 )
 def test_the_gil_is_really_off():
     import jinja2  # noqa: F401  the test dependencies must not bring the GIL back
-    import minijx  # noqa: F401
+
+    import proper.views  # noqa: F401
 
     assert not sys._is_gil_enabled()

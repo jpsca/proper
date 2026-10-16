@@ -24,7 +24,7 @@ For the asset-delivery side - filename fingerprinting, cache headers, the `route
 
 Jx is a Python component library. A component is a `.jx` file: a small piece of HTML with a header that declares its arguments and dependencies. Components import each other and compose into pages. The output is plain HTML.
 
-If you've used Django or Flask templates, the syntax in the body will feel familiar - Jx uses Jinja's syntax, so `{% if %}`, `{% for %}`, `{{ value }}`, filters, and tests all work. Proper compiles each component to a Python function with [minijx](https://github.com/jpsca/minijx){target="_blank"}, so rendering a page is calling plain Python code. The new bits are the header (a few `{# ... #}` directives at the top of the file) and the way components are *invoked* (as HTML tags, not via `{% include %}`).
+If you've used Django or Flask templates, the syntax in the body will feel familiar - Jx uses Jinja's syntax, so `{% if %}`, `{% for %}`, `{{ value }}`, filters, and tests all work. Proper compiles each component to a Python function, so rendering a page is calling plain Python code. The new bits are the header (a few `{# ... #}` directives at the top of the file) and the way components are *invoked* (as HTML tags, not via `{% include %}`).
 
 Here's the smallest useful Jx component:
 
@@ -62,8 +62,8 @@ Two things to notice. First, the component is invoked as `<Card>` rather than `{
 
 The rest of this guide covers the pieces you'll reach for past this minimum: declaring multiple props with defaults, named slots, attribute forwarding, CSS and JS dependencies, and the layouts and rendering conventions Proper layers on top.
 
-:::note minijx
-This guide aims to cover everything most Proper apps will need. The compiler is [minijx](https://github.com/jpsca/minijx){target="_blank"}, which is part of Proper (`proper.views`); for its details (the catalog, custom tags, the compiled modules), see its documentation.
+:::note
+This guide aims to cover everything most Proper apps will need. The views are compiled when the app starts, or before: see [Compiled views](/docs/deployment#compiled-views).
 :::
 
 ---
@@ -1269,5 +1269,5 @@ In `DEBUG`, the errors are logged and the app starts anyway; each error shows wh
 
 This guide focuses on the day-to-day surface: writing components, using them, and the way Proper hooks into Jx. A few topics are deliberately left out.
 
-- **The Catalog API.** Proper sets up the catalog (`app.catalog`) automatically, registers your `views/` folder, and adds the globals and tags discussed above. It is a `proper.views.Catalog`, from minijx, which is part of Proper; see the [minijx documentation](https://github.com/jpsca/minijx){target="_blank"} for its API.
+- **The Catalog API.** Proper sets up the catalog (`app.catalog`) automatically, registers your `views/` folder, and adds the globals and tags discussed above. It is a `proper.views.Catalog`, whose methods are documented in its docstrings.
 - **Form rendering.** The `<Form>` component, render helpers like `field.label()` and `field.text_input()`, and the wire format for submitted data are covered in the [Rendering Forms guide](/docs/form_rendering).

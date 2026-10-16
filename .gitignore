@@ -4,7 +4,7 @@ __pycache__
 *$py.class
 *.so
 # the views compiler (src/proper/_native/build.py)
-src/proper/_native/minijx
+src/proper/_native/jxc
 # what the views tests compile from their fixtures
 tests/proper_views/fixtures/**/*.py
 
@@ -42,5 +42,5 @@ var/
 wheels/
 
 
-# Views compiled by minijx
+# Compiled views
 _compiled/

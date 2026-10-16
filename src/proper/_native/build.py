@@ -1,5 +1,5 @@
 """Compiles Proper's native code with Free Pascal (3.2.2 or later):
-`libproper_native.so`, and `minijx`, the compiler of the views (from
+`libproper_native.so`, and `jxc`, the compiler of the views (from
 `views/`: a program of its own, run once when the app starts, see
 `proper.views`).
 
@@ -55,7 +55,7 @@ def build(out: Path = HERE / "libproper_native.so", fpc: str | None = None) -> P
     return out
 
 
-def build_views_compiler(out: Path = HERE / "minijx", fpc: str | None = None) -> Path:
+def build_views_compiler(out: Path = HERE / "jxc", fpc: str | None = None) -> Path:
     """Compile the views compiler to `out` and return its path. It is a
     static executable: it links no library."""
     fpc = fpc or os.environ.get("PROPER_FPC") or shutil.which("fpc")
@@ -66,17 +66,17 @@ def build_views_compiler(out: Path = HERE / "minijx", fpc: str | None = None) ->
         result = subprocess.run(
             [
                 fpc,
-                f"@{views / 'minijx.cfg'}",
+                f"@{views / 'jxc.cfg'}",
                 f"-Fu{views}",
                 f"-FU{units}",
                 f"-o{out}",
-                str(views / "minijx.lpr"),
+                str(views / "jxc.lpr"),
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            # `minijx --version` says this; the runtime checks the format only
-            env={**os.environ, "MINIJX_VERSION": "proper"},
+            # `jxc --version` says this; the runtime checks the format only
+            env={**os.environ, "JXC_VERSION": "proper"},
         )
     print(result.stdout, end="", file=sys.stderr)
     if result.returncode != 0:
@@ -87,4 +87,4 @@ def build_views_compiler(out: Path = HERE / "minijx", fpc: str | None = None) ->
 if __name__ == "__main__":
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE
     print(build(out / "libproper_native.so"))
-    print(build_views_compiler(out / "minijx"))
+    print(build_views_compiler(out / "jxc"))

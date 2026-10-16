@@ -1,9 +1,9 @@
 """
-minijx runtime: the filters and tests a catalog renders with.
+Views runtime: the filters and tests a catalog renders with.
 
 The generated code looks filters and tests up by name, in the dicts it finds
-in `_globals` under `__minijx_filters__` (or `__minijx_filters_ae__` for
-components compiled with autoescape) and `__minijx_tests__`, or in the
+in `_globals` under `__views_filters__` (or `__views_filters_ae__` for
+components compiled with autoescape) and `__views_tests__`, or in the
 builtin ones. A catalog with custom filters or tests builds its dicts here.
 """
 
@@ -13,9 +13,9 @@ from .filters import FILTERS, FILTERS_AE, bound_to
 from .tests import INLINE_TESTS, TESTS
 
 
-FILTERS_KEY = "__minijx_filters__"
-FILTERS_AE_KEY = "__minijx_filters_ae__"
-TESTS_KEY = "__minijx_tests__"
+FILTERS_KEY = "__views_filters__"
+FILTERS_AE_KEY = "__views_filters_ae__"
+TESTS_KEY = "__views_tests__"
 
 
 def build(
@@ -37,8 +37,8 @@ def build(
     inline = sorted(INLINE_TESTS & tests.keys())
     if inline:
         raise ValueError(
-            f"Cannot replace the test(s) {', '.join(map(repr, inline))}: minijx compiles "
-            "them into plain Python instead of calling a function"
+            f"Cannot replace the test(s) {', '.join(map(repr, inline))}: the compiler "
+            "writes them as plain Python instead of calling a function"
         )
     for name, value in (*filters.items(), *tests.items()):
         if not callable(value):

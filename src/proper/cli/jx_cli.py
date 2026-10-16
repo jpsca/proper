@@ -1,4 +1,4 @@
-"""`proper jx`: the tools for the app's views, compiled by minijx."""
+"""`proper jx`: the tools for the app's views, compiled by jxc."""
 import json
 import sys
 import typing as t
@@ -34,7 +34,7 @@ def get_jx_cli(app: "App") -> type[Cli]:
                 print(err, file=sys.stderr)
                 sys.exit(1)
             if not compiled:
-                print("There is no minijx compiler for this platform.", file=sys.stderr)
+                print("There is no views compiler for this platform.", file=sys.stderr)
                 sys.exit(1)
             count = sum(1 for folder in catalog.folders for _ in folder.rglob("*.jx"))
             print(f"Compiled {count} views into {catalog.output}")

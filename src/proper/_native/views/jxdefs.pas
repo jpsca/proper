@@ -1,16 +1,16 @@
-(* minijx: the arguments declared in `{# def ... #}`.
+(* jxc: the arguments declared in `{# def ... #}`.
 
   As in Jx, the declaration is a Python argument list: names, optional
   annotations and defaults. A default is a Python expression (not a Jinja
   one) that may only use literals and the names Jx allows. *)
-unit mjdefs;
+unit jxdefs;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  SysUtils, Classes, StrUtils, mjerrors, mjutil, mjparser, mjcomponent;
+  SysUtils, Classes, StrUtils, jxerrors, jxutil, jxparser, jxcomponent;
 
 (* The arguments of Doc's `{# def #}`; none if it has no declaration. *)
 function ParseDefArgs(Doc: TDocument): TArgArray;

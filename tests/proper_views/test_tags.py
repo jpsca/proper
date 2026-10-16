@@ -10,7 +10,7 @@ import pytest
 from markupsafe import Markup
 
 from proper.views import Catalog, CompileError, ComponentNotCompiledError
-from .helpers import BIN, load_module, run_minijx
+from .helpers import BIN, load_module, run_jxc
 
 
 def write(folder, files):
@@ -192,21 +192,21 @@ def test_set_in_a_recursive_loop_reads_the_outer_value_first(project):
 
 def test_module_declares_its_tags(tmp_path):
     write(tmp_path, {"page.jx": "x"})
-    assert run_minijx("--tags=zeta,cache", tmp_path).returncode == 0
+    assert run_jxc("--tags=zeta,cache", tmp_path).returncode == 0
     assert load_module(tmp_path / "page.py").TAGS == ("cache", "zeta")
 
 
 def test_rendered_without_the_function(tmp_path):
     write(tmp_path, {"page.jx": "{% cache 1 %}x{% endcache %}"})
-    assert run_minijx("--tags=cache", tmp_path).returncode == 0
+    assert run_jxc("--tags=cache", tmp_path).returncode == 0
     with pytest.raises(KeyError, match=r"No function for the tag \{% cache %\}"):
         load_module(tmp_path / "page.py").render()
 
 
 def test_module_compiled_with_other_tags_is_recompiled(tmp_path):
     write(tmp_path, {"page.jx": "{% cache 1 %}x{% endcache %}"})
-    assert run_minijx(tmp_path).returncode == 1  # `cache` is not a tag there
-    assert run_minijx("--tags=cache,other", tmp_path).returncode == 0
+    assert run_jxc(tmp_path).returncode == 1  # `cache` is not a tag there
+    assert run_jxc("--tags=cache,other", tmp_path).returncode == 0
     catalog = Catalog(tmp_path, compiler=BIN, tags={"cache": Cache()})
     assert catalog.render("page.jx") == "x"
     assert load_module(tmp_path / "page.py").TAGS == ("cache",)
@@ -214,7 +214,7 @@ def test_module_compiled_with_other_tags_is_recompiled(tmp_path):
 
 def test_module_compiled_with_other_tags_without_compiler(tmp_path):
     write(tmp_path, {"page.jx": "x"})
-    assert run_minijx(tmp_path).returncode == 0
+    assert run_jxc(tmp_path).returncode == 0
     catalog = Catalog(tmp_path, compiler=False, auto_reload=False, tags={"cache": Cache()})
     with pytest.raises(ComponentNotCompiledError, match=r"compiled with the tags \(\)"):
         catalog.render("page.jx")

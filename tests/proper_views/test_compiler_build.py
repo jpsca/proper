@@ -1,7 +1,7 @@
 """
-What changed when minijx was vendored into Proper: the compiler is built
-with Proper's native code, its modules import `proper.views`, and a module
-from the standalone minijx is compiled again.
+The compiler is built with Proper's native code, the modules it generates
+import `proper.views`, and a module that can't be imported (from an older
+version) is compiled again.
 """
 
 import os
@@ -21,7 +21,7 @@ def test_the_compiler_is_built_with_proper():
 
 def test_the_compiler_makes_modules_this_runtime_loads():
     out = subprocess.run([str(BIN), "--version"], capture_output=True, text=True).stdout
-    m = re.match(r"minijx (\S+) \(module format (\d+)\)", out)
+    m = re.match(r"jxc (\S+) \(module format (\d+)\)", out)
     assert m, out
     assert int(m.group(2)) == MODULE_FORMAT
 
@@ -31,15 +31,17 @@ def test_modules_import_proper_views(tmp_path):
     Catalog(tmp_path, compiler=BIN).compile()
     source = (tmp_path / "a.py").read_text()
     assert "from proper.views.runtime import" in source
-    assert "minijx." not in source
+    imports = [line for line in source.splitlines() if line.startswith(("import ", "from "))]
+    assert imports
+    assert all(line.startswith(("from proper.views.", "from __future__ ")) for line in imports)
 
 
-def test_a_module_from_the_standalone_minijx_is_compiled_again(tmp_path):
-    """Views compiled before Proper vendored minijx import `minijx.runtime`,
-    which is not installed: they are stale, not an error."""
+def test_a_module_that_cannot_be_imported_is_compiled_again(tmp_path):
+    """A module of an older version imports a runtime that is gone: it is
+    stale, not an error."""
     (tmp_path / "a.jx").write_text("{# def n #}<p>{{ n }}</p>")
     py = tmp_path / "a.py"
-    py.write_text("from minijx.runtime import escape_output as _e\nMINIJX_FORMAT = 9\n")
+    py.write_text("from gone.runtime import escape_output as _e\nVIEWS_FORMAT = 9\n")
     # newer than its .jx, as a module that is up to date
     jx_mtime = (tmp_path / "a.jx").stat().st_mtime
     os.utime(py, (jx_mtime + 10, jx_mtime + 10))

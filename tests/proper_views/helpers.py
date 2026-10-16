@@ -2,10 +2,10 @@
 Shared helpers: compile .jx files with the views compiler, render them with
 the generated Python, and compare with what Jx renders.
 
-What Jx renders is fixed: `expected.json` has, for each test, what Jx
-rendered in it, in order (or the error it raised). It was recorded from
-minijx's own suite (github.com/jpsca/minijx 0.1.0, against Jx 0.16) on the
-tests that passed, so each value is one minijx matched.
+What Jx renders is fixed: `expected.json` has, for each test, what Jx 0.16
+rendered in it, in order (or the error it raised). It was recorded once,
+when these views and their tests came into Proper, from the tests that
+passed: each value is one the views matched.
 """
 
 import importlib.util
@@ -29,7 +29,7 @@ def collapse(html: str) -> str:
     return re.sub(r">\s+<", "><", re.sub(r"\s+", " ", html)).strip()
 
 
-def run_minijx(*folders: Path) -> subprocess.CompletedProcess:
+def run_jxc(*folders: Path) -> subprocess.CompletedProcess:
     assert BIN is not None, "build the compiler first: make native"
     return subprocess.run([str(BIN), *map(str, folders)], capture_output=True, text=True)
 
@@ -102,8 +102,8 @@ class Project:
 
     def compile(self) -> subprocess.CompletedProcess:
         if self.autoescape:
-            return run_minijx(self.mini)  # the default: html, jx, xml
-        return run_minijx("--autoescape=", self.mini)
+            return run_jxc(self.mini)  # the default: html, jx, xml
+        return run_jxc("--autoescape=", self.mini)
 
     def render_mini(self, template: str, globals=None, filters=None, tests=None, **kwargs) -> str:
         result = self.compile()
@@ -130,5 +130,5 @@ class Project:
         """Same HTML as Jx, byte for byte."""
         mini = self.render_mini(template, globals=globals, filters=filters, tests=tests, **kwargs)
         jx = self.render_jx(template)
-        assert mini == jx, f"\nminijx: {mini!r}\njx:     {jx!r}"
+        assert mini == jx, f"\nviews: {mini!r}\njx:    {jx!r}"
         return mini

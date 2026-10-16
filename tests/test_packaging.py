@@ -92,5 +92,5 @@ def test_the_native_library_is_packed(wheel_members):
 
 
 def test_the_views_compiler_is_packed(wheel_members):
-    assert "proper/_native/minijx" in wheel_members
-    assert "proper/_native/views/minijx.lpr" in wheel_members
+    assert "proper/_native/jxc" in wheel_members
+    assert "proper/_native/views/jxc.lpr" in wheel_members

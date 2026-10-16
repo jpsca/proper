@@ -1,5 +1,5 @@
-(* minijx: small string helpers shared by the lexer, parser and code generator. *)
-unit mjutil;
+(* jxc: small string helpers shared by the lexer, parser and code generator. *)
+unit jxutil;
 
 {$mode objfpc}{$H+}
 

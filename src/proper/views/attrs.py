@@ -1,5 +1,5 @@
 """
-minijx runtime: the `attrs` object, with the same rules as Jx.
+Views runtime: the `attrs` object, with the same rules as Jx.
 
 - classes given to `render()` come before the caller's classes
 - underscores in names become dashes

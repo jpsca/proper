@@ -1,14 +1,13 @@
 """
-Proper's views: Jx components compiled to Python functions by minijx.
+Proper's views: Jx components compiled to Python functions.
 
-This is minijx (github.com/jpsca/minijx, at 0.1.0), vendored into Proper:
-the runtime here, the compiler in `proper/_native/views/` (Free Pascal),
-built with Proper's native code as `proper/_native/minijx`. The code the
-compiler generates imports `proper.views.runtime`, `proper.views.filters`
-and `proper.views.tests`.
+The compiler, jxc, is Free Pascal (`proper/_native/views/`), built with
+Proper's native code as `proper/_native/jxc`; this package is the runtime
+the modules it generates import (`proper.views.runtime`, `.filters`,
+`.tests`), and the catalog that compiles and loads them.
 """
 
-# What `minijx --version` of Proper's compiler says (`build.py`)
+# What `jxc --version` says (`_native/build.py`)
 __version__ = "proper"
 
 from .attrs import Attrs  # noqa: E402

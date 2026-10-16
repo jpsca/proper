@@ -1,5 +1,5 @@
-(* minijx: compile errors with a file position. *)
-unit mjerrors;
+(* jxc: compile errors with a file position. *)
+unit jxerrors;
 
 {$mode objfpc}{$H+}
 

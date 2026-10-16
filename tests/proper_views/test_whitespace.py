@@ -16,7 +16,7 @@ def exact(project, files, template="page.jx", **kwargs):
     project.write(files)
     mini = project.render_mini(template, **kwargs)
     jx = str(project.render_jx(template, **kwargs))
-    assert mini == jx, f"\nminijx: {mini!r}\njx:     {jx!r}"
+    assert mini == jx, f"\nviews: {mini!r}\njx:    {jx!r}"
     return mini
 
 

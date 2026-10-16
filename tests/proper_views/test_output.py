@@ -244,7 +244,7 @@ def test_render_string_errors(tmp_path):
     catalog = Catalog(tmp_path)
     with pytest.raises(CompileError, match=r"^<string>:1:8: Unexpected end of expression"):
         catalog.render_string("{{ 1 + }}")
-    with pytest.raises(ComponentNotCompiledError, match="needs the minijx compiler"):
+    with pytest.raises(ComponentNotCompiledError, match="needs the views compiler"):
         Catalog(tmp_path, compiler=False).render_string("x")
 
 

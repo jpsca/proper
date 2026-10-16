@@ -72,7 +72,7 @@ Once installed, a Proper web app depends on some other Python libraries, most no
 
 - [Peewee ORM](https://docs.peewee-orm.com/)
 - [Huey](https://huey.readthedocs.io/) for background tasks
-- Jx components for templates, compiled to Python by [minijx](https://github.com/jpsca/minijx), which is part of Proper (`proper.views`)
+- Jx components for templates, compiled to Python by Proper (`proper.views`)
 - [Formidable](https://formidable.scaletti.dev/) for form handling
 
 Read the documentation of these libraries to understand how to work with them in Proper.

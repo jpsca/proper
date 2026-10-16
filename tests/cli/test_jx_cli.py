@@ -77,7 +77,7 @@ def test_compile_without_a_compiler(cli, app, capsys):
         cli.compile()
 
     assert info.value.code == 1
-    assert "no minijx compiler" in capsys.readouterr().err
+    assert "no views compiler" in capsys.readouterr().err
 
 
 def test_info(cli, app, capsys):
