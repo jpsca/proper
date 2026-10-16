@@ -15,6 +15,14 @@ All notable changes to Proper are documented in this file.
   session) is about five times faster.
 - itsdangerous is no longer a dependency, and `proper.errors.BadSignature`
   no longer inherits from `itsdangerous.BadSignature`.
+- Request bodies are parsed by Proper's compiled code: urlencoded forms,
+  query strings and multipart/form-data. A form with 3 KB of text or 30
+  fields costs a third of what it did, and the fixed cost of an upload
+  drops from about 140 µs to 10. A multipart body is checked whole before
+  any file is made, so one that is refused leaves no file behind.
+- python-multipart is no longer a dependency. As in its 0.0.32, the
+  extended parameters of RFC 2231 (`filename*=`, `charset*=`) are ignored,
+  as RFC 7578 says for form data.
 
 ## 0.41.0
 

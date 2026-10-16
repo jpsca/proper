@@ -37,7 +37,7 @@ library proper_native;
 {$R-}{$Q-}{$PointerMath On}
 
 uses
-  cthreads, dynlibs, proper_sha256;
+  cthreads, dynlibs, proper_sha256, proper_forms;
 
 const
   VERSION = '0.1.0';
@@ -504,6 +504,34 @@ begin
   Result := SignInPlace(Key^, Out_, N, Timestamp);
 end;
 
+{ ------------------------------------------------------- request bodies }
+
+{ The fields of an urlencoded body or query string (proper_forms.ParseForm):
+  their count, or -4 when more than max_fields. }
+function proper_parse_form(Body: PByte; Len: PtrUInt; Out_: PByte; Cap: PtrUInt;
+  Fields: PInt64; MaxFields: PtrInt): Int64; cdecl;
+begin
+  Result := ParseForm(Body, Len, Out_, Cap, Fields, MaxFields);
+end;
+
+{ The type and parameters of a header value (proper_forms.ParseParams). }
+function proper_parse_params(Value: PByte; Len: PtrUInt; Out_: PByte; Cap: PtrUInt;
+  Recs: PInt64; MaxRecs: PtrInt): Int64; cdecl;
+var N: PtrUInt;
+begin
+  N := 0;
+  Result := ParseParams(Value, Len, Out_, Cap, N, Recs, MaxRecs);
+end;
+
+{ The parts of a multipart/form-data body (proper_forms.ParseMultipart). }
+function proper_parse_multipart(Body: PByte; Len: PtrUInt; Boundary: PByte; BLen: PtrUInt;
+  Out_: PByte; Cap: PtrUInt; Parts: PInt64; MaxParts: PtrInt; MaxFields, MaxFiles,
+  MaxFieldSize: Int64; Recs: PInt64; MaxRecs: PtrInt): Int64; cdecl;
+begin
+  Result := ParseMultipart(Body, Len, Boundary, BLen, Out_, Cap, Parts, MaxParts, MaxFields,
+    MaxFiles, MaxFieldSize, Recs, MaxRecs);
+end;
+
 exports
   proper_native_version,
   proper_hmac_key_size,
@@ -517,7 +545,10 @@ exports
   proper_deflate_init,
   proper_deflate_end,
   proper_sign_json,
-  proper_unsign;
+  proper_unsign,
+  proper_parse_form,
+  proper_parse_params,
+  proper_parse_multipart;
 
 initialization
   LibZ := LoadLibrary('libz.so.1');

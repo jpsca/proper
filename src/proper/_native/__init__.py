@@ -2,7 +2,8 @@
 the sources in this directory (`build.py`), loaded with cffi in ABI mode.
 
 What it does now: sign tokens and check them (`Signing`), for `App.dumps`
-and `App.loads`.
+and `App.loads`; and parse request bodies and headers (`parse_form`,
+`parse_params`, `parse_multipart`), for `proper.core.request.formparser`.
 """
 import threading
 import typing as t
@@ -11,7 +12,10 @@ from pathlib import Path
 from cffi import FFI
 
 
-__all__ = ("BAD_SIGNATURE", "EXPIRED", "MALFORMED", "Rejected", "Signing", "ffi", "lib")
+__all__ = (
+    "BAD_SIGNATURE", "EXPIRED", "MALFORMED", "Rejected", "Signing", "ffi", "lib",
+    "parse_form", "parse_multipart", "parse_params",
+)
 
 HERE = Path(__file__).parent
 LIBRARY = HERE / "libproper_native.so"
@@ -23,8 +27,16 @@ EXPIRED = -2
 MALFORMED = -3
 TOO_SMALL = -4
 
-# The buffers each thread starts with; a larger token gets larger ones.
+# The buffers each thread starts with; a larger token or body gets larger ones.
 BUFFER_SIZE = 64 * 1024
+# Records each thread starts with: the parts of a multipart body, and the
+# parameters of one header.
+PARTS = 64
+PARAMS = 64
+# Words per record
+FIELD_WORDS = 4
+PARAM_WORDS = 4
+PART_WORDS = 10
 
 
 def _load(library: Path = LIBRARY) -> tuple[FFI, t.Any]:
@@ -68,10 +80,21 @@ class _Buffers(threading.local):
             raise RuntimeError("zlib could not make a deflate stream (is libz.so.1 there?)")
         self.stream = ffi.gc(stream, lib.proper_deflate_end)
 
+        self.parts = PARTS
+        self.part_records = ffi.new("long long[]", PARTS * PART_WORDS)
+        self.params = PARAMS
+        self.param_records = ffi.new("long long[]", PARAMS * PARAM_WORDS)
+
     def grow(self, size: int) -> None:
         self.size = size
         self.out = ffi.new("char[]", size)
         self.scratch = ffi.new("char[]", size)
+
+    def grow_records(self) -> None:
+        self.parts *= 4
+        self.part_records = ffi.new("long long[]", self.parts * PART_WORDS)
+        self.params *= 4
+        self.param_records = ffi.new("long long[]", self.params * PARAM_WORDS)
 
 
 _buffers = _Buffers()
@@ -127,3 +150,75 @@ class Signing:
             if n != TOO_SMALL:
                 raise Rejected(n)
             buffers.grow(max(buffers.size * 4, len(token)))
+
+
+def parse_form(data: bytes) -> "tuple[memoryview, list[int]]":
+    """The fields of an urlencoded body or query string: the decoded bytes,
+    and a name offset, name length, value offset and value length for each
+    field, in order. The bytes are this thread's buffer: decode them before
+    the next call."""
+    fields = data.count(b"&") + 1
+    records = ffi.new("long long[]", fields * FIELD_WORDS)
+    buffers = _buffers
+    if buffers.size < len(data):
+        buffers.grow(max(buffers.size * 4, len(data)))
+    n = lib.proper_parse_form(data, len(data), buffers.out, buffers.size, records, fields)
+    return memoryview(ffi.buffer(buffers.out, len(data))), ffi.unpack(records, n * FIELD_WORDS)
+
+
+def parse_params(value: bytes) -> "list[tuple[bytes, bytes]]":
+    """The type and parameters of a header value (latin-1), as
+    `(key, value)`: the type first, with an empty value."""
+    buffers = _buffers
+    while True:
+        if buffers.size < 3 * len(value) + 16:
+            buffers.grow(max(buffers.size * 4, 3 * len(value) + 16))
+        n = lib.proper_parse_params(
+            value, len(value), buffers.out, buffers.size,
+            buffers.param_records, buffers.params,
+        )
+        if n >= 0:
+            break
+        buffers.grow_records()
+    out = ffi.buffer(buffers.out, buffers.size)
+    words = ffi.unpack(buffers.param_records, n * PARAM_WORDS)
+    return [
+        (out[k:k + kl], out[v:v + vl])
+        for k, kl, v, vl in zip(words[0::4], words[1::4], words[2::4], words[3::4], strict=True)
+    ]
+
+
+class MultipartRejected(Exception):
+    """A multipart body `parse_multipart` refused: `code` says why."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def parse_multipart(
+    body: bytes, boundary: bytes, *, max_fields: int, max_files: int, max_field_size: int
+) -> "tuple[bytes, list[int]]":
+    """The parts of a multipart/form-data body: the names and filenames, as
+    bytes, and for each part the offset and length of its name and filename
+    (-1 for a field) in them, and of its content-type (-1 without one), data
+    and headers in `body`. Raises `MultipartRejected`."""
+    buffers = _buffers
+    while True:
+        n = lib.proper_parse_multipart(
+            body, len(body), boundary, len(boundary), buffers.out, buffers.size,
+            buffers.part_records, buffers.parts, max_fields, max_files, max_field_size,
+            buffers.param_records, buffers.params,
+        )
+        if n >= 0:
+            break
+        if n != TOO_SMALL:
+            raise MultipartRejected(n)
+        buffers.grow(buffers.size * 4)
+        buffers.grow_records()
+    words = ffi.unpack(buffers.part_records, n * PART_WORDS)
+    # a copy of the names and filenames: the buffer is this thread's
+    end = 0
+    for i in range(0, len(words), PART_WORDS):
+        end = max(end, words[i] + words[i + 1], words[i + 2] + words[i + 3])
+    return ffi.buffer(buffers.out, end)[:], words

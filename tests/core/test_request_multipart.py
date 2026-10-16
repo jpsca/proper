@@ -3,13 +3,19 @@ from tempfile import SpooledTemporaryFile
 
 import pytest
 
+from proper.core.request import formparser
 from proper.core.request.formparser import (
-    MultipartParser,
     MultipartPart,
     parse_multipart_sync,
 )
 from proper.errors import MultipartError
 from proper.helpers import MultiDict
+
+
+def parse(body, boundary="testboundary", **limits):
+    """The parts of a body, in order, as `(name, value)`."""
+    form = parse_multipart_sync(body, {"boundary": boundary}, **limits)
+    return [(name, value) for name, values in form.items() for value in values]
 
 
 def _build_multipart(parts, boundary="testboundary"):
@@ -97,8 +103,7 @@ def test_single_field():
         [{"name": "field1", "value": "hello"}],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary)
-    items = parser.parse_sync(body)
+    items = parse(body)
     assert len(items) == 1
     assert items[0] == ("field1", "hello")
 
@@ -112,8 +117,7 @@ def test_multiple_fields():
         ],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary)
-    items = parser.parse_sync(body)
+    items = parse(body)
     assert len(items) == 2
 
 
@@ -130,8 +134,7 @@ def test_file_upload():
         ],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary)
-    items = parser.parse_sync(body)
+    items = parse(body)
     assert len(items) == 1
     name, part = items[0]
     assert name == "file"
@@ -156,8 +159,7 @@ def test_mixed_fields_and_files():
         ],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary)
-    items = parser.parse_sync(body)
+    items = parse(body)
     assert items[0] == ("title", "My File")
     name, part = items[1]
     assert isinstance(part, MultipartPart)
@@ -175,9 +177,8 @@ def test_max_fields_exceeded():
         [{"name": f"field{i}", "value": "v"} for i in range(5)],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary, max_fields=2)
     with pytest.raises(MultipartError, match="Too many fields"):
-        parser.parse_sync(body)
+        parse(body, max_fields=2)
 
 
 def test_max_files_exceeded():
@@ -186,9 +187,8 @@ def test_max_files_exceeded():
         [{"name": f"f{i}", "value": b"data", "filename": f"f{i}.txt"} for i in range(5)],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary, max_files=2)
     with pytest.raises(MultipartError, match="Too many files"):
-        parser.parse_sync(body)
+        parse(body, max_files=2)
 
 
 def test_max_part_size_exceeded():
@@ -197,9 +197,8 @@ def test_max_part_size_exceeded():
         [{"name": "big", "value": "x" * 100}],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary, max_part_size=10)
     with pytest.raises(MultipartError, match="exceeded"):
-        parser.parse_sync(body)
+        parse(body, max_part_size=10)
 
 
 def test_missing_content_disposition():
@@ -208,9 +207,8 @@ def test_missing_content_disposition():
     body = (
         f"--{boundary}\r\nContent-Type: text/plain\r\n\r\nvalue\r\n--{boundary}--\r\n"
     ).encode()
-    parser = MultipartParser(boundary)
     with pytest.raises(MultipartError, match="Content-Disposition"):
-        parser.parse_sync(body)
+        parse(body)
 
 
 def test_missing_name_in_disposition():
@@ -222,9 +220,8 @@ def test_missing_name_in_disposition():
         f"value\r\n"
         f"--{boundary}--\r\n"
     ).encode()
-    parser = MultipartParser(boundary)
     with pytest.raises(MultipartError, match="name"):
-        parser.parse_sync(body)
+        parse(body)
 
 
 def test_parse_multipart_sync_function():
@@ -244,8 +241,7 @@ def test_chunked_parse():
         [{"name": "field", "value": "hello"}],
         boundary=boundary,
     )
-    parser = MultipartParser(boundary)
-    items = parser.parse_sync(body)
+    items = parse(body)
     assert items[0] == ("field", "hello")
 
 
@@ -257,9 +253,8 @@ def test_file_parts_closed_on_error():
     ]
     parts.extend({"name": f"field{i}", "value": "v"} for i in range(5))
     body = _build_multipart(parts, boundary=boundary)
-    parser = MultipartParser(boundary, max_fields=2)
     with pytest.raises(MultipartError):
-        parser.parse_sync(body)
+        parse(body, max_fields=2)
 
 
 @pytest.mark.parametrize(
@@ -275,9 +270,8 @@ def test_file_parts_closed_on_error():
 )
 def test_framing_error(body):
     """python-multipart's own parse errors are a `MultipartError` (400)."""
-    parser = MultipartParser("testboundary")
     with pytest.raises(MultipartError):
-        parser.parse_sync(body)
+        parse(body)
 
 
 @pytest.mark.parametrize(
@@ -294,19 +288,26 @@ def test_missing_final_boundary(tail):
     """A body cut before the final boundary is an error, not a form that
     silently lacks its last fields."""
     body = b"--testboundary\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n" + tail
-    parser = MultipartParser("testboundary")
     with pytest.raises(MultipartError, match="final boundary"):
-        parser.parse_sync(body)
+        parse(body)
 
 
 @pytest.mark.parametrize("tail", [b"--testboundary--", b"--testboundary--\r\nepilogue"])
 def test_final_boundary_without_crlf_or_with_epilogue(tail):
     body = b"--testboundary\r\nContent-Disposition: form-data; name=a\r\n\r\nv\r\n" + tail
-    parser = MultipartParser("testboundary")
-    assert parser.parse_sync(body) == [("a", "v")]
+    assert parse(body) == [("a", "v")]
 
 
-def test_file_parts_closed_on_framing_error():
+def test_a_refused_body_makes_no_file(monkeypatch):
+    """The whole body is checked before any file is made."""
+    made = []
+
+    class Recorded(SpooledTemporaryFile):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            made.append(self)
+
+    monkeypatch.setattr(formparser, "SpooledTemporaryFile", Recorded)
     body = (
         b"--testboundary\r\n"
         b'Content-Disposition: form-data; name="f"; filename="f.txt"\r\n'
@@ -315,8 +316,8 @@ def test_file_parts_closed_on_framing_error():
         b"--testboundary\r\n"
         b"bad header line\r\n"
     )
-    parser = MultipartParser("testboundary")
     with pytest.raises(MultipartError):
-        parser.parse_sync(body)
-    assert len(parser._files_to_close_on_error) == 1
-    assert parser._files_to_close_on_error[0].closed
+        parse(body)
+    assert made == []
+    parse(_build_multipart([{"name": "f", "value": b"data", "filename": "f.txt"}]))
+    assert len(made) == 1
