@@ -89,7 +89,7 @@ class TestParseQueryString:
             parse_query_string("x" * 100, max_query_size=10)
 
     def test_encoding(self):
-        result = parse_query_string("name=%C3%A9", encoding="utf-8")
+        result = parse_query_string("name=%C3%A9")
         assert result.get("name") == "\u00e9"
 
 

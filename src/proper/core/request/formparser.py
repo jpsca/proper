@@ -1,21 +1,32 @@
 """
-Multipart/form-data parser using python-multipart.
+The parsers of request bodies: urlencoded forms and query strings,
+multipart/form-data, JSON, and the parameters of a header such as
+`Content-Type`. Used by `Request`.
+
+The bytes are parsed by the native code (`proper._native`): it gives where
+each name, value and file is, and the text is decoded here.
 """
 import json
 import typing as t
 from io import BytesIO
 from tempfile import SpooledTemporaryFile
-from urllib.parse import parse_qs
 
-import python_multipart as multipart
-from python_multipart.exceptions import FormParserError
-from python_multipart.multipart import parse_options_header as _pm_parse_options_header
-
+from ... import _native
 from ...errors import MultipartError, UriTooLong
 from ...helpers import MultiDict, copy_file
 
 
-T = t.TypeVar("T")
+# Why the native code refused a multipart body
+_MULTIPART_ERRORS = {
+    -10: "The multipart body is malformed.",
+    -11: "The multipart body ends before the final boundary.",
+    -12: "Content-Disposition header is missing.",
+    -13: 'The Content-Disposition header field "name" must be provided.',
+    -14: "Too many fields. Maximum number of fields is {max_fields}.",
+    -15: "Too many files. Maximum number of files is {max_files}.",
+    -16: "Field exceeded maximum size of {max_part_size} bytes.",
+    -17: "A part of the multipart body has too many headers, or one too long.",
+}
 
 
 def parse_multipart_sync(
@@ -28,50 +39,87 @@ def parse_multipart_sync(
     max_part_size: int = 2 ** 20,
     memfile_limit: int = 2 ** 20,
 ) -> MultiDict:
-    """Parse multipart/form-data from bytes into a MultiDict.
+    """The fields of a multipart/form-data body: a field as a `str`, a file
+    as a `MultipartPart`, whose data is in a `SpooledTemporaryFile` that
+    spills to disk past `memfile_limit` bytes.
 
-    Non-file fields are stored as strings.  File fields are stored as
-    `MultipartPart` instances (with a `.file` attribute).
+    The native code frames the body, reads each part's headers and checks
+    the limits (`max_fields` and `max_files`, and `max_part_size` bytes for
+    a field) before anything is made: a body it refuses is a
+    `MultipartError` and leaves no file behind.
     """
     boundary = options.get("boundary", "")
     if not boundary:
         raise MultipartError("No boundary for multipart/form-data.")
+    try:
+        names, words = _native.parse_multipart(
+            body,
+            boundary.encode("latin-1"),
+            max_fields=max_fields,
+            max_files=max_files,
+            max_field_size=max_part_size,
+        )
+    except UnicodeEncodeError:
+        raise MultipartError("The multipart boundary is not latin-1.") from None
+    except _native.MultipartRejected as rejected:
+        raise MultipartError(_MULTIPART_ERRORS[rejected.code].format(
+            max_fields=max_fields, max_files=max_files, max_part_size=max_part_size,
+        )) from None
 
-    parser = MultipartParser(
-        boundary=boundary,
-        encoding=encoding,
-        max_files=max_files,
-        max_fields=max_fields,
-        max_part_size=max_part_size,
-        memfile_limit=memfile_limit,
-    )
-
-    items = parser.parse_sync(body)
+    data = memoryview(body)
     form = MultiDict()
-    for name, value in items:
-        form.append(name, value)
+    for i in range(0, len(words), _native.PART_WORDS):
+        name_at, name_len, file_at, file_len, type_at, type_len, at, size, head_at, head_len = (
+            words[i:i + _native.PART_WORDS]
+        )
+        name = _safe_decode(names[name_at:name_at + name_len], encoding)
+        if file_at < 0:
+            form.append(name, _safe_decode(data[at:at + size], encoding))
+            continue
+        part = MultipartPart(encoding=encoding, memfile_limit=memfile_limit)
+        part.name = name
+        part.filename = _safe_decode(names[file_at:file_at + file_len], encoding)
+        if type_at >= 0:
+            part.content_type = str(data[type_at:type_at + type_len], "latin-1")
+        part._raw_headers = bytes(data[head_at:head_at + head_len])
+        part.file = SpooledTemporaryFile(max_size=memfile_limit)
+        part.file.write(data[at:at + size])
+        part.file.seek(0)
+        part.size = size
+        form.append(name, part)
     return form
 
 
-def parse_query_string(
-    query_string: str,
-    *,
-    encoding: str = "utf8",
-    max_query_size: int | None = None,
-    strict: bool = True,
-) -> MultiDict:
+def parse_query_string(query_string: str, *, max_query_size: int | None = None) -> MultiDict:
+    """The fields of a query string, as `urllib.parse.parse_qs` reads them
+    with `keep_blank_values`: "+" is a space, `%XX` escapes are decoded as
+    UTF-8 (U+FFFD where they are not valid), and the characters that are not
+    escaped stay as they are."""
     if max_query_size and len(query_string) > max_query_size:
         raise UriTooLong("The query string is too long")
+    return _fields(query_string.encode("utf-8"), "utf-8")
 
+
+def parse_urlencoded(body: bytes, encoding: str = "utf-8") -> MultiDict:
+    """The fields of an `application/x-www-form-urlencoded` body, decoded
+    with `encoding`: "+" is a space and `%XX` escapes are decoded (U+FFFD
+    where they are not valid in `encoding`). The body itself must be valid
+    in `encoding`: `Request` checks it first."""
+    return _fields(body, encoding)
+
+
+def _fields(data: bytes, encoding: str) -> MultiDict:
     form = MultiDict()
-    try:
-        data = parse_qs(query_string, keep_blank_values=True, encoding=encoding)
-        for key, values in data.items():
-            form.extend(key, values)
-    except ValueError:  # pragma: no cover
-        if strict:
-            raise
-
+    if not data:
+        return form
+    text, words = _native.parse_form(data)
+    for name, name_len, value, value_len in zip(
+        words[0::4], words[1::4], words[2::4], words[3::4], strict=True
+    ):
+        form.append(
+            str(text[name:name + name_len], encoding, "replace"),
+            str(text[value:value + value_len], encoding, "replace"),
+        )
     return form
 
 
@@ -107,10 +155,12 @@ def parse_options_header(
 ) -> tuple[str, dict[str, str]]:
     """Parse a Content-Type style header into a content-type and options dict.
 
-    Uses python-multipart's parser internally but returns string keys/values
-    (the upstream returns bytes keys). The content-type and the parameter
-    names are lowercased, because they are case-insensitive (RFC 9110
-    §8.3.1); the parameter values keep their case.
+    As python-multipart reads it: `;` inside quotes doesn't split, values
+    are unquoted, and the extended syntax of RFC 2231 (`filename*=`) is
+    ignored, as RFC 7578 says for multipart/form-data. The content-type
+    and the parameter names are lowercased, because they are
+    case-insensitive (RFC 9110 §8.3.1); the parameter values keep their
+    case.
 
     >>> head = 'form-data; name="Test"; '
     >>> parse_options_header(head + 'filename="Test.txt"')[0]
@@ -121,28 +171,27 @@ def parse_options_header(
     """
     if not header:
         return "", {}
-
-    content_type, raw_options = _pm_parse_options_header(header)
-
-    # python-multipart returns bytes keys/values - normalize to str.
     result: dict[str, str] = options or {}
-    for key, value in raw_options.items():
-        k = key.decode("latin-1") if isinstance(key, bytes) else str(key)
-        v = value.decode("latin-1") if isinstance(value, bytes) else str(value)
-        result[k] = v
-
-    ct = content_type.decode("latin-1") if isinstance(content_type, bytes) else str(content_type)
-    return ct.strip().lower(), result
-
-
-def _safe_decode(src: bytes | bytearray, codec: str) -> str:
-    """Decode bytes, falling back to latin-1 on errors."""
+    if ";" not in header:
+        return header.strip().lower(), result
     try:
-        return src.decode(codec)
+        data = header.encode("latin-1")
+    except UnicodeEncodeError:
+        data = header.encode("utf-8")
+    params = _native.parse_params(data)
+    for key, value in params[1:]:
+        result[key.decode("latin-1")] = value.decode("latin-1")
+    return params[0][0].decode("latin-1").strip().lower(), result
+
+
+def _safe_decode(src: t.Any, codec: str) -> str:
+    """Decode bytes (or a memoryview), falling back to latin-1 on errors."""
+    try:
+        return str(src, codec)
     # `ValueError` (which `UnicodeDecodeError` is) for a codec name that
     # can't be looked up at all, such as one with a NUL.
     except ValueError, LookupError:
-        return src.decode("latin-1")
+        return str(src, "latin-1")
 
 
 # --- MultipartPart ---
@@ -166,7 +215,8 @@ class MultipartPart:
         size:
             Number of data bytes written so far.
         headers:
-            The raw headers of this part as a list of (name, value) tuples.
+            The raw headers of this part as a list of (name, value) tuples,
+            the names in lowercase.
 
     """
 
@@ -183,7 +233,24 @@ class MultipartPart:
         self.encoding: str = encoding
         self.size: int = 0
         self.memfile_limit = memfile_limit
-        self.headers: list[tuple[bytes, bytes]] = []
+        self._raw_headers = b""
+        self._headers: list[tuple[bytes, bytes]] | None = None
+
+    @property
+    def headers(self) -> list[tuple[bytes, bytes]]:
+        """Read from the part's raw headers the first time they are asked for."""
+        if self._headers is None:
+            self._headers = []
+            # each line ends with CRLF; the block has no empty line
+            for line in self._raw_headers.split(b"\r\n"):
+                if line:
+                    name, _, value = line.partition(b":")
+                    self._headers.append((name.lower(), value.lstrip(b" ")))
+        return self._headers
+
+    @headers.setter
+    def headers(self, value: list[tuple[bytes, bytes]]) -> None:
+        self._headers = value
 
     def is_buffered(self) -> bool:
         """Return True if the data is fully buffered in memory."""
@@ -221,209 +288,3 @@ class MultipartPart:
         if self.file:
             self.file.close()
             self.file = None
-
-
-# --- Multipart Parser ---
-
-
-class MultipartParser:
-    """Multipart/form-data parser.
-
-    Parses multipart body bytes using python-multipart's callback-based
-    parser, collecting parts into `MultipartPart` objects.
-
-    Arguments:
-        boundary:
-            The multipart boundary string.
-        encoding:
-            Default charset for decoding field values.
-        max_files:
-            Maximum number of file fields allowed.
-        max_fields:
-            Maximum number of non-file fields allowed
-        max_part_size:
-            Maximum size in bytes for a non-file field.
-        memfile_limit:
-            Threshold in bytes before spooling file data to disk.
-
-    """
-
-    def __init__(
-        self,
-        boundary: str | bytes = "",
-        *,
-        encoding: str = "utf-8",
-        max_files: int = 1000,
-        max_fields: int = 1000,
-        max_part_size: int = 2 ** 20,
-        memfile_limit: int = 2 ** 20,
-    ):
-        self.boundary = boundary
-        self.encoding = encoding
-        self.max_files = max_files
-        self.max_fields = max_fields
-        self.max_part_size = max_part_size
-        self.memfile_limit = memfile_limit
-
-        self._current_part = MultipartPart(encoding=encoding)
-        self._current_partial_header_name: bytes = b""
-        self._current_partial_header_value: bytes = b""
-        self._current_files = 0
-        self._current_fields = 0
-        self._ended = False
-
-        self.items: list[tuple[str, str | MultipartPart]] = []
-        self._file_parts_to_write: list[tuple[MultipartPart, bytes]] = []
-        self._file_parts_to_finish: list[MultipartPart] = []
-        self._files_to_close_on_error: list[SpooledTemporaryFile[bytes]] = []
-
-    # -- python-multipart callbacks (sync) --
-
-    def on_part_begin(self) -> None:
-        self._current_part = MultipartPart(
-            encoding=self.encoding,
-            memfile_limit=self.memfile_limit,
-        )
-
-    def on_part_data(self, data: bytes, start: int, end: int) -> None:
-        message_bytes = data[start:end]
-        part = self._current_part
-        if part.file is None:
-            # Still accumulating headers - shouldn't happen after on_headers_finished,
-            # but guard against it.
-            return
-        if part.filename is None:
-            # Non-file field: accumulate in memory with size check.
-            if part.size + len(message_bytes) > self.max_part_size:
-                raise MultipartError(
-                    f"Field exceeded maximum size of {self.max_part_size} bytes."
-                )
-            part.file.write(message_bytes)
-            part.size += len(message_bytes)
-        else:
-            # File field: queue write for flush after callback returns.
-            self._file_parts_to_write.append((part, message_bytes))
-
-    def on_part_end(self) -> None:
-        part = self._current_part
-        if part.filename is None:
-            # Non-file field: store decoded value.
-            if part.file:
-                part.file.seek(0)
-                self.items.append((
-                    part.name,
-                    _safe_decode(part.file.read(), self.encoding),
-                ))
-        else:
-            self._file_parts_to_finish.append(part)
-            self.items.append((part.name, part))
-
-    def on_header_field(self, data: bytes, start: int, end: int) -> None:
-        self._current_partial_header_name += data[start:end]
-
-    def on_header_value(self, data: bytes, start: int, end: int) -> None:
-        self._current_partial_header_value += data[start:end]
-
-    def on_header_end(self) -> None:
-        field = self._current_partial_header_name.lower()
-        self._current_part.headers.append(
-            (field, self._current_partial_header_value)
-        )
-        self._current_partial_header_name = b""
-        self._current_partial_header_value = b""
-
-    def on_headers_finished(self) -> None:
-        part = self._current_part
-
-        # Find Content-Disposition to extract name and filename.
-        content_disposition = b""
-        for hname, hval in part.headers:
-            if hname == b"content-disposition":
-                content_disposition = hval
-                break
-
-        if not content_disposition:
-            raise MultipartError("Content-Disposition header is missing.")
-
-        _, options = _pm_parse_options_header(content_disposition)
-
-        try:
-            part.name = _safe_decode(options[b"name"], self.encoding)
-        except KeyError:
-            raise MultipartError(
-                'The Content-Disposition header field "name" must be provided.'
-            ) from None
-
-        if b"filename" in options:
-            self._current_files += 1
-            if self._current_files > self.max_files:
-                raise MultipartError(
-                    f"Too many files. Maximum number of files is {self.max_files}."
-                )
-            part.filename = _safe_decode(options[b"filename"], self.encoding)
-            tempfile = SpooledTemporaryFile(max_size=self.memfile_limit)
-            self._files_to_close_on_error.append(tempfile)
-            part.file = tempfile
-            # Extract Content-Type for file parts.
-            for hname, hval in part.headers:
-                if hname == b"content-type":
-                    part.content_type = hval.decode("latin-1")
-                    break
-        else:
-            self._current_fields += 1
-            if self._current_fields > self.max_fields:
-                raise MultipartError(
-                    f"Too many fields. Maximum number of fields is {self.max_fields}."
-                )
-            part.file = BytesIO()
-
-    def on_end(self) -> None:
-        self._ended = True
-
-    # -- Parse methods --
-
-    def _build_parser(self) -> multipart.MultipartParser:
-        return multipart.MultipartParser(self.boundary, {
-            "on_part_begin": self.on_part_begin,
-            "on_part_data": self.on_part_data,
-            "on_part_end": self.on_part_end,
-            "on_header_field": self.on_header_field,
-            "on_header_value": self.on_header_value,
-            "on_header_end": self.on_header_end,
-            "on_headers_finished": self.on_headers_finished,
-            "on_end": self.on_end,
-        })
-
-    def _flush_file_writes(self) -> None:
-        for part, data in self._file_parts_to_write:
-            assert part.file
-            part.file.write(data)
-            part.size += len(data)
-        for part in self._file_parts_to_finish:
-            assert part.file
-            part.file.seek(0)
-        self._file_parts_to_write.clear()
-        self._file_parts_to_finish.clear()
-
-    def parse_sync(self, body: bytes) -> list[tuple[str, str | MultipartPart]]:
-        """Parse multipart from bytes. For use when body is already available.
-
-        Raises a `MultipartError` if the body is not well-formed, including
-        when it ends before the final boundary.
-        """
-        parser = self._build_parser()
-        try:
-            try:
-                parser.write(body)
-                self._flush_file_writes()
-                parser.finalize()
-            except FormParserError as err:
-                raise MultipartError(str(err)) from None
-            if not self._ended:
-                raise MultipartError("The multipart body ends before the final boundary.")
-        except MultipartError:
-            for file in self._files_to_close_on_error:
-                file.close()
-            raise
-        return self.items
-

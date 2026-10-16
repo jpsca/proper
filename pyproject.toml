@@ -37,7 +37,6 @@ dependencies = [
     "peewee-migrate >= 2.3,<3",
     "proper-cli >= 2.1.0",
     "pybearings>=0.2.0",
-    "python-multipart >= 0.0.22",
     "traceback-with-variables ~= 2.0.4",
     "types-peewee >= 4.5.1",
     "tzdata >= 2025.3",
@@ -72,6 +71,7 @@ test = [
     "smtpdfix",
     "nh3>=0.2.18",
     "itsdangerous>=2.2",
+    "python-multipart>=0.0.22",
 ]
 docs = [
     "writeadoc>=0.28.0",

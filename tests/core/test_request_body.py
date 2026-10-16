@@ -454,9 +454,6 @@ def test_parse_body_invalid_utf8(app, content_type):
         "application/json; charset=nope",
         # A codec that is not a text encoding.
         "application/json; charset=base64",
-        # RFC 2231 decoding gives a name with a NUL, which Python can't look up.
-        "application/json; charset*=utf-8''utf-8%00",
-        "application/x-www-form-urlencoded; charset*=utf-8''utf-8%00",
     ],
 )
 def test_parse_body_unknown_charset(app, content_type):
@@ -464,6 +461,17 @@ def test_parse_body_unknown_charset(app, content_type):
     req = _post(app, body, content_type=content_type)
     with pytest.raises(UnsupportedMediaType, match="charset"):
         req._read_body_sync(_reader(body))
+
+
+def test_parse_body_ignores_an_extended_charset(app):
+    """`charset*=` is RFC 2231's extended syntax, which RFC 7578 forbids
+    in form data: it is ignored, and the body is UTF-8."""
+    body = "a=%C3%B1".encode()
+    req = _post(
+        app, body, content_type="application/x-www-form-urlencoded; charset*=utf-8''utf-8%00"
+    )
+    req._read_body_sync(_reader(body))
+    assert req.form["a"] == "ñ"
 
 
 def test_parse_body_form_charset_without_replace_handler(app):

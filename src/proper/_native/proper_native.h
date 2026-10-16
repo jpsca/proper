@@ -33,3 +33,20 @@ long long proper_sign_json(const void *key, void *stream, const char *json, size
 long long proper_unsign(const void *keys, int count, int timed, const char *token, size_t len,
                         long long now, long long max_age, char *out, size_t cap,
                         char *scratch, size_t scratch_cap, long long *timestamp);
+
+/* Request bodies (proper_forms.pas). Records are 64-bit offsets and
+   lengths: a field is name, value (4); a parameter is key, value (4), the
+   type first; a part is name, filename (-1 none), content-type (-1 none),
+   data, headers (10). -4: a buffer too small; the multipart errors are
+   -10 malformed, -11 unfinished, -12 no Content-Disposition, -13 no name,
+   -14 too many fields, -15 too many files, -16 a field too big,
+   -17 headers too many or too big. */
+long long proper_parse_form(const char *body, size_t len, char *out, size_t cap,
+                            long long *fields, ptrdiff_t max_fields);
+long long proper_parse_params(const char *value, size_t len, char *out, size_t cap,
+                              long long *recs, ptrdiff_t max_recs);
+long long proper_parse_multipart(const char *body, size_t len, const char *boundary,
+                                 size_t boundary_len, char *out, size_t cap,
+                                 long long *parts, ptrdiff_t max_parts, long long max_fields,
+                                 long long max_files, long long max_field_size,
+                                 long long *recs, ptrdiff_t max_recs);

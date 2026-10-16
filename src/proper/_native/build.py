@@ -33,15 +33,19 @@ def build(out: Path = HERE / "libproper_native.so", fpc: str | None = None) -> P
                 "-O2",
                 "-fPIC",
                 "-vew",
+                f"-Fu{HERE}",
                 f"-Fu{HERE / 'sha256'}",
                 f"-Fi{HERE / 'sha256'}",
                 f"-FU{units}",
                 f"-o{out}",
                 str(HERE / "proper_native.pas"),
             ],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
         )
+    # what fpc says (each unit, the linking, the warnings), success or not
+    print(result.stdout, end="", file=sys.stderr)
     if result.returncode != 0:
         raise RuntimeError(f"fpc could not compile Proper's native code:\n{result.stdout}")
     return out

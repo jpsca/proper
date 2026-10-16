@@ -13,6 +13,7 @@ from .formparser import (
     parse_multipart_sync,
     parse_options_header,
     parse_query_string,
+    parse_urlencoded,
 )
 from .headers import RequestHeadersMixin
 
@@ -219,9 +220,9 @@ class Request(RequestHeadersMixin):
             "application/x-www-form-urlencoded",
             "application/x-url-encoded",
         ):
-            text = _decode(body, encoding)
+            _decode(body, encoding)  # a 400 or a 415 when it isn't valid
             try:
-                self.form = parse_query_string(text, encoding=encoding)
+                self.form = parse_urlencoded(body, encoding)
             except UnicodeError:
                 # The percent-escapes are decoded with the "replace" error
                 # handler, which a codec such as `idna` doesn't support.
@@ -262,9 +263,7 @@ class Request(RequestHeadersMixin):
 
     def _parse_query(self) -> MultiDict:
         return parse_query_string(
-            self.query_string,
-            encoding="utf-8",
-            max_query_size=self.app.config.MAX_QUERY_SIZE,
+            self.query_string, max_query_size=self.app.config.MAX_QUERY_SIZE
         )
 
     @property

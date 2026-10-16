@@ -250,11 +250,6 @@ class TestHttp:
             # Unknown charset.
             ("application/json; charset=nope", b"{}", "415 Unsupported Media Type"),
             (
-                "application/json; charset*=utf-8''utf-8%00",
-                b"{}",
-                "415 Unsupported Media Type",
-            ),
-            (
                 "application/x-www-form-urlencoded; charset=idna",
                 b"a=%ff",
                 "415 Unsupported Media Type",
