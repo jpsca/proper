@@ -72,6 +72,8 @@ function TFuncGen.NewTranslator(const Src: string; Pos: Integer; Scope: TScope):
 begin
   Result := TExprTranslator.Create(FDoc.FileName, FDoc.Source, Src, Pos, Scope);
   Result.Autoescape := FComp.Autoescape;
+  Result.Pure := FComp.Pure;
+  Result.Counter := FCounter;
 end;
 
 (* What a translated expression needs from the function around it. (`loop`
@@ -109,6 +111,71 @@ begin
     Dec(j);
   SrcPos := Pos + i - 1;
   SrcEnd := Pos + j;
+end;
+
+(* Strip from the leading text of a body the whitespace `str.lstrip()`
+   would strip from its output (the ASCII part: `isspace()` is true for
+   #9..#13 and #28..#31 too). True when what is left starts with an ASCII
+   character that is not whitespace: the output's start is known, and needs
+   no strip when rendering. *)
+function StripLeading(L: TNodeList): Boolean;
+var
+  i, k: Integer;
+  N: TNode;
+begin
+  Result := False;
+  for i := 0 to L.Count - 1 do
+  begin
+    N := L[i];
+    case N.Kind of
+      nkComment:
+        Continue;
+      nkText, nkRaw:
+        begin
+          k := 1;
+          while (k <= Length(N.Text)) and (N.Text[k] in [#9..#13, #28..#31, ' ']) do
+            Inc(k);
+          N.Text := Copy(N.Text, k, MaxInt);
+          if N.Text = '' then
+            Continue;
+          Exit(Ord(N.Text[1]) < $80);
+        end;
+    else
+      Exit(False);
+    end;
+  end;
+end;
+
+(* What a body renders in one piece: 0 nothing; 1 one run of text and
+   `{{ }}`, which is one append; 2 one component call alone; -1 more. *)
+function BodyShape(L: TNodeList): Integer;
+var
+  i, Components: Integer;
+  HasRun: Boolean;
+begin
+  HasRun := False;
+  Components := 0;
+  for i := 0 to L.Count - 1 do
+    case L[i].Kind of
+      nkComment: ;
+      nkText, nkRaw:
+        if L[i].Text <> '' then
+          HasRun := True;
+      nkOutput:
+        HasRun := True;
+      nkComponent:
+        Inc(Components);
+    else
+      Exit(-1);
+    end;
+  if (Components = 0) and not HasRun then
+    Result := 0
+  else if (Components = 0) and HasRun then
+    Result := 1
+  else if (Components = 1) and not HasRun then
+    Result := 2
+  else
+    Result := -1;
 end;
 
 const
@@ -861,7 +928,7 @@ var
   Scope: TScope;
   Sig, Check, DefLine: string;
   i, DefEnd: Integer;
-  HasContentArg, HasAttrsArg: Boolean;
+  HasContentArg, HasAttrsArg, StaticStart: Boolean;
   W, BodyW: TWriter;
 begin
   Scope := TScope.Create(nil);
@@ -894,12 +961,30 @@ begin
     Scope.Add('_fills');
 
     (* the body first: it tells whether the function needs the filters and
-       tests *)
-    BodyW.Line('_b = []');
-    BodyW.Line('_a = _b.append');
-    EmitNodes(BodyW, FDoc.Body, Scope, '_a');
-    (* like Jx's Component.render: the output never starts with whitespace *)
-    BodyW.Line('return "".join(_b).lstrip()');
+       tests. Like Jx's Component.render, the output never starts with
+       whitespace: stripped here from the leading text when it can be, else
+       when rendering. A body of one piece returns it, without a list. *)
+    StaticStart := StripLeading(FDoc.Body);
+    case BodyShape(FDoc.Body) of
+      0:
+        BodyW.Line('return ""');
+      1:
+        if StaticStart then
+          EmitNodes(BodyW, FDoc.Body, Scope, 'return ')
+        else
+          EmitNodes(BodyW, FDoc.Body, Scope, 'return _lstrip');
+      2:
+        (* a component's output never starts with whitespace *)
+        EmitNodes(BodyW, FDoc.Body, Scope, 'return ');
+    else
+      BodyW.Line('_b = []');
+      BodyW.Line('_a = _b.append');
+      EmitNodes(BodyW, FDoc.Body, Scope, '_a');
+      if StaticStart then
+        BodyW.Line('return "".join(_b)')
+      else
+        BodyW.Line('return "".join(_b).lstrip()');
+    end;
 
     W.Line('def ' + FComp.FuncName + '(' + Sig + '):');
     Inc(W.Indent);

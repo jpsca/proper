@@ -210,11 +210,53 @@ class _NoTags:
 NO_TAGS = _NoTags()
 
 
+# --- Calls of the pure globals (`Catalog(pure=...)`) ---
+
+# The types whose values a call is remembered by: they can't change, and two
+# of them that are equal are the same value. Not bool or float: `True == 1`
+# and `1.0 == 1`, with the same hash, but they are not the same argument
+# (`str(True)` is "True").
+_SIMPLE = frozenset({str, int, type(None)})
+# Results remembered per module, at most: the values of the arguments come
+# from the data (ids), and past this many a call is made each time
+MAX_PURE = 4096
+
+
+def pure_set(cache: dict, site: int, value: t.Any) -> t.Any:
+    """Remember the result of a call with constant arguments."""
+    cache[site] = value
+    return value
+
+
+def pure_call(cache: dict, site: int, fn: t.Callable, names: tuple, /, *values: t.Any) -> t.Any:
+    """`fn(*positional, **keywords)`, where the last `len(names)` of `values`
+    are the keywords, remembered by the call site and the values. With a
+    value of another type than `_SIMPLE` (an object, whose attributes may
+    change, a list...), it is called each time."""
+    for v in values:
+        if type(v) not in _SIMPLE:
+            return _call(fn, names, values)
+    key = (site, values)
+    value = cache.get(key, _MISSING)
+    if value is _MISSING:
+        value = _call(fn, names, values)
+        if len(cache) < MAX_PURE:
+            cache[key] = value
+    return value
+
+
+def _call(fn: t.Callable, names: tuple, values: tuple) -> t.Any:
+    if not names:
+        return fn(*values)
+    n = len(values) - len(names)
+    return fn(*values[:n], **dict(zip(names, values[n:], strict=True)))
+
+
 from .attrs import Attrs  # noqa: E402
 from .loop import Loop  # noqa: E402
 
 
 __all__ = [
     "NO_TAGS", "UNDEFINED", "InvalidPropType", "invalid_prop", "merge_attrs", "Attrs", "Loop", "Markup", "concat", "escape", "escape_output", "getattr_",
-    "getitem", "has_attr", "mconcat", "soft_str",
+    "getitem", "has_attr", "mconcat", "pure_call", "pure_set", "soft_str",
 ]

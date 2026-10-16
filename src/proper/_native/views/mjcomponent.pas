@@ -6,7 +6,7 @@ unit mjcomponent;
 interface
 
 uses
-  mjparser;
+  Classes, mjparser;
 
 type
   TComponent = class;
@@ -39,6 +39,9 @@ type
     (* its `{{ }}` escape what they render: its extension is one of the
        autoescape ones *)
     Autoescape: Boolean;
+    (* the globals whose calls are cached in the module (`--pure`); the
+       compiler's list *)
+    Pure: TStringList;
     destructor Destroy; override;
     function FindDep(const Alias: string): TComponent;
   end;

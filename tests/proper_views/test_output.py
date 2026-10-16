@@ -99,7 +99,7 @@ def test_the_project_can_move(tmp_path):
 
 def test_compiler_args_with_output(tmp_path):
     catalog = Catalog(tmp_path, output=tmp_path / "out")
-    assert catalog.compiler_args()[2] == f"--output={(tmp_path / 'out').resolve()}"
+    assert catalog.compiler_args()[3] == f"--output={(tmp_path / 'out').resolve()}"
 
 
 def test_cli_output_needs_a_folder(tmp_path):

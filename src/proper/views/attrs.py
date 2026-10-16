@@ -36,6 +36,10 @@ def quote(value: t.Any) -> str:
     return f'"{text}"'
 
 
+# What an Attrs with nothing to render renders (Markup can't change)
+_EMPTY = Markup("")
+
+
 class Attrs:
     __slots__ = ("_classes", "_attributes", "_properties")
 
@@ -160,6 +164,8 @@ class Attrs:
         attributes = self._attributes
         properties = self._properties
         classes = self._classes
+        if not (kw or attributes or properties or classes):
+            return _EMPTY
         if kw:
             # `classes` wins over `class` when both are given, as in Jx
             render_classes = kw.pop(CLASS_ALT_KEY, None) if CLASS_ALT_KEY in kw else kw.pop(CLASS_KEY, None)
@@ -190,7 +196,7 @@ class Attrs:
         elif properties:
             return Markup(" ".join(sorted(properties)))
         else:
-            return Markup("")
+            return _EMPTY
         if len(items) > 1:
             items.sort()
         html = " ".join([f"{name}={quote(value)}" for name, value in items])

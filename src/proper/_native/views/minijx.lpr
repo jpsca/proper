@@ -1,6 +1,6 @@
 (* minijx: compile .jx components to Python functions.
 
-  Usage: minijx [--autoescape=EXT,...] [--tags=NAME,...] [--output=DIR] [--only=FILE] FOLDER [FOLDER ...]
+  Usage: minijx [--autoescape=EXT,...] [--tags=NAME,...] [--pure=NAME,...] [--output=DIR] [--only=FILE] FOLDER [FOLDER ...]
 
   Every `name.jx` under the folders becomes `name.py` next to it; dots in the
   name become `_` (`sitemap.xml.jx` -> `sitemap_xml.py`). Absolute imports
@@ -14,6 +14,11 @@
 
   `--tags` lists the custom tags: `{% name args %}body{% endname %}` calls
   the catalog's function for `name` with the body as a function, `caller`.
+
+  `--pure` lists the globals that give the same result for the same
+  arguments while the app runs (`url_for`): a call with constant arguments
+  is made once, and one with arguments of the types str, int or None once
+  per value, and remembered by the module.
 
   `--output` writes the modules to DIR instead of next to each .jx: those of
   a folder go to DIR/<the folder's name> (`-2`, `-3`... if two have the
@@ -38,6 +43,7 @@ begin
   WriteLn(StdErr, '  --autoescape: extensions (before .jx; `jx` if none) whose {{ }} are');
   WriteLn(StdErr, '  escaped. Default: html,jx,xml. Empty (`--autoescape=`) turns it off.');
   WriteLn(StdErr, '  --tags: custom block tags, `{% name ... %}...{% endname %}`.');
+  WriteLn(StdErr, '  --pure: globals whose calls are made once per arguments, and remembered.');
   WriteLn(StdErr, '  --output: write the modules to DIR/<folder name>/ instead of next to each .jx.');
   WriteLn(StdErr, '  --only: compile FILE alone; the folders are still searched for its imports.');
   Halt(2);
@@ -144,8 +150,34 @@ begin
   end;
 end;
 
+(* `url_for, other` -> [url_for, other]; a name that cannot be a Python
+   name is a usage error *)
+function ParseNames(const List: string): TStringArray;
 var
-  Roots, Autoescape, Tags: TStringArray;
+  Parts: TStringArray;
+  i, N: Integer;
+  Name: string;
+begin
+  SetLength(Result, 0);
+  if List = '' then
+    Exit;
+  Parts := Split(List, ',');
+  N := 0;
+  for i := 0 to High(Parts) do
+  begin
+    Name := Trim(Parts[i]);
+    if Name = '' then
+      Continue;
+    if not IsPyIdentifier(Name) then
+      Usage('`' + Name + '` cannot be a pure global: not a Python name');
+    SetLength(Result, N + 1);
+    Result[N] := Name;
+    Inc(N);
+  end;
+end;
+
+var
+  Roots, Autoescape, Tags, Pure: TStringArray;
   NRoots: Integer;
   Files: TStringList;
   Outputs: TStringList;    (* output paths already claimed... *)
@@ -159,6 +191,7 @@ begin
     Usage;
   Autoescape := ParseExtensions('html,jx,xml');
   SetLength(Tags, 0);
+  SetLength(Pure, 0);
   Output := '';
   Only := '';
   SetLength(Roots, ParamCount);
@@ -186,6 +219,11 @@ begin
     if StartsWith(Arg, '--tags=') then
     begin
       Tags := ParseTags(Copy(Arg, Length('--tags=') + 1, MaxInt));
+      Continue;
+    end;
+    if StartsWith(Arg, '--pure=') then
+    begin
+      Pure := ParseNames(Copy(Arg, Length('--pure=') + 1, MaxInt));
       Continue;
     end;
     if (Arg = '-h') or (Arg = '--help') then
@@ -216,7 +254,7 @@ begin
 
   Failed := 0;
   Written := 0;
-  Compiler := TCompiler.Create(Roots, Autoescape, Tags, Output);
+  Compiler := TCompiler.Create(Roots, Autoescape, Tags, Pure, Output);
   Files := TStringList.Create;
   Outputs := TStringList.Create;
   OutputSrcs := TStringList.Create;
