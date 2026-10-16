@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import threading
+import time
 import types
 import typing as t
 from importlib import import_module
@@ -12,7 +13,7 @@ from pathlib import Path
 
 import itsdangerous
 import minijx
-from itsdangerous.encoding import want_bytes
+from itsdangerous.encoding import base64_decode, bytes_to_int, want_bytes
 
 from . import pipeline, status, tools
 from .channels import BaseCable
@@ -55,6 +56,11 @@ if t.TYPE_CHECKING:
 
 
 __all__ = ("App",)
+
+# What `App._quick_loads` returns when it can't vouch for a value
+_UNSURE = object()
+# 9999-12-31 23:59:59 UTC, the last second a `datetime` holds
+_LAST_TIMESTAMP = 253402300799
 
 
 def _call_around(hook, call_next, request, response):
@@ -286,6 +292,10 @@ class App(AppWsgi):
         tokens. `max_age` and `return_timestamp` need a timestamp, so they
         can't be combined with `timed=False`.
         """
+        if timed and not return_timestamp:
+            obj = self._quick_loads(value, max_age, salt)
+            if obj is not _UNSURE:
+                return obj
         if not timed:
             if max_age is not None or return_timestamp:
                 raise ValueError("Untimed values have no timestamp to check or return")
@@ -311,6 +321,51 @@ class App(AppWsgi):
                 # A good signature over a timestamp that `datetime` can't
                 # hold (after year 9999)
                 logger.debug("Bad timestamp %s...", str(value)[:10])
+
+    def _quick_loads(self, value: str | bytes, max_age: int | None, salt: str | None) -> t.Any:
+        """`loads` of a timed value, for the common case: a good signature,
+        not expired, over a payload that decodes. The same steps the
+        serializers take, without making a signer and deriving its key at
+        every call: the keys are derived once per salt.
+
+        Returns `_UNSURE` for anything else (a bad signature, expired, a
+        malformed value), and `loads` asks the serializers, which say why.
+        """
+        unsigners = self._unsigners.get(salt)
+        if unsigners is None:
+            unsigners = self._unsigners[salt] = self._make_unsigners(salt)
+        try:
+            signed = want_bytes(value)
+            body, _, sig = signed.rpartition(b".")
+            payload, dot, ts = body.rpartition(b".")
+            if not dot:
+                return _UNSURE
+            sig = base64_decode(sig)
+            for serializer, key, algorithm in unsigners:
+                if not algorithm.verify_signature(key, body, sig):
+                    continue
+                # The serializers make a `datetime` of it even without a
+                # `max_age`, and refuse one it can't hold (after year 9999)
+                signed_at = bytes_to_int(base64_decode(ts))
+                if not 0 <= signed_at <= _LAST_TIMESTAMP:
+                    return _UNSURE
+                if max_age is not None:
+                    age = int(time.time()) - signed_at
+                    if age > max_age or age < 0:
+                        return _UNSURE
+                return serializer.load_payload(payload)
+        except Exception:
+            pass
+        return _UNSURE
+
+    def _make_unsigners(self, salt: str | None) -> "list[tuple[t.Any, bytes, t.Any]]":
+        """`(serializer, derived key, algorithm)` for each secret key, oldest
+        first, as `loads` tries them."""
+        unsigners = []
+        for serializer in self.serializers:
+            signer = serializer.make_signer(salt)
+            unsigners.append((serializer, signer.derive_key(), signer.algorithm))
+        return unsigners
 
     def on_error(self, func: THandler) -> THandler:
         """Decorator to add a function that runs if a request
@@ -425,6 +480,8 @@ class App(AppWsgi):
             itsdangerous.URLSafeTimedSerializer(secret_key, **kwargs)
             for secret_key in self.config.SECRET_KEYS
         )
+        # The derived keys of `_quick_loads`, per salt
+        self._unsigners: dict[str | None, list] = {}
         # Same keys and signing parameters, but no timestamp in the token:
         # the same input always gives the same output. For values that never
         # expire anyway and benefit from being stable, like URLs that

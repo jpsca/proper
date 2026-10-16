@@ -158,3 +158,64 @@ def test_iter():
 def test_equality_with_plain_dict():
     dot = DotDict({"a": 1, "b": {"c": 2}})
     assert dot == {"a": 1, "b": {"c": 2}}
+
+
+class Slow(DotDict):
+    """A subclass: built with `update()`, the general case."""
+
+
+SOURCES = [
+    {},
+    {"a": 1, "b": "x", "c": None, "d": 1.5, "e": True, "f": b"raw"},
+    {"user": {"id": 1, "roles": ["admin"], "prefs": {"lang": "es"}}},
+    {"cart": [1, {"sku": "a"}], "tags": ("x", "y"), "seen": {1, 2}},
+    {"deep": {"list": [{"x": 1}], "set": {3}}},
+]
+
+
+def as_plain(value):
+    """The structure, with each mapping's type: `DotDict` and `Slow` are the same."""
+    if isinstance(value, dict):
+        return ("dotdict" if isinstance(value, DotDict) else "dict",
+                {k: as_plain(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return [as_plain(v) for v in value]
+    return value
+
+
+@pytest.mark.parametrize("src", SOURCES)
+def test_built_from_a_dict_as_update_builds_it(src):
+    assert as_plain(DotDict(src)) == as_plain(Slow(src))
+
+
+@pytest.mark.parametrize("src", SOURCES)
+def test_copy_as_update_copies(src):
+    assert as_plain(DotDict(src).copy()) == as_plain(Slow(src).copy())
+    assert type(DotDict(src).copy()) is DotDict
+    assert type(Slow(src).copy()) is Slow
+
+
+def test_what_is_copied():
+    """Like `update()`: the dicts are copied deep; at the top, the other
+    values are copied one level; inside a dict, deep."""
+    src = {"top": [{"x": 1}], "nested": {"inner": [{"y": 1}]}}
+    for dot in (DotDict(src), DotDict(src).copy(), Slow(src)):
+        dot.top.append(2)
+        dot.nested.inner[0]["y"] = 2
+        dot.top[0]["x"] = 3
+    assert src["top"] == [{"x": 3}]  # one level: the dict inside is shared
+    assert src["nested"] == {"inner": [{"y": 1}]}  # deep: nothing shared
+
+
+def test_a_copy_does_not_share_with_the_original():
+    dot = DotDict({"a": {"b": [1]}, "c": [1]})
+    other = dot.copy()
+    other.a.b.append(2)
+    other.c.append(2)
+    other.a.new = 1
+    assert dot == {"a": {"b": [1]}, "c": [1]}
+
+
+def test_kwargs_and_pairs_still_take_the_general_way():
+    assert DotDict({"a": {"b": 1}}, c=2) == {"a": {"b": 1}, "c": 2}
+    assert DotDict([("a", {"b": 1})]).a.b == 1
