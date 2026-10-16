@@ -1,0 +1,25 @@
+{# import "ui/button.jx" as Button #}
+{# import "./header.jx" as Header #}
+{# css "card.css" #}
+{# def title, items: list = [], show_footer=true #}
+<div {{ attrs.render(class="card") }}>
+  <Header title={{ title }} count={{ items | length }} />
+  <div class="body">
+    {{ content }}
+    {% for item in items if item.visible %}
+      <p class="{{ loop.cycle('odd', 'even') }}">{{ loop.index }}/{{ loop.length }}: {{ item.name | upper }}{% if not loop.last %},{% endif %}</p>
+    {% else %}
+      <p>No items</p>
+    {% endfor %}
+  </div>
+  {% slot footer %}
+    {% if show_footer %}<Button text="OK" class="ok" disabled />{% endif %}
+  {% endslot %}
+  {% filter upper|replace("A", "4") %}banana{% endfilter %}
+  {% set total = items | length %}
+  {% do attrs.set(data_total=total) %}
+  {{ settings.site_name if settings is defined else "no settings" }}
+  {{ missing_var | default("fallback") }}
+  {% raw %}{{ not_an_expr }}{% endraw %}
+  {# a comment #}
+</div>

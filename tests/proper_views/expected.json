@@ -1,0 +1,4054 @@
+{
+ "test_autoescape.py::test_attrs_values_same_as_jx[autoescape-a & b < c]": [
+  {
+   "html": "<p title=\"a &amp; b &lt; c\"></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[autoescape-a &amp; <b>]": [
+  {
+   "html": "<p title=\"a &amp; <b>\"></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[autoescape-both ' and \" ]": [
+  {
+   "html": "<p title=\"both ' and &quot; \"></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[autoescape-say \"hi\"]": [
+  {
+   "html": "<p title='say \"hi\"'></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[plain-a & b < c]": [
+  {
+   "html": "<p title=\"a &amp; b &lt; c\"></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[plain-a &amp; <b>]": [
+  {
+   "html": "<p title=\"a &amp; <b>\"></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[plain-both ' and \" ]": [
+  {
+   "html": "<p title=\"both ' and &quot; \"></p>"
+  }
+ ],
+ "test_autoescape.py::test_attrs_values_same_as_jx[plain-say \"hi\"]": [
+  {
+   "html": "<p title='say \"hi\"'></p>"
+  }
+ ],
+ "test_autoescape.py::test_components_content_and_attrs_same_as_jx": [
+  {
+   "html": "<h1 data-x=\"1 &amp; 2\" data-y=\"&lt;v>\">a &amp; &lt;b&gt;</h1>x & <y> &lt;v&gt;"
+  },
+  {
+   "html": "<h1 >t</h1>&lt;c&gt;"
+  },
+  {
+   "html": "<h1 >t</h1><c>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{% filter upper %}<b>{{ x }}</b>{% endfilter %}-kwargs7]": [
+  {
+   "html": "<B>&LT;A&GT;</B>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{% for i in xs %}{{ loop.index }}{{ i }}{% endfor %}-kwargs29]": [
+  {
+   "html": "1&lt;a&gt;2&amp;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{% set y = x ~ \"!\" %}{{ y }}-kwargs4]": [
+  {
+   "html": "&lt;a&gt;!"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ \"%s!\" | format(x) }}-kwargs11]": [
+  {
+   "html": "&lt;a&gt;!"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ \"<b>\" }}-kwargs0]": [
+  {
+   "html": "&lt;b&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ 1 < 2 }}{{ 3 }}{{ none }}{{ true }}-kwargs1]": [
+  {
+   "html": "True3NoneTrue"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ [m, x] | join(\"<br>\") }}-kwargs9]": [
+  {
+   "html": "<i>m</i>&lt;br&gt;&lt;a&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ [m, x] | join(sep) }}-kwargs10]": [
+  {
+   "html": "<i>m</i><br>&lt;a&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ [x, \"y\"] | join(\", \") }}-kwargs8]": [
+  {
+   "html": "&lt;a&gt;, y"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | forceescape }}-kwargs21]": [
+  {
+   "html": "&lt;i&gt;m&lt;/i&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | format(x) }}-kwargs12]": [
+  {
+   "html": "<p>&lt;a&gt;</p>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | replace(\"m\", x) }}-kwargs13]": [
+  {
+   "html": "<i>&lt;a&gt;</i>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | string }}{{ x | string }}-kwargs17]": [
+  {
+   "html": "<i>m</i>&lt;a&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | title }}-kwargs18]": [
+  {
+   "html": "&lt;I&gt;m&lt;/i&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | truncate(3, end=\"\") }}-kwargs19]": [
+  {
+   "html": "<i>m</i>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m | upper }}{{ m | lower }}{{ m | capitalize }}{{ m | trim }}{{ m | center(12) }}-kwargs16]": [
+  {
+   "html": "<I>M</I><i>m</i><i>m</i><i>m</i>  <i>m</i>  "
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m }}{{ x }}{{ 1.5 }}{{ n }}-kwargs28]": [
+  {
+   "html": "<i>m</i>&#39;&#34;&amp;&lt;&gt;1.5None"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ m ~ \"<b>\" ~ 1 }}-kwargs3]": [
+  {
+   "html": "<i>m</i>&lt;b&gt;1"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x if x else \"<none>\" }}-kwargs5]": [
+  {
+   "html": "&lt;none&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | default(\"<d>\") }}-kwargs6]": [
+  {
+   "html": "None"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | e | e }}{{ x | escape }}{{ m | e }}-kwargs20]": [
+  {
+   "html": "&lt;a&gt;&lt;a&gt;<i>m</i>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | indent(2) }}|{{ m | indent(2) }}-kwargs25]": [
+  {
+   "html": "a\n  &lt;b&gt;|a\n  <b>"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | replace(\"a\", \"<b>\") }}-kwargs15]": [
+  {
+   "html": "&lt;&lt;b&gt;&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | replace(\"a\", m) }}-kwargs14]": [
+  {
+   "html": "&lt;<i>m</i>&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | safe }}{{ 3 | safe }}-kwargs22]": [
+  {
+   "html": "<a>3"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | striptags }}-kwargs23]": [
+  {
+   "html": "a &amp; b"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x | wordwrap(3) }}-kwargs26]": [
+  {
+   "html": "&lt;a&gt;\n&lt;b&gt;\n&lt;c&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ x ~ \"<b>\" }}-kwargs2]": [
+  {
+   "html": "&lt;a&gt;&lt;b&gt;"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ xs | map('upper') | join(',') }}-kwargs27]": [
+  {
+   "html": "&lt;A&gt;,B"
+  }
+ ],
+ "test_autoescape.py::test_same_as_jinja[{{ {\"k\": x} | tojson }}-kwargs24]": [
+  {
+   "html": "{\"k\": \"\\u003ca\\u003e\\u0027\\u0026\"}"
+  }
+ ],
+ "test_autoescape.py::test_slots_and_recursive_loops_same_as_jx": [
+  {
+   "html": "<div><b>&lt;v&gt;</b>&lt;v&gt;</div>\n<ul><li>&lt;r&gt;<ul><li>&lt;c&gt;</li></ul></li></ul>"
+  }
+ ],
+ "test_catalog.py::test_same_html_as_jx_catalog[autoescape]": [
+  {
+   "html": "<head><link rel=\"stylesheet\" href=\"p.css\">\n<link rel=\"stylesheet\" href=\"l.css\">\n<script type=\"module\" src=\"l.js\"></script></head><h1>T</h1><b>0</b><b>1</b><b>2</b>"
+  }
+ ],
+ "test_catalog.py::test_same_html_as_jx_catalog[plain]": [
+  {
+   "html": "<head><link rel=\"stylesheet\" href=\"p.css\">\n<link rel=\"stylesheet\" href=\"l.css\">\n<script type=\"module\" src=\"l.js\"></script></head><h1>T</h1><b>0</b><b>1</b><b>2</b>"
+  }
+ ],
+ "test_custom.py::test_attrs_given_to_catalog_render[autoescape]": [
+  {
+   "html": "<b class=\"x\">T</b>"
+  }
+ ],
+ "test_custom.py::test_attrs_given_to_catalog_render[plain]": [
+  {
+   "html": "<b class=\"x\">T</b>"
+  }
+ ],
+ "test_custom.py::test_custom_filter_replaces_a_builtin[autoescape]": [
+  {
+   "html": "&lt;abc&gt; &lt;x&gt;&lt;y&gt;"
+  }
+ ],
+ "test_custom.py::test_custom_filter_replaces_a_builtin[plain]": [
+  {
+   "html": "<abc> <x><y>"
+  }
+ ],
+ "test_custom.py::test_custom_filters_and_tests[autoescape]": [
+  {
+   "html": "HI! HI? &lt;x&gt;\n[BLOCK!]\nA!,ABC!,ABCDEF!\na abcdef\n[a](abc)(abcdef)\nTrue True False\nab"
+  }
+ ],
+ "test_custom.py::test_custom_filters_and_tests[plain]": [
+  {
+   "html": "HI! HI? <x>\n[BLOCK!]\nA!,ABC!,ABCDEF!\na abcdef\n[a](abc)(abcdef)\nTrue True False\nab"
+  }
+ ],
+ "test_custom.py::test_custom_filters_reach_imported_components_and_fills[autoescape]": [
+  {
+   "html": "<b>[A]!</b>A?<b>[B]!</b>B?\n<ul><li>X!<li>Y!</li></li></ul>"
+  }
+ ],
+ "test_custom.py::test_custom_filters_reach_imported_components_and_fills[plain]": [
+  {
+   "html": "<b>[A]!</b>A?<b>[B]!</b>B?\n<ul><li>X!<li>Y!</li></li></ul>"
+  }
+ ],
+ "test_custom.py::test_def_defaults_are_python_as_in_jx[autoescape]": [
+  {
+   "html": "3 18 A#BC! True [2, 4] {&#39;a&#39;: 1} 2 1 1000.0"
+  }
+ ],
+ "test_custom.py::test_def_defaults_are_python_as_in_jx[plain]": [
+  {
+   "html": "3 18 A#BC! True [2, 4] {'a': 1} 2 1 1000.0"
+  }
+ ],
+ "test_custom.py::test_explicit_arguments_win_over_forwarded_ones[autoescape]": [
+  {
+   "html": "<b class=\"card big\" disabled>T lg</b>"
+  }
+ ],
+ "test_custom.py::test_explicit_arguments_win_over_forwarded_ones[plain]": [
+  {
+   "html": "<b class=\"card big\" disabled>T lg</b>"
+  }
+ ],
+ "test_custom.py::test_forwarded_attrs_fill_the_declared_arguments[autoescape]": [
+  {
+   "html": "<title>Sign in</title><body class=\"auth\" data-x=\"1\"><main>form</main></body>"
+  }
+ ],
+ "test_custom.py::test_forwarded_attrs_fill_the_declared_arguments[plain]": [
+  {
+   "html": "<title>Sign in</title><body class=\"auth\" data-x=\"1\"><main>form</main></body>"
+  }
+ ],
+ "test_custom.py::test_forwarded_dict[autoescape]": [
+  {
+   "html": "<b data-id=\"7\">T</b>"
+  }
+ ],
+ "test_custom.py::test_forwarded_dict[plain]": [
+  {
+   "html": "<b data-id=\"7\">T</b>"
+  }
+ ],
+ "test_golden.py::test_attrs_forwarding_and_methods[autoescape]": [
+  {
+   "html": "<span class=\"inner first on b\" data-x=\"1\" id=\"i\" title=\"T\">L T first on b</span>\nON"
+  },
+  {
+   "html": "<span class=\"inner first\" data-x=\"1\">L no-title first</span>\n"
+  }
+ ],
+ "test_golden.py::test_attrs_forwarding_and_methods[plain]": [
+  {
+   "html": "<span class=\"inner first on b\" data-x=\"1\" id=\"i\" title=\"T\">L T first on b</span>\nON"
+  },
+  {
+   "html": "<span class=\"inner first\" data-x=\"1\">L no-title first</span>\n"
+  }
+ ],
+ "test_golden.py::test_component_attribute_names[autoescape]": [
+  {
+   "html": "<i @click=\"go\" class=\"k\" data-id=\"x\" for=\"f\" if=\"i\" x:y=\"z\" hidden>12|</i>\n<i >--|given</i>\n<i >x-|inner</i>"
+  }
+ ],
+ "test_golden.py::test_component_attribute_names[plain]": [
+  {
+   "html": "<i @click=\"go\" class=\"k\" data-id=\"x\" for=\"f\" if=\"i\" x:y=\"z\" hidden>12|</i>\n<i >--|given</i>\n<i >x-|inner</i>"
+  }
+ ],
+ "test_golden.py::test_components_attrs_content_slots[autoescape]": [
+  {
+   "html": "<section class=\"wide card\" data-user=\"Ana\" id=\"c1\" role=\"region\">\n  <h2>Hello</h2>\n  <div class=\"body\"><p>Welcome Ana</p></div>\n  <button aria-label=\"x\" class=\"btn btn-danger\" type=\"button\" disabled>Ana</button>\n  \n</section>\n<section class=\"card\" role=\"region\" hidden>\n  <h2>Bye Ana</h2>\n  <div class=\"body\"></div>\n  <button class=\"btn btn-primary\" type=\"button\">Default</button>\n  \n</section>\n<button class=\"btn btn-a k-1\" type=\"button\">{{ k }}</button><button class=\"btn btn-b k-2\" type=\"button\">{{ k }}</button>"
+  }
+ ],
+ "test_golden.py::test_components_attrs_content_slots[plain]": [
+  {
+   "html": "<section class=\"wide card\" data-user=\"Ana\" id=\"c1\" role=\"region\">\n  <h2>Hello</h2>\n  <div class=\"body\"><p>Welcome Ana</p></div>\n  <button aria-label=\"x\" class=\"btn btn-danger\" type=\"button\" disabled>Ana</button>\n  \n</section>\n<section class=\"card\" role=\"region\" hidden>\n  <h2>Bye Ana</h2>\n  <div class=\"body\"></div>\n  <button class=\"btn btn-primary\" type=\"button\">Default</button>\n  \n</section>\n<button class=\"btn btn-a k-1\" type=\"button\">{{ k }}</button><button class=\"btn btn-b k-2\" type=\"button\">{{ k }}</button>"
+  }
+ ],
+ "test_golden.py::test_declaration_after_the_header_is_a_plain_comment[autoescape]": [
+  {
+   "html": "<p>x</p>1"
+  }
+ ],
+ "test_golden.py::test_declaration_after_the_header_is_a_plain_comment[plain]": [
+  {
+   "html": "<p>x</p>1"
+  }
+ ],
+ "test_golden.py::test_def_annotations_and_defaults[autoescape]": [
+  {
+   "html": "t 0 [] {&#39;a&#39;: 1} True None"
+  },
+  {
+   "html": "t 3 [&#39;x&#39;] {&#39;a&#39;: 1} False me"
+  }
+ ],
+ "test_golden.py::test_def_annotations_and_defaults[plain]": [
+  {
+   "html": "t 0 [] {'a': 1} True None"
+  },
+  {
+   "html": "t 3 ['x'] {'a': 1} False me"
+  }
+ ],
+ "test_golden.py::test_default_keeps_none_like_jinja[autoescape]": [
+  {
+   "html": "local none: None\nlocal none, boolean: D\nglobal none: None\nmissing global: D\nkey none: None None\nmissing key: D D\nempty string: |D\nchained: None"
+  }
+ ],
+ "test_golden.py::test_default_keeps_none_like_jinja[plain]": [
+  {
+   "html": "local none: None\nlocal none, boolean: D\nglobal none: None\nmissing global: D\nkey none: None None\nmissing key: D D\nempty string: |D\nchained: None"
+  }
+ ],
+ "test_golden.py::test_expressions[autoescape]": [
+  {
+   "html": "1 2 3 11 7|9 olleh\n49 2 1 -7 15 16\nTrue True False True\nyes [] abc 3 7\n1-2 True True False 2.5\nTrue True True True True True\nTrue True True True False\n[0, 1, 2] [(&#39;a&#39;, 1), (&#39;b&#39;, 2)] [(&#39;a&#39;, 1), (&#39;b&#39;, 2)]"
+  }
+ ],
+ "test_golden.py::test_expressions[plain]": [
+  {
+   "html": "1 2 3 11 7|9 olleh\n49 2 1 -7 15 16\nTrue True False True\nyes [] abc 3 7\n1-2 True True False 2.5\nTrue True True True True True\nTrue True True True False\n[0, 1, 2] [('a', 1), ('b', 2)] [('a', 1), ('b', 2)]"
+  }
+ ],
+ "test_golden.py::test_for_else_and_filter[autoescape]": [
+  {
+   "html": "1:2 2:4 3:6 \n[1-2][3-4][6-0]"
+  },
+  {
+   "html": "none\n[1-3]"
+  },
+  {
+   "html": "none\n"
+  }
+ ],
+ "test_golden.py::test_for_else_and_filter[plain]": [
+  {
+   "html": "1:2 2:4 3:6 \n[1-2][3-4][6-0]"
+  },
+  {
+   "html": "none\n[1-3]"
+  },
+  {
+   "html": "none\n"
+  }
+ ],
+ "test_golden.py::test_for_with_loop_vars[autoescape]": [
+  {
+   "html": "<ul>\n\n  <li class=\"a\">\n    1 0 5 4 5\n    True False next=avocado\n    apple changed\n  </li>\n\n  <li class=\"b\">\n    2 1 4 3 5\n    False False prev=apple next=banana\n    avocado\n  </li>\n\n  <li class=\"c\">\n    3 2 3 2 5\n    False False prev=avocado next=cherry\n    banana changed\n  </li>\n\n  <li class=\"a\">\n    4 3 2 1 5\n    False False prev=banana next=coconut\n    cherry changed\n  </li>\n\n  <li class=\"b\">\n    5 4 1 0 5\n    False True prev=cherry\n    coconut\n  </li>\n\n</ul>"
+  }
+ ],
+ "test_golden.py::test_for_with_loop_vars[plain]": [
+  {
+   "html": "<ul>\n\n  <li class=\"a\">\n    1 0 5 4 5\n    True False next=avocado\n    apple changed\n  </li>\n\n  <li class=\"b\">\n    2 1 4 3 5\n    False False prev=apple next=banana\n    avocado\n  </li>\n\n  <li class=\"c\">\n    3 2 3 2 5\n    False False prev=avocado next=cherry\n    banana changed\n  </li>\n\n  <li class=\"a\">\n    4 3 2 1 5\n    False False prev=banana next=coconut\n    cherry changed\n  </li>\n\n  <li class=\"b\">\n    5 4 1 0 5\n    False True prev=cherry\n    coconut\n  </li>\n\n</ul>"
+  }
+ ],
+ "test_golden.py::test_globals_defined_and_default[autoescape]": [
+  {
+   "html": "S 10\nsiteundef\ndflt m i\nTrue False True"
+  }
+ ],
+ "test_golden.py::test_globals_defined_and_default[plain]": [
+  {
+   "html": "S 10\nsiteundef\ndflt m i\nTrue False True"
+  }
+ ],
+ "test_golden.py::test_header_with_markers_comments_and_plain_comments[autoescape]": [
+  {
+   "html": "<h1>T</h1>b=#a"
+  }
+ ],
+ "test_golden.py::test_header_with_markers_comments_and_plain_comments[plain]": [
+  {
+   "html": "<h1>T</h1>b=#a"
+  }
+ ],
+ "test_golden.py::test_if_elif_else[autoescape]": [
+  {
+   "html": "small\nfalsy"
+  },
+  {
+   "html": "small\ntruthy"
+  },
+  {
+   "html": "five\ntruthy"
+  },
+  {
+   "html": "mid\ntruthy"
+  },
+  {
+   "html": "big\ntruthy"
+  }
+ ],
+ "test_golden.py::test_if_elif_else[plain]": [
+  {
+   "html": "small\nfalsy"
+  },
+  {
+   "html": "small\ntruthy"
+  },
+  {
+   "html": "five\ntruthy"
+  },
+  {
+   "html": "mid\ntruthy"
+  },
+  {
+   "html": "big\ntruthy"
+  }
+ ],
+ "test_golden.py::test_nested_loops_keep_outer_loop[autoescape]": [
+  {
+   "html": "12\n  outer=1/3\n\n  1\n  outer=2/3\n\n  123\n  outer=3/3\n"
+  }
+ ],
+ "test_golden.py::test_nested_loops_keep_outer_loop[plain]": [
+  {
+   "html": "12\n  outer=1/3\n\n  1\n  outer=2/3\n\n  123\n  outer=3/3\n"
+  }
+ ],
+ "test_golden.py::test_recursive_for[autoescape]": [
+  {
+   "html": "<ul><li>r d1<ul><li>c1 d2</li><li>c2 d2<ul><li>g d3</li></ul></li></ul></li><li>s d1</li></ul>"
+  }
+ ],
+ "test_golden.py::test_recursive_for[plain]": [
+  {
+   "html": "<ul><li>r d1<ul><li>c1 d2</li><li>c2 d2<ul><li>g d3</li></ul></li></ul></li><li>s d1</li></ul>"
+  }
+ ],
+ "test_golden.py::test_self_recursive_component[autoescape]": [
+  {
+   "html": "<div class=\"l1\">a\n<div class=\"l2\">b\n<div class=\"l3\">c\n\n</div>\n</div><div class=\"l2\">d\n\n</div>\n</div>"
+  }
+ ],
+ "test_golden.py::test_self_recursive_component[plain]": [
+  {
+   "html": "<div class=\"l1\">a\n<div class=\"l2\">b\n<div class=\"l3\">c\n\n</div>\n</div><div class=\"l2\">d\n\n</div>\n</div>"
+  }
+ ],
+ "test_golden.py::test_set_do_filter_raw_comment[autoescape]": [
+  {
+   "html": "n=2 1,2,99\nSHOUT N=2\nB4n4n4 Split\n{{ not rendered }}{% if x %}\ndone"
+  }
+ ],
+ "test_golden.py::test_set_do_filter_raw_comment[plain]": [
+  {
+   "html": "n=2 1,2,99\nSHOUT N=2\nB4n4n4 Split\n{{ not rendered }}{% if x %}\ndone"
+  }
+ ],
+ "test_golden.py::test_text_and_expressions_in_one_fstring[autoescape]": [
+  {
+   "html": "<p a='1' b=\"2\">{ } {} \\n \\\\ \\' </p>\n<b>x{y}zx{y}z!v1Trueit&#39;ssay &#34;hi&#34;</b>\n\tñ → ✓ X{Y}Z{{ raw }} {% if %}x{y}z"
+  }
+ ],
+ "test_golden.py::test_text_and_expressions_in_one_fstring[plain]": [
+  {
+   "html": "<p a='1' b=\"2\">{ } {} \\n \\\\ \\' </p>\n<b>x{y}zx{y}z!v1Trueit'ssay \"hi\"</b>\n\tñ → ✓ X{Y}Z{{ raw }} {% if %}x{y}z"
+  }
+ ],
+ "test_golden.py::test_text_and_output[autoescape]": [
+  {
+   "html": "<p>Hi Ana, 3 x2</p>"
+  }
+ ],
+ "test_golden.py::test_text_and_output[plain]": [
+  {
+   "html": "<p>Hi Ana, 3 x2</p>"
+  }
+ ],
+ "test_macros.py::test_macro_in_a_component_with_fills_and_content[autoescape]": [
+  {
+   "html": "<div><p>title: &lt;T&gt;</p><p>body: B</p></div>"
+  }
+ ],
+ "test_macros.py::test_macro_in_a_component_with_fills_and_content[plain]": [
+  {
+   "html": "<div><p>title: <T></p><p>body: B</p></div>"
+  }
+ ],
+ "test_macros.py::test_parameter_named_like_an_argument[autoescape]": [
+  {
+   "html": "[inner]outer"
+  }
+ ],
+ "test_macros.py::test_parameter_named_like_an_argument[plain]": [
+  {
+   "html": "[inner]outer"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-a {%- macro m() -%} x {%- endmacro -%} b{{ m() }}-kwargs9]": [
+  {
+   "html": "abx"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{# def items, label #}\\n{% macro render_item(item, label) -%}\\n<div>\\n  <label>{{ label }}</label>\\n  <input value=\"{{ item }}\">\\n</div>\\n{%- endmacro %}\\n{% for item in items %}\\n  {{ render_item(item, label) }}\\n{% endfor %}\\n<template>{{ render_item(\"\", label) }}</template>-kwargs0]": [
+  {
+   "html": "<div>\n  <label>Name &amp; &lt;co&gt;</label>\n  <input value=\"a\">\n</div>\n\n  <div>\n  <label>Name &amp; &lt;co&gt;</label>\n  <input value=\"&lt;b&gt;\">\n</div>\n\n<template><div>\n  <label>Name &amp; &lt;co&gt;</label>\n  <input value=\"\">\n</div></template>"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% for i in [1, 2] %}{% macro m() %}{{ loop.index }}{{ i }}{% endmacro %}{{ m() }}{% endfor %}-kwargs8]": [
+  {
+   "html": "1122"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro a() %}[{{ b() }}]{% endmacro %}{% macro b() %}b{% endmacro %}{{ a() }}-kwargs11]": [
+  {
+   "html": "[b]"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro f(n) %}{{ n }}{% if n %}{{ f(n - 1) }}{% endif %}{% endmacro %}{{ f(3) }}-kwargs5]": [
+  {
+   "html": "3210"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro m() %}{{ 'x' | shout }}{% endmacro %}{{ m() }}-kwargs13]": [
+  {
+   "html": "X!"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro m(a, b=2) %}{{ a }}{{ b }}{% endmacro %}{{ m(1) }}|{{ m(1, 3) }}|{{ m(b=5, a=1) }}-kwargs1]": [
+  {
+   "html": "12|13|15"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro m(a, b=a ~ '!') %}{{ b }}{% endmacro %}{{ m('<x>') }}-kwargs2]": [
+  {
+   "html": "&lt;x&gt;!"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro m(n) %}{% for i in range(n) %}{{ i }}{% endfor %}{% endmacro %}{{ m(3) }}{{ m(2) }}-kwargs10]": [
+  {
+   "html": "01201"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro m(v) %}{{ v }}{% endmacro %}{% set r = m('<x>') %}{{ r }}{{ r ~ '<y>' }}-kwargs12]": [
+  {
+   "html": "&lt;x&gt;&lt;x&gt;&lt;y&gt;"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% macro m(x) %}<b>{{ x }}</b>{% endmacro %}{{ m('<a>') | upper }}{{ m(v) }}-kwargs6]": [
+  {
+   "html": "<B>&LT;A&GT;</B><b><i></b>"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% set s = 'S' %}{% macro m() %}{{ s }}{% endmacro %}{% set s = 'T' %}{{ m() }}-kwargs4]": [
+  {
+   "html": "T"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% set s = 'S' %}{% macro m(a=s) %}{{ a }}{% endmacro %}{% set s = 'T' %}{{ m() }}-kwargs3]": [
+  {
+   "html": "T"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[autoescape-{% set x = 1 %}{% macro m() %}{{ x }}{% set x = 2 %}{{ x }}{% endmacro %}{{ m() }}{{ x }}-kwargs7]": [
+  {
+   "html": "121"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-a {%- macro m() -%} x {%- endmacro -%} b{{ m() }}-kwargs9]": [
+  {
+   "html": "abx"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{# def items, label #}\\n{% macro render_item(item, label) -%}\\n<div>\\n  <label>{{ label }}</label>\\n  <input value=\"{{ item }}\">\\n</div>\\n{%- endmacro %}\\n{% for item in items %}\\n  {{ render_item(item, label) }}\\n{% endfor %}\\n<template>{{ render_item(\"\", label) }}</template>-kwargs0]": [
+  {
+   "html": "<div>\n  <label>Name & <co></label>\n  <input value=\"a\">\n</div>\n\n  <div>\n  <label>Name & <co></label>\n  <input value=\"<b>\">\n</div>\n\n<template><div>\n  <label>Name & <co></label>\n  <input value=\"\">\n</div></template>"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% for i in [1, 2] %}{% macro m() %}{{ loop.index }}{{ i }}{% endmacro %}{{ m() }}{% endfor %}-kwargs8]": [
+  {
+   "html": "1122"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro a() %}[{{ b() }}]{% endmacro %}{% macro b() %}b{% endmacro %}{{ a() }}-kwargs11]": [
+  {
+   "html": "[b]"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro f(n) %}{{ n }}{% if n %}{{ f(n - 1) }}{% endif %}{% endmacro %}{{ f(3) }}-kwargs5]": [
+  {
+   "html": "3210"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro m() %}{{ 'x' | shout }}{% endmacro %}{{ m() }}-kwargs13]": [
+  {
+   "html": "X!"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro m(a, b=2) %}{{ a }}{{ b }}{% endmacro %}{{ m(1) }}|{{ m(1, 3) }}|{{ m(b=5, a=1) }}-kwargs1]": [
+  {
+   "html": "12|13|15"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro m(a, b=a ~ '!') %}{{ b }}{% endmacro %}{{ m('<x>') }}-kwargs2]": [
+  {
+   "html": "<x>!"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro m(n) %}{% for i in range(n) %}{{ i }}{% endfor %}{% endmacro %}{{ m(3) }}{{ m(2) }}-kwargs10]": [
+  {
+   "html": "01201"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro m(v) %}{{ v }}{% endmacro %}{% set r = m('<x>') %}{{ r }}{{ r ~ '<y>' }}-kwargs12]": [
+  {
+   "html": "<x><x><y>"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% macro m(x) %}<b>{{ x }}</b>{% endmacro %}{{ m('<a>') | upper }}{{ m(v) }}-kwargs6]": [
+  {
+   "html": "<B><A></B><b><i></b>"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% set s = 'S' %}{% macro m() %}{{ s }}{% endmacro %}{% set s = 'T' %}{{ m() }}-kwargs4]": [
+  {
+   "html": "T"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% set s = 'S' %}{% macro m(a=s) %}{{ a }}{% endmacro %}{% set s = 'T' %}{{ m() }}-kwargs3]": [
+  {
+   "html": "T"
+  }
+ ],
+ "test_macros.py::test_same_as_jx[plain-{% set x = 1 %}{% macro m() %}{{ x }}{% set x = 2 %}{{ x }}{% endmacro %}{{ m() }}{{ x }}-kwargs7]": [
+  {
+   "html": "121"
+  }
+ ],
+ "test_tags.py::test_for_target_in_a_fill_shadows_an_outer_name[autoescape]": [
+  {
+   "html": "012"
+  }
+ ],
+ "test_tags.py::test_for_target_in_a_fill_shadows_an_outer_name[plain]": [
+  {
+   "html": "012"
+  }
+ ],
+ "test_tags.py::test_set_in_a_fill_reads_the_outer_value_first[autoescape]": [
+  {
+   "html": "121"
+  }
+ ],
+ "test_tags.py::test_set_in_a_fill_reads_the_outer_value_first[plain]": [
+  {
+   "html": "121"
+  }
+ ],
+ "test_tags.py::test_set_in_a_recursive_loop_reads_the_outer_value_first[autoescape]": [
+  {
+   "html": "xaxbx"
+  }
+ ],
+ "test_tags.py::test_set_in_a_recursive_loop_reads_the_outer_value_first[plain]": [
+  {
+   "html": "xaxbx"
+  }
+ ],
+ "test_types.py::test_checked_between_components[autoescape]": [
+  {
+   "html": "<b>t 3</b>"
+  }
+ ],
+ "test_types.py::test_checked_between_components[plain]": [
+  {
+   "html": "<b>t 3</b>"
+  }
+ ],
+ "test_types.py::test_expression_defaults[autoescape]": [
+  {
+   "html": "3 ab 150.0 -1 True"
+  }
+ ],
+ "test_types.py::test_expression_defaults[plain]": [
+  {
+   "html": "3 ab 150.0 -1 True"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[autoescape-kwargs0]": [
+  {
+   "html": "a|1||None|None"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[autoescape-kwargs1]": [
+  {
+   "html": "a|2|x,y|&lt;class &#39;object&#39;&gt;|None"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[autoescape-kwargs2]": [
+  {
+   "html": "a|True||None|None"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[autoescape-kwargs3]": [
+  {
+   "html": "a|1||None|3"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[plain-kwargs0]": [
+  {
+   "html": "a|1||None|None"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[plain-kwargs1]": [
+  {
+   "html": "a|2|x,y|<class 'object'>|None"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[plain-kwargs2]": [
+  {
+   "html": "a|True||None|None"
+  }
+ ],
+ "test_types.py::test_right_types_same_as_jx[plain-kwargs3]": [
+  {
+   "html": "a|1||None|3"
+  }
+ ],
+ "test_types.py::test_the_default_is_checked_too[autoescape]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `x` expected str, got NoneType"
+  }
+ ],
+ "test_types.py::test_the_default_is_checked_too[plain]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `x` expected str, got NoneType"
+  }
+ ],
+ "test_types.py::test_wrong_types_same_message_as_jx[autoescape-kwargs0]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `label` expected str, got int"
+  }
+ ],
+ "test_types.py::test_wrong_types_same_message_as_jx[autoescape-kwargs1]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `n` expected int, got str"
+  }
+ ],
+ "test_types.py::test_wrong_types_same_message_as_jx[autoescape-kwargs2]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `tags` expected list, got tuple"
+  }
+ ],
+ "test_types.py::test_wrong_types_same_message_as_jx[plain-kwargs0]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `label` expected str, got int"
+  }
+ ],
+ "test_types.py::test_wrong_types_same_message_as_jx[plain-kwargs1]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `n` expected int, got str"
+  }
+ ],
+ "test_types.py::test_wrong_types_same_message_as_jx[plain-kwargs2]": [
+  {
+   "error": "InvalidPropType",
+   "message": "page.jx: `tags` expected list, got tuple"
+  }
+ ],
+ "test_whitespace.py::test_child_output_starts_without_whitespace[autoescape]": [
+  {
+   "html": "<ul> <li>1</li>  <li>2</li> </ul>"
+  }
+ ],
+ "test_whitespace.py::test_child_output_starts_without_whitespace[plain]": [
+  {
+   "html": "<ul> <li>1</li>  <li>2</li> </ul>"
+  }
+ ],
+ "test_whitespace.py::test_component_content_is_stripped[autoescape]": [
+  {
+   "html": "<div>[hello]</div>|<div>[]</div>|<div>[]</div>"
+  }
+ ],
+ "test_whitespace.py::test_component_content_is_stripped[plain]": [
+  {
+   "html": "<div>[hello]</div>|<div>[]</div>|<div>[]</div>"
+  }
+ ],
+ "test_whitespace.py::test_markers_around_fills_join_the_text_around_them[autoescape]": [
+  {
+   "html": "<div>A|xyz|</div>"
+  }
+ ],
+ "test_whitespace.py::test_markers_around_fills_join_the_text_around_them[plain]": [
+  {
+   "html": "<div>A|xyz|</div>"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-0]": [
+  {
+   "html": "c \nD\n\nA B B  B {{ R }}\tXD\n\n[\n C \n \n C] \n C\n C \nA \n   1 \n \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-100]": [
+  {
+   "html": "a  \n c \n{{ r }}\n ca aa b{{ r }}dd\n\n[{{ r }} b \n 1  \n \t {{ r }}\n ca aa b{{ r }}dd\n\n[aa{{ r }} b   a{{ r }}\n ca aa b{{ r }}dd\n\n[Pdsa]]  b  \n ]d\n\n  sa b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-101]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-102]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-103]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-104]": [
+  {
+   "html": "a \n   \n []\n c \naa \n []\n c \naa \n c \n\n c \n1\n c \n\n c \n1\n c \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-105]": [
+  {
+   "html": "S\tA\n C \nD\n\n\n C1A[]\n c \na\nD\n\n\t Bd\n\n \n \n c \n b {{ r }}   b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-106]": [
+  {
+   "html": "b s\n \n   b  {{ r }}\na \n   X\t\t\n CA  \n\nD1D\n C \n\n C \n B \n C \n\nA B \n C \n\nA\nb b d\n\n[P\n\n c\n{{ r }}d\n\n b \tP \n \n \n A\n c \n\t Aa\n{{ r }}\n c]   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-107]": [
+  {
+   "html": "B DA{{ R }}  A A1D\n\n1C \n\t[] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-108]": [
+  {
+   "html": "a \n   \n c \n[C \nd\n\na\tsd\n\ns bd\n\nd\n\nPa]\n c \n AA \n   \n C \n[]\n C \nd\n\naa   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-109]": [
+  {
+   "html": "c \n{{ r }} b\n\n c\n C\n C \n\t\n  1A \n  bd\n\n[] b a{{ r }}\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-10]": [
+  {
+   "html": "b {{ r }}  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-110]": [
+  {
+   "html": "b C \n\n C \n\nA B{{ R }} B  B \t\n C \n1[C \n\n C \n\nA B{{ R }} B  B \t\n C \n1[P] \n C \nC \n\n C \n\nA B{{ R }} B  B \t\n C \n1[C\nDP] \n  B]\n C"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-111]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-112]": [
+  {
+   "html": "Pa b D\n\n\n C \n{{ R }} b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-113]": [
+  {
+   "html": "b B D\n\n b  b  b d\n\n{{ r }}d\n\n baa  \n1d\n\n \n \na[{{ r }}d\n\n baa  \n1d\n\n \n \na[aD\n\n B  S b  \n \n c \n{{ r }}]\na\n c \n  b P\t b]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-114]": [
+  {
+   "html": "ac \n \n ad\n\n   \n \n c \nb {{ r }}   \n  \n   a\n c \n b  a\t{{ r }} \n d\n\nc \n[ \ts\n c \n \n b ] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-115]": [
+  {
+   "html": "{{ r }}d\n\na\t{{ r }} b    \n  bs  [ \n a{{ r }}a1d] \n a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-116]": [
+  {
+   "html": "c \n[b \t\t\n c \n{{ r }}\n c \n b \n c \n1\n c]\nd\t [c \n{{ r }}\n c \n b d\n\n  \n c \n\n{{ r }}d\n\n bP]\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-117]": [
+  {
+   "html": "a\n c\n c \n b 1d\n\n b s\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-118]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-119]": [
+  {
+   "html": "c \n  \taa{{ r }}\nbaab sb [] b  b\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-11]": [
+  {
+   "html": "d\n\n \n  ad\n\n\t{{ r }}  c \naasb  b\n c b  b  \n D\n\n\n C \nbA\nd\n\n b 1   b  \n a\n c \n \n   \n  \n AAA\nas[ \t \n c\tS  b a1 b1\n c \n   \n \n c \n \n   \n  \n AAA\nas[b ]a b 1]\n c\t X d\n\n{{ r }}  \nd\n\n\t\n c \n \n   \n  \n AAA\nas[]\na\n c \n\n c \n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-120]": [
+  {
+   "html": "c \n b c \n\n{{ r }}\naA{{ R }}AD\n\n  D []aac \n\n{{ r }}\naA{{ R }}AD\n\n  D [  {{ r }}\n c \n b  \n  \n \n c \nd\n\n{{ r }} d\n\n b c \n\n{{ r }}\naA{{ R }}AD\n\n  D [{{ r }}\n c \n\n\n] \n \n c \n] \n  \n ac \n\n{{ r }}\naA{{ R }}AD\n\n  D [\t\n c \nc \n\n{{ r }}\naA{{ R }}AD\n\n  D []\n c \n\n c \nc \n\n{{ r }}\naA{{ R }}AD\n\n  D [c \n\n{{ r }}\naA{{ R }}AD\n\n  D [b  b]\n\n c \nc \n\n{{ r }}\naA{{ R }}AD\n\n  D [a\n c]\n  \n c \n\n c \n]\n c \n\t b {{ r }}ad]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-121]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-122]": [
+  {
+   "html": "a\n c \nabd\n\n[aP]\ta\n c \nabd\n\n[aP]\tabd\n\n[D\n\n\tD\n\n\t]aa1a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-123]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-124]": [
+  {
+   "html": "ad\n\n \n      \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-125]": [
+  {
+   "html": "b  b \n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-126]": [
+  {
+   "html": "dAS\n C \n BP\na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-127]": [
+  {
+   "html": "da \n[b dP \n  \n aad\n\n b []\n c] d\n\nd\n\na \n[b dP \n  \n aad\n\n b []\n c] d\n\nd\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-128]": [
+  {
+   "html": "b {{ r }} \n \nd\n\n s \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-129]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-12]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-130]": [
+  {
+   "html": "D\n\nPA B D\t  BX \n C \n\n C \nD\n\n A  \n C \n\n C\tA{{ R }}\t\n C \nD\n\n \n B  \n D\n\n[B P \n] B D\n\n\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-131]": [
+  {
+   "html": "[cb]\nd\n\n{{ r }}\n \n   d\n\n  {{ r }}d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-132]": [
+  {
+   "html": "d\n\nd\n\n[c \n\t[]a]  b\n c \n  d\n\n[] b [c \n\t[]a]  b\n c \n  d\n\n[] b  a[[d\n\n\ns b]a\n[b\n c \n{{ r }}\n c \n\n c\n C1  \n  b] \n \n[]]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-133]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-134]": [
+  {
+   "html": "b \t\td\n\nd\n\nXa b c \nA\n C\n C \n \n \n C \n B\n[]\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-135]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-136]": [
+  {
+   "html": "d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-137]": [
+  {
+   "html": "c \n\n[D\n C \nad\n\n b   \n\n c \nc \n\n[d\n\na b \n \n s]a]\t\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-138]": [
+  {
+   "html": "s"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-139]": [
+  {
+   "html": "d\n\n{{ r }}  d\n\n b \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-13]": [
+  {
+   "html": "d\n\nP  b  \n  \n \n\t\n c \n[1c \n\n bsb \na]   \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-140]": [
+  {
+   "html": "a \n   d\n\na \n  B B  B [AS\n C]\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-141]": [
+  {
+   "html": "a\td\n\n b  {{ r }}\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-142]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-143]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-144]": [
+  {
+   "html": "b\n b  \n {{ r }}\n c \n \n {{ r }}\n c \n  \t[\t \n {{ r }}a]d\n\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-145]": [
+  {
+   "html": "[d  d\n\n b]a\n{{ r }}d\n\n\ta b []\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-146]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-147]": [
+  {
+   "html": "a\n c \na \n {{ r }} \n \n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-148]": [
+  {
+   "html": "ab "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-149]": [
+  {
+   "html": "a  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-14]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-150]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-151]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-152]": [
+  {
+   "html": "b d\n\n[]\n c \n \n d\n\n[]d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-153]": [
+  {
+   "html": "c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-154]": [
+  {
+   "html": "c \n \n \t\n C \n  {{ R }}C \n \n c \n[ b   \n d\n\n]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-155]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-156]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-157]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-158]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-159]": [
+  {
+   "html": "d\n\n\nd\n\nd\n c \nd\n\nd\n c \nd\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-15]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-160]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-161]": [
+  {
+   "html": "d\n\nA\t\n CA \n  B  \n D\n\n B []\n C \n\n C\n c \n b \n c \n\t{{ r }}\n c \n b  \n a   d\n\n b []\n\naPb  b Pa\n B   \n D\n\nC Pb  b Pa\n B   \n D\n\nC \n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-162]": [
+  {
+   "html": "b  \n a\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-163]": [
+  {
+   "html": "bs"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-164]": [
+  {
+   "html": "d\n\nd\n\n\nb   \n \t b  \n [d\n\n\n\n c \n [ ba\n1] b]d\n\nasd\n\n \n 1a \n c \n b d\n\nd\n\nd\n\n\naa\n c \na bsd\n\n \n [d\n\n\n c\n{{ r }} bc \nPbd]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-165]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-166]": [
+  {
+   "html": "1a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-167]": [
+  {
+   "html": "d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-168]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-169]": [
+  {
+   "html": "a\n cAC \n  \n  \n C \n  \nA A \n[PAAC \n{{ R }}AAA{{ R }} ] \n AC \n\n\n C\t{{ R }}   B C \n  \n  \n C \n  \n B{{ R }}AD1A A \n[D\n\n{{ R }}AC]\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-16]": [
+  {
+   "html": "d\n\n  \n \n \td\n\n  d[] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-170]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-171]": [
+  {
+   "html": "1  d\n\n {{ r }}  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-172]": [
+  {
+   "html": "S  \tCB {{ R }}\n C \nAD\n\n BX  D\n\nX B \n \n  \n [C \n]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-173]": [
+  {
+   "html": "b  b d\n\n b  b d\n\n\t \n \t{{ r }}  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-174]": [
+  {
+   "html": "b \nd\n\n\t\n c \n b b []\t  1\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-175]": [
+  {
+   "html": "da \n D\n\n{{ R }} B D\n\nC \n\n\tA{{ R }}\t\t B \t\n [] \n  \n \n C \n{{ R }} B D\n\nC \n\n\tA{{ R }}\t\t B \t\n []d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-176]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-177]": [
+  {
+   "html": "b ad\n\n \n  \t\n c \n{{ r }} b \n\tX\t b d\n\na[]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-178]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-179]": [
+  {
+   "html": "b \tsd\n\n    "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-17]": [
+  {
+   "html": "c \n\n c \na \n [] aa \n [] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-180]": [
+  {
+   "html": "[] aP"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-181]": [
+  {
+   "html": "b   d\n\n[\n c \nb   d\n\n[]\t]\n c \n  b   d\n\n[]d\n\nd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-182]": [
+  {
+   "html": "aa\n[c \na b \td] aa\n[]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-183]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-184]": [
+  {
+   "html": "c\n b a\n\n c \na\n[b s  dd\n\n\n cAA1\n CAA\nAA \n s  d\n\n\n c \n\t\n c \n\td \t\n c]\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-185]": [
+  {
+   "html": "c \nP\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-186]": [
+  {
+   "html": "d\n\ns  \n c \nd\n\nb b []"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-187]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-188]": [
+  {
+   "html": "b  {{ r }}\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-189]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-18]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-190]": [
+  {
+   "html": "b d\tSA\n C \nSD\n\n[] B D\n C\na b d\tSA\n C \nSD\n\n[] B D\n C\nasd\n\n[]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-191]": [
+  {
+   "html": "a b a{{ r }}\ta  d[ac \n\t  b  d\nad[b  P\t\n c] b ac]\n c \n \n c \n \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-192]": [
+  {
+   "html": "c \na \n \ta  X \n []\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-193]": [
+  {
+   "html": "d\n\n\n{{ r }}a  a a{{ r }}"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-194]": [
+  {
+   "html": "c \nas\n c \na\tD\n\n {{ R }}D\n\nd\n\n\n c \n[d\n\nc]\t b aas\n c \na\tD\n\n {{ R }}D\n\nd\n\n\n c \n[d\n\nc]\t b aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-195]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-196]": [
+  {
+   "html": "d\n\n  d\n\nd\n\n\n c \ndd\n\nd\n\nd\n\nd\n\nb D\n\nA\t\t B D\n\n\n\t B D\n\n\n\t bs  \n c \n[]d\n\n\ts b d\n\nd\n\n\n c \ndd\n\nd\n\nd\n\nd\n\nb D\n\nA\t\t B D\n\n\n\t B D\n\n\n\t bs  \n c \n[ \n \n C \nSD\n\n b1c \n]\n cd\n\nd\n\n1 \n C \nD\n\n \n C \n{{ R }}ABD\n\nD\n\n\tD\n\n\n C \nDD\n\nD\n\nD\n\nD\n\nB D\n\nA\t\t B D\n\n\n\t B D\n\n\n\t BS  \n C \n[B \tA{{ R }} A]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-197]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-198]": [
+  {
+   "html": "AS\n C \nDC \n B{{ R }}  1\n C \n  D\n\n B S \na    {{ r }}   c \n b{{ r }}  1\n c \n  dc \n b{{ r }}  1\n c \n  \ta    {{ r }}   c \n b{{ r }}  1\n c \n  dc \n b{{ r }}  1\n c \n  \ta{{ r }} \n \n c \n[P\t    1 \n  b d\n\n \n b {{ r }} \n \t]a b d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-199]": [
+  {
+   "html": "abd\n\n{{ r }}\t\n c \n[ad\n\n b {{ r }}\td] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-19]": [
+  {
+   "html": "[]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-1]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-200]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-201]": [
+  {
+   "html": "b  \n \n C \n  D\n\nA\n C {{ R }}DC \na  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-202]": [
+  {
+   "html": "c \na b [a  d\n\naP d\n\n]aa b []  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-203]": [
+  {
+   "html": "a{{ r }}\t\ts\nad\n\n  s BD\n\n BX B A [] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-204]": [
+  {
+   "html": "aXd\n\n[\n bccaad b BP B  \n  B \n c \n \n  \n aaXd\n\n[AP\tb   aXd\n\n[]\t  {{ r }} ad\n\naXd\n\n[a]\n c\n C \nSD\n\nA\t \n S \n] b  b ac \n{{ r }}dd\n\n\nc \n{{ r }}\n c \n b  b]  aXd\n\n[b  B {{ R }}A\tD\n C1ASAA\t\n C1ASAA\t  dd\n\n\naXd\n\n[\n c \n \n \t\n c1\n c \na b1   baaPaa] \n \n c \n\n c \nd\n\naXd\n\n[aaXd\n\n[]\n c]d\n\n b aXd\n\n[]]d\n\naXd\n\n[]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-205]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-206]": [
+  {
+   "html": "aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-207]": [
+  {
+   "html": "s"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-208]": [
+  {
+   "html": "b D\n\nA\nB  \n {{ R }}\n\n C \nD\n\nA\nB \n C \nD\n\nD\n\nD\n\n1D[ \n {{ R }} \n   \t{{ R }}D\n\n{{ R }}\n\n C \n{{ R }}AA    C \n \n {{ R }} B\t\t\nB  \n {{ R }}\n\n C \nD\n\nB \n C \nD\n\nD\n\nD\n\n1D[A]D\n\n\n C \nA1 \tP B \n C \nA1 \tP B B]Dd\n\naa\n c \n\tc \n{{ r }}  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-209]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-20]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-210]": [
+  {
+   "html": "{{ r }}\n b d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-211]": [
+  {
+   "html": "[a[ab d\n\n  \n ca]D\n\na \n [1] b  b []d\n\n\n\t \n 1   \n [1] b  b []d\n\n\n\t \n 1  1\n c]\t[a \n \n c \n b [d\n\n  B   PBd\n\n[]]] b \n c \nPa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-212]": [
+  {
+   "html": "c \naa{{ r }} \nd\n\naa\n c \n \n [d\n\n{{ r }}  \nd\n c \n {{ r }} \nd\n\naa\n c \n \n []]\tc \nac \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-213]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-214]": [
+  {
+   "html": "b  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-215]": [
+  {
+   "html": "1\nad\n\n{{ r }}   bP"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-216]": [
+  {
+   "html": "c \nBad\n\n\n\t[] b \n\n c \n{{ r }}\t\t b  ds\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-217]": [
+  {
+   "html": "b a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-218]": [
+  {
+   "html": "s\td\n\nd BS\nc \n \n \n c \n b  BB A  AAAAA1    XAB A  AAAAA1    XA  \t\t\n\taa \n [] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-219]": [
+  {
+   "html": "b \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-21]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-220]": [
+  {
+   "html": "C \n \n [1d\n\n\n\n c \n\tC \n \n [D\n\n B  \n D\n\n\n \n 1]\n\t1 B]d\n\n \n  b {{ r }}a b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-221]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-222]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-223]": [
+  {
+   "html": "d\n\n \n a\n\td\n\n\nc \n\t \n []d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-224]": [
+  {
+   "html": "c \n    \n c \n[] \n c \na \n {{ r }}\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-225]": [
+  {
+   "html": "s"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-226]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-227]": [
+  {
+   "html": "c \n\n c \n {{ r }}\t b\n b1d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-228]": [
+  {
+   "html": "d\n\n bb [b  B \nBB [A  P] d\n\n\n c \nd\n\n{{ r }}\td]d\n\n  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-229]": [
+  {
+   "html": "b  \n {{ r }}\t  \tc \nsd\n\nd\n\nAD\n\nSD\n\n  \n   [d\n\n c \nsd\n\nd\n\n  B {{ R }} B  \n   [c \nac \nsd\n\nd\n\nD\n\nB {{ R }}    {{ R }}  \n    \n   [] b \n\n c \n b  \n 1d]d\n\n\n c \nc \nsd\n\nd\n\nD\n\nB {{ R }}    {{ R }}  \n    \n   [d\n\n{{ r }}c \n b c \nsd\n\nd\n\nD\n\nB {{ R }}    {{ R }}  \n    \n   [Pc \n \n1c \n\n]] \n c\n\t\nD\n\n  {{ R }} Bd]  d\n\n{{ r }}a "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-22]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-230]": [
+  {
+   "html": "a\tA B AXA[C \n\n C \nD]\n C \n \n DB  \n  1 \n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-231]": [
+  {
+   "html": "b \na\n c \n \n c {{ r }}\ta\n c {{ r }}  [c \n1d\n\n\n c \n\n c\n c]a\t1a\tC {{ R }}\tA\n C {{ R }}  []A\nd\n\na sd\n\na b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-232]": [
+  {
+   "html": "b d\n\n\n \n \n c \n b d\n\n[P d\n\n\n[]]\td\n{{ r }}d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-233]": [
+  {
+   "html": "b   {{ r }}\n c \naa1 "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-234]": [
+  {
+   "html": "a1 aaaA  s  c \nd\n\n \t   b sa\n b d\n\n{{ r }} b ad\n\nd\n\n[c \nP b {{ r }} \n   \n c \n{{ r }} \n AA{{ R }}D\n\n] b  c \n{{ r }} \n  \n  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-235]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-236]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-237]": [
+  {
+   "html": "c \n bd\n\nd\n\n b d\n\n bd\n\nd\n\n b d\n\n [c \n b d\n\n b d\n\n b d\n\n b d\n\n [b \n C \n b c \n b \n \n c\n c \n\t d\n\n b d\n\n b \n \n c\n c \n\t d\n\n b d\n\n [d\n\n \n \t b]]\nc \n{{ r }} b c\n{{ r }}\n c \n \n d\n\n{{ r }}\n c\n c \n  \n{{ r }}\n c \n \n d\n\n{{ r }}\n c\n c \n  ] \n cAC \n{{ R }}D\n\nAC \n BD\n\n B D\n\n BD\n\n B D\n\n [1 B] \n    {{ R }} \n SA  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-238]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-239]": [
+  {
+   "html": "d\n\n\tD\n\nDC \nSC \nS B \tDC \nSC \nS B \t  [B  \n P   BP B  AA B {{ R }}  ]\t B\t b \n\n c{{ r }} \n  d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-23]": [
+  {
+   "html": "b a\n b a\n{{ r }}d\n\n[]  d\n\n\n C \nS "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-240]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-241]": [
+  {
+   "html": "sc \n{{ r }}    "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-242]": [
+  {
+   "html": "b \n c \nd\n\nd\n\nd \n da b as\n\n c \n  \n c 1 b \t b    \n da b as\n\n c \n  \n c 1 b \t b    \n \n \n\n cXX[asa1d]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-243]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-244]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-245]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-246]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-247]": [
+  {
+   "html": "c \n1"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-248]": [
+  {
+   "html": "a{{ r }}aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-249]": [
+  {
+   "html": "c \nc \nd\n\nab "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-24]": [
+  {
+   "html": "c \n[]   b"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-250]": [
+  {
+   "html": "c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-251]": [
+  {
+   "html": "b b  b 1  b b  \n  b \n c b \na   \n c \ndc \n b  b \t []  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-252]": [
+  {
+   "html": "d\n\n  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-253]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-254]": [
+  {
+   "html": "a\tac \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-255]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-256]": [
+  {
+   "html": "b d\n\n{{ r }}d b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-257]": [
+  {
+   "html": "c \nd\n\n{{ r }}\n   []\n c \n b c \nd\n\n{{ r }}\n   [a1d\n\n{{ r }}ab\t\nc \nd\n\n{{ r }}\n   [b d\n\na \n P\n\n c \n\t\n C \n\n c]]d\n\na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-258]": [
+  {
+   "html": "a\nc \na\n c\n{{ r }} d\n\n\n c b \t\n{{ r }}\n c \na   b 1c \n b 1c \n b  sb b sb ba\n c\n{{ r }} d\n\n\n c b \t\n{{ r }}\n c \na   b 1c \n b 1c \n b  sb b sb b\n{{ r }}\n c \na   b 1c \n b 1c \n b  sb b sb b\ta b \t[d\n\nc] dd\n\nd\n\nD\n\nS\n C \n\nS D\n\n  B  BS \n dd\n\nc \na\n c\n{{ r }} d\n\n\n c b \t \n \n c \n  bc \n  a\n c\n{{ r }} d\n\n\n c b \t \n \n c \n  bc \n   \ta b \t[] \n  b \n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-259]": [
+  {
+   "html": "a\n   \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-25]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-260]": [
+  {
+   "html": "ad\n\n\n c \n\t \n   Pd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-261]": [
+  {
+   "html": "c \n  aa b s\n c \n  aa b s\n c \nb \n c \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-262]": [
+  {
+   "html": "d  \n \t  a  {{ r }}\n  b\n C \nSD\n\nc \n  \n \t  a  {{ r }}\n  b\n C \nSD\n\nc \n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-263]": [
+  {
+   "html": "d\n\n\tP  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-264]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-265]": [
+  {
+   "html": "d\n\n\na{{ r }}\n c \n\ta1 b []\t\na{{ r }}\n c \n\ta1 b []\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-266]": [
+  {
+   "html": "s   \n a{{ r }} \n c \n[a \n a{{ r }} \n c \n[c \n\t\n C \n \n c \na{{ r }} \n c \n[]\t \n {{ r }} b  b]\n c]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-267]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-268]": [
+  {
+   "html": "1\n \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-269]": [
+  {
+   "html": "b  b \n c \n\n c \nc \n  \t b \ta b  b s\ta b  b s[]d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-26]": [
+  {
+   "html": "sa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-270]": [
+  {
+   "html": "b  b d\n\n b bc \n{{ r }} \n d\n\nd\n\ns  \t \n sa b S\t B B 1B D\n\nD\n\n B D\n c \n[] b d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-271]": [
+  {
+   "html": "a  \n  \n  \n {{ r }}\n c \t  {{ r }} b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-272]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-273]": [
+  {
+   "html": "a\n c \n\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-274]": [
+  {
+   "html": "ba \n   d b   ab  a\t  d\n\nPd\n\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-275]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-276]": [
+  {
+   "html": "as  AAAAA \n  \n [C \n  B A{{ R }}D\n\nB  AAAAB  \n  \n []]  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-277]": [
+  {
+   "html": "[  b a]\n c \nd\n\n   \n  B  \n [   \t B   P   D]\t B    \n  B  \n [   \t B   P   D]\t B b"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-278]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-279]": [
+  {
+   "html": "A \n \n C \nA\n C \n\n \n C \nA\n C \n\nC \nAD1Ac \nd\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-27]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-280]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-281]": [
+  {
+   "html": "{{ r }}d\n\n  \n \t\na  [as\n c \nas\n c \n]   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-282]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-283]": [
+  {
+   "html": "1c \nb \n  d\n\n\n c \n\t  [{{ r }}d\n\na   ] \n s b  b \n   b X\n\n c\na1   C \n\nd\n\n\n c \n\t  [a]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-284]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-285]": [
+  {
+   "html": "b  ad\n\n\t\n c \n\n c \nd\n\n[]a\nb a1\t\n c \n\n c \nd\n\n[ad b ad\n\nb  ad\n\n\t\n c \n\n c \nd\n\n[]d\n\n1 \n d\n\n1 \n d]d\n\nd\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-286]": [
+  {
+   "html": "a[[d\n\na \n P]d\n\n\t[] \n  d\n\n[d\n\na \n P]d\n\n\t[] \n  d\n\naad\n\n{{ r }}a\n  d\n\na a\nA[]\t\n C \n{{ R }}D b] \n \n c \n[]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-287]": [
+  {
+   "html": "c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-288]": [
+  {
+   "html": "d\n\n\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-289]": [
+  {
+   "html": "b a\n c1a b \t  \n c\n C \nAA \t   \t C \n  {{ R }}\nD\n\n \n \n C \n{{ R }}\n C \n  {{ R }}\nD\n\n \n \n C \n{{ R }}\n\n C \n\n[]    c \n{{ r }}\t\n c \n {{ r }}  d\n\nb {{ r }}\nc \na \n aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-28]": [
+  {
+   "html": "sa\n  d\n\n1a \t[] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-290]": [
+  {
+   "html": "c\t\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-291]": [
+  {
+   "html": "d\n\n\n c \na{{ r }}\t\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-292]": [
+  {
+   "html": "c \n a[d\n\n  b c \n a[c \ns]d\n\n\n c \n] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-293]": [
+  {
+   "html": "c \n1d\n\n 1\td\n\n b   \t \n  \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-294]": [
+  {
+   "html": "a[] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-295]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-296]": [
+  {
+   "html": "a "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-297]": [
+  {
+   "html": "d\n{{ r }} \n \n c \nd\n\nX \n [] b d\n\nb "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-298]": [
+  {
+   "html": "c \nPd\n\n \n s    "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-299]": [
+  {
+   "html": "d\n\nd\n\n b \n dd\n\n{{ r }}d\n\n b d\n\n[c \na] b\n C \n \n  \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-29]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-2]": [
+  {
+   "html": "d  \n{{ r }}cPc \n b sb as\n c \n b \n c \n\t\t{{ r }}d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-30]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-31]": [
+  {
+   "html": "a  11s\n c \n[]\t\nP  b a{{ r }}\tb \t \n  11S\n C \n[ B A    D]D\n\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-32]": [
+  {
+   "html": "c \n\n c \nP\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-33]": [
+  {
+   "html": "c \nd\n\n\n c \nb c \n[\nb c \n[]b \n c \n] \n   b c \n[b c \n[c\n \n a\t   b]d\n\n \n d\n\nPd]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-34]": [
+  {
+   "html": "AP \n D\n c \nd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-35]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-36]": [
+  {
+   "html": "Pd\n\n{{ r }}\td\n\n\tas\t b    c \n{{ r }}aa\n c \na{{ r }}d\n\n[sb a b    b]\n c   b sd\n\n  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-37]": [
+  {
+   "html": "bb \tb "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-38]": [
+  {
+   "html": "[]d\n\nd\n\n  d\n\n b {{ r }}   \tA \n d\n\n b {{ r }}   \tA \n \n  d\n\n b {{ r }}   \tA \n d\n\n b {{ r }}   \tA \n \naP"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-39]": [
+  {
+   "html": "[]\t "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-3]": [
+  {
+   "html": "bd\n\n{{ r }}db "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-40]": [
+  {
+   "html": "b \n c \n[b]d\n\n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-41]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-42]": [
+  {
+   "html": "{{ r }} \n c \n[]  d "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-43]": [
+  {
+   "html": "b d\n\nD\n\n  \n C \n1D\n\n \n  {{ R }} \n 1D\n\n  BD1D\n\n \n \tD\n\n     \n  B  1C \nB A \n D\n\n\n\n \n\n C \n\n \n [] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-44]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-45]": [
+  {
+   "html": "d\n\nb ad\n\nd\n\nc \n{{ r }}\n cd\n\nb ad\n\nd\n\nc \n{{ r }}\n cd\n\nbAD\n\n \n [ B 1D\n\n B A]  \t\nd\n\n \n [d\n\nab d\n\n \n []d]d\n\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-46]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-47]": [
+  {
+   "html": "b {{ r }}  d\n C \n\tA\t{{ R }}\n CD\n\n \n  S\n C \n\t BAS B D\n\nXC \nD\n\n\n \n \n C1 \n \td\n\nd\n\n1 d\n\ns  b a[]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-48]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-49]": [
+  {
+   "html": "c{{ r }}a  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-4]": [
+  {
+   "html": "d\n\n\tB\t\nP bd\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-50]": [
+  {
+   "html": "c \nd\n\n\n c \na \n \n C \n{{ R }}  {{ R }}\nD\n\n[D\n\n{{ R }}\nD\n\n[D\n\n BA \t B]   ]  1\t  d\n\nd\n\n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-51]": [
+  {
+   "html": "b b {{ r }}\n ca[]\n b  b 1d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-52]": [
+  {
+   "html": "b d\n\n\n c \n{{ r }}\n\t\ts\n c b {{ r }}  d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-53]": [
+  {
+   "html": "c1a  ssa[] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-54]": [
+  {
+   "html": "b  B    B AAB \tC \n  DA  B d\n\n  [\n c \nb  B    B AAB \tC \n  DA  B d\n\n  [] b aa] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-55]": [
+  {
+   "html": "{{ r }}\n c \n\naa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-56]": [
+  {
+   "html": "D\n\nP  D\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-57]": [
+  {
+   "html": "c \n \n {{ r }}a b  b D\n\nA{{ R }}A\n C \n\tD\n\nD\n\n1\n C \n[]\n\n C \nA{{ R }}A\n C \n\t D\n\nD\n\n1\n C \n[CPD\n\n B D\n\nA{{ R }}A\n C \n\tD\n\nD\n\n1\n C \n[B PAAPA] B]AA \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-58]": [
+  {
+   "html": "A[] \n C \nA \n \n C \n  B  b\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-59]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-5]": [
+  {
+   "html": "{{ r }}  b ad\n\n[b]   b \tA  \n B \n C \nS B  \n B \n C \nS B\t\n c \n \n \t{{ r }}  b ad\n\n[b]   b \tA  \n B \n C \nS B  \n B \n C \nS B\t\n c \n \n d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-60]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-61]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-62]": [
+  {
+   "html": "aXB 1\n C \nD\n\n\t1 \n AD\n\nD\n\n  B  \n AA B \t{{ R }}A\t[]  \n c \nXB 1\n C \nD\n\n\t1 \n AD\n\nD\n\n  B  \n AA B \t{{ R }}A\t[]c \n  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-63]": [
+  {
+   "html": "sa d\n\n  [ad\n\n  [sd\n\n  [b c \n b   ]]d] a\t\tD\n\nD\n\n  []\n B Pd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-64]": [
+  {
+   "html": "b  \t\n c \n\tb XX\n c \n a\n c[ad\n\nP\n c] \n \tXX\n c \n a\n c[P  b] b d\n\n\t\t\t \n AB \t\t{{ R }}A B P b  b\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-65]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-66]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-67]": [
+  {
+   "html": "d\n\n a \n  b \n c \n{{ r }}  \n a B \t \n d\n\n b d\n\n \n  b [d\n\n \n  b [ b ad\n\n \n  b [d\n\na]a1b 1b \n c \na{{ r }}]\t\t{{ r }}a b]daa \n  b \n c \n{{ r }}  \n a B \t \n d\n\n b d\n\n \n  b [ b aa1 \n \n]\nad\n\n\n  DD\n\n \n  B []\n C \n a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-68]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-69]": [
+  {
+   "html": "c \n  \nP b d\n\nd\n\n[c \nd\n\n[]\n c]\n c \naa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-6]": [
+  {
+   "html": "d\n\nd\n\ns\t[]\n c \nd\n\n\t\t\t\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-70]": [
+  {
+   "html": "Pa\n c \n{{ r }}\t\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-71]": [
+  {
+   "html": "a  c \n[ \n \n c \nc \n[d\n\n1b  b] b\n c \n[\n c \nd\n\ns\nd\n\n \n cc \n \n aaPd]d\n\nd\n\n  D\n\nA B d] b c \n[]\n  P\t "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-72]": [
+  {
+   "html": "ab \n c \n\n c \n b  B b  a \n \n  \n  b \n cX \n \n  \n  b \n cX{{ r }}\t [d\n\n\n c]\na \n   1c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-73]": [
+  {
+   "html": "c \ns  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-74]": [
+  {
+   "html": "{{ r }} \n    b a \n a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-75]": [
+  {
+   "html": "b \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-76]": [
+  {
+   "html": "b [d\n\n\n c] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-77]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-78]": [
+  {
+   "html": "d\n\n{{ r }}d\n\n \n  \n \tDAA B \n C \nA B \n C \n A B\n C \n\n C \n\t B \n C \n B X B \n C \n B X B\n C  [S\n C \nD\n\nD\n\n \n SB B] a \n \t \n d\n\n{{ r }}d\n\n \n  \n \tDAA B \n C \nA B \n C \n A B\n C \n\n C \n\t B \n C \n B X B \n C \n B X B\n C  [S\n C \nD\n\nD\n\n \n SB B] a \n \t\t \n  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-79]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-7]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-80]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-81]": [
+  {
+   "html": "{{ r }} b  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-82]": [
+  {
+   "html": "X \t b  {{ r }}aa\n b a b  {{ r }}aa\n b a\n b  \n [\n\t   ]  \n \n c \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-83]": [
+  {
+   "html": "b d\n\n \n 1   \n 1  b [d\n\n \n 1   \n 1  b [] b]d\n\n d\n\n \n d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-84]": [
+  {
+   "html": "{{ r }}\n c \n c \n\n c \n\n c b  \n \n{{ r }}\n \n  \n A    \nd\n\n[ca\n  \n C1D\n\n\n c \n  c\t\t \n c \n\n c \n\n c b  \n \n{{ r }}\n \n  \n A    \nd\n\n[]d]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-85]": [
+  {
+   "html": "b b [d\n\n  \ts\n c \n b b []\td\n\n  \ts\n c \n b b []\t\t{{ r }} b  \nS\t\n C  d\n c \n\t{{ r }} b  \nS\t\n C  d\n c \n]   dad\n\nb "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-86]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-87]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-88]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-89]": [
+  {
+   "html": "1"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-8]": [
+  {
+   "html": "a B\n C \n  \t  {{ R }}D\n\nA[\t \n \t\tPA]\t  aa\n\n c \n\t D\n\nA\n c\n c \n \n []d\n\na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-90]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-91]": [
+  {
+   "html": "sa  \n c \n\t\n c \n  B \t{{ R }}\n Csa  \n c \n\t\n c \n  B \t{{ R }}\n C \td\n\n   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-92]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-93]": [
+  {
+   "html": "d {{ r }}  b d\n\ns\t b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-94]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-95]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-96]": [
+  {
+   "html": "d\n\na1  {{ r }}\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-97]": [
+  {
+   "html": "[]\n c \n  d\n\n \n c{{ r }}"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-98]": [
+  {
+   "html": "{{ r }}aa\t1 b {{ r }} b\n c \n\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-99]": [
+  {
+   "html": "{{ r }}a \n  \n 1 \n   d\n\naXc \nb d\n\n bXad\n\naXc \nb d\n\n bXaa b   [] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[autoescape-9]": [
+  {
+   "html": "bP  \n c \nasd\n\n[] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-0]": [
+  {
+   "html": "c \nD\n\nA B B  B {{ R }}\tXD\n\n[\n C \n \n C] \n C\n C \nA \n   1 \n \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-100]": [
+  {
+   "html": "a  \n c \n{{ r }}\n ca aa b{{ r }}dd\n\n[{{ r }} b \n 1  \n \t {{ r }}\n ca aa b{{ r }}dd\n\n[aa{{ r }} b   a{{ r }}\n ca aa b{{ r }}dd\n\n[Pdsa]]  b  \n ]d\n\n  sa b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-101]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-102]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-103]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-104]": [
+  {
+   "html": "a \n   \n []\n c \naa \n []\n c \naa \n c \n\n c \n1\n c \n\n c \n1\n c \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-105]": [
+  {
+   "html": "S\tA\n C \nD\n\n\n C1A[]\n c \na\nD\n\n\t Bd\n\n \n \n c \n b {{ r }}   b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-106]": [
+  {
+   "html": "b s\n \n   b  {{ r }}\na \n   X\t\t\n CA  \n\nD1D\n C \n\n C \n B \n C \n\nA B \n C \n\nA\nb b d\n\n[P\n\n c\n{{ r }}d\n\n b \tP \n \n \n A\n c \n\t Aa\n{{ r }}\n c]   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-107]": [
+  {
+   "html": "B DA{{ R }}  A A1D\n\n1C \n\t[] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-108]": [
+  {
+   "html": "a \n   \n c \n[C \nd\n\na\tsd\n\ns bd\n\nd\n\nPa]\n c \n AA \n   \n C \n[]\n C \nd\n\naa   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-109]": [
+  {
+   "html": "c \n{{ r }} b\n\n c\n C\n C \n\t\n  1A \n  bd\n\n[] b a{{ r }}\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-10]": [
+  {
+   "html": "b {{ r }}  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-110]": [
+  {
+   "html": "b C \n\n C \n\nA B{{ R }} B  B \t\n C \n1[C \n\n C \n\nA B{{ R }} B  B \t\n C \n1[P] \n C \nC \n\n C \n\nA B{{ R }} B  B \t\n C \n1[C\nDP] \n  B]\n C"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-111]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-112]": [
+  {
+   "html": "Pa b D\n\n\n C \n{{ R }} b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-113]": [
+  {
+   "html": "b B D\n\n b  b  b d\n\n{{ r }}d\n\n baa  \n1d\n\n \n \na[{{ r }}d\n\n baa  \n1d\n\n \n \na[aD\n\n B  S b  \n \n c \n{{ r }}]\na\n c \n  b P\t b]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-114]": [
+  {
+   "html": "ac \n \n ad\n\n   \n \n c \nb {{ r }}   \n  \n   a\n c \n b  a\t{{ r }} \n d\n\nc \n[ \ts\n c \n \n b ] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-115]": [
+  {
+   "html": "{{ r }}d\n\na\t{{ r }} b    \n  bs  [ \n a{{ r }}a1d] \n a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-116]": [
+  {
+   "html": "c \n[b \t\t\n c \n{{ r }}\n c \n b \n c \n1\n c]\nd\t [c \n{{ r }}\n c \n b d\n\n  \n c \n\n{{ r }}d\n\n bP]\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-117]": [
+  {
+   "html": "a\n c\n c \n b 1d\n\n b s\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-118]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-119]": [
+  {
+   "html": "c \n  \taa{{ r }}\nbaab sb [] b  b\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-11]": [
+  {
+   "html": "d\n\n \n  ad\n\n\t{{ r }}  c \naasb  b\n c b  b  \n D\n\n\n C \nbA\nd\n\n b 1   b  \n a\n c \n \n   \n  \n AAA\nas[ \t \n c\tS  b a1 b1\n c \n   \n \n c \n \n   \n  \n AAA\nas[b ]a b 1]\n c\t X d\n\n{{ r }}  \nd\n\n\t\n c \n \n   \n  \n AAA\nas[]\na\n c \n\n c \n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-120]": [
+  {
+   "html": "c \n b c \n\n{{ r }}\naA{{ R }}AD\n\n  D []aac \n\n{{ r }}\naA{{ R }}AD\n\n  D [  {{ r }}\n c \n b  \n  \n \n c \nd\n\n{{ r }} d\n\n b c \n\n{{ r }}\naA{{ R }}AD\n\n  D [{{ r }}\n c \n\n\n] \n \n c \n] \n  \n ac \n\n{{ r }}\naA{{ R }}AD\n\n  D [\t\n c \nc \n\n{{ r }}\naA{{ R }}AD\n\n  D []\n c \n\n c \nc \n\n{{ r }}\naA{{ R }}AD\n\n  D [c \n\n{{ r }}\naA{{ R }}AD\n\n  D [b  b]\n\n c \nc \n\n{{ r }}\naA{{ R }}AD\n\n  D [a\n c]\n  \n c \n\n c \n]\n c \n\t b {{ r }}ad]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-121]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-122]": [
+  {
+   "html": "a\n c \nabd\n\n[aP]\ta\n c \nabd\n\n[aP]\tabd\n\n[D\n\n\tD\n\n\t]aa1a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-123]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-124]": [
+  {
+   "html": "ad\n\n \n      \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-125]": [
+  {
+   "html": "b  b \n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-126]": [
+  {
+   "html": "dAS\n C \n BP\na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-127]": [
+  {
+   "html": "da \n[b dP \n  \n aad\n\n b []\n c] d\n\nd\n\na \n[b dP \n  \n aad\n\n b []\n c] d\n\nd\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-128]": [
+  {
+   "html": "b {{ r }} \n \nd\n\n s \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-129]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-12]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-130]": [
+  {
+   "html": "D\n\nPA B D\t  BX \n C \n\n C \nD\n\n A  \n C \n\n C\tA{{ R }}\t\n C \nD\n\n \n B  \n D\n\n[B P \n] B D\n\n\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-131]": [
+  {
+   "html": "[cb]\nd\n\n{{ r }}\n \n   d\n\n  {{ r }}d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-132]": [
+  {
+   "html": "d\n\nd\n\n[c \n\t[]a]  b\n c \n  d\n\n[] b [c \n\t[]a]  b\n c \n  d\n\n[] b  a[[d\n\n\ns b]a\n[b\n c \n{{ r }}\n c \n\n c\n C1  \n  b] \n \n[]]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-133]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-134]": [
+  {
+   "html": "b \t\td\n\nd\n\nXa b c \nA\n C\n C \n \n \n C \n B\n[]\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-135]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-136]": [
+  {
+   "html": "d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-137]": [
+  {
+   "html": "c \n\n[D\n C \nad\n\n b   \n\n c \nc \n\n[d\n\na b \n \n s]a]\t\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-138]": [
+  {
+   "html": "s"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-139]": [
+  {
+   "html": "d\n\n{{ r }}  d\n\n b \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-13]": [
+  {
+   "html": "d\n\nP  b  \n  \n \n\t\n c \n[1c \n\n bsb \na]   \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-140]": [
+  {
+   "html": "a \n   d\n\na \n  B B  B [AS\n C]\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-141]": [
+  {
+   "html": "a\td\n\n b  {{ r }}\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-142]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-143]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-144]": [
+  {
+   "html": "b\n b  \n {{ r }}\n c \n \n {{ r }}\n c \n  \t[\t \n {{ r }}a]d\n\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-145]": [
+  {
+   "html": "[d  d\n\n b]a\n{{ r }}d\n\n\ta b []\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-146]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-147]": [
+  {
+   "html": "a\n c \na \n {{ r }} \n \n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-148]": [
+  {
+   "html": "ab "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-149]": [
+  {
+   "html": "a  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-14]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-150]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-151]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-152]": [
+  {
+   "html": "b d\n\n[]\n c \n \n d\n\n[]d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-153]": [
+  {
+   "html": "c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-154]": [
+  {
+   "html": "c \n \n \t\n C \n  {{ R }}C \n \n c \n[ b   \n d\n\n]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-155]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-156]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-157]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-158]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-159]": [
+  {
+   "html": "d\n\n\nd\n\nd\n c \nd\n\nd\n c \nd\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-15]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-160]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-161]": [
+  {
+   "html": "d\n\nA\t\n CA \n  B  \n D\n\n B []\n C \n\n C\n c \n b \n c \n\t{{ r }}\n c \n b  \n a   d\n\n b []\n\naPb  b Pa\n B   \n D\n\nC Pb  b Pa\n B   \n D\n\nC \n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-162]": [
+  {
+   "html": "b  \n a\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-163]": [
+  {
+   "html": "bs"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-164]": [
+  {
+   "html": "d\n\nd\n\n\nb   \n \t b  \n [d\n\n\n\n c \n [ ba\n1] b]d\n\nasd\n\n \n 1a \n c \n b d\n\nd\n\nd\n\n\naa\n c \na bsd\n\n \n [d\n\n\n c\n{{ r }} bc \nPbd]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-165]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-166]": [
+  {
+   "html": "1a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-167]": [
+  {
+   "html": "d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-168]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-169]": [
+  {
+   "html": "a\n cAC \n  \n  \n C \n  \nA A \n[PAAC \n{{ R }}AAA{{ R }} ] \n AC \n\n\n C\t{{ R }}   B C \n  \n  \n C \n  \n B{{ R }}AD1A A \n[D\n\n{{ R }}AC]\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-16]": [
+  {
+   "html": "d\n\n  \n \n \td\n\n  d[] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-170]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-171]": [
+  {
+   "html": "1  d\n\n {{ r }}  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-172]": [
+  {
+   "html": "S  \tCB {{ R }}\n C \nAD\n\n BX  D\n\nX B \n \n  \n [C \n]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-173]": [
+  {
+   "html": "b  b d\n\n b  b d\n\n\t \n \t{{ r }}  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-174]": [
+  {
+   "html": "b \nd\n\n\t\n c \n b b []\t  1\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-175]": [
+  {
+   "html": "da \n D\n\n{{ R }} B D\n\nC \n\n\tA{{ R }}\t\t B \t\n [] \n  \n \n C \n{{ R }} B D\n\nC \n\n\tA{{ R }}\t\t B \t\n []d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-176]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-177]": [
+  {
+   "html": "b ad\n\n \n  \t\n c \n{{ r }} b \n\tX\t b d\n\na[]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-178]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-179]": [
+  {
+   "html": "b \tsd\n\n    "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-17]": [
+  {
+   "html": "c \n\n c \na \n [] aa \n [] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-180]": [
+  {
+   "html": "[] aP"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-181]": [
+  {
+   "html": "b   d\n\n[\n c \nb   d\n\n[]\t]\n c \n  b   d\n\n[]d\n\nd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-182]": [
+  {
+   "html": "aa\n[c \na b \td] aa\n[]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-183]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-184]": [
+  {
+   "html": "c\n b a\n\n c \na\n[b s  dd\n\n\n cAA1\n CAA\nAA \n s  d\n\n\n c \n\t\n c \n\td \t\n c]\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-185]": [
+  {
+   "html": "c \nP\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-186]": [
+  {
+   "html": "d\n\ns  \n c \nd\n\nb b []"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-187]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-188]": [
+  {
+   "html": "b  {{ r }}\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-189]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-18]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-190]": [
+  {
+   "html": "b d\tSA\n C \nSD\n\n[] B D\n C\na b d\tSA\n C \nSD\n\n[] B D\n C\nasd\n\n[]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-191]": [
+  {
+   "html": "a b a{{ r }}\ta  d[ac \n\t  b  d\nad[b  P\t\n c] b ac]\n c \n \n c \n \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-192]": [
+  {
+   "html": "c \na \n \ta  X \n []\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-193]": [
+  {
+   "html": "d\n\n\n{{ r }}a  a a{{ r }}"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-194]": [
+  {
+   "html": "c \nas\n c \na\tD\n\n {{ R }}D\n\nd\n\n\n c \n[d\n\nc]\t b aas\n c \na\tD\n\n {{ R }}D\n\nd\n\n\n c \n[d\n\nc]\t b aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-195]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-196]": [
+  {
+   "html": "d\n\n  d\n\nd\n\n\n c \ndd\n\nd\n\nd\n\nd\n\nb D\n\nA\t\t B D\n\n\n\t B D\n\n\n\t bs  \n c \n[]d\n\n\ts b d\n\nd\n\n\n c \ndd\n\nd\n\nd\n\nd\n\nb D\n\nA\t\t B D\n\n\n\t B D\n\n\n\t bs  \n c \n[ \n \n C \nSD\n\n b1c \n]\n cd\n\nd\n\n1 \n C \nD\n\n \n C \n{{ R }}ABD\n\nD\n\n\tD\n\n\n C \nDD\n\nD\n\nD\n\nD\n\nB D\n\nA\t\t B D\n\n\n\t B D\n\n\n\t BS  \n C \n[B \tA{{ R }} A]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-197]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-198]": [
+  {
+   "html": "AS\n C \nDC \n B{{ R }}  1\n C \n  D\n\n B S \na    {{ r }}   c \n b{{ r }}  1\n c \n  dc \n b{{ r }}  1\n c \n  \ta    {{ r }}   c \n b{{ r }}  1\n c \n  dc \n b{{ r }}  1\n c \n  \ta{{ r }} \n \n c \n[P\t    1 \n  b d\n\n \n b {{ r }} \n \t]a b d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-199]": [
+  {
+   "html": "abd\n\n{{ r }}\t\n c \n[ad\n\n b {{ r }}\td] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-19]": [
+  {
+   "html": "[]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-1]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-200]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-201]": [
+  {
+   "html": "b  \n \n C \n  D\n\nA\n C {{ R }}DC \na  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-202]": [
+  {
+   "html": "c \na b [a  d\n\naP d\n\n]aa b []  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-203]": [
+  {
+   "html": "a{{ r }}\t\ts\nad\n\n  s BD\n\n BX B A [] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-204]": [
+  {
+   "html": "aXd\n\n[\n bccaad b BP B  \n  B \n c \n \n  \n aaXd\n\n[AP\tb   aXd\n\n[]\t  {{ r }} ad\n\naXd\n\n[a]\n c\n C \nSD\n\nA\t \n S \n] b  b ac \n{{ r }}dd\n\n\nc \n{{ r }}\n c \n b  b]  aXd\n\n[b  B {{ R }}A\tD\n C1ASAA\t\n C1ASAA\t  dd\n\n\naXd\n\n[\n c \n \n \t\n c1\n c \na b1   baaPaa] \n \n c \n\n c \nd\n\naXd\n\n[aaXd\n\n[]\n c]d\n\n b aXd\n\n[]]d\n\naXd\n\n[]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-205]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-206]": [
+  {
+   "html": "aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-207]": [
+  {
+   "html": "s"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-208]": [
+  {
+   "html": "b D\n\nA\nB  \n {{ R }}\n\n C \nD\n\nA\nB \n C \nD\n\nD\n\nD\n\n1D[ \n {{ R }} \n   \t{{ R }}D\n\n{{ R }}\n\n C \n{{ R }}AA    C \n \n {{ R }} B\t\t\nB  \n {{ R }}\n\n C \nD\n\nB \n C \nD\n\nD\n\nD\n\n1D[A]D\n\n\n C \nA1 \tP B \n C \nA1 \tP B B]Dd\n\naa\n c \n\tc \n{{ r }}  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-209]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-20]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-210]": [
+  {
+   "html": "{{ r }}\n b d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-211]": [
+  {
+   "html": "[a[ab d\n\n  \n ca]D\n\na \n [1] b  b []d\n\n\n\t \n 1   \n [1] b  b []d\n\n\n\t \n 1  1\n c]\t[a \n \n c \n b [d\n\n  B   PBd\n\n[]]] b \n c \nPa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-212]": [
+  {
+   "html": "c \naa{{ r }} \nd\n\naa\n c \n \n [d\n\n{{ r }}  \nd\n c \n {{ r }} \nd\n\naa\n c \n \n []]\tc \nac \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-213]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-214]": [
+  {
+   "html": "b  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-215]": [
+  {
+   "html": "1\nad\n\n{{ r }}   bP"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-216]": [
+  {
+   "html": "c \nBad\n\n\n\t[] b \n\n c \n{{ r }}\t\t b  ds\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-217]": [
+  {
+   "html": "b a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-218]": [
+  {
+   "html": "s\td\n\nd BS\nc \n \n \n c \n b  BB A  AAAAA1    XAB A  AAAAA1    XA  \t\t\n\taa \n [] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-219]": [
+  {
+   "html": "b \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-21]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-220]": [
+  {
+   "html": "C \n \n [1d\n\n\n\n c \n\tC \n \n [D\n\n B  \n D\n\n\n \n 1]\n\t1 B]d\n\n \n  b {{ r }}a b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-221]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-222]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-223]": [
+  {
+   "html": "d\n\n \n a\n\td\n\n\nc \n\t \n []d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-224]": [
+  {
+   "html": "c \n    \n c \n[] \n c \na \n {{ r }}\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-225]": [
+  {
+   "html": "s"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-226]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-227]": [
+  {
+   "html": "c \n\n c \n {{ r }}\t b\n b1d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-228]": [
+  {
+   "html": "d\n\n bb [b  B \nBB [A  P] d\n\n\n c \nd\n\n{{ r }}\td]d\n\n  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-229]": [
+  {
+   "html": "b  \n {{ r }}\t  \tc \nsd\n\nd\n\nAD\n\nSD\n\n  \n   [d\n\n c \nsd\n\nd\n\n  B {{ R }} B  \n   [c \nac \nsd\n\nd\n\nD\n\nB {{ R }}    {{ R }}  \n    \n   [] b \n\n c \n b  \n 1d]d\n\n\n c \nc \nsd\n\nd\n\nD\n\nB {{ R }}    {{ R }}  \n    \n   [d\n\n{{ r }}c \n b c \nsd\n\nd\n\nD\n\nB {{ R }}    {{ R }}  \n    \n   [Pc \n \n1c \n\n]] \n c\n\t\nD\n\n  {{ R }} Bd]  d\n\n{{ r }}a "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-22]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-230]": [
+  {
+   "html": "a\tA B AXA[C \n\n C \nD]\n C \n \n DB  \n  1 \n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-231]": [
+  {
+   "html": "b \na\n c \n \n c {{ r }}\ta\n c {{ r }}  [c \n1d\n\n\n c \n\n c\n c]a\t1a\tC {{ R }}\tA\n C {{ R }}  []A\nd\n\na sd\n\na b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-232]": [
+  {
+   "html": "b d\n\n\n \n \n c \n b d\n\n[P d\n\n\n[]]\td\n{{ r }}d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-233]": [
+  {
+   "html": "b   {{ r }}\n c \naa1 "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-234]": [
+  {
+   "html": "a1 aaaA  s  c \nd\n\n \t   b sa\n b d\n\n{{ r }} b ad\n\nd\n\n[c \nP b {{ r }} \n   \n c \n{{ r }} \n AA{{ R }}D\n\n] b  c \n{{ r }} \n  \n  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-235]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-236]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-237]": [
+  {
+   "html": "c \n bd\n\nd\n\n b d\n\n bd\n\nd\n\n b d\n\n [c \n b d\n\n b d\n\n b d\n\n b d\n\n [b \n C \n b c \n b \n \n c\n c \n\t d\n\n b d\n\n b \n \n c\n c \n\t d\n\n b d\n\n [d\n\n \n \t b]]\nc \n{{ r }} b c\n{{ r }}\n c \n \n d\n\n{{ r }}\n c\n c \n  \n{{ r }}\n c \n \n d\n\n{{ r }}\n c\n c \n  ] \n cAC \n{{ R }}D\n\nAC \n BD\n\n B D\n\n BD\n\n B D\n\n [1 B] \n    {{ R }} \n SA  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-238]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-239]": [
+  {
+   "html": "d\n\n\tD\n\nDC \nSC \nS B \tDC \nSC \nS B \t  [B  \n P   BP B  AA B {{ R }}  ]\t B\t b \n\n c{{ r }} \n  d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-23]": [
+  {
+   "html": "b a\n b a\n{{ r }}d\n\n[]  d\n\n\n C \nS "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-240]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-241]": [
+  {
+   "html": "sc \n{{ r }}    "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-242]": [
+  {
+   "html": "b \n c \nd\n\nd\n\nd \n da b as\n\n c \n  \n c 1 b \t b    \n da b as\n\n c \n  \n c 1 b \t b    \n \n \n\n cXX[asa1d]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-243]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-244]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-245]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-246]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-247]": [
+  {
+   "html": "c \n1"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-248]": [
+  {
+   "html": "a{{ r }}aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-249]": [
+  {
+   "html": "c \nc \nd\n\nab "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-24]": [
+  {
+   "html": "c \n[]   b"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-250]": [
+  {
+   "html": "c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-251]": [
+  {
+   "html": "b b  b 1  b b  \n  b \n c b \na   \n c \ndc \n b  b \t []  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-252]": [
+  {
+   "html": "d\n\n  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-253]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-254]": [
+  {
+   "html": "a\tac \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-255]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-256]": [
+  {
+   "html": "b d\n\n{{ r }}d b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-257]": [
+  {
+   "html": "c \nd\n\n{{ r }}\n   []\n c \n b c \nd\n\n{{ r }}\n   [a1d\n\n{{ r }}ab\t\nc \nd\n\n{{ r }}\n   [b d\n\na \n P\n\n c \n\t\n C \n\n c]]d\n\na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-258]": [
+  {
+   "html": "a\nc \na\n c\n{{ r }} d\n\n\n c b \t\n{{ r }}\n c \na   b 1c \n b 1c \n b  sb b sb ba\n c\n{{ r }} d\n\n\n c b \t\n{{ r }}\n c \na   b 1c \n b 1c \n b  sb b sb b\n{{ r }}\n c \na   b 1c \n b 1c \n b  sb b sb b\ta b \t[d\n\nc] dd\n\nd\n\nD\n\nS\n C \n\nS D\n\n  B  BS \n dd\n\nc \na\n c\n{{ r }} d\n\n\n c b \t \n \n c \n  bc \n  a\n c\n{{ r }} d\n\n\n c b \t \n \n c \n  bc \n   \ta b \t[] \n  b \n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-259]": [
+  {
+   "html": "a\n   \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-25]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-260]": [
+  {
+   "html": "ad\n\n\n c \n\t \n   Pd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-261]": [
+  {
+   "html": "c \n  aa b s\n c \n  aa b s\n c \nb \n c \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-262]": [
+  {
+   "html": "d  \n \t  a  {{ r }}\n  b\n C \nSD\n\nc \n  \n \t  a  {{ r }}\n  b\n C \nSD\n\nc \n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-263]": [
+  {
+   "html": "d\n\n\tP  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-264]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-265]": [
+  {
+   "html": "d\n\n\na{{ r }}\n c \n\ta1 b []\t\na{{ r }}\n c \n\ta1 b []\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-266]": [
+  {
+   "html": "s   \n a{{ r }} \n c \n[a \n a{{ r }} \n c \n[c \n\t\n C \n \n c \na{{ r }} \n c \n[]\t \n {{ r }} b  b]\n c]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-267]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-268]": [
+  {
+   "html": "1\n \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-269]": [
+  {
+   "html": "b  b \n c \n\n c \nc \n  \t b \ta b  b s\ta b  b s[]d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-26]": [
+  {
+   "html": "sa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-270]": [
+  {
+   "html": "b  b d\n\n b bc \n{{ r }} \n d\n\nd\n\ns  \t \n sa b S\t B B 1B D\n\nD\n\n B D\n c \n[] b d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-271]": [
+  {
+   "html": "a  \n  \n  \n {{ r }}\n c \t  {{ r }} b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-272]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-273]": [
+  {
+   "html": "a\n c \n\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-274]": [
+  {
+   "html": "ba \n   d b   ab  a\t  d\n\nPd\n\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-275]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-276]": [
+  {
+   "html": "as  AAAAA \n  \n [C \n  B A{{ R }}D\n\nB  AAAAB  \n  \n []]  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-277]": [
+  {
+   "html": "[  b a]\n c \nd\n\n   \n  B  \n [   \t B   P   D]\t B    \n  B  \n [   \t B   P   D]\t B b"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-278]": [
+  {
+   "html": "a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-279]": [
+  {
+   "html": "A \n \n C \nA\n C \n\n \n C \nA\n C \n\nC \nAD1Ac \nd\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-27]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-280]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-281]": [
+  {
+   "html": "{{ r }}d\n\n  \n \t\na  [as\n c \nas\n c \n]   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-282]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-283]": [
+  {
+   "html": "1c \nb \n  d\n\n\n c \n\t  [{{ r }}d\n\na   ] \n s b  b \n   b X\n\n c\na1   C \n\nd\n\n\n c \n\t  [a]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-284]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-285]": [
+  {
+   "html": "b  ad\n\n\t\n c \n\n c \nd\n\n[]a\nb a1\t\n c \n\n c \nd\n\n[ad b ad\n\nb  ad\n\n\t\n c \n\n c \nd\n\n[]d\n\n1 \n d\n\n1 \n d]d\n\nd\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-286]": [
+  {
+   "html": "a[[d\n\na \n P]d\n\n\t[] \n  d\n\n[d\n\na \n P]d\n\n\t[] \n  d\n\naad\n\n{{ r }}a\n  d\n\na a\nA[]\t\n C \n{{ R }}D b] \n \n c \n[]"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-287]": [
+  {
+   "html": "c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-288]": [
+  {
+   "html": "d\n\n\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-289]": [
+  {
+   "html": "b a\n c1a b \t  \n c\n C \nAA \t   \t C \n  {{ R }}\nD\n\n \n \n C \n{{ R }}\n C \n  {{ R }}\nD\n\n \n \n C \n{{ R }}\n\n C \n\n[]    c \n{{ r }}\t\n c \n {{ r }}  d\n\nb {{ r }}\nc \na \n aa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-28]": [
+  {
+   "html": "sa\n  d\n\n1a \t[] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-290]": [
+  {
+   "html": "c\t\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-291]": [
+  {
+   "html": "d\n\n\n c \na{{ r }}\t\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-292]": [
+  {
+   "html": "c \n a[d\n\n  b c \n a[c \ns]d\n\n\n c \n] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-293]": [
+  {
+   "html": "c \n1d\n\n 1\td\n\n b   \t \n  \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-294]": [
+  {
+   "html": "a[] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-295]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-296]": [
+  {
+   "html": "a "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-297]": [
+  {
+   "html": "d\n{{ r }} \n \n c \nd\n\nX \n [] b d\n\nb "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-298]": [
+  {
+   "html": "c \nPd\n\n \n s    "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-299]": [
+  {
+   "html": "d\n\nd\n\n b \n dd\n\n{{ r }}d\n\n b d\n\n[c \na] b\n C \n \n  \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-29]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-2]": [
+  {
+   "html": "d  \n{{ r }}cPc \n b sb as\n c \n b \n c \n\t\t{{ r }}d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-30]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-31]": [
+  {
+   "html": "a  11s\n c \n[]\t\nP  b a{{ r }}\tb \t \n  11S\n C \n[ B A    D]D\n\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-32]": [
+  {
+   "html": "c \n\n c \nP\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-33]": [
+  {
+   "html": "c \nd\n\n\n c \nb c \n[\nb c \n[]b \n c \n] \n   b c \n[b c \n[c\n \n a\t   b]d\n\n \n d\n\nPd]  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-34]": [
+  {
+   "html": "AP \n D\n c \nd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-35]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-36]": [
+  {
+   "html": "Pd\n\n{{ r }}\td\n\n\tas\t b    c \n{{ r }}aa\n c \na{{ r }}d\n\n[sb a b    b]\n c   b sd\n\n  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-37]": [
+  {
+   "html": "bb \tb "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-38]": [
+  {
+   "html": "[]d\n\nd\n\n  d\n\n b {{ r }}   \tA \n d\n\n b {{ r }}   \tA \n \n  d\n\n b {{ r }}   \tA \n d\n\n b {{ r }}   \tA \n \naP"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-39]": [
+  {
+   "html": "[]\t "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-3]": [
+  {
+   "html": "bd\n\n{{ r }}db "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-40]": [
+  {
+   "html": "b \n c \n[b]d\n\n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-41]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-42]": [
+  {
+   "html": "{{ r }} \n c \n[]  d "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-43]": [
+  {
+   "html": "b d\n\nD\n\n  \n C \n1D\n\n \n  {{ R }} \n 1D\n\n  BD1D\n\n \n \tD\n\n     \n  B  1C \nB A \n D\n\n\n\n \n\n C \n\n \n [] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-44]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-45]": [
+  {
+   "html": "d\n\nb ad\n\nd\n\nc \n{{ r }}\n cd\n\nb ad\n\nd\n\nc \n{{ r }}\n cd\n\nbAD\n\n \n [ B 1D\n\n B A]  \t\nd\n\n \n [d\n\nab d\n\n \n []d]d\n\n\n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-46]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-47]": [
+  {
+   "html": "b {{ r }}  d\n C \n\tA\t{{ R }}\n CD\n\n \n  S\n C \n\t BAS B D\n\nXC \nD\n\n\n \n \n C1 \n \td\n\nd\n\n1 d\n\ns  b a[]a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-48]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-49]": [
+  {
+   "html": "c{{ r }}a  a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-4]": [
+  {
+   "html": "d\n\n\tB\t\nP bd\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-50]": [
+  {
+   "html": "c \nd\n\n\n c \na \n \n C \n{{ R }}  {{ R }}\nD\n\n[D\n\n{{ R }}\nD\n\n[D\n\n BA \t B]   ]  1\t  d\n\nd\n\n b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-51]": [
+  {
+   "html": "b b {{ r }}\n ca[]\n b  b 1d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-52]": [
+  {
+   "html": "b d\n\n\n c \n{{ r }}\n\t\ts\n c b {{ r }}  d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-53]": [
+  {
+   "html": "c1a  ssa[] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-54]": [
+  {
+   "html": "b  B    B AAB \tC \n  DA  B d\n\n  [\n c \nb  B    B AAB \tC \n  DA  B d\n\n  [] b aa] \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-55]": [
+  {
+   "html": "{{ r }}\n c \n\naa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-56]": [
+  {
+   "html": "D\n\nP  D\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-57]": [
+  {
+   "html": "c \n \n {{ r }}a b  b D\n\nA{{ R }}A\n C \n\tD\n\nD\n\n1\n C \n[]\n\n C \nA{{ R }}A\n C \n\t D\n\nD\n\n1\n C \n[CPD\n\n B D\n\nA{{ R }}A\n C \n\tD\n\nD\n\n1\n C \n[B PAAPA] B]AA \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-58]": [
+  {
+   "html": "A[] \n C \nA \n \n C \n  B  b\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-59]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-5]": [
+  {
+   "html": "{{ r }}  b ad\n\n[b]   b \tA  \n B \n C \nS B  \n B \n C \nS B\t\n c \n \n \t{{ r }}  b ad\n\n[b]   b \tA  \n B \n C \nS B  \n B \n C \nS B\t\n c \n \n d\n\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-60]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-61]": [
+  {
+   "html": "b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-62]": [
+  {
+   "html": "aXB 1\n C \nD\n\n\t1 \n AD\n\nD\n\n  B  \n AA B \t{{ R }}A\t[]  \n c \nXB 1\n C \nD\n\n\t1 \n AD\n\nD\n\n  B  \n AA B \t{{ R }}A\t[]c \n  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-63]": [
+  {
+   "html": "sa d\n\n  [ad\n\n  [sd\n\n  [b c \n b   ]]d] a\t\tD\n\nD\n\n  []\n B Pd\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-64]": [
+  {
+   "html": "b  \t\n c \n\tb XX\n c \n a\n c[ad\n\nP\n c] \n \tXX\n c \n a\n c[P  b] b d\n\n\t\t\t \n AB \t\t{{ R }}A B P b  b\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-65]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-66]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-67]": [
+  {
+   "html": "d\n\n a \n  b \n c \n{{ r }}  \n a B \t \n d\n\n b d\n\n \n  b [d\n\n \n  b [ b ad\n\n \n  b [d\n\na]a1b 1b \n c \na{{ r }}]\t\t{{ r }}a b]daa \n  b \n c \n{{ r }}  \n a B \t \n d\n\n b d\n\n \n  b [ b aa1 \n \n]\nad\n\n\n  DD\n\n \n  B []\n C \n a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-68]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-69]": [
+  {
+   "html": "c \n  \nP b d\n\nd\n\n[c \nd\n\n[]\n c]\n c \naa"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-6]": [
+  {
+   "html": "d\n\nd\n\ns\t[]\n c \nd\n\n\t\t\t\n c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-70]": [
+  {
+   "html": "Pa\n c \n{{ r }}\t\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-71]": [
+  {
+   "html": "a  c \n[ \n \n c \nc \n[d\n\n1b  b] b\n c \n[\n c \nd\n\ns\nd\n\n \n cc \n \n aaPd]d\n\nd\n\n  D\n\nA B d] b c \n[]\n  P\t "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-72]": [
+  {
+   "html": "ab \n c \n\n c \n b  B b  a \n \n  \n  b \n cX \n \n  \n  b \n cX{{ r }}\t [d\n\n\n c]\na \n   1c "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-73]": [
+  {
+   "html": "c \ns  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-74]": [
+  {
+   "html": "{{ r }} \n    b a \n a"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-75]": [
+  {
+   "html": "b \n "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-76]": [
+  {
+   "html": "b [d\n\n\n c] b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-77]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-78]": [
+  {
+   "html": "d\n\n{{ r }}d\n\n \n  \n \tDAA B \n C \nA B \n C \n A B\n C \n\n C \n\t B \n C \n B X B \n C \n B X B\n C  [S\n C \nD\n\nD\n\n \n SB B] a \n \t \n d\n\n{{ r }}d\n\n \n  \n \tDAA B \n C \nA B \n C \n A B\n C \n\n C \n\t B \n C \n B X B \n C \n B X B\n C  [S\n C \nD\n\nD\n\n \n SB B] a \n \t\t \n  b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-79]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-7]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-80]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-81]": [
+  {
+   "html": "{{ r }} b  "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-82]": [
+  {
+   "html": "X \t b  {{ r }}aa\n b a b  {{ r }}aa\n b a\n b  \n [\n\t   ]  \n \n c \na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-83]": [
+  {
+   "html": "b d\n\n \n 1   \n 1  b [d\n\n \n 1   \n 1  b [] b]d\n\n d\n\n \n d\n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-84]": [
+  {
+   "html": "{{ r }}\n c \n c \n\n c \n\n c b  \n \n{{ r }}\n \n  \n A    \nd\n\n[ca\n  \n C1D\n\n\n c \n  c\t\t \n c \n\n c \n\n c b  \n \n{{ r }}\n \n  \n A    \nd\n\n[]d]\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-85]": [
+  {
+   "html": "b b [d\n\n  \ts\n c \n b b []\td\n\n  \ts\n c \n b b []\t\t{{ r }} b  \nS\t\n C  d\n c \n\t{{ r }} b  \nS\t\n C  d\n c \n]   dad\n\nb "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-86]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-87]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-88]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-89]": [
+  {
+   "html": "1"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-8]": [
+  {
+   "html": "a B\n C \n  \t  {{ R }}D\n\nA[\t \n \t\tPA]\t  aa\n\n c \n\t D\n\nA\n c\n c \n \n []d\n\na"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-90]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-91]": [
+  {
+   "html": "sa  \n c \n\t\n c \n  B \t{{ R }}\n Csa  \n c \n\t\n c \n  B \t{{ R }}\n C \td\n\n   "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-92]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-93]": [
+  {
+   "html": "d {{ r }}  b d\n\ns\t b "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-94]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-95]": [
+  {
+   "html": ""
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-96]": [
+  {
+   "html": "d\n\na1  {{ r }}\t"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-97]": [
+  {
+   "html": "[]\n c \n  d\n\n \n c{{ r }}"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-98]": [
+  {
+   "html": "{{ r }}aa\t1 b {{ r }} b\n c \n\n c \n"
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-99]": [
+  {
+   "html": "{{ r }}a \n  \n 1 \n   d\n\naXc \nb d\n\n bXad\n\naXc \nb d\n\n bXaa b   [] "
+  }
+ ],
+ "test_whitespace.py::test_random_templates[plain-9]": [
+  {
+   "html": "bP  \n c \nasd\n\n[] "
+  }
+ ],
+ "test_whitespace.py::test_slots_and_fills[autoescape]": [
+  {
+   "html": "<div>filled head|  kept  |\n  before\n  \n  middle\n  \n  after\n</div>"
+  }
+ ],
+ "test_whitespace.py::test_slots_and_fills[plain]": [
+  {
+   "html": "<div>filled head|  kept  |\n  before\n  \n  middle\n  \n  after\n</div>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-comment is a boundary]": [
+  {
+   "html": "a  x"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-comment markers]": [
+  {
+   "html": "ab  c  d"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-crlf]": [
+  {
+   "html": "<p>\n  x\n</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-elif markers]": [
+  {
+   "html": "[ b  ]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-expr markers]": [
+  {
+   "html": "<p>1</p> [2 ] [ 3]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-filter markers]": [
+  {
+   "html": "[ABC]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-for else markers]": [
+  {
+   "html": "[ empty]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-for markers]": [
+  {
+   "html": "[( 1 )( 2 ) ]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-header markers]": [
+  {
+   "html": "<p>x</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-header then body]": [
+  {
+   "html": "<p>x</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-if markers]": [
+  {
+   "html": "[yes]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-leading whitespace of a component]": [
+  {
+   "html": "<p>x</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-lone cr]": [
+  {
+   "html": "a\nb"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-plus markers do nothing]": [
+  {
+   "html": "[    x    ]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-raw is a boundary]": [
+  {
+   "html": "a  x"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-raw markers]": [
+  {
+   "html": "[{{ x }}]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-set and do]": [
+  {
+   "html": "ab  c"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[autoescape-trailing newline dropped once]": [
+  {
+   "html": "<p>x</p>\n"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-comment is a boundary]": [
+  {
+   "html": "a  x"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-comment markers]": [
+  {
+   "html": "ab  c  d"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-crlf]": [
+  {
+   "html": "<p>\n  x\n</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-elif markers]": [
+  {
+   "html": "[ b  ]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-expr markers]": [
+  {
+   "html": "<p>1</p> [2 ] [ 3]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-filter markers]": [
+  {
+   "html": "[ABC]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-for else markers]": [
+  {
+   "html": "[ empty]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-for markers]": [
+  {
+   "html": "[( 1 )( 2 ) ]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-header markers]": [
+  {
+   "html": "<p>x</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-header then body]": [
+  {
+   "html": "<p>x</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-if markers]": [
+  {
+   "html": "[yes]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-leading whitespace of a component]": [
+  {
+   "html": "<p>x</p>"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-lone cr]": [
+  {
+   "html": "a\nb"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-plus markers do nothing]": [
+  {
+   "html": "[    x    ]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-raw is a boundary]": [
+  {
+   "html": "a  x"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-raw markers]": [
+  {
+   "html": "[{{ x }}]"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-set and do]": [
+  {
+   "html": "ab  c"
+  }
+ ],
+ "test_whitespace.py::test_template_whitespace[plain-trailing newline dropped once]": [
+  {
+   "html": "<p>x</p>\n"
+  }
+ ],
+ "test_whitespace.py::test_whitespace_between_comments_is_content[autoescape]": [
+  {
+   "html": "[ ][][]"
+  }
+ ],
+ "test_whitespace.py::test_whitespace_between_comments_is_content[plain]": [
+  {
+   "html": "[ ][][]"
+  }
+ ]
+}

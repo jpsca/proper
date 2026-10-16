@@ -2,11 +2,11 @@ import logging
 import os
 
 import pytest
-from minijx import CompileError
 
 from proper import App
 from proper.compile import compile_views, compiled_views_path, lower, views_are_compiled
 from proper.helpers import logger
+from proper.views import CompileError
 
 
 def _app(tmp_path, config=None):

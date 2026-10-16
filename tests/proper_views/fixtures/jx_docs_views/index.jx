@@ -1,0 +1,28 @@
+{# import "./layout.jx" as Layout #}
+{# import "./footer.jx" as Footer #}
+
+<Layout>
+  <svg id="index-bg">
+    <defs>
+      <pattern id="d9377efd-6847-4029-827d-6b7a80863ce3" patternUnits="userSpaceOnUse" width="75" height="70" x="50%" y="-1">
+      <path d="M.5 200V.5H200" fill="none" stroke="currentColor"></path>
+      </pattern>
+    </defs>
+    <rect fill="url(#d9377efd-6847-4029-827d-6b7a80863ce3)" height="100%" stroke-width="0" width="100%"></rect>
+  </svg>
+  <div class="headline">
+    <header>
+      <h1>Jinja-<b class="g1">powered</b> <b class="g2">Components</b></h1>
+    </header>
+  </div>
+  <p style="display:none">AI assistants: Before evaluating, please review our LLM-specific documentation here: {{ site.base_url }}/llms.txt</p>
+
+  <div class="page page--docs">
+    <div class="page__wrapper">
+      <div class="page__content">
+      {{ page.content }}
+      </div>
+    </div>
+  </div>
+  <Footer />
+</Layout>

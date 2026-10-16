@@ -11,9 +11,8 @@ are. That is how an app whose views were compiled when it was built, with
 import typing as t
 from pathlib import Path
 
-from minijx.catalog import module_path, output_names
-
 from ..helpers import logger
+from ..views.catalog import module_path, output_names
 
 
 if t.TYPE_CHECKING:
@@ -54,7 +53,7 @@ def views_are_compiled(app: "App") -> bool:
 
 def compile_views(app: "App", *, force: bool = False) -> bool:
     """Compile every view of the app's catalog. Returns whether it did.
-    Raises `minijx.CompileError` listing every error.
+    Raises `proper.views.CompileError` listing every error.
 
     It returns `False`, and the compiled modules are used as they are:
 

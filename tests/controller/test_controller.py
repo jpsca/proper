@@ -2,7 +2,6 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
-from minijx import ComponentNotFoundError
 
 from proper import App
 from proper.controller import RX_FINGERPRINT, Controller, StaticFilesController
@@ -13,6 +12,7 @@ from proper.helpers import DotDict, MultiDict
 from proper.status import not_modified
 from proper.test_client import make_test_request
 from proper.turbo import turbo_stream
+from proper.views import ComponentNotFoundError
 
 
 def _only_allow(*names):

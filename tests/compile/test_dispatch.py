@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-from minijx import Catalog, CompileError, ComponentNotFoundError
 
 import proper.compile.dispatch as lowering
 from proper import App, Controller, Route, TestClient, errors
@@ -20,6 +19,7 @@ from proper.compile.dispatch import (
 )
 from proper.controller.template_resolver import formats_for
 from proper.helpers import logger
+from proper.views import Catalog, CompileError, ComponentNotFoundError
 
 
 @pytest.fixture(autouse=True)

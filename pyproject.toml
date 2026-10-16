@@ -31,7 +31,6 @@ dependencies = [
     "isort ~= 5.0",
     "jinja2 >= 3.0",
     "markupsafe >= 2.0",
-    "minijx >= 0.1.0",
     "passlib ~= 1.7",
     "peewee >= 4.5.1,<5",
     "peewee-migrate >= 2.3,<3",
@@ -83,6 +82,9 @@ exclude = [
     "**/__pycache__",
     "*.pyc",
     "*.pyo",
+    # built for this machine by `make native`; the wheel gets the one its
+    # build compiles (hatch_build.py)
+    "src/proper/_native/minijx",
 ]
 
 # Compiles src/proper/_native/ with Free Pascal (libproper_native.so)
@@ -97,6 +99,7 @@ exclude = [
     "**/__pycache__",
     "*.pyc",
     "*.pyo",
+    "src/proper/_native/minijx",
 ]
 
 [tool.coverage.run]

@@ -1,0 +1,4 @@
+{# css "header.css" #}
+{# js "header.js" #}
+{# def title, count=0 #}
+<h2>{{ title }} ({{ count }})</h2>

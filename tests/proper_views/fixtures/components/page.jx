@@ -1,0 +1,7 @@
+{# import "card.jx" as Card #}
+{# def user #}
+<Card title="Hello" items={{ user.items }} id="main">
+  {% fill footer %}<footer>{{ user.name }}</footer>{% endfill %}
+  <p>Welcome {{ user.name }}</p>
+</Card>
+<Card title={{ "Second " ~ user.name }} show_footer={{ false }} />

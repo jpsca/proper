@@ -3,10 +3,10 @@ import json
 import sys
 import typing as t
 
-from minijx import CompileError
 from proper_cli import Cli
 
 from ..compile import compile_views
+from ..views import CompileError
 
 
 if t.TYPE_CHECKING:

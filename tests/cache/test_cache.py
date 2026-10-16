@@ -4,10 +4,10 @@ from datetime import datetime
 from time import time
 from unittest.mock import MagicMock
 
-import minijx
 import peewee as pw
 import pytest
 
+from proper import views
 from proper.cache import (
     BaseCache,
     NoCache,
@@ -768,7 +768,7 @@ class TestCacheTag:
     """The `{% cache %}` tag: `cache_tag` and a catalog of views using it."""
 
     def _catalog(self, tmp_path, cache):
-        return minijx.Catalog(tmp_path, tags={"cache": cache_tag(cache)})
+        return views.Catalog(tmp_path, tags={"cache": cache_tag(cache)})
 
     def test_cache_miss_renders_and_stores(self):
         cache = SqliteCache(":memory:")
