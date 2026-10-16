@@ -62,6 +62,11 @@ class _NotFoundPageController(Controller):
         self.response.body = "not found page"
 
 
+class _ThingController(Controller):
+    def show(self):
+        raise NotFound("no such thing")
+
+
 class _Retryable(Exception, metaclass=abc.ABCMeta):  # noqa: B024
     """An ABC that `TimeoutError` is a virtual subclass of."""
 
@@ -355,6 +360,20 @@ class TestCustomErrorHandler:
         request.matched_params = {"id": "42"}
         app._custom_error_handler(_ErrorPageController.handle, request, response)
         assert request.matched_params == {}
+
+    def test_handler_of_another_controller_for_a_resource_action(self, app):
+        """A resource route runs on its own controller class; the copy that
+        dispatches to a handler of another controller must not keep it."""
+        app.router.resource("things")(_ThingController)
+        app.router.add_error_handler(NotFound, _NotFoundPageController.handle)
+        route = app.router._routes_by_name["_Thing.show"]
+
+        response = TestClient(app).get("/things/1")
+
+        assert response.status == status.not_found
+        assert response.body == "not found page"
+        assert route.controller is _ThingController
+        assert route.to == _ThingController.show
 
 
 

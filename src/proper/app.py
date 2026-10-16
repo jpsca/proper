@@ -561,9 +561,11 @@ class App(AppWsgi):
     def _custom_error_handler(self, handler, request, response) -> None:
         # `matched_route` is the registered Route object shared by every request,
         # so it must not be mutated: dispatch through a copy that points at the
-        # handler instead.
+        # handler instead. The handler runs on the class that defines it, not
+        # on the controller of a resource route, so the copy forgets that one.
         if request.matched_route:
             request.matched_route = copy.copy(request.matched_route)
+            request.matched_route._controller = None
             request.matched_route.to = handler
         else:
             request.matched_route = Route(method="", path="", to=handler)

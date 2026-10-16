@@ -2,6 +2,19 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- An error raised in an action of a `@router.resource()` controller and
+  handled by an error handler of another controller (`@router.error(NotFound)`
+  on a `PublicController`) was a 500 in production, with a `ConfigError`
+  (`PublicController.not_found` is not the `not_found` action of
+  `ArtworkController`) instead of the handler's page. Since 0.40, a resource
+  route runs on its own class, and the copy of the route that dispatches to
+  the handler kept that class. The handler now runs on the class that
+  defines it, as before 0.40.
+
 ## 0.42.0
 
 ### The views compiler is part of Proper
