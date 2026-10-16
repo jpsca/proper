@@ -7,7 +7,7 @@ from ...errors import (
     UnsupportedMediaType,
 )
 from ...global_context import current
-from ...helpers import DotDict, MultiDict, logger
+from ...helpers import MultiDict, logger
 from .formparser import (
     parse_json,
     parse_multipart_sync,
@@ -109,7 +109,7 @@ class Request(RequestHeadersMixin):
         )
         self.form = MultiDict()
         self.body = b""
-        self._session = DotDict()
+        self._session: dict = {}
         super().__init__()
 
     def __repr__(self) -> str:
@@ -242,12 +242,14 @@ class Request(RequestHeadersMixin):
         return self._app or current.app
 
     @property
-    def session(self) -> DotDict:
+    def session(self) -> dict:
+        """The session the request came with: the data of its session
+        cookie, or empty."""
         return self._session
 
     @session.setter
-    def session(self, value: dict | DotDict) -> None:
-        self._session = value if isinstance(value, DotDict) else DotDict(value)
+    def session(self, value: dict) -> None:
+        self._session = value if type(value) is dict else dict(value)
 
     @property
     def flashes(self) -> list[tuple[str, str]]:

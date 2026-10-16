@@ -635,14 +635,13 @@ Session data is stored in a signed cookie and is available on both the request a
 ```python
 # Read session data (set by a previous request)
 user_id = self.request.session.get("user_id")
-locale = self.request.session.locale    # DotDict supports attribute access
 
 # Write session data (will be sent in the response cookie)
 self.response.session["user_id"] = user.id
-self.response.session.locale = "es"
+self.response.session["cart"].append(item_id)  # changes in place are saved too
 ```
 
-The session is a `DotDict`, so you can use both dict-style and attribute-style access. Read from `self.request.session`, write to `self.response.session`. The framework compares the two at the end of the request and only updates the cookie if the session changed.
+The session is a plain `dict` (no attribute access: `session["key"]` or `session.get("key")`). Read from `self.request.session`, write to `self.response.session`. The framework compares the two at the end of the request and only updates the cookie if the session changed; the response's session starts as a copy of the request's with its own lists and dicts, so changing one in place counts as a change.
 
 
 ## HTTP Method Override

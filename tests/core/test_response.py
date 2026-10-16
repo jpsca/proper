@@ -2,7 +2,7 @@ import io
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from proper import DotDict, Response
+from proper import Response
 from proper import status as pstatus
 from proper.constants import FLASHES_SESSION_KEY
 from proper.core.response.file_wrapper import FileWrapper
@@ -65,18 +65,20 @@ class TestResponse:
 
     def test_session_default(self):
         resp = _make_response()
-        assert isinstance(resp.session, DotDict)
+        assert resp.session == {}
+        assert type(resp.session) is dict
 
     def test_session_setter(self):
         resp = _make_response()
-        resp.session = {"key": "val"}
-        assert isinstance(resp.session, DotDict)
-        assert resp.session["key"] == "val"
+        session = {"key": "val"}
+        resp.session = session
+        assert resp.session is session
 
-    def test_session_setter_from_dotdict(self):
+    def test_session_setter_from_pairs(self):
         resp = _make_response()
-        resp.session = DotDict({"a": 1})
-        assert resp.session["a"] == 1
+        resp.session = [("a", 1)]
+        assert resp.session == {"a": 1}
+        assert type(resp.session) is dict
 
     def test_app_given(self):
         mock_app = MagicMock()
@@ -251,9 +253,12 @@ class TestGetHeaderTuples:
 
 
 class TestFlashMessages:
-    def test_init_creates_key(self):
+    def test_init_writes_nothing(self):
+        """Without messages, the session stays as it was: a response with
+        no session cookie doesn't get one."""
         resp = _make_response()
-        assert FLASHES_SESSION_KEY in resp.session
+        assert len(resp.flash) == 0
+        assert FLASHES_SESSION_KEY not in resp.session
 
     def test_message(self):
         resp = _make_response()

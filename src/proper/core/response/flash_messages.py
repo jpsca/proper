@@ -15,8 +15,6 @@ class FlashMessages:
         # back would make every response, body included, wait for the cycle
         # collector instead of being freed when the request ends.
         self._response = weakref.ref(response)
-        if FLASHES_SESSION_KEY not in self.response.session:
-            self.response.session[FLASHES_SESSION_KEY] = []
 
     @property
     def response(self) -> "Response":

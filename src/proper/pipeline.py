@@ -1,3 +1,4 @@
+import copy
 import ipaddress
 import typing as t
 from urllib.parse import unquote
@@ -15,7 +16,7 @@ from .constants import (
     SESSION_COOKIE_SALT,
 )
 from .controller import Controller
-from .helpers import DotDict, logger
+from .helpers import logger
 
 
 if t.TYPE_CHECKING:
@@ -183,18 +184,33 @@ def copy_session(request: "Request", response: "Response"):
     """
     session = _find_session_by_cookie(request)
     if session is None:
-        # No cookie, or a bad one: the request keeps the empty session it
-        # was born with; the response gets a fresh one, since its flash
-        # messages already wrote to the first. This is most requests.
-        response.session = DotDict()
+        # No cookie, or a bad one: the request and the response keep the
+        # empty sessions they were born with. This is most requests.
         return
     request.session = session
-    response.session = session.copy()
-    if FLASHES_SESSION_KEY in response.session:
-        del response.session[FLASHES_SESSION_KEY]
+    response.session = _copy_session(session)
 
 
-def _find_session_by_cookie(request: "Request") -> DotDict | None:
+# Values that can't change, shared by the two sessions
+_IMMUTABLE = frozenset({str, int, float, bool, bytes, type(None)})
+
+
+def _copy_session(session: dict) -> dict:
+    """The response's session: the request's, without the flashed messages
+    (they are shown once), and with a copy of every value that can change.
+
+    `update_session_cookie` compares the two to know if the session
+    changed. A list or a dict they shared would change in both, and the
+    change wouldn't be saved.
+    """
+    return {
+        key: value if type(value) in _IMMUTABLE else copy.deepcopy(value)
+        for key, value in session.items()
+        if key != FLASHES_SESSION_KEY
+    }
+
+
+def _find_session_by_cookie(request: "Request") -> dict | None:
     if SESSION_COOKIE_NAME not in request.cookies:
         return None
     session = request.get_signed_cookie(
@@ -204,7 +220,7 @@ def _find_session_by_cookie(request: "Request") -> DotDict | None:
     )
     logger.debug(">>> %s", session or "")
     # A session is a JSON object; any other signed value is no session
-    return DotDict(session) if session and isinstance(session, dict) else None
+    return session if session and type(session) is dict else None
 
 
 # STEP 6

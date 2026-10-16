@@ -61,7 +61,7 @@ Sessions are stored in a signed cookie named `_session`. The cookie value is a J
 ### How It Works
 
 1. On each request, the `_session` cookie is read and verified. A missing cookie, a bad or expired signature, or a value that is not a JSON object gives an empty session.
-2. The deserialized data is available as `request.session` (a `DotDict` with dot-notation access).
+2. The deserialized data is available as `request.session` (a plain `dict`).
 3. A copy is placed in `response.session` for the controller to modify.
 4. After the response, if `response.session` differs from `request.session`, a new signed cookie is written.
 5. If `response.session` is empty, the cookie is cleared.
@@ -77,7 +77,7 @@ def create(self):
 
 def show(self):
     user_id = self.request.session.get("user_id")
-    return_to = self.request.session.return_to  # dot notation works too
+    return_to = self.request.session.get("return_to")
 ```
 
 ### Flash Messages
