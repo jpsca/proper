@@ -29,14 +29,24 @@ def enc_name(name: str) -> str:
 
 Header = namedtuple("Header", "name value")
 
+# The dict's own methods, called directly: `super()` costs more than the
+# lookup it makes, and a response sets and reads its headers many times.
+_dict_contains = dict.__contains__
+_dict_getitem = dict.__getitem__
+_dict_setitem = dict.__setitem__
+_dict_delitem = dict.__delitem__
+_dict_get = dict.get
+# `Header(name, value)` without the argument parsing of its `__new__`
+_new_tuple = tuple.__new__
+
 
 class ResponseHeadersDict(dict):
     def __contains__(self, name: str) -> bool:  # type: ignore
-        return super().__contains__(_name_and_key(name)[1])
+        return _dict_contains(self, _name_and_key(name)[1])
 
     def __getitem__(self, name: str) -> t.Any:
         """Returns the header as a namedtuple."""
-        return super().__getitem__(_name_and_key(name)[1])
+        return _dict_getitem(self, _name_and_key(name)[1])
 
     def __setitem__(self, name: str, val: t.Any) -> None:
         """Sets the VALUE of a header. If `val` is None, it deleted the header."""
@@ -45,14 +55,14 @@ class ResponseHeadersDict(dict):
     def _set(self, name: str, coded_val: t.Any) -> None:
         name, key = _name_and_key(name)
         if coded_val is None:
-            if super().__contains__(key):
-                super().__delitem__(key)
+            if _dict_contains(self, key):
+                _dict_delitem(self, key)
         else:
-            super().__setitem__(key, Header(name, coded_val))
+            _dict_setitem(self, key, _new_tuple(Header, (name, coded_val)))
 
     def get(self, name: str, default: t.Any = None) -> t.Any:
         """Returns the VALUE of a header."""
-        header = super().get(_name_and_key(name)[1])
+        header = _dict_get(self, _name_and_key(name)[1])
         if header is None:
             return default
         return header.value
@@ -63,12 +73,15 @@ class ResponseHeadersDict(dict):
         self._set(name, format_header(val, **params))
 
     def setdefault(self, name: str, default: t.Any, **params) -> None:  # type: ignore
-        if name in self:
+        name, key = _name_and_key(name)
+        if _dict_contains(self, key):
             return
-        self.set(name, default, **params)
+        value = format_header(default, **params)
+        if value is not None:
+            _dict_setitem(self, key, _new_tuple(Header, (name, value)))
 
     def __delitem__(self, name: str) -> None:
-        super().__delitem__(_name_and_key(name)[1])
+        _dict_delitem(self, _name_and_key(name)[1])
 
     def update(self, *args, **kwargs):
         for name, value in dict(*args, **kwargs).items():
@@ -635,6 +648,9 @@ def format_int(num: int | str | None) -> int | None:
 def format_header(val: t.Any, **params) -> str | None:
     if val is None:
         return None
+    # What the join below gives for a `str` alone, without building it
+    if not params and type(val) is str:
+        return val
 
     return "; ".join(
         [
