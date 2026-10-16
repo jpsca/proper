@@ -889,7 +889,7 @@ The Python `accept` argument and the HTML `<input type="file" accept="...">` att
 :::
 
 :::note | Soft limit, not the hard ceiling
-`max_size` is a per-field, application-level limit. It runs after the request parser has already accepted the upload, so it's the right place for "covers should be ≤ 5 MB" but not for "stop runaway uploads that would exhaust the server." The framework's hard ceiling is the `MAX_FORM_PART_SIZE` setting in `config/main.py`, which is enforced by the parser before any field even sees the data.
+`max_size` is a per-field, application-level limit. It runs after the request parser has already accepted the upload, so it's the right place for "covers should be ≤ 5 MB" but not for "stop runaway uploads that would exhaust the server." The hard ceiling for uploads is the `MAX_CONTENT_LENGTH` setting in `config/main.py`: a request with a larger body is refused before it is read. (`MAX_FORM_PART_SIZE` limits only the fields that aren't files.)
 :::
 
 Both checks are skipped when the underlying value doesn't carry the relevant attribute. That matters for forms bound to an existing record - the bound `Attachment` is a database row, not a fresh upload, and shouldn't be re-validated against current rules. The user pressing "Submit" without touching the file input lets the existing attachment through unchanged.
