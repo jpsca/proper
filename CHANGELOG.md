@@ -23,6 +23,21 @@ All notable changes to Proper are documented in this file.
 - python-multipart is no longer a dependency. As in its 0.0.32, the
   extended parameters of RFC 2231 (`filename*=`, `charset*=`) are ignored,
   as RFC 7578 says for form data.
+- HTML is turned into plain text by Proper's compiled code, with one set of
+  rules for the text version of an HTML email (`html2text`) and for `str()`
+  of a rich text document: 14 times faster for a document, 7 for an email.
+  What changes:
+  - An image is its `alt` in brackets (`[Logo]`), or nothing without one.
+    Before, an email showed its `src` and a document nothing.
+  - The text of a document shows the address of its links too:
+    `Ver (https://x.com)`.
+  - In a document, `<code>` is between backticks and `<pre>` between lines
+    of three backticks. `<hr>` is a line of 20 dashes in both.
+  - Spaces, tabs and new lines in a row are one space, as a browser shows
+    them, except in `<pre>`.
+  - The `<title>` of an email is no longer in its text.
+  - `proper.rich_text.plain_text` is gone: use
+    `proper.helpers.html2text(html, attachments)`.
 
 ## 0.41.0
 

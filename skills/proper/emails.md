@@ -129,7 +129,7 @@ If `send()` is called and the body is empty, the email auto-discovers templates 
 - `views/emails/welcome.jx` — HTML version (becomes the body with `content_subtype="html"`)
 - `views/emails/welcome.txt.jx` — plain text alternative
 
-If only the HTML template exists, a plain text alternative is auto-generated. If only the text template exists, it becomes the body with `content_subtype="plain"`. All instance attributes are passed to the template as variables.
+If only the HTML template exists, a plain text alternative is auto-generated with `proper.helpers.html2text` (the same rules as `str()` of a rich text document). If only the text template exists, it becomes the body with `content_subtype="plain"`. All instance attributes are passed to the template as variables.
 
 ```python
 class WelcomeEmail(EmailMessage):

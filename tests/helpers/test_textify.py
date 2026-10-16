@@ -38,6 +38,13 @@ class TestBasicConversion:
 class TestBodyExtraction:
     """Test body tag extraction."""
 
+    def test_head_text_is_dropped(self):
+        html = "<html><head><title>Subject</title><style>p {}</style></head><body>Hi</body></html>"
+        assert html2text(html) == "Hi"
+
+    def test_none_is_empty(self):
+        assert html2text(None) == ""  # type: ignore
+
     def test_with_body_tag(self):
         html = "<html><body><p>Content</p></body></html>"
         result = html2text(html)
@@ -256,39 +263,78 @@ class TestLinkHandling:
 
 
 class TestImageHandling:
-    """Test image tag conversion."""
+    """An image is its alt text, in brackets."""
 
-    def test_simple_image(self):
+    def test_image_without_alt(self):
         html = '<img src="photo.jpg">'
         result = html2text(html)
         print(result)
-        assert result == "photo.jpg"
+        assert result == ""
 
     def test_image_with_alt(self):
         html = '<img src="photo.jpg" alt="A photo">'
         result = html2text(html)
         print(result)
-        assert result == "photo.jpg"
+        assert result == "[A photo]"
 
     def test_image_in_paragraph(self):
-        html = '<p>Check out <img src="photo.jpg"> this image</p>'
+        html = '<p>Check out <img src="photo.jpg" alt="this"> image</p>'
         result = html2text(html)
         print(result)
-        assert "photo.jpg" in result
-        assert "this image" in result
+        assert result == "Check out [this] image"
 
-    def test_multiple_images(self):
-        html = '<p><img src="img1.jpg"> and <img src="img2.jpg"></p>'
+    def test_image_with_empty_alt(self):
+        html = '<p>A<img src="spacer.gif" alt="">B</p>'
         result = html2text(html)
         print(result)
-        assert "img1.jpg" in result
-        assert "img2.jpg" in result
+        assert result == "AB"
 
     def test_self_closing_image(self):
-        html = '<img src="photo.jpg"/>'
+        html = '<img src="photo.jpg" alt="A photo"/>'
         result = html2text(html)
         print(result)
-        assert result == "photo.jpg"
+        assert result == "[A photo]"
+
+
+class TestAttachments:
+    """A `<proper-attachment>` is its alt, its caption, or its file name."""
+
+    def test_alt(self):
+        html = '<proper-attachment sgid="abc" alt="Mi gato"></proper-attachment>'
+        assert html2text(html) == "[Mi gato]"
+
+    def test_caption_without_alt(self):
+        html = '<proper-attachment sgid="abc" caption="hello"></proper-attachment>'
+        assert html2text(html) == "[hello]"
+
+    def test_filename(self):
+        html = '<proper-attachment sgid="abc"></proper-attachment>'
+        assert html2text(html, {"abc": "photo.jpg"}) == "[photo.jpg]"
+
+    def test_empty_filename(self):
+        html = '<proper-attachment sgid="abc"></proper-attachment>'
+        assert html2text(html, {"abc": ""}) == "[file]"
+
+    def test_unknown_attachment(self):
+        html = '<proper-attachment sgid="abc"></proper-attachment>'
+        assert html2text(html) == "[file]"
+
+    def test_self_closing(self):
+        html = '<proper-attachment sgid="abc" />'
+        assert html2text(html, {"abc": "a.pdf"}) == "[a.pdf]"
+
+    def test_gallery(self):
+        html = (
+            '<div class="rich-text-gallery">'
+            '<proper-attachment sgid="a" alt="sunset"></proper-attachment>'
+            '<proper-attachment sgid="b" alt="tree"></proper-attachment>'
+            "</div>"
+        )
+        assert html2text(html) == "[sunset][tree]"
+
+    def test_names_that_are_not_ascii(self):
+        html = '<proper-attachment sgid="ñ"></proper-attachment>'
+        assert html2text(html, {"ñ": "año.txt"}) == "[año.txt]"
 
 
 class TestBreakTags:
@@ -373,6 +419,16 @@ class TestCodeTags:
 
 class TestPreTags:
     """Test preformatted text handling."""
+
+    def test_pre_keeps_its_text(self):
+        html = "<p>Before</p><pre>\ndef f():\n    return  1\n</pre><p>After</p>"
+        assert html2text(html) == "Before\n\n```\ndef f():\n    return  1\n```\n\nAfter"
+
+    def test_code_in_pre_has_no_backticks(self):
+        assert html2text("<pre><code>x = 1</code></pre>") == "```\nx = 1\n```"
+
+    def test_crlf_in_pre(self):
+        assert html2text("<pre>a\r\nb\rc</pre>") == "```\na\nb\nc\n```"
 
     def test_pre_tag(self):
         html = "<pre>Code block\nWith newlines</pre>"
@@ -657,7 +713,7 @@ class TestEdgeCases:
         html = "<p  >Text</p><br  /><a  href = 'url' >Link</a>"
         result = html2text(html)
         print(result)
-        assert result == "Text\n\nLink"
+        assert result == "Text\n\nLink (url)"
 
 
 class TestSecurity:

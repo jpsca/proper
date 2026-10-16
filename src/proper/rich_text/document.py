@@ -39,7 +39,7 @@ from html import unescape
 from markupsafe import Markup, escape
 
 from ..global_context import current
-from . import plain_text
+from ..helpers.html2text import html2text
 from .sanitizer import sanitize
 
 
@@ -121,8 +121,12 @@ class RichTextDocument:
         return sanitize(self._html, config)
 
     def __str__(self) -> str:
-        resolved = self._resolve_attachments()
-        return plain_text.to_plain_text(self._html, attachments=resolved)
+        filenames = {
+            sgid: att.filename
+            for sgid, att in self._resolve_attachments().items()
+            if getattr(att, "filename", "")
+        }
+        return html2text(self._html, filenames)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, RichTextDocument):

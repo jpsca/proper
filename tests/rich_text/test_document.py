@@ -37,6 +37,14 @@ def test_str_returns_plain_text():
     assert str(doc) == "Hola"
 
 
+def test_str_names_the_attachments(Attachment):
+    att = Attachment(_make_file(b"x", "notas.txt"))
+    att.save()
+    html = "<p>Ver</p>" + _attachment_tag(str(att.id)) + _attachment_tag("missing")
+    doc = RichTextDocument(html, attachment_cls=Attachment)
+    assert str(doc) == "Ver\n\n[notas.txt][file]"
+
+
 def test_repr_includes_html():
     doc = RichTextDocument("<p>x</p>")
     assert "RichTextDocument" in repr(doc)

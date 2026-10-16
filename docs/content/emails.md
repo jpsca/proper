@@ -300,7 +300,7 @@ yes          | no           | multipart/alternative; the text part is auto-gener
 no           | yes          | plain text only
 no           | no           | body comes from the constructor or class default
 
-The auto-generated text fallback runs the HTML body through a small HTML-to-text converter. It's serviceable for simple transactional mail; for newsletters and rich HTML, write the text template yourself - it almost always reads better.
+The auto-generated text fallback runs the HTML body through `proper.helpers.html2text`: blocks become paragraphs, list items start with `- `, links are followed by their address in parentheses, and images become their alt text in brackets. It's serviceable for simple transactional mail; for newsletters and rich HTML, write the text template yourself - it almost always reads better.
 
 If your class doesn't follow the `_email` suffix convention (say, `emails/welcome.py` instead of `emails/welcome_email.py`), the lookup just uses the module name unchanged. The suffix rule is a strip, not a requirement.
 

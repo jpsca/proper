@@ -37,7 +37,7 @@ library proper_native;
 {$R-}{$Q-}{$PointerMath On}
 
 uses
-  cthreads, dynlibs, proper_sha256, proper_forms;
+  cthreads, dynlibs, proper_sha256, proper_forms, proper_text;
 
 const
   VERSION = '0.1.0';
@@ -532,6 +532,17 @@ begin
     MaxFiles, MaxFieldSize, Recs, MaxRecs);
 end;
 
+{ ------------------------------------------------------------ html text }
+
+{ The text of an HTML (proper_text.Html2Text). }
+function proper_html2text(Html: PByte; Len: PtrUInt; Names: PByte; NameRecs: PInt64;
+  NameCount: PtrInt; Out_: PByte; Cap: PtrUInt; Scratch: PByte; ScratchCap: PtrUInt;
+  Links: PInt64; LinksCap: PtrInt): Int64; cdecl;
+begin
+  Result := Html2Text(Html, Len, Names, NameRecs, NameCount, Out_, Cap, Scratch, ScratchCap,
+    Links, LinksCap);
+end;
+
 exports
   proper_native_version,
   proper_hmac_key_size,
@@ -548,7 +559,8 @@ exports
   proper_unsign,
   proper_parse_form,
   proper_parse_params,
-  proper_parse_multipart;
+  proper_parse_multipart,
+  proper_html2text;
 
 initialization
   LibZ := LoadLibrary('libz.so.1');
