@@ -317,7 +317,7 @@ def test_compiler_args_are_the_folders_in_order(tmp_path):
     catalog = Catalog(b)
     catalog.add_folder(a)
     assert catalog.compiler_args() == [
-        "--autoescape=html,jx,xml", "--tags=", str(b.resolve()), str(a.resolve()),
+        "--autoescape=html,jx,xml", "--tags=", "--pure=", str(b.resolve()), str(a.resolve()),
     ]
 
 

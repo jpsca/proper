@@ -36,5 +36,8 @@ def setup(app):
         output=app.root_path.parent / app.config.COMPILED_PATH,
         filters=TEMPLATE_FILTERS,
         tags={**TURBO_TAGS, **(app.config.get("TEMPLATE_TAGS") or {})},
+        # The same route and arguments give the same URL while the app
+        # runs: the views compute each one once
+        pure=("url_for",),
         **TEMPLATE_GLOBALS,
     )

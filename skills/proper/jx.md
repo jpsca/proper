@@ -784,6 +784,8 @@ Catalog(
     autoescape=True,        # Extensions escaped: True = ("html", "jx", "xml"); False = none
     tags=None,              # Block tags {name: callable}
     output=None,            # Folder for the compiled modules (default: next to each .jx)
+    pure=(),                # Globals with the same result for the same arguments (Proper: url_for):
+                            # a call is made once per arguments (str, int, None) and remembered
     **globals               # Global template variables (catalog.globals)
 )
 ```

@@ -56,6 +56,12 @@ instead of `session.key = value`. A request costs 2–3 µs less.
 - `url_for` is three times faster (about 0.7 µs instead of 2.1): each route
   prepares its path once, and a value is encoded or checked for dot
   segments only when it needs it. The URLs are the same.
+- Views render about twice as fast. A `url_for` in a view is computed once
+  for each route and arguments (str, int or None; with an object, each
+  time) and remembered, since it gives the same URL while the app runs. A
+  component of one piece returns it without building a list, and the
+  whitespace at the start of a component is stripped when the views are
+  compiled instead of on every render.
 - The view of an action is found without parsing the `Accept` header on
   every request: its formats are remembered per header (up to 256 headers).
   A page with an inferred view is about 5 µs faster.

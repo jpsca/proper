@@ -149,6 +149,8 @@ type
     function FilterCall(const Name, Subject, Args: string): string;
     function IsRuntimeObject(E: TExpr): Boolean;
     function IsGlobal(E: TExpr): Boolean;
+    function IsPureCall(E: TExpr): Boolean;
+    function GenPureCall(E: TExpr): string;
   public
     UsesLoop: Boolean;
     (* the expression calls a filter / a test looked up by name *)
@@ -157,6 +159,10 @@ type
     (* set by the caller: the component is compiled with autoescape, so
        `a ~ b` keeps markup, as Jinja's `markup_join` *)
     Autoescape: Boolean;
+    (* set by the caller: the globals whose calls are cached (nil: none),
+       and the module's counter, which numbers their call sites *)
+    Pure: TStringList;
+    Counter: PInteger;
     constructor Create(const AFile, AFileSrc, ASrc: string; ABase: Integer;
       AScope: TScope);
     destructor Destroy; override;
@@ -986,6 +992,52 @@ begin
     Result := FScope.PyName(E.Value);
 end;
 
+(* A call of a pure global (`--pure`), without `*args` or `**kwargs` *)
+function TExprTranslator.IsPureCall(E: TExpr): Boolean;
+var
+  i: Integer;
+begin
+  Result := (Pure <> nil) and (Counter <> nil) and IsGlobal(E.Items[0])
+    and (Pure.IndexOf(E.Items[0].Value) >= 0);
+  if Result then
+    for i := 0 to High(E.Args) do
+      if E.Args[i].Kind in [akStar, akDoubleStar] then
+        Exit(False);
+end;
+
+(* A call of a pure global, made once and remembered in the module's `_P`:
+   with constant arguments, under the number of its call site, checked
+   inline; else by `_pure`, under the call site and the values of its
+   arguments, each evaluated once, as in the call itself. *)
+function TExprTranslator.GenPureCall(E: TExpr): string;
+var
+  i: Integer;
+  Site, Names, Values: string;
+  Constant: Boolean;
+begin
+  Inc(Counter^);
+  Site := IntToStr(Counter^);
+  Constant := True;
+  for i := 0 to High(E.Args) do
+    if not (E.Args[i].Value.Kind in [ekConst, ekStr]) then
+      Constant := False;
+  if Constant then
+    Exit('(_P[' + Site + '] if ' + Site + ' in _P else _pset(_P, ' + Site + ', ' +
+      Gen(E.Items[0]) + '(' + GenArgs(E) + ')))');
+  Names := '';
+  Values := '';
+  for i := 0 to High(E.Args) do
+    if E.Args[i].Kind = akPositional then
+      Values := Values + ', ' + Gen(E.Args[i].Value);
+  for i := 0 to High(E.Args) do
+    if E.Args[i].Kind = akKeyword then
+    begin
+      Names := Names + PyStr(E.Args[i].Name) + ', ';
+      Values := Values + ', ' + Gen(E.Args[i].Value);
+    end;
+  Result := '_pure(_P, ' + Site + ', ' + Gen(E.Items[0]) + ', (' + Names + ')' + Values + ')';
+end;
+
 (* The arguments of a call as Python. Keyword arguments named like a Python
    keyword (`class=`) travel in a `**{...}`. *)
 function TExprTranslator.GenArgs(E: TExpr): string;
@@ -1173,7 +1225,11 @@ begin
         end;
         Result := Result + ']';
       end;
-    ekCall: Result := Gen(E.Items[0]) + '(' + GenArgs(E) + ')';
+    ekCall:
+      if IsPureCall(E) then
+        Result := GenPureCall(E)
+      else
+        Result := Gen(E.Items[0]) + '(' + GenArgs(E) + ')';
     ekFilter:
       begin
         if (E.Value = 'default') or (E.Value = 'd') then
