@@ -5,8 +5,10 @@ import datetime
 import hashlib
 import logging
 import os
+import random
 import time
 import zlib
+from concurrent.futures import ThreadPoolExecutor
 
 import itsdangerous
 import pytest
@@ -179,6 +181,16 @@ def test_new_secret_keys_forget_the_derived_ones():
     assert app.loads(token, salt="s") is None
 
 
+@pytest.mark.parametrize("length", [48, 64, 65, 200])  # 48 is the least an app takes
+def test_secret_keys_of_any_length(length):
+    """HMAC hashes a key longer than its 64-byte block first (RFC 2104)."""
+    key = "k" * length
+    serializer, _ = reference(key, "s")
+    token = make_app(key).dumps({"id": 1}, salt="s")
+    assert token == serializer.dumps({"id": 1}, salt="s")
+    assert make_app(key).loads(serializer.dumps({"id": 2}, salt="s"), salt="s") == {"id": 2}
+
+
 def test_secret_keys_as_bytes():
     app = make_app(KEY_NEW.encode())
     assert app.dumps(1, salt="s") == make_app(KEY_NEW).dumps(1, salt="s")
@@ -189,3 +201,53 @@ def test_bad_signature_keeps_its_message_and_payload():
     assert isinstance(error, ConfigError)
     assert (error.message, error.payload) == ("tampered", b"data")
     assert BadSignature().message == "Bad signature"
+
+
+def varied_values(count, seed=7):
+    """Values of every size from a few bytes, random and repetitive: around
+    the length where compressing starts to pay, either way."""
+    rnd = random.Random(seed)
+    for i in range(count):
+        n = rnd.randrange(0, 400)
+        if i % 3 == 0:
+            yield {"v": rnd.randbytes(n).hex()}
+        elif i % 3 == 1:
+            yield {"v": "ab" * n}
+        else:
+            yield {"v": "".join(rnd.choice("abcdef ") for _ in range(n)), "i": i}
+
+
+@pytest.mark.parametrize("timed", [True, False])
+def test_compressed_or_not_as_itsdangerous(timed):
+    app = make_app(KEY_NEW)
+    serializer, _ = reference(KEY_NEW, "s", timed=timed)
+    compressed = 0
+    for value in varied_values(600):
+        token = app.dumps(value, salt="s", timed=timed)
+        assert token == serializer.dumps(value, salt="s"), value
+        compressed += token.startswith(".")
+    assert 0 < compressed < 600  # both kinds were made
+
+
+def test_threads_sign_at_once():
+    app = make_app(KEY_NEW)
+    serializer, _ = reference(KEY_NEW, "s", timed=False)
+    values = list(varied_values(400, seed=11))
+
+    def run(start):
+        return [
+            app.dumps(v, salt="s", timed=False) == serializer.dumps(v, salt="s")
+            for v in values[start:] + values[:start]
+        ]
+
+    with ThreadPoolExecutor(8) as pool:
+        results = list(pool.map(run, range(0, 400, 50)))
+    assert all(all(r) for r in results)
+
+
+def test_a_large_token_read_on_a_thread_with_small_buffers():
+    app = make_app(KEY_NEW)
+    value = {"x": os.urandom(_native.BUFFER_SIZE).hex()}
+    token = app.dumps(value, salt="s")  # this thread's buffers grow to sign it
+    with ThreadPoolExecutor(1) as pool:  # a new thread starts with small ones
+        assert pool.submit(app.loads, token, salt="s").result() == value

@@ -1,9 +1,6 @@
-import base64
 import copy
 import datetime
 import functools
-import hashlib
-import hmac
 import logging
 import os
 import sys
@@ -11,7 +8,6 @@ import threading
 import time
 import types
 import typing as t
-import zlib
 from importlib import import_module
 from pathlib import Path
 
@@ -248,17 +244,13 @@ class App(AppWsgi):
         The tokens are those of itsdangerous' `URLSafeTimedSerializer` (and
         `URLSafeSerializer`, untimed) with HMAC-SHA256 key derivation: the
         JSON, compressed with zlib when that makes it shorter, in URL-safe
-        base64, then the timestamp and the signature, which the native code
-        makes (`proper._native`).
+        base64, then the timestamp and the signature. Python makes the JSON;
+        the native code (`proper._native`), the rest.
         """
         json = jsonplus.dumps(obj).encode()
-        compressed = zlib.compress(json)
-        if len(compressed) < len(json) - 1:
-            payload = b"." + _base64(compressed)
-        else:
-            payload = _base64(json)
-        signed = self._signing(salt).sign(payload, int(time.time()) if timed else None)
-        return signed.decode()
+        return self._signing(salt).sign_json(
+            json, int(time.time()) if timed else None
+        ).decode()
 
     def loads(
         self,
@@ -309,18 +301,14 @@ class App(AppWsgi):
         return obj
 
     def _signing(self, salt: str | None) -> "_native.Signing":
-        """The keys of `salt` (the app's namespace when `None`): one per
-        secret key, oldest first, each the HMAC-SHA256 of the salt keyed with
-        the secret key, as itsdangerous derives them. Made once per salt."""
+        """The signing of `salt` (the app's namespace when `None`), with
+        every secret key: made once per salt."""
         signing = self._signings.get(salt)
         if signing is None:
-            salted = (self._namespace if salt is None else salt).encode()
-            signing = self._signings[salt] = _native.Signing([
-                hmac.new(
-                    key.encode() if isinstance(key, str) else key, salted, hashlib.sha256
-                ).digest()
-                for key in self.config.SECRET_KEYS
-            ])
+            signing = self._signings[salt] = _native.Signing(
+                [key.encode() if isinstance(key, str) else key for key in self.config.SECRET_KEYS],
+                (self._namespace if salt is None else salt).encode(),
+            )
         return signing
 
     def on_error(self, func: THandler) -> THandler:
@@ -598,7 +586,3 @@ class App(AppWsgi):
     def _dbs_rollback(self) -> None:
         self._dbs_op("rollback")
 
-
-def _base64(data: bytes) -> bytes:
-    """URL-safe base64 without the `=` padding, as in the tokens."""
-    return base64.urlsafe_b64encode(data).rstrip(b"=")

@@ -8,8 +8,12 @@ const char *proper_native_version(void);
 
 /* The size of a prepared HMAC-SHA256 key. */
 size_t proper_hmac_key_size(void);
-/* Prepares a key of at most 64 bytes into out: 0 ok, -1 a longer key. */
-int proper_hmac_key(const unsigned char *key, size_t len, void *out);
+/* Prepares an HMAC-SHA256 key of any length into out. */
+void proper_hmac_key(const unsigned char *key, size_t len, void *out);
+/* Prepares into out the signing key of a secret key and a salt: the
+   HMAC-SHA256 of the salt keyed with the secret. */
+void proper_derive_key(const char *secret, size_t secret_len, const char *salt,
+                       size_t salt_len, void *out);
 void proper_hmac_sha256(const void *key, const char *msg, size_t len, unsigned char *digest);
 
 /* For the tests: SHA-256 of a message; the kernel (0 scalar, 1 AVX2,
@@ -20,8 +24,12 @@ int proper_sha256_use(int kernel);
 
 /* Signed tokens: a length, or -1 bad signature, -2 expired, -3 malformed,
    -4 a buffer too small. */
-long long proper_sign(const void *key, const char *payload, size_t len, long long timestamp,
-                      char *out, size_t cap);
+size_t proper_deflate_size(void);
+int proper_deflate_init(void *stream);
+void proper_deflate_end(void *stream);
+long long proper_sign_json(const void *key, void *stream, const char *json, size_t len,
+                           long long timestamp, char *out, size_t cap,
+                           char *scratch, size_t scratch_cap);
 long long proper_unsign(const void *keys, int count, int timed, const char *token, size_t len,
                         long long now, long long max_age, char *out, size_t cap,
                         char *scratch, size_t scratch_cap, long long *timestamp);
