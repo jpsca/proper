@@ -1,8 +1,8 @@
 { proper_native - Proper's native code, loaded by proper/_native with cffi
   (proper_native.h declares it).
 
-  Signed tokens. proper_sign signs a payload and proper_unsign checks a
-  token and gives its payload back, in the format of itsdangerous (its
+  Signed tokens. proper_sign_json signs a JSON text and proper_unsign
+  checks a token and gives its JSON back, in the format of itsdangerous (its
   URLSafeTimedSerializer and URLSafeSerializer with HMAC key derivation and
   SHA-256), so tokens and session cookies made before keep working:
 
@@ -11,18 +11,22 @@
 
   payload is base64url (no padding) of the JSON, or "." + base64url of its
   zlib compression; the timestamp is the signing time in Unix seconds,
-  big-endian, leading zero bytes dropped. Python makes the payload (JSON
-  and zlib, as itsdangerous does) and decodes the JSON that proper_unsign
-  writes; this library does the timestamp, the HMAC, the base64 and the
-  zlib decompression. The HMAC keys are derived by Python (HMAC-SHA256 of
-  the salt with the secret key) and prepared here once (proper_hmac_key).
+  big-endian, leading zero bytes dropped. Python makes the JSON and decodes
+  the JSON that proper_unsign writes; this library does the zlib (keeping
+  the compressed form when it is at least 2 bytes shorter, as itsdangerous
+  does), the base64, the timestamp and the HMAC. The signing keys are
+  derived here too (HMAC-SHA256 of the salt keyed with the secret key), once
+  per secret key and salt (proper_derive_key).
 
   SHA-256 is the block compression of HashLib4Pascal's kernels
   (sha256/proper_sha256.pas: SHA-NI or AVX2 on x86-64, the crypto
   extensions on ARM64, else scalar code, chosen once when the library
   loads). HMAC (RFC 2104) is computed from the two hash states after the
   first block of key xor ipad and key xor opad. zlib is the system's
-  libz.so.1, loaded when the library loads.
+  libz.so.1, loaded when the library loads. Making a deflate stream costs
+  far more than compressing a cookie (it allocates and clears some 270 KB),
+  so each Python thread keeps one (proper_deflate_init) that
+  proper_sign_json resets; its memory is libz's, from malloc.
 
   Threading. Python calls these functions from its own threads, which Free
   Pascal did not create: they use no managed strings, no exceptions and no
@@ -39,7 +43,7 @@ const
   VERSION = '0.1.0';
   { 9999-12-31 23:59:59 UTC, the last second a `datetime` holds }
   LAST_TIMESTAMP = 253402300799;
-  { what proper_unsign and proper_sign return instead of a length }
+  { what proper_unsign and proper_sign_json return instead of a length }
   BAD_SIGNATURE = -1;   { no signature, or none of the keys made it }
   EXPIRED = -2;         { older than max_age, or signed in the future }
   MALFORMED = -3;       { a good signature over a bad timestamp or payload }
@@ -57,6 +61,27 @@ type
   { zlib's uncompress(dest, destLen, source, sourceLen) }
   TUncompress = function(Dest: PByte; DestLen: PPtrUInt; Source: PByte;
     SourceLen: PtrUInt): LongInt; cdecl;
+  { zlib's z_stream, on a 64-bit Linux (uInt is 32 bits, uLong 64) }
+  TZStream = record
+    NextIn: PByte;
+    AvailIn: UInt32;
+    TotalIn: PtrUInt;
+    NextOut: PByte;
+    AvailOut: UInt32;
+    TotalOut: PtrUInt;
+    Msg: PChar;
+    State: Pointer;
+    ZAlloc, ZFree, Opaque: Pointer;
+    DataType: LongInt;
+    Adler: PtrUInt;
+    Reserved: PtrUInt;
+  end;
+  PZStream = ^TZStream;
+  TDeflateInit = function(Strm: PZStream; Level: LongInt; Version: PChar;
+    StreamSize: LongInt): LongInt; cdecl;
+  TDeflateOp = function(Strm: PZStream): LongInt; cdecl;
+  TDeflate = function(Strm: PZStream; Flush: LongInt): LongInt; cdecl;
+  TZlibVersion = function: PChar; cdecl;
 
 const
   SHA256_IV: TSha256State = (
@@ -66,6 +91,11 @@ const
 var
   LibZ: TLibHandle = NilHandle;
   Uncompress: TUncompress = nil;
+  DeflateInit: TDeflateInit = nil;
+  DeflateReset: TDeflateOp = nil;
+  DeflateEnd: TDeflateOp = nil;
+  Deflate: TDeflate = nil;
+  ZlibVersion: TZlibVersion = nil;
 
 { ------------------------------------------------------------- SHA-256 }
 
@@ -228,25 +258,49 @@ begin
   Result := SizeOf(THmacKey);
 end;
 
-{ Prepares an HMAC-SHA256 key of at most 64 bytes into Out
-  (proper_hmac_key_size bytes). 0 ok, -1 a longer key. }
-function proper_hmac_key(Key: PByte; Len: PtrUInt; Out_: PHmacKey): LongInt; cdecl;
-var IPad, OPad: array[0..63] of Byte; I: Integer;
+{ Prepares an HMAC-SHA256 key into K: a key longer than the 64-byte block
+  is hashed first (RFC 2104), as Python's hmac does. }
+procedure HmacPrepare(Key: PByte; Len: PtrUInt; out K: THmacKey);
+var IPad, OPad: array[0..63] of Byte; St: TSha256State; D: TSha256Digest; I: Integer;
 begin
-  if Len > 64 then Exit(-1);
   FillChar(IPad, SizeOf(IPad), 0);
-  if Len > 0 then Move(Key^, IPad[0], Len);
+  if Len > 64 then
+  begin
+    St := SHA256_IV;
+    Sha256Finish(St, 0, Key, Len, D);
+    Move(D[0], IPad[0], 32);
+  end
+  else if Len > 0 then
+    Move(Key^, IPad[0], Len);
   OPad := IPad;
   for I := 0 to 63 do
   begin
     IPad[I] := IPad[I] xor $36;
     OPad[I] := OPad[I] xor $5C;
   end;
-  Out_^.Inner := SHA256_IV;
-  SHA256_Compress(@Out_^.Inner[0], @IPad[0], 1);
-  Out_^.Outer := SHA256_IV;
-  SHA256_Compress(@Out_^.Outer[0], @OPad[0], 1);
-  Result := 0;
+  K.Inner := SHA256_IV;
+  SHA256_Compress(@K.Inner[0], @IPad[0], 1);
+  K.Outer := SHA256_IV;
+  SHA256_Compress(@K.Outer[0], @OPad[0], 1);
+end;
+
+{ Prepares an HMAC-SHA256 key of any length into Out (proper_hmac_key_size
+  bytes). }
+procedure proper_hmac_key(Key: PByte; Len: PtrUInt; Out_: PHmacKey); cdecl;
+begin
+  HmacPrepare(Key, Len, Out_^);
+end;
+
+{ The signing key of a secret key and a salt, prepared into Out: the
+  HMAC-SHA256 of the salt keyed with the secret, as itsdangerous derives it
+  (key_derivation "hmac"). }
+procedure proper_derive_key(Secret: PByte; SecretLen: PtrUInt; Salt: PByte; SaltLen: PtrUInt;
+  Out_: PHmacKey); cdecl;
+var K: THmacKey; D: TSha256Digest;
+begin
+  HmacPrepare(Secret, SecretLen, K);
+  HmacSign(K, Salt, SaltLen, D);
+  HmacPrepare(@D[0], 32, Out_^);
 end;
 
 { SHA-256 of a whole message, and the kernel: for the tests, which check
@@ -371,16 +425,12 @@ begin
   Result := DecodePayload(Token, PtrUInt(TsAt), Out_, Cap, Scratch, ScratchCap);
 end;
 
-{ Signs a payload with a prepared key into Out (Cap bytes, at least
-  Len + 58): the token's length, or TOO_SMALL. Timestamp < 0: an untimed
-  token. }
-function proper_sign(Key: PHmacKey; Payload: PByte; Len: PtrUInt; Timestamp: Int64;
-  Out_: PByte; Cap: PtrUInt): Int64; cdecl;
-var N, I: PtrUInt; TsBytes: array[0..7] of Byte; T: QWord; D: TSha256Digest;
+{ Appends to the payload at Out[0..N) the timestamp (none when it is < 0)
+  and the signature; returns the token's length. Out has room for 58 more
+  bytes. }
+function SignInPlace(const Key: THmacKey; Out_: PByte; N: PtrUInt; Timestamp: Int64): PtrUInt;
+var I: PtrUInt; TsBytes: array[0..7] of Byte; T: QWord; D: TSha256Digest;
 begin
-  if Cap < Len + 58 then Exit(TOO_SMALL);
-  if Len > 0 then Move(Payload^, Out_^, Len);
-  N := Len;
   if Timestamp >= 0 then
   begin
     { big-endian, leading zero bytes dropped (0 gives none) }
@@ -396,27 +446,89 @@ begin
     Inc(N);
     Inc(N, Base64Encode(@TsBytes[8 - I], I, @Out_[N]));
   end;
-  HmacSign(Key^, Out_, N, D);
+  HmacSign(Key, Out_, N, D);
   Out_[N] := Ord('.');
   Inc(N);
   Inc(N, Base64Encode(@D[0], 32, @Out_[N]));
   Result := N;
 end;
 
+{ The size of a z_stream, for the caller to allocate one per thread. }
+function proper_deflate_size: PtrUInt; cdecl;
+begin
+  Result := SizeOf(TZStream);
+end;
+
+{ Makes a deflate stream in Strm (zeroed, proper_deflate_size bytes), at
+  zlib's default level, as Python's zlib.compress: 0 ok, -1 without libz,
+  else zlib's error. }
+function proper_deflate_init(Strm: PZStream): LongInt; cdecl;
+begin
+  if not Assigned(DeflateInit) then Exit(-1);
+  Result := DeflateInit(Strm, -1, ZlibVersion(), SizeOf(TZStream));
+end;
+
+procedure proper_deflate_end(Strm: PZStream); cdecl;
+begin
+  if Assigned(DeflateEnd) then DeflateEnd(Strm);
+end;
+
+{ The token of a JSON text, signed with a prepared key, into Out (Cap
+  bytes): the JSON compressed with Strm (a stream of proper_deflate_init;
+  the compressed bytes go to Scratch first) when that is at least 2 bytes
+  shorter, in base64url, then the timestamp (none when it is < 0) and the
+  signature. Returns its length, or TOO_SMALL (call again with larger
+  buffers). }
+function proper_sign_json(Key: PHmacKey; Strm: PZStream; Json: PByte; Len: PtrUInt;
+  Timestamp: Int64; Out_: PByte; Cap: PtrUInt; Scratch: PByte; ScratchCap: PtrUInt): Int64; cdecl;
+var N, ZLen: PtrUInt;
+begin
+  { the base64 of the JSON, a "." before a compressed one, the rest }
+  if (Cap < (Len + 2) div 3 * 4 + 1 + 58) or (Len > High(UInt32))
+    or (ScratchCap > High(UInt32)) then Exit(TOO_SMALL);
+  if DeflateReset(Strm) <> 0 then Exit(TOO_SMALL);
+  Strm^.NextIn := Json;
+  Strm^.AvailIn := Len;
+  Strm^.NextOut := Scratch;
+  Strm^.AvailOut := ScratchCap;
+  { Z_FINISH; anything but Z_STREAM_END is a Scratch too small }
+  if Deflate(Strm, 4) <> 1 then Exit(TOO_SMALL);
+  ZLen := Strm^.TotalOut;
+  if ZLen + 1 < Len then  { as itsdangerous: 2 bytes shorter at least }
+  begin
+    Out_[0] := Ord('.');
+    N := 1 + Base64Encode(Scratch, ZLen, @Out_[1]);
+  end
+  else
+    N := Base64Encode(Json, Len, Out_);
+  Result := SignInPlace(Key^, Out_, N, Timestamp);
+end;
+
 exports
   proper_native_version,
   proper_hmac_key_size,
   proper_hmac_key,
+  proper_derive_key,
   proper_hmac_sha256,
   proper_sha256,
   proper_sha256_kernel,
   proper_sha256_use,
-  proper_sign,
+  proper_deflate_size,
+  proper_deflate_init,
+  proper_deflate_end,
+  proper_sign_json,
   proper_unsign;
 
 initialization
   LibZ := LoadLibrary('libz.so.1');
   if LibZ <> NilHandle then
+  begin
     Uncompress := TUncompress(GetProcedureAddress(LibZ, 'uncompress'));
+    DeflateInit := TDeflateInit(GetProcedureAddress(LibZ, 'deflateInit_'));
+    DeflateReset := TDeflateOp(GetProcedureAddress(LibZ, 'deflateReset'));
+    DeflateEnd := TDeflateOp(GetProcedureAddress(LibZ, 'deflateEnd'));
+    Deflate := TDeflate(GetProcedureAddress(LibZ, 'deflate'));
+    ZlibVersion := TZlibVersion(GetProcedureAddress(LibZ, 'zlibVersion'));
+  end;
 
 end.

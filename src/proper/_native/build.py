@@ -26,7 +26,7 @@ def build(out: Path = HERE / "libproper_native.so", fpc: str | None = None) -> P
     if not fpc:
         raise RuntimeError("building Proper's native code needs Free Pascal (fpc)")
     with tempfile.TemporaryDirectory() as units:
-        subprocess.run(
+        result = subprocess.run(
             [
                 fpc,
                 "-Mobjfpc",
@@ -39,9 +39,11 @@ def build(out: Path = HERE / "libproper_native.so", fpc: str | None = None) -> P
                 f"-o{out}",
                 str(HERE / "proper_native.pas"),
             ],
-            check=True,
-            stdout=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
         )
+    if result.returncode != 0:
+        raise RuntimeError(f"fpc could not compile Proper's native code:\n{result.stdout}")
     return out
 
 

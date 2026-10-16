@@ -11,7 +11,8 @@ All notable changes to Proper are documented in this file.
   made and checked by Proper's own compiled code instead of itsdangerous.
   The tokens are the same: cookies and links made before keep working.
   A request with a session cookie costs about 30% less, and a bad cookie
-  is refused six times faster.
+  is refused six times faster. Signing one (a request that changes the
+  session) is about five times faster.
 - itsdangerous is no longer a dependency, and `proper.errors.BadSignature`
   no longer inherits from `itsdangerous.BadSignature`.
 

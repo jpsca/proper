@@ -54,11 +54,19 @@ class Rejected(Exception):
 
 
 class _Buffers(threading.local):
-    """The output and scratch buffers of `unsign`, one pair per thread."""
+    """The output and scratch buffers of `sign_json` and `unsign`, and the
+    deflate stream of `sign_json`, one of each per thread. The stream is
+    made once and reset for each token: making one costs more than
+    compressing a cookie. Its memory is zlib's; `deflateEnd` frees it when
+    the thread is gone."""
 
     def __init__(self) -> None:
         self.size = 0
         self.grow(BUFFER_SIZE)
+        stream = ffi.new("char[]", lib.proper_deflate_size())
+        if lib.proper_deflate_init(stream) != 0:  # pragma: no cover
+            raise RuntimeError("zlib could not make a deflate stream (is libz.so.1 there?)")
+        self.stream = ffi.gc(stream, lib.proper_deflate_end)
 
     def grow(self, size: int) -> None:
         self.size = size
@@ -70,30 +78,35 @@ _buffers = _Buffers()
 
 
 class Signing:
-    """Signs tokens and checks them with HMAC-SHA256 keys of at most 64 bytes,
-    prepared once: `keys` oldest first; the newest one signs, and every one
-    is tried to check."""
+    """Signs tokens and checks them for one salt. `secret_keys` go oldest
+    first: the newest one signs, and every one is tried to check. The signing
+    key of each is derived once, as itsdangerous derives it: the HMAC-SHA256
+    of the salt keyed with the secret key."""
 
     __slots__ = ("_keys", "_newest", "count")
 
-    def __init__(self, keys: "list[bytes]") -> None:
+    def __init__(self, secret_keys: "list[bytes]", salt: bytes) -> None:
         size = lib.proper_hmac_key_size()
-        self._keys = ffi.new("char[]", size * len(keys))
-        for i, key in enumerate(keys):
-            if lib.proper_hmac_key(key, len(key), self._keys + i * size) != 0:
-                raise ValueError("an HMAC key longer than 64 bytes")
-        self._newest = self._keys + (len(keys) - 1) * size
-        self.count = len(keys)
+        self._keys = ffi.new("char[]", size * len(secret_keys))
+        for i, secret in enumerate(secret_keys):
+            lib.proper_derive_key(secret, len(secret), salt, len(salt), self._keys + i * size)
+        self._newest = self._keys + (len(secret_keys) - 1) * size
+        self.count = len(secret_keys)
 
-    def sign(self, payload: bytes, timestamp: int | None) -> bytes:
-        """The token of `payload` (already encoded), timed with `timestamp`
-        (Unix seconds) or untimed with `None`."""
-        out = ffi.new("char[]", len(payload) + 58)
-        n = lib.proper_sign(
-            self._newest, payload, len(payload),
-            -1 if timestamp is None else timestamp, out, len(payload) + 58,
-        )
-        return ffi.unpack(out, n)
+    def sign_json(self, json: bytes, timestamp: int | None) -> bytes:
+        """The token of a JSON text (compressed with zlib when that makes it
+        shorter), timed with `timestamp` (Unix seconds) or untimed with
+        `None`, signed with the newest key."""
+        buffers = _buffers
+        while True:
+            n = lib.proper_sign_json(
+                self._newest, buffers.stream, json, len(json),
+                -1 if timestamp is None else timestamp, buffers.out, buffers.size,
+                buffers.scratch, buffers.size,
+            )
+            if n >= 0:
+                return ffi.unpack(buffers.out, n)
+            buffers.grow(max(buffers.size * 4, len(json) * 2 + 128))
 
     def unsign(
         self, token: bytes, *, timed: bool, now: int = 0, max_age: int | None = None

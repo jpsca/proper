@@ -35,7 +35,7 @@ def sha256(data):
 
 def hmac_sha256(key, msg):
     prepared = _native.ffi.new("char[]", _native.lib.proper_hmac_key_size())
-    assert _native.lib.proper_hmac_key(key, len(key), prepared) == 0
+    _native.lib.proper_hmac_key(key, len(key), prepared)
     digest = _native.ffi.new("unsigned char[32]")
     _native.lib.proper_hmac_sha256(prepared, msg, len(msg), digest)
     return bytes(digest)
@@ -51,7 +51,7 @@ def test_sha256_of_every_length(kernel, k):
 @pytest.mark.parametrize("k", KERNELS)
 def test_hmac(kernel, k):
     kernel(k)
-    for klen in (0, 1, 32, 63, 64):
+    for klen in (0, 1, 32, 63, 64, 65, 200, 1000):
         key = DATA[100:100 + klen]
         for n in (0, 1, 55, 56, 64, 119, 120, 200, 1000):
             assert hmac_sha256(key, DATA[:n]) == hmac.new(key, DATA[:n], hashlib.sha256).digest()
@@ -70,15 +70,34 @@ def test_an_unknown_kernel():
     assert _native.lib.proper_sha256_use(-1) == 0
 
 
-def test_a_key_longer_than_64_bytes():
-    with pytest.raises(ValueError):
-        _native.Signing([b"k" * 65])
+@pytest.mark.parametrize("secret_len", [0, 1, 32, 64, 65, 200])
+@pytest.mark.parametrize("salt", [b"", b"session cookie", b"s" * 100])
+def test_derive_key(secret_len, salt):
+    """HMAC-SHA256 of the salt keyed with the secret, as itsdangerous derives it."""
+    secret = DATA[:secret_len]
+    prepared = _native.ffi.new("char[]", _native.lib.proper_hmac_key_size())
+    _native.lib.proper_derive_key(secret, len(secret), salt, len(salt), prepared)
+    digest = _native.ffi.new("unsigned char[32]")
+    _native.lib.proper_hmac_sha256(prepared, b"message", 7, digest)
+    derived = hmac.new(secret, salt, hashlib.sha256).digest()
+    assert bytes(digest) == hmac.new(derived, b"message", hashlib.sha256).digest()
 
 
-def test_a_buffer_too_small_to_sign_into():
-    keys = _native.Signing([b"k" * 32])
-    out = _native.ffi.new("char[]", 10)
-    assert _native.lib.proper_sign(keys._newest, b"abc", 3, 1, out, 10) == _native.TOO_SMALL
+def test_buffers_too_small_to_sign_into():
+    keys = _native.Signing([b"k" * 32], b"s")
+    stream = _native._buffers.stream
+    json = b'{"v": "' + b"ab" * 100 + b'"}'
+    out = _native.ffi.new("char[]", 1000)
+    scratch = _native.ffi.new("char[]", 1000)
+    lib = _native.lib
+    # the output, then the scratch buffer (where zlib writes) too small
+    assert lib.proper_sign_json(keys._newest, stream, json, len(json), 1, out, 10,
+                                scratch, 1000) == _native.TOO_SMALL
+    assert lib.proper_sign_json(keys._newest, stream, json, len(json), 1, out, 1000,
+                                scratch, 4) == _native.TOO_SMALL
+    # the stream is reset at each call: a failed one leaves it usable
+    assert lib.proper_sign_json(keys._newest, stream, json, len(json), 1, out, 1000,
+                                scratch, 1000) > 0
 
 
 def test_the_version():
@@ -101,3 +120,11 @@ def test_build_without_fpc(monkeypatch):
     monkeypatch.setattr(build.shutil, "which", lambda name: None)
     with pytest.raises(RuntimeError, match="Free Pascal"):
         build.build()
+
+
+def test_build_shows_what_fpc_says(tmp_path):
+    fpc = tmp_path / "fpc"
+    fpc.write_text("#!/bin/sh\necho 'proper_native.pas(1,1) Fatal: something is wrong'\nexit 1\n")
+    fpc.chmod(0o755)
+    with pytest.raises(RuntimeError, match="Fatal: something is wrong"):
+        build.build(tmp_path / "lib.so", fpc=str(fpc))
