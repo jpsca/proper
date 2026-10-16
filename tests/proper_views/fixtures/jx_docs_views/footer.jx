@@ -1,0 +1,7 @@
+<footer class="footer">
+	<div>
+		<p class="license">Released under the MIT License.</p>
+		<p class="madeby">© 2025 <a href="https://jpscaletti.com" target="_blank" rel="noopener">Juan-Pablo Scaletti</a></p>
+		<p class="madewith">Documentation made with <a href="https://writeadoc.scaletti.dev/" target="_blank" rel="noopener">WriteADoc</a></p>
+	</div>
+</footer>

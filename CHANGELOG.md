@@ -4,6 +4,14 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### minijx is part of Proper
+
+The views compiler, minijx, is now part of Proper: its runtime is
+`proper.views` and its compiler is built with Proper's native code. The
+`minijx` dependency is gone. Code that imports it directly changes
+`from minijx import ...` to `from proper.views import ...`. The views an
+app compiled before are compiled again when it starts.
+
 ### ⚠️ Upgrading: the session is a plain dict
 
 `request.session` and `response.session` are plain dicts, no longer

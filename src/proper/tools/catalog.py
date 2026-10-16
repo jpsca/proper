@@ -1,8 +1,7 @@
 import typing as t
 from functools import partial
 
-import minijx
-
+from .. import views
 from ..global_context import current
 from ..helpers import dom_id, render_importmap
 from ..helpers.formatters import truncate
@@ -32,7 +31,7 @@ def setup(app):
     # The views are compiled to Python modules in `COMPILED_PATH`, one folder
     # per folder of views (`_compiled/views/...`). With DEBUG, a view that
     # changes is compiled again when rendered.
-    app.catalog = minijx.Catalog(
+    app.catalog = views.Catalog(
         auto_reload=app.config.DEBUG,
         output=app.root_path.parent / app.config.COMPILED_PATH,
         filters=TEMPLATE_FILTERS,

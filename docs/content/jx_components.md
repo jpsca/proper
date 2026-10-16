@@ -63,7 +63,7 @@ Two things to notice. First, the component is invoked as `<Card>` rather than `{
 The rest of this guide covers the pieces you'll reach for past this minimum: declaring multiple props with defaults, named slots, attribute forwarding, CSS and JS dependencies, and the layouts and rendering conventions Proper layers on top.
 
 :::note minijx
-This guide aims to cover everything most Proper apps will need. For the compiler itself (the catalog, custom tags, the compiled modules), see the [minijx documentation](https://github.com/jpsca/minijx){target="_blank"}.
+This guide aims to cover everything most Proper apps will need. The compiler is [minijx](https://github.com/jpsca/minijx){target="_blank"}, which is part of Proper (`proper.views`); for its details (the catalog, custom tags, the compiled modules), see its documentation.
 :::
 
 ---
@@ -1269,5 +1269,5 @@ In `DEBUG`, the errors are logged and the app starts anyway; each error shows wh
 
 This guide focuses on the day-to-day surface: writing components, using them, and the way Proper hooks into Jx. A few topics are deliberately left out.
 
-- **The Catalog API.** Proper sets up the catalog (`app.catalog`) automatically, registers your `views/` folder, and adds the globals and tags discussed above. It is a minijx catalog; to use one outside Proper, see the [minijx documentation](https://github.com/jpsca/minijx){target="_blank"}.
+- **The Catalog API.** Proper sets up the catalog (`app.catalog`) automatically, registers your `views/` folder, and adds the globals and tags discussed above. It is a `proper.views.Catalog`, from minijx, which is part of Proper; see the [minijx documentation](https://github.com/jpsca/minijx){target="_blank"} for its API.
 - **Form rendering.** The `<Form>` component, render helpers like `field.label()` and `field.text_input()`, and the wire format for submitted data are covered in the [Rendering Forms guide](/docs/form_rendering).

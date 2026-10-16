@@ -1,0 +1,2 @@
+{# def text="Click me", variant="primary" #}
+<button {{ attrs.render(class="btn btn-" ~ variant, type="button") }}>{{ text }}</button>

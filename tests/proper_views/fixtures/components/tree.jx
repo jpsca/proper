@@ -1,0 +1,6 @@
+{# def nodes #}
+<ul>
+{% for n in nodes recursive %}
+  <li>{{ n.name }}{% if n.children %}<ul>{{ loop(n.children) }}</ul>{% endif %} d={{ loop.depth }}</li>
+{% endfor %}
+</ul>

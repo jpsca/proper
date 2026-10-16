@@ -3,6 +3,10 @@ __pycache__
 *.py[cod]
 *$py.class
 *.so
+# the views compiler (src/proper/_native/build.py)
+src/proper/_native/minijx
+# what the views tests compile from their fixtures
+tests/proper_views/fixtures/**/*.py
 
 # Distribution / packaging
 .Python

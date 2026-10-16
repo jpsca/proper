@@ -4,12 +4,12 @@ must inherit from. Stores data available to the views.
 import typing as t
 
 from markupsafe import Markup
-from minijx import ComponentNotFoundError
 
 from ..compile.dispatch import callback_applies, plan_for, resolve_view
 from ..constants import TURBO_STREAM_MIME
 from ..helpers import MultiDict, jsonplus, logger, make_list
 from ..status import not_acceptable, not_modified, unprocessable
+from ..views import ComponentNotFoundError
 from .template_resolver import formats_for
 
 

@@ -5,9 +5,8 @@ lowering pass; `lower` runs them all for an app.
 """
 import typing as t
 
-from minijx import CompileError
-
 from ..helpers import logger
+from ..views import CompileError
 from .dispatch import (  # noqa
     DispatchPlan,
     LoweringError,
@@ -26,7 +25,7 @@ if t.TYPE_CHECKING:
 def lower(app: "App", *, strict: bool = True) -> list[DispatchPlan]:
     """Lower every routed action of `app` (validating its callbacks) and its
     router, then compile every view. Raises `LoweringError` on the first
-    invalid controller, and `minijx.CompileError` listing every invalid view.
+    invalid controller, and `proper.views.CompileError` listing every invalid view.
 
     With `strict=False` (debug mode, where a view is being edited) the views
     that compile are written anyway and the errors are only logged: each

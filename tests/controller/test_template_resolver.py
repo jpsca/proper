@@ -1,11 +1,11 @@
 import pytest
-from minijx import ComponentNotFoundError
 
 from proper.controller.template_resolver import (
     iter_candidates,
     iter_format_extensions,
     resolve_template,
 )
+from proper.views import ComponentNotFoundError
 
 
 class FakeCatalog:

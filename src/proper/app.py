@@ -11,9 +11,7 @@ import typing as t
 from importlib import import_module
 from pathlib import Path
 
-import minijx
-
-from . import _native, pipeline, status, tools
+from . import _native, pipeline, status, tools, views
 from .channels import BaseCable
 from .cli.app_cli import get_cli
 from .compile import install
@@ -111,7 +109,7 @@ class App(AppWsgi):
     CLI: "type[Cli]"
     # The signing of `dumps` and `loads`, per salt
     _signings: "dict[str | None, _native.Signing]"
-    catalog: minijx.Catalog
+    catalog: views.Catalog
 
     pipeline: tuple[types.FunctionType, ...] = (
         pipeline.head_to_get,
@@ -199,7 +197,7 @@ class App(AppWsgi):
         """Take now every decision about dispatching that does not depend on
         the request, and compile every view (see `proper.compile`). Raises
         `LoweringError` for a callback that names a method its controller
-        does not have, and, outside of debug mode, `minijx.CompileError`
+        does not have, and, outside of debug mode, `proper.views.CompileError`
         listing every view that does not compile; in debug mode those errors
         are logged, and each shows when its view is rendered."""
         install(self, strict=not self.config.DEBUG)

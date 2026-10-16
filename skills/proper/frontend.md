@@ -6,7 +6,7 @@ last_verified: 2026-04-02
 
 # Frontend
 
-Proper uses Jx components for templates (compiled to Python by [minijx](https://github.com/jpsca/minijx)), and Turbo Drive for fast page-to-page navigation. Static assets are served with automatic fingerprinting for long-term caching.
+Proper uses Jx components for templates (compiled to Python by [minijx](https://github.com/jpsca/minijx), part of Proper), and Turbo Drive for fast page-to-page navigation. Static assets are served with automatic fingerprinting for long-term caching.
 
 ## Table of Contents
 

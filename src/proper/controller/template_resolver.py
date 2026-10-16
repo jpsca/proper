@@ -9,7 +9,7 @@ import mimetypes
 import typing as t
 from collections.abc import Iterable, Iterator, Sequence
 
-from minijx import ComponentNotFoundError
+from ..views import ComponentNotFoundError
 
 
 __all__ = (

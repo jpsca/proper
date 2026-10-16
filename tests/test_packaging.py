@@ -89,3 +89,8 @@ def test_templates_are_packed(wheel_members):
 def test_the_native_library_is_packed(wheel_members):
     assert "proper/_native/libproper_native.so" in wheel_members
     assert "proper/_native/proper_native.h" in wheel_members
+
+
+def test_the_views_compiler_is_packed(wheel_members):
+    assert "proper/_native/minijx" in wheel_members
+    assert "proper/_native/views/minijx.lpr" in wheel_members
