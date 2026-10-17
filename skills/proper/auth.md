@@ -155,7 +155,7 @@ user.set_password("new-password")
 user.save()
 ```
 
-Token generation and resolution are provided by `ProperModel` (see [Token Generation](models.md#token-generation)). The `Authenticable` mixin defines `generate_token_for_password_reset()`, which returns a fragment of the password hash as a fingerprint. This means password reset tokens are automatically invalidated when the password changes.
+Token generation and resolution are provided by `ProperModel` (see [Token Generation](models.md#token-generation)). The `Authenticable` mixin defines `generate_token_for_password_reset()`, which returns a digest of the password hash (the first 20 hex characters of its SHA-256) as a fingerprint, not a piece of the hash. This means password reset tokens are automatically invalidated when the password changes.
 
 ### Login Normalization
 
@@ -204,6 +204,9 @@ session.touch()
 
 # Revoke a session (soft delete)
 session.revoke()
+
+# Revoke every session of a user (PasswordResetController.update does it)
+Session.revoke_all_for(user)  # the number revoked
 
 # Check validity
 session.is_valid()  # not revoked and not expired

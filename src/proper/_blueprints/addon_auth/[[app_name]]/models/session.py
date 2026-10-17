@@ -96,6 +96,17 @@ class Session(BaseModel):
             .first()
         )
 
+    @classmethod
+    def revoke_all_for(cls, user: User) -> int:
+        """Revokes every session of `user`, on every device: after the
+        password changes, a stolen session stops working. The number of
+        sessions revoked."""
+        return (
+            cls.update(revoked=True)
+            .where(cls.user == user, cls.revoked == False)  # noqa: E712
+            .execute()
+        )
+
     def touch(self):
         self.last_seen_at = pw.utcnow()  # type: ignore
         self.save(only=[self.__class__.last_seen_at])
