@@ -21,6 +21,10 @@ fields.
 
 ### Fixed
 
+- The presence changes of a user in a stream reach the cable in the order
+  they are made. A tab's leave and the join of the user's next tab, on two
+  threads, could reach Redis the other way around: the user was then gone
+  from the list, on every machine, while connected.
 - The streams a channel starts in `subscribed()` (`stream_from()`, and the
   presence of `track()`) reach the server only once `subscribed()` ends
   without rejecting. With `stream_from()` followed by `reject()`, a client

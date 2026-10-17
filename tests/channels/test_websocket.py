@@ -1,6 +1,8 @@
 """The WebSocket protocol of the channels, as the cable (`Cable`) serves
 it, driven from memory through `TestClient.websocket()`."""
 import logging
+import threading
+import time
 
 import pytest
 
@@ -1353,3 +1355,33 @@ class TestHealth:
         assert "proper_cable_users 0\n" in text  # RoomChannel has no Session: anonymous
         await ws.close()
         await task
+
+
+def test_presence_changes_of_a_user_reach_the_cable_in_order(app, monkeypatch):
+    """A tab's leave and the join of the user's next tab, on two threads:
+    the cable hears of them in the order they were made, even when telling
+    it of the first takes long (a round trip to Redis)."""
+    server = app.cable.serve_in_memory()
+    old, new = server.connect(), server.connect()
+    for conn_id in (old, new):
+        server.set_connection_user(conn_id, "ada")
+    server.subscribe_connection(old, ["room"], {})
+
+    told = []
+    leaving = threading.Event()
+
+    def presence_changed(kind, stream_name, user, data, connections):
+        if kind == "leave":
+            leaving.set()
+            time.sleep(0.2)
+        told.append(kind)
+
+    monkeypatch.setattr(app.cable, "_presence_changed", presence_changed)
+    leave = threading.Thread(target=server.untrack_presence, args=(old, ["room"]))
+    leave.start()
+    leaving.wait(1)
+    server.subscribe_connection(new, ["room"], {})
+    leave.join()
+
+    assert told == ["leave", "join"]
+    assert list(server.presence("room")) == ["ada"]

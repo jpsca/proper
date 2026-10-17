@@ -100,6 +100,8 @@ def _subscription_key(channel_name: str, params: dict) -> str:
 
 
 _EPOCH = re.compile(r"^[0-9a-f]{8}$")
+# The locks that keep the presence changes of a user in a stream in order
+PRESENCE_LOCKS = 64
 # The most epochs of a stream a `subscribe` recovers from: each one is a
 # call that may send the stream's buffer again.
 MAX_EPOCHS = 4
@@ -383,6 +385,15 @@ class _Streams:
         self.presence_enabled = cable._presence
         self._users: dict[t.Any, str] = {}
         self._presence: dict[str, dict[str, _Present]] = {}
+        # The changes to a user's presence in a stream reach the cable in the
+        # order they are made: each takes the lock of its stream and user
+        # (one of `PRESENCE_LOCKS`) from the change until the cable is told.
+        # Else a leave and the join of the user's next tab, made in that
+        # order, could reach Redis the other way around.
+        self._presence_locks = [threading.Lock() for _ in range(PRESENCE_LOCKS)]
+
+    def _presence_lock(self, topic: str, user: str) -> threading.Lock:
+        return self._presence_locks[hash((topic, user)) % PRESENCE_LOCKS]
 
     # The transport
 
@@ -424,17 +435,18 @@ class _Streams:
         if presence_data is None or user is None:
             return
         for topic in topics:
-            with self._lock:
-                members = self._presence.setdefault(topic, {})
-                entry = members.get(user)
-                first = entry is None
-                if entry is None:
-                    entry = members[user] = _Present(presence_data)
-                entry.connections.add(conn_id)
-                data, count = entry.data, len(entry.connections)
-            self.cable._presence_changed(
-                "join" if first else "connections", topic, user, data, count
-            )
+            with self._presence_lock(topic, user):
+                with self._lock:
+                    members = self._presence.setdefault(topic, {})
+                    entry = members.get(user)
+                    first = entry is None
+                    if entry is None:
+                        entry = members[user] = _Present(presence_data)
+                    entry.connections.add(conn_id)
+                    data, count = entry.data, len(entry.connections)
+                self.cable._presence_changed(
+                    "join" if first else "connections", topic, user, data, count
+                )
 
     def unsubscribe_connection(self, conn_id: t.Any, topics: list[str]) -> None:
         for topic in topics:
@@ -459,30 +471,38 @@ class _Streams:
         for topic in topics:
             with self._lock:
                 members = self._presence.get(topic, {})
-                changed = []  # (user, data, the connections it has left)
-                for user, entry in list(members.items()):
-                    if conn_id in entry.connections:
+                users = [user for user, entry in members.items() if conn_id in entry.connections]
+            for user in users:
+                with self._presence_lock(topic, user):
+                    with self._lock:
+                        members = self._presence.get(topic, {})
+                        entry = members.get(user)
+                        if entry is None or conn_id not in entry.connections:
+                            continue  # pragma: no cover - another thread took it out
                         entry.connections.discard(conn_id)
-                        changed.append((user, entry.data, len(entry.connections)))
-                        if not entry.connections:
+                        data, count = entry.data, len(entry.connections)
+                        if not count:
                             del members[user]
-            for user, data, count in changed:
-                self.cable._presence_changed(
-                    "leave" if not count else "connections", topic, user, data, count
-                )
+                    self.cable._presence_changed(
+                        "leave" if not count else "connections", topic, user, data, count
+                    )
 
     def update_presence(self, conn_id: t.Any, data: dict) -> None:
         self._need_presence()
         user = self._users.get(conn_id)
         if user is None:
             raise RuntimeError("Failed to update presence data (unknown connection)")
-        for topic, members in list(self._presence.items()):
-            entry = members.get(user)
-            if entry is not None and conn_id in entry.connections:
-                entry.data = data
-                self.cable._presence_changed(
-                    "update", topic, user, data, len(entry.connections)
-                )
+        with self._lock:
+            topics = list(self._presence)
+        for topic in topics:
+            with self._presence_lock(topic, user):
+                with self._lock:
+                    entry = self._presence.get(topic, {}).get(user)
+                    if entry is None or conn_id not in entry.connections:
+                        continue
+                    entry.data = data
+                    count = len(entry.connections)
+                self.cable._presence_changed("update", topic, user, data, count)
 
     def presence(self, topic: str) -> dict:
         with self._lock:
