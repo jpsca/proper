@@ -497,6 +497,7 @@ The `proper` command provides these subcommands:
 ```bash
 proper run                          # Start the server (Bearings, port 2300)
 proper routes                       # Display all registered routes
+proper check                        # Find the mistakes of the app; exits with 1 on an error
 
 proper g resource Photo title:str   # Generate model + controller + form + views
 proper g model Photo title:str      # Generate model only
@@ -523,6 +524,26 @@ All commands accept a `--help` parameter that shows more details.
 
 Most `db` commands accept `--db=NAME` to target a specific database (default: `main`).
 
+
+## Checking
+
+`proper check` imports the app and runs the checks of `proper.check.CHECKS` (each is `check_x(app) -> list[Problem]`; `run_checks(app)` runs them all). It prints one problem per line, `path:line[:col]: error|warning: message`, then `N error(s), M warning(s)` (or `No problems found.`), and exits with 1 when there is an error. Run it from the project root: migrations and seeds are read from `db/` relative to the current folder.
+
+| Check | Level | What |
+|---|---|---|
+| `check_config` | warning | An unknown setting close to a known one (a typo). Settings of the app's own, unlike any known one, are not reported. |
+| `check_services` | error | `STORAGE` not in `STORAGES`; a storage `type` that is not a `Service` subclass (at any depth); a `MAILERS` `type` that doesn't import. |
+| `check_controllers` | error | A route whose controller can't be loaded (a class must be at the top of its module); a `before`/`after` `do` that is not a method. |
+| `check_routes` | error | A route with the method, path and host of an earlier one (it never matches); a route name used for routes with different paths (`url_for` builds the first). |
+| `check_views` | error | Every view compiles (`compile_views(app, force=True)`, so it writes the compiled views). |
+| `check_models` | error | A field that hides a method (not a property) of a base class; two models of a database with the same table. |
+| `check_migrations` | error/warning | Error: the models of a database are not what its migrations make (replayed with `fake=True`, no database needed). Warning: a `.py` in `db/<db>/` that is not named `NNN_name.py`; two migrations with the same number. |
+| `check_seeds` | error/warning | Warning: a seed without `envs`, or with `envs` as a string; a `.py` in the seeds folder that `__init__.py` doesn't import. Error: a seed without `seed()`; seeds that don't import. |
+| `check_forms` | error | A field of a form with `Meta.orm_cls` that is not an attribute of the model (`save()` would drop its value). |
+| `check_emails` | error | An `EmailMessage` subclass without `body` and without `views/emails/<name>.jx` or `.txt.jx`. A class named `Base...`, or with subclasses, is skipped as a base. |
+| `check_locales` | warning | A locale that lacks keys another has. |
+
+Only the classes defined in the app's package are checked.
 
 ## Serving
 

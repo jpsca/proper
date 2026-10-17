@@ -9,6 +9,7 @@ from functools import wraps
 import peewee as pw
 from proper_cli import Cli
 
+from ..check import ERROR, run_checks
 from ..models.migrations import pending_migrations
 from .db_cli import get_db_cli
 from .jx_cli import get_jx_cli
@@ -34,6 +35,7 @@ def get_cli(app: "App") -> type[Cli]:
         """,
         "run": get_run_cli(app),
         "routes": get_routes_cmd(app),
+        "check": get_check_cmd(app),
         "db": get_db_cli(app),
         "g": get_generators_cli(app),
         "install": get_install_cli(app),
@@ -267,6 +269,34 @@ def get_run_cli(app: "App") -> t.Callable:
             _serve_group(**group)
 
     return run
+
+
+def get_check_cmd(app: "App") -> t.Callable:
+    def check(self):
+        """Find the mistakes of the app before it runs.
+
+        Checks the config, the storage and mailers, the controllers and
+        routes, the views, the models and their migrations, the seeds, the
+        forms, the emails and the locales. Prints each problem as
+        `path:line: error|warning: message`. Exits with 1 when there is an
+        error; warnings alone exit with 0.
+
+        Run it from the root of the project: the migrations and seeds are
+        read from `db/` there.
+        """
+        problems = run_checks(app)
+        for problem in problems:
+            print(problem)
+        errors = sum(problem.level == ERROR for problem in problems)
+        warnings = len(problems) - errors
+        if not problems:
+            print("No problems found.")
+        else:
+            print(f"{errors} error(s), {warnings} warning(s)")
+        if errors:
+            raise SystemExit(1)
+
+    return check
 
 
 def get_routes_cmd(app: "App") -> t.Callable:

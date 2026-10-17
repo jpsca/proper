@@ -130,4 +130,5 @@ Use when the model already exists or no model is needed:
 - After any generator, check `controllers/__init__.py` and `models/__init__.py` to verify imports were added
 - New fields on existing tables need `default=...` or `null=True`
 - Run `proper routes` to verify the routes look correct
+- Run `proper check` after a change and fix every error it lists (see [app.md](app.md#checking))
 

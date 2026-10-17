@@ -14,6 +14,15 @@ fields.
 
 ### Added
 
+- `proper check` finds the mistakes of an app before it runs, without
+  serving a request or touching the databases: controllers and callbacks
+  that can't dispatch, hidden routes, route names used for two paths,
+  views that don't compile, fields that hide model methods, models that
+  differ from their migrations, migration files that don't run, seeds
+  that never run, form fields that the model doesn't have, emails without
+  a template, misspelled settings, storage and mailer types that don't
+  exist, and incomplete locales. One line per problem, with the file and
+  line; it exits with 1 on an error. The checks are in `proper.check`.
 - `STORAGE_MAX_IMAGE_PIXELS` (100 million by default): a variant isn't made
   from an image with more pixels, which raises `ImageTooLarge`. A PNG of
   400 KB can declare 20,000 × 20,000 pixels, and decoding it took 400 MB
