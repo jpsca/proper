@@ -37,7 +37,8 @@ long long proper_unsign(const void *keys, int count, int timed, const char *toke
 /* Request bodies (proper_forms.pas). Records are 64-bit offsets and
    lengths: a field is name, value (4); a parameter is key, value (4), the
    type first; a part is name, filename (-1 none), content-type (-1 none),
-   data, headers (10). -4: a buffer too small; the multipart errors are
+   data, headers (10). -4: a buffer too small; -14 also ends an urlencoded
+   body of more than max_fields; the multipart errors are
    -10 malformed, -11 unfinished, -12 no Content-Disposition, -13 no name,
    -14 too many fields, -15 too many files, -16 a field too big,
    -17 headers too many or too big. */

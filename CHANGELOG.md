@@ -4,6 +4,14 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### ⚠️ Upgrading: `MAX_FORM_FIELDS` limits urlencoded forms too
+
+An `application/x-www-form-urlencoded` body with more fields than
+`MAX_FORM_FIELDS` (100 by default) is a 400, as a multipart one is. Without
+a limit, a body of 8 MB of `a=&a=&...` took a second and half a gigabyte of
+memory to parse. Raise `MAX_FORM_FIELDS` if a form of the app sends more
+fields.
+
 ### Fixed
 
 - `redirect_to()` no longer sends the browser to another site for a path

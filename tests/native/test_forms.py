@@ -94,3 +94,13 @@ def test_the_headers_of_a_part():
     part.headers = [(b"x", b"y")]
     assert part.headers == [(b"x", b"y")]
     part.close()
+
+
+def test_an_urlencoded_body_with_as_many_fields_as_allowed():
+    form = parse_urlencoded(b"a=1&&b=2&c=3&", max_fields=3)
+    assert form.getall("a") + form.getall("b") + form.getall("c") == ["1", "2", "3"]
+
+
+def test_an_urlencoded_body_with_too_many_fields():
+    with pytest.raises(MultipartError, match="Maximum number of fields is 3"):
+        parse_urlencoded(b"a=1&b=2&c=3&d=4", max_fields=3)

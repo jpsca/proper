@@ -49,7 +49,8 @@ const
                        headers: offset and length of each }
 
 { The fields of an urlencoded text, decoded into Out (at least Len bytes):
-  their count, or TOO_SMALL when more than MaxFields. Offsets into Out. }
+  their count, TOO_SMALL when Out is, or MP_TOO_MANY_FIELDS when more than
+  MaxFields. Offsets into Out. }
 function ParseForm(Body: PByte; Len: PtrUInt; Out_: PByte; Cap: PtrUInt; Fields: PInt64;
   MaxFields: PtrInt): Int64;
 { The type and parameters of a header value (latin-1), written from Out[OutN]
@@ -163,7 +164,7 @@ begin
     while (J < Len) and (Body[J] <> Ord('&')) do Inc(J);
     if J > I then
     begin
-      if Count >= MaxFields then Exit(TOO_SMALL);
+      if Count >= MaxFields then Exit(MP_TOO_MANY_FIELDS);
       E := I;
       while (E < J) and (Body[E] <> Ord('=')) do Inc(E);
       F := @Fields[Count * FIELD_WORDS];

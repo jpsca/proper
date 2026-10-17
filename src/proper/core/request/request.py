@@ -222,7 +222,9 @@ class Request(RequestHeadersMixin):
         ):
             _decode(body, encoding)  # a 400 or a 415 when it isn't valid
             try:
-                self.form = parse_urlencoded(body, encoding)
+                self.form = parse_urlencoded(
+                    body, encoding, max_fields=self.app.config.MAX_FORM_FIELDS
+                )
             except UnicodeError:
                 # The percent-escapes are decoded with the "replace" error
                 # handler, which a codec such as `idna` doesn't support.

@@ -507,7 +507,7 @@ end;
 { ------------------------------------------------------- request bodies }
 
 { The fields of an urlencoded body or query string (proper_forms.ParseForm):
-  their count, or -4 when more than max_fields. }
+  their count, -4 when Out is too small, or -14 when more than max_fields. }
 function proper_parse_form(Body: PByte; Len: PtrUInt; Out_: PByte; Cap: PtrUInt;
   Fields: PInt64; MaxFields: PtrInt): Int64; cdecl;
 begin

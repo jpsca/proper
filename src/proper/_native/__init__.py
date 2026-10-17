@@ -160,17 +160,21 @@ class Signing:
             buffers.grow(max(buffers.size * 4, len(token)))
 
 
-def parse_form(data: bytes) -> "tuple[memoryview, list[int]]":
+def parse_form(data: bytes, max_fields: int | None = None) -> "tuple[memoryview, list[int]]":
     """The fields of an urlencoded body or query string: the decoded bytes,
     and a name offset, name length, value offset and value length for each
     field, in order. The bytes are this thread's buffer: decode them before
-    the next call."""
+    the next call. Raises `TooManyFields` for more than `max_fields`."""
     fields = data.count(b"&") + 1
+    if max_fields is not None:
+        fields = min(fields, max_fields)
     records = ffi.new("long long[]", fields * FIELD_WORDS)
     buffers = _buffers
     if buffers.size < len(data):
         buffers.grow(max(buffers.size * 4, len(data)))
     n = lib.proper_parse_form(data, len(data), buffers.out, buffers.size, records, fields)
+    if n < 0:
+        raise TooManyFields(n)
     return memoryview(ffi.buffer(buffers.out, len(data))), ffi.unpack(records, n * FIELD_WORDS)
 
 
@@ -194,6 +198,10 @@ def parse_params(value: bytes) -> "list[tuple[bytes, bytes]]":
         (out[k:k + kl], out[v:v + vl])
         for k, kl, v, vl in zip(words[0::4], words[1::4], words[2::4], words[3::4], strict=True)
     ]
+
+
+class TooManyFields(Exception):
+    """An urlencoded body with more fields than `parse_form` may read."""
 
 
 class MultipartRejected(Exception):

@@ -273,7 +273,7 @@ MAX_FORM_FIELDS = 100        # Max number of non-file fields (default: 100)
 MAX_FORM_PART_SIZE = 2 * MB  # Max size of each non-file field (default: 2 MB)
 ```
 
-These protect against abuse from forms with excessive fields or oversized fields. Uploaded files are limited by `MAX_CONTENT_LENGTH`, the size of the whole request body.
+These protect against abuse from forms with excessive fields or oversized fields. `MAX_FORM_FIELDS` also limits the fields of an `application/x-www-form-urlencoded` body; the query string has no field limit, only `MAX_QUERY_SIZE`. Uploaded files are limited by `MAX_CONTENT_LENGTH`, the size of the whole request body.
 
 
 ## Trusted Proxies
