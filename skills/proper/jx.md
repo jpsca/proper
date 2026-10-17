@@ -311,6 +311,8 @@ The `attrs` object collects any HTML attributes passed to a component that aren'
 
 For example, given `{#def text #}` and `<Button text="Save" id="save-btn" class="primary" />`, `text` becomes a variable while `id` and `class` go into `attrs`.
 
+An attribute name with a space, a quote, `<`, `>`, `/`, `=` or a control character raises `ValueError` (from `Attrs(...)`, `set()`, `setdefault()` and `render()`), so a name that comes from data (`attrs={{ {key: value} }}`) can't break out of the tag. Values are always quoted and escaped.
+
 ### Basic Usage
 
 ```html+jinja

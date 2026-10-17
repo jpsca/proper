@@ -7,6 +7,7 @@ Views runtime: the `attrs` object, with the same rules as Jx.
 - attributes are sorted by name, then properties sorted by name
 """
 
+import re
 import typing as t
 
 from markupsafe import Markup
@@ -39,6 +40,26 @@ def quote(value: t.Any) -> str:
 # What an Attrs with nothing to render renders (Markup can't change)
 _EMPTY = Markup("")
 
+# What an attribute name can't have: it would end the name, or the tag
+# (a space, a quote, `<`, `>`, `/`, `=`, a control character)
+_INVALID_NAME = re.compile(r'[\s"\'<>/=\x00-\x1f\x7f]')
+# The names checked already: templates use the same few
+_VALID_NAMES: set[str] = set()
+MAX_VALID_NAMES = 10_000
+
+
+def check_name(name: str) -> str:
+    """`name`, if it can be the name of an attribute; else `ValueError`.
+    An attribute whose name comes from data (`attrs={{ {key: value} }}`)
+    can't break out of the tag."""
+    if name in _VALID_NAMES:
+        return name
+    if not name or _INVALID_NAME.search(name):
+        raise ValueError(f"Invalid attribute name: {name!r}")
+    if len(_VALID_NAMES) < MAX_VALID_NAMES:
+        _VALID_NAMES.add(name)
+    return name
+
 
 class Attrs:
     __slots__ = ("_classes", "_attributes", "_properties")
@@ -68,6 +89,8 @@ class Attrs:
             if name.startswith("_") or name in CLASS_KEYS:
                 continue
             name = name.replace("_", "-")
+            if name not in _VALID_NAMES:
+                check_name(name)
             if value is True:
                 properties.add(name)
             elif value is not False and value is not None:
@@ -106,6 +129,8 @@ class Attrs:
     def set(self, **kw) -> None:
         for name, value in kw.items():
             name = name.replace("_", "-")
+            if name not in _VALID_NAMES:
+                check_name(name)
             if value is False or value is None:
                 self._remove(name)
                 continue
@@ -119,6 +144,8 @@ class Attrs:
     def setdefault(self, **kw) -> None:
         for name, value in kw.items():
             name = name.replace("_", "-")
+            if name not in _VALID_NAMES:
+                check_name(name)
             if value is False or value is None:
                 continue
             if name in CLASS_KEYS:
@@ -177,6 +204,8 @@ class Attrs:
                 properties = set(properties)
                 for name, value in kw.items():
                     name = name.replace("_", "-")
+                    if name not in _VALID_NAMES:
+                        check_name(name)
                     if value is False or value is None:
                         attributes.pop(name, None)
                         properties.discard(name)
