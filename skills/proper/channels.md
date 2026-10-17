@@ -459,7 +459,7 @@ Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages
 {"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}, "positions": {"chat_general": [{"e": "0000abcd", "o": 41}]}}
 ```
 
-The server reads one position per epoch (the earliest offset given) and the first `MAX_EPOCHS` (4) epochs of each stream; the rest are ignored.
+The list goes from the oldest epoch to the latest. The server reads one position per epoch (the earliest offset given) and the last `MAX_EPOCHS` (4) epochs of each stream; the rest are ignored. A stream counts as recovered when its latest epoch is: the older ones are of a buffer the server dropped and started again.
 
 **Send a message (invoke an action).** `id` is optional; with one, the server answers with a `reply`:
 

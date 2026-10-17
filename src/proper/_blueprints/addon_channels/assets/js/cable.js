@@ -164,8 +164,9 @@ export class Cable {
     // Where this connection is in each stream, from the stamps of the
     // broadcasts (`e`, the epoch of the stream's buffer in the server, and
     // `o`, the offset of the message in it). Sent with each subscribe, so
-    // the server can send what was missed. Several epochs per stream: on
-    // several machines, each stamps what it publishes with its own.
+    // the server can send what was missed. Several epochs per stream: the
+    // server's buffer of a stream gets a new one when it starts again. The
+    // latest goes last; the server judges the recovery by it.
     this._positions = new Map()  // stream -> Map<e, o>
     // The broadcasts that arrived after a gap, held until the missed ones
     // fill it, so they are delivered in order.

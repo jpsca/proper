@@ -112,9 +112,9 @@ def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
     "o": offset}, ...]}` (or one `{"e", "o"}`), as `{stream: [(epoch,
     offset), ...]}`; the malformed ones left out. The epoch is eight hex
     digits. Several per stream: the server's buffer of a stream gets a new
-    epoch when it starts again, and the client may have seen both. One
-    position per epoch (the earliest given), and the first `MAX_EPOCHS`
-    epochs of a stream."""
+    epoch when it starts again, and the client may have seen both; the
+    latest goes last. One position per epoch (the earliest given), and the
+    last `MAX_EPOCHS` epochs of a stream."""
     positions: dict[str, list[tuple[str, int]]] = {}
     if not isinstance(value, dict):
         return positions
@@ -122,7 +122,8 @@ def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
         if not isinstance(stream, str):
             continue
         epochs: dict[str, int] = {}
-        for pos in given if isinstance(given, list) else [given]:
+        given_list: list[t.Any] = given if isinstance(given, list) else [given]
+        for pos in reversed(given_list):
             if not isinstance(pos, dict):
                 continue
             epoch, offset = pos.get("e"), pos.get("o")
@@ -135,7 +136,7 @@ def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
                 elif len(epochs) < MAX_EPOCHS:
                     epochs[epoch] = offset
         if epochs:
-            positions[stream] = list(epochs.items())
+            positions[stream] = list(reversed(epochs.items()))
     return positions
 
 
@@ -1319,8 +1320,10 @@ class Cable(BaseCable):
         """Confirm the subscription, with its streams, where each of them is
         now (`positions`, `null` for one without broadcasts yet), and whether
         the broadcasts the client missed were all sent to it (`recovered`:
-        `null` when it asked for none). The missed ones are written straight
-        to the connection by the server, so they can arrive before this."""
+        `null` when it asked for none). A stream counts as recovered when
+        its latest epoch is: the older ones are of a buffer the server
+        dropped and started again. The missed ones are written straight to
+        the connection by the server, so they can arrive before this."""
         streams = sorted(channel._streams)
         current: dict[str, dict | None] = dict.fromkeys(streams)
         recovered: bool | None = None
@@ -1330,13 +1333,12 @@ class Cable(BaseCable):
             if to_recover:
                 recovered = True
             for stream in to_recover:
-                # One call per epoch the client saw: a server that started
-                # again, or another machine, gives a stream a new one
+                # One call per epoch the client saw, the latest last
                 for epoch, offset in positions[stream]:
                     result = server.subscribe_with_recovery(
                         conn.conn_id, [stream], recover=True, epoch=epoch, offset=offset
                     )
-                    recovered = recovered and result["recovered"]
+                recovered = recovered and result["recovered"]
                 current[stream] = _position(result["topics"][stream])
             rest = [stream for stream in streams if stream not in positions]
             if rest:
