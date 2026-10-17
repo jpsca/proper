@@ -2,11 +2,10 @@ import pytest
 
 from proper.controller import template_resolver
 from proper.controller.template_resolver import (
+    find_template,
     formats_for,
     formats_for_header,
     iter_candidates,
-    iter_format_extensions,
-    resolve_template,
 )
 from proper.core.request.headers import parse_accept
 from proper.views import ComponentNotFoundError
@@ -22,34 +21,28 @@ class FakeCatalog:
         return name in self.names
 
 
-class TestIterFormatExtensions:
+class TestFormatsFor:
     def test_single_mime(self):
-        assert list(iter_format_extensions(["application/json"])) == ["json"]
+        assert formats_for(["application/json"], "html") == ("json",)
 
     def test_preserves_order(self):
-        assert list(iter_format_extensions(
-            ["application/json", "text/html"]
-        )) == ["json", "html"]
+        assert formats_for(["application/json", "text/html"], "html") == ("json", "html")
 
-    def test_stops_at_wildcard(self):
-        assert list(iter_format_extensions(
-            ["text/html", "*/*", "application/json"]
-        )) == ["html"]
+    def test_stops_at_wildcard_with_the_default(self):
+        assert formats_for(["text/csv", "*/*", "application/json"], "html") == ("csv", "html")
 
     def test_skips_unknown_mimes(self):
-        assert list(iter_format_extensions(
-            ["application/x-made-up", "text/html"]
-        )) == ["html"]
+        assert formats_for(["application/x-made-up", "text/html"], "html") == ("html",)
 
     def test_empty(self):
-        assert list(iter_format_extensions([])) == []
+        assert formats_for([], "html") == ("html",)
 
     def test_turbo_stream_mime(self):
         # Registered by importing `proper.turbo`; routes a Turbo request to a
         # `.turbo_stream.jx` template, falling back to `.html`.
-        assert list(iter_format_extensions(
-            ["text/vnd.turbo-stream.html", "text/html"]
-        )) == ["turbo_stream", "html"]
+        assert formats_for(
+            ["text/vnd.turbo-stream.html", "text/html"], "html"
+        ) == ("turbo_stream", "html")
 
 
 class TestIterCandidates:
@@ -85,48 +78,43 @@ class TestIterCandidates:
         ]
 
 
-class TestResolveTemplate:
+class TestFindTemplate:
     def test_picks_format_specific(self):
         cat = FakeCatalog([
             "posts/show.json.jx",
             "posts/show.jx",
         ])
-        name = resolve_template(
-            cat, ["posts"], "show",
-            accept=["application/json"], default_format="html",
+        name = find_template(
+            cat, ["posts"], "show", formats_for(["application/json"], "html"),
         )
         assert name == "posts/show.json.jx"
 
     def test_falls_back_to_bare(self):
         cat = FakeCatalog(["posts/show.jx"])
-        name = resolve_template(
-            cat, ["posts"], "show",
-            accept=["text/html"], default_format="html",
+        name = find_template(
+            cat, ["posts"], "show", formats_for(["text/html"], "html"),
         )
         assert name == "posts/show.jx"
 
     def test_falls_back_to_next_prefix(self):
         cat = FakeCatalog(["application/error.jx"])
-        name = resolve_template(
-            cat, ["posts", "application"], "error",
-            accept=[], default_format="html",
+        name = find_template(
+            cat, ["posts", "application"], "error", formats_for([], "html"),
         )
         assert name == "application/error.jx"
 
     def test_empty_accept_uses_default_format(self):
         cat = FakeCatalog(["posts/show.html.jx"])
-        name = resolve_template(
-            cat, ["posts"], "show",
-            accept=[], default_format="html",
+        name = find_template(
+            cat, ["posts"], "show", formats_for([], "html"),
         )
         assert name == "posts/show.html.jx"
 
     def test_missing_raises(self):
         cat = FakeCatalog([])
         with pytest.raises(ComponentNotFoundError) as exc:
-            resolve_template(
-                cat, ["posts"], "show",
-                accept=["text/html"], default_format="html",
+            find_template(
+                cat, ["posts"], "show", formats_for(["text/html"], "html"),
             )
         # Message should list what was tried, for debugging
         assert "posts/show.html.jx" in str(exc.value)

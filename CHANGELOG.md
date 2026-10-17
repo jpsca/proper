@@ -95,6 +95,10 @@ fields.
   `x_sendfile_header`, and the file of `send_file()` is closed. The file
   is also closed for a `HEAD` request and a `304`.
 - `Response.file_path` is gone: nothing read it.
+- Removed code that nothing used: `proper.helpers.cookies` (a copy of
+  `proper.core.response.cookies`), and `iter_format_extensions()` and
+  `resolve_template()` of `proper.controller.template_resolver`
+  (`formats_for()` and `find_template()` do their work).
 - `redirect_to()` no longer sends the browser to another site for a path
   that starts with `//` or `/\` (`//evil.com` is `/evil.com`), and
   percent-encodes spaces, control characters and non-ASCII in the URL. A
