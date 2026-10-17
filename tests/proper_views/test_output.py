@@ -6,6 +6,7 @@ added to a catalog after it is created.
 import os
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from markupsafe import Markup
@@ -246,6 +247,35 @@ def test_render_string_errors(tmp_path):
         catalog.render_string("{{ 1 + }}")
     with pytest.raises(ComponentNotCompiledError, match="needs the views compiler"):
         Catalog(tmp_path, compiler=False).render_string("x")
+
+
+def test_render_string_keeps_the_last_sources(tmp_path):
+    catalog = Catalog(tmp_path)
+    catalog.max_strings = 2
+    for n in range(4):
+        assert catalog.render_string(f"<i>{n}</i>") == f"<i>{n}</i>"
+    assert len(catalog._strings) == len(catalog._string_files) == 2
+    files = [path for paths in catalog._string_files.values() for path in paths]
+    assert all(path.exists() for path in files)
+    assert len(list((catalog._strings_dir / "strings").glob("*.jx"))) == 2
+    # one that went is compiled again
+    assert catalog.render_string("<i>0</i>") == "<i>0</i>"
+
+
+def test_render_string_compiles_a_source_once_across_threads(tmp_path, monkeypatch):
+    catalog = Catalog(tmp_path)
+    runs = []
+    run = subprocess.run
+
+    def counting(*args, **kwargs):
+        runs.append(args)
+        return run(*args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", counting)
+    with ThreadPoolExecutor(8) as pool:
+        results = list(pool.map(lambda _: catalog.render_string("<b>x</b>"), range(8)))
+    assert results == ["<b>x</b>"] * 8
+    assert len(runs) == 1
 
 
 def test_render_string_with_tags_and_filters(tmp_path):
