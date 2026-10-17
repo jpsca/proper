@@ -358,7 +358,7 @@ function Split(const S: string; Sep: Char): TStringArray;
 var
   i, Start, N: Integer;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   N := 0;
   Start := 1;
   for i := 1 to Length(S) + 1 do

@@ -90,6 +90,7 @@ var
   Base, Name: string;
   Taken: Boolean;
 begin
+  Result := nil;
   SetLength(Result, Length(Roots));
   for i := 0 to High(Roots) do
   begin
