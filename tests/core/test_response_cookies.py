@@ -143,6 +143,14 @@ def test_secure_prefix_secure():
     assert resp.cookies[key]["secure"]
 
 
+def test_unset_cookie_with_path_and_domain():
+    resp = _make_response()
+    resp.unset_cookie("foo", path="/admin", domain="example.com")
+    assert resp.cookies["foo"]["path"] == "/admin"
+    assert resp.cookies["foo"]["domain"] == "example.com"
+    assert resp.cookies["foo"]["max-age"] == 0
+
+
 def test_unset_cookie():
     resp = _make_response()
     resp.unset_cookie("foo")

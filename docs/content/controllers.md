@@ -841,6 +841,8 @@ self.response.set_cookie("theme", "dark", max_age=31536000)
 self.response.unset_cookie("theme")
 ```
 
+If you set a cookie with a `path` or a `domain`, delete it with the same ones (`unset_cookie("theme", path="/admin")`): the browser only deletes the cookie that matches them.
+
 Sensible defaults are baked in: cookies are scoped to `path="/"`, marked `samesite="Lax"`, and last only for the browser session unless you pass `max_age`. Common options:
 
 Option     | Purpose

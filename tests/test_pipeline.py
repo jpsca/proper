@@ -421,6 +421,18 @@ class TestUpdateSessionCookie:
         cookie_val = session_cookies[0][1]
         assert "max-age=0" in cookie_val.lower() or "expires=" in cookie_val.lower()
 
+    def test_unsets_cookie_with_its_domain_and_path(self, app, co):
+        app.config.SESSION_COOKIE_DOMAIN = "example.com"
+        app.config.SESSION_COOKIE_PATH = "/app"
+        co.request.session = {"foo": "bar"}
+        co.response.session = {}
+        update_session_cookie(co.request, co.response)
+        morsel = co.response.cookies[SESSION_COOKIE_NAME]
+        assert morsel["max-age"] == 0
+        assert (morsel["path"], morsel["domain"]) == ("/app", "example.com")
+        app.config.SESSION_COOKIE_DOMAIN = None
+        app.config.SESSION_COOKIE_PATH = "/"
+
     @pytest.mark.parametrize(
         "peer, secure",
         [
