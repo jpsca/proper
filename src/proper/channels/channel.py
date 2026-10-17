@@ -136,16 +136,17 @@ class Channel:
     def stop_stream_from(self, stream_name: str) -> None:
         """Unsubscribe this connection from a named broadcast stream (and
         leave its presence)."""
+        self.untrack(stream_name)
         self._streams.discard(stream_name)
-        self._tracked.discard(stream_name)
         self.app.cable.unsubscribe(stream_name, self)
 
     def stop_all_streams(self) -> None:
         """Unsubscribe this connection from all streams (and leave their
         presence)."""
+        for stream_name in list(self._tracked):
+            self.untrack(stream_name)
         self.app.cable.unsubscribe_all(self)
         self._streams.clear()
-        self._tracked.clear()
 
     def track(self, stream_name: str, data: dict | None = None, *, key: t.Any = None) -> None:
         """List this connection among those present in a stream it streams
@@ -175,9 +176,11 @@ class Channel:
 
     def untrack(self, stream_name: str) -> None:
         """Take this connection off the list of a stream, still streaming
-        from it."""
-        self._tracked.discard(stream_name)
-        self.app.cable.untrack(stream_name, self)
+        from it. The connection stays listed while another of its channels
+        tracks the stream."""
+        if stream_name in self._tracked:
+            self.app.cable.untrack(stream_name, self)
+            self._tracked.discard(stream_name)
 
     def update_presence(self, data: dict) -> None:
         """Change the data this connection's user is listed with, in every

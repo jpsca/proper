@@ -1385,3 +1385,61 @@ def test_presence_changes_of_a_user_reach_the_cable_in_order(app, monkeypatch):
 
     assert told == ["leave", "join"]
     assert list(server.presence("room")) == ["ada"]
+
+
+class SharedStreamChannel(Channel):
+    def subscribed(self):
+        self.stream_from("hall")
+        if self.params.get("track"):
+            self.track("hall", key="ada")
+            self.track("hall", {"again": 1}, key="ada")  # counts once
+
+    def leave(self, data):
+        self.stop_stream_from("hall")
+
+
+async def _confirmed(ws, **params):
+    frame = await ws.subscribe("SharedStreamChannel", **params)
+    while frame.get("type") != "confirm_subscription":
+        frame = await ws.receive()
+    return frame
+
+
+async def _perform(ws, action, **params):
+    reply = await ws.perform("SharedStreamChannel", action, **params)
+    while reply.get("type") != "reply":
+        reply = await ws.receive()
+    return reply
+
+
+@pytest.mark.asyncio
+async def test_presence_leaves_when_its_channel_stops_a_shared_stream(app):
+    """Two channels of a connection stream from "hall", one tracks it: when
+    that one stops the stream, the connection leaves the presence list."""
+    app.router.channels["SharedStreamChannel"] = SharedStreamChannel
+    ws, task = await open_ws(app)
+    await _confirmed(ws, track="yes")
+    await _confirmed(ws, other="yes")
+    assert list(app.cable.presence("hall")) == ["ada"]
+
+    await _perform(ws, "leave", track="yes")
+    assert app.cable.presence("hall") == {}
+    assert app.cable.streams == {"hall": 1}
+    await ws.close()
+    await task
+
+
+@pytest.mark.asyncio
+async def test_presence_stays_while_another_channel_tracks_the_stream(app):
+    app.router.channels["SharedStreamChannel"] = SharedStreamChannel
+    ws, task = await open_ws(app)
+    await _confirmed(ws, track="yes", n=1)
+    await _confirmed(ws, track="yes", n=2)
+
+    await _perform(ws, "leave", track="yes", n=1)
+    assert list(app.cable.presence("hall")) == ["ada"]
+    await _perform(ws, "leave", track="yes", n=2)
+    assert app.cable.presence("hall") == {}
+    assert app.cable._track_refs == {}
+    await ws.close()
+    await task

@@ -899,6 +899,9 @@ class Cable(BaseCable):
         self._users: dict[t.Any, set[Connection]] = {}
         # (conn_id, stream) -> how many channels of the connection stream it
         self._stream_refs: dict[tuple[t.Any, str], int] = {}
+        # (conn_id, stream) -> how many channels of the connection track it:
+        # the connection leaves the stream's presence when the last one stops
+        self._track_refs: dict[tuple[t.Any, str], int] = {}
         # Runs a connection's commands: in the thread that brings them, which
         # is one of Bearings' workers (in order, one at a time per connection)
         # or, in memory, the test's.
@@ -1146,6 +1149,10 @@ class Cable(BaseCable):
                 raise ValueError(
                     f"{stream_name!r} already has {limit} present: presence_max_members"
                 )
+        if stream_name not in channel._tracked:
+            key = (conn.conn_id, stream_name)
+            with self._lock:
+                self._track_refs[key] = self._track_refs.get(key, 0) + 1
         if conn.settling is not None and stream_name in conn.settling:
             conn.settling[stream_name] = data
             return
@@ -1171,6 +1178,13 @@ class Cable(BaseCable):
 
     def untrack(self, stream_name: str, channel: "Channel") -> None:
         conn = t.cast(Connection, channel._connection)
+        key = (conn.conn_id, stream_name)
+        with self._lock:
+            refs = self._track_refs.get(key, 0) - 1
+            if refs > 0:
+                self._track_refs[key] = refs
+                return  # another channel of the connection still tracks it
+            self._track_refs.pop(key, None)
         if conn.settling is not None and stream_name in conn.settling:
             conn.settling[stream_name] = None
             return
