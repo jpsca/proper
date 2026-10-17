@@ -21,6 +21,10 @@ fields.
 
 ### Fixed
 
+- Clearing the session expires the session cookie with its
+  `SESSION_COOKIE_PATH` and `SESSION_COOKIE_DOMAIN`. With either set, the
+  browser kept the old session cookie, as the expired one had `Path=/` and
+  no `Domain`. `unset_cookie()` takes `path` and `domain`.
 - `preview_video` runs ffmpeg only on the file itself
   (`-protocol_whitelist file`) and with the demuxers of the new
   `Attachment.VIDEO_FORMATS`. An upload declared `video/*` that was a

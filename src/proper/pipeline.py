@@ -249,7 +249,12 @@ def update_session_cookie(request: "Request", response: "Response") -> None:
     if response.session:
         _set_new_session_cookie(request, response)
     else:
-        response.unset_cookie(SESSION_COOKIE_NAME)
+        config = request.app.config
+        response.unset_cookie(
+            SESSION_COOKIE_NAME,
+            path=config.SESSION_COOKIE_PATH or "/",
+            domain=config.SESSION_COOKIE_DOMAIN,
+        )
 
 
 def _set_new_session_cookie(request: "Request", response: "Response") -> None:

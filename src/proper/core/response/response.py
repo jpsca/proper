@@ -227,7 +227,7 @@ class Response(ResponseHeadersMixin):
             validate_cookie_size(name, cookie.output(), self.max_cookie_size)
         self.cookies[name] = cookie
 
-    def unset_cookie(self, name: str) -> None:
+    def unset_cookie(self, name: str, *, path: str = "/", domain: str | None = None) -> None:
         """Unset a cookie in the response.
 
         Clears the contents of the cookie, **and instructs the user agent to
@@ -236,8 +236,13 @@ class Response(ResponseHeadersMixin):
         Arguments:
             name:
                 The cookie name.
+            path:
+                The path the cookie was set with. The browser only expires
+                the cookie with the same name, path and domain.
+            domain:
+                The domain the cookie was set with, if any.
         """
-        self.set_cookie(name, value=" ", max_age=0, comment="")
+        self.set_cookie(name, value=" ", max_age=0, path=path, domain=domain, comment="")
 
     def set_signed_cookie(
         self,

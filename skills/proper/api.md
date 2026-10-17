@@ -265,7 +265,7 @@ All of these are read/write.
 | `is_fresh`           | `(request=None) -> bool`                                                                                   | Check if response is fresh based on request cache headers |
 | `send_file`          | `(path, *, mimetype=None, as_attachment=False, download_name=None, x_sendfile_header="") -> None`          | Send a file as the response body                         |
 | `set_cookie`         | `(name, value="", *, max_age=None, path="/", domain=None, secure=False, httponly=False, samesite="Lax", comment="", signed=False, salt="cookie") -> None` | Set a response cookie |
-| `unset_cookie`       | `(name) -> None`                                                                                           | Delete a cookie                                          |
+| `unset_cookie`       | `(name, *, path="/", domain=None) -> None`                                                                                           | Delete a cookie                                          |
 | `set_signed_cookie`  | `(name, value="", *, max_age=None, path="/", domain=None, secure=False, httponly=False, samesite="Lax", comment="", salt="cookie") -> None` | Set a cryptographically signed cookie |
 | `set_etag`           | `(val, *, strong=False) -> None`                                                                           | Set the `ETag` header (weak or strong)                   |
 | `set_cache_control`  | `(*directives) -> None`                                                                                    | Set `Cache-Control` directives                           |
