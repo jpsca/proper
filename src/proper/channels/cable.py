@@ -100,6 +100,9 @@ def _subscription_key(channel_name: str, params: dict) -> str:
 
 
 _EPOCH = re.compile(r"^[0-9a-f]{8}$")
+# The most epochs of a stream a `subscribe` recovers from: each one is a
+# call that may send the stream's buffer again.
+MAX_EPOCHS = 4
 
 
 def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
@@ -107,13 +110,16 @@ def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
     "o": offset}, ...]}` (or one `{"e", "o"}`), as `{stream: [(epoch,
     offset), ...]}`; the malformed ones left out. The epoch is eight hex
     digits. Several per stream: the server's buffer of a stream gets a new
-    epoch when it starts again, and the client may have seen both."""
+    epoch when it starts again, and the client may have seen both. One
+    position per epoch (the earliest given), and the first `MAX_EPOCHS`
+    epochs of a stream."""
     positions: dict[str, list[tuple[str, int]]] = {}
     if not isinstance(value, dict):
         return positions
     for stream, given in value.items():
         if not isinstance(stream, str):
             continue
+        epochs: dict[str, int] = {}
         for pos in given if isinstance(given, list) else [given]:
             if not isinstance(pos, dict):
                 continue
@@ -122,7 +128,12 @@ def _client_positions(value: t.Any) -> dict[str, list[tuple[str, int]]]:
                 isinstance(epoch, str) and _EPOCH.match(epoch)
                 and isinstance(offset, int) and not isinstance(offset, bool) and offset >= 0
             ):
-                positions.setdefault(stream, []).append((epoch, offset))
+                if epoch in epochs:
+                    epochs[epoch] = min(epochs[epoch], offset)
+                elif len(epochs) < MAX_EPOCHS:
+                    epochs[epoch] = offset
+        if epochs:
+            positions[stream] = list(epochs.items())
     return positions
 
 
