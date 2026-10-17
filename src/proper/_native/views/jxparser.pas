@@ -237,7 +237,7 @@ var
   S: string;
 begin
   Parts := Split(Expr, ',');
-  SetLength(Result, 0);
+  Result := nil;
   N := 0;
   for i := 0 to High(Parts) do
   begin

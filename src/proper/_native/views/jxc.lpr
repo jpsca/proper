@@ -123,7 +123,7 @@ var
   i, j, N: Integer;
   Ext: string;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   if List = '' then
     Exit;
   Parts := Split(List, ',');
@@ -151,7 +151,7 @@ var
   i, N: Integer;
   Name, Why: string;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   if List = '' then
     Exit;
   Parts := Split(List, ',');
@@ -178,7 +178,7 @@ var
   i, N: Integer;
   Name: string;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   if List = '' then
     Exit;
   Parts := Split(List, ',');
