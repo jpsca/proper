@@ -290,6 +290,19 @@ class TestRedirect:
         location = co.response.headers.get("Location")
         assert location == "/new/42"
 
+    @pytest.mark.parametrize("value, location", [
+        ("/evil.com", "/evil.com"),  # from /go//evil.com
+        ("a\r\nSet-Cookie: x=1", "/a%0D%0ASet-Cookie:%20x=1"),
+        ("100%", "/100%25"),
+        ("a?b#c", "/a%3Fb%23c"),
+    ])
+    def test_redirect_encodes_params(self, co, value, location):
+        route = Route(method="GET", path="/go/:p<path>", redirect="/{p}")
+        co.request.matched_route = route
+        co.request.matched_params = {"p": value}
+        redirect(co.request, co.response)
+        assert co.response.headers.get("Location") == location
+
 
 
 class TestCopySession:

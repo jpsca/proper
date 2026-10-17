@@ -28,6 +28,9 @@ if t.TYPE_CHECKING:
 
 __all__ = ("Response",)
 
+# the characters of a URL that stay as they are in a redirect (RFC 3986)
+URL_SAFE = "/:@!$&'()*+,;=?#[]%~"
+
 
 def is_iterable(obj: t.Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
@@ -264,6 +267,11 @@ class Response(ResponseHeadersMixin):
         if not url_or_route.startswith(("/", "http")):
             assert self.app
             to = self.app.url_for(url_or_route, object=obj, **kw)
+        elif to.startswith("/"):
+            # a browser reads "//host" and "/\\host" as another host
+            to = "/" + to.lstrip("/\\")
+        # spaces, control characters (CR, LF) and non-ASCII percent-encoded
+        to = quote(to, safe=URL_SAFE)
 
         self.set_location(to)
         escaped = html_mod.escape(to, quote=True)

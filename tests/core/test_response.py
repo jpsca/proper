@@ -2,6 +2,8 @@ import io
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+import pytest
+
 from proper import Response
 from proper import status as pstatus
 from proper.constants import FLASHES_SESSION_KEY
@@ -176,6 +178,20 @@ class TestRedirectTo:
         resp = _make_response()
         resp.redirect_to("http://example.com/other")
         assert resp.location == "http://example.com/other"
+
+    @pytest.mark.parametrize("url, location", [
+        ("//evil.com/x", "/evil.com/x"),
+        ("/\\evil.com", "/evil.com"),
+        ("///evil.com", "/evil.com"),
+        ("/a b", "/a%20b"),
+        ("/a\r\nX: 1", "/a%0D%0AX:%201"),
+        ("/ñandú?q=1#top", "/%C3%B1and%C3%BA?q=1#top"),
+        ("/already%20encoded", "/already%20encoded"),
+    ])
+    def test_redirect_to_unsafe_url(self, url, location):
+        resp = _make_response()
+        resp.redirect_to(url)
+        assert resp.location == location
 
     def test_redirect_with_flash(self):
         resp = _make_response()
