@@ -272,6 +272,36 @@ That's the whole command. `uv run` resolves the project's environment from `pypr
 Running `pytest` directly often works, but it's the version on your `PATH`, with whatever environment shell happens to be active. `uv run pytest` always uses the project's pinned `pytest` and the project's dependencies. The few extra characters save you the "works on my machine" mystery.
 :::
 
+### Checking the app first: `proper check`
+
+```bash
+$ uv run proper check
+```
+
+`proper check` looks for mistakes that the tests may not reach, without serving a request. Many of them would otherwise fail only when someone opens that page, or never fail and quietly lose data. It checks:
+
+- **Controllers and routes**: every route reaches a controller, every `before`/`after` callback exists, no route is hidden by an earlier one with the same method and path, and no route name is used for two different paths.
+- **Views**: every view compiles.
+- **Models**: no field hides a method of the model (a field named `save`, for example), and no two models share a table.
+- **Migrations**: the models are what the migrations make. If you changed a model and forgot `proper db create`, it tells you. It also warns about files in `db/<database>/` that won't run as migrations.
+- **Seeds**: each seed has `envs` and `seed()`, and `db/seeds/__init__.py` imports it.
+- **Forms**: every field of a form with `orm_cls` is a field of that model. A misspelled field would drop its value when saved.
+- **Emails**: every email without a `body` has its template.
+- **Config**: a setting that looks like a misspelled one, like `MAX_FORM_FEILDS`. Your own settings, like `STRIPE_KEY`, are fine. It also checks that `STORAGE` is in `STORAGES`, and that every storage and mailer `type` exists.
+- **Locales**: every locale has the keys of the others.
+
+Each problem is one line, with the file and line when known:
+
+```text
+shop/forms/post_form.py:8: error: `PostForm.titel` is not a field of Post: `save()` would drop its value
+shop/config/main.py:22: warning: unknown setting `MAX_FORM_FEILDS`: did you mean `MAX_FORM_FIELDS`?
+1 error(s), 1 warning(s)
+```
+
+It exits with 1 when there is an error, so it can run before the tests in CI or in a pre-commit hook. Warnings alone don't fail it.
+
+Run it from the root of the project: like the `proper db` commands, it reads the migrations and seeds from the `db/` folder there. It compiles the views where the app reads them, as `proper jx compile` does, and doesn't touch the databases.
+
 ### Running a subset
 
 Pytest's selection flags work as you'd expect:
