@@ -87,6 +87,17 @@ def test_skip_authentication(app, Ctrl, skip):
     assert co.response.location is None
 
 
+def test_skip_authentication_with_one_name(app, Ctrl):
+    Ctrl.skip_authentication = "index"
+    co = _controller(app, Ctrl)
+    co.require_authentication()
+    assert co.response.location is None
+
+    co = _controller(app, Ctrl, action="in")
+    co.require_authentication()
+    assert co.response.location == "/sign-in"
+
+
 def test_skip_authentication_for_other_actions(app, Ctrl):
     Ctrl.skip_authentication = False
     co = _controller(app, Ctrl)

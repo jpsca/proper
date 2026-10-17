@@ -667,7 +667,7 @@ class GoogleCloud(Service):
         """
 ```
 
-Then add a config entry where the `type` matches your class name:
+Then add a config entry where the `type` matches your class name. The class may also subclass another service, such as `Disk` or `S3`:
 
 ```python
 STORAGES = {

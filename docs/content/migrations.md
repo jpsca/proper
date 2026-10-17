@@ -519,6 +519,8 @@ db/
     └── 002_add_page_view.py
 ```
 
+`proper db create --db analytics` writes only the changes of the models stored in that database: the ones whose `Meta.database` is `app.db["analytics"]`.
+
 Sequence numbers reset per database - `db/main/001_initial.py` and `db/analytics/001_initial.py` are independent.
 
 ### The `--db` Flag

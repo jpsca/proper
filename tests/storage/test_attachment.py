@@ -401,6 +401,15 @@ def test_unknown_service_raises(Attachment):
         Attachment._get_service("nonexistent")
 
 
+class MirroredDisk(Disk):
+    """A service type that subclasses a service, not `Service`."""
+
+
+def test_service_type_of_a_subclass_of_a_service(app, Attachment):
+    app.config.STORAGES["mirror"] = {"type": "MirroredDisk", "root": "temp/mirror"}
+    assert isinstance(Attachment._get_service("mirror"), MirroredDisk)
+
+
 def test_different_services_are_independent(Attachment):
     s1 = Attachment._get_service("local")
     s2 = Attachment._get_service("other")

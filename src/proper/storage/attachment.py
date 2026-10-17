@@ -603,7 +603,7 @@ class _Attachment(ProperModel):
 
         config = dict(cls._app.config.get("STORAGES", {}).get(service_name, {}))
         service_type = config.pop("type", "")
-        available = {c.__name__: c for c in Service.__subclasses__()}
+        available = _service_types()
         service_cls = available.get(service_type)
         if service_cls is None:
             raise ValueError(
@@ -636,6 +636,18 @@ class _Attachment(ProperModel):
         inst = cls.get_or_none(cls.id == pk)
         if inst:
             inst.purge_variants()
+
+
+def _service_types() -> dict[str, type[Service]]:
+    """The subclasses of `Service` at any depth, by class name. A subclass
+    with the name of its parent takes its place."""
+    found: dict[str, type[Service]] = {}
+    pending: list[type[Service]] = [Service]
+    while pending:
+        for sub in pending.pop(0).__subclasses__():
+            found[sub.__name__] = sub
+            pending.append(sub)
+    return found
 
 
 def attachment_for(

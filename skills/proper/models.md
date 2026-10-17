@@ -847,13 +847,15 @@ After changing your models, create a migration that captures the changes:
 proper db create "add photos table"
 ```
 
-This auto-detects changes in your models (new tables, new columns, etc.) and generates a migration file in `db/main/`. The auto-detection works by comparing the current state of your models against the database schema.
+This auto-detects changes in your models (new tables, new columns, etc.) and generates a migration file in `db/main/`. The auto-detection works by comparing the current state of your models against the migrations already written.
 
 You can target a specific database with the `--db` flag:
 
 ```bash
 proper db create "description" --db=analytics
 ```
+
+It writes only the models stored in that database (`Meta.database` is `app.db["analytics"]`).
 
 ### Running Migrations
 
