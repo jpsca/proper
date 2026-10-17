@@ -3,12 +3,16 @@ import time
 import typing as t
 import warnings
 from email.utils import formatdate
-from http.cookies import Morsel
+from http.cookies import Morsel, SimpleCookie
 
 
 HOST_PREFIX = "__Host-"
 SECURE_PREFIX = "__Secure-"
 RX_FILTER_FROM_COOKIE_NAME = re.compile(r"[^a-z0-9!*&#$%^'`+_~\.\-]*", re.IGNORECASE | re.UNICODE)
+# The characters a cookie value can have as they are (RFC 6265, cookie-octet):
+# not a space, a control character, `"`, `,`, `;` or `\`.
+RX_COOKIE_VALUE = re.compile(r"[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*")
+_ENCODER = SimpleCookie()
 
 
 def make_cookie(
@@ -65,7 +69,14 @@ def make_cookie(
     name = RX_FILTER_FROM_COOKIE_NAME.sub("", name)
     if isinstance(value, bytes):
         value = value.decode("utf8")
-    cookie.set(name, value, value)
+    value = str(value)
+    if RX_COOKIE_VALUE.fullmatch(value):
+        coded = value
+    else:
+        # quoted, as the request reads it back: a `;` in the value can't
+        # add an attribute to the cookie
+        coded = _ENCODER.value_encode(value)[1]
+    cookie.set(name, value, coded)
 
     if max_age is not None:
         cookie["max-age"] = max_age
