@@ -65,8 +65,12 @@ fields.
 - An anonymous connection (no user, no `key`) can `track()` several
   streams: each call made up a new random key, and the second one raised
   `ValueError` (the connection is already present as another key).
+- A stream counts as recovered when its latest epoch is (the last one
+  `cable.js` sends). When the server dropped a stream's buffer and started
+  another, the client's position in the old one made `recovered` false,
+  and the page reloaded its state though nothing was missed.
 - A `subscribe` reads one recovery position per epoch, and at most 4 epochs
-  per stream. Each position was a call that sent the stream's buffer
+  per stream (the last 4). Each position was a call that sent the stream's buffer
   again under the lock of every stream: a `subscribe` of 1 MB carrying the
   same position 40,000 times sent millions of frames and held up every
   broadcast.

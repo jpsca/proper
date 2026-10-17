@@ -880,9 +880,10 @@ class TestRecovery:
 
     @pytest.mark.asyncio
     async def test_several_epochs_per_stream(self, app):
-        """A client of a cluster has a position per machine that published
-        to the stream; each is recovered on its own. One the server doesn't
-        know is not recovered."""
+        """A client has a position per epoch of the stream's buffer it saw,
+        the latest last; each is recovered on its own. The stream counts as
+        recovered when its latest epoch is: an older one the server doesn't
+        know is of a buffer it dropped."""
         app.router.channels["RoomChannel"] = RoomChannel
         ws, task = await open_ws(app)
         await ws.subscribe("RoomChannel", room="a")
@@ -894,7 +895,13 @@ class TestRecovery:
         missed = await ws.subscribe("RoomChannel", positions=positions, room="a")
         assert missed["data"] == {"n": 2}
         assert (await ws.receive())["recovered"] is True
-        positions = {"room_a": [self.position(seen), {"e": "0000abcd", "o": 3}]}
+        gone = {"e": "0000abcd" if seen["e"] != "0000abcd" else "0000abce", "o": 3}
+        positions = {"room_a": [gone, self.position(seen)]}
+        missed = await ws.subscribe("RoomChannel", positions=positions, room="a")
+        assert missed["data"] == {"n": 2}
+        assert (await ws.receive())["recovered"] is True
+        # The latest epoch is one the server doesn't know (another machine's)
+        positions = {"room_a": [self.position(seen), gone]}
         missed = await ws.subscribe("RoomChannel", positions=positions, room="a")
         assert missed["data"] == {"n": 2}
         assert (await ws.receive())["recovered"] is False
@@ -987,7 +994,7 @@ class TestRecovery:
 
         epochs = [{"e": f"{n:08x}", "o": n} for n in range(10)]
         assert _client_positions({"s": epochs})["s"] == [
-            (f"{n:08x}", n) for n in range(MAX_EPOCHS)
+            (f"{n:08x}", n) for n in range(10 - MAX_EPOCHS, 10)
         ]
         assert _client_positions({"s": [{"e": "nope", "o": 1}]}) == {}
 
