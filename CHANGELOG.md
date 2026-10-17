@@ -27,6 +27,10 @@ fields.
   `redirect_to`, in the views and in the Python code of the app: a route
   that doesn't exist (with a suggestion), or a placeholder of its path
   not given.
+- `proper check` warns of action names in `only`, `exclude` and
+  `skip_authentication` that no controller has (a typo matches nothing),
+  and reports `rate_limit` method names that don't exist. When importing
+  the app turns the GIL back on, it names the extension module that did.
 
 ### Changed
 
