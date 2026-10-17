@@ -1,12 +1,13 @@
 import inspect
 import os
 import re
+import types
 import typing as t
 from dataclasses import dataclass
 from pathlib import Path
 
 
-__all__ = ("ERROR", "WARNING", "Problem", "of_app", "relpath", "subclasses", "where", "where_attr")
+__all__ = ("ERROR", "WARNING", "Problem", "handler_class", "of_app", "relpath", "subclasses", "where", "where_attr")
 
 ERROR = "error"
 WARNING = "warning"
@@ -78,6 +79,14 @@ def subclasses[T](cls: type[T]) -> list[type[T]]:
                 found.append(sub)
                 pending.append(sub)
     return found
+
+
+def handler_class(handler: types.FunctionType) -> type | None:
+    """The class of a method, from its globals (its `__qualname__` names
+    it), or `None` when the class is not at the top of its module."""
+    cls_name, _, _ = handler.__qualname__.rpartition(".")
+    cls = handler.__globals__.get(cls_name)
+    return cls if isinstance(cls, type) else None
 
 
 def of_app(app: t.Any, cls: type) -> bool:

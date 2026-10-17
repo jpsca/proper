@@ -1,11 +1,11 @@
 import re
+import types
 import typing as t
 
 from ..compile import compile_views, plan_for
 from ..compile.dispatch import LoweringError, validate
-from ..helpers.imports import import_string
 from ..views import CompileError
-from .problem import ERROR, WARNING, Problem, relpath, where
+from .problem import ERROR, WARNING, Problem, handler_class, relpath, where
 
 
 if t.TYPE_CHECKING:
@@ -37,8 +37,18 @@ def check_controllers(app: "App") -> list[Problem]:
                 **where(route.to),
             ))
     for handler in app.router.error_handlers.values():
-        cls_name, action = handler.__qualname__.rsplit(".", 1)
-        actions[(getattr(import_string(handler.__module__), cls_name), action)] = None
+        function = t.cast(types.FunctionType, handler)
+        cls = handler_class(function)
+        if cls is None:
+            problems.append(Problem(
+                ERROR,
+                f"the controller of the error handler `{function.__qualname__}` "
+                f"can't be loaded; a controller must be a class at the top of "
+                f"its module",
+                **where(function),
+            ))
+            continue
+        actions[(cls, function.__name__)] = None
     for cls, action in actions:
         try:
             validate(plan_for(cls, action))

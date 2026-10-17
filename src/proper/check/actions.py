@@ -2,7 +2,7 @@ import types
 import typing as t
 
 from ..helpers import make_list
-from .problem import ERROR, WARNING, Problem, of_app, where_attr
+from .problem import ERROR, WARNING, Problem, handler_class, of_app, where_attr
 
 
 if t.TYPE_CHECKING:
@@ -71,17 +71,10 @@ def _routed_actions(app: "App") -> dict[type, set[str]]:
         routed.setdefault(cls, set()).add(action)
     for handler in app.router.error_handlers.values():
         function = t.cast(types.FunctionType, handler)
-        cls = _handler_class(function)
+        cls = handler_class(function)
         if cls is not None:
             routed.setdefault(cls, set()).add(function.__name__)
     return routed
-
-
-def _handler_class(handler: types.FunctionType) -> type | None:
-    """The class of a method, from its globals: its `__qualname__` names it."""
-    cls_name, _, _ = handler.__qualname__.rpartition(".")
-    cls = handler.__globals__.get(cls_name)
-    return cls if isinstance(cls, type) else None
 
 
 def _action_lists(klass: type) -> t.Iterator[tuple[str, str, list[str]]]:
