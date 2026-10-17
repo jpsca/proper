@@ -137,6 +137,7 @@ class Controller:
             request=self.request
         ):
             self.response.status = not_modified
+            self.response._close_body()
             self.response.body = ""
             return
 

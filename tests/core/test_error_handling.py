@@ -86,6 +86,21 @@ class _FlakyController(Controller):
         return "ok"
 
 
+class _FileThenErrorController(Controller):
+    files = []
+
+    def index(self):
+        self.response.send_file(__file__, as_attachment=True)
+        type(self).files.append(self.response.body.filelike)
+        raise ValueError("boom")
+
+
+class _JsonThenErrorController(Controller):
+    def index(self):
+        self.render(json={"a": 1})
+        raise ValueError("boom")
+
+
 # --- Fixtures ---
 
 
@@ -457,6 +472,29 @@ class TestDoRequestErrorFlow:
         )
         result = client.get("/missing")
         assert result.status == status.not_found
+
+    def test_error_page_after_send_file(self, app, client):
+        app.router.add_route(
+            Route(method="GET", path="/file", to=_FileThenErrorController.index)
+        )
+        result = client.get("/file")
+
+        assert result.status == status.server_error
+        assert _FileThenErrorController.files[-1].closed
+        assert result.headers.get("Content-Type") == "text/html; charset=utf-8"
+        assert "Content-Disposition" not in result.headers
+        assert "Last-Modified" not in result.headers
+        body = result.body.encode() if isinstance(result.body, str) else result.body
+        assert int(result.headers.get("Content-Length")) == len(body)
+
+    def test_error_page_after_json(self, app, client):
+        app.router.add_route(
+            Route(method="GET", path="/json", to=_JsonThenErrorController.index)
+        )
+        result = client.get("/json")
+
+        assert result.status == status.server_error
+        assert result.headers.get("Content-Type") == "text/html; charset=utf-8"
 
     def test_unmatched_route_returns_404(self, client):
         result = client.get("/does-not-exist")

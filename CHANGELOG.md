@@ -14,6 +14,16 @@ fields.
 
 ### Fixed
 
+- An error page replaces the body of the response that failed, with the
+  headers that describe it. An error after `send_file()` sent the HTML
+  page with the file's `Content-Length`, `Content-Type` and
+  `Content-Disposition` (a truncated or hanging response), and an error
+  after `render(json=...)` sent it as JSON. The error page now goes out
+  with the default `Content-Type` and its own length, without the failed
+  body's `Cache-Control`, `ETag`, `Expires`, `Last-Modified`, or the
+  `x_sendfile_header`, and the file of `send_file()` is closed. The file
+  is also closed for a `HEAD` request and a `304`.
+- `Response.file_path` is gone: nothing read it.
 - `redirect_to()` no longer sends the browser to another site for a path
   that starts with `//` or `/\` (`//evil.com` is `/evil.com`), and
   percent-encodes spaces, control characters and non-ASCII in the URL. A

@@ -249,6 +249,20 @@ class TestCall:
         assert co.response.status == not_modified
         assert co.response.body == ""
 
+    def test_not_modified_closes_a_file_body(self):
+        files = []
+
+        class MyController(Controller):
+            def index(self):
+                self.response.send_file(__file__)
+                files.append(self.response.body.filelike)
+
+        co = _make_controller(cls=MyController)
+        co.response.status = not_modified
+        co._call("index")
+        assert co.response.body == ""
+        assert files[0].closed
+
     def test_fresh_check_skips_non_get_requests(self):
         class MyController(Controller):
             def update(self):
