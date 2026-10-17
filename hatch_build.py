@@ -55,6 +55,8 @@ def load_build(root: Path):
     spec = importlib.util.spec_from_file_location(
         "proper_native_build", root / "src" / "proper" / "_native" / "build.py"
     )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"can't load {root / 'src/proper/_native/build.py'}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
