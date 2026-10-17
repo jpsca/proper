@@ -161,7 +161,7 @@ class ChatChannel(AppChannel):
         pass
 ```
 
-`subscribed()` runs once, when the client subscribes. It is where you decide whether the subscription is allowed (see [Authorizing versus authenticating](#authorizing-versus-authenticating)). Call `stream_from()` to start listening, and optionally `send()` a first message. What you `send()` here is held back and delivered just before the subscription is confirmed; if you `reject()`, it is discarded and never reaches the client.
+`subscribed()` runs once, when the client subscribes. It is where you decide whether the subscription is allowed (see [Authorizing versus authenticating](#authorizing-versus-authenticating)). Call `stream_from()` to start listening, and optionally `send()` a first message. What you `send()` here is held back and delivered just before the subscription is confirmed; if you `reject()`, it is discarded and never reaches the client. The same goes for the streams: they start once `subscribed()` ends without rejecting, so a channel you reject never gets a broadcast.
 
 `unsubscribed()` runs when the client unsubscribes, when the connection closes - the tab was closed, the network dropped, or the server closed it - and when the server stops. Proper removes the channel from all its streams before calling it, so you only need to undo work that lives elsewhere.
 

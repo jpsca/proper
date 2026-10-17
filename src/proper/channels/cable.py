@@ -86,9 +86,9 @@ def _is_action(channel: "Channel", name: str) -> bool:
     """Whether `name` is a method the app's channel class defines (or a
     class between it and `Channel`), not an attribute such as `app` or
     `Session`, or a method of `Channel` itself."""
-    for cls in type(channel).__mro__:
+    for cls in type(channel).__mro__:  # pragma: no branch - a channel is a Channel
         if cls is Channel:
-            return False
+            break
         attr = cls.__dict__.get(name)
         if attr is not None:
             return inspect.isfunction(attr)
@@ -197,6 +197,11 @@ class Connection:
         self.user_id: t.Any = None
         # What presence lists the connection as, once it is tracked somewhere
         self.presence_key: str | None = None
+        # While a subscription is being decided (`subscribed()` runs), the
+        # streams it asks for, with the presence data of those it tracks
+        # (`None` for the others): the server subscribes them only once it
+        # is accepted, so no broadcast reaches a rejected channel.
+        self.settling: dict[str, dict | None] | None = None
         self.closing = False
         # Commands run one at a time, in order, in the worker threads.
         self._commands: deque = deque()
@@ -1055,6 +1060,9 @@ class Cable(BaseCable):
             refs = self._stream_refs.get(key, 0)
             self._stream_refs[key] = refs + 1
         if not refs:
+            if conn.settling is not None:
+                conn.settling.setdefault(stream_name, None)
+                return
             self.server.subscribe_connection(conn.conn_id, [stream_name])
 
     def unsubscribe(self, stream_name: str, channel: "Channel") -> None:
@@ -1066,6 +1074,8 @@ class Cable(BaseCable):
                 self._stream_refs[key] = refs
                 return
             self._stream_refs.pop(key, None)
+        if conn.settling is not None and conn.settling.pop(stream_name, False) is not False:
+            return  # never subscribed in the server
         if not conn.closing:
             try:
                 self.server.unsubscribe_connection(conn.conn_id, [stream_name])
@@ -1116,6 +1126,9 @@ class Cable(BaseCable):
                 raise ValueError(
                     f"{stream_name!r} already has {limit} present: presence_max_members"
                 )
+        if conn.settling is not None and stream_name in conn.settling:
+            conn.settling[stream_name] = data
+            return
         self.server.subscribe_connection(conn.conn_id, [stream_name], data)
 
     def _check_presence_data(self, data: t.Any) -> None:
@@ -1138,6 +1151,9 @@ class Cable(BaseCable):
 
     def untrack(self, stream_name: str, channel: "Channel") -> None:
         conn = t.cast(Connection, channel._connection)
+        if conn.settling is not None and stream_name in conn.settling:
+            conn.settling[stream_name] = None
+            return
         if conn.presence_key is not None and not conn.closing:
             self.server.untrack_presence(conn.conn_id, [stream_name])
 
@@ -1146,6 +1162,10 @@ class Cable(BaseCable):
         if conn.presence_key is None:
             raise ValueError("the connection is not present anywhere: track() first")
         self._check_presence_data(data)
+        if conn.settling is not None:
+            for stream_name, tracked in conn.settling.items():
+                if tracked is not None:
+                    conn.settling[stream_name] = data
         self.server.update_presence(conn.conn_id, data)
 
     def presence(self, stream_name: str) -> dict[str, dict]:
@@ -1237,18 +1257,24 @@ class Cable(BaseCable):
             _send=pending.append, _connection=conn,
         )
         reject = {"type": "reject_subscription", "channel": channel_name, "params": params}
+        conn.settling = settling = {}
         try:
-            self.app._with_db(lambda: channel._dispatch("subscribed"))
-        except Exception:
-            # Not subscribed: the streams it reached before failing must
-            # not stay open. Raised again, to be logged.
-            channel.stop_all_streams()
-            conn.put({**reject, "reason": "error"})
-            raise
-        if channel._rejected:
-            channel.stop_all_streams()
-            conn.put(reject)
-            return
+            try:
+                self.app._with_db(lambda: channel._dispatch("subscribed"))
+            except Exception:
+                # Not subscribed: the streams it reached before failing must
+                # not stay open. Raised again, to be logged.
+                channel.stop_all_streams()
+                conn.put({**reject, "reason": "error"})
+                raise
+            if channel._rejected:
+                channel.stop_all_streams()
+                conn.put(reject)
+                return
+        finally:
+            conn.settling = None
+        for stream_name, presence_data in settling.items():
+            self.server.subscribe_connection(conn.conn_id, [stream_name], presence_data)
         conn.subscriptions[key] = channel
         channel._send = conn.put
         for msg in pending:

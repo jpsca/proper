@@ -21,6 +21,12 @@ fields.
 
 ### Fixed
 
+- The streams a channel starts in `subscribed()` (`stream_from()`, and the
+  presence of `track()`) reach the server only once `subscribed()` ends
+  without rejecting. With `stream_from()` followed by `reject()`, a client
+  got the broadcasts made in between, and the other subscribers saw it
+  join and leave. A broadcast made while `subscribed()` runs no longer
+  reaches the client being subscribed.
 - An anonymous connection (no user, no `key`) can `track()` several
   streams: each call made up a new random key, and the second one raised
   `ValueError` (the connection is already present as another key).

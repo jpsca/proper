@@ -140,7 +140,6 @@ class TestSubscribe:
         await task
         assert app.cable.streams == {}
 
-
     @pytest.mark.asyncio
     async def test_an_anonymous_connection_tracks_several_streams(self, app):
         class TwoChannel(Channel):
@@ -158,6 +157,71 @@ class TestSubscribe:
             frame = await ws.receive()
         assert list(app.cable.presence("a")) == list(app.cable.presence("b"))
         assert list(app.cable.presence("a"))[0].startswith("anon:")
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_no_broadcast_reaches_a_channel_before_it_is_accepted(self, app):
+        """`stream_from()` followed by `reject()`: the broadcasts made while
+        `subscribed()` runs don't get to the client."""
+        class GuardedChannel(Channel):
+            def subscribed(self):
+                self.stream_from("secret")
+                self.track("secret", {"name": "x"})
+                self.app.cable.broadcast("secret", {"leak": 1})
+                if self.params.get("allowed") != "yes":
+                    self.reject()
+
+        app.router.channels["GuardedChannel"] = GuardedChannel
+
+        ws, task = await open_ws(app)
+        rejection = await ws.subscribe("GuardedChannel")
+        assert rejection["type"] == "reject_subscription"
+        await nothing_more(ws)
+        assert app.cable.presence("secret") == {}
+        assert app.cable.streams == {}
+
+        confirm = await ws.subscribe("GuardedChannel", allowed="yes")
+        while confirm.get("type") != "confirm_subscription":
+            confirm = await ws.receive()  # the presence_join comes first
+        assert confirm["streams"] == ["secret"]
+        assert list(app.cable.presence("secret")) and app.cable.streams == {"secret": 1}
+        app.cable.broadcast("secret", {"after": 1})
+        assert (await ws.receive())["data"] == {"after": 1}
+        await ws.close()
+        await task
+
+    @pytest.mark.asyncio
+    async def test_streams_changed_while_subscribing(self, app):
+        """What `subscribed()` stops, untracks or updates before it ends is
+        what the server gets once the subscription is accepted."""
+        class ChangingChannel(Channel):
+            def subscribed(self):
+                for name in ("a", "b", "c"):
+                    self.stream_from(name)
+                    self.track(name, {"v": 1})
+                self.stop_stream_from("a")
+                self.untrack("b")
+                self.update_presence({"v": 2})
+
+            def join(self, data):
+                self.stream_from("d")
+                self.track("d", {"v": 3})
+
+        app.router.channels["ChangingChannel"] = ChangingChannel
+
+        ws, task = await open_ws(app)
+        confirm = await ws.subscribe("ChangingChannel")
+        while confirm.get("type") != "confirm_subscription":
+            confirm = await ws.receive()  # the presence_join comes first
+        assert confirm["streams"] == ["b", "c"]
+        assert app.cable.presence("a") == {} and app.cable.presence("b") == {}
+        assert [entry["data"] for entry in app.cable.presence("c").values()] == [{"v": 2}]
+        # Outside `subscribed()`, the server gets them right away
+        reply = await ws.perform("ChangingChannel", "join")
+        while reply.get("type") != "reply":
+            reply = await ws.receive()
+        assert [entry["data"] for entry in app.cable.presence("d").values()] == [{"v": 3}]
         await ws.close()
         await task
 

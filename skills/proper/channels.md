@@ -104,7 +104,7 @@ def subscribed(self):
     self.send({"greeting": "welcome!"})
 ```
 
-Messages sent during `subscribed()` are buffered and flushed to the client before the subscription confirmation. If the channel calls `self.reject()`, the buffered messages are discarded.
+Messages sent during `subscribed()` are buffered and flushed to the client before the subscription confirmation. If the channel calls `self.reject()`, the buffered messages are discarded. The streams of `stream_from()` and the presence of `track()` in `subscribed()` start only once it returns without rejecting: a broadcast made while `subscribed()` runs doesn't reach the client, and a rejected channel never appears in a presence list.
 
 ### `unsubscribed()`
 
