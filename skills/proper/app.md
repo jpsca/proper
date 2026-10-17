@@ -531,9 +531,11 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 
 | Check | Level | What |
 |---|---|---|
+| `check_gil` | error/warning | The GIL is on (`sys._is_gil_enabled()`): error unless `ALLOW_GIL` (then a warning). On a free-threaded build it imports the app's package again in a new process, with `-W always::RuntimeWarning` and without `PYTHON_GIL`, and names the extension modules Python warns about. |
 | `check_config` | warning | An unknown setting close to a known one (a typo). Settings of the app's own, unlike any known one, are not reported. |
 | `check_services` | error | `STORAGE` not in `STORAGES`; a storage `type` that is not a `Service` subclass (at any depth); a `MAILERS` `type` that doesn't import. |
 | `check_controllers` | error | A route whose controller can't be loaded (a class must be at the top of its module); a `before`/`after` `do` that is not a method. |
+| `check_action_names` | warning/error | Warning: a name in `only`/`exclude` of a `before`/`after` callback or of `rate_limit`, or in `skip_authentication`, that is not a routed action. A list declared by a base class or concern is checked against the actions of every routed controller based on it. Error: a method name in `rate_limit` (`to`, `within`, `by`, `react_with`) that the controller doesn't have. Only classes of the app. |
 | `check_routes` | error | A route with the method, path and host of an earlier one (it never matches); a route name used for routes with different paths (`url_for` builds the first). |
 | `check_views` | error | Every view compiles (`compile_views(app, force=True)`, so it writes the compiled views). |
 | `check_view_urls` | error | A `url_for('Name', ...)` with a literal name in a view (read from the compiled modules): no such route (with a "did you mean"), or a placeholder of its path not given. A call with an object or `**kwargs` is checked only for the name. Compiled modules of deleted templates are skipped. |

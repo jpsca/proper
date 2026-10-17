@@ -2,7 +2,6 @@ import importlib
 import multiprocessing
 import os
 import sys
-import sysconfig
 import typing as t
 from functools import wraps
 
@@ -10,6 +9,8 @@ import peewee as pw
 from proper_cli import Cli
 
 from ..check import ERROR, run_checks
+from ..check.gil import free_threaded as _free_threaded
+from ..check.gil import gil_enabled as _gil_enabled
 from ..models.migrations import pending_migrations
 from .db_cli import get_db_cli
 from .jx_cli import get_jx_cli
@@ -43,18 +44,6 @@ def get_cli(app: "App") -> type[Cli]:
     }
 
     return t.cast(type[Cli], type("appCL", (Cli,), attrs))
-
-
-def _free_threaded() -> bool:
-    """Whether this Python was built without the GIL (a "3.14t" build)."""
-    return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
-
-
-def _gil_enabled() -> bool:
-    """Whether the GIL is on right now. A free-threaded build turns it back
-    on when it imports an extension module that has not declared itself
-    safe without it."""
-    return getattr(sys, "_is_gil_enabled", lambda: True)()
 
 
 def _check_free_threading(config) -> None:
