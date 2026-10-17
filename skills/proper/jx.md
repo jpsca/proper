@@ -808,7 +808,8 @@ html = catalog.render(
 )
 
 # Render from a string: compiled once to a temporary folder;
-# its imports are looked for in the catalog's folders
+# its imports are looked for in the catalog's folders. The catalog keeps
+# the last `catalog.max_strings` (256) sources compiled.
 html = catalog.render_string("{#def name #}<p>{{ name }}</p>", name="World")
 ```
 
