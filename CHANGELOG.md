@@ -21,6 +21,10 @@ fields.
 
 ### Fixed
 
+- An `X-Forwarded-Proto` with several values (`http, https`, or several
+  lines) gives the last one, the one the trusted proxy appended. The whole
+  value was the protocol, so `is_secure` was false and the session cookie
+  lost `Secure`. A value other than `http` or `https` is ignored.
 - A connection leaves a stream's presence when the channel that tracked it
   stops, even if another channel of the connection still streams from it.
   Before, the user stayed listed until that other channel ended too. With
