@@ -1,3 +1,4 @@
+import peewee as pw
 import pytest
 
 from proper.check import ERROR, WARNING, Problem
@@ -233,3 +234,62 @@ def test_seeds_that_cant_be_imported(make_shop, tmp_path):
 def test_no_seeds(make_shop):
     app = make_shop()
     assert check_seeds(app) == []
+
+
+def test_foreign_keys(make_shop, request):
+    files = {
+        "shop/main.py": FILES["shop/main.py"].replace(
+            '"main": {"type": "peewee.SqliteDatabase", "database": "storage/main.sqlite3"},',
+            '"main": {"type": "peewee.SqliteDatabase", "database": "storage/main.sqlite3"},\n'
+            '                "stats": {"type": "peewee.SqliteDatabase", "database": "storage/stats.sqlite3"},',
+        ),
+        "shop/extra.py": """
+            import peewee as pw
+
+            from .main import app
+
+
+            class Tag(pw.Model):
+                class Meta:
+                    database = app.db["main"]
+        """,
+        **extend("shop/models.py", """
+            from . import extra
+
+
+            class Visit(pw.Model):
+                class Meta:
+                    database = app.db["stats"]
+
+
+            class Comment(pw.Model):
+                post = pw.ForeignKeyField(Post)
+                parent = pw.ForeignKeyField("self", null=True)
+                tag = pw.ForeignKeyField(extra.Tag)
+                visit = pw.ForeignKeyField(Visit)
+                author = pw.DeferredForeignKey("CheckGhostAuthor")
+
+                class Meta:
+                    database = app.db["main"]
+        """),
+    }
+    app = make_shop(files, migrate=False)
+    author = app_models(app)[0]._meta.fields["author"]
+    request.addfinalizer(lambda: pw.DeferredForeignKey._unresolved.discard(author))
+    assert [(p.message, p.line) for p in check_models(app)] == [
+        (
+            "`Comment.tag` points to Tag, which `models/__init__.py` doesn't import: "
+            "the migrations don't make its table",
+            24,
+        ),
+        (
+            "`Comment.visit` points to Visit, of another database (`stats`, not "
+            "`main`): it can't be joined, nor the key enforced",
+            25,
+        ),
+        (
+            "`Comment.author` is a `DeferredForeignKey` to `checkghostauthor`, "
+            "and no model of that name was declared",
+            26,
+        ),
+    ]
