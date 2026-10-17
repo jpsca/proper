@@ -18,8 +18,6 @@ __all__ = (
     "formats_for",
     "formats_for_header",
     "iter_candidates",
-    "iter_format_extensions",
-    "resolve_template",
 )
 
 
@@ -76,20 +74,6 @@ def formats_for_header(accept: str | None, default_format: str) -> tuple[str, ..
     return formats
 
 
-def iter_format_extensions(accept: Iterable[str]) -> Iterator[str]:
-    """Yield filename extensions (without dot) for each mime in `accept`.
-
-    Stops at `*/*` since anything after it is a wildcard fallback, not a
-    preference. Mimes with no registered extension are skipped.
-    """
-    for mime in accept:
-        if mime == "*/*":
-            return
-        ext = mimetypes.guess_extension(mime)
-        if ext:
-            yield ext[1:]
-
-
 def iter_candidates(
     prefixes: Sequence[str],
     action: str,
@@ -130,25 +114,4 @@ def find_template(
     where = f"{controller}.{action}" if controller else f"action `{action}`"
     raise ComponentNotFoundError(
         f"No template found for {where}. Tried: {tried}"
-    )
-
-
-def resolve_template(
-    catalog: t.Any,
-    prefixes: Sequence[str],
-    action: str,
-    *,
-    accept: Iterable[str],
-    default_format: str,
-    handler: str = "jx",
-    controller: str | None = None,
-) -> str:
-    """`find_template` for the formats of an `accept` header."""
-    return find_template(
-        catalog,
-        prefixes,
-        action,
-        formats_for(accept, default_format),
-        handler=handler,
-        controller=controller,
     )
