@@ -375,7 +375,7 @@ Step | Route                              | Purpose
 2.   | `POST /password-reset`             | send the email, save email to session
 3.   | `GET  /password-reset/sent`        | "check your email" confirmation page
 4.   | `GET  /password-reset/:token/edit` | set a new password
-5.   | `PATCH /password-reset/:token`     | update password, sign in, redirect
+5.   | `PATCH /password-reset/:token`     | update password, sign out everywhere else, sign in, redirect
 
 Step 3 uses the `show` action with the literal string `"sent"` as the `:token` URL segment - a way to render a confirmation page through the same resource without a separate route.
 
@@ -388,12 +388,14 @@ Look at `Authenticable.generate_token_for_password_reset`:
 ```python
 def generate_token_for_password_reset(self):
     # Invalidate when password hash changes
-    return (self.password or "")[-20::2]
+    return sha256((self.password or "").encode()).hexdigest()[:20]
 ```
 
-The fingerprint is a slice of the password hash. When the user actually completes the reset, their password hash changes, the fingerprint changes, and any old reset link they had stops working. A leaked link from yesterday can't be used after today's reset.
+The fingerprint is a digest of the password hash: it changes with the hash, but it doesn't reveal any part of it. When the user actually completes the reset, their password hash changes, the fingerprint changes, and any old reset link they had stops working. A leaked link from yesterday can't be used after today's reset.
 
 On the way back in, `User.resolve_token_for("password_reset", token, max_age=...)` verifies the signature, looks the user up by id, calls `generate_token_for_password_reset` *again*, and compares it to the fingerprint baked into the token. If they don't match, the token is treated as revoked.
+
+When the password changes, `update` also signs the user out of every other browser and device (`Session.revoke_all_for(user)`). If someone else had the old password, or a session made with it, they lose access with the reset.
 
 `max_age` is enforced too, via `config.AUTH_TOKEN_LIFE` (default: 3 hours; see the [Configuration](#configuration) section). Past that, the signature check fails and `resolve_token_for` returns `None`.
 

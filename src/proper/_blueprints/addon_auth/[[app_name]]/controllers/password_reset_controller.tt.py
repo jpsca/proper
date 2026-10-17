@@ -3,7 +3,7 @@ from proper.units import MINUTES
 from [[app_name]].emails.password_reset_email import PasswordResetEmail
 from [[app_name]].forms.password_reset import PasswordChangeForm, PasswordResetForm
 from [[app_name]].main import config
-from [[app_name]].models import User
+from [[app_name]].models import Session, User
 from [[app_name]].router import router
 from .app_controller import AppController
 
@@ -57,6 +57,8 @@ class PasswordResetController(AppController):
         new_password = self.form.save()["password1"]
         self.user.set_password(new_password)
         self.user.save()
+        # Whoever has the old password, or a session made with it, is out
+        Session.revoke_all_for(self.user)
         self.new_session_for(self.user)
         self.redirect_after_authentication(flash="Password updated")
 

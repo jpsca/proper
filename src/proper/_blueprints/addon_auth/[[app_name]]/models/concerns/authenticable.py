@@ -1,4 +1,5 @@
 import typing as t
+from hashlib import sha256
 
 import peewee as pw
 from passlib.utils import saslprep
@@ -89,7 +90,7 @@ class Authenticable(BaseModel):
 
         Examples:
             # Invalidate when password hash changes
-            lambda user: user.password[-10:]
+            lambda user: sha256(user.password.encode()).hexdigest()[:20]
 
             # Invalidate when email changes
             lambda user: user.email
@@ -98,5 +99,6 @@ class Authenticable(BaseModel):
             lambda user: str(user.updated_at)
 
         """
-        # Invalidate when password hash changes
-        return (self.password or "")[-20::2]
+        # Invalidate when password hash changes. A digest of the hash, not a
+        # piece of it: the token goes by email, signed but not encrypted.
+        return sha256((self.password or "").encode()).hexdigest()[:20]

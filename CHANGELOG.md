@@ -21,6 +21,14 @@ fields.
 
 ### Fixed
 
+- In apps with the `auth` addon, resetting the password signs the user out
+  of every other session (`Session.revoke_all_for(user)`), so a stolen
+  session stops working. The reset token has a SHA-256 digest of the
+  password hash instead of 10 of its characters: the token goes by email,
+  signed but not encrypted. For an existing app, apply the changes of
+  `models/session.py`, `models/concerns/authenticable.py` and
+  `controllers/password_reset_controller.py`; the reset links already sent
+  stop working.
 - `allowed_ext` of a static route allowed a name with several dots only
   for its whole ending: `jquery.min.js` needed `".min.js"`, and
   `font-1.2.woff2` was a 404 with `".woff2"`. Any ending of the name

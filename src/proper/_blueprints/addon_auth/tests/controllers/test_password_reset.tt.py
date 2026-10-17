@@ -1,3 +1,5 @@
+from hashlib import sha256
+
 import pytest
 
 from [[app_name]].forms.auth import validators
@@ -111,6 +113,30 @@ def test_update_with_valid_token_changes_password_and_signs_in(client):
     assert response.headers["location"] == "/"
     assert User.authenticate(login="carol", password=NEW_PASSWORD) is not None
     assert Session.select().where(Session.user == user).count() == 1
+
+
+def test_update_revokes_the_other_sessions(client):
+    user = User.create(login="erin", password=GOOD_PASSWORD)
+    stolen = Session.create_for_user(user)
+
+    response = client.patch(
+        app.url_for("PasswordReset.update", token=reset_token_for(user)),
+        body={"password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
+    )
+
+    assert response.status == 303
+    assert Session.find_by_token(stolen.token) is None
+    active = Session.select().where(Session.user == user, Session.revoked == False)  # noqa: E712
+    assert active.count() == 1
+
+
+def test_the_reset_token_has_a_digest_of_the_password_hash(client):
+    user = User.create(login="frank", password=GOOD_PASSWORD)
+    value = user.generate_token_for_password_reset()
+    assert value == sha256(user.password.encode()).hexdigest()[:20]
+
+    user.set_password(NEW_PASSWORD)
+    assert user.generate_token_for_password_reset() != value
 
 
 def test_update_with_short_password_redisplays_form(client):
