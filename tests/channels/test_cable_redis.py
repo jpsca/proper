@@ -165,6 +165,38 @@ def test_messages_that_are_not_json_are_ignored(machines, redis_url, caplog):
     a.close()
 
 
+def test_a_bad_message_doesnt_cost_the_subscription(machines, redis_url, caplog):
+    one = machines()
+    a = _subscribed(one)
+    with caplog.at_level(logging.WARNING, logger="proper"):
+        publisher = redis.from_url(redis_url)
+        publisher.publish(one.cable._channel, b"[1, 2]")
+        publisher.publish(one.cable._channel, b'{"o": "elsewhere", "f": "no stream"}')
+        assert _wait(lambda: "could not deliver a message" in caplog.text)
+    assert "isn't an object" in caplog.text
+    # Right after: no reconnection, nothing lost
+    machines(start=False).cable.broadcast("room:1", "still fine")
+    assert a.recv_type("broadcast")["data"] == "still fine"
+    assert "connection lost" not in caplog.text
+    a.close()
+
+
+def test_the_listener_checks_an_idle_connection(machines, monkeypatch):
+    redis_cable._load_redis()
+    made = []
+    from_url = redis.from_url
+
+    def spy(url, **options):
+        made.append(options)
+        return from_url(url, **options)
+
+    monkeypatch.setattr(redis_cable.redis, "from_url", spy)
+    one = machines()
+    assert _wait(lambda: one.cable._subscribed.is_set())
+    assert {"health_check_interval": redis_cable.HEALTH_CHECK_INTERVAL,
+            "socket_keepalive": True} in made
+
+
 def test_no_port_for_forwarded_broadcasts(machines):
     one = machines()
     with socket.socket() as s:

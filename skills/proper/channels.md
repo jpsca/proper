@@ -608,7 +608,7 @@ CABLE = {
 
 - Each machine's web process serves its own WebSockets (Bearings). A `broadcast()` goes straight to the local subscribers of the process that makes it and to Redis; the other machines' web processes deliver it to theirs and skip their own messages.
 - Processes without WebSockets (Huey workers, shells) publish to Redis directly: no HTTP forwarding, no `CABLE_PORT + 1`. `disconnect()` reaches every machine too.
-- Takes every option of `Cable`. The listener reconnects to Redis on its own, backing off up to 30 s; meanwhile what other machines publish is lost, and a broadcast that can't reach Redis is logged and lost.
+- Takes every option of `Cable`. The listener reconnects to Redis on its own, backing off up to 30 s; meanwhile what other machines publish is lost, and a broadcast that can't reach Redis is logged and lost. While no message comes, it PINGs Redis every 30 s (`redis_cable.HEALTH_CHECK_INTERVAL`, with TCP keepalive), so a connection that died without closing is found and replaced. A message in Redis it can't deliver is logged and skipped, without reconnecting.
 - Recovery buffers are per machine: a client that reconnects to another machine gets `recovered: false` (use sticky sessions on `CABLE_PATH`).
 - Presence is one list in Redis (a hash per stream, `user → {machine: [data, connections, time]}`, changed by a Lua script): join on a user's first connection anywhere, leave on their last; machines refresh an alive key (5 s, TTL 15 s), and one drops a dead machine's users, who leave. Without Redis, each machine lists its own.
 - Tests from memory (`client.websocket()`) don't touch Redis.
