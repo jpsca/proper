@@ -21,6 +21,14 @@ fields.
 
 ### Fixed
 
+- The file name in a `Content-Disposition` can't break the header. S3's
+  `send_file()` and `service_url()` put the attachment's name between
+  quotes as it was, so a name with a `"` added parameters, and
+  `Response.send_file()` sent a plain ASCII name without quotes, so a `;`
+  in it did the same. Both use the new `content_disposition()` (from
+  `proper.core.response.response`): a plain name goes quoted; one with a
+  `"`, a backslash, a control character or non-ASCII goes as `filename*`
+  (RFC 6266), after an ASCII `filename`.
 - `new_session_for()` drops the CSRF token of the cookie session, so the
   signed-in user gets a new one. Someone who could plant the cookie session
   (from a sibling subdomain) knew a token that stayed valid after the

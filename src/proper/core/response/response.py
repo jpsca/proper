@@ -2,6 +2,7 @@
 Response class.
 """
 import html as html_mod
+import re
 import typing as t
 import unicodedata
 from datetime import datetime
@@ -26,10 +27,31 @@ if t.TYPE_CHECKING:
     from ..request import Request
 
 
-__all__ = ("Response",)
+__all__ = ("Response", "content_disposition")
 
 # the characters of a URL that stay as they are in a redirect (RFC 3986)
 URL_SAFE = "/:@!$&'()*+,;=?#[]%~"
+
+# A file name that can go as it is between the quotes of `filename="..."`:
+# printable ASCII, without `"` or a backslash
+RX_PLAIN_FILENAME = re.compile(r"[ !#-\[\]-~]+")
+# The characters of a `filename*` value that stay as they are (RFC 5987, attr-char)
+ATTR_CHARS = "!#$&+-.^_`|~"
+
+
+def content_disposition(filename: str, *, as_attachment: bool = False) -> str:
+    """The `Content-Disposition` of a file: `attachment` or `inline`, with
+    its name. A name that isn't plain ASCII, or has a `"`, a backslash or a
+    control character, goes as `filename*` (RFC 6266), after an ASCII
+    `filename` for the clients that don't read it."""
+    value = "attachment" if as_attachment else "inline"
+    if RX_PLAIN_FILENAME.fullmatch(filename):
+        return f'{value}; filename="{filename}"'
+    simple = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii")
+    simple = "".join(c if RX_PLAIN_FILENAME.fullmatch(c) else "_" for c in simple)
+    quoted = quote(filename, safe=ATTR_CHARS)
+    return f"{value}; filename=\"{simple}\"; filename*=UTF-8''{quoted}"
+
 
 # The headers that describe the body, and how to cache it: an error page
 # doesn't keep them.
@@ -486,21 +508,9 @@ class Response(ResponseHeadersMixin):
 
         self.content_type = mimetype
 
-        download_name = download_name or path.name
-        try:
-            download_name.encode("ascii")
-        except UnicodeEncodeError:
-            simple = unicodedata.normalize("NFKD", download_name)
-            simple = simple.encode("ascii", "ignore").decode("ascii")
-            # safe = RFC 5987 attr-char
-            quoted = quote(download_name, safe="!#$&+-.^_`|~")
-            options = f"; filename={simple}; filename*=UTF-8''{quoted}"
-        else:
-            options = f"; filename={download_name}"
-
-        value = "attachment" if as_attachment else "inline"
-
-        self.headers["content-disposition"] = f"{value}{options}"
+        self.headers["content-disposition"] = content_disposition(
+            download_name or path.name, as_attachment=as_attachment
+        )
         self.body = FileWrapper(path.open("rb"))
 
     def get_cookie_tuples(self) -> list[tuple[str, str]]:
