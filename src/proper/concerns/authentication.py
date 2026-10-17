@@ -22,6 +22,10 @@ class Authentication(Concern):
         elif isinstance(self.skip_authentication, bool):
             if self.skip_authentication:
                 return
+        elif isinstance(self.skip_authentication, str):
+            # One action name, not the letters of one
+            if self.request.matched_action == self.skip_authentication:
+                return
         elif self.request.matched_action in self.skip_authentication:
             return
         if not self._resume_session():

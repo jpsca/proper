@@ -5,6 +5,7 @@ from importlib import import_module
 from pathlib import Path
 
 from peewee_migrate import Router as PWRouter
+from peewee_migrate.router import load_models
 from proper_cli import Cli
 
 from ..constants import DB_CACHE, DB_QUEUE
@@ -142,19 +143,24 @@ def get_db_cli(app) -> type[Cli]:
                 Database name to create the migration for. Default is "main".
 
             """
+            router = self._get_router(db)
+            assert router
             if DB_QUEUE == db:
                 models = getattr(app.queue, "models", None)
             elif DB_CACHE == db:
                 models = getattr(app.cache, "models", None)
             else:
-                models = import_module(f"{app.name}.models")
+                # The models of the app that are stored in this database
+                models = [
+                    model
+                    for model in load_models(import_module(f"{app.name}.models"))
+                    if model._meta.database is router.database
+                ]
 
             if not models:
                 print("No models found.")
                 sys.exit(0)
 
-            router = self._get_router(db)
-            assert router
             name = "_".join(name.lower().strip().split())
             migration = router.create(name, auto=models)
             if migration:

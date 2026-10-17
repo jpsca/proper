@@ -1143,7 +1143,7 @@ class GigaCloud(Service):
 
 ```
 
-Once the class is imported anywhere in your app (a top-level import in `myapp/__init__.py` is the simplest place), the `type` value in the service config matches the class name:
+Once the class is imported anywhere in your app (a top-level import in `myapp/__init__.py` is the simplest place), the `type` value in the service config matches the class name (the class may also subclass another service, such as `Disk`):
 
 ```python
 STORAGES = {

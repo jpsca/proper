@@ -1,5 +1,7 @@
 import sys
+import types
 
+import peewee as pw
 import pytest
 
 from proper import App
@@ -170,3 +172,51 @@ def test_migration_of_the_cache_made_by_the_app(project, make_app, capsys):
     out = capsys.readouterr().out
     assert "Running migrations for 'proper_cache':" in out
     assert app.cache.get("a") == 1
+
+
+def test_create_takes_the_models_of_that_database(project, app, monkeypatch, capsys):
+    """A migration for one database has only the models stored in it."""
+    models = types.ModuleType("blog.models")
+
+    class Post(pw.Model):
+        title = pw.TextField()
+
+        class Meta:
+            database = app.db["main"]
+            table_name = "posts"
+
+    class Visit(pw.Model):
+        path = pw.TextField()
+        count = pw.IntegerField()
+
+        class Meta:
+            database = app.db["stats"]
+            table_name = "visits"
+
+    models.Post = Post
+    models.Visit = Visit
+    monkeypatch.setitem(sys.modules, "blog.models", models)
+    app.name = "blog"
+    cli = get_db_cli(app)()
+
+    cli.create(name="more", db="stats")
+
+    out = capsys.readouterr().out.strip().splitlines()[-1]
+    assert out.startswith("db/stats/002_more")
+    migration = (project / out).read_text()
+    assert "count" in migration
+    assert "title" not in migration
+
+
+def test_create_without_models_for_that_database(project, app, monkeypatch, capsys):
+    models = types.ModuleType("blog.models")
+    monkeypatch.setitem(sys.modules, "blog.models", models)
+    app.name = "blog"
+    cli = get_db_cli(app)()
+
+    with pytest.raises(SystemExit) as exc:
+        cli.create(name="more", db="stats")
+
+    assert exc.value.code == 0
+    assert "No models found." in capsys.readouterr().out
+    assert sorted(p.name for p in (project / "db" / "stats").iterdir()) == ["001_initial.py"]

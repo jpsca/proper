@@ -21,6 +21,13 @@ fields.
 
 ### Fixed
 
+- `proper db create --db <name>` writes only the models stored in that
+  database. It took every model of the app, so the migration of a second
+  database also created the tables of the main one.
+- A storage `type` can be a subclass of a service, such as a subclass of
+  `Disk`. Only the direct subclasses of `Service` were found.
+- `skip_authentication = "index"` skips only `index`. A string was tested
+  as the letters it contains, so it also skipped an action named `in`.
 - The file name in a `Content-Disposition` can't break the header. S3's
   `send_file()` and `service_url()` put the attachment's name between
   quotes as it was, so a name with a `"` added parameters, and

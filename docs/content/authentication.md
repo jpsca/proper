@@ -232,7 +232,7 @@ Every action on this controller is reachable without signing in. `current.user` 
 
 ### Per-Action Opt-Out
 
-Set `skip_authentication` to a list of action names instead:
+Set `skip_authentication` to a list of action names instead (or to one name, as a string):
 
 ```python
 @router.resource("books")
