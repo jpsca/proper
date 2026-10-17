@@ -574,6 +574,7 @@ def create(self):
 The `charset` parameter of the `Content-Type` decodes urlencoded and JSON bodies (UTF-8 if there is none). A request is refused before it reaches your controller when:
 
 - The body is larger than `MAX_CONTENT_LENGTH` (8 MB by default): `413`. A body sent without `Content-Length` (chunked, or over HTTP/2 without the header) is read up to that limit and refused as soon as it goes over it.
+- A form (urlencoded or multipart) has more fields than `MAX_FORM_FIELDS` (100 by default): `400`.
 - The body is not valid in its charset: `400`.
 - The charset is unknown, or can't decode the percent-escapes of a urlencoded body (`idna`): `415`.
 - The JSON or the multipart body is malformed, or a multipart body ends before its final boundary: `400`. JSON that Python's `json` module can't read is malformed too: an integer with more than 4300 digits, or arrays and objects nested too deep.
