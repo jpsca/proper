@@ -40,6 +40,7 @@ is closed. Handshakes from other sites' pages are refused (see
 `origin_allowed`).
 """
 import contextvars
+import inspect
 import json
 import os
 import queue
@@ -57,12 +58,11 @@ from bearings import Server, WebSocketHandler
 from ..global_context import current
 from ..helpers import jsonplus, logger
 from .base import CABLE_SALT, BaseCable, allowed_origins
-from .channel import ActionError
+from .channel import ActionError, Channel
 
 
 if t.TYPE_CHECKING:
     from ..app import App
-    from .channel import Channel
 
 
 _DISCONNECT = object()
@@ -80,6 +80,19 @@ def _broadcast_frame(stream_name: str, data: t.Any) -> str:
     return '{"c": "P", "type": "broadcast", "stream": %s, "data": %s}' % (
         jsonplus.dumps(stream_name), jsonplus.dumps(data)
     )
+
+
+def _is_action(channel: "Channel", name: str) -> bool:
+    """Whether `name` is a method the app's channel class defines (or a
+    class between it and `Channel`), not an attribute such as `app` or
+    `Session`, or a method of `Channel` itself."""
+    for cls in type(channel).__mro__:
+        if cls is Channel:
+            return False
+        attr = cls.__dict__.get(name)
+        if attr is not None:
+            return inspect.isfunction(attr)
+    return False
 
 
 def _subscription_key(channel_name: str, params: dict) -> str:
@@ -1159,6 +1172,9 @@ class Cable(BaseCable):
         command = msg.get("command")
         channel_name = msg.get("channel", "")
         params = msg.get("params") or {}
+        if not isinstance(channel_name, str) or not isinstance(params, dict):
+            conn.put({"type": "error", "reason": "invalid_message"})
+            return
         key = _subscription_key(channel_name, params)
         if command == "subscribe":
             self._subscribe(conn, channel_name, params, key, _client_positions(msg.get("positions")))
@@ -1279,10 +1295,13 @@ class Cable(BaseCable):
             fail("not_subscribed")
             return
         action = msg.get("action", "")
-        if not action or action.startswith("_") or action in _BLOCKED_ACTIONS:
+        if (
+            not isinstance(action, str) or not action or action.startswith("_")
+            or action in _BLOCKED_ACTIONS
+        ):
             fail("invalid_action")
             return
-        if not callable(getattr(channel, action, None)):
+        if not _is_action(channel, action):
             fail("unknown_action")
             return
         data = msg.get("data") or {}
