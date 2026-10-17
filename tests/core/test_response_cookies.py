@@ -250,3 +250,31 @@ def test_warning_contains_sizes():
     with pytest.warns(UserWarning, match="200 bytes") as record:
         validate_cookie_size("foo", "x" * 200, 100)
     assert "100 bytes" in str(record[0].message)
+
+
+@pytest.mark.parametrize("value", [
+    "foo; Domain=evil.com; Path=/x",
+    "a b",
+    'say "hi", \\o/',
+    "ñandú",
+])
+def test_a_value_that_needs_quotes_reads_back(value):
+    resp = _make_response()
+    resp.set_cookie("prefs", value)
+    header = resp.cookies["prefs"].OutputString()
+    assert "Domain" not in header.split(";", 1)[1]
+    assert header.count(";") == 2  # Path and SameSite
+    req = make_test_request("/", headers=[("cookie", header.split("; Path=")[0])])
+    assert req.cookies["prefs"] == value
+
+
+def test_a_plain_value_is_not_quoted():
+    resp = _make_response()
+    resp.set_cookie("token", "abc.DEF-123_=:")
+    assert resp.cookies["token"].OutputString().startswith("token=abc.DEF-123_=:;")
+
+
+def test_cookie_without_path():
+    resp = _make_response()
+    resp.set_cookie("foo", "bar", path=None)
+    assert not resp.cookies["foo"]["path"]

@@ -199,6 +199,8 @@ All `set_cookie` / `set_signed_cookie` options:
 
 Cookies larger than 4093 bytes trigger a warning, as some browsers silently ignore oversized cookies.
 
+A value with a space, a control character, `"`, `,`, `;`, `\` or non-ASCII is sent quoted (`"..."`, with octal escapes, as Python's `http.cookies` does), and `request.cookies` reads it back unquoted: a `;` in the value can't add an attribute to the cookie. JavaScript that reads `document.cookie` sees the quoted form.
+
 ### Disabling Cookies
 
 For read-only endpoints (RSS feeds, public API responses), you can disable all cookie writes:

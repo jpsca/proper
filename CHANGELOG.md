@@ -14,6 +14,11 @@ fields.
 
 ### Fixed
 
+- A cookie value with a `;` could add attributes to its cookie:
+  `set_cookie("theme", "dark; Domain=evil.com")` sent
+  `theme=dark; Domain=evil.com; Path=/`. A value with a space, a control
+  character, `"`, `,`, `;`, `\` or non-ASCII is now sent quoted, and the
+  request reads it back as it was set.
 - An error page replaces the body of the response that failed, with the
   headers that describe it. An error after `send_file()` sent the HTML
   page with the file's `Content-Length`, `Content-Type` and
