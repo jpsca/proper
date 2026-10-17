@@ -14,6 +14,12 @@ fields.
 
 ### Fixed
 
+- A file served by `attachment.send_file()` is shown in a sandbox
+  (`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
+  sandbox`) with `X-Content-Type-Options: nosniff`. `image/*` is served
+  inline by default, and so was an uploaded SVG with a script: opened by its
+  URL, the script ran with the app's origin. PDFs are left out of the
+  sandbox, where Chrome's PDF viewer doesn't work.
 - A cookie value with a `;` could add attributes to its cookie:
   `set_cookie("theme", "dark; Domain=evil.com")` sent
   `theme=dark; Domain=evil.com; Path=/`. A value with a space, a control

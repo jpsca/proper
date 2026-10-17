@@ -238,6 +238,10 @@ STORAGE_SAFE_IMAGE_LOADERS = [
 
 `STORAGE_ALLOWED_INLINE` is a list of glob patterns (matched with `fnmatch`) for content types that should be served inline in the browser. `<img>` shows the image, `<video>` plays the video, the PDF opens in the browser viewer. Anything not matched is served with `Content-Disposition: attachment`, triggering a download dialog.
 
+:::note | Uploaded files can't run scripts
+A file opened by its URL is shown in a sandbox: the browser shows it, but any script inside it doesn't run, and the file can't reach your app's pages or cookies. This matters for SVG images, which can carry scripts. PDFs are the exception, because the browser's PDF viewer doesn't work in a sandbox.
+:::
+
 `STORAGE_ALLOWED_VARIANTS` is a list of glob patterns for source content types whose format should be **preserved** when generating a variant. A source PNG produces a PNG variant; a source JPEG produces a JPEG variant. Add `image/webp` or `image/avif` if your application produces those.
 
 `STORAGE_FALLBACK_FORMAT` is the format used for variants whose source content type is *not* in `STORAGE_ALLOWED_VARIANTS`. The default is `"png"` (lossless, supports transparency). Set it to `"jpg"` or `"webp"` if smaller files matter more than fidelity. A caller-supplied `save={"format": "..."}` always overrides both rules - see [Format Conversion](#format-conversion).

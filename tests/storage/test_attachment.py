@@ -1305,3 +1305,22 @@ def test_cache_max_age_can_be_changed_or_disabled(app, Attachment):
 
     Attachment.CACHE_MAX_AGE = None
     assert "cache-control" not in _send(att, app)
+
+
+@pytest.mark.parametrize("content_type", ["image/svg+xml", "image/png", "text/html"])
+def test_send_file_shows_the_file_in_a_sandbox(app, Attachment, content_type):
+    att = Attachment(
+        _make_file(b"<svg onload='alert(1)'/>", "x.svg"), content_type=content_type
+    )
+    att.save()
+    headers = _send(att, app)
+    assert headers["x-content-type-options"] == "nosniff"
+    assert headers["content-security-policy"] == Attachment.SANDBOX_POLICY
+
+
+def test_send_file_leaves_pdfs_out_of_the_sandbox(app, Attachment):
+    att = Attachment(_make_file(b"%PDF-1.4", "doc.pdf"), content_type="application/pdf")
+    att.save()
+    headers = _send(att, app)
+    assert headers["x-content-type-options"] == "nosniff"
+    assert "content-security-policy" not in headers

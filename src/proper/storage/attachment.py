@@ -301,6 +301,20 @@ class _Attachment(ProperModel):
             as_attachment=not inline,
         )
         self._set_cache_headers(current.response)
+        self._set_isolation_headers(current.response)
+
+    # A file opened by its URL is a document of its own, without scripts and
+    # without access to the app's origin: an SVG or HTML file uploaded with
+    # a script can't run it.
+    SANDBOX_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+
+    def _set_isolation_headers(self, response: t.Any) -> None:
+        """The browser uses the content type the attachment was stored with
+        (`nosniff`), and shows the file in a sandbox. PDFs are left out of
+        the sandbox: Chrome's PDF viewer doesn't run in one."""
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        if self.content_type != "application/pdf":
+            response.headers["Content-Security-Policy"] = self.SANDBOX_POLICY
 
     def _set_cache_headers(self, response: t.Any) -> None:
         """The bytes behind an attachment never change (a replacement is a
