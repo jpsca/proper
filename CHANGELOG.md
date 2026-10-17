@@ -21,6 +21,11 @@ fields.
 
 ### Fixed
 
+- `allowed_ext` of a static route allowed a name with several dots only
+  for its whole ending: `jquery.min.js` needed `".min.js"`, and
+  `font-1.2.woff2` was a 404 with `".woff2"`. Any ending of the name
+  counts now.
+- A `%00` in the path of a static file is a 404, not a 500.
 - Clearing the session expires the session cookie with its
   `SESSION_COOKIE_PATH` and `SESSION_COOKIE_DOMAIN`. With either set, the
   browser kept the old session cookie, as the expired one had `Path=/` and
