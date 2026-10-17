@@ -63,7 +63,8 @@ def test_views_without_a_compiler(make_shop):
 
 
 def test_compiler_problems():
-    assert compiler_problems("/elsewhere/a.jx:3:7: Bad tag\n\nsomething else\n") == [
+    output = "/elsewhere/a.jx:3:7: Bad tag\n\nsomething else\n/elsewhere/a.jx:3:7: Bad tag\n"
+    assert compiler_problems(output) == [
         Problem(ERROR, "Bad tag", path="/elsewhere/a.jx", line=3, col=7),
         Problem(ERROR, "something else"),
     ]

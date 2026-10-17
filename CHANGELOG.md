@@ -23,6 +23,16 @@ fields.
   a template, misspelled settings, storage and mailer types that don't
   exist, and incomplete locales. One line per problem, with the file and
   line; it exits with 1 on an error. The checks are in `proper.check`.
+- `proper check` also checks the route names given to `url_for` and
+  `redirect_to`, in the views and in the Python code of the app: a route
+  that doesn't exist (with a suggestion), or a placeholder of its path
+  not given.
+
+### Changed
+
+- The views compiler reports every error of the component calls in a
+  file (a missing argument, a literal of the wrong type, a component not
+  imported), not only the first. A syntax error still stops its file.
 - `STORAGE_MAX_IMAGE_PIXELS` (100 million by default): a variant isn't made
   from an image with more pixels, which raises `ImageTooLarge`. A PNG of
   400 KB can declare 20,000 × 20,000 pixels, and decoding it took 400 MB

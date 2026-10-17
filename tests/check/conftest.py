@@ -42,7 +42,7 @@ FILES = {
             def index(self):
                 pass
 
-            @router.get("posts/{id}")
+            @router.get("posts/:id")
             def show(self):
                 pass
 

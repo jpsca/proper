@@ -60,9 +60,10 @@ def check_views(app: "App") -> list[Problem]:
 
 
 def compiler_problems(output: str) -> list[Problem]:
-    """The errors that the views compiler printed, one per line."""
+    """The errors that the views compiler printed, one per line. An error
+    in a component is printed for each view that imports it: once here."""
     problems = []
-    for text in output.splitlines():
+    for text in dict.fromkeys(output.splitlines()):
         if not text.strip():
             continue
         match = RX_COMPILER_LINE.match(text)

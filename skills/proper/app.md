@@ -536,6 +536,8 @@ Most `db` commands accept `--db=NAME` to target a specific database (default: `m
 | `check_controllers` | error | A route whose controller can't be loaded (a class must be at the top of its module); a `before`/`after` `do` that is not a method. |
 | `check_routes` | error | A route with the method, path and host of an earlier one (it never matches); a route name used for routes with different paths (`url_for` builds the first). |
 | `check_views` | error | Every view compiles (`compile_views(app, force=True)`, so it writes the compiled views). |
+| `check_view_urls` | error | A `url_for('Name', ...)` with a literal name in a view (read from the compiled modules): no such route (with a "did you mean"), or a placeholder of its path not given. A call with an object or `**kwargs` is checked only for the name. Compiled modules of deleted templates are skipped. |
+| `check_code_urls` | error | The same for `url_for(...)`/`redirect_to(...)` (as a function or a method) in the app's Python files, parsed with `ast` in threads. Names starting with `/` or `http` are paths. |
 | `check_models` | error | A field that hides a method (not a property) of a base class; two models of a database with the same table. |
 | `check_migrations` | error/warning | Error: the models of a database are not what its migrations make (replayed with `fake=True`, no database needed). Warning: a `.py` in `db/<db>/` that is not named `NNN_name.py`; two migrations with the same number. |
 | `check_seeds` | error/warning | Warning: a seed without `envs`, or with `envs` as a string; a `.py` in the seeds folder that `__init__.py` doesn't import. Error: a seed without `seed()`; seeds that don't import. |

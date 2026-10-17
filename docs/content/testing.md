@@ -282,6 +282,7 @@ $ uv run proper check
 
 - **Controllers and routes**: every route reaches a controller, every `before`/`after` callback exists, no route is hidden by an earlier one with the same method and path, and no route name is used for two different paths.
 - **Views**: every view compiles.
+- **URLs**: every `url_for('Name')` and `redirect_to('Name')`, in the views and in the Python code, names a route that exists and gives the values its path needs (`url_for('Post.show')` for `/posts/:id` is missing `id`). A call with an object, like `url_for('Post.show', post)`, may take the values from it, so it's only checked for the name.
 - **Models**: no field hides a method of the model (a field named `save`, for example), and no two models share a table.
 - **Migrations**: the models are what the migrations make. If you changed a model and forgot `proper db create`, it tells you. It also warns about files in `db/<database>/` that won't run as migrations.
 - **Seeds**: each seed has `envs` and `seed()`, and `db/seeds/__init__.py` imports it.

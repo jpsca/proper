@@ -2,7 +2,8 @@
 
 It imports the app, as every command does, and looks at what it built:
 the routes, controllers, views, models and their migrations, seeds,
-forms, emails, config and locales. Most of what it finds fails today
+forms, emails, config and locales, and the route names given to `url_for`
+and `redirect_to`. Most of what it finds fails today
 only when a request reaches it, or never fails and loses data.
 
 Each check is a function of the app that returns the `Problem`s it
@@ -20,6 +21,7 @@ from .app_parts import (
 from .models import check_migrations, check_models, check_seeds
 from .problem import ERROR, WARNING, Problem
 from .routes import check_controllers, check_routes, check_views
+from .urls import check_code_urls, check_view_urls
 
 
 if t.TYPE_CHECKING:
@@ -36,6 +38,8 @@ CHECKS: "tuple[Callable[[App], list[Problem]], ...]" = (
     check_controllers,
     check_routes,
     check_views,
+    check_view_urls,
+    check_code_urls,
     check_models,
     check_migrations,
     check_seeds,
