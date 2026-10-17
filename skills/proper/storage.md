@@ -601,6 +601,8 @@ System tool installation:
 - **poppler** (PDFs): `brew install poppler` / `apt install poppler-utils`
 - **ffmpeg** (videos): `brew install ffmpeg` / `apt install ffmpeg`
 
+`preview_video` runs ffmpeg with `-protocol_whitelist file` and `-format_whitelist` from `Attachment.VIDEO_FORMATS` (`mov` (MP4, MOV, M4V, 3GP), `matroska`, `webm`, `avi`, `mpegts`, `mpeg`, `ogg`, `flv`): an upload that is a playlist (concat, HLS) can't make ffmpeg read other files or URLs. Override `VIDEO_FORMATS` on your `Attachment` model for another format.
+
 Preview methods accept extra kwargs that participate in the variant cache key (so different pages/timestamps cache independently):
 
 - `preview_pdf(..., page=1, dpi=150)`
