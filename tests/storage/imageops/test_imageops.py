@@ -4,10 +4,12 @@ import pytest
 import pyvips
 
 from proper.storage.imageops import (
+    ImageTooLarge,
     blur,
     grayscale,
     restrict_loaders,
     sepia,
+    set_max_pixels,
     transform_image,
 )
 
@@ -252,3 +254,31 @@ def test_restrict_loaders_custom_allowlist(_restore_loaders):
     pyvips.Image.new_from_buffer(png, "").avg()  # still allowed
     with pytest.raises(pyvips.Error):
         pyvips.Image.new_from_buffer(jpg, "").avg()
+
+
+@pytest.fixture()
+def _restore_max_pixels():
+    yield
+    set_max_pixels()
+
+
+def test_an_image_with_too_many_pixels_is_refused(_restore_max_pixels):
+    png = pyvips.Image.black(30, 20).cast("uchar").write_to_buffer(".png")
+    set_max_pixels(599)
+    with pytest.raises(ImageTooLarge, match="30 x 20 pixels"):
+        transform_image(png, resize_to_fit=(2, 2))
+
+    set_max_pixels(600)
+    assert transform_image(png, resize_to_fit=(2, 2))
+    set_max_pixels(None)
+    assert transform_image(png, resize_to_fit=(2, 2))
+
+
+def test_a_decompression_bomb_is_refused_before_decoding():
+    # 20,000 x 20,000 pixels (400 MB decoded) in a PNG of about 400 KB
+    bomb = pyvips.Image.black(20_000, 20_000).cast("uchar").write_to_buffer(
+        ".png", compression=9
+    )
+    assert len(bomb) < 1_000_000
+    with pytest.raises(ImageTooLarge):
+        transform_image(bomb, resize_to_fit=(2, 2))

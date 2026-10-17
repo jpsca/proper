@@ -248,6 +248,8 @@ A file opened by its URL is shown in a sandbox: the browser shows it, but any sc
 
 `STORAGE_SAFE_IMAGE_LOADERS` is the list of image decoders Proper will let libvips use when it builds a variant. Variants are made from files your users upload, and the *content* of a file decides which decoder runs - not its name or declared type. Some decoders are unsafe on hostile input: the SVG decoder can be tricked into reading files off your server, and the ImageMagick one can be pushed further still. Proper blocks every decoder except the ones on this list, so a booby-trapped upload can't reach an unsafe one. The default covers the common web formats (JPEG, PNG, WebP, GIF, TIFF, HEIC/AVIF). Add an entry only if you truly need another format - for example `"VipsForeignLoadJxl"` for JPEG-XL.
 
+`STORAGE_MAX_IMAGE_PIXELS` is the largest image, in pixels (width × height), that Proper makes a variant from: 100 million by default, about a 10,000 × 10,000 photo. A small file can describe a huge image, and building a variant of it would use all the server's memory. A bigger image raises `ImageTooLarge` instead. Set it to `None` to remove the limit.
+
 :::note | PDF and video previews are unaffected
 This list only governs libvips image decoders. PDF and video previews are rendered to an image by the `pdftoppm` and `ffmpeg` command-line tools, so leaving those decoders off the list does **not** disable previews.
 :::
