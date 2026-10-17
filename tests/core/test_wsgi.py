@@ -166,6 +166,20 @@ class TestHttp:
         assert SEEN["form"] == {"name": "ada", "age": "36"}
         assert status == "200 OK"
 
+    def test_an_urlencoded_body_with_too_many_fields_is_refused(self, app):
+        _route(app, "/form", Form.create, method="POST")
+        app.config.MAX_FORM_FIELDS = 2
+        body = b"a=1&b=2&c=3"
+        environ = make_environ("/form", method="POST", body=body, headers=[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("content-length", str(len(body))),
+        ])
+
+        status, _, _ = call(app, environ)
+
+        assert status.startswith("400")
+        app.config.MAX_FORM_FIELDS = 100
+
     def test_an_oversized_body_is_refused_unread(self, app):
         _route(app, "/form", Form.create, method="POST")
         app.config.MAX_CONTENT_LENGTH = 4

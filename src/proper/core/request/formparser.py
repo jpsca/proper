@@ -100,19 +100,27 @@ def parse_query_string(query_string: str, *, max_query_size: int | None = None) 
     return _fields(query_string.encode("utf-8"), "utf-8")
 
 
-def parse_urlencoded(body: bytes, encoding: str = "utf-8") -> MultiDict:
+def parse_urlencoded(
+    body: bytes, encoding: str = "utf-8", *, max_fields: int | None = None
+) -> MultiDict:
     """The fields of an `application/x-www-form-urlencoded` body, decoded
     with `encoding`: "+" is a space and `%XX` escapes are decoded (U+FFFD
     where they are not valid in `encoding`). The body itself must be valid
-    in `encoding`: `Request` checks it first."""
-    return _fields(body, encoding)
+    in `encoding`: `Request` checks it first. More than `max_fields` fields
+    is a `MultipartError` (400)."""
+    try:
+        return _fields(body, encoding, max_fields)
+    except _native.TooManyFields:
+        raise MultipartError(
+            _MULTIPART_ERRORS[-14].format(max_fields=max_fields)
+        ) from None
 
 
-def _fields(data: bytes, encoding: str) -> MultiDict:
+def _fields(data: bytes, encoding: str, max_fields: int | None = None) -> MultiDict:
     form = MultiDict()
     if not data:
         return form
-    text, words = _native.parse_form(data)
+    text, words = _native.parse_form(data, max_fields)
     for name, name_len, value, value_len in zip(
         words[0::4], words[1::4], words[2::4], words[3::4], strict=True
     ):
