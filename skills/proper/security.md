@@ -20,6 +20,7 @@ For user authentication (registration, login, password reset), see [Authenticati
 - [Security Headers](#security-headers)
 - [Request Size Limits](#request-size-limits)
 - [Trusted Proxies](#trusted-proxies)
+- [Redirects](#redirects)
 
 
 ## Origin Protection (CSRF)
@@ -303,6 +304,12 @@ TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
 - An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400, and so is a request with more than one `Host` line (RFC 9112 §3.2): the server joins them with a comma, so a `Host` with a comma is refused.
 - The client chooses the `Host` header. Proper uses it only to pick the route and to compare with `Origin`; it never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config (or the route's own host). Do the same in your code: build absolute URLs that leave the request (emails, links stored or sent to others) with `url_for(_full=True)`, not from `request.host`.
 - `X-Forwarded-Host` and `Forwarded: host=` are not read.
+
+## Redirects
+
+- `redirect_to(url)` percent-encodes spaces, control characters (CR, LF) and non-ASCII in the URL, and a URL that starts with `/` keeps a single one: `//evil.com` and `/\evil.com` become `/evil.com`.
+- An `http(s)://` URL is used as given: before redirecting to one taken from the request (`?next=`), check that it starts with `/`.
+- In a redirect route (`router.get("/old/:slug", redirect="/new/{slug}")`), the path values are percent-encoded again before they go in the `Location`.
 
 ## Gotchas
 

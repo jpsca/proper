@@ -1,7 +1,7 @@
 import copy
 import ipaddress
 import typing as t
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 from .constants import (
     DELETE,
@@ -169,7 +169,11 @@ def redirect(request: "Request", response: "Response") -> "Response | None":
         return
 
     if route.redirect:
-        params = request.matched_params or {}
+        # the values were decoded from the path: encoded again for the URL
+        params = {
+            name: quote(str(value), safe="/:@!$&'()*+,;=~")
+            for name, value in (request.matched_params or {}).items()
+        }
         response.redirect_to(
             route.redirect.format(**params),
             status=route.redirect_status,

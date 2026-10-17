@@ -733,6 +733,10 @@ self.response.redirect_to("https://example.com")
 
 Redirects default to `303 See Other`, which is the right status after a `POST`.
 
+:::warning | Redirecting to a URL from the request
+A path that starts with `/` always stays on your site: `redirect_to("//example.com")` goes to `/example.com`. But an `http://` or `https://` URL goes wherever it says. If the URL comes from the request, like a `?next=` parameter after a login, check that it starts with `/` before you redirect to it.
+:::
+
 :::note | Why 303, not 302
 Both work in practice - every modern browser treats a 302 after a POST as if it were 303. The reason Proper picks 303 is intent: 303 explicitly says "the response is at another URL, fetch it with GET regardless of the original method," which is exactly the post-redirect-get pattern you want after a successful `create` or `update`. 302 was historically ambiguous about whether the method should change between the original request and the redirect.
 :::

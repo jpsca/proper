@@ -6,6 +6,12 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- `redirect_to()` no longer sends the browser to another site for a path
+  that starts with `//` or `/\` (`//evil.com` is `/evil.com`), and
+  percent-encodes spaces, control characters and non-ASCII in the URL. A
+  redirect route encodes the path values it puts in the `Location` again,
+  so `/go//evil.com` with `redirect="/{p}"` stays on the site, and a `%0d%0a`
+  in the path can't reach the header.
 - The legacy `RequestForgeryProtection` concern now masks its CSRF token
   for real. The masked token was a random prefix followed by the token
   itself, so the token was the same in every response, and a BREACH attack
