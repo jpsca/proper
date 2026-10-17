@@ -892,6 +892,18 @@ class TestRecovery:
             "s": [("0000abcd", 1)],
         }
 
+    def test_positions_once_per_epoch_and_a_few_epochs(self):
+        from proper.channels.cable import MAX_EPOCHS, _client_positions
+
+        many = [{"e": "0000abcd", "o": 5}] * 40_000 + [{"e": "0000abcd", "o": 2}]
+        assert _client_positions({"s": many}) == {"s": [("0000abcd", 2)]}
+
+        epochs = [{"e": f"{n:08x}", "o": n} for n in range(10)]
+        assert _client_positions({"s": epochs})["s"] == [
+            (f"{n:08x}", n) for n in range(MAX_EPOCHS)
+        ]
+        assert _client_positions({"s": [{"e": "nope", "o": 1}]}) == {}
+
     @pytest.mark.asyncio
     async def test_recovery_off(self, app):
         app.cable = type(app.cable)(recovery=False)

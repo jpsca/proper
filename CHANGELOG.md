@@ -21,6 +21,11 @@ fields.
 
 ### Fixed
 
+- A `subscribe` reads one recovery position per epoch, and at most 4 epochs
+  per stream. Each position was a call that sent the stream's buffer
+  again under the lock of every stream: a `subscribe` of 1 MB carrying the
+  same position 40,000 times sent millions of frames and held up every
+  broadcast.
 - A channel action is a method of the app's channel class (or of a class
   between it and `Channel`). Any callable attribute counted: a client could
   call `Session` (the model class) or `app` as an action. A `message` or
