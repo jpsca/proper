@@ -21,6 +21,13 @@ fields.
 
 ### Fixed
 
+- `RedisCable`'s listener PINGs Redis every 30 seconds while no message
+  comes, with TCP keepalive: a connection that died without closing (a NAT
+  that forgot it, a failover) went on returning nothing, and broadcasts
+  from the other machines stopped arriving with nothing logged. A message
+  in Redis that it can't deliver (valid JSON of another shape, say) is
+  logged and skipped; before, it dropped the subscription for a second or
+  more, and what was published meanwhile was lost.
 - In apps with the `auth` addon, resetting the password signs the user out
   of every other session (`Session.revoke_all_for(user)`), so a stolen
   session stops working. The reset token has a SHA-256 digest of the

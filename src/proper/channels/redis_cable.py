@@ -47,6 +47,8 @@ redis: t.Any = None
 
 # Longest the listener waits between attempts to reconnect.
 MAX_RECONNECT_DELAY = 30
+# Seconds without a message before the listener PINGs Redis
+HEALTH_CHECK_INTERVAL = 30
 # How long `start_server()` waits for the listener to subscribe.
 SUBSCRIBE_WAIT = 1.0
 # Every how many seconds a machine says it is alive, and how long that lasts:
@@ -367,8 +369,12 @@ class RedisCable(Cable):
         delay = 0
         while self._listening.is_set():
             started = time.monotonic()
-            # Neither connects yet: subscribing does.
-            client = redis.from_url(self._url)
+            # Neither connects yet: subscribing does. While no message comes,
+            # a PING every `HEALTH_CHECK_INTERVAL` seconds finds a connection
+            # that died without closing (a NAT that forgot it, a failover).
+            client = redis.from_url(
+                self._url, health_check_interval=HEALTH_CHECK_INTERVAL, socket_keepalive=True
+            )
             pubsub = client.pubsub(ignore_subscribe_messages=True)
             try:
                 pubsub.subscribe(self._channel)
@@ -376,7 +382,11 @@ class RedisCable(Cable):
                 while self._listening.is_set():
                     message = pubsub.get_message(timeout=0.2)
                     if message is not None:
-                        self._receive(message["data"])
+                        try:
+                            self._receive(message["data"])
+                        except Exception:
+                            # One bad message, not a lost connection
+                            logger.exception("⚠️ [cable] could not deliver a message from Redis")
                 return
             except Exception as error:
                 reason = error
@@ -401,6 +411,9 @@ class RedisCable(Cable):
             message = jsonplus.loads(raw)
         except ValueError:
             logger.warning("⚠️ [cable] ignored a message in Redis that isn't JSON")
+            return
+        if not isinstance(message, dict):
+            logger.warning("⚠️ [cable] ignored a message in Redis that isn't an object")
             return
         if message.get("o") == self._origin:
             return  # ours, already delivered here
