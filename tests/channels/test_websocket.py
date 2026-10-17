@@ -141,6 +141,27 @@ class TestSubscribe:
         assert app.cable.streams == {}
 
 
+    @pytest.mark.asyncio
+    async def test_an_anonymous_connection_tracks_several_streams(self, app):
+        class TwoChannel(Channel):
+            def subscribed(self):
+                for name in ("a", "b"):
+                    self.stream_from(name)
+                    self.track(name)
+
+        app.router.channels["TwoChannel"] = TwoChannel
+
+        ws, task = await open_ws(app)
+        frame = await ws.subscribe("TwoChannel")
+        while frame.get("type") != "confirm_subscription":
+            assert frame.get("type") != "reject_subscription"
+            frame = await ws.receive()
+        assert list(app.cable.presence("a")) == list(app.cable.presence("b"))
+        assert list(app.cable.presence("a"))[0].startswith("anon:")
+        await ws.close()
+        await task
+
+
 # --- Message ---
 
 

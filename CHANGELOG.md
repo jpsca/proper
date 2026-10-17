@@ -21,6 +21,9 @@ fields.
 
 ### Fixed
 
+- An anonymous connection (no user, no `key`) can `track()` several
+  streams: each call made up a new random key, and the second one raised
+  `ValueError` (the connection is already present as another key).
 - A `subscribe` reads one recovery position per epoch, and at most 4 epochs
   per stream. Each position was a call that sent the stream's buffer
   again under the lock of every stream: a `subscribe` of 1 MB carrying the

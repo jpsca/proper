@@ -213,9 +213,15 @@ class Connection:
 
     def presence_identity(self, key: t.Any = None) -> None:
         """Give the connection the key presence lists it as, once: `key`,
-        else the user's id, else a random one for the connection."""
+        else the user's id, else a random one for the connection (the same
+        one each time the connection tracks a stream)."""
         if key is None:
-            key = self.user_id if self.user_id is not None else f"anon:{secrets.token_urlsafe(9)}"
+            if self.user_id is not None:
+                key = self.user_id
+            elif self.presence_key is not None:
+                return
+            else:
+                key = f"anon:{secrets.token_urlsafe(9)}"
         key = str(key)
         if self.presence_key is None:
             self.cable.server.set_connection_user(self.conn_id, key)
