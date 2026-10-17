@@ -39,12 +39,17 @@ def app_models(app: "App") -> list[type[pw.Model]]:
 
 
 def check_models(app: "App") -> list[Problem]:
-    """No field hides a method of the model, and no two models of a
+    """No field hides a method of the model, every foreign key points to a
+    model of its database that the migrations make, and no two models of a
     database have the same table."""
     problems = []
     tables: dict[tuple[int, str], type] = {}
-    for model in app_models(app):
-        for name in model._meta.fields:
+    models = app_models(app)
+    for model in models:
+        for name, field in model._meta.fields.items():
+            message = _foreign_key_problem(app, model, field, models)
+            if message:
+                problems.append(Problem(ERROR, message, **where_attr(model, name)))
             hidden = _hidden_by_field(model, name)
             if hidden:
                 problems.append(Problem(
@@ -64,6 +69,43 @@ def check_models(app: "App") -> list[Problem]:
                 **where(model),
             ))
     return problems
+
+
+def _foreign_key_problem(
+    app: "App",
+    model: type[pw.Model],
+    field: pw.Field,
+    models: list[type[pw.Model]],
+) -> str:
+    """What is wrong with a foreign key, or `""`: a `DeferredForeignKey` to
+    a model that was never declared, a model that `models/__init__.py`
+    doesn't import (the migrations don't make its table), or one of
+    another database (it can't be joined, nor the key enforced)."""
+    label = f"`{model.__name__}.{field.name}`"
+    if isinstance(field, pw.DeferredForeignKey):
+        return (
+            f"{label} is a `DeferredForeignKey` to `{field.rel_model_name}`, "
+            f"and no model of that name was declared"
+        )
+    if not isinstance(field, pw.ForeignKeyField):
+        return ""
+    target = field.rel_model
+    if target is model:
+        return ""
+    if target not in models:
+        return (
+            f"{label} points to {target.__name__}, which `models/__init__.py` "
+            f"doesn't import: the migrations don't make its table"
+        )
+    if target._meta.database is not model._meta.database:
+        names = {id(db): name for name, db in app.db.items()}
+        return (
+            f"{label} points to {target.__name__}, of another database "
+            f"(`{names.get(id(target._meta.database), '?')}`, not "
+            f"`{names.get(id(model._meta.database), '?')}`): it can't be joined, "
+            f"nor the key enforced"
+        )
+    return ""
 
 
 def _hidden_by_field(model: type, name: str) -> type | None:

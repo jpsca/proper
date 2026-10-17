@@ -31,6 +31,9 @@ fields.
   `skip_authentication` that no controller has (a typo matches nothing),
   and reports `rate_limit` method names that don't exist. When importing
   the app turns the GIL back on, it names the extension module that did.
+- `proper check` reports a foreign key to a model that `models/__init__.py`
+  doesn't import (the migrations don't make its table), or to a model of
+  another database, and a `DeferredForeignKey` that was never resolved.
 
 ### Changed
 
