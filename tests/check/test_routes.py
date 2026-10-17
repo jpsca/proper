@@ -18,13 +18,22 @@ def test_a_controller_that_cant_be_loaded(make_shop):
                 def index(self):
                     pass
 
+                @router.error(KeyError)
+                def oops(self):
+                    pass
+
         make()
     """))
-    [problem] = check_controllers(app)
-    assert problem.level == ERROR
-    assert "the controller of the route GET /hidden can't be loaded" in problem.message
-    assert problem.path == "shop/controllers.py"
-    assert problem.line == 22  # the decorators of `index`
+    route, handler = check_controllers(app)
+    assert route.level == ERROR
+    assert "the controller of the route GET /hidden can't be loaded" in route.message
+    assert route.path == "shop/controllers.py"
+    assert route.line == 22  # the decorators of `index`
+    assert handler.message == (
+        "the controller of the error handler `make.<locals>.HiddenController.oops` "
+        "can't be loaded; a controller must be a class at the top of its module"
+    )
+    assert (handler.path, handler.line) == ("shop/controllers.py", 26)
 
 
 def test_a_callback_that_is_not_a_method(make_shop):
