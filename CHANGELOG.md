@@ -12,6 +12,13 @@ a limit, a body of 8 MB of `a=&a=&...` took a second and half a gigabyte of
 memory to parse. Raise `MAX_FORM_FIELDS` if a form of the app sends more
 fields.
 
+### Added
+
+- `STORAGE_MAX_IMAGE_PIXELS` (100 million by default): a variant isn't made
+  from an image with more pixels, which raises `ImageTooLarge`. A PNG of
+  400 KB can declare 20,000 × 20,000 pixels, and decoding it took 400 MB
+  or more. The size is read from the header, before the pixels are decoded.
+
 ### Fixed
 
 - A file served by `attachment.send_file()` is shown in a sandbox

@@ -50,6 +50,24 @@ def restrict_loaders(loaders: "t.Iterable[str]" = SAFE_LOADERS) -> None:
 
 _loaders: tuple[str, ...] = SAFE_LOADERS
 
+# The most pixels (width x height) of an image a variant is made from. A
+# small file can declare a huge image (a "decompression bomb"): a PNG of a
+# few hundred KB can decode to 50,000 x 50,000 pixels, gigabytes of memory.
+MAX_PIXELS = 100_000_000
+_max_pixels: int | None = MAX_PIXELS
+
+
+class ImageTooLarge(ValueError):
+    """An image with more pixels than `set_max_pixels()` allows."""
+
+
+def set_max_pixels(max_pixels: int | None = MAX_PIXELS) -> None:
+    """The most pixels of an image `transform_image` loads; `None` for no
+    limit. Process-global, like `restrict_loaders`: the storage tool sets
+    it from the `STORAGE_MAX_IMAGE_PIXELS` config at app setup."""
+    global _max_pixels
+    _max_pixels = max_pixels
+
 
 def _apply_loaders() -> None:
     if not hasattr(pyvips, "operation_block_set"):
@@ -138,6 +156,12 @@ def transform_image(
     if image is None:
         raise ValueError("Could not load image from source")
     image = t.cast("Image", image)
+    # libvips reads only the header to load: the pixels aren't decoded yet
+    if _max_pixels is not None and image.width * image.height > _max_pixels:
+        raise ImageTooLarge(
+            f"The image is {image.width} x {image.height} pixels, "
+            f"more than the {_max_pixels} allowed"
+        )
 
     if autorot:
         image = image.autorot()

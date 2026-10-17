@@ -1,5 +1,5 @@
 from ..errors import ConfigError
-from ..storage.imageops import SAFE_LOADERS, restrict_loaders
+from ..storage.imageops import MAX_PIXELS, SAFE_LOADERS, restrict_loaders, set_max_pixels
 
 
 DEFAULT_CONFIG = {
@@ -35,6 +35,9 @@ DEFAULT_CONFIG = {
     # door to RCE, ...). Add a loader class prefix to enable more formats,
     # e.g. "VipsForeignLoadJxl" for JPEG-XL.
     "STORAGE_SAFE_IMAGE_LOADERS": SAFE_LOADERS,
+    # The most pixels (width x height) of an image a variant is made from,
+    # or `None` for no limit
+    "STORAGE_MAX_IMAGE_PIXELS": MAX_PIXELS,
 }
 
 
@@ -46,6 +49,7 @@ def setup(app):
         app.config.setdefault(name, value)
     validate_config(app.config)
     restrict_loaders(app.config["STORAGE_SAFE_IMAGE_LOADERS"])
+    set_max_pixels(app.config["STORAGE_MAX_IMAGE_PIXELS"])
 
 
 def validate_config(config):
