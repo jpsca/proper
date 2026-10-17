@@ -1,5 +1,6 @@
 import io
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ from proper.constants import FLASHES_SESSION_KEY
 from proper.core.response.file_wrapper import FileWrapper
 from proper.core.response.flash_messages import FlashMessages
 from proper.core.response.response import is_iterable
+from proper.errors import MethodNotAllowed
 
 
 def _make_response(*, status=pstatus.ok, app=None):
@@ -151,6 +153,17 @@ class TestPrepare:
         _, _, body = resp.prepare(make_test_request("/", method="HEAD"))
         assert body == b""
 
+    def test_head_request_closes_a_file_body(self):
+        from proper.test_client import make_test_request
+
+        resp = _make_response()
+        resp.send_file(__file__)
+        file = resp.body.filelike
+        _, headers, body = resp.prepare(make_test_request("/", method="HEAD"))
+        assert body == b""
+        assert file.closed
+        assert ("Content-Length", str(Path(__file__).stat().st_size)) in headers
+
     def test_status_returned(self):
         resp = _make_response(status=pstatus.not_found)
         status, _, _ = resp.prepare()
@@ -164,6 +177,49 @@ class TestPrepare:
         status, headers, body = resp.prepare()
         # FileWrapper is passed through for streaming
         assert b"".join(bytes(b) for b in body) == b"file content"
+
+
+class TestDiscardBody:
+    def test_an_error_discards_the_file_and_its_headers(self):
+        resp = _make_response()
+        resp.send_file(__file__, as_attachment=True)
+        resp.set_etag("x")
+        resp.headers["Cache-Control"] = "public, max-age=60"
+        file = resp.body.filelike
+
+        resp.error = ValueError("boom")
+
+        assert file.closed
+        assert resp.body is None
+        assert resp.status == pstatus.server_error
+        assert dict(resp.get_headers_list()) == {"Content-Type": "text/html; charset=utf-8"}
+
+    def test_an_error_discards_the_x_sendfile_header(self, tmp_path):
+        app = MagicMock()
+        app.root_path = tmp_path / "app"
+        file = tmp_path / "file.txt"
+        file.write_text("hi")
+        resp = _make_response(app=app)
+        resp.send_file(file, x_sendfile_header="X-Accel-Redirect")
+        assert resp.headers.get("X-Accel-Redirect") == "/file.txt"
+
+        resp.error = ValueError("boom")
+
+        assert "X-Accel-Redirect" not in resp.headers
+        resp.error = ValueError("again")  # nothing left to remove
+
+    def test_the_headers_of_the_error_stay(self):
+        resp = _make_response()
+        resp.body = "page"
+        resp.error = MethodNotAllowed("no", ["GET"])
+        assert resp.headers.get("Allow") == "GET"
+        assert resp.body is None
+
+    def test_no_error_keeps_the_body(self):
+        resp = _make_response()
+        resp.body = "page"
+        resp.error = None
+        assert resp.body == "page"
 
 
 class TestRedirectTo:

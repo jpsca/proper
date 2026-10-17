@@ -31,6 +31,20 @@ __all__ = ("Response",)
 # the characters of a URL that stay as they are in a redirect (RFC 3986)
 URL_SAFE = "/:@!$&'()*+,;=?#[]%~"
 
+# The headers that describe the body, and how to cache it: an error page
+# doesn't keep them.
+BODY_HEADERS = (
+    "Cache-Control",
+    "Content-Disposition",
+    "Content-Encoding",
+    "Content-Language",
+    "Content-Length",
+    "Content-Range",
+    "ETag",
+    "Expires",
+    "Last-Modified",
+)
+
 
 def is_iterable(obj: t.Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
@@ -66,8 +80,8 @@ class Response(ResponseHeadersMixin):
     ) -> None:
         self._app = app
         self.status = status
-        # Set by `send_file`: the server sends this file itself.
-        self.file_path: Path | None = None
+        # The header of `send_file(x_sendfile_header=...)`: the proxy sends the file.
+        self._x_sendfile_header = ""
         self._session = {}
         self.flash = FlashMessages(self)
         self.cookies = {}
@@ -106,11 +120,31 @@ class Response(ResponseHeadersMixin):
     @error.setter
     def error(self, value: Exception | None) -> None:
         self._error = value
+        if value is not None:
+            self._discard_body()
         self.status = getattr(value, "status", pstatus.server_error)
         headers = getattr(value, "headers", {})
         if headers:
             for name, value in headers.items():
                 self.headers[name] = value
+
+    def _close_body(self) -> None:
+        """Closes the body if it can be closed, like the file of `send_file`."""
+        close = getattr(self.body, "close", None)
+        if close is not None:
+            close()
+
+    def _discard_body(self) -> None:
+        """Closes the body and removes it, with the headers that describe it,
+        so another body can take its place, like an error page."""
+        self._close_body()
+        self.body = None
+        for name in BODY_HEADERS:
+            self.headers._set(name, None)
+        if self._x_sendfile_header:
+            self.headers._set(self._x_sendfile_header, None)
+            self._x_sendfile_header = ""
+        self.set_content_type(self.default_mimetype, self.default_charset)
 
     def set_cookie(
         self,
@@ -427,6 +461,7 @@ class Response(ResponseHeadersMixin):
             assert self.app
             relpath = path.relative_to(self.app.root_path.parent)
             self.headers[x_sendfile_header] = f"/{relpath}"
+            self._x_sendfile_header = x_sendfile_header
             self.set_content_length(0)
             self.body = ""
             return
@@ -462,7 +497,6 @@ class Response(ResponseHeadersMixin):
 
         self.headers["content-disposition"] = f"{value}{options}"
         self.body = FileWrapper(path.open("rb"))
-        self.file_path = path
 
     def get_cookie_tuples(self) -> list[tuple[str, str]]:
         if self.disable_cookies or not self.cookies:
@@ -500,5 +534,6 @@ class Response(ResponseHeadersMixin):
 
         request = request or current.request
         if request and request.request_method == HEAD:
+            self._close_body()
             body_out = b""
         return self.status, self.get_headers_list(), body_out
