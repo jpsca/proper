@@ -38,9 +38,10 @@ def test_no_need_to_argue(co):
 
     csrf_token = current.csrf_token
     assert csrf_token is not None
-    assert len(csrf_token) == CSRF_TOKEN_LENGTH * 2
     assert csrf_token == co.response.headers.get(CSRF_HEADER)
-    assert csrf_token[CSRF_TOKEN_LENGTH:] == co.response.session[CSRF_SESSION_KEY]
+    session_token = co.response.session[CSRF_SESSION_KEY]
+    assert len(session_token) == CSRF_TOKEN_LENGTH
+    assert co._unmask_csrf_token(csrf_token) == session_token.encode()
 
 
 def test_missing_csrf(co):
@@ -66,24 +67,22 @@ def test_valid_csrf_from_form(co, method):
     co.request.method = method
     co.request.matched_action = "action"
 
-    mask = "x" * CSRF_TOKEN_LENGTH
     token = "a" * CSRF_TOKEN_LENGTH
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request.form = MultiDict({CSRF_FORM_KEY: mask + token})
+    co.request.form = MultiDict({CSRF_FORM_KEY: co._mask_csrf_token(token)})
 
     co._dispatch("action")
 
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_csrf_from_form(co, method):
-    mask = "x" * CSRF_TOKEN_LENGTH
     token = "a" * CSRF_TOKEN_LENGTH
     invalid_token = "b" * CSRF_TOKEN_LENGTH
 
     co.request.method = method
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request.form = MultiDict({CSRF_FORM_KEY: mask + invalid_token})
+    co.request.form = MultiDict({CSRF_FORM_KEY: co._mask_csrf_token(invalid_token)})
 
     with pytest.raises(InvalidCSRFToken):
         co._dispatch("action")
@@ -91,27 +90,25 @@ def test_invalid_csrf_from_form(co, method):
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_valid_csrf_from_header(co, method):
-    mask = "x" * CSRF_TOKEN_LENGTH
     token = "a" * CSRF_TOKEN_LENGTH
 
     co.request.method = method
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request.headers["x-csrf-token"] = mask + token
+    co.request.headers["x-csrf-token"] = co._mask_csrf_token(token)
 
     co._dispatch("action")
 
 
 @pytest.mark.parametrize("method", [POST, PUT, PATCH, DELETE])
 def test_invalid_csrf_from_header(co, method):
-    mask = "x" * CSRF_TOKEN_LENGTH
     token = "a" * CSRF_TOKEN_LENGTH
     invalid_token = "b" * CSRF_TOKEN_LENGTH
 
     co.request.method = method
     co.request.matched_action = "action"
     co.request.session = {CSRF_SESSION_KEY: token}
-    co.request.headers["x-csrf-token"] = mask + invalid_token
+    co.request.headers["x-csrf-token"] = co._mask_csrf_token(invalid_token)
 
     with pytest.raises(InvalidCSRFToken):
         co._dispatch("action")
@@ -141,4 +138,29 @@ def test_masking_is_random(co):
     token2 = current.csrf_token
 
     assert token1 != token2
-    assert token1[CSRF_TOKEN_LENGTH:] == token2[CSRF_TOKEN_LENGTH:]
+    assert co._unmask_csrf_token(token1) == co._unmask_csrf_token(token2)
+
+
+def test_masked_token_hides_the_token(co):
+    token = "a" * CSRF_TOKEN_LENGTH
+    masked = [co._mask_csrf_token(token) for _ in range(2)]
+
+    for value in masked:
+        assert token not in value
+    # no part of the token repeats from one response to the next
+    assert masked[0][len(masked[0]) // 2:] != masked[1][len(masked[1]) // 2:]
+
+
+@pytest.mark.parametrize("value", [
+    "!" * 88,  # not base64: it decodes to nothing
+    "ñ" * 88,  # not ASCII
+    "A" * 88,  # base64, but not of the session's token
+])
+def test_malformed_masked_token(co, value):
+    co.request.method = POST
+    co.request.matched_action = "action"
+    co.request.session = {CSRF_SESSION_KEY: "a" * CSRF_TOKEN_LENGTH}
+    co.request.form = MultiDict({CSRF_FORM_KEY: value})
+
+    with pytest.raises(InvalidCSRFToken):
+        co._dispatch("action")
