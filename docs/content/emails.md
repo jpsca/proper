@@ -298,7 +298,9 @@ HTML present | Text present | Result
 yes          | yes          | multipart/alternative with both
 yes          | no           | multipart/alternative; the text part is auto-generated
 no           | yes          | plain text only
-no           | no           | body comes from the constructor or class default
+no           | no           | `send()` raises `EmailTemplateNotFound`
+
+The templates are looked up only when the body is empty; an email with a `body` (from the constructor or a class default) sends it as it is.
 
 The auto-generated text fallback runs the HTML body through `proper.helpers.html2text`: blocks become paragraphs, list items start with `- `, links are followed by their address in parentheses, and images become their alt text in brackets. It's serviceable for simple transactional mail; for newsletters and rich HTML, write the text template yourself - it almost always reads better.
 
