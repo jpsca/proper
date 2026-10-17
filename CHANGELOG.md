@@ -2,6 +2,18 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- The legacy `RequestForgeryProtection` concern now masks its CSRF token
+  for real. The masked token was a random prefix followed by the token
+  itself, so the token was the same in every response, and a BREACH attack
+  could still guess it. Now it is a random one-time pad followed by the
+  token XORed with it, in base64 (88 characters instead of 64), and the
+  check compares in constant time. Forms rendered before the upgrade carry
+  the old token, and fail the check once.
+
 ## 0.42.1
 
 ### Fixed
