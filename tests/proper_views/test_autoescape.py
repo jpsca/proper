@@ -317,3 +317,34 @@ def test_attrs_render_is_markup():
     assert isinstance(Attrs({}).render(), Markup)
     assert isinstance(Attrs({"hidden": True}).render(), Markup)
     assert Attrs({"hidden": True, "a": "x&y"}).render() == 'a="x&amp;y" hidden'
+
+
+@pytest.mark.parametrize("name", [
+    '"><script>alert(1)</script>', "a b", "a=b", "a/b", "a>", "a'", "a\x00", "",
+])
+def test_attrs_refuse_a_name_that_breaks_the_tag(name):
+    with pytest.raises(ValueError, match="Invalid attribute name"):
+        Attrs({name: 1})
+    attrs = Attrs()
+    with pytest.raises(ValueError, match="Invalid attribute name"):
+        attrs.set(**{name: 1})
+    with pytest.raises(ValueError, match="Invalid attribute name"):
+        attrs.setdefault(**{name: 1})
+    with pytest.raises(ValueError, match="Invalid attribute name"):
+        attrs.render(**{name: 1})
+
+
+def test_attrs_from_data_in_a_component(tmp_path):
+    write(tmp_path, {
+        "card.jx": "<div {{ attrs.render() }}></div>",
+        "page.jx": '{# import "card.jx" as Card #}{# def key #}<Card attrs={{ {key: 1} }} />',
+    })
+    catalog = Catalog(tmp_path)
+    assert catalog.render("page.jx", key="data-n") == '<div data-n="1"></div>'
+    with pytest.raises(ValueError, match="Invalid attribute name"):
+        catalog.render("page.jx", key='"><script>alert(1)</script>')
+
+
+def test_attrs_names_with_dashes_colons_and_at_signs():
+    html = Attrs({"data_x": 1, "aria-label": "a", "x-on:click": "go", "@click": "go"}).render()
+    assert html == '@click="go" aria-label="a" data-x="1" x-on:click="go"'

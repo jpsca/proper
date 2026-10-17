@@ -21,6 +21,11 @@ fields.
 
 ### Fixed
 
+- A component's `attrs` refuses an attribute name with a space, a quote,
+  `<`, `>`, `/`, `=` or a control character (`ValueError`). Names were
+  rendered as they were, so with names from data,
+  `attrs={{ {key: 1} }}` with `key='"><script>...'` wrote the script
+  into the page.
 - An `X-Forwarded-Proto` with several values (`http, https`, or several
   lines) gives the last one, the one the trusted proxy appended. The whole
   value was the protocol, so `is_secure` was false and the session cookie
