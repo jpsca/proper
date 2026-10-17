@@ -21,6 +21,9 @@ fields.
 
 ### Fixed
 
+- An email with no body and no template raises `EmailTemplateNotFound`
+  (from `proper.emails`) when sent, naming the two templates it looked
+  for. It was sent with an empty body.
 - `proper db create --db <name>` writes only the models stored in that
   database. It took every model of the app, so the migration of a second
   database also created the tables of the main one.

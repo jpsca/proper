@@ -13,11 +13,16 @@ __all__ = (
   "EmailAlternative",
   "EmailMessageDict",
   "EmailMessage",
+  "EmailTemplateNotFound",
 )
 
 # Default MIME type to use on attachments (if it is not explicitly given
 # and cannot be guessed).
 DEFAULT_ATTACHMENT_MIME_TYPE = "application/octet-stream"
+
+class EmailTemplateNotFound(LookupError):
+    """An email without a `body` has neither of its templates."""
+
 
 class EmailAttachment(t.TypedDict):
     filename: str
@@ -180,6 +185,12 @@ class EmailMessage:
         text_path = current.app.root_path / "views" / text_tmpl
 
         kwargs = vars(self)
+
+        if not html_path.exists() and not text_path.exists():
+            raise EmailTemplateNotFound(
+                f"{self.__class__.__name__} has no body and no template: "
+                f"write views/{html_tmpl} or views/{text_tmpl}"
+            )
 
         if html_path.exists():
             logger.debug(

@@ -1,7 +1,7 @@
 import pytest
 
 from proper import App, current
-from proper.emails import EmailMessage
+from proper.emails import EmailMessage, EmailTemplateNotFound
 from proper.errors import ConfigError
 
 
@@ -326,11 +326,8 @@ def test_render_no_templates(app, tmp_path):
 
     cls = _make_email_class("missing")
     msg = cls(subject="test", to="to@example.com")
-    msg._render()
-
-    assert msg.body == ""
-    assert msg.content_subtype == "plain"
-    assert msg.alternatives == []
+    with pytest.raises(EmailTemplateNotFound, match=r"emails/missing\.jx or views/emails/missing\.txt\.jx"):
+        msg.send()
 
 
 # --- send() backend routing tests ---
