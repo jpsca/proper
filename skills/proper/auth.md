@@ -273,7 +273,8 @@ These methods are available in any controller that includes the `Authentication`
 # Check if the current request is authenticated
 self.is_authenticated()         # True/False
 
-# Create a new session and set the auth cookie
+# Create a new session and set the auth cookie; drops the CSRF token of the
+# cookie session (`_csrf_token`), so a new one is made; the rest stays
 self.new_session_for(user)
 
 # Destroy the current session and clear the auth cookie
