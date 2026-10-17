@@ -21,6 +21,12 @@ fields.
 
 ### Fixed
 
+- A connection leaves a stream's presence when the channel that tracked it
+  stops, even if another channel of the connection still streams from it.
+  Before, the user stayed listed until that other channel ended too. With
+  two channels of a connection tracking the same stream, it leaves when
+  the last one stops, and `untrack()` of a channel that didn't track the
+  stream does nothing.
 - The presence changes of a user in a stream reach the cable in the order
   they are made. A tab's leave and the join of the user's next tab, on two
   threads, could reach Redis the other way around: the user was then gone
