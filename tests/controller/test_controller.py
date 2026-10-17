@@ -931,6 +931,34 @@ class TestStaticFilesController:
         co.show()
         assert co.response.body is not None
 
+    @pytest.mark.parametrize("filename, allowed_ext", [
+        ("jquery.min.js", [".js"]),
+        ("font-1.2.woff2", [".woff2"]),
+        ("archive.tar.gz", [".tar.gz"]),
+    ])
+    def test_allowed_ext_with_several_dots(self, tmp_path, filename, allowed_ext):
+        co, _ = self._make(tmp_path, filename=filename, allowed_ext=allowed_ext)
+        co.show()
+        assert co.response.body is not None
+
+    def test_allowed_ext_without_extension(self, tmp_path):
+        co, _ = self._make(tmp_path, filename="README", allowed_ext=[".txt"])
+        with pytest.raises(NotFound, match="does not exist"):
+            co.show()
+
+    def test_allowed_ext_with_an_empty_extension(self, tmp_path):
+        co, _ = self._make(tmp_path, filename="README", allowed_ext=[""])
+        co.show()
+        assert co.response.body is not None
+        co, _ = self._make(tmp_path, filename="data.exe", allowed_ext=[""])
+        with pytest.raises(NotFound, match="does not exist"):
+            co.show()
+
+    def test_a_nul_in_the_path_is_not_found(self, tmp_path):
+        co, _ = self._make(tmp_path, file_param="hello\0.txt")
+        with pytest.raises(NotFound, match="does not exist"):
+            co.show()
+
     def test_fingerprinted_file(self, tmp_path):
         fingerprint = "a" * 64
         # The actual file without fingerprint

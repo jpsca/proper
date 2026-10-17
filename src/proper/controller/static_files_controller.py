@@ -20,12 +20,17 @@ class StaticFilesController(Controller):
         root: Path = Path(self.defaults["root"])
         public: bool = self.defaults["public"]
         file: str = self.params.get("file", "")
+        if "\0" in file:  # no file name has one
+            raise NotFound("File does not exist")
         relpath = Path(file.lstrip(os.path.sep))
-        ext = "".join(relpath.suffixes)
+        suffixes = relpath.suffixes
+        ext = "".join(suffixes)
 
         allowed_ext: Iterable[str] | None = self.defaults.get("allowed_ext")
         if allowed_ext:
-            if ext not in allowed_ext:
+            # `.js` or `.min.js` for `app.min.js`; `""` for `README`
+            ends = {"".join(suffixes[i:]) for i in range(len(suffixes))} or {""}
+            if ends.isdisjoint(allowed_ext):
                 raise NotFound("File does not exist")
 
         # Ignore the fingerprint in the filename

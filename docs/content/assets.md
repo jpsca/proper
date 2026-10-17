@@ -364,7 +364,7 @@ router.static(
 )
 ```
 
-A request for any file with a different extension (or no extension at all) returns `404 Not Found`. Include `""` in the list if you want to allow files without extensions.
+A request for any file with a different extension (or no extension at all) returns `404 Not Found`. For a name with several dots, any ending counts: `jquery.min.js` is allowed by `".js"` or `".min.js"`. Include `""` in the list if you want to allow files without extensions.
 
 `allowed_ext` is a defense-in-depth measure, not a substitute for putting source files in a different directory. The right structure for most apps is a separate `src/` (your sources) and `assets/` (built outputs) - then `allowed_ext` becomes redundant because the source files were never under the asset root in the first place.
 
