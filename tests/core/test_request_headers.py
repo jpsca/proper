@@ -1120,6 +1120,22 @@ def test_trusted_proxies_set_as_strings_after_the_app_was_created():
     assert req.is_secure is False
 
 
+@pytest.mark.parametrize("values, protocol", [
+    (["https"], "https"),
+    (["HTTPS "], "https"),
+    (["http,https"], "https"),
+    (["https, http"], "http"),
+    (["http", "https"], "https"),  # two lines, joined with a comma
+    (["gopher"], "http"),
+    ([""], "http"),
+])
+def test_x_forwarded_proto_from_a_trusted_proxy(values, protocol):
+    headers = [("x-forwarded-proto", value) for value in values]
+    req = _make_request("/", headers=headers, client=LOCAL_PROXY)
+    assert req.protocol == protocol
+    assert req.is_secure is (protocol == "https")
+
+
 def test_request_id():
     req = _make_request("/", headers=[("x-request-id", "req-123")])
     assert req.request_id == "req-123"

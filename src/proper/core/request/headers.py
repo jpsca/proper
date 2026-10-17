@@ -28,12 +28,14 @@ class RequestHeadersMixin:
     default_format = "html"
 
     def __init__(self):
-        forwarded_proto = self.headers.get("x-forwarded-proto")
-        self.protocol: str = (
-            forwarded_proto
-            if forwarded_proto and self._from_trusted_proxy
-            else self.scheme
-        )
+        self.protocol: str = self.scheme
+        if self._from_trusted_proxy:
+            # The last value: the one the trusted proxy wrote, when it
+            # appended to what came before it
+            forwarded_proto = (self._combined("x-forwarded-proto") or "").rpartition(",")[2]
+            forwarded_proto = forwarded_proto.strip().lower()
+            if forwarded_proto in ("http", "https"):
+                self.protocol = forwarded_proto
 
         # As PEP 3333 rebuilds the URL: the `Host` header, else the address
         # the request arrived at. That address is where the server listens
