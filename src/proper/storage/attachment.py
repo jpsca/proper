@@ -507,8 +507,13 @@ class _Attachment(ProperModel):
 
         return image_bytes
 
+    # The ffmpeg demuxers `preview_video` may read a video with
+    VIDEO_FORMATS = ("mov", "matroska", "webm", "avi", "mpegts", "mpeg", "ogg", "flv")
+
     def preview_video(self, source: bytes, *, at_seconds: float = 1.0, **ops) -> bytes:
         """Extract a single frame from a video as an image and apply any image ops.
+
+        ffmpeg reads only the file, with one of the demuxers of `VIDEO_FORMATS`.
 
         Requires the `ffmpeg` command from
         [ffmpeg v3.4+](https://ffmpeg.org/).
@@ -528,6 +533,10 @@ class _Attachment(ProperModel):
                 subprocess.run(
                     [
                         "ffmpeg",
+                        # Only the file itself, read with a video demuxer: a
+                        # playlist (concat, HLS) could read other files or URLs
+                        "-protocol_whitelist", "file",
+                        "-format_whitelist", ",".join(self.VIDEO_FORMATS),
                         "-ss", str(at_seconds),
                         "-i", input_filepath,
                         "-frames:v", "1",

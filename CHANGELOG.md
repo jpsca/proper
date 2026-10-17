@@ -21,6 +21,11 @@ fields.
 
 ### Fixed
 
+- `preview_video` runs ffmpeg only on the file itself
+  (`-protocol_whitelist file`) and with the demuxers of the new
+  `Attachment.VIDEO_FORMATS`. An upload declared `video/*` that was a
+  concat playlist made ffmpeg read other files of the server into the
+  preview.
 - A file served by `attachment.send_file()` is shown in a sandbox
   (`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
   sandbox`) with `X-Content-Type-Options: nosniff`. `image/*` is served

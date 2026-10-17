@@ -1,3 +1,5 @@
+import shutil
+import subprocess
 import threading
 import time
 from io import BytesIO
@@ -973,6 +975,43 @@ def test_preview_video_with_path_source_skips_tempfile(Attachment, tmp_path):
 
     cmd = run.call_args.args[0]
     assert cmd[cmd.index("-i") + 1] == str(video_path)
+
+
+_needs_ffmpeg = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+
+
+def _ffmpeg_clip(path):
+    subprocess.run(
+        [
+            "ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi",
+            "-i", "testsrc=size=64x48:rate=5:duration=2", "-pix_fmt", "yuv420p",
+            str(path),
+        ],
+        check=True,
+    )
+
+
+@_needs_ffmpeg
+def test_preview_video_reads_a_real_video(Attachment, tmp_path):
+    _ffmpeg_clip(tmp_path / "clip.mp4")
+    att = Attachment(_make_file(b"mp4", "clip.mp4"), content_type="video/mp4")
+    att.save(force_insert=True)
+
+    png = att.preview_video((tmp_path / "clip.mp4").read_bytes())
+    assert png.startswith(b"\x89PNG")
+
+
+@_needs_ffmpeg
+def test_preview_video_refuses_a_playlist(Attachment, tmp_path):
+    # A concat playlist uploaded as a video would read another file
+    _ffmpeg_clip(tmp_path / "other.mp4")
+    playlist = f"ffconcat version 1.0\nfile '{tmp_path / 'other.mp4'}'\n".encode()
+    att = Attachment(_make_file(playlist, "clip.mp4"), content_type="video/mp4")
+    att.save(force_insert=True)
+
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        att.preview_video(playlist)
+    assert b"not on whitelist" in error.value.stderr
 
 
 def test_variant_on_video_dispatches_to_preview_video(Attachment):
