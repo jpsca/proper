@@ -3,7 +3,6 @@ import datetime
 import functools
 import logging
 import os
-import sys
 import threading
 import time
 import types
@@ -29,6 +28,7 @@ from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
 from .helpers import DotDict, jsonplus, logger
+from .models.migrations import pending_migrations
 from .router import Route, Router
 from .storage import attachment_for
 from .types import (
@@ -176,8 +176,6 @@ class App(AppWsgi):
 
         current.app = self
 
-        self._warn_of_pending_migrations()
-
     @property
     def routes(self) -> list[Route]:
         return self.router._routes
@@ -203,7 +201,9 @@ class App(AppWsgi):
         install(self, strict=not self.config.DEBUG)
 
     def has_migrations_pending(self) -> bool:
-        return False
+        """Whether a database has migrations in `db/<name>/` that were not
+        applied to it (see `pending_migrations`)."""
+        return bool(pending_migrations(self))
 
     def url_for(
         self,
@@ -385,14 +385,6 @@ class App(AppWsgi):
             return cls
 
     # ---- Private ----
-
-    def _warn_of_pending_migrations(self):
-        if sys.argv[0].endswith("proper") and len(sys.argv) > 1 and sys.argv[1] == "db":
-            return
-        if self.has_migrations_pending():
-            logger.warning(
-                "⚠️ [db]There are pending migrations for this app. Run `proper db migrate` to apply them."
-            )
 
     def _setup_paths(self, import_name: str) -> None:
         module = import_module(import_name)

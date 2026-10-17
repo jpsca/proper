@@ -21,6 +21,11 @@ fields.
 
 ### Fixed
 
+- `proper run` warns when a database has migrations that were not
+  applied, naming them. `app.has_migrations_pending()` always returned
+  `False`, so the warning never showed; it is now the same check, from
+  `proper.models.migrations.pending_migrations()`, which only reads the
+  `migratehistory` table. Creating the app no longer checks.
 - An email with no body and no template raises `EmailTemplateNotFound`
   (from `proper.emails`) when sent, naming the two templates it looked
   for. It was sent with an empty body.

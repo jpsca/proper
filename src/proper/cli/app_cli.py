@@ -6,8 +6,10 @@ import sysconfig
 import typing as t
 from functools import wraps
 
+import peewee as pw
 from proper_cli import Cli
 
+from ..models.migrations import pending_migrations
 from .db_cli import get_db_cli
 from .jx_cli import get_jx_cli
 
@@ -83,6 +85,21 @@ def _check_free_threading(config) -> None:
         flush=True,
     )
     raise SystemExit(1)
+
+
+def _warn_of_pending_migrations(app: "App") -> None:
+    """Say which databases have migrations that were not applied."""
+    try:
+        pending = pending_migrations(app)
+    except pw.PeeweeException as err:
+        print(f"[WARNING] Could not check the migrations: {err}", flush=True)
+        return
+    for name, migrations in pending.items():
+        print(
+            f"[WARNING] The database '{name}' has {len(migrations)} migration(s) "
+            f"not applied ({', '.join(migrations)}). Run `proper db migrate`.",
+            flush=True,
+        )
 
 
 def _serve(
@@ -222,6 +239,7 @@ def get_run_cli(app: "App") -> t.Callable:
 
         config = app.config
         _check_free_threading(config)
+        _warn_of_pending_migrations(app)
         reload = config.DEBUG if config.RELOAD is None else bool(config.RELOAD)
         workers = int(workers or config.WORKERS or 1)
         web = {

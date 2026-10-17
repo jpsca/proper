@@ -5,7 +5,9 @@ import peewee as pw
 import pytest
 
 from proper import App
+from proper.cli.app_cli import _warn_of_pending_migrations
 from proper.cli.db_cli import get_db_cli
+from proper.models.migrations import pending_migrations
 
 
 MIGRATION = """\
@@ -220,3 +222,63 @@ def test_create_without_models_for_that_database(project, app, monkeypatch, caps
     assert exc.value.code == 0
     assert "No models found." in capsys.readouterr().out
     assert sorted(p.name for p in (project / "db" / "stats").iterdir()) == ["001_initial.py"]
+
+
+def test_pending_migrations_only_reads(project, app):
+    assert pending_migrations(app) == {"main": ["001_initial"], "stats": ["001_initial"]}
+    assert app.has_migrations_pending()
+    assert app.db["main"].is_closed()
+    # Without the table of the applied migrations; and it doesn't make it
+    assert not app.db["main"].table_exists("migratehistory")
+
+
+def test_no_pending_migrations_after_migrating(project, app):
+    get_db_cli(app)().migrate()
+    (project / "db" / "stats" / "002_more.py").write_text(
+        MIGRATION.format(model="Click", table="clicks")
+    )
+    assert pending_migrations(app) == {"stats": ["002_more"]}
+
+    get_db_cli(app)().migrate()
+    assert pending_migrations(app) == {}
+    assert not app.has_migrations_pending()
+
+
+def test_pending_migrations_skips_what_it_cant_have(project, make_app):
+    """A database in memory, one without a folder of migrations, and one
+    whose folder has no migrations."""
+    (project / "db" / "empty").mkdir()
+    (project / "db" / "empty" / "notes.txt").write_text("")
+    app = make_app(DATABASES={
+        "main": {"type": "peewee.SqliteDatabase", "database": ":memory:"},
+        "stats": {"type": "peewee.SqliteDatabase", "database": "storage/stats.sqlite3"},
+        "other": {"type": "peewee.SqliteDatabase", "database": "storage/other.sqlite3"},
+        "empty": {"type": "peewee.SqliteDatabase", "database": "storage/empty.sqlite3"},
+    })
+    assert pending_migrations(app) == {"stats": ["001_initial"]}
+
+
+def test_pending_migrations_keeps_an_open_connection(project, app):
+    app.db["main"].connect()
+    pending_migrations(app)
+    assert not app.db["main"].is_closed()
+
+
+def test_run_warns_of_pending_migrations(project, app, capsys):
+    _warn_of_pending_migrations(app)
+    out = capsys.readouterr().out
+    assert "The database 'main' has 1 migration(s) not applied (001_initial)" in out
+    assert "The database 'stats'" in out
+
+    get_db_cli(app)().migrate()
+    capsys.readouterr()
+    _warn_of_pending_migrations(app)
+    assert capsys.readouterr().out == ""
+
+
+def test_run_warns_when_it_cant_check(project, make_app, capsys):
+    app = make_app(DATABASES={
+        "main": {"type": "peewee.SqliteDatabase", "database": "storage"},
+    })
+    _warn_of_pending_migrations(app)
+    assert "[WARNING] Could not check the migrations:" in capsys.readouterr().out

@@ -487,6 +487,8 @@ proper db done --db main   # migrations already applied
 
 Both print one filename per line.
 
+`proper run` also checks before serving: for each database with migrations in `db/<name>/` that were not applied, it prints a warning with their names. It only reads the `migratehistory` table, and doesn't create it. The same check is `app.has_migrations_pending()`.
+
 ### The `--fake` Flag
 
 ```bash
