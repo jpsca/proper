@@ -221,6 +221,7 @@ STORAGE_FALLBACK_FORMAT = "png"
 ```
 
 - **`STORAGE_ALLOWED_INLINE`** — glob patterns (`fnmatch`) for content types served inline (`Content-Disposition: inline`). Anything not matched is served with `attachment`, triggering a download.
+- `attachment.send_file()` also sends `X-Content-Type-Options: nosniff` and, for every type but `application/pdf`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` (`Attachment.SANDBOX_POLICY`): an uploaded SVG or HTML with a script opened by its URL doesn't run it, and has no access to the app's origin. Chrome's PDF viewer doesn't run in a sandbox. A presigned S3 URL (`service_url()`) is another origin, and gets the headers S3 sends.
 - **`STORAGE_ALLOWED_VARIANTS`** — glob patterns for source content types whose format is **preserved** when generating a variant. A source PNG → PNG variant; a source JPEG → JPEG variant. Add `image/webp` or `image/avif` here if your application produces those.
 - **`STORAGE_FALLBACK_FORMAT`** — format used for variants whose source content type isn't in `STORAGE_ALLOWED_VARIANTS`. Default `"png"`. Set to `"jpg"` or `"webp"` if smaller files matter more than fidelity. A caller-supplied `save={"format": "..."}` always overrides both rules.
 
