@@ -2,9 +2,12 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from proper import Response
 from proper import status as pstatus
 from proper.core.response.file_wrapper import FileWrapper
+from proper.core.response.response import content_disposition
 
 
 def _make_response(*, status=pstatus.ok, app=None):
@@ -229,3 +232,19 @@ def test_filewrapper_empty_read_stops():
     wrapper = FileWrapper(f)
     chunks = list(wrapper)
     assert chunks == []
+
+
+@pytest.mark.parametrize("filename, as_attachment, expected", [
+    ("report.pdf", False, 'inline; filename="report.pdf"'),
+    ("my file; x.txt", True, 'attachment; filename="my file; x.txt"'),
+    ('a"b.txt', True, "attachment; filename=\"a_b.txt\"; filename*=UTF-8''a%22b.txt"),
+    ("a\\b", True, "attachment; filename=\"a_b\"; filename*=UTF-8''a%5Cb"),
+    ("resumé.pdf", False, "inline; filename=\"resume.pdf\"; filename*=UTF-8''resum%C3%A9.pdf"),
+    (
+        "x\r\nSet-Cookie: a=1.txt", True,
+        'attachment; filename="x__Set-Cookie: a=1.txt"; '
+        "filename*=UTF-8''x%0D%0ASet-Cookie%3A%20a%3D1.txt",
+    ),
+])
+def test_content_disposition(filename, as_attachment, expected):
+    assert content_disposition(filename, as_attachment=as_attachment) == expected

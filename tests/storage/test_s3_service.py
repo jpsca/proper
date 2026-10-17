@@ -10,6 +10,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from proper import App, current
+from proper.core.response.response import content_disposition
 from proper.models import ProperModel
 from proper.storage.services import S3
 
@@ -219,6 +220,26 @@ def test_send_file_as_attachment(Attachment):
     service.send_file(att, resp, as_attachment=True)
 
     assert resp.headers["content-disposition"] == 'attachment; filename="f.txt"'
+
+
+def test_send_file_with_a_name_that_needs_escaping(Attachment):
+    att = Attachment(_make_file(b"data", 'a"; x=1.txt'), content_type="text/plain")
+    att.save(force_insert=True)
+
+    class FakeResponse:
+        content_type = None
+        body = None
+        headers = {}
+
+        def set_content_length(self, length):
+            self.content_length = length
+
+    resp = FakeResponse()
+    Attachment._get_service("s3").send_file(att, resp, as_attachment=True)
+    assert resp.headers["content-disposition"] == content_disposition(
+        att.filename, as_attachment=True
+    )
+    assert '"; x=1' not in resp.headers["content-disposition"]
 
 
 # --- S3 service - round-trip through Attachment model ---

@@ -1,5 +1,6 @@
 import typing as t
 
+from ...core.response.response import content_disposition
 from .service import Service
 
 
@@ -96,11 +97,10 @@ class S3(Service):
 
     def send_file(self, att: "_Attachment", response, as_attachment: bool = False) -> None:
         data = self.download(att)
-        disposition = "attachment" if as_attachment else "inline"
         response.content_type = att.content_type
         response.set_content_length(len(data))
-        response.headers["content-disposition"] = (
-            f'{disposition}; filename="{att.filename}"'
+        response.headers["content-disposition"] = content_disposition(
+            att.filename or str(att.id), as_attachment=as_attachment
         )
         response.body = data
 
@@ -126,15 +126,13 @@ class S3(Service):
         if self.public:
             return f"{self._public_url_prefix}/{self._get_key(att)}"
 
-        disposition = "attachment" if as_attachment else "inline"
-        filename = att.filename or str(att.id)
         return self.client.generate_presigned_url(
             "get_object",
             Params={
                 "Bucket": self.bucket_name,
                 "Key": self._get_key(att),
-                "ResponseContentDisposition": (
-                    f'{disposition}; filename="{filename}"'
+                "ResponseContentDisposition": content_disposition(
+                    att.filename or str(att.id), as_attachment=as_attachment
                 ),
                 "ResponseContentType": att.content_type,
             },
