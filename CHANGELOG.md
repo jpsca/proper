@@ -21,6 +21,12 @@ fields.
 
 ### Fixed
 
+- A channel action is a method of the app's channel class (or of a class
+  between it and `Channel`). Any callable attribute counted: a client could
+  call `Session` (the model class) or `app` as an action. A `message` or
+  `subscribe` whose `channel` isn't a string or whose `params` isn't an
+  object is an `invalid_message` error, and an `action` that isn't a string
+  is `invalid_action`; before, each logged a traceback and got no answer.
 - `RedisCable`'s listener PINGs Redis every 30 seconds while no message
   comes, with TCP keepalive: a connection that died without closing (a NAT
   that forgot it, a failover) went on returning nothing, and broadcasts

@@ -361,6 +361,15 @@ class TestCable:
             assert client.recv_type("error")["reason"] == "invalid_action"
         client.send({**message, "action": "fly"})
         assert client.recv_type("error")["reason"] == "unknown_action"
+        # Attributes of the channel that are not its methods
+        for action in ("app", "Session", "request", "params", "authenticated"):
+            client.send({**message, "action": action})
+            assert client.recv_type("error")["reason"] == "unknown_action"
+        client.send({**message, "action": ["speak"]})
+        assert client.recv_type("error")["reason"] == "invalid_action"
+        for bad in ({"params": [1]}, {"params": "room"}, {"channel": ["RoomChannel"]}):
+            client.send({**message, "action": "speak", **bad})
+            assert client.recv_type("error")["reason"] == "invalid_message"
         client.close()
 
     def test_messages_of_a_connection_keep_their_order(self, cable_app):
