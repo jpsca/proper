@@ -56,7 +56,7 @@ class RequestForgeryProtection(Concern):
         if not req_tokens:
             self._handle_missing_csrf_token()
 
-        expected = session_token.encode()
+        expected = (session_token or "").encode()
         if not any(hmac.compare_digest(expected, req_token) for req_token in req_tokens):
             self._handle_invalid_csrf_token()
 
