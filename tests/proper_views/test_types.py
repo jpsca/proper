@@ -157,3 +157,59 @@ def test_dashes_in_names(tmp_path):
     (tmp_path / "card.jx").write_text("{# def data_id: int #}{{ data_id }}")
     (tmp_path / "page.jx").write_text('{# import "card.jx" as Card #}<Card data-id={{ 7 }} />')
     assert Catalog(tmp_path).render("page.jx") == "7"
+
+
+def test_every_error_of_a_component_call_in_a_file(tmp_path):
+    """The errors after which the code is still valid don't stop the file:
+    the others are reported too, each once, and the module isn't written."""
+    from proper.views import CompileError
+
+    (tmp_path / "card.jx").write_text("{# def title: str, count: int = 0 #}x")
+    (tmp_path / "page.jx").write_text(
+        '{# import "card.jx" as Card #}\n'
+        "<Card />\n"
+        '<Card title="t" count="3" />\n'
+        "<Missing />\n"
+        "<Card />\n"
+    )
+    catalog = Catalog(tmp_path)
+    with pytest.raises(CompileError) as info:
+        catalog.compile()
+    assert str(info.value).splitlines() == [
+        f"{tmp_path}/page.jx:2:1: `<Card>` needs the argument `title` (card.jx)",
+        f"{tmp_path}/page.jx:3:17: `count` of `<Card>` expects int, got str (card.jx)",
+        f'{tmp_path}/page.jx:4:1: Component `Missing` is not imported; add `{{# import "..." as Missing #}}`',
+        f"{tmp_path}/page.jx:5:1: `<Card>` needs the argument `title` (card.jx)",
+    ]
+    assert not [path for path in tmp_path.rglob("*.py") if path.stem.startswith("page")]
+
+
+def test_a_component_used_twice_reports_its_errors_once_per_file(tmp_path):
+    """Once for the module of the component, and once for the page that
+    uses it twice."""
+    from proper.views import CompileError
+
+    (tmp_path / "card.jx").write_text("{# def title: str #}<Missing />")
+    (tmp_path / "page.jx").write_text(
+        '{# import "card.jx" as Card #}<Card title="a" /><Card title="b" />'
+    )
+    with pytest.raises(CompileError) as info:
+        Catalog(tmp_path).compile()
+    errors = [line for line in str(info.value).splitlines() if "/card.jx:" in line]
+    assert errors == [
+        f'{tmp_path}/card.jx:1:21: Component `Missing` is not imported; add `{{# import "..." as Missing #}}`',
+    ] * 2
+
+
+def test_deferred_errors_come_before_the_one_that_stops_the_file(tmp_path):
+    from proper.views import CompileError
+
+    (tmp_path / "card.jx").write_text("{# def title: str #}x")
+    (tmp_path / "page.jx").write_text(
+        '{# import "card.jx" as Card #}\n<Card />\n{{ 1 + }}\n'
+    )
+    with pytest.raises(CompileError) as info:
+        Catalog(tmp_path).compile()
+    lines = str(info.value).splitlines()
+    assert lines[0] == f"{tmp_path}/page.jx:2:1: `<Card>` needs the argument `title` (card.jx)"
+    assert lines[1].startswith(f"{tmp_path}/page.jx:3:")

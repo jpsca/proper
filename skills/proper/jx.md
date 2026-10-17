@@ -192,7 +192,7 @@ When the annotation resolves to a Python built-in (`int`, `str`, `bool`, `list`,
 
 Annotations that don't resolve to a built-in — custom classes, unions like `int | str`, `Optional[int]`, `typing.Iterable[str]` — are not checked, nor evaluated: they are kept as text in the signature of the compiled function. Stick to built-ins for strict checking; drop the annotation when you need a permissive shape.
 
-When the views compile, each component call is checked against the component's signature: a missing required argument (`<Card />`), or a literal of the wrong type (`<Card count="3" />` for `count: int`; a flag like `<Card open />` is `True`), is a compile error with file, line and column. Values computed at render time are checked then.
+When the views compile, each component call is checked against the component's signature: a missing required argument (`<Card />`), or a literal of the wrong type (`<Card count="3" />` for `count: int`; a flag like `<Card open />` is `True`), is a compile error with file, line and column. These errors don't stop the file: every one of them is reported (and the module isn't written); a syntax error or an import that doesn't resolve stops the file there. Values computed at render time are checked then. `proper check` also checks the literal route names of `url_for` calls in the views (read from the compiled modules, mapped to the template line with `LINEMAP`).
 
 ### Passing Arguments
 
