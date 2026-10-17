@@ -11,6 +11,7 @@ found; `run_checks` runs them all, in order.
 """
 import typing as t
 
+from .actions import check_action_names
 from .app_parts import (
     check_config,
     check_emails,
@@ -18,6 +19,7 @@ from .app_parts import (
     check_locales,
     check_services,
 )
+from .gil import check_gil
 from .models import check_migrations, check_models, check_seeds
 from .problem import ERROR, WARNING, Problem
 from .routes import check_controllers, check_routes, check_views
@@ -33,9 +35,11 @@ if t.TYPE_CHECKING:
 __all__ = ("CHECKS", "ERROR", "WARNING", "Problem", "run_checks")
 
 CHECKS: "tuple[Callable[[App], list[Problem]], ...]" = (
+    check_gil,
     check_config,
     check_services,
     check_controllers,
+    check_action_names,
     check_routes,
     check_views,
     check_view_urls,

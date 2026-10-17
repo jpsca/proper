@@ -46,4 +46,4 @@ def test_warnings_alone_dont_fail(make_shop, capsys):
 def test_the_command_is_registered(make_shop):
     app = make_shop()
     assert app.CLI.check.__doc__.startswith("Find the mistakes of the app")
-    assert len(CHECKS) == 13
+    assert len(CHECKS) == 15

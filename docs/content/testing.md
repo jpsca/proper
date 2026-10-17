@@ -280,7 +280,9 @@ $ uv run proper check
 
 `proper check` looks for mistakes that the tests may not reach, without serving a request. Many of them would otherwise fail only when someone opens that page, or never fail and quietly lose data. It checks:
 
+- **Free-threaded Python**: the app runs without the GIL, as `proper run` requires. If importing the app turns the GIL back on, it names the module that does it.
 - **Controllers and routes**: every route reaches a controller, every `before`/`after` callback exists, no route is hidden by an earlier one with the same method and path, and no route name is used for two different paths.
+- **Action names**: the names in `only` and `exclude` (of the callbacks and of `rate_limit`) and in `skip_authentication` are actions of the controller. A misspelled one would match no action, so it is a warning. A method that `rate_limit` names (`"to": "max_requests"`) must exist.
 - **Views**: every view compiles.
 - **URLs**: every `url_for('Name')` and `redirect_to('Name')`, in the views and in the Python code, names a route that exists and gives the values its path needs (`url_for('Post.show')` for `/posts/:id` is missing `id`). A call with an object, like `url_for('Post.show', post)`, may take the values from it, so it's only checked for the name.
 - **Models**: no field hides a method of the model (a field named `save`, for example), and no two models share a table.
