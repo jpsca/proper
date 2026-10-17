@@ -265,6 +265,10 @@ class Component:
 
 
 class Catalog:
+    # The most sources `render_string` keeps compiled; past it, the oldest
+    # one goes, with its files.
+    max_strings = 256
+
     def __init__(
         self,
         folder: str | Path | None = None,
@@ -356,6 +360,8 @@ class Catalog:
         self.pure: tuple[str, ...] = tuple(sorted(set(pure)))
         self._cache: dict[str, Component] = {}
         self._strings: dict[str, Component] = {}
+        # The source and the compiled module of each string
+        self._string_files: dict[str, tuple[Path, Path]] = {}
         self._strings_dir: Path | None = None
         self._lock = threading.RLock()
         if filters or tests:
@@ -498,7 +504,8 @@ class Catalog:
         renders of the same source reuse it (recompiled, with `auto_reload`,
         when a component it imports changes). Compiling takes a few
         milliseconds, so this is for tests, snippets and sources that
-        repeat, not for a different text on every call.
+        repeat, not for a different text on every call. The catalog keeps
+        the last `max_strings` (256) sources compiled.
         """
         return self._render(self._string_component(source), globals, kwargs)
 
@@ -517,6 +524,9 @@ class Catalog:
         if co is not None and (not self.auto_reload or self._is_fresh(co)):
             return co
         with self._lock:
+            co = self._strings.get(key)
+            if co is not None and (not self.auto_reload or self._is_fresh(co)):
+                return co  # compiled by another thread meanwhile
             if not self.compiler:
                 raise ComponentNotCompiledError("render_string needs the views compiler")
             if self._strings_dir is None:
@@ -547,6 +557,12 @@ class Catalog:
             py = module_path(out / output_names([src, *self.folders])[0] / jx.name)
             co = Component(f"<string {key}>", py, self._exec(py), py.stat().st_mtime_ns)
             self._strings[key] = co
+            self._string_files[key] = (jx, py)
+            while len(self._strings) > self.max_strings:
+                oldest = next(iter(self._strings))
+                del self._strings[oldest]
+                for path in self._string_files.pop(oldest):
+                    path.unlink(missing_ok=True)
             return co
 
     def has_component(self, relpath: str) -> bool:

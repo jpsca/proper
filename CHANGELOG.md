@@ -21,6 +21,10 @@ fields.
 
 ### Fixed
 
+- `Catalog.render_string()` keeps the last `max_strings` (256) sources
+  compiled, and deletes the files of the ones it drops; it kept every
+  source, in memory and on disk. Threads that render a new source at the
+  same time compile it once.
 - A component's `attrs` refuses an attribute name with a space, a quote,
   `<`, `>`, `/`, `=` or a control character (`ValueError`). Names were
   rendered as they were, so with names from data,
