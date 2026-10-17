@@ -4,6 +4,7 @@ from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
 from proper.global_context import current
 from proper.models import ProperModel
 from .concern import Concern
+from .request_forgery_protection import CSRF_SESSION_KEY
 
 
 class Authentication(Concern):
@@ -35,6 +36,10 @@ class Authentication(Concern):
             ip_address=self.request.remote_ip,
             user_agent=self.request.user_agent,
         )
+        # A new CSRF token for the signed-in user: one that someone else
+        # planted in the cookie session (from a sibling subdomain) stops
+        # working. The rest of the session stays, like a cart.
+        self.response.session.pop(CSRF_SESSION_KEY, None)
         return self._set_current_session(session)
 
     def terminate_session(self):

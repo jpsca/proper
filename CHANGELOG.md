@@ -21,6 +21,10 @@ fields.
 
 ### Fixed
 
+- `new_session_for()` drops the CSRF token of the cookie session, so the
+  signed-in user gets a new one. Someone who could plant the cookie session
+  (from a sibling subdomain) knew a token that stayed valid after the
+  victim signed in. The rest of the session stays.
 - `Catalog.render_string()` keeps the last `max_strings` (256) sources
   compiled, and deletes the files of the ones it drops; it kept every
   source, in memory and on disk. Threads that render a new source at the

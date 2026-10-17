@@ -308,7 +308,7 @@ self.new_session_for(user)
 self.redirect_after_authentication(flash="Welcome!")
 ```
 
-That creates the `Session` row, sets the `_auth` cookie, and assigns `current.user`. After it returns, the request is "signed in" from Proper's perspective.
+That creates the `Session` row, sets the `_auth` cookie, and assigns `current.user`. It also throws away the form-protection token kept from before the sign-in, so the next page gets a new one; anything else you keep in `self.response.session`, like a cart, stays. After it returns, the request is "signed in" from Proper's perspective.
 
 `redirect_after_authentication` pops the `_redirect` value the `require_authentication` callback stashed in the session (the page the user originally asked for) and redirects there. Pass `default="/somewhere"` to control where the redirect goes when there's no saved URL.
 
