@@ -776,7 +776,7 @@ begin
       if ReplaceChar(N.Attrs[i].Name, '-', '_') = Name then
         Given := True;
     if not Given then
-      CompileError(FDoc.FileName, FDoc.Source, N.Pos,
+      DeferError(FDoc.FileName, FDoc.Source, N.Pos,
         '`<' + N.Name + '>` needs the argument `' + Name + '` (' + Dep.RelPath + ')');
   end;
 
@@ -803,7 +803,7 @@ begin
       end;
       (* as `isinstance`: a bool is an int *)
       if (Got <> '') and (Got <> Expected) and not ((Got = 'bool') and (Expected = 'int')) then
-        CompileError(FDoc.FileName, FDoc.Source, N.Attrs[i].Pos,
+        DeferError(FDoc.FileName, FDoc.Source, N.Attrs[i].Pos,
           '`' + N.Attrs[i].Name + '` of `<' + N.Name + '>` expects ' + Expected +
           ', got ' + Got + ' (' + Dep.RelPath + ')');
       Break;
@@ -823,8 +823,12 @@ var
 begin
   Dep := FComp.FindDep(N.Name);
   if Dep = nil then
-    CompileError(FDoc.FileName, FDoc.Source, N.Pos,
+  begin
+    (* The file fails; nothing is emitted for this tag *)
+    DeferError(FDoc.FileName, FDoc.Source, N.Pos,
       'Component `' + N.Name + '` is not imported; add `{# import "..." as ' + N.Name + ' #}`');
+    Exit;
+  end;
 
   Id := NextId;
   (* fills become closures defined before the call, rendered only if the

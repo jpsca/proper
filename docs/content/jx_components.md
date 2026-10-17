@@ -1255,7 +1255,7 @@ This works because Proper renders the template with `**vars(self)` - everything 
 
 ## Checking Your Components
 
-The views are compiled when the app starts. Outside of `DEBUG`, a view with an error stops the start, and the message lists every error, with its file, line and column: a syntax error, an import that does not resolve, a component used without a required argument or with a literal of the wrong type.
+The views are compiled when the app starts. Outside of `DEBUG`, a view with an error stops the start, and the message lists every error, with its file, line and column: a syntax error, an import that does not resolve, a component used without a required argument or with a literal of the wrong type. A syntax error stops its file there, but the errors of the component calls don't: you see all of them at once.
 
 ```
 /srv/myapp/views/posts/show.jx:12:3: `<Card>` needs the argument `title` (ui/card.jx)
@@ -1264,6 +1264,8 @@ The views are compiled when the app starts. Outside of `DEBUG`, a view with an e
 In `DEBUG`, the errors are logged and the app starts anyway; each error shows when its view is rendered. `proper jx info` reports the folders of the catalog, where the views are compiled, the custom tags and the views it found; add `--format json` for machine-readable output.
 
 `proper jx compile` compiles every view without starting the app, and ends with an error listing the views that do not compile. Use it to check your views, e.g. in CI, or to compile them when the app is built for production: see [Compiled views](/docs/deployment#compiled-views).
+
+`proper check` compiles the views too, and also checks the route names given to `url_for` in them: a route that doesn't exist, or one whose path needs a value that isn't given (`url_for('Post.show')` for `/posts/:id`). See [Checking the app first](/docs/testing#checking-the-app-first-proper-check).
 
 ## What's Not Covered Here
 

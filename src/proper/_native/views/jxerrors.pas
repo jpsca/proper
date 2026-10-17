@@ -6,7 +6,7 @@ unit jxerrors;
 interface
 
 uses
-  SysUtils;
+  SysUtils, Classes;
 
 type
   ECompileError = class(Exception)
@@ -23,6 +23,16 @@ procedure OffsetToLineCol(const Src: string; Offset: Integer; out Line, Col: Int
 
 (* Raise ECompileError at the given 1-based offset of Src. *)
 procedure CompileError(const FileName, Src: string; Offset: Integer; const Msg: string);
+
+(* Record an error at the given 1-based offset of Src and go on: for an
+   error after which the code generated is still valid, so the compiler
+   finds the others of the file too. *)
+procedure DeferError(const FileName, Src: string; Offset: Integer; const Msg: string);
+
+var
+  (* The deferred errors of the file being compiled, as `ECompileError.Format`
+     writes them. The file fails if there is any. *)
+  Deferred: TStringList;
 
 implementation
 
@@ -66,5 +76,19 @@ begin
   OffsetToLineCol(Src, Offset, Line, Col);
   raise ECompileError.Create(FileName, Line, Col, Msg);
 end;
+
+procedure DeferError(const FileName, Src: string; Offset: Integer; const Msg: string);
+var
+  Line, Col: Integer;
+begin
+  OffsetToLineCol(Src, Offset, Line, Col);
+  Deferred.Add(SysUtils.Format('%s:%d:%d: %s', [FileName, Line, Col, Msg]));
+end;
+
+initialization
+  Deferred := TStringList.Create;
+
+finalization
+  Deferred.Free;
 
 end.

@@ -97,6 +97,26 @@ begin
 end;
 
 (* `html, .JX,xml` -> [html, jx, xml]; an invalid extension is a usage error *)
+(* Write the deferred errors of a file, each once: a component used twice
+   is generated, and checked, twice. *)
+procedure WriteDeferred;
+var
+  i: Integer;
+  Seen: TStringList;
+begin
+  Seen := TStringList.Create;
+  try
+    for i := 0 to Deferred.Count - 1 do
+      if Seen.IndexOf(Deferred[i]) < 0 then
+      begin
+        Seen.Add(Deferred[i]);
+        WriteLn(StdErr, Deferred[i]);
+      end;
+  finally
+    Seen.Free;
+  end;
+end;
+
 function ParseExtensions(const List: string): TStringArray;
 var
   Parts: TStringArray;
@@ -269,6 +289,7 @@ begin
         if (Only <> '') and (Files[j] <> Only) then
           Continue;
         OutPath := Compiler.ModulePath(Files[j], i);
+        Deferred.Clear;
         try
           k := Outputs.IndexOf(OutPath);
           if k >= 0 then
@@ -279,17 +300,25 @@ begin
           OutputSrcs.Add(Files[j]);
           Comp := Compiler.Load(Files[j], i);
           Code := Compiler.CompileModule(Comp, OutPath);
+          if Deferred.Count > 0 then
+          begin
+            WriteDeferred;
+            Inc(Failed);
+            Continue;
+          end;
           ForceDirectories(ExtractFilePath(OutPath));
           WriteText(OutPath, Code);
           Inc(Written);
         except
           on E: ECompileError do
           begin
+            WriteDeferred;
             WriteLn(StdErr, E.Format);
             Inc(Failed);
           end;
           on E: Exception do
           begin
+            WriteDeferred;
             WriteLn(StdErr, Files[j], ': ', E.ClassName, ': ', E.Message);
             Inc(Failed);
           end;
