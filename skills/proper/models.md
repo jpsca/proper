@@ -905,6 +905,8 @@ See which migrations are pending:
 proper db todo
 ```
 
+`proper run` warns before serving when a database has migrations that were not applied (`proper.models.migrations.pending_migrations(app)`, `{db: [migration, ...]}`; it only reads). `app.has_migrations_pending()` is the same check as a bool.
+
 ### Merging Migrations
 
 If you have accumulated many small migrations during development, you can merge them into a single migration:
