@@ -1,14 +1,76 @@
 {% extends 'layout.jx' %}
 
-{% block styles %}
-<style>{{ include_raw("_prism.css") }}</style>
-{% endblock %}
-
 {% block title %}{{ title }}{% endblock %}
 
-{% block body %}
-<pre class="traceback">
-	<code class="language-python">{{ traceback | e }}</code>
+{% macro code(frame) -%}
+{% if frame.context -%}
+<pre class="code">
+{%- for lineno, line in frame.context -%}
+<span{% if lineno == frame.lineno %} class="hl"{% endif %}><i>{{ lineno }}</i>{{ line }}</span>
+{%- endfor -%}
 </pre>
-<script>{{ include_raw("_prism.js") }}</script>
+{%- endif %}
+{% if frame.variables -%}
+<div class="scroll">
+	<table class="vars">
+		{%- for name, value in frame.variables.items() %}
+		<tr><th>{{ name }}</th><td>{{ value }}</td></tr>
+		{%- endfor %}
+	</table>
+</div>
+{%- endif %}
+{%- endmacro %}
+
+{% block actions %}
+<button class="copy" type="button" data-copied="Copied" title="Copy the error as plain text, to paste it into an issue or to an agent">Copy as text</button>
+{% endblock %}
+
+{% block body %}
+
+{% for err in errors|reverse %}
+	{% if not loop.first -%}
+	<p class="chain">
+		{%- if err.chain == "cause" -%}
+		It was raised because of this one:
+		{%- else -%}
+		It was raised while handling this one:
+		{%- endif -%}
+	</p>
+	<p><code>{{ err.summary }}</code></p>
+	{%- endif %}
+
+	<h2>Traceback, most recent call first</h2>
+	{% set where = err.where %}
+	{% for group in err.groups()|reverse %}
+		{% if group is sequence -%}
+		<details class="frame lib">
+			<summary>{{ group|length }} frame{% if group|length != 1 %}s{% endif %} of Proper or libraries</summary>
+			<ul class="lib-list">
+				{%- for frame in group|reverse %}
+				<li>{{ frame.path }}:{{ frame.lineno }} <span class="fn">in {{ frame.name }}</span>
+					{%- if frame.line %}<span class="src">{{ frame.line }}</span>{% endif %}</li>
+				{%- endfor %}
+			</ul>
+		</details>
+		{%- else -%}
+		<details class="frame{% if group is sameas where %} where{% endif %}"{% if group is sameas where %} open{% endif %}>
+			<summary>{{ group.path }}:{{ group.lineno }} <span class="fn">in {{ group.name }}</span>
+				{%- if group.line %}<span class="src">{{ group.line }}</span>{% endif %}</summary>
+			{{ code(group) }}
+		</details>
+		{%- endif %}
+	{% endfor %}
+{% endfor %}
+
+<textarea id="error-text" hidden readonly>{{ text }}</textarea>
+<script>
+document.querySelector("button.copy").addEventListener("click", function (event) {
+	var text = document.getElementById("error-text").value;
+	navigator.clipboard.writeText(text).then(function () {
+		var button = event.target, label = button.textContent;
+		button.textContent = button.dataset.copied;
+		setTimeout(function () { button.textContent = label; }, 1500);
+	});
+});
+</script>
 {% endblock %}

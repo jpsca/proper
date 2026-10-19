@@ -16,14 +16,12 @@ from proper.core.error_handlers import (
     fallback_forbidden_handler,
     fallback_not_found_handler,
     get_request_data,
-    get_title,
     is_index,
     redact_sensitive_info,
     redact_value,
     render,
     render_default_index,
 )
-from proper.errors import MatchNotFound
 from proper.test_client import make_test_request
 
 
@@ -208,14 +206,6 @@ def test_get_other_path():
     assert is_index(request) is False
 
 
-def test_value_error():
-    assert get_title(ValueError("x")) == "Value Error"
-
-
-def test_match_not_found():
-    assert get_title(MatchNotFound("x")) == "Match Not Found"
-
-
 def test_happy_path():
     request = MagicMock()
     request.query = {"a": "1"}
@@ -387,6 +377,11 @@ class BrokenList(list):
         raise RuntimeError("no iter")
 
 
+class BrokenStrKey(str):
+    def upper(self):
+        raise RuntimeError("no upper")
+
+
 class BrokenKey:
     def __eq__(self, other):
         raise RuntimeError("no eq")
@@ -511,7 +506,10 @@ def test_redact_never_raises():
     assert result["c"] == ["▒▒▒▒"]
     assert result["d"] == "▒▒▒▒"
     assert result["password2"] == {"password": "▒▒▒▒"}
+    # A key that is not a string is never a sensitive one: it is not read
     key = BrokenKey()
+    assert redact_sensitive_info({key: "x"}) == {key: "x"}
+    key = BrokenStrKey("password")
     assert redact_sensitive_info({key: "x"}) == {key: "▒▒▒▒"}
     assert redact_sensitive_info(BrokenDict(x=1)) == {}
 

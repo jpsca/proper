@@ -495,6 +495,38 @@ When a `NotFound` is raised anywhere during request processing, the framework in
 
 If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
 
+### The debug error pages
+
+With `DEBUG` on, an error that nothing handles doesn't get your error page: it gets a debug page, made to find the bug fast. In a browser it shows the error and the request on top, then the traceback, most recent call first, with the frame of your code where it happened open: the lines around it, with the failing one highlighted, and the values of its variables. The frames of Proper and of the libraries are folded, so they don't push your code out of sight. Below are the query, the form data, the headers, and the config.
+
+The "Copy as text" button copies the same error as plain text, to paste it into an issue, a chat, or an AI agent.
+
+A client that doesn't ask for HTML gets that text directly, and one that asks for JSON gets it inside `{"error": ..., "message": ..., "details": ...}`. So `curl -s http://localhost:2300/orders` shows something like:
+
+```
+KeyError: 'zzz'
+
+POST /orders -> OrderController.create
+Form data: {'qty': '2'}
+
+At myapp/controllers/order_controller.py:24, in create
+    22 |     def create(self):
+    23 |         prices = load_prices()
+  > 24 |         total = prices[self.params["sku"]]
+    25 |
+
+  self = <OrderController object at 0x...>
+  prices = {'a': 3, 'b': 4}
+
+Traceback (most recent call last):
+  ... 5 frames of Proper or libraries ...
+  myapp/controllers/order_controller.py:24, in create
+    total = prices[self.params["sku"]]
+KeyError: 'zzz'
+```
+
+The pages hide what looks like a secret: the config keys, variables, form fields, and headers whose name ends with `PASSWORD`, `SECRET`, `TOKEN`, `API_KEY`, `COOKIE`, `AUTHORIZATION`, and the like, and the password of any URL, like `postgres://app:▒▒▒▒@db/main`. Still, they are for development only: never turn `DEBUG` on in production.
+
 ### The `_not_found` Trick
 
 Notice the second decorator on each method:
