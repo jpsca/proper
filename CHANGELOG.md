@@ -2,6 +2,22 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### ⚠️ Upgrading: the `TestClient` raises the errors of the app
+
+An exception of the app that ends in a server error is now raised in the
+test, with its real traceback, instead of being answered with a `500` page.
+An `HTTPError`, or any exception with a `status`, is still answered, and so
+is an error that an error handler answers with a status under 500. A test
+that checks an error page needs `TestClient(app, raise_server_errors=False)`.
+
+### Fixed
+
+- The `AGENTS.md` of a new app said that Proper is an ASGI framework, and
+  that `form.save()` returns an unsaved instance. Proper serves WSGI, and
+  `form.save()` saves it. It now also says to run `proper check`.
+
 ## 0.43.0
 
 ### ⚠️ Upgrading: `MAX_FORM_FIELDS` limits urlencoded forms too
