@@ -116,7 +116,8 @@ def app():
 
 @pytest.fixture()
 def client(app):
-    return TestClient(app)
+    # These tests look at what the app answers to an error, not at the error
+    return TestClient(app, raise_server_errors=False)
 
 
 

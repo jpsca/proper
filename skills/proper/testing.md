@@ -1,7 +1,7 @@
 ---
 title: Testing
 description: TestClient setup, making requests, file uploads, WebSocket testing, auth helpers
-last_verified: 2026-09-25
+last_verified: 2026-10-19
 ---
 
 # Testing
@@ -163,6 +163,17 @@ result = client.post("/photos", body={"title": "New"})
 assert result.status == 303
 assert result.headers["location"] == "/photos/1"
 ```
+
+### Errors of the App Are Raised
+
+An exception of the app that ends in a server error is raised in the test, with its real traceback, instead of being answered with a `500` page. An `HTTPError` (like `NotFound`), or any exception with a `status`, is always answered, never raised, and so is an error that an error handler answers with a status under 500.
+
+```python
+with pytest.raises(ValueError):
+    client.get("/explode")
+```
+
+To test the error pages themselves, turn it off: `TestClient(app, raise_server_errors=False)`, or `client.raise_server_errors = False`.
 
 ### Testing JSON Responses
 

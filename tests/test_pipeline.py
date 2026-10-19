@@ -638,7 +638,8 @@ class TestPipeline:
         app.router.add_route(
             Route(method="GET", path="/explode", to=GreetController.explode)
         )
-        client.get("/explode")
+        with pytest.raises(ValueError):
+            client.get("/explode")
         assert "teardown" in called
 
     def test_on_error_runs_on_exception(self, app, client):
@@ -647,7 +648,8 @@ class TestPipeline:
         app.router.add_route(
             Route(method="GET", path="/explode", to=GreetController.explode)
         )
-        client.get("/explode")
+        with pytest.raises(ValueError):
+            client.get("/explode")
         assert "error" in called
 
     def test_on_error_not_called_on_success(self, app, client):
@@ -693,7 +695,7 @@ class TestPipeline:
 
         assert app.around_request(hook) is hook
 
-    def test_around_request_sees_handled_errors(self, app, client):
+    def test_around_request_sees_handled_errors(self, app):
         seen = []
 
         @app.around_request
@@ -705,6 +707,7 @@ class TestPipeline:
         app.router.add_route(
             Route(method="GET", path="/explode", to=GreetController.explode)
         )
+        client = TestClient(app, raise_server_errors=False)
         result = client.get("/explode")
         assert result.status == status.internal_server_error
         assert isinstance(seen[0], ValueError)
