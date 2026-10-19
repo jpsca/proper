@@ -545,7 +545,7 @@ def test_debug_pages_render_with_tuple_subclasses_in_the_config(value):
     # `sys.version_info` can't be copied.
     app.config["DB"] = value
     app.config["OTHER"] = [value]
-    client = TestClient(app)
+    client = TestClient(app, raise_server_errors=False)
 
     response = client.get("/nope")
     assert response.status == 404

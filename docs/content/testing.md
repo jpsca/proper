@@ -524,6 +524,28 @@ show = client.get(result.headers["location"])
 assert "New" in show.body
 ```
 
+### Errors of the app are raised
+
+When a controller raises an exception that nothing handles, the server answers with a `500` page. The `TestClient` raises it in the test instead, so the test fails with the real traceback, pointing at the line that broke, rather than with `assert 500 == 303`:
+
+```python
+def test_create_photo(client):
+    result = client.post("/photos", body={"title": "New"})  # a bug in `create` raises here
+    assert result.status == 303
+```
+
+Only the errors that end in a server error are raised. An `HTTPError` (like `NotFound`), or any exception with a `status`, is answered as usual, and so is an error that one of your error handlers answers with a status under 500.
+
+To test your error pages themselves, turn it off when creating the client, or later:
+
+```python
+client = TestClient(app, raise_server_errors=False)
+result = client.get("/explode")
+assert result.status == 500
+
+client.raise_server_errors = False
+```
+
 ### JSON responses
 
 `result.body` for a JSON endpoint is the raw response string. Parse it with `json.loads` and assert on the structure:

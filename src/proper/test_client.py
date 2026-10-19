@@ -128,6 +128,12 @@ class TestClient:
 
     Arguments:
         app: The Proper `App` instance to test.
+        headers: Headers sent with every request.
+        raise_server_errors: Raise, in the test, an exception of the app
+            that ends in a server error, instead of returning the error page.
+            The test fails with the real traceback, not with a `500`. Turn
+            it off to test the error pages themselves. An `HTTPError`, or
+            any exception with a `status`, is always answered, never raised.
 
     Example::
 
@@ -148,8 +154,10 @@ class TestClient:
         app: "App",
         *,
         headers: dict[str, str] | None = None,
+        raise_server_errors: bool = True,
     ) -> None:
         self.app = app
+        self.raise_server_errors = raise_server_errors
 
         headers = {key.lower(): value for key, value in headers.items()} if headers else {}
         headers.setdefault("forwarded", f"for={self.remote_ip};")
@@ -319,6 +327,14 @@ class TestClient:
         # test's database connection and one transaction can span the test
         # and the requests it makes.
         response = self.app._respond_sync(request, BytesIO(body_bytes).read)
+        error = response.error
+        if (
+            self.raise_server_errors
+            and error is not None
+            and response.status >= 500
+            and not hasattr(error, "status")
+        ):
+            raise error
 
         resp_status, raw_headers, raw_body = response.prepare(request)
         resp_headers = CIMultiDict(raw_headers)
