@@ -1,6 +1,6 @@
 ## [[app_name]]
 
-This is a Proper-based web application. Proper is an opinionated, batteries-included Python web framework. It uses ASGI with sync Python controllers, Peewee ORM, Huey task queue, Jx components, and Formidable forms.
+This is a Proper-based web application. Proper is an opinionated, batteries-included Python web framework. It runs only on free-threaded Python (3.14t and later), on Linux (or WSL, or a container), and serves WSGI with Bearings. It uses synchronous controllers, Peewee ORM, Huey task queue, Jx components, and Formidable forms.
 
 Deep reference docs are bundled in the `proper` skill.
 
@@ -8,9 +8,9 @@ Deep reference docs are bundled in the `proper` skill.
 
 - **Everything is CRUD** - controllers map to RESTful resource actions (index, new, create, show, edit, update, delete)
 - **Singular names** - resource/model/controller names are always singular (e.g., `Post`, not `Posts`)
-- **Boot order matters** - `__init__.py` imports: main → router → controllers → models → tasks. New controllers/models must be imported in their respective `__init__.py`
-- **`form.save()` returns unsaved** - it returns a model instance that hasn't been persisted yet; call `instance.save()` to write to DB
-- **Controllers are sync** - despite ASGI, controller methods are regular sync Python
+- **Boot order matters** - `__init__.py` imports: main → router → controllers → models → tasks. New controllers/models must be imported in their respective `__init__.py` (the generators add these imports for you)
+- **`form.save()` persists** - for a form with `Meta.orm_cls`, it creates or updates the model instance, saves it in a transaction, and returns it; no follow-up `instance.save()` is needed
+- **Controllers are sync** - controller methods are regular sync Python, with no `async`/`await`
 - **`current` context** - `current.request`, `current.user`, `current.auth_session` available in controllers and templates
 
 ## Common Commands
@@ -20,6 +20,7 @@ proper g resource Post title:str body:text       # Generate full CRUD resource
 proper g model Photo title:str published:bool    # Generate model only
 proper install auth|storage|i18n|channels        # Install addons
 proper db migrate                                # Run migrations
+proper check                                     # Find the mistakes of the app before it runs
 uv run proper run                                # Start dev server
 ```
 
@@ -53,6 +54,7 @@ Config               | `config/{name}.py`                          | `config/__i
 - Never remove or disable any tests without user confirmation.
 - When writing tests, use real filesystem and real objects instead of mocks unless it requires running separated service or asked to mock. Avoid unittest.mock patterns for integration-style tests.
 - When debugging test failures, check for framework-specific behaviors
+- After a change, run `uv run proper check` and fix every error it lists
 
 ## Dependencies
 
