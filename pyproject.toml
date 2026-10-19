@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "proper"
-version = "0.42.1"
+version = "0.43.0"
 description = "Opinionated and batteries-included Python web framework"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
