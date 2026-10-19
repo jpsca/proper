@@ -3,8 +3,7 @@
 In-process measurements of the framework alone: no server, one thread, a
 few thousand iterations, best of five. They exist to answer "what did this
 change buy" for the parts of a request that the cross-framework harness
-(the `proper-bench` repo) does not exercise, and they are what the numbers
-in `PLAN_COMPILE.md` came from.
+(the `proper-bench` repo) does not exercise.
 
 ```sh
 uv run python benchmarks/micro/dispatch.py   # a request through a controller with callbacks and an inferred view
