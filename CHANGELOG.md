@@ -2,7 +2,7 @@
 
 All notable changes to Proper are documented in this file.
 
-## Unreleased
+## 0.43.0
 
 ### ⚠️ Upgrading: `MAX_FORM_FIELDS` limits urlencoded forms too
 
