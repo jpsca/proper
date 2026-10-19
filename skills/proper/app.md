@@ -1,7 +1,7 @@
 ---
 title: Application
 description: App setup, request lifecycle, configuration, lifecycle hooks, static assets, and logging
-last_verified: 2026-09-25
+last_verified: 2026-10-19
 ---
 
 # Application
@@ -360,6 +360,20 @@ def show(self):
 | 500    | `InternalServerError`      | Aliases: `ServerError`, `Error`      |
 
 All inherit from `HTTPError`. Each has a `status` attribute and an optional message.
+
+### The Debug Error Pages
+
+With `DEBUG`, an error that nothing handles is answered with a debug page, in the format the client asks for first in its `accept` header:
+
+- `text/html` (a browser): an HTML page with the frames of the app open, those of Proper and the libraries folded, the request, and the config; and a "Copy as text" button.
+- `application/json` (or `+json`): `{"error": "KeyError", "message": "'zzz'", "details": "<the text>"}`.
+- Anything else, like `curl` or an agent (`*/*`): plain text.
+
+The text starts with the error, the request (`POST /orders -> OrderController.create`) and its form data, then the last frame of the app (`At path:line, in function`) with its code and variables, then the traceback, with each run of frames of Proper or libraries in one line. To see the error of a page you are building, request it with `curl -s URL` and read the text.
+
+A route that doesn't match gets the same formats, with the routes in the order they are matched.
+
+Config keys, variables, form fields and headers whose name ends with `PASSWORD`, `SECRET`, `SECRET_KEY(S)`, `TOKEN`, `API_KEY`, `ACCESS_KEY`, `PRIVATE_KEY`, `CREDENTIALS`, `COOKIE` or `AUTHORIZATION` (any case, `-` as `_`) are masked, and so are the passwords of URLs (`postgres://user:▒▒▒▒@host/db`).
 
 
 ## Status Codes

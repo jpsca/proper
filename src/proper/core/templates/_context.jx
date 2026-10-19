@@ -1,5 +1,5 @@
 {% macro print_dict(dict) -%}
-	<div class="scroll-container">
+	<div class="scroll">
 		<table>
 			{%- for name, value in dict.items() %}
 			<tr>
@@ -11,8 +11,8 @@
 						</details>
 					</td>
 				{%- else -%}
-					<th><div>{{ name }}</div></th>
-					<td><div>{{ value }}</div></td>
+					<th>{{ name }}</th>
+					<td>{{ value }}</td>
 				{%- endif %}
 			</tr>
 			{%- endfor %}
@@ -20,51 +20,43 @@
 	</div>
 {%- endmacro -%}
 
-<h3>Config</h3>
-
-<details>
-	<summary>Config:</summary>
-	{{ print_dict(config) }}
-</details>
-
-<h3>Request</h3>
+<h2>Request and app</h2>
 
 {% if request_query -%}
-<details>
-	<summary>Query:</summary>
+<details class="section" open>
+	<summary>Query</summary>
 	{{ print_dict(request_query) }}
 </details>
 {%- endif %}
 
 {% if request_form -%}
-<details>
-	<summary>Form data:</summary>
+<details class="section" open>
+	<summary>Form data</summary>
 	{{ print_dict(request_form) }}
 </details>
 {%- endif %}
 
 {% if request_headers -%}
-<details>
-	<summary>Environment:</summary>
+<details class="section">
+	<summary>Request headers</summary>
 	{{ print_dict(request_headers) }}
 </details>
 {%- endif %}
 
-
 {% if response.headers -%}
-<h3>Response</h3>
-
-<details>
-	<summary>Headers:</summary>
-	<div class="scroll-container">
-		<table class="config">
+<details class="section">
+	<summary>Response headers</summary>
+	<div class="scroll">
+		<table>
 			{%- for name, value in response.get_header_tuples() %}
-			<tr>
-				<th><div>{{ name }}</div></th>
-				<td><div>{{ value }}</div></td>
-			</tr>
+			<tr><th>{{ name }}</th><td>{{ value }}</td></tr>
 			{%- endfor %}
 		</table>
 	</div>
 </details>
 {%- endif %}
+
+<details class="section">
+	<summary>Config</summary>
+	{{ print_dict(config) }}
+</details>
