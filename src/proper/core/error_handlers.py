@@ -7,13 +7,18 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import inflection
-import traceback_with_variables as traceback2
 from hecto import JinjaRender
 from markupsafe import Markup
 
 from ..constants import GET
-from ..helpers import logger
+from ..helpers import jsonplus, logger
+from .debug_info import (
+    describe_request,
+    format_text,
+    get_errors,
+    hide_url_passwords,
+    is_sensitive,
+)
 
 
 if TYPE_CHECKING:
@@ -22,6 +27,8 @@ if TYPE_CHECKING:
 
 TEMPLATES = (Path(__file__).parent / "templates").absolute()
 jinja_render = JinjaRender(TEMPLATES)
+# The pages show the request, the error and the variables of the app
+jinja_render.env.autoescape = True
 
 
 def _include_raw(name):
@@ -46,15 +53,61 @@ def debug_not_found_handler(app, request, response) -> None:
         return render_default_index(request, response)
 
     error = response.error
+    wants = wanted_format(request)
+    if wants != "html":
+        text = format_not_found_text(error, request, app.routes)
+        return set_text_body(response, wants, text, type(error).__name__, str(error))
+
     data = {
         "config": redact_sensitive_info(app.config),
         "response": response,
-        "title": get_title(error),
+        "title": type(error).__name__,
         "description": str(error),
+        "request_line": describe_request(request),
         "routes": app.routes,
     }
     data.update(get_request_data(request))
     response.body = render("debug-not-found.jx", **data)
+
+
+def wanted_format(request) -> str:
+    """`"html"`, `"json"`, or `"text"`: what the client asked for first in
+    its `accept` header. A browser asks for HTML; an agent or a tool like
+    `curl`, which asks for anything (`*/*`), gets plain text."""
+    try:
+        accept = request.accept
+    except Exception:
+        accept = []
+    for media in accept:
+        if media in ("text/html", "application/xhtml+xml"):
+            return "html"
+        if media == "application/json" or media.endswith("+json"):
+            return "json"
+    return "text"
+
+
+def set_text_body(response, wants: str, text: str, error_type: str, message: str) -> None:
+    if wants == "json":
+        response.content_type = "application/json"
+        response.body = jsonplus.dumps({"error": error_type, "message": message, "details": text})
+    else:
+        response.content_type = "text/plain"
+        response.body = text
+
+
+def format_not_found_text(error, request, routes) -> str:
+    out = [f"{type(error).__name__}: {error}", ""]
+    out.append("Routes, in the order they are matched:")
+    rows = []
+    for route in routes:
+        if route.build_only:
+            continue
+        to = route.to.__qualname__ if route.to else (route.redirect and f"-> {route.redirect}") or ""
+        rows.append((route.method or "-", route.path, route.name or "", to))
+    widths = [max((len(row[i]) for row in rows), default=0) for i in range(3)]
+    for row in rows:
+        out.append("  " + "  ".join(col.ljust(widths[i]) for i, col in enumerate(row[:3])) + "  " + row[3])
+    return "\n".join(line.rstrip() for line in out) + "\n"
 
 
 MASK = "▒" * 4
@@ -67,10 +120,12 @@ MAX_REDACT_VALUES = 10_000
 
 
 def redact_sensitive_info(data: dict) -> dict:
-    """A copy of `data` for the debug pages, with the value of every
-    `SECRET_KEYS` key and every `password` key (in any letter case)
-    redacted, in `data` and in every dict, list, tuple or named tuple
-    inside it, at any depth.
+    """A copy of `data` for the debug pages, with the value of every key
+    that holds a secret (`is_sensitive()`: one that ends with `PASSWORD`,
+    `SECRET_KEYS`, `TOKEN`, `API_KEY`, `COOKIE`, `AUTHORIZATION`, etc., in
+    any letter case) redacted, in `data` and in every dict, list, tuple or
+    named tuple inside it, at any depth. The password of a URL in any
+    other string, like `postgres://user:password@host/db`, is masked.
 
     Under such a key, every value at any depth is replaced by
     `redact_value(value)`, except an empty or false one (`""`, `None`, `0`,
@@ -93,8 +148,6 @@ def redact_sensitive_info(data: dict) -> dict:
     return result if isinstance(result, dict) else {}
 
 
-def _is_sensitive(key: "Any") -> bool:
-    return key == "SECRET_KEYS" or (isinstance(key, str) and key.lower() == "password")
 
 
 def _redact(
@@ -115,6 +168,8 @@ def _redact(
         else:
             if secret and value:
                 return redact_value(value)
+            if isinstance(value, str):
+                return hide_url_passwords(value)
             return value
 
         if value_id in path or depth >= MAX_REDACT_DEPTH:
@@ -126,7 +181,7 @@ def _redact(
             result = {}
             for key, item in value.items():
                 try:
-                    item_secret = secret or _is_sensitive(key)
+                    item_secret = secret or is_sensitive(key)
                 except Exception:
                     result[key] = MASK
                     continue
@@ -169,21 +224,24 @@ def render_default_index(request, response) -> None:
 def debug_error_handler(app, request, response) -> None:
     error = response.error
     logger.exception(error)
-    excp = traceback2.format_exc()
+    errors = get_errors(error)
+    text = format_text(errors, request)
+    wants = wanted_format(request)
+    if wants != "html":
+        return set_text_body(response, wants, text, errors[-1].type, errors[-1].message)
+
     data = {
         "config": redact_sensitive_info(app.config),
         "request": request,
         "response": response,
-        "title": get_title(error),
-        "description": str(error),
-        "traceback": str(excp),
+        "title": errors[-1].type,
+        "description": errors[-1].message,
+        "request_line": describe_request(request),
+        "errors": errors,
+        "text": text,
     }
     data.update(get_request_data(request))
     response.body = render("debug-error.jx", **data)
-
-
-def get_title(error: "Any") -> str:
-    return inflection.titleize(error.__class__.__name__)
 
 
 def get_request_data(request) -> dict:
@@ -200,10 +258,14 @@ def get_request_data(request) -> dict:
     except Exception:
         request_headers = None
     return {
-        "request_query": request_query,
-        "request_form": request_form,
-        "request_headers": request_headers,
+        "request_query": _redact_or_none(request_query),
+        "request_form": _redact_or_none(request_form),
+        "request_headers": _redact_or_none(request_headers),
     }
+
+
+def _redact_or_none(data: "Any") -> "dict | None":
+    return None if data is None else redact_sensitive_info(dict(data))
 
 
 def fallback_not_found_handler(response) -> None:

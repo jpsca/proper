@@ -12,8 +12,26 @@ An `HTTPError`, or any exception with a `status`, is still answered, and so
 is an error that an error handler answers with a status under 500. A test
 that checks an error page needs `TestClient(app, raise_server_errors=False)`.
 
+### Changed
+
+- The debug error page shows first the frame of the app where the error
+  happened, with the lines around it and its variables, and folds the
+  frames of Proper and of the libraries. Its title is the error and the
+  request (`POST /orders -> OrderController.create`); a "Copy as text"
+  button copies the error as plain text. A client that doesn't ask for
+  HTML, like `curl` or an agent, gets that text, and one that asks for
+  JSON gets it in a JSON object. The not-found page answers the same
+  formats. The page no longer loads Prism.
+
 ### Fixed
 
+- The debug pages didn't escape what they show: a query string like
+  `?q=<script>...</script>` ran in the page.
+- The debug pages showed most secrets: only `SECRET_KEYS` and keys named
+  exactly `password` were masked. Now every config key, variable, form
+  field, and header whose name ends with `PASSWORD`, `SECRET`, `TOKEN`,
+  `API_KEY`, `COOKIE`, `AUTHORIZATION`, etc. is masked, and so is the
+  password of any URL.
 - The `AGENTS.md` of a new app said that Proper is an ASGI framework, and
   that `form.save()` returns an unsaved instance. Proper serves WSGI, and
   `form.save()` saves it. It now also says to run `proper check`.
