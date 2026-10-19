@@ -1,7 +1,6 @@
 """Decisions that cannot change between requests, taken once.
 
-See `PLAN_COMPILE.md` at the root of the repository. Each module is one
-lowering pass; `lower` runs them all for an app.
+Each module is one lowering pass; `lower` runs them all for an app.
 """
 import typing as t
 
