@@ -773,7 +773,6 @@ dependencies = [
     { name = "peewee-migrate" },
     { name = "proper-cli" },
     { name = "pybearings" },
-    { name = "traceback-with-variables" },
     { name = "types-peewee" },
     { name = "tzdata" },
     { name = "watchfiles" },
@@ -823,7 +822,6 @@ requires-dist = [
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
     { name = "proper-cli", specifier = ">=2.1.0" },
     { name = "pybearings", editable = "../fp40/Bearings/python" },
-    { name = "traceback-with-variables", specifier = "~=2.0.4" },
     { name = "types-peewee", specifier = ">=4.5.1" },
     { name = "tzdata", specifier = ">=2025.3" },
     { name = "watchfiles", specifier = ">=1.1" },
@@ -1249,12 +1247,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/31/27/203b4dbe73cc6dadc
 wheels = [
     { url = "https://files.pythonhosted.org/packages/52/4c/9596668bb448b868c684a3df9190103e9bc2f7de13e646628ac914f928be/tox_uv_bare-1.37.0-py3-none-any.whl", hash = "sha256:a596c0726690e2182cc85dfbc2f39e6fddacb8f7ea08bf8bace122a17397cd13", size = 22322, upload-time = "2026-10-11T00:33:51.338Z" },
 ]
-
-[[package]]
-name = "traceback-with-variables"
-version = "2.0.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b3/a5/acfd3807d01a66ae687a2a4d20f86cb16be6de323f713fe8d679ecd5cd5a/traceback-with-variables-2.0.4.tar.gz", hash = "sha256:a30c79b7c206fb255967f3f5d125ce114b3dae4fd92d268f901dd35ee23f9cc0", size = 21445, upload-time = "2021-12-05T17:42:02.487Z" }
 
 [[package]]
 name = "traitlets"
