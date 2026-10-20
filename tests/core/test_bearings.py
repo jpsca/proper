@@ -113,6 +113,17 @@ class TestTheResponse:
         ]
         assert body == b"ok"
 
+    def test_the_request_id_is_sent_back(self, app):
+        app.router.add_route(Route("GET", "/echo", to=Echo.index))
+        _, headers, _ = app._bearings(
+            make_head("/echo", headers=[("Host", "x"), ("X-Request-ID", "abc-123")]),
+            io.BytesIO(),
+            LISTENER,
+        )
+        assert ("x-request-id", "abc-123") in [
+            (name.lower(), value) for name, value in headers
+        ]
+
     def test_the_body_is_read(self, app):
         app.router.add_route(Route("POST", "/echo", to=Echo.create))
         body = b"name=Ana"

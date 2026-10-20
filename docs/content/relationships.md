@@ -843,12 +843,11 @@ results = pw.prefetch(staff_articles, Comment.select())
 The join narrows the article set; the prefetch attaches the comments. Two queries and no N+1.
 
 :::tip | Watch the SQL
-The fastest way to spot N+1 problems is to watch the SQL while you load a page. Enable Peewee's query logger - attach a handler to the `peewee` logger and set it to `DEBUG`:
+The fastest way to spot N+1 problems is to watch the SQL while you load a page. Enable Peewee's query logger - set the `peewee` logger to `DEBUG`, and the app writes its queries with its other logs:
 
 ```python
 import logging
 
-logging.getLogger("peewee").addHandler(logging.StreamHandler())
 logging.getLogger("peewee").setLevel(logging.DEBUG)
 ```
 

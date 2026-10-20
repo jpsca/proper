@@ -1,5 +1,6 @@
 import datetime
 import time
+import uuid
 
 import pytest
 
@@ -156,10 +157,24 @@ class TestParseRequestId:
     def test_non_ascii_stripped(self):
         assert parse_request_id("abc\u00e9def") == "abcdef"
 
+    def test_keeps_letters_digits_dash_underscore_and_at(self):
+        assert parse_request_id("Ab9-_@") == "Ab9-_@"
+
+    def test_strips_spaces_controls_and_punctuation(self):
+        assert parse_request_id(" a\tb\r\nc;d=e.f/g\x00") == "abcdefg"
+
+    def test_nothing_left_is_none(self):
+        assert parse_request_id("\r\n ;") is None
+        assert parse_request_id("") is None
+
     def test_truncated_to_max_length(self):
         long_id = "x" * 300
         result = parse_request_id(long_id)
         assert result and len(result) == 200
+
+    def test_truncated_after_cleaning(self):
+        result = parse_request_id(" " * 300 + "x" * 300)
+        assert result == "x" * 200
 
 
 # ----
@@ -1141,9 +1156,16 @@ def test_request_id():
     assert req.request_id == "req-123"
 
 
-def test_request_id_missing():
+def test_request_id_missing_is_a_new_uuid():
     req = _make_request("/")
-    assert req.request_id is None
+    assert uuid.UUID(req.request_id).version == 4
+    assert req.request_id == req.request_id
+    assert req.request_id != _make_request("/").request_id
+
+
+def test_request_id_with_nothing_valid_is_a_new_uuid():
+    req = _make_request("/", headers=[("x-request-id", "\r\n ;")])
+    assert uuid.UUID(req.request_id).version == 4
 
 
 def test_user_agent():
@@ -1535,6 +1557,11 @@ def test_request_id_truncated():
 def test_request_id_non_ascii_removed():
     req = _make_request("/", headers=[("x-request-id", "abc\x80\x81def")])
     assert req.request_id == "abcdef"
+
+
+def test_request_id_cannot_break_a_log_line():
+    req = _make_request("/", headers=[("x-request-id", "abc\r\nINFO forged log")])
+    assert req.request_id == "abcINFOforgedlog"
 
 
 # --- forwarded edge cases ---

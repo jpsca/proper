@@ -773,6 +773,7 @@ dependencies = [
     { name = "peewee-migrate" },
     { name = "proper-cli" },
     { name = "pybearings" },
+    { name = "structlog" },
     { name = "types-peewee" },
     { name = "tzdata" },
     { name = "watchfiles" },
@@ -822,6 +823,7 @@ requires-dist = [
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
     { name = "proper-cli", specifier = ">=2.1.0" },
     { name = "pybearings", editable = "../fp40/Bearings/python" },
+    { name = "structlog", specifier = ">=26.1.0" },
     { name = "types-peewee", specifier = ">=4.5.1" },
     { name = "tzdata", specifier = ">=2025.3" },
     { name = "watchfiles", specifier = ">=1.1" },
@@ -1182,6 +1184,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b3/08/efd28d49162ce89c2ad61a88bd80e11fb77bc9f6c145402589112d38f8af/strictyaml-1.7.3.tar.gz", hash = "sha256:22f854a5fcab42b5ddba8030a0e4be51ca89af0267961c8d6cfa86395586c407", size = 115206, upload-time = "2023-03-10T12:50:27.062Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/96/7c/a81ef5ef10978dd073a854e0fa93b5d8021d0594b639cc8f6453c3c78a1d/strictyaml-1.7.3-py3-none-any.whl", hash = "sha256:fb5c8a4edb43bebb765959e420f9b3978d7f1af88c80606c03fb420888f5d1c7", size = 123917, upload-time = "2023-03-10T12:50:17.242Z" },
+]
+
+[[package]]
+name = "structlog"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881, upload-time = "2026-06-06T07:33:39.348Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764, upload-time = "2026-06-06T07:33:38.046Z" },
 ]
 
 [[package]]

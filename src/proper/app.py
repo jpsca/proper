@@ -28,6 +28,7 @@ from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
 from .helpers import DotDict, jsonplus, logger
+from .helpers.logs import setup_logging
 from .models.migrations import pending_migrations
 from .router import Route, Router
 from .storage import attachment_for
@@ -159,6 +160,7 @@ class App(AppWsgi):
         # it through, handlers or not. Outside of debug mode that is pure cost
         # on the request path.
         logger.setLevel(logging.DEBUG if self.config.DEBUG else logging.INFO)
+        setup_logging(self.config.LOG_FORMAT)
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
         self._attachment_class_cache: "dict[type, type[_Attachment]]" = {}
         self._attachment_lock = threading.Lock()
