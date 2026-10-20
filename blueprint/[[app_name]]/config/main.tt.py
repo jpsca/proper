@@ -49,10 +49,6 @@ else:
 LOCALE_DEFAULT = "en"
 TIMEZONE_DEFAULT = "UTC"
 
-# Turn off to let something else, outside the application,
-# like a proxy or web-server, handle the unhandled exceptions.
-CATCH_ALL_ERRORS = True
-
 # Limits the total content length (in bytes).
 # Raises a RequestEntityTooLarge exception if this value is exceeded.
 MAX_CONTENT_LENGTH = 8 * MB

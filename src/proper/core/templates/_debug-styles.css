@@ -27,7 +27,7 @@ html, body {
 	margin: 0;
 	background: var(--bg);
 	color: var(--fg);
-	font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+	font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 .wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 header {
@@ -38,23 +38,23 @@ header {
 header .kind {
 	margin: 0;
 	color: var(--accent);
-	font: 600 14px/1.4 var(--mono);
+	font: 600 16px/1.4 var(--mono);
 }
 header h1 {
 	margin: 4px 0 0;
-	font: 600 22px/1.35 var(--mono);
+	font: 600 26px/1.35 var(--mono);
 	overflow-wrap: anywhere;
 	white-space: pre-wrap;
 }
-header .request { margin: 10px 0 0; color: var(--muted); font: 14px var(--mono); }
+header .request { margin: 10px 0 0; color: var(--muted); font: 16px var(--mono); }
 main { padding: 16px 0 96px; }
-h2 { font-size: 15px; margin: 28px 0 8px; color: var(--muted); font-weight: 600; }
-code, pre, table { font-family: var(--mono); font-size: 13px; }
+h2 { font-size: 17px; margin: 28px 0 8px; color: var(--muted); font-weight: 600; }
+code, pre, table { font-family: var(--mono); font-size: 15px; }
 button.copy {
 	float: right;
 	margin-left: 16px;
 	padding: 6px 12px;
-	font: 13px system-ui, sans-serif;
+	font: 15px system-ui, sans-serif;
 	color: var(--fg);
 	background: var(--panel);
 	border: 1px solid var(--line);
@@ -73,7 +73,7 @@ details.frame > summary {
 	padding: 7px 12px;
 	cursor: pointer;
 	font-family: var(--mono);
-	font-size: 13px;
+	font-size: 15px;
 	overflow-wrap: anywhere;
 }
 details.frame > summary .fn { color: var(--muted); }
@@ -82,7 +82,7 @@ details.frame[open] > summary .src { display: none; }
 details.frame.where { border-color: var(--accent); }
 details.frame.lib > summary { color: var(--muted); }
 .lib-list { margin: 0; padding: 4px 12px 10px; list-style: none; color: var(--muted); }
-.lib-list li { font-family: var(--mono); font-size: 12px; padding: 2px 0; overflow-wrap: anywhere; }
+.lib-list li { font-family: var(--mono); font-size: 14px; padding: 2px 0; overflow-wrap: anywhere; }
 .lib-list .src { display: block; padding-left: 1em; white-space: pre-wrap; }
 pre.code {
 	margin: 0;
