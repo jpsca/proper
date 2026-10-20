@@ -15,6 +15,7 @@ import sys
 import typing as t
 
 import structlog
+from structlog.typing import EventDict, WrappedLogger
 
 
 __all__ = (
@@ -29,7 +30,7 @@ _LOG_KWARGS = ("exc_info", "stack_info", "stacklevel")
 
 
 def _to_stdlib(
-    _logger: t.Any, _method_name: str, event_dict: dict
+    _logger: WrappedLogger, _method_name: str, event_dict: EventDict
 ) -> "tuple[tuple, dict]":
     """The arguments for the stdlib logging method, with the `%s` arguments
     unformatted: the stdlib formats them only if the level lets the record
