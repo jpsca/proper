@@ -36,6 +36,7 @@ dependencies = [
     "peewee-migrate >= 2.3,<3",
     "proper-cli >= 2.1.0",
     "pybearings>=0.3.0",
+    "structlog>=26.1.0",
     "types-peewee >= 4.5.1",
     "tzdata >= 2025.3",
     "watchfiles>=1.1",

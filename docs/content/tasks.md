@@ -552,6 +552,8 @@ Two settings matter here. `WorkingDirectory` must be the project root so `import
 
 Supervisor, Docker, or a platform's process model (a `worker:` entry in a Procfile, a second container in a compose file) all work the same way: one long-lived process running `python workers.py` with `APP_ENV=prod` set.
 
+The worker writes its logs like the web process (see [Logs](/docs/deployment#logs)). A task enqueued while the app answers a request logs with the `request_id` of that request, so you can follow a request from the web process to the tasks it started. The tasks chained to it with `.then()` and its retries keep the same ID.
+
 ### Scaling Out
 
 When one worker can't keep up, there are two dials:

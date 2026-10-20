@@ -2,6 +2,7 @@
 import contextvars
 import io
 import threading
+import uuid
 from urllib.parse import urlparse
 
 import pytest
@@ -361,6 +362,39 @@ class TestHttp:
     def test_not_found(self, app):
         status, _, _ = call(app, make_environ("/nowhere"))
         assert status == "404 Not Found"
+
+    def test_the_response_sends_the_request_id(self, app):
+        _route(app, "/echo", Echo.index)
+        environ = make_environ("/echo", headers=[("x-request-id", "abc-123")])
+
+        _, headers, _ = call(app, environ)
+
+        assert SEEN["request"].request_id == "abc-123"
+        assert header(headers, "x-request-id") == "abc-123"
+
+    def test_without_a_request_id_the_response_sends_a_new_one(self, app):
+        _route(app, "/echo", Echo.index)
+
+        _, headers, _ = call(app, make_environ("/echo"))
+
+        assert header(headers, "x-request-id") == SEEN["request"].request_id
+        assert uuid.UUID(SEEN["request"].request_id).version == 4
+
+    def test_an_error_response_sends_the_request_id(self, app):
+        environ = make_environ("/nowhere", headers=[("x-request-id", "abc-123")])
+        status, headers, _ = call(app, environ)
+        assert status == "404 Not Found"
+        assert header(headers, "x-request-id") == "abc-123"
+
+    def test_a_bad_request_sends_a_request_id(self, app):
+        """A request with a header it can't be built with is answered
+        without its headers, so with a new ID."""
+        environ = make_environ(
+            "/echo", headers=[("host", "a@b"), ("x-request-id", "abc-123")]
+        )
+        status, headers, _ = call(app, environ)
+        assert status == "400 Bad Request"
+        assert uuid.UUID(header(headers, "x-request-id")).version == 4
 
     @pytest.mark.parametrize(
         "url, expected",

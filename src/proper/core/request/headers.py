@@ -2,6 +2,7 @@ import ipaddress
 import mimetypes
 import re
 import typing as t
+import uuid
 from datetime import datetime, timezone
 from functools import cached_property
 from http import cookies as http_cookies
@@ -436,17 +437,16 @@ class RequestHeadersMixin:
         return ",".join(values) if values else None
 
     @cached_property
-    def request_id(self) -> str | None:
-        """Parse the `x-request-id` header.
+    def request_id(self) -> str:
+        """The ID of this request, to find it in the logs.
 
-        This header is used to uniquely identify a request.
-
-        Returns:
-            A string with the request ID or None if the header is not present.
-
+        It is the `X-Request-ID` header, if the request has one (a proxy
+        or a load balancer in front can add it), cleaned by
+        `parse_request_id`. Otherwise, a new UUID. The response sends it
+        back in its own `X-Request-ID` header.
         """
         val = self.headers.get("x-request-id")
-        return parse_request_id(val)
+        return parse_request_id(val) or str(uuid.uuid4())
 
     @cached_property
     def user_agent(self) -> str | None:
@@ -840,24 +840,25 @@ def parse_multivalue(header: str) -> list[tuple[str, dict]]:
 
 
 REQUEST_ID_MAX_LENGTH = 200
-RX_NON_ASCII = re.compile(r"[^\x00-\x7f]")
+RX_NOT_REQUEST_ID = re.compile(r"[^A-Za-z0-9_@-]")
 
 
 def parse_request_id(val: str | None) -> str | None:
-    """Parse a request ID.
+    """Clean a request ID that came in a header.
 
-    This function will remove non-ASCII characters and truncate the
-    request ID to 200 characters.
+    Keeps only ASCII letters, digits, `-`, `_`, and `@`, so the ID can't
+    break a line of a log, and truncates it to 200 characters.
 
     Arguments:
         val:
             The request ID.
 
     Returns:
-        The parsed request ID or None if the input is None.
+        The cleaned request ID, or `None` if the input is `None` or
+        nothing is left after cleaning it.
 
     """
     if val is None:
         return None
-    val = str(val)[:REQUEST_ID_MAX_LENGTH]
-    return RX_NON_ASCII.sub("", val)
+    val = RX_NOT_REQUEST_ID.sub("", str(val))[:REQUEST_ID_MAX_LENGTH]
+    return val or None

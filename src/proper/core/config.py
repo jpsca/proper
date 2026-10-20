@@ -8,6 +8,7 @@ import typing as t
 
 from ..errors import BadSecretKey, ConfigError
 from ..helpers import DotDict
+from ..helpers.logs import LOG_FORMATS
 from ..units import DAYS, MB
 
 
@@ -39,6 +40,12 @@ default_config = {
 
     # Restart the server when the code changes. `None` follows `DEBUG`.
     "RELOAD": None,
+
+    # How the logs of every logger are written to stderr: "console" (one
+    # line for people), "json" (one JSON object per line), or "off" (Proper
+    # adds no handler; configure `logging` yourself). `None` is "console"
+    # with `DEBUG` and "json" without it.
+    "LOG_FORMAT": None,
     # Where the views are compiled to, as Python modules (by jxc).
     # Relative to the app's parent folder. See `proper.compile`.
     "COMPILED_PATH": "_compiled",
@@ -176,6 +183,12 @@ def normalize_config(config: DotDict) -> DotDict:
     config.TRUSTED_PROXIES = parse_trusted_proxies(config.TRUSTED_PROXIES)
 
     config.DEBUG = bool(config.DEBUG)
+    if config.LOG_FORMAT is None:
+        config.LOG_FORMAT = "console" if config.DEBUG else "json"
+    if config.LOG_FORMAT not in LOG_FORMATS:
+        raise ConfigError(
+            f"LOG_FORMAT must be one of {LOG_FORMATS} or None, not {config.LOG_FORMAT!r}."
+        )
     config.CATCH_ALL_ERRORS = bool(config.CATCH_ALL_ERRORS)
     config.SESSION_COOKIE_HTTPONLY = bool(config.SESSION_COOKIE_HTTPONLY)
 

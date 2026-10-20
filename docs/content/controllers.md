@@ -893,6 +893,7 @@ self.request.headers           # incoming headers, MultiDict with lowercase keys
 self.request.format            # "html", "json", ... (from the Accept header)
 self.request.is_xhr            # True if X-Requested-With: XMLHttpRequest
 self.request.remote_ip         # client IP address (from the proxy's X-Forwarded-For, if it's in TRUSTED_PROXIES)
+self.request.request_id        # the ID of the request, also sent in the response's X-Request-ID header
 self.request.matched_action    # the action name the router matched ("show", "create", ...)
 ```
 

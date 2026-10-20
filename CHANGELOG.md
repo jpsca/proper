@@ -4,6 +4,16 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### ⚠️ Upgrading: Proper writes the logs
+
+The app now puts a handler on the root logger that writes the logs of
+every logger (Proper's, yours, peewee's, huey's) to stderr: one line for
+people with `DEBUG`, one JSON object per line without it. Each line has
+the `request_id` of the request being answered. If your app calls
+`logging.basicConfig()` or adds its own handler to the root logger, each
+line is now written twice: remove yours, or set `LOG_FORMAT = "off"` to
+keep configuring `logging` yourself.
+
 ### ⚠️ Upgrading: the `TestClient` raises the errors of the app
 
 An exception of the app that ends in a server error is now raised in the
@@ -12,8 +22,28 @@ An `HTTPError`, or any exception with a `status`, is still answered, and so
 is an error that an error handler answers with a status under 500. A test
 that checks an error page needs `TestClient(app, raise_server_errors=False)`.
 
+### Added
+
+- Every request has an ID, `request.request_id`, and every response sends
+  it in an `X-Request-ID` header, error pages too. It is the
+  `X-Request-ID` header of the request, if it has one (a proxy or a load
+  balancer can add it), or a new UUID.
+- A task enqueued while a request is answered logs with that request's
+  `request_id`, in the worker too, and so do the tasks chained to it and
+  its retries.
+- `LOG_FORMAT` in the config: `"console"`, `"json"`, or `"off"`. The
+  default, `None`, is `"console"` with `DEBUG` and `"json"` without it.
+
 ### Changed
 
+- `request.request_id` is never `None`: without an `X-Request-ID` header
+  it is a new UUID. The ID of the header keeps only letters, digits, `-`,
+  `_`, and `@` (before, only the non-ASCII characters were removed), so it
+  can't break a line of a log.
+- `proper.helpers.logger` is a structlog logger (`structlog.stdlib.BoundLogger`).
+  It takes the same `%s` arguments as before, and keyword arguments as
+  fields of the line: `logger.info("Paid %s", order.id, amount=10)`.
+  Proper depends on `structlog`.
 - The debug error page shows first the frame of the app where the error
   happened, with the lines around it and its variables, and folds the
   frames of Proper and of the libraries. Its title is the error and the
