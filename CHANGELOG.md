@@ -22,6 +22,7 @@ that checks an error page needs `TestClient(app, raise_server_errors=False)`.
   HTML, like `curl` or an agent, gets that text, and one that asks for
   JSON gets it in a JSON object. The not-found page answers the same
   formats. The page no longer loads Prism.
+- Proper no longer depends on `traceback-with-variables`.
 
 ### Fixed
 

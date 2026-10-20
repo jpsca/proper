@@ -36,7 +36,6 @@ dependencies = [
     "peewee-migrate >= 2.3,<3",
     "proper-cli >= 2.1.0",
     "pybearings>=0.3.0",
-    "traceback-with-variables ~= 2.0.4",
     "types-peewee >= 4.5.1",
     "tzdata >= 2025.3",
     "watchfiles>=1.1",
