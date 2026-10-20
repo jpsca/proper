@@ -1097,6 +1097,7 @@ self.request.headers          # Request headers
 self.request.format           # "html", "json", etc. (from Accept header)
 self.request.is_xhr           # True if X-Requested-With: XMLHttpRequest
 self.request.remote_ip        # Client IP address (forwarding headers only from TRUSTED_PROXIES)
+self.request.request_id       # X-Request-ID header (cleaned) or a new UUID; sent back in the response
 self.request.get_cookie("theme", default="light")
 self.request.get_signed_cookie("_token", max_age=2592000)
 

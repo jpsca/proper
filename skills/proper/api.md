@@ -174,7 +174,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `port_is_default`  | `bool`                     | `True` if port is the default for the protocol                     |
 | `port_string`      | `str`                      | `":port"` or `""` if port is default                               |
 | `remote_ip`        | `str`                      | Client IP. From a `TRUSTED_PROXIES` peer: `X-Forwarded-For`, else `Forwarded` (both read from the right, skipping trusted proxies), else `X-Real-IP`. Otherwise the peer's address. An `X-Forwarded-For` or `Forwarded` address loses its port and brackets, and `::ffff:1.2.3.4` becomes `1.2.3.4` |
-| `request_id`       | `str \| None`              | Value of the `X-Request-ID` header                                  |
+| `request_id`       | `str`                      | The `X-Request-ID` header, keeping only `[A-Za-z0-9_@-]` and at most 200 characters; if missing or empty after that, a new UUID4. Sent back in the response's `X-Request-ID` header (error responses too) |
 | `user_agent`       | `str \| None`              | Value of the `User-Agent` header                                    |
 
 ### Methods

@@ -478,6 +478,10 @@ def after_task(task, task_value, exc):
         log_error(task.id, exc)
 ```
 
+### The request ID
+
+Proper registers a `SIGNAL_ENQUEUED` handler and the `proper_bind_request_id` / `proper_unbind_request_id` pre/post execute hooks on `app.queue`. A task enqueued while a request is answered (`request_id` bound in `structlog.contextvars`) carries the ID in `task.kwargs["_proper_request_id"]`, as do its `on_complete` (`.then()`) and `on_error` tasks. The pre-execute hook pops it before the function is called (the function never gets it) and binds it while the task runs, so every log line of the task has `request_id`; the post-execute hook restores the context and puts the kwarg back, so a retry keeps it. Tasks enqueued outside a request (periodic tasks, a shell) have none. Immediate mode works the same.
+
 ### Signals
 
 Signal handlers run synchronously in the consumer:

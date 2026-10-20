@@ -222,5 +222,9 @@ def test_head_returns_same_headers(client):
     get_result = client.get("/hello")
     head_result = client.head("/hello")
     assert head_result.status == get_result.status
-    assert head_result.headers.items() == get_result.headers.items()
+    # Each request has an ID of its own
+    get_headers = dict(get_result.headers.items())
+    head_headers = dict(head_result.headers.items())
+    assert get_headers.pop("x-request-id") != head_headers.pop("x-request-id")
+    assert head_headers == get_headers
     assert head_result.body == ""

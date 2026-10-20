@@ -123,6 +123,31 @@ It runs with the development config because the production one usually needs sec
 
 The user that runs the app must be able to write to `_compiled` when the views were not compiled before, or when one has to be compiled again.
 
+### Logs
+
+The app writes its logs to stderr, with [structlog](https://www.structlog.org/){target=_blank}. That includes the logs of every library that uses Python's `logging`, like peewee and huey. In production each line is a JSON object, ready for a log collector:
+
+```json
+{"event": "Order paid", "request_id": "6f1c0e2a-...", "level": "info", "logger": "proper", "order_id": 42, "timestamp": "2026-10-19T14:03:11.204Z"}
+```
+
+With `DEBUG`, it is a line for people instead. Every line written while the app answers a request has its `request_id` (see [The request ID](#the-request-id)).
+
+`LOG_FORMAT` chooses the format: `"console"`, `"json"`, or `"off"`, where Proper writes nothing and you configure `logging` yourself. The default, `None`, follows `DEBUG`. If you keep Proper's output, don't call `logging.basicConfig()` too: each line would be written twice.
+
+To log from your code, use Proper's logger, or any logger of the standard library:
+
+```python
+import logging
+
+from proper.helpers import logger
+
+logger.info("Order paid", order_id=order.id)
+logging.getLogger("myapp").info("Order %s paid", order.id)
+```
+
+Both lines get the `request_id`. The keyword arguments of Proper's logger are fields of the line. Exceptions are logged with their traceback, without the variables of each frame, so passwords and tokens don't end up in the logs.
+
 ---
 
 ## Sizing
@@ -144,6 +169,7 @@ Setting | Default | Blueprint reads it from | What it controls
 `CABLE_PORT` | `0` (none) | `CABLE_PORT` (channels addon) | Port of the WebSockets (`Cable`)
 `CABLE_PATH` | `"/cable"` | - | URL path the proxy routes to `CABLE_PORT`
 `RELOAD` | `None` (follows `DEBUG`) | - | Restart on code changes
+`LOG_FORMAT` | `None` (follows `DEBUG`) | - | `"console"`, `"json"` or `"off"`
 `ALLOW_GIL` | `False` | - | Serve on a Python with the GIL
 
 ---
@@ -386,6 +412,20 @@ The two `/assets/` blocks send the same `Cache-Control` headers the app sends wh
 `client_max_body_size` is the largest request nginx accepts, and its default is only 1 MB. Keep it in sync with `MAX_CONTENT_LENGTH` (8 MB by default): if it's lower, nginx answers `413` to uploads that the app would have accepted.
 
 The `500.html` page is served by nginx, so visitors see it even when the app is down.
+
+### The request ID
+
+Every response has an `X-Request-ID` header with the ID of its request, the same as `request.request_id` and as the `request_id` of every [log line](#logs) written while answering it, so you can find a request in the logs from the response a user got. If the request comes with an `X-Request-ID` header, the app uses that ID; otherwise it makes a new one. To have the same ID in the logs of nginx and of the app, let nginx make it:
+
+```nginx
+location / {
+  proxy_pass http://127.0.0.1:2300;
+  proxy_set_header X-Request-ID $request_id;
+  # ...
+}
+```
+
+and add `$request_id` to the `log_format` of nginx's access log. An ID from a header keeps only letters, digits, `-`, `_`, and `@`, and at most 200 characters.
 
 ### The `Host` header
 

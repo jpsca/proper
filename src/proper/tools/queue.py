@@ -1,9 +1,13 @@
+import structlog
+
 from ..errors import ConfigError
 from ..helpers.imports import get_instance
 
 
 NAME = "QUEUE"
 NAME_CONSUMER = "QUEUE_CONSUMER"
+# The keyword argument that takes the request ID to the task
+REQUEST_ID_KWARG = "_proper_request_id"
 
 DEFAULT_CONFIG = {
     "type": "huey.MemoryHuey",
@@ -78,6 +82,49 @@ def setup(app):
             app.db["proper_queue"] = config["database"]
 
     app.queue = get_instance(**config)
+    pass_the_request_id(app.queue)
+
+
+def pass_the_request_id(queue):
+    """Log the lines of a task with the ID of the request that enqueued it.
+
+    When a task is enqueued while a request is being answered, the ID goes
+    with the task (and with the ones it is chained to) as a keyword
+    argument. The worker takes it out before calling the function, binds it
+    with `structlog.contextvars` while the task runs, and puts it back in
+    case the task is retried.
+    """
+    # Here, not at the top: importing huey imports redis
+    from huey.signals import SIGNAL_ENQUEUED
+
+    @queue.signal(SIGNAL_ENQUEUED)
+    def add_the_request_id(_signal, task, *_args):
+        request_id = structlog.contextvars.get_contextvars().get("request_id")
+        if request_id is None:
+            return
+        tasks = [task]
+        while tasks:
+            task = tasks.pop()
+            if task is None or REQUEST_ID_KWARG in task.kwargs:
+                continue
+            task.kwargs[REQUEST_ID_KWARG] = request_id
+            tasks += [task.on_complete, task.on_error]
+
+    @queue.pre_execute(name="proper_bind_request_id")
+    def bind_the_request_id(task):
+        request_id = task.kwargs.pop(REQUEST_ID_KWARG, None)
+        if request_id is not None:
+            task._proper_request_id = request_id
+            task._proper_tokens = structlog.contextvars.bind_contextvars(
+                request_id=request_id
+            )
+
+    @queue.post_execute(name="proper_unbind_request_id")
+    def unbind_the_request_id(task, _value, _exception):
+        tokens = task.__dict__.pop("_proper_tokens", None)
+        if tokens is not None:
+            structlog.contextvars.reset_contextvars(**tokens)
+            task.kwargs[REQUEST_ID_KWARG] = task.__dict__.pop("_proper_request_id")
 
 
 def validate_config(config):

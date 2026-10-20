@@ -13,6 +13,8 @@ import typing as t
 from http import HTTPStatus
 from urllib.parse import unquote_to_bytes
 
+import structlog
+
 from ..errors import BadRequest
 from ..global_context import current
 from ..helpers import MultiDict
@@ -217,6 +219,9 @@ class AppWsgi:
     ) -> "Response":
         current.app = self
         current.request = request
+        # In the context of this request only: every log line written while
+        # answering it has its ID.
+        structlog.contextvars.bind_contextvars(request_id=request.request_id)
         current.response = response = self.response_cls(self)
         if error is not None:
             response.error = error  # handled by the pipeline
@@ -226,5 +231,6 @@ class AppWsgi:
             except Exception as body_error:
                 response.error = body_error  # handled by the pipeline
         response = self._run_pipeline(request, response)
+        response.headers["x-request-id"] = request.request_id
         current.response = response
         return response

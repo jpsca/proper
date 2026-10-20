@@ -168,6 +168,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `TIMEZONE_DEFAULT`         | `"UTC"`           | Fallback timezone when none is set on the request |
 | `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets                   |
 | `STATIC_X_SENDFILE_HEADER` | `""`              | Header for web server file serving             |
+| `LOG_FORMAT`               | `None`            | How the root logger's handler writes every logger's records to stderr: `"console"`, `"json"` (one object per line, tracebacks without frame variables), or `"off"` (no handler). `None` = `"console"` with `DEBUG`, `"json"` without; anything else = `ConfigError` |
 | `TRUSTED_PROXIES`          | loopback, private and link-local networks | IPs/CIDRs of the reverse proxies whose `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used; list every proxy in the chain (a CDN too); replaces the default; not a list of IPs/networks (strings or `ipaddress` objects) = `ConfigError`. The default also trusts any client on those networks: it can set `remote_ip` and `X-Forwarded-Proto`. A peer without an address (`proper run` or gunicorn on a Unix socket) counts as trusted |
 
 ### Session Settings
@@ -587,9 +588,6 @@ The `proper` logger outputs debug information for:
 - Template inference: `[ControllerName.action] rendering inferred template: views/.../action.jx`
 - Errors: `[error] GET /path -> ErrorType: message`
 
-Enable with standard Python logging:
+`proper.helpers.logger` is a `structlog.stdlib.BoundLogger` over the stdlib `proper` logger, at `DEBUG` with `DEBUG` on and `INFO` otherwise. It takes `%s` arguments (formatted by the stdlib, only if the level lets the record through) and keyword arguments, which become fields of the line: `logger.info("Paid %s", order.id, amount=10)`. An event under the level is dropped before it is built.
 
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
+Creating the `App` calls `setup_logging(config.LOG_FORMAT)` (`proper.helpers.logs`): one handler on the root logger, writing to `sys.stderr`, with structlog's `ProcessorFormatter`. Every logger goes through it (the app's, peewee's, huey's), and each line gets `timestamp` (ISO, UTC), `level`, `logger`, the record's extra fields, and the variables bound with `structlog.contextvars`. Each request runs in a context of its own with `request_id` bound (the same as `request.request_id` and the response's `X-Request-ID`), so every line written while answering it has it. `LOG_FORMAT = "off"` removes the handler; don't add another handler to the root logger (or call `logging.basicConfig()`) while it's on, or each line is written twice. To see the SQL: `logging.getLogger("peewee").setLevel(logging.DEBUG)`.

@@ -1,4 +1,3 @@
-import logging
 import typing as t
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from .imports import (
     get_instance,
     import_string,
 )
+from .logs import logger
 from .render import (
     add_dependencies,
     add_to_concerns,
@@ -62,8 +62,6 @@ __all__ = (
 )
 
 
-logger = logging.getLogger("proper")
-logger.setLevel("DEBUG")
 BLUEPRINTS = (Path(__file__).parent.parent / "_blueprints").resolve()
 
 
