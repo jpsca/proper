@@ -227,6 +227,21 @@ class SignupController(AppController):
 
 The form *is* the landing page, so it gets the friendly URL.
 
+### Resource Defaults
+
+`defaults=` gives the same [defaults](#route-defaults) to every route of the resource. A default for a placeholder of the path fills it in `url_for`:
+
+```python
+@router.resource("org/:org_id<int>/photos", defaults={"org_id": lambda: current.account.id})
+class PhotoController(AppController):
+    def index(self): ...    # url_for("Photo.index") -> /org/42/photos
+    def show(self): ...     # url_for("Photo.show", photo) -> /org/42/photos/3
+```
+
+A route of the resource that doesn't have the placeholder gets the default as a plain value, not used by `url_for`: with `defaults={"photo_id": lambda: ...}`, the `show`, `edit`, `update`, and `delete` routes use it, and `index`, `new`, and `create`, which have no `:photo_id`, don't.
+
+For many resources under the same tenant, put the defaults on a [scope](#scopes-with-defaults) instead of repeating them on each resource.
+
 ---
 
 ## Individual Routes
@@ -338,6 +353,32 @@ class PageController(AppController):
 
 Inside the controller, `self.defaults["sidebar"]` reflects whichever route matched. Defaults are useful when you don't want this kind of branching to leak into the URL or the database.
 
+#### Defaults for placeholders
+
+A default with the name of a placeholder of the path (or of the host) is what `url_for` fills that placeholder with when you don't give it:
+
+```python
+class DocController(AppController):
+    @router.get("docs/:lang<en|es>/:slug", defaults={"lang": "en"})
+    def show(self): ...
+
+app.url_for("Doc.show", slug="intro")             # /docs/en/intro
+app.url_for("Doc.show", slug="intro", lang="es")  # /docs/es/intro
+```
+
+The default can be a function without arguments. `url_for` calls it each time it needs the value, so it can read the request through `current`:
+
+```python
+@router.get("org/:org_id<int>/projects", defaults={"org_id": lambda: current.account.id})
+def index(self): ...
+```
+
+The order is: the argument given to `url_for`, then the attribute of the object given to it, then the default. With `url_for("Project.show", project)`, the URL has the `org_id` of `project`, not the one of `current.account`. A function that returns `None` is a missing value, and `url_for` raises `MissingRouteParameter`, as it does without a default. This is what happens in a task or an email, where there is no `current.account`: give the value there.
+
+When a request matches the route, the value in the URL is the one in `self.params`. The default doesn't change it.
+
+Only the defaults of placeholders go into the URL. The others, like `sidebar` above, are never added to the query string, and they reach the controller as they are: a function there is not called, so it can be a value for the view, like a form class. If you misspell the name of a placeholder, `proper check` reports the `url_for` calls that don't give it.
+
 ---
 
 ## Scopes
@@ -409,6 +450,23 @@ class ProjectController(AppController):
 ```
 
 This is the natural shape for multi-tenant apps where every URL carries the tenant id.
+
+### Scopes with Defaults
+
+`router.scope(...)` accepts `defaults=` too. They are merged with the defaults of each route under the scope, and the route's win. With a default for the placeholder of the prefix, `url_for` fills in the tenant without you passing it on each call (see [Defaults for placeholders](#defaults-for-placeholders)):
+
+```python
+tenant = router.scope("org/:org_id<int>", defaults={"org_id": lambda: current.account.id})
+
+class ProjectController(AppController):
+    @tenant.get("projects")
+    def index(self): ...
+
+app.url_for("Project.index")             # /org/42/projects, with current.account.id == 42
+app.url_for("Project.index", org_id=7)   # /org/7/projects
+```
+
+`current.account` is whatever your app sets, for example in a `before` callback of the controller. A nested scope merges its defaults with the parent's.
 
 ---
 
@@ -657,6 +715,10 @@ This is the form you'll use in templates 90% of the time:
 ```html
 <a href="{{ url_for('Post.show', post) }}">{{ post.title }}</a>
 ```
+
+### Placeholders with Defaults
+
+A placeholder that you don't give, as an argument or by the object, takes the route's default for it, if it has one. A default can be a function that `url_for` calls, like `lambda: current.account.id` for the tenant of a [scope](#scopes-with-defaults). See [Defaults for placeholders](#defaults-for-placeholders).
 
 ### Extra Keyword Arguments Become Query Parameters
 

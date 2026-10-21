@@ -264,6 +264,12 @@ class Route:
             The status "307 Temporary Redirect" is the default.
         defaults:
             Optional. A dict with extra values that will be sent to the view.
+
+            A default for a placeholder of the path or the host is what
+            `url_for` fills it with when it isn't given, as an argument or
+            from the object. It can be a function without arguments, called
+            on each `url_for` (eg: `lambda: current.account.id`). The other
+            defaults are sent to the view as they are, functions too.
         controller:
             Optional. The controller class that `to` is routed on, when it is
             not the class that defines the method: `to` may be an action that
@@ -299,6 +305,10 @@ class Route:
         self.redirect = redirect
         self.redirect_status = redirect_status
         self.defaults = defaults or {}
+        # The defaults of the placeholders, made by `_compile_defaults` when
+        # the route is added to a router: the scope's prefix and host are
+        # not part of the route before.
+        self.url_defaults: dict[str, t.Any] = {}
 
         self.method = method
         self.path = path
@@ -649,6 +659,14 @@ class Route:
         self._host_pieces = pieces
         self._host_placeholder_re = {
             name: re.compile(rx) for name, rx in placeholders.items()
+        }
+
+    def _compile_defaults(self) -> None:
+        """Keep in `url_defaults` the defaults of the placeholders of the
+        path and the host, what `url_for` fills them with."""
+        placeholders = self.path_placeholders.keys() | self.host_placeholders.keys()
+        self.url_defaults = {
+            key: value for key, value in self.defaults.items() if key in placeholders
         }
 
     def _get_host_params(self, kwargs: dict) -> dict:

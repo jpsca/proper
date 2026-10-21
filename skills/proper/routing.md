@@ -106,6 +106,17 @@ class SignupController(AppController):
     def create(self): ...   # POST /signup
 ```
 
+#### Resource Defaults
+
+`resource(..., defaults={...})` gives those defaults to every route of the resource (a dict for each route). See [Placeholders with Defaults](#placeholders-with-defaults):
+
+```python
+@router.resource("org/:org_id<int>/photos", defaults={"org_id": lambda: current.account.id})
+class PhotoController(AppController): ...
+```
+
+A route of the resource without that placeholder just has the value in `self.defaults` (e.g. a default for `:photo_id` is used by `url_for` on `show`/`edit`/`update`/`delete`, not on `index`/`new`/`create`). Defaults on a scope apply to its resources too; the resource's win.
+
 Route                   | Name
 ----------------------- | ------------------
 GET    /profile/new     | Profile.new
@@ -301,6 +312,19 @@ class ProjectController(AppController):
     def index(self): ...    # GET /org/:org_id/projects
 ```
 
+#### Scopes with Defaults
+
+`scope(..., defaults={...})` merges its defaults into every route under it (a route's own defaults win; nested scopes merge with the parent's). A default for a placeholder of the prefix lets `url_for` fill in the tenant:
+
+```python
+tenant = router.scope("org/:org_id<int>", defaults={"org_id": lambda: current.account.id})
+
+app.url_for("Project.index")            # /org/42/projects (current.account.id == 42)
+app.url_for("Project.index", org_id=7)  # /org/7/projects
+```
+
+`current.account` is set by the app (e.g., in a `before` callback). See [Placeholders with Defaults](#placeholders-with-defaults).
+
 
 ### Host-Based Routing
 
@@ -489,6 +513,24 @@ For convenience, if the object doesn't have an attribute matching the full place
 app.url_for("Post.show", post)
 # /posts/42/hello-world
 ```
+
+### Placeholders with Defaults
+
+A route's `defaults=` (or its scope's) with the name of a path or host placeholder is what `url_for` uses when that placeholder isn't given:
+
+```python
+@router.get("docs/:lang<en|es>/:slug", defaults={"lang": "en"})
+def show(self): ...
+
+app.url_for("Doc.show", slug="intro")   # /docs/en/intro
+```
+
+- Order: `url_for` argument > attribute of the object > default. A `None` argument or attribute takes the default.
+- A default can be a function without arguments, called on each `url_for` (`lambda: current.account.id`). If it returns `None`, `url_for` raises `MissingRouteParameter`, as it does without a default. In tasks and emails there is no `current.account`, so give the value there.
+- Defaults that aren't placeholders (`{"sidebar": True}`) never go into the URL or the query string.
+- A default that isn't a placeholder is never called, even if it's a function or a class: it reaches `self.defaults` as it is. A misspelled placeholder name shows up in `proper check` as a missing placeholder.
+- On a match, the value in the URL is the one in `self.params`. `self.defaults` is the dict as declared.
+- `proper check` doesn't report a placeholder with a default as missing.
 
 ### Extra Keyword Arguments Become Query Parameters
 

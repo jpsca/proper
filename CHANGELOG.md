@@ -33,6 +33,15 @@ that checks an error page needs `TestClient(app, raise_server_errors=False)`.
   its retries.
 - `LOG_FORMAT` in the config: `"console"`, `"json"`, or `"off"`. The
   default, `None`, is `"console"` with `DEBUG` and `"json"` without it.
+- `url_for` fills a placeholder not given (as an argument or by the
+  object) with the route's default for it. The default can be a function
+  without arguments, called on each `url_for`. `router.scope()` and
+  `router.resource()` take `defaults=` too, given to all their routes
+  (on a scope, merged with the defaults of each route), so a tenant in
+  the URL is filled in for every link:
+  `router.scope("org/:org_id<int>", defaults={"org_id": lambda: current.account.id})`.
+  The defaults that aren't placeholders still never go into the URL, and
+  `proper check` doesn't report a placeholder with a default as missing.
 
 ### Changed
 

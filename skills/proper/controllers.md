@@ -627,6 +627,8 @@ def show(self): ...
 self.defaults["sidebar"]   # True
 ```
 
+A default with the name of a placeholder is what `url_for` fills it with when it isn't given, and can be a function (`lambda: current.account.id`); see "Placeholders with Defaults" in `routing.md`.
+
 
 ## Sessions
 

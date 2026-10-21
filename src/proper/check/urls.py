@@ -38,7 +38,8 @@ class UrlCall:
 
 def url_problem(app: "App", call: UrlCall) -> str:
     """What is wrong with a call that builds the URL of a route, or `""`:
-    a route that doesn't exist, or a placeholder of its path not given."""
+    a route that doesn't exist, or a placeholder of its path not given and
+    without a default."""
     name = call.name.removesuffix("Controller")
     routes = app.router._routes_by_name
     route = routes.get(name)
@@ -48,7 +49,10 @@ def url_problem(app: "App", call: UrlCall) -> str:
         return f"there is no route named `{call.name}`{hint}"
     if call.open:
         return ""
-    missing = [key for key in route.path_placeholders if key not in call.keywords]
+    missing = [
+        key for key in route.path_placeholders
+        if key not in call.keywords and key not in route.url_defaults
+    ]
     if missing:
         names = ", ".join(f"`{key}`" for key in missing)
         return f"the route `{name}` ({route.path}) needs {names}"
