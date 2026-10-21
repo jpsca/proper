@@ -5,6 +5,7 @@ from .pwned import get_pwned_count
 
 ERROR_LOGIN = "login"
 ERROR_LOGIN_TAKEN = "login-taken"
+ERROR_LOGIN_NOT_ASCII = "login-not-ascii"
 ERROR_PASSWORD = "password"
 ERROR_AUTH = "auth"
 ERROR_NEW_PASSWORD_PWNED = "new-password-pwned"
@@ -15,6 +16,9 @@ ERROR_PASSWORDS_MISMATCH = "passwords-mismatch"
 MESSAGES = {
     ERROR_LOGIN: "We don't recognize that username. Want to try&nbsp;another?",
     ERROR_LOGIN_TAKEN: "This username is already registered.",
+    ERROR_LOGIN_NOT_ASCII: (
+        "Please use only letters without accents, numbers, and symbols like&nbsp;<code>.-_+</code>"
+    ),
     ERROR_PASSWORD: (
       "Password doesn't match the username.<br>"
       "Remember that passwords are case-sensitive."
@@ -39,6 +43,14 @@ MESSAGES = {
 def login_exists(login: str):
     if not login or not User.get_by_login(login):
         raise ValueError(ERROR_LOGIN)
+
+
+def login_is_ascii(login: str):
+    # Letters of other alphabets can look like Latin ones, so a login like
+    # `аdmin`, with a Cyrillic `а`, could pass for another user's. The domain
+    # of an email can be international: `normalize_login` turns it into ASCII.
+    if not User.normalize_login(login).isascii():
+        raise ValueError(ERROR_LOGIN_NOT_ASCII)
 
 
 def login_is_available(login: str):

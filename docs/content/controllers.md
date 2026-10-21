@@ -1163,13 +1163,15 @@ class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
     def set_security_headers(self):
-        self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
-        self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        ...
+        headers = self.response.headers
+        headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-XSS-Protection", "0")
+        headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
-Edit it to fit your application's threat model - adding a Content Security Policy, tightening the referrer policy, or whatever else your security review asks for.
+Edit it to fit your application's threat model - adding a Content Security Policy, tightening the referrer policy, or whatever else your security review asks for. The [Security guide](/docs/security#security-headers) explains each header.
 
 ### Writing Your Own
 

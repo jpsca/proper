@@ -63,7 +63,7 @@ This generates a full authentication system in your app:
 The installer also:
 
 - Adds the framework's `Authentication.for_session(Session)` to your `AppController` concerns
-- Installs `passlib`, `argon2-cffi`, and `confusable-homoglyphs` as dependencies
+- Installs `passlib`, `argon2-cffi`, and `idna` as dependencies
 - Creates a `"users"` database migration
 
 
@@ -159,7 +159,11 @@ Token generation and resolution are provided by `ProperModel` (see [Token Genera
 
 ### Login Normalization
 
-Logins are normalized using [SASL-prep](https://tools.ietf.org/html/rfc4013) to prevent username confusion attacks. This includes Unicode NFKD normalization, case-folding, and space removal. For example, `"  Alice@Example.COM  "` and `"alice@example.com"` are treated as the same login.
+Logins are normalized using [SASL-prep](https://tools.ietf.org/html/rfc4013) to prevent username confusion attacks. This includes Unicode NFKC normalization, case-folding, and space removal. For example, `"  Alice@Example.COM  "` and `"alice@example.com"` are treated as the same login, and so are full-width `ＡＬＩＣＥ` and `alice`.
+
+The domain of an email (after the last `@`), if it isn't ASCII, is converted to punycode with `idna.encode(domain, uts46=True)` (IDNA 2008): `ana@münchen.de` → `ana@xn--mnchen-3ya.de`, `straße.de` → `xn--strae-oqa.de` (not `strasse.de`: the domain is not casefolded). An invalid domain is only casefolded.
+
+NFKC doesn't fold letters of other alphabets that look like Latin ones (`аdmin` with a Cyrillic `а`). So the sign-up form calls `v.login_is_ascii(value)` (in `forms/auth/validators.py`), which refuses a login that isn't ASCII after `normalize_login`: accented and non-Latin letters (`josé@…`, `田中@…`) are refused; an international domain passes, as punycode.
 
 
 ## The Session Model
@@ -466,6 +470,7 @@ All auth forms share a common message dictionary in `forms/auth/validators.py`. 
 MESSAGES = {
     "login": "We don't recognize that username. Want to try another?",
     "login-taken": "This username is already registered.",
+    "login-not-ascii": "Please use only letters without accents, numbers, and symbols like .-_+",
     "password": "Password doesn't match the username.",
     "auth": "Invalid username and/or password.",
     "new-password-pwned": "This password is too easy to guess.",

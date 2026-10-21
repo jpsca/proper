@@ -18,6 +18,7 @@ class SignUpForm(f.Form):
     )
 
     def validate_login(self, value):
+        v.login_is_ascii(value)
         v.login_is_available(value)
         return value
 
