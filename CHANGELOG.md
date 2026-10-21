@@ -2,7 +2,7 @@
 
 All notable changes to Proper are documented in this file.
 
-## Unreleased
+## 0.44.0
 
 ### ⚠️ Upgrading: Proper writes the logs
 
