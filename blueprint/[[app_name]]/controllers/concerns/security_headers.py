@@ -5,20 +5,30 @@ class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
     def set_security_headers(self):
-        # It determines if a web page can or cannot be included via <frame>
-        # and <iframe> topics by untrusted domains.
+        headers = self.response.headers
+
+        # Only pages of this site can show this one in a <frame> or <iframe>.
         # https://developer.mozilla.org/Web/HTTP/Headers/X-Frame-Options
-        self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        headers.setdefault("X-Frame-Options", "SAMEORIGIN")
 
-        # Determine the behavior of the browser in case an XSS attack is
-        # detected. Use Content-Security-Policy without allowing unsafe-inline
-        # scripts instead.
+        # The browser uses the `Content-Type` of the response, and doesn't
+        # guess another one from the content: an uploaded text file can't
+        # run as a script.
+        # https://developer.mozilla.org/Web/HTTP/Headers/X-Content-Type-Options
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+
+        # Turns off the XSS filter of old browsers (current ones don't have
+        # it): the filter could be used to leak data from a page. A
+        # `Content-Security-Policy` is what protects against XSS now.
         # https://developer.mozilla.org/Web/HTTP/Headers/X-XSS-Protection
-        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+        headers.setdefault("X-XSS-Protection", "0")
 
-        # Download files or try to open them in the browser?
-        self.response.headers.setdefault("X-Download-Options", "noopen")
+        headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 
-        self.response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
-        self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-
+        # For the duration of the max-age (seconds), the browser uses HTTPS for this host, even when
+        # given an `http://` link. Browsers ignore it in an HTTP response,
+        # so it's only sent over HTTPS.
+        # https://developer.mozilla.org/Web/HTTP/Headers/Strict-Transport-Security
+        # if self.request.is_secure:
+        #     headers.setdefault("Strict-Transport-Security", f"max-age={1 * YEAR}")

@@ -30,7 +30,7 @@ SORT_IMPORTS_IN = [
 DEPENDENCIES = [
     "passlib",
     "argon2-cffi",
-    "confusable-homoglyphs",
+    "idna",
 ]
 
 

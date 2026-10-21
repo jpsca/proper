@@ -219,26 +219,30 @@ The generated `SecurityHeaders` concern sets protective response headers on ever
 
 ```python
 from proper import Concern
+from proper.units import YEARS
 
 
 class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
     def set_security_headers(self):
-        self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
-        self.response.headers.setdefault("X-Download-Options", "noopen")
-        self.response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
-        self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        headers = self.response.headers
+        headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-XSS-Protection", "0")
+        headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
 | Header                              | Value                              | Purpose                                          |
 |-------------------------------------|------------------------------------|--------------------------------------------------|
 | `X-Frame-Options`                   | `SAMEORIGIN`                       | Prevent clickjacking via iframes                 |
-| `X-XSS-Protection`                  | `1; mode=block`                    | Block reflected XSS (legacy browsers)            |
-| `X-Download-Options`                | `noopen`                           | Force download instead of opening in browser     |
+| `X-Content-Type-Options`            | `nosniff`                          | Use the declared `Content-Type`, never guess one |
+| `X-XSS-Protection`                  | `0`                                | Turn off the XSS filter of old browsers (it could leak data) |
 | `X-Permitted-Cross-Domain-Policies` | `none`                             | Disable Flash/PDF cross-domain policies          |
 | `Referrer-Policy`                   | `strict-origin-when-cross-origin`  | Limit referrer info sent to other origins        |
+
+There is no `Content-Security-Policy` by default. Proper has no CSP nonces, and the `<script type="importmap">` from `render_importmap` is inline, so a policy needs `script-src 'self' 'unsafe-inline'` for the importmap to load.
 
 This concern lives in your app at `controllers/concerns/security_headers.py`. You can customize it by changing the defaults or adding headers like `Content-Security-Policy`.
 

@@ -1,6 +1,7 @@
 import typing as t
 from hashlib import sha256
 
+import idna
 import peewee as pw
 from passlib.utils import saslprep
 
@@ -19,8 +20,20 @@ class Authenticable(BaseModel):
     @classmethod
     def normalize_login(cls, login: str = ""):
         # https://engineering.atspotify.com/2013/06/creative-usernames/
-        login = saslprep(login.strip()).casefold()
-        return login.replace(" ", "")
+        login = saslprep(login.strip()).replace(" ", "")
+        name, at, domain = login.rpartition("@")
+        if not at or domain.isascii():
+            return login.casefold()
+        # An international domain is the same domain in punycode, its ASCII
+        # form: `münchen.de` is `xn--mnchen-3ya.de`. IDNA 2008, as the
+        # registries, so `straße.de` is not `strasse.de`, as `casefold()`
+        # would make it: `idna` lowercases the domain itself.
+        try:
+            domain = idna.encode(domain, uts46=True).decode()
+        except idna.IDNAError:
+            # Not a valid domain: left as it is
+            domain = domain.casefold()
+        return f"{name.casefold()}@{domain}"
 
     @classmethod
     def _prepare_data(cls, data) -> dict:

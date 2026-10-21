@@ -2,6 +2,38 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Changed
+
+- The `SecurityHeaders` concern of a new app sends
+  `X-Content-Type-Options: nosniff`. It sends
+  `X-XSS-Protection: 0` instead of `1; mode=block`, which turned on the XSS
+  filter of old browsers, a filter that could leak data from a page, and no
+  longer sends `X-Download-Options`, which only Internet Explorer read. An
+  app made before keeps its own `controllers/concerns/security_headers.py`:
+  copy the new one from the [Security guide](https://properproject.org/docs/security#security-headers).
+- The auth addon's `User.normalize_login` writes the international domain
+  of an email in punycode, with IDNA 2008: `ana@münchen.de` is
+  `ana@xn--mnchen-3ya.de`, and `straße.de` is `xn--strae-oqa.de`, no longer
+  casefolded to `strasse.de`. An app made before keeps its own
+  `models/concerns/authenticable.py`. If you copy the new one, a user saved
+  with a non-ASCII domain can't sign in until their login is normalized
+  again; to find them:
+  `[u for u in User.select() if u.login != User.normalize_login(u.login)]`.
+- The auth addon installs `idna` instead of `confusable-homoglyphs`, which
+  it didn't use.
+
+### Added
+
+- The [Security guide](https://properproject.org/docs/security).
+- The sign-up form of the auth addon refuses a login with letters that
+  aren't ASCII, with the new `login_is_ascii` validator
+  (`forms/auth/validators.py`): letters of other alphabets can look like
+  Latin ones, so `аdmin`, with a Cyrillic `а`, could pass for `admin`. An
+  app made before can copy the validator and its message, and call it in
+  `SignUpForm.validate_login`.
+
 ## 0.44.0
 
 ### ⚠️ Upgrading: Proper writes the logs

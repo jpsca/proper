@@ -76,7 +76,9 @@ class Authenticable(BaseModel):
 
 `login` is the unique handle a user authenticates with - it can be a username or an email depending on what your app needs.
 
-For security, login values are automatically normalized before lookup and before save: stripped of surrounding whitespace, with confusable Unicode characters folded together, lowercased, and stripped of internal spaces. That means `"Jane Doe"`, `"jane doe"`, and `"JANE  DOE "` all resolve to the same `"janedoe"` row.
+For security, login values are automatically normalized before lookup and before save: stripped of surrounding whitespace, with the Unicode variants of a character folded into one (full-width `ＪＡＮＥ` is `jane`), lowercased, and stripped of internal spaces. That means `"Jane Doe"`, `"jane doe"`, and `"JANE  DOE "` all resolve to the same `"janedoe"` row.
+
+The international domain of an email is written in punycode, its ASCII form: `ana@münchen.de` is saved as `ana@xn--mnchen-3ya.de`, and the user can sign in with either. Everything else must already be ASCII: the sign-up form refuses any other letter; see [`login_is_ascii`](#the-sign-up-form).
 
 `password` stores the hash of the real password, not the plaintext. The `Authenticable.create` classmethod hashes incoming passwords before insert, and `set_password` does the same on existing rows. When a user signs in, `User.authenticate(login, password)` looks up the row by login and verifies the password against the stored hash.
 
@@ -335,7 +337,15 @@ On success: create the user, start a session, redirect with a flash. It doesn't 
 
 ### The Sign-Up Form
 
-The generated `SignUpController` is small. The interesting code is in the `SignUpForm`, where the validation rules live. Three checks ship by default:
+The generated `SignUpController` is small. The interesting code is in the `SignUpForm`, where the validation rules live. Four checks ship by default:
+
+**`login_is_ascii`**
+
+Rejects a login with letters that aren't ASCII, after normalizing it: accented letters, and letters of other alphabets. Many of those look like Latin letters, so a login like `аdmin`, with a Cyrillic `а`, could pass for another user's. Allowing only ASCII stops that without having to know which letters look alike.
+
+The domain of an email is the exception: `ana@münchen.de` is accepted, because the login is normalized to `ana@xn--mnchen-3ya.de`. A domain with lookalike letters is visible in that form: `аpple.com`, with a Cyrillic `а`, becomes `xn--pple-43d.com`.
+
+The cost is that people with an accented or non-Latin email address, like `josé@example.com` or `田中@example.jp`, can't use it to sign up. Those addresses are rare, and most email providers don't allow them. If your users need them, remove this check.
 
 **`login_is_available`**
 

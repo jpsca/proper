@@ -33,6 +33,8 @@ def models(tmp_path, app):
     (root / "__init__.py").write_text("")
     (root / "main.py").write_text(
         'from proper import App\napp = App(__name__, {"SECRET_KEYS": ["*" * 50]})\n'
+        # As in a real app: the auth validators import it
+        "config = app.config\n"
     )
     for folder in ("cli", "config", "emails", "models"):
         (root / folder / "__init__.py").write_text("")
