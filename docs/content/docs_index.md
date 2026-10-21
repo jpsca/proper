@@ -141,9 +141,6 @@ This is the documentation for **Proper**. These guides are designed to make you 
 <a href="/docs/security" class="doc-index-section">
   <h3>Security</h3>
   <p>Putting an application on the public internet means thinking about people who would like to break it. This guide covers the protections Proper gives you out of the box - CSRF, origin checks, rate limiting, secure sessions, safe password handling - and the parts you have to think about yourself.</p>
-  <section class="admonition wip">
-    <p class="admonition-title">Work in progress</p>
-  </section>
 </a>
 
 <a href="/docs/deployment" class="doc-index-section">
