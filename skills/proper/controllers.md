@@ -1186,7 +1186,7 @@ class SecurityHeaders(Concern):
 
     def set_security_headers(self):
         self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+        self.response.headers.setdefault("X-Content-Type-Options", "nosniff")
         self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
@@ -1447,16 +1447,21 @@ Sets security-related response headers as an `after` callback. This concern is d
 
 ```python {title="myapp/controllers/concerns/security_headers.py"}
 from proper import Concern
+from proper.units import YEARS
+
 
 class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
     def set_security_headers(self):
-        self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-XSS-Protection", "1; mode=block")
-        self.response.headers.setdefault("X-Download-Options", "noopen")
-        self.response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
-        self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        headers = self.response.headers
+        headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-XSS-Protection", "0")
+        headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
+
+There is no `Content-Security-Policy` by default; see `security.md`.
 
 State changes that aren't record-CRUD follow the same rule — one controller per change, mounted under the parent with `pk=None`. See [The Core Principle: A Resource Per State Change](#the-core-principle-a-resource-per-state-change) above, and scaffold them with `proper g controller PARENT/CHILD`.
