@@ -15,23 +15,6 @@ This guide collects the controller features the [Controllers Overview](/docs/con
 
 The [Controllers Overview](/docs/controllers#a-resource-per-state-change) covers the core idea: every state change is its own resource - a card's closure, a user's suspension, a subscription's cancellation - mounted under the parent with `pk=None` and scaffolded with `proper g controller card/closure`. If you haven't read that section, start there; this one only covers the two things that come up once a single resource has grown several such controllers.
 
-### The delete-guard in a shared scope
-
-The `CardScoped` concern from the overview has one line worth dwelling on:
-
-```python {title="myapp/controllers/concerns/card_scoped.py"}
-def set_card(self):
-    card_id = self.params.get("card_id")
-    if card_id:
-        self.card = Card.find(int(card_id))
-        if self.request.matched_action != "delete" and not self.card:
-            raise NotFound
-```
-
-The `matched_action != "delete"` guard is what makes *undoing* a state change idempotent. If a user double-clicks "reopen," the second `DELETE /cards/42/closure` arrives after the card is already reopened. Raising `NotFound` there would surface an error for what is, semantically, a no-op; skipping the 404 on `delete` lets the action run and redirect cleanly. It's the same reasoning behind the generated `CardController.delete` tolerating a missing record - but applied to a whole family of controllers at once, from one place. Because the concern is shared, you get that behavior on every current and future child controller for free.
-
-### Folder layout at scale
-
 Once a card has several child controllers, group them under a subfolder beside a `card_scoped` concern:
 
 ```

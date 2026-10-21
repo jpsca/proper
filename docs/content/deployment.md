@@ -57,7 +57,8 @@ requires-python = ">=3.14,<4"
 `proper run` checks the interpreter before it starts. On a Python with the GIL it refuses:
 
 ```text
-[ERROR] This Python has the GIL. Proper serves on free-threaded Python: install one with `uv python install 3.14t` and run the app with it.
+[ERROR] This Python has the GIL. Proper serves on free-threaded Python:
+install one with `uv python install 3.14t` and run the app with it.
 To serve with the GIL anyway, set ALLOW_GIL = True in the config.
 ```
 
@@ -125,10 +126,17 @@ The user that runs the app must be able to write to `_compiled` when the views w
 
 ### Logs
 
-The app writes its logs to stderr, with [structlog](https://www.structlog.org/){target=_blank}. That includes the logs of every library that uses Python's `logging`, like peewee and huey. In production each line is a JSON object, ready for a log collector:
+The app writes its logs to stderr, with [structlog](https://www.structlog.org/){target=_blank}. That includes the logs of every library that uses Python's `logging`, like peewee and huey. In production each line is a JSON object, ready for a log collector. Here is formatted so it looks better but it is actually generated as one line:
 
 ```json
-{"event": "Order paid", "request_id": "6f1c0e2a-...", "level": "info", "logger": "proper", "order_id": 42, "timestamp": "2026-10-19T14:03:11.204Z"}
+{
+  "event": "Order paid",
+  "request_id": "6f1c0e2a-...",
+  "level": "info",
+  "logger": "proper",
+  "order_id": 42,
+  "timestamp": "2026-10-19T14:03:11.204Z"
+}
 ```
 
 With `DEBUG`, it is a line for people instead. Every line written while the app answers a request has its `request_id` (see [The request ID](#the-request-id)).
