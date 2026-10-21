@@ -8,6 +8,7 @@ from proper.errors import (
     BadRoutePlaceholder,
     MatchNotFound,
     MethodNotAllowed,
+    MissingRouteParameter,
     RouteNotFound,
 )
 from proper.global_context import current
@@ -1487,3 +1488,248 @@ class TestNamespacePrefixRouteNaming:
         PostController.index.__qualname__ = "PostController.index"
         route.to = PostController.index
         assert route.name == "custom_name"
+
+
+class TestUrlForDefaults:
+    @pytest.fixture
+    def account(self):
+        current.account = None
+        yield
+        current.account = None
+
+    def test_default_fills_a_placeholder(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/docs/:lang/:slug", name="doc",
+                               to=Handlers.show, defaults={"lang": "en"}))
+        assert router.url_for("doc", slug="intro") == "/docs/en/intro"
+
+    def test_argument_wins_over_default(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/docs/:lang/:slug", name="doc",
+                               to=Handlers.show, defaults={"lang": "en"}))
+        assert router.url_for("doc", slug="intro", lang="es") == "/docs/es/intro"
+
+    def test_none_argument_takes_the_default(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/docs/:lang/:slug", name="doc",
+                               to=Handlers.show, defaults={"lang": "en"}))
+        assert router.url_for("doc", slug="intro", lang=None) == "/docs/en/intro"
+
+    def test_function_default_is_called_on_each_url_for(self):
+        calls = []
+
+        def next_id():
+            calls.append(1)
+            return len(calls)
+
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id/projects", name="projects",
+                               to=Handlers.index, defaults={"org_id": next_id}))
+        assert router.url_for("projects") == "/org/1/projects"
+        assert router.url_for("projects") == "/org/2/projects"
+
+    def test_function_default_not_called_when_argument_given(self):
+        def fail():
+            raise AssertionError("called")
+
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id/projects", name="projects",
+                               to=Handlers.index, defaults={"org_id": fail}))
+        assert router.url_for("projects", org_id=7) == "/org/7/projects"
+
+    def test_function_default_reads_current(self, account):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id/projects", name="projects",
+                               to=Handlers.index,
+                               defaults={"org_id": lambda: current.account.id}))
+
+        class Account:
+            id = 42
+
+        current.account = Account()
+        assert router.url_for("projects") == "/org/42/projects"
+
+    def test_function_default_returning_none_is_missing(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id/projects", name="projects",
+                               to=Handlers.index, defaults={"org_id": lambda: None}))
+        with pytest.raises(MissingRouteParameter):
+            router.url_for("projects")
+
+    def test_object_wins_over_default(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id/projects/:id", name="project",
+                               to=Handlers.show, defaults={"org_id": lambda: 42}))
+
+        class Project:
+            id = 3
+            org_id = 7
+
+        assert router.url_for("project", Project()) == "/org/7/projects/3"
+
+    def test_default_fills_what_the_object_lacks(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id/projects/:id", name="project",
+                               to=Handlers.show, defaults={"org_id": lambda: 42}))
+
+        class Project:
+            id = 3
+
+        assert router.url_for("project", Project()) == "/org/42/projects/3"
+
+    def test_other_defaults_are_not_in_the_query_string(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/photos/:id", name="photo",
+                               to=Handlers.show, defaults={"format": "html"}))
+        assert router.url_for("photo", id=1) == "/photos/1"
+
+    def test_static_route_defaults_are_not_in_the_url(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        router = BaseRouter()
+        router.static("/assets", root=tmp_path, name="assets", fingerprint=False)
+        assert router.url_for("assets", file="a.txt") == "/assets/a.txt"
+
+    def test_function_default_of_no_placeholder_is_not_called(self):
+        def fail():
+            raise AssertionError("called")
+
+        class PhotoForm: ...
+
+        router = BaseRouter()
+        router.add_route(Route("GET", "/photos", name="photos", to=Handlers.index,
+                               defaults={"check": fail, "form_cls": PhotoForm}))
+        assert router.url_for("photos") == "/photos"
+        _, params = router.match("GET", "/photos")
+        assert params == {"check": fail, "form_cls": PhotoForm}
+
+    def test_match_gives_the_value_of_the_url(self):
+        router = BaseRouter()
+        router.add_route(Route("GET", "/org/:org_id<int>/projects", name="projects",
+                               to=Handlers.index, defaults={"org_id": lambda: 42}))
+        _, params = router.match("GET", "/org/7/projects")
+        assert params == {"org_id": 7}
+
+    def test_host_placeholder_default(self, app):
+        router = app.router
+        router.add_route(Route("GET", "/docs", name="docs", to=Handlers.index,
+                               host=":lang<en|es>.example.com",
+                               defaults={"lang": lambda: "es"}))
+        assert router.url_for("docs", _full=True) == "http://es.example.com/docs"
+        assert router.url_for("docs") == "/docs"
+
+    def test_defaults_are_compiled_when_added(self):
+        route = Route("GET", "/docs/:lang", name="doc", to=Handlers.show,
+                      defaults={"lang": "en", "sidebar": True})
+        assert route.url_defaults == {}
+        BaseRouter().add_route(route)
+        assert route.url_defaults == {"lang": "en"}
+
+
+class TestScopeDefaults:
+    def test_scope_defaults_fill_a_prefix_placeholder(self):
+        router = Router()
+        tenant = router.scope("org/:org_id<int>", defaults={"org_id": lambda: 42})
+        tenant.get("projects", name="projects")(Handlers.index)
+        assert router.routes[0].defaults["org_id"]() == 42
+        assert router.url_for("projects") == "/org/42/projects"
+
+    def test_route_defaults_win_over_scope_defaults(self):
+        router = Router()
+        scoped = router.scope(":lang", defaults={"lang": "en", "sidebar": True})
+        scoped.get("docs", name="docs", defaults={"lang": "es"})(Handlers.index)
+        assert router.routes[0].defaults == {"lang": "es", "sidebar": True}
+        assert router.url_for("docs") == "/es/docs"
+
+    def test_route_function_default_for_a_scope_placeholder(self):
+        # The placeholder is in the scope's prefix, not in the route's path,
+        # so the check is made when the route has the prefix.
+        router = Router()
+        tenant = router.scope("org/:org_id")
+        tenant.get("projects", name="projects", defaults={"org_id": lambda: 5})(Handlers.index)
+        assert router.url_for("projects") == "/org/5/projects"
+
+    def test_nested_scope_merges_defaults(self):
+        router = Router()
+        tenant = router.scope("org/:org_id", defaults={"org_id": 1, "a": 1})
+        team = tenant.scope("team/:team_id", defaults={"team_id": 2, "a": 2})
+        team.get("items", name="items")(Handlers.index)
+        assert team.defaults == {"org_id": 1, "team_id": 2, "a": 2}
+        assert router.routes[0].defaults == {"org_id": 1, "team_id": 2, "a": 2}
+        assert router.url_for("items") == "/org/1/team/2/items"
+
+    def test_nested_scope_without_defaults(self):
+        router = Router()
+        api = router.scope("api")
+        v1 = api.scope("v1")
+        assert v1.defaults == {}
+
+    def test_scope_resource_gets_defaults(self):
+        router = Router()
+        tenant = router.scope("org/:org_id", defaults={"org_id": lambda: 9})
+        tenant.resource("photos")(PhotoController)
+        assert router.url_for("Photo.index") == "/org/9/photos"
+        assert router.url_for("Photo.show", photo_id=3) == "/org/9/photos/3"
+
+    def test_scope_does_not_change_the_route_dict(self):
+        given = {"sidebar": True}
+        router = Router()
+        scoped = router.scope("docs", defaults={"lang": "en"})
+        scoped.get("", name="docs", defaults=given)(Handlers.index)
+        assert given == {"sidebar": True}
+
+    def test_scope_function_default_of_no_placeholder_is_not_called(self):
+        def fail():
+            raise AssertionError("called")
+
+        router = Router()
+        scoped = router.scope("docs", defaults={"lang": fail})
+        scoped.get("", name="docs")(Handlers.index)
+        assert router.url_for("docs") == "/docs"
+        assert router.routes[0].url_defaults == {}
+
+
+class TestResourceDefaults:
+    def test_resource_routes_get_the_defaults(self):
+        router = Router()
+        router.resource("photos", defaults={"format": "html"})(PhotoController)
+        assert all(r.defaults == {"format": "html"} for r in router.routes)
+
+    def test_resource_routes_get_a_dict_each(self):
+        router = Router()
+        router.resource("photos", defaults={"format": "html"})(PhotoController)
+        first, second = router.routes[:2]
+        assert first.defaults is not second.defaults
+
+    def test_resource_without_defaults(self):
+        router = Router()
+        router.resource("photos")(PhotoController)
+        assert all(r.defaults == {} for r in router.routes)
+
+    def test_resource_default_fills_a_path_placeholder(self):
+        router = Router()
+        router.resource("org/:org_id/photos", defaults={"org_id": lambda: 9})(PhotoController)
+        assert router.url_for("Photo.index") == "/org/9/photos"
+        assert router.url_for("Photo.show", photo_id=3) == "/org/9/photos/3"
+        _, params = router.match("GET", "/org/7/photos/3")
+        assert params == {"org_id": "7", "photo_id": "3"}
+
+    def test_singleton_resource_defaults(self):
+        router = Router()
+        router.resource(":lang/profile", pk=None, defaults={"lang": "en"})(ProfileController)
+        assert router.url_for("Profile.show") == "/en/profile"
+
+    def test_resource_defaults_win_over_scope_defaults(self):
+        router = Router()
+        scoped = router.scope(":lang", defaults={"lang": "en", "sidebar": True})
+        scoped.resource("photos", defaults={"lang": "es"})(PhotoController)
+        assert router.routes[0].defaults == {"lang": "es", "sidebar": True}
+        assert router.url_for("Photo.index") == "/es/photos"
+
+    def test_resource_default_of_the_pk(self):
+        # `index`, `new`, and `create` have no `:photo_id`: it's not used there
+        router = Router()
+        router.resource("photos", defaults={"photo_id": lambda: 1})(PhotoController)
+        assert router.url_for("Photo.index") == "/photos"
+        assert router.url_for("Photo.new") == "/photos/new"
+        assert router.url_for("Photo.show") == "/photos/1"
+        assert router.url_for("Photo.edit") == "/photos/1/edit"

@@ -89,6 +89,7 @@ class BaseRouter:
         return f"<Router #{id(self)}>"
 
     def add_route(self, route: Route) -> None:
+        route._compile_defaults()
         self._table = None
         self._routes.append(route)
         if route.name and route.name not in self._routes_by_name:
@@ -205,6 +206,17 @@ class BaseRouter:
         # => "http://www.example.com/pages/123#section1"
         ```
 
+        A placeholder not given, as an argument or by the object, takes the
+        route's default for it, if it has one (see `defaults` in `Route`).
+        A default that is a function is called each time:
+
+        ```python
+        tenant = router.scope("org/:org_id<int>", defaults={"org_id": lambda: current.account.id})
+        ...
+        url_for("Project.index")
+        # => "/org/42/projects"
+        ```
+
         The URL is percent-encoded, so pass the values as they are, not
         encoded (an encoded `"a%20b"` would become `a%2520b`). In the path,
         every character is encoded except letters, digits, `-._~` and
@@ -268,6 +280,14 @@ class BaseRouter:
                 kw.setdefault(key, getattr(object, key, getattr(object, key.removeprefix(cprefix), None)))
             for key in route.host_placeholders:
                 kw.setdefault(key, getattr(object, key, getattr(object, key.removeprefix(cprefix), None)))
+
+        # The defaults of the route fill the placeholders not given (or
+        # given as `None`, as the object does for an attribute it doesn't have)
+        url_defaults = route.url_defaults
+        if url_defaults:
+            for key, value in url_defaults.items():
+                if kw.get(key) is None:
+                    kw[key] = value() if callable(value) else value
 
         # Host placeholders are consumed by format_host(); strip them from path
         # kwargs so they don't leak into the query string.
@@ -628,6 +648,7 @@ class BaseRouter:
         path: str = "",
         *,
         pk: str | None = "",
+        defaults: dict | None = None,
     ) -> Callable:
         """Class decorator to add CRUD routes for a resource.
 
@@ -674,6 +695,18 @@ class BaseRouter:
         In both scenarios, we validate the arguments first so we can show errors about what the user has
         typed instead of being about dynamically generated routes.
 
+        ## Defaults
+
+        `defaults` are given to every route of the resource, as the `defaults` of
+        `Route`. A default for a placeholder of the path fills it in `url_for`, and it
+        can be a function:
+
+        Example: `@router.resource("org/:org_id/photos", defaults={"org_id": lambda: current.account.id})`
+
+        A route without that placeholder sends the default to the view as it is:
+        the `:photo_id` of a group resource is not in the `index`, `new`, and
+        `create` routes.
+
         """
         path = path.strip("/")
 
@@ -708,6 +741,8 @@ class BaseRouter:
                     name=f"{ns_prefix}{c_name}.{action}",
                     to=method,
                     controller=Controller,
+                    # A dict for each route, so changing one doesn't change the others
+                    defaults=dict(defaults) if defaults else None,
                 )
                 self.add_route(route)
 
@@ -715,9 +750,15 @@ class BaseRouter:
 
         return class_decorator
 
-    def scope(self, prefix: str = "", *, host: str | None = None) -> "ScopedRouter":
+    def scope(
+        self,
+        prefix: str = "",
+        *,
+        host: str | None = None,
+        defaults: dict | None = None,
+    ) -> "ScopedRouter":
         r"""
-        Creates another router that set a prefix and a host to its routes.
+        Creates another router that set a prefix, a host, and defaults to its routes.
 
         The returned scoped router can be also used to create *another* scoped router
         with a different host and/or with a prefix prepended to the original one.
@@ -753,8 +794,23 @@ class BaseRouter:
                 - :lang<en|es|pt>.example.com
                 - :username.localhost:5000
 
+            defaults:
+                Optional. Defaults for all routes under this scope, merged
+                with the ones of each route (those win). See `defaults` in
+                `Route`: a default for a placeholder of the prefix or the host
+                fills it in `url_for`, and it can be a function:
+
+                ```python
+                tenant = router.scope(
+                    "org/:org_id<int>",
+                    defaults={"org_id": lambda: current.account.id},
+                )
+                ```
+
         """
-        return ScopedRouter(prefix, host=host, parent=self, debug=self.debug)
+        return ScopedRouter(
+            prefix, host=host, defaults=defaults, parent=self, debug=self.debug
+        )
 
     # Private
 
@@ -858,8 +914,8 @@ def _current_path(curr_url: str) -> str:
 
 class ScopedRouter(BaseRouter):
     r"""
-    A ScopedRouter is a convenient shortcut to set a prefix and a host to a group
-    of routes.
+    A ScopedRouter is a convenient shortcut to set a prefix, a host, and defaults
+    to a group of routes.
 
     Arguments:
         prefix:
@@ -891,22 +947,28 @@ class ScopedRouter(BaseRouter):
 
             - :lang<en|es|pt>.example.com
             - :username.localhost:5000
+        defaults:
+            Optional. Defaults for all routes under this scope, merged with the
+            ones of each route (those win). See `defaults` in `Route`.
 
     """
 
     prefix: str
     host: str | None
+    defaults: dict
 
     def __init__(
         self,
         prefix: str = "",
         *,
         host: str | None = None,
+        defaults: dict | None = None,
         parent: BaseRouter | None = None,
         debug: bool = False,
     ) -> None:
         self.prefix = prefix.strip("/")
         self.host = host
+        self.defaults = defaults or {}
         self._parent = parent
         super().__init__(debug=debug)
 
@@ -922,12 +984,24 @@ class ScopedRouter(BaseRouter):
             route.path = f"{self.prefix}{route.path}"
         if self.host:
             route.host = self.host
+        if self.defaults:
+            route.defaults = {**self.defaults, **route.defaults}
         if self._parent:
             self._parent.add_route(route)
 
-    def scope(self, prefix: str = "", *, host: str | None = None) -> "ScopedRouter":
-        """Like `BaseRouter.scope()`, but appends to the current prefix
-        and inherits the parent host if not overridden."""
+    def scope(
+        self,
+        prefix: str = "",
+        *,
+        host: str | None = None,
+        defaults: dict | None = None,
+    ) -> "ScopedRouter":
+        """Like `BaseRouter.scope()`, but appends to the current prefix,
+        inherits the parent host if not overridden, and merges the
+        defaults with the parent ones (the new ones win)."""
         prefix = f"{self.prefix}/{prefix.strip('/')}"
         host = host or self.host
-        return ScopedRouter(prefix, host=host, parent=self._parent, debug=self.debug)
+        defaults = {**self.defaults, **(defaults or {})}
+        return ScopedRouter(
+            prefix, host=host, defaults=defaults, parent=self._parent, debug=self.debug
+        )

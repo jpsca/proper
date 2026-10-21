@@ -20,6 +20,22 @@ def test_url_problem(make_shop):
     assert url_problem(app, call("Nothing.like.it")) == "there is no route named `Nothing.like.it`"
 
 
+def test_url_problem_with_a_default(make_shop):
+    app = make_shop(extend("shop/controllers.py", """
+        tenant = router.scope("org/:org_id", defaults={"org_id": lambda: 1})
+
+
+        class ProjectController(Controller):
+            @tenant.get("projects/:id")
+            def show(self):
+                pass
+    """))
+    assert url_problem(app, call("Project.show", "id")) == ""
+    assert url_problem(app, call("Project.show")) == (
+        "the route `Project.show` (/org/:org_id/projects/:id) needs `id`"
+    )
+
+
 def test_urls_in_the_views(make_shop):
     app = make_shop({
         "shop/views/post/show.jx": """
