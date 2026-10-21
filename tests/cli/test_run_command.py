@@ -12,6 +12,7 @@ import pytest
 
 from proper import App
 from proper.app import _default_max_threads
+from proper.global_context import current
 
 
 def fake_serve(**options):
@@ -46,6 +47,21 @@ def hello_app(environ, start_response):
     """A WSGI app a spawned process can import."""
     start_response("200 OK", [("Content-Type", "text/plain")])
     return [b"hello"]
+
+
+@pytest.fixture()
+def app(tmp_path, monkeypatch):
+    """An app of an empty package. `App` adds the `views` folder next to the
+    module that creates it, and `proper run` compiles the views: the app of
+    `tests/conftest.py` would compile the fixtures in `tests/views`."""
+    (tmp_path / "runapp").mkdir()
+    (tmp_path / "runapp" / "__init__.py").write_text("")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    app = App("runapp", {"SECRET_KEYS": ["*" * 50], "DEBUG": False})
+    current.app = app
+    yield app
+    # The next test imports its own `runapp`, from its own `tmp_path`
+    sys.modules.pop("runapp", None)
 
 
 class TestMaxThreads:

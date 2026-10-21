@@ -221,8 +221,8 @@ The rules:
 ```python
 @router.resource("signup")
 class SignupController(AppController):
-    def new(self): ...      # GET  /signup     (not /signup/new - there's no index)
-    def create(self): ...   # POST /signup
+    def new(self): ...    # GET  /signup (not /signup/new - there's no index)
+    def create(self): ... # POST /signup
 ```
 
 The form *is* the landing page, so it gets the friendly URL.
@@ -232,13 +232,17 @@ The form *is* the landing page, so it gets the friendly URL.
 `defaults=` gives the same [defaults](#route-defaults) to every route of the resource. A default for a placeholder of the path fills it in `url_for`:
 
 ```python
-@router.resource("org/:org_id<int>/photos", defaults={"org_id": lambda: current.account.id})
+@router.resource(
+    "org/:org_id<int>/photos",
+    defaults={"org_id": lambda: current.account.id}
+)
 class PhotoController(AppController):
-    def index(self): ...    # url_for("Photo.index") -> /org/42/photos
-    def show(self): ...     # url_for("Photo.show", photo) -> /org/42/photos/3
+    def index(self): ... # url_for("Photo.index") -> /org/42/photos
+    def show(self): ...  # url_for("Photo.show", photo) -> /org/42/photos/3
 ```
 
-A route of the resource that doesn't have the placeholder gets the default as a plain value, not used by `url_for`: with `defaults={"photo_id": lambda: ...}`, the `show`, `edit`, `update`, and `delete` routes use it, and `index`, `new`, and `create`, which have no `:photo_id`, don't.
+A route of the resource that doesn't have the placeholder gets the default as a plain value, not used by `url_for`,
+For example, with `defaults={"photo_id": ...}`, the `show`, `edit`, `update`, and `delete` routes use it, and `index`, `new`, and `create`, which have no `:photo_id`, don't.
 
 For many resources under the same tenant, put the defaults on a [scope](#scopes-with-defaults) instead of repeating them on each resource.
 
@@ -369,7 +373,10 @@ app.url_for("Doc.show", slug="intro", lang="es")  # /docs/es/intro
 The default can be a function without arguments. `url_for` calls it each time it needs the value, so it can read the request through `current`:
 
 ```python
-@router.get("org/:org_id<int>/projects", defaults={"org_id": lambda: current.account.id})
+@router.get(
+    "org/:org_id<int>/projects",
+    defaults={"org_id": lambda: current.account.id}
+)
 def index(self): ...
 ```
 
@@ -456,14 +463,20 @@ This is the natural shape for multi-tenant apps where every URL carries the tena
 `router.scope(...)` accepts `defaults=` too. They are merged with the defaults of each route under the scope, and the route's win. With a default for the placeholder of the prefix, `url_for` fills in the tenant without you passing it on each call (see [Defaults for placeholders](#defaults-for-placeholders)):
 
 ```python
-tenant = router.scope("org/:org_id<int>", defaults={"org_id": lambda: current.account.id})
+tenant = router.scope(
+    "org/:org_id<int>",
+    defaults={"org_id": lambda: current.account.id}
+)
 
 class ProjectController(AppController):
     @tenant.get("projects")
     def index(self): ...
 
-app.url_for("Project.index")             # /org/42/projects, with current.account.id == 42
-app.url_for("Project.index", org_id=7)   # /org/7/projects
+# /org/42/projects, with current.account.id == 42
+app.url_for("Project.index")
+
+# /org/7/projects
+app.url_for("Project.index", org_id=7)
 ```
 
 `current.account` is whatever your app sets, for example in a `before` callback of the controller. A nested scope merges its defaults with the parent's.
@@ -477,7 +490,7 @@ Routes can be restricted to a specific host or hostname pattern. This lets you s
 ```python
 class ApiController(AppController):
     @router.get("users", host="api.example.com")
-    def index(self): ...    # only matches when Host: api.example.com
+    def index(self): ...  # only matches when Host: api.example.com
 ```
 
 A request to `/users` on `www.example.com` will not match this route.
@@ -569,7 +582,8 @@ By default, redirects use status code `307 Temporary Redirect`. Use `redirect_st
 ```python
 from proper import status
 
-router.get("old-blog", redirect="/posts", redirect_status=status.moved_permanently)
+router.get("old-blog", redirect="/posts",
+    redirect_status=status.moved_permanently)
 ```
 
 Redirects can preserve placeholder values from the matched URL into the redirect target:
@@ -688,8 +702,8 @@ class PostController(AppController):
     def show(self):
         ...
 
-app.url_for("Post.show", post_id=42, post_slug="hello-world")
 # /posts/42/hello-world
+app.url_for("Post.show", post_id=42, post_slug="hello-world")
 ```
 
 ### Passing an Object
@@ -698,16 +712,15 @@ Instead of typing out each placeholder, you can pass an object as the second pos
 
 ```python
 # post.post_id = 42, post.post_slug = "hello-world"
-app.url_for("Post.show", post)
-# /posts/42/hello-world
+
+app.url_for("Post.show", post)  # /posts/42/hello-world
 ```
 
 For convenience, if the object doesn't have an attribute matching the *full* placeholder name (e.g., `post_id`), Proper also looks for the version without the snake-cased controller prefix (e.g., `id`). That means a normal model object works directly:
 
 ```python
 # post.id = 42, post.slug = "hello-world"
-app.url_for("Post.show", post)
-# /posts/42/hello-world
+app.url_for("Post.show", post)  # /posts/42/hello-world
 ```
 
 This is the form you'll use in templates 90% of the time:
@@ -733,8 +746,8 @@ app.url_for("Post.index", page=2, sort="date")  # /posts?page=2&sort=date
 Path placeholders and query parameters mix freely:
 
 ```python
-app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 # /posts/42/hello?ref=twitter
+app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
 ```
 
 ### Values Are Checked and Percent-Encoded
@@ -759,17 +772,18 @@ A value that would make a `.` or `..` segment of the path also raises `BadRouteP
 `_anchor=` appends a `#fragment` to the URL. It is percent-encoded as the path is, and a `?` stays unencoded too (RFC 3986 allows it in a fragment):
 
 ```python
-app.url_for("Post.show", post_id=42, post_slug="hello", _anchor="comments")
 # /posts/42/hello#comments
-app.url_for("Page.show", page_id=1, _anchor="a b#c")
+app.url_for("Post.show", post_id=42, post_slug="hello", _anchor="comments")
+
 # /pages/1#a%20b%23c
+app.url_for("Page.show", page_id=1, _anchor="a b#c")
 ```
 
 `_full=True` returns an absolute URL with protocol and host. Use this when the URL will leave the request - emails, RSS feeds, third-party callbacks:
 
 ```python
-app.url_for("Post.show", post, _full=True)
 # https://example.com/posts/42/hello-world
+app.url_for("Post.show", post, _full=True)
 ```
 
 The host is the route's own host, with its placeholders filled, or `HOST` from the config. A value for a host placeholder is not encoded, so it may have only letters, digits and `-._~` (the unreserved characters of RFC 3986). Any other character (`?`, `@`, `:`, a space, a line break, a non-ASCII letter) raises `BadRoutePlaceholder`, also when the placeholder's format accepts it. Convert an international name to its `xn--` form first (`"josé".encode("idna").decode()`).
@@ -779,8 +793,8 @@ The host is the route's own host, with its placeholders filled, or `HOST` from t
 Two helpers check whether the *current* request matches a named route. They take the same arguments as `url_for`:
 
 ```python
-app.url_is("Photo.index")
 # True if the current path is /photos
+app.url_is("Photo.index")
 ```
 
 Both compare paths only: the query string and the `#fragment` are ignored, and so are trailing slashes. `/photos?page=2` "is" `Photo.index`, and query arguments given to the helper are ignored as well: `url_is("Photo.index", page=2)` is `True` on `/photos`.
@@ -788,8 +802,8 @@ Both compare paths only: the query string and the `#fragment` are ignored, and s
 `url_startswith` is the same idea, but matches any path that starts with the route's URL. It's handy for highlighting a parent navigation item when any of its children is active:
 
 ```python
-app.url_startswith("Photo.index")
 # True for /photos, /photos/42, /photos/42/edit, ...
+app.url_startswith("Photo.index")
 ```
 
 It compares whole segments: `/photography` doesn't start with `/photo`. Every path starts with a route at `/`, so for a "Home" link use `url_is`.
@@ -833,11 +847,11 @@ router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 Generate URLs to specific files with `url_for`:
 
 ```python
-app.url_for("assets", file="app.css")
 # /assets/app-a1b2c3d4e5f6...css
+app.url_for("assets", file="app.css")
 
-app.url_for("assets", file="images/logo.png")
 # /assets/images/logo-e5f6a1b2c3d4...png
+app.url_for("assets", file="images/logo.png")
 ```
 
 By default, asset URLs are *fingerprinted*: a hash derived from the file's last-modified time is inserted into the filename. This lets you set long-lived cache headers on assets while ensuring browsers fetch fresh versions whenever a file changes.
