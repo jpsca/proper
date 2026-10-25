@@ -23,9 +23,33 @@ All notable changes to Proper are documented in this file.
   `[u for u in User.select() if u.login != User.normalize_login(u.login)]`.
 - The auth addon installs `idna` instead of `confusable-homoglyphs`, which
   it didn't use.
+- The `"console"` log format writes a short line, laid out as the
+  access lines of `proper run`: `19:53:02.464472Z [info]  Order paid
+  order_id=42`. The time of day, the level (in a terminal, the only part
+  in color), the event, and the other fields; the `request_id` is left
+  to the JSON format, and the logger's name shows only when it isn't
+  `proper` (`logger=peewee`).
+- Proper's logger writes from the `info` level by default, in development
+  too, instead of `debug` with `DEBUG`. To see Proper's pipeline steps and
+  controller callbacks, set `LOG_LEVEL = "debug"`.
+- `proper run` writes one line per request on stdout in the format of
+  `LOG_FORMAT`, with the keys of the app's lines: `timestamp`, `level`,
+  `logger` (`"bearings"`), `event` (`"GET /path"`), `request_id`,
+  `method`, `path`, `query`, `status`, `size`, `duration`, and
+  `client`. With `"console"`, the line is short instead of in the
+  Combined Log Format: `19:53:02.464472Z [info]  200 GET /projects
+  (0.412ms; 3.12 KB)`; with `"json"`, the
+  default without `DEBUG`, it is JSON, where before there was no line per
+  request; with `"off"`, there is none. The `level` of a line is
+  `"error"` for a 4xx or a 5xx, and `"info"` for the others,
+  and `LOG_LEVEL` drops the lines below it, in every format:
+  `LOG_LEVEL = "warning"` keeps only the requests that failed.
 
 ### Added
 
+- `LOG_LEVEL` in the config: the lowest level of Proper's logger,
+  `"debug"`, `"info"` (the default), `"warning"`, `"error"`, or
+  `"critical"`.
 - The [Security guide](https://properproject.org/docs/security).
 - The sign-up form of the auth addon refuses a login with letters that
   aren't ASCII, with the new `login_is_ascii` validator
@@ -395,7 +419,7 @@ number of event loops per process, `MAX_THREADS` the threads that run the app,
 - With `DEBUG`, every request is logged on one line (Combined Log Format).
 - The server drops request headers with an underscore in the name
   (`X_Forwarded_For`), which WSGI can't tell apart from the ones with a dash.
-- It starts with one line: `[INFO] Listening on 0.0.0.0:2300 (1 workers, 20 threads, pid 1234)`.
+- It starts with one line: `Listening on 0.0.0.0:2300 (1 workers, 20 threads, pid 1234)`.
 - A shutdown no longer waits for idle keep-alive connections.
 
 ### ⚠️ Upgrading: the cable is served by Bearings, and RedisCable is back

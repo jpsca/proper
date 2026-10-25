@@ -8,7 +8,7 @@ import pytest
 from proper import App, Controller
 from proper.errors import ConfigError
 from proper.helpers import logger, logs
-from proper.helpers.logs import setup_logging
+from proper.helpers.logs import _console_renderer, setup_logging
 from proper.router import Route
 from proper.test_client import TestClient
 
@@ -72,7 +72,7 @@ class TestTheLogger:
 
 class TestTheOutput:
     def test_json_has_the_request_id_in_every_logger(self, capsys):
-        client = TestClient(make_app(LOG_FORMAT="json"))
+        client = TestClient(make_app(LOG_FORMAT="json", LOG_LEVEL="info"))
         client.get("/", headers={"x-request-id": "abc-123"})
 
         events = [json.loads(line) for line in lines(capsys)]
@@ -94,14 +94,16 @@ class TestTheOutput:
         assert all("locals" not in frame for frame in boom["exception"][0]["frames"])
 
     def test_console(self, capsys):
-        TestClient(make_app(LOG_FORMAT="console")).get(
+        TestClient(make_app(LOG_FORMAT="console", LOG_LEVEL="info")).get(
             "/", headers={"x-request-id": "abc-123"}
         )
         out = "\n".join(lines(capsys))
-        assert "hello world" in out
-        assert "[peewee]" in out
-        assert "request_id=abc-123" in out
+        assert "Z [info]  hello world  color=blue" in out
+        assert "Z [warning] a query  logger=peewee" in out
+        assert "Z [error] boom" in out
         assert "ZeroDivisionError: division by zero" in out
+        # the short line leaves the request ID to the JSON
+        assert "abc-123" not in out
 
     def test_outside_a_request_there_is_no_request_id(self, capsys):
         setup_logging("json")
@@ -123,6 +125,44 @@ class TestTheOutput:
         make_app(LOG_FORMAT="console")
         root = logging.getLogger()
         assert root.handlers.count(logs._handler) == 1
+
+
+class TestTheConsoleLine:
+    EVENT = {
+        "timestamp": "2026-10-24T19:53:02.464472Z",
+        "level": "info",
+        "event": "Order paid",
+        "logger": "proper",
+        "request_id": "abc",
+        "agent": "curl 8",
+        "count": 3,
+        "id": "x",
+    }
+
+    def render(self, colors=False, **event):
+        return _console_renderer(colors=colors)(None, "", {**self.EVENT, **event})
+
+    def test_the_time_the_level_the_event_and_the_fields(self):
+        assert self.render() == "19:53:02.464472Z [info]  Order paid  agent='curl 8' count=3 id=x"
+
+    def test_the_levels_line_up_up_to_error(self):
+        assert self.render(level="error").startswith("19:53:02.464472Z [error] Order paid  ")
+        assert self.render(level="debug").startswith("19:53:02.464472Z [debug] Order paid  ")
+        assert self.render(level="warning").startswith("19:53:02.464472Z [warning] Order paid  ")
+
+    def test_another_loggers_name_is_a_field(self):
+        line = self.render(logger="peewee", agent="a", count=1, id="y")
+        assert line == "19:53:02.464472Z [info]  Order paid  logger=peewee agent=a count=1 id=y"
+
+    def test_a_line_without_fields_has_no_trailing_spaces(self):
+        event = {"timestamp": "2026-10-24T19:53:02.464472Z", "level": "info", "event": "hi"}
+        assert _console_renderer(colors=False)(None, "", event) == "19:53:02.464472Z [info]  hi"
+
+    def test_only_the_level_has_a_color(self):
+        line = self.render(colors=True, level="warning")
+        assert line == (
+            "19:53:02.464472Z [\x1b[33m\x1b[1mwarning\x1b[0m] Order paid  agent='curl 8' count=3 id=x"
+        )
 
 
 class TestTheConfig:

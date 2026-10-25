@@ -139,22 +139,68 @@ The app writes its logs to stderr, with [structlog](https://www.structlog.org/){
 }
 ```
 
-With `DEBUG`, it is a line for people instead. Every line written while the app answers a request has its `request_id` (see [The request ID](#the-request-id)).
+With `DEBUG`, it is a short line for people instead: the time of day, the level, the event, and the other fields.
+
+```
+19:53:02.464472Z [info]  Order paid  order_id=42
+19:53:02.465001Z [warning] a query  logger=peewee
+```
+
+Every JSON line written while the app answers a request has its `request_id` (see [The request ID](#the-request-id)). The short line leaves it out.
 
 `LOG_FORMAT` chooses the format: `"console"`, `"json"`, or `"off"`, where Proper writes nothing and you configure `logging` yourself. The default, `None`, follows `DEBUG`. If you keep Proper's output, don't call `logging.basicConfig()` too: each line would be written twice.
 
-To log from your code, use Proper's logger, or any logger of the standard library:
+`LOG_LEVEL` chooses the lowest level Proper's logger writes: `"debug"`, `"info"` (the default), `"warning"`, `"error"`, or `"critical"`. Set it to `"debug"` to also see what Proper does with each request (the pipeline steps and the callbacks of each controller action). Other loggers, like peewee's, keep their own levels.
 
-```python
-import logging
+`proper run` also writes one line per request, on stdout, in the format of `LOG_FORMAT` and with the same keys as the app's lines, so you can find every line of a request by its `request_id`. In JSON (the default without `DEBUG`):
 
-from proper.helpers import logger
-
-logger.info("Order paid", order_id=order.id)
-logging.getLogger("myapp").info("Order %s paid", order.id)
+```json
+{"timestamp": "2026-10-24T19:53:02.464472Z", "level": "info", "logger": "bearings", "event": "GET /projects", "request_id": "6f1c0e2a-...", "method": "GET", "path": "/projects", "status": 200, "size": 3196, "duration": 0.000412, "client": "127.0.0.1"}
 ```
 
-Both lines get the `request_id`. The keyword arguments of Proper's logger are fields of the line. Exceptions are logged with their traceback, without the variables of each frame, so passwords and tokens don't end up in the logs.
+A request with a query string also has `query`. With `"console"` (the default with `DEBUG`), the line is short: the time of day, the level, the status, the method, the path, the duration, and the size of the body:
+
+```
+19:53:02.464472Z [info]  200 GET /projects  (0.412ms; 3.12 KB)
+19:53:09.154036Z [error] 404 GET /projects.json  (11.337ms; 27.30 KB)
+```
+
+With `"off"`, there is no line per request. Each line has the level of its status: `"error"` for a 4xx or a 5xx, and `"info"` for the others. `LOG_LEVEL` applies to them too, so with `LOG_LEVEL = "warning"` you only get the lines of the requests that failed.
+
+#### Logging from your app
+
+Use Proper's logger. Write the event as a fixed message and the data as keyword arguments: each one is a field of the line, so a log collector can search and filter by it.
+
+```python
+from proper.helpers import logger
+
+
+class OrderController(AppController):
+    def pay(self):
+        ...
+        logger.info("Order paid", order_id=order.id, amount=order.total)
+```
+
+You don't add the `request_id`: Proper adds it to every line written while the app answers a request, and to the lines of the tasks that the request enqueued.
+
+Exceptions are logged with their traceback, without the variables of each frame, so passwords and tokens don't end up in the logs:
+
+```python
+try:
+    charge(order)
+except PaymentError:
+    logger.exception("Payment failed", order_id=order.id)
+```
+
+To add a field to every line until the end of the request, including the lines of other loggers, bind it:
+
+```python
+import structlog
+
+structlog.contextvars.bind_contextvars(user_id=current.user.id)
+```
+
+The loggers of the standard library work too, and their lines also get the `request_id`. Their fields go in `extra`: `logging.getLogger("myapp").info("Order paid", extra={"order_id": order.id})`.
 
 ---
 
@@ -178,6 +224,7 @@ Setting | Default | Blueprint reads it from | What it controls
 `CABLE_PATH` | `"/cable"` | - | URL path the proxy routes to `CABLE_PORT`
 `RELOAD` | `None` (follows `DEBUG`) | - | Restart on code changes
 `LOG_FORMAT` | `None` (follows `DEBUG`) | - | `"console"`, `"json"` or `"off"`
+`LOG_LEVEL` | `"info"` | - | Lowest level of Proper's logger
 `ALLOW_GIL` | `False` | - | Serve on a Python with the GIL
 
 ---
