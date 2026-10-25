@@ -98,12 +98,22 @@ class TestTheOutput:
             "/", headers={"x-request-id": "abc-123"}
         )
         out = "\n".join(lines(capsys))
-        assert "Z [info]  hello world  color=blue" in out
+        assert "Z [info]  hello world  color=blue\n" in out
         assert "Z [warning] a query  logger=peewee" in out
         assert "Z [error] boom" in out
         assert "ZeroDivisionError: division by zero" in out
         # the short line leaves the request ID to the JSON
         assert "abc-123" not in out
+
+    def test_no_fields_from_another_handler(self, capsys):
+        setup_logging("json")
+        record = logging.LogRecord("proper", logging.WARNING, __file__, 1, "hi", None, None)
+        record.color = "blue"
+        logging.Formatter("%(asctime)s %(message)s").format(record)
+        event = json.loads(logs._handler.format(record))
+        assert event["color"] == "blue"
+        assert "message" not in event
+        assert "asctime" not in event
 
     def test_outside_a_request_there_is_no_request_id(self, capsys):
         setup_logging("json")

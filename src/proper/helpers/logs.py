@@ -79,11 +79,23 @@ class _BoundLogger(structlog.stdlib.BoundLogger):
 logger = _BoundLogger(logging.getLogger("proper"), processors=[_to_stdlib], context={})
 logger.setLevel(logging.DEBUG)
 
+def _drop_formatted_fields(
+    _logger: t.Any, _method: str, event_dict: dict[str, t.Any]
+) -> dict[str, t.Any]:
+    """Drop the fields that another handler's `logging.Formatter` writes on
+    the record (`message`, `asctime`): they are not extra fields, and
+    `extra=` can't use those names."""
+    event_dict.pop("message", None)
+    event_dict.pop("asctime", None)
+    return event_dict
+
+
 _PRE_CHAIN = [
     structlog.contextvars.merge_contextvars,
     structlog.stdlib.add_log_level,
     structlog.stdlib.add_logger_name,
     structlog.stdlib.ExtraAdder(),
+    _drop_formatted_fields,
     structlog.processors.TimeStamper(fmt="iso", utc=True),
 ]
 
