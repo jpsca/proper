@@ -10,12 +10,13 @@ structlog's processors: each line gets a timestamp, the level, the name
 of the logger, and the variables bound with `structlog.contextvars`,
 such as the `request_id` of the request being answered.
 """
+
 import logging
 import sys
 import typing as t
 
 import structlog
-from structlog.typing import EventDict, WrappedLogger
+from structlog.typing import EventDict, Processor, WrappedLogger
 
 
 __all__ = (
@@ -79,9 +80,10 @@ class _BoundLogger(structlog.stdlib.BoundLogger):
 logger = _BoundLogger(logging.getLogger("proper"), processors=[_to_stdlib], context={})
 logger.setLevel(logging.DEBUG)
 
+
 def _drop_formatted_fields(
-    _logger: t.Any, _method: str, event_dict: dict[str, t.Any]
-) -> dict[str, t.Any]:
+    _logger: WrappedLogger, _method: str, event_dict: EventDict
+) -> EventDict:
     """Drop the fields that another handler's `logging.Formatter` writes on
     the record (`message`, `asctime`): they are not extra fields, and
     `extra=` can't use those names."""
@@ -90,7 +92,7 @@ def _drop_formatted_fields(
     return event_dict
 
 
-_PRE_CHAIN = [
+_PRE_CHAIN: list[Processor] = [
     structlog.contextvars.merge_contextvars,
     structlog.stdlib.add_log_level,
     structlog.stdlib.add_logger_name,
@@ -139,8 +141,10 @@ def _console_renderer(colors: bool) -> structlog.dev.ConsoleRenderer:
     level_styles = structlog.dev.ConsoleRenderer.get_default_level_styles(colors)
     reset = structlog.dev.RESET_ALL if colors else ""
 
-    def level(_key: str, value: t.Any) -> str:
-        style = level_styles.get(value, "") + (structlog.dev.BRIGHT if colors else "")
+    bright = str(structlog.dev.BRIGHT) if colors else ""
+
+    def level(key: str, value: t.Any) -> str:
+        style = level_styles.get(value, "") + bright
         return f"[{style}{value}{reset}]" + " " * max(0, len("error") - len(value))
 
     return structlog.dev.ConsoleRenderer(
@@ -152,13 +156,16 @@ def _console_renderer(colors: bool) -> structlog.dev.ConsoleRenderer:
                 ),
             ),
             # "2026-10-24T19:53:02.464472Z" -> "19:53:02.464472Z"
-            Column("timestamp", lambda _key, value: str(value)[11:]),
+            Column("timestamp", lambda key, value: str(value)[11:]),
             Column("level", level),
             # The columns are joined by a space: this one adds the second
             # space before the fields (a line without them is stripped)
-            Column("event", lambda _key, value: f"{value} "),
-            Column("logger", lambda _key, value: "" if value == "proper" else f"logger={value}"),
-            Column("request_id", lambda _key, _value: ""),
+            Column("event", lambda key, value: f"{value} "),
+            Column(
+                "logger",
+                lambda key, value: "" if value == "proper" else f"logger={value}",
+            ),
+            Column("request_id", lambda key, value: ""),
         ],
         # A plain traceback even if `rich` is installed, which would show
         # the variables of the frames
