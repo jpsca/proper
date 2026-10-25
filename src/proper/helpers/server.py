@@ -17,7 +17,7 @@ BANNER = """
 WELCOME = """
  ┌──────────────────────────{border}┐
  │                          {space}│
- │   Running on:            {space}│
+ │   Listening on:          {space}│
  │   - Your machine:  {local}   │
  │   - Your network:  {network}   │
  │                          {space}│

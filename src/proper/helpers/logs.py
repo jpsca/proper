@@ -20,11 +20,19 @@ from structlog.typing import EventDict, WrappedLogger
 
 __all__ = (
     "LOG_FORMATS",
+    "LOG_LEVELS",
     "logger",
     "setup_logging",
 )
 
 LOG_FORMATS = ("console", "json", "off")
+LOG_LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
 # Arguments of the stdlib logging methods; the other keys are extra fields
 _LOG_KWARGS = ("exc_info", "stack_info", "stacklevel")
 
@@ -95,10 +103,62 @@ class _StderrHandler(logging.StreamHandler):
 _handler: _StderrHandler | None = None
 
 
+def _console_repr(value: t.Any) -> str:
+    """A value as structlog's console shows it: a string as it is, unless
+    it has a space, `=` or a quote; anything else with `repr()`."""
+    if isinstance(value, str):
+        if set(value) & {" ", "\t", "=", "\r", "\n", '"', "'"}:
+            return repr(value)
+        return value
+    return repr(value)
+
+
+def _console_renderer(colors: bool) -> structlog.dev.ConsoleRenderer:
+    """The short console line, laid out as the server's access lines:
+
+        19:53:02.464472Z [info]  Order paid  amount=10 order_id=42
+
+    The time of day, the level (in color in a terminal) padded to the
+    width of `[error]`, the event, and the other fields as `key=value`.
+    The `request_id` is left out, and so is the logger's name when it is
+    `proper`: `logger=peewee` stays.
+    """
+    Column = structlog.dev.Column
+    level_styles = structlog.dev.ConsoleRenderer.get_default_level_styles(colors)
+    reset = structlog.dev.RESET_ALL if colors else ""
+
+    def level(_key: str, value: t.Any) -> str:
+        style = level_styles.get(value, "") + (structlog.dev.BRIGHT if colors else "")
+        return f"[{style}{value}{reset}]" + " " * max(0, len("error") - len(value))
+
+    return structlog.dev.ConsoleRenderer(
+        columns=[
+            Column(
+                "",
+                structlog.dev.KeyValueColumnFormatter(
+                    key_style="", value_style="", reset_style="", value_repr=_console_repr
+                ),
+            ),
+            # "2026-10-24T19:53:02.464472Z" -> "19:53:02.464472Z"
+            Column("timestamp", lambda _key, value: str(value)[11:]),
+            Column("level", level),
+            # The columns are joined by a space: this one adds the second
+            # space before the fields (a line without them is stripped)
+            Column("event", lambda _key, value: f"{value} "),
+            Column("logger", lambda _key, value: "" if value == "proper" else f"logger={value}"),
+            Column("request_id", lambda _key, _value: ""),
+        ],
+        # A plain traceback even if `rich` is installed, which would show
+        # the variables of the frames
+        exception_formatter=structlog.dev.plain_traceback,
+    )
+
+
 def setup_logging(log_format: str) -> None:
     """Write the logs of every logger to stderr, in `log_format`:
 
-    - `"console"`: one line per event, for people (with colors in a terminal).
+    - `"console"`: one short line per event, for people (in a terminal, the
+      level in color).
     - `"json"`: one JSON object per line, for log collectors.
     - `"off"`: Proper adds no handler; configure `logging` yourself.
 
@@ -124,12 +184,7 @@ def setup_logging(log_format: str) -> None:
     else:
         processors = [
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            # A plain traceback even if `rich` is installed, which would show
-            # the variables of the frames
-            structlog.dev.ConsoleRenderer(
-                colors=sys.stderr.isatty(),
-                exception_formatter=structlog.dev.plain_traceback,
-            ),
+            _console_renderer(colors=sys.stderr.isatty()),
         ]
     formatter = structlog.stdlib.ProcessorFormatter(
         processors=processors,

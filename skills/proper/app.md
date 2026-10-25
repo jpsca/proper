@@ -169,6 +169,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets                   |
 | `STATIC_X_SENDFILE_HEADER` | `""`              | Header for web server file serving             |
 | `LOG_FORMAT`               | `None`            | How the root logger's handler writes every logger's records to stderr: `"console"`, `"json"` (one object per line, tracebacks without frame variables), or `"off"` (no handler). `None` = `"console"` with `DEBUG`, `"json"` without; anything else = `ConfigError` |
+| `LOG_LEVEL`                | `"info"`       | Level of the `proper` logger (`proper.helpers.logger`): `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"`; anything else = `ConfigError`. Doesn't follow `DEBUG`. Other loggers keep their own levels |
 | `TRUSTED_PROXIES`          | loopback, private and link-local networks | IPs/CIDRs of the reverse proxies whose `X-Forwarded-For`, `Forwarded`, `X-Real-IP` and `X-Forwarded-Proto` are used; list every proxy in the chain (a CDN too); replaces the default; not a list of IPs/networks (strings or `ipaddress` objects) = `ConfigError`. The default also trusts any client on those networks: it can set `remote_ip` and `X-Forwarded-Proto`. A peer without an address (`proper run` or gunicorn on a Unix socket) counts as trusted |
 
 ### Session Settings
@@ -588,6 +589,21 @@ The `proper` logger outputs debug information for:
 - Template inference: `[ControllerName.action] rendering inferred template: views/.../action.jx`
 - Errors: `[error] GET /path -> ErrorType: message`
 
-`proper.helpers.logger` is a `structlog.stdlib.BoundLogger` over the stdlib `proper` logger, at `DEBUG` with `DEBUG` on and `INFO` otherwise. It takes `%s` arguments (formatted by the stdlib, only if the level lets the record through) and keyword arguments, which become fields of the line: `logger.info("Paid %s", order.id, amount=10)`. An event under the level is dropped before it is built.
+All but the errors (written at the `error` level, so shown by default) need `LOG_LEVEL = "debug"`.
 
-Creating the `App` calls `setup_logging(config.LOG_FORMAT)` (`proper.helpers.logs`): one handler on the root logger, writing to `sys.stderr`, with structlog's `ProcessorFormatter`. Every logger goes through it (the app's, peewee's, huey's), and each line gets `timestamp` (ISO, UTC), `level`, `logger`, the record's extra fields, and the variables bound with `structlog.contextvars`. Each request runs in a context of its own with `request_id` bound (the same as `request.request_id` and the response's `X-Request-ID`), so every line written while answering it has it. `LOG_FORMAT = "off"` removes the handler; don't add another handler to the root logger (or call `logging.basicConfig()`) while it's on, or each line is written twice. To see the SQL: `logging.getLogger("peewee").setLevel(logging.DEBUG)`.
+`proper.helpers.logger` is a `structlog.stdlib.BoundLogger` over the stdlib `proper` logger, at the level of `LOG_LEVEL`. Set the level with `LOG_LEVEL`: each controller action reads it once, the first time it runs. It takes `%s` arguments (formatted by the stdlib, only if the level lets the record through) and keyword arguments, which become fields of the line. An event under the level is dropped before it is built.
+
+It is the recommended way for app code to log. Write the event as a fixed message and the data as keyword arguments; don't pass the `request_id`, Proper adds it:
+
+```python
+from proper.helpers import logger
+
+logger.info("Order paid", order_id=order.id, amount=order.total)
+logger.exception("Payment failed", order_id=order.id)  # in an `except` block
+```
+
+To add a field to every line until the end of the request (every logger's lines): `structlog.contextvars.bind_contextvars(user_id=current.user.id)`. Each request runs in its own context, so the field doesn't leak to the next one. Tasks enqueued during a request run with its `request_id` bound. Stdlib loggers also work; their fields go in `extra={...}`.
+
+`proper run` has Bearings write one access line per request on stdout, outside `logging`, dropping the lines below `LOG_LEVEL` (Bearings' `access_log_level`); a line's level is its status's: `"error"` for a 4xx or a 5xx, `"info"` otherwise. The format is `LOG_FORMAT`'s (`_access_log` in `proper.cli.app_cli`), with structlog's keys (`timestamp`, `level`, `logger` = `"bearings"`, `event` = `"GET /path"`, `request_id` from the response's `X-Request-ID`, `method`, `path`, `query` if any, `status`, `size`, `duration` in seconds, `client`): `"json"`, one object per line; `"console"`, a short line, `19:53:02.464472Z [info]  200 GET /projects?page=2  (0.412ms; 3.12 KB)` (time of day, `[level]` padded to `[error]`'s width, status, method, path and query, duration, body size with 1 KB = 1024 bytes; the level in color when stdout is a terminal; no other fields); `"off"`, no access lines.
+
+Creating the `App` calls `setup_logging(config.LOG_FORMAT)` (`proper.helpers.logs`; with `"console"`, the short line of the access log, `19:53:02.464472Z [info]  Order paid  order_id=42`: time of day, `[level]` padded to `[error]`'s width and in color in a terminal, event, then the other fields as `key=value`, without `request_id` and without `logger` when it is `proper`): one handler on the root logger, writing to `sys.stderr`, with structlog's `ProcessorFormatter`. Every logger goes through it (the app's, peewee's, huey's), and each line gets `timestamp` (ISO, UTC), `level`, `logger`, the record's extra fields, and the variables bound with `structlog.contextvars`. Each request runs in a context of its own with `request_id` bound (the same as `request.request_id` and the response's `X-Request-ID`), so every line written while answering it has it. `LOG_FORMAT = "off"` removes the handler; don't add another handler to the root logger (or call `logging.basicConfig()`) while it's on, or each line is written twice. To see the SQL: `logging.getLogger("peewee").setLevel(logging.DEBUG)`.

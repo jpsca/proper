@@ -13,7 +13,6 @@ env = os.getenv("APP_ENV", "dev")
 
 DEBUG = env == "dev"
 
-
 # `HOST`` is the base url of the app, including port if available.
 #   Used for generating full URLs
 # `PORT`` is used by the server. In production the port will be hidden behind a proxy

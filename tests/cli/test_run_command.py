@@ -101,6 +101,7 @@ class TestRunCommand:
         app.config.PORT = 4321
         app.config.WORKERS = 3
         app.config.APP_TARGET = "myapp.main:app"
+        app.config.LOG_LEVEL = "error"
 
         get_run_cli(app)(None)
 
@@ -110,7 +111,8 @@ class TestRunCommand:
         assert web["port"] == 4321
         assert web["workers"] == 3
         assert web["threads"] == app.max_threads
-        assert web["debug"] is False
+        assert web["access_log"] == "json"
+        assert web["access_log_level"] == "error"
         assert calls["processes"] == 1
         assert calls["start_cable"] is False
 
@@ -132,6 +134,31 @@ class TestRunCommand:
         get_run_cli(app)(None)
 
         assert shown == ["banner", "localhost:2300"]
+
+    @pytest.mark.parametrize(
+        ("debug", "log_format", "access_log"),
+        [
+            (False, "json", "json"),
+            (True, "json", "json"),
+            (True, "console", "console"),
+            (False, "console", "console"),
+            (True, "off", None),
+            (False, "off", None),
+        ],
+    )
+    def test_the_access_log_follows_the_log_format(
+        self, app, monkeypatch, debug, log_format, access_log
+    ):
+        from proper.cli.app_cli import get_run_cli
+
+        calls = self._capture_group(monkeypatch)
+        app.config.DEBUG = debug
+        app.config.RELOAD = False
+        app.config.LOG_FORMAT = log_format
+
+        get_run_cli(app)(None)
+
+        assert calls["web"]["access_log"] == access_log
 
     def test_the_welcome_is_not_shown_outside_debug(self, app, monkeypatch):
         from proper.cli.app_cli import get_run_cli
@@ -172,7 +199,7 @@ class TestRunCommand:
         monkeypatch.setattr(bearings, "serve", fake_serve)
         _serve(
             target=f"{__name__}:OWNER", address="0.0.0.0", port=2300,
-            workers=2, threads=5, debug=False,
+            workers=2, threads=5, access_log=None, access_log_level="info",
         )
         assert calls["app"] is OWNER
         assert calls["raw"] is False
@@ -181,15 +208,16 @@ class TestRunCommand:
         assert calls["loops"] == 2
         assert calls["workers"] == 5
         assert calls["access_log"] is None
-        assert "[INFO] Listening on 0.0.0.0:2300 (2 workers, 5 threads" in (
+        assert "Listening on 0.0.0.0:2300 (2 workers, 5 threads" in (
             capsys.readouterr().out
         )
 
         _serve(
             target=f"{__name__}:OWNER", address="0.0.0.0", port=2300,
-            workers=1, threads=5, debug=True,
+            workers=1, threads=5, access_log="json", access_log_level="warning",
         )
-        assert calls["access_log"] == "combined"
+        assert calls["access_log"] == "json"
+        assert calls["access_log_level"] == "warning"
 
     def test_a_proper_app_is_served_raw(self, monkeypatch):
         import bearings
@@ -202,7 +230,7 @@ class TestRunCommand:
         ))
         _serve(
             target=f"{__name__}:RAW_OWNER", address="0.0.0.0", port=2300,
-            workers=1, threads=1, debug=False,
+            workers=1, threads=1, access_log=None, access_log_level="info",
         )
         assert calls["app"] == RAW_OWNER._bearings
         assert calls["raw"] is True
@@ -215,7 +243,8 @@ class TestRunCommand:
             port = sock.getsockname()[1]
         web = {
             "target": f"{__name__}:hello_app", "address": "127.0.0.1", "port": port,
-            "workers": 1, "threads": 2, "debug": False,
+            "workers": 1, "threads": 2, "access_log": None,
+            "access_log_level": "info",
         }
         child = multiprocessing.get_context("spawn").Process(target=_serve, kwargs=web)
         child.start()

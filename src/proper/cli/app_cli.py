@@ -100,7 +100,8 @@ def _serve(
     port: int,
     workers: int,
     threads: int,
-    debug: bool,
+    access_log: str | None,
+    access_log_level: str,
 ) -> None:
     """Start Bearings and block until SIGINT or SIGTERM.
 
@@ -118,8 +119,8 @@ def _serve(
 
     def started(server: "Server") -> None:
         print(
-            f"[INFO] Listening on {address}:{server.port} "
-            f"({workers} workers, {threads} threads, pid {os.getpid()})",
+            f"Listening on {address}:{server.port} "
+            f"({workers} workers, {threads} threads, pid {os.getpid()})\n",
             flush=True,
         )
 
@@ -132,9 +133,16 @@ def _serve(
         port=port,
         loops=workers,
         workers=threads,
-        access_log="combined" if debug else None,
+        access_log=access_log,
+        access_log_level=access_log_level,
         started=started,
     )
+
+
+def _access_log(config) -> str | None:
+    """The format of Bearings' access log: the format of the app's logs,
+    whose keys and layout it shares; none with "off"."""
+    return None if config.LOG_FORMAT == "off" else config.LOG_FORMAT
 
 
 def _load_app(target: str) -> "App":
@@ -190,7 +198,7 @@ def _log_changes(changes: set) -> None:
     # Printed rather than logged: the `proper` logger has no handler of its
     # own, and this must show up next to the server's lines.
     files = ", ".join(sorted(path for _change, path in changes))
-    print(f"[INFO] Changes detected, restarting the server: {files}", flush=True)
+    print(f"Changes detected, restarting the server: {files}", flush=True)
 
 
 def _serve_restarting_on_changes(
@@ -239,7 +247,8 @@ def get_run_cli(app: "App") -> t.Callable:
             "port": int(port or config["PORT"] or 2300),
             "workers": workers,
             "threads": app.max_threads,
-            "debug": bool(config.DEBUG),
+            "access_log": _access_log(config),
+            "access_log_level": config.LOG_LEVEL,
         }
         group: dict[str, t.Any] = {
             "web": web,
