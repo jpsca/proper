@@ -28,7 +28,7 @@ from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
 from .helpers import DotDict, jsonplus, logger
-from .helpers.logs import setup_logging
+from .helpers.logs import LOG_LEVELS, setup_logging
 from .models.migrations import pending_migrations
 from .router import Route, Router
 from .storage import attachment_for
@@ -157,9 +157,9 @@ class App(AppWsgi):
         self.import_name = import_name
         self.config = load_config(config or {})
         # Every `logger.debug` call builds a full record when the level lets
-        # it through, handlers or not. Outside of debug mode that is pure cost
-        # on the request path.
-        logger.setLevel(logging.DEBUG if self.config.DEBUG else logging.INFO)
+        # it through, handlers or not, so the "debug" level costs time on the
+        # request path.
+        logger.setLevel(LOG_LEVELS[self.config.LOG_LEVEL])
         setup_logging(self.config.LOG_FORMAT)
         self.max_threads = self.config.MAX_THREADS or _default_max_threads()
         self._attachment_class_cache: "dict[type, type[_Attachment]]" = {}
@@ -507,9 +507,7 @@ class App(AppWsgi):
         the registration order.
         """
         logger.error(
-            "❌ %s %s -> %s: %s",
-            request.request_method,
-            request.path,
+            "❌ %s: %s",
             type(response.error).__name__,
             response.error,
         )
