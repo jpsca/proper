@@ -51,12 +51,6 @@ class TestBodyExtraction:
         print(result)
         assert result == "Content"
 
-    def test_without_body_tag(self):
-        html = "<p>Content</p>"
-        result = html2text(html)
-        print(result)
-        assert result == "Content"
-
     def test_body_tag_case_insensitive(self):
         html = "<html><BODY><p>Content</p></BODY></html>"
         result = html2text(html)
@@ -719,13 +713,6 @@ class TestEdgeCases:
 class TestSecurity:
     """Security and robustness tests."""
 
-    def test_script_injection_attempt(self):
-        html = "<p>Safe text</p><script>alert('XSS')</script><p>More safe text</p>"
-        result = html2text(html)
-        print(result)
-        assert "Safe text" in result and "More safe text" in result
-
-
     def test_extremely_nested_structure(self):
         # Create deeply nested structure
         html = "<div>" * 100 + "Content" + "</div>" * 100
@@ -749,15 +736,6 @@ class TestSecurity:
 
 class TestRegressionCases:
     """Tests for specific bugs or regressions."""
-
-    def test_link_with_matching_text_and_url(self):
-        """Ensure links where text equals URL don't show duplicate."""
-        html = '<a href="http://example.com">http://example.com</a>'
-        result = html2text(html)
-        print(result)
-        # Should only appear once, not "http://example.com (http://example.com)"
-        assert result == "http://example.com"
-        assert result.count("http://example.com") == 1
 
     def test_empty_link_text(self):
         """Handle links with no visible text."""

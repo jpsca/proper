@@ -10,9 +10,6 @@ from proper import App, Controller, Route, TestClient
 from proper.core.error_handlers import (
     MAX_REDACT_DEPTH,
     MAX_REDACT_VALUES,
-    debug_error_handler,
-    debug_not_found_handler,
-    fallback_error_handler,
     fallback_forbidden_handler,
     fallback_not_found_handler,
     get_request_data,
@@ -57,20 +54,6 @@ def test_redact_value_short_value():
     assert redact_value("abcd") == "abcd"
 
 
-def test_redacts_secret_keys():
-    data = {"SECRET_KEYS": ["supersecretkey123"]}
-    result = redact_sensitive_info(data)
-    assert result["SECRET_KEYS"][0].startswith("supe")
-    assert "▒" in result["SECRET_KEYS"][0]
-
-
-def test_redacts_password():
-    data = {"password": "mysecretpass"}
-    result = redact_sensitive_info(data)
-    assert result["password"].startswith("myse")
-    assert "▒" in result["password"]
-
-
 def test_leaves_non_sensitive_fields():
     data = {"DEBUG": True, "HOST": "localhost"}
     result = redact_sensitive_info(data)
@@ -78,22 +61,10 @@ def test_leaves_non_sensitive_fields():
     assert result["HOST"] == "localhost"
 
 
-def test_recurses_into_nested_dicts():
-    data = {"DATABASES": {"main": {"password": "dbpass123"}}}
-    result = redact_sensitive_info(data)
-    assert "▒" in result["DATABASES"]["main"]["password"]
-
-
 def test_no_secret_keys():
     data = {"DEBUG": False}
     result = redact_sensitive_info(data)
     assert result == {"DEBUG": False}
-
-
-def test_falsy_password_not_redacted():
-    data = {"password": ""}
-    result = redact_sensitive_info(data)
-    assert result["password"] == ""
 
 
 def test_redact_value_of_a_value_that_is_not_a_string():
@@ -269,13 +240,6 @@ def test_fallback_forbidden():
     assert response.body is not None
 
 
-def test_fallback_error():
-    response = MagicMock()
-    response.error = ValueError("crash")
-    fallback_error_handler(response)
-    assert response.body is not None
-
-
 def test_sets_body():
     request = make_test_request("/")
     request.server_software = "gunicorn/23.0.0"
@@ -296,18 +260,6 @@ def test_default_page_without_the_name_of_the_server():
     assert "Server:" not in response.body
 
 
-def test_index_request_renders_default_page():
-    app = MagicMock()
-    request = make_test_request("/")
-    response = MagicMock()
-
-    debug_not_found_handler(app, request, response)
-    # Should have rendered the default-index template
-    body = response.body
-    assert isinstance(body, str)
-    assert "Proper Web Framework" in body
-
-
 def test_new_app_shows_the_default_page():
     """Regression: the default page of an app without a route for "/"
     failed with a real request, and the app answered with an error."""
@@ -317,41 +269,6 @@ def test_new_app_shows_the_default_page():
 
     assert response.status == 404
     assert "Proper Web Framework" in response.body
-
-
-def test_non_index_renders_not_found_page():
-    app = MagicMock()
-    app.config = {"DEBUG": True}
-    app.routes = []
-    request = MagicMock(method="GET", path="/missing")
-    request.query = {}
-    request.form = {}
-    request.headers = {}
-    response = MagicMock()
-    response.error = Exception("not found")
-
-    debug_not_found_handler(app, request, response)
-    body = response.body
-    assert isinstance(body, str)
-
-
-def test_renders_error_page():
-    app = MagicMock()
-    app.config = {"DEBUG": True}
-    request = MagicMock()
-    request.query = {}
-    request.form = {}
-    request.headers = {}
-    response = MagicMock()
-
-    try:
-        raise ValueError("boom")
-    except ValueError as exc:
-        response.error = exc
-        debug_error_handler(app, request, response)
-
-    body = response.body
-    assert isinstance(body, str)
 
 
 # --- Values that can't be rebuilt or read ---

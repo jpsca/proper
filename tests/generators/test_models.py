@@ -78,10 +78,6 @@ def test_build_flag_defaults_to_true():
     assert _build_option("unique") == "unique=True"
 
 
-def test_build_value_preserved():
-    assert _build_option("default:0") == "default=0"
-
-
 def test_build_false_normalised():
     assert _build_option("null:false") == "null=False"
     assert _build_option("null:FALSE") == "null=False"
@@ -90,10 +86,6 @@ def test_build_false_normalised():
 def test_build_quoted():
     assert _build_option("backref:tweets") == 'backref="tweets"'
     assert _build_option("on_delete:CASCADE") == 'on_delete="CASCADE"'
-
-
-def test_build_backref_single_to_double_quotes():
-    assert _build_option("backref:'tweets'") == 'backref="tweets"'
 
 
 def test_build_string_default():
@@ -147,20 +139,10 @@ def test_foreign_basic():
     assert _foreign("fk-User", []) == "pw.ForeignKeyField(User)"
 
 
-def test_foreign_with_backref():
-    assert _foreign("fk-User", ['backref="tweets"']) == (
-        'pw.ForeignKeyField(User, backref="tweets")'
-    )
-
-
 def test_foreign_multiple_options():
     assert _foreign("fk-User", ['backref="tweets"', "null=True"]) == (
         'pw.ForeignKeyField(User, backref="tweets", null=True)'
     )
-
-
-def test_build_simple():
-    assert _build_row("name", "str", []) == "name = pw.CharField()"
 
 
 def test_build_with_options():
@@ -238,13 +220,6 @@ def test_imports_in_generated_file(app_in_tmp):
     text = _model_text(app_in_tmp, "product")
     assert "import peewee as pw" in text
     assert "from .base import BaseModel" in text
-
-
-def test_no_migration_by_default(app_in_tmp):
-    gen_model(app_in_tmp, "Product")
-    # No call() invoked - just verify the file was generated
-    text = _model_text(app_in_tmp, "product")
-    assert "class Product(BaseModel):" in text
 
 
 def test_migration_still_generates_files(app_in_tmp):

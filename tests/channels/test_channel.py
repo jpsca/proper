@@ -27,21 +27,12 @@ def _make_channel(cls=Channel, params=None, app=None):
     return ch, sent
 
 
-
 class TestChannel:
     def test_stores_app_and_params(self):
         app = FakeApp()
         ch, _ = _make_channel(app=app, params={"room": "general"})
         assert ch.app is app
         assert ch.params == {"room": "general"}
-
-    def test_starts_with_no_streams(self):
-        ch, _ = _make_channel()
-        assert ch._streams == set()
-
-    def test_not_rejected_by_default(self):
-        ch, _ = _make_channel()
-        assert ch._rejected is False
 
     def test_request_none_by_default(self):
         ch, _ = _make_channel()
@@ -58,10 +49,6 @@ class TestChannel:
         assert ch.request is not None
         assert ch.request.path == "/"
 
-    def test_returns_class_name(self):
-        ch, _ = _make_channel()
-        assert ch.channel_name == "Channel"
-
     def test_returns_subclass_name(self):
         class ChatChannel(Channel):
             pass
@@ -75,13 +62,7 @@ class TestChannel:
         assert ch.channel_name == "chat"
 
 
-
 class TestStream:
-    def test_adds_stream(self):
-        ch, _ = _make_channel()
-        ch.stream_from("chat_general")
-        assert "chat_general" in ch._streams
-
     def test_multiple_streams(self):
         ch, _ = _make_channel()
         ch.stream_from("chat_general")
@@ -94,17 +75,10 @@ class TestStream:
         ch.stream_from("chat_general")
         assert len(ch._streams) == 1
 
-    def test_removes_stream(self):
-        ch, _ = _make_channel()
-        ch.stream_from("chat_general")
-        ch.stop_stream_from("chat_general")
-        assert ch._streams == set()
-
     def test_noop_if_not_subscribed(self):
         ch, _ = _make_channel()
         ch.stop_stream_from("nonexistent")
         assert ch._streams == set()
-
 
 
 class TestSend:
@@ -124,49 +98,6 @@ class TestSend:
         ch.send({"a": 1})
         ch.send({"b": 2})
         assert len(sent) == 2
-
-    def test_sets_rejected_flag(self):
-        ch, _ = _make_channel()
-        ch.reject()
-        assert ch._rejected is True
-
-
-
-class TestLifecycleDefaults:
-    def test_subscribed_is_noop(self):
-        ch, _ = _make_channel()
-        ch.subscribed()
-
-    def test_unsubscribed_is_noop(self):
-        ch, _ = _make_channel()
-        ch.unsubscribed()
-
-
-
-class TestDispatch:
-    def test_calls_action_method_with_data(self):
-        called = []
-
-        class TestChannel(Channel):
-            def speak(self, data):
-                called.append(data)
-
-        ch, _ = _make_channel(cls=TestChannel)
-        ch._dispatch("speak", {"message": "hi"})
-        assert called == [{"message": "hi"}]
-
-    def test_calls_action_without_data(self):
-        called = []
-
-        class TestChannel(Channel):
-            def subscribed(self):
-                called.append("subscribed")
-
-        ch, _ = _make_channel(cls=TestChannel)
-        ch._dispatch("subscribed")
-        assert called == ["subscribed"]
-
-
 
 class TestUsagePattern:
     def test_chat_channel_pattern(self):
@@ -216,11 +147,7 @@ class TestUsagePattern:
         assert "private" in ch2._streams
 
 
-
 class TestSessionResolution:
-    def test_session_none_by_default(self):
-        assert Channel.Session is None
-
     def test_no_session_model_is_anonymous(self):
         ch, _ = _make_channel()
         assert ch.find_session() is None

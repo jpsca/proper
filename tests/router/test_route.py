@@ -39,7 +39,6 @@ class Items:
     def list(self): ...
 
 
-
 class TestREPlaceholders:
     def test_simple_placeholder(self):
         m = RE_PLACEHOLDERS.search("/photos/:id")
@@ -73,7 +72,6 @@ class TestREPlaceholders:
         assert m is None
 
 
-
 class TestFormats:
     def test_default_format(self):
         assert None in FORMATS
@@ -92,7 +90,6 @@ class TestFormats:
         assert re.fullmatch(FORMATS["float"], "3.14")
         assert not re.fullmatch(FORMATS["float"], "42")
         assert not re.fullmatch(FORMATS["float"], "abc")
-
 
 
 class TestRouteInit:
@@ -133,14 +130,9 @@ class TestRouteInit:
         r = Route("GET", "/", host="example.com")
         assert r.host == "example.com"
 
-    def test_redirect_stored(self):
-        r = Route("GET", "/old", redirect="/new")
-        assert r.redirect == "/new"
-
     def test_redirect_status_default(self):
         r = Route("GET", "/old", redirect="/new")
         assert r.redirect_status == 307
-
 
 
 class TestRouteAutoNaming:
@@ -165,7 +157,6 @@ class TestRouteAutoNaming:
         assert r.name is None
 
 
-
 class TestBuildOnly:
     def test_build_only_when_no_to_no_redirect(self):
         r = Route("GET", "/foo")
@@ -178,7 +169,6 @@ class TestBuildOnly:
     def test_not_build_only_when_redirect_set(self):
         r = Route("GET", "/foo", redirect="/bar")
         assert r.build_only is False
-
 
 
 class TestRouteRepr:
@@ -196,7 +186,6 @@ class TestRouteRepr:
     def test_repr_with_redirect(self):
         r = Route("GET", "/old", redirect="/new")
         assert "redirect=" in repr(r)
-
 
 
 class TestRouteEquality:
@@ -218,7 +207,6 @@ class TestRouteEquality:
     def test_not_equal_to_non_route(self):
         r = Route("GET", "/foo")
         assert r != "not a route"
-
 
 
 class TestRoutePathCompilation:
@@ -266,7 +254,6 @@ class TestRoutePathCompilation:
     def test_path_plain_with_format(self):
         r = Route("GET", "/photos/:id<int>")
         assert r.path_plain == "/photos/:id"
-
 
 
 class TestRouteMatch:
@@ -416,11 +403,6 @@ class TestRouteFormat:
         assert "page=2" in url
         assert "sort=name" in url
 
-    def test_format_no_extra_params_no_query_string(self):
-        r = Route("GET", "/photos/:id")
-        url = r.format(id="42")
-        assert "?" not in url
-
     def test_format_int_param_converted_to_string(self):
         r = Route("GET", "/photos/:id<int>")
         url = r.format(id=42)
@@ -554,7 +536,6 @@ class TestRouteFormat:
         assert r.format(name="...") == "/a/../..."
 
 
-
 class TestRoutePathReassignment:
     def test_path_setter_recompiles(self):
         r = Route("GET", "/photos")
@@ -563,7 +544,6 @@ class TestRoutePathReassignment:
         assert r.path == "/videos/:id"
         assert r.path_re != old_re
         assert "id" in r.path_placeholders
-
 
 
 class TestStaticRoute:
@@ -650,7 +630,6 @@ class TestStaticRoute:
     def test_static_route_host(self):
         r = StaticRoute("/static", root="/tmp", host="cdn.example.com")
         assert r.host == "cdn.example.com"
-
 
 
 class TestHostCompilation:

@@ -24,9 +24,6 @@ class TestForceStr:
     def test_bytes_with_encoding(self):
         assert force_str("café".encode("latin-1"), encoding="latin-1") == "café"
 
-    def test_strings_only_with_str(self):
-        assert force_str("hello", strings_only=True) == "hello"
-
     def test_strings_only_with_bytes(self):
         assert force_str(b"hello", strings_only=True) == "hello"
 

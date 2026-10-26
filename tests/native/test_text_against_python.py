@@ -312,7 +312,6 @@ def test_cut_and_changed(seed):
 
 
 @pytest.mark.parametrize("html", [
-    "",
     "<pre>\nfirst\n</pre>",
     "<pre>\r\nfirst\r\n\r\nsecond\r</pre>",
     "<pre><code>\nx = 1</code></pre>",

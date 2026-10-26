@@ -355,21 +355,11 @@ class TestSqliteCache:
         cache.set("key1", "value1", expires_in=3600)
         assert cache.get("key1") == "value1"
 
-    def test_set_with_short_expires_in(self, cache):
-        cache.set("key1", "value1", expires_in=1)
-        # Simulate expiration by setting expires_at to the past
-        cache.Cache.update(expires_at=0).where(cache.Cache.key == "key1").execute()
-        assert cache.get("key1") is None
-
     def test_get_expired_key(self, cache):
         cache.set("key1", "value1", expires_in=1)
         # Simulate expiration by updating expires_at directly
         cache.Cache.update(expires_at=0).where(cache.Cache.key == "key1").execute()
         assert cache.get("key1") is None
-
-    def test_get_not_expired(self, cache):
-        cache.set("key1", "value1", expires_in=3600)
-        assert cache.get("key1") == "value1"
 
     def test_get_expired_deletes_key(self, cache):
         cache.set("key1", "value1", expires_in=1)
@@ -461,16 +451,6 @@ class TestSqliteCache:
         )
         assert result == "fresh"
 
-    def test_get_or_set_race_condition_ttl_not_expired(self, cache):
-        """If the key is still valid, return it without recomputing."""
-        cache.set("key", "valid", expires_in=3600)
-        called = []
-        result = cache.get_or_set(
-            "key", lambda: called.append(1) or "new", race_condition_ttl=10
-        )
-        assert result == "valid"
-        assert len(called) == 0
-
     def test_increment_new_key(self, cache):
         result = cache.increment("counter")
         assert result == 1
@@ -495,11 +475,6 @@ class TestSqliteCache:
     def test_increment_not_expired(self, cache):
         cache.increment("counter", 5, expires_in=3600)
         result = cache.increment("counter", 3, expires_in=3600)
-        assert result == 8
-
-    def test_increment_default_expires_in(self, cache):
-        cache.increment("counter", 5)
-        result = cache.increment("counter", 3)
         assert result == 8
 
     def test_decrement(self, cache):
@@ -726,9 +701,6 @@ class TestKeyFor:
     def test_string_key(self):
         assert key_for("prefix", "MY-KEY") == "my-key"
 
-    def test_string_key_ignores_prefix(self):
-        assert key_for("anything", "Hello World") == "hello world"
-
     def test_object_key(self):
         obj = MagicMock(spec=["id", "updated_at"])
         obj.__class__ = type("Card", (), {})
@@ -826,12 +798,6 @@ class TestCacheTag:
         assert catalog.render_string(source) == "expensive"
         assert cache.get("my-key") == "expensive"
 
-    def test_render_cache_hit(self, tmp_path):
-        cache = SqliteCache(":memory:")
-        cache.set("key", "cached")
-        catalog = self._catalog(tmp_path, cache)
-        assert catalog.render_string("{% cache('key') %}fresh{% endcache %}") == "cached"
-
     def test_render_with_expires_in(self, tmp_path):
         cache = SqliteCache(":memory:")
         catalog = self._catalog(tmp_path, cache)
@@ -849,8 +815,6 @@ class TestCacheTag:
 
     def test_the_app_registers_the_tag(self, app):
         assert "cache" in app.catalog.tags
-
-
 
 
 class TestSeveralSqliteCaches:

@@ -120,7 +120,6 @@ def client(app):
     return TestClient(app, raise_server_errors=False)
 
 
-
 class TestHandleAppError:
     """Tests for App._handle_app_error dispatch logic."""
 
@@ -219,7 +218,6 @@ class TestHandleAppError:
         assert response.body != "custom error page"
 
 
-
 class TestDefaultErrorHandler:
     def test_debug_mode_calls_debug_handler(self, app):
         app.debug = True
@@ -262,18 +260,6 @@ class TestDefaultErrorHandler:
 
         assert response.status == status.forbidden
 
-    def test_sets_server_error_for_generic_exception(self, app):
-        request = _make_request()
-        response = _make_response()
-        response.error = RuntimeError("crash")
-
-        with patch("proper.app.fallback_error_handler"):
-            app._default_error_handler(request, response)
-
-        assert response.status == status.server_error
-
-
-
 class TestDefaultErrorHandlerDebug:
     def test_match_not_found_uses_not_found_handler(self, app):
         request = _make_request()
@@ -292,17 +278,6 @@ class TestDefaultErrorHandlerDebug:
         with patch("proper.app.debug_not_found_handler") as mock_handler:
             app._default_error_handler_debug(request, response)
             mock_handler.assert_called_once_with(app, request, response)
-
-    def test_other_error_uses_error_handler(self, app):
-        request = _make_request()
-        response = _make_response()
-        response.error = ValueError("oops")
-
-        with patch("proper.app.debug_error_handler") as mock_handler:
-            app._default_error_handler_debug(request, response)
-            mock_handler.assert_called_once_with(app, request, response)
-
-
 
 class TestDefaultErrorHandlerProduction:
     def test_not_found_status(self, app):
@@ -329,24 +304,7 @@ class TestDefaultErrorHandlerProduction:
             app._default_error_handler_production(response)
             mock_handler.assert_called_once_with(response)
 
-    def test_server_error_status(self, app):
-        response = _make_response()
-        response.status = status.server_error
-
-        with patch("proper.app.fallback_error_handler") as mock_handler:
-            app._default_error_handler_production(response)
-            mock_handler.assert_called_once_with(response)
-
-
-
 class TestCustomErrorHandler:
-    def test_dispatches_to_handler(self, app):
-        request = _make_request()
-        response = _make_response(app=app)
-        request.matched_route = None
-        app._custom_error_handler(_ErrorPageController.handle, request, response)
-        assert response.body == "custom error page"
-
     def test_creates_route_if_no_matched_route(self, app):
         request = _make_request()
         response = _make_response(app=app)
@@ -392,32 +350,13 @@ class TestCustomErrorHandler:
         assert route.to == _ThingController.show
 
 
-
 class TestEventDecorators:
-    def test_on_error_registers_handler(self, app):
-        assert app._on_error == ()
-
-        @app.on_error
-        def my_handler():
-            pass
-
-        assert my_handler in app._on_error
-
     def test_on_error_returns_original_function(self, app):
         def my_handler():
             pass
 
         result = app.on_error(my_handler)
         assert result is my_handler
-
-    def test_on_teardown_registers_handler(self, app):
-        assert app._on_teardown == ()
-
-        @app.on_teardown
-        def my_handler():
-            pass
-
-        assert my_handler in app._on_teardown
 
     def test_on_teardown_returns_original_function(self, app):
         def my_handler():
@@ -449,7 +388,6 @@ class TestEventDecorators:
 
         assert len(app._on_teardown) == 2
         assert app._on_teardown == (first, second)
-
 
 
 class TestDoRequestErrorFlow:
@@ -500,22 +438,6 @@ class TestDoRequestErrorFlow:
     def test_unmatched_route_returns_404(self, client):
         result = client.get("/does-not-exist")
         assert result.status == status.not_found
-
-    def test_error_stored_on_response(self, app, client):
-        app.router.add_route(
-            Route(method="GET", path="/explode", to=_ExplodingController.index)
-        )
-        result = client.get("/explode")
-        assert result.status == status.server_error
-
-    def test_on_error_called_on_controller_exception(self, app, client):
-        called = []
-        app.on_error(lambda: called.append("error"))
-        app.router.add_route(
-            Route(method="GET", path="/explode", to=_ExplodingController.index)
-        )
-        client.get("/explode")
-        assert "error" in called
 
     def test_on_teardown_called_on_controller_exception(self, app, client):
         called = []

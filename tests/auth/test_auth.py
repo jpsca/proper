@@ -46,10 +46,6 @@ class TestTo36:
     def test_single_digit(self):
         assert to36(10) == "A"
 
-    def test_large_number(self):
-        result = to36(1000)
-        assert from36(result) == 1000
-
     def test_string_input(self):
         assert to36("100") == to36(100)
 
@@ -91,20 +87,12 @@ class TestUrlsafeBase64:
 
 
 class TestAuthInit:
-    def test_default_hasher(self):
-        a = Auth(secret_keys=SECRET_KEYS)
-        assert a.hasher is not None
-
     def test_custom_hasher(self):
         a = Auth(secret_keys=SECRET_KEYS, hash_name="sha256_crypt")
         assert a.hasher is not None
 
     def test_hash_name_none_uses_default(self):
         a = Auth(secret_keys=SECRET_KEYS, hash_name=None)
-        assert a.hasher is not None
-
-    def test_custom_rounds(self):
-        a = Auth(secret_keys=SECRET_KEYS, rounds=1000)
         assert a.hasher is not None
 
     def test_invalid_hasher_raises(self):

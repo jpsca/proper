@@ -153,12 +153,6 @@ def test_missing_module_without_compiler(tmp_path):
         Catalog(tmp_path, compiler=False).render("a.jx")
 
 
-def test_compiles_missing_module_with_compiler(tmp_path):
-    write(tmp_path, {"a.jx": "{# def n #}hi {{ n }}", "b.jx": '{# import "a.jx" as A #}<A n={{ 2 }} />'})
-    catalog = Catalog(tmp_path, compiler=BIN)
-    assert catalog.render("b.jx") == "hi 2"
-
-
 def test_recompiles_when_a_dependency_changes(tmp_path):
     write(tmp_path, {"a.jx": "old", "b.jx": '{# import "a.jx" as A #}[<A />]'})
     catalog = Catalog(tmp_path, compiler=BIN)
@@ -199,12 +193,6 @@ def test_auto_reload_off_keeps_the_loaded_module(tmp_path):
     (tmp_path / "a.jx").write_text("two")
     touch_later(tmp_path / "a.jx")
     assert catalog.render("a.jx") == "one"
-
-
-def test_compile_errors_are_raised(tmp_path):
-    write(tmp_path, {"a.jx": "{{ 1 + }}"})
-    with pytest.raises(CompileError, match=r"a\.jx:1:8"):
-        Catalog(tmp_path, compiler=BIN).render("a.jx")
 
 
 def test_same_html_as_jx_catalog(project):

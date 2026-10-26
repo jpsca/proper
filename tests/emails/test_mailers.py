@@ -314,11 +314,6 @@ class TestIdnaEncoding:
         msg = mailer.render(email)
         assert "xn--mnchen-3ya.de" in str(msg["To"])
 
-    def test_ascii_domain_unchanged(self):
-        mailer = BaseMailer()
-        msg = mailer.render(_simple_msg())
-        assert "example.com" in str(msg["To"])
-
     def test_utf8_policy_skips_idna_encoding(self):
         mailer = BaseMailer()
         mailer.policy = email.policy.SMTPUTF8

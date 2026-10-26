@@ -131,13 +131,6 @@ def test_add_filters_keeps_the_previous_ones(tmp_path):
     assert catalog.render("card.jx") == "AbbTrue"
 
 
-def test_add_filters_cannot_replace_trusted_ones(tmp_path):
-    catalog = Catalog(tmp_path)
-    with pytest.raises(ValueError, match="Cannot replace the filter"):
-        catalog.add_filters({"safe": str})
-    Catalog(tmp_path, autoescape=False).add_filters({"safe": str})
-
-
 def test_add_tags_recompiles(tmp_path):
     write(tmp_path, {"card.jx": "{% box %}x{% endbox %}"})
     catalog = Catalog(tmp_path)

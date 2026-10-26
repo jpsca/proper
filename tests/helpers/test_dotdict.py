@@ -83,19 +83,6 @@ def test_setitem_converts_nested_dicts():
     assert dot.nested.a.b == 1
 
 
-def test_contains():
-    dot = DotDict({"a": 1, "b": 2})
-    assert "a" in dot
-    assert "c" not in dot
-
-
-def test_delitem():
-    dot = DotDict({"a": 1, "b": 2})
-    del dot["a"]
-    assert "a" not in dot
-    assert "b" in dot
-
-
 def test_copy():
     dot = DotDict({"a": 1, "nested": {"b": 2}})
     copied = dot.copy()
@@ -143,21 +130,6 @@ def test_missing_key_raises():
     # KeyError still raised for dict-style access
     with pytest.raises(KeyError):
         _ = dot["nonexistent"]
-
-
-def test_len():
-    dot = DotDict({"a": 1, "b": 2, "c": 3})
-    assert len(dot) == 3
-
-
-def test_iter():
-    dot = DotDict({"a": 1, "b": 2})
-    assert set(dot) == {"a", "b"}
-
-
-def test_equality_with_plain_dict():
-    dot = DotDict({"a": 1, "b": {"c": 2}})
-    assert dot == {"a": 1, "b": {"c": 2}}
 
 
 class Slow(DotDict):

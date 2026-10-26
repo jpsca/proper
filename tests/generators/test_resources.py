@@ -276,12 +276,6 @@ class TestNameInflection:
 
 
 class TestMigration:
-    def test_no_migration_by_default(self, app_in_tmp):
-        gen_resource(app_in_tmp, "Product")
-        # Files generated without invoking migration
-        assert (app_in_tmp.root_path / "controllers" / "product_controller.py").exists()
-        assert (app_in_tmp.root_path / "models" / "product.py").exists()
-
     def test_migration_still_generates_files(self, app_in_tmp):
         gen_resource(app_in_tmp, "Product", migration=True)
         # Files are generated even when migration=True

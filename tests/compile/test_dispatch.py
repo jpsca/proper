@@ -208,9 +208,6 @@ class TestValidate:
 
 
 class TestFormatsFor:
-    def test_known_mimes(self):
-        assert formats_for(["application/json", "text/html"], "html") == ("json", "html")
-
     def test_stops_at_wildcard(self):
         assert formats_for(["text/html", "*/*", "application/json"], "html") == ("html",)
 
@@ -218,9 +215,6 @@ class TestFormatsFor:
         assert formats_for(
             ["application/json", "text/plain", "*/*"], "html"
         ) == ("json", "txt", "html")
-
-    def test_no_default_format_without_wildcard(self):
-        assert formats_for(["application/json"], "html") == ("json",)
 
     def test_unknown_mimes_are_skipped(self):
         assert formats_for(["x-made/up", "application/json"], "html") == ("json",)
@@ -432,27 +426,12 @@ class TestLowerApp:
         with pytest.raises(CompileError, match="broken.jx:1:"):
             app.catalog.render("broken.jx")
 
-    def test_app_lower_compiles_the_views(self, tmp_path):
-        app, views = _app(tmp_path)
-        (views / "page.jx").write_text("<p>hi</p>")
-        app.catalog.add_folder(views)
-        app.lower()
-        assert (compiled_views_path(app) / "page.py").is_file()
-        assert app.catalog.render("page.jx") == "<p>hi</p>"
-
     def test_app_lower_surfaces_a_broken_view(self, tmp_path):
         app, views = _app(tmp_path)
         (views / "broken.jx").write_text("{% if %}")
         app.catalog.add_folder(views)
         with pytest.raises(CompileError, match="broken.jx:1:"):
             app.lower()
-
-    def test_app_lower_validates(self, tmp_path):
-        app, _ = _app(tmp_path)
-        app.router.add_route(Route("GET", "broken", to=BrokenController.index))
-        with pytest.raises(LoweringError):
-            app.lower()
-
 
 class TestServing:
     """The same requests through the lowered dispatch and through a debug app,

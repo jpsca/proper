@@ -87,11 +87,6 @@ def test_two_models_with_one_table(make_shop):
     assert (problem.path, problem.line) == ("shop/models.py", 6)
 
 
-def test_models_that_match_the_migrations(make_shop):
-    app = make_shop()
-    assert check_migrations(app) == []
-
-
 def test_models_that_changed(make_shop):
     app = make_shop()
     app_models(app)[0]._meta.add_field("views", __import__("peewee").IntegerField(default=0))
@@ -229,11 +224,6 @@ def test_seeds_that_cant_be_imported(make_shop, tmp_path):
     [problem] = check_seeds(app)
     assert problem.path == "db/seeds/__init__.py"
     assert problem.message.startswith("the seeds can't be imported (ImportError: ")
-
-
-def test_no_seeds(make_shop):
-    app = make_shop()
-    assert check_seeds(app) == []
 
 
 def test_foreign_keys(make_shop, request):

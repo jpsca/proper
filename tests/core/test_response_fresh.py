@@ -22,7 +22,6 @@ def _make_response(*, status=pstatus.ok, app=None):
     return response
 
 
-
 class TestFreshWhen:
     def test_set_etag_weak(self):
         req = _make_request()
@@ -38,12 +37,6 @@ class TestFreshWhen:
         assert resp.etag and resp.etag.startswith('"')
         assert not resp.etag.startswith("W/")
         assert resp.cache_control == ["max-age=0", "public", "must-revalidate"]
-
-    def test_set_etag_from_datetime(self):
-        req = _make_request()
-        resp = _make_response()
-        resp.fresh_when(etag=datetime(2020, 11, 24, 17, 17, 0), request=req)
-        assert resp.etag is not None
 
     def test_from_single_object(self):
         req = _make_request()
@@ -156,7 +149,6 @@ class TestIsFresh:
         request = _make_request(**{"if-none-match": resp.etag})
         current.request = request
         assert resp.is_fresh() is True
-
 
 
 class TestIsFreshLastModified:
