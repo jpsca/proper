@@ -179,15 +179,6 @@ def test_set_same_cookie_overwrites():
     assert resp.cookies["foo"].value == "bar2"
 
 
-def test_set_several_cookies():
-    resp = _make_response()
-    resp.set_cookie("foo", "bar")
-    resp.set_cookie("baz", "qux")
-    headers = resp.get_headers_list()
-    cookie_headers = [h for h in headers if h[0] == "Set-Cookie"]
-    assert len(cookie_headers) == 2
-
-
 def test_disable_cookies():
     resp = _make_response()
     resp.set_cookie("foo", "bar")

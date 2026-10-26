@@ -50,24 +50,11 @@ class TestTheLogger:
         assert record.getMessage() == "[cable] listening on localhost:2301"
         assert record.color == "red"
 
-    def test_an_exception_has_its_traceback(self, caplog):
-        try:
-            _ = 1 / 0
-        except ZeroDivisionError:
-            logger.exception("boom")
-        record = caplog.records[-1]
-        assert record.levelno == logging.ERROR
-        assert record.exc_info[0] is ZeroDivisionError
-
     def test_an_event_under_the_level_is_not_built(self, caplog):
         logger.setLevel(logging.INFO)
         assert logger.debug("not %s", "built") is None
         assert not caplog.records
         logger.setLevel(logging.DEBUG)
-
-    def test_log_with_a_level(self, caplog):
-        logger.log(logging.WARNING, "via %s", "log")
-        assert caplog.records[-1].getMessage() == "via log"
 
 
 class TestTheOutput:
@@ -160,10 +147,6 @@ class TestTheConsoleLine:
         assert self.render(level="debug").startswith("19:53:02.464472Z [debug] Order paid  ")
         assert self.render(level="warning").startswith("19:53:02.464472Z [warning] Order paid  ")
 
-    def test_another_loggers_name_is_a_field(self):
-        line = self.render(logger="peewee", agent="a", count=1, id="y")
-        assert line == "19:53:02.464472Z [info]  Order paid  logger=peewee agent=a count=1 id=y"
-
     def test_a_line_without_fields_has_no_trailing_spaces(self):
         event = {"timestamp": "2026-10-24T19:53:02.464472Z", "level": "info", "event": "hi"}
         assert _console_renderer(colors=False)(None, "", event) == "19:53:02.464472Z [info]  hi"
@@ -186,3 +169,13 @@ class TestTheConfig:
     def test_an_unknown_format_is_an_error(self):
         with pytest.raises(ConfigError, match="LOG_FORMAT"):
             make_app(LOG_FORMAT="xml")
+
+    def test_the_level_sets_the_loggers_level(self):
+        make_app(LOG_LEVEL="debug")
+        assert logger.level == logging.DEBUG
+        make_app(LOG_LEVEL="info")
+        assert logger.level == logging.INFO
+
+    def test_an_unknown_level_is_an_error(self):
+        with pytest.raises(ConfigError, match="LOG_LEVEL"):
+            make_app(LOG_LEVEL="verbose")

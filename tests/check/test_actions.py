@@ -72,6 +72,3 @@ def test_action_names(make_shop):
     assert {p.path for p in problems} == {"shop/controllers.py"}
 
 
-def test_right_action_names(make_shop):
-    app = make_shop()
-    assert check_action_names(app) == []

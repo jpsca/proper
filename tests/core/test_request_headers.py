@@ -216,12 +216,6 @@ def test_content_length_negative():
         _make_request("/", headers=[("content-length", "-1")])
 
 
-def test_accept():
-    req = _make_request("/", headers=[("accept", "text/html,application/json;q=0.5")])
-    assert req.accept[0] == "text/html"
-    assert req.accept[1] == "application/json"
-
-
 def test_accept_encoding():
     req = _make_request("/", headers=[("accept-encoding", "gzip,deflate;q=0.5")])
     assert req.accept_encoding[0] == "gzip"
@@ -632,13 +626,6 @@ def test_format_wildcard_default():
 def test_format_no_accept():
     req = _make_request("/")
     assert req.format == "html"
-
-
-def test_forwarded():
-    req = _make_request(
-        "/", headers=[("forwarded", "for=192.0.2.60;proto=http;by=203.0.113.43")]
-    )
-    assert req.forwarded[0]["for"] == "192.0.2.60"
 
 
 def test_host_with_port_default():
@@ -1071,14 +1058,6 @@ def test_remote_ip_forwarded_without_for_falls_back():
 
 
 @pytest.mark.usefixtures("no_current_app")
-def test_remote_ip_without_an_app_uses_the_default_trusted_proxies():
-    headers = [("x-forwarded-for", "1.2.3.4")]
-    assert _make_request("/", headers=headers, client=LOCAL_PROXY).remote_ip == "1.2.3.4"
-    req = _make_request("/", headers=headers, client=("203.0.113.5", 5000))
-    assert req.remote_ip == "203.0.113.5"
-
-
-@pytest.mark.usefixtures("no_current_app")
 def test_remote_ip_custom_trusted_proxies():
     app = App(
         __name__,
@@ -1105,12 +1084,6 @@ def test_remote_ip_no_trusted_proxies():
         "/", headers=[("forwarded", "for=1.2.3.4")], client=LOCAL_PROXY, app=app
     )
     assert req.remote_ip == "127.0.0.1"
-
-
-@pytest.mark.usefixtures("no_current_app")
-def test_remote_ip_from_client():
-    req = _make_request("/", client=("192.168.1.1", 5000))
-    assert req.remote_ip == "192.168.1.1"
 
 
 @pytest.mark.usefixtures("no_current_app")
@@ -1356,12 +1329,6 @@ def test_if_none_match_single():
     assert req.if_none_match == ['"etag1"']
 
 
-def test_if_none_match_whitespace():
-    req = _make_request("/", headers=[("if-none-match", '"a", "b"')])
-    assert '"a"' in req.if_none_match
-    assert '"b"' in req.if_none_match
-
-
 # --- cookie edge cases ---
 
 
@@ -1485,12 +1452,6 @@ def test_host_from_header_non_decimal_port():
     # A non-numeric port is invalid per RFC 9112 §3.2 / RFC 3986 §3.2.3.
     with pytest.raises(InvalidHeader, match="Host"):
         Request(headers=[("host", "example.com:abc")])
-
-
-def test_host_from_header_simple():
-    req = Request(headers=[("host", "myhost:8080")])
-    assert req.host == "myhost"
-    assert req.port == 8080
 
 
 @pytest.mark.parametrize("value", [

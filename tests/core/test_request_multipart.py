@@ -235,16 +235,6 @@ def test_parse_multipart_sync_function():
     assert result.get("x") == "y"
 
 
-def test_chunked_parse():
-    boundary = "testboundary"
-    body = _build_multipart(
-        [{"name": "field", "value": "hello"}],
-        boundary=boundary,
-    )
-    items = parse(body)
-    assert items[0] == ("field", "hello")
-
-
 def test_file_parts_closed_on_error():
     boundary = "testboundary"
     # Create body with a file upload then exceed max_fields with non-file

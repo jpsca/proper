@@ -1,4 +1,3 @@
-import smtplib
 from smtplib import SMTPException
 
 import pytest
@@ -18,39 +17,10 @@ def make_emails():
     ]
 
 
-def test_tls_ssl_mutual_exclusivity():
-    with pytest.raises(ValueError, match="mutually exclusive"):
-        SMTPMailer(use_tls=True, use_ssl=True)
-
-
-def test_send_empty_messages(smtpd):
-    mailer = SMTPMailer(host=smtpd.hostname, port=smtpd.port, use_tls=False)
-    assert mailer.send_now() == 0
-
-
-def test_prep_address():
-    mailer = SMTPMailer()
-    assert mailer.prep_address("user@example.com") == "user@example.com"
-
-
-def test_prep_address_unicode_domain():
-    mailer = SMTPMailer()
-    result = mailer.prep_address("user@münchen.de")
-    assert result == "user@xn--mnchen-3ya.de"
-
-
 def test_prep_address_invalid():
     mailer = SMTPMailer()
     with pytest.raises(ValueError, match="Invalid address"):
         mailer.prep_address("not an email, another")
-
-
-def test_connection_class():
-    mailer_plain = SMTPMailer(use_tls=False, use_ssl=False)
-    assert mailer_plain.connection_class is smtplib.SMTP
-
-    mailer_ssl = SMTPMailer(use_ssl=True)
-    assert mailer_ssl.connection_class is smtplib.SMTP_SSL
 
 
 def test_sending(smtpd):

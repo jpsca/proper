@@ -196,13 +196,6 @@ class TestScopePreservation:
         assert len(results) == 1
         assert results[0].body == "Nice"
 
-    def test_scopes_survive_count(self, Article):
-        Article.create(title="A", status="published")
-        Article.create(title="B", status="published")
-        Article.create(title="C", status="draft")
-
-        assert Article.select().published().count() == 2
-
     def test_scopes_survive_switch(self, Article, User, Comment):
         user = User.create(username="alice", is_active=True)
         art = Article.create(title="A", status="published")

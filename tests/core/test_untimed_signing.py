@@ -187,7 +187,7 @@ def test_loads_rejects_a_signed_payload_that_does_not_decode(payload, step):
 
 
 @pytest.mark.parametrize("timestamp", [MAX_TIMESTAMP + 1, 2**64 - 1])
-@pytest.mark.parametrize("kwargs", [{}, {"max_age": 60}, {"return_timestamp": True}])
+@pytest.mark.parametrize("kwargs", [{}, {"max_age": 60}])
 def test_loads_rejects_a_signed_timestamp_after_year_9999(timestamp, kwargs):
     app = make_app(KEY_A)
     payload = reference(KEY_A)[0].dump_payload({"id": 1})

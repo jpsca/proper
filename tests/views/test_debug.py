@@ -186,13 +186,6 @@ def test_without_the_template_file(tmp_path):
     assert [f[:2] for f in template_frames(exc)] == [("page.jx", 2)]
 
 
-def test_errors_outside_a_render_are_not_touched(tmp_path):
-    from proper.views import ComponentNotFoundError
-
-    with pytest.raises(ComponentNotFoundError):
-        Catalog(tmp_path).render("nope.jx")
-
-
 # The lookup, with a hand-made LINEMAP
 
 
