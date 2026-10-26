@@ -38,7 +38,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install system dependencies
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libvips-dev fpc-3.2.2
@@ -73,7 +72,9 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install Free Pascal
-        run: sudo apt-get install -y fpc-3.2.2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc-3.2.2
 
       - name: "Builds the package"
         run: ${{ matrix.build }}
