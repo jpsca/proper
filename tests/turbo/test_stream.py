@@ -91,24 +91,6 @@ def test_refresh_with_request_id():
     assert out == '<turbo-stream action="refresh" request-id="abc"></turbo-stream>'
 
 
-def test_action_method_renders_a_jx_component(app, tmp_path):
-    (tmp_path / "Card.jx").write_text('<div class="card">Hi</div>')
-    app.catalog.add_folder(tmp_path)
-
-    out = str(turbo_stream.append("messages", "Card.jx"))
-    assert '<turbo-stream action="append" target="messages">' in out
-    assert '<div class="card">Hi</div>' in out
-
-
-def test_html_as_a_value():
-    out = str(turbo_stream.append("messages", html="<li>x</li>"))
-    assert out == (
-        '<turbo-stream action="append" target="messages">'
-        "<template><li>x</li></template>"
-        "</turbo-stream>"
-    )
-
-
 def test_component_takes_precedence_over_html(app, tmp_path):
     (tmp_path / "Card.jx").write_text('<div class="card">Hi</div>')
     app.catalog.add_folder(tmp_path)

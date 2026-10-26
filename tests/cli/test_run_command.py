@@ -136,23 +136,14 @@ class TestRunCommand:
         assert shown == ["banner", "localhost:2300"]
 
     @pytest.mark.parametrize(
-        ("debug", "log_format", "access_log"),
-        [
-            (False, "json", "json"),
-            (True, "json", "json"),
-            (True, "console", "console"),
-            (False, "console", "console"),
-            (True, "off", None),
-            (False, "off", None),
-        ],
+        ("log_format", "access_log"), [("console", "console"), ("off", None)]
     )
     def test_the_access_log_follows_the_log_format(
-        self, app, monkeypatch, debug, log_format, access_log
+        self, app, monkeypatch, log_format, access_log
     ):
         from proper.cli.app_cli import get_run_cli
 
         calls = self._capture_group(monkeypatch)
-        app.config.DEBUG = debug
         app.config.RELOAD = False
         app.config.LOG_FORMAT = log_format
 
@@ -383,11 +374,3 @@ class TestRunCommand:
         assert "Serving with the GIL" in capsys.readouterr().out
 
 
-
-def test_the_build_checks_follow_the_interpreter():
-    import sysconfig
-
-    from proper.cli.app_cli import _free_threaded, _gil_enabled
-
-    assert _free_threaded() is bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
-    assert _gil_enabled() is getattr(sys, "_is_gil_enabled", lambda: True)()

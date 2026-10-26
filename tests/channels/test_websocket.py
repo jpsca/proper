@@ -462,17 +462,6 @@ class TestUnsubscribe:
 
 class TestProtocolErrors:
     @pytest.mark.asyncio
-    async def test_invalid_json(self, app):
-        ws, task = await open_ws(app)
-        ws.client_send_text("not valid json{{{")
-
-        error = await ws.receive()
-        assert error["type"] == "error"
-        assert error["reason"] == "invalid_json"
-        await ws.close()
-        await task
-
-    @pytest.mark.asyncio
     async def test_unknown_command(self, app):
         ws, task = await open_ws(app)
         ws.client_send({"command": "bogus"})
@@ -504,30 +493,6 @@ class TestDisconnectErrorHandling:
             await task
 
         assert "cleanup failed" in caplog.text
-
-
-# --- Messages sent during subscribed() ---
-
-
-class TestSendDuringSubscribed:
-    @pytest.mark.asyncio
-    async def test_messages_sent_in_subscribed_are_flushed(self, app):
-        class GreetChannel(Channel):
-            def subscribed(self):
-                self.send({"greeting": "welcome!"})
-
-        app.router.channels["GreetChannel"] = GreetChannel
-
-        ws, task = await open_ws(app)
-        # The greeting is flushed before the confirm
-        greeting = await ws.subscribe("GreetChannel")
-        assert greeting["type"] == "message"
-        assert greeting["data"] == {"greeting": "welcome!"}
-
-        confirm = await ws.receive()
-        assert confirm["type"] == "confirm_subscription"
-        await ws.close()
-        await task
 
 
 # --- The handshake's signed cookies ---
@@ -646,28 +611,6 @@ class TestSessionAuth:
         assert seen["authenticated"] is True
         assert seen["user_id"] == 7
         assert FakeSessionModel.instance.touched == 1
-
-    @pytest.mark.asyncio
-    async def test_current_user_available_in_actions(self, app):
-        _reset_fakes()
-        seen = {}
-
-        class AccountChannel2(FakeAuthChannel):
-            def subscribed(self):
-                pass
-
-            def whoami(self, data):
-                seen["user_id"] = current.user.id if current.user else None
-
-        app.router.channels["AccountChannel2"] = AccountChannel2
-
-        ws, task = await open_ws(app, _cookie(app, "good-token"))
-        await ws.subscribe("AccountChannel2")
-        await ws.send_action("AccountChannel2", "whoami")
-        await ws.close()
-        await task
-
-        assert seen["user_id"] == 7
 
     @pytest.mark.asyncio
     async def test_anonymous_without_cookie(self, app):

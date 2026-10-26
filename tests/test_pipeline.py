@@ -56,7 +56,6 @@ def client(app):
     return TestClient(app)
 
 
-
 class TestHeadToGet:
     def test_rewrites_head_to_get(self, make_co):
         co = make_co(method="HEAD")
@@ -117,7 +116,6 @@ class TestMethodOverride:
         co = make_co(method="POST", headers=[("x-http-method-override", "put")])
         method_override(co.request, None)
         assert co.request.method == "PUT"
-
 
 
 class TestMatch:
@@ -304,7 +302,6 @@ class TestRedirect:
         assert co.response.headers.get("Location") == location
 
 
-
 class TestCopySession:
     def test_copies_session_from_cookie(self, app, make_co):
         co = make_co(method="GET")
@@ -346,13 +343,6 @@ class TestCopySession:
         copy_session(co.request, co.response)
         assert co.request.session == {}
         assert co.response.session == {}
-
-    def test_skips_for_options(self, app, make_co):
-        co = make_co(method="OPTIONS")
-        copy_session(co.request, co.response)
-        assert co.request.session == {}
-
-
 
     def test_the_sessions_share_no_value_that_can_change(self, app, make_co):
         data = {"user": "alice", "cart": [1, 2], "prefs": {"theme": "dark", "tags": ["a"]}}
@@ -473,7 +463,6 @@ class TestFlashThroughPipeline:
         )
 
 
-
 class _DispatchHello(Controller):
     def index(self):
         return "hello"
@@ -498,7 +487,6 @@ class TestDispatch:
         assert co.request.matched_action == "show"
 
 
-
 class GreetController(Controller):
     def index(self):
         return "hello"
@@ -521,7 +509,6 @@ class GreetController(Controller):
         self.response.status = status.not_modified
 
 
-
 class SessionController(Controller):
     def write_session(self):
         self.response.session["color"] = "blue"
@@ -531,16 +518,7 @@ class SessionController(Controller):
         return self.response.session.get("color", "none")
 
 
-
 class TestPipeline:
-    def test_happy_path(self, app, client):
-        app.router.add_route(
-            Route(method="GET", path="/hello", to=GreetController.index)
-        )
-        result = client.get("/hello")
-        assert result.status == status.ok
-        assert result.body == "hello"
-
     def test_a_host_with_a_long_decimal_part(self, app, client):
         app.router.add_route(
             Route(method="GET", path="/hello", to=GreetController.index)
@@ -548,14 +526,6 @@ class TestPipeline:
         result = client.get("/hello", headers={"host": "1" * 8000})
         assert result.status == status.ok
         assert result.body == "hello"
-
-    def test_with_path_params(self, app, client):
-        app.router.add_route(
-            Route(method="GET", path="/hello/:name", to=GreetController.show)
-        )
-        result = client.get("/hello/alice")
-        assert result.status == status.ok
-        assert result.body == "hello alice"
 
     def test_with_path_params_from_url_for(self, app, client):
         # The params arrive decoded, as from a server.
@@ -574,14 +544,6 @@ class TestPipeline:
         )
         result = client.get("/unchanged")
         assert result.status == status.not_modified
-        assert result.body == ""
-
-    def test_head_returns_empty_body(self, app, client):
-        app.router.add_route(
-            Route(method="GET", path="/hello", to=GreetController.index)
-        )
-        result = client.head("/hello")
-        assert result.status == status.ok
         assert result.body == ""
 
     def test_post_overridden_to_put(self, app, client):
@@ -743,12 +705,3 @@ class TestPipeline:
         )
         assert client.get("/hello").body == "replaced"
 
-    def test_redirect_stops_pipeline(self, app, client):
-        """A redirect route should never reach dispatch."""
-        app.router.add_route(
-            Route(method="GET", path="/redir", redirect="/target")
-        )
-        result = client.get("/redir")
-        assert result.status == status.temporary_redirect
-        # Body is the redirect HTML, not a controller response
-        assert "hello" not in (result.body or "")

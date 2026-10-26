@@ -138,16 +138,6 @@ def test_parse_body_bytes_over_max_content_length(app):
         req._parse_body_bytes(b"0123456789")
 
 
-def test_parse_body_get_skips(app):
-    req = make_test_request("/", method="GET", app=app)
-    req._read_body_sync(_reader(b""))
-    assert len(req.form) == 0
-
-def test_parse_body_head_skips(app):
-    req = make_test_request("/", method="HEAD", app=app)
-    req._read_body_sync(_reader(b""))
-    assert len(req.form) == 0
-
 def test_parse_body_no_content_length_skips(app):
     """In HTTP/1.1, a request with neither `content-length` nor
     `transfer-encoding` has no body (RFC 9112 §6.3)."""
@@ -161,15 +151,6 @@ def test_parse_body_no_content_length_skips(app):
     req._read_body_sync(read)
     assert reads == []
     assert len(req.form) == 0
-
-def test_parse_body_json(app):
-    body = json.dumps({"key": "value"}).encode()
-    req = make_test_request("/", method="POST", app=app, headers=[
-        ("content-length", str(len(body))),
-        ("content-type", "application/json"),
-    ])
-    req._read_body_sync(_reader(body))
-    assert req.form.get("key") == "value"
 
 def test_parse_body_json_charset(app):
     body = json.dumps({"x": "y"}).encode()

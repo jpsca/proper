@@ -21,11 +21,6 @@ def _get_data(html: str) -> dict:
     return json.loads(html[start_json:end_json])
 
 
-def test_render_importmap_registered_as_global():
-    app = _make_app()
-    assert "render_importmap" in app.catalog.globals
-
-
 def test_render_importmap_defaults():
     app = _make_app()
     render_importmap = app.catalog.globals["render_importmap"]

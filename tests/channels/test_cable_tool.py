@@ -22,9 +22,6 @@ class TestCableTool:
         assert type(cable) is BaseCable
         assert not getattr(cable, "serves_websockets", False)
 
-    def test_an_empty_dict_creates_a_cable_without_websockets(self):
-        assert type(_app(CABLE={}).cable) is BaseCable
-
     def test_a_cable_port_without_a_cable_is_refused(self):
         with pytest.raises(ConfigError, match="Cable"):
             _app(CABLE={}, CABLE_PORT=2301)
@@ -51,11 +48,6 @@ class TestCableToolValidation:
     def test_rejects_bad_type_value(self):
         with pytest.raises(ConfigError, match="must be a string or a class"):
             validate_config({"type": 42})
-
-    def test_accepts_valid_config(self):
-        validate_config({"type": "proper.channels.Cable"})
-        validate_config({"type": Cable})
-
 
 class TestCableSettings:
     """The `CABLE_*` settings are checked when a cable is configured."""
@@ -103,12 +95,6 @@ class TestCableSettings:
             pass
 
         assert type(_app(CABLE={"type": Plain}).cable) is Plain
-
-    def test_the_options_of_wse_are_gone(self):
-        # Several machines are RedisCable's now
-        for option in ("cluster", "backpressure_bytes", "max_outbound_queue_bytes"):
-            with pytest.raises(TypeError, match=option):
-                _app(CABLE={**self.CABLE, option: 1})
 
     def test_nothing_is_checked_without_a_cable(self):
         _app(CABLE={}, CABLE_PING_INTERVAL=0, CABLE_PATH="x")

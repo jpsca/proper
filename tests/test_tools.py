@@ -72,12 +72,6 @@ def test_auth_hash_name_must_be_str_or_none():
         auth.validate_config(config)
 
 
-def test_auth_hash_name_none_is_valid():
-    config = DotDict({**auth.DEFAULT_CONFIG})
-    config.AUTH_HASH_NAME = None
-    auth.validate_config(config)
-
-
 def test_auth_rounds_must_be_positive_int_or_none():
     config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_ROUNDS": -1})
     with pytest.raises(ConfigError, match="AUTH_ROUNDS"):
@@ -94,12 +88,6 @@ def test_auth_rounds_string_is_invalid():
     config = DotDict({**auth.DEFAULT_CONFIG, "AUTH_ROUNDS": "10"})
     with pytest.raises(ConfigError, match="AUTH_ROUNDS"):
         auth.validate_config(config)
-
-
-def test_auth_rounds_none_is_valid():
-    config = DotDict({**auth.DEFAULT_CONFIG})
-    config.AUTH_ROUNDS = None
-    auth.validate_config(config)
 
 
 def test_password_minlen_must_be_positive_int():

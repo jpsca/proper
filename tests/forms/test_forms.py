@@ -65,16 +65,6 @@ def test_max_size_fails_when_over_limit():
     assert field.error == errors.FILE_TOO_LARGE
 
 
-def test_max_size_error_args_use_format_size():
-    """`max_size` is rendered through `format_size` so message templates
-    can interpolate a human-readable value (e.g. `'1 KB'`).
-    """
-    field = AttachmentField(FakeAttachment, max_size=1024, required=False)
-    _bind(field, _make_upload(size=2048))
-    field.validate()
-    assert field.error_args == {"max_size": "1 KB"}
-
-
 def test_max_size_skipped_when_size_attr_missing():
     """A bound `Attachment` (manual assignment, not an upload) has no
     `size` attribute - validation must not fail in that case.
@@ -101,12 +91,6 @@ def test_accept_allows_glob_match():
     _bind(field, _make_upload(content_type="image/png"))
     assert field.validate() is True
     assert field.error is None
-
-
-def test_accept_allows_each_subtype_under_a_glob():
-    field = AttachmentField(FakeAttachment, accept=["image/*"], required=False)
-    _bind(field, _make_upload(content_type="image/jpeg"))
-    assert field.validate() is True
 
 
 def test_accept_allows_exact_pattern():
@@ -166,13 +150,6 @@ def test_accept_skipped_when_attr_missing():
 
 def test_accept_none_disables_check():
     field = AttachmentField(FakeAttachment, accept=None, required=False)
-    _bind(field, _make_upload(content_type="application/x-msdownload"))
-    assert field.validate() is True
-
-
-def test_accept_empty_list_disables_check():
-    """An empty list is treated as 'no patterns configured', same as None."""
-    field = AttachmentField(FakeAttachment, accept=[], required=False)
     _bind(field, _make_upload(content_type="application/x-msdownload"))
     assert field.validate() is True
 

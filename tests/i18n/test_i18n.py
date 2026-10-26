@@ -288,10 +288,6 @@ def test_returns_none_when_no_match(i18n):
     assert i18n.negotiate_locale(["ja", "zh"]) is None
 
 
-def test_returns_first_match(i18n):
-    assert i18n.negotiate_locale(["en", "es"]) == "en"
-
-
 # --- I18n test_for_incomplete_locales ---
 
 

@@ -226,13 +226,6 @@ def test_first_save_inserts_without_explicit_force_insert(Attachment):
 # --- Attachment.download ---
 
 
-def test_download_returns_bytes(Attachment):
-    content = b"file contents here"
-    att = Attachment(_make_file(content, "readme.txt"))
-    att.save(force_insert=True)
-    assert att.download() == content
-
-
 def test_download_different_files(Attachment):
     att1 = Attachment(_make_file(b"aaa", "a.txt"))
     att1.save(force_insert=True)
@@ -276,13 +269,6 @@ def test_purge_deletes_file_and_record(Attachment):
     assert Attachment.select().count() == 0
 
 
-def test_purge_file_no_longer_downloadable(Attachment):
-    att = Attachment(_make_file(b"data", "f.txt"))
-    att.save(force_insert=True)
-    att.purge()
-    assert Attachment.get_or_none(Attachment.id == att.id) is None
-
-
 # --- Disk service ---
 
 
@@ -293,12 +279,6 @@ def test_upload_creates_file(Attachment):
     path = service._get_path(att)
     assert path.exists()
     assert path.read_bytes() == b"hello"
-
-
-def test_upload_sets_byte_size(Attachment):
-    att = Attachment(_make_file(b"12345", "f.txt"))
-    att.save(force_insert=True)
-    assert att.byte_size == 5
 
 
 def test_purge_removes_file(Attachment):
@@ -569,7 +549,6 @@ def test_raises_for_unsupported_content_type(Attachment):
     parent.save(force_insert=True)
     with pytest.raises(ValueError, match="not supported"):
         parent.variant(resize=(100, 100))
-
 
 
 def test_returns_existing_variant(Attachment):

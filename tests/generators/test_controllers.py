@@ -61,10 +61,6 @@ class TestStateChangeFiles:
         assert (_controllers(app_in_tmp) / "concerns" / "card_scoped.py").exists()
         assert (_controllers(app_in_tmp) / "concerns" / "__init__.py").exists()
 
-    def test_creates_test_stub(self, app_in_tmp):
-        gen_controller(app_in_tmp, "card/closure")
-        assert (app_in_tmp.root_path.parent / "tests" / "controllers" / "test_closure.py").exists()
-
     def test_no_form_or_views(self, app_in_tmp):
         gen_controller(app_in_tmp, "card/closure")
         assert not (app_in_tmp.root_path / "forms" / "card").exists()

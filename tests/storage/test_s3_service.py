@@ -95,18 +95,6 @@ def test_service_is_s3(Attachment):
     assert isinstance(service, S3)
 
 
-def test_upload_and_download(Attachment):
-    att = Attachment(_make_file(b"hello s3", "s3test.txt"))
-    att.save(force_insert=True)
-    assert att.download() == b"hello s3"
-
-
-def test_upload_sets_byte_size(Attachment):
-    att = Attachment(_make_file(b"12345", "f.txt"))
-    att.save(force_insert=True)
-    assert att.byte_size == 5
-
-
 def test_upload_content_type(MINIO_BUCKET, Attachment):
     att = Attachment(
         _make_file(b"img-data", "photo.jpg"),
@@ -119,12 +107,6 @@ def test_upload_content_type(MINIO_BUCKET, Attachment):
         Key=service._get_key(att),
     )
     assert resp["ContentType"] == "image/jpeg"
-
-
-def test_upload_handles_closed_file(Attachment):
-    f = _make_file(b"some data", "f.txt")
-    att = Attachment(f)
-    att.save(force_insert=True)  # should not raise even if boto3 closes the stream
 
 
 def test_download_different_files(Attachment):

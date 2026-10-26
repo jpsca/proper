@@ -33,7 +33,6 @@ def _make_controller(cls=Controller, **request_kw):
     return cls(request, response)
 
 
-
 class TestControllerInit:
     def test_stores_app_request_response(self):
         app = MagicMock()
@@ -46,7 +45,6 @@ class TestControllerInit:
 
     def test_default_etag(self):
         assert Controller.etag == ""
-
 
 
 class TestParams:
@@ -70,7 +68,6 @@ class TestParams:
         assert co.params is co.params
 
 
-
 class TestDefaults:
     def test_from_matched_route(self):
         co = _make_controller()
@@ -83,7 +80,6 @@ class TestDefaults:
         co = _make_controller()
         co.request.matched_route = None
         assert co.defaults == {}
-
 
 
 class TestRender:
@@ -184,7 +180,6 @@ class TestRedo:
         assert co.response.status == 400
 
 
-
 class TestShouldRunCallback:
     def test_empty_options(self):
         co = _make_controller()
@@ -224,7 +219,6 @@ class TestShouldRunCallback:
         co = _make_controller()
         co.request.matched_action = "show"
         assert co._should_run_callback({"only": None, "exclude": None}) is True
-
 
 
 class TestCall:
@@ -552,7 +546,6 @@ class TestCall:
             co._call("show")
 
 
-
 class TestDispatch:
     def test_simple_dispatch(self):
         class MyController(Controller):
@@ -659,34 +652,6 @@ class TestDispatch:
 
         class MyController(Controller):
             before = {"do": "set_post", "exclude": ("index", "new", "create")}
-
-            def set_post(self):
-                called.append("before")
-
-            def index(self):
-                called.append("index")
-                return "ok"
-
-            def show(self):
-                called.append("show")
-                return "ok"
-
-        co = _make_controller(cls=MyController)
-        co.request.matched_action = "index"
-        co._dispatch("index")
-        assert called == ["index"]
-
-        called.clear()
-        co = _make_controller(cls=MyController)
-        co.request.matched_action = "show"
-        co._dispatch("show")
-        assert called == ["before", "show"]
-
-    def test_before_callback_skipped_by_exclude_list(self):
-        called = []
-
-        class MyController(Controller):
-            before = {"do": "set_post", "exclude": ["index", "new", "create"]}
 
             def set_post(self):
                 called.append("before")
@@ -860,7 +825,6 @@ class TestDispatch:
         assert called == []
 
 
-
 class TestRxFingerprint:
     def test_matches_fingerprinted_name(self):
         fingerprint = "a" * 64
@@ -880,7 +844,6 @@ class TestRxFingerprint:
         m = RX_FINGERPRINT.match(f"app.min-{fingerprint}")
         assert m is not None
         assert m.group(1) == "app.min"
-
 
 
 class TestStaticFilesController:

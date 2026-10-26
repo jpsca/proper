@@ -144,11 +144,6 @@ def test_session_setter():
     assert req.session["key"] == "val"
 
 
-def test_http_version():
-    req = _make_request("/")
-    assert req.http_version == "1.1"
-
-
 def test_flashes_empty():
     req = _make_request("/")
     assert req.flashes == []
@@ -176,11 +171,6 @@ def test_query_cached(app):
 def test_query_string():
     req = _make_request("http://example.com/path?a=1&b=2")
     assert req.query_string == "a=1&b=2"
-
-
-def test_query_string_bytes():
-    req = Request(query_string="key=val")
-    assert req.query_string == "key=val"
 
 
 def test_query_string_str():

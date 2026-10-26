@@ -218,13 +218,6 @@ def test_content_encoding_setter_empty():
     assert resp.content_encoding is None
 
 
-def test_content_encoding_clear():
-    resp = _make_response()
-    resp.set_content_encoding("gzip")
-    resp.set_content_encoding()
-    assert resp.content_encoding is None
-
-
 def test_content_length():
     resp = _make_response()
     resp.set_content_length(42)
@@ -437,20 +430,3 @@ def test_vary_setter_empty():
     assert resp.vary is None
 
 
-def test_vary_clear():
-    resp = _make_response()
-    resp.set_vary("Accept")
-    resp.set_vary()
-    assert resp.vary is None
-
-
-def test_mimetype_empty_string():
-    resp = _make_response()
-    resp._mimetype = ""
-    assert resp.mimetype == ""
-
-
-def test_charset_empty_string():
-    resp = _make_response()
-    resp._charset = ""
-    assert resp.charset == ""

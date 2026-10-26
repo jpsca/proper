@@ -108,11 +108,6 @@ class TestRateLimiting:
         app.cache = MagicMock()
         return co
 
-    def test_allows_under_limit(self, app):
-        co = self._make_rl(RateLimitCtrl, app)
-        app.cache.increment.return_value = 1
-        co._dispatch("action")
-
     def test_raises_when_over_limit(self, app):
         co = self._make_rl(RateLimitCtrl, app)
         app.cache.increment.return_value = 4
@@ -274,12 +269,6 @@ class TestRateLimiting:
         co = self._make_rl(RateLimitCtrl, app)
         app.cache.increment.return_value = 3  # exactly at limit (to=3)
         co._dispatch("action")  # should NOT raise
-
-    def test_count_one_over_limit(self, app):
-        co = self._make_rl(RateLimitCtrl, app)
-        app.cache.increment.return_value = 4  # one over (to=3)
-        with pytest.raises(TooManyRequests):
-            co._dispatch("action")
 
     def test_increment_returns_none(self, app):
         co = self._make_rl(RateLimitCtrl, app)

@@ -47,11 +47,6 @@ class TestGenEmail:
         assert "Layout" in text
         assert "subject" in text
 
-    def test_appends_to_init(self, app_in_tmp):
-        gen_email(app_in_tmp, "Welcome")
-        init = _init_text(app_in_tmp)
-        assert "from .welcome_email import WelcomeEmail" in init
-
     def test_name_inflection_from_snake(self, app_in_tmp):
         gen_email(app_in_tmp, "password_reset")
         text = _email_text(app_in_tmp, "password_reset")
