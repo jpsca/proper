@@ -39,7 +39,10 @@ class FlashMessages:
     def __len__(self) -> int:
         return len(self.flashes)
 
-    def message(self, category: str, message: str) -> None:
+    def __call__(self, category: str="positive", message: str = "") -> None:
+        self.message(category, message)
+
+    def message(self, category: str = "positive", message: str = "") -> None:
         self.response.session.setdefault(FLASHES_SESSION_KEY, []).append(
             (category, message)
         )
