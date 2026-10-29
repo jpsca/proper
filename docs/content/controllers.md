@@ -793,7 +793,7 @@ self.response.redirect_to(
 You can also set a flash message without redirecting, useful when an action renders a page itself but still wants to acknowledge something:
 
 ```python
-self.response.flash.message("positive", "Settings saved")
+self.response.flash("positive", "Settings saved")
 ```
 
 In your templates, flash messages are available as a list of `(category, message)` tuples; the layout that ships with the generator already renders them.
