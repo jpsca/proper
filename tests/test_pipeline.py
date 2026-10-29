@@ -451,7 +451,7 @@ class TestFlashThroughPipeline:
         co = make_co(method="POST")
 
         copy_session(co.request, co.response)
-        co.response.flash.message("info", "Saved!")
+        co.response.flash("info", "Saved!")
         update_session_cookie(co.request, co.response)
 
         assert co.response.session.get(FLASHES_SESSION_KEY) == [("info", "Saved!")]
