@@ -10,11 +10,7 @@ from .app_controller import AppController
 class SessionController(AppController):
     skip_authentication = True
 
-    before = [
-        {"do": "redirect_if_authenticated", "exclude": ["delete"]},
-        {"do": "set_form", "exclude": ["delete"]},
-        {"do": "validate_form", "only": ["create"]},
-    ]
+    before = [{"do": "redirect_if_authenticated", "exclude": ["delete"]}]
     rate_limit = [
         {
             "to": 8,
@@ -31,9 +27,12 @@ class SessionController(AppController):
         return User.normalize_login(self.params.get("login") or "")
 
     def new(self):
-        pass
+        self.form = SignInForm(self.params)
 
     def create(self):
+        self.form = SignInForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
         self.reset_rate_limit(self.login_param)
         data = self.form.save()
         user = User.get_by_login(data["login"])
@@ -45,9 +44,6 @@ class SessionController(AppController):
         self.response.redirect_to("/")
 
     # Private
-
-    def set_form(self):
-        self.form = SignInForm(self.params)
 
     def too_many_retries(self):
         self.response.redirect_to(

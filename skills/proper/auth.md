@@ -228,7 +228,6 @@ from proper import Controller
 from proper.concerns import Authentication, OriginProtection, RateLimiting
 
 from ..models import Session
-from .concerns.form_validation import FormValidation
 from .concerns.security_headers import SecurityHeaders
 
 
@@ -237,7 +236,6 @@ class AppController(
     Authentication.for_session(Session),
     OriginProtection,
     RateLimiting,
-    FormValidation,
     SecurityHeaders,
 ):
     pass

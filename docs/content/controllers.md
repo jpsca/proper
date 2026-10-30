@@ -27,116 +27,6 @@ After the [router](/docs/routing) has matched a controller to an incoming reques
 Controllers live in `myapp/controllers/`, one class per file. Each class inherits from `AppController`:
 
 ```python {title="myapp/controllers/card_controller.py"}
-from ..router import router
-from ..models import Card
-from .app_controller import AppController
-
-
-@router.resource("cards")
-class CardController(AppController):
-    def index(self):
-        self.cards = Card.select()
-```
-
-That's a complete controller. Visit `/cards` in the browser and Proper will run `index`, set `self.cards`, render `card/index.jx`, and send the result back.
-
-### Controller Naming Convention
-
-Proper expects three things from a controller's name:
-
-- **Singular** - `CardController`, not `CardsController`. Even when the URL is `/cards`.
-- **Suffixed with `Controller`** - the framework relies on the suffix to derive route names and template paths.
-- **Filename matches in snake_case** - `CardController` lives in `card_controller.py`.
-
-:::tip
-If you stick to the generator (next section), you don't have to think about any of this; the right names fall out automatically.
-:::
-
-### AppController
-
-Every controller you write inherits from `AppController`, *not* directly from `Controller`. `AppController` lives in your application and is where you put behavior that should apply to every page:
-
-```python
-# myapp/controllers/app_controller.py
-from proper import Controller
-from proper.concerns import OriginProtection, Pagination, RateLimiting
-
-from .concerns.form_validation import FormValidation
-from .concerns.security_headers import SecurityHeaders
-
-
-class AppController(
-    OriginProtection,
-    Pagination,
-    RateLimiting,
-    FormValidation,
-    SecurityHeaders,
-    Controller,
-):
-    pass
-```
-
-The mixins it inherits from are *concerns* - small classes that bundle behavior. We'll come back to them in [Concerns](#concerns); for now, just know that the five shipped here give you CSRF protection, pagination, rate limiting, form validation, and sensible security headers without you having to wire them up.
-
----
-
-## Generating a Controller
-
-You almost never write a controller from a blank file. Use the generator - it creates the controller, the form, the views, and (for resources) the model and its migration, all wired up correctly.
-
-### With a Model: `proper g resource`
-
-If the controller is going to manage a database-backed thing - a card, a post, a user - generate a *resource*:
-
-```bash
-proper g resource Card title:str body:text
-```
-
-This produces:
-
-- `myapp/models/card.py` - the model.
-- `migrations/NNN_create_cards.py` - the migration that creates the table.
-- `myapp/forms/card.py` - the form, with one field per model field.
-- `myapp/controllers/card_controller.py` - the controller, with all seven CRUD actions.
-- `myapp/views/card/` - `index.jx`, `show.jx`, `new.jx`, `edit.jx`, and `form.jx`.
-
-Run `proper g resource --help` to see all the options.
-
-### Without a Model: `proper g controller`
-
-If the controller doesn't have a model behind it - a `DashboardController`, a `HealthcheckController` - generate just a controller:
-
-```bash
-proper g controller Dashboard
-```
-
-This produces the controller, an empty form (you can delete it if you don't need one), and the view files.
-
-The generated code has no model in it: the actions are stubs with `TODO` comments where a model would be used, and the views only link to the actions you generated (`--only` and `--exclude` work here too). If a model with the same name already exists, the controller uses it, exactly like the one `proper g resource` makes.
-
-### If You Only Need a Model
-
-If you have a model but no new controller - say, a `Tag` model that's only ever managed through the admin UI - use the model generator instead:
-
-```bash
-proper g model Tag name:str
-```
-
-:::note | Namespaced controllers
-You can scope a controller under a subfolder with `--namespace=admin`. The generator creates `controllers/admin/post_controller.py`, adds `admin_router = router.scope("admin")` to `router.py` if it isn't there, mounts its routes under `/admin/...`, and gives them prefixed names like `Admin:Post.show`. The [Routing guide](/docs/routing) covers the details.
-:::
-
-:::tip | Why the generator matters
-The generator wires up `__init__.py` imports, picks the right route names, creates the migration, and lays files out so Proper's conventions hold. Hand-rolling a controller is possible, but you'll spend more time fixing imports than writing code.
-:::
-
----
-
-## The Shape of a Generated Controller
-
-Let's look at what `proper g resource Card title:str body:text` produces, simplified slightly:
-
-```python {title="myapp/controllers/card_controller.py"}
 from proper.errors import NotFound
 
 from ..forms.card import CardForm
@@ -147,51 +37,56 @@ from .app_controller import AppController
 
 @router.resource("cards")
 class CardController(AppController):
-    before = [
-        {"do": "set_card", "exclude": ["index", "new", "create"]},
-        {"do": "set_form", "exclude": ["index", "show", "delete"]},
-        {"do": "validate_form", "only": ["create", "update"]},
-    ]
 
     def index(self):
         self.cards = Card.select()
 
     def show(self):
-        pass
+        self.load_card()
+        if not self.card:
+            raise NotFound
 
     def new(self):
-        pass
-
-    def edit(self):
-        pass
+        self.form = CardForm(self.params)
 
     def create(self):
-        card = self.form.save()
-        self.response.redirect_to("Card.show", card,
-            flash="Card was created")
+        self.form = CardForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Card.index", flash="Card was created")
+
+    def edit(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
+
+        self.form = CardForm(self.params, self.card)
 
     def update(self):
-        card = self.form.save()
-        self.response.redirect_to("Card.show", card,
-            flash="Card was updated")
+        self.load_card()
+        if not self.card:
+            raise NotFound
+
+        self.form = CardForm(self.params, self.card)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Card.index", flash="Card was updated")
 
     def delete(self):
+        self.load_card()
         if self.card:
             self.card.delete_instance()
-        self.response.redirect_to("Card.index",
-            flash="Card was deleted")
+        self.response.redirect_to("Card.index", flash="Card was deleted")
 
     # Private
 
-    def set_card(self):
+    def load_card(self):
         card_id = self.params.get("card_id", "")
-        self.card = Card.find(int(card_id))
-        if self.request.matched_action != "delete" and not self.card:
-            raise NotFound
-
-    def set_form(self):
-        obj = getattr(self, "card", None)
-        self.form = CardForm(self.params, object=obj)
+        self.card = Card.find(int(card_id)) if card_id.isdigit() else None
 ```
 
 There's a lot in there, but the pattern repeats across every resource you'll ever generate.
@@ -222,70 +117,52 @@ or all of the action _except some_
 
 The split between `new` / `create` and `edit` / `update` mirrors the two-step nature of HTML forms: one URL renders the form, another receives it. `new` and `edit` are GET requests; `create`, `update`, and `delete` change data.
 
-### The Setup Callbacks
+### Everything Happens in the Action
 
-Look at the top of the class:
+Look at any action in the class: it loads what it needs, builds its form, and decides what to do next. Nothing specific to this resource runs before it, and nothing is hidden in a callback. You can read one method and know exactly what that request does.
 
-```python
-before = [
-    {"do": "set_card", "exclude": ["index", "new", "create"]},
-    {"do": "set_form", "exclude": ["index", "show", "delete"]},
-    {"do": "validate_form", "only": ["create", "update"]},
-]
-```
-
-Three `before` callbacks, listed in the order they run. Each one narrows its scope with `only` or `exclude` - declarations Proper reads to decide which actions the callback applies to.
-
-`set_card` runs for `show`, `edit`, `update`, and `delete` - every action that operates on an existing record. It loads the card by ID and stashes it on `self.card`:
+Actions that work on an existing record (`show`, `edit`, `update`, `delete`) call the private `load_card()` method at the bottom of the class. It reads the ID from the URL and sets `self.card` to the card, or to `None` if the ID is not a number or there is no such card:
 
 ```python
-def set_card(self):
+def load_card(self):
     card_id = self.params.get("card_id", "")
-    self.card = Card.find(int(card_id))
-    if self.request.matched_action != "delete" and not self.card:
-        raise NotFound
+    self.card = Card.find(int(card_id)) if card_id.isdigit() else None
 ```
 
-The `delete` exception is deliberate: deleting the same card twice (someone double-clicks the button) shouldn't 404 - we want it to silently succeed.
+What to do when the card is missing is up to each action. `show`, `edit`, and `update` raise `NotFound`, which renders a 404 page. `delete` doesn't: deleting the same card twice (someone double-clicks the button) shouldn't 404, so it just skips the deletion and redirects as usual.
 
-`set_form` runs for `new`, `edit`, `create`, and `update` - every action that renders or processes a form. It builds the form with the request params, pre-filled from the loaded card if there is one:
-
-```python
-def set_form(self):
-    obj = getattr(self, "card", None)
-    self.form = CardForm(self.params, object=obj)
-```
-
-For `new` and `create`, no card has been loaded (`set_card` was excluded), so `obj` is `None` and the form starts empty. For `edit` and `update`, the form is pre-filled from `self.card`.
+Actions that render or process a form build it themselves with the request params. `new` and `create` build an empty `CardForm(self.params)`. `edit` and `update` also pass `self.card` as the form's object, so the form is pre-filled from the loaded record.
 
 ### Form Validation
 
-The third callback, `validate_form`, runs only on `create` and `update`. It comes from the `FormValidation` concern your `AppController` mixes in:
+`create` and `update` end with the same check:
 
 ```python
-# myapp/controllers/concerns/form_validation.py
-def validate_form(self):
-    form = getattr(self, "form", None)
-    if form and form.is_invalid:
-        self.redo()
+if self.form.is_invalid:
+    return self.redo()
 ```
 
-If the form is invalid, `self.redo()` re-renders the `new` or `edit` template with a `422 Unprocessable Entity` status, and the action never runs. If the form is valid, control passes on to the action.
+If the form is invalid, `self.redo()` re-renders the `new` or `edit` template with a `422 Unprocessable Entity` status, showing the errors. If it is valid, the action continues to `self.form.save()` and the redirect.
+
+The `return` is required. `self.redo()` renders the response, but it doesn't stop the action: nothing halts a running action except an exception or a `return`. Without the `return`, the code would carry on to `form.save()` and then redirect, as if the form were valid.
 
 ### The Action Bodies
 
-Once the three setup callbacks have done their work, the action methods are tiny:
+Putting it together, the actions are short:
 
 - `index` queries for cards and assigns them to `self.cards`.
-- `show`, `new`, and `edit` are empty - they just render their templates with whatever the callbacks set up.
-- `create` calls `self.form.save()` to build and INSERT the model, then redirects with a flash message.
-- `update` is almost identical - `self.form.save()` applies the changes to the card that `set_card` loaded and UPDATEs the row.
-- `delete` removes the row and redirects to the index.
+- `show` loads the card, or raises `NotFound`.
+- `new` builds an empty form, and `edit` loads the card and builds a pre-filled one. Both then render their templates.
+- `create` builds the form, re-renders it if invalid, otherwise calls `self.form.save()` to build and INSERT the model and redirects with a flash message.
+- `update` does the same with the loaded card, so `self.form.save()` applies the changes and UPDATEs the row.
+- `delete` removes the row, if it exists, and redirects to the index.
 
-This is the shape of nearly every controller you'll write: small actions, with the heavy lifting (loading, form-building, validation) factored into callbacks above them.
+The same two or three lines repeat across `edit` and `update`. That is on purpose: each action shows everything it needs, with no callback names to look up and no ordering between callbacks to keep in mind.
+
+When the form template needs extra data (the options of a select, for example), put the form construction in a private helper that also sets those attributes, and call it from `new`, `edit`, `create`, and `update`.
 
 :::note
-Callbacks set things up; actions decide what happens; templates render the result.
+Actions load, validate, and decide. `before` callbacks are for cross-cutting checks such as authentication, authorization, CSRF, and locale, not for loading records or building forms. Templates render the result.
 :::
 
 ---
@@ -448,23 +325,28 @@ Every controller in this family needs the parent card loaded from `:card_id`. Th
 
 ```python {title="myapp/controllers/concerns/card_scoped.py"}
 from proper import Concern
-from proper.errors import NotFound
 
 from ...models import Card
 
 
 class CardScoped(Concern):
-    before = {"do": "set_card"}
-
-    def set_card(self):
-        card_id = self.params.get("card_id")
-        if card_id:
-            self.card = Card.find(int(card_id))
-            if self.request.matched_action != "delete" and not self.card:
-                raise NotFound
+    def load_card(self):
+        card_id = self.params.get("card_id", "")
+        self.card = Card.find(int(card_id)) if card_id.isdigit() else None
 ```
 
-Mix it in ahead of `AppController` so it loads the card for every child controller, current and future.
+Mix it in ahead of `AppController` so every child controller, current and future, can call `self.load_card()`, which sets `self.card` to the card in the URL, or to `None`. Each action decides what to do when the card is missing:
+
+```python {title="myapp/controllers/card/closure_controller.py"}
+@router.resource("cards/:card_id/closure", pk=None)
+class ClosureController(CardScoped, AppController):
+
+    def create(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
+        ...
+```
 
 ### Let the generator do it
 
@@ -915,9 +797,9 @@ self.response.send_file(
 
 ## Before and After Callbacks
 
-A callback is a method that runs automatically around your action - either before it (`before`) or after it (`after`). You've already seen one: the generated controller's `set_card` is a `before` callback that loads the card and builds the form on every action that needs them.
+A callback is a method that runs automatically around your action - either before it (`before`) or after it (`after`). The generated controller doesn't use them: each action loads its own record and builds its own form.
 
-Most controllers end up with the same setup at the top of every action: loading a record, checking permissions, setting response headers. Callbacks let you write that setup once and have it run automatically.
+Callbacks are for checks that apply to many actions and can stop the request before the action runs: authentication, permissions, locale, response headers. Callbacks let you write that check once and have it run automatically. Don't use them to load records or build forms; do that inside the action, where it is visible.
 
 ### The `before` Callback
 
@@ -925,17 +807,15 @@ Declare a `before` callback by assigning a dict to the class attribute `before`:
 
 ```python
 class CardController(AppController):
-    before = {"do": "set_card", "exclude": ["index", "new", "create"]}
+    before = {"do": "require_login", "exclude": ["index", "show"]}
 
-    def set_card(self):
-        card_id = self.params.get("card_id", "")
-        self.card = Card.find(int(card_id))
-        if self.request.matched_action != "delete" and not self.card:
-            raise NotFound
+    def require_login(self):
+        if not current.user:
+            self.response.redirect_to("Session.new")
 
-    def show(self):
-        # self.card is already loaded
-        pass
+    def edit(self):
+        # the user is already logged in
+        ...
 ```
 
 The dict has three keys:
@@ -955,19 +835,19 @@ Pass a list of dicts to declare more than one:
 ```python
 class CardController(AppController):
     before = [
-        {"do": "set_card", "exclude": ["index"]},
+        {"do": "require_login", "exclude": ["index"]},
         {"do": "ensure_editor", "only": ["edit", "update", "delete"]},
     ]
 
-    def set_card(self):
+    def require_login(self):
         ...
 
     def ensure_editor(self):
-        if not current.user.can_edit(self.card):
+        if not current.user.is_editor:
             raise Forbidden
 ```
 
-Callbacks run in the order you list them. `set_card` runs first, then `ensure_editor` - which depends on `self.card` being set.
+Callbacks run in the order you list them. `require_login` runs first, then `ensure_editor` - which depends on `current.user` being set.
 
 ### Halting
 
@@ -1034,14 +914,12 @@ class AppController(Controller):
 
 
 class CardController(AppController):
-    before = {"do": "set_card", "exclude": ["index"]}
-
-    def set_card(self):
+    def show(self):
         # safe to query the DB here - require_login already ran
         self.card = Card.get_or_none(...)
 ```
 
-A logged-out request to `GET /cards/42` runs `require_login` first. It redirects to the login page and sets the response body, halting the dispatch - so `set_card` never runs and the database is never queried.
+A logged-out request to `GET /cards/42` runs `require_login` first. It redirects to the login page and sets the response body, halting the dispatch - so `show` never runs and the database is never queried.
 
 This is the right order: cheap, broad checks first; expensive, specific work later. Concerns mixed into `AppController` (origin protection, rate limiting, security headers) are also "outer" relative to your child controllers, and run in that same order.
 
@@ -1051,21 +929,20 @@ This is the right order: cheap, broad checks first; expensive, specific work lat
 
 A concern is a class that bundles callbacks and helper methods so you can share them across controllers. They're plain Python mixins, but they inherit from `proper.Concern` rather than `Controller`, which lets the framework distinguish "behavior to mix in" from "controllers to mount."
 
-You've already met five of them. Open `myapp/controllers/app_controller.py` and you'll see:
+You've already met four of them. Open `myapp/controllers/app_controller.py` and you'll see:
 
 ```python
 class AppController(
     OriginProtection,
     Pagination,
     RateLimiting,
-    FormValidation,
     SecurityHeaders,
     Controller,
 ):
     pass
 ```
 
-Those five ship with every Proper application. Three come from the framework (`OriginProtection`, `Pagination`, `RateLimiting`); two live in your app under `myapp/controllers/concerns/` so you can edit them (`FormValidation`, `SecurityHeaders`).
+Those four ship with every Proper application. Three come from the framework (`OriginProtection`, `Pagination`, `RateLimiting`); one lives in your app under `myapp/controllers/concerns/` so you can edit it (`SecurityHeaders`).
 
 ### `OriginProtection`
 
@@ -1147,12 +1024,6 @@ class SessionController(AppController):
 This allows ten POSTs to `Session.create` per IP per three minutes. Anything beyond raises `429 Too Many Requests`. The concern can identify clients by something other than IP, run different limits on different actions, and hand off to a custom reaction method instead of raising - the [Security guide](/docs/security) covers the full surface.
 
 Rate limiting needs a configured cache store. If no cache is configured, the limits are silently ignored.
-
-### `FormValidation`
-
-Provides the `validate_form` method that the generator wires into every resource controller's `before` list. It checks `self.form` and, if invalid, calls `self.redo()` - which re-renders the form template with a `422 Unprocessable Entity` status, halting the dispatch.
-
-The concern lives in your app at `myapp/controllers/concerns/form_validation.py`, so you can change it. The default does the right thing for HTML forms; for JSON APIs you'll typically skip it and validate inline (see the [API-only Applications guide](/docs/api)).
 
 ### `SecurityHeaders`
 

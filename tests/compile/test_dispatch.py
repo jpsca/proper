@@ -99,19 +99,19 @@ class TestLowerDispatch:
         class PostsController(Controller):
             __module__ = "myapp.controllers.posts_controller"
             before = [
-                {"do": "set_post", "exclude": ["index", "new", "create"]},
-                {"do": "set_form", "exclude": ["index", "show", "delete"]},
-                {"do": "validate_form", "only": ["create", "update"]},
+                {"do": "require_login", "exclude": ["index", "show"]},
+                {"do": "set_locale"},
+                {"do": "check_quota", "only": ["create", "update"]},
             ]
             after = {"do": "log_it", "only": "show"}
 
-            def set_post(self):
+            def require_login(self):
                 pass
 
-            def set_form(self):
+            def set_locale(self):
                 pass
 
-            def validate_form(self):
+            def check_quota(self):
                 pass
 
             def log_it(self):
@@ -121,16 +121,16 @@ class TestLowerDispatch:
         assert isinstance(plan, DispatchPlan)
         assert plan.cls is PostsController
         assert plan.action == "update"
-        assert plan.before == (("set_post", True), ("set_form", True), ("validate_form", True))
+        assert plan.before == (("require_login", True), ("set_locale", True), ("check_quota", True))
         assert plan.after == ()
         assert plan.prefixes == ("posts",)
 
         plan = lower_dispatch(PostsController, "show")
-        assert plan.before == (("set_post", True),)
+        assert plan.before == (("set_locale", True),)
         assert plan.after == (("log_it", True),)
 
         plan = lower_dispatch(PostsController, "index")
-        assert plan.before == ()
+        assert plan.before == (("set_locale", True),)
 
     def test_property_callback_is_not_a_method(self):
         class MyController(Controller):

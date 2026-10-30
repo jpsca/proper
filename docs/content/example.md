@@ -43,7 +43,7 @@ class Article(HasRichText, BaseModel):
 
 ```
 
-```python {title="myapp/controllers/controller_article.py"}
+```python {title="myapp/controllers/article_controller.py"}
 from proper.errors import NotFound
 
 from ..forms.article import ArticleForm
@@ -54,40 +54,38 @@ from .app_controller import AppController
 
 @router.resource("articles")
 class ArticleController(AppController):
-  before = [
-    {"do": "set_article", "exclude": ["index", "new", "create"]},
-    {"do": "set_form", "exclude": ["index", "show", "delete"]},
-    {"do": "validate_form", "only": ["create", "update"]},
-  ]
 
   def index(self):
     self.articles = Article.select().published().recent()
 
   def show(self):
-    if self.article.is_draft:
+    self.load_article()
+    if not self.article or self.article.is_draft:
       raise NotFound
 
-  def new(self): pass
+  def new(self):
+    self.form = ArticleForm(self.params)
 
-  def edit(self): pass
+  def edit(self):
+    self.load_article()
+    if not self.article:
+      raise NotFound
+
+    self.form = ArticleForm(self.params, self.article)
 
   def create(self):
+    self.form = ArticleForm(self.params)
+    if self.form.is_invalid:
+      return self.redo()
     article = self.form.save()
     self.response.redirect_to("Article.show", article,
                   flash="Article was created")
 
   # Private
 
-  def set_article(self):
+  def load_article(self):
     article_id = self.params.get("article_id", "")
-    self.article = Article.find(int(article_id))
-    if not self.article:
-      raise NotFound
-
-  def set_form(self):
-    obj = getattr(self, "article", None)
-    self.form = ArticleForm(self.params, object=obj)
-  
+    self.article = Article.find(int(article_id)) if article_id.isdigit() else None
 ```
 
 

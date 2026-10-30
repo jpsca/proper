@@ -11,20 +11,21 @@ from .app_controller import AppController
 class SignUpController(AppController):
     skip_authentication = True
 
-    before = [
-        {"do": "redirect_if_authenticated"},
-        {"do": "set_form"},
-        {"do": "validate_form", "only": ["create"]},
-    ]
+    before = [{"do": "redirect_if_authenticated"}]
     rate_limit = [
         {"to": 10, "within": 15 * MINUTES, "only": "create"},
         {"to": 30, "within": 1 * HOUR, "only": "create"},
     ]
 
     def new(self):
-        pass
+        self.form = SignUpForm(self.params)
+        self.password_minlen = config.AUTH_PASSWORD_MINLEN
 
     def create(self):
+        self.form = SignUpForm(self.params)
+        if self.form.is_invalid:
+            self.password_minlen = config.AUTH_PASSWORD_MINLEN
+            return self.redo()
         data = self.form.save()
         user = User.create(
             login=data["login"],
@@ -32,10 +33,4 @@ class SignUpController(AppController):
         )
         self.new_session_for(user)
         self.redirect_after_authentication(flash="Welcome!")
-
-    # Private
-
-    def set_form(self):
-        self.password_minlen = config.AUTH_PASSWORD_MINLEN
-        self.form = SignUpForm(self.params)
 
