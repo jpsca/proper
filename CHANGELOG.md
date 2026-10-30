@@ -4,7 +4,7 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
-### Changed
+## 0.46.0
 
 - The controllers that `proper g resource` and `proper g controller` generate do not use `before` callbacks for form validation anymore.
 
