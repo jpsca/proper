@@ -225,13 +225,16 @@ def gen_controller(
         member_def = object_id
         member_arg = f", {object_id}={object_id}"
 
-    # Where to go after saving or deleting: only to an action that exists
-    if ACTION_SHOW in actions and has_model:
-        after_save = f'"{route}.show", {name_snake}'
-    elif ACTION_INDEX in actions:
+    # Where to go after saving or deleting: only to an action that exists.
+    # `after_save_object` says if the redirect needs the saved record.
+    after_save_object = False
+    if ACTION_INDEX in actions:
         after_save = f'"{route}.index"'
     elif ACTION_SHOW in actions and singular:
         after_save = f'"{route}.show"'
+    elif ACTION_SHOW in actions and has_model:
+        after_save = f'"{route}.show", {name_snake}'
+        after_save_object = True
     else:
         after_save = '"/"'
     after_delete = f'"{route}.index"' if ACTION_INDEX in actions else '"/"'
@@ -250,7 +253,7 @@ def gen_controller(
         "form_fields": form_fields,
         "render_fields": render_fields,
         "form_class": f"{name_pascal}Form",
-        "load_method": f"set_{name_snake}",
+        "load_method": f"load_{name_snake}",
         "object_id": object_id,
         "pk": pk,
         "namespace": namespace,
@@ -260,6 +263,7 @@ def gen_controller(
         "member_def": member_def,
         "member_arg": member_arg,
         "after_save": after_save,
+        "after_save_object": after_save_object,
         "after_delete": after_delete,
     }
 
@@ -469,20 +473,14 @@ def _append_import(init_path, line: str) -> None:
 
 def _state_change_concern_py(*, parent_pascal: str, parent_snake: str, parent_id: str) -> str:
     return f"""from proper import Concern
-from proper.errors import NotFound
 
 from ...models import {parent_pascal}
 
 
 class {parent_pascal}Scoped(Concern):
-    before = {{"do": "set_{parent_snake}"}}
-
-    def set_{parent_snake}(self):
-        {parent_id} = self.params.get("{parent_id}")
-        if {parent_id}:
-            self.{parent_snake} = {parent_pascal}.find(int({parent_id}))
-            if self.request.matched_action != "delete" and not self.{parent_snake}:
-                raise NotFound
+    def load_{parent_snake}(self):
+        {parent_id} = self.params.get("{parent_id}", "")
+        self.{parent_snake} = {parent_pascal}.find(int({parent_id})) if {parent_id}.isdigit() else None
 """
 
 
@@ -496,8 +494,10 @@ def _state_change_controller_py(
     parent_pascal: str,
     actions: set[str],
 ) -> str:
+    needs_404 = bool(actions.intersection((ACTION_CREATE, ACTION_DELETE)))
     head = (
-        "from ...router import router\n"
+        ("from proper.errors import NotFound\n\n" if needs_404 else "")
+        + "from ...router import router\n"
         "from ..app_controller import AppController\n"
         f"from ..concerns.{concern_module} import {concern_class}\n"
         "\n\n"
@@ -509,6 +509,9 @@ def _state_change_controller_py(
         body.append(
             f"\n    # POST /{path}\n"
             "    def create(self):\n"
+            f"        self.load_{parent_snake}()\n"
+            f"        if not self.{parent_snake}:\n"
+            "            raise NotFound\n"
             f"        # TODO: apply the state change to self.{parent_snake}\n"
             f'        self.response.redirect_to("{parent_pascal}.show", self.{parent_snake}, flash="...")\n'
         )
@@ -516,6 +519,9 @@ def _state_change_controller_py(
         body.append(
             f"\n    # DELETE /{path}\n"
             "    def delete(self):\n"
+            f"        self.load_{parent_snake}()\n"
+            f"        if not self.{parent_snake}:\n"
+            "            raise NotFound\n"
             f"        # TODO: undo the state change on self.{parent_snake}\n"
             f'        self.response.redirect_to("{parent_pascal}.show", self.{parent_snake})\n'
         )

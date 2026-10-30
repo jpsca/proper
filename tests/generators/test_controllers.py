@@ -96,6 +96,8 @@ class TestStateChangeController:
         text = _closure_text(app_in_tmp)
         assert "def create(self):" in text
         assert "def delete(self):" in text
+        assert text.count("self.load_card()") == 2
+        assert "raise NotFound" in text
         assert "# TODO: apply the state change to self.card" in text
         assert "# TODO: undo the state change on self.card" in text
         assert 'self.response.redirect_to("Card.show", self.card, flash="...")' in text
@@ -107,10 +109,10 @@ class TestScopedConcern:
         gen_controller(app_in_tmp, "card/closure")
         text = _concern_text(app_in_tmp)
         assert "class CardScoped(Concern):" in text
-        assert 'before = {"do": "set_card"}' in text
-        assert "def set_card(self):" in text
+        assert "before" not in text
+        assert "def load_card(self):" in text
         assert "from ...models import Card" in text
-        assert "self.card = Card.find(int(card_id))" in text
+        assert "self.card = Card.find(int(card_id)) if card_id.isdigit() else None" in text
 
     def test_concern_not_clobbered_on_second_child(self, app_in_tmp):
         gen_controller(app_in_tmp, "card/closure")
@@ -233,7 +235,17 @@ class TestWithModel:
         controller = _read(app_in_tmp, "controllers", "note_controller.py")
         assert "from myapp.models import Note" in controller
         assert "self.notes = Note.select()" in controller
-        assert "self.note = Note.find(int(note_id))" in controller
+        assert "def load_note(self):" in controller
+        assert (
+            "self.note = Note.find(int(note_id)) if note_id.isdigit() else None"
+            in controller
+        )
+        assert controller.count("self.load_note()") == 4
+        assert "self.form = NoteForm(self.params, self.note)" in controller
+        assert "self.note.delete_instance()" in controller
+        assert 'redirect_to("Note.index", flash="Note was created")' in controller
+        assert "return self.redo()" in controller
+        assert "before" not in controller
         assert "TODO" not in controller
 
         form = _read(app_in_tmp, "forms", "note.py")
@@ -297,7 +309,8 @@ class TestWithoutModel:
         gen_controller(app_in_tmp, "Setting", singular=True)
 
         controller = _read(app_in_tmp, "controllers", "setting_controller.py")
-        assert "def set_setting" not in controller
+        assert "def load_setting" not in controller
+        assert "before" not in controller
         assert 'redirect_to("Setting.show", flash=' in controller
         assert "url_for('Setting.update')" in _read(app_in_tmp, "views", "setting", "edit.jx")
         assert "{#def form #}" in _read(app_in_tmp, "views", "setting", "edit.jx")
@@ -350,9 +363,20 @@ class TestLinksToGeneratedActions:
         gen_controller(app_in_tmp, "Note")
 
         controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert 'redirect_to("Note.index", flash="Note was created")' in controller
+        assert 'redirect_to("Note.index", flash="Note was updated")' in controller
+        assert 'redirect_to("Note.index", flash="Note was deleted")' in controller
+        assert "note = self.form.save()" not in controller
+
+    def test_redirects_to_show_without_index(self, app_in_tmp):
+        _add_model(app_in_tmp, "note", "Note")
+        gen_controller(app_in_tmp, "Note", exclude="index")
+
+        controller = _read(app_in_tmp, "controllers", "note_controller.py")
+        assert "note = self.form.save()" in controller
         assert 'redirect_to("Note.show", note, flash="Note was created")' in controller
         assert 'redirect_to("Note.show", note, flash="Note was updated")' in controller
-        assert 'redirect_to("Note.index", flash="Note was deleted")' in controller
+        assert 'redirect_to("/", flash="Note was deleted")' in controller
 
     def test_redirects_without_show(self, app_in_tmp):
         _add_model(app_in_tmp, "note", "Note")
@@ -436,7 +460,7 @@ class TestNamespace:
         gen_controller(app_in_tmp, "Note", namespace="admin")
 
         controller = _read(app_in_tmp, "controllers", "admin", "note_controller.py")
-        assert 'redirect_to("Admin:Note.show", note' in controller
+        assert 'redirect_to("Admin:Note.index"' in controller
         assert "url_for('Admin:Note.new')" in _read(app_in_tmp, "views", "admin", "note", "index.jx")
         assert _linked_actions(app_in_tmp, "note", "admin") <= set(ACTIONS)
 

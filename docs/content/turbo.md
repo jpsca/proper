@@ -139,11 +139,18 @@ The controller needs no Turbo awareness. `update` saves and redirects to `show` 
 
 ```python {title="controllers/message_controller.py"}
 def update(self):
+    self.load_message()
+    if not self.message:
+        raise NotFound
+
+    self.form = MessageForm(self.params, self.message)
+    if self.form.is_invalid:
+        return self.redo()
     message = self.form.save()
     self.response.redirect_to("Message.show", message)
 ```
 
-When the form is invalid, the generated `validate_form` callback re-renders `edit.jx` with a `422` status , so Turbo swaps the form, errors and all, back into the frame. Still no Turbo-specific code.
+When the form is invalid, `return self.redo()` re-renders `edit.jx` with a `422` status, so Turbo swaps the form, errors and all, back into the frame. Still no Turbo-specific code.
 
 ### Lazy-loading a frame
 

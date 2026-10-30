@@ -95,7 +95,8 @@ def test_generated_files(app_in_tmp):
 
     # load_method
     text = _controller_text(app_in_tmp, "product")
-    assert "def set_product(self):" in text
+    assert "def load_product(self):" in text
+    assert "before" not in text
 
     # imports
     text = _controller_text(app_in_tmp, "product")

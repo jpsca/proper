@@ -41,7 +41,6 @@ Every controller must inherit from `AppController`, which itself inherits from
 from proper import Controller
 from proper.concerns import OriginProtection, Pagination, RateLimiting
 
-from .concerns.form_validation import FormValidation
 from .concerns.security_headers import SecurityHeaders
 
 
@@ -49,7 +48,6 @@ class AppController(
     OriginProtection,
     Pagination,
     RateLimiting,
-    FormValidation,
     SecurityHeaders,
     Controller,
 ):
@@ -170,6 +168,8 @@ This bloats the controller with every new transition, invents an ad-hoc URL and 
 **GOOD:** one controller per state change, mounted under the parent with `pk=None`
 
 ```python {title="myapp/controllers/card/closure_controller.py"}
+from proper.errors import NotFound
+
 from ...router import router
 from ..app_controller import AppController
 from ..concerns.card_scoped import CardScoped
@@ -180,11 +180,17 @@ class ClosureController(CardScoped, AppController):
 
     # POST /cards/:card_id/closure
     def create(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
         self.card.close()
         self.response.redirect_to("Card.show", self.card, flash="Card closed")
 
     # DELETE /cards/:card_id/closure
     def delete(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
         self.card.reopen()
         self.response.redirect_to("Card.show", self.card, flash="Card reopened")
 ```
@@ -195,30 +201,29 @@ class NotNowController(CardScoped, AppController):
 
     # POST /cards/:card_id/not-now
     def create(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
         self.card.postpone()
         self.response.redirect_to("Card.show", self.card)
 ```
 
 `pk=None` drops the trailing ID — there's only ever one closure for a card, so `/cards/:card_id/closure` is the whole address. Route names follow the standard convention (`Closure.create`, `Closure.delete`, `NotNow.create`), and each controller stays small: a new state change is a new file, not a new method.
 
-The parent record is loaded by a shared concern so every child controller gets it for free:
+The lookup of the parent record lives in a shared concern so every child controller gets it for free:
 
 ```python {title="myapp/controllers/concerns/card_scoped.py"}
 from proper import Concern
-from proper.errors import NotFound
 from ...models import Card
 
 
 class CardScoped(Concern):
-    before = {"do": "set_card"}
-
-    def set_card(self):
-        card_id = self.params.get("card_id")
-        if card_id:
-            self.card = Card.find(int(card_id))
-            if self.request.matched_action != "delete" and not self.card:
-                raise NotFound
+    def load_card(self):
+        card_id = self.params.get("card_id", "")
+        self.card = Card.find(int(card_id)) if card_id.isdigit() else None
 ```
+
+The concern only provides the loader: `load_card()` sets `self.card` to the card in the URL, or to `None`. Each action calls it and raises `NotFound` if the card is missing, so the load stays visible in the action.
 
 **ALWAYS** scaffold a state-change controller with a `PARENT/CHILD` name:
 
@@ -293,61 +298,90 @@ from .app_controller import AppController
 
 @router.resource("cards")
 class CardController(AppController):
-    before = [
-        {"do": "set_card", "exclude": ["index", "new", "create"]},
-        {"do": "set_form", "exclude": ["index", "show", "delete"]},
-        {"do": "validate_form", "only": ["create", "update"]},
-    ]
 
     def index(self):
         self.cards = Card.select()
 
     def show(self):
-        pass
+        self.load_card()
+        if not self.card:
+            raise NotFound
 
     def new(self):
-        pass
-
-    def edit(self):
-        pass
+        self.form = CardForm(self.params)
 
     def create(self):
-        card = self.form.save()
-        self.response.redirect_to("Card.show", card, flash="Card was created")
+        self.form = CardForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Card.index", flash="Card was created")
+
+    def edit(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
+
+        self.form = CardForm(self.params, self.card)
 
     def update(self):
-        card = self.form.save()
-        self.response.redirect_to("Card.show", card, flash="Card was updated")
+        self.load_card()
+        if not self.card:
+            raise NotFound
+
+        self.form = CardForm(self.params, self.card)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Card.index", flash="Card was updated")
 
     def delete(self):
-        if self.card:    # deleting twice does not fail
+        self.load_card()
+        if self.card:
             self.card.delete_instance()
         self.response.redirect_to("Card.index", flash="Card was deleted")
 
     # Private
 
-    def set_card(self):
+    def load_card(self):
         card_id = self.params.get("card_id", "")
-        self.card = Card.find(int(card_id))
-        if self.request.matched_action != "delete" and not self.card:
-            raise NotFound
-
-    def set_form(self):
-        obj = getattr(self, "card", None)
-        self.form = CardForm(self.params, object=obj)
+        self.card = Card.find(int(card_id)) if card_id.isdigit() else None
 ```
 
 Key patterns to notice:
 
-- The `before` list runs in declaration order. `set_card` runs first (when it applies), then `set_form`, then `validate_form`. Each callback narrows its scope with `only` or `exclude` rather than checking `self.request.matched_action` inside the method.
-- `set_card` loads the existing record. It is excluded from `index`, `new`, and `create` because those actions don't have an existing record to operate on.
-- `set_form` instantiates the form with the request params and the loaded object (if any). It is excluded from `index`, `show`, and `delete`. For `new` and `create`, no card has been loaded, so `obj` is `None`.
-- `validate_form` comes from the `FormValidation` concern. On `create` and `update`, if the form is invalid it calls `self.redo()` to re-render the form template with a `422 Unprocessable Entity` status, and the action never runs.
+- Records and forms are loaded inside each action. There are no `before` callbacks for them: each action shows everything it needs, and nothing depends on the order in which callbacks run.
+- `load_card()` is a private helper that sets `self.card` to the record, or to `None` when the ID is missing, not a number, or not in the table. The actions that need an existing record (`show`, `edit`, `update`) raise `NotFound` when it is `None`. `index`, `new`, and `create` don't have an existing record, so they don't call it.
+- The form is instantiated with the request params and, for existing records, `self.card` as the second argument (the object). For `new` and `create` there is no object.
+- An invalid form ends the action with `return self.redo()`, which re-renders the form template (`new.jx` for `create`, `edit.jx` for `update`) with a `422 Unprocessable Entity` status. The `return` is required: nothing halts automatically inside an action, so without it the code falls through to `form.save()` and the redirect.
+- `before` callbacks are for cross-cutting checks that halt the request (authentication, authorization, CSRF, locale). Don't use them to load records or build forms.
+- When several actions share form setup that needs extra template context (select options, for example), put it in a private `prepare_form(object=None)` helper that builds the form, sets the extra attributes, and returns the form. The actions call it instead of instantiating the form directly:
+
+```python
+def new(self):
+    self.form = self.prepare_form()
+
+def edit(self):
+    self.load_card()
+    if not self.card:
+        raise NotFound
+    self.form = self.prepare_form(self.card)
+
+# Private
+
+def prepare_form(self, object=None):
+    form = CardForm(self.params, object=object)
+    self.categories = Category.select().order_by(Category.name)
+    return form
+```
+
 - After a successful create, update, or delete, the controller redirects with a flash message.
 - The `delete` action checks `if self.card` to handle the case where someone deletes the same record twice (e.g., double-clicking the delete button).
-- `form.save()` validates the data, persists the model (creating or updating), and returns it — no follow-up `obj.save()` needed. See [Forms — Saving](./forms.md) for details on the integration with Peewee.
+- `form.save()` validates the data, persists the model (creating or updating), and returns it. No follow-up `obj.save()` needed. See [Forms — Saving](./forms.md) for details on the integration with Peewee.
 
-### Data Flow: params → set_card → set_form → validate_form → action → save
+### Data Flow: params → action → form → save
 
 This is the complete path data takes through a create or update action.
 
@@ -357,23 +391,12 @@ This is the complete path data takes through a create or update action.
 self.params  (merged MultiDict: query + form body + route params)
         │
         ▼
-set_card  (skipped — excluded for create)
-        │
-        ▼
-set_form
-  └─ self.form = CardForm(self.params, object=None)
-        │
-        ▼
-validate_form
-  ├─ form valid    → falls through
-  └─ form invalid  → self.redo() re-renders new.jx with 422
-                       (action never runs)
-        │
-        ▼
 create action
-  └─ card = self.form.save()              # build a new Card from validated data
-  └─ card.save()                           # INSERT into DB
-  └─ redirect_to("Card.show", card)
+  └─ self.form = CardForm(self.params)
+  └─ form invalid  → return self.redo() re-renders new.jx with 422
+                       (nothing below runs)
+  └─ self.form.save()                     # build a new Card from validated data and INSERT
+  └─ redirect_to("Card.index")
 ```
 
 **Update** (`PATCH /cards/:card_id`):
@@ -382,27 +405,18 @@ create action
 self.params
         │
         ▼
-set_card
-  └─ self.card = Card.find(int(card_id))
-  └─ raises NotFound if missing
-        │
-        ▼
-set_form
-  └─ obj = self.card  (loaded above)
-  └─ self.form = CardForm(self.params, object=obj)
-       Fields pre-filled from self.card; submitted params override
-        │
-        ▼
-validate_form  (same pipeline as create)
-        │
-        ▼
 update action
-  └─ card = self.form.save()              # mutates self.card in memory
-  └─ card.save()                           # UPDATE in DB
-  └─ redirect_to("Card.show", card)
+  └─ self.load_card()
+  └─ raises NotFound if missing
+  └─ self.form = CardForm(self.params, self.card)
+       Fields pre-filled from self.card; submitted params override
+  └─ form invalid  → return self.redo() re-renders edit.jx with 422
+                       (nothing below runs)
+  └─ self.form.save()                     # mutates self.card and UPDATEs in DB
+  └─ redirect_to("Card.index")
 ```
 
-The key difference: on create, `form.save()` instantiates a **new** model. On update, it mutates the **existing** object passed in as `object=self.card`.
+The key difference: on create, `form.save()` instantiates a **new** model. On update, it mutates the **existing** object passed in as the form's second argument, `self.card`.
 
 ## Namespacing controllers
 
@@ -451,6 +465,8 @@ admin_router = router.scope("admin")
 The namespaced controller uses this scoped router instead of the root one. All routes are automatically prefixed with `/admin`:
 
 ```python {title="myapp/controllers/admin/post_controller.py"}
+from proper.errors import NotFound
+
 from myapp.forms.admin.post import PostForm
 from myapp.models import Post
 from myapp.router import admin_router
@@ -459,43 +475,33 @@ from ..app_controller import AppController
 
 @admin_router.resource("posts")
 class PostController(AppController):
-    before = [
-        {"do": "set_post", "exclude": ["index", "new", "create"]},
-        {"do": "set_form", "exclude": ["index", "show", "delete"]},
-        {"do": "validate_form", "only": ["create", "update"]},
-    ]
 
     def index(self):
         self.posts = Post.select()
 
     def show(self):
-        pass
+        self.load_post()
+        if not self.post:
+            raise NotFound
 
     def new(self):
-        pass
-
-    def edit(self):
-        pass
+        self.form = PostForm(self.params)
 
     def create(self):
-        post = self.form.save()
-        post.save()
-        self.response.redirect_to(
-            "Admin:Post.show", post,
-            flash="Post was created",
-        )
+        self.form = PostForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Admin:Post.index", flash="Post was created")
 
     # ... other actions ...
 
-    def set_post(self):
-        post_id = self.params.get("post_id", "")
-        self.post = Post.find(int(post_id))
-        if self.request.matched_action != "delete" and not self.post:
-            raise NotFound
+    # Private
 
-    def set_form(self):
-        obj = getattr(self, "post", None)
-        self.form = PostForm(self.params, object=obj)
+    def load_post(self):
+        post_id = self.params.get("post_id", "")
+        self.post = Post.find(int(post_id)) if post_id.isdigit() else None
 ```
 
 
@@ -730,11 +736,11 @@ def show(self):
 
 ### Explicit Template Rendering
 
-Use `self.render()` when you need to render a different template than the default, or when you need to set a custom status code. The `self.redo()` method is a shortcut that re-renders the form template (e.g., `new.jx` for `create`, `edit.jx` for `update`) with a `422 Unprocessable Entity` status. The generated `validate_form` callback (from the `FormValidation` concern) calls it for you on invalid submissions, but you can also call it manually:
+Use `self.render()` when you need to render a different template than the default, or when you need to set a custom status code. The `self.redo()` method is a shortcut that re-renders the form template (e.g., `new.jx` for `create`, `edit.jx` for `update`) with a `422 Unprocessable Entity` status. The generated `create` and `update` actions call it when the form is invalid. Always `return` it, because nothing halts inside an action and the code after it would otherwise run:
 
 ```python
-# Re-render the form template with a 422 status
-self.redo()
+if self.form.is_invalid:
+    return self.redo()
 ```
 
 The `render()` method returns a string that becomes the response body when returned from the action. You can also call it without returning — it sets the body directly.
@@ -783,7 +789,7 @@ def set_vary(self):
 
 #### JSON-Only Controllers
 
-For pure API controllers, disable cookie headers since they aren't needed. Don't register `validate_form` either — JSON APIs return error responses as JSON instead of re-rendering a form, so handle validation in the action and return errors directly:
+For pure API controllers, disable cookie headers since they aren't needed. JSON APIs return error responses as JSON instead of re-rendering a form (`redo()`), so handle validation in the action and return errors directly:
 
 ```python
 from proper.errors import NotFound
@@ -845,15 +851,17 @@ class ApiErrorController(AppController):
 
 #### XHR Detection
 
-For Turbo or AJAX requests that send `X-Requested-With: XMLHttpRequest`, you can override `validate_form` to return JSON errors for XHR requests while keeping the default re-render for regular form submissions:
+For Turbo or AJAX requests that send `X-Requested-With: XMLHttpRequest`, branch inside the action to return JSON errors for XHR requests while keeping the default re-render for regular form submissions:
 
 ```python
-def validate_form(self):
-    form = getattr(self, "form", None)
-    if form and form.is_invalid:
+def create(self):
+    self.form = CardForm(self.params)
+    if self.form.is_invalid:
         if self.request.is_xhr:
-            return self.render(json={"errors": form.errors}, status=422)
-        self.redo()
+            return self.render(json={"errors": self.form.errors}, status=422)
+        return self.redo()
+    card = self.form.save()
+    self.response.redirect_to("Card.show", card, flash="Card was created")
 ```
 
 ### Plain Text Responses
@@ -972,7 +980,7 @@ To halt processing and return an HTTP error response, raise one of the error cla
 ```python
 from proper.errors import NotFound, Forbidden
 
-def set_card(self):
+def show(self):
     card_id = self.params.get("card_id", "")
     if not card_id.isdigit():
         raise NotFound
@@ -1151,23 +1159,8 @@ The method redirects to the login form if the user is not already logged in. Whe
 
 The `"do"` argument must be a name or a list of names of methods defined in the class or in one of its parent classes.
 
-Another common use is to load an object from the database:
+`before` callbacks are for cross-cutting checks that halt the request: authentication, authorization, CSRF, locale. Do **not** use them to load records or build forms. Load the record and the form inside each action (with a private `load_card()` helper that sets `self.card` to the record or `None`, and `raise NotFound` in the action), so each action shows everything it needs.
 
-```python
-from .app_controller import AppController
-
-class CardController(AppController):
-    before = {"do": "set_card", "only": ["show", "edit", "update", "delete"]}
-
-    def set_card(self):
-        card_id = self.params.get("card_id")
-        self.card = Card.get_or_none(card_id)
-        if not self.card:
-            raise NotFound
-
-```
-
-In this example, there is no point of trying to load a card in the "index" or "new" actions, there is not even a "card_id" parameter available.
 The `only` option runs the callback only for the listed actions; there is also an `exclude` option which works the other way.
 
 ::: warning
@@ -1204,7 +1197,7 @@ from .app_controller import AppController
 
 class CardController(AppController):
     before = [
-        {"do": "set_card", "exclude": ("index", "new", "create")},
+        {"do": "require_login", "exclude": ("index", "show")},
         {"do": "ensure_editor_access", "only": ["edit", "update", "delete"]},
     ]
 
@@ -1215,7 +1208,7 @@ class CardController(AppController):
 
 The `before` and `after` callbacks are always inherited and are not obscured by new declarations. Invoking an action in a controller with `before` callbacks defined, will first call any `before` callbacks defined in its parent classes, and then the ones defined in the controller class itself.
 
-For example, if `AppController` has a `before` callback that checks authentication, and `CardController` has a `before` callback that loads a card, both will run — the authentication check first (from the parent), then the card loading (from the child).
+For example, if `AppController` has a `before` callback that checks authentication, and `CardController` has a `before` callback that checks authorization, both will run — the authentication check first (from the parent), then the authorization check (from the child).
 
 
 ## Concerns
@@ -1228,26 +1221,23 @@ The convention is to declare them in the `myapp/controllers/concerns/` directory
 
 ```python {title="myapp/controllers/concerns/team_scoped.py"}
 from proper import Concern
-from proper.errors import NotFound
 from ...models import Team
 
 
 class TeamScoped(Concern):
-    before = {"do": "set_team"}
-
-    def set_team(self):
-        team_id = self.params.get("team_id")
-        self.team = Team.get_or_none(team_id)
-        if not self.team:
-            raise NotFound
+    def load_team(self):
+        team_id = self.params.get("team_id", "")
+        self.team = Team.find(int(team_id)) if team_id.isdigit() else None
 ```
 
 Then mix it into any controller that needs it:
 
 ```python
 class ProjectController(TeamScoped, AppController):
-    # self.team is available in all actions
     def index(self):
+        self.load_team()
+        if not self.team:
+            raise NotFound
         self.projects = self.team.projects
 ```
 
@@ -1410,36 +1400,6 @@ Resolves the current timezone and assigns it to `current.timezone` in a `before`
 Resolution order: URL param → cookie → `current.user.timezone` → `TIMEZONE_DEFAULT` config.
 
 Like `CurrentLocale`, this concern extends `etag` to include `current.timezone`.
-
-#### FormValidation
-
-Provides the `validate_form` method that controllers register in their own `before` list. This concern is defined in your app (not in the framework) so you can customize it:
-
-```python {title="myapp/controllers/concerns/form_validation.py"}
-from proper import Concern
-
-
-class FormValidation(Concern):
-    def validate_form(self):
-        form = getattr(self, "form", None)
-        if form and form.is_invalid:
-            self.redo()
-```
-
-Each generated resource controller registers three callbacks in declaration order — the load, the form build, and the validation — so each one runs in the right place:
-
-```python
-class PostController(AppController):
-    before = [
-        {"do": "set_post", "exclude": ["index", "new", "create"]},
-        {"do": "set_form", "exclude": ["index", "show", "delete"]},
-        {"do": "validate_form", "only": ["create", "update"]},
-    ]
-```
-
-`validate_form` only runs on `create` and `update`. If the form is invalid it calls `self.redo()`, which sets the response body — re-rendering the form template with errors and a 422 status — halting the dispatch so the action never runs.
-
-This concern is included in the default `AppController` so the `validate_form` method is available; the generator wires up the `before` registration on each resource controller it creates.
 
 #### SecurityHeaders
 

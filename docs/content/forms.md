@@ -10,7 +10,7 @@ number_headers: true
 In this guide, you will learn how forms work and how they fit into the request cycle in your application.
 
 - How to generate a form, and what the generator gives you.
-- How `set_form`, `validate_form`, and `self.redo()` work together on `create` and `update`.
+- How a controller builds the form and uses `self.redo()` to handle invalid submissions on `create` and `update`.
 - How `form.save()` builds a model, persists it, and wraps the whole thing in a transaction.
 - How to add custom validation, custom error messages, and pre-fill values.
 - How to declare sub-forms and nested forms.
@@ -246,97 +246,95 @@ form = CardForm(reqdata, card)
 
 The user submitted changes to an existing record. Submission values take precedence over object values, so the form shows what the user typed, not what was stored.
 
-The generator's `set_form` callback handles all four cases with a single line of code (covered in [The Controller Side](#the-controller-side)) - you almost never write these by hand.
+The generated controller covers all four cases (see [The Controller Side](#the-controller-side)) - you almost never decide between them by hand.
 
 ---
 
 ## The Controller Side
 
-A generated resource controller wires three callbacks into the request cycle:
+Each action of a generated resource controller builds its own form and, on `create` and `update`, checks it:
 
 ```python
 @router.resource("cards")
 class CardController(AppController):
-    before = [
-        {"do": "set_card", "exclude": ["index", "new", "create"]},
-        {"do": "set_form", "exclude": ["index", "show", "delete"]},
-        {"do": "validate_form", "only": ["create", "update"]},
-    ]
+
+    def new(self):
+        self.form = CardForm(self.params)
+
+    def create(self):
+        self.form = CardForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Card.index", flash="Card was created")
+
+    def edit(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
+
+        self.form = CardForm(self.params, self.card)
+
+    def update(self):
+        self.load_card()
+        if not self.card:
+            raise NotFound
+
+        self.form = CardForm(self.params, self.card)
+        if self.form.is_invalid:
+            return self.redo()
+
+        self.form.save()
+        self.response.redirect_to("Card.index", flash="Card was updated")
 ```
 
-The round-trip looks like this:
+`load_card()` is a private method that sets `self.card` to the record in the URL, or to `None` (covered in the [Controllers guide](/docs/controllers)). The round-trip looks like this:
 
 ```
 GET /cards/new -→ empty form -→ render new.jx
 
 POST /cards -→ form.validate
                   │
-                  ├─ valid   -→ save and redirect to show.jx
+                  ├─ valid   -→ save and redirect to index.jx
                   └─ invalid -→ re-render new.jx with errors at 422
 ```
 
-`set_card` loads the record (covered in the [Controllers guide](/docs/controllers)). The other two are about the form. Together they handle all four instantiation patterns from [The Four Instantiation Patterns](#the-four-instantiation-patterns):
+Together the four actions cover all four instantiation patterns from [The Four Instantiation Patterns](#the-four-instantiation-patterns):
 
-| Action  | `set_card` runs? | `set_form` builds                       | Pattern |
-| ------- | ---------------- | --------------------------------------- | ------- |
-| `new`   | no               | `CardForm({}, object=None)`             | 1       |
-| `create`| no               | `CardForm(self.params, object=None)`    | 2       |
-| `edit`  | yes              | `CardForm({}, object=self.card)`        | 3       |
-| `update`| yes              | `CardForm(self.params, object=self.card)` | 4     |
+| Action  | Form built                                | Pattern |
+| ------- | ----------------------------------------- | ------- |
+| `new`   | `CardForm({}, object=None)`               | 1       |
+| `create`| `CardForm(self.params, object=None)`      | 2       |
+| `edit`  | `CardForm({}, object=self.card)`          | 3       |
+| `update`| `CardForm(self.params, object=self.card)` | 4       |
 
-### `set_form`
+In the code, `new` and `edit` pass `self.params` too; it is empty on a GET request, so the result is the same as passing `{}`.
 
-The generator writes this method at the bottom of the controller:
+### Building the Form
 
-```python
-def set_form(self):
-    obj = getattr(self, "card", None)
-    self.form = CardForm(self.params, object=obj)
-```
-
-That's the entire build step. `getattr(self, "card", None)` returns the loaded record on `edit`/`update` and `None` on `new`/`create`. `self.params` carries the submission on `create`/`update` and is empty on `new`/`edit`. The form sorts out the rest.
+`self.params` carries the submission on `create`/`update` and is empty on `new`/`edit`. The `object` argument is the loaded record on `edit`/`update` and absent on `new`/`create`. The form sorts out the rest.
 
 For `edit`, request data is empty and the form is pre-filled from the record. For `update`, request values take precedence over object values, so the form shows what the user just typed (with the rest of the record's fields filling the gaps).
 
-### `validate_form` and `self.redo()`
-
-`validate_form` lives in the `FormValidation` concern at `myapp/controllers/concerns/form_validation.py`:
+When the template needs more than the form (the options of a select, for example), move the construction into a private helper that builds the form and sets those attributes, and call it from the actions:
 
 ```python
-class FormValidation(Concern):
-    def validate_form(self):
-        form = getattr(self, "form", None)
-        if form and form.is_invalid:
-            self.redo()
+def prepare_form(self, object=None):
+    form = ArtworkForm(self.params, object=object)
+    self.artists = Artist.select().order_by(Artist.name)
+    return form
 ```
 
-When the form is invalid, the concern calls `self.redo()`. This is the one Proper-specific helper worth understanding:
+### `self.redo()`
 
-`self.redo()` is a controller method that re-renders the matching form template with a `422 Unprocessable Entity` status - `new.jx` for a failed `create`, `edit.jx` for a failed `update`. The `FormValidation` concern calls it for you when a form is invalid; you'll rarely call it yourself, but it's there if you need to reject a submission from inside an action.
+`self.redo()` is the one Proper-specific helper worth understanding. It is a controller method that re-renders the matching form template with a `422 Unprocessable Entity` status - `new.jx` for a failed `create`, `edit.jx` for a failed `update`.
 
-Once `validate_form` halts the request, the action body never runs. Your `create` and `update` methods only execute on valid submissions.
+You must `return` its result. Nothing halts a running action on its own, so without the `return` the code would fall through to `form.save()` and the redirect. With it, `create` and `update` only get past the check on valid submissions.
 
-### The Action Bodies
-
-With the callbacks doing the setup, the action bodies are tiny:
-
-```python
-def new(self):
-    pass        # set_form built an empty CardForm; the template renders it
-
-def create(self):
-    card = self.form.save()
-    self.response.redirect_to("Card.show", card, flash="Card was created")
-
-def edit(self):
-    pass        # set_form pre-filled from self.card; the template renders it
-
-def update(self):
-    card = self.form.save()
-    self.response.redirect_to("Card.show", card, flash="Card was updated")
-```
-
-`new` and `edit` do nothing - they just render their templates with the form the callback built. `create` and `update` look identical, even though one is creating and the other is updating - the form knows which case it's in because `set_form` already gave it the right `object` argument. The next section walks through what `form.save()` actually does.
+:::note
+`before` callbacks are for cross-cutting checks that stop the request, such as authentication, authorization, CSRF, or locale. Don't use them to load records or build forms; do it inside the action.
+:::
 
 ---
 
@@ -376,13 +374,13 @@ def create(self):
     photo = self.form.save(user_id=current.user.id)
 ```
 
-Use this for values that come from the server, not the user input: the current tenant or user's id, a timestamp you control, etc. You don't want these on the form (a malicious user could send their own value), and you don't want them in `set_form` (the form would then receive an unexpected key). `**extra` is the right place.
+Use this for values that come from the server, not the user input: the current tenant or user's id, a timestamp you control, etc. You don't want these on the form (a malicious user could send their own value), and you don't want them in the form constructor (the form would then receive an unexpected key). `**extra` is the right place.
 
 ### Calling `save()` on an Invalid Form
 
-`form.save()` raises `ValueError` if you call it before validation passes. The `validate_form` callback handles that for you on `create` and `update` - if the form is invalid, the action body never runs, and you never reach the `save()` call.
+`form.save()` raises `ValueError` if you call it before validation passes. The `if self.form.is_invalid: return self.redo()` check in `create` and `update` handles that for you - if the form is invalid, the action returns before the `save()` call.
 
-If you skip the callback (custom flow, JSON API), call `form.is_valid` first.
+If you skip that check (custom flow, JSON API), call `form.is_valid` first.
 
 ---
 
@@ -636,26 +634,20 @@ Now `form.save()` returns a plain dict instead of a model instance:
 ```python
 @router.resource("contact", pk=None)
 class ContactController(AppController):
-    before = [
-        {"do": "set_form",      "exclude": ["index", "show"]},
-        {"do": "validate_form", "only": ["create"]},
-    ]
 
     def show(self):
-        pass
+        self.form = ContactForm(self.params)
 
     def create(self):
+        self.form = ContactForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
         data = self.form.save()
         SupportMailer.contact_received(data).deliver_later()
         self.response.redirect_to("Contact.show", flash="Thanks - we'll be in touch.")
-
-    # Private
-
-    def set_form(self):
-        self.form = ContactForm(self.params)
 ```
 
-`set_form`, `validate_form`, `self.redo()` - all the same callbacks as before, all the same templates (`new.jx`, `edit.jx`). The only thing that changes is what comes out of `form.save()` and what you do with it.
+Building the form, `return self.redo()`, and the templates are all the same as before. The only thing that changes is what comes out of `form.save()` and what you do with it.
 
 This is also the right shape for forms that produce a JSON request body for an external service, build a search query, or update a session preference - anywhere you'd otherwise be parsing `self.params` by hand.
 
