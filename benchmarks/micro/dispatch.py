@@ -32,8 +32,7 @@ class ItemsController(Controller):
         {"do": "check_request_origin"},
         {"do": "check_csrf_token"},
         {"do": "set_locale"},
-        {"do": "set_item", "exclude": ["index", "new", "create"]},
-        {"do": "validate_form", "only": ["create", "update"]},
+        {"do": "check_quota", "only": ["create", "update"]},
     ]
     after = {"do": "set_vary", "only": "show"}
 
@@ -46,10 +45,7 @@ class ItemsController(Controller):
     def set_locale(self):
         pass
 
-    def set_item(self):
-        self.item = "Item " + self.params["id"]
-
-    def validate_form(self):
+    def check_quota(self):
         pass
 
     def set_vary(self):

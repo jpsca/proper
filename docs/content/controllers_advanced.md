@@ -292,7 +292,7 @@ Without `Vary: Accept`, your dev environment usually works fine: you're hitting 
 
 ### When This Pattern Stops Fitting
 
-Branching on `self.request.format` is the right move when one or two HTML actions also need to answer JSON. It stops being the right move when you're writing a controller that's mostly JSON - you end up with `if self.request.format == "json"` at the top of every action, the cookie machinery is doing work no JSON client needs, and `validate_form`'s "re-render the form template" reaction makes no sense for an API.
+Branching on `self.request.format` is the right move when one or two HTML actions also need to answer JSON. It stops being the right move when you're writing a controller that's mostly JSON - you end up with `if self.request.format == "json"` at the top of every action, the cookie machinery is doing work no JSON client needs, and `self.redo()`'s "re-render the form template" reaction makes no sense for an API.
 
 At that point, the controller wants to be a JSON-only controller: cookies disabled, validation handled inline, errors rendered as JSON instead of HTML. That's a different shape with its own conventions, covered separately.
 
@@ -390,13 +390,10 @@ When a request can't be satisfied, the controller raises an exception that maps 
 ```python
 from proper.errors import NotFound, Forbidden
 
-def set_card(self):
-    card_id = self.params.get("card_id", "")
-    self.card = Card.find(int(card_id))
+def update(self):
+    self.load_card()
     if not self.card:
         raise NotFound
-
-def update(self):
     if not self.card.editable_by(current.user):
         raise Forbidden("You don't have permission to edit this card")
 ```
@@ -434,8 +431,8 @@ Two paths produce an error response from a controller. Both are fine; they're fo
 **Raise** when something goes wrong from somewhere deep in the call stack - inside a `before` callback, inside a helper, inside a model method. The exception unwinds the stack, halting any callbacks that were about to run, and lets the framework's error handling take over:
 
 ```python
-def set_card(self):
-    self.card = Card.find(int(self.params.get("card_id", "")))
+def load_card_or_fail(self):
+    self.load_card()
     if not self.card:
         raise NotFound
 ```

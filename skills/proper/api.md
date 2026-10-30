@@ -349,9 +349,7 @@ Base class for controller concerns (mixins with callbacks). See [Controllers —
 from proper import Concern
 
 class TeamScoped(Concern):
-    before = {"do": "set_team"}
-
-    def set_team(self):
+    def load_team(self):
         ...
 ```
 
