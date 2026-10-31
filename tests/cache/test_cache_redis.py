@@ -4,6 +4,7 @@ import unittest.mock
 import pytest
 
 from proper.cache import RedisCache
+from proper.cache.redis_cache import RACE_MARKER_SUFFIX
 
 
 @pytest.fixture()
@@ -73,6 +74,28 @@ class TestGetOrSet:
         )
         assert result == "fresh"
         assert cache.get("key") == "fresh"
+
+    def test_race_condition_ttl_other_callers_get_stale(self, cache):
+        """While one caller recomputes, the others get the stale value."""
+        cache.set("key", "stale", expires_in=2)
+        time.sleep(1)
+        # Another caller is recomputing: its marker is set
+        cache.client.set("key" + RACE_MARKER_SUFFIX, b"1", ex=10)
+
+        called = []
+        result = cache.get_or_set(
+            "key", lambda: called.append(1) or "fresh", expires_in=60, race_condition_ttl=10,
+        )
+        assert result == "stale"
+        assert called == []
+        assert cache.get("key") == "stale"
+
+    def test_race_condition_ttl_marker_removed(self, cache):
+        """The recompute removes its marker, so the next expiry can be claimed."""
+        cache.set("key", "stale", expires_in=2)
+        time.sleep(1)
+        cache.get_or_set("key", lambda: "fresh", expires_in=60, race_condition_ttl=10)
+        assert cache.client.exists("key" + RACE_MARKER_SUFFIX) == 0
 
     def test_race_condition_ttl_miss(self, cache):
         """Key fully expired - normal recompute."""
