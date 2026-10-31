@@ -23,6 +23,10 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- `attachment.variant(resize_to_fit=..., page=2)` failed with
+  `Invalid transformation: page`: the previewer's options (`page`, `dpi`,
+  `at_seconds`) were passed to the image pipeline too. The pipeline now gets
+  only the transformations.
 - `app.i18n.get_day_names()`, `get_month_names()`, `get_quarter_names()` and
   `get_era_names()` returned the numbers of Babel's mapping instead of the
   names. They return the names, Monday and January first.

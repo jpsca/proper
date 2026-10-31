@@ -843,6 +843,39 @@ def test_preview_pdf_page_kwarg_passed_to_pdftoppm(Attachment):
     assert cmd[cmd.index("-f") + 1] == "3"
 
 
+def test_variant_passes_previewer_options_to_the_previewer_only(Attachment):
+    """`page`/`dpi` reach `preview_pdf` but not the image pipeline, which rejects them."""
+    Attachment.VARIANTS_ENABLED_FOR = {
+        "image/*": "preview_image",
+        "application/pdf": "preview_pdf",
+    }
+    att = Attachment(
+        _make_file(b"%PDF", "doc.pdf"), content_type="application/pdf"
+    )
+    att.save(force_insert=True)
+    seen = {}
+
+    def fake_preview(source, **ops):
+        seen["preview"] = ops
+        return b"png"
+
+    def fake_transform(source, **ops):
+        seen["transform"] = ops
+        return b"png"
+
+    with (
+        patch.object(type(att), "preview_pdf", autospec=True, side_effect=lambda self, source, **ops: fake_preview(source, **ops)),
+        patch("proper.storage.attachment.transform_image", side_effect=fake_transform),
+    ):
+        variant = att.variant(resize_to_fit=(400, 400), page=2, dpi=300)
+
+    assert variant.parent == att
+    assert seen["preview"]["page"] == 2 and seen["preview"]["dpi"] == 300
+    assert seen["preview"]["resize_to_fit"] == (400, 400)  # previewers get every option
+    assert seen["transform"]["resize_to_fit"] == (400, 400)
+    assert set(seen["transform"]) == {"resize_to_fit", "save"}  # not page/dpi
+
+
 def test_preview_pdf_dpi_kwarg_passed_to_pdftoppm(Attachment):
     att = Attachment(
         _make_file(b"%PDF", "doc.pdf"), content_type="application/pdf"
