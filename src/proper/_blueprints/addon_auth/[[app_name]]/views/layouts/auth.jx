@@ -1,3 +1,4 @@
+{#import "flashes.jx" as Flashes #}
 {#import "./base.jx" as Layout #}
 {#css "css/auth.css" #}
 
@@ -5,6 +6,7 @@
 
 <Layout attrs={{attrs}}>
 	<div class="auth-wrapper">
+		<Flashes />
 		{{ content }}
 	</div>
 </Layout>

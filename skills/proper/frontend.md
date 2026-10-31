@@ -208,4 +208,4 @@ The generated `flashes.jx` component renders one-time flash messages set during 
 {%- endif %}
 ```
 
-Flash types (`mtype`) are typically `"info"`, `"success"`, `"warning"`, or `"error"`. Style each with a corresponding `.alert--{type}` CSS class.
+Flash categories (`mtype`) are `"positive"` (the default of `redirect_to`), `"negative"`, `"warning"` or `"info"` by convention. Style each with a corresponding `.alert--{category}` CSS class.

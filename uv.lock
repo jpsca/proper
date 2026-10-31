@@ -822,7 +822,7 @@ requires-dist = [
     { name = "peewee", specifier = ">=4.5.1,<5" },
     { name = "peewee-migrate", specifier = ">=2.3,<3" },
     { name = "proper-cli", specifier = ">=2.1.0" },
-    { name = "pybearings", editable = "../fp40/Bearings/python" },
+    { name = "pybearings", specifier = ">=0.4.1" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "types-peewee", specifier = ">=4.5.1" },
     { name = "tzdata", specifier = ">=2025.3" },
@@ -920,21 +920,14 @@ wheels = [
 [[package]]
 name = "pybearings"
 version = "0.4.1"
-source = { editable = "../fp40/Bearings/python" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
 ]
-
-[package.metadata]
-requires-dist = [{ name = "cffi", specifier = ">=2.0" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "hatchling", specifier = ">=1.32.4" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "pytest-cov", specifier = ">=6" },
-    { name = "ruff", specifier = ">=0.9" },
-    { name = "ty" },
+sdist = { url = "https://files.pythonhosted.org/packages/d8/71/c2650ab81028f82e2df92191ffc1eefc1d6b4e864e98c40577b4c2f55c3b/pybearings-0.4.1.tar.gz", hash = "sha256:52372feeac72215c37e113e6ac7c27f25d1f68d330c61773f3c9e709a4169263", size = 282196, upload-time = "2026-10-25T22:43:42.456Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/88/477e48c2ae7ba2ed068b7fcad1cbba2bba0141b00b478741d58f7f34d5ab/pybearings-0.4.1-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:27ccdac02e6398563d9f1072f2460fbed59ce30e4344641eddc2a214f7239cbb", size = 608360, upload-time = "2026-10-25T22:43:40.32Z" },
+    { url = "https://files.pythonhosted.org/packages/41/48/37bf12af6b8f7638958228a4ce9d41c3574b95d054d87a80e4b06165ee52/pybearings-0.4.1-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:ed9b197739d6fc9764adce1036d29bf9be4a3c4bf1dd39c52ec8aebb4f20f0b4", size = 612877, upload-time = "2026-10-25T22:43:41.423Z" },
 ]
 
 [[package]]

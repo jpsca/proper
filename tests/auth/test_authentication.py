@@ -79,6 +79,23 @@ def test_require_authentication_without_a_session(app, Ctrl):
     assert co.response.session["_redirect"] == "/private"
 
 
+@pytest.mark.parametrize("skip", [True, "index", ["index"]])
+def test_skip_authentication_still_resumes_the_session(app, Ctrl, models, user, skip):
+    """A public page knows who visits it: the nav shows "Sign out", not
+    "Sign in", to a user with the auth cookie."""
+    Ctrl.skip_authentication = skip
+    signed = _controller(app, Ctrl)
+    session = signed.new_session_for(user)
+    current.auth_session = current.user = None
+
+    co = _controller(app, Ctrl, cookie=_cookie_of(signed.response))
+    co.require_authentication()
+
+    assert current.auth_session.id == session.id
+    assert current.user == user
+    assert co.response.location is None
+
+
 @pytest.mark.parametrize("skip", [True, ["index"]])
 def test_skip_authentication(app, Ctrl, skip):
     Ctrl.skip_authentication = skip

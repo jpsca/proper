@@ -93,6 +93,11 @@ def test_file_creation(app_in_tmp):
     # creates_auth_cli
     path = root_path / "cli" / "auth_cli.py"
     assert path.exists()
+    # `proper auth password` changes the password of an existing user,
+    # it doesn't create a user
+    text = path.read_text()
+    assert "user.set_password(password)" in text
+    assert text.count("User.create(") == 1
 
     # creates_password_reset_email
     path = root_path / "emails" / "password_reset_email.py"
@@ -112,6 +117,9 @@ def test_file_creation(app_in_tmp):
     # creates_auth_layout
     path = root_path / "views" / "layouts" / "auth.jx"
     assert path.exists()
+    # The sign-in, sign-up and password-reset pages use this layout, so it
+    # must show the flashes that the auth controllers set on a redirect
+    assert "<Flashes />" in path.read_text()
 
     # creates_auth_css
     path = root_path.parent / "assets" / "css" / "auth.css"

@@ -151,7 +151,7 @@ class App(AppWsgi):
     def __init__(
         self,
         import_name: str,
-        config: dict[str, t.Any] | type | None = None,
+        config: dict[str, t.Any] | type | types.ModuleType | None = None,
     ) -> None:
         self.env = os.getenv("APP_ENV", "dev")
         self.import_name = import_name
