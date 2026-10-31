@@ -247,11 +247,10 @@ To customize a method (e.g. `new_session_for`), override it on `AppController` r
 
 On every request, `require_authentication` runs as a `before` callback:
 
-1. If `skip_authentication` is `True`, allow the request.
-2. If the user is already authenticated (session resumed from cookie), allow the request.
-3. If the current action is listed in `skip_authentication` (a list of names, or one name as a string), allow the request.
-4. Try to resume the session from the `_auth` signed cookie.
-5. If no valid session is found, store the current URL in the session and redirect to the login page.
+1. Resume the session from the `_auth` signed cookie, if there is one. This happens on every request, public pages included, so `current.user` is set whenever the visitor has signed in.
+2. If the user is authenticated, allow the request.
+3. If `skip_authentication` is `True`, or the current action is listed in it (a list of names, or one name as a string), allow the request.
+4. Otherwise, store the current URL in the session and redirect to the login page.
 
 ### Skipping Authentication
 

@@ -7,10 +7,6 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# pybearings comes from PyPI here, not from ../fp40/Bearings/python
-env:
-  UV_NO_SOURCES: "1"
-
 jobs:
   validate:
     name: validate
@@ -32,10 +28,15 @@ jobs:
         options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+
+      # a local path in [tool.uv.sources] must never reach a commit: it
+      # would break `uv sync` for everyone else
+      - name: "Checks pyproject.toml has no local sources"
+        run: "! grep -q '^\\[tool.uv.sources\\]' pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10
 
       - name: Install system dependencies
         run: |
@@ -66,10 +67,10 @@ jobs:
             build: uv build --wheel
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10
 
       - name: Install Free Pascal
         run: |
@@ -87,7 +88,7 @@ jobs:
       - name: "Checks the wheels"
         run: python3 bin/check-wheels.py dist/*.whl
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.runner }}
           path: dist/*
@@ -103,14 +104,14 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dist-*
           path: dist
           merge-multiple: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10
 
       - name: "Uploads to PyPI"
         run: uv publish --trusted-publishing always dist/*

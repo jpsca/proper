@@ -5,6 +5,7 @@ For tool-specific configuration (db, auth, etc.), see the `tools/` folder.
 """
 import ipaddress
 import typing as t
+from types import ModuleType
 
 from ..errors import BadSecretKey, ConfigError
 from ..helpers import DotDict
@@ -258,7 +259,7 @@ def parse_trusted_proxies(
 DEFAULT_TRUSTED_PROXIES = parse_trusted_proxies(default_config["TRUSTED_PROXIES"])
 
 
-def load_config(user_config: dict[str, t.Any] | type) -> DotDict:
+def load_config(user_config: dict[str, t.Any] | type | ModuleType) -> DotDict:
     if isinstance(user_config, dict):
         config_data = user_config
     else:

@@ -49,6 +49,12 @@ make install
     After changing the Pascal sources in `src/proper/_native/`, compile
     them again with `make native`.
 
+4.  Optional: to develop against a local checkout of Bearings (the server),
+    install it into the virtualenv with `make dev-bearings BEARINGS=path/to/Bearings/python`.
+    Do not add it to `[tool.uv.sources]` in `pyproject.toml`: the CI
+    rejects a `pyproject.toml` with that section, because a local path
+    there breaks `make install` for everyone else.
+
 5.  Create a branch for local development:
 
 ```bash

@@ -6,6 +6,13 @@ install:
 native:
 	uv run python src/proper/_native/build.py
 
+# Develops against a local checkout of Bearings instead of the PyPI release.
+# `uv sync` (and `make install`) puts the PyPI release back; run this after it.
+BEARINGS ?= ../fp40/Bearings/python
+.PHONY: dev-bearings
+dev-bearings:
+	uv pip install -e $(BEARINGS)
+
 .PHONY: test
 test:
 	uv run pytest -x src/proper tests
