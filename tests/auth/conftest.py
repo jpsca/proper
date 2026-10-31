@@ -12,10 +12,16 @@ from proper.helpers import render_blueprint
 APP_NAME = "ipaddrapp"
 
 BASE_MODEL = """\
+from datetime import datetime, timezone
+
 import peewee as pw
 from proper.models import ProperModel
 
 db = pw.SqliteDatabase(":memory:")
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class BaseModel(ProperModel):
