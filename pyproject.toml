@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "proper"
-version = "0.46.0"
+version = "0.47.0"
 description = "Opinionated and batteries-included Python web framework"
 authors = [
     {name = "Juan Pablo Scaletti", email = "juanpablo@jpscaletti.com"},
@@ -39,7 +39,6 @@ dependencies = [
     "structlog>=26.1.0",
     "types-peewee >= 4.5.1",
     "tzdata >= 2025.3",
-    "watchfiles>=1.1",
 ]
 
 [project.urls]
