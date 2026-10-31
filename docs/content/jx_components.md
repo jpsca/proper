@@ -1190,7 +1190,7 @@ Flash messages live on the request, not as a top-level global:
 {% endif %}
 ```
 
-The generated `flashes.jx` does roughly that. `flashes` is a list of `(kind, message)` tuples; `kind` is a free-form string (`"info"`, `"success"`, `"warning"`, `"error"` by convention).
+The generated `flashes.jx` does roughly that. `flashes` is a list of `(kind, message)` tuples; `kind` is a free-form string (`"positive"`, the default of `redirect_to`, `"negative"`, `"warning"` or `"info"` by convention).
 
 ### Translation and Formatting Helpers
 

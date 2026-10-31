@@ -17,19 +17,25 @@ class Authentication(Concern):
     skip_authentication: bool | Sequence = ()
 
     def require_authentication(self):
-        if self.is_authenticated():
+        """Restores the session of the auth cookie, if there is one, so
+        `current.user` is known on every page, public ones too. Then, if
+        the action is not public, sends a visitor without a session to the
+        sign-in page."""
+        if not self.is_authenticated():
+            self._resume_session()
+        if self.is_authenticated() or self.authentication_is_skipped():
             return
-        elif isinstance(self.skip_authentication, bool):
-            if self.skip_authentication:
-                return
-        elif isinstance(self.skip_authentication, str):
+        self._request_authentication()
+
+    def authentication_is_skipped(self) -> bool:
+        """Whether `skip_authentication` makes the matched action public."""
+        skip = self.skip_authentication
+        if isinstance(skip, bool):
+            return skip
+        if isinstance(skip, str):
             # One action name, not the letters of one
-            if self.request.matched_action == self.skip_authentication:
-                return
-        elif self.request.matched_action in self.skip_authentication:
-            return
-        if not self._resume_session():
-            self._request_authentication()
+            return self.request.matched_action == skip
+        return self.request.matched_action in skip
 
     def is_authenticated(self) -> bool:
         return current.auth_session is not None
@@ -57,8 +63,8 @@ class Authentication(Concern):
 
     def redirect_if_authenticated(self, *, default="/", flash=None):
         if not self.is_authenticated():
-            # The session was not loaded if authentication was skipped,
-            # so we try to load it now.
+            # `require_authentication` already did this when it ran before;
+            # it is for a callback list that calls this method on its own.
             self._resume_session()
         if self.is_authenticated():
             self.redirect_after_authentication(default=default, flash=flash)

@@ -4,6 +4,21 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- `proper auth password` of the auth addon changed nothing: it tried to
+  create a second user with the same login and printed the error. It now
+  sets the password of the user.
+- The `layouts/auth.jx` of the auth addon shows the flash messages. The
+  sign-in, sign-up and password-reset pages use that layout, and the
+  messages of the auth controllers (a rate limit reached, for example)
+  were set but never shown.
+- `require_authentication` restores the session of the auth cookie on
+  every request, also when `skip_authentication` makes the action public:
+  `current.user` was `None` on a public page, so a layout showed "Sign in"
+  to a user who had signed in. The new `authentication_is_skipped()`
+  tells whether `skip_authentication` covers the matched action.
+
 ## 0.46.0
 
 - The controllers that `proper g resource` and `proper g controller` generate do not use `before` callbacks for form validation anymore.

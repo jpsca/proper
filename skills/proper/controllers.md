@@ -967,7 +967,7 @@ The `flash_cat` parameter defaults to `"positive"`. Common categories are `"posi
 You can also set flash messages directly without redirecting:
 
 ```python
-self.response.flash("success", "Settings saved")
+self.response.flash("positive", "Settings saved")
 ```
 
 In your templates, flash messages are reachable through `current.request.flashes` — a list of `(type, message)` tuples. The generated `flashes.jx` does roughly `{% set flashes = current.request.flashes %}` and iterates. Storage is the session, but the access path on the read side is the request.

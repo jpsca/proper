@@ -32,7 +32,7 @@ class AuthCLI(CLI):
                 break
             except Exception as e:
                 print("ERROR:", e)
-                password= ""
+                password = ""
 
         print("User added")
 
@@ -59,11 +59,12 @@ class AuthCLI(CLI):
             while not password:
                 password = getpass("Password: ")
             try:
-                User.create(login=login, password=password)
+                user.set_password(password)
+                user.save()
                 break
             except Exception as e:
                 print("ERROR:", e)
-                password= ""
+                password = ""
         print("Password updated")
 
 
