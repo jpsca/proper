@@ -39,12 +39,12 @@ will render as
 To learn more about the API, please read the Proper Internationalization guide
 at https://properproject.org/docs/i18n.
 
-Be aware that YAML interprets the following case-insensitive strings as
-booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
-must be quoted to be interpreted as strings. For example:
+The parser is `poyo`, a YAML subset. It turns `true`/`false` (any case) into
+booleans and `null`/`~` into `None`; quote them to get the string. `yes`,
+`no`, `on` and `off` stay strings. For example:
 
 ```yaml
 en:
-  "yes": yup
-  enabled: "ON"
+  "true": yup
+  nothing: "null"
 ```
