@@ -23,6 +23,9 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- `app.i18n.get_day_names()`, `get_month_names()`, `get_quarter_names()` and
+  `get_era_names()` returned the numbers of Babel's mapping instead of the
+  names. They return the names, Monday and January first.
 - The generated `views/layouts/base.jx` imported `app.jx`, which imports it
   back; the unused import is gone.
 - The `OriginProtection` docstring said a `Sec-Fetch-Site` other than
