@@ -23,6 +23,9 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- The comments of the i18n addon's `en.yml` and `README.md` warned that YAML
+  reads `yes`, `no`, `on` and `off` as booleans. The parser is `poyo`, which
+  keeps them as strings; only `true`/`false` and `null`/`~` are converted.
 - The generated `views/layouts/email.jx` declares the `title` that the
   emails `proper g email` generates pass to it, and renders it as the
   document's `<title>`.
