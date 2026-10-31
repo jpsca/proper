@@ -277,6 +277,16 @@ class TestNameInflection:
 
 
 class TestMigration:
+    def test_migration_is_created_once(self, app_in_tmp):
+        """The model generator creates it; the resource generator must not repeat it."""
+        from unittest.mock import patch
+
+        with patch("proper.generators.model.call") as call:
+            gen_resource(app_in_tmp, "Product", migration=True)
+
+        assert call.call_count == 1
+        assert call.call_args.args[0] == 'proper db create "product"'
+
     def test_migration_still_generates_files(self, app_in_tmp):
         gen_resource(app_in_tmp, "Product", migration=True)
         # Files are generated even when migration=True

@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 import inflection
 
-from ..helpers.render import call
 from .controller import gen_controller
 from .model import gen_model
 
@@ -63,6 +62,3 @@ def gen_resource(
         _name_pascal=name_pascal,
         _name_snake=name_snake,
     )
-
-    if migration:
-        call(f'proper db create "{name_snake}"')

@@ -23,6 +23,8 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- `proper g resource --migration` ran `proper db create` twice (the second
+  run found nothing to add).
 - `attachment.variant(resize_to_fit=..., page=2)` failed with
   `Invalid transformation: page`: the previewer's options (`page`, `dpi`,
   `at_seconds`) were passed to the image pipeline too. The pipeline now gets
