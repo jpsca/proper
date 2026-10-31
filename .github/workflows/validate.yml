@@ -24,7 +24,7 @@ jobs:
         run: "! grep -q '^\\[tool.uv.sources\\]' pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v7
 
       # the install compiles Proper's native code (hatch_build.py)
       - name: Install Free Pascal
