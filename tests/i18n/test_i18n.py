@@ -387,15 +387,17 @@ def test_format_list(i18n):
 
 
 def test_get_day_names(i18n):
-    # Returns list of keys (ints 0-6); verifies the method runs and returns 7 days
     names = i18n.get_day_names("wide", locale="en")
-    assert len(names) == 7
+    assert names == [
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+    ]
+    assert i18n.get_day_names("abbreviated", locale="es")[0] == "lun"
 
 
 def test_get_month_names(i18n):
-    # Returns list of keys (ints 1-12); verifies the method runs and returns 12 months
     names = i18n.get_month_names("wide", locale="en")
     assert len(names) == 12
+    assert names[0] == "January" and names[-1] == "December"
 
 
 def test_get_currency_name(i18n):
@@ -453,9 +455,9 @@ def test_format_scientific(i18n):
 
 def test_get_quarter_names(i18n):
     names = i18n.get_quarter_names("wide", locale="en")
-    assert len(names) == 4
+    assert names == ["1st quarter", "2nd quarter", "3rd quarter", "4th quarter"]
 
 
 def test_get_era_names(i18n):
     names = i18n.get_era_names("wide", locale="en")
-    assert len(names) == 2
+    assert names == ["Before Christ", "Anno Domini"]
