@@ -14,6 +14,9 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- `RedisCache.get_or_set()` with `race_condition_ttl` let every caller that
+  arrived in the race window recompute the value; now only the first does, and
+  the others get the stale value, as with `SqliteCache`.
 - The Turbo guide said a controller's `disconnect()` could clean up the page
   before Turbo caches its snapshot. The snapshot is taken before the body is
   swapped, so `disconnect()` runs too late; the guide now points to the
