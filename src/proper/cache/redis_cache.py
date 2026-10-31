@@ -7,6 +7,9 @@ from .base import BaseCache, SerializerProtocol
 # for loading the library at startup.
 redis: t.Any = None
 
+# Appended to a key while one caller recomputes it in the race window
+RACE_MARKER_SUFFIX = ":__race"
+
 
 def _load_redis() -> t.Any:
     global redis
@@ -60,6 +63,7 @@ class RedisCache(BaseCache):
         if expires_in is None:
             expires_in = self.expires_in
 
+        marker = None
         data = self.client.get(key)
         if data is not None:
             if not race_condition_ttl:
@@ -67,13 +71,22 @@ class RedisCache(BaseCache):
             remaining = self.client.ttl(key)
             if remaining < 0 or remaining > race_condition_ttl:
                 return self.deserialize(data)
-            # In race window - extend stale entry for other callers
+            # Logically expired, within the race window. Only one caller
+            # recomputes: the one that sets the marker. The others get the
+            # stale value until the fresh one is stored, or the marker
+            # expires (the recompute failed) and the next caller takes it.
+            marker = f"{key}{RACE_MARKER_SUFFIX}"
+            if not self.client.set(marker, b"1", nx=True, ex=race_condition_ttl):
+                return self.deserialize(data)
+            # Keep the stale value for the others while we recompute
             self.client.expire(key, race_condition_ttl)
 
         if callable(default):
             default = default()
         actual_ttl = expires_in + race_condition_ttl if race_condition_ttl else expires_in
         self.client.set(key, self.serialize(default), ex=actual_ttl)
+        if marker:
+            self.client.delete(marker)
         return default
 
     def increment(
