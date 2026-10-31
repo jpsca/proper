@@ -1,10 +1,17 @@
 [% if tailwind -%]
 import subprocess
+import typing as t
 
 from ..main import app
 
 
-class AppCLI(app.CLI):
+if t.TYPE_CHECKING:
+    from proper_cli import Cli as _BaseCLI
+else:
+    _BaseCLI = app.CLI
+
+
+class AppCLI(_BaseCLI):
     """Custom commands for this application"""
     def run(self):
         subprocess.Popen([
@@ -16,10 +23,18 @@ class AppCLI(app.CLI):
         super().run()   # type: ignore
 
 [% else %]
+import typing as t
+
 from ..main import app
 
 
-class AppCLI(app.CLI):
+if t.TYPE_CHECKING:
+    from proper_cli import Cli as _BaseCLI
+else:
+    _BaseCLI = app.CLI
+
+
+class AppCLI(_BaseCLI):
     """Custom commands for this application"""
     pass
 [% endif %]

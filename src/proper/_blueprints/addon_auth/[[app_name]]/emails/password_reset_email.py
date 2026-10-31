@@ -1,4 +1,4 @@
-from ..main import app, config
+from ..main import app
 from .base_email import BaseEmail
 
 

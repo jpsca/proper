@@ -1,6 +1,6 @@
 import peewee as pw
 
-from ..base import BaseModel
+from ..base import BaseModel, utcnow
 
 
 class RussianDollCached(BaseModel):
@@ -21,7 +21,7 @@ class RussianDollCached(BaseModel):
     any `{% cache(post) %}` fragment that wraps `{% cache(comment) %}`.
     """
 
-    updated_at = pw.DateTimeField(default=pw.utcnow, null=True)
+    updated_at = pw.DateTimeField(default=utcnow, null=True)
 
     # Tuple of ForeignKeyField names whose parent records should be
     # touched when this record is saved or deleted.
@@ -29,11 +29,11 @@ class RussianDollCached(BaseModel):
 
     @classmethod
     def update(cls, *args, **kwargs):
-        kwargs["updated_at"] = pw.utcnow()
+        kwargs["updated_at"] = utcnow()
         return super().update(*args, **kwargs)
 
     def save(self, *args, **kwargs):
-        self.updated_at = pw.utcnow()
+        self.updated_at = utcnow()
         result = super().save(*args, **kwargs)
         self._touch_related()
         return result
@@ -44,7 +44,7 @@ class RussianDollCached(BaseModel):
 
     def touch(self):
         """Bump this record's `updated_at` and propagate to `touches`."""
-        type(self).update(updated_at=pw.utcnow()).where(
+        type(self).update(updated_at=utcnow()).where(
             type(self)._meta.primary_key == self.get_id()
         ).execute()
         self._touch_related()
