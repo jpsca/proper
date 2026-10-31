@@ -14,6 +14,7 @@ Proper uses Jx components for templates (compiled to Python functions by Proper)
 - [Layouts](#layouts)
 - [Component Assets](#component-assets)
 - [Import Maps](#import-maps)
+- [Stimulus](#stimulus)
 - [Turbo Drive](#turbo-drive)
 - [Flash Messages](#flash-messages)
 
@@ -169,6 +170,76 @@ This renders a `<script type="importmap">` tag with the resolved URLs. Component
 ```js
 import { Controller } from "@hotwired/stimulus";
 ```
+
+
+## Stimulus
+
+The generated app bundles [Stimulus](https://stimulus.hotwired.dev) (`assets/js/vendor/stimulus.js`, resolved through the import map as `@hotwired/stimulus`). `assets/js/application.js` starts it and exposes the application as `window.Stimulus`. There is no controller autoloading: every controller file registers itself, and the Jx component that uses it declares the file with `{#js #}`.
+
+Conventions:
+
+- One controller per file at `assets/js/<identifier>-controller.js`, kebab-case identifier named after the behavior (`toggle`, `autosave`, `char-count`), not after the page.
+- The file ends with `window.Stimulus.register("<identifier>", ControllerClass)`.
+- The component that renders the markup declares `{#js "js/<identifier>-controller.js" #}`. The layout emits each declared script once per page as `<script type="module">`, so the controller loads only where it is used.
+- Pass data from Python with values (`data-<identifier>-<name>-value="{{ ... }}"`, `| tojson` for arrays and objects), and CSS class names with classes (`data-<identifier>-<name>-class="..."`). Keep hard-coded class names and URLs out of the controller.
+- Through `attrs` or any keyword argument, underscores become dashes: `attrs.set(data_toggle_target="panel")` renders `data-toggle-target="panel"`.
+
+```js {title="assets/js/toggle-controller.js"}
+import { Controller } from "@hotwired/stimulus"
+
+class ToggleController extends Controller {
+  static targets = ["panel"]
+  static classes = ["open"]
+
+  toggle() {
+    this.panelTarget.hidden = !this.panelTarget.hidden
+    this.element.classList.toggle(this.openClass)
+  }
+
+  close() {
+    this.panelTarget.hidden = true
+    this.element.classList.remove(this.openClass)
+  }
+
+  closeOutside(event) {
+    if (!this.element.contains(event.target)) this.close()
+  }
+}
+
+window.Stimulus.register("toggle", ToggleController)
+```
+
+```html+jinja {title="myapp/views/disclosure.jx"}
+{#js "js/toggle-controller.js" #}
+{#def label #}
+
+<div data-controller="toggle" data-toggle-open-class="is-open"
+     data-action="keydown.esc->toggle#close click@window->toggle#closeOutside">
+  <button type="button" data-action="toggle#toggle">{{ label }}</button>
+  <div data-toggle-target="panel" hidden>{{ content }}</div>
+</div>
+```
+
+Stimulus API in brief (full reference: https://stimulus.hotwired.dev/reference/controllers):
+
+| Declaration | HTML attribute | In the controller |
+|-------------|----------------|-------------------|
+| `static targets = ["panel"]` | `data-<id>-target="panel"` | `this.panelTarget`, `this.panelTargets`, `this.hasPanelTarget`, `panelTargetConnected(el)` |
+| actions | `data-action="event->id#method"` (`@window`, `.esc`, `:prevent`, `:stop`, `:once`) | `method(event)`; default event: `click` on buttons/links, `input` on fields, `change` on selects, `submit` on forms |
+| `static values = { url: String, n: { type: Number, default: 1 } }` | `data-<id>-url-value="..."` | `this.urlValue`, `urlValueChanged(value, old)` |
+| `static classes = ["open"]` | `data-<id>-open-class="is-open"` | `this.openClass`, `this.openClasses` |
+| `static outlets = ["result"]` | `data-<id>-result-outlet=".selector"` | `this.resultOutlet`, `this.resultOutlets` |
+| lifecycle | — | `initialize()`, `connect()`, `disconnect()` |
+| events | `data-action="<id>:saved->other#method"` | `this.dispatch("saved", { detail })` |
+
+With Turbo:
+
+- Drive swaps the `<body>`, so `connect()` runs again on every visit and `disconnect()` on every departure. Anything `connect()` adds outside the element (window listeners, intervals, observers) must be removed in `disconnect()`.
+- Module scripts already in `<head>` do not run again on a Drive visit; new ones are added and run once. `register` is therefore called once per controller per browser tab.
+- The page snapshot for "Back" is taken **before** the body is swapped, so `disconnect()` cannot clean it. Listen for `turbo:before-cache` on `document` to reset state that should not be cached, or mark elements with `data-turbo-temporary`.
+- Controllers inside a frame or stream fragment connect when the fragment is inserted; `<name>TargetConnected` fires for appended targets.
+
+The addons ship real controllers to copy from: `show-password-controller.js` (auth), `file-input-controller.js` and `image-input-controller.js` (storage).
 
 
 ## Turbo Drive
