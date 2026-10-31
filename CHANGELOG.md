@@ -2,7 +2,20 @@
 
 All notable changes to Proper are documented in this file.
 
-## Unreleased
+## 0.47.0
+
+### Changed
+
+- The reloader of `proper run` is Proper's own: Linux's inotify, called in
+  libc with `ctypes`. The `watchfiles` dependency is gone, and with it the
+  compiled wheel it needed for each version of Python: `watchfiles` has
+  none for 3.15t, so installing Proper there needed a Rust toolchain.
+  Changes under `.git`, `.venv`, `node_modules` and `__pycache__`, and to
+  compiled Python and editor temporary files, do not restart the server.
+  A server that dies (an import error, say) is not restarted until a file
+  changes. On WSL, where inotify hears nothing of a file written from
+  Windows on `/mnt/c`, the files are polled every second instead;
+  `PROPER_RELOAD_POLLING=1` (or `0`) forces one or the other.
 
 ### Fixed
 

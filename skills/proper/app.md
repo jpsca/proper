@@ -574,7 +574,7 @@ What it starts, from the config:
 - `WORKERS` Bearings event loops per process, which never run Python; the app runs on one pool of `MAX_THREADS` threads.
 - With a cable that serves WebSockets (`Cable`), that server, in the first web process, on `CABLE_PORT`.
 - `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
-- With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes.
+- With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes. The watcher is Proper's own (`proper.cli.reloader`, Linux inotify through `ctypes`); it skips `.git`, `.venv`, `node_modules`, `__pycache__`, compiled Python and editor temporary files. A server that dies on start is restarted by the next change, not by itself. On WSL it polls the modification times every second instead (inotify misses writes from Windows on `/mnt/c`); `PROPER_RELOAD_POLLING=1`/`0` forces polling or inotify.
 
 There is no middleware parameter: Proper is not an ASGI application. Cross-cutting behavior goes in controller `before`/`after` callbacks and concerns, and TLS or compression belong to the reverse proxy in front of the app.
 
