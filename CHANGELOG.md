@@ -14,6 +14,8 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- The generated `views/layouts/base.jx` imported `app.jx`, which imports it
+  back; the unused import is gone.
 - The `OriginProtection` docstring said a `Sec-Fetch-Site` other than
   `same-origin`/`none` rejected the request; the code goes on to compare the
   `Origin` with the `Host`, as it always did.
