@@ -17,12 +17,12 @@ This is the documentation for **Proper**. These guides are designed to make you 
   <p>Read me first. This will teach you how to set up a new Proper application.</p>
 </a>
 
-<a class="doc-index-section">
+<!-- <a class="doc-index-section">
   <h3>Tutorial</h3>
   <section class="admonition wip">
     <p class="admonition-title">Work in progress</p>
   </section>
-</a>
+</a> -->
 
 ## Models
 
@@ -84,7 +84,12 @@ This is the documentation for **Proper**. These guides are designed to make you 
 
 <a href="/docs/view_helpers" class="doc-index-section">
   <h3>Views Helpers</h3>
-  <p>This is a list of of most of the helpers available in the views.</p>
+  <p>This is a list of most of the helpers available in the views.</p>
+</a>
+
+<a href="/docs/stimulus" class="doc-index-section">
+  <h3>Stimulus</h3>
+  <p>Small JavaScript controllers that add behavior to the HTML your components render.</p>
 </a>
 
 <a href="/docs/turbo" class="doc-index-section">

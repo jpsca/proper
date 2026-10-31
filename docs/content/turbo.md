@@ -44,7 +44,7 @@ To opt a specific link or form *out* - a third-party widget, a file download, a 
 
 ### Links with HTTP Methods
 
-By default, link clicks send a GET request to your server. But you can change this with data-turbo-method:
+By default, link clicks send a GET request to your server. But you can change this with `data-turbo-method`:
 
 ```html
 <a href="/articles/54" data-turbo-method="delete">Delete the article</a>
@@ -52,7 +52,7 @@ By default, link clicks send a GET request to your server. But you can change th
 
 ### Confirm to Navigate
 
-Decorate links with both data-turbo-confirm and data-turbo-method, and confirmation will be required for a visit to proceed.
+Decorate links with both `data-turbo-confirm` and `data-turbo-method`, and confirmation will be required for the visit to proceed.
 
 ```html
 <a href="/articles" data-turbo-method="get"
@@ -64,7 +64,7 @@ Decorate links with both data-turbo-confirm and data-turbo-method, and confirmat
 >Delete the article</a>
 ```
 
-Use `Turbo.config.forms.confirm = confirm` to change the method that gets called for confirmation. The default is the browser's built in `confirm`.
+Use `Turbo.config.forms.confirm = confirm` to change the method that gets called for confirmation. The default is the browser's built-in `confirm`.
 
 ### Form Submissions
 
@@ -79,7 +79,7 @@ Throughout a submission, Turbo Drive will dispatch a series of events that targe
 
 During a submission, Turbo Drive will set the "submitter" element's disabled attribute when the submission begins, then remove the attribute after the submission ends.
 
-When submitting a `<form>` element, browsers will treat the `<input type="submit">` or `<button>` element that initiated the submission as the submitter. To submit a `<form>` element programmatically, invoke the `HTMLFormElement.requestSubmit(`) method and pass an `<input type="submit">` or `<button>` element as an optional parameter.
+When submitting a `<form>` element, browsers will treat the `<input type="submit">` or `<button>` element that initiated the submission as the submitter. To submit a `<form>` element programmatically, invoke the `HTMLFormElement.requestSubmit()` method and pass an `<input type="submit">` or `<button>` element as an optional parameter.
 
 If there are other changes you'd like to make during a `<form>` submission (for example, disabling all fields within a submitted `<form>`), you can declare your own event listeners:
 
@@ -109,7 +109,7 @@ A frame is a region of the page that Turbo can replace on its own. Wrap content 
 {# <turbo-frame id="message_42"> ... </turbo-frame> #}
 ```
 
-The id ties everything together. [`dom_id`](/docs/view_helpers#dom_id) derives the id from the object (`message_42`)
+The id ties everything together. [`dom_id`](/docs/view_helpers#dom_id) derives the id from the object (`message_42`).
 
 The rule Turbo follows is simple: **when a link or form inside a frame navigates, Turbo finds the `<turbo-frame>` with the *same id* in the response and swaps in just that.** So the edit link above loads `/messages/42/edit`, and Turbo pulls the `message_42` frame out of that response - the rest of the page is left alone.
 
@@ -345,10 +345,133 @@ Broadcasts are explicit - call `app.cable.broadcast` wherever a change happens.
 
 ---
 
+## Patterns & Best Practices
+
+### Use server-side rendering to avoid code duplication
+
+When you need to pre-process a form before sending it (for example, parsing, validating, and deduplicating a list of emails), you might assume that this functionality needs to be implemented client-side.
+
+But that same parsing, validation, and deduplication will still need to be done on the server side, so now we have to maintain two implementations of the same logic.
+
+Instead, create an import preview endpoint that does the parsing work on the back end and then streams the preview results back to the page.
+
+### Be aware of (or beware) Turbo's "prefetch" feature
+
+Turbo Drive has a feature, active by default, that fetches a link's page when the user hovers the mouse over it for more than 100ms.
+
+This can lead to a significant perceived speed boost for the user, but at the cost of many pages being rendered on the server and then thrown away when the hover does not lead to a click.
+
+This may be a fine default for some apps, but you might want to add `data-turbo-prefetch="false"` to the body to disable it globally, and then enable it explicitly in the places where the performance gain is worth it.
+
+### Cleanup before leaving
+
+When leaving a page, Turbo Drive takes a snapshot, which it uses both for navigating by history with the browser's back and forward buttons and as a temporary preview during standard navigation. When that snapshot is taken, we want to leave the page in a state that makes sense when it is shown again.
+
+So things like flash messages or confirmations of dangerous actions must be removed.
+
+There are a few techniques we can use to do this. The easiest one is the `data-turbo-temporary` attribute, which makes Drive remove the element from the page automatically before caching it.
+
+A Stimulus controller can do the same from JavaScript by listening for the `turbo:before-cache` event, which fires right before the snapshot is taken. A controller's `disconnect()` runs after the snapshot, so it is too late for this. See [Stimulus - Stimulus and Turbo](/docs/stimulus#stimulus-and-turbo).
+
+### Missing frame ID
+
+Turbo Frames is a tool for decomposing regions of a page where link clicks and form submissions within that region are captured and the contents of that region are updated based on the response.
+
+When a link click or a form submission happens inside a frame or targets that frame, Turbo expects a response with a matching frame ID, whose contents it swaps into the frame. When it doesn't get one, it displays a generic "Content missing" message and then throws a frame-missing error.
+
+How can this happen? Mainly when we forget about the possible fallback views, like a not-found error page or a user session that expires and redirects to the login page, both of which lack that frame ID.
+
+To fix it, we can wrap our submission panel frame in a div with a controller that handles frame recovery and a custom fallback message that is hidden by default. The `frame-recovery` [Stimulus](/docs/stimulus) controller intercepts the frame-missing event, reports the error details to our exception tracker, and then displays the custom error message, or performs a visit if the response was a redirect.
+
+```html
+<div data-controller="frame-recovery"
+     data-frame-recovery-hidden-class="hidden"
+     data-action="turbo:frame-missing->frame-recovery#missing
+                  turbo:frame-render->frame-recovery#loaded">
+
+  {% frame "submission_panel",
+           data_frame_recovery_target="frame" %}
+  <p>Select an item from the queue.</p>
+  {% endframe %}
+
+  <div data-frame-recovery-target="error">
+    <p>We couldn't load that submission.</p>
+    <p>It may have been removed by someone else on your team.</p>
+    <p><a href="{{ url_for('Item.index') }}">
+      Reload the queue</a></p>
+  </div>
+</div>
+```
+
+This is an example of such a controller:
+
+```js
+import { Controller } from "@hotwired/stimulus"
+
+export default class extends Controller {
+  static targets = [ "frame", "error" ]
+  static classes = [ "hidden" ]
+
+  missing(event) {
+    event.preventDefault()
+    const { response, visit } = event.detail
+
+    this.report(event.target, response)
+
+    if (response.redirected) {
+      visit(response)
+    } else {
+      this.frameTarget.classList.add(this.hiddenClass)
+      this.errorTarget.classList.remove(this.hiddenClass)
+    }
+  }
+
+  report(frame, response) {
+    const report = {
+      frame: frame.id, status: response.status, url: response.url
+    }
+
+    if (response.ok && !response.redirected) {
+      report.likelyCause =
+        "200 with no matching frame, response missing turbo_frame_tag wrapper"
+    }
+
+    console.error("[frame-missing]", report)
+  }
+}
+```
+
+### Turbo Stream DOM coupling
+
+When using streams, it is up to you to enforce the contract between the IDs your stream actions target and the IDs of the elements on the receiving page.
+
+If the template changes, there are no server-side or client-side warnings to let you know that a stream is targeting the wrong ID, or even a non-existent one.
+
+The typical instinct to solve this is to reach for the `dom_id` helper, passing in the object. For example:
+
+```html
+<div id="{{ dom_id(task) }}">
+  <span>{{ task.title }}{% if task.completed %} ✔️{% endif %}</span>
+</div>
+```
+
+But that fails when individual objects (like the `task` in the example) are represented in two different ways on the same page.
+
+The answer is to increase specificity. Instead of thinking about components on a page as being the canonical representation of a model instance, be more specific about what they are, such as a task row or a task pin card:
+
+```html
+<div id="{{ dom_id(task, "list-item") }}">
+  <span>{{ task.title }}{% if task.completed %} ✔️{% endif %}</span>
+</div>
+```
+
+---
+
 ## Related
 
 - [Turbo Handbook](https://turbo.hotwired.dev/handbook/introduction).
 - [Jx Components](/docs/jx_components) - the server-rendered components you wrap in a frame or a stream.
+- [Stimulus](/docs/stimulus) - the JavaScript controllers that add behavior to that HTML.
 - [View Helpers](/docs/view_helpers#dom_id) - `dom_id` and the other template globals.
 - [Controllers](/docs/controllers) - rendering, redirects, and the request cycle.
 - [Real-Time Updates (Channels)](/docs/channels) - the WebSocket cable behind broadcasting.

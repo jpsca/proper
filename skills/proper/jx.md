@@ -14,7 +14,7 @@ Jx is a component-based template system with Jinja's syntax. Components are `.jx
 **Escaping:** `{{ }}` escapes in `.jx`, `.html.jx` and `.xml.jx` files, unless the value is markup (a component's output, `attrs.render()`, form fields, `| safe`). Other files (`.txt.jx`, `.json.jx`) render values as they are.
 **Names:** a name that is not an argument, a `set` variable, a loop variable or a global is a `KeyError` (with a note saying where it was looked for). A `set` inside a `for` is not visible after the loop.
 
-> For production UI component patterns (buttons, modals, dropdowns, form inputs, layouts, etc.), see the **jx-components** skill. Component JavaScript should use **StimulusJS**, not vanilla JavaScript. Bare imports like `@hotwired/stimulus` are resolved by the [import maps](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap). Every Stimulus controller must self-register via `window.Stimulus.register()`:
+> For production UI component patterns (buttons, modals, dropdowns, form inputs, layouts, etc.), see the **jx-components** skill. Component JavaScript should use **Stimulus**, not vanilla JavaScript (see [frontend.md — Stimulus](frontend.md#stimulus)). Bare imports like `@hotwired/stimulus` are resolved by the [import maps](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap). Every Stimulus controller must self-register via `window.Stimulus.register()`:
 >
 > ```js
 > // toast_controller.js

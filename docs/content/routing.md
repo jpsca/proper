@@ -460,7 +460,7 @@ This is the natural shape for multi-tenant apps where every URL carries the tena
 
 ### Scopes with Defaults
 
-`router.scope(...)` accepts `defaults=` too. They are merged with the defaults of each route under the scope, and the route's win. With a default for the placeholder of the prefix, `url_for` fills in the tenant without you passing it on each call (see [Defaults for placeholders](#defaults-for-placeholders)):
+`router.scope(...)` accepts `defaults=` too. They are merged with the defaults of each route under the scope, and the route's win. With a default for the placeholder of the prefix, `url_for` fills in the tenant without you passing it on each call:
 
 ```python
 tenant = router.scope(
@@ -731,7 +731,7 @@ This is the form you'll use in templates 90% of the time:
 
 ### Placeholders with Defaults
 
-A placeholder that you don't give, as an argument or by the object, takes the route's default for it, if it has one. A default can be a function that `url_for` calls, like `lambda: current.account.id` for the tenant of a [scope](#scopes-with-defaults). See [Defaults for placeholders](#defaults-for-placeholders).
+A placeholder that you don't give, as an argument or by the object, takes the route's default for it, if it has one. A default can be a function that `url_for` calls, like `lambda: current.account.id` for the tenant of a [scope](#scopes-with-defaults).
 
 ### Extra Keyword Arguments Become Query Parameters
 
