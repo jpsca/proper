@@ -2,6 +2,23 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Added
+
+- A [Stimulus guide](https://properproject.org/docs/stimulus) in the Views
+  section of the docs, before the Turbo guide: setup, a compact primer on
+  controllers, targets, actions, values, classes and outlets, how controllers
+  pair with Jx components through `{#js #}`, and how they behave under Turbo.
+  The two Stimulus-only patterns of the Turbo guide moved there.
+
+### Fixed
+
+- The Turbo guide said a controller's `disconnect()` could clean up the page
+  before Turbo caches its snapshot. The snapshot is taken before the body is
+  swapped, so `disconnect()` runs too late; the guide now points to the
+  `turbo:before-cache` event.
+
 ## 0.47.0
 
 ### Changed

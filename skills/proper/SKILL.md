@@ -76,6 +76,7 @@ Controller  ──────────────  receives the request, ru
 | Build Jx components | [jx.md](jx.md) | — |
 | Add routes or understand URL generation | [routing.md](routing.md) | `proper routes` |
 | Build a JSON API or add JSON responses | [controllers.md](controllers.md) | — |
+| Client-side behavior with Stimulus controllers (targets, actions, values, `{#js #}`) | [frontend.md — Stimulus](frontend.md#stimulus) | — |
 | Turbo (Drive, Frames, Streams) — live UI, frame navigation, stream responses | [turbo.md](turbo.md) | — |
 | Controller behavior (callbacks, rendering, concerns) | [controllers.md](controllers.md) | — |
 | Security (CSRF, rate limiting, sessions, cookies) | [security.md](security.md) | — |
