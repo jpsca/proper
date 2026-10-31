@@ -23,6 +23,9 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- The generated `views/layouts/email.jx` declares the `title` that the
+  emails `proper g email` generates pass to it, and renders it as the
+  document's `<title>`.
 - `proper g resource --migration` ran `proper db create` twice (the second
   run found nothing to add).
 - `attachment.variant(resize_to_fit=..., page=2)` failed with
