@@ -124,7 +124,7 @@ As you've seen in the examples, a convenient way to avoid manually importing eac
 import peewee as pw` and then use the `pw.` prefix.
 :::
 
-Peewee's [playhouse extensions](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html) provide additional field types for specific databases, such as `ArrayField`, `HStoreField`, and `TSVectorField` for PostgreSQL. Proper also includes a `JSONField` (from `proper`) that auto-serializes Python objects to JSON with special `datetime` round-trip support.
+Peewee's [playhouse extensions](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html) provide additional field types for specific databases, such as `ArrayField`, `HStoreField`, and `TSVectorField` for PostgreSQL. For JSON columns use Peewee's `pw.JSONField`. `from proper import JSONField` exists only for backwards compatibility with the data stored by older versions; don't use it in new code.
 
 For the full list of fields and their options, see the [Peewee field documentation](https://docs.peewee-orm.com/en/latest/peewee/models.html#field-types-table).
 
@@ -589,31 +589,30 @@ Concerns live in the `models/concerns/` directory. To use one, add it to your mo
 import peewee as pw
 
 from .base import BaseModel
-from .concerns.timestamped import Timestamped
+from .concerns.russian_doll_cached import RussianDollCached
 from .concerns.publishable import Publishable
 
 
-class Post(Publishable, Timestamped, BaseModel):
+class Post(Publishable, RussianDollCached, BaseModel):
     title = pw.CharField()
     body = pw.TextField()
 ```
 
-The `Post` table now has all the columns defined in `Publishable` and `Timestamped`, plus its own `title` and `body`.
+The `Post` table now has all the columns defined in `Publishable` and `RussianDollCached` (`updated_at`), plus its own `title` and `body`, and the `created_at` every `BaseModel` has.
 
 ### Writing a Concern
 
 Create a file in `models/concerns/` and define a normal `BaseModel` subclass:
 
 ```python
-# models/concerns/timestamped.py
+# models/concerns/touched.py
 import peewee as pw
 
-from ..base import BaseModel
+from ..base import BaseModel, utcnow
 
 
-class Timestamped(BaseModel):
-    created_at = pw.DateTimeField(default=pw.utcnow, null=True)
-    updated_at = pw.DateTimeField(default=pw.utcnow, null=True)
+class Touched(BaseModel):
+    updated_at = pw.DateTimeField(default=utcnow, null=True)
 
     @classmethod
     def update(cls, *args, **kwargs):

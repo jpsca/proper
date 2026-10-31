@@ -15,7 +15,7 @@ from inflection import parameterize
 
 from ..errors import StorageConfigError
 from ..global_context import current
-from ..models import JSONField, ProperModel
+from ..models import ProperModel
 from ..units import YEAR
 from .imageops import load_pyvips, transform_image
 from .services import Service
@@ -680,7 +680,7 @@ def attachment_for(
         content_type: str = pw.CharField(64, default=DEFAULT_CONTENT_TYPE)  # type: ignore
         byte_size: int = pw.IntegerField(default=0)  # type: ignore
         created_at: "datetime" = pw.DateTimeField(default=pw.utcnow)  # type: ignore
-        metadata: dict | None = JSONField(null=True)  # type: ignore
+        metadata: dict | None = pw.JSONField(null=True)  # type: ignore
         parent: t.Self | None = pw.ForeignKeyField("self", null=True)  # type: ignore
         variant_key: str = pw.CharField(64, default="", index=True)  # type: ignore
         # Where this attachment came from. "direct" = uploaded as part of
