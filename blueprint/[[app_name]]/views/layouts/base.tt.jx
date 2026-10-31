@@ -1,4 +1,3 @@
-{#import "./app.jx" as Layout #}
 {#def title = '', description='', lang='en' #}
 
 <!DOCTYPE html>
