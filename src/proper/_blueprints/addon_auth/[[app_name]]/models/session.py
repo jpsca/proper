@@ -6,7 +6,7 @@ from hashlib import sha256
 
 import peewee as pw
 
-from .base import BaseModel
+from .base import BaseModel, utcnow
 from .user import User
 
 
@@ -47,9 +47,9 @@ class Session(BaseModel):
         default=generate_session_token,
         help_text="Opaque session identifier sent to client",
     )
-    created_at = pw.DateTimeField(default=pw.utcnow, index=True)
+    created_at = pw.DateTimeField(default=utcnow, index=True)
     expires_at = pw.DateTimeField(index=True)  # absolute expiry
-    last_seen_at = pw.DateTimeField(default=pw.utcnow, index=True)
+    last_seen_at = pw.DateTimeField(default=utcnow, index=True)
     # `request.remote_ip`: an IPv4 or IPv6 address, or what a proxy wrote
     # instead (`unknown`, `_hidden`).
     ip_address = pw.CharField(max_length=IP_ADDRESS_MAX_LENGTH, null=True)
@@ -81,7 +81,7 @@ class Session(BaseModel):
             user=user,
             ip_address=ip_address[:IP_ADDRESS_MAX_LENGTH] if ip_address else None,
             user_agent_hash=user_agent_hash,
-            expires_at=pw.utcnow() + lifetime,  # type: ignore
+            expires_at=utcnow() + lifetime,
         )
 
     @classmethod
@@ -91,7 +91,7 @@ class Session(BaseModel):
             .where(
                 cls.token == token,
                 cls.revoked == False,  # noqa: E712
-                cls.expires_at > pw.utcnow(),  # type: ignore
+                cls.expires_at > utcnow(),
             )
             .first()
         )
@@ -108,7 +108,7 @@ class Session(BaseModel):
         )
 
     def touch(self):
-        self.last_seen_at = pw.utcnow()  # type: ignore
+        self.last_seen_at = utcnow()
         self.save(only=[self.__class__.last_seen_at])
 
     def revoke(self) -> None:
@@ -116,4 +116,4 @@ class Session(BaseModel):
         self.save(only=[self.__class__.revoked])
 
     def is_valid(self) -> bool:
-        return not self.revoked and self.expires_at > pw.utcnow()  # type: ignore
+        return not self.revoked and self.expires_at > utcnow()

@@ -70,7 +70,7 @@ class Authenticable(BaseModel):
         Required by proper.auth.Auth()
         """
         login = cls.normalize_login(login)
-        return cls.get_or_none(cls.login == login)  # type: ignore
+        return cls.get_or_none(cls.login == login)
 
     @classmethod
     def authenticate(
@@ -84,7 +84,7 @@ class Authenticable(BaseModel):
         return auth.authenticate(cls, login, password, update_hash=update_hash)
 
     def set_password(self, password: str | None) -> None:
-        self.password = auth.hash_password(password) if password else password or ""
+        self.password = (auth.hash_password(password) or "") if password else ""
 
     def generate_token_for_password_reset(self):
         """Return a value that changes when the password_reset token should
