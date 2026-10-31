@@ -259,31 +259,27 @@ class TestRunCommand:
                 child.kill()
 
     def test_reloading_restarts_the_whole_group_from_outside(self, app, monkeypatch):
-        import watchfiles
-
-        from proper.cli import app_cli
+        from proper.cli import app_cli, reloader
 
         calls = {}
         monkeypatch.setattr(
-            watchfiles, "run_process", lambda *paths, **kw: calls.update(paths=paths, **kw)
+            reloader, "run_process", lambda path, **kw: calls.update(path=path, **kw)
         )
         app.config.RELOAD = True
         app.config.PROCESSES = 2
 
         app_cli.get_run_cli(app)(None, port=2300)
 
-        assert calls["paths"] == (str(app.root_path),)
+        assert calls["path"] == str(app.root_path)
         assert calls["target"] is app_cli._serve_group
         assert calls["kwargs"]["web"]["port"] == 2300
         assert calls["kwargs"]["processes"] == 2
         assert calls["callback"] is app_cli._log_changes
 
     def test_the_restart_says_which_files_changed(self, capsys):
-        from watchfiles import Change
-
         from proper.cli.app_cli import _log_changes
 
-        _log_changes({(Change.modified, "b.py"), (Change.added, "a.py")})
+        _log_changes({"b.py", "a.py"})
 
         assert "restarting the server: a.py, b.py" in capsys.readouterr().out
 

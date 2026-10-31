@@ -108,6 +108,12 @@ Broadcasts made in a process without the WebSockets are forwarded as a signed `P
 
 `RELOAD` restarts the server when a file under the app changes. The default, `None`, follows `DEBUG`: on in development, off in production. The restart is done by a supervisor outside the server and covers the whole group - every web process, and the cable in the first one.
 
+The supervisor watches the app's directory with inotify, except `.git`, `.venv`, `node_modules`, `__pycache__` and the like. Compiled Python files and the temporary files of editors do not count as changes. If the server dies on start (an import error, say), the error stays on the screen and the next change starts it again.
+
+On a large project, inotify can run out of watches (`fs.inotify.max_user_watches`); the error says how to raise the limit.
+
+On WSL, inotify does not hear of a file written from Windows (VS Code on Windows, say) when the project is on a Windows drive, `/mnt/c/...`. There the supervisor checks the modification times of the files every second instead, which costs more and notices later. Better keep the project on the Linux disk of WSL (`~/...`), which is also much faster for everything else. The environment variable `PROPER_RELOAD_POLLING` set to `1` forces that polling anywhere, and set to `0` forces inotify on WSL.
+
 Ctrl+C, or a `SIGTERM` to `proper run`, shuts down every process it started.
 
 ### Compiled views

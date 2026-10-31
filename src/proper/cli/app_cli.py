@@ -12,6 +12,7 @@ from ..check import ERROR, run_checks
 from ..check.gil import free_threaded as _free_threaded
 from ..check.gil import gil_enabled as _gil_enabled
 from ..models.migrations import pending_migrations
+from . import reloader
 from .db_cli import get_db_cli
 from .jx_cli import get_jx_cli
 
@@ -194,25 +195,20 @@ def _serve_group(
     return children
 
 
-def _log_changes(changes: set) -> None:
+def _log_changes(changes: set[str]) -> None:
     # Printed rather than logged: the `proper` logger has no handler of its
     # own, and this must show up next to the server's lines.
-    files = ", ".join(sorted(path for _change, path in changes))
-    print(f"Changes detected, restarting the server: {files}", flush=True)
+    print(f"Changes detected, restarting the server: {', '.join(sorted(changes))}", flush=True)
 
 
-def _serve_restarting_on_changes(
-    path: str, target: "Callable", kwargs: dict
-) -> None:
+def _serve_restarting_on_changes(path: str, target: "Callable", kwargs: dict) -> None:
     """Run `target(**kwargs)` in a child process, and start a new one
-    whenever a file under `path` changes.
+    whenever a file under `path` changes (`reloader`).
 
     Bearings has no reloader of its own, and restarting the whole group
     from outside also covers the other servers of the group.
     """
-    import watchfiles
-
-    watchfiles.run_process(path, target=target, kwargs=kwargs, callback=_log_changes)
+    reloader.run_process(path, target=target, kwargs=kwargs, callback=_log_changes)
 
 
 def get_run_cli(app: "App") -> t.Callable:
