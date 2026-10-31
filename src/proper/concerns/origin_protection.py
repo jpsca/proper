@@ -57,16 +57,16 @@ class OriginProtection(Concern):
        The list of trusted origins comes from the `TRUSTED_ORIGINS` config option.
        Trusted origins should include protocol and port (e.g. https://example.com).
 
-    4. If the `Sec-Fetch-Site` header is present and its value is `same-origin` or `none`,
-       allow the request; otherwise, reject the request.
-       This secures all major up-to-date browsers for sites hosted on trustworthy
-       (HTTPS or localhost) origins.
+    4. If the `Sec-Fetch-Site` header is `same-origin` or `none`, allow the request.
+       Up-to-date browsers send it for sites on trustworthy (HTTPS or localhost)
+       origins. Any other value goes on to the next steps.
 
     5. If the `Origin` header’s host (including the port) matches the `Host` header, allow the
        request. This is either a request to an HTTP origin or from an out-of-date browser.
 
-    6. If both the `Origin` and the `Host` are on the local network (private IPs, loopback,
-       or link-local addresses), allow the request. This enables development across LAN devices.
+    6. If both the `Origin` and the `Host` are on the local network (`localhost`, or a
+       private, loopback or link-local IP address), allow the request. This enables
+       development across LAN devices.
 
     7. Otherwise, reject the request raising an `InvalidOrigin` error.
 

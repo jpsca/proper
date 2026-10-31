@@ -14,6 +14,9 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- The `OriginProtection` docstring said a `Sec-Fetch-Site` other than
+  `same-origin`/`none` rejected the request; the code goes on to compare the
+  `Origin` with the `Host`, as it always did.
 - `RedisCache.get_or_set()` with `race_condition_ttl` let every caller that
   arrived in the race window recompute the value; now only the first does, and
   the others get the stale value, as with `SqliteCache`.
