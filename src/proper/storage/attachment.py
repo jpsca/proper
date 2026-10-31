@@ -17,7 +17,7 @@ from ..errors import StorageConfigError
 from ..global_context import current
 from ..models import ProperModel
 from ..units import YEAR
-from .imageops import load_pyvips, transform_image
+from .imageops import VALID_OPS, load_pyvips, transform_image
 from .services import Service
 
 
@@ -419,8 +419,15 @@ class _Attachment(ProperModel):
         for pattern, method_name in self.VARIANTS_ENABLED_FOR.items():
             if fnmatch(self.content_type, pattern):
                 method = getattr(self, method_name)
+                # The previewer gets every option, its own (`page`, `dpi`,
+                # `at_seconds`) included; the image pipeline only the
+                # transformations, since it rejects any other name.
                 image_bytes = method(self.download(), **ops)
-                image_bytes = transform_image(image_bytes, **ops)
+                image_ops = {
+                    name: value for name, value in ops.items()
+                    if name in VALID_OPS or name in ("load", "save")
+                }
+                image_bytes = transform_image(image_bytes, **image_ops)
                 upload = io.BytesIO(image_bytes)
 
                 ext = save["format"].lstrip(".").lower()
