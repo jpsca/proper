@@ -24,6 +24,11 @@ from ..helpers.formatters import (
 )
 
 
+def _names(mapping: "t.Mapping[int, str]") -> list[str]:
+    """The names of Babel's calendar mapping, in the order of its keys
+    (`0` is Monday for the days, `1` is January for the months)."""
+    return [mapping[key] for key in sorted(mapping)]
+
 class Formatters:
     """Mixin class to provide format functions using Babel
     for localization."""
@@ -66,13 +71,13 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return t.cast(list[str], list(
+        return _names(
             babel_dates.get_day_names(
                 width=width,
                 context=context,
                 locale=locale if locale else self.get_current_locale(),
             )
-        ))
+        )
 
     def get_month_names(
         self,
@@ -103,13 +108,13 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return t.cast(list[str], list(
+        return _names(
             babel_dates.get_month_names(
                 width=width,
                 context=context,
                 locale=locale if locale else self.get_current_locale(),
             )
-        ))
+        )
 
     def get_quarter_names(
         self,
@@ -140,13 +145,13 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return t.cast(list[str], list(
+        return _names(
             babel_dates.get_quarter_names(
                 width=width,
                 context=context,
                 locale=locale if locale else self.get_current_locale(),
             )
-        ))
+        )
 
     def get_era_names(
         self,
@@ -171,12 +176,12 @@ class Formatters:
                 force the locale to use for formatting.
 
         """
-        return t.cast(list[str], list(
+        return _names(
             babel_dates.get_era_names(
                 width=width,
                 locale=locale if locale else self.get_current_locale(),
             )
-        ))
+        )
 
     def get_currency_name(
         self,
