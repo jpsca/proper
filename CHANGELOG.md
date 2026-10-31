@@ -4,6 +4,15 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- JSON columns use Peewee's own `JSONField` (`pw.JSONField`, with JSON path
+  queries). `proper.models.JSONField` is kept only for backwards compatibility:
+  it is `pw.JSONField` with the old field's encoder as default, so the data an
+  app stored with it keeps loading the same. The undocumented
+  `json_ensure_ascii` / `json_use_detailed` database attributes the old field
+  read are gone. `Attachment.metadata` is a `pw.JSONField`.
+
 ### Added
 
 - A [Stimulus guide](https://properproject.org/docs/stimulus) in the Views
