@@ -614,6 +614,17 @@ class TestPipeline:
             client.get("/explode")
         assert "error" in called
 
+    def test_on_error_sees_the_error(self, app, client):
+        seen = []
+        app.on_error(lambda: seen.append(current.response.error))
+        app.router.add_route(
+            Route(method="GET", path="/explode", to=GreetController.explode)
+        )
+        with pytest.raises(ValueError):
+            client.get("/explode")
+        assert len(seen) == 1
+        assert isinstance(seen[0], ValueError)
+
     def test_on_error_not_called_on_success(self, app, client):
         called = []
         app.on_error(lambda: called.append("error"))
