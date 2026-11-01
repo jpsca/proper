@@ -2,7 +2,7 @@
 name: proper
 description: Use when building features, adding resources, writing controllers/models/forms/views, or working with addons (auth, storage, i18n, channels) in a Proper web framework application. Also use when the user asks about Proper framework conventions or patterns.
 user-invocable: false
-proper_version: 0.47.0
+proper_version: 0.48.0
 last_verified: 2026-11-01
 sources:
   - src/proper/generators
@@ -22,7 +22,7 @@ For the actual source code of any generated file, **read it directly from the ap
 - Each doc covers one task and is short (under 600 lines, most under 500). Read ONLY the doc(s) for the current task: usually 1, at most 2 or 3. For a task that combines addons (a resource with auth and file uploads), read the primary doc first, then the addon doc(s).
 - Each topic lives in one doc. Other docs mention it in one line and link to it; follow the link instead of guessing.
 - `reference/` holds lookup tables (every attribute of `Request`/`Response`, every status constant, the cable's JSON frames). Open one only to confirm an exact name or signature. The guides are enough for everything else.
-- This skill describes Proper 0.47.0 (`proper_version` above). The app's version is `uv run python -c "from importlib.metadata import version; print(version('proper'))"`. With an older Proper, the generated files and `proper --help` win over this skill where they differ.
+- This skill describes Proper (`proper_version` above). The app's version is `uv run python -c "from importlib.metadata import version; print(version('proper'))"`. With an older Proper, the generated files and `proper --help` win over this skill where they differ.
 - Working examples of patterns not covered here (OAuth sign-in with Google and GitHub on top of `proper install auth`, among others) are in the [proper-examples](https://github.com/jpsca/proper-examples) repository. Check its README before building one of those from scratch.
 
 ## Architecture Overview
