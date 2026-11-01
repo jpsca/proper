@@ -1,7 +1,11 @@
 ---
 title: Background Tasks
 description: Huey task queue — task definition, scheduling, retries, pipelines, worker config
-last_verified: 2026-06-03
+last_verified: 2026-10-31
+sources:
+  - src/proper/tools/queue.py
+  - blueprint/[[app_name]]/tasks
+  - blueprint/workers.tt.py
 ---
 
 # Background Tasks
@@ -23,11 +27,13 @@ Proper includes a background task system built on [Huey](https://huey.readthedoc
 - [Hooks and Signals](#hooks-and-signals)
 - [Context Tasks](#context-tasks)
 - [Key/Value Storage](#keyvalue-storage)
-- [Database Migrations for SQL Backends](#database-migrations-for-sql-backends)
+- [The SqlHuey Database](#the-sqlhuey-database)
 - [Exceptions](#exceptions)
 
 
 ## Defining Tasks
+
+The app package imports `tasks/__init__.py` at startup; a task module is registered only if that file imports it (the generators and addons append the import for you).
 
 Tasks live in the `tasks/` directory. Decorate any function with `@app.queue.task()` to make it a background task:
 
@@ -77,7 +83,7 @@ The framework also uses the queue internally — the storage system queues image
 ### `task()` Decorator Options
 
 ```python
-@app.queue.task(retries=0, retry_delay=0, context=False, name=None, expires=None)
+@app.queue.task(retries=0, retry_delay=0, retry_backoff=0, priority=None, context=False, name=None, expires=None, timeout=None)
 def my_task(arg1, arg2):
     return result
 ```
@@ -86,20 +92,26 @@ def my_task(arg1, arg2):
 |---------------|------------------------------------------------------------------------------|
 | `retries`     | Number of automatic retries on failure                                       |
 | `retry_delay` | Seconds to wait between retries                                              |
+| `retry_backoff` | Multiply `retry_delay` by this factor on each retry (`0` = constant)       |
+| `priority`    | Default priority (see Priority below)                                        |
+| `timeout`     | Seconds before the task is marked failed with `TaskTimeout` (cooperative: a long C call is not interrupted) |
 | `context`     | Pass the `Task` instance as `task` kwarg                                     |
 | `name`        | Custom task name (default: module.function)                                  |
 | `expires`     | Discard if not run within this time (int seconds, timedelta, or datetime)    |
 
-### Priority (PriorityRedisHuey only)
+### Priority
 
-If the queue backend is `PriorityRedisHuey`, tasks accept a `priority` kwarg at enqueue time. Higher numbers run first:
+Tasks accept a `priority` number (higher runs first), as a decorator default or per call:
 
 ```python
+@app.queue.task(priority=10)
+def my_task(a, b): ...
+
 my_task(arg1, arg2, priority=50)
 my_task.schedule(args=(1, 2), delay=60, priority=50)
 ```
 
-Other backends (the default `MemoryHuey`, `SqliteHuey`, plain `RedisHuey`) ignore `priority` — switch the queue type in config if you need it.
+`MemoryHuey`, `SqliteHuey`, `PostgresHuey` and `PriorityRedisHuey` honour it. Plain `RedisHuey` raises `NotImplementedError` on enqueue if a priority is set: switch to `huey.PriorityRedisHuey` (Redis 5 or later).
 
 
 ## Periodic Tasks
@@ -375,6 +387,8 @@ QUEUE = {
 }
 ```
 
+Proper passes `database` to Huey as `filename`. `":memory:"` is rejected with `ConfigError`: the consumer runs in another process and would not see the queue. Huey's own options (`cache_mb`, `fsync`, `journal_mode`, `timeout`, `strict_fifo`) are passed through.
+
 **RedisHuey** (production):
 
 ```python
@@ -414,11 +428,11 @@ QUEUE_CONSUMER = {
     "flush_locks": False,          # Flush locks on startup
     "extra_locks": "",             # Comma-separated extra lock names
     "shutdown_timeout": None,      # Seconds to wait for running tasks on a graceful stop
-    "graceful_signal": "TERM",     # "INT" (ctrl+c) or "TERM" (what `docker stop` sends)
+    "graceful_signal": "INT",      # "INT" (ctrl+c) or "TERM" (what `docker stop` sends)
 }
 ```
 
-All consumer settings have sensible defaults. You only need to override the ones you want to change.
+These are the framework defaults (`proper.tools.queue.DEFAULT_CONSUMER_CONFIG`), merged under your `QUEUE_CONSUMER`; override only what you change. The generated `config/storage.py` sets `graceful_signal` to `"TERM"`, so `docker stop` triggers a graceful shutdown, and raises `workers` to 4 in production.
 
 ### Per-Environment Configuration
 
@@ -446,8 +460,11 @@ if env == "test":
 if env == "prod":
     QUEUE = {
         "type": "huey.RedisHuey",
-        "name": "myapp",
+        "name": os.getenv("REDIS_NAME", "myapp"),
+        "host": os.getenv("REDIS_HOST", "127.0.0.1"),
+        "port": int(os.getenv("REDIS_PORT", 6379)),
     }
+    QUEUE_CONSUMER = {**QUEUE_CONSUMER, "workers": 4}
 ```
 
 
@@ -498,7 +515,7 @@ def on_any(signal, task, exc=None):
     log(signal, task.id)
 ```
 
-**Available signals:** `SIGNAL_CANCELED`, `SIGNAL_COMPLETE`, `SIGNAL_ENQUEUED`, `SIGNAL_ERROR`, `SIGNAL_EXECUTING`, `SIGNAL_EXPIRED`, `SIGNAL_LOCKED`, `SIGNAL_RETRYING`, `SIGNAL_REVOKED`, `SIGNAL_SCHEDULED`, `SIGNAL_INTERRUPTED`.
+**Available signals:** `SIGNAL_CANCELED`, `SIGNAL_COMPLETE`, `SIGNAL_ENQUEUED`, `SIGNAL_ERROR`, `SIGNAL_EXECUTING`, `SIGNAL_EXPIRED`, `SIGNAL_LOCKED`, `SIGNAL_RETRYING`, `SIGNAL_REVOKED`, `SIGNAL_SCHEDULED`, `SIGNAL_INTERRUPTED`, `SIGNAL_TIMEOUT`, `SIGNAL_RATE_LIMITED`.
 
 Disconnect with `app.queue.disconnect_signal(handler)`.
 
@@ -525,19 +542,9 @@ app.queue.get('my-key', peek=True)  # peek=True preserves the value
 ```
 
 
-## Database Migrations for SQL Backends
+## The SqlHuey Database
 
-When using `SqlHuey`, the queue database requires its own migrations. The queue database is registered as `"proper_queue"` in `app.db`, and migration files live in `db/proper_queue/`.
-
-The standard `proper db` commands work with the queue database:
-
-```bash
-proper db create "description" --db=proper_queue
-proper db migrate --db=proper_queue
-proper db rollback --db=proper_queue
-```
-
-The SqlHuey backend uses three tables: `queuekv` (key-value storage), `queueschedule` (scheduled tasks), and `queuetask` (task data).
+With `huey.contrib.sql_huey.SqlHuey`, Proper builds the Peewee database from `dbtype` (plus `database`, `host`, `port`, `user`, `password`) and registers it as `app.db["proper_queue"]`. Huey creates its four tables (`kv`, `schedule`, `task`, `counter`) itself the first time it connects; no migration is required. `proper db migrate` (also with `--db=proper_queue`) runs any migration files you put in `db/proper_queue/`, but `proper db create --db=proper_queue` has no models to diff and prints "No models found."
 
 
 ## Exceptions

@@ -1,7 +1,12 @@
 ---
 title: Emails
 description: Email system — composing messages, mailer backends, async delivery via task queue
-last_verified: 2026-06-06
+last_verified: 2026-10-31
+sources:
+  - src/proper/emails
+  - src/proper/tools/mailer.py
+  - src/proper/_blueprints/email
+  - blueprint/[[app_name]]/emails
 ---
 
 # Emails
@@ -115,7 +120,8 @@ msg = EmailMessage(
 ```python
 msg.send()
 
-# Override recipients at send time
+# Override recipients at send time (`**options` may be from_email, to, cc, bcc, reply_to, headers;
+# headers is merged, the others replace)
 msg.send(to="override@example.com", bcc=["extra@example.com"])
 
 # Send through a specific backend (see Selecting a Backend Per Message)
@@ -156,19 +162,21 @@ from ..tasks import send_email_task
 class BaseEmail(EmailMessage):
     def send_later(self, *, via=None, **options):
         self.update(**options)
+        # Render the template now: the worker only receives the serialized dict.
+        if not self.body:
+            self._render()
         send_email_task(message=self.serialize(), via=via)
 
 ```
 
-This serializes the email to a dictionary and queues it as a background task. The worker process resolves the mailer — the default, or the backend named by `via` — and calls `send_now()` to deliver it.
+This renders the template (if the body is empty), serializes the email to a dictionary and queues it as a background task. The worker process resolves the mailer — the default, or the backend named by `via` — and calls `send_now()` to deliver it.
 
 ### Creating Custom Emails
 
-Subclass `BaseEmail` for specific email types:
+`proper g email Welcome` writes `emails/welcome_email.py` (a `BaseEmail` subclass with `subject = ""`), adds its import to `emails/__init__.py` and creates `views/emails/welcome.jx`. The auth addon's password-reset email is the pattern to copy:
 
 ```python
 from ..main import app
-from ..config import main as config
 from .base_email import BaseEmail
 
 
@@ -177,23 +185,17 @@ class PasswordResetEmail(BaseEmail):
 
     def __init__(self, user, **kwargs):
         super().__init__(**kwargs)
-        token = user.get_token()
-        validate_url = app.url_for("PasswordReset.edit", token=token)
-        reset_url = app.url_for("PasswordReset.new")
-        self.body = app.catalog.render(
-            "emails/password_reset.jx",
-            validate_url=f"{config.PROTOCOL}://{config.HOST}{validate_url}",
-            reset_url=f"{config.PROTOCOL}://{config.HOST}{reset_url}",
-        )
-        self.generate_text_alternative()
+        token = user.generate_token_for("password_reset")
+        self.validate_url = app.url_for("PasswordReset.edit", token=token, _full=True)
+        self.reset_url = app.url_for("PasswordReset.new", _full=True)
 ```
 
 Key patterns:
 
 - Set class-level attributes like `subject` for defaults
-- Use `app.catalog.render()` to render Jx templates for the body
-- Call `generate_text_alternative()` to auto-create a plain text version from HTML
-- Use `app.url_for()` to generate URLs
+- Store what the template needs as instance attributes: they become template variables
+- Use `app.url_for(..., _full=True)` for absolute URLs (built from `PROTOCOL` and `HOST`, never from the request)
+- Leave `body` empty, so `send()` and `send_later()` render `views/emails/password_reset.jx` (the template must declare what it uses: `{#def subject, validate_url, reset_url #}`)
 
 ### Sending Emails
 
@@ -213,17 +215,21 @@ Email templates are Jx files in the `views/emails/` directory. They use a layout
 
 ```html+jinja
 {#def title='', lang='en' #}
+
 <!DOCTYPE html>
 <html lang="{{ lang }}">
-<head>
+  <head>
     <meta charset="utf-8">
     <title>{{ title }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style></style>
-</head>
-<body>
+    <style>
+      /* Email styles need to be inline */
+    </style>
+  </head>
+
+  <body>
     {{ content }}
-</body>
+  </body>
 </html>
 ```
 
@@ -320,7 +326,7 @@ All SMTPMailer options:
 
 `use_tls` and `use_ssl` are mutually exclusive. `use_tls` upgrades a plain connection with STARTTLS, while `use_ssl` connects over SSL/TLS from the start (typically port 465).
 
-The SMTPMailer is thread-safe and reuses connections when sending multiple messages.
+The SMTPMailer is thread-safe. It opens one connection per `send_now(*messages)` call and reuses it for every message in that call; each `message.send()` is its own call, so it opens and closes a connection.
 
 
 ## Configuration
@@ -405,4 +411,4 @@ app.mailers["ses_smtp"].send_now(msg.serialize())
 
 Email addresses with non-ASCII domain names are automatically encoded to punycode for SMTP compatibility. For example, `user@münchen.de` is encoded to `user@xn--mnchen-3ya.de` when sending.
 
-The SMTPMailer also supports SMTPUTF8 for servers that accept internationalized addresses natively.
+Non-ASCII local parts (before the `@`) cannot be IDNA-encoded and are rejected with `ValueError`; SMTPUTF8 is not supported.

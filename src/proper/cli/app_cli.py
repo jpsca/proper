@@ -225,8 +225,8 @@ def get_run_cli(app: "App") -> t.Callable:
                 start in each process.
 
         The app is loaded from `config.APP_TARGET`, or from `app` in the
-        module that created it when that is empty. Bearings serves it over
-        WSGI. A cable that serves WebSockets (`Cable`) starts in this
+        module that created it when that is empty. Bearings serves it
+        through its raw interface, not WSGI. A cable that serves WebSockets (`Cable`) starts in this
         process, on `CABLE_PORT`. `config.PROCESSES` starts that many
         copies of the web server.
         """

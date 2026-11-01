@@ -1213,7 +1213,7 @@ The full translator surface (pluralization, missing keys, locale resolution) is 
 A set of Babel-backed formatting filters is also always available, regardless of whether the `i18n` blueprint is installed. They format against the current locale and timezone, falling back to `LOCALE_DEFAULT` / `TIMEZONE_DEFAULT` from `config/main.py` when the i18n concerns aren't running.
 
 ```html+jinja
-<time>{{ event.starts_at | format_datetime }}</time>
+<time>{{ event.starts_at | format_date }}</time>
 <time>{{ event.starts_at | format_date(format="full") }}</time>
 <span>{{ event.duration | format_timedelta }}</span>
 
@@ -1226,7 +1226,7 @@ A set of Babel-backed formatting filters is also always available, regardless of
 <p>{{ attendees | format_list }}</p>
 ```
 
-The full set: `format_datetime`, `format_date`, `format_time`, `format_timedelta`, `format_skeleton`, `format_list`, `format_decimal`, `format_compact_decimal`, `format_currency`, `format_compact_currency`, `format_percent`, `format_scientific`, `format_size`. Each filter takes the same keyword arguments as the matching `app.i18n.format_*` method - see the [Internationalization guide](/docs/i18n) for the per-filter options.
+The full set: `format_date`, `format_time`, `format_timedelta`, `format_skeleton`, `format_list`, `format_decimal`, `format_compact_decimal`, `format_currency`, `format_compact_currency`, `format_percent`, `format_scientific`, `format_size`. Each filter takes the same keyword arguments as the matching `app.i18n.format_*` method - see the [Internationalization guide](/docs/i18n) for the per-filter options.
 
 ### Controller Instance Attributes
 

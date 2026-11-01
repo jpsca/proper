@@ -1,7 +1,11 @@
 ---
 title: Authentication
 description: Auth addon — user registration, login/logout, password reset, session management
-last_verified: 2026-06-05
+last_verified: 2026-10-31
+sources:
+  - src/proper/auth
+  - src/proper/concerns/authentication.py
+  - src/proper/_blueprints/addon_auth
 ---
 
 # Authentication
@@ -62,9 +66,11 @@ This generates a full authentication system in your app:
 
 The installer also:
 
-- Adds the framework's `Authentication.for_session(Session)` to your `AppController` concerns
+- Writes `controllers/concerns/authentication.py`, a subclass of `proper.concerns.Authentication` with `Session = Session`, and adds it as the first base of `AppController`
+- Adds the views (`layouts/auth.jx`, `password.jx`, `session/new.jx`, `sign_up/new.jx`, `password_reset/{new,edit,show,invalid}.jx`, `emails/password_reset.jx`), a sign-in/sign-out block in `nav.jx`, `assets/css/auth.css` and `assets/js/show-password-controller.js`
+- Adds `tests/controllers/test_{sign_up,session,password_reset}.py` and fixtures to `tests/conftest.py`; `auth = app.auth` to `main.py`; `from .auth import *` to `config/__init__.py`; `from . import auth_cli` to `cli/__init__.py`
 - Installs `passlib`, `argon2-cffi`, and `idna` as dependencies
-- Creates a `"users"` database migration
+- Runs `proper db create "users"`
 
 
 ## Configuration
@@ -108,7 +114,7 @@ from .concerns.authenticable import Authenticable
 
 
 class User(Authenticable, BaseModel):
-    created_at = pw.DateTimeField(default=pw.utcnow)
+    pass  # created_at comes from BaseModel
 ```
 
 The `Authenticable` mixin adds:
@@ -155,7 +161,7 @@ user.set_password("new-password")
 user.save()
 ```
 
-Token generation and resolution are provided by `ProperModel` (see [Token Generation](models.md#token-generation)). The `Authenticable` mixin defines `generate_token_for_password_reset()`, which returns a digest of the password hash (the first 20 hex characters of its SHA-256) as a fingerprint, not a piece of the hash. This means password reset tokens are automatically invalidated when the password changes.
+Token generation and resolution are provided by `ProperModel` (see [Token Generation](models_advanced.md#token-generation)). The `Authenticable` mixin defines `generate_token_for_password_reset()`, which returns a digest of the password hash (the first 20 hex characters of its SHA-256) as a fingerprint, not a piece of the hash. This means password reset tokens are automatically invalidated when the password changes.
 
 ### Login Normalization
 
@@ -172,10 +178,10 @@ Sessions track authenticated users across requests. Each session is a database r
 
 ```python
 class Session(BaseModel):
-    token = pw.CharField(max_length=43, unique=True, index=True)
-    created_at = pw.DateTimeField(default=pw.utcnow)
-    expires_at = pw.DateTimeField()
-    last_seen_at = pw.DateTimeField(default=pw.utcnow)
+    token = pw.CharField(max_length=43, unique=True, index=True, default=generate_session_token)
+    created_at = pw.DateTimeField(default=utcnow, index=True)
+    expires_at = pw.DateTimeField(index=True)
+    last_seen_at = pw.DateTimeField(default=utcnow, index=True)
     ip_address = pw.CharField(max_length=255, null=True)  # request.remote_ip
     user_agent_hash = pw.CharField(max_length=64)
     user = pw.ForeignKeyField(User, backref="sessions", on_delete="CASCADE")
@@ -221,27 +227,39 @@ Tokens are 256-bit cryptographically random values encoded as URL-safe base64 (4
 
 ## The Authentication Concern
 
-The `Authentication` concern is provided by the framework (`proper.concerns.Authentication`) and bound to your app's `Session` model via the `for_session(Session)` factory. The installer adds it to `AppController`, where it registers a `before` callback that runs on every request, requiring authentication by default:
+The `Authentication` concern is provided by the framework (`proper.concerns.Authentication`). The installer writes `controllers/concerns/authentication.py`, a subclass that binds it to your app's `Session` model, and adds it to `AppController`, where it registers a `before` callback that runs on every request, requiring authentication by default:
+
+```python
+# controllers/concerns/authentication.py
+from proper.concerns import Authentication as ProperAuthentication
+
+from myapp.models import Session
+
+
+class Authentication(ProperAuthentication):
+    Session = Session
+```
 
 ```python
 from proper import Controller
-from proper.concerns import Authentication, OriginProtection, RateLimiting
+from proper.concerns import OriginProtection, Pagination, RateLimiting
 
-from ..models import Session
+from .concerns.authentication import Authentication
 from .concerns.security_headers import SecurityHeaders
 
 
 class AppController(
-    Controller,
-    Authentication.for_session(Session),
+    Authentication,
     OriginProtection,
+    Pagination,
     RateLimiting,
     SecurityHeaders,
+    Controller,
 ):
     pass
 ```
 
-To customize a method (e.g. `new_session_for`), override it on `AppController` rather than editing the framework concern.
+To customize a method (e.g. `new_session_for`), override it in `controllers/concerns/authentication.py`.
 
 ### How It Works
 
@@ -319,11 +337,11 @@ The generated `SignUpController` handles user registration:
 
 1. User visits `/sign-up` (GET) — the registration form is rendered.
 2. User submits login (email) and password (twice) (POST).
-3. The `SignUpForm` validates: checks the login is not already taken, the password meets minimum length, is not pwned, and both passwords match.
+3. The `SignUpForm` validates: checks the login is ASCII after normalization (`login_is_ascii`) and not already taken, the password meets minimum length, is not pwned, and both passwords match.
 4. On success: a new `User` is created, a session is started, and the user is redirected to their original destination (or home) with a "Welcome!" flash.
 5. On failure: the form is re-rendered with error messages.
 
-If the user is already authenticated, they are redirected with a "Welcome back!" message (via the `redirect_if_authenticated` before callback).
+If the user is already authenticated, they are redirected to the stored `_redirect` URL or `/`, with no flash (the `redirect_if_authenticated` before callback).
 
 ### Rate Limiting
 
@@ -331,6 +349,8 @@ The `SignUpController` has built-in rate limiting:
 
 - **10 requests** per 15 minutes
 - **30 requests** per hour
+
+Both on `create` (the POST) only; rendering the form is not counted.
 
 ### Authentication
 
@@ -345,7 +365,7 @@ The generated `SessionController` handles sign-in and sign-out:
 | -------- | ---------- | -------- | --------------------
 | GET      | /sign-in   | new      | Show the login form
 | POST     | /sign-in   | create   | Authenticate the user
-| DELETE   | /sign-out  | delete   | Log out
+| DELETE   | /sign-in   | delete   | Log out
 
 ### Login Flow
 
@@ -355,11 +375,11 @@ The generated `SessionController` handles sign-in and sign-out:
 4. On success: a new session is created, the rate limit counter is reset, and the user is redirected to their original destination (or home).
 5. On failure: the form is re-rendered with error messages.
 
-If the user is already authenticated, they are redirected with a "Welcome back!" message.
+If the user is already authenticated, `new` and `create` redirect to the stored `_redirect` URL or `/`, with no flash; "Welcome back!" is the flash of a successful sign-in.
 
 ### Logout Flow
 
-1. User sends a DELETE request to `/sign-out`.
+1. User sends a DELETE request to `/sign-in` (`url_for('Session.delete')`, a form or link with `data-turbo-method="delete"`).
 2. The session is deleted from the database.
 3. The `_auth` cookie is cleared.
 4. The session data is cleared to prevent data leaking between users.
@@ -372,6 +392,8 @@ The `SessionController` has built-in rate limiting to prevent brute-force attack
 - **Per-login**: 8 attempts per 15 minutes per login (normalized)
 - **Per-IP**: 50 attempts per hour (global)
 
+Both on `create` only.
+
 When the per-login limit is exceeded, the user is redirected with an error flash message suggesting they reset their password.
 
 
@@ -381,22 +403,22 @@ The generated `PasswordResetController` handles the full password reset flow:
 
 | HTTP     | PATH                        | ACTION  | USED FOR
 | -------- | --------------------------- | ------- | --------------------------------
-| GET      | /password-reset/new         | new     | Show the "forgot password" form
+| GET      | /password-reset             | new     | Show the "forgot password" form (mounted at the root because there is no `index`)
 | POST     | /password-reset             | create  | Send the reset email
 | GET      | /password-reset/sent        | show    | Confirmation page
 | GET      | /password-reset/:token/edit | edit    | Show the "new password" form
-| PATCH    | /password-reset/:token      | update  | Save the new password
+| PATCH/PUT | /password-reset/:token     | update  | Save the new password
 
 ### Reset Flow
 
-1. User visits `/password-reset/new` and enters their email.
+1. User visits `/password-reset` and enters their email.
 2. The `PasswordResetForm` validates the login exists.
 3. A `PasswordResetEmail` is sent asynchronously with a token generated via `user.generate_token_for("password_reset")`.
 4. The user is redirected to a confirmation page.
 5. When the user clicks the link, `User.resolve_token_for("password_reset", token)` validates the token.
-6. If the token is valid, the user sees a password change form.
+6. If the token is valid, the user sees a password change form; otherwise `password_reset/invalid.jx` is rendered.
 7. The `PasswordChangeForm` validates the new password (minimum length, not pwned, passwords match).
-8. The password is updated, a new session is created, and the user is logged in.
+8. The password is saved, every other session of the user is revoked (`Session.revoke_all_for`), a new session is created, and the user is redirected with a "Password updated" flash.
 
 ### Token Security
 
@@ -414,7 +436,7 @@ New passwords are validated with:
 
 ### Rate Limiting
 
-The password reset form is rate-limited to 10 requests per 15 minutes to prevent email flooding.
+The password reset form is rate-limited to 10 requests per 15 minutes on `create` to prevent email flooding; past the limit the user is redirected to the form with a "Too many requests. Try again in a few minutes." flash.
 
 
 ## Forms
@@ -461,7 +483,7 @@ Validates the new password (length, pwned, match).
 
 ### Customizing Error Messages
 
-All auth forms share a common message dictionary in `forms/auth/validators.py`. Edit the `MESSAGES` dict to customize:
+All auth forms share a common message dictionary in `forms/auth/validators.py`. Edit the `MESSAGES` dict to customize (abridged: the generated messages contain HTML such as `<br>` and `&nbsp;`, and one more key, `current-password-pwned`):
 
 ```python
 MESSAGES = {
@@ -499,7 +521,7 @@ Replace `myapp` with your app's command name. The password is hashed automatical
 - **Argon2 by default** - memory-hard hashing algorithm resistant to GPU attacks
 - **Unicode normalization** - passwords are SASL-prepped to prevent encoding-based bypasses
 - **Automatic hash upgrades** - when you change the hash algorithm or the rounds, passwords are re-hashed and saved on next login
-- **Timing attack prevention** - a decoy password is verified even when the user doesn't exist, preventing timing-based user enumeration
+- **Timing attack prevention** - a decoy password is verified even when the user doesn't exist or has no password, preventing timing-based user enumeration
 - **DoS prevention** - passwords longer than `AUTH_PASSWORD_MAXLEN` (1024 chars) are rejected before hashing
 
 ### Session Security
@@ -508,7 +530,7 @@ Replace `myapp` with your app's command name. The password is hashed automatical
 - **Signed cookies** - tokens are stored in signed cookies to prevent tampering
 - **HttpOnly + SameSite=Lax** - prevents XSS-based cookie theft and most CSRF attacks
 - **Absolute expiration** - sessions expire at a fixed time, not relative to last activity
-- **Session revocation** - sessions can be explicitly revoked (soft delete)
+- **Session revocation** - `revoke()` / `revoke_all_for()` mark sessions revoked (soft delete; password reset uses it); sign-out deletes the row
 - **IP and User-Agent tracking** - stored for audit purposes
 
 ### Token Security
@@ -557,7 +579,7 @@ Any request               # 1. Request arrives
 ### Logout
 
 ```
-DELETE /sign-out           # 1. User clicks logout
+DELETE /sign-in            # 1. User clicks logout
   -> terminate_session()   # 2. Delete session from DB
   -> clear _auth cookie    # 3. Remove signed cookie
   -> clear session data    # 4. Prevent data leaking
@@ -567,10 +589,10 @@ DELETE /sign-out           # 1. User clicks logout
 ### Password Reset
 
 ```
-GET /password-reset/new             # 1. User enters email
+GET /password-reset                 # 1. User enters email
 POST /password-reset                # 2. Validate, send email with token
 GET /password-reset/sent            # 3. Show "check your email"
 GET /password-reset/:token/edit     # 4. User clicks link, validate token
-PATCH /password-reset/:token        # 5. Set new password, create session
+PATCH /password-reset/:token        # 5. Set new password, revoke the other sessions, create one
   -> redirect_after_auth()          # 6. Redirect to home, logged in
 ```

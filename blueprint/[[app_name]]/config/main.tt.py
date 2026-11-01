@@ -53,7 +53,7 @@ TIMEZONE_DEFAULT = "UTC"
 MAX_CONTENT_LENGTH = 8 * MB
 
 # Limits the content length (in bytes) of the query string.
-# Raises a RequestEntityTooLarge or an UriTooLong if this value is exceeded.
+# Raises an UriTooLong if this value is exceeded.
 MAX_QUERY_SIZE = 1 * MB
 
 # Limits the number of files, fields and the size of each part in a multipart form.

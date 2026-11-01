@@ -1,12 +1,18 @@
 ---
 title: Storage
-description: Storage addon — file uploads, Attachment model, S3/disk backends, variants, direct uploads
-last_verified: 2026-05-29
+description: Storage addon: setup, Disk and S3 services, public services, attaching files to models (forms and manual), serving (redirect vs proxy, URL helpers), direct uploads, downloading and removing
+last_verified: 2026-10-31
+sources:
+  - src/proper/storage
+  - src/proper/tools/storage.py
+  - src/proper/_blueprints/addon_storage
 ---
 
-# Proper Storage
+# Storage
 
 Proper Storage is an installable addon that gives your app the power to handle file uploads without complications. It speaks fluently with Amazon S3 (and S3-compatible services like DigitalOcean Spaces or MinIO) and your local disk. You set a foreign key to the Attachment model, and Proper takes care of the rest.
+
+Variants (resized images), previews of non-image files and custom services are in [storage_advanced.md](storage_advanced.md).
 
 ## Table of Contents
 
@@ -19,9 +25,8 @@ Proper Storage is an installable addon that gives your app the power to handle f
 - [Direct Uploads](#direct-uploads)
 - [Downloading Files](#downloading-files)
 - [Removing Files](#removing-files)
-- [Variants](#variants)
-- [Previewing Non-Image Files](#previewing-non-image-files)
-- [Custom Services](#custom-services)
+- [Variants, Previews and Custom Services](#variants-previews-and-custom-services)
+
 
 ## Setup
 
@@ -66,13 +71,13 @@ The generated parent provides these fields:
 
 Field            | Type                   | Description
 ---------------- | ---------------------- | ---------------------------------
-`id`             | UUIDField              | Primary key. **No `default=uuid4`** — generated on `save()`, so `att.id is None` reliably means "not in the database yet"
+`id`             | CharField(32)          | Primary key, a UUID4 hex string. **No default**: generated on `save()`, so `att.id is None` reliably means "not in the database yet"
 `service_name`   | CharField(64)          | Which storage service holds the file
 `filename`       | CharField(255)         | Parameterized filename (lowercased, special chars → dashes)
-`content_type`   | CharField(64)          | MIME type (auto-detected from filename, fallback `application/octet-stream`)
-`byte_size`      | IntegerField           | File size in bytes (populated by the service during `save()` — never pre-fill)
+`content_type`   | CharField(64)          | MIME type: the upload's own `content_type` if it has one, else guessed from the filename, else `application/octet-stream`
+`byte_size`      | IntegerField           | File size in bytes, set by the service during `save()` (a pending blob of a direct upload gets the size the client declared until then)
 `created_at`     | DateTimeField          | Creation timestamp (UTC)
-`metadata`       | JSONField              | Arbitrary metadata (nullable)
+`metadata`       | pw.JSONField           | Arbitrary metadata (nullable)
 `parent`         | ForeignKeyField(self)  | Parent attachment for variants (nullable)
 `variant_key`    | CharField(64)          | SHA-256 digest of the variant's transformations
 `source`         | CharField(32)          | Where the upload came from. Default `"direct"`. Addons set their own values when they pre-upload with a different lifecycle policy
@@ -112,11 +117,12 @@ elif env == "test":
 
 `STORAGES` names the available services, `STORAGE` names the default service. Declare more services than you actively use if you like - services are instantiated lazily, on first use.
 
+
 ## Built-in Services
 
 ### Disk service
 
-Stores files on the local filesystem. Files are organized using a two-level directory sharding based on the attachment UUID: `{root}/{id[:2]}/{id[2:4]}/{filename}`.
+Stores files on the local filesystem. Files are organized by the attachment id: `{root}/{id[:2]}/{id[2:4]}/{id}/{filename}`. The full id is a directory, so two files with the same name never collide; the filename is ASCII-sanitized with `secure_filename()`.
 
 ```python
 "local": {
@@ -125,7 +131,7 @@ Stores files on the local filesystem. Files are organized using a two-level dire
 }
 ```
 
-The `root` path is relative to your application's root directory. The directory is created automatically if it doesn't exist.
+The `root` path is relative to the project root (the directory that contains your app package). The directory is created automatically if it doesn't exist.
 
 ### S3 Service (Amazon S3 and S3-compatible APIs)
 
@@ -161,6 +167,7 @@ To connect to an S3-compatible object storage API such as DigitalOcean Spaces, M
 ```
 
 Optional `url_expires_in` (default 300 seconds) controls the TTL of presigned GET and PUT URLs the service returns.
+
 
 ## Public Services
 
@@ -200,9 +207,10 @@ if obj is None:
 
 > **Tradeoff:** On a public service, the native URL serves whatever `Content-Type` was baked in at upload — disposition can't be overridden per-request the way presigned URLs do. For typical public assets browsers render inline based on `Content-Type`, which is usually what you want. If you need forced-download behaviour for a specific file, use `attachment.get_proxy_url()` instead (streams through the app with the correct disposition).
 
+
 ## Baseline Configuration
 
-Three keys, all populated by the installer, control how files are served and how variants are encoded:
+These keys control how files are served and how variants are made. All have framework defaults; the installer writes `STORAGE_ALLOWED_INLINE`, `STORAGE_ALLOWED_VARIANTS`, `STORAGE_FALLBACK_FORMAT` and `STORAGE_SAFE_IMAGE_LOADERS` into `config/storage.py`:
 
 ```python
 STORAGE_ALLOWED_INLINE = [
@@ -220,11 +228,13 @@ STORAGE_ALLOWED_VARIANTS = [
 STORAGE_FALLBACK_FORMAT = "png"
 ```
 
+- **`STORAGE_SAFE_IMAGE_LOADERS`** — prefixes of the libvips loader class names allowed when making variants (default: JPEG, PNG, WebP, GIF, TIFF, HEIF). Every other loader is blocked: the SVG loader reads local files and the ImageMagick delegate can run code. Add a prefix (e.g. `"VipsForeignLoadJxl"`) to allow another format.
 - **`STORAGE_MAX_IMAGE_PIXELS`** — the most pixels (width × height) of an image a variant is made from (default `100_000_000`; `None` for no limit). Checked from the header, before decoding: a decompression bomb raises `proper.storage.imageops.ImageTooLarge` (a `ValueError`).
 - **`STORAGE_ALLOWED_INLINE`** — glob patterns (`fnmatch`) for content types served inline (`Content-Disposition: inline`). Anything not matched is served with `attachment`, triggering a download.
 - `attachment.send_file()` also sends `X-Content-Type-Options: nosniff` and, for every type but `application/pdf`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` (`Attachment.SANDBOX_POLICY`): an uploaded SVG or HTML with a script opened by its URL doesn't run it, and has no access to the app's origin. Chrome's PDF viewer doesn't run in a sandbox. A presigned S3 URL (`service_url()`) is another origin, and gets the headers S3 sends.
 - **`STORAGE_ALLOWED_VARIANTS`** — glob patterns for source content types whose format is **preserved** when generating a variant. A source PNG → PNG variant; a source JPEG → JPEG variant. Add `image/webp` or `image/avif` here if your application produces those.
 - **`STORAGE_FALLBACK_FORMAT`** — format used for variants whose source content type isn't in `STORAGE_ALLOWED_VARIANTS`. Default `"png"`. Set to `"jpg"` or `"webp"` if smaller files matter more than fidelity. A caller-supplied `save={"format": "..."}` always overrides both rules.
+
 
 ## Attaching Files to Models
 
@@ -244,12 +254,12 @@ class User(BaseModel):
 
 ### Creating attachments from forms
 
-The recommended path is `f.AttachmentField` from `proper.forms`. The field saves the upload, assigns the FK, replaces the previous attachment, and handles explicit removal — all from `form.save()`. See [forms.md#attachmentfield](forms.md#attachmentfield) for the full reference.
+The recommended path is `f.AttachmentField` from `proper.forms`. The field saves the upload, assigns the FK, replaces the previous attachment, and handles explicit removal — all from `form.save()`. See [reference/form_fields.md#attachmentfield](reference/form_fields.md#attachmentfield) for the full reference.
 
 ```python
 from proper import forms as f
 
-from [[app_name]].models import Attachment, User
+from myapp.models import Attachment, User
 
 
 class UserForm(f.Form):
@@ -292,7 +302,7 @@ att.save()
 user = User.create(name="...", avatar=att)
 ```
 
-The `Attachment` constructor accepts anything with a `read()` method — open files, `BytesIO`, request bodies, or the `MultipartPart` objects produced by the form parser.
+The `Attachment` constructor accepts a seekable binary file object (`read`/`seek`/`tell`: open files, `BytesIO`, `SpooledTemporaryFile`) or a `MultipartPart` from the form parser (its `.file` is used).
 
 **Order matters when assigning the FK**: build → `save()` → assign. The `id` column has no `default=uuid4`, so the UUID is generated when you call `save()`, not when you call `Attachment(...)`. That makes `attachment.id is None` truthfully signal "not in the database yet" so you can't accidentally set a foreign key to a UUID that points at no row.
 
@@ -309,12 +319,13 @@ attachment = Attachment(
 )
 ```
 
+
 ## Serving Files
 
 The `proper install storage` command creates three controllers in `controllers/storage_controller.py`:
 
 - **`StorageRedirectController`** (`GET /storage/redirect/<token>/<filename>`) — serves files via 302 to the service's native URL (e.g. a presigned S3 link) when one exists, falling back to streaming through the app.
-- **`StorageProxyController`** (`GET /storage/proxy/<token>/<filename>`) — always streams bytes through the app.
+- **`StorageProxyController`** (`GET /storage/proxy/<token>/<filename>`) — sends the bytes through the app. The Disk service streams the file; the S3 service downloads the whole object into memory first, so for large S3 files prefer the redirect.
 - **`DirectUploadController`** (`POST /storage/direct`, `PUT /storage/direct/<token>`) — handles the direct-upload protocol. See [Direct Uploads](#direct-uploads).
 
 ### URL helpers
@@ -331,7 +342,7 @@ attachment.get_redirect_url(_full=True)
 attachment.get_proxy_url(_full=True)
 ```
 
-Both URLs embed a signed token tied to the attachment's PK. The controllers resolve them via `Attachment.get_signed(token, max_age=None, salt="redirect"|"proxy")`, so the URLs do not expire — they stay valid until your `SECRET_KEY` rotates.
+Both URLs embed a signed token tied to the attachment's PK. The controllers resolve them via `Attachment.get_signed(token, max_age=None, salt="redirect"|"proxy")` (`get_signed()` defaults to `max_age=YEAR`; `None` accepts the stable tokens), so the URLs do not expire — they stay valid until your `SECRET_KEY` rotates.
 
 **These two URLs are stable**: the token has no timestamp (`generate_token(timed=False)`), so the same attachment always gives the same URL. That is what lets browsers cache the file; a URL that changes on every render never gets a cache hit. URLs generated before this existed (timed tokens) keep resolving.
 
@@ -379,6 +390,7 @@ Both apply the inline/attachment disposition rules from `STORAGE_ALLOWED_INLINE`
 
 `STORAGE_ALLOWED_INLINE` decides inline vs. download (see [Baseline Configuration](#baseline-configuration)). Default covers `image/*`, `video/*`, `application/pdf` — exactly what browsers know how to display in place. Everything else gets `Content-Disposition: attachment` and a download dialog.
 
+
 ## Direct Uploads
 
 The `DirectUploadController` lets clients (e.g. the Lexxy rich-text editor) upload bytes **before** the form is submitted: the editor POSTs metadata, gets back a URL + headers, and PUTs the bytes directly to storage (S3) or back to the app (Disk).
@@ -399,10 +411,11 @@ The flow:
    ```
 4. Client PUTs the bytes to `direct_upload.url` with the supplied headers.
    - **S3**: presigned PUT URL → S3 directly.
-   - **Disk**: `PUT /storage/direct/<token>` → app stores bytes via `DirectUploadController.update`, which calls `obj.service.upload(BytesIO(self.request.body), obj)`. The token uses salt `"upload"` (distinct from `"redirect"`/`"proxy"`/`"download"`) and a short TTL.
+   - **Disk**: `PUT /storage/direct/<token>` → app stores bytes via `DirectUploadController.update`, which calls `obj.service.upload(BytesIO(self.request.body), obj)`. The token uses salt `"upload"` (distinct from `"redirect"`/`"proxy"`) and expires after 15 minutes (`resolve_token()`'s default `max_age`).
 5. The row stays `pending=True` until a parent model's save confirms ownership (rich_text's `HasRichText` mixin does this automatically). If nothing confirms it, a sweep task purges it after the grace period.
 
-`DirectUploadController` is rate-limited to 10 requests/minute per client out of the box. Tune via `rate_limit = {"to": N, "within": SECONDS}` on the controller.
+`DirectUploadController` is rate-limited to 10 requests/minute per IP address out of the box (needs a configured cache; without one no limit applies). Tune via `rate_limit = {"to": N, "within": SECONDS, "by": ...}` on the controller. Unlike the two serving controllers, it does not set `skip_authentication`, so with the auth addon installed direct uploads need a signed-in user.
+
 
 ## Downloading Files
 
@@ -412,16 +425,17 @@ data = attachment.download()
 
 Whole file materialized in memory — fine for images and small documents, inappropriate for multi-gigabyte uploads. For very large files, write a streaming controller that reads from the underlying service and pipes to the response.
 
+
 ## Removing Files
 
-Two purge entry points; both delete the row + the file from the active service:
+`delete_instance()` deletes only the row; the file stays in its service. Two purge entry points delete the file from the attachment's own service and then the row:
 
 ```python
 attachment.purge()        # synchronous (CLI scripts, background jobs)
 attachment.purge_later()  # enqueues a Huey task, returns immediately
 ```
 
-`purge()` also purges every variant of the attachment first. `purge_later()` takes only the PK and re-fetches the row before acting, so it's safe even if the row is deleted some other way before the task runs.
+`purge()` also purges every variant (each from its own service) before deleting the row. `purge_later()` takes only the PK and re-fetches the row before acting, so it's safe even if the row is deleted some other way before the task runs.
 
 `AttachmentField` uses `purge_later()` for the previous attachment after a successful replacement: new upload is saved synchronously (you want to know if that fails), cleanup of the old file happens in the background (a slow S3 delete shouldn't block the form response).
 
@@ -432,256 +446,7 @@ attachment.purge_variants()        # synchronous
 attachment.purge_variants_later()  # background
 ```
 
-## Variants
 
-Variants are transformed versions of an attachment — thumbnails, resized images, format conversions, etc. They are stored as regular Attachment records with a foreign key back to the parent, so they get the full Attachment API (upload, download, send_file, purge, url) for free. They inherit the parent's `service_name` (and therefore its access mode) unless you override it.
+## Variants, Previews and Custom Services
 
-Variants are identified by a SHA-256 hash of their transformations + resolved save format, stored as `variant_key`. Calling `variant()` with the same arguments is idempotent — it returns the existing variant instead of creating a duplicate. The transformations are also stored unhashed in `metadata["ops"]` for introspection.
-
-> **Prerequisite:** Image variants require [libvips](https://www.libvips.org/install.html) and the `pyvips` Python package (`uv add pyvips`).
-
-**Variants are disabled by default**. Enable them by setting `VARIANTS_ENABLED_FOR` on your Attachment model. The blueprint's generated `attachment.py` already has the `"image/*"` line uncommented.
-
-### Using `variant()`
-
-Call `variant(**ops)` on any saved attachment:
-
-```python
-thumb = attachment.variant(resize_to_fill=(400, 400))
-thumb.url
-```
-
-Calling again with the same transformations returns the existing variant — single index lookup by hash, not a recompute. Safe to call in templates without caching gymnastics:
-
-```html+jinja
-{% for user in users %}
-  <img src="{{ user.avatar.variant(resize_to_fill=(64, 64)).url }}">
-{% endfor %}
-```
-
-Chain multiple operations — applied left to right:
-
-```python
-attachment.variant(
-    resize_to_fit=(800, 800),
-    rotate=(45,),
-)
-```
-
-Inspect what produced a variant via its metadata:
-
-```python
-thumb.metadata["ops"]  # {"resize_to_fill": [400, 400], "save": {"format": "jpg"}}
-```
-
-If the content type doesn't match any `VARIANTS_ENABLED_FOR` pattern, `variant()` raises `ValueError`.
-
-Check whether an attachment supports variants without trying:
-
-```python
-if attachment.is_previewable:
-    thumb = attachment.variant(resize_to_limit=(200, 200))
-```
-
-### Available transformations
-
-All resize operations preserve the aspect ratio and apply a mild sharpening. Options are forwarded to [`vips_thumbnail()`](https://www.libvips.org/API/current/ctor.Image.thumbnail.html).
-
-Operation         | Args              | Notes
------------------ | ----------------- | --------------------
-`resize_to_fit`   | `(w, h)`          | Fit inside the box. Either dimension can be `None`. Upsizes smaller images.
-`resize_to_limit` | `(w, h)`          | Like `resize_to_fit`, but smaller images are not upscaled.
-`resize`          | `(w, h)`          | Alias for `resize_to_limit`.
-`resize_to_fill`  | `(w, h)`          | Fill exactly, crop the longer side. Center crop by default. Pass `(w, h, "attention")` for smart crop.
-`resize_and_pad`  | `(w, h)`          | Fit, then pad. Black by default (or transparent if source has alpha).
-`rotate`          | `(degrees)`       | Non-90° fills corners with black (override with `{"background": [r,g,b]}`).
-`fliphor`         | `()`              | Flip horizontally.
-`flipver`         | `()`              | Flip vertically.
-`grayscale`       | `()` or `(r,g,b)` | Default BT.601 perceptual weights. Custom triple lets you do channel-only filters.
-`sepia`           | `()` or `(r,g,b)` | Defaults to a classic warm sepia.
-`blur`            | `(sigma)`         | Gaussian blur. Larger sigma → more blur.
-`composite`       | `(overlay_path)`  | Blend an image (watermark). Pass `{"gravity": "south-east", "offset": [10,10]}` to position.
-
-Each operation accepts a positional tuple optionally ending with a kwargs dict for advanced settings:
-
-```python
-attachment.variant(resize_to_fill=(400, 400, {"crop": "attention"}))
-attachment.variant(rotate=(45, {"background": [255, 255, 255]}))
-attachment.variant(composite=("logo.png", {"gravity": "south-east"}))
-```
-
-### `load` and `save` options
-
-`load` is forwarded to `pyvips.Image.new_from_file()` (controls how the source is read; `autorot=True` is default). `save` is forwarded to `pyvips.Image.write_to_buffer()`:
-
-```python
-attachment.variant(
-    resize_to_fit=(800, 800),
-    load={"autorot": False},                  # ignore EXIF orientation
-)
-attachment.variant(
-    resize_to_fill=(400, 400),
-    save={"format": ".webp", "Q": 80},        # explicit format + quality
-)
-```
-
-When `save["format"]` is not provided, Proper picks one:
-
-1. If the source content type matches `STORAGE_ALLOWED_VARIANTS` (see [Baseline Configuration](#baseline-configuration)), preserve the **source format**.
-2. Otherwise, use `STORAGE_FALLBACK_FORMAT` (default `"png"`).
-
-The resolved format is included in `variant_key`, so a JPEG source and a TIFF source with the same kwargs produce **different** variants (one stays JPEG, the other becomes PNG).
-
-The argument order within `variant()` matters for the hash (`(200, 100)` ≠ `(100, 200)`), but keys *within* `load` and `save` dicts are sorted before hashing.
-
-### Iterating and purging variants
-
-```python
-for v in attachment.variants:
-    print(v.variant_key, v.url)
-
-attachment.purge()                  # purges variants + parent
-attachment.purge_variants()         # variants only, parent stays
-attachment.purge_variants_later()   # queues a Huey task
-```
-
-You'd typically `purge_variants()` after a design change that invalidates dimensions, or in a migration that switches output format.
-
-### Eager-loading variants
-
-In production you usually want to avoid the "first request pays" cost. Pre-generate the variants you'll need from a Huey task right after the upload:
-
-```python
-@app.queue.task
-def generate_avatar_variants(attachment_id):
-    att = Attachment.get_or_none(Attachment.id == attachment_id)
-    if att is None:
-        return
-    att.variant(resize_to_fill=(64, 64))
-    att.variant(resize_to_fill=(200, 200))
-
-def update(self):
-    self.form.save()
-    if self.user.avatar_id:
-        generate_avatar_variants(str(self.user.avatar_id))
-    self.response.redirect_to("User.show", self.user)
-```
-
-Or backfill in a migration when you add a new size. The variant cache survives across requests, processes, and deploys.
-
-### Low-level variant creation
-
-For full control, use `create_variant(upload, **kwargs)`. It inherits `service_name` from the parent by default:
-
-```python
-thumb = attachment.create_variant(thumbnail_data)
-webp = attachment.create_variant(
-    converted_file,
-    content_type="image/webp",
-    filename="photo.webp",
-)
-```
-
-## Previewing Non-Image Files
-
-`variant()` can only handle images. For PDFs, videos, etc., you need a method that extracts an image "preview" of the file first. The framework ships `preview_pdf` (poppler's `pdftoppm`) and `preview_video` (ffmpeg). Both are one-line enables plus the system tool.
-
-```python
-class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "image/*": "preview_image",
-        "application/pdf": "preview_pdf",    # install poppler
-        "video/*": "preview_video",          # install ffmpeg
-    }
-```
-
-System tool installation:
-
-- **libvips** (images): `brew install vips` / `apt install libvips-dev`
-- **poppler** (PDFs): `brew install poppler` / `apt install poppler-utils`
-- **ffmpeg** (videos): `brew install ffmpeg` / `apt install ffmpeg`
-
-`preview_video` runs ffmpeg with `-protocol_whitelist file` and `-format_whitelist` from `Attachment.VIDEO_FORMATS` (`mov` (MP4, MOV, M4V, 3GP), `matroska`, `webm`, `avi`, `mpegts`, `mpeg`, `ogg`, `flv`): an upload that is a playlist (concat, HLS) can't make ffmpeg read other files or URLs. Override `VIDEO_FORMATS` on your `Attachment` model for another format.
-
-Preview methods accept extra kwargs that participate in the variant cache key (so different pages/timestamps cache independently):
-
-- `preview_pdf(..., page=1, dpi=150)`
-- `preview_video(..., at_seconds=1.0)`
-
-```python
-pdf_attachment.variant(resize_to_fit=(400, 400), page=2, dpi=300)
-video_attachment.variant(resize_to_fit=(400, 400), at_seconds=5.0)
-```
-
-### Custom previewers
-
-Extend `VARIANTS_ENABLED_FOR` and add a method with the signature `(source: bytes, **ops) -> bytes` that returns the extracted image bytes. The framework then runs the result through `transform_image(image_bytes, **ops)` for any resize / format-conversion ops:
-
-```python
-class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "image/*": "preview_image",
-        "application/epub+zip": "preview_epub",
-    }
-
-    def preview_epub(self, source: bytes, **ops) -> bytes:
-        return extract_cover(source)  # your extraction logic
-```
-
-The method receives all of the kwargs passed to `variant()`, including the resolved `save` dict — branch on `ops["save"]["format"]` if you want the transform to honor format conversions.
-
-## Custom Services
-
-To add your own storage service, subclass `proper.storage.Service` and implement **six** methods:
-
-```python
-from proper.storage import Service
-
-
-class GoogleCloud(Service):
-    def __init__(self, app, **config):
-        self.bucket_name = config.pop("bucket")
-        # ... initialize client ...
-        super().__init__(app, **config)
-
-    def upload(self, upload, att):
-        """Write the upload to the service. Sets att.byte_size along the way."""
-
-    def download(self, att) -> bytes:
-        """Read the file out of the service into memory."""
-
-    def send_file(self, att, response, as_attachment=False):
-        """Stream the file to the active response, with the right disposition."""
-
-    def purge(self, att):
-        """Delete the file from the service."""
-
-    def service_url(self, att, *, as_attachment=False) -> "str | None":
-        """Short-lived signed GET URL, or None if the service has no native URL."""
-
-    def direct_upload_url(self, att, *, checksum="") -> dict:
-        """Return {'url': '...', 'headers': {'Content-Type': '...', ...}}.
-        For remote services: a presigned PUT URL the browser uploads to directly.
-        For local services: the app's own bytes-receiving endpoint.
-        If `checksum` (base64 MD5) is supplied, propagate as Content-MD5.
-        """
-```
-
-Then add a config entry where the `type` matches your class name. The class may also subclass another service, such as `Disk` or `S3`:
-
-```python
-STORAGES = {
-    "gcs": {
-        "type": "GoogleCloud",
-        "bucket": "my-bucket",
-        "project": "my-project",
-    },
-}
-STORAGE = "gcs"
-```
-
-The base class handles the `public` config key in `__init__`, so subclasses just need to call `super().__init__(app, **config)` last and consult `self.public` from `upload()` / `service_url()` / `direct_upload_url()` if they support a public mode (see `proper/storage/services/s3.py` for the reference implementation).
-
-Service instances are cached per `Attachment` class, so initialization only happens once per service name.
-
-[`proper/storage/services/disk.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/disk.py) and [`proper/storage/services/s3.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/s3.py) are short and cover all six methods plus their constructors.
+Resized or converted versions of an attachment (`attachment.variant(...)`), previews of PDFs and videos, and writing a storage service of your own are in [storage_advanced.md](storage_advanced.md).

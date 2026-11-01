@@ -1,7 +1,9 @@
 ---
 title: Jx Components
-description: Component template system — imports, props, slots, attrs, assets, htmx, Catalog API
-last_verified: 2026-09-28
+description: Component template system — syntax, imports, props, content and slots, attrs, component assets, SVG icons
+last_verified: 2026-10-31
+sources:
+  - src/proper/views
 ---
 
 # Jx Components
@@ -12,38 +14,9 @@ Jx is a component-based template system with Jinja's syntax. Components are `.jx
 **Not available:** `include`, `extends`, `block` (use components and layouts), `with`, `call`, block `set`, `namespace()`, imports with a `@prefix/`, Jinja extensions.
 
 **Escaping:** `{{ }}` escapes in `.jx`, `.html.jx` and `.xml.jx` files, unless the value is markup (a component's output, `attrs.render()`, form fields, `| safe`). Other files (`.txt.jx`, `.json.jx`) render values as they are.
-**Names:** a name that is not an argument, a `set` variable, a loop variable or a global is a `KeyError` (with a note saying where it was looked for). A `set` inside a `for` is not visible after the loop.
+**Names:** a name that is not an argument, a `set` variable, a loop variable or a global is a `KeyError` (with a note saying where it was looked for). A `set` of a new name inside a `for` is not visible after the loop; a `set` of a name that already exists changes it (there is no loop scope, unlike Jinja). Inside a `{% fill %}`, a macro or a block tag's body, a `set` never changes the outer value.
 
-> For production UI component patterns (buttons, modals, dropdowns, form inputs, layouts, etc.), see the **jx-components** skill. Component JavaScript should use **Stimulus**, not vanilla JavaScript (see [frontend.md — Stimulus](frontend.md#stimulus)). Bare imports like `@hotwired/stimulus` are resolved by the [import maps](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap). Every Stimulus controller must self-register via `window.Stimulus.register()`:
->
-> ```js
-> // toast_controller.js
-> import { Controller } from "@hotwired/stimulus";
->
-> export default class ToastController extends Controller {
->   static values = {
->     duration: { type: Number, default: 5000 },
->   };
->
->   connect() {
->     if (this.durationValue > 0) {
->       this.timeout = setTimeout(() => this.dismiss(), this.durationValue);
->     }
->   }
->
->   disconnect() {
->     clearTimeout(this.timeout);
->   }
->
->   dismiss() {
->     clearTimeout(this.timeout);
->     this.element.style.opacity = "0";
->     this.element.style.transform = "translateX(100%)";
->     setTimeout(() => this.element.remove(), 300);
->   }
-> }
-> window.Stimulus.register("toast", ToastController);
-> ```
+Component JavaScript is a Stimulus controller declared with `{#js #}`, never inline vanilla JavaScript: see [frontend.md, Stimulus](frontend.md#stimulus). The standalone `jx` skill, when installed, has UI component patterns (buttons, modals, dropdowns); its library mechanics (`jx.Catalog`) are the standalone package's, while a Proper app uses `app.catalog` ([reference/jx_catalog.md](reference/jx_catalog.md)).
 
 ## Table of Contents
 
@@ -53,10 +26,8 @@ Jx is a component-based template system with Jinja's syntax. Components are `.jx
 - [Content & Slots](#content--slots)
 - [Attrs](#attrs)
 - [Assets](#assets)
-- [Layout Patterns](#layout-patterns)
 - [SVG Icon Patterns](#svg-icon-patterns)
-- [Working with htmx](#working-with-htmx)
-- [Catalog API](#catalog-api)
+- [Layouts and the Catalog](#layouts-and-the-catalog)
 
 
 ## Components
@@ -330,7 +301,7 @@ An attribute name with a space, a quote, `<`, `>`, `/`, `=` or a control charact
 Renders as:
 
 ```html
-<button class="btn" id="save-btn" data-action="save" type="button" disabled>Save</button>
+<button class="btn" data-action="save" id="save-btn" type="button" disabled>Save</button>
 ```
 
 ### Class Merging
@@ -456,7 +427,7 @@ Multiple files are comma-separated.
 
 Asset paths can be:
 
-- **Relative**: `card.css` — resolved relative to the assets folder
+- **Relative**: `card.css` — kept as written; the layout passes it through `url_for('assets', file=url)`
 - **Absolute path**: `/assets/css/global.css`
 - **Full URL**: `https://cdn.example.com/library.js`
 
@@ -479,6 +450,8 @@ In the layout, use `assets.collect_css()` and `assets.collect_js()` to get the U
 Assets are collected by walking the component tree, deduplicated, and returned in dependency order: parent component assets first, then imported component assets, in import order. If multiple components declare the same CSS file, it's only included once.
 
 ### Render Helpers
+
+These write the URLs as declared, with no `url_for`: use them only with absolute paths or full URLs. The generated layout uses the `collect_*` loops instead ([frontend.md](frontend.md#component-assets)).
 
 For simpler cases:
 
@@ -509,127 +482,6 @@ Jx does not scope CSS automatically. Use BEM-style naming or CSS nesting to avoi
 
 /* Bad — affects all h3 elements globally */
 h3 { font-size: 1.5rem; }
-```
-
-
-## Layout Patterns
-
-### Basic Layout
-
-A layout is just a component that wraps the full HTML document:
-
-```html+jinja
-{#def title='', description='', lang='en' #}
-
-<!DOCTYPE html>
-<html lang="{{ lang }}">
-<head>
-  <meta charset="utf-8">
-  <title>{{ title }}</title>
-  <meta name="description" content="{{ description }}">
-  {{ assets.render_css() }}
-</head>
-<body {{ attrs.render() }}>
-  {{ content }}
-  {{ assets.render_js() }}
-</body>
-</html>
-```
-
-### Layout with Slots
-
-Use named slots for customizable layout sections:
-
-```html+jinja
-{#def title='', lang='en' #}
-
-<!DOCTYPE html>
-<html lang="{{ lang }}">
-<head>
-  <meta charset="utf-8">
-  <title>{{ title }}</title>
-  {{ assets.render_css() }}
-  {% slot head %}{% endslot %}
-</head>
-<body {{ attrs.render() }}>
-  {% slot header %}
-    <header><h1>{{ title }}</h1></header>
-  {% endslot %}
-
-  <main>{{ content }}</main>
-
-  {% slot footer %}
-    <footer>&copy; 2025</footer>
-  {% endslot %}
-
-  {{ assets.render_js() }}
-  {% slot scripts %}{% endslot %}
-</body>
-</html>
-```
-
-Pages can override any slot:
-
-```html+jinja
-{#import "layouts/app.jx" as Layout #}
-
-<Layout title="Dashboard">
-  {% fill scripts %}
-    <script src="{{ url_for('assets', file='js/dashboard.js') }}" type="module"></script>
-  {% endfill %}
-
-  <h2>Welcome back</h2>
-</Layout>
-```
-
-### Nested Layouts
-
-Compose layouts by wrapping one inside another:
-
-```html+jinja
-{#import "layouts/base.jx" as Base #}
-{#import "sidebar.jx" as Sidebar #}
-{#def title='' #}
-
-<Base title={{ title }}>
-  <div class="app-layout">
-    <Sidebar />
-    <main>{{ content }}</main>
-  </div>
-</Base>
-```
-
-### Navigation Highlighting
-
-Pass the current page to the layout for active link styling:
-
-```html+jinja
-{#def current_page="" #}
-
-<nav>
-  <a href="/" class="{{ 'active' if current_page == 'home' else '' }}">Home</a>
-  <a href="/about" class="{{ 'active' if current_page == 'about' else '' }}">About</a>
-</nav>
-```
-
-In Proper, you can use `url_is()` and `url_startswith()` instead — they are available as template globals. The full list of Proper-registered globals is `current`, `url_for`, `url_is`, `url_startswith`, and `render_importmap` (used in the main layout to emit the `<script type="importmap">` tag). The `assets` global is auto-injected by Jx itself.
-
-### Conditional Layout Sections
-
-Use boolean props to toggle layout sections:
-
-```html+jinja
-{#def title='', show_sidebar=true, show_footer=true #}
-
-<div class="layout">
-  {% if show_sidebar %}
-    <Sidebar />
-  {% endif %}
-  <main>{{ content }}</main>
-  {% if show_footer %}
-    <Footer />
-  {% endif %}
-</div>
 ```
 
 
@@ -681,144 +533,6 @@ Tips:
 4. Use `aria-label` on icon-only buttons
 
 
-## Working with htmx
+## Layouts and the Catalog
 
-Jx's underscore-to-dash attribute conversion makes htmx attributes natural:
-
-```html+jinja
-<Button hx_get="/api/items" hx_target="#list" hx_swap="innerHTML" />
-```
-
-Renders as `hx-get="/api/items" hx-target="#list" hx-swap="innerHTML"`.
-
-### htmx Button Component
-
-```html+jinja
-{#def url, method="get", target="", swap="innerHTML", confirm="" #}
-
-{% set hx_attr = "hx_" ~ method %}
-{% do attrs.set(**{hx_attr: url}) %}
-{% if target %}{% do attrs.set(hx_target=target) %}{% endif %}
-{% do attrs.set(hx_swap=swap) %}
-{% if confirm %}{% do attrs.set(hx_confirm=confirm) %}{% endif %}
-
-<button {{ attrs.render(type="button", class="btn") }}>
-  {{ content }}
-</button>
-```
-
-### Loading States
-
-```html+jinja
-{#css loading-btn.css #}
-{#def url #}
-
-<button {{ attrs.render(class="btn") }} hx-get="{{ url }}">
-  <span class="btn-text">{{ content }}</span>
-  <span class="btn-loading">Loading...</span>
-</button>
-```
-
-```css
-.btn .btn-loading { display: none; }
-.btn.htmx-request .btn-text { display: none; }
-.btn.htmx-request .btn-loading { display: inline; }
-```
-
-### Search with Debounce
-
-```html+jinja
-<input type="search" name="q"
-  hx-get="/search"
-  hx-trigger="input changed delay:300ms, search"
-  hx-target="#results"
-  hx-indicator="#spinner"
-/>
-<span id="spinner" class="htmx-indicator">Searching...</span>
-<div id="results"></div>
-```
-
-### Infinite Scroll
-
-```html+jinja
-{#def next_page #}
-
-<div hx-get="{{ next_page }}"
-     hx-trigger="revealed"
-     hx-swap="outerHTML">
-  Loading more...
-</div>
-```
-
-
-## Catalog API
-
-In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup (or before, with `proper jx compile`: outside of `DEBUG`, the views already compiled are not compiled again), and the template globals, filters and tags are added. It is a `proper.views.Catalog`.
-
-### In Proper
-
-```python
-# More globals, filters or tests (e.g., from a tool's setup)
-app.catalog.globals["site_name"] = "Acme"
-app.catalog.add_filters({"money": format_money})
-app.catalog.add_tests({"admin": lambda user: user.is_admin})
-
-# Block tags: {% name args %}body{% endname %} calls function(args, caller=..., template=...)
-# config: TEMPLATE_TAGS = {"card_box": card_box}
-def card_box(title, *, caller, template):
-    return Markup(f'<section class="box"><h2>{escape(title)}</h2>{caller()}</section>')
-```
-
-`caller()` renders the body only if the function calls it; `template` is the path of the component the tag is in. What the function returns is not escaped.
-
-### Constructor
-
-```python
-from proper.views import Catalog
-
-Catalog(
-    folder=None,            # Optional initial component folder
-    *,
-    auto_reload=True,       # Check the .jx files on every render (off in production)
-    compiler=None,          # The compiler: None = jxc, built with Proper; False = never compile
-    filters=None,           # Custom filters {name: callable}
-    tests=None,             # Custom tests {name: callable}
-    autoescape=True,        # Extensions escaped: True = ("html", "jx", "xml"); False = none
-    tags=None,              # Block tags {name: callable}
-    output=None,            # Folder for the compiled modules (default: next to each .jx)
-    pure=(),                # Globals with the same result for the same arguments (Proper: url_for):
-                            # a call is made once per arguments (str, int, None) and remembered
-    **globals               # Global template variables (catalog.globals)
-)
-```
-
-A module is checked the first time it is loaded, in any mode, and compiled again if it is missing or out of date. `catalog.compile()` compiles every folder and raises `CompileError` listing every error.
-
-### Rendering
-
-```python
-# Render a component file
-html = catalog.render("home.jx", title="Hello", user=current_user)
-
-# With globals (available to imported components too)
-html = catalog.render(
-    "home.jx",
-    globals={"request": request},
-    title="Hello",
-)
-
-# Render from a string: compiled once to a temporary folder;
-# its imports are looked for in the catalog's folders. The catalog keeps
-# the last `catalog.max_strings` (256) sources compiled.
-html = catalog.render_string("{#def name #}<p>{{ name }}</p>", name="World")
-```
-
-**`render()` arguments:**
-
-- `relpath` — path to the component relative to its folder
-- `globals` — dict of variables available to this component and all its imports
-- `**kwargs` — arguments passed to the component only (not to its imports)
-
-It returns `Markup` for a component with autoescape, `str` otherwise. An error while rendering has a traceback that points to the `.jx` file, line and expression.
-
-`catalog.has_component(relpath)` tells if a component exists.
+Layout components (slots, nesting, navigation highlighting) are in [frontend.md](frontend.md#layouts). The `Catalog` class (`app.catalog`: globals, filters, block tags, `render()`) is in [reference/jx_catalog.md](reference/jx_catalog.md).

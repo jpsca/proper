@@ -1,7 +1,12 @@
 ---
 title: Testing
 description: TestClient setup, making requests, file uploads, WebSocket testing, auth helpers
-last_verified: 2026-10-19
+last_verified: 2026-10-31
+sources:
+  - src/proper/test_client.py
+  - blueprint/tests
+  - src/proper/_blueprints/addon_auth/tests
+  - blueprint/[[app_name]]/config
 ---
 
 # Testing
@@ -16,6 +21,7 @@ Proper includes a `TestClient` that drives your app through the full request pip
 - [The Result Object](#the-result-object)
 - [Testing WebSockets](#testing-websockets)
 - [Database Setup for Tests](#database-setup-for-tests)
+- [Testing Models](#testing-models)
 - [Testing with Authentication](#testing-with-authentication)
 - [Example: Full CRUD Test](#example-full-crud-test)
 - [Tips](#tips)
@@ -33,6 +39,8 @@ client = TestClient(app)
 ```
 
 Every call to `client.get(...)`, `client.post(...)`, etc. builds a request the way the server would, runs the full request pipeline synchronously, and returns a result object.
+
+The generated `tests/conftest.py` provides a `client` fixture (a new `TestClient(app)` per test); the generated tests take it as an argument instead of building one at module level, as the examples below do for brevity.
 
 
 ## Making Requests
@@ -103,6 +111,8 @@ result = client.get("/api/users", headers={
 })
 ```
 
+Headers for every request go to the constructor, `TestClient(app, headers={"authorization": "Bearer token123"})`, or into `client.default_headers` later (keys lowercased). A header given to a request overrides them. `client.sign_in()` writes the auth cookie there, and the WebSocket handshake sends them too.
+
 
 ## File Uploads
 
@@ -143,7 +153,7 @@ Every request returns a `DotDict` with the following attributes:
 | `body`         | `str`  | Response body decoded as a string                 |
 | `mimetype`     | `str`  | Content type without charset (e.g. `"text/html"`) |
 | `content_type` | `str`  | Full Content-Type header value                    |
-| `headers`      | `dict` | Case-insensitive dict of response headers         |
+| `headers`      | `CIMultiDict` | Case-insensitive, keeps repeated headers: `result.headers.getall("set-cookie")` |
 
 ```python
 result = client.get("/photos/42")
@@ -223,9 +233,11 @@ asyncio.run(test_chat())
 
 | Method                                      | Description                                         |
 |---------------------------------------------|-----------------------------------------------------|
+| `client.websocket(path=None)`               | The session; `path` defaults to `CABLE_PATH` and may carry a query string |
 | `ws.connect()`                              | Open the connection, returns an async task          |
-| `ws.subscribe(channel, **params)`           | Subscribe and return the confirmation message       |
-| `ws.send_action(channel, action, data)`     | Invoke a channel action                             |
+| `ws.subscribe(channel, positions=None, **params)` | Subscribe and return the first frame back (normally the confirmation; see [channels.md](channels.md#testing)) |
+| `ws.send_action(channel, action, data=None, id=None, **params)` | Invoke a channel action, without waiting for a reply |
+| `ws.perform(channel, action, data=None, **params)` | Invoke an action with an `id` and return its reply (`status` `ok` or `error`), skipping the frames before it |
 | `ws.unsubscribe(channel, **params)`         | Unsubscribe from a channel                          |
 | `ws.receive(timeout=1.0)`                   | Receive the next message (parsed JSON)              |
 | `ws.receive_raw(timeout=1.0)`               | Receive the next raw event: `{"type": "accept"}`, a frame, or a close |
@@ -233,47 +245,72 @@ asyncio.run(test_chat())
 | `ws.client_send_text(text)`                 | Queue a raw text frame to the app                   |
 | `ws.close()`                                | Disconnect the client                               |
 
+
 ## Database Setup for Tests
 
 The generated `tests/conftest.py` sets up automatic transaction rollback per test, so each test runs in isolation without persisting data:
 
 ```python {title="tests/conftest.py"}
-import pytest
+import os
 
+import pytest
+from proper import TestClient
+
+from myapp.main import app
 from myapp.models import db
 from myapp.models.base import BaseModel
 
 
+@pytest.fixture()
+def client():
+    return TestClient(app)
+
+
 @pytest.fixture(scope="session")
 def db_setup():
-    assert "_test" in db.database or db.database == ":memory:"
+    # better to be safe than sorry
+    assert os.getenv("APP_ENV") == "test"
+    assert "test" in db.database or "memory" in db.database
+
+    # Hold a connection open on the test thread for the whole session: it keeps
+    # a shared-cache in-memory DB alive, and lets a server backend configured
+    # with autoconnect=False (e.g. Postgres) run the queries below.
+    db.connect(reuse_if_open=True)
+
     models = BaseModel.__subclasses__()
     db.drop_tables(models)
     db.create_tables(models, safe=True)
     load_fixtures()
+
     yield
+
     db.drop_tables(models)
-
-
-def load_fixtures():
-    pass
+    db.close()
+    if os.path.exists(db.database):
+        os.remove(db.database)
 
 
 @pytest.fixture(autouse=True)
 def db_reset(db_setup):
+    # Roll it back for fast, backend-agnostic isolation.
     with db.atomic() as transaction:
         yield
         transaction.rollback()
+
+
+def load_fixtures():
+    pass
 ```
 
 Key features:
 
-- **Safety check** — asserts the database name contains `_test` or is `:memory:` to prevent accidentally wiping a real database.
+- **`client` fixture** — a `TestClient(app)` per test.
+- **Safety check** — asserts `APP_ENV` is `test` and the database name contains `test` or `memory`, to prevent accidentally wiping a real database.
 - **Auto-discovery** — finds all models via `BaseModel.__subclasses__()`.
 - **Transaction rollback** — every test runs inside a transaction that is rolled back, ensuring tests are isolated and fast.
 - **Fixtures** — add seed data in `load_fixtures()`, loaded once per session.
 
-Configure a test database in `config/storage.py`:
+The generated `config/storage.py` already configures the test environment: an in-memory database, tasks that run inline when enqueued, and no cache:
 
 ```python
 if env == "test":
@@ -281,66 +318,118 @@ if env == "test":
         "type": "peewee.SqliteDatabase",
         "database": ":memory:",
     }
+
+    QUEUE = {
+        "type": "huey.MemoryHuey",
+        "immediate": True,
+        "immediate_use_memory": True,
+    }
+
+    CACHE = {
+        "type": "proper.cache.NoCache",
+    }
+```
+
+The generated `config/main.py` sets `MAILER = "memory"` in test: emails go to `app.mailer.outbox`, a list of the rendered messages (see [emails.md](emails.md#tomemorymailer-testing)).
+
+
+## Testing Models
+
+Write model tests against real database operations, not mocks:
+
+```python
+def test_create_photo():
+    photo = Photo.create(title="Sunset", published=True)
+    assert photo.id is not None
+    assert photo.title == "Sunset"
+
+
+def test_query_published_photos():
+    Photo.create(title="Sunset", published=True)
+    Photo.create(title="Draft", published=False)
+
+    published = Photo.select().where(Photo.published == True)
+    assert published.count() == 1
+    assert published[0].title == "Sunset"
 ```
 
 
 ## Testing with Authentication
 
-The `TestClient` provides `sign_in()` and `sign_out()` methods for authentication. Since the client does not persist cookies between requests, `sign_in()` returns the auth cookie string that you pass to subsequent requests via the `Cookie` header.
+`client.sign_in(session)` takes a `Session` record and writes the signed `_auth` cookie into `client.default_headers`, so every following request of that client, and its WebSocket handshake, is authenticated. It makes no request and returns nothing. The auth addon appends two fixtures to `tests/conftest.py`:
+
+```python {title="tests/conftest.py (appended by the auth addon)"}
+from myapp.models import User, Session
+
+
+@pytest.fixture()
+def sign_in_as(client):
+    def _sign_in_as(user):
+        """Signs in as the given user using the provided test client."""
+        session = Session.create_for_user(user=user)
+        client.sign_in(session)
+    return _sign_in_as
+
+
+@pytest.fixture()
+def signed_client(client, sign_in_as):
+    """A test client with a signed-in user."""
+    user = User.create(login="testuser", password="password123")
+    sign_in_as(user)
+    return client
+```
 
 ### Signing In
 
 ```python
-from proper import TestClient
-from myapp.main import app
 from myapp.models import User
 
-client = TestClient(app)
 
-
-def test_dashboard_requires_auth():
+def test_dashboard_requires_auth(client):
     result = client.get("/dashboard")
     assert result.status == 303  # redirected to sign-in
 
-def test_dashboard_when_authenticated():
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
 
-    result = client.get("/dashboard", headers={"Cookie": cookie})
+def test_dashboard_when_authenticated(signed_client):
+    result = signed_client.get("/dashboard")
     assert result.status == 200
     assert "Dashboard" in result.body
-```
 
-`client.sign_in(login, password)` POSTs to `/sign-in`, asserts a 303 redirect, and returns the `_auth` cookie string. The defaults are `login="testuser"` and `password="password123"`.
+
+def test_dashboard_as_a_given_user(client, sign_in_as):
+    user = User.create(login="bob", password="password123")
+    sign_in_as(user)
+
+    result = client.get("/dashboard")
+    assert result.status == 200
+```
 
 ### Creating Records as a Signed-In User
 
 ```python
-def test_create_post_as_authenticated_user():
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
-
-    result = client.post(
+def test_create_post_as_authenticated_user(signed_client):
+    result = signed_client.post(
         "/posts",
         body={"title": "Hello", "body": "World"},
-        headers={"Cookie": cookie},
     )
     assert result.status == 303
 ```
 
 ### Testing Sign-Out
 
+There is no `sign_out()`: sign out through the app, as a user would. The session row is deleted, so the cookie the client still sends no longer matches one.
+
 ```python
-def test_sign_out_clears_session():
-    User.create(login="testuser", password="password123")
-    cookie = client.sign_in("testuser", "password123")
+def test_sign_out_clears_session(signed_client):
+    result = signed_client.delete(app.url_for("Session.delete"))
+    assert result.status == 303
 
-    client.sign_out()
-
-    # Old cookie no longer works
-    result = client.get("/dashboard", headers={"Cookie": cookie})
+    # The cookie is still sent, but its session is gone
+    result = signed_client.get("/dashboard")
     assert result.status == 303  # redirected to sign-in
 ```
+
+To drop the cookie itself: `del client.default_headers["cookie"]`.
 
 
 ## Example: Full CRUD Test
@@ -409,5 +498,5 @@ def test_delete_removes_the_record():
 - **Check coverage**: `uv run pytest --cov=myapp --cov-report=term-missing tests/`
 - **Use real objects** — test against real database operations, not mocks. The transaction rollback fixture keeps tests fast and isolated.
 - **Test the full stack** — the `TestClient` exercises the same middleware, pipeline, session handling, and error handlers as production. If it works in the test, it works in production.
-- **Disable caching in tests** — use `NoCache` in test config to avoid cached state between tests.
+- **No cache in tests** — the generated `config/storage.py` already uses `NoCache` in test, so nothing is cached between tests.
 - **TestClient does not follow redirects** — assert on `result.status == 303` and check the `Location` header. Don't expect a 200 after a create/update/delete.
