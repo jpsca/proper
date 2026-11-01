@@ -1,7 +1,7 @@
 ---
 title: Form Field Types
 description: Reference: every `proper.forms` field with its options and an example (Text, Boolean, Integer, Float, File, Attachment, RichText, JSON, List, Date, DateTime, Time, Email, URL, Slug, FormField, NestedForms)
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/forms
 ---

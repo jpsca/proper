@@ -1,7 +1,7 @@
 ---
 title: Testing
 description: TestClient setup, making requests, file uploads, WebSocket testing, auth helpers
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/test_client.py
   - blueprint/tests

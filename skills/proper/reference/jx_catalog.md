@@ -1,7 +1,7 @@
 ---
 title: Jx Catalog API
 description: Reference: `app.catalog` (globals, filters, tests, block tags via TEMPLATE_TAGS), the `Catalog` constructor, `render()` and `render_string()`
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/views/catalog.py
 ---

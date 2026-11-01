@@ -1,7 +1,7 @@
 ---
 title: Status Codes
 description: Reference: every constant of `proper.status` with its number
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/status.py
 ---

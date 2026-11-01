@@ -1,7 +1,7 @@
 ---
 title: Caching
 description: Server-side caching — configuration, cache store API, fragment caching, HTTP caching
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/cache
   - src/proper/tools/cache.py

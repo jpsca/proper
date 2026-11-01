@@ -1,7 +1,7 @@
 ---
 title: Storage
 description: Storage addon: setup, Disk and S3 services, public services, attaching files to models (forms and manual), serving (redirect vs proxy, URL helpers), direct uploads, downloading and removing
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py

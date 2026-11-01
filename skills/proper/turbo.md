@@ -1,7 +1,7 @@
 ---
 title: Turbo
 description: Turbo on the server — Drive navigation, Frames, and Streams (the turbo_stream builder, *.turbo_stream.jx responses, render(stream=), broadcasting, and the request predicates)
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/turbo
   - blueprint/assets/js

@@ -1,7 +1,7 @@
 ---
 title: Storage: Variants, Previews and Custom Services
 description: Storage addon, second level: `variant()` transformations, load/save options, purging and eager-loading variants, previews of PDFs and videos, custom previewers, writing a storage service
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py
