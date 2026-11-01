@@ -1,7 +1,7 @@
 ---
 title: Emails
 description: Email system — composing messages, mailer backends, async delivery via task queue
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/emails
   - src/proper/tools/mailer.py

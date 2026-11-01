@@ -1,7 +1,7 @@
 ---
 title: Security
 description: CSRF protection, rate limiting, sessions, signed cookies, security headers
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/concerns/origin_protection.py
   - src/proper/concerns/request_forgery_protection.py

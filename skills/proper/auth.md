@@ -1,7 +1,7 @@
 ---
 title: Authentication
 description: Auth addon — user registration, login/logout, password reset, session management
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/auth
   - src/proper/concerns/authentication.py
