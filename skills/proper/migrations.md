@@ -1,7 +1,7 @@
 ---
 title: Databases, Migrations and Seeds
 description: DATABASES config (SQLite, PostgreSQL, several databases), peewee-migrate migrations (create, migrate, rollback, merge, fake, adding fields), and seeds (`db/seeds/`, `envs`, `proper db seed`)
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/models
   - src/proper/db

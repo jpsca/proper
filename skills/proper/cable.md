@@ -1,7 +1,7 @@
 ---
 title: The Cable
 description: Channels addon, transport side: the cable.js browser client (connect, subscribe, perform, reconnection, recovery), CABLE_* settings, the Bearings cable and its options, RedisCable for several machines, a full chat example
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - src/proper/channels
   - src/proper/tools/cable.py

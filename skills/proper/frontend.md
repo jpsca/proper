@@ -1,7 +1,7 @@
 ---
 title: Frontend
 description: Frontend conventions — the views folder, layouts (slots, nesting, navigation), component assets, import maps, Stimulus, flash messages
-last_verified: 2026-10-31
+last_verified: 2026-11-01
 sources:
   - blueprint/[[app_name]]/views
   - blueprint/assets
