@@ -86,6 +86,8 @@ All notable changes to Proper are documented in this file.
   doesn't parse, and on a `from proper import` that doesn't resolve; and
   warns of a doc whose `sources` (the code it was checked against) have a
   commit newer than its `last_verified`.
+- A release on GitHub carries the wheels, the sdist and `skill.zip` as its
+  assets (the "Upload to PyPI" workflow uploads them).
 - JSON columns use Peewee's own `JSONField` (`pw.JSONField`, with JSON path
   queries). `proper.models.JSONField` is kept only for backwards compatibility:
   it is `pw.JSONField` with the old field's encoder as default, so the data an
