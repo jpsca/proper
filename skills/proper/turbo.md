@@ -1,7 +1,10 @@
 ---
 title: Turbo
 description: Turbo on the server — Drive navigation, Frames, and Streams (the turbo_stream builder, *.turbo_stream.jx responses, render(stream=), broadcasting, and the request predicates)
-last_verified: 2026-06-15
+last_verified: 2026-10-31
+sources:
+  - src/proper/turbo
+  - blueprint/assets/js
 ---
 
 # Turbo
@@ -137,7 +140,7 @@ To make a frame's *own* navigations push browser history (so Back works), set `d
 
 ### Frame requests on the server
 
-Turbo sends a `Turbo-Frame` header with the frame's id on every frame navigation. Read it with `request.frame` (the id string, or `None` for a normal request):
+Turbo sends a `Turbo-Frame` header with the frame's id on every frame navigation. Read it with `request.turbo_frame` (the id string, or `None` for a normal request):
 
 ```python
 def show(self):
@@ -173,7 +176,7 @@ The actions map one-to-one to Turbo's:
 | `before` / `after` | Insert the fragment outside the target, before / after it |
 | `remove` | Delete the target (renders no content) |
 | `morph` | Replace via Turbo 8 morphing (keeps focus and scroll) |
-| `refresh` | Trigger a full Turbo page refresh (no target) |
+| `refresh` | Trigger a full Turbo page refresh (no target); `refresh(request_id=...)` lets the originating tab skip its own |
 
 **Target.** The first argument is an element id, or a model — a model is converted with `dom_id` (`dom_id(post)` → `post_42`). To act on many elements at once, pass `targets=` with a CSS selector instead:
 
@@ -182,12 +185,11 @@ turbo_stream.replace(post, "post/Post.jx", post=post)   # target="post_42"
 turbo_stream.remove(targets=".flash")                   # targets=".flash", no content
 ```
 
-**What goes inside.** Three ways, checked in this order — pick one:
+**What goes inside.** Two ways, checked in this order (in a template, the `stream` tag's body is the third):
 
 | Argument | Renders |
 |----------|---------|
-| `component="path.jx"` (or 2nd positional) + props | The Jx component, through the catalog — same as `self.render` |
-| `content=…` | A string/`Markup`, or a callable returning one |
+| `component="path.jx"` (or 2nd positional) + props | The Jx component, rendered through `app.catalog` with only the props you pass (unlike `self.render`, the controller's attributes are not passed) |
 | `html=…` | Ready-made HTML |
 
 In a template, the `stream` tag takes the action and then the method's arguments — its body becomes the content:
@@ -209,7 +211,7 @@ The instance is also callable for the positional form — `turbo_stream("append"
 
 ### Responding to a form
 
-When a Turbo-driven form submits, Turbo adds `text/vnd.turbo-stream.html` to the `Accept` header. Proper registers that as the `turbo_stream` format, so the [implicit resolver](controllers.md#implicit-template-rendering) routes the request to a `{action}.turbo_stream.jx` view automatically — falling back to the normal `.jx` template when there isn't one:
+When a Turbo-driven form submits, Turbo adds `text/vnd.turbo-stream.html` to the `Accept` header. Proper registers that as the `turbo_stream` format, so the [implicit resolver](rendering.md#implicit-template-rendering) routes the request to a `{action}.turbo_stream.jx` view automatically — falling back to `{action}.html.jx`, then the plain `{action}.jx`, when there isn't one:
 
 ```
 views/message/create.turbo_stream.jx   ← Turbo form submission

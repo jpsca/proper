@@ -1,25 +1,27 @@
 ---
 title: Controllers
-description: Controller fundamentals — CRUD, callbacks, parameters, rendering, redirects, concerns
-last_verified: 2026-06-21
+description: Controller fundamentals: CRUD and state-change resources, the generated controller, parameters, sessions
+last_verified: 2026-10-31
+sources:
+  - src/proper/controller
+  - src/proper/pipeline.py
+  - src/proper/_blueprints/controller
+  - src/proper/generators
 ---
 
 # Controllers
 
+Controllers receive the request and produce the response. This file covers how a controller is defined and what the generated one does. Responses are in [rendering.md](rendering.md), callbacks and concerns in [concerns.md](concerns.md), admin-style namespaces in [namespacing.md](namespacing.md).
+
 ## Table of Contents
 
 - [Introduction](#introduction)
-- [The Core Principle: Everything is CRUD](#crud)
+- [Adding a controller](#adding-a-controller)
+- [The Core Principle: CRUD](#the-core-principle-crud)
 - [The Generated Controller](#the-generated-controller)
 - [Parameters](#parameters)
 - [Sessions](#sessions)
-- [Rendering Responses](#rendering-responses)
-- [Redirecting](#redirecting)
-- [Raising HTTP Errors](#raising-http-errors)
-- [HTTP Caching](#http-caching)
-- [Request and Response Objects](#request-and-response-objects)
-- [Controller Callbacks](#controller-callbacks)
-- [Concerns](#concerns)
+- [HTTP Method Override](#http-method-override)
 
 
 ## Introduction
@@ -65,13 +67,14 @@ class ThingController(AppController):
         pass
 ```
 
+
 ## Adding a controller
 
 To generate a controller WITH a model (aka: a "resource") **ALWAYS** use the command `proper g resource NAME ...`.
 
 To generate a controller WITHOUT a model **ALWAYS** use the command `proper g controller NAME ...`.
 
-In both cases, in addition to the controller file, a form and several view files will be generated as well. Edit them as needed.
+In both cases, in addition to the controller file, a form, the views and a test skeleton (`tests/controllers/test_<name>.py`) are generated as well. Edit them as needed.
 
 `proper g controller` uses the model of the same name if `models/__init__.py` already imports one. Otherwise the generated code has no model: the actions are stubs with `TODO` comments. In both cases the views and redirects only use the actions that were generated (`--only` / `--exclude`).
 
@@ -79,8 +82,11 @@ Read the output of `proper g resource --help`, `proper g controller --help`, and
 
 If you are only adding a model, use the model generator `proper g model NAME ...` instead.
 
+
+The attribute syntax of the generators is in [generators.md](generators.md). A separate controller for the same resource (an admin interface) is in [namespacing.md](namespacing.md).
+
+
 ## The Core Principle: CRUD
-{#crud}
 
 The `router.resource` class decorator is the most common method to mount a controller in the right URLs. This decorator maps the `index`, `new`, `create`, `show`, `edit`, `update`, and `delete` methods of the controller class (if they exist) to the matching CRUD routes:
 
@@ -134,9 +140,7 @@ The auto-generated URLs in this example are:
 | PUT      | /cards/:card_id      | update   | replace a specific card
 | DELETE   | /cards/:card_id      | delete   | delete a specific card
 
-::: warning
-If one of those methods doesn't exist in the controller class, its URL is not created.
-:::
+**Warning:** If one of those methods doesn't exist in the controller class, its URL is not created.
 
 
 ### Beyond records: state changes are resources too
@@ -232,12 +236,12 @@ proper g controller card/closure
 proper g controller card/not_now --only=create
 ```
 
-This generates the `pk=None` controller with `create`/`delete` stubs under `controllers/card/`, creates the `CardScoped` concern (if it doesn't exist yet), and wires the import into `controllers/__init__.py`. No form or views are generated, since a state change redirects rather than rendering a form. Group the parent and its children under the `controllers/card/` subfolder; the original `card_controller.py` can stay where it is or move to `card/main_controller.py`.
+This generates the `pk=None` controller with `create`/`delete` stubs under `controllers/card/`, creates the `CardScoped` concern (if it doesn't exist yet), and wires the import into `controllers/__init__.py`. No form or views are generated, since a state change redirects rather than rendering a form; a test skeleton `tests/controllers/test_<child>.py` is. Group the parent and its children under the `controllers/card/` subfolder; the original `card_controller.py` can stay where it is or move to `card/main_controller.py`.
 
 
 ### ID parameter
 
-The `:card_id` parameter is auto-generated from the singular of the snake-cased controller name (after removing the "Controller" suffix).
+The `:card_id` parameter is the snake-cased controller name (after removing the "Controller" suffix) plus `_id`. No singularization is applied (`CardsController` would give `:cards_id`): name controllers in singular.
 
 Examples:
 
@@ -262,6 +266,8 @@ Example: `@router.resource("profile", pk=None)` will generate the following URLs
 
 Note that the `index` method is ignored when the ID parameter is disabled.
 
+When a controller defines `new` but not the action of the root path (`index`, or `show` for `pk=None`), `new` is mounted at the root (`/signup` instead of `/signup/new`): handy for sign-up style resources where the form is the landing page.
+
 
 ### Manually defined URLs
 
@@ -278,9 +284,7 @@ class PublicController(AppController):
 
 ```
 
-::: warning
-This should be used only for exceptional cases, such as the home page.
-:::
+**Warning:** This should be used only for exceptional cases, such as the home page.
 
 
 ## The Generated Controller
@@ -290,9 +294,9 @@ When you run `proper g resource Card title:str body:text`, Proper generates a co
 ```python {title="myapp/controllers/card_controller.py"}
 from proper.errors import NotFound
 
-from ..forms.card import CardForm
-from ..models import Card
-from ..router import router
+from myapp.forms.card import CardForm
+from myapp.models import Card
+from myapp.router import router
 from .app_controller import AppController
 
 
@@ -418,136 +422,8 @@ update action
 
 The key difference: on create, `form.save()` instantiates a **new** model. On update, it mutates the **existing** object passed in as the form's second argument, `self.card`.
 
-## Namespacing controllers
 
-When you need a separate controller for the same resource — for example, an admin interface alongside a public one — namespace the controller under a subfolder. This gives the namespaced controller its own routes, forms, and views without conflicting with the public version.
-
-**ALWAYS** generate a namespaced controller using the commands:
-
-- `proper g resource NAME --namespace=NAMESPACE`, if you need to add a model as well; or
-- `proper g controller NAME --namespace=NAMESPACE` for just the controller, form, and views.
-
-
-### What the generator creates
-
-For `proper g controller Post --namespace=admin`:
-
-```
-myapp/
-├── controllers/
-│   ├── __init__.py               # Modified: adds `from .admin import post_controller`
-│   └── admin/
-│       ├── __init__.py
-│       └── post_controller.py
-├── forms/
-│   └── admin/
-│       ├── __init__.py
-│       └── post.py
-└── views/
-    └── admin/
-        └── post/
-            ├── index.jx
-            ├── show.jx
-            ├── new.jx
-            ├── edit.jx
-            └── form.jx
-```
-
-
-### The scoped router
-
-The generator adds a scoped router to `router.py`:
-
-```python {title="myapp/router.py"}
-admin_router = router.scope("admin")
-```
-
-The namespaced controller uses this scoped router instead of the root one. All routes are automatically prefixed with `/admin`:
-
-```python {title="myapp/controllers/admin/post_controller.py"}
-from proper.errors import NotFound
-
-from myapp.forms.admin.post import PostForm
-from myapp.models import Post
-from myapp.router import admin_router
-from ..app_controller import AppController
-
-
-@admin_router.resource("posts")
-class PostController(AppController):
-
-    def index(self):
-        self.posts = Post.select()
-
-    def show(self):
-        self.load_post()
-        if not self.post:
-            raise NotFound
-
-    def new(self):
-        self.form = PostForm(self.params)
-
-    def create(self):
-        self.form = PostForm(self.params)
-        if self.form.is_invalid:
-            return self.redo()
-
-        self.form.save()
-        self.response.redirect_to("Admin:Post.index", flash="Post was created")
-
-    # ... other actions ...
-
-    # Private
-
-    def load_post(self):
-        post_id = self.params.get("post_id", "")
-        self.post = Post.find(int(post_id)) if post_id.isdigit() else None
-```
-
-
-### Namespaced route names
-
-Route names are prefixed with the namespace in PascalCase, separated by a colon:
-
-| Method | Path | Named route |
-|--------|------|-------------|
-| GET | `/admin/posts` | `Admin:Post.index` |
-| GET | `/admin/posts/new` | `Admin:Post.new` |
-| POST | `/admin/posts` | `Admin:Post.create` |
-| GET | `/admin/posts/:post_id` | `Admin:Post.show` |
-| GET | `/admin/posts/:post_id/edit` | `Admin:Post.edit` |
-| PATCH | `/admin/posts/:post_id` | `Admin:Post.update` |
-| DELETE | `/admin/posts/:post_id` | `Admin:Post.delete` |
-
-Use these prefixed names for `url_for` and `redirect_to`:
-
-```python
-app.url_for("Admin:Post.index")               # /admin/posts
-app.url_for("Admin:Post.show", post)           # /admin/posts/42
-self.response.redirect_to("Admin:Post.show", post, flash="Done")
-```
-
-In templates:
-
-```html+jinja
-<a href="{{ url_for('Admin:Post.index') }}">Manage Posts</a>
-```
-
-
-### The model is shared
-
-Namespaced controllers import the model from the same `models/` directory as all other controllers. The namespace only affects controllers, forms, and views — not models. This means both the public `PostController` and the admin `PostController` operate on the same `Post` model.
-
-
-### Imports
-
-The namespaced controller is imported through the root `controllers/__init__.py`:
-
-```python {title="myapp/controllers/__init__.py"}
-from .public_controller import *  # noqa
-from .post_controller import *  # noqa
-from .admin import post_controller  # noqa
-```
+Rendering, JSON responses, redirects, flash messages and HTTP errors are in [rendering.md](rendering.md). Callbacks and concerns are in [concerns.md](concerns.md).
 
 
 ## Parameters
@@ -574,8 +450,10 @@ class ClientController(AppController):
 
     # This action receives form data from a POST request to "/clients"
     def create(self):
+        self.form = ClientForm(self.params)
+        if self.form.is_invalid:
+            return self.redo()
         client = self.form.save()
-        client.save()
         self.response.redirect_to("Client.show", client, flash="Client was created")
 ```
 
@@ -605,7 +483,7 @@ self.request.matched_params  # Route params only (dict)
 The body is read and parsed before routing, by `Content-Type` (media type and parameter names are case-insensitive):
 
 - `multipart/form-data` → `request.form`: fields as `str`, files as `MultipartPart`
-- `application/x-www-form-urlencoded` → `request.form`: fields as `str`
+- `application/x-www-form-urlencoded` (or `application/x-url-encoded`) → `request.form`: fields as `str`
 - `application/json` → `request.form`: the members of the JSON **object**, with their JSON types. Any other JSON value (array, string, number, `true`, `null`) leaves `form` empty; parse `request.body` yourself.
 - anything else → only `request.body`
 
@@ -617,6 +495,8 @@ The body is read and parsed before routing, by `Content-Type` (media type and pa
 | Bytes not valid in the charset | `BadRequest` (400) |
 | Unknown charset, or one that can't decode a urlencoded body's percent-escapes (`idna`) | `UnsupportedMediaType` (415) |
 | Malformed JSON or multipart (including a missing final boundary), JSON with an integer over 4300 digits, or nested too deep for the stack | `MultipartError` (400) |
+| More than `MAX_FORM_FIELDS` (100) fields in a urlencoded or multipart body, more than `MAX_FORM_FILES` (10) files, or a multipart field over `MAX_FORM_PART_SIZE` (2 MB) | `MultipartError` (400) |
+| A body shorter or longer than its `Content-Length` | `BadRequest` (400) |
 
 A multipart body is never refused for its charset: with an unknown charset, or for a field not valid in it, the field is read as Latin-1.
 
@@ -633,795 +513,19 @@ def show(self): ...
 self.defaults["sidebar"]   # True
 ```
 
-A default with the name of a placeholder is what `url_for` fills it with when it isn't given, and can be a function (`lambda: current.account.id`); see "Placeholders with Defaults" in `routing.md`.
+A default with the name of a placeholder is what `url_for` fills it with when it isn't given, and can be a function (`lambda: current.account.id`); see [urls.md](urls.md#placeholders-with-defaults).
 
 
 ## Sessions
 
-Session data is stored in a signed cookie and is available on both the request and response objects:
+Session data is a signed cookie, read from `self.request.session` and written to `self.response.session` (a plain `dict`). How it works, flash storage and the cookie settings are in [security.md](security.md#sessions).
 
 ```python
-# Read session data (set by a previous request)
-user_id = self.request.session.get("user_id")
-
-# Write session data (will be sent in the response cookie)
-self.response.session["user_id"] = user.id
-self.response.session["cart"].append(item_id)  # changes in place are saved too
+user_id = self.request.session.get("user_id")   # set by a previous request
+self.response.session["user_id"] = user.id      # sent in the response cookie
 ```
-
-The session is a plain `dict` (no attribute access: `session["key"]` or `session.get("key")`). Read from `self.request.session`, write to `self.response.session`. The framework compares the two at the end of the request and only updates the cookie if the session changed; the response's session starts as a copy of the request's with its own lists and dicts, so changing one in place counts as a change.
 
 
 ## HTTP Method Override
 
-HTML forms only support `GET` and `POST`. To work around the spec, Proper rewrites the request method when a `POST` carries a `_method` value naming a different verb. This is what makes `<Form method="patch">` work (the form is wire-encoded as `POST` with `_method=patch`).
-
-Implementation: `proper.pipeline.method_override` runs before routing. For an incoming `POST` request, it looks for a method override in three places, in order:
-
-1. The `X-HTTP-Method-Override` header.
-2. The `_method` query string parameter.
-3. The `_method` form field.
-
-The override only applies when the value (uppercased) is one of `PUT`, `PATCH`, `DELETE`, or `QUERY`. The pipeline rewrites `request.method` before the router sees it, so route definitions like `@router.patch("cards/:card_id")` match the rewritten method.
-
-Only `POST` is rewritten — a `GET` carrying `_method=delete` is *not* rewritten (this stops misbehaving links from triggering destructive actions).
-
-The rendered HTML for `<Form method="patch">` is:
-
-```html
-<form method="post" action="..." novalidate>
-  <input type="hidden" name="_method" value="patch">
-  ...
-</form>
-```
-
-
-## Rendering Responses
-
-### Implicit Template Rendering
-
-If an action returns `None` and doesn't set `response.body`, Proper infers a
-template by walking a **prefix chain** (from the controller's MRO) crossed
-with **format candidates** (from the `Accept` header). The first template that
-exists in the jx catalog wins.
-
-**Step 1 — Build the prefix chain** (`Controller._prefixes`). Walk `type(self).mro()`
-from subclass upward, stopping at `Controller`. For each user-defined class,
-take its module, drop the first two dot-separated segments (the layout
-assumes `<app>.controllers.<…>`), strip any `_controller` suffix and convert
-remaining dots to slashes:
-
-- `myapp.controllers.admin.card_controller` → `admin/card`
-- Its parent `myapp.controllers.app_controller` → `app`
-
-So a subclass inherits its ancestors' view folders as fallbacks, with no config.
-
-**Step 2 — Build the format list** (`iter_format_extensions`). Parse the
-request's `Accept` header in priority order; map each mime to a filename
-extension via `mimetypes.guess_extension`. Stop at `*/*`. If nothing matches,
-use `request.default_format` (default `"html"`).
-
-**Step 3 — Iterate candidates** (`iter_candidates`). For each prefix, emit
-every `{prefix}/{action}.{format}.jx` then the bare
-`{prefix}/{action}.jx` as a last-resort fallback, before moving to the next
-prefix. Example — action `show`, Accept `text/html, application/json`,
-prefixes `["admin/card", "app"]`:
-
-```
-admin/card/show.html.jx
-admin/card/show.json.jx
-admin/card/show.jx
-app/show.html.jx
-app/show.json.jx
-app/show.jx
-```
-
-**Step 4 — Resolve**. Return the first candidate where `catalog.has(name)` is
-true. If none match, raise `ComponentNotFoundError` listing every candidate
-tried. The chosen template is logged at DEBUG:
-`[Controller.action] rendering inferred template: ...`
-
-Explicit `self.render("some/name.jx")` bypasses this resolution — the name is
-passed straight to the jx catalog. The prefix chain and format negotiation
-only apply to implicit rendering. For a simpler one-of-two-formats pattern,
-see `self.request.format` in "JSON API Patterns" below.
-
-This means the simplest action is one that does nothing:
-
-```python
-def show(self):
-    self.card = Card.get_by_id(self.params["card_id"])
-    # Automatically renders views/card/show.jx
-```
-
-### Explicit Template Rendering
-
-Use `self.render()` when you need to render a different template than the default, or when you need to set a custom status code. The `self.redo()` method is a shortcut that re-renders the form template (e.g., `new.jx` for `create`, `edit.jx` for `update`) with a `422 Unprocessable Entity` status. The generated `create` and `update` actions call it when the form is invalid. Always `return` it, because nothing halts inside an action and the code after it would otherwise run:
-
-```python
-if self.form.is_invalid:
-    return self.redo()
-```
-
-The `render()` method returns a string that becomes the response body when returned from the action. You can also call it without returning — it sets the body directly.
-
-### JSON Responses
-
-```python
-def show(self):
-    card = Card.get_by_id(self.params["card_id"])
-    return self.render(json={"id": card.id, "title": card.title})
-```
-
-This sets the Content-Type to `application/json` and serializes the data using a custom encoder that handles `datetime` objects (dates are prefixed with `"__dt__"` for round-trip parsing).
-
-### Turbo Stream Responses
-
-A Turbo form submission (`Accept: text/vnd.turbo-stream.html`) resolves a `{action}.turbo_stream.jx` view automatically, or you build the response inline with `self.render(stream=...)`. Branch on `self.request.turbo_stream` when one URL serves both Turbo and normal clients. See [turbo.md](turbo.md#responding-to-a-form).
-
-### JSON API Patterns
-
-#### Content Negotiation
-
-Use `self.request.format` to serve both HTML and JSON from the same controller:
-
-```python
-def show(self):
-    self.card = Card.get_or_none(self.params["card_id"])
-    if not self.card:
-        raise NotFound
-
-    if self.request.format == "json":
-        return self.render(json={"id": self.card.id, "title": self.card.title})
-    # Otherwise renders show.jx implicitly
-```
-
-The `format` property parses the `Accept` header and returns `"html"`, `"json"`, `"xml"`, etc. When the header is missing or ambiguous, it falls back to `request.default_format` (default: `"html"`).
-
-When serving both formats from the same URL, set the `Vary` header so caches distinguish them:
-
-```python
-after = {"do": "set_vary"}
-
-def set_vary(self):
-    self.response.set_vary("Accept")
-```
-
-#### JSON-Only Controllers
-
-For pure API controllers, disable cookie headers since they aren't needed. JSON APIs return error responses as JSON instead of re-rendering a form (`redo()`), so handle validation in the action and return errors directly:
-
-```python
-from proper.errors import NotFound
-
-
-@router.resource("cards")
-class CardController(AppController):
-    before = {"do": "disable_cookies"}
-
-    def disable_cookies(self):
-        self.response.disable_cookies = True
-
-    def index(self):
-        cards = Card.select()
-        return self.render(json=[
-            {"id": c.id, "title": c.title} for c in cards
-        ])
-
-    def show(self):
-        card = Card.get_or_none(self.params["card_id"])
-        if not card:
-            raise NotFound
-        return self.render(json={"id": card.id, "title": card.title})
-
-    def create(self):
-        form = CardForm(self.params)
-        if form.is_invalid:
-            return self.render(json={"errors": form.errors}, status=422)
-        card = form.save()
-        card.save()
-        return self.render(json={"id": card.id, "title": card.title}, status=201)
-```
-
-#### JSON Error Responses
-
-The framework's default error handler renders HTML. For JSON APIs, register a controller-based error handler using `@router.error()`:
-
-```python {title="myapp/controllers/api_error_controller.py"}
-from proper import errors
-from ..router import router
-from .app_controller import AppController
-
-
-class ApiErrorController(AppController):
-    skip_authentication = True
-
-    @router.error(errors.NotFound)
-    def not_found(self):
-        return self.render(json={"error": "not found"}, status=404)
-
-    @router.error(errors.Forbidden)
-    def forbidden(self):
-        return self.render(json={"error": "forbidden"}, status=403)
-
-    @router.error(Exception)
-    def error(self):
-        return self.render(json={"error": "internal server error"}, status=500)
-```
-
-#### XHR Detection
-
-For Turbo or AJAX requests that send `X-Requested-With: XMLHttpRequest`, branch inside the action to return JSON errors for XHR requests while keeping the default re-render for regular form submissions:
-
-```python
-def create(self):
-    self.form = CardForm(self.params)
-    if self.form.is_invalid:
-        if self.request.is_xhr:
-            return self.render(json={"errors": self.form.errors}, status=422)
-        return self.redo()
-    card = self.form.save()
-    self.response.redirect_to("Card.show", card, flash="Card was created")
-```
-
-### Plain Text Responses
-
-```python
-def healthcheck(self):
-    return self.render(text="ok")
-```
-
-This sets the Content-Type to `text/plain`.
-
-### Setting a Custom Status
-
-You can set the status in the response object:
-
-```python
-from proper import status
-
-self.response.status = status.im_a_teapot
-```
-
-All render modes also accept a `status` parameter:
-
-```python
-return self.redo()
-return self.render(json={"error": "not found"}, status=not_found)
-return self.render(text="created", status=created)
-```
-
-Status codes are imported from `proper.status` as integers (e.g., `proper.status.unprocessable` is `422`).
-
-### Return Values
-
-If an action returns a value (any non-`None` value), that value becomes the response body directly:
-
-```python
-def show(self):
-    return "Hello, world!"    # Sent as the response body
-```
-
-### Template Variables
-
-All instance attributes set on the controller are passed to the template as variables. Implementation: `Controller.render` calls `catalog.render(name, **vars(self))`, so anything in the instance's `__dict__` becomes a template kwarg.
-
-```python
-def show(self):
-    self.card = Card.get_by_id(self.params["card_id"])
-    self.related = Card.select().where(Card.category == self.card.category).limit(5)
-    # {{ card }} and {{ related }} are now available in the template
-```
-
-`request` and `response` are also in `vars(self)` (set in `Controller.__init__`) and reachable as `{{ request }}` / `{{ response }}` in templates. Class-level **properties** like `self.app` and `self.params` are *not* in `vars(self)` — for those, templates use `current.app` and `current.request` (which exposes the same data). There is no automatic exclusion of underscore-prefixed names; `self._foo = ...` would be reachable as `{{ _foo }}` in the template.
-
-
-## Redirecting
-
-Use `self.response.redirect_to()` to redirect the user to another URL or named route:
-
-```python
-# Redirect to a named route
-self.response.redirect_to("Card.show", card_id=card.id)
-
-# Redirect to a named route with an object
-self.response.redirect_to("Card.show", card)
-
-# Redirect to an absolute URL
-self.response.redirect_to("/dashboard")
-
-# Redirect to an external URL
-self.response.redirect_to("https://example.com")
-```
-
-By default, redirects use the status `303 See Other`, which is the correct status for redirecting after a POST. You can change this with the `status` parameter:
-
-```python
-from proper import status
-
-self.response.redirect_to("/new-location", status=status.moved_permanently)
-```
-
-When using `url_for` or `redirect` for a route with arguments, prefer passing an object instead of indivual arguments. For example, do `url_for('Post.edit', post)` instead of `url_for('Post.edit', id=post.id)`.
-
-
-### Flash Messages
-
-Flash messages are one-time messages that survive a single redirect. They are stored in the session and displayed on the next page load. You can set a flash message when redirecting:
-
-```python
-self.response.redirect_to(
-    "Card.index",
-    flash="Card was deleted",
-)
-
-self.response.redirect_to(
-    "Session.new",
-    flash="Try again in a few minutes.",
-    flash_cat="negative",
-)
-```
-
-The `flash_cat` parameter defaults to `"positive"`. Common categories are `"positive"`, `"negative"`, `"warning"`, and `"info"` — your layout decides how each one looks.
-
-You can also set flash messages directly without redirecting:
-
-```python
-self.response.flash("positive", "Settings saved")
-```
-
-In your templates, flash messages are reachable through `current.request.flashes` — a list of `(type, message)` tuples. The generated `flashes.jx` does roughly `{% set flashes = current.request.flashes %}` and iterates. Storage is the session, but the access path on the read side is the request.
-
-
-## Raising HTTP Errors
-
-To halt processing and return an HTTP error response, raise one of the error classes from `proper.errors`. The framework will catch the exception, look for a registered error handler, and render the appropriate error page:
-
-```python
-from proper.errors import NotFound, Forbidden
-
-def show(self):
-    card_id = self.params.get("card_id", "")
-    if not card_id.isdigit():
-        raise NotFound
-    self.card = Card.get_or_none(int(card_id))
-    if not self.card:
-        raise NotFound
-
-def update(self):
-    if not self.card.editable_by(current.user):
-        raise Forbidden("You don't have permission to edit this card")
-```
-
-### Available Error Classes
-
-| Class                         | Status Code | When to use
-| ----------------------------- | ----------- | -----------
-| `BadRequest`                  | 400         | Malformed request data
-| `Unauthorized`                | 401         | Missing authentication
-| `Forbidden`                   | 403         | Authenticated but not authorized
-| `NotFound`                    | 404         | Record or page doesn't exist
-| `MethodNotAllowed`            | 405         | Wrong HTTP method (raised by router)
-| `NotAcceptable`               | 406         | No representation matches the `Accept` header
-| `Conflict`                    | 409         | Conflicting state (e.g., duplicate)
-| `Gone`                        | 410         | Resource permanently removed
-| `UnprocessableEntity`         | 422         | Valid syntax but semantic errors
-| `TooManyRequests`             | 429         | Rate limit exceeded (raised by RateLimiting concern)
-| `InternalServerError`         | 500         | Something went wrong on the server
-
-All error classes inherit from `proper.errors.HTTPError` and accept an optional message string.
-
-### Registering Error Handlers
-
-You can register controller methods to handle specific exceptions. When that exception is raised anywhere during request processing, Proper instantiates the controller and calls the registered method:
-
-```python {title="myapp/controllers/public_controller.py"}
-from proper import errors
-from ..router import router
-from .app_controller import AppController
-
-
-class PublicController(AppController):
-    @router.error(errors.NotFound)
-    @router.get("_not_found")
-    def not_found(self):
-        pass
-
-    @router.error(Exception)
-    @router.get("_error")
-    def error(self):
-        pass
-```
-
-The `@router.error()` decorator registers the handler, and the `@router.get()` decorator creates a route to preview the error page during development (e.g., visiting `/_not_found` in the browser). You can stack both decorators on the same method.
-
-If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
-
-
-## HTTP Caching
-
-Proper has built-in support for conditional GET requests using ETag and Last-Modified headers. This happens automatically in the dispatch flow: after calling an action, the framework checks if the response is "fresh" (the client already has the latest version). If so, it returns a `304 Not Modified` with an empty body instead of the full response.
-
-### fresh_when
-
-Use `self.response.fresh_when()` to set caching headers. You can pass model objects with an `updated_at` attribute, and Proper will use the most recent one to generate both the ETag and Last-Modified headers:
-
-```python
-def show(self):
-    self.card = Card.get_by_id(self.params["card_id"])
-    self.response.fresh_when(self.card)
-```
-
-For collections:
-
-```python
-def index(self):
-    self.cards = Card.select().order_by(Card.created_at.desc())
-    self.response.fresh_when(self.cards)
-```
-
-Proper uses the maximum `updated_at` value from the collection.
-
-You can also set the ETag and Last-Modified explicitly:
-
-```python
-self.response.fresh_when(etag="v1-abc123", last_modified=some_datetime)
-```
-
-Options:
-
-```python
-self.response.fresh_when(
-    self.card,
-    strong=True,     # Use a strong ETag (default: weak)
-    public=True,     # Allow proxy caches (default: private)
-)
-```
-
-If `fresh_when()` determines the response is fresh, the action's rendered output is discarded and a `304 Not Modified` is returned automatically. You don't need to check the return value.
-
-The freshness check (`self.response.is_fresh()`) uses these RFC 9110 rules:
-
-- Only `GET`/`HEAD` requests with a 2xx response can be fresh; a `POST`, an error status or a redirect is never turned into a 304. The 304 is decided with the status the action leaves: `fresh_when()` returns what holds when it is called, so it can return `True` before the action sets a 404.
-- `If-None-Match: *` matches any GET/HEAD 2xx response, with or without an ETag (RFC 9110 §13.1.2). Other values use the weak comparison (`W/"x"` matches `"x"`).
-- `If-Modified-Since` is ignored when the request has `If-None-Match`.
-- `Last-Modified` is compared with `If-Modified-Since` in whole seconds.
-- `If-Modified-Since` (and `Date`) are read only in the three RFC 9110 date forms: `Sun, 06 Nov 1994 08:49:37 GMT`, `Sunday, 06-Nov-94 08:49:37 GMT`, `Sun Nov  6 08:49:37 1994`. Any other form (ISO 8601, a `+0200` offset, `UTC`) is ignored: `request.if_modified_since` is `None`.
-- Not applied: a non-GET/HEAD request with a matching `If-None-Match` gets the response as it is, not a 412.
-
-A 304 always goes out without a body: if the action sets `self.response.status = 304` itself, the body is emptied and no template is rendered.
-
-
-## Request and Response Objects
-
-The `self.request` and `self.response` objects are available in every controller action. For the full attribute/method reference, see [api.md](api.md#request) and [api.md](api.md#response). Here's a quick overview of the most common usage:
-
-```python
-# Request basics
-self.request.method           # "GET", "POST", etc.
-self.request.path             # "/cards/42"
-self.request.query            # Query string params (MultiDict)
-self.request.form             # POST body params (MultiDict)
-self.request.session          # Session data (dict)
-self.request.headers          # Request headers
-self.request.format           # "html", "json", etc. (from Accept header)
-self.request.is_xhr           # True if X-Requested-With: XMLHttpRequest
-self.request.remote_ip        # Client IP address (forwarding headers only from TRUSTED_PROXIES)
-self.request.request_id       # X-Request-ID header (cleaned) or a new UUID; sent back in the response
-self.request.get_cookie("theme", default="light")
-self.request.get_signed_cookie("_token", max_age=2592000)
-
-# Response basics
-self.response.status = 201
-self.response.headers["X-Custom"] = "value"
-self.response.set_cookie("theme", "dark", max_age=31536000, secure=True, httponly=True)
-self.response.set_signed_cookie("_auth", token, max_age=2592000, httponly=True)
-self.response.unset_cookie("old_cookie")
-self.response.set_cache_control("max-age=3600", "public")
-self.response.send_file("/path/to/report.pdf", as_attachment=True, download_name="Q4-Report.pdf")
-```
-
-
-## Controller Callbacks
-
-Controller callbacks are methods that automatically run before and/or after a controller action. A callback can be defined in a controller or in a parent class like `AppController`. Since all controllers inherit from `AppController`, callbacks defined there will run on every controller in your application.
-
-```python
-class MyMixin(Concern):
-    before = {"do": "check_something", "only": "create"}
-    after = {"do": "log_something", "exclude": "index"}
-```
-
-- `do` - the name of the method to call (required)
-- `only` - run the callback only for these actions (string or list)
-- `exclude` - run the callback for all actions except these (string or list)
-- Multiple callbacks: use a list of dicts
-- **If a before callback sets `response.body` (including via a redirect), the action is never called**
-- Before callbacks run outer-first: parent class → child class. After callbacks run inner-first: child class → parent class. Concerns mixed into a parent count as "outer" relative to the child controller.
-
-### `before` callback
-
-Callback methods registered via `before` run before a controller action. They may halt the request cycle if they set a body or a redirect.
-A common use case for `before` is ensuring that a user is logged in:
-
-```python
-from proper import Controller
-
-class AppController(Controller):
-    before = {"do": "require_login"}
-
-    def require_login(self):
-        if not current.auth_session:
-            self.response.redirect_to("Session.new")
-```
-
-The method redirects to the login form if the user is not already logged in. When a `before` callback renders or redirects (like in the example above), the original controller action is not run. If there are additional callbacks registered to run, they are also cancelled and not run.
-
-The `"do"` argument must be a name or a list of names of methods defined in the class or in one of its parent classes.
-
-`before` callbacks are for cross-cutting checks that halt the request: authentication, authorization, CSRF, locale. Do **not** use them to load records or build forms. Load the record and the form inside each action (with a private `load_card()` helper that sets `self.card` to the record or `None`, and `raise NotFound` in the action), so each action shows everything it needs.
-
-The `only` option runs the callback only for the listed actions; there is also an `exclude` option which works the other way.
-
-::: warning
-**If a before callback sets `response.body`, the action is never called** — this is logged.
-:::
-
-### `after` callback
-
-You can also define action callbacks to run after a controller action has been executed with the `after` callback.
-
-The `after` callbacks are similar to the `before` callbacks, but because the controller action has already been run they have access to the response data that's about to be sent to the client. A common use case is setting response headers:
-
-```python
-class SecurityHeaders(Concern):
-    after = {"do": "set_security_headers"}
-
-    def set_security_headers(self):
-        self.response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        self.response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        self.response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-```
-
-::: warning
-`after` callbacks are executed only after a successful controller action, and not if an exception is raised in the request cycle.
-:::
-
-
-### Multiple callbacks
-
-Both `before` and `after` callbacks can be written as list of dictionaries, to have many callbacks with different options in the same controller. The callbacks will be executed in MRO order.
-
-```python
-from .app_controller import AppController
-
-class CardController(AppController):
-    before = [
-        {"do": "require_login", "exclude": ("index", "show")},
-        {"do": "ensure_editor_access", "only": ["edit", "update", "delete"]},
-    ]
-
-    ...
-```
-
-### Inheritance
-
-The `before` and `after` callbacks are always inherited and are not obscured by new declarations. Invoking an action in a controller with `before` callbacks defined, will first call any `before` callbacks defined in its parent classes, and then the ones defined in the controller class itself.
-
-For example, if `AppController` has a `before` callback that checks authentication, and `CardController` has a `before` callback that checks authorization, both will run — the authentication check first (from the parent), then the authorization check (from the child).
-
-
-## Concerns
-
-A controller concern is a mixin class that defines callbacks and methods that can be shared across multiple controllers. Concern classes inherit from `proper.Concern` and follow the same `before`/`after` callback pattern as controllers.
-
-The convention is to declare them in the `myapp/controllers/concerns/` directory, one per file.
-
-### Writing a Concern
-
-```python {title="myapp/controllers/concerns/team_scoped.py"}
-from proper import Concern
-from ...models import Team
-
-
-class TeamScoped(Concern):
-    def load_team(self):
-        team_id = self.params.get("team_id", "")
-        self.team = Team.find(int(team_id)) if team_id.isdigit() else None
-```
-
-Then mix it into any controller that needs it:
-
-```python
-class ProjectController(TeamScoped, AppController):
-    def index(self):
-        self.load_team()
-        if not self.team:
-            raise NotFound
-        self.projects = self.team.projects
-```
-
-### Built-in Concerns
-
-These concerns are available from `proper.concerns`:
-
-#### OriginProtection
-
-Verifies that state-changing requests (POST, PATCH, PUT, DELETE) come from the same origin or a trusted origin. This is the modern CSRF protection approach that doesn't require tokens.
-
-The verification algorithm:
-
-1. Allow all GET, HEAD, OPTIONS, and QUERY requests (safe methods).
-2. If neither `Sec-Fetch-Site` nor `Origin` headers are present, allow the request (not a browser request).
-3. If the `Origin` header matches the `TRUSTED_ORIGINS` config, allow the request.
-4. If `Sec-Fetch-Site` is `same-origin` or `none`, allow the request (modern browsers).
-5. If the `Origin` host matches the request's `Host`, allow the request (HTTP or old browsers).
-6. If both the `Origin` and the `Host` are on the local network (private IPs, loopback, or link-local addresses), allow the request.
-7. Otherwise, raise `InvalidOrigin` (403 Forbidden).
-
-An `Origin` that is not a valid URL (`http://[abc]`) matches no host in steps 5 and 6.
-
-Configuration:
-
-```python
-# config/main.py
-TRUSTED_ORIGINS = [
-    "https://cdn.example.com",
-    "https://admin.example.com",
-]
-```
-
-This concern is included in the default `AppController`.
-
-There is also `RequestForgeryProtection`, a legacy token-based CSRF protection. For modern browser-based applications, use `OriginProtection` instead.
-
-
-#### Pagination
-
-Paginates a Peewee query with **geared page sizes** (a port of Basecamp's geared_pagination). Included in the default `AppController`.
-
-Call `paginate_for` from an action; it reads the `page` query param, sets `self.page`, and returns the current page's records:
-
-```python
-def index(self):
-    self.posts = self.paginate_for(
-        Post.select().order_by(Post.created_at.desc()),
-        per_page=[15, 30, 50, 100],  # geared: page 1->15, 2->30, 3->50, 4+->100
-    )
-```
-
-`paginate_for(query, *, per_page=None, ordered_by=None, cursor_secret=None)`:
-
-- `per_page`: an int (fixed size) or a list of ints (geared sizes; the last repeats). Defaults to `[15, 30, 50, 100]`.
-- `ordered_by`: pass it to switch from `LIMIT/OFFSET` to **cursor (keyset)** paging. A list of `(field, "asc"|"desc")` pairs (or a dict). The last column must be unique (usually the primary key). Cursor paging is count-free.
-- `cursor_secret`: optional secret to sign cursor tokens (tamper-detected on decode).
-
-`self.page` is a `Page`: `.records`, `.number`, `.size`, `.is_first`, `.is_last`, `.is_only`, `.is_before_last`, `.is_empty`, `.next_param` (next page number, cursor token, or `None` on the last page), `.cache_key`, plus `.recordset.page_count` and `.recordset.records_count`. The `Page` is iterable and `len()`-able.
-
-On JSON responses the concern sets `X-Total-Count` (offset mode only) and a `Link: rel="next"` header (omitted on the last page), and folds `self.page.cache_key` into the response `etag`.
-
-
-#### RateLimiting
-
-Limits the number of requests per time window. By default, rate limits apply per IP address (`request.remote_ip`; behind a CDN or load balancer, list every proxy in the chain in `TRUSTED_PROXIES` or all visitors share the proxy's limit), but you can customize the identity, scope, and reaction.
-
-To enable rate limiting on a controller, set the `rate_limit` class attribute:
-
-```python
-from proper.units import MINUTES, HOUR
-
-class SessionController(AppController):
-    rate_limit = {"to": 10, "within": 3 * MINUTES, "only": "create"}
-```
-
-This allows 10 requests within 3 minutes to the `create` action. Requests that exceed the limit raise `TooManyRequests` (429).
-
-All options:
-
-| Option       | Description                                          | Default
-| ------------ | ---------------------------------------------------- | -------
-| `to`         | Max requests allowed (int, method name, or callable) | (required)
-| `within`     | Time window in seconds (int, method name, or callable) | (required)
-| `only`       | Action(s) to apply the limit to                      | all actions
-| `exclude`    | Action(s) to exclude from the limit                  | none
-| `by`         | Identity function (method name or callable)          | IP address
-| `scope`      | Scope string for grouping limits                     | controller module path
-| `name`       | Name to distinguish multiple limits with same scope  | `""`
-| `react_with` | Method name or callable to handle exceeding limit    | raise `TooManyRequests`
-
-A `by` identity taken from the request (a form value, a header, `request.host`) is chosen by the client: changing it gives a new limit. Use one only for what the limit protects (the login of an account) and keep a limit by IP next to it. Never key on `request.host`: it is the client's `Host` header, which every route without a `host` accepts.
-
-Multiple rate limits on the same controller:
-
-```python
-class SessionController(AppController):
-    rate_limit = [
-        {
-            "to": 8,
-            "within": 15 * MINUTES,
-            "only": "create",
-            "by": lambda self: self.login_param,
-            "react_with": "too_many_retries",
-        },
-        {"to": 50, "within": 1 * HOUR, "only": "create"},
-    ]
-
-    @property
-    def login_param(self):
-        return User.normalize_login(self.params.get("login") or "")
-
-    def too_many_retries(self):
-        self.response.redirect_to(
-            "Session.new",
-            flash="Try again in a few minutes or reset your password.",
-            flash_cat="negative",
-        )
-```
-
-Dynamic limits using method names:
-
-```python
-class APIController(AppController):
-    rate_limit = {
-        "to": "max_requests",
-        "within": "time_window",
-        "by": lambda self: current.user.id,
-    }
-
-    def max_requests(self):
-        return 1000 if current.user.premium else 100
-
-    def time_window(self):
-        return 1 * HOUR if current.user.premium else 1 * MINUTE
-```
-
-To reset a rate limit (e.g., after a successful login):
-
-```python
-self.reset_rate_limit(self.login_param)
-```
-
-Rate limiting relies on a backing cache store. If no cache is configured, rate limiting is silently disabled.
-
-This concern is included in the default `AppController` but does nothing unless you set the `rate_limit` class attribute.
-
-#### CurrentLocale
-
-Resolves the current locale for the request and assigns it to `current.locale` in a `before` callback. Wired up by the `i18n` addon — see [i18n.md](i18n.md).
-
-Resolution order: URL param → cookie → `current.user.locale` → `app.i18n.negotiate_locale(accept_language)` → `LOCALE_DEFAULT` config.
-
-The concern also extends `etag` to include `current.locale`, so cached responses vary by language.
-
-#### CurrentTimezone
-
-Resolves the current timezone and assigns it to `current.timezone` in a `before` callback. Wired up by the `i18n` addon — see [i18n.md](i18n.md).
-
-Resolution order: URL param → cookie → `current.user.timezone` → `TIMEZONE_DEFAULT` config.
-
-Like `CurrentLocale`, this concern extends `etag` to include `current.timezone`.
-
-#### SecurityHeaders
-
-Sets security-related response headers as an `after` callback. This concern is defined in your app (not in the framework) so you can customize it:
-
-```python {title="myapp/controllers/concerns/security_headers.py"}
-from proper import Concern
-from proper.units import YEARS
-
-
-class SecurityHeaders(Concern):
-    after = {"do": "set_security_headers"}
-
-    def set_security_headers(self):
-        headers = self.response.headers
-        headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        headers.setdefault("X-Content-Type-Options", "nosniff")
-        headers.setdefault("X-XSS-Protection", "0")
-        headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
-        headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-```
-
-There is no `Content-Security-Policy` by default; see `security.md`.
-
-State changes that aren't record-CRUD follow the same rule — one controller per change, mounted under the parent with `pk=None`. See [The Core Principle: A Resource Per State Change](#the-core-principle-a-resource-per-state-change) above, and scaffold them with `proper g controller PARENT/CHILD`.
+A `POST` with `_method=patch|put|delete|query` (a hidden field, a query parameter or the `X-HTTP-Method-Override` header) is rewritten before routing, so `<Form method="patch">` works. Details in [routing.md](routing.md#method-override).

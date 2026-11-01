@@ -1,10 +1,18 @@
 ---
 title: Application
-description: App setup, request lifecycle, configuration, lifecycle hooks, static assets, and logging
-last_verified: 2026-10-19
+description: App layout, request lifecycle, the `current` context, configuration, lifecycle hooks, static assets, debug error pages
+last_verified: 2026-10-31
+sources:
+  - src/proper/app.py
+  - src/proper/core
+  - src/proper/global_context.py
+  - src/proper/controller/static_files_controller.py
+  - blueprint/[[app_name]]/config
 ---
 
 # Application
+
+How a Proper app is laid out, how a request flows through it, and the settings in `config/`. Running, checking and logging the app are in [cli.md](cli.md).
 
 ## Table of Contents
 
@@ -15,13 +23,8 @@ last_verified: 2026-10-19
 - [Configuration](#configuration)
 - [Lifecycle Hooks](#lifecycle-hooks)
 - [Static Assets](#static-assets)
-- [Units](#units)
-- [HTTP Errors](#http-errors)
-- [Status Codes](#status-codes)
-- [Helper Types](#helper-types)
-- [CLI](#cli)
-- [Middleware](#middleware)
-- [Logging](#logging)
+- [The Debug Error Pages](#the-debug-error-pages)
+
 
 ## Setup
 
@@ -41,17 +44,20 @@ myapp/                    # Application package
   config/                 # Configuration modules
     __init__.py           # Imports all config modules in order
     main.py               # Core settings: DEBUG, HOST, SECRET_KEYS, MAILERS
+    import_map.py         # IMPORT_MAP
+    session.py            # SESSION_COOKIE_* settings
     storage.py            # DATABASES, QUEUE, CACHE config by environment
   controllers/            # Request handlers
     concerns/             # Controller mixins (e.g., SecurityHeaders)
     app_controller.py     # Base controller all others inherit from
     public_controller.py  # Default controller for index and error pages
   models/                 # Peewee ORM models
-    concerns/             # Model mixins (e.g., Timestamped)
+    concerns/             # Model mixins (e.g., RussianDollCached)
     base.py               # BaseModel with db connection
     __init__.py           # Must import all models for migration detection
   views/                  # Jx components
-    layouts/              # Base layouts (app.jx, email.jx)
+    layouts/              # Base layouts (base.jx, app.jx, email.jx)
+    public/               # index.jx, error.jx, not_found.jx
     emails/               # Email templates
   forms/                  # Form validation classes
   emails/                 # Email message classes
@@ -64,7 +70,13 @@ db/                       # Database migrations
 assets/                   # Static files (CSS, JS, images, fonts)
 storage/                  # Uploaded files and SQLite databases
 tests/                    # Test suite
+deploy/nginx.conf         # Reverse proxy config (see deployment.md)
+log/                      # Log files
+workers.py                # Huey consumer entry point
+Dockerfile, compose.yml   # Container build and services
+.env.example              # Environment variables to copy to .env
 ```
+
 
 ## Main dependencies
 
@@ -100,9 +112,9 @@ Every request flows through a pipeline in this exact order:
    - Runs **after** callbacks in reverse MRO order
 7. **update_session_cookie** — writes back a modified session as a signed cookie
 
-The framework also manages database connections around the pipeline: it opens connections before step 1 and closes them after step 7. If an unhandled error occurs, a rollback is issued before closing.
+For a database configured with `"autoconnect": False`, the framework opens its connection before step 1 and closes it after step 7 (with `autoconnect`, Peewee's default, Peewee connects on the first query). A rollback is issued before closing only when a hook or the error handler itself raises, or `CATCH_ALL_ERRORS` is off.
 
-In DEBUG, all steps are logged with the `proper` logger (prefix `[pipeline]`).
+With `LOG_LEVEL = "debug"`, every step is logged by the `proper` logger (prefix `[pipeline]`).
 
 
 ## Global Context
@@ -155,10 +167,13 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
 | `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
-| `WORKERS`                  | `1`               | Server workers per process; `MAX_THREADS` is split between them |
+| `WORKERS`                  | `1`               | Bearings event loops per process (network I/O, no Python); the app runs on one pool of `MAX_THREADS` threads shared by them |
 | `PROCESSES`                | `1`               | Copies of the web server on the same port; try `2` with four or more cores |
 | `CABLE_PORT`               | `0`               | Port where the cable (`Cable`) serves the WebSockets (`0` = none) |
 | `ALLOW_GIL`                | `False`           | Let `proper run` serve on a Python with the GIL; it refuses otherwise |
+| `APP_TARGET`               | `""`              | `"package.module:variable"` the server loads; empty = `app` in the module that created it |
+| `RELOAD`                   | `None`            | Restart on code changes; `None` follows `DEBUG` |
+| `COMPILED_PATH`            | `"_compiled"`     | Where the views are compiled, relative to the app's parent folder |
 | `MAX_CONTENT_LENGTH`       | `8 * MB`          | Max request body size                          |
 | `MAX_QUERY_SIZE`           | `1 * MB`          | Max query string size                          |
 | `MAX_FORM_FILES`           | `10`              | Max number of files in a multipart form        |
@@ -187,12 +202,15 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | Setting                    | Default   | Description                                              |
 |----------------------------|-----------|----------------------------------------------------------|
 | `TEMPLATE_TAGS`            | `{}`      | Custom block tags for the views, `{"name": function}`    |
-| `IMPORT_MAP`               | `{}`      | JavaScript import map (`{"@hotwired/stimulus": "path"}`) |
+| `IMPORT_MAP`               | `{"@hotwired/stimulus": "js/vendor/stimulus.js", "@hotwired/turbo": "js/vendor/turbo.js"}` | JavaScript import map; the generated `config/import_map.py` sets the same |
 | `TRUSTED_ORIGINS`          | `[]`      | Origins allowed by `OriginProtection` (e.g. `["https://example.com"]`) |
 
 ### Other Config Keys
 
 Storage, queue, cache, mailer, i18n, and auth settings are documented in their respective pages.
+
+
+Signed serialization with the secret keys (`app.dumps()` / `app.loads()`) is in [security.md](security.md#signing-and-serialization). The storage addon's `app.attachment_for()` is in [storage.md](storage.md#the-attachment-model).
 
 
 ## Lifecycle Hooks
@@ -202,8 +220,8 @@ Register functions that run on every request using decorators on the app:
 ```python
 @app.on_error
 def handle_error():
-    # Runs if the request raised an exception.
-    # The error is available as current.response.error
+    # Runs if the request raised an exception, before the error handlers.
+    # The error is current.response.error
     pass
 
 @app.on_teardown
@@ -229,36 +247,6 @@ def timer(request, response, call_next):
 If the request failed, `response.error` has the exception, even when the app already showed an error page. The first function registered is the outermost one. Monitoring integrations like `proper-sentry` use this hook.
 
 
-## Signed Serialization
-
-The app provides `dumps()` and `loads()` for signed, URL-safe serialization using the app's secret keys. Used internally by token generation (`ProperModel.generate_token`) and available for custom use:
-
-```python
-# Sign and serialize a value
-token = app.dumps({"user_id": 42}, salt="invite")
-
-# Deserialize and verify (tries all secret keys in order)
-data = app.loads(token, max_age=3600, salt="invite")  # Returns None if expired/invalid/undecodable
-```
-
-`dumps()` always signs with the last (newest) secret key. `loads()` tries all keys, allowing key rotation without invalidating existing tokens.
-
-
-## Attachment Model Factory
-
-The storage addon's generated `models/attachment.py` calls `app.attachment_for(BaseModel)` to build an `Attachment` subclass bound to the app's database and storage services:
-
-```python
-# models/attachment.py
-from .base import BaseModel
-
-class Attachment(app.attachment_for(BaseModel)):
-    pass
-```
-
-`attachment_for()` is memoized per `(app, base_model_cls)`, so importing the module repeatedly returns the same class — avoiding duplicate Peewee model definitions for the same `attachment` table. See [storage.md](storage.md) for the full lifecycle.
-
-
 ## Static Assets
 
 Static files in the `assets/` folder at the project root (next to `storage/`, not inside the app package) are served via a static route registered in `router.py`. The `ASSETS_URL` config controls the URL prefix (default: `/assets/`).
@@ -271,7 +259,7 @@ By default, asset URLs include a hash of the file's modification time for cache 
 /assets/css/app-a1b2c3d4e5f6.css
 ```
 
-Fingerprinted files are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted files use `must-revalidate`. Non-fingerprinted files answer `If-Modified-Since` with `304 Not Modified` when the file's modification time, in whole seconds, is not newer.
+Fingerprinted files are served with `Cache-Control: max-age=31536000, public, immutable` (1 year). Non-fingerprinted files use `max-age=0, public, must-revalidate`. Non-fingerprinted files answer `If-Modified-Since` with `304 Not Modified` when the file's modification time, in whole seconds, is not newer.
 
 ### X-Sendfile
 
@@ -288,82 +276,7 @@ STATIC_X_SENDFILE_HEADER = "X-Sendfile"
 When set, Proper sends the header instead of the file body, letting the web server handle the actual transfer.
 
 
-## Units
-
-Proper provides readable constants for sizes and durations, used throughout configuration:
-
-```python
-from proper.units import MB, GB, SECONDS, MINUTES, HOURS, DAYS, WEEKS
-```
-
-**Size:**
-
-| Constant | Value   |
-|----------|---------|
-| `B`      | 1       |
-| `KB`     | 1024    |
-| `MB`     | 1048576 |
-| `GB`     | 2^30    |
-| `TB`     | 2^40    |
-
-**Time** (in seconds):
-
-| Constant           | Value     |
-|--------------------|-----------|
-| `SECOND` / `SECONDS` | 1      |
-| `MINUTE` / `MINUTES` | 60     |
-| `HOUR` / `HOURS`     | 3600   |
-| `DAY` / `DAYS`       | 86400  |
-| `WEEK` / `WEEKS`     | 604800 |
-| `MONTH` / `MONTHS`   | 2592000 (30 days) |
-| `YEAR` / `YEARS`     | 31536000 (365 days) |
-
-There's also `to_seconds(**kwargs)` which converts `timedelta` keyword arguments:
-
-```python
-from proper.units import to_seconds
-
-to_seconds(hours=2, minutes=30)  # 9000
-```
-
-
-## HTTP Errors
-
-Raise HTTP errors from controllers to return specific status codes. All errors live in `proper.errors`:
-
-```python
-from proper.errors import NotFound, Forbidden, TooManyRequests
-
-def show(self):
-    photo = Photo.get_or_none(photo_id)
-    if not photo:
-        raise NotFound("Photo not found")
-```
-
-### Available Errors
-
-| Status | Class                      | Notes                                |
-|--------|----------------------------|--------------------------------------|
-| 400    | `BadRequest`               |                                      |
-| 401    | `Unauthorized`             |                                      |
-| 403    | `Forbidden`                |                                      |
-| 403    | `InvalidOrigin`            | Origin protection failure            |
-| 404    | `NotFound`                 |                                      |
-| 405    | `MethodNotAllowed`         | Sets `Allow` header automatically    |
-| 406    | `NotAcceptable`            |                                      |
-| 409    | `Conflict`                 |                                      |
-| 410    | `Gone`                     |                                      |
-| 413    | `RequestEntityTooLarge`    | Body exceeds `MAX_CONTENT_LENGTH`    |
-| 414    | `UriTooLong`               | Query exceeds `MAX_QUERY_SIZE`       |
-| 415    | `UnsupportedMediaType`     | Unknown `charset` in a form/JSON body |
-| 422    | `UnprocessableEntity`      |                                      |
-| 429    | `TooManyRequests`          | Rate limit exceeded                  |
-| 451    | `UnavailableForLegalReasons` |                                    |
-| 500    | `InternalServerError`      | Aliases: `ServerError`, `Error`      |
-
-All inherit from `HTTPError`. Each has a `status` attribute and an optional message.
-
-### The Debug Error Pages
+## The Debug Error Pages
 
 With `DEBUG`, an error that nothing handles is answered with a debug page, in the format the client asks for first in its `accept` header:
 
@@ -375,235 +288,4 @@ The text starts with the error, the request (`POST /orders -> OrderController.cr
 
 A route that doesn't match gets the same formats, with the routes in the order they are matched.
 
-Config keys, variables, form fields and headers whose name ends with `PASSWORD`, `SECRET`, `SECRET_KEY(S)`, `TOKEN`, `API_KEY`, `ACCESS_KEY`, `PRIVATE_KEY`, `CREDENTIALS`, `COOKIE` or `AUTHORIZATION` (any case, `-` as `_`) are masked, and so are the passwords of URLs (`postgres://user:▒▒▒▒@host/db`).
-
-
-## Status Codes
-
-Import as `from proper import status` or `from proper.status import ok, not_found, ...`.
-
-### Informational (1xx)
-
-| Constant                | Value |
-|-------------------------|-------|
-| `http_continue`         | 100   |
-| `switching_protocols`   | 101   |
-| `processing`            | 102   |
-
-### Successful (2xx)
-
-| Constant                          | Value |
-|-----------------------------------|-------|
-| `ok`                              | 200   |
-| `created`                         | 201   |
-| `accepted`                        | 202   |
-| `non_authoritative_information`   | 203   |
-| `no_content`                      | 204   |
-| `reset_content`                   | 205   |
-| `partial_content`                 | 206   |
-| `multi_status`                    | 207   |
-| `already_reported`                | 208   |
-| `im_used`                         | 226   |
-
-### Redirection (3xx)
-
-| Constant               | Value |
-|------------------------|-------|
-| `multiple_choices`     | 300   |
-| `moved_permanently`    | 301   |
-| `found`                | 302   |
-| `see_other`            | 303   |
-| `not_modified`         | 304   |
-| `use_proxy`            | 305   |
-| `temporary_redirect`   | 307   |
-| `permanent_redirect`   | 308   |
-
-### Client Error (4xx)
-
-| Constant                           | Value |
-|------------------------------------|-------|
-| `bad_request`                      | 400   |
-| `unauthorized`                     | 401   |
-| `payment_required`                 | 402   |
-| `forbidden`                        | 403   |
-| `not_found`                        | 404   |
-| `method_not_allowed`               | 405   |
-| `not_acceptable`                   | 406   |
-| `proxy_authentication_required`    | 407   |
-| `request_timeout`                  | 408   |
-| `conflict`                         | 409   |
-| `gone`                             | 410   |
-| `length_required`                  | 411   |
-| `precondition_failed`              | 412   |
-| `request_entity_too_large`         | 413   |
-| `request_uri_too_long`             | 414   |
-| `unsupported_media_type`           | 415   |
-| `range_not_satisfiable`            | 416   |
-| `expectation_failed`               | 417   |
-| `im_a_teapot`                      | 418   |
-| `unprocessable` / `unprocessable_entity` | 422 |
-| `locked`                           | 423   |
-| `failed_dependency`                | 424   |
-| `upgrade_required`                 | 426   |
-| `precondition_required`            | 428   |
-| `too_many_requests`                | 429   |
-| `request_header_fields_too_large`  | 431   |
-| `unavailable_for_legal_reasons`    | 451   |
-
-### Server Error (5xx)
-
-| Constant                           | Value |
-|------------------------------------|-------|
-| `internal_server_error` / `server_error` | 500 |
-| `not_implemented`                  | 501   |
-| `bad_gateway`                      | 502   |
-| `service_unavailable`              | 503   |
-| `gateway_timeout`                  | 504   |
-| `http_version_not_supported`       | 505   |
-| `insufficient_storage`             | 507   |
-| `loop_detected`                    | 508   |
-| `network_authentication_required`  | 511   |
-
-### Unofficial (7xx)
-
-| Constant               | Value |
-|------------------------|-------|
-| `meh`                  | 701   |
-| `inconceivable`        | 720   |
-| `works_on_my_machine`  | 725   |
-| `a_feature_not_a_bug`  | 726   |
-| `computer_says_no`     | 740   |
-| `under_caffeinated`    | 763   |
-
-
-## Helper Types
-
-### DotDict
-
-A dict subclass that allows attribute-style access. Used for `app.config`, `request.session`, and `response.session`:
-
-```python
-from proper.helpers import DotDict
-
-d = DotDict({"name": "Alice", "settings": {"theme": "dark"}})
-d.name              # "Alice"
-d.settings.theme    # "dark" (nested dicts are also DotDicts)
-d.missing           # KeyError
-```
-
-`update()` does deep merging — nested dicts are merged recursively rather than replaced.
-
-### MultiDict
-
-A dict-like type that handles multiple values per key. Used for `request.form` and `request.query`:
-
-```python
-# Given ?color=red&color=blue
-request.query.get("color")           # "blue" (last value)
-request.query.getall("color")        # ["red", "blue"]
-request.query.get("color", index=0)  # "red" (first value)
-request.query.get("count", type=int) # type-casts the value
-```
-
-
-## CLI
-
-The `proper` command provides these subcommands:
-
-```bash
-proper run                          # Start the server (Bearings, port 2300)
-proper routes                       # Display all registered routes
-proper check                        # Find the mistakes of the app; exits with 1 on an error
-
-proper g resource Photo title:str   # Generate model + controller + form + views
-proper g model Photo title:str      # Generate model only
-
-proper db create "description"      # Create a migration from model changes
-proper db migrate                   # Run all pending migrations
-proper db prepare                   # Migrate every database, then seed main
-proper db migrate_to TARGET         # Run migrations up to TARGET
-proper db rollback                  # Rollback the latest migration
-proper db merge "name"              # Merge migrations into one
-proper db todo                      # Show pending migrations
-proper db done                      # Show applied migrations
-
-proper install auth                 # Install authentication system
-proper install i18n                 # Install internationalization
-proper install storage              # Install file storage
-proper install channels             # Install channels addon
-
-proper jx info                      # Folders, autoescape, tags and views of the catalog
-proper jx compile                   # Compile every view now; fails listing the ones that don't compile
-```
-
-All commands accept a `--help` parameter that shows more details.
-
-Most `db` commands accept `--db=NAME` to target a specific database (default: `main`).
-
-
-## Checking
-
-`proper check` imports the app and runs the checks of `proper.check.CHECKS` (each is `check_x(app) -> list[Problem]`; `run_checks(app)` runs them all). It prints one problem per line, `path:line[:col]: error|warning: message`, then `N error(s), M warning(s)` (or `No problems found.`), and exits with 1 when there is an error. Run it from the project root: migrations and seeds are read from `db/` relative to the current folder.
-
-| Check | Level | What |
-|---|---|---|
-| `check_gil` | error/warning | The GIL is on (`sys._is_gil_enabled()`): error unless `ALLOW_GIL` (then a warning). On a free-threaded build it imports the app's package again in a new process, with `-W always::RuntimeWarning` and without `PYTHON_GIL`, and names the extension modules Python warns about. |
-| `check_config` | warning | An unknown setting close to a known one (a typo). Settings of the app's own, unlike any known one, are not reported. |
-| `check_services` | error | `STORAGE` not in `STORAGES`; a storage `type` that is not a `Service` subclass (at any depth); a `MAILERS` `type` that doesn't import. |
-| `check_controllers` | error | A route whose controller can't be loaded (a class must be at the top of its module); a `before`/`after` `do` that is not a method. |
-| `check_action_names` | warning/error | Warning: a name in `only`/`exclude` of a `before`/`after` callback or of `rate_limit`, or in `skip_authentication`, that is not a routed action. A list declared by a base class or concern is checked against the actions of every routed controller based on it. Error: a method name in `rate_limit` (`to`, `within`, `by`, `react_with`) that the controller doesn't have. Only classes of the app. |
-| `check_routes` | error | A route with the method, path and host of an earlier one (it never matches); a route name used for routes with different paths (`url_for` builds the first). |
-| `check_views` | error | Every view compiles (`compile_views(app, force=True)`, so it writes the compiled views). |
-| `check_view_urls` | error | A `url_for('Name', ...)` with a literal name in a view (read from the compiled modules): no such route (with a "did you mean"), or a placeholder of its path not given. A call with an object or `**kwargs` is checked only for the name. Compiled modules of deleted templates are skipped. |
-| `check_code_urls` | error | The same for `url_for(...)`/`redirect_to(...)` (as a function or a method) in the app's Python files, parsed with `ast` in threads. Names starting with `/` or `http` are paths. |
-| `check_models` | error | A field that hides a method (not a property) of a base class; two models of a database with the same table; a foreign key to a model that `models/__init__.py` doesn't import, or of another database; a `DeferredForeignKey` never resolved. |
-| `check_migrations` | error/warning | Error: the models of a database are not what its migrations make (replayed with `fake=True`, no database needed). Warning: a `.py` in `db/<db>/` that is not named `NNN_name.py`; two migrations with the same number. |
-| `check_seeds` | error/warning | Warning: a seed without `envs`, or with `envs` as a string; a `.py` in the seeds folder that `__init__.py` doesn't import. Error: a seed without `seed()`; seeds that don't import. |
-| `check_forms` | error | A field of a form with `Meta.orm_cls` that is not an attribute of the model (`save()` would drop its value). |
-| `check_emails` | error | An `EmailMessage` subclass without `body` and without `views/emails/<name>.jx` or `.txt.jx`. A class named `Base...`, or with subclasses, is skipped as a base. |
-| `check_locales` | warning | A locale that lacks keys another has. |
-
-Only the classes defined in the app's package are checked.
-
-## Serving
-
-`proper run` starts Bearings with the app. It refuses to start on a Python with the GIL: install a free-threaded one with `uv python install 3.14t` (the blueprint pins it in `.python-version` and its Dockerfile installs it), or set `ALLOW_GIL = True` to serve with the GIL anyway, at the cost of memory and parallelism. On a free-threaded Python, an extension module that has not declared itself safe turns the GIL back on when imported; Python names it in a `RuntimeWarning`, and `proper run` stops with the same error.
-
-What it starts, from the config:
-
-- `WORKERS` Bearings event loops per process, which never run Python; the app runs on one pool of `MAX_THREADS` threads.
-- With a cable that serves WebSockets (`Cable`), that server, in the first web process, on `CABLE_PORT`.
-- `PROCESSES` copies of the web server, all on the same port. One is right for most machines; with four or more cores a second one adds throughput for another copy of the app in memory.
-- With `RELOAD` (which follows `DEBUG` when unset), the whole group restarts when a file under the app changes. The watcher is Proper's own (`proper.cli.reloader`, Linux inotify through `ctypes`); it skips `.git`, `.venv`, `node_modules`, `__pycache__`, compiled Python and editor temporary files. A server that dies on start is restarted by the next change, not by itself. On WSL it polls the modification times every second instead (inotify misses writes from Windows on `/mnt/c`); `PROPER_RELOAD_POLLING=1`/`0` forces polling or inotify.
-
-There is no middleware parameter: Proper is not an ASGI application. Cross-cutting behavior goes in controller `before`/`after` callbacks and concerns, and TLS or compression belong to the reverse proxy in front of the app.
-
-
-## Logging
-
-The `proper` logger outputs debug information for:
-
-- Each pipeline step: `[pipeline] GET /path -> step_name`
-- Controller callbacks: `[ControllerName.action] before: callback_name (from ConcernClass)`
-- Callback halts: `[ControllerName.action] halted by before callback: callback_name`
-- Template inference: `[ControllerName.action] rendering inferred template: views/.../action.jx`
-- Errors: `[error] GET /path -> ErrorType: message`
-
-All but the errors (written at the `error` level, so shown by default) need `LOG_LEVEL = "debug"`.
-
-`proper.helpers.logger` is a `structlog.stdlib.BoundLogger` over the stdlib `proper` logger, at the level of `LOG_LEVEL`. Set the level with `LOG_LEVEL`: each controller action reads it once, the first time it runs. It takes `%s` arguments (formatted by the stdlib, only if the level lets the record through) and keyword arguments, which become fields of the line. An event under the level is dropped before it is built.
-
-It is the recommended way for app code to log. Write the event as a fixed message and the data as keyword arguments; don't pass the `request_id`, Proper adds it:
-
-```python
-from proper.helpers import logger
-
-logger.info("Order paid", order_id=order.id, amount=order.total)
-logger.exception("Payment failed", order_id=order.id)  # in an `except` block
-```
-
-To add a field to every line until the end of the request (every logger's lines): `structlog.contextvars.bind_contextvars(user_id=current.user.id)`. Each request runs in its own context, so the field doesn't leak to the next one. Tasks enqueued during a request run with its `request_id` bound. Stdlib loggers also work; their fields go in `extra={...}`.
-
-`proper run` has Bearings write one access line per request on stdout, outside `logging`, dropping the lines below `LOG_LEVEL` (Bearings' `access_log_level`); a line's level is its status's: `"error"` for a 4xx or a 5xx, `"info"` otherwise. The format is `LOG_FORMAT`'s (`_access_log` in `proper.cli.app_cli`), with structlog's keys (`timestamp`, `level`, `logger` = `"bearings"`, `event` = `"GET /path"`, `request_id` from the response's `X-Request-ID`, `method`, `path`, `query` if any, `status`, `size`, `duration` in seconds, `client`): `"json"`, one object per line; `"console"`, a short line, `19:53:02.464472Z [info]  200 GET /projects?page=2  (0.412ms; 3.12 KB)` (time of day, `[level]` padded to `[error]`'s width, status, method, path and query, duration, body size with 1 KB = 1024 bytes; the level in color when stdout is a terminal; no other fields); `"off"`, no access lines.
-
-Creating the `App` calls `setup_logging(config.LOG_FORMAT)` (`proper.helpers.logs`; with `"console"`, the short line of the access log, `19:53:02.464472Z [info]  Order paid  order_id=42`: time of day, `[level]` padded to `[error]`'s width and in color in a terminal, event, then the other fields as `key=value`, without `request_id` and without `logger` when it is `proper`): one handler on the root logger, writing to `sys.stderr`, with structlog's `ProcessorFormatter`. Every logger goes through it (the app's, peewee's, huey's), and each line gets `timestamp` (ISO, UTC), `level`, `logger`, the record's extra fields, and the variables bound with `structlog.contextvars`. Each request runs in a context of its own with `request_id` bound (the same as `request.request_id` and the response's `X-Request-ID`), so every line written while answering it has it. `LOG_FORMAT = "off"` removes the handler; don't add another handler to the root logger (or call `logging.basicConfig()`) while it's on, or each line is written twice. To see the SQL: `logging.getLogger("peewee").setLevel(logging.DEBUG)`.
+Config keys, variables, form fields and headers whose name ends with `PASSWORD`, `PASSWD`, `SECRET(S)`, `SECRET_KEY(S)`, `TOKEN`, `API_KEY`, `APIKEY`, `ACCESS_KEY`, `PRIVATE_KEY`, `CREDENTIALS`, `COOKIE` or `AUTHORIZATION` (any case, `-` as `_`) are masked, and so are the passwords of URLs (`postgres://user:▒▒▒▒@host/db`).

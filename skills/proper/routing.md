@@ -1,22 +1,30 @@
 ---
 title: Routing
-description: Resource routes, individual routes, URL generation, host-based routing, route inspection
-last_verified: 2026-04-02
+description: Defining routes: `@router.resource`, individual routes and placeholder types, redirects, scoped routes, host-based routes, QUERY, error handlers, method override, `proper routes`
+last_verified: 2026-10-31
+sources:
+  - src/proper/router
+  - src/proper/pipeline.py
 ---
 
 # Routing
 
+How URLs reach controller actions. Building URLs back from route names (`url_for`, `url_is`, assets) is in [urls.md](urls.md).
+
 ## Table of Contents
 
-- [Routes](#routes)
+- [Resource Routes (CRUD)](#resource-routes-crud)
+- [Individual Routes](#individual-routes)
+- [Redirect Routes](#redirect-routes)
+- [Scoped Routes](#scoped-routes)
+- [Host-Based Routing](#host-based-routing)
+- [The QUERY Method](#the-query-method)
+- [Error Handler Routes](#error-handler-routes)
 - [Method Override](#method-override)
-- [Named Routes and URL Generation](#named-routes-and-url-generation)
-- [Assets](#assets)
 - [Inspecting Routes](#inspecting-routes)
 
-## Routes
 
-### Resource Routes (CRUD)
+## Resource Routes (CRUD)
 
 The most common way to define routes in Proper is with the `@router.resource()` decorator on a controller class. This creates a full set of RESTful CRUD routes for the resource:
 
@@ -38,7 +46,7 @@ Note that both PATCH and PUT are routed to the `update` method. This means you c
 
 By default, the primary key placeholder is derived from the controller name: `PhotoController` gets `:photo_id`, `CommentController` gets `:comment_id`, etc.
 
-#### Route Names
+### Route Names
 
 Each route is automatically assigned a name based on the controller name (without the "Controller" suffix) and the action:
 
@@ -50,11 +58,12 @@ POST   /photos                | Photo.create
 GET    /photos/:photo_id      | Photo.show
 GET    /photos/:photo_id/edit | Photo.edit
 PATCH  /photos/:photo_id      | Photo.update
+PUT    /photos/:photo_id      | Photo.update
 DELETE /photos/:photo_id      | Photo.delete
 
 Inherited actions are routed on the decorated class: an `index` that `ArticleController` inherits is `Article.index` and runs on an `ArticleController` instance, with its callbacks and views (`article/`, then the parents' folders).
 
-#### Custom Primary Key
+### Custom Primary Key
 
 You can change the primary key placeholder by passing the `pk` parameter:
 
@@ -75,7 +84,7 @@ class PhotoController(AppController):
     def show(self): ...     # GET /photos/:uuid  (only matches hex + dashes)
 ```
 
-#### Singleton Resources
+### Singleton Resources
 
 Sometimes you have a resource that clients always look up without referencing an ID. For example, a user's own profile page. Use `pk=None` to create a set of CRUD routes without an `:id` placeholder:
 
@@ -90,9 +99,19 @@ class ProfileController(AppController):
     def delete(self): ...   # DELETE /profile
 ```
 
-Notice there is no `index` action for singleton resources, because there is only one.
+Notice there is no `index` action for singleton resources, because there is only one. Its route names:
 
-#### `new` at the root path
+Route                   | Name
+----------------------- | ------------------
+GET    /profile/new     | Profile.new
+POST   /profile         | Profile.create
+GET    /profile         | Profile.show
+GET    /profile/edit    | Profile.edit
+PATCH  /profile         | Profile.update
+PUT    /profile         | Profile.update
+DELETE /profile         | Profile.delete
+
+### `new` at the root path
 
 If a controller defines `new` but the action that would occupy the root path is absent, `new` is mounted at the resource root instead of `/new`. This is convenient for sign-up-style resources where the form *is* the landing page.
 
@@ -106,9 +125,9 @@ class SignupController(AppController):
     def create(self): ...   # POST /signup
 ```
 
-#### Resource Defaults
+### Resource Defaults
 
-`resource(..., defaults={...})` gives those defaults to every route of the resource (a dict for each route). See [Placeholders with Defaults](#placeholders-with-defaults):
+`resource(..., defaults={...})` gives those defaults to every route of the resource (a dict for each route). See [Placeholders with Defaults](urls.md#placeholders-with-defaults):
 
 ```python
 @router.resource("org/:org_id<int>/photos", defaults={"org_id": lambda: current.account.id})
@@ -117,17 +136,8 @@ class PhotoController(AppController): ...
 
 A route of the resource without that placeholder just has the value in `self.defaults` (e.g. a default for `:photo_id` is used by `url_for` on `show`/`edit`/`update`/`delete`, not on `index`/`new`/`create`). Defaults on a scope apply to its resources too; the resource's win.
 
-Route                   | Name
------------------------ | ------------------
-GET    /profile/new     | Profile.new
-POST   /profile         | Profile.create
-GET    /profile         | Profile.show
-GET    /profile/edit    | Profile.edit
-PATCH  /profile         | Profile.update
-DELETE /profile         | Profile.delete
 
-
-### Individual Routes
+## Individual Routes
 
 When you need routes that don't fit the CRUD pattern, you can define them individually as decorators on controller methods. Prefer resource routes when possible, but individual routes are useful for one-off pages, custom actions, or non-RESTful endpoints.
 
@@ -145,7 +155,7 @@ class ItemController(AppController):
     def search(self): ...
 ```
 
-#### Path Placeholders
+### Path Placeholders
 
 Placeholders in the path are prefixed with `:` and capture a segment of the URL. By default, they match anything except slashes:
 
@@ -188,13 +198,15 @@ def show(self): ...
 def show(self): ...
 ```
 
-A placeholder name is `[_a-z][_a-z0-9]*`. Any other text after a `:` is literal, both when matching and in `url_for`: `/items/:ID` matches only `/items/:ID`; `localhost:5000` in a host is a host and a port; in `/a::b` the first `:` is literal and `:b` is a placeholder.
+A placeholder name is `[_a-z][_a-z0-9]*`. Any other text after a `:` is literal, both when matching and in `url_for`: `/items/:ID` matches only `/items/:ID`; in `/a::b` the first `:` is literal and `:b` is a placeholder. Write hosts in lowercase and without a port: the request host that routes are matched against has neither (`example.com`, not `Example.com:8000`), so a route with `host="localhost:5000"` never matches.
 
 Matching takes time linear in the length of the path or host, with the same results as `re`, for the built-in formats and for custom formats that are one class run (`[a-z]+`, `\d{4}`) or `|`-separated literals (`en|es|pt`). Any other custom format is matched with `re`, which can backtrack: avoid two such placeholders that can match the same characters, and a format that can match the same text in many ways (write `[a-z0-9]+(?:-[a-z0-9]+)*`, not `(?:[a-z0-9]+-?)+`). The 255-character host limit does not bound that time.
 
 A route doesn't match when a placeholder's value is (part of) a `.` or `..` segment: `/files/:name` doesn't match `/files/..`, `<path>` doesn't match `a/../b`. The router tries the next routes, else `404`. Browsers never send such paths, and `url_for` can't build them. `/files/.env` and `/files/...` match.
 
-#### Custom Route Names
+A trailing slash is ignored when matching: `/photos/` matches `Photo.index`. A `HEAD` request is routed as `GET`. When the path matches a route but not its method, the request gets a `405 Method Not Allowed` with the `Allow` header; when nothing matches, a `MatchNotFound` (a `NotFound`).
+
+### Custom Route Names
 
 By default, the route name is derived from the controller and method name (e.g., `Item.show`). You can override this with the `name` parameter:
 
@@ -207,7 +219,7 @@ Then use `app.url_for("login")` to generate the URL.
 
 A route made from a method object (`router.get("feed")(ArticleController.index)`, `Route(..., to=...)`) belongs to the class that defines the method: an inherited `index` gives `Application.index`, running on `ApplicationController`. Use `resource()` or define the method in the subclass to route it on the subclass.
 
-#### Route Defaults
+### Route Defaults
 
 You can pass extra values to the controller via the `defaults` parameter. These values are merged into the route params and are accessible inside the controller via `self.defaults`:
 
@@ -219,7 +231,7 @@ def show(self): ...
 Inside the controller, `self.defaults["sidebar"]` will be `True`.
 
 
-### Redirect Routes
+## Redirect Routes
 
 You can define routes that redirect to another URL instead of dispatching to a controller. This is useful for aliasing old URLs, mapping root-level files, or creating vanity URLs:
 
@@ -249,10 +261,12 @@ Redirect routes with placeholders work too. The placeholder values from the matc
 router.get("articles/:id", redirect="/posts/{id}")
 ```
 
+The target is formatted with `str.format`, so a literal `{` is written `{{`; the matched values are percent-encoded again before they go in the `Location`.
+
 Only `router.get()` and `router.options()` support the `redirect` parameter. POST, PUT, PATCH, and DELETE routes do not.
 
 
-### Scoped Routes
+## Scoped Routes
 
 Scopes let you group routes under a common URL prefix. This is useful for admin panels, API versioning, or any section of your app that shares a URL prefix:
 
@@ -267,7 +281,7 @@ class AdminDashboardController(AppController):
     def settings(self): ...    # GET /admin/settings
 ```
 
-#### Scoped Resource Routes
+### Scoped Resource Routes
 
 You can use the `resource()` decorator on a scoped router to prefix all the CRUD routes:
 
@@ -283,7 +297,7 @@ class AdminUserController(AppController):
     def delete(self): ...   # DELETE /admin/users/:admin_user_id
 ```
 
-#### Nested Scopes
+### Nested Scopes
 
 Scopes can be nested. The inner scope inherits the prefix (and host, if set) from the outer scope:
 
@@ -300,7 +314,7 @@ class ItemController(AppController):
     def index_v2(self): ...    # GET /api/v2/items
 ```
 
-#### Scopes with Placeholders
+### Scopes with Placeholders
 
 The scope prefix can contain placeholders, just like a route path:
 
@@ -312,7 +326,7 @@ class ProjectController(AppController):
     def index(self): ...    # GET /org/:org_id/projects
 ```
 
-#### Scopes with Defaults
+### Scopes with Defaults
 
 `scope(..., defaults={...})` merges its defaults into every route under it (a route's own defaults win; nested scopes merge with the parent's). A default for a placeholder of the prefix lets `url_for` fill in the tenant:
 
@@ -323,10 +337,10 @@ app.url_for("Project.index")            # /org/42/projects (current.account.id =
 app.url_for("Project.index", org_id=7)  # /org/7/projects
 ```
 
-`current.account` is set by the app (e.g., in a `before` callback). See [Placeholders with Defaults](#placeholders-with-defaults).
+`current.account` is set by the app (e.g., in a `before` callback). See [Placeholders with Defaults](urls.md#placeholders-with-defaults).
 
 
-### Host-Based Routing
+## Host-Based Routing
 
 Both individual routes and scopes accept a `host` parameter to restrict matching to a specific hostname or subdomain. This is useful for serving different content on different subdomains, or separating an API from a marketing site:
 
@@ -338,7 +352,7 @@ class ApiController(AppController):
 
 A request whose `Host` is local (`localhost`, 127.0.0.0/8, `0.0.0.0`, `::1`, `::`, in any spelling: `127.1`, `localhost.`, `[::ffff:127.0.0.1]`) matches no route with a `host`. Neither does a host longer than 255 characters.
 
-#### Host Placeholders
+### Host Placeholders
 
 The `host` parameter supports the same placeholder syntax as paths. This lets you extract dynamic subdomains:
 
@@ -354,7 +368,7 @@ class ProfileController(AppController):
     def show(self): ...
 ```
 
-#### Scoped Host Routing
+### Scoped Host Routing
 
 Use a scoped router with `host` to apply the same host constraint to a group of routes:
 
@@ -379,7 +393,7 @@ class ApiItemController(AppController):
     def index(self): ...      # GET /v1/items on api.example.com
 ```
 
-When nesting scopes, the inner scope inherits the host from the outer scope unless it is explicitly overridden:
+A route's own `host=` under a scope that has a host is replaced by the scope's; only a nested scope overrides it. When nesting scopes, the inner scope inherits the host from the outer scope unless it is explicitly overridden:
 
 ```python
 api = router.scope("api", host="api.example.com")
@@ -391,7 +405,7 @@ class StatusController(AppController):
 ```
 
 
-### The QUERY Method
+## The QUERY Method
 
 In addition to the standard HTTP methods, Proper supports `QUERY`. A QUERY request is like GET but allows a request body. This is useful when you need to send structured search criteria that don't fit cleanly in a query string:
 
@@ -406,7 +420,7 @@ QUERY requests must be idempotent because the body will be cached.
 To send a QUERY request from the browser, use the method override mechanism described below.
 
 
-### Error Handler Routes
+## Error Handler Routes
 
 You can register controller methods to handle specific exceptions. When that exception is raised during request processing, Proper will instantiate the controller and call the registered method instead of returning a generic error page:
 
@@ -427,15 +441,23 @@ class PublicController(AppController):
 
 The `@router.error()` decorator registers the handler, and the `@router.get()` decorator adds a route to preview that error page during development. You can stack both decorators as shown above.
 
+Custom handlers run only when `DEBUG` is off: with `DEBUG = True` Proper shows its debug error page instead, so use the preview route (`/_not_found`) to see your page in development.
+
 Any exception class works, not just the built-in HTTP errors:
 
 ```python
 @router.error(errors.NotFound)        # 404 pages
+def not_found(self): ...
+
 @router.error(errors.Forbidden)       # 403 pages
+def forbidden(self): ...
+
 @router.error(Exception)              # Catch-all for 500 errors
+def error(self): ...
 ```
 
 If several handlers match an error, the most specific one wins: the one for the closest class in the error's hierarchy, as with `except` clauses. The order of registration doesn't matter, so a `MatchNotFound` goes to the `NotFound` handler even if the `Exception` handler was registered first.
+
 
 ## Method Override
 
@@ -468,166 +490,24 @@ Or to send a PUT/PATCH update:
 
 This override happens early in the pipeline, before route matching, so the router sees the overridden method as if the browser had sent it directly.
 
+Implementation: `proper.pipeline.method_override` runs before routing. For an incoming `POST` request, it looks for a method override in three places, in order:
 
-## Named Routes and URL Generation
+1. The `X-HTTP-Method-Override` header.
+2. The `_method` query string parameter.
+3. The `_method` form field.
 
-Every route has a name. For resource routes, the name is `ControllerName.action` (without the "Controller" suffix). For individual routes, it is derived from the method's qualified name, or you can set it explicitly with the `name` parameter.
+The override only applies when the value (uppercased) is one of `PUT`, `PATCH`, `DELETE`, or `QUERY`. The pipeline rewrites `request.method` before the router sees it, so route definitions like `@router.patch("cards/:card_id")` match the rewritten method.
 
-### Basic Usage
+Only `POST` is rewritten — a `GET` carrying `_method=delete` is *not* rewritten (this stops misbehaving links from triggering destructive actions).
 
-Use `app.url_for()` to generate the URL for a named route:
+The rendered HTML for `<Form method="patch">` is:
 
-```python
-app.url_for("Photo.index")         # /photos
-app.url_for("Photo.new")           # /photos/new
+```html
+<form method="post" action="..." novalidate>
+  <input type="hidden" name="_method" value="patch">
+  ...
+</form>
 ```
-
-### Passing Placeholder Values
-
-For routes with placeholders, pass the values as keyword arguments:
-
-```python
-class PostController(AppController):
-    @router.get("posts/:post_id<int>/:post_slug")
-    def show(self):
-        ...
-
-app.url_for("Post.show", post_id=42, post_slug="hello-world")
-# /posts/42/hello-world
-```
-
-### Passing an Object
-
-Instead of keyword arguments, you can pass an object. Proper will extract placeholder values from the object's attributes:
-
-```python
-# post.post_id = 42, post.post_slug = "hello-world"
-app.url_for("Post.show", post)
-# /posts/42/hello-world
-```
-
-For convenience, if the object doesn't have an attribute matching the full placeholder name (e.g., `post_id`), Proper also looks for the attribute without the snake_cased controller prefix (e.g., `id`). This means you can use your model objects directly:
-
-```python
-# post.id = 42, post.slug = "hello-world"
-app.url_for("Post.show", post)
-# /posts/42/hello-world
-```
-
-### Placeholders with Defaults
-
-A route's `defaults=` (or its scope's) with the name of a path or host placeholder is what `url_for` uses when that placeholder isn't given:
-
-```python
-@router.get("docs/:lang<en|es>/:slug", defaults={"lang": "en"})
-def show(self): ...
-
-app.url_for("Doc.show", slug="intro")   # /docs/en/intro
-```
-
-- Order: `url_for` argument > attribute of the object > default. A `None` argument or attribute takes the default.
-- A default can be a function without arguments, called on each `url_for` (`lambda: current.account.id`). If it returns `None`, `url_for` raises `MissingRouteParameter`, as it does without a default. In tasks and emails there is no `current.account`, so give the value there.
-- Defaults that aren't placeholders (`{"sidebar": True}`) never go into the URL or the query string.
-- A default that isn't a placeholder is never called, even if it's a function or a class: it reaches `self.defaults` as it is. A misspelled placeholder name shows up in `proper check` as a missing placeholder.
-- On a match, the value in the URL is the one in `self.params`. `self.defaults` is the dict as declared.
-- `proper check` doesn't report a placeholder with a default as missing.
-
-### Extra Keyword Arguments Become Query Parameters
-
-Any keyword arguments that don't match a placeholder in the route are appended as query string parameters:
-
-```python
-app.url_for("Post.index")                   # /posts
-app.url_for("Post.index", page=2)            # /posts?page=2
-app.url_for("Post.index", page=2, sort="date")  # /posts?page=2&sort=date
-```
-
-This works in combination with path placeholders too:
-
-```python
-app.url_for("Post.show", post_id=42, post_slug="hello", ref="twitter")
-# /posts/42/hello?ref=twitter
-```
-
-### Value Checks and Percent-Encoding
-
-- Each placeholder value must match its format as a whole, or `url_for` raises `BadRoutePlaceholder` (`"42abc"` is not an `<int>`; `"a/b"` is not a default `:slug`, only a `<path>` takes a `/`).
-- Path values, and the route's own text (`/über/:id` → `/%C3%BCber/42`), are percent-encoded, except `/` (only a format that accepts `/`, such as `<path>`, takes one in a value) and ``:@!$&'()*+,;=``, which a path allows as they are. `url_for("Tag.show", tag="a b?")` → `/tags/a%20b%3F`; `token=":signed_id"` stays `:signed_id` (for JS URL templates).
-- Query keys and values are encoded like a form (`urlencode`, from `str()` for non-strings): `url_for("Post.index", q="a&b c")` → `/posts?q=a%26b+c`; `next="/admin/x"` → `?next=%2Fadmin%2Fx`.
-- Pass raw values, not already-encoded ones (`"a%20b"` becomes `a%2520b`).
-- A value that makes a `.` or `..` path segment raises `BadRoutePlaceholder` (`name="."` or `".."` for `/files/:name`, `page="a/../b"` for `<path>`): clients remove those segments (RFC 3986 §5.2.4), and `%2e` is a dot to browsers, so encoding can't help. `"..."` or `".env"` are fine.
-
-### URL Anchors
-
-Use the `_anchor` keyword argument to append a `#fragment` to the URL. It is percent-encoded like a path value (`?` also stays): `_anchor="a b#c"` → `#a%20b%23c`. Pass it unencoded.
-
-```python
-app.url_for("Post.show", post_id=42, post_slug="hello", _anchor="comments")
-# /posts/42/hello#comments
-```
-
-### Absolute URLs
-
-Use `_full=True` to generate absolute URLs (includes protocol and host). Useful for email links:
-
-```python
-app.url_for("Post.show", post, _full=True)
-# https://example.com/posts/42/hello-world
-```
-
-A host placeholder value (`host=":username.myapp.com"`) may have only letters, digits and `-._~`; any other character raises `BadRoutePlaceholder` with `_full=True`, whatever the placeholder's format.
-
-### `url_is` and `url_startswith`
-
-These helpers check whether the current request URL matches a named route. They are useful for highlighting the active link in navigation menus:
-
-```python
-app.url_is("Photo.index")
-```
-
-Returns `True` if the current request path matches `/photos` exactly. Only paths are compared, percent-decoded: the query string, the `#fragment` and trailing slashes are ignored, and so are query kwargs (`url_is("Photo.index", page=2)` is `True` on `/photos`). An explicit `curr_url` is a percent-encoded URL, as in a link; `request.path` is already decoded, so to compare with it leave `curr_url` out.
-
-```python
-app.url_startswith("Photo.index")
-```
-
-Returns `True` if the current request path starts with `/photos`, by whole segments (`/photography` does not start with `/photo`). This is useful for highlighting a parent navigation item when any child page is active. Every path starts with a route at `/`; use `url_is` for a "Home" link.
-
-Both helpers accept the same arguments as `url_for()` (objects, keyword arguments) for routes with placeholders:
-
-```python
-app.url_is("Post.show", post)
-app.url_startswith("Post.show", post)
-```
-
-### Absolute Paths as Passthrough
-
-If you pass a string starting with `/` to `url_for()`, it is returned as-is without any lookup:
-
-```python
-app.url_for("/some/hardcoded/path")   # /some/hardcoded/path
-```
-
-
-## Assets
-
-Proper includes a built-in `StaticFilesController` for serving files from the `assets/` folder at the project root. The route is configured in your application's `router.py`:
-
-```python
-router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
-```
-
-Generate URLs to assets with `url_for`:
-
-```python
-app.url_for("assets", file="app.css")
-# /assets/app-a1b2c3d4e5f6...css  (with fingerprint)
-
-app.url_for("assets", file="images/logo.png")
-# /assets/images/logo-e5f6a1b2c3d4...png  (with fingerprint)
-```
-
-By default, asset URLs are fingerprinted: a hash of the file's last modified time is inserted into the filename. This allows setting long-lived cache headers while ensuring browsers fetch new versions when files change.
 
 
 ## Inspecting Routes
@@ -639,23 +519,26 @@ proper routes
 ```
 
 ```
-       | PATH                             | TO                               | NAME                  | HOST
------- | -------------------------------- | -------------------------------- | --------------------- | -----
-GET    |  /assets/:file<path>             | StaticFilesController.show       | assets                | -
-GET    |  /favicon.ico                    | -> /assets/favicon.ico           | -                     | -
-GET    |  /robots.txt                     | -> /assets/robots.txt            | -                     | -
-GET    |  /humans.txt                     | -> /assets/humans.txt            | -                     | -
-GET    |  /photos                         | PhotoController.index            | Photo.index           | -
-GET    |  /photos/new                     | PhotoController.new              | Photo.new             | -
-POST   |  /photos                         | PhotoController.create           | Photo.create          | -
-GET    |  /photos/:photo_id               | PhotoController.show             | Photo.show            | -
-GET    |  /photos/:photo_id/edit          | PhotoController.edit             | Photo.edit            | -
-PATCH  |  /photos/:photo_id              | PhotoController.update           | Photo.update          | -
-PUT    |  /photos/:photo_id               | PhotoController.update           | Photo.update          | -
-DELETE |  /photos/:photo_id               | PhotoController.delete           | Photo.delete          | -
-GET    |  /                               | PublicController.index            | Public.index          | -
-GET    |  /_not_found                     | PublicController.not_found        | Public.not_found      | -
-GET    |  /_error                         | PublicController.error            | Public.error          | -
+Routes match in priority from top to bottom.
+The rules that don't have a `to` property are build-only and never match.
+
+        PATH                     TO                           NAME              HOST
+------- ------------------------ ---------------------------- ----------------- -----
+GET     /assets/:file<path>      StaticFilesController.show   assets            -
+GET     /robots.txt              ↪ /assets/robots.txt         -                 -
+GET     /humans.txt              ↪ /assets/humans.txt         -                 -
+GET     /photos                  PhotoController.index        Photo.index       -
+GET     /photos/new              PhotoController.new          Photo.new         -
+POST    /photos                  PhotoController.create       Photo.create      -
+GET     /photos/:photo_id        PhotoController.show         Photo.show        -
+GET     /photos/:photo_id/edit   PhotoController.edit         Photo.edit        -
+PATCH   /photos/:photo_id        PhotoController.update       Photo.update      -
+PUT     /photos/:photo_id        PhotoController.update       Photo.update      -
+DELETE  /photos/:photo_id        PhotoController.delete       Photo.delete      -
+GET     /                        PublicController.index       Public.index      -
+GET     /up                      PublicController.up          Public.up         -
+GET     /_not_found              PublicController.not_found   Public.not_found  -
+GET     /_error                  PublicController.error       Public.error      -
 ```
 
-Redirect routes are shown with an arrow (`->`) pointing to the redirect target instead of a controller name. This makes it easy to see at a glance which routes are redirects and where they point to.
+The `PATH` column shows the pattern as written, placeholder formats included. Redirect routes show an arrow (`↪`) and the target instead of a controller.

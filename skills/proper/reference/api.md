@@ -1,20 +1,29 @@
 ---
-title: API
-description: Quick reference for all public symbols exported by the proper package
-last_verified: 2026-06-03
+title: API Reference
+description: Reference: attributes and methods of Controller, App, Request and Response; other public exports; units; DotDict and MultiDict
+last_verified: 2026-10-31
+sources:
+  - src/proper/controller/controller.py
+  - src/proper/app.py
+  - src/proper/core/request
+  - src/proper/core/response
+  - src/proper/helpers/dicts
+  - src/proper/units.py
 ---
 
 # API Reference
 
-Quick reference for all public symbols in the `proper` package. Each entry links to the full documentation.
+Read this to confirm an exact attribute, method or signature. The guides explain how to use them: [controllers.md](../controllers.md), [rendering.md](../rendering.md), [app.md](../app.md).
 
 ## Table of Contents
 
 - [Controller](#controller)
 - [App](#app)
-- [Request](#request) (attributes, properties, methods, cookies, conditional headers)
-- [Response](#response) (attributes, properties, header properties, methods, cookies, cache control, files, status)
-- [Other Public Exports](#other-public-exports) (Concern, routing, models, channels, emails, helpers, global context, units)
+- [Request](#request)
+- [Response](#response)
+- [Other Public Exports](#other-public-exports)
+- [Units](#units)
+- [Helper Types](#helper-types)
 
 
 ## Controller
@@ -40,17 +49,18 @@ The base class for all controllers. Accessed as `self` inside controller actions
 
 | Method   | Signature                                                    | Description                                                                                                  |
 |----------|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `render` | `(name="", *, status=None, json=None, text=None) -> str` | Render a template, JSON, or plain text response. Sets `response.body` and optionally `response.status`. |
-| `redo`   | `(status=422) -> None`                                       | Re-render the form page for the current action by setting `self.response.body` directly. Maps `update` → `edit.jx`, `create` → `new.jx`. Use in `create`/`update` when `form.is_invalid`. |
+| `render` | `(name="", *, status=None, json=None, text=None, stream=None) -> str` | Render a template, JSON, plain text or Turbo Stream response (`stream`: one fragment or a list; sets the `text/vnd.turbo-stream.html` mimetype). Sets `response.body` and optionally `response.status`. |
+| `redo`   | `(status=422) -> None`                                       | Re-render the form page for the current action by setting `self.response.body` directly. Maps `update` → `edit.jx`; any other action → `new.jx`. Use in `create`/`update` when `form.is_invalid`. |
 
 ### Callbacks
 
-Callbacks are class attributes that control before/after hooks. See [Controllers — Callbacks](./controllers.md#11-controller-callbacks) for full details.
+Callbacks are class attributes that control before/after hooks. See [concerns.md](../concerns.md#controller-callbacks) for full details.
 
 | Attribute    | Type                   | Description                                                        |
 |--------------|------------------------|--------------------------------------------------------------------|
 | `before`     | `dict \| list[dict]`   | Before-action callbacks. Keys: `do`, `only`, `exclude`.            |
 | `after`      | `dict \| list[dict]`   | After-action callbacks. Same keys as `before`.                     |
+| `etag`       | `str`                  | Class attribute, `""` by default: a cache-key fragment that concerns extend with `super().etag` (pagination, locale, timezone). |
 
 ### Template Variables
 
@@ -74,13 +84,11 @@ Accessed via `current.app` or directly from the app instance.
 | `views_path`     | `Path`                        | Path to views folder                                 |
 | `config_path`    | `Path`                        | Path to config folder                                |
 | `assets_path`    | `Path`                        | `assets/` folder at the project root (`root_path.parent / "assets"`) |
-| `locales_path`   | `Path`                        | Path to locales folder                               |
+| `locales_path`   | `Path`                        | `config/locales/` inside the app package             |
 | `storage_path`   | `Path`                        | `storage/` folder at the project root (`root_path.parent / "storage"`) |
 | `router`         | `Router`                      | The application router instance                      |
 | `config`         | `DotDict`                     | Configuration values, accessed as attributes         |
-| `catalog`        | `jx.Catalog`                  | Jx component catalog                                 |
-| `serializers`    | `tuple[URLSafeTimedSerializer, ...]` | Signed serializers, one per secret key          |
-| `signers`        | `tuple[TimestampSigner, ...]`  | Signed signers, one per secret key                   |
+| `catalog`        | `proper.views.Catalog`        | The component catalog (see [jx_catalog.md](jx_catalog.md)) |
 | `db`             | `dict[str, pw.Database]`      | Dictionary of Peewee database connections            |
 | `queue`          | `Huey`                        | Task queue instance                                  |
 | `cache`          | `BaseCache`                   | Cache backend instance                               |
@@ -88,9 +96,15 @@ Accessed via `current.app` or directly from the app instance.
 | `mailers`        | `Mailers`                     | Mailer registry — `app.mailers[name]` selects a backend by config name |
 | `auth`           | `Auth`                        | Auth instance (password hashing, token helpers)      |
 | `i18n`           | `I18n \| None`                | Internationalization instance (`None` if not installed) |
-| `cable`          | `Cable`                       | The cable of the channels: `Cable` with the channels addon; without it, a `BaseCable` that serves no WebSockets |
+| `cable`          | `BaseCable`                   | The cable of the channels: `Cable` with the channels addon; without it, a `BaseCable` that serves no WebSockets |
 | `request_cls`    | `type[Request]`               | Request class used for creating request objects      |
 | `response_cls`   | `type[Response]`              | Response class used for creating response objects    |
+| `env`            | `str`                         | `APP_ENV`: `"dev"` (default), `"test"` or `"prod"` |
+| `import_name`    | `str`                         | The package the app was built from                  |
+| `max_threads`    | `int`                         | `MAX_THREADS`, or `min(32, cpu_count + 4)` when `0`  |
+| `pipeline`       | `tuple[function, ...]`        | Class attribute: the request pipeline steps, in order |
+| `tools`          | `tuple[module, ...]`          | Class attribute: the tool modules whose `setup(app)` runs at init |
+| `CLI`            | `type`                        | The `proper` command class for this app             |
 
 ### Properties
 
@@ -106,17 +120,20 @@ Accessed via `current.app` or directly from the app instance.
 | `url_for`          | `(name, object=None, *, _anchor="", _full=False, **kw) -> str` | Generate URL for a named route. `_full=True` for absolute URLs. |
 | `url_is`           | `(name, object=None, *, curr_url="", **kw) -> bool`       | Check if current URL matches a named route               |
 | `url_startswith`   | `(name, object=None, *, curr_url="", **kw) -> bool`       | Check if current URL starts with a named route path      |
-| `dumps`            | `(obj, salt=None) -> str`                                  | Serialize and sign a value using the first secret key    |
-| `loads`            | `(value, *, max_age=None, return_timestamp=False, salt=None) -> Any` | Deserialize and verify a signed value. Tries all secret keys. Returns `None` if invalid, expired or undecodable. |
+| `dumps`            | `(obj, salt=None, *, timed=True) -> str`                   | Serialize and sign a value with the newest secret key (the last in `SECRET_KEYS`). `timed=False`: no timestamp, same token every time, never expires |
+| `loads`            | `(value, *, max_age=None, return_timestamp=False, salt=None, timed=True) -> Any` | Deserialize and verify a signed value. Tries all secret keys. Returns `None` if invalid, expired or undecodable. `timed=False` for `dumps(..., timed=False)` tokens (then `max_age`/`return_timestamp` raise `ValueError`). `return_timestamp=True` returns `(value, UTC datetime)` |
 | `on_error`         | `(func) -> func`                                           | Decorator to register error handlers                     |
 | `on_teardown`      | `(func) -> func`                                           | Decorator to register teardown handlers                  |
 | `around_request`   | `(func) -> func`                                           | Decorator to register a function `func(request, response, call_next)` that wraps every request |
 | `attachment_for`   | `(base_model_cls) -> type[_Attachment]`                    | Build an `Attachment` model subclass for the storage addon (memoized per app+base) |
+| `has_migrations_pending` | `() -> bool`                                         | Any migration under `db/<name>/` not applied to its database |
+| `lower`            | `() -> None`                                               | Lower the dispatch decisions and compile every view; raises `LoweringError`, and `proper.views.CompileError` outside debug |
+| `__call__`         | `(environ, start_response) -> Iterable[bytes]`             | The app is a WSGI callable |
 
 
 ## Request
 
-Accessed via `current.request` or as `self.request` inside a controller. See also: [Controllers — Request and Response](./controllers.md#request-and-response-objects) for quick usage examples.
+Accessed via `current.request` or as `self.request` inside a controller. See also: [rendering.md](../rendering.md#request-and-response-objects) for quick usage examples.
 
 ### Attributes
 
@@ -128,15 +145,20 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `protocol`         | `str`             | `"http"` or `"https"` (respects `X-Forwarded-Proto` from a `TRUSTED_PROXIES` peer) |
 | `host`             | `str`             | The host from the `Host` header (lowercased), else the address the server listens on (`SERVER_NAME`); the client chooses it: never build URLs sent to others from it |
 | `port`             | `int`             | The port from the `Host` header, else the server's port; the protocol's default port without one |
-| `content_type`     | `str`             | MIME type from the `Content-Type` header                       |
+| `content_type`     | `str \| None`     | The `Content-Type` header (`None` without one)                 |
 | `content_length`   | `int`             | Body size from the `Content-Length` header (`0` without one)   |
 | `headers`          | `MultiDict`       | HTTP request headers                                           |
 | `body`             | `bytes`           | The raw request body (`b""` for GET and HEAD)                  |
 | `form`             | `MultiDict`       | Parsed request body (form fields and uploaded files; the members of a JSON object) |
 | `matched_route`    | `Route \| None`   | The route matched during routing                               |
 | `matched_params`   | `dict \| None`    | Parameters extracted from the URL pattern                      |
-| `matched_action`   | `str \| None`     | The action name for the matched route                          |
+| `matched_action`   | `str`             | The action name for the matched route (`""` before routing)    |
 | `default_format`   | `str`             | Fallback format when accept parsing fails (default: `"html"`)  |
+| `scheme`           | `str`             | `"http"`/`"https"` as the server saw it, before `X-Forwarded-Proto` |
+| `server`           | `tuple[str, int \| None] \| None` | Address the request arrived at                     |
+| `client`           | `tuple[str, int \| None] \| None` | Peer address and port                              |
+| `http_version`     | `str`             | HTTP version (e.g. `"1.1"`)                                    |
+| `server_software`  | `str`             | How the server names itself (e.g. `"bearings/0.1.0"`); `""` if unknown |
 
 ### Properties
 
@@ -147,8 +169,6 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `query`            | `MultiDict`                | Query string parameters                                             |
 | `query_string`     | `str`                      | Raw query string                                                    |
 | `url`              | `str`                      | The path and the query string (no scheme or host)                   |
-| `http_version`     | `str`                      | HTTP version (e.g. `"1.1"`)                                        |
-| `server_software`  | `str`                      | How the server names itself (e.g. `"bearings/0.1.0"`); `""` if unknown     |
 | `flashes`          | `list[tuple[str, str]]`    | Flash messages stored in the session                                |
 | `accept`           | `list[str]`                | MIME types from `Accept` header, sorted by quality (`q`, or `Q`: parameter names are case-insensitive; a malformed parameter or `q` is ignored) |
 | `accept_encoding`  | `list[str]`                | Encodings from `Accept-Encoding`, sorted by quality                 |
@@ -174,6 +194,8 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `port_is_default`  | `bool`                     | `True` if port is the default for the protocol                     |
 | `port_string`      | `str`                      | `":port"` or `""` if port is default                               |
 | `remote_ip`        | `str`                      | Client IP. From a `TRUSTED_PROXIES` peer: `X-Forwarded-For`, else `Forwarded` (both read from the right, skipping trusted proxies), else `X-Real-IP`. Otherwise the peer's address. An `X-Forwarded-For` or `Forwarded` address loses its port and brackets, and `::ffff:1.2.3.4` becomes `1.2.3.4` |
+| `turbo_frame`      | `str \| None`              | The `Turbo-Frame` header: id of the frame being updated, `None` for a full-page request |
+| `turbo_stream`     | `bool`                     | `True` when `Accept` includes `text/vnd.turbo-stream.html` |
 | `request_id`       | `str`                      | The `X-Request-ID` header, keeping only `[A-Za-z0-9_@-]` and at most 200 characters; if missing or empty after that, a new UUID4. Sent back in the response's `X-Request-ID` header (error responses too) |
 | `user_agent`       | `str \| None`              | Value of the `User-Agent` header                                    |
 
@@ -181,7 +203,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 
 | Method              | Signature                                                                       | Description                          |
 |---------------------|---------------------------------------------------------------------------------|--------------------------------------|
-| `get_url`           | `(include_query=True) -> str`                                                   | Build the full URL                   |
+| `get_url`           | `(include_query=True) -> str`                                                   | The path, with the query string unless `include_query=False` (no scheme or host) |
 | `get_cookie`        | `(name, default=None) -> str \| None`                                           | Get a cookie value by name           |
 | `get_signed_cookie` | `(name, default=None, *, salt="cookie", max_age=None) -> str \| Any`            | Get and verify a signed cookie value |
 
@@ -208,16 +230,16 @@ self.request.if_modified_since  # datetime from If-Modified-Since header
 
 ## Response
 
-Accessed via `current.response` or as `self.response` inside a controller. See also: [Controllers — Request and Response](./controllers.md#request-and-response-objects) for quick usage examples.
+Accessed via `current.response` or as `self.response` inside a controller. See also: [rendering.md](../rendering.md#request-and-response-objects) for quick usage examples.
 
 ### Attributes
 
 | Attribute          | Type                   | Description                                            |
 |--------------------|------------------------|--------------------------------------------------------|
 | `status`           | `int`                  | HTTP status code (default: 200)                        |
-| `body`             | `str \| bytes \| None` | Response body content                                  |
-| `error`            | `Exception \| None`    | Exception that occurred during request processing      |
-| `flash`            | `FlashMessages`        | Flash messages manager                                 |
+| `body`             | `str \| bytes \| Iterable[bytes] \| None` | Response body content (`send_file` sets a file wrapper) |
+| `flash`            | `FlashMessages`        | Flash messages manager; callable: `flash(category, message)`; `flash.flashes` is the list |
+| `exclude_headers`  | `dict[int, tuple[str, ...]]` | Class attribute: headers dropped for a 204 and a 304 |
 | `headers`          | `ResponseHeadersDict`  | Response headers                                       |
 | `cookies`          | `dict[str, Morsel]`    | Cookies to send in the response                        |
 | `default_mimetype` | `str`                  | Default MIME type (default: `"text/html"`)             |
@@ -231,12 +253,13 @@ Accessed via `current.response` or as `self.response` inside a controller. See a
 |----------------|-----------|---------------------------------------|
 | `app`          | `App`     | The application instance              |
 | `session`      | `dict`    | Session data (read/write)             |
+| `error`        | `Exception \| None` | The exception that caused this response (read/write). Setting it drops the body and its headers, sets `status` from the error (500 by default) and copies the error's `headers` |
 | `has_body`     | `bool`    | `True` if the response has a body     |
 | `status_code`  | `int`     | Alias for `status`                    |
 
 ### Header Properties
 
-All of these are read/write.
+All of these are read/write except where noted. Getters return the header as sent. The setters of `cache_control`, `content_encoding` and `vary` take a list of values (`response.vary = ["Accept"]`), `expires` and `last_modified` a `datetime`, `retry_after` an `int`; the `set_*` methods below take the same as positional arguments, and `None` (or no arguments) deletes the header.
 
 | Property           | Type                | Description                         |
 |--------------------|---------------------|-------------------------------------|
@@ -245,7 +268,7 @@ All of these are read/write.
 | `content_encoding` | `str \| None`       | `Content-Encoding` header           |
 | `content_length`   | `int \| None`       | `Content-Length` header              |
 | `content_location` | `str \| None`       | `Content-Location` header           |
-| `content_range`    | `str \| None`       | `Content-Range` header              |
+| `content_range`    | `str \| None`       | `Content-Range` header (read-only, use `set_content_range`) |
 | `content_type`     | `str \| None`       | Full `Content-Type` header          |
 | `mimetype`         | `str`               | MIME type portion of `Content-Type`  |
 | `charset`          | `str`               | Charset portion of `Content-Type`   |
@@ -280,6 +303,8 @@ All of these are read/write.
 | `set_retry_after`    | `(num) -> None`                                                                                            | Set the `Retry-After` header                             |
 | `set_content_encoding` | `(*values) -> None`                                                                                      | Set the `Content-Encoding` header                        |
 | `set_content_location` | `(url) -> None`                                                                                          | Set the `Content-Location` header                        |
+| `prepare`            | `(request=None) -> tuple[int, list[tuple[str, str]], bytes \| Iterable[bytes]]`                             | Status, headers and body ready for the server (an empty body for `HEAD`) |
+| `get_headers_list`   | `() -> list[tuple[str, str]]`                                                                              | Headers and cookies as `(name, value)` pairs             |
 
 ### Setting Headers
 
@@ -296,7 +321,7 @@ self.response.set_signed_cookie("_auth", token, max_age=2592000, httponly=True)
 self.response.unset_cookie("old_cookie")
 ```
 
-Cookies default to `samesite="Lax"`. Signed cookies use the app's secret key.
+Cookies default to `samesite="Lax"`. Signed cookies are signed with the newest secret key; every key in `SECRET_KEYS` is accepted when reading.
 
 ### Cache Control
 
@@ -339,11 +364,11 @@ self.response.status = status.im_a_teapot
 
 ## Other Public Exports
 
-Everything below is importable from `proper` (e.g., `from proper import Concern`).
+Everything below is importable from `proper` (e.g., `from proper import Concern`) unless its row names another module. `proper` also exports `Request`, `Response`, `TestClient`, `CIMultiDict`, and `turbo_frame`/`turbo_stream` (from `proper.turbo`, which also has `TURBO_STREAM_MIME`).
 
 ### Concern
 
-Base class for controller concerns (mixins with callbacks). See [Controllers — Concerns](controllers.md#concerns).
+Base class for controller concerns (mixins with callbacks). See [concerns.md](../concerns.md#concerns).
 
 ```python
 from proper import Concern
@@ -355,7 +380,7 @@ class TeamScoped(Concern):
 
 ### Routing
 
-See [Routing](routing.md) for full details.
+See [routing.md](../routing.md) and [urls.md](../urls.md) for full details.
 
 | Symbol         | Description                                                    |
 |----------------|----------------------------------------------------------------|
@@ -366,34 +391,38 @@ See [Routing](routing.md) for full details.
 
 ### Models
 
-See [Models](models.md) for full details.
+See [models.md](../models.md) for full details.
 
 | Symbol         | Description                                                              |
 |----------------|--------------------------------------------------------------------------|
 | `ProperModel`  | Base Peewee model with scope support and token generation methods        |
 | `scope`        | Decorator that tags a classmethod as a chainable query scope             |
 | `ScopedSelect` | The `Select` subclass returned by scoped queries; propagates scopes through chained method calls (rarely used directly). |
-| `JSONField`    | Peewee field that stores JSON with transparent serialization (also re-exported from `proper`) |
-| `run_seeds`    | `(name="", db="main") -> bool` — programmatic entry point for the `proper db seed` runner |
+| `JSONField`    | Backwards compatibility only: use `pw.JSONField` (also re-exported from `proper`) |
+| `run_seeds`    | `from proper.models import run_seeds`: `(name="", db="main") -> bool`, the `proper db seed` runner |
 
 ### Channel
 
-WebSocket channel base class. See [Channels](channels.md) for full details.
+WebSocket channel base class. See [channels.md](../channels.md) for full details.
 
 | Method             | Description                                      |
 |--------------------|--------------------------------------------------|
 | `subscribed()`     | Called when a client subscribes — override to set up streams |
 | `unsubscribed()`   | Called on disconnect — override for cleanup       |
-| `stream_from(name)`| Subscribe this connection to a broadcast stream   |
-| `stop_stream_from(name)` | Unsubscribe from a stream                  |
+| `stream_from(stream_name)`| Subscribe this connection to a broadcast stream   |
+| `stop_stream_from(stream_name)` | Unsubscribe from a stream                  |
 | `stop_all_streams()` | Unsubscribe from all streams                    |
 | `send(data)`       | Send data to this connection                     |
 | `broadcast(stream, data)` | Broadcast data to all subscribers of a stream |
 | `reject()`         | Reject the subscription                         |
+| `track(stream_name, data=None, *, key=None)` / `untrack(stream_name)` / `update_presence(data)` | Presence in a stream |
+| `find_user(user_id)` / `find_session()` | Resolve the connection's user and session; `AppChannel` defines them |
+
+Attributes: `app`, `params` (dict), `user_id`; properties `channel_name`, `authenticated`, `request` (the handshake). Class attributes `Session`, `auth_cookie_name` (`"_auth"`), `auth_cookie_salt`. `proper.channels` also exports `ActionError`, `BaseCable`, `Cable`, `RedisCable` and `CABLE_SALT`.
 
 ### Emails
 
-These symbols are exported from `proper.emails`, **not** the top-level `proper`. Import via `from proper.emails import EmailMessage`. See [Emails](emails.md) for full details.
+These symbols are exported from `proper.emails`, **not** the top-level `proper`. Import via `from proper.emails import EmailMessage`. See [emails.md](../emails.md) for full details.
 
 | Symbol             | Module                  | Description                                              |
 |--------------------|-------------------------|----------------------------------------------------------|
@@ -405,6 +434,7 @@ These symbols are exported from `proper.emails`, **not** the top-level `proper`.
 | `SMTPMailer`       | `proper.emails`         | Send via SMTP                                            |
 | `ToConsoleMailer`  | `proper.emails`         | Print emails to stdout (development)                     |
 | `ToMemoryMailer`   | `proper.emails`         | Store emails in a list (testing)                         |
+| `EmailTemplateNotFound` | `proper.emails`    | `LookupError` raised when an email has no body and no template |
 
 ### Helpers
 
@@ -414,38 +444,82 @@ Utility functions and classes available from `proper`.
 |-------------------|----------------------------------------------------------------|
 | `DotDict`         | Dict subclass with attribute-style access (`d.key`)            |
 | `MultiDict`       | Dict that supports multiple values per key (query/form params) |
-| `JSONField`       | Peewee field that stores JSON with transparent serialization   |
-| `make_list`       | Wrap a value in a list if it isn't one already                 |
-
+| `CIMultiDict`     | Case-insensitive `MultiDict` (request headers)                 |
+| `JSONField`       | Backwards compatibility only: use `pw.JSONField`                |
+| `make_list`       | `from proper.helpers import make_list`: wrap a value in a list if it isn't one already (a tuple becomes a list) |
 
 ### Global Context
 
-See [Application — Global Context](app.md#global-context).
+`current` (`from proper import current`): `current.app`, `current.request`, `current.response`, and `current.user`, `current.auth_session`, `current.locale`, `current.timezone` (`None` when their addon is not installed). See [app.md](../app.md#global-context).
+
+
+## Units
+
+Proper provides readable constants for sizes and durations, used throughout configuration:
 
 ```python
-from proper import current
-
-current.app       # App instance
-current.request   # Current Request
-current.response  # Current Response
-current.user      # Current user (set by auth, defaults to None)
-current.locale    # Current locale (set by i18n, defaults to None)
-current.timezone  # Current timezone (set by i18n, defaults to None)
+from proper.units import MB, GB, SECONDS, MINUTES, HOURS, DAYS, WEEKS
 ```
 
-`current` uses Python `ContextVar` under the hood, so it's safe for concurrent requests.
+**Size:**
 
-### Units
+| Constant | Value   |
+|----------|---------|
+| `B`      | 1       |
+| `KB`     | 1024    |
+| `MB`     | 1048576 |
+| `GB`     | 2^30    |
+| `TB`     | 2^40    |
 
-Time and size constants from `proper.units`, used in rate limiting, caching, and cookie configuration.
+**Time** (in seconds):
+
+| Constant           | Value     |
+|--------------------|-----------|
+| `SECOND` / `SECONDS` | 1      |
+| `MINUTE` / `MINUTES` | 60     |
+| `HOUR` / `HOURS`     | 3600   |
+| `DAY` / `DAYS`       | 86400  |
+| `WEEK` / `WEEKS`     | 604800 |
+| `MONTH` / `MONTHS`   | 2592000 (30 days) |
+| `YEAR` / `YEARS`     | 31536000 (365 days) |
+
+There's also `to_seconds(**kwargs)` which converts `timedelta` keyword arguments:
 
 ```python
-from proper.units import MINUTES, HOURS, DAYS, MB
+from proper.units import to_seconds
+
+to_seconds(hours=2, minutes=30)  # 9000
 ```
 
-**Time** (all values in seconds): `SECOND`/`SECONDS`, `MINUTE`/`MINUTES`, `HOUR`/`HOURS`, `DAY`/`DAYS`, `WEEK`/`WEEKS`, `MONTH`/`MONTHS`, `YEAR`/`YEARS`.
 
-**Size** (all values in bytes): `B`, `KB`, `MB`, `GB`, `TB`.
+## Helper Types
 
-**Function**: `to_seconds(**kwargs)` — converts `timedelta` keyword arguments to an integer seconds value.
+### DotDict
 
+A dict subclass that allows attribute-style access. Used for `app.config`, `request.session`, and `response.session`:
+
+```python
+from proper.helpers import DotDict
+
+d = DotDict({"name": "Alice", "settings": {"theme": "dark"}})
+d.name              # "Alice"
+d.settings.theme    # "dark" (nested dicts are also DotDicts)
+d.missing           # AttributeError (d["missing"] raises KeyError)
+```
+
+`update()` does deep merging — nested dicts are merged recursively rather than replaced.
+
+### MultiDict
+
+A dict-like type that handles multiple values per key. Used for `request.form` and `request.query`:
+
+```python
+# Given ?color=red&color=blue
+request.query.get("color")           # "blue" (last value)
+request.query.getall("color")        # ["red", "blue"]
+request.query.get("color", index=0)  # "red" (first value)
+request.query.get("count", type=int) # type-casts the value
+request.query["color"]               # "blue": [] and pop() give the last value
+```
+
+`set(key, values)` replaces every value of a key, `append(key, value)` adds one, `extend(key, values)` several; `getall(key, type=int)` drops the values the cast rejects.

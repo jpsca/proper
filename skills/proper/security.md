@@ -1,7 +1,13 @@
 ---
 title: Security
 description: CSRF protection, rate limiting, sessions, signed cookies, security headers
-last_verified: 2026-04-02
+last_verified: 2026-10-31
+sources:
+  - src/proper/concerns/origin_protection.py
+  - src/proper/concerns/request_forgery_protection.py
+  - src/proper/core/request
+  - src/proper/core/config.py
+  - src/proper/_native
 ---
 
 # Security
@@ -20,7 +26,9 @@ For user authentication (registration, login, password reset), see [Authenticati
 - [Security Headers](#security-headers)
 - [Request Size Limits](#request-size-limits)
 - [Trusted Proxies](#trusted-proxies)
+- [Host header](#host-header)
 - [Redirects](#redirects)
+- [Gotchas](#gotchas)
 
 
 ## Origin Protection (CSRF)
@@ -36,14 +44,14 @@ TRUSTED_ORIGINS = [
 ]
 ```
 
-Requests where both the `Origin` and the `Host` are on the local network (private IPs, loopback, or link-local addresses) are always allowed. This enables development across LAN devices — for example, testing from a phone at `http://192.168.1.50:2300` against a dev server on `192.168.1.100`.
+Requests where both the `Origin` and the `Host` are on the local network (`localhost`, or a private, loopback or link-local IP address; other host names don't count) are always allowed. This enables development across LAN devices — for example, testing from a phone at `http://192.168.1.50:2300` against a dev server on `192.168.1.100`.
 
-For the full verification algorithm, configuration details, and the legacy `RequestForgeryProtection` alternative, see [Controllers — Concerns](controllers.md#concerns).
+For the full verification algorithm, configuration details, and the legacy `RequestForgeryProtection` alternative, see [concerns.md](concerns.md#originprotection).
 
 
 ## Rate Limiting
 
-The `RateLimiting` concern limits requests per identity within a time window. It's included in `AppController` by default but only activates when a controller defines a `rate_limit` attribute. Requires a configured cache store (`app.cache`).
+The `RateLimiting` concern limits requests per identity within a time window. It's included in `AppController` by default but only activates when a controller defines a `rate_limit` attribute. Requires a configured cache store (`app.cache`); without one the limits are silently skipped.
 
 ```python
 from proper.units import MINUTES
@@ -52,7 +60,7 @@ class SessionController(AppController):
     rate_limit = {"to": 10, "within": 3 * MINUTES, "only": "create"}
 ```
 
-For the full options table, multiple limits, custom identity/scope, custom reactions, and resetting limits, see [Controllers — Concerns](controllers.md#concerns).
+For the full options table, multiple limits, custom identity/scope, custom reactions, and resetting limits, see [concerns.md](concerns.md#ratelimiting).
 
 
 ## Sessions
@@ -63,9 +71,8 @@ Sessions are stored in a signed cookie named `_session`. The cookie value is a J
 
 1. On each request, the `_session` cookie is read and verified. A missing cookie, a bad or expired signature, or a value that is not a JSON object gives an empty session.
 2. The deserialized data is available as `request.session` (a plain `dict`).
-3. A copy is placed in `response.session` for the controller to modify.
-4. After the response, if `response.session` differs from `request.session`, a new signed cookie is written.
-5. If `response.session` is empty, the cookie is cleared.
+3. A copy, without the flash messages, is placed in `response.session` for the controller to modify.
+4. After the response, if `response.session` differs from `request.session`, a new signed cookie is written, or, if `response.session` is now empty, the cookie is cleared. Two equal sessions send nothing.
 
 ### Using Sessions
 
@@ -75,24 +82,17 @@ In controllers, read from `self.request.session` and write to `self.response.ses
 def create(self):
     self.response.session["user_id"] = user.id
     self.response.session["return_to"] = "/dashboard"
+    self.response.session["cart"].append(item_id)  # changes in place are saved too
 
 def show(self):
     user_id = self.request.session.get("user_id")
-    return_to = self.request.session.get("return_to")
 ```
+
+The session is a plain `dict` (no attribute access: `session["key"]` or `session.get("key")`). The framework compares the two at the end of the request and only updates the cookie if the session changed; the response's session starts as a copy of the request's with its own lists and dicts, so changing one in place counts as a change.
 
 ### Flash Messages
 
-Flash messages are one-time notifications stored in the session. They're automatically cleared after being read:
-
-```python
-# Set a flash (usually via redirect_to)
-self.response.redirect_to("Photo.index", flash="Photo was deleted")
-
-# In templates, flash messages are available as a list of (type, message) tuples
-```
-
-Flash messages are stored under a reserved key in the session. On the next request, they appear in `request.session` and are automatically removed from `response.session`.
+Flash messages are one-time messages stored under a reserved key in the session: set by `redirect_to(..., flash=...)` or `response.flash(cat, msg)`, read on the next request from `current.request.flashes`, then removed. Usage is in [rendering.md](rendering.md#flash-messages); the `flashes.jx` component in [frontend.md](frontend.md#flash-messages).
 
 ### Configuration
 
@@ -146,9 +146,9 @@ token = app.dumps({"user_id": 42}, salt="my-feature")
 data = app.loads(token, max_age=3600, salt="my-feature")
 ```
 
-These tokens have the format of itsdangerous' `URLSafeTimedSerializer` with HMAC-SHA256 key derivation: URL-safe, with a timestamp. Proper makes and checks them with its own compiled code (`proper._native`). Only the newest secret key is used for signing; all keys are tried for verification.
+These tokens have the format of itsdangerous' `URLSafeTimedSerializer` with HMAC-SHA256 key derivation: URL-safe, with a timestamp. `dumps(..., timed=False)` makes a token without one, identical on every call and never expiring (`loads` must then get `max_age=None`); `loads(..., return_timestamp=True)` also returns when a timed token was made. Proper makes and checks them with its own compiled code (`proper._native`). Only the newest secret key is used for signing; all keys are tried for verification.
 
-For model-level token workflows (password resets, email verification, signed URLs), use the `generate_token()` / `resolve_token()` API on `ProperModel` instead of calling `app.dumps()` / `app.loads()` directly. See [Token Generation](models.md#token-generation).
+For model-level token workflows (password resets, email verification, signed URLs), use the `generate_token()` / `resolve_token()` API on `ProperModel` instead of calling `app.dumps()` / `app.loads()` directly. See [Token Generation](models_advanced.md#token-generation).
 
 
 ## Signed Cookies
@@ -196,8 +196,9 @@ All `set_cookie` / `set_signed_cookie` options:
 | `httponly`  | `False`  | Block JavaScript access                            |
 | `samesite` | `"Lax"`  | `"Lax"`, `"Strict"`, or `None`                     |
 | `salt`     | `"cookie"` | Extra key derivation salt (signed cookies only)  |
+| `signed`   | `False`  | `set_cookie` only: sign the value (what `set_signed_cookie` does) |
 
-Cookies larger than 4093 bytes trigger a warning, as some browsers silently ignore oversized cookies.
+`samesite=None` omits the attribute; any other value than `"Lax"`, `"Strict"` or `"None"` raises `ValueError`. Cookies larger than 4093 bytes (`response.max_cookie_size`; `0` disables the check) trigger a warning, as some browsers silently ignore oversized cookies.
 
 A value with a space, a control character, `"`, `,`, `;`, `\` or non-ASCII is sent quoted (`"..."`, with octal escapes, as Python's `http.cookies` does), and `request.cookies` reads it back unquoted: a `;` in the value can't add an attribute to the cookie. JavaScript that reads `document.cookie` sees the quoted form.
 
@@ -219,7 +220,6 @@ The generated `SecurityHeaders` concern sets protective response headers on ever
 
 ```python
 from proper import Concern
-from proper.units import YEARS
 
 
 class SecurityHeaders(Concern):
@@ -244,7 +244,7 @@ class SecurityHeaders(Concern):
 
 There is no `Content-Security-Policy` by default. Proper has no CSP nonces, and the `<script type="importmap">` from `render_importmap` is inline, so a policy needs `script-src 'self' 'unsafe-inline'` for the importmap to load.
 
-This concern lives in your app at `controllers/concerns/security_headers.py`. You can customize it by changing the defaults or adding headers like `Content-Security-Policy`.
+This concern lives in your app at `controllers/concerns/security_headers.py`. You can customize it by changing the defaults or adding headers like `Content-Security-Policy`. The generated file ends with a commented-out `Strict-Transport-Security` header to turn on once the site is HTTPS-only.
 
 Using `setdefault` means individual controllers can override any header before the `after` callback runs.
 
@@ -264,7 +264,7 @@ MAX_QUERY_SIZE = 1 * MB        # Query string limit (default: 1 MB)
 - Exceeding `MAX_CONTENT_LENGTH` raises `RequestEntityTooLarge` (413)
 - Exceeding `MAX_QUERY_SIZE` raises `UriTooLong` (414)
 
-These limits are enforced before parsing, so oversized payloads don't consume memory. A body with a `Content-Length` over the limit is refused before a byte is read; a body without one (chunked, or HTTP/2 without the header) is read until it passes the limit, then refused.
+These limits are enforced before parsing, so oversized payloads don't consume memory. A body with a `Content-Length` over the limit is refused before a byte is read; a body without one (chunked, or HTTP/2 without the header) is read until it passes the limit, then refused (under `proper run`; a WSGI server that doesn't set `wsgi.input_terminated` gets such a body ignored). `MAX_CONTENT_LENGTH = 0` disables the body check and `MAX_QUERY_SIZE = 0` the query check.
 
 ### Multipart Form Limits
 
@@ -279,7 +279,7 @@ MAX_FORM_FIELDS = 100        # Max number of non-file fields (default: 100)
 MAX_FORM_PART_SIZE = 2 * MB  # Max size of each non-file field (default: 2 MB)
 ```
 
-These protect against abuse from forms with excessive fields or oversized fields. `MAX_FORM_FIELDS` also limits the fields of an `application/x-www-form-urlencoded` body; the query string has no field limit, only `MAX_QUERY_SIZE`. Uploaded files are limited by `MAX_CONTENT_LENGTH`, the size of the whole request body.
+Exceeding any of them raises `MultipartError` (400). These protect against abuse from forms with excessive fields or oversized fields. `MAX_FORM_FIELDS` also limits the fields of an `application/x-www-form-urlencoded` body; the query string has no field limit, only `MAX_QUERY_SIZE`. Uploaded files are limited by `MAX_CONTENT_LENGTH`, the size of the whole request body.
 
 
 ## Trusted Proxies
@@ -304,18 +304,21 @@ TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
 - waitress and uWSGI on a Unix socket give a made-up peer address (`localhost`, `0.0.0.0`), which is not trusted.
 - `TestClient` requests come from `client.remote_ip` (`127.0.0.1`, trusted), so test headers like `X-Forwarded-For` are honored; set a public `client.remote_ip` and they are ignored. `make_test_request()` without `client=` has no peer address, which counts as trusted. A WebSocket handshake without a peer address (the in-memory server's `connect()` without details) doesn't count: its `X-Forwarded-For` is dropped.
 
+
 ## Host header
 
 - `request.host` and `request.port` come from the `Host` header (PEP 3333), else from the address the server listens on (`SERVER_NAME`, `0.0.0.0` under `proper run`). Host-constrained routes and `OriginProtection` compare with it. The proxy must pass the client's `Host` (nginx: `proxy_set_header Host $host;`; its default sends the upstream's address).
 - An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400, and so is a request with more than one `Host` line (RFC 9112 §3.2): the server joins them with a comma, so a `Host` with a comma is refused.
-- The client chooses the `Host` header. Proper uses it only to pick the route and to compare with `Origin`; it never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config (or the route's own host). Do the same in your code: build absolute URLs that leave the request (emails, links stored or sent to others) with `url_for(_full=True)`, not from `request.host`.
+- The client chooses the `Host` header. Proper uses it only to pick the route and to compare with `Origin`; it never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the direct-upload URL use `PROTOCOL` and `HOST` from the config (or the route's own host); attachment URLs are paths. Do the same in your code: build absolute URLs that leave the request (emails, links stored or sent to others) with `url_for(_full=True)`, not from `request.host`.
 - `X-Forwarded-Host` and `Forwarded: host=` are not read.
+
 
 ## Redirects
 
 - `redirect_to(url)` percent-encodes spaces, control characters (CR, LF) and non-ASCII in the URL, and a URL that starts with `/` keeps a single one: `//evil.com` and `/\evil.com` become `/evil.com`.
 - An `http(s)://` URL is used as given: before redirecting to one taken from the request (`?next=`), check that it starts with `/`.
 - In a redirect route (`router.get("/old/:slug", redirect="/new/{slug}")`), the path values are percent-encoded again before they go in the `Location`.
+
 
 ## Gotchas
 

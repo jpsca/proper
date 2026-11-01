@@ -1,32 +1,30 @@
 ---
 title: Models
-description: Peewee ORM models — fields, relationships, querying, scopes, mixins, migrations, seeds
-last_verified: 2026-06-03
+description: Peewee ORM models: defining, field types, relationships, querying, Meta options, custom methods, BaseModel
+last_verified: 2026-10-31
+sources:
+  - src/proper/models
+  - src/proper/_blueprints/model
+  - blueprint/[[app_name]]/models
 ---
 
 # Models
 
 Proper uses [Peewee ORM](https://docs.peewee-orm.com) for database access. All models inherit from `BaseModel`, which is configured to use your application's database. Peewee is used directly - there is no abstraction layer on top of it.
 
+Mixins, scopes and signed tokens are in [models_advanced.md](models_advanced.md). Database configuration, migrations and seeds are in [migrations.md](migrations.md). The `proper g model` syntax is in [generators.md](generators.md).
+
 ## Table of Contents
 
 - [Defining Models](#defining-models)
+- [Prefer adding methods to models](#prefer-adding-methods-to-models)
 - [Field Types](#field-types)
 - [Relationships](#relationships)
 - [Querying](#querying)
-- [Model Concerns (Mixins)](#model-concerns-mixins)
 - [Meta Class Options](#meta-class-options)
 - [Custom Model Methods](#custom-model-methods)
-- [Token Generation](#token-generation)
-- [Database Configuration](#database-configuration)
-- [Scopes](#scopes)
 - [BaseModel](#basemodel)
-- [Migrations](#migrations)
-  - [Adding Fields to Existing Models](#adding-fields-to-existing-models)
-- [Seeds](#seeds)
-- [Generators](#generators)
 - [Integration with Controllers and Forms](#integration-with-controllers-and-forms)
-- [Testing Models](#testing-models)
 
 
 ## Defining Models
@@ -62,7 +60,7 @@ Import here all the models you want to be detected for migrations.
 You can also do `from .your_model import *  #noqa` here
 and, in your model file, use `__all__` to define what to import
 
-Do not import `BaseModel` or concerns/mixins here.
+Do not import `BaseModel` or any concern/mixin here.
 """
 from .base import db  # noqa
 from .photo import Photo  # noqa
@@ -97,6 +95,7 @@ class User(BaseModel):
         user.verify()
         # ...
 ```
+
 
 ## Field Types
 
@@ -135,28 +134,19 @@ title = pw.CharField(
 
 ### JSONField
 
-Proper includes a custom `JSONField` that extends Peewee's `TextField`. It automatically serializes Python objects to JSON when saving and deserializes them when loading, with special handling for `datetime` objects:
+Use Peewee's `pw.JSONField` for JSON columns. `Model.field["key"]` builds a JSON path for queries:
 
 ```python
-from proper.helpers import JSONField
-
 class Photo(BaseModel):
     title = pw.CharField()
-    metadata = JSONField(null=True)
+    metadata = pw.JSONField(null=True)
+
+
+Photo.create(title="Sunset", metadata={"camera": "Canon EOS R5"})
+Photo.select().where(Photo.metadata["camera"] == "Canon EOS R5")
 ```
 
-```python
-photo = Photo.create(
-    title="Sunset",
-    metadata={"camera": "Canon EOS R5", "taken_at": datetime.now()},
-)
-
-# Later, when loaded from DB:
-photo.metadata["camera"]     # "Canon EOS R5"
-photo.metadata["taken_at"]   # datetime object (automatically deserialized)
-```
-
-The `datetime` round-trip works because the field uses a custom JSON encoder that prefixes date values with `__dt__`, preserving the type through serialization.
+`from proper import JSONField` exists only for backwards compatibility with the data stored by older versions (it encoded dates as `"__dt__<iso>"` strings). Don't use it in new code.
 
 
 ## Relationships
@@ -240,7 +230,7 @@ photos = (Photo
 
 ## Querying
 
-Proper uses Peewee's query API directly. When a query pattern is reused across controllers or shows up more than once, extract it into a `@scope` on the model instead of repeating `.where(...)` calls. Scopes keep query logic in the model where it belongs and make controller code read like plain English. See [Scopes](#scopes) for details.
+Proper uses Peewee's query API directly. When a query pattern is reused across controllers or shows up more than once, extract it into a `@scope` on the model instead of repeating `.where(...)` calls. Scopes keep query logic in the model where it belongs and make controller code read like plain English. See [Scopes](models_advanced.md#scopes) for details.
 
 Here are the most common patterns:
 
@@ -354,79 +344,6 @@ with db.atomic():
 > **In controllers, import `db` the same way** — `from myapp.models import db` — and use it directly (`with db.atomic(): ...`). Don't reach through `self.app.db["main"]`; the models module re-exports `db` precisely so controllers and tasks get a short, dependency-explicit handle.
 
 
-## Model Concerns (Mixins)
-
-Mixins let you share fields and behavior across models. They also inherit from `BaseModel`:
-
-### Timestamped
-
-The most commonly used mixin. It adds `created_at` and `updated_at` fields and automatically updates `updated_at` on every save:
-
-```python
-from .base import BaseModel
-from .concerns.timestamped import Timestamped
-
-
-class Photo(Timestamped, BaseModel):
-    title = pw.CharField()
-```
-
-This adds:
-
-- `created_at` - set to the current UTC time when the record is created
-- `updated_at` - automatically set to the current UTC time on every `save()` and `update()`
-
-The mixin works by overriding both `save()` and the classmethod `update()`:
-
-```python
-class Timestamped(BaseModel):
-    created_at = pw.DateTimeField(default=pw.utcnow, null=True)
-    updated_at = pw.DateTimeField(default=pw.utcnow, null=True)
-
-    @classmethod
-    def update(cls, *args, **kwargs):
-        kwargs["updated_at"] = pw.utcnow()
-        return super().update(*args, **kwargs)
-
-    def save(self, *args, **kwargs):
-        self.updated_at = pw.utcnow()
-        return super().save(*args, **kwargs)
-```
-
-### Writing Your Own Mixins
-
-Create a file in `models/concerns/` and inherit from `BaseModel`:
-
-```python
-# models/concerns/publishable.py
-import peewee as pw
-
-from ..base import BaseModel
-
-
-class Publishable(BaseModel):
-    published = pw.BooleanField(default=False)
-    published_at = pw.DateTimeField(null=True)
-
-    def publish(self):
-        self.published = True
-        self.published_at = pw.utcnow()
-        self.save(only=[self.__class__.published, self.__class__.published_at])
-
-    def unpublish(self):
-        self.published = False
-        self.published_at = None
-        self.save(only=[self.__class__.published, self.__class__.published_at])
-```
-
-Then mix it into your model:
-
-```python
-class Post(Publishable, Timestamped, BaseModel):
-    title = pw.CharField()
-    body = pw.TextField()
-```
-
 ## Meta Class Options
 
 Use the inner `Meta` class to configure table-level settings:
@@ -453,7 +370,7 @@ class Event(BaseModel):
 Add class methods and instance methods to your models as needed. This is the place to put business logic that is tightly coupled to the data:
 
 ```python
-class Invitation(Timestamped, BaseModel):
+class Invitation(BaseModel):
     email = pw.CharField()
     token = pw.CharField(max_length=43, unique=True, index=True)
     accepted = pw.BooleanField(default=False)
@@ -492,7 +409,7 @@ class Invitation(Timestamped, BaseModel):
 You can override `save()` and `create()` to add custom behavior. Always call `super()` to preserve the default behavior:
 
 ```python
-class Photo(Timestamped, BaseModel):
+class Photo(BaseModel):
     title = pw.CharField()
     slug = pw.CharField(unique=True)
 
@@ -505,728 +422,44 @@ class Photo(Timestamped, BaseModel):
 Peewee does not have a built-in event/signal system. Method overriding is the standard pattern for adding before-save or after-save behavior.
 
 
-## Token Generation
-
-Every model that inherits from `ProperModel` (via `BaseModel`) can generate signed, URL-safe tokens and resolve them back into model instances. This is useful for password resets, email verification links, invitation tokens, file access URLs, or any feature that needs a tamper-proof reference to a record.
-
-There are two levels of API: a **named token** API (recommended) and a **low-level** API.
-
-
-### Named Tokens (generate_token_for / resolve_token_for)
-
-Named tokens are the recommended approach, inspired by Rails' `generates_token_for`. You define a `generate_token_for_NAME` method on your model that returns a fingerprint value. The name is used as the token's salt, so different token purposes are completely isolated.
-
-#### Defining a named token
-
-Add a method named `generate_token_for_NAME` to your model. It takes no arguments (beyond `self`) and returns a JSON-serializable value that changes when the token should be invalidated:
-
-```python
-class User(Authenticable, BaseModel):
-    def generate_token_for_password_reset(self):
-        # Token becomes invalid when the password changes
-        return (self.password or "")[-20::2]
-
-    def generate_token_for_email_verification(self):
-        # Token becomes invalid when the email changes
-        return self.email
-```
-
-#### Generating
-
-```python
-token = user.generate_token_for("password_reset")
-# => "eyJpZCI6IjQyIiwiZnAi..."
-```
-
-#### Resolving
-
-```python
-user = User.resolve_token_for("password_reset", token, max_age=3 * HOURS)
-# => User instance, or None
-```
-
-Returns `None` if:
-
-- The token signature is invalid (tampered)
-- The token has expired (older than `max_age`)
-- The record no longer exists
-- The fingerprint doesn't match (record changed since token was generated)
-
-The default `max_age` is 15 minutes.
-
-#### Full example: email verification
-
-```python
-class User(Timestamped, BaseModel):
-    email = pw.CharField(unique=True)
-    email_verified_at = pw.DateTimeField(null=True)
-
-    def generate_token_for_email_verification(self):
-        return self.email
-
-    def verify_email(self):
-        self.email_verified_at = pw.utcnow()
-        self.save(only=[User.email_verified_at])
-
-
-# Generate a verification link
-token = user.generate_token_for("email_verification")
-url = app.url_for("EmailVerification.edit", token=token, _full=True)
-
-# Later, when the user clicks the link
-user = User.resolve_token_for("email_verification", token, max_age=24 * HOURS)
-if user:
-    user.verify_email()
-```
-
-
-### General API (generate_token / resolve_token)
-
-For cases where you don't need a fingerprint or want to pass an explicit fingerprint callable:
-
-```python
-# Generate a simple token (no fingerprint, expiration only)
-token = record.generate_token()
-
-# Generate with an explicit fingerprint function
-token = user.generate_token(lambda u: u.email, salt="my-purpose")
-
-# Resolve a simple token
-record = MyModel.resolve_token(token, max_age=24 * HOURS)
-
-# Resolve with the same fingerprint function
-user = User.resolve_token(token, lambda u: u.email, max_age=24 * HOURS, salt="my-purpose")
-```
-
-The `fingerprint` argument is a callable that receives the model instance and returns a JSON-serializable value. It defaults to `lambda x: None` (no fingerprint check). The `salt` defaults to the model class name.
-
-Tokens are timed by default: each call gives a different token, and `resolve_token` can enforce `max_age`. Pass `timed=False` for a token without a timestamp: it is identical on every call for the same record, fingerprint and salt, and it can never expire. Since it can't prove its age, it only resolves with `max_age=None`. Use it for stable, cacheable URLs (this is what `attachment.url` does), never for anything that should expire, like password resets.
-
-```python
-token = record.generate_token(salt="share", timed=False)   # same value every time
-record = MyModel.resolve_token(token, salt="share", max_age=None)
-```
-
-
-
-## Database Configuration
-
-The database is configured in `config/storage.py` using the `DATABASES` dictionary. Each key is a database name, and the value specifies the driver and connection parameters:
-
-```python
-import os
-import typing as t
-
-
-env = os.getenv("APP_ENV", "dev")
-
-DATABASES: dict[str, t.Any] = {
-    "main": {
-        "type": "peewee.SqliteDatabase",
-        "database": "storage/app.sqlite3",
-    },
-}
-```
-
-The `type` key is a dotted import path to a Peewee database class. The remaining keys are passed as keyword arguments to that class.
-
-### SQLite (Development)
-
-```python
-DATABASES = {
-    "main": {
-        "type": "peewee.SqliteDatabase",
-        "database": "storage/app.sqlite3",
-    },
-}
-```
-
-### PostgreSQL (Production)
-
-```python
-DATABASES = {
-    "main": {
-        "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
-        "database": os.getenv("DB_NAME", "myapp"),
-        "host": os.getenv("DB_HOST", "127.0.0.1"),
-        "port": int(os.getenv("DB_PORT", 5432)),
-        "user": os.getenv("DB_USER", "root"),
-        "password": os.getenv("DB_PASSWORD", ""),
-        "autoconnect": False,
-    },
-}
-```
-
-Set `autoconnect: False` in production. Proper manages database connections automatically per request: it opens a connection before routing and closes it after the response is sent. If an unhandled error occurs, Proper issues a rollback before closing.
-
-### Per-Environment Overrides
-
-The generated `config/storage.py` uses the `APP_ENV` environment variable to switch configurations:
-
-```python
-env = os.getenv("APP_ENV", "dev")
-
-# Default (dev) database
-DATABASES: dict[str, t.Any] = {
-    "main": {
-        "type": "peewee.SqliteDatabase",
-        "database": "storage/app.sqlite3",
-    },
-}
-
-# Override for tests
-if env == "test":
-    DATABASES["main"] = {
-        "type": "peewee.SqliteDatabase",
-        "database": ":memory:",
-    }
-
-# Override for production
-if env == "prod":
-    DATABASES["main"] = {
-        "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
-        "database": os.getenv("DB_NAME", "myapp"),
-        "host": os.getenv("DB_HOST", "127.0.0.1"),
-        "port": int(os.getenv("DB_PORT", 5432)),
-        "user": os.getenv("DB_USER", "root"),
-        "password": os.getenv("DB_PASSWORD", ""),
-        "autoconnect": False,
-    }
-```
-
-### Multiple Databases
-
-You can configure multiple databases for different purposes. The keys `"proper_queue"` and `"proper_cache"` are reserved for the task queue and cache backends respectively:
-
-```python
-DATABASES = {
-    "main": {
-        "type": "peewee.SqliteDatabase",
-        "database": "storage/app.sqlite3",
-    },
-    "analytics": {
-        "type": "playhouse.postgres_ext.PostgresqlExtDatabase",
-        "database": "analytics",
-        "host": "analytics-db.internal",
-    },
-}
-```
-
-To use a secondary database, reference it in your model's `Meta` class:
-
-```python
-class PageView(pw.Model):
-    class Meta:
-        database = app.db["analytics"]
-```
-
-
-## Scopes
-
-Scopes are reusable query fragments you can chain onto `select()`. They work like Rails scopes — define them once on the model, then mix and match freely.
-
-### Defining Scopes
-
-Import `scope` from `proper` (it's already exported in `base.py`) and decorate class methods. The first argument is the model class and the second is the query:
-
-```python
-import peewee as pw
-
-from .base import BaseModel, scope
-
-
-class Article(BaseModel):
-    title = pw.CharField()
-    status = pw.CharField(default="draft")
-    views = pw.IntegerField(default=0)
-    category = pw.CharField(default="general")
-    created_at = pw.DateTimeField()
-
-    @scope
-    def published(cls, query):
-        return query.where(cls.status == "published")
-
-    @scope
-    def popular(cls, query, min_views=1000):
-        return query.where(cls.views >= min_views)
-
-    @scope
-    def in_category(cls, query, cat):
-        return query.where(cls.category == cat)
-
-    @scope
-    def recent(cls, query):
-        return query.order_by(cls.created_at.desc())
-
-    @scope
-    def top(cls, query, n=10):
-        return query.order_by(cls.views.desc()).limit(n)
-```
-
-### Using Scopes
-
-Chain scopes after `.select()` — they compose freely with each other and with native Peewee methods:
-
-```python
-# Chain multiple scopes
-articles = Article.select().published().popular(500).in_category("tech").recent()
-
-# Mix scopes with native Peewee methods
-articles = (Article
-    .select()
-    .published()
-    .where(Article.title.contains("Python"))
-    .paginate(1, 20))
-
-# Scopes work across joins
-comments = (Comment
-    .select()
-    .approved_only()
-    .recent()
-    .join(Article)
-    .where(Article.category == "tech"))
-
-# Reuse a base query
-base = Article.select().published().recent()
-tech    = base.in_category("tech").top(5)
-science = base.in_category("science").top(5)
-```
-
-Scopes are preserved through `where()`, `order_by()`, `join()`, `switch()`, `paginate()`, `limit()`, `offset()`, and all other query-building methods. Methods like `count()`, `exists()`, or iterating the query execute normally.
-
-### BaseModel Setup
-
-The generated `BaseModel` already inherits from `ProperModel`, so scopes work on all your models out of the box:
-
-```python
-# models/base.py
-from proper import ProperModel, scope  # noqa
-
-class BaseModel(ProperModel):
-    class Meta:
-        database = app.db["main"]
-```
-
-If a model has no `@scope` methods, it behaves exactly like a regular Peewee model with zero overhead.
-
-
 ## BaseModel
 
 Your app defines a `BaseModel` in `models/base.py`:
 
 ```python
-import peewee as pw
-from proper import ProperModel, scope  # noqa
+import typing as t
+from datetime import datetime, timezone
 
+import peewee as pw
+
+from proper import ProperModel, scope  # noqa
 from ..main import app
 
 
 db = app.db["main"]
 
 
+def utcnow() -> datetime:
+    """The naive UTC datetime peewee's `utcnow` returns, with a type."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class _MainDatabase:
+    database = db
+
+
 class BaseModel(ProperModel):
-    class Meta:
-        database = app.db["main"]
+    Meta: t.Any = _MainDatabase
+
+    created_at = pw.DateTimeField(default=utcnow)
 ```
 
-- **BaseModel** - the parent class for all your models. Inherits from `ProperModel`, which adds scope support and token generation/resolution.
+- **BaseModel** - the parent class for all your models. Inherits from `ProperModel`, which adds `find()`, scope support and token generation/resolution. `Meta` is assigned instead of declared as an inner class so type checkers don't read every model's `Meta` as an override.
+- **`created_at`** - every model gets it, set when the record is created. There is no `updated_at` by default: the `RussianDollCached` concern adds it ([models_advanced.md](models_advanced.md#russiandollcached)).
+- **`utcnow()`** - import it from `.base` for timestamps (`from .base import BaseModel, utcnow`).
 
 
 The `db` object is also exported for convenience so you can import it directly when you need the raw database instance (e.g., for `db.atomic()` transactions).
-
-
-## Migrations
-
-Proper uses [peewee-migrate](https://github.com/klen/peewee-migrate) for schema migrations. Migration files are Python scripts that live in the `db/` directory, organized by database name.
-
-### Creating Migrations
-
-After changing your models, create a migration that captures the changes:
-
-```bash
-proper db create "add photos table"
-```
-
-This auto-detects changes in your models (new tables, new columns, etc.) and generates a migration file in `db/main/`. The auto-detection works by comparing the current state of your models against the migrations already written.
-
-You can target a specific database with the `--db` flag:
-
-```bash
-proper db create "description" --db=analytics
-```
-
-It writes only the models stored in that database (`Meta.database` is `app.db["analytics"]`).
-
-### Running Migrations
-
-Run all pending migrations across all databases:
-
-```bash
-proper db migrate
-```
-
-Or target a specific database:
-
-```bash
-proper db migrate --db=main
-```
-
-Run migrations up to a specific target:
-
-```bash
-proper db migrate_to 003_add_comments
-```
-
-### Rolling Back
-
-Rollback the most recent migration:
-
-```bash
-proper db rollback
-```
-
-Target a specific database:
-
-```bash
-proper db rollback --db=main
-```
-
-### Inspecting Migration Status
-
-See which migrations have been applied:
-
-```bash
-proper db done
-```
-
-See which migrations are pending:
-
-```bash
-proper db todo
-```
-
-`proper run` warns before serving when a database has migrations that were not applied (`proper.models.migrations.pending_migrations(app)`, `{db: [migration, ...]}`; it only reads). `app.has_migrations_pending()` is the same check as a bool.
-
-### Merging Migrations
-
-If you have accumulated many small migrations during development, you can merge them into a single migration:
-
-```bash
-proper db merge "initial"
-```
-
-### Fake Migrations
-
-Mark migrations as applied without actually running them. This is useful when you've manually applied changes to a database:
-
-```bash
-proper db migrate --fake
-```
-
-### Adding Fields to Existing Models
-
-The most common migration workflow is adding new fields to an existing model. The steps are:
-
-1. **Add the field to your model:**
-
-```python
-class Photo(BaseModel):
-    title = pw.CharField()
-    description = pw.TextField()
-    status = pw.CharField(default="draft")       # new field
-    featured = pw.BooleanField(default=False)     # new field
-```
-
-2. **Generate the migration:**
-
-```bash
-proper db create "add status and featured to photos"
-```
-
-This auto-detects the new fields by comparing your model definitions against the previous migration state. The generated migration will use `migrator.add_fields()`:
-
-```python
-def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
-    migrator.add_fields(
-        'photo',
-        status=pw.CharField(default='draft'),
-        featured=pw.BooleanField(default=False),
-    )
-
-def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
-    migrator.remove_fields('photo', 'status', 'featured')
-```
-
-3. **Apply the migration:**
-
-```bash
-proper db migrate
-```
-
-**Important:** If the table already has rows, new fields must either have a `default` value or be `null=True`. A non-nullable field without a default will fail to add to a table that contains data.
-
-The same `proper db create` workflow also detects removed fields and changed field options (e.g., adding `unique=True` to an existing field).
-
-### Migration File Structure
-
-Migrations are plain Python files with `migrate()` and `rollback()` functions:
-
-```python
-"""Peewee migrations -- 002_add_photos.py."""
-import peewee as pw
-from peewee_migrate import Migrator
-
-
-def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
-    @migrator.create_model
-    class Photo(pw.Model):
-        id = pw.AutoField()
-        title = pw.CharField(max_length=255)
-        description = pw.TextField(default="")
-        published = pw.BooleanField(default=False)
-
-        class Meta:
-            table_name = "photo"
-
-
-def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
-    migrator.remove_model("photo")
-```
-
-Migrations cannot be created for in-memory databases.
-
-
-## Seeds
-
-A **seed** is a small, idempotent script that inserts canonical data into the database — default roles, reference rows, the first admin user. Seeds describe data the *current* schema needs; migrations describe schema changes pinned to a single moment in history. Run `proper db migrate` to set up the schema, then `proper db seed` to populate it.
-
-### Where Seeds Live
-
-Seeds live in `db/seeds/`, parallel to the per-database migration folders:
-
-```
-db/
-├── main/                       # migrations for "main"
-│   ├── 001_initial.py
-│   └── 002_add_book.py
-└── seeds/
-    ├── __init__.py
-    ├── roles.py
-    └── admin_user.py
-```
-
-For multi-database apps, mirror the per-database layout (`db/seeds/<db_name>/`).
-
-The import order in `db/seeds/__init__.py` *is* the dependency graph:
-
-```python
-# db/seeds/__init__.py
-from . import roles       # noqa
-from . import admin_user  # noqa
-```
-
-A seed file that isn't imported here will never run.
-
-### Writing a Seed
-
-Each seed file exports a `seed()` function and declares which `APP_ENV` values it runs in:
-
-```python
-# db/seeds/roles.py
-from myapp.models import Role
-
-
-envs = ("dev", "test", "prod")
-
-
-def seed():
-    for name in ["admin", "editor", "viewer"]:
-        Role.get_or_create(name=name)
-```
-
-`seed()` takes no arguments and returns nothing. It must be safe to run repeatedly — use `get_or_create` (or an explicit existence check) and avoid plain `Model.create(...)`, which will hit a unique-constraint error on the second run.
-
-For seeds with attributes beyond the lookup key, pass `defaults`:
-
-```python
-user, _ = User.get_or_create(
-    email="admin@example.com",
-    defaults={"name": "Admin", "password_hash": hash_password("changeme")},
-)
-```
-
-`defaults` are only used when *creating*, so re-running the seed never overwrites values that changed in the interim.
-
-### Environment-Aware Seeds
-
-`APP_ENV` is set automatically: `dev` locally, `test` during tests, `prod` in production. The `envs` tuple is the only knob — there is intentionally no `--force` flag.
-
-- `("dev", "test", "prod")` — every context.
-- `("dev", "prod")` — everywhere except tests.
-- `("dev",)` — only on a developer's machine (sample/demo content).
-
-If `APP_ENV` isn't in the tuple, the seed is skipped and the CLI reports it as such.
-
-### Running Seeds
-
-```bash
-proper db seed                  # run every seed for "main", in import order
-proper db seed roles            # run a single seed by name
-proper db seed --db analytics   # target a different database
-```
-
-`proper db migrate` does **not** run seeds — schema and seed data are deliberately separate.
-
-### Generating a Seed
-
-```bash
-proper g seed roles
-proper g seed reference_paths --db analytics
-```
-
-The generator creates `db/seeds/<name>.py` with a `seed()` skeleton and `envs = ("dev", "test", "prod")`, and adds the import line to `db/seeds/__init__.py`.
-
-### Seeds and Tests
-
-Seeds are not run automatically during tests. If a test needs canonical data, call the seed function from a fixture:
-
-```python
-# tests/conftest.py
-from db.seeds.roles import seed as seed_roles
-
-@pytest.fixture(autouse=True)
-def setup_default_data():
-    seed_roles()
-```
-
-In general, tests should use fixtures (model factories, explicit setup) rather than seeds — seeds describe the canonical state of the application, not the state of one specific test.
-
-
-## Generators
-
-### Generating a Model
-
-The model generator creates a model file and registers it in `models/__init__.py`:
-
-```bash
-proper g model Photo title:str description:text published:bool
-```
-
-This generates `models/photo.py`:
-
-```python
-import peewee as pw
-
-from .base import BaseModel
-
-
-class Photo(BaseModel):
-    title = pw.CharField()
-    description = pw.TextField()
-    published = pw.BooleanField()
-```
-
-#### Field Type Shortcuts
-
-The generator supports these type names:
-
-| Type shortcut | Peewee Field          |
-|---------------|-----------------------|
-| `str`         | `CharField()`         |
-| `text`        | `TextField()`         |
-| `int`         | `IntegerField()`      |
-| `bigint`      | `BigIntegerField()`   |
-| `float`       | `FloatField()`        |
-| `decimal`     | `DecimalField()`      |
-| `bool`        | `BooleanField()`      |
-| `date`        | `DateField()`         |
-| `datetime`    | `DateTimeField()`     |
-| `time`        | `TimeField()`         |
-| `uuid`        | `UUIDField()`         |
-| `blob`        | `BlobField()`         |
-| `fk`          | `ForeignKeyField()`   |
-
-If you omit the type, it defaults to `str` (CharField).
-
-Some aliases are also accepted: `string`/`char` for `str`, `boolean` for `bool`, `integer` for `int`, `binary` for `blob`, `numeric` for `decimal`.
-
-#### Field Options
-
-Add options after the type, separated by commas:
-
-```bash
-proper g model Photo title:str,unique views:int,default:0 description:text,null
-```
-
-This generates:
-
-```python
-class Photo(BaseModel):
-    title = pw.CharField(unique=True)
-    views = pw.IntegerField(default=0)
-    description = pw.TextField(null=True)
-```
-
-Options without a value default to `True`. You can use any Peewee field option: `null`, `unique`, `index`, `default`, `primary_key`, etc.
-
-#### Foreign Keys
-
-Use `fk-ModelName` as the type. Add `backref` and other options with commas:
-
-```bash
-proper g model Comment body:text user:fk-User,backref:comments photo:fk-Photo,backref:comments,on_delete:CASCADE
-```
-
-This generates:
-
-```python
-class Comment(BaseModel):
-    body = pw.TextField()
-    user = pw.ForeignKeyField(User, backref="comments")
-    photo = pw.ForeignKeyField(Photo, backref="comments", on_delete="CASCADE")
-```
-
-#### Generating with a Migration
-
-Add `--migration` to also create a migration file:
-
-```bash
-proper g model Photo title:str description:text --migration
-```
-
-### Generating a Full Resource
-
-The resource generator creates a model, controller, form, and views all at once:
-
-```bash
-proper g resource Photo title:str description:text published:bool
-```
-
-This generates:
-
-- `models/photo.py` - the model
-- `controllers/photo_controller.py` - a CRUD controller with all actions
-- `forms/photo.py` - a form class linked to the model
-- `views/photo/` - Jx templates for index, show, new, edit, and delete
-
-You can limit which actions are generated:
-
-```bash
-# Only generate index and show
-proper g resource Photo title:str --only=index,show
-
-# Generate everything except delete
-proper g resource Photo title:str --exclude=delete
-
-# Singular resource (no index, no :id in URLs)
-proper g resource Profile --singular
-
-# Custom primary key placeholder
-proper g resource Photo title:str --pk=uuid
-
-# Include a migration
-proper g resource Photo title:str --migration
-```
 
 
 ## Integration with Controllers and Forms
@@ -1238,63 +471,3 @@ The key model-related conventions in controllers:
 - `form.save()` returns a model instance with validated data applied, **already persisted** (created or updated). No follow-up `model.save()` is needed.
 - `form.save(user_id=123)` accepts extra kwargs that are set on the model before persistence.
 - Forms are linked to models via `Meta.orm_cls` in the form class. See [forms.md](forms.md#orm-integration) for details.
-
-
-## Testing Models
-
-The generated `tests/conftest.py` sets up a test database with automatic transaction rollback per test:
-
-```python
-import pytest
-
-from myapp.models import db
-from myapp.models.base import BaseModel
-
-
-@pytest.fixture(scope="session")
-def db_setup():
-    # Safety check: only run on test or in-memory databases
-    assert "_test" in db.database or db.database == ":memory:"
-    models = BaseModel.__subclasses__()
-    db.drop_tables(models)
-    db.create_tables(models, safe=True)
-    load_fixtures()
-    yield
-    db.drop_tables(models)
-
-
-def load_fixtures():
-    pass
-
-
-@pytest.fixture(autouse=True)
-def db_reset(db_setup):
-    with db.atomic() as transaction:
-        yield
-        transaction.rollback()
-```
-
-Key features:
-
-- **Safety check** - asserts the database name contains `_test` or is `:memory:` to prevent accidentally wiping a real database
-- **Auto-discovery** - finds all models via `BaseModel.__subclasses__()`
-- **Transaction rollback** - every test runs inside a transaction that is rolled back after the test finishes, ensuring tests are isolated and fast
-- **Fixtures** - add seed data in `load_fixtures()` that is loaded once per session
-
-Write model tests against real database operations, not mocks:
-
-```python
-def test_create_photo():
-    photo = Photo.create(title="Sunset", published=True)
-    assert photo.id is not None
-    assert photo.title == "Sunset"
-
-
-def test_query_published_photos():
-    Photo.create(title="Sunset", published=True)
-    Photo.create(title="Draft", published=False)
-
-    published = Photo.select().where(Photo.published == True)
-    assert published.count() == 1
-    assert published[0].title == "Sunset"
-```

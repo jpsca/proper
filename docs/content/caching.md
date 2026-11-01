@@ -280,7 +280,7 @@ The full syntax has four arguments. Only the first is required:
 {% endcache %}
 ```
 
-The arguments go in parentheses, as in a function call. `{% cache "sidebar" %}` without them is a template syntax error.
+The arguments are written as in a function call, with or without parentheses around them: `{% cache "sidebar" %}`, `{% cache("sidebar") %}` and `{% cache "sidebar", expires_in=300 %}` are all valid; a comma separates the key from the keyword arguments. `{% cache ("a", "b") %}`, with a space before the parenthesis, passes one tuple argument (a collection key), not two arguments.
 
 Argument             | Type                          | Description
 -------------------- | ----------------------------- | -----------------------------

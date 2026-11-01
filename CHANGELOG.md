@@ -6,6 +6,80 @@ All notable changes to Proper are documented in this file.
 
 ### Changed
 
+- The `proper` skill (`skills/proper/`, also `skill.zip`) is reorganized so an
+  agent reads less per task: each topic lives in one doc and the big docs are
+  split along task lines. `controllers.md` becomes `controllers.md`,
+  `rendering.md`, `concerns.md` and `namespacing.md`; `channels.md` becomes
+  `channels.md` (server side) and `cable.md` (client, settings, backends);
+  `models.md` becomes `models.md`, `models_advanced.md` (mixins, scopes,
+  tokens), `migrations.md` and `generators.md`; `app.md` keeps the app and
+  config and the rest moves to `cli.md`. Lookup tables (`api.md`, status codes,
+  the cable's wire protocol, the options of every form field) move to
+  `reference/`. `routing.md` becomes `routing.md` and `urls.md`; `storage.md` becomes
+  `storage.md` and `storage_advanced.md` (variants, previews, custom
+  services); the layout patterns of `jx.md` move to `frontend.md` and its
+  Catalog API to `reference/`. The htmx section of `jx.md` is gone: Proper
+  apps use Turbo.
+- The skill gets a `deployment.md`: what runs in production, sizing, the
+  prod config and `.env`, compiled views, the Dockerfile, compose, nginx,
+  trusted proxies, the worker and the deploy checklist. `migrations.md` now
+  shows the blueprint's `PooledPsycopg3Database` for production.
+- `security.md`, `caching.md`, `frontend.md`, `routing.md` and `urls.md` of the
+  skill were checked against the code and corrected: the `{% cache %}` tag
+  takes its arguments with or without parentheses (the docs said the
+  parentheses were required; the human caching guide is fixed too); the
+  `Cache-Control` of the assets is `max-age=31536000, public, immutable`;
+  `RussianDollCached` is what adds `updated_at` and `touch()` to a model;
+  `RedisCache` recomputes in every caller inside the `race_condition_ttl`
+  window; error handlers are skipped with `DEBUG`; hosts in routes are
+  matched lowercase and without a port; `proper routes` prints `↪` for a
+  redirect; the layout the blueprint generates is `layouts/base.jx` wrapped
+  by `layouts/app.jx`; `assets.render_css()` does not go through `url_for`.
+  The `MAX_QUERY_SIZE` comment in the config and the blueprint named an
+  error it never raises.
+- `storage.md`, `storage_advanced.md`, `rich_text.md` and `reference/api.md`
+  of the skill were checked against the code and corrected: the Attachment
+  `id` is a `CharField(32)` and the Disk layout is
+  `{root}/{id[:2]}/{id[2:4]}/{id}/{filename}`; the installer writes
+  `STORAGE_SAFE_IMAGE_LOADERS`, not `STORAGE_MAX_IMAGE_PIXELS`; the previewer
+  options (`page`, `dpi`, `at_seconds`) can't go through `variant()`;
+  `delete_instance()` leaves the file in place; the sweep task of rich text
+  is `tasks/abandoned_uploads_sweep.py`; the "custom attachment" prompt
+  flavour is not supported by the renderer; `render` takes `stream=`,
+  `dumps`/`loads` take `timed=`, `App` has no `serializers`/`signers`,
+  `make_list` and `run_seeds` are not exported from `proper`, and the
+  request's `turbo_frame`/`turbo_stream` and several other members were
+  missing from the reference.
+- The remaining skill docs (`models`, `models_advanced`, `migrations`,
+  `generators`, `forms`, `form_fields`, `tasks`, `emails`, `i18n`, `auth`, `jx`,
+  `jx_catalog`, `turbo`, `controllers`, `rendering`, `concerns`,
+  `namespacing`) were checked against the code and corrected. The largest
+  errors: a `Timestamped` model concern that no longer exists (`created_at` is
+  on `BaseModel`, `updated_at` comes from `RussianDollCached`);
+  `app.i18n.format_datetime` doesn't exist (`format_date` takes a datetime);
+  the auth installer writes a `controllers/concerns/authentication.py`
+  subclass, not `Authentication.for_session()`; sign-out is `DELETE /sign-in`
+  and the password-reset form is at `/password-reset`; `render()` never sets
+  the body by itself and a template missing in the client's format is a 406;
+  the stream builder has no `content=` argument; `attrs` renders sorted by name
+  and `render()` classes go first; a form without data is valid; `EmailField`
+  needs `email-validator`, which Proper doesn't install; priorities work on
+  `MemoryHuey` and `SqliteHuey` and `RedisHuey` raises; `SqlHuey` creates its
+  own tables; `graceful_signal` defaults to `"INT"`; `JSONField` is imported
+  from `proper`, not `proper.helpers`. The human docs lose the same
+  `format_datetime`, `Timestamped` and `for_session` mentions. `SKILL.md` routes to the
+  new docs and points to the proper-examples repository.
+- The last skill docs (`channels`, `cable`, `cable_protocol`, `app`, `cli`,
+  `testing`, `status_codes`) were checked against the code and corrected.
+  The largest errors: `client.sign_in()` takes a `Session` and sets the
+  cookie as a default header (the auth addon adds the `sign_in_as` and
+  `signed_client` fixtures), and there is no `sign_out()`; the generated
+  `tests/conftest.py` has a `client` fixture; Proper opens and closes only
+  the databases with `autoconnect: False`; the pipeline steps are logged
+  with `LOG_LEVEL = "debug"`, not `DEBUG`; only the methods a channel class
+  defines are actions, and an action that raises answers `error`; the
+  `Cable` options and the CLI commands lists were incomplete. The human
+  docs lose the same claim about the connections.
 - JSON columns use Peewee's own `JSONField` (`pw.JSONField`, with JSON path
   queries). `proper.models.JSONField` is kept only for backwards compatibility:
   it is `pw.JSONField` with the old field's encoder as default, so the data an
