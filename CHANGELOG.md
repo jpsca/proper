@@ -80,6 +80,12 @@ All notable changes to Proper are documented in this file.
   defines are actions, and an action that raises answers `error`; the
   `Cable` options and the CLI commands lists were incomplete. The human
   docs lose the same claim about the connections.
+- `make lint` runs `bin/check-skill.py`, which fails on a broken link or
+  anchor inside the skill, on a doc without `title`, `description`,
+  `last_verified` and `sources` in its frontmatter, on a Python example that
+  doesn't parse, and on a `from proper import` that doesn't resolve; and
+  warns of a doc whose `sources` (the code it was checked against) have a
+  commit newer than its `last_verified`.
 - JSON columns use Peewee's own `JSONField` (`pw.JSONField`, with JSON path
   queries). `proper.models.JSONField` is kept only for backwards compatibility:
   it is `pw.JSONField` with the old field's encoder as default, so the data an
