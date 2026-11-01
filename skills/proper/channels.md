@@ -1,7 +1,11 @@
 ---
 title: Channels
-description: Channels addon — WebSockets served by Bearings; channels, streams and broadcasting, replies to actions, presence, recovery of missed broadcasts, the cable.js client and Turbo Streams, several machines (RedisCable), testing
-last_verified: 2026-10-06
+description: Channels addon, server side: defining channels, lifecycle, actions and replies, streams, broadcasting and presence, authentication, debugging, testing
+last_verified: 2026-10-31
+sources:
+  - src/proper/channels
+  - src/proper/tools/cable.py
+  - src/proper/_blueprints/addon_channels
 ---
 
 # Channels
@@ -21,6 +25,8 @@ Channel code is regular sync Python. Channel methods run in the cable's worker t
 
 Outbound, Bearings writes the frames: `send()` and subscription confirmations go to one connection, a `broadcast()` is one frame written to every subscriber of the stream.
 
+The browser client (`cable.js`), the cable's configuration and backends (Bearings, RedisCable) and a full example are in [cable.md](cable.md). The frames on the wire are in [reference/cable_protocol.md](reference/cable_protocol.md).
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -30,13 +36,9 @@ Outbound, Bearings writes the frames: `send()` and subscription confirmations go
 - [Streams and Broadcasting](#streams-and-broadcasting)
 - [Turbo Streams](#turbo-streams)
 - [Channel Properties](#channel-properties)
-- [Client-Side Usage](#client-side-usage)
-- [Wire Protocol](#wire-protocol)
-- [Configuration](#configuration)
+- [Authentication](#authentication)
 - [When Nothing Arrives](#when-nothing-arrives)
 - [Testing](#testing)
-- [Several Machines (RedisCable)](#several-machines-rediscable)
-- [Full Example](#full-example)
 
 
 ## Installation
@@ -108,7 +110,7 @@ Messages sent during `subscribed()` are buffered and flushed to the client befor
 
 ### `unsubscribed()`
 
-Called when the client unsubscribes, when the connection closes (tab closed, network drop noticed, server closed it via `disconnect()` or the slow-client watcher), and for every open connection when the server stops cleanly. Use it for cleanup. The framework removes the channel from all streams before calling this method.
+Called when the client unsubscribes, when the connection closes (tab closed, network drop noticed, server closed it via `disconnect()`, or it fell `CABLE_MAX_PENDING_BYTES` behind and was closed with code 1013), and for every open connection when the server stops cleanly. Use it for cleanup. The framework removes the channel from all streams before calling this method.
 
 It does not run if the process is killed or crashes, and for a connection that dies silently it runs late: the cable closes a connection that answers no ping for `idle_timeout` (60 s), and `unsubscribed()` runs then. `cable.js` answers the cable's `{"c":"WSE","t":"ping"}` with a PONG, so a page that only listens isn't closed. Do not put critical cleanup solely here.
 
@@ -127,7 +129,7 @@ def subscribed(self):
 
 ## Action Methods
 
-Any public method on a channel (other than the blocked names below) can be invoked by the client as an action. The client sends a `message` command with an `action` name and optional `data`. The method is always called as `method(data)`, with `{}` when the client sent no data, so every action takes a `data` argument.
+A method your channel class defines (or a class between it and `Channel`, such as a mixin), other than the blocked names below, can be invoked by the client as an action. The client sends a `message` command with an `action` name and optional `data`. The method is always called as `method(data)`, with `{}` when the client sent no data, so every action takes a `data` argument.
 
 ```python
 @router.channel()
@@ -152,11 +154,11 @@ The framework blocks the following from being called as actions:
 
 - Methods starting with `_` (private methods)
 - Empty action names
-- Methods that don't exist or aren't callable
+- Names that aren't a method defined by your channel class or its mixins: an attribute such as `app` or `Session`, or a method of `Channel` itself (`unknown_action`)
 - Lifecycle-only methods: `subscribed`, `unsubscribed`
-- Channel API methods (calling these from the client would let the client bypass server logic): `send`, `broadcast`, `reject`, `stream_from`, `stop_stream_from`, `stop_all_streams`, `find_user`
+- Channel API methods (calling these from the client would let the client bypass server logic): `send`, `broadcast`, `reject`, `stream_from`, `stop_stream_from`, `stop_all_streams`, `track`, `untrack`, `update_presence`, `find_user`, `find_session`
 
-Every other public method is reachable from the client: prefix helpers with `_`.
+Every other method your class defines is reachable from the client: prefix helpers with `_`.
 
 One action name is conventional: `receive`. The client's `sub.send(data)` is shorthand for `perform("receive", data)`, so defining a `receive(self, data)` method makes it the default handler for messages sent that way.
 
@@ -262,28 +264,8 @@ def notify_user(user_id, payload):
 
 ## Turbo Streams
 
-Proper bundles Turbo. Instead of broadcasting JSON and rebuilding the DOM in `received()`, broadcast a rendered Jx component wrapped in a `<turbo-stream>` and let Turbo apply it.
+Instead of JSON, broadcast a rendered `<turbo-stream>` fragment and let Turbo apply it: `app.cable.broadcast(stream, turbo_stream.append("messages", "Message.jx", message=message))`. The page subscribes with `<turbo-stream-channel channel="ChatChannel" params='{"room_id": 42}'>` (or `streamFrom(channel, params)` from `cable`), both in `cable.js`. Authorization is unchanged: the channel derives and authorizes the stream name in `subscribed()`. After a reconnection the missed fragments are applied on arrival; when they can't be recovered the element dispatches a bubbling `turbo-stream-channel:gap` event (`streamFrom(channel, params, {onGap})`): reload the content then. The builder and the stream responses are in [turbo.md](turbo.md#turbo-streams).
 
-Build the fragment with the `turbo_stream` builder (`proper.turbo`, re-exported as `proper.turbo_stream`). Call an action method — `append`, `prepend`, `replace`, `update`, `remove`, `before`, `after`, `morph`, `refresh` — with a target id (or a model, via `dom_id`) and a `component` relpath plus props (or ready-made `html`/`content`):
-
-```python
-from proper import turbo_stream
-
-app.cable.broadcast(
-    f"chat_{room_id}",
-    turbo_stream.append("messages", "Message.jx", message=message),
-)
-```
-
-The channels addon ships the bridge inside `cable.js` (imported from `application.js` on install), which defines:
-
-- `<turbo-stream-channel channel="ChatChannel" params='{"room_id": 42}'>` — declarative subscription that feeds each frame to `Turbo.renderStreamMessage`.
-- `streamFrom(channel, params)` — the imperative equivalent (`import { streamFrom } from "cable"`).
-
-Authorization is unchanged: the client sends `params`, and the channel derives and authorizes the stream name in `subscribed()`. The same fragment also serves an HTTP response — return it from a controller with `render(stream=...)`, or render a `*.turbo_stream.jx` view. The builder, frames, and stream responses are documented in full in [turbo.md](turbo.md).
-
-
-After a reconnection the missed `<turbo-stream>` fragments are applied on arrival. When they can't be recovered, `<turbo-stream-channel>` dispatches a bubbling `turbo-stream-channel:gap` DOM event (`streamFrom(channel, params, {onGap})` takes a function): listen to it to reload the content, e.g. `Turbo.visit(location.href, {action: "replace"})`.
 
 ## Channel Properties
 
@@ -349,202 +331,11 @@ channels that no longer authorize them reject the subscription.
 
 `Channel.find_session()` finds the connection's session, once per connection when its first channel subscribes; by default from the signed auth cookie. Override it in `AppChannel` to accept a token, e.g. `Authorization: Bearer <token>` from `self.request.headers` (`return Session.find_by_token(token)`, falling back to `super().find_session()`); return `None` for anonymous. `self.request` also has `query` (the handshake's query string) and `remote_ip` (honors `X-Forwarded-For` when the handshake's peer is in `TRUSTED_PROXIES`; a handshake without a peer address, which only the in-memory server's `connect()` without details gives, has no `X-Forwarded-For` and `remote_ip == ""`).
 
-## Client-Side Usage
-
-The generated app includes `cable.js`, an ES module that handles the WebSocket protocol, subscription management, and automatic reconnection.
-
-### Basic Usage
-
-```javascript
-import { cable } from "cable"
-
-// Connect to the WebSocket endpoint
-cable.connect()
-
-// Subscribe to a channel
-const chat = cable.subscribe("ChatChannel", { room: "general" }, {
-  connected({ reconnected, recovered }) { if (reconnected && recovered === false) reload() },
-  presence(users, change) { renderWhoIsHere(users) },
-  disconnected() { console.log("disconnected") },
-  rejected()     { console.log("subscription denied") },
-  received(data) { console.log("got:", data) },
-})
-
-// Invoke an action on the channel
-chat.perform("speak", { message: "hello" })
-
-// Shorthand for perform("receive", data)
-chat.send({ message: "hello" })
-
-// Unsubscribe from the channel
-chat.unsubscribe()
-
-// Disconnect entirely
-cable.disconnect()
-```
-
-### `cable.connect(url?)`
-
-Opens the WebSocket connection. If no URL is provided, it connects to `/cable` on the current host (`ws:` on http, `wss:` on https). When the page has a `<meta name="cable-port">` tag (`render_importmap()` adds it in `DEBUG`), it uses that port on the same host name instead:
-
-```
-ws://localhost:2301/cable   (development, CABLE_PORT from the meta tag)
-wss://example.com/cable     (production, behind the proxy)
-```
-
-The path is hardcoded: with another `CABLE_PATH`, pass the full URL.
-
-### `cable.subscribe(channel, params?, callbacks?)`
-
-Creates a subscription. The `params` argument is optional — if the second argument has callback keys (`connected`, `disconnected`, `received`, `rejected`), it is treated as callbacks with empty params:
-
-```javascript
-// With params and callbacks
-cable.subscribe("ChatChannel", { room: "general" }, { received(data) { ... } })
-
-// Callbacks only (no params)
-cable.subscribe("ChatChannel", { received(data) { ... } })
-```
-
-Returns a `Subscription` object.
-
-### Subscription Methods
-
-| Method                      | Description                                 |
-|-----------------------------|---------------------------------------------|
-| `sub.perform(action, data, {timeout}?)` | Invoke a channel action; a promise with its reply (see [Replies](#replies)) |
-| `sub.send(data, {timeout}?)` | Shorthand for `perform("receive", data)`    |
-| `sub.unsubscribe()`         | Unsubscribe and trigger `disconnected`      |
-
-### Automatic Reconnection
-
-On disconnect, `cable.js` reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s, with jitter), for as long as the page is open. On reconnect, all existing subscriptions are automatically re-subscribed, and the `perform()` calls made while disconnected are sent after them (at most 100 wait; past that the oldest rejects with `{reason: "offline"}`; their timeouts keep running).
-
-### Recovery
-
-The server keeps the last broadcasts of each stream (`recovery=True` in `Cable`, the default; `recovery_buffer_size` 128 per stream, `recovery_ttl` 300 s, `recovery_memory_budget` 256 MB). Each broadcast carries a stamp (`tp` stream, `e` epoch, `o` offset); `cable.js` tracks the position per stream, sends it with each `subscribe`, drops duplicates, and when it sees a hole holds the later frames and subscribes again to fetch the missed ones. The missed broadcasts come through `received()` in order. `connected(info)` gets `{reconnected, recovered}`: `recovered` is `true` when all missed ones were sent, `false` when they couldn't be (server restarted, more than the buffer holds, stream without history) — reload the state then — and `null` when nothing was asked (first subscription, or a stream with no broadcasts before the drop; what it broadcast meanwhile is lost). `send()` messages are not recovered, only broadcasts. The server pings every `CABLE_PING_INTERVAL` seconds; a connection silent for three intervals (at least 10 s) is taken for dead and replaced. `cable.connect()` opens one socket for the page: calling it again while connected or connecting does nothing. Call `cable.disconnect()` to stop reconnection.
-
-### Multiple Subscriptions
-
-A single WebSocket connection can hold multiple subscriptions — to different channels or to the same channel with different params:
-
-```javascript
-const general = cable.subscribe("ChatChannel", { room: "general" }, { ... })
-const random  = cable.subscribe("ChatChannel", { room: "random" }, { ... })
-const notifications = cable.subscribe("NotificationChannel", { ... })
-```
-
-Each subscription is identified by its channel name + params combination.
-
-### Loading cable.js
-
-The installer registers `cable.js` in the import map (as `"cable"`) and adds
-`import "cable"` to `application.js`, so it loads with your app bundle — no
-manual `<script>` tag needed. Import it directly:
-
-```javascript
-import { cable } from "cable"
-```
-
-
-## Wire Protocol
-
-Clients connect via WebSocket (see `cable.connect()`) and exchange JSON messages. This section documents the protocol for reference; `cable.js` handles it automatically.
-
-### Client-to-Server Commands
-
-**Subscribe.** `positions` is optional: the last stamp seen per stream; the server sends again the broadcasts after it, for the streams the channel streams from (they may arrive before the confirmation). Sending it for an existing subscription also recovers:
-
-```json
-{"command": "subscribe", "channel": "ChatChannel", "params": {"room": "general"}, "positions": {"chat_general": [{"e": "0000abcd", "o": 41}]}}
-```
-
-The list goes from the oldest epoch to the latest. The server reads one position per epoch (the earliest offset given) and the last `MAX_EPOCHS` (4) epochs of each stream; the rest are ignored. A stream counts as recovered when its latest epoch is: the older ones are of a buffer the server dropped and started again.
-
-**Send a message (invoke an action).** `id` is optional; with one, the server answers with a `reply`:
-
-```json
-{"command": "message", "channel": "ChatChannel", "params": {"room": "general"}, "action": "speak", "data": {"message": "hello"}, "id": 7}
-```
-
-**Unsubscribe:**
-
-```json
-{"command": "unsubscribe", "channel": "ChatChannel", "params": {"room": "general"}}
-```
-
-### Server-to-Client Messages
-
-**Subscription confirmed** (with the streams of the subscription; subscribing again to an existing subscription only re-sends this):
-
-```json
-{"type": "confirm_subscription", "channel": "ChatChannel", "params": {"room": "general"}, "streams": ["chat_general"], "positions": {"chat_general": {"e": "0000abcd", "o": 42}}, "recovered": true, "presence": {}}
-```
-
-`presence` is `{stream: {key: data}}` for the streams the channel tracks. Presence changes arrive as frames to every subscriber of the stream, possibly before the confirmation of the subscription that caused them: `{"c": "WSE", "t": "presence_join" | "presence_leave" | "presence_update", "p": {"topic", "user_id", "data"}}`.
-
-`positions` is where each stream is now (`null` for one with no broadcasts yet); `recovered` is `true` when every missed broadcast asked for was sent again, `false` when some couldn't be, `null` when none were asked (always `null` with `recovery=False`).
-
-**Subscription rejected:**
-
-```json
-{"type": "reject_subscription", "channel": "ChatChannel", "params": {"room": "general"}}
-```
-
-A reject for an unregistered channel carries `"reason": "unknown_channel"`; one for a `subscribed()` that raised an exception (logged, its streams stopped) carries `"reason": "error"`; a reject from your own `reject()` in `subscribed()` has no `reason`.
-
-**Data message (from `send()`):**
-
-```json
-{"type": "message", "channel": "ChatChannel", "params": {"room": "general"}, "data": {"message": "hello"}}
-```
-
-**Broadcast (from `broadcast()`).** One frame for every subscriber, so it names the stream instead of the channel and params; clients route it to every subscription streaming from it (`confirm_subscription` lists the streams). Ignore the `c` field. `tp`/`e`/`o` are the recovery stamp (stream, epoch of its buffer, offset); absent with `recovery=False`:
-
-```json
-{"tp": "chat_general", "e": "0000abcd", "o": 42, "c": "P", "type": "broadcast", "stream": "chat_general", "data": {"message": "hello"}}
-```
-
-**Reply** to a `message` with an `id`: `status: "ok"` with what the action returned as `data` (`null` if nothing), or `status: "error"` with a `reason` in `data` (an `ActionError`'s reason and other data; `error` for any other exception; `not_subscribed`, `invalid_action` or `unknown_action` when there was nothing to run):
-
-```json
-{"type": "reply", "id": 7, "channel": "ChatChannel", "params": {"room": "general"}, "status": "ok", "data": {"id": 42}}
-{"type": "reply", "id": 7, "channel": "ChatChannel", "params": {"room": "general"}, "status": "error", "data": {"reason": "too_long", "max": 500}}
-```
-
-**Error**, for a `message` without an `id` that couldn't run (its reason and an `ActionError`'s data at the top level; any other exception in the action sends nothing), and for a command the server couldn't read:
-
-```json
-{"type": "error", "reason": "not_subscribed"}
-```
-
-Error reasons: `invalid_json`, `unknown_command`, `invalid_message` (JSON that is not an object), `not_subscribed`, `invalid_action`, `unknown_action`, and an `ActionError`'s reason.
-
-**Ping**, the cable's, every `CABLE_PING_INTERVAL` seconds. The client answers `{"c":"WSE","t":"PONG","p":{}}`; one that answers none for the cable's `idle_timeout` (60 s) is closed:
-
-```json
-{"c": "WSE", "t": "ping", "p": {}}
-```
-
-A handshake from another site's page is refused with a 403 (see `CABLE_ALLOWED_ORIGINS`).
-
-
-## Configuration
-
-| Setting      | Default    | Description                        |
-|--------------|------------|------------------------------------|
-| `CABLE_PATH` | `"/cable"` | Path the proxy routes to `CABLE_PORT`, and where other processes `POST` forwarded broadcasts. `cable.js` hardcodes `/cable` |
-| `CABLE_PORT` | `0`        | Port where `Cable` serves the WebSockets, from the web process `proper run` starts. The channels addon sets it to `PORT + 1`. Set with an empty `CABLE`, it is a `ConfigError` |
-| `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the handshake's own `Host`, the app's `HOST` (http and https) and, in `DEBUG`, `localhost`/`127.0.0.1` on `PORT` (`allowed_origins()`, checked by Bearings at the handshake). Handshakes without `Origin` (not browsers) are always allowed; others get a 403 |
-| `CABLE_PING_INTERVAL` | `3` | Seconds between the cable's pings on every connection: an integer, at least 1, less than `CABLE['idle_timeout']` (60) |
-| `CABLE_MAX_PENDING_BYTES` | `4194304` | A client this many bytes behind is closed; `cable.js` reconnects and recovers. At least 1 |
-
-They go in `config/channels.py` (imported from `config/__init__.py`). Changing `CABLE_PATH` also means changing the proxy location and passing the URL to `cable.connect()`. With a `CABLE` set, they are validated at startup (`ConfigError`): `CABLE_PORT` 0–65535, `CABLE_PATH` starting with `/`, the ping interval and `idle_timeout` as above, `CABLE_MAX_PENDING_BYTES` ≥ 1; and `CABLE` may not set `ping_interval`, `allowed_origins` or `recovery_enabled`, which the settings and `recovery` decide.
-
 
 ## When Nothing Arrives
 
 A broadcast to a stream without listeners is not an error. Check: the WS connection in the browser's Network panel (status 101; its frames show `subscribe`, `confirm_subscription`/`reject_subscription`, pings and broadcasts); a reject means `reject()`, an exception in `subscribed()` (server log) or an unregistered name (module not imported in `channels/__init__.py`, or `@router.channel("name")` differs from the class name); the confirmation's `streams` must include the stream broadcast to; `app.cable.streams` lists the streams with subscribers; `app.cable.health()` says whether the process serves WebSockets; a forwarded broadcast that can't reach the web process logs a warning; `received()` gets the data after JSON (dates as strings, models must be dicts). Page-scoped subscriptions must unsubscribe when the page goes away (Turbo Drive swaps the body): use `<turbo-stream-channel>` or a Stimulus controller's `connect()`/`disconnect()`; `cable.connect()` goes in `application.js`.
+
 
 ## Testing
 
@@ -568,7 +359,7 @@ async def test_speak(client):
 | Method | Description |
 |--------|-------------|
 | `await ws.connect()` | Opens the connection; returns a task that ends when it closes. The handshake has the client's default headers (`cookie`, `authorization`, `x-forwarded-for`) and the path of `client.websocket(path)` (`CABLE_PATH` by default; a query string is allowed) |
-| `await ws.subscribe(channel, positions=None, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()`, or a recovered broadcast, comes before the confirmation). `positions={stream: [{"e", "o"}, ...]}` asks for the broadcasts since |
+| `await ws.subscribe(channel, positions=None, **params)` | Sends `subscribe`, returns the **first** frame back (a `send()` from `subscribed()`, a `presence_join` of a `track()`, or a recovered broadcast comes before the confirmation). `positions={stream: [{"e", "o"}, ...]}` asks for the broadcasts since |
 | `await ws.send_action(channel, action, data, **params)` | Calls an action, without asking for a reply |
 | `await ws.perform(channel, action, data, **params)` | Calls an action with an `id` and returns its `reply` frame (`status` `"ok"` or `"error"`, `data`), skipping what the action sent before it |
 | `await ws.unsubscribe(channel, **params)` | Sends `unsubscribe` |
@@ -578,133 +369,3 @@ async def test_speak(client):
 | `await ws.close()` | Disconnects |
 
 Several sessions share the cable, and `client.app.cable.broadcast(...)` from the test reaches them. `client.sign_in(session)` before `client.websocket()` puts the auth cookie on the handshake, so the channel sees `current.user`.
-
-
-## Cable (Bearings)
-
-The default backend, the one the channels addon writes. `CABLE = {"type": "proper.channels.Cable"}` serves the WebSockets with Bearings (the server that runs the app) on `CABLE_PORT`, inside the web process; nothing to install. Channels don't change. A `broadcast()` is one publish to the stream's Bearings topic: one frame, written to every subscriber without Python, using the stream-named frames above. Recovery buffers and presence are kept in Python.
-
-- `proper run` starts it (`app.cable.start_server()`, which returns once it listens on `CABLE_PORT` and raises `OSError`, with the reason, when the port can't be listened on; a `host` name that can't be looked up is a `socket.gaierror`) in its web process and stops it with the server (the WebSockets get `shutdown_grace` seconds to close). The web server (Bearings, WSGI) has no WebSockets; the cable's port answers 404 to anything but a WebSocket on `CABLE_PATH`. In production the reverse proxy routes `CABLE_PATH` to `CABLE_PORT` (the blueprint's nginx config has the block); in `DEBUG` the page announces the port in a `<meta name="cable-port">` tag, rendered by `render_importmap()`, and `cable.js` connects to it directly.
-- Other processes (`PROCESSES` copies, Huey workers, shells) forward `broadcast()` and `disconnect()` to it, signed, as a `POST` to `CABLE_PATH` on `127.0.0.1:forward_port` (`CABLE_PORT + 1` by default). `app.cable.batch()` works. The cable process answers once it has delivered; a sender that gets no answer in 2 s sends again with the same id, and the copy is ignored.
-- Options: `port`, `host` (`0.0.0.0`), `forward_port`, `loops` (4 threads for the sockets; `0` is one per CPU), `workers` (4 threads for channel code), `max_connections` (100000), `max_message` (1 MiB: a larger message from a client closes it, 1009), `max_subscriptions` (0: no limit; past it, `reject_subscription` with `too_many_subscriptions`), `idle_timeout` (60 s), `recovery` (True: keep the last broadcasts of each stream for reconnecting clients), `recovery_buffer_size` (128), `recovery_ttl` (300 s without broadcasts and a stream's buffer is dropped), `recovery_memory_budget` (256 MB for all the buffers; past it, the streams with the oldest last broadcast lose theirs), `presence` (True: who is in each stream, for `track()`), `shutdown_grace` (1 s). Any other option is a `TypeError` at startup.
-- `app.cable.health()` → `{"serving", "connections", "users", "streams", "server": {"connections", "recovery_enabled", "recovery_topic_count", "recovery_bytes", "presence_enabled", "presence_topics"}}` (`{"serving": False, "connections": 0, "streams": 0}` where nothing is served), for a health endpoint. `app.cable.metrics()` → Prometheus text (`proper_cable_connections`, `proper_cable_streams`, `proper_cable_users`; `""` where nothing is served), also served as `GET /metrics` on the loopback forwarding port `127.0.0.1:CABLE_PORT + 1` by the process that serves the WebSockets, for scraping.
-- A client that falls `CABLE_MAX_PENDING_BYTES` behind (it stopped reading) is closed; `cable.js` reconnects and recovers.
-
-
-## Without Channels (`CABLE = {}`)
-
-The default for an app without the addon: a base `Cable` that serves no WebSockets. A `broadcast()` reaches no one (logged at debug level), and `client.websocket()` raises `RuntimeError` on `connect()`. Setting `CABLE_PORT` with an empty `CABLE` is a `ConfigError` at app setup.
-
-
-## Several Machines (RedisCable)
-
-`RedisCable` is `Cable` on several machines, with Redis carrying broadcasts between them (`uv add redis`). Code doesn't change, only the config:
-
-```python {title="config/channels.py"}
-CABLE = {
-    "type": "proper.channels.RedisCable",
-    "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    "prefix": "myapp:cable:",   # unique per app sharing a Redis
-}
-```
-
-- Each machine's web process serves its own WebSockets (Bearings). A `broadcast()` goes straight to the local subscribers of the process that makes it and to Redis; the other machines' web processes deliver it to theirs and skip their own messages.
-- Processes without WebSockets (Huey workers, shells) publish to Redis directly: no HTTP forwarding, no `CABLE_PORT + 1`. `disconnect()` reaches every machine too.
-- Takes every option of `Cable`. The listener reconnects to Redis on its own, backing off up to 30 s; meanwhile what other machines publish is lost, and a broadcast that can't reach Redis is logged and lost. While no message comes, it PINGs Redis every 30 s (`redis_cable.HEALTH_CHECK_INTERVAL`, with TCP keepalive), so a connection that died without closing is found and replaced. A message in Redis it can't deliver is logged and skipped, without reconnecting.
-- Recovery buffers are per machine: a client that reconnects to another machine gets `recovered: false` (use sticky sessions on `CABLE_PATH`).
-- Presence is one list in Redis (a hash per stream, `user → {machine: [data, connections, time]}`, changed by a Lua script): join on a user's first connection anywhere, leave on their last; machines refresh an alive key (5 s, TTL 15 s), and one drops a dead machine's users, who leave. Without Redis, each machine lists its own.
-- Tests from memory (`client.websocket()`) don't touch Redis.
-
-## Full Example
-
-A complete chat feature with a channel, a controller that broadcasts on message creation, and the client-side code.
-
-**Channel:**
-
-```python {title="myapp/channels/chat_channel.py"}
-from ..router import router
-from .app_channel import AppChannel
-
-
-@router.channel()
-class ChatChannel(AppChannel):
-    def subscribed(self):
-        self.stream_from(f"chat_{self.params['room']}")
-
-    def speak(self, data):
-        self.broadcast(f"chat_{self.params['room']}", {
-            "message": data["message"],
-        })
-```
-
-**Controller (creates a persisted message and broadcasts):**
-
-```python {title="myapp/controllers/message_controller.py"}
-from ..models import Message
-from ..router import router
-from .app_controller import AppController
-
-
-@router.resource("rooms/:room_id/messages")
-class MessageController(AppController):
-    def create(self):
-        room_id = self.params["room_id"]
-        message = Message.create(
-            room_id=room_id,
-            text=self.params["text"],
-        )
-        self.app.cable.broadcast(f"chat_{room_id}", {
-            "message": message.text,
-            "id": message.id,
-        })
-        self.response.redirect_to("Message.index", room_id=room_id)
-```
-
-**Client.** `cable.connect()` lives in `application.js`. A page's subscription is tied to an element, so it ends when Turbo Drive swaps the page: a Stimulus controller (loaded by the view with `{#js "js/chat-controller.js" #}`, registered on `window.Stimulus`):
-
-```javascript {title="myapp/assets/js/chat-controller.js"}
-import { Controller } from "@hotwired/stimulus"
-import { cable } from "cable"
-
-class ChatController extends Controller {
-  static targets = ["messages", "input"]
-  static values = { room: String }
-
-  connect() {
-    this.subscription = cable.subscribe("ChatChannel", { room: this.roomValue }, {
-      received: (data) => {
-        const el = document.createElement("div")
-        el.textContent = data.message
-        this.messagesTarget.appendChild(el)
-      },
-    })
-  }
-
-  disconnect() {
-    this.subscription.unsubscribe()
-  }
-
-  async speak() {
-    try {
-      await this.subscription.perform("speak", { message: this.inputTarget.value })
-      this.inputTarget.value = ""
-    } catch (error) {
-      alert(error.reason)  // "too_long", "error", "timeout", ...
-    }
-  }
-}
-
-window.Stimulus.register("chat", ChatController)
-```
-
-```html+jinja {title="myapp/views/room/show.jx"}
-{#js "js/chat-controller.js" #}
-
-<div data-controller="chat" data-chat-room-value="{{ room.name }}">
-  <div data-chat-target="messages"></div>
-  <input data-chat-target="input">
-  <button data-action="chat#speak">Send</button>
-</div>
-```
-
-For HTML broadcasts, `<turbo-stream-channel>` replaces all of this (see [Turbo Streams](#turbo-streams)).

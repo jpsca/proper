@@ -31,7 +31,7 @@ $ proper install auth
 This writes a fair amount into your application; the main pieces are:
 
 - A `User` model and a `Session` model, plus an `Authenticable` model concern.
-- An `Authentication` controller concern - provided by the framework as `proper.concerns.Authentication` and wired into your `AppController` automatically via `Authentication.for_session(Session)`.
+- An `Authentication` controller concern - provided by the framework as `proper.concerns.Authentication` and subclassed in `controllers/concerns/authentication.py` (which sets `Session = Session`) and added to your `AppController` automatically.
 - Three resource controllers - `SignUp`, `Session`, `PasswordReset` - with their templates, forms, and routes already wired together. You typically edit those, not write them.
 
 Don't forget to run the migration (named `users`) that adds the `user` and `session` tables:
@@ -617,14 +617,19 @@ def create(self):
     self.redirect_after_authentication(flash="Welcome back!")
 ```
 
-`Authentication` is a framework concern (`proper.concerns.Authentication`), so you don't edit it in place - **override** `new_session_for` in your `AppController` to forward the flag. The inherited `_set_current_session` does the cookie and `current` wiring:
+`Authentication` is a framework concern (`proper.concerns.Authentication`), so you don't edit it in place - **override** `new_session_for` in your `controllers/concerns/authentication.py` subclass to forward the flag. The inherited `_set_current_session` does the cookie and `current` wiring:
 
 ```python
-# controllers/app_controller.py
+# controllers/concerns/authentication.py
+from proper.concerns import Authentication as ProperAuthentication
 from proper.models import ProperModel
 
+from myapp.models import Session
 
-class AppController(..., Authentication.for_session(Session)):
+
+class Authentication(ProperAuthentication):
+    Session = Session
+
     def new_session_for(self, user: ProperModel, *, remember=True):
         session = Session.create_for_user(
             user=user,

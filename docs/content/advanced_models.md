@@ -243,7 +243,7 @@ DATABASES: dict[str, t.Any] = {
 
 Each entry needs a `type` (the import path of a Peewee `Database` class) and a `database` (the connection target). Other keys are passed straight through to the database class.
 
-The connection lifecycle is handled for you: Proper opens connections before routing each request and closes them once the response is sent, for *every* database in the dict.
+By default Peewee connects on the first query of a request (`autoconnect=True`). For a database configured with `"autoconnect": False`, Proper opens its connection before routing each request and closes it once the response is sent; this applies to every database in the dict.
 
 ### Pointing a Model at a Different Database
 

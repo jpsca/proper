@@ -1,7 +1,10 @@
 ---
 title: Rich Text
 description: Rich Text addon — formatted-text field with embedded attachments, Lexxy editor, attachment lifecycle
-last_verified: 2026-05-29
+last_verified: 2026-10-31
+sources:
+  - src/proper/rich_text
+  - src/proper/_blueprints/addon_rich_text
 ---
 
 # Proper Rich Text
@@ -37,7 +40,9 @@ This:
 - Installs the [Storage addon](storage.md) if it isn't already (needed for attachments).
 - Adds the Lexxy editor (JS + CSS) into your assets.
 - Creates three Jx components: `rich_text_editor.jx`, `rich_text_toolbar.jx`, and `rich_text_attachment.jx`.
-- Adds a periodic task at `tasks/abandoned_uploads_sweep.tt.py` for cleaning up abandoned pre-uploads.
+- Adds a periodic task at `tasks/abandoned_uploads_sweep.py` for cleaning up abandoned pre-uploads, imported from `tasks/__init__.py` so Huey registers it.
+- Adds the Lexxy editor to your assets (`js/vendor/lexxy.js`, `js/lexxy-config.js`, `css/lexxy-editor.css`, `css/lexxy-content.css`, `css/lexxy-variables.css`) and the `lexxy` entry to `config/import_map.py`. The vendored `lexxy.js` loads `@rails/activestorage` from `esm.sh` at runtime, so the page needs network and CSP access to that host.
+- Adds `config/rich_text.py` (the sanitizer allowlists), imports it from `config/__init__.py`, and adds the `nh3` dependency.
 - Adds `config/rich_text.py` (the allowlist of the [sanitizer](#sanitizing)) and the `nh3` dependency.
 
 The migration is for the `attachment` table added by the storage addon — rich_text itself doesn't add or change columns. The field stores the HTML on whatever text column you already have.
@@ -81,7 +86,7 @@ Use `f.RichTextField` (a thin subclass of `f.TextField`) on the matching form:
 ```python
 from proper import forms as f
 
-from [[app_name]].models import Post
+from myapp.models import Post
 
 
 class PostForm(f.Form):
@@ -126,11 +131,11 @@ The stored HTML is whatever the form sent; it is sanitized with `nh3` **every ti
 | `RICH_TEXT_ALLOWED_STYLES`      | CSS properties kept in `style` attributes                            |
 | `RICH_TEXT_ALLOWED_URL_SCHEMES` | URL schemes for `href`/`src`; relative URLs are always allowed       |
 
-- If the editor is extended to write other tags or attributes, add them to the lists or they won't be rendered.
+- If the editor is extended to write other tags or attributes, add them to the lists or they won't be rendered. The attributes kept on `<proper-attachment>` are a fixed list (`proper.rich_text.sanitizer.ATTACHMENT_ATTRIBUTES`: `alt`, `caption`, `content`, `content-type`, `filename`, `filesize`, `height`, `presentation`, `previewable`, `sgid`, `url`, `width`) that `RICH_TEXT_ALLOWED_ATTRIBUTES` doesn't change.
 - `<proper-attachment>` tags are always kept; the output of `rich_text_attachment.jx` is not sanitized.
 - Never allow `data-controller` / `data-action`: a document could run the app's Stimulus controllers.
 - `doc.to_html()` is the raw stored HTML (unsafe to render). `doc.to_safe_html()` is the sanitized HTML with the attachment tags still in place.
-- Links get `rel="noopener noreferrer"` unless `rel` is an allowed attribute of `a`.
+- Links get `rel="noopener noreferrer"` unless `rel` is an allowed attribute of `a` (or of `"*"`).
 - Without `nh3` installed, rendering raises `ConfigError`.
 
 ### How attachment embeds render
@@ -139,7 +144,7 @@ Stored HTML uses `<proper-attachment sgid="..." caption="..."></proper-attachmen
 
 - `attachment` — the resolved `Attachment` row
 - `alt`, `caption` — text the user typed for this embed
-- any other attribute the editor wrote on the placeholder tag
+- any other attribute the editor wrote on the placeholder tag, among the ones the sanitizer keeps on `<proper-attachment>` (see Sanitizing above)
 
 Edit `rich_text_attachment.jx` to customise rendering — e.g. videos via `<video>`, smaller image variants, fallback download link:
 
@@ -159,7 +164,7 @@ Edit `rich_text_attachment.jx` to customise rendering — e.g. videos via `<vide
 {% endif %}
 ```
 
-> **Heads up:** the default `rich_text_attachment.jx` calls `attachment.variant(resize_to_limit=(1600, 1600))` for previewable content. Make sure `VARIANTS_ENABLED_FOR["image/*"] = "preview_image"` is enabled on your `Attachment` model (the storage blueprint enables it by default) and `pyvips` + `libvips` are installed. See [storage.md#variants](storage.md#variants).
+> **Heads up:** the default `rich_text_attachment.jx` calls `attachment.variant(resize_to_limit=(1600, 1600))` for previewable content. Make sure `VARIANTS_ENABLED_FOR["image/*"] = "preview_image"` is enabled on your `Attachment` model (the storage blueprint enables it by default) and `pyvips` + `libvips` are installed. See [storage_advanced.md#variants](storage_advanced.md#variants).
 
 ## The Editor Component
 
@@ -209,7 +214,7 @@ The toolbar is `views/rich_text_toolbar.jx` — edit classes, swap icons, add or
 Removing a button doesn't remove the format itself:
 
 - Drag-and-drop / paste still uploads files (use `attachments="false"` on the editor to disable).
-- Keyboard shortcuts still work: `Ctrl+B` (bold), `Ctrl+I` (italics), `Ctrl+K` (link), etc.
+- Keyboard shortcuts for text formats still work (`Ctrl+B`, `Ctrl+I`, ...). `Ctrl+K` (link) is a `data-hotkey` on the toolbar's link button, so it goes away with the button; `data-hotkey` works on any toolbar button.
 
 ## Extending the Editor with Prompts
 
@@ -218,12 +223,12 @@ Removing a button doesn't remove the format itself:
 Two flavours:
 
 - **Insert as free editable text** — add the `insert-editable-text` attribute to `<lexxy-prompt>`. The selected `<template type="editor">` content is inserted as plain editable HTML. Good for emojis, hashtags, anything inline that doesn't need server-side processing.
-- **Insert as a custom attachment** — selecting an item inserts a `<proper-attachment>` placeholder pointing at a row you create server-side, then renders through your custom partial. Good for `@mentions` (link to a user), `/commands` (interactive blocks), etc.
+- Lexxy can also insert a prompt item as a `<proper-attachment>` with a custom `content-type` (`application/vnd.proper.<prompt-name>`) and the item's `sgid`. Proper's renderer resolves `sgid` only against the `Attachment` model and drops tags it can't resolve, so this flavour (`@mentions`, `/commands`) is not supported out of the box.
 
 Example: an emoji picker triggered by `:`:
 
 ```html
-<RichTextEditor field={{post.body}}>
+<RichTextEditor field={{ form.body }}>
   <lexxy-prompt trigger=":" insert-editable-text>
     <lexxy-prompt-item search="joy laughing face">
       <template type="menu">😂 :joy</template>
@@ -246,7 +251,7 @@ The editor uploads each file the moment the user drops it in — **before** the 
 The flow:
 
 1. User drops a file → browser POSTs metadata to `DirectUpload.create`.
-2. Server creates an `Attachment` row with `source="direct"` and `pending=True`, returns a signed URL.
+2. Server creates an `Attachment` row with `source="direct"` and `pending=True`, and returns its `signed_id`, its `url` and a `direct_upload` envelope (`url` + `headers`) telling the browser where to PUT the bytes.
 3. Browser PUTs the bytes directly to storage (S3) or to `DirectUpload.update` (Disk).
 4. Editor inserts `<proper-attachment sgid="...">` into the document.
 5. User submits the form → parent model's `save()` runs.
@@ -256,7 +261,7 @@ The flow:
 **On save**, for every rich-text column:
 
 - Diffs the **new body** against the **prior body** (loaded fresh by PK).
-- Marks every attachment still referenced as `pending=False` (single batched UPDATE).
+- Marks every attachment referenced by the new body as `pending=False` (single batched UPDATE).
 - Schedules `purge_later()` for every attachment that *was* in the prior body but no longer appears.
 
 **On delete**, for every rich-text column:
@@ -266,18 +271,18 @@ The flow:
 
 All purges go through Huey, so they don't block the save or the user's request.
 
-If a model holds rich text but **should not** own its attachments (e.g. they're shared between records), don't include `HasRichText`. Rendering still works; only the automatic cleanup is opted out.
+If a model holds rich text but **should not** own its attachments (e.g. they're shared between records), don't include `HasRichText`. Rendering still works, but nothing marks the uploads as confirmed, so the abandoned-uploads sweep purges them after `grace_hours`: set `pending=False` on the referenced rows yourself, or give those uploads another `source`.
 
 ## Sweeping Abandoned Uploads
 
-Pre-uploaded files that never get confirmed are orphans — bytes in storage with no document pointing at them. The blueprint generates a periodic task at `tasks/abandoned_uploads_sweep.tt.py`:
+Pre-uploaded files that never get confirmed are orphans — bytes in storage with no document pointing at them. The installer generates `tasks/abandoned_uploads_sweep.py` (already imported from `tasks/__init__.py`):
 
 ```python
 from huey import crontab
 from proper.rich_text import purge_abandoned_uploads
 
-from [[app_name]].main import app
-from [[app_name]].models import Attachment
+from myapp.main import app
+from myapp.models import Attachment
 
 
 @app.queue.periodic_task(crontab(hour="3", minute="0"))

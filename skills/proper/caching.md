@@ -1,7 +1,11 @@
 ---
 title: Caching
 description: Server-side caching — configuration, cache store API, fragment caching, HTTP caching
-last_verified: 2026-04-02
+last_verified: 2026-10-31
+sources:
+  - src/proper/cache
+  - src/proper/tools/cache.py
+  - src/proper/views
 ---
 
 # Caching
@@ -52,7 +56,7 @@ if env == "prod":
 | `serializer` | `None`                | Custom serializer (uses pickle by default)       |
 | `timeout`    | `5`                   | SQLite connection timeout in seconds             |
 
-Any additional keys are passed as SQLite pragmas. The cache always enables WAL mode for concurrent reads and writes.
+Any additional keys are passed as SQLite pragmas. The cache always enables WAL mode for concurrent reads and writes (a `journal_mode` you pass is overridden); its other pragma defaults are `synchronous=normal`, `auto_vacuum=incremental`, `incremental_vacuum=100` and `wal_checkpoint=full`. `:memory:` is a named shared-cache database, so every thread of the process sees the same cache. A file-based cache is registered as `app.db["proper_cache"]`.
 
 The cache creates its own table (`proper_cache`) when it's missing. It needs no migration.
 
@@ -64,7 +68,7 @@ The cache creates its own table (`proper_cache`) when it's missing. It needs no 
 | `RedisCache` | `proper.cache.RedisCache`  | Redis-backed cache (requires `redis` package) |
 | `NoCache`    | `proper.cache.NoCache`     | Null object — all operations are no-ops       |
 
-`NoCache` is useful for testing, where you want deterministic behavior without cached state.
+`NoCache` is useful for testing, where you want deterministic behavior without cached state. It is also the default when `CACHE` is absent from the config. Its `increment`/`decrement` return `0`, so rate limiting never triggers under it.
 
 There is no separate in-memory backend. Use `SqliteCache` with `":memory:"` as the database — it behaves like a memory cache (fast, no disk I/O) and is cleared when the process restarts. This is the default in development.
 
@@ -120,6 +124,8 @@ stats = cache.get("stats:daily")
 cache.delete("stats:daily")
 ```
 
+`cache.update()` is an alias of `set()`.
+
 ### Expiration
 
 The TTL is set at write time. Every call to `set` computes an `expires_at` timestamp from the current time plus `expires_in`. If `expires_in` is not provided, the instance default is used (2 days by default).
@@ -159,6 +165,8 @@ The sequence:
 5. All subsequent requests get the new value
 
 Without `race_condition_ttl`, all N requests would compute simultaneously.
+
+Both backends behave this way. `SqliteCache` extends the row with a compare-and-swap, so only the caller whose update matched recomputes. `RedisCache` stores the entry for `expires_in + race_condition_ttl` seconds, treats the last `race_condition_ttl` seconds as the race window, and the caller that sets a marker key (`<key>:__race`, which lives for the window) recomputes; if it fails, the marker expires and the next caller takes over.
 
 ### Increment and Decrement
 
@@ -212,7 +220,7 @@ With SQLite, this deletes all rows from the cache table. With Redis, it calls `F
 
 ### Cleanup
 
-Expired entries are deleted lazily on read (when a `get` or `increment` finds an expired key). To bulk-delete all expired entries, call `delete_expired`:
+Expired entries are removed lazily: `get` and `read_multi` delete an expired row they find, and `increment` / `get_or_set` overwrite it. To bulk-delete all expired entries, call `delete_expired`:
 
 ```python
 cache.delete_expired()
@@ -241,11 +249,11 @@ The full syntax is:
 {% endcache %}
 ```
 
-The arguments go in parentheses, as in a function call; `{% cache "sidebar" %}` without them is a template syntax error.
+The arguments are written as in a function call, with or without parentheses around them: `{% cache "sidebar" %}`, `{% cache("sidebar") %}` and `{% cache "sidebar", expires_in=300 %}` are all valid; a comma separates the key from the keyword arguments. `{% cache ("a", "b") %}`, with a space before the parenthesis, passes one tuple argument (a collection key), not two arguments.
 
 | Argument             | Type             | Description                                                                                               |
 |----------------------|------------------|-----------------------------------------------------------------------------------------------------------|
-| `key`                | string, object, or collection | **Required.** A string cache key, a model object, or a collection of model objects. See [section 3.1](#31-cache-key). |
+| `key`                | string, object, or collection | **Required.** A string cache key, a model object, or a collection of model objects. See [Cache Key](#cache-key). |
 | `expires_in`         | int              | TTL in seconds. If omitted, uses the cache backend's default (2 days).                                    |
 | `version`            | string or int    | Manual version tag appended to the key. When changed, the old entry is effectively invalidated.           |
 | `race_condition_ttl` | int              | Seconds to extend a stale entry while one request re-renders. Prevents the thundering herd problem.       |
@@ -273,7 +281,7 @@ The first argument to `{% cache %}` determines how the cache key is generated:
 {% endcache %}
 ```
 
-**Collection** — the key is derived from the class name, the count of objects, and the maximum `updated_at` across the collection. The fragment invalidates when any object is added, removed, or updated:
+**Collection** — the key is derived from the template's path, the class name, the count of objects, and the maximum `updated_at` across the collection (an empty collection gives `.../empty/col/0`). The fragment invalidates when any object is added, removed, or updated:
 
 ```html+jinja
 {% cache(cards) %}
@@ -313,7 +321,7 @@ For heavily-trafficked fragments, use `race_condition_ttl` to prevent many reque
 {% endcache %}
 ```
 
-When the first request finds the fragment expired, it extends the stale entry by 10 seconds and re-renders. Other requests arriving during that window continue serving the stale HTML until the fresh version is stored. See [section 2.2](#22-get-or-set) for details on how this works.
+When the first request finds the fragment expired, it extends the stale entry by 10 seconds and re-renders. Other requests arriving during that window continue serving the stale HTML until the fresh version is stored. See [Get or Set](#get-or-set) for details on how this works.
 
 ### Russian Doll Caching
 
@@ -338,7 +346,7 @@ The template side uses nested `{% cache %}` blocks:
 
 The challenge: when a comment changes, its own fragment invalidates (its `updated_at` changed), but the outer `{% cache(post) %}` fragment still has the old `post.updated_at` and keeps serving stale HTML.
 
-The fix is to declare `touches` on the child model. Use the `RussianDollCached` mixin (found in `models/concerns/russian_doll_cached.py`):
+The fix is to declare `touches` on the child model, with the `RussianDollCached` concern (`models/concerns/russian_doll_cached.py`, a subclass of `BaseModel`). It is also what provides `updated_at`: the generated `BaseModel` has only `created_at`, and `RussianDollCached` adds the `updated_at` column, bumps it on `save()` and `Model.update()`, and provides `touch()`. A model without `updated_at` is cached with version `0` (its fragment never invalidates on update) and makes `fresh_when(obj)` fail. Every model named in `touches` must be `RussianDollCached` too (or define `touch()`); otherwise it is skipped silently.
 
 ```python {title="models/comment.py"}
 class Comment(RussianDollCached, BaseModel):
@@ -360,7 +368,7 @@ class Reply(RussianDollCached, BaseModel):
     touches = ("comment",)
 ```
 
-You can also bump a record's `updated_at` manually with `touch()`:
+You can also bump a record's `updated_at` manually with `touch()` (a `RussianDollCached` method):
 
 ```python
 post.touch()
@@ -385,7 +393,18 @@ def index(self):
     self.response.fresh_when(self.cards)
 ```
 
-If the client already has the latest version (matching ETag or Last-Modified), Proper returns `304 Not Modified` with an empty body instead of re-rendering the page. Only `GET`/`HEAD` requests with a 2xx response get a 304; `If-Modified-Since` is ignored when the request has `If-None-Match`, ETags use the weak comparison, and dates are compared in whole seconds (see [controllers.md](controllers.md#http-caching)).
+If `fresh_when()` determines the response is fresh, the action's rendered output is discarded and a `304 Not Modified` is returned automatically. You don't need to check the return value.
+
+The freshness check (`self.response.is_fresh()`) uses these RFC 9110 rules:
+
+- Only `GET`/`HEAD` requests with a 2xx response can be fresh; a `POST`, an error status or a redirect is never turned into a 304. The 304 is decided with the status the action leaves: `fresh_when()` returns what holds when it is called, so it can return `True` before the action sets a 404.
+- `If-None-Match: *` matches any GET/HEAD 2xx response, with or without an ETag (RFC 9110 §13.1.2). Other values use the weak comparison (`W/"x"` matches `"x"`).
+- `If-Modified-Since` is ignored when the request has `If-None-Match`.
+- `Last-Modified` is compared with `If-Modified-Since` in whole seconds.
+- `If-Modified-Since` (and `Date`) are read only in the three RFC 9110 date forms: `Sun, 06 Nov 1994 08:49:37 GMT`, `Sunday, 06-Nov-94 08:49:37 GMT`, `Sun Nov  6 08:49:37 1994`. Any other form (ISO 8601, a `+0200` offset, `UTC`) is ignored: `request.if_modified_since` is `None`.
+- Not applied: a non-GET/HEAD request with a matching `If-None-Match` gets the response as it is, not a 412.
+
+A 304 always goes out without a body: if the action sets `self.response.status = 304` itself, the body is emptied and no template is rendered.
 
 Options:
 
@@ -415,7 +434,7 @@ self.response.set_cache_control("max-age=31536000", "public", "immutable")
 
 ### Static Assets
 
-Static files are cached automatically. Fingerprinted assets (URLs containing a hash) are served with `Cache-Control: public, max-age=31536000, immutable` (1 year). Non-fingerprinted assets use `Cache-Control: public, max-age=0, must-revalidate` and support conditional requests via If-Modified-Since (static files have no ETag).
+Fingerprinted assets are served with `Cache-Control: max-age=31536000, public, immutable`; the rest with `max-age=0, public, must-revalidate` and `Last-Modified`/`If-Modified-Since` support. `public` becomes `private` when the static route is declared with `public=False`. See [app.md](app.md#static-assets).
 
 
 ## Cache Keys
