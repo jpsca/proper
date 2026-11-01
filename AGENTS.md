@@ -31,6 +31,11 @@ When a change alters user-visible behavior, update in the same commit:
 - the human docs in `docs/content/`
 - the agent docs in `skills/proper/`
 
+Each skill doc declares in its frontmatter the `sources` it describes and a
+`last_verified` date. Set the date only after reading the whole doc against
+the code, not when touching a line of it; `make lint` lists the docs whose
+sources changed after that date.
+
 ## Dependencies
 
 Use `uv add <package>` to add dependencies. Do not manually edit pyproject.toml for adding requirements.
