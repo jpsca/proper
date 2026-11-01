@@ -2,6 +2,7 @@
 name: proper
 description: Use when building features, adding resources, writing controllers/models/forms/views, or working with addons (auth, storage, i18n, channels) in a Proper web framework application. Also use when the user asks about Proper framework conventions or patterns.
 user-invocable: false
+proper_version: 0.47.0
 last_verified: 2026-10-31
 sources:
   - src/proper/generators
@@ -21,6 +22,7 @@ For the actual source code of any generated file, **read it directly from the ap
 - Each doc covers one task and is short (under 600 lines, most under 500). Read ONLY the doc(s) for the current task: usually 1, at most 2 or 3. For a task that combines addons (a resource with auth and file uploads), read the primary doc first, then the addon doc(s).
 - Each topic lives in one doc. Other docs mention it in one line and link to it; follow the link instead of guessing.
 - `reference/` holds lookup tables (every attribute of `Request`/`Response`, every status constant, the cable's JSON frames). Open one only to confirm an exact name or signature. The guides are enough for everything else.
+- This skill describes Proper 0.47.0 (`proper_version` above). The app's version is `uv run python -c "from importlib.metadata import version; print(version('proper'))"`. With an older Proper, the generated files and `proper --help` win over this skill where they differ.
 - Working examples of patterns not covered here (OAuth sign-in with Google and GitHub on top of `proper install auth`, among others) are in the [proper-examples](https://github.com/jpsca/proper-examples) repository. Check its README before building one of those from scratch.
 
 ## Architecture Overview
@@ -163,3 +165,21 @@ Use when the model already exists or no model is needed:
 - New fields on existing tables need `default=...` or `null=True`
 - Run `proper routes` to verify the routes look correct
 - Run `proper check` after a change and fix every error it lists (see [cli.md](cli.md#checking))
+
+## Pitfalls
+
+What Rails, Django or Flask habits get wrong in Proper:
+
+- Table names are Peewee's default, the class name lowercased (`BlogPost` → `blogpost`). Nothing is pluralized.
+- Controllers are synchronous: no `async`/`await` in an action.
+- Nothing halts inside an action: `return self.render(...)` and `return self.redo()`, or the code after them runs.
+- The signed-in user is `current.user`; `current.auth_session` is the session row, not the user.
+- Sign-out is `DELETE /sign-in` (`url_for("Session.delete")`); there is no `/sign-out`.
+- Custom error handlers run only with `DEBUG` off; in development the debug page shows instead.
+- Views are Jx components: no `include`, `extends` or `block`; layouts are components too.
+- Live UI is Turbo (Drive, Frames, Streams), not htmx.
+- JSON columns are `pw.JSONField`; `proper.JSONField` exists for backwards compatibility only.
+- `app.i18n.format_date()` takes a datetime too; there is no `format_datetime`.
+- The `TestClient` does not follow redirects: assert the 303 and the `Location`.
+- `client.sign_in(session)` takes a `Session` row; use the `signed_client` fixture.
+- Generated tests live in `tests/controllers/`; run them with `uv run pytest`.

@@ -7,7 +7,8 @@
   explicit `{#anchor}` on a heading.
 - Every doc has a frontmatter with `title` (`name` in `SKILL.md`),
   `description`, a `last_verified` date and the `sources` it was checked
-  against: paths of this repository, which must exist.
+  against: paths of this repository, which must exist. `SKILL.md` also
+  has `proper_version`, the version in `pyproject.toml`.
 - Every ```` ```python ```` block parses. A block may be an indented
   fragment, the entries of a dict, or a signature with a bare `*,`; those
   are allowed. `[[app_name]]` is the blueprint's placeholder, not Python:
@@ -31,6 +32,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import tomllib
 from datetime import date
 from pathlib import Path
 
@@ -85,6 +87,11 @@ def check_frontmatter(rel: Path, text: str) -> dict:
     for key in (name_key, "description", "last_verified", "sources"):
         if not data.get(key):
             error(rel, f"frontmatter without `{key}`")
+    if rel.name == "SKILL.md":
+        with open(ROOT / "pyproject.toml", "rb") as f:
+            version = tomllib.load(f)["project"]["version"]
+        if data.get("proper_version") != version:
+            error(rel, f"`proper_version` is {data.get('proper_version')!r}; pyproject.toml says {version!r}")
     try:
         date.fromisoformat(str(data.get("last_verified", "")))
     except ValueError:
