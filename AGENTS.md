@@ -34,7 +34,8 @@ When a change alters user-visible behavior, update in the same commit:
 Each skill doc declares in its frontmatter the `sources` it describes and a
 `last_verified` date. Set the date only after reading the whole doc against
 the code, not when touching a line of it; `make lint` lists the docs whose
-sources changed after that date.
+sources changed after that date. A version bump in `pyproject.toml` also
+bumps `proper_version` in `skills/proper/SKILL.md`.
 
 ## Dependencies
 

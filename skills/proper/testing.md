@@ -29,18 +29,15 @@ Proper includes a `TestClient` that drives your app through the full request pip
 
 ## Setup
 
-Import the `TestClient` and pass it your app instance:
+The generated `tests/conftest.py` provides a `client` fixture, a new `TestClient(app)` per test. Take it as an argument:
 
 ```python
-from proper import TestClient
-from myapp.main import app
-
-client = TestClient(app)
+def test_index(client):
+    result = client.get("/photos")
+    assert result.status == 200
 ```
 
-Every call to `client.get(...)`, `client.post(...)`, etc. builds a request the way the server would, runs the full request pipeline synchronously, and returns a result object.
-
-The generated `tests/conftest.py` provides a `client` fixture (a new `TestClient(app)` per test); the generated tests take it as an argument instead of building one at module level, as the examples below do for brevity.
+Every call to `client.get(...)`, `client.post(...)`, etc. builds a request the way the server would, runs the full request pipeline synchronously, and returns a result object. To build one yourself (a script, a different app): `from proper import TestClient; client = TestClient(app)`.
 
 
 ## Making Requests
@@ -190,10 +187,12 @@ To test the error pages themselves, turn it off: `TestClient(app, raise_server_e
 ```python
 import json
 
-result = client.get("/api/photos/42")
-assert result.mimetype == "application/json"
-data = json.loads(result.body)
-assert data["title"] == "Sunset"
+
+def test_photo_as_json(client):
+    result = client.get("/api/photos/42")
+    assert result.mimetype == "application/json"
+    data = json.loads(result.body)
+    assert data["title"] == "Sunset"
 ```
 
 
@@ -202,12 +201,11 @@ assert data["title"] == "Sunset"
 The `TestClient` includes an async WebSocket helper for testing channels. The app's cable (`Cable`) serves the session from memory, with no port; with an app that has no channels (`CABLE = {}`), `connect()` raises `RuntimeError`.
 
 ```python
-import asyncio
-from proper import TestClient
+import pytest
 
-client = TestClient(app)
 
-async def test_chat():
+@pytest.mark.asyncio
+async def test_chat(client):
     ws = client.websocket()
     task = await ws.connect()
 
@@ -225,9 +223,9 @@ async def test_chat():
     # Clean up
     await ws.close()
     await task
-
-asyncio.run(test_chat())
 ```
+
+Async tests need `pytest-asyncio` (`uv add --dev pytest-asyncio`); the whole flow, with the frames to expect, is in [channels.md](channels.md#testing).
 
 ### WebSocket Methods
 
@@ -434,16 +432,11 @@ To drop the cookie itself: `del client.default_headers["cookie"]`.
 
 ## Example: Full CRUD Test
 
-```python {title="tests/test_photos.py"}
-from proper import TestClient
-from myapp.main import app
+```python {title="tests/controllers/test_photos.py"}
 from myapp.models import Photo
 
 
-client = TestClient(app)
-
-
-def test_index_lists_photos():
+def test_index_lists_photos(client):
     Photo.create(title="Sunset")
     Photo.create(title="Sunrise")
 
@@ -453,30 +446,30 @@ def test_index_lists_photos():
     assert "Sunrise" in result.body
 
 
-def test_show_displays_photo():
+def test_show_displays_photo(client):
     photo = Photo.create(title="Sunset")
     result = client.get(f"/photos/{photo.id}")
     assert result.status == 200
     assert "Sunset" in result.body
 
 
-def test_show_returns_404_for_missing_photo():
+def test_show_returns_404_for_missing_photo(client):
     result = client.get("/photos/99999")
     assert result.status == 404
 
 
-def test_create_redirects_on_success():
+def test_create_redirects_on_success(client):
     result = client.post("/photos", body={"title": "New Photo"})
     assert result.status == 303
     assert Photo.select().where(Photo.title == "New Photo").count() == 1
 
 
-def test_create_returns_422_on_invalid_data():
+def test_create_returns_422_on_invalid_data(client):
     result = client.post("/photos", body={"title": ""})
     assert result.status == 422
 
 
-def test_update_changes_the_record():
+def test_update_changes_the_record(client):
     photo = Photo.create(title="Old Title")
     result = client.patch(f"/photos/{photo.id}", body={"title": "New Title"})
     assert result.status == 303
@@ -484,7 +477,7 @@ def test_update_changes_the_record():
     assert photo.title == "New Title"
 
 
-def test_delete_removes_the_record():
+def test_delete_removes_the_record(client):
     photo = Photo.create(title="To Delete")
     result = client.delete(f"/photos/{photo.id}")
     assert result.status == 303

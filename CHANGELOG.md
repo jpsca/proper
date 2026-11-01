@@ -69,6 +69,9 @@ All notable changes to Proper are documented in this file.
   from `proper`, not `proper.helpers`. The human docs lose the same
   `format_datetime`, `Timestamped` and `for_session` mentions. `SKILL.md` routes to the
   new docs and points to the proper-examples repository.
+- `SKILL.md` gets a Pitfalls list (what Rails, Django or Flask habits get
+  wrong in Proper) and says which Proper version it describes; the examples
+  of `testing.md` take the generated `client` fixture.
 - The last skill docs (`channels`, `cable`, `cable_protocol`, `app`, `cli`,
   `testing`, `status_codes`) were checked against the code and corrected.
   The largest errors: `client.sign_in()` takes a `Session` and sets the
@@ -83,8 +86,9 @@ All notable changes to Proper are documented in this file.
 - `make lint` runs `bin/check-skill.py`, which fails on a broken link or
   anchor inside the skill, on a doc without `title`, `description`,
   `last_verified` and `sources` in its frontmatter, on a Python example that
-  doesn't parse, and on a `from proper import` that doesn't resolve; and
-  warns of a doc whose `sources` (the code it was checked against) have a
+  doesn't parse, on a `from proper import` that doesn't resolve, and on a
+  `proper_version` in `SKILL.md` that is not the version in
+  `pyproject.toml`; and warns of a doc whose `sources` (the code it was checked against) have a
   commit newer than its `last_verified`.
 - A release on GitHub carries the wheels, the sdist and `skill.zip` as its
   assets (the "Upload to PyPI" workflow uploads them).
