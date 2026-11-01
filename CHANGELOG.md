@@ -23,6 +23,8 @@ All notable changes to Proper are documented in this file.
 
 ### Fixed
 
+- The `on_error` hooks (`@app.on_error`) ran before `response.error` was set,
+  so `current.response.error` was `None` in them. It is set first now.
 - The comments of the i18n addon's `en.yml` and `README.md` warned that YAML
   reads `yes`, `no`, `on` and `off` as booleans. The parser is `poyo`, which
   keeps them as strings; only `true`/`false` and `null`/`~` are converted.

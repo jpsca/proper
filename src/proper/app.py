@@ -467,25 +467,29 @@ class App(AppWsgi):
         def work():
             if response.error:
                 raise response.error
-            for func in self.pipeline:
-                if debug:
-                    logger.debug(
-                        "[pipeline] %s %s -> %s",
-                        request.request_method,
-                        request.path,
-                        func.__name__,
-                    )
-                early_response = func(request, response)
-                if early_response is not None:
+            try:
+                for func in self.pipeline:
                     if debug:
                         logger.debug(
-                            "[pipeline] %s returned early response",
+                            "[pipeline] %s %s -> %s",
+                            request.request_method,
+                            request.path,
                             func.__name__,
                         )
-                    return early_response
+                    early_response = func(request, response)
+                    if early_response is not None:
+                        if debug:
+                            logger.debug(
+                                "[pipeline] %s returned early response",
+                                func.__name__,
+                            )
+                        return early_response
+            except Exception as error:
+                # Set before the `on_error` hooks run, so they can read it.
+                response.error = error
+                raise
 
         def on_error(error):
-            response.error = error
             self._handle_app_error(request, response)
 
         try:
