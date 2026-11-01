@@ -115,3 +115,33 @@ jobs:
 
       - name: "Uploads to PyPI"
         run: uv publish --trusted-publishing always dist/*
+
+  release:
+    # the release of the event gets the wheels, the sdist and the skill
+    # as assets; a manual run has no release to attach them to
+    if: github.event_name == 'release'
+    needs: build
+    name: release assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      # the same zip `make docs-deploy` publishes on the website
+      - name: "Builds the skill"
+        run: zip -r dist/skill.zip skills/proper -x "*.DS_Store"
+
+      - name: "Lists the files"
+        run: ls -l dist
+
+      - name: "Uploads the assets to the release"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/* --clobber
