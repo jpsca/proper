@@ -1,0 +1,603 @@
+"""Run migrations."""
+from collections.abc import Callable
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any, cast, overload
+
+import peewee as pw
+from playhouse.migrate import (
+    SQL,
+    Context,
+    MySQLDatabase,
+    Operation,
+    PostgresqlDatabase,
+    SqliteDatabase,
+    make_index_name,
+    operation,
+)
+from playhouse.migrate import MySQLMigrator as MqM
+from playhouse.migrate import PostgresqlMigrator as PgM
+from playhouse.migrate import SchemaMigrator as ScM
+from playhouse.migrate import SqliteMigrator as SqM
+
+from ...helpers import logger
+
+
+if TYPE_CHECKING:
+    from .types import TModelType, TVModelType
+
+
+class ORM:
+    __slots__ = ("__models__", "__tables__")
+
+    def __init__(self: ORM):
+        self.__tables__: dict[str, TModelType] = {}
+        self.__models__: dict[str, TModelType] = {}
+
+    def add(self, model: TModelType):
+        self.__models__[model.__name__] = model
+        self.__tables__[model._meta.table_name] = model  # type: ignore[]
+
+    def remove(self, model: TModelType):
+        del self.__models__[model.__name__]
+        del self.__tables__[model._meta.table_name]  # type: ignore[]
+
+    def __getattr__(self, name: str) -> TModelType:
+        return self.__models__[name]
+
+    def __getitem__(self, name: str) -> TModelType:
+        return self.__tables__[name]
+
+    def __iter__(self):
+        return iter(self.__models__.values())
+
+
+class Migrator:
+    """Provide migrations."""
+
+    def __init__(self, database: pw.Database | pw.Proxy):
+        """Initialize the migrator."""
+        self.orm: ORM = ORM()
+
+        if isinstance(database, pw.Proxy):
+            database = database.obj
+
+        self.__database__ = database
+        self.__ops__: list[Operation | Callable] = []
+        self.__migrator__ = SchemaMigrator.from_database(database)
+
+    def __call__(self):
+        """Run operations."""
+        with self.__migrator__.migration_context():
+            for op in self.__ops__:
+                if isinstance(op, Operation):
+                    logger.info("%s %s", op.fn.__name__, op.args)
+                    op.run()
+                else:
+                    logger.info("Run %s", getattr(op, "__name__", op))
+                    op()
+            self.__ops__ = []
+
+    def __iter__(self):
+        """Iterate over models."""
+        return iter(self.orm)
+
+    def fake(self):
+        """Sync the current snapshot but not run operations.
+
+        >> with migrator.sync():
+        >>  # ... do changes
+        """
+        return SyncContext(self)
+
+    @overload
+    def __get_model__(self, model: TVModelType) -> TVModelType: ...
+
+    @overload
+    def __get_model__(self, model: str) -> TModelType: ...
+
+    def __get_model__(self, model: TVModelType | str) -> TVModelType | TModelType:
+        """Get model by name."""
+        if isinstance(model, str):
+            if model in self.orm.__models__:
+                return self.orm.__models__[model]
+            if model in self.orm.__tables__:
+                return self.orm[model]
+
+            raise ValueError("Model %s not found" % model)
+
+        return model
+
+    def sql(self, sql: str, *params):
+        """Execute raw SQL."""
+        op = self.__migrator__.sql(sql, params or None)
+        self.__ops__.append(op)
+
+    def run(self, func: Callable, *args, **kwargs):
+        """Run a python function."""
+        self.__ops__.append(lambda: func(*args, **kwargs))
+
+    def create_model(self, model: TVModelType) -> TVModelType:
+        """Create model and table in database.
+
+        :param model: Model class
+
+        >> migrator.create_model(Model)
+        """
+        meta = model._meta  # type: ignore[]
+        self.orm.add(model)
+        model_cls = cast("type[pw.Model]", model)
+
+        meta.database = self.__database__
+        self.__ops__.append(model_cls.create_table)
+        return model
+
+    def remove_model(self, model: str | TModelType, *, cascade: bool = True):
+        """Drop model and table from database.
+
+        :param model: Model class or table name
+        :param cascade(true): Drop table with cascade
+
+        >> migrator.remove_model(Model, cascade=True)
+        """
+        model = self.__get_model__(model)
+        self.orm.remove(model)
+        meta = model._meta  # type: ignore[]
+        self.__ops__.append(
+            self.__migrator__.drop_table(
+                meta.table_name, cascade=cascade, schema=meta.schema
+            )
+        )
+
+    def add_fields(
+        self, model: str | TModelType, *, allow_not_null: bool = False, **fields: pw.Field
+    ) -> TModelType:
+        """Change fields.
+
+        :param model: Model class or table name
+        :param allow_not_null: Allow adding NOT NULL columns without a default.
+
+        >> migrator.change_fields(Model, name=pw.CharField(null=True))
+        """
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        for name, field in fields.items():
+            meta.add_field(name, field)
+
+            self.__ops__.append(
+                self.__migrator__.add_column(  # type: ignore[]
+                    meta.table_name,
+                    field.column_name,
+                    field,
+                    allow_not_null=allow_not_null,
+                )
+            )
+
+            if field.null and field.default is not None:
+                self.__ops__.append(
+                    self.__migrator__.apply_default(
+                        meta.table_name, field.column_name, field
+                    )
+                )
+
+        return model
+
+    def change_fields(self, model: str | TModelType, **fields: pw.Field) -> TModelType:
+        """Change fields.
+
+        :param model: Model class or table name
+
+        >> migrator.change_fields(Model, name=pw.CharField(null=True))
+        """
+        model = self.__get_model__(model)
+        meta: pw.Metadata = model._meta  # type: ignore[]
+        for name, field in fields.items():
+            old_field = meta.fields.get(name, field)
+            old_column_name = old_field and old_field.column_name
+
+            meta.add_field(name, field)
+
+            if isinstance(old_field, pw.ForeignKeyField):
+                self.__ops__.append(
+                    self.__migrator__.drop_foreign_key_constraint(
+                        meta.table_name, old_column_name
+                    )
+                )
+
+            if old_column_name != field.column_name:
+                self.__ops__.append(
+                    self.__migrator__.rename_column(
+                        meta.table_name, old_column_name, field.column_name
+                    )
+                )
+
+            if isinstance(field, pw.ForeignKeyField):
+                on_delete = field.on_delete or "RESTRICT"
+                on_update = field.on_update or "RESTRICT"
+                self.__ops__.append(
+                    self.__migrator__.add_foreign_key_constraint(
+                        meta.table_name,
+                        field.column_name,
+                        field.rel_model._meta.table_name,
+                        field.rel_field.name,
+                        on_delete,
+                        on_update,
+                    )
+                )
+                continue
+
+            self.__ops__.append(
+                self.__migrator__.change_column(  # type: ignore[]
+                    meta.table_name, field.column_name, field
+                )
+            )
+
+            if field.unique == old_field.unique:
+                continue
+
+            # The index of the column is replaced by the one of the new field
+            if old_field.unique or old_field.index:
+                index_name = make_index_name(meta.table_name, [old_column_name])
+                self.__ops__.append(
+                    self.__migrator__.drop_index(meta.table_name, index_name)
+                )
+            if old_field.unique:
+                with suppress(ValueError):
+                    meta.indexes.remove(((old_column_name,), True))
+            if field.unique:
+                meta.indexes.append(((field.column_name,), True))
+            if field.unique or field.index:
+                self.__ops__.append(
+                    self.__migrator__.add_index(
+                        meta.table_name, (field.column_name,), field.unique
+                    )
+                )
+
+        return model
+
+    def remove_fields(
+        self, model: str | TModelType, *names: str, cascade: bool = True, **params
+    ) -> TModelType:
+        """Remove fields from model.
+
+        :param model: Model class or table name
+        :param cascade(true): Drop columns with cascade
+
+        >> migrator.remove_fields(Model, "name", "age", cascade=True)
+        """
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        fields = [field for field in meta.fields.values() if field.name in names]
+        for field in fields:
+            self.__del_field__(model, field)
+            # SQLite can't drop a column that has an index. The others drop
+            # it with the column, and MySQL refuses to drop before that the
+            # index of a foreign key.
+            sqlite = isinstance(self.__database__, SqliteDatabase)
+            if field.unique or (field.index and sqlite):
+                index_name = make_index_name(meta.table_name, [field.column_name])
+                self.__ops__.append(
+                    self.__migrator__.drop_index(meta.table_name, index_name)
+                )
+
+            self.__ops__.append(
+                self.__migrator__.drop_column(  # type: ignore[]
+                    meta.table_name, field.column_name, cascade=cascade, **params
+                )
+            )
+        return model
+
+    def rename_field(
+        self, model: str | TModelType, old_name: str, new_name: str
+    ) -> TModelType:
+        """Rename field in model.
+
+        :param model: Model class or table name
+        :param old_name: Old field name
+        :param new_name: New field name
+
+        >> migrator.rename_field(Model, "name", "full_name")
+        """
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        field = meta.fields[old_name]
+        if isinstance(field, pw.ForeignKeyField):
+            old_name = field.column_name
+        self.__del_field__(model, field)
+        field.name = field.column_name = new_name
+        if isinstance(field, pw.ForeignKeyField):
+            field.column_name = field.column_name + "_id"
+        meta.add_field(new_name, field)
+        self.__ops__.append(
+            self.__migrator__.rename_column(meta.table_name, old_name, field.column_name)
+        )
+        return model
+
+    def __del_field__(self, model: TModelType, field: pw.Field):
+        """Delete field from model."""
+        meta = model._meta  # type: ignore[]
+        meta.remove_field(field.name)
+        delattr(model, field.name)
+        if isinstance(field, pw.ForeignKeyField):
+            obj_id_name = field.column_name
+            if field.column_name == field.name:
+                obj_id_name += "_id"
+            if hasattr(model, obj_id_name):
+                delattr(model, obj_id_name)
+            delattr(field.rel_model, field.backref)
+
+    def rename_table(self, model: str | TModelType, new_name: str) -> TModelType:
+        """Rename table in database."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        old_name = meta.table_name
+        self.orm.remove(model)
+        meta.table_name = new_name
+        self.orm.add(model)
+        self.__ops__.append(self.__migrator__.rename_table(old_name, new_name))
+        return model
+
+    def add_index(
+        self, model: str | TModelType, *columns: str, unique=False, **index_params
+    ) -> TModelType:
+        """Create indexes."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        meta.indexes.append((columns, unique))
+        columns_ = []
+        for col in columns:
+            field = meta.fields.get(col)
+
+            if len(columns) == 1:
+                field.unique = unique
+                field.index = not unique
+
+            columns_.append(field.column_name)
+
+        self.__ops__.append(
+            self.__migrator__.add_index(
+                meta.table_name, columns_, unique=unique, **index_params
+            )
+        )
+        return model
+
+    def drop_index(self, model: str | TModelType, *columns: str) -> TModelType:
+        """Drop indexes."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        columns_ = []
+        for col in columns:
+            field = meta.fields.get(col)
+            if not field:
+                continue
+
+            if len(columns) == 1:
+                field.unique = field.index = False
+
+            columns_.append(field.column_name)
+
+        index_name = make_index_name(meta.table_name, columns_)
+        meta.indexes = [(cols, _) for (cols, _) in meta.indexes if columns != cols]
+        self.__ops__.append(self.__migrator__.drop_index(meta.table_name, index_name))
+        return model
+
+    def add_not_null(self, model: str | TModelType, *names: str) -> TModelType:
+        """Add not null."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        for name in names:
+            field = meta.fields[name]
+            field.null = False
+            self.__ops__.append(
+                self.__migrator__.add_not_null(meta.table_name, field.column_name)
+            )
+        return model
+
+    def drop_not_null(self, model: str | TModelType, *names: str) -> TModelType:
+        """Drop not null."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        for name in names:
+            field = meta.fields[name]
+            field.null = True
+            self.__ops__.append(
+                self.__migrator__.drop_not_null(meta.table_name, field.column_name)
+            )
+        return model
+
+    def add_default(self, model: str | TModelType, name: str, default: Any) -> TModelType:
+        """Add default."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        field = meta.fields[name]
+        # Removed and added again, so that the model keeps track of the
+        # new default the same way as of one the field was declared with
+        meta.remove_field(name)
+        field.default = default
+        meta.add_field(name, field)
+        self.__ops__.append(self.__migrator__.apply_default(meta.table_name, name, field))
+        return model
+
+    def add_constraint(self, model: str | TModelType, name, constraint):
+        """Add constraint."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        self.__ops__.append(
+            self.__migrator__.add_constraint(meta.table_name, name, constraint)
+        )
+        return model
+
+    def drop_constraints(self, model: str | TModelType, *names: str) -> TModelType:
+        """Drop constraints."""
+        model = self.__get_model__(model)
+        meta = model._meta  # type: ignore[]
+        self.__ops__.extend(
+            [self.__migrator__.drop_constraint(meta.table_name, name) for name in names]
+        )
+        return model
+
+
+class SchemaMigrator(ScM):
+    """Implement migrations."""
+
+    @classmethod
+    def from_database(cls, database: pw.Database | pw.Proxy) -> SchemaMigrator:  # type: ignore
+        """Initialize migrator by db."""
+        if isinstance(database, PostgresqlDatabase):
+            return PostgresqlMigrator(database)
+
+        if isinstance(database, SqliteDatabase):
+            return SqliteMigrator(database)
+
+        if isinstance(database, MySQLDatabase):
+            return MySQLMigrator(database)
+
+        raise ValueError("Unsupported database: %s" % database)
+
+    @operation
+    def sql(self, sql: str, params: Any = None) -> SQL:
+        """Execute raw SQL."""
+        return SQL(sql, params)
+
+    @operation
+    def change_column(
+        self, table: str, column_name: str, field: pw.Field
+    ) -> list[Context | Operation]:
+        """Change column."""
+        operations: list[Context | Operation] = self.alter_change_column(
+            table, column_name, field
+        )
+        if not field.null:
+            operations.append(self.add_not_null(table, column_name))
+        return operations
+
+    @operation
+    def add_default(self, table: str, column: str, field: pw.Field):
+        default = field.default
+        if callable(default):
+            default = default()
+        alter_column: pw.Context = self._alter_column(self.make_context(), table, column)
+        ctx: pw.Context = alter_column.literal(" SET DEFAULT ")
+        return ctx.sql(field.db_value(default))
+
+    @operation
+    def add_index(self, table, columns, unique=False, using=None, **index_params):  # noqa: FBT002
+        ctx = self.make_context()
+        index_name = make_index_name(table, columns)
+        table_obj = pw.Table(table)
+        cols = [getattr(table_obj.c, column) for column in columns]
+        index = pw.Index(
+            index_name, table_obj, cols, unique=unique, using=using, **index_params
+        )
+        return ctx.sql(index)
+
+    def alter_change_column(
+        self, table: str, column: str, field: pw.Field
+    ) -> list[Context | Operation]:
+        """Support change columns."""
+        ctx = self.make_context()
+        field_null, field.null = field.null, True
+        ctx = self._alter_table(ctx, table).literal(" ALTER COLUMN ").sql(field.ddl(ctx))
+        field.null = field_null
+        return [ctx]
+
+    def alter_add_column(  # type: ignore[bad-override]
+        self,
+        table: str,
+        column_name: str,
+        field: pw.Field,
+        allow_not_null: bool = False,  # noqa: FBT001, FBT002
+        **kwargs,
+    ) -> Operation:
+        """Fix fieldname for ForeignKeys."""
+        name = field.name
+        op = super(SchemaMigrator, self).alter_add_column(
+            table, column_name, field, allow_not_null=allow_not_null, **kwargs
+        )
+        if isinstance(field, pw.ForeignKeyField):
+            field.name = name
+        return op
+
+
+class MySQLMigrator(SchemaMigrator, MqM):
+    """Support MySQL."""
+
+    def _get_column_definition(self, table: str, column_name: str):
+        """The definition of a column, without its `UNIQUE`: the column is
+        written again with it (`MODIFY`, `CHANGE`), and MySQL makes one more
+        unique index each time it reads `UNIQUE` there."""
+        column = super()._get_column_definition(table, column_name)
+        if column and column.is_unique:
+            column = column._replace(pk="")
+        return column
+
+    def alter_change_column(
+        self, table: str, column: str, field: pw.Field
+    ) -> list[Context | Operation]:
+        """Support change columns."""
+        ctx = self.make_context()
+        field_null, field.null = field.null, True
+        ctx = self._alter_table(ctx, table).literal(" MODIFY COLUMN ").sql(field.ddl(ctx))
+        field.null = field_null
+        return [ctx]
+
+
+class PostgresqlMigrator(SchemaMigrator, PgM):
+    """Support the migrations in postgresql."""
+
+    def alter_change_column(
+        self, table: str, column: str, field: pw.Field
+    ) -> list[Context | Operation]:
+        """Support change columns."""
+        ctx = self.make_context()
+        fn, field.null = field.null, True
+        fc, field.constraints = field.constraints, []
+        ddl = field.ddl(ctx)
+        ddl.nodes.insert(1, pw.SQL("TYPE"))
+        ctx = self._alter_table(ctx, table).literal(" ALTER COLUMN ").sql(ddl)
+        field.null, field.constraints = fn, fc
+        res = [ctx]
+        if field.default is not None:
+            res.append(self.add_default(table, column, field))
+        return res
+
+
+class SqliteMigrator(SchemaMigrator, SqM):
+    """Support the migrations in sqlite."""
+
+    @operation
+    def drop_table(
+        self,
+        table: str,
+        safe: bool = False,  # noqa: FBT001, FBT002
+        cascade: bool = False,  # noqa: FBT001, FBT002
+        schema: str | None = None,
+    ) -> Operation:
+        """Sqlite doesnt support cascade syntax by default."""
+        return super(SqliteMigrator, self).drop_table(
+            table, safe=safe, cascade=False, schema=schema
+        )
+
+    def alter_change_column(
+        self, table: str, column: str, field: pw.Field
+    ) -> list[Operation | Context]:
+        """Support change columns."""
+
+        def fn(c_name, c_def):
+            ctx = self.make_context()
+            ctx.sql(field.ddl(ctx))
+            return ctx.query()[0]
+
+        return [self._update_column(table, column, fn)]  # type: ignore[]
+
+
+class SyncContext:
+    def __init__(self, migrator):
+        self.migrator = migrator
+        self.ops = None
+
+    def __enter__(self):
+        self.ops = list(self.migrator.__ops__)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.migrator.__ops__ = self.ops

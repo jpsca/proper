@@ -1,85 +1,13 @@
-import shutil
-import subprocess
 import sys
 from importlib import import_module
 from pathlib import Path
 
-from peewee_migrate import Router as PWRouter
-from peewee_migrate.router import load_models
 from proper_cli import Cli
 
 from ..constants import DB_CACHE, DB_QUEUE
 from ..models import run_seeds
-
-
-MIGRATION_TEMPLATE = '''\
-"""Peewee migrations -- {name}.
-
-Some examples (model - class or model name)::
-
-    > Model = migrator.orm['table_name']            # Return model in current state by name
-    > Model = migrator.ModelClass                   # Return model in current state by name
-
-    > migrator.sql(sql)                             # Run custom SQL
-    > migrator.run(func, *args, **kwargs)           # Run python function with the given args
-    > migrator.create_model(Model)                  # Create a model (could be used as decorator)
-    > migrator.remove_model(model, cascade=True)    # Remove a model
-    > migrator.add_fields(model, **fields)          # Add fields to a model
-    > migrator.change_fields(model, **fields)       # Change fields
-    > migrator.remove_fields(model, *field_names, cascade=True)
-    > migrator.rename_field(model, old_field_name, new_field_name)
-    > migrator.rename_table(model, new_table_name)
-    > migrator.add_index(model, *col_names, unique=False)
-    > migrator.add_not_null(model, *field_names)
-    > migrator.add_default(model, field_name, default)
-    > migrator.add_constraint(model, name, sql)
-    > migrator.drop_index(model, *col_names)
-    > migrator.drop_not_null(model, *field_names)
-    > migrator.drop_constraints(model, *constraints)
-
-"""
-
-import peewee as pw
-from peewee_migrate import Migrator
-
-
-def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
-    """Write your migrations here."""
-    {migrate}
-
-
-def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
-    """Write your rollback migrations here."""
-    {rollback}
-'''
-
-
-class Router(PWRouter):
-    """Router subclass that writes a leaner migration template and runs
-    ruff format on the result if ruff is available.
-    """
-
-    def compile(self, name, migrate="", rollback="", num=None) -> str:
-        if num is None:
-            num = len(self.todo)
-        name = f"{num + 1:03}_{name}"
-        filename = name + ".py"
-        path = self.migrate_dir / filename
-        path.write_text(
-            MIGRATION_TEMPLATE.format(migrate=migrate, rollback=rollback, name=filename)
-        )
-        _ruff_format(path)
-        return name
-
-
-def _ruff_format(path: Path) -> None:
-    ruff = shutil.which("ruff")
-    if not ruff:
-        return
-    try:
-        subprocess.run([ruff, "format", str(path)], check=False, capture_output=True)
-    except OSError:
-        pass
+from ..models.migrate import Router
+from ..models.migrate.router import load_models
 
 
 def get_db_cli(app) -> type[Cli]:

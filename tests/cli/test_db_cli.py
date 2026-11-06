@@ -210,6 +210,77 @@ def test_create_takes_the_models_of_that_database(project, app, monkeypatch, cap
     assert "title" not in migration
 
 
+@pytest.fixture()
+def blog(app, monkeypatch):
+    """The app with one model in its main database."""
+    models = types.ModuleType("blog.models")
+
+    class Post(pw.Model):
+        title = pw.TextField()
+
+        class Meta:
+            database = app.db["main"]
+            table_name = "posts"
+
+    models.Post = Post
+    monkeypatch.setitem(sys.modules, "blog.models", models)
+    app.name = "blog"
+    return app
+
+
+def test_create_writes_a_migration_that_runs(project, blog, capsys):
+    cli = get_db_cli(blog)()
+    (project / "db" / "main" / "001_initial.py").unlink()
+
+    cli.create(name="add posts")
+
+    out = capsys.readouterr().out.strip().splitlines()[-1]
+    assert out == "db/main/001_add_posts.py"
+    migration = (project / out).read_text()
+    assert "from proper.models.migrate import Migrator" in migration
+    assert "pw_pext" not in migration
+
+    cli.migrate(db="main")
+
+    assert blog.db["main"].table_exists("posts")
+
+
+def test_create_formats_the_migration_with_ruff(project, blog):
+    cli = get_db_cli(blog)()
+
+    cli.create(name="more")
+
+    migration = (project / "db" / "main" / "002_more.py").read_text()
+    # As written, the line before the code of `migrate()` is only spaces
+    assert "    \n" not in migration
+
+
+def test_create_without_ruff(project, blog, monkeypatch):
+    monkeypatch.setenv("PATH", "")
+    cli = get_db_cli(blog)()
+
+    cli.create(name="more")
+
+    migration = (project / "db" / "main" / "002_more.py").read_text()
+    assert "    \n" in migration
+    assert "migrator.add_fields" in migration
+
+
+def test_create_with_a_ruff_that_cant_run(project, blog, monkeypatch):
+    bin_dir = project / "bin"
+    bin_dir.mkdir()
+    ruff = bin_dir / "ruff"
+    ruff.write_text("not a program")
+    ruff.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+    cli = get_db_cli(blog)()
+
+    cli.create(name="more")
+
+    migration = (project / "db" / "main" / "002_more.py").read_text()
+    assert "migrator.add_fields" in migration
+
+
 def test_create_without_models_for_that_database(project, app, monkeypatch, capsys):
     models = types.ModuleType("blog.models")
     monkeypatch.setitem(sys.modules, "blog.models", models)

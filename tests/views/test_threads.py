@@ -3,13 +3,11 @@ Concurrent renders. On a free-threaded Python (3.14t with PYTHON_GIL=0)
 these run truly in parallel.
 """
 
-import os
-import sys
-import sysconfig
 import threading
 
 import pytest
 
+from proper.check.gil import free_threaded, modules_that_enable_the_gil
 from proper.views import Catalog
 from .helpers import BIN
 
@@ -98,13 +96,28 @@ def test_concurrent_first_loads_compile_once(tmp_path):
     assert sorted(p.name for p in tmp_path.glob("*.py")) == sorted(f"c{i}.py" for i in range(THREADS))
 
 
-@pytest.mark.skipif(
-    not sysconfig.get_config_var("Py_GIL_DISABLED") or os.environ.get("PYTHON_GIL") != "0",
-    reason="only on a free-threaded Python run with PYTHON_GIL=0",
+# What Proper loads, and the libraries it uses when they are installed.
+# Peewee imports the database drivers it finds.
+GIL_MODULES = (
+    "proper",
+    "proper.views",
+    "peewee",
+    "huey",
+    "redis",
+    "boto3",
+    "pyvips",
+    "nh3",
 )
-def test_the_gil_is_really_off():
-    import jinja2  # noqa: F401  the test dependencies must not bring the GIL back
 
-    import proper.views  # noqa: F401
 
-    assert not sys._is_gil_enabled()
+@pytest.mark.skipif(not free_threaded(), reason="only on a free-threaded Python")
+@pytest.mark.parametrize("module", GIL_MODULES)
+def test_the_gil_is_really_off(module):
+    """No dependency brings the GIL back: importing an extension that isn't
+    made for a free-threaded Python turns it on for the whole process.
+
+    Each module is imported in a new process, so that what the other tests
+    import doesn't count, and without `PYTHON_GIL`: `PYTHON_GIL=0` keeps the
+    GIL off whatever is imported, and would hide it.
+    """
+    assert modules_that_enable_the_gil(module) == []

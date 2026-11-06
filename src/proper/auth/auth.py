@@ -1,12 +1,14 @@
 import base64
 import typing as t
 
-import passlib.hash
-from passlib.context import CryptContext
-from passlib.utils import saslprep
-
-from ..errors import WrongHashAlgorithm
+from ..errors import ConfigError, WrongHashAlgorithm
 from ..helpers import logger
+
+
+if t.TYPE_CHECKING:
+    from types import ModuleType
+
+    from passlib.context import CryptContext
 
 
 DEFAULT_HASHER = "pbkdf2_sha512"
@@ -34,6 +36,43 @@ https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
 """.format(
     "\n - ".join(VALID_HASHERS)
 )
+
+
+MISSING_PASSLIB_MESSAGE = """The passwords are hashed with `passlib`, and it is not installed.
+
+Add it to the dependencies of your project (e.g.: `uv add passlib`).
+The auth addon (`proper install auth`) does it for you.
+"""
+
+
+def load_passlib() -> "ModuleType | None":
+    """The `passlib` library, or `None` if it isn't installed.
+
+    It is a dependency of the auth addon and not of Proper: an app without
+    passwords runs without it. So it is imported here, and not at the top.
+    """
+    try:
+        import passlib.context
+        import passlib.hash
+        import passlib.utils
+    except ImportError:
+        return None
+    return passlib
+
+
+def saslprep(secret: str) -> str:
+    """Normalize a password, as passlib recommends for the unicode strings
+    used as one.
+
+    Raises:
+        `ConfigError` if `passlib` isn't installed.
+        `ValueError` if it has characters that aren't allowed in a password.
+
+    """
+    passlib = load_passlib()
+    if passlib is None:
+        raise ConfigError(MISSING_PASSLIB_MESSAGE)
+    return passlib.utils.saslprep(secret, param="password")
 
 
 def force_bytes(s, encoding="utf-8", errors="strict"):
@@ -84,8 +123,8 @@ def urlsafe_base64_decode(s: str) -> str:
 class Auth:
     __slots__ = [
         "secret_keys",
-        "hasher",
-        "_decoy_password",
+        "_hasher",
+        "_decoy",
         "password_minlen",
         "password_maxlen",
     ]
@@ -100,10 +139,36 @@ class Auth:
         password_maxlen: int = 1024,
     ) -> None:
         self.secret_keys = secret_keys
+        self._hasher = None
+        self._decoy = None
         self._set_hasher(hash_name or DEFAULT_HASHER, rounds)
-        self._decoy_password = self.hasher.hash("!")
         self.password_minlen = password_minlen
         self.password_maxlen = password_maxlen
+
+    @property
+    def hasher(self) -> "CryptContext":
+        """What hashes and verifies the passwords.
+
+        Raises:
+            `ConfigError` if `passlib` isn't installed.
+
+        """
+        if self._hasher is None:
+            raise ConfigError(MISSING_PASSLIB_MESSAGE)
+        return self._hasher
+
+    @hasher.setter
+    def hasher(self, value: "CryptContext") -> None:
+        self._hasher = value
+
+    @property
+    def _decoy_password(self) -> str:
+        """The hash of a password that no user has. A login without a user,
+        or without a password, is checked against it, so that it takes as
+        long as one with them."""
+        if self._decoy is None:
+            self._decoy = self.hasher.hash("!")
+        return self._decoy
 
     def _set_hasher(
         self,
@@ -113,6 +178,9 @@ class Auth:
         """Updates the hash algorithm and, optionally, the number of rounds
         to use.
 
+        Without `passlib` there is no hasher, and using it raises
+        `ConfigError`: every app has an `Auth`, with passwords or not.
+
         Raises:
             `~WrongHashAlgorithm` if new algorithm isn't one of the
             recommended options.
@@ -121,6 +189,10 @@ class Auth:
         hash_name = hash_name.replace("-", "_")
         if hash_name not in VALID_HASHERS:
             raise WrongHashAlgorithm(WRONG_HASH_MESSAGE)
+
+        passlib = load_passlib()
+        if passlib is None:
+            return
 
         hasher = getattr(passlib.hash, hash_name)
         # Make sure all the hasher dependencies are installed, because it is an
@@ -142,7 +214,8 @@ class Auth:
             hash_name + "__min_rounds": rounds,
             hash_name + "__max_rounds": rounds,
         }
-        self.hasher = CryptContext(**op)
+        self._hasher = passlib.context.CryptContext(**op)
+        self._decoy = self._hasher.hash("!")
 
     def hash_password(self, secret: str) -> str | None:
         """Hash a password that a user is setting.
@@ -155,9 +228,7 @@ class Auth:
         if secret is None:
             return None
 
-        # Passlib recommends normalizing the unicode strings
-        # used as passwords
-        secret = saslprep(secret, param="password")
+        secret = saslprep(secret)
 
         len_secret = len(secret)
         if len_secret < self.password_minlen:
@@ -179,7 +250,7 @@ class Auth:
         of a hash that was made somewhere else.
         """
         try:
-            return saslprep(secret, param="password")
+            return saslprep(secret)
         except ValueError:
             return secret
 
