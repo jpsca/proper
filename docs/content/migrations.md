@@ -177,7 +177,7 @@ Some examples (model - class or model name)::
     > ...
 """
 import peewee as pw
-from peewee_migrate import Migrator
+from proper.models.migrate import Migrator
 
 
 def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
@@ -226,7 +226,7 @@ Here's a real migration that adds a `Comment` table with a foreign key to `Book`
 ```python
 """Peewee migrations -- 003_create_comment."""
 import peewee as pw
-from peewee_migrate import Migrator
+from proper.models.migrate import Migrator
 
 def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
     @migrator.create_model

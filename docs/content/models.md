@@ -787,8 +787,10 @@ DATABASES: dict[str, t.Any] = {
 You'll need to install a PostgreSQL driver:
 
 ```bash
-uv add 'psycopg[binary,pool]'
+uv add 'psycopg[c,pool]'
 ```
+
+`psycopg[c]` is compiled when it is installed, so your machine needs a C compiler and the PostgreSQL headers (`sudo apt install gcc libpq-dev` on Debian or Ubuntu). The usual `psycopg[binary]` has no packages for free-threaded Python.
 
 `PostgresqlExtDatabase` adds support for PostgreSQL-specific field types like `ArrayField`, `HStoreField`, `JSONField`, and `TSVectorField` (full-text search).
 

@@ -119,17 +119,19 @@ It runs with the `dev` config because `prod` needs secrets that must not be in t
 
 ## Docker
 
-Two-stage image on `debian:bookworm-slim`. The official `python` images have no free-threaded build, so uv installs the interpreter into `/python`, the same path in both stages, so the venv's links to it survive the copy. Trimmed:
+Two-stage image on `debian:trixie-slim`. The official `python` images have no free-threaded build, so uv installs the interpreter into `/python`, the same path in both stages, so the venv's links to it survive the copy. Trimmed:
 
 ```dockerfile {title="Dockerfile"}
 ARG PYTHON_VERSION=3.14t
-ARG UV_VERSION=0.11.7
+ARG UV_VERSION=0.13.1
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
-FROM debian:bookworm-slim AS builder
+FROM debian:trixie-slim AS builder
 COPY --from=uv /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_INSTALL_DIR=/python \
     UV_PYTHON_PREFERENCE=only-managed UV_PYTHON=3.14t
+RUN apt-get update && apt-get install --no-install-recommends -y gcc libc6-dev libpq-dev \
+    && rm -rf /var/lib/apt/lists/*              # to compile psycopg[c]
 RUN uv python install 3.14t
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./          # README.md: pyproject's `readme` needs it
@@ -138,7 +140,7 @@ COPY . .
 RUN uv sync --frozen --no-dev
 RUN APP_ENV=dev .venv/bin/proper jx compile
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 COPY --from=builder /python /python
 ENV APP_ENV=prod PORT=2300 VIRTUAL_ENV=/app/.venv PATH="/app/.venv/bin:$PATH"
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates libpq5 libvips \
@@ -154,7 +156,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
 CMD ["proper", "run"]
 ```
 
-- System libraries: `libpq5` for psycopg, `libvips` for image variants. The full file has `poppler-utils` (PDF previews) and `ffmpeg` (video previews) commented out; uncomment what [storage_advanced.md](storage_advanced.md) needs.
+- System libraries: `libpq5` for psycopg, `libvips` for image variants. The builder has `gcc`, `libc6-dev` and `libpq-dev` to compile `psycopg[c]`: `psycopg[binary]` has no wheels for free-threaded Python, and the blueprint's `pyproject.toml` suggests `psycopg[c,pool]`. The full file has `poppler-utils` (PDF previews) and `ffmpeg` (video previews) commented out; uncomment what [storage_advanced.md](storage_advanced.md) needs.
 - The app runs as the unprivileged `app` user. `storage/` (uploads, SQLite files) and `log/` are its writable folders: mount volumes there. `.dockerignore` keeps `storage/*`, `.env`, `tests`, `_compiled` and the deploy files out of the image.
 - **One image, three commands.** Web: `proper run`. Worker: `python workers.py`. Migrations: `proper db prepare` (or `proper db migrate`). Running the worker from the same image guarantees it imports the same tasks and models the web tier enqueues. `Dockerfile.workers` only exists to push a separate worker image to a registry: it builds `FROM` the app image, sets `HEALTHCHECK NONE` and the worker command.
 

@@ -2,6 +2,46 @@
 
 All notable changes to Proper are documented in this file.
 
+## 0.49.0
+
+### Changed
+
+- The migrations are part of Proper, in `proper.models.migrate` (adapted
+  from peewee-migrate), and `peewee-migrate` is no longer a dependency of
+  Proper nor of a new app. A new migration imports `Migrator` from there.
+  An app made before has `peewee-migrate` in its own dependencies, so its
+  migrations keep running. To remove it from them, replace in each
+  migration `from peewee_migrate import Migrator` with
+  `from proper.models.migrate import Migrator`.
+- `passlib` is no longer a dependency of Proper: it hashes the passwords,
+  and an app without them doesn't need it. The auth addon adds it to the
+  dependencies of the app (it already did, so an app with the addon has
+  it). Without it, hashing or checking a password raises `ConfigError`,
+  which says to add it. Proper no longer imports it when it starts.
+
+### Fixed
+
+- `proper db create` wrote a `pw.JSONField` as `pw_pext.JSONField`, a name
+  the migration didn't import, so the migration of a model with one failed
+  with `NameError`. A field is written with the module of its class, and a
+  migration that uses a field of `playhouse.postgres_ext` imports it.
+- `proper db create` wrote a `DecimalField` with its `rounding` unquoted,
+  and its default as a `Decimal(...)` that the migration didn't import.
+- A migration that changed the `unique` of a field failed: `change_fields`
+  dropped an index with the name of the column, or `proper db create` added
+  an `add_index` for an index that `change_fields` had already made.
+  `change_fields` replaces the index of the field, and no other operation
+  is written for it.
+- `migrator.remove_fields()` failed on SQLite for a field with `index=True`
+  and for a foreign key (`error in index ... after drop column`), and so
+  did the rollback of the migration that added one. The index is dropped
+  first.
+- After `migrator.add_default()`, changing or removing that field raised
+  `KeyError`.
+- On MySQL and MariaDB, `change_fields`, `add_not_null`, `drop_not_null` and
+  `rename_field` made one more unique index on a column that had one, each
+  time they ran, so the column stayed unique after its `unique` was removed.
+
 ## 0.48.0
 
 ### Changed
@@ -775,7 +815,7 @@ number without a `USING` clause):
 import ipaddress
 
 import peewee as pw
-from peewee_migrate import Migrator
+from proper.models.migrate import Migrator
 
 
 def ip_numbers_to_text(migrator):

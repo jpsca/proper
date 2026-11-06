@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from unittest.mock import MagicMock
 
 import passlib.hash
@@ -12,7 +14,7 @@ from proper.auth import (
     urlsafe_base64_decode,
     urlsafe_base64_encode,
 )
-from proper.errors import WrongHashAlgorithm
+from proper.errors import ConfigError, WrongHashAlgorithm
 
 
 SECRET_KEYS = ["*" * 50]
@@ -379,3 +381,97 @@ class TestUpdatePasswordHash:
 
         assert auth.update_password_hash("secret123", user) is False
         assert user.password == password
+
+
+class NoUsers:
+    @classmethod
+    def get_by_login(cls, login):
+        return None
+
+
+@pytest.fixture()
+def no_passlib(monkeypatch):
+    """As if `passlib` wasn't installed: Python doesn't import a module
+    that is `None` in `sys.modules`."""
+    monkeypatch.setitem(sys.modules, "passlib", None)
+
+
+class TestWithoutPasslib:
+    """`passlib` comes with the auth addon. Every app has an `Auth`, so one
+    is made without it, and says what is missing when a password is used."""
+
+    def test_auth_is_made(self, no_passlib):
+        auth = Auth(secret_keys=SECRET_KEYS)
+
+        assert auth.secret_keys == SECRET_KEYS
+
+    def test_invalid_hasher_raises(self, no_passlib):
+        with pytest.raises(WrongHashAlgorithm):
+            Auth(secret_keys=SECRET_KEYS, hash_name="md5")
+
+    def test_hasher_raises(self, no_passlib):
+        auth = Auth(secret_keys=SECRET_KEYS)
+
+        with pytest.raises(ConfigError, match="uv add passlib"):
+            auth.hasher  # noqa: B018
+
+    def test_hash_password_raises(self, no_passlib):
+        auth = Auth(secret_keys=SECRET_KEYS)
+
+        with pytest.raises(ConfigError, match="uv add passlib"):
+            auth.hash_password("secret123")
+
+    def test_password_is_valid_raises(self, no_passlib):
+        auth = Auth(secret_keys=SECRET_KEYS)
+
+        with pytest.raises(ConfigError, match="uv add passlib"):
+            auth.password_is_valid("secret123", "a hash")
+
+    def test_authenticate_raises(self, no_passlib):
+        auth = Auth(secret_keys=SECRET_KEYS)
+
+        with pytest.raises(ConfigError, match="uv add passlib"):
+            auth.authenticate(NoUsers, "ana", "secret123")
+
+    def test_no_password_is_checked_without_a_login(self, no_passlib):
+        auth = Auth(secret_keys=SECRET_KEYS)
+
+        assert auth.authenticate(NoUsers, None, "secret123") is None
+        assert auth.password_is_valid(None, "a hash") is False
+        assert auth.hash_password(None) is None
+
+
+def test_an_app_starts_without_passlib(tmp_path):
+    """In a new process: in this one `passlib` is already imported."""
+    code = """
+import sys
+
+sys.modules["passlib"] = None
+
+from proper import App
+
+app = App(__name__, {"SECRET_KEYS": ["*" * 50]})
+assert app.auth is not None
+assert not any(name.startswith("passlib.") for name in sys.modules)
+"""
+    script = tmp_path / "shop.py"
+    script.write_text(code)
+
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_importing_proper_does_not_import_passlib():
+    code = "import sys, proper; assert 'passlib' not in sys.modules"
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+
+    assert result.returncode == 0, result.stderr

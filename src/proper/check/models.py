@@ -5,9 +5,9 @@ from importlib import import_module
 from pathlib import Path
 
 import peewee as pw
-from peewee_migrate import Migrator, Router
-from peewee_migrate.router import compile_migrations, load_models
 
+from ..models.migrate import Migrator, Router
+from ..models.migrate.router import compile_migrations, load_models
 from ..models.seeds import _iter_seed_modules, _resolve_package
 from .problem import ERROR, WARNING, Problem, relpath, where, where_attr
 

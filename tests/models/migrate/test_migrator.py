@@ -1,0 +1,456 @@
+import peewee as pw
+import pytest
+from playhouse.test_utils import count_queries
+
+from proper.models.migrate import Migrator
+from proper.models.migrate.auto import diff_many
+
+
+def test_migrator(router):  # noqa: PLR0915
+    migrator = Migrator(router.database)
+
+    @migrator.create_model
+    class Customer(pw.Model):
+        name = pw.CharField()
+
+    assert Customer == migrator.orm["customer"]
+
+    @migrator.create_model
+    class Order(pw.Model):
+        number = pw.CharField()
+        uid = pw.CharField(unique=True)
+
+        customer_id = pw.ForeignKeyField(Customer, column_name="customer_id")
+
+    assert Order == migrator.orm["order"]
+    meta = Order._meta  # type: ignore[]
+    migrator()
+
+    migrator.add_fields(Order, finished=pw.BooleanField(default=False))
+    assert "finished" in meta.fields
+    migrator()
+
+    migrator.remove_fields("order", "finished", "customer_id", "uid", legacy=True)
+    assert "finished" not in meta.fields
+    assert not hasattr(Order, "customer_id")
+    assert not hasattr(Order, "customer_id_id")
+    migrator()
+
+    migrator.add_fields(Order, customer=pw.ForeignKeyField(Customer, null=True))
+    assert "customer" in meta.fields
+    assert Order.customer.name == "customer"  # type: ignore[]
+    assert Order.customer.column_name == "customer_id"
+    migrator()
+    assert Order.customer.name == "customer"  # type: ignore[]
+    assert Order.customer.column_name == "customer_id"
+
+    migrator.rename_field(Order, "number", "identifier")
+    assert "identifier" in meta.fields
+    migrator()
+
+    migrator.drop_not_null(Order, "identifier")
+    assert meta.fields["identifier"].null
+    assert meta.columns["identifier"].null
+    migrator()
+
+    migrator.add_default(Order, "identifier", 11)
+    assert meta.fields["identifier"].default == 11
+    migrator()
+
+    migrator.change_fields(Order, identifier=pw.IntegerField(default=0))
+    assert Order.identifier.field_type == "INT"  # type: ignore[]
+    migrator()
+
+    Order.create(identifier=55)
+    migrator.sql('UPDATE "order" SET identifier = 77;')
+    migrator()
+    order = Order.get()
+    assert order.identifier == 77
+
+    migrator.add_index(Order, "identifier", "customer")
+    migrator()
+    assert meta.indexes
+    assert not Order.identifier.index  # type: ignore[]
+
+    migrator.drop_index(Order, "identifier", "customer")
+    migrator()
+    assert not meta.indexes
+
+    migrator.remove_fields(Order, "customer", legacy=True)
+    migrator()
+    assert not hasattr(Order, "customer")
+
+    migrator.add_index(Order, "identifier", unique=True)
+    migrator()
+    assert not Order.identifier.index  # type: ignore[]
+    assert Order.identifier.unique  # type: ignore[]
+    assert meta.indexes
+
+    migrator.rename_table(Order, "orders")
+    assert migrator.orm["orders"]
+    assert migrator.orm["orders"]._meta.table_name == "orders"  # type: ignore[]
+    migrator()
+
+    migrator.change_fields(Order, identifier=pw.IntegerField(default=0))
+    assert not Order._meta.indexes  # type: ignore[]
+
+
+def test_sql_params(migrator: Migrator, models):
+    Customer, Order = models
+    customer = Customer.create(name="c", age=1)
+    Order.create(number="1", uid="u1", customer=customer)
+    Order.create(number="2", uid="u2", customer=customer)
+
+    migrator.sql('UPDATE "order" SET number = ? WHERE uid = ?', "3", "u1")
+    migrator()
+
+    assert Order.get(Order.uid == "u1").number == "3"
+    assert Order.get(Order.uid == "u2").number == "2"
+
+
+def test_add_fields(migrator: Migrator, models):
+    _, Order = models
+    meta = Order._meta  # type: ignore[]
+    migrator.add_fields(Order, finished=pw.BooleanField(default=False))
+    assert "finished" in meta.fields
+    migrator()
+
+
+def test_add_fields_default(migrator: Migrator, models):
+    Customer, _ = models
+    customer = Customer.create(name="c", age=1)
+
+    migrator.add_fields(Customer, status=pw.CharField(default="new", null=True))
+    migrator()
+
+    customer = Customer.get(Customer.id == customer.id)
+    assert customer.status == "new"
+
+
+def test_add_fields_allow_not_null(migrator: Migrator):
+    migrator.add_fields("customer", blocked=pw.BooleanField(null=False), allow_not_null=True)
+    migrator()
+
+    field = migrator.orm["customer"]._meta.fields["blocked"]  # type: ignore[]
+    assert not field.null
+
+
+def test_add_fields_with_foreign_keys():
+    db = pw.SqliteDatabase(":memory:", pragmas={"foreign_keys": 1})
+
+    class User(pw.Model):
+        class Meta:
+            database = db
+
+    class TgAccount(pw.Model):
+        owner = pw.ForeignKeyField(User)
+
+        class Meta:
+            database = db
+
+    User.create_table()
+    TgAccount.create_table()
+    user = User.create()
+    TgAccount.create(owner=user)
+
+    migrator = Migrator(db)
+    migrator.add_fields(User, name=pw.CharField(default="John"))
+    migrator()
+
+    assert User.get(User.id == user.id).name == "John"
+
+
+def test_add_fk(migrator: Migrator, models):
+    Customer, Order = models
+    meta = Order._meta  # type: ignore[]
+    migrator.add_fields(Order, guest=pw.ForeignKeyField(Customer, null=True))
+    assert "guest" in meta.fields
+    assert Order.guest.name == "guest"  # type: ignore[]
+    assert Order.guest.column_name == "guest_id"
+    migrator()
+
+
+def test_remove_fields(migrator: Migrator, models):
+    _, Order = models
+    meta = Order._meta  # type: ignore[]
+    to_remove = "customer", "number"
+    migrator.remove_fields(Order, *to_remove, legacy=True)
+    for field in to_remove:
+        assert field not in meta.fields
+
+    migrator()
+
+
+def test_remove_fk(migrator: Migrator):
+    Order = migrator.orm["order"]
+    meta = Order._meta  # type: ignore[]
+    assert "customer" in meta.fields
+    migrator.remove_fields(Order, "customer", legacy=True)
+    assert "customer" not in meta.fields
+    migrator()
+
+
+def test_remove_model(migrator: Migrator, database):
+    assert "customer" in database.get_tables()
+
+    migrator.remove_model("customer", cascade=True)
+    migrator()
+
+    assert "customer" not in database.get_tables()
+
+
+def test_rename_field(migrator: Migrator):
+    Order = migrator.orm["order"]
+    migrator.rename_field("order", "customer", "user")
+    meta = Order._meta  # type: ignore[]
+    assert meta.columns["user_id"]
+    assert meta.fields["user"]
+    [operation] = migrator.__ops__
+    assert operation.args == ("order", "customer_id", "user_id")  # type: ignore[union-attr]
+
+    # Rollback
+    migrator()
+    migrator.rename_field("order", "user", "customer")
+    [operation] = migrator.__ops__
+    assert operation.args == ("order", "user_id", "customer_id")  # type: ignore[union-attr]
+
+
+def test_rename_table(migrator: Migrator):
+    migrator.rename_table("customer", "user")
+    [operation] = migrator.__ops__
+    assert operation.args == ("customer", "user")  # type: ignore[union-attr]
+
+    class User(pw.Model):
+        name = pw.CharField()
+        age = pw.IntegerField()
+
+    migrations = diff_many([migrator.orm["user"]], [User], migrator)
+    assert not migrations
+
+
+def test_migrator_fake(migrator: Migrator):
+    @migrator.create_model
+    class Customer(pw.Model):
+        name = pw.CharField()
+
+    assert migrator.__ops__
+
+    migrator()
+
+    assert not migrator.__ops__
+
+    with migrator.fake():
+        migrator.add_fields("customer", is_blocked=pw.BooleanField(default=False))
+
+    assert not migrator.__ops__
+
+    snapshot = migrator.orm["customer"]
+    assert "is_blocked" in snapshot._meta.fields  # type: ignore[]
+
+
+@pytest.mark.parametrize("dburl", ["postgres:///fake"])
+def test_migrator_postgres(migrator, database):
+    """
+    Ensure change_fields generates queries and
+    does not cause exception
+    """
+
+    @migrator.create_model
+    class User(pw.Model):
+        name = pw.CharField()
+        created_at = pw.DateField()
+
+    assert User == migrator.orm["user"]
+
+    # Date -> DateTime
+    migrator.change_fields("user", created_at=pw.DateTimeField())
+    migrator()
+    queries = database.cursor().queries
+    assert 'ALTER TABLE "user" ALTER COLUMN "created_at" TYPE TIMESTAMP' in queries
+
+    # Char -> Text
+    migrator.change_fields("user", name=pw.TextField())
+    migrator()
+    assert 'ALTER TABLE "user" ALTER COLUMN "name" TYPE TEXT' in database.cursor().queries
+
+
+def test_add_field_unique(migrator: Migrator):
+    @migrator.create_model
+    class TestTable(pw.Model):
+        class Meta:
+            table_name = "test_table"
+
+        field = pw.CharField(null=False)
+
+    migrator()
+    migrator.add_fields("test_table", field2=pw.CharField(unique=True))
+    ops = migrator.__ops__
+    assert len(ops) == 1
+    assert ops[0].fn.__name__ == "add_column"  # type: ignore[union-attr]
+
+
+def test_change_field_constraint(migrator: Migrator):
+    @migrator.create_model
+    class TestTable(pw.Model):
+        class Meta:
+            table_name = "test_table"
+
+        field_with_check = pw.CharField(
+            null=False, constraints=[pw.Check("field_with_check in ('opt1', 'opt2')")]
+        )
+
+    migrator()
+
+    tt = migrator.orm["test_table"]
+    migrator.change_fields(
+        tt,
+        field_with_check=pw.CharField(
+            null=False,
+            constraints=[pw.Check("field_with_check in ('opt1', 'opt2', 'opt3')")],
+        ),
+    )
+    migrator()
+
+    tt.insert(field_with_check="opt3").execute()
+    with pytest.raises(pw.IntegrityError):
+        tt.insert(field_with_check="opt4").execute()
+
+
+@pytest.mark.parametrize("dburl", ["postgres:///fake"])
+def test_change_field_default(migrator: Migrator, database):
+    @migrator.create_model
+    class TestTable(pw.Model):
+        field_with_default = pw.CharField(constraints=[pw.SQL("DEFAULT 'test'")])
+
+    migrator()
+
+    migrator.change_fields(
+        "testtable",
+        field_with_default=pw.CharField(default=22),
+    )
+    with count_queries() as counter:
+        migrator()
+
+    queries = counter.get_queries()
+    assert queries[0].msg == (
+        'ALTER TABLE "testtable" ALTER COLUMN "field_with_default" TYPE VARCHAR(255)',
+        [],
+    )
+    assert queries[1].msg == (
+        'ALTER TABLE "testtable" ALTER COLUMN "field_with_default" SET DEFAULT %s',
+        ["22"],
+    )
+    assert queries[2].msg == (
+        'ALTER TABLE "testtable" ALTER COLUMN "field_with_default" SET NOT NULL',
+        [],
+    )
+
+
+INDEX_STATES = {"none": {}, "index": {"index": True}, "unique": {"unique": True}}
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "expected"),
+    [
+        # `change_fields` only changes the index when `unique` changes
+        ("none", "index", []),
+        ("index", "none", [("post_title", False)]),
+        ("none", "unique", [("post_title", True)]),
+        ("index", "unique", [("post_title", True)]),
+        ("unique", "none", []),
+        ("unique", "index", [("post_title", False)]),
+    ],
+)
+def test_change_fields_replaces_the_index(database, old, new, expected):
+    migrator = Migrator(database)
+
+    @migrator.create_model
+    class Post(pw.Model):
+        title = pw.CharField(**INDEX_STATES[old])
+        slug = pw.CharField(index=True)
+
+    migrator()
+
+    migrator.change_fields("post", title=pw.CharField(max_length=50, **INDEX_STATES[new]))
+    migrator()
+
+    indexes = sorted((index.name, index.unique) for index in database.get_indexes("post"))
+    assert indexes == sorted([("post_slug", False), *expected])
+    assert bool(Post._meta.indexes) == (new == "unique")
+
+
+def test_change_fields_of_a_renamed_column_replaces_the_index(database):
+    migrator = Migrator(database)
+
+    @migrator.create_model
+    class Post(pw.Model):
+        title = pw.CharField(unique=True)
+
+    migrator()
+
+    migrator.change_fields("post", title=pw.CharField(column_name="name", index=True))
+    migrator()
+
+    indexes = [(index.name, index.columns, index.unique) for index in database.get_indexes("post")]
+    assert indexes == [("post_name", ["name"], False)]
+
+
+@pytest.mark.parametrize(
+    "make_field",
+    [
+        lambda author: pw.CharField(null=True, index=True),
+        lambda author: pw.CharField(null=True, unique=True),
+        lambda author: pw.ForeignKeyField(author, null=True),
+    ],
+    ids=["index", "unique", "foreign_key"],
+)
+def test_remove_fields_with_an_index(database, make_field):
+    migrator = Migrator(database)
+
+    @migrator.create_model
+    class Author(pw.Model):
+        name = pw.CharField()
+
+    @migrator.create_model
+    class Post(pw.Model):
+        title = pw.CharField()
+
+    migrator()
+    migrator.add_fields("post", extra=make_field(Author))
+    migrator()
+    assert database.get_indexes("post")
+
+    migrator.remove_fields("post", "extra")
+    migrator()
+
+    assert not database.get_indexes("post")
+    assert [column.name for column in database.get_columns("post")] == ["id", "title"]
+
+
+def test_add_default_then_change_or_remove_the_field(database):
+    migrator = Migrator(database)
+
+    @migrator.create_model
+    class Post(pw.Model):
+        title = pw.CharField(default="untitled")
+        views = pw.IntegerField(null=True)
+
+    migrator()
+
+    migrator.add_default("post", "views", 0)
+    migrator.add_default("post", "title", "none")
+    migrator()
+    assert Post().views == 0
+    assert Post().title == "none"
+
+    migrator.change_fields("post", views=pw.IntegerField(default=1))
+    migrator.remove_fields("post", "title")
+    migrator()
+
+    assert Post().views == 1
+    assert [column.name for column in database.get_columns("post")] == ["id", "views"]
+
+
+def test_unsupported_database():
+    with pytest.raises(ValueError, match="Unsupported database"):
+        Migrator(pw.Database("fake"))

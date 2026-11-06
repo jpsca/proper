@@ -19,7 +19,7 @@ MIGRATION = '''\
 import ipaddress
 
 import peewee as pw
-from peewee_migrate import Migrator
+from proper.models.migrate import Migrator
 
 
 def ip_numbers_to_text(migrator):

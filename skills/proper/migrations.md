@@ -1,6 +1,6 @@
 ---
 title: Databases, Migrations and Seeds
-description: DATABASES config (SQLite, PostgreSQL, several databases), peewee-migrate migrations (create, migrate, rollback, merge, fake, adding fields), and seeds (`db/seeds/`, `envs`, `proper db seed`)
+description: DATABASES config (SQLite, PostgreSQL, several databases), migrations (create, migrate, rollback, merge, fake, adding fields), and seeds (`db/seeds/`, `envs`, `proper db seed`)
 last_verified: 2026-11-01
 sources:
   - src/proper/models
@@ -132,7 +132,7 @@ class PageView(pw.Model):
 
 ## Migrations
 
-Proper uses [peewee-migrate](https://github.com/klen/peewee-migrate) for schema migrations. Migration files are Python scripts that live in the `db/` directory, organized by database name.
+Proper has its own schema migrations for Peewee, in `proper.models.migrate`. Migration files are Python scripts that live in the `db/` directory, organized by database name.
 
 ### Creating Migrations
 
@@ -271,7 +271,7 @@ Migrations are plain Python files with `migrate()` and `rollback()` functions:
 ```python
 """Peewee migrations -- 002_add_photos.py."""
 import peewee as pw
-from peewee_migrate import Migrator
+from proper.models.migrate import Migrator
 
 
 def migrate(migrator: Migrator, database: pw.Database, *, fake=False):

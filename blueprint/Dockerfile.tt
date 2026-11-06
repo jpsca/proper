@@ -8,8 +8,8 @@
 # `python` images have no such variant, so uv installs the interpreter into
 # /python in the builder and the runtime stage copies it over.
 ARG PYTHON_VERSION=3.14t
-ARG UV_VERSION=0.11.7
-ARG DEBIAN_VERSION=bookworm
+ARG UV_VERSION=0.13.1
+ARG DEBIAN_VERSION=trixie
 
 # Pinned, reproducible uv binary as its own stage (no `pip install uv` layer).
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
@@ -32,6 +32,17 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_INSTALL_DIR=/python \
     UV_PYTHON_PREFERENCE=only-managed \
     UV_PYTHON=${PYTHON_VERSION}
+
+# System build libs:
+# - gcc, libc6-dev, libpq-dev -> required to compile psycopg[c]: there are
+#   no wheels of psycopg[binary] for free-threaded Python.
+#
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        gcc \
+        libc6-dev \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv python install ${PYTHON_VERSION}
@@ -70,13 +81,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
 # System runtime libs:
-# - libpq5 -> required by the pure-Python psycopg (it dlopen's libpq at import).
+# - libpq5 -> required by psycopg[c]
 # - libvips -> required for image processing
 # - poppler-utils -> required for PDF processing (optional, not installed by default)
 # - ffmpeg -> required for video processing (optional, not installed by default)
 #
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y ca-certificates libpq5 \
+    && apt-get install --no-install-recommends -y ca-certificates \
+        libpq5 \
         libvips \
         # poppler-utils \
         # ffmpeg \
