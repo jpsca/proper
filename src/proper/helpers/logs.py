@@ -16,16 +16,19 @@ import sys
 import typing as t
 
 import structlog
+from structlog.stdlib import BoundLogger
 from structlog.typing import EventDict, Processor, WrappedLogger
 
 
 __all__ = (
     "LOG_FORMATS",
     "LOG_LEVELS",
+    "TLogger",
     "logger",
     "setup_logging",
 )
 
+TLogger = BoundLogger
 LOG_FORMATS = ("console", "json", "off")
 LOG_LEVELS = {
     "debug": logging.DEBUG,
@@ -63,7 +66,7 @@ _LEVELS = {
 }
 
 
-class _BoundLogger(structlog.stdlib.BoundLogger):
+class _BoundLogger(BoundLogger):
     """Drops an event under the level of the logger before building it: a
     `logger.debug()` outside of debug mode costs as little as with the
     stdlib."""

@@ -2,10 +2,10 @@ import typing as t
 from pathlib import Path
 
 import peewee as pw
-from peewee_migrate.models import MIGRATE_TABLE
-from peewee_migrate.router import Router
 
 from ..constants import DB_CACHE, DB_QUEUE
+from .migrate.models import MIGRATE_TABLE
+from .migrate.router import Router
 
 
 if t.TYPE_CHECKING:

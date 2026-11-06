@@ -157,18 +157,6 @@ wheels = [
 ]
 
 [[package]]
-name = "click"
-version = "8.3.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/63/f9e1ea081ce35720d8b92acde70daaedace594dc93b693c869e0d5910718/click-8.3.3.tar.gz", hash = "sha256:398329ad4837b2ff7cbe1dd166a4c0f8900c3ca3a218de04466f38f6497f18a2", size = 328061, upload-time = "2026-04-22T15:11:27.506Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/44/c1221527f6a71a01ec6fbad7fa78f1d50dfa02217385cf0fa3eec7087d59/click-8.3.3-py3-none-any.whl", hash = "sha256:a2bf429bb3033c89fa4936ffb35d5cb471e3719e1f3c8a7c3fff0b8314305613", size = 110502, upload-time = "2026-04-22T15:11:25.044Z" },
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -650,19 +638,6 @@ wheels = [
 ]
 
 [[package]]
-name = "peewee-migrate"
-version = "2.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "peewee" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/fb/5c15d12ad3ae3c02efed0bb2a0c7e41013c2c45faf170d29a67f4a9e4c37/peewee_migrate-2.3.0.tar.gz", hash = "sha256:3652bb5e9564394c9fd1ee44c8713a9de3b3aa802c07a34e252504e71de4ee56", size = 16271, upload-time = "2026-08-24T12:35:41.077Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/23/aa993125a722661c614361c31e3b7dfe133513ed256029cc535055d464f4/peewee_migrate-2.3.0-py3-none-any.whl", hash = "sha256:8a73e9d3ba7621c254b0588cf1946af2e69d54d069351313395c6ac91a4d5af8", size = 19889, upload-time = "2026-08-24T12:35:40.091Z" },
-]
-
-[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -743,7 +718,7 @@ wheels = [
 
 [[package]]
 name = "proper"
-version = "0.48.0"
+version = "0.49.0"
 source = { editable = "." }
 dependencies = [
     { name = "babel" },
@@ -753,11 +728,8 @@ dependencies = [
     { name = "huey" },
     { name = "inflection" },
     { name = "isort" },
-    { name = "jinja2" },
     { name = "markupsafe" },
-    { name = "passlib" },
     { name = "peewee" },
-    { name = "peewee-migrate" },
     { name = "proper-cli" },
     { name = "pybearings" },
     { name = "structlog" },
@@ -782,8 +754,11 @@ test = [
     { name = "boto3" },
     { name = "itsdangerous" },
     { name = "nh3" },
+    { name = "passlib" },
     { name = "poyo" },
     { name = "proper-new" },
+    { name = "psycopg" },
+    { name = "pymysql" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
@@ -802,13 +777,10 @@ requires-dist = [
     { name = "huey", specifier = ">=3.4,<4" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "isort", specifier = "~=5.0" },
-    { name = "jinja2", specifier = ">=3.0" },
     { name = "markupsafe", specifier = ">=2.0" },
-    { name = "passlib", specifier = "~=1.7" },
     { name = "peewee", specifier = ">=4.5.1,<5" },
-    { name = "peewee-migrate", specifier = ">=2.3,<3" },
     { name = "proper-cli", specifier = ">=2.1.0" },
-    { name = "pybearings", specifier = ">=0.4.1" },
+    { name = "pybearings", specifier = ">=0.5.0" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "types-peewee", specifier = ">=4.5.1" },
     { name = "tzdata", specifier = ">=2025.3" },
@@ -829,8 +801,11 @@ test = [
     { name = "boto3", specifier = ">=1.35.71" },
     { name = "itsdangerous", specifier = ">=2.2" },
     { name = "nh3", specifier = ">=0.2.18" },
+    { name = "passlib", specifier = "~=1.7" },
     { name = "poyo" },
     { name = "proper-new" },
+    { name = "psycopg", specifier = ">=3.3.8" },
+    { name = "pymysql", specifier = ">=1.2.3" },
     { name = "pytest", specifier = ">=7.2" },
     { name = "pytest-cov" },
     { name = "pytest-smtpd" },
@@ -885,6 +860,18 @@ wheels = [
 ]
 
 [[package]]
+name = "psycopg"
+version = "3.3.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/11/c8/3bd7e09770a5829eb26667df5e49f084d78bd106d5949ade9447288a8e18/psycopg-3.3.8.tar.gz", hash = "sha256:86c135a9a6f5e98404975c5787e620bf436a7807e088baebd1b20fa48d3b4b4f", size = 168902, upload-time = "2026-11-04T09:44:26.142Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/5c/50a0b0796ccb69b11934f7c5758051c08019bda2fafb417501109fffd569/psycopg-3.3.8-py3-none-any.whl", hash = "sha256:ca50af6072ba9ea6866f33021975230c2555d7bfdb9d8f94ca3af5c3d1bf2167", size = 216209, upload-time = "2026-11-04T09:37:35.491Z" },
+]
+
+[[package]]
 name = "ptyprocess"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -904,15 +891,15 @@ wheels = [
 
 [[package]]
 name = "pybearings"
-version = "0.4.1"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d8/71/c2650ab81028f82e2df92191ffc1eefc1d6b4e864e98c40577b4c2f55c3b/pybearings-0.4.1.tar.gz", hash = "sha256:52372feeac72215c37e113e6ac7c27f25d1f68d330c61773f3c9e709a4169263", size = 282196, upload-time = "2026-10-25T22:43:42.456Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/50/a026d950f5929c19d0147ab1985849c00398552b4e55a767b5846a750ef8/pybearings-0.5.0.tar.gz", hash = "sha256:d7a1ac8b8db7f3e49a1b326e50bd29fc57d8de22794de832c6e28432d3bd360b", size = 282003, upload-time = "2026-11-05T18:43:49.124Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/88/477e48c2ae7ba2ed068b7fcad1cbba2bba0141b00b478741d58f7f34d5ab/pybearings-0.4.1-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:27ccdac02e6398563d9f1072f2460fbed59ce30e4344641eddc2a214f7239cbb", size = 608360, upload-time = "2026-10-25T22:43:40.32Z" },
-    { url = "https://files.pythonhosted.org/packages/41/48/37bf12af6b8f7638958228a4ce9d41c3574b95d054d87a80e4b06165ee52/pybearings-0.4.1-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:ed9b197739d6fc9764adce1036d29bf9be4a3c4bf1dd39c52ec8aebb4f20f0b4", size = 612877, upload-time = "2026-10-25T22:43:41.423Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/c9/0dc96cce0402cd52f9d95231a30ceddf969e1473d9ddf55d0403c3a5d87a/pybearings-0.5.0-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:2a49190b8136671290796fe19bb4a61643b3ba361f85b11532871c9b752334da", size = 607738, upload-time = "2026-11-05T18:43:46.491Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/29/201c67b3fa97ef2e2f56c9be15b48e83a46377e4f50548b3bc0415fdbddc/pybearings-0.5.0-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:be99d722d82df66352e5a7668da67a851af21afb88e13f47b5d1f57ae5932caf", size = 612468, upload-time = "2026-11-05T18:43:47.784Z" },
 ]
 
 [[package]]
@@ -931,6 +918,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
+]
+
+[[package]]
+name = "pymysql"
+version = "1.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/d4/c15b459e25a23767d2f4065ef40968920320f04e302889574310c21c96a3/pymysql-1.2.3.tar.gz", hash = "sha256:d5b288529782e536ae171866df3ca9dc4f6cbfb3cc2f18e6f837fbb90dbc262b", size = 50629, upload-time = "2026-09-17T12:22:49.146Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/4b/0a906d8184f011ff8dbd4722743783867589b33269d2c5fff238d636fdcb/pymysql-1.2.3-py3-none-any.whl", hash = "sha256:14f1c68e2ed859243ae5ca41ffbe677027fc46bc136a9f0be8a4e928e5e7415a", size = 46740, upload-time = "2026-09-17T12:22:47.826Z" },
 ]
 
 [[package]]

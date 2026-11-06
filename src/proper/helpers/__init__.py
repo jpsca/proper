@@ -12,7 +12,7 @@ from .imports import (
     get_instance,
     import_string,
 )
-from .logs import logger
+from .logs import TLogger, logger
 from .render import (
     add_dependencies,
     add_to_concerns,
@@ -56,6 +56,7 @@ __all__ = (
     "show_banner",
     "show_welcome",
     #
+    "TLogger",
     "logger",
     "BLUEPRINTS",
     "make_list",
