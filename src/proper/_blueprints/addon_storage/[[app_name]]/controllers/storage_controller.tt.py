@@ -25,8 +25,12 @@ class StorageRedirectController(AppController):
         if not attachment:
             raise NotFound
 
-        ### WARNING: Add access control checks here
-        ###
+        # The token only proves the URL was made by this app. Anyone who
+        # has it gets the file, even without signing in.
+        # You might want to check that `current.user` may see this attachment
+        # The check means nothing for a service with `public: True` because its
+        # bucket URL is open anyway. See "Serving Files > Authenticated Controllers"
+        # in the storage guide.
 
         service_url = attachment.service_url()
         if service_url:
@@ -49,6 +53,10 @@ class StorageProxyController(AppController):
         )
         if not attachment:
             raise NotFound
+
+        # If you make this controller private (by removing the `skip_authentication = True`)
+        # The observation of `StorageRedirectController.show` also applies here:
+        # the token is the only credential, so add the same owner check here.
 
         attachment.send_file()
 
@@ -97,8 +105,9 @@ class DirectUploadController(AppController):
         if not filename:
             raise BadRequest("Missing blob.filename")
 
-        ### WARNING: Add access control checks here
-        ###
+        # The user is signed in (this controller doesn't skip
+        # authentication), but any user can upload. Decide here if this one
+        # may (role, quota, etc.).
 
         attachment = Attachment.create_pending_blob(
             filename=filename,
@@ -106,6 +115,7 @@ class DirectUploadController(AppController):
             byte_size=int(blob.get("byte_size") or 0),
             source=self.source,
         )
+
         # For Disk, this will be
         # `url_for("DirectUpload.update", token=token, _full=True)`
         direct_upload = attachment.service.direct_upload_url(
@@ -136,8 +146,11 @@ class DirectUploadController(AppController):
         if obj is None:
             raise NotFound
 
-        ### WARNING: Add access control checks here
-        ###
+        # The token was given to the browser that called `create`, with
+        # the `upload` salt and a 15-minute life (`resolve_token`'s default
+        # `max_age`). Check here that `current.user` is that owner.
+        # if obj.creator and obj.creator != current.user:
+        #     raise Forbidden("You are not the owner of this attachment")
 
         obj.service.upload(BytesIO(self.request.body), obj)
         return ""

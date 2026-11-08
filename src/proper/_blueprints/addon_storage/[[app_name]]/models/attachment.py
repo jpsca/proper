@@ -1,13 +1,13 @@
 from ..main import app
+# from ..user import User
 from .base import BaseModel
 
 
 # app.attachment_for(BaseModel) must always come first in the inheritance list,
 # otherwise the attachment functionality will not work.
 class Attachment(app.attachment_for(BaseModel)):
-    # You can add any extra fields here, like:
-    # user = pw.ForeignKeyField(User, null=True)
-    # etc.
+    # You can add any extra fields here
+    # creator = pw.ForeignKeyField(User, null=True, backref="attachments")
 
     # All of these previewers are included but each of them require extra
     # python packages and/or *system* libraries.
