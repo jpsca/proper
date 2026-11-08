@@ -381,7 +381,7 @@ The generated `PasswordResetController` is the most interesting of the three, be
 
 Step | Route                              | Purpose 
 --   | ---------------------------------- | --------
-1.   | `GET  /password-reset/new`         | what's your email?
+1.   | `GET  /password-reset`             | what's your email?
 2.   | `POST /password-reset`             | send the email, save email to session
 3.   | `GET  /password-reset/sent`        | "check your email" confirmation page
 4.   | `GET  /password-reset/:token/edit` | set a new password
@@ -474,6 +474,8 @@ Key                     | Default            | What it controls
 `AUTH_TOKEN_LIFE`       | `3 * HOURS`        | Max age of a password-reset token before `resolve_token_for` rejects it.
 
 Every key is written into the generated `config/auth.py`.
+
+The passwords are hashed with `passlib`, which the addon adds to the dependencies of the app; it is not a dependency of Proper itself, and hashing or checking a password without it raises `ConfigError`.
 
 `AUTH_HASH_NAME` is one of `argon2`, `bcrypt`, `bcrypt_sha256`, `pbkdf2_sha512`, `pbkdf2_sha256`, `sha512_crypt`, `sha256_crypt`. Pass anything else and Proper raises `WrongHashAlgorithm` at startup. The default of `argon2` is the right answer for new applications; the alternatives exist so you can match a hash format you inherited from another system.
 
@@ -621,7 +623,7 @@ def create(self):
 
 ```python
 # controllers/concerns/authentication.py
-from proper.concerns import Authentication as ProperAuthentication
+from proper.concerns import CSRF_SESSION_KEY, Authentication as ProperAuthentication
 from proper.models import ProperModel
 
 from myapp.models import Session
@@ -637,6 +639,8 @@ class Authentication(ProperAuthentication):
             user_agent=self.request.user_agent,
             remember=remember,
         )
+        # A new CSRF token for the signed-in user, as the framework method does
+        self.response.session.pop(CSRF_SESSION_KEY, None)
         return self._set_current_session(session)
 ```
 

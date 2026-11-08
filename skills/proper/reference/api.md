@@ -1,7 +1,7 @@
 ---
 title: API Reference
 description: Reference: attributes and methods of Controller, App, Request and Response; other public exports; units; DotDict and MultiDict
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/controller/controller.py
   - src/proper/app.py
@@ -125,7 +125,7 @@ Accessed via `current.app` or directly from the app instance.
 | `on_error`         | `(func) -> func`                                           | Decorator to register error handlers                     |
 | `on_teardown`      | `(func) -> func`                                           | Decorator to register teardown handlers                  |
 | `around_request`   | `(func) -> func`                                           | Decorator to register a function `func(request, response, call_next)` that wraps every request |
-| `attachment_for`   | `(base_model_cls) -> type[_Attachment]`                    | Build an `Attachment` model subclass for the storage addon (memoized per app+base) |
+| `attachment_for`   | `(base_model_cls) -> type[_Attachment]`                    | Build an `Attachment` model subclass for the storage addon (memoized per app+base). Its `Reference` attribute is the model of the records that embed each attachment |
 | `has_migrations_pending` | `() -> bool`                                         | Any migration under `db/<name>/` not applied to its database |
 | `lower`            | `() -> None`                                               | Lower the dispatch decisions and compile every view; raises `LoweringError`, and `proper.views.CompileError` outside debug |
 | `__call__`         | `(environ, start_response) -> Iterable[bytes]`             | The app is a WSGI callable |
@@ -384,8 +384,8 @@ See [routing.md](../routing.md) and [urls.md](../urls.md) for full details.
 
 | Symbol         | Description                                                    |
 |----------------|----------------------------------------------------------------|
-| `Router`       | Main router — registers routes via `resources()`, `route()`, etc. |
-| `ScopedRouter` | Nested router returned by `scope()` and `namespace()` blocks   |
+| `Router`       | Main router — registers routes via `resource()`, `get()`, `post()`, ..., `static()`, `add_route()` |
+| `ScopedRouter` | Nested router returned by `scope()` blocks                     |
 | `Route`        | A single registered route (name, path, method, controller, action) |
 | `StaticRoute`  | Route for serving static assets                                |
 
@@ -496,7 +496,7 @@ to_seconds(hours=2, minutes=30)  # 9000
 
 ### DotDict
 
-A dict subclass that allows attribute-style access. Used for `app.config`, `request.session`, and `response.session`:
+A dict subclass that allows attribute-style access. Used for `app.config` (the sessions are plain dicts):
 
 ```python
 from proper.helpers import DotDict

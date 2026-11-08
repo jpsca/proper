@@ -1,1 +1,1 @@
-from .attachment import Attachment  # noqa
+from .attachment import Attachment, AttachmentReference  # noqa

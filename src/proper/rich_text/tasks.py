@@ -1,10 +1,10 @@
 """Helper for sweeping abandoned rich-text uploads.
 
 When the editor pre-uploads a file (e.g. a user drops an image into the
-rich text editor), an `Attachment` row is created with `source="direct"`
-and `pending=True`. The flag flips to `False` once a parent record's
-save confirms that the attachment is referenced from a body. If the
-user closes the tab without submitting, the row stays pending forever.
+rich text editor), an `Attachment` row is created with
+`source="rich_text"` and no references. A reference appears once a
+record that embeds it is saved (see `HasRichText`). If the user closes
+the tab without submitting, the row stays without references forever.
 
 This module exposes a pure function that finds such orphans and
 schedules them for purge. The user's app wraps the call in a Huey
@@ -26,28 +26,36 @@ def purge_abandoned_uploads(
     attachment_cls: "type[_Attachment]",
     *,
     grace_hours: int = 24,
-    source: str = "direct",
+    source: str = "rich_text",
 ) -> int:
-    """Schedule purges for rich-text uploads still pending past the grace
-    period. Returns the count of rows scheduled for purge.
+    """Schedule purges for rich-text uploads that no record references
+    and that are older than the grace period. Returns the count of rows
+    scheduled for purge.
+
+    Variants are skipped: they are purged with their parent.
 
     Arguments:
         attachment_cls:
             The user's `Attachment` model class.
-            It has `source`, `pending`, `created_at` columns (added by the storage addon)
-            and a `purge_later()` instance method.
         grace_hours:
-            How long an unconfirmed upload may live before it counts as
+            How long an unreferenced upload may live before it counts as
             abandoned. Defaults to 24h.
         source:
-            The source type of the attachment. Defaults to "direct".
+            Only the attachments with this `source` are considered.
+            Defaults to "rich_text", the source of the uploads of the
+            rich text editor. An attachment with another source can be
+            in use without references (a file attached to a record
+            through a foreign key), so it is never swept.
     """
     cutoff = pw.utcnow() - timedelta(hours=grace_hours)  # type: ignore
     cls = attachment_cls
+    Reference = cls.Reference
+    references = Reference.select(Reference.id).where(Reference.attachment == cls.id)
     rows = cls.select().where(
         (cls.source == source)
-        & (cls.pending == True)  # noqa: E712
+        & cls.parent.is_null()  # type: ignore
         & (cls.created_at < cutoff)
+        & ~pw.fn.EXISTS(references)
     )
     count = 0
     for att in rows:

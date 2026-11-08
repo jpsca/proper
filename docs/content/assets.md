@@ -109,7 +109,7 @@ The arguments you'll touch most often:
 
 | Argument        | Default | Purpose                                                                 |
 | --------------- | ------- | ----------------------------------------------------------------------- |
-| `url`           | -       | The URL prefix the assets live under (e.g. `/assets/`).                 |
+| `url`           | -       | The URL prefix the assets live under (e.g. `/assets/`), or a full URL with the host of a CDN (see [Using a CDN](#using-a-cdn-to-serve-assets)). |
 | `root`          | -       | The directory on disk where the files are. Use `app.assets_path` if you can. |
 | `name`          | `None`  | The route name, used by `url_for`. The generator uses `"assets"`.       |
 | `fingerprint`   | `True`  | Insert a content hash into URLs for cache-busting (covered in [Filename Fingerprinting](#filename-fingerprinting)). |
@@ -156,9 +156,8 @@ An *import map* is a small piece of JSON that tells the browser how to resolve `
 ```javascript
 // assets/js/application.js
 import { Application } from "@hotwired/stimulus"
-import "@hotwired/turbo"
 
-const app = Application.start()
+window.Stimulus = Application.start()
 ```
 
 and the browser knows where `@hotwired/stimulus` and `@hotwired/turbo` actually live, with no bundler involved.
@@ -170,14 +169,14 @@ Import maps are a native browser feature, supported in every modern browser. Pro
 Set `IMPORT_MAP` in your config to a dict of `bare-name -> file-or-URL`:
 
 ```python
-# config/main.py
+# config/import_map.py
 IMPORT_MAP = {
     "@hotwired/stimulus": "js/vendor/stimulus.js",
     "@hotwired/turbo":    "js/vendor/turbo.js",
 }
 ```
 
-The new-app generator pre-populates this with Stimulus and Turbo, since those are the JS libraries the default `application.js` reaches for. Add or remove entries as your app evolves.
+The new-app generator pre-populates this with Stimulus and Turbo, the first for the default `application.js`, the second for the `<script>` tag of `layouts/base.jx` that loads Turbo. Add or remove entries as your app evolves.
 
 The keys are *bare module specifiers* - the strings you'd write in an `import` statement. Conventionally they look like npm package names (`@scope/name` or just `name`), but any string the JS spec accepts is fine.
 
@@ -378,11 +377,11 @@ That's what `STATIC_X_SENDFILE_HEADER` configures. Set it in your config:
 
 ```python
 # config/main.py
-class Config:
-    ...
-    STATIC_X_SENDFILE_HEADER = "X-Accel-Redirect"  # nginx, Caddy
-    # or:
-    # STATIC_X_SENDFILE_HEADER = "X-Sendfile"      # Apache, Lighttpd
+if env == "prod":
+    STATIC_X_SENDFILE_HEADER = "X-Accel-Redirect"  # nginx, Caddy (the generated default)
+    # or: "X-Sendfile" for Apache and Lighttpd
+else:
+    STATIC_X_SENDFILE_HEADER = ""
 ```
 
 When set, Proper's response no longer carries the file bytes. Instead, it sends an empty body plus the configured header pointing at an internal path. The proxy intercepts the response, opens the file itself, and streams it to the client.
@@ -399,7 +398,7 @@ The header values you'll need:
 The proxy needs configuration on its side, too - nginx requires an `internal;` location block, Apache needs `mod_xsendfile` enabled. The [Deployment and Performance guide](/docs/deployment) covers the proxy-side configuration; this guide just shows the Proper-side switch.
 
 :::tip | When to bother
-For a small site, the bytes Proper writes vs the bytes nginx writes are indistinguishable. The off-load matters when assets are large (videos, big PDFs), or when traffic is high enough that the Python process spends real time reading files. Until then, leave `STATIC_X_SENDFILE_HEADER` empty.
+For a small site, the bytes Proper writes vs the bytes nginx writes are indistinguishable. The off-load matters when assets are large (videos, big PDFs), or when traffic is high enough that the Python process spends real time reading files. Until then, set `STATIC_X_SENDFILE_HEADER` to an empty string (the generated config already does outside `prod`).
 :::
 
 ---
@@ -479,21 +478,23 @@ It's best practice to place a CDN in front of your Proper application to serve a
 
 ### The Configuration
 
-Set `ASSETS_URL` to the full CDN URL, with a trailing slash:
+Set `ASSETS_URL` to the full CDN URL, with the path the assets live under and a trailing slash:
 
 ```python
 # config/main.py
-ASSETS_URL = "https://cdn.example.com/"
+ASSETS_URL = "https://cdn.example.com/assets/"
 ```
 
-That's the entire change on Proper's side. `url_for("assets", file="css/base.css")` now returns `https://cdn.example.com/css/base-<hash>.css`, and every other code path that builds an asset URL (the Jx `{#css #}` and `{#js #}` directives, `render_importmap()` for relative-path entries, your own template URL helpers) follows along.
+That's the entire change on Proper's side. `url_for("assets", file="css/base.css")` now returns `https://cdn.example.com/assets/css/base-<hash>.css`, and every other code path that builds an asset URL (the layout's loop over the Jx `{#css #}` and `{#js #}` directives, `render_importmap()` for relative-path entries, your own template URL helpers) follows along. The app keeps serving the files at `/assets/...` on its own host: that is where the CDN fetches them from.
+
+A scheme-relative URL, `//cdn.example.com/assets/`, keeps the scheme of the page.
 
 ### Origin Pull vs. Push Deploy
 
 CDNs come in two flavors. Both work the same with Proper:
 
 - **Origin pull.** The CDN holds nothing until the first request. When a user fetches `https://cdn.example.com/css/app-abc.css`, the CDN fetches it from your application server (the *origin*), caches it, and returns it. Future fetches at any edge hit the cache. Cloudflare, Fastly, and Bunny all work this way out of the box. Setup is one DNS record and the `ASSETS_URL` change.
-- **Push deploy.** You upload assets to a bucket (S3, Cloud Storage) at deploy time, and the CDN fronts the bucket. The application server is never touched for static files. CloudFront-on-S3 is the canonical example. Setup is more involved (a CI step, IAM permissions) but the result is even less load on the origin.
+- **Push deploy.** You upload assets to a bucket (S3, Cloud Storage) at deploy time, and the CDN fronts the bucket. The application server is never touched for static files. CloudFront-on-S3 is the canonical example. Setup is more involved (a CI step, IAM permissions, and the fingerprinted names have to be uploaded, since `url_for` adds them) but the result is even less load on the origin.
 
 In origin-pull mode, the first user pays a small latency cost while the CDN populates its cache; subsequent users hit the edge directly. In push-deploy mode, the cache is warm from the moment a deploy completes.
 
@@ -545,4 +546,4 @@ Jx components can declare their CSS and JS dependencies with two directives:
 
 When this component appears on a page, Jx collects the declarations and the layout renders them as `<link>` and `<script>` tags - which in turn use `url_for("assets", file=...)` to fingerprint the URLs.
 
-So while the directives live in Jx, the URLs they produce flow through everything in this guide: same fingerprinting, same cache headers, same routes. The full directive surface is covered in the [Jx Components and Layouts guide](/docs/jx_components#assets).
+So while the directives live in Jx, the URLs they produce flow through everything in this guide: same fingerprinting, same cache headers, same routes. The full directive surface is covered in the [Jx Components and Layouts guide](/docs/jx_components#component-assets).

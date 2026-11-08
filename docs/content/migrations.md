@@ -139,7 +139,7 @@ You can use any verb that fits: `add_`, `remove_`, `rename_`, `drop_`, `create_`
 When you generate a brand-new model with `proper g model` - or as a part of a resource with `proper g resource` - you can also create the corresponding migration in one step by passing `--migration`:
 
 ```bash
-proper g model Comment body:text book:foreign --migration
+proper g model Comment body:text book:fk-Book --migration
 ```
 
 This generates `models/comment.py`, adds it to `models/__init__.py`, and then runs `proper db create comment` for you (writing `db/main/NNN_comment.py`). It's the fastest way to add a new table.
@@ -150,13 +150,7 @@ Without `--migration`, only the model file is created; you'd then run `proper db
 
 Sometimes you need a migration that isn't a straightforward model diff - backfilling data, running a one-off SQL fix, transforming column values, or coordinating a schema change with application code.
 
-For these cases, generate an empty migration with a descriptive name and edit it directly:
-
-```bash
-proper db create backfill_book_slugs
-```
-
-Then open `db/main/NNN_backfill_book_slugs.py` and write the body of `migrate()` and `rollback()` yourself. See [Data Migrations: Running Python](#data-migrations-running-python) for the data-migration pattern.
+For these cases, write the migration file yourself: `proper db create` compares the models with the previous migration and writes nothing when they match ("No changes found."). Copy the shape of an existing file into `db/main/NNN_backfill_book_slugs.py`, with the next number, and write the body of `migrate()` and `rollback()`. See [Data Migrations: Running Python](#data-migrations-running-python) for the data-migration pattern.
 
 ---
 
@@ -202,7 +196,7 @@ The `migrator` argument is your toolkit. Every operation you'd want to do - crea
 | ----------------------------------------------- | -------------------------------------------- |
 | `create_model(Model)`                           | Create a table from a Peewee model class.    |
 | `remove_model(Model, cascade=True)`             | Drop a table.                                |
-| `add_fields(Model, **fields)`                   | Add one or more columns to a table.          |
+| `add_fields(Model, allow_not_null=False, **fields)` | Add one or more columns to a table. A non-nullable field without a default is a `ValueError` unless `allow_not_null=True`. |
 | `change_fields(Model, **fields)`                | Change a column's type or options.           |
 | `remove_fields(Model, *names, cascade=True)`    | Drop one or more columns.                    |
 | `rename_field(Model, old_name, new_name)`       | Rename a column.                             |
@@ -212,7 +206,7 @@ The `migrator` argument is your toolkit. Every operation you'd want to do - crea
 | `add_not_null(Model, *names)`                   | Add `NOT NULL` to existing columns.          |
 | `drop_not_null(Model, *names)`                  | Remove `NOT NULL` from columns.              |
 | `add_default(Model, name, default)`             | Set or change a column default.              |
-| `add_constraint(Model, name, sql)`              | Add a named CHECK constraint.                |
+| `add_constraint(Model, name, check)`            | Add a named constraint; `check` is a `pw.Check(...)` or `pw.SQL(...)` node. |
 | `drop_constraints(Model, *names)`               | Drop named constraints.                      |
 | `sql(query, *params)`                           | Run raw SQL.                                 |
 | `run(func, *args, **kwargs)`                    | Run an arbitrary Python function.            |
@@ -221,7 +215,7 @@ You can also fetch a model by table name with `migrator.orm['<table_name>']`. Th
 
 ### Reading a Generated File End-to-End
 
-Here's a real migration that adds a `Comment` table with a foreign key to `Book`:
+Here's a migration, as `proper db create` writes it, that adds a `Comment` table with a foreign key to `Book`:
 
 ```python
 """Peewee migrations -- 003_create_comment."""
@@ -245,7 +239,7 @@ def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
 
 
 def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
-    migrator.remove_model(migrator.orm["comment"])
+    migrator.remove_model("comment")
 ```
 
 A few things to notice:
@@ -366,7 +360,7 @@ Add a named CHECK constraint:
 migrator.add_constraint(
     migrator.orm["book"],
     "book_views_non_negative",
-    "views >= 0",
+    pw.Check("views >= 0"),
 )
 ```
 
@@ -407,7 +401,7 @@ migrator.sql(
 )
 ```
 
-The second argument is a tuple of bind parameters. Always use parameters - never interpolate user data into the SQL string yourself.
+The arguments after the SQL are its bind parameters (`%s` is the placeholder of PostgreSQL and MySQL; SQLite takes `?`). Always use parameters - never interpolate user data into the SQL string yourself.
 
 ### Data Migrations: Running Python
 
@@ -536,7 +530,7 @@ proper db rollback --db analytics
 proper db todo --db analytics
 ```
 
-The default is `--db main`.
+The default is `--db main`, except for `migrate` and `prepare`, which without `--db` run on every database.
 
 ### Migrating Every Database at Once
 
@@ -555,7 +549,7 @@ This is what you want during deployment - a single command brings every database
 
 `proper db prepare` does the same and then runs the seeds of `main` (except when `APP_ENV` is `test`). With `--db <name>` it migrates and seeds only that database.
 
-For more on registering and using multiple databases, see the Peewee ORM guide's [Using Multiple Databases](/docs/models#using-multiple-databases) section.
+For more on registering and using multiple databases, see the Peewee ORM guide's [Multiple Databases](/docs/advanced_models#multiple-databases) section.
 
 ---
 
@@ -696,9 +690,9 @@ proper db seed --db analytics   # target a different database
 The output reports each seed's outcome:
 
 ```
-db/seeds/roles.py        - ran
-db/seeds/admin_user.py   - ran
-db/seeds/sample_books.py - skipped (envs=("dev",), APP_ENV=prod)
+db/seeds/roles.py - ran
+db/seeds/admin_user.py - ran
+db/seeds/sample_books.py - skipped (envs=('dev',), APP_ENV='prod')
 ```
 
 :::warning
@@ -760,7 +754,7 @@ Over time, the `db/main/` folder grows. After a few hundred migrations, applying
 proper db merge initial --db main
 ```
 
-This generates a single new migration (named `initial` here, but you can choose any name) that recreates the *current* state of the schema in one step, and marks the previous history as superseded. Existing environments where the old migrations have already run aren't affected - they continue to skip already-applied entries - but new environments only need to run the squashed migration.
+This generates a single new migration (named `initial` here, but you can choose any name) that recreates the *current* state of the schema in one step, deletes the old migration files, clears the local history table and records the new migration as applied. The other environments still have the old names in their history and not the new one, so on each of them run `proper db migrate --fake` once after pulling the merge; a new environment only needs to run the squashed migration.
 
 Squash sparingly. It's an irreversible operation in the sense that the old history is rewritten; do it on a calm branch, with the team aware.
 

@@ -135,7 +135,7 @@ There's a second reason to re-fetch beyond serialization: a queued task might ru
 
 ### Context Tasks
 
-In the web process a controller concern opens a connection at the start of each request and closes it on teardown - but the worker process has no controllers and no request cycle, so nothing manages the connection there.
+In the web process the app opens the connections of the databases configured with `autoconnect=False` at the start of each request and closes them on teardown - but the worker process has no request cycle, so nothing manages the connection there.
 
 A **context task** wraps every run of a task in a context manager, so it can be used to give a task that same open-and-close discipline:
 
@@ -160,7 +160,7 @@ Wrap any task that touches the database this way once you run a real worker.
 The decorator takes several keyword arguments:
 
 ```python
-@app.queue.task(retries=0, retry_delay=0, priority=None, context=False, name=None, expires=None)
+@app.queue.task(retries=0, retry_delay=0, retry_backoff=0, priority=None, context=False, name=None, expires=None, timeout=None)
 def my_task(arg1, arg2):
     return result
 ```
@@ -169,10 +169,12 @@ def my_task(arg1, arg2):
 | --------- | ----------- |
 | `retries` | Number of automatic retries on failure. Default `0`. |
 | `retry_delay` | Seconds to wait between retries. Default `0`. |
+| `retry_backoff` | Multiplier applied to `retry_delay` after each retry. Default `0` (no backoff). |
 | `priority` | Default priority for this task, higher runs first (requires a priority-aware backend). Default `None`. |
 | `context` | If `True`, the running `Task` object is passed to your function as a `task` keyword argument. |
 | `name` | Custom task name. Defaults to `module.function`, which is what identifies the task across processes. |
 | `expires` | Discard the task if it hasn't run within this window. An int (seconds), `timedelta`, or `datetime`. |
+| `timeout` | Seconds a run may take before the worker gives up on it. Default `None` (no limit). |
 
 `retries` and `expires` are the two you'll reach for most; both come up again in [Retries and Error Handling](#retries-and-error-handling).
 
@@ -199,7 +201,7 @@ res = generate_report(report.id)
 
 In immediate mode the task has already finished by the time you hold `res`, so `res()` gives you its return value straight away. In queued mode the task hasn't run yet, and `res()` returns `None` until a worker finishes it. [Results](#results) covers the handle in detail. Plenty of tasks - the report generator above - have nothing to return and nothing to wait on, so you just ignore the handle.
 
-If you are using the `PriorityRedisHuey` backend, you can also define a `priority` for a single call:
+With a priority-aware backend (`MemoryHuey`, `SqliteHuey`, `SqlHuey` and `PriorityRedisHuey`; plain `RedisHuey` refuses it), you can also define a `priority` for a single call:
 
 ```python
 generate_report(report.id, priority=50)
@@ -227,10 +229,10 @@ generate_report.schedule(args=(report.id,), delay=60)
 
 `args` is a tuple of the task's positional arguments; `kwargs` is available too. `delay` is seconds from now; `eta` is an absolute `datetime`. Pass one or the other, not both.
 
-A scheduled task sits in the queue's schedule until its time comes, then becomes a normal pending task. That last hop is the worker's *scheduler*, which is on by default (`periodic: True` in the consumer config) - so scheduling only does anything with a worker running, or in immediate mode where `delay` and `eta` are simply ignored and the task runs now.
+A scheduled task sits in the queue's schedule until its time comes, then becomes a normal pending task. That last hop is the worker's *scheduler*, which is on by default (`periodic: True` in the consumer config) - so scheduling only does anything with a worker running. In immediate mode a task whose time hasn't come goes to an in-memory schedule that nothing ever reads, so it never runs.
 
 :::note
-In immediate mode there is no scheduler and no clock to wait on, so a scheduled task runs immediately. Don't lean on `delay` for correctness in tests - assert that the task *did its work*, not that time passed.
+In immediate mode there is no scheduler, so a task scheduled for later never runs. Don't lean on `delay` in tests: call the task's function directly (`my_task.call_local(...)`) and assert that it *did its work*.
 :::
 
 ---
@@ -646,7 +648,7 @@ QUEUE_CONSUMER = {
 }
 ```
 
-`workers` and `periodic` are the two you'll touch - see [Scaling Out](#scaling-out). `worker_type` is worth knowing: `"thread"` is the default and fine for I/O-bound tasks (most of them - network calls, database work); switch to `"process"` for CPU-bound tasks that would otherwise fight over the GIL.
+`workers` and `periodic` are the two you'll touch - see [Scaling Out](#scaling-out). `worker_type` is worth knowing: `"thread"` is the default and fine for I/O-bound tasks (most of them - network calls, database work); switch to `"process"` for CPU-bound tasks that should not share a process with the rest.
 
 ### Per-Environment Configuration
 
@@ -671,8 +673,15 @@ if env == "test":
 
 if env == "prod":
     QUEUE = {
+        # Require redis package
         "type": "huey.RedisHuey",
-        "name": "myapp",
+        "name": os.getenv("REDIS_NAME", "myapp"),
+        "host": os.getenv("REDIS_HOST", "127.0.0.1"),
+        "port": int(os.getenv("REDIS_PORT", 6379)),
+    }
+    QUEUE_CONSUMER = {
+        **QUEUE_CONSUMER,
+        "workers": 4,
     }
 ```
 
@@ -682,17 +691,9 @@ This is why the same task code runs synchronously on your laptop and queued in p
 
 ## Database Migrations for SQL Backends
 
-`SqliteHuey` and `RedisHuey` manage their own storage - there's nothing to migrate. `SqlHuey` is different: it keeps tasks in a SQL database, and that database needs its schema created and kept up to date like any other.
+`SqliteHuey` and `RedisHuey` manage their own storage - there's nothing to migrate. `SqlHuey` keeps tasks in a SQL database, in four tables - `kv` (key/value storage), `schedule` (scheduled tasks), `task` (pending task data) and `counter` - and creates them itself the first time it connects, so there is nothing to migrate either.
 
-Proper registers the `SqlHuey` database as `"proper_queue"` in `app.db`, so the standard `proper db` commands work against it with the `--db` flag:
-
-```bash
-$ proper db create "description" --db=proper_queue
-$ proper db migrate --db=proper_queue
-$ proper db rollback --db=proper_queue
-```
-
-The migration files live in `db/proper_queue/`. The backend uses three tables - `kv` (key/value storage), `schedule` (scheduled tasks), and `task` (pending task data). You don't write these migrations by hand; `proper db create` generates them from the backend's models. You just need to run `migrate` on the queue database the same way you run it on `main`.
+Proper registers the `SqlHuey` database as `"proper_queue"` in `app.db`, so the `proper db` commands accept it with the `--db` flag. `proper db create --db=proper_queue` finds no models and writes nothing; `proper db migrate --db=proper_queue` runs the migrations you put in `db/proper_queue/` yourself, if you ever need to change those tables.
 
 ---
 
@@ -704,8 +705,8 @@ So a controller test that enqueues a task already exercises the task:
 
 ```python
 def test_create_report_builds_pdf(client, user):
-    client.login(user)
-    response = client.post("/reports", data={"title": "Q3"})
+    client.sign_in(Session.create_for_user(user=user))
+    response = client.post("/reports", body={"title": "Q3"})
 
     report = Report.get(Report.title == "Q3")
     assert report.pdf is not None   # generate_report ran during the POST
@@ -715,11 +716,11 @@ The task ran inline during the request - by the time `client.post` returns, `gen
 
 That covers most cases. Two things immediate mode does *not* do, because there's no scheduler and no clock:
 
-- **`schedule(delay=...)` runs now.** `delay` and `eta` are ignored. Test that the task did its work, not that time advanced.
+- **`schedule(delay=...)` never runs.** A task scheduled for later goes to a schedule nothing reads. Call the function directly and test that it did its work.
 - **Periodic tasks don't fire.** Nothing ticks. To test the body of a periodic task, call the underlying function directly:
 
   ```python
-  def test_cleanup_removes_expired_sessions(db):
+  def test_cleanup_removes_expired_sessions():
       Session.create(expires_at=datetime(2020, 1, 1))
       cleanup_expired_sessions.call_local()   # run the function body directly
       assert Session.select().count() == 0

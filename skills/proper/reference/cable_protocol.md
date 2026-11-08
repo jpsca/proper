@@ -1,7 +1,7 @@
 ---
 title: Cable Wire Protocol
 description: Reference: the JSON frames between cable.js and the cable (subscribe, message, unsubscribe; confirm, reject, broadcast, reply, error, ping)
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/channels
   - src/proper/_blueprints/addon_channels/assets/js/cable.js

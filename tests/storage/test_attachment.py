@@ -65,7 +65,7 @@ def Attachment(app, db, BaseModel):
     Attachment = app.attachment_for(BaseModel)
     Attachment.VARIANTS_ENABLED_FOR = {"image/*": "preview_image"}
     Attachment.bind(db)
-    db.create_tables([Attachment])
+    db.create_tables([Attachment, Attachment.Reference])
     return Attachment
 
 
@@ -1140,7 +1140,8 @@ def test_create_pending_blob_writes_row_with_metadata_only(Attachment):
     )
 
     assert att.id is not None
-    assert att.pending is True
+    assert att.source == ""
+    assert not att.is_referenced
     # `parameterize` lowers + slugifies; filename comes out web-safe.
     assert att.filename == "my-photo.png"
     assert att.content_type == "image/png"
@@ -1159,11 +1160,17 @@ def test_create_pending_blob_defaults_to_octet_stream(Attachment):
     assert att.content_type == DEFAULT_CONTENT_TYPE
 
 
-def test_create_pending_blob_tags_source(Attachment):
+def test_create_pending_blob_takes_a_source(Attachment):
     att = Attachment.create_pending_blob(
         filename="x.txt", byte_size=1, source="rich_text",
     )
     assert att.source == "rich_text"
+
+
+def test_source_is_empty_by_default(Attachment):
+    att = Attachment(_make_file())
+    att.save()
+    assert att.source == ""
 
 
 def test_disk_direct_upload_url_targets_disk_endpoint(app, Attachment):

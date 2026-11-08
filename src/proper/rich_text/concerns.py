@@ -2,15 +2,21 @@
 
 Mix `HasRichText` into any peewee model that declares one or more
 `RichTextField` columns. The mixin overrides `save()` and
-`delete_instance()` to keep referenced attachments in sync with the
-document:
+`delete_instance()` to keep the attachment references in sync with the
+documents.
 
-- **On save**: every attachment that was in the prior body but no longer
-  appears in the new body is scheduled for purge; every attachment that
-  *does* appear is marked `pending=False` (a single batched UPDATE),
-  confirming that some record now owns it.
-- **On delete**: every attachment referenced by any rich text column is
-  scheduled for purge after the parent row is gone.
+Each attachment that a rich text body embeds has a row in
+`Attachment.Reference` (built by `attachment_for()`, in the storage
+addon) that records the table, primary key and column that embed it.
+Two records can embed the same attachment: it is purged only when its
+last reference goes away.
+
+- **On save**: the references of each rich text column are compared
+  with the attachments in its new body. The ones that are no longer
+  embedded are removed, the new ones are added, and every attachment
+  that lost its last reference is scheduled for purge.
+- **On delete**: every reference of the record is removed, and every
+  attachment that lost its last reference is scheduled for purge.
 
 The mixin auto-discovers `RichTextField` columns by walking
 `cls._meta.fields` and looking for fields with an `attachment_cls`
@@ -27,10 +33,16 @@ Usage::
 **The mixin must be listed before the model class.** Peewee's
 `Model.save()` and `Model.delete_instance()` do not call `super()`, so a
 mixin placed after the model in the bases is never reached: its hooks
-would silently not run, embedded attachments would stay `pending`, and the
-abandoned-uploads sweeper would eventually delete them. To make that
-mistake impossible to miss, declaring the bases in the wrong order raises
-a `TypeError` when the class is defined.
+would silently not run, embedded attachments would have no references,
+and the abandoned-uploads sweeper would eventually delete them. To make
+that mistake impossible to miss, declaring the bases in the wrong order
+raises a `TypeError` when the class is defined.
+
+A row deleted with a query (`Model.delete()`) or by the database (an
+`ON DELETE CASCADE`) doesn't run the hooks. Call
+`release_rich_text_attachments()` before a deletion by query, and
+`rebuild_rich_text_references()` to repair the references of a model
+after the fact.
 """
 import typing as t
 
@@ -42,9 +54,11 @@ from .document import _collect_attachment_ids as _collect_ids_from_html
 if t.TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from ..storage import _Attachment
 
-TRichTextIds = dict[str, list[str]]
-TRichTextFields = dict[str, tuple[t.Any, list[str]]]
+
+# `{attachment_cls: {attachment_id, ...}}`
+TRemovedIds: t.TypeAlias = "dict[type[_Attachment], set[str]]"
 
 
 def _iter_rich_text_fields(cls: type) -> "Iterator[tuple[str, pw.Field]]":
@@ -83,6 +97,34 @@ def _collect_attachment_ids(value: t.Any) -> list[str]:
     return _collect_ids_from_html(_html_of(value))
 
 
+def _attachment_classes(cls: type) -> "set[type[_Attachment]]":
+    """The attachment classes of the RichTextField columns of a model."""
+    return {
+        field.attachment_cls  # type: ignore
+        for _name, field in _iter_rich_text_fields(cls)
+        if field.attachment_cls is not None  # type: ignore
+    }
+
+
+def _purge_unreferenced(removed: TRemovedIds) -> None:
+    """Schedule the purge of the attachments, among the ones given, that
+    no record references anymore.
+    """
+    for attachment_cls, ids in removed.items():
+        Reference = attachment_cls.Reference
+        still_referenced = {
+            row.attachment_id
+            for row in Reference.select(Reference.attachment)
+            .where(Reference.attachment.in_(ids))  # type: ignore
+            .distinct()
+        }
+        gone = ids - still_referenced
+        if not gone:
+            continue
+        for att in attachment_cls.select().where(attachment_cls.id.in_(gone)):  # type: ignore
+            att.purge_later()
+
+
 class HasRichText:
     """Mixin that handles RichTextField attachment lifecycle.
 
@@ -105,96 +147,166 @@ class HasRichText:
             )
 
     def save(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
-        # Snapshot prior body before super().save() overwrites it.
-        old_ids_by_field = self._snapshot_rich_text_ids()
-        result = super().save(*args, **kwargs)  # type: ignore
-        self._reconcile_rich_text_attachments(old_ids_by_field)
+        database = type(self)._meta.database  # type: ignore
+        with database.atomic():
+            result = super().save(*args, **kwargs)  # type: ignore
+            removed = self._sync_rich_text_references()
+        # The purges are queued after the transaction, so that a failed
+        # save doesn't purge an attachment that a record still embeds.
+        _purge_unreferenced(removed)
         return result
 
     def delete_instance(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
-        # Collect IDs before the parent row vanishes.
-        ids_by_field = self._collect_rich_text_ids_now()
-        result = super().delete_instance(*args, **kwargs) # type: ignore
-        self._purge_collected(ids_by_field)
+        database = type(self)._meta.database  # type: ignore
+        with database.atomic():
+            result = super().delete_instance(*args, **kwargs)  # type: ignore
+            removed = self._remove_rich_text_references()
+        _purge_unreferenced(removed)
         return result
 
-    # --- Helpers ---
+    def release_rich_text_attachments(self) -> None:
+        """Remove every reference of this record to its attachments, and
+        schedule the purge of the ones that no other record embeds.
 
-    def _snapshot_rich_text_ids(self) -> TRichTextIds:
-        """Return `{field_name: [old_attachment_ids…]}` for every
-        RichTextField column. New (unsaved) records return empty lists -
-        there's no prior body to diff against.
+        `delete_instance()` does it. Call it yourself before deleting the
+        record with a query, which doesn't run the hooks:
+
+        ```python
+        post.release_rich_text_attachments()
+        Post.delete().where(Post.id == post.id).execute()
+        ```
+        """
+        _purge_unreferenced(self._remove_rich_text_references())
+
+    # Private
+
+    def _rich_text_record(self) -> tuple[str, str]:
+        cls = type(self)
+        return cls._meta.table_name, str(self.get_id())  # type: ignore
+
+    def _sync_rich_text_references(self) -> TRemovedIds:
+        """Make the references of this record match the attachments
+        embedded in each of its rich text columns. Return the ids of the
+        attachments that this record stopped referencing, by attachment
+        class, so the caller can purge the ones left without references.
         """
         cls = type(self)
-        out: TRichTextIds = {}
+        record_type, record_id = self._rich_text_record()
+        removed: TRemovedIds = {}
 
-        # `get_id()` returns the PK value, or None if unsaved.
-        pk = self.get_id()  # type: ignore
-        if pk is None:
-            for name, _field in _iter_rich_text_fields(cls):
-                out[name] = []
-            return out
-
-        for name, _field in _iter_rich_text_fields(cls):
-            column = getattr(cls, name)
-            row = (
-                cls.select(column) # type: ignore
-                .where(cls._meta.primary_key == pk)  # type: ignore
-                .first()
-            )
-            if row is None:
-                out[name] = []
-            else:
-                out[name] = _collect_attachment_ids(getattr(row, name))
-        return out
-
-    def _reconcile_rich_text_attachments(
-        self,
-        old_ids_by_field: TRichTextIds,
-    ) -> None:
-        """Purge attachments that disappeared from each body, mark survivors
-        as no-longer-pending.
-        """
-        cls = type(self)
         for name, field in _iter_rich_text_fields(cls):
             attachment_cls = field.attachment_cls  # type: ignore
             if attachment_cls is None:
                 continue
-
+            Reference = attachment_cls.Reference
+            where = (
+                (Reference.record_type == record_type)
+                & (Reference.record_id == record_id)
+                & (Reference.field == name)
+            )
             new_ids = set(_collect_attachment_ids(getattr(self, name)))
-            old_ids = set(old_ids_by_field.get(name, ()))
+            old_ids = {
+                row.attachment_id
+                for row in Reference.select(Reference.attachment).where(where)
+            }
 
-            for att_id in old_ids - new_ids:
-                inst = attachment_cls.get_or_none(attachment_cls.id == att_id)
-                if inst is not None:
-                    inst.purge_later()
+            gone = old_ids - new_ids
+            if gone:
+                Reference.delete().where(
+                    where & Reference.attachment.in_(gone)
+                ).execute()
+                removed.setdefault(attachment_cls, set()).update(gone)
 
-            if new_ids:
-                attachment_cls.update(pending=False).where(
-                    (attachment_cls.id.in_(new_ids))
-                    & (attachment_cls.pending == True)  # noqa: E712
+            added = new_ids - old_ids
+            if added:
+                # A body can name an attachment that doesn't exist (a stale
+                # placeholder); the embed renders empty and gets no reference.
+                existing = {
+                    row.id
+                    for row in attachment_cls.select(attachment_cls.id).where(
+                        attachment_cls.id.in_(added)
+                    )
+                }
+                if existing:
+                    Reference.bulk_create([
+                        Reference(
+                            attachment=att_id,
+                            record_type=record_type,
+                            record_id=record_id,
+                            field=name,
+                        )
+                        for att_id in sorted(existing)
+                    ])
+
+        return removed
+
+    def _remove_rich_text_references(self) -> TRemovedIds:
+        """Delete every reference of this record. Return the ids of the
+        attachments it referenced, by attachment class.
+        """
+        record_type, record_id = self._rich_text_record()
+        removed: TRemovedIds = {}
+
+        for attachment_cls in _attachment_classes(type(self)):
+            Reference = attachment_cls.Reference
+            where = (
+                (Reference.record_type == record_type)
+                & (Reference.record_id == record_id)
+            )
+            ids = {
+                row.attachment_id
+                for row in Reference.select(Reference.attachment).where(where)
+            }
+            if ids:
+                Reference.delete().where(where).execute()
+                removed[attachment_cls] = ids
+
+        return removed
+
+
+def rebuild_rich_text_references(*models: type) -> None:
+    """Make the attachment references of these models match what their
+    rich text columns embed today.
+
+    For each model: the references of rows that no longer exist are
+    removed, and the references of every existing row are synced with
+    its bodies. Nothing is purged: an attachment left without references
+    is swept by `purge_abandoned_uploads()` once it is older than the
+    grace period.
+
+    Use it to fill the references of an app that has rich text records
+    from before the table existed, from a data migration:
+
+    ```python
+    from proper.rich_text import rebuild_rich_text_references
+    from myapp.models import Comment, Post
+
+    def migrate(migrator, database, *, fake=False):
+        migrator.run(rebuild_rich_text_references, Post, Comment)
+    ```
+
+    And to repair the references after deleting rows with a query or by
+    an `ON DELETE CASCADE`, which don't run the hooks of `HasRichText`.
+    """
+    for model in models:
+        record_type = model._meta.table_name  # type: ignore
+        pk = model._meta.primary_key  # type: ignore
+        existing_ids = {str(row[0]) for row in model.select(pk).tuples()}  # type: ignore
+
+        for attachment_cls in _attachment_classes(model):
+            Reference = attachment_cls.Reference
+            referenced_ids = {
+                row.record_id
+                for row in Reference.select(Reference.record_id)
+                .where(Reference.record_type == record_type)
+                .distinct()
+            }
+            orphans = referenced_ids - existing_ids
+            if orphans:
+                Reference.delete().where(
+                    (Reference.record_type == record_type)
+                    & Reference.record_id.in_(orphans)  # type: ignore
                 ).execute()
 
-    def _collect_rich_text_ids_now(self) -> TRichTextFields:
-        """Snapshot the *current* body of every RichTextField column,
-        bundled with the field instance so the caller can find the
-        right `attachment_cls` later.
-        """
-        cls = type(self)
-        out: TRichTextFields = {}
-        for name, field in _iter_rich_text_fields(cls):
-            out[name] = (field, _collect_attachment_ids(getattr(self, name)))
-        return out
-
-    def _purge_collected(
-        self,
-        ids_by_field: "TRichTextFields",
-    ) -> None:
-        for _name, (field, ids) in ids_by_field.items():
-            attachment_cls = field.attachment_cls
-            if attachment_cls is None:
-                continue
-            for att_id in ids:
-                inst = attachment_cls.get_or_none(attachment_cls.id == att_id)
-                if inst is not None:
-                    inst.purge_later()
+        for row in model.select().iterator():  # type: ignore
+            row._sync_rich_text_references()

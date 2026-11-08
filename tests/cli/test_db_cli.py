@@ -7,6 +7,7 @@ import pytest
 from proper import App
 from proper.cli.app_cli import _warn_of_pending_migrations
 from proper.cli.db_cli import get_db_cli
+from proper.models import ProperModel
 from proper.models.migrations import pending_migrations
 
 
@@ -353,3 +354,48 @@ def test_run_warns_when_it_cant_check(project, make_app, capsys):
     })
     _warn_of_pending_migrations(app)
     assert "[WARNING] Could not check the migrations:" in capsys.readouterr().out
+
+
+def test_create_makes_the_attachment_tables(project, make_app, monkeypatch, capsys):
+    """The storage addon exports `Attachment` and `AttachmentReference`,
+    the latter with a foreign key to the former. The migration creates
+    both tables and runs."""
+    app = make_app(
+        STORAGE="local",
+        STORAGES={"local": {"type": "Disk", "root": "storage/"}},
+        QUEUE={"type": "huey.MemoryHuey", "immediate": True, "immediate_use_memory": True},
+    )
+    models = types.ModuleType("blog.models")
+
+    class BaseModel(ProperModel):
+        class Meta:
+            database = app.db["main"]
+
+    class Attachment(app.attachment_for(BaseModel)):
+        pass
+
+    models.Attachment = Attachment
+    models.AttachmentReference = Attachment.Reference
+    monkeypatch.setitem(sys.modules, "blog.models", models)
+    app.name = "blog"
+    cli = get_db_cli(app)()
+    (project / "db" / "main" / "001_initial.py").unlink()
+
+    cli.create(name="attachments")
+
+    out = capsys.readouterr().out.strip().splitlines()[-1]
+    migration = (project / out).read_text()
+    assert "attachment_reference" in migration
+    assert "migrator.orm['attachment']" in migration or 'migrator.orm["attachment"]' in migration
+
+    cli.migrate(db="main")
+
+    db = app.db["main"]
+    assert db.table_exists("attachment")
+    assert db.table_exists("attachment_reference")
+    columns = {c.name for c in db.get_columns("attachment")}
+    assert "pending" not in columns
+    unique = [i for i in db.get_indexes("attachment_reference") if i.unique]
+    assert [sorted(i.columns) for i in unique] == [
+        ["attachment_id", "field", "record_id", "record_type"]
+    ]

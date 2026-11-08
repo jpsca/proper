@@ -1,7 +1,7 @@
 ---
 title: Storage: Variants, Previews and Custom Services
 description: Storage addon, second level: `variant()` transformations, load/save options, purging and eager-loading variants, previews of PDFs and videos, custom previewers, writing a storage service
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py
@@ -274,4 +274,4 @@ The base class handles the `public` config key in `__init__`, so subclasses just
 
 Service instances are cached per `Attachment` class, so initialization only happens once per service name.
 
-[`proper/storage/services/disk.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/disk.py) and [`proper/storage/services/s3.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/s3.py) are short and cover all six methods plus their constructors.
+[`proper/storage/services/disk.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/disk.py) and [`proper/storage/services/s3.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/s3.py) are short: `s3.py` covers all six methods, `disk.py` all but `service_url()`, plus their constructors.

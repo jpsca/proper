@@ -28,3 +28,8 @@ class Attachment(app.attachment_for(BaseModel)):
         # "video/*": "preview_video",
     }
     ...
+
+
+# The records that embed each attachment in a rich text field.
+# Exported here so `proper db create` makes its table.
+AttachmentReference = Attachment.Reference

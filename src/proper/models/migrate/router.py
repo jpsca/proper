@@ -61,7 +61,7 @@ class BaseRouter(object):
     @cached_property
     def model(self) -> type[MigrateHistory]:
         """Initialize and cache MigrationHistory model."""
-        meta = MigrateHistory._meta  # type: ignore[]
+        meta = MigrateHistory._meta
         meta.database = self.database
         meta.table_name = self.migrate_table
         meta.schema = self.schema
@@ -118,7 +118,7 @@ class BaseRouter(object):
                     return None
 
             if self.ignore:
-                models = [m for m in models if m._meta.name not in self.ignore]  # type: ignore[]
+                models = [m for m in models if m._meta.name not in self.ignore]
 
             for migration in self.diff:
                 self.run_one(migration, self.migrator, fake=True)

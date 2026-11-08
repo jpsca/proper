@@ -226,6 +226,46 @@ def test_seeds_that_cant_be_imported(make_shop, tmp_path):
     assert problem.message.startswith("the seeds can't be imported (ImportError: ")
 
 
+def test_foreign_key_to_the_base_of_an_imported_model(make_shop):
+    """`attachment_for()` declares the foreign key of `AttachmentReference`
+    against the `Attachment` it builds. The app imports its own subclass of
+    it, of the same table, and that is enough."""
+    files = {
+        "shop/main.py": FILES["shop/main.py"].replace(
+            '"DEBUG": False,',
+            '"DEBUG": False,\n'
+            '            "STORAGE": "local",\n'
+            '            "STORAGES": {"local": {"type": "Disk", "root": "storage/"}},\n'
+            '            "QUEUE": {"type": "huey.MemoryHuey", "immediate": True, '
+            '"immediate_use_memory": True},',
+        ),
+        "shop/base.py": """
+            from proper import ProperModel
+
+            from .main import app
+
+
+            class BaseModel(ProperModel):
+                class Meta:
+                    database = app.db["main"]
+        """,
+        **extend("shop/models.py", """
+            from .base import BaseModel
+
+
+            class Attachment(app.attachment_for(BaseModel)):
+                pass
+
+
+            AttachmentReference = Attachment.Reference
+        """),
+    }
+    app = make_shop(files, migrate=False)
+    names = {model.__name__ for model in app_models(app)}
+    assert {"Attachment", "AttachmentReference"} <= names
+    assert check_models(app) == []
+
+
 def test_foreign_keys(make_shop, request):
     files = {
         "shop/main.py": FILES["shop/main.py"].replace(

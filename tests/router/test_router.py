@@ -1589,6 +1589,61 @@ class TestUrlForDefaults:
         router.static("/assets", root=tmp_path, name="assets", fingerprint=False)
         assert router.url_for("assets", file="a.txt") == "/assets/a.txt"
 
+
+class TestStaticRouteWithHost:
+    """`router.static()` with a full URL: `url_for` points at that host,
+    the files are still served at the path on the app's host."""
+
+    def test_url_for_points_at_the_host(self, tmp_path):
+        router = BaseRouter()
+        router.static(
+            "https://cdn.example.com/assets/", root=tmp_path, name="assets", fingerprint=False
+        )
+        assert router.url_for("assets", file="css/a.css") == "https://cdn.example.com/assets/css/a.css"
+
+    def test_url_without_a_path(self, tmp_path):
+        router = BaseRouter()
+        router.static("http://cdn.example.com", root=tmp_path, name="assets", fingerprint=False)
+        assert router.url_for("assets", file="a.css") == "http://cdn.example.com/a.css"
+        assert router.routes[0].path == "/:file<path>"
+
+    def test_scheme_relative_url_keeps_the_scheme_of_the_page(self, tmp_path):
+        router = BaseRouter()
+        router.static("//cdn.example.com/static", root=tmp_path, name="assets", fingerprint=False)
+        assert router.url_for("assets", file="a.css") == "//cdn.example.com/static/a.css"
+
+    def test_fingerprint_is_in_the_url(self, tmp_path):
+        (tmp_path / "a.css").write_text("a")
+        router = BaseRouter()
+        router.static("https://cdn.example.com/assets/", root=tmp_path, name="assets")
+        url = router.url_for("assets", file="a.css")
+        assert url.startswith("https://cdn.example.com/assets/a-")
+        assert url.endswith(".css")
+
+    def test_full_does_not_add_the_app_host(self, app, tmp_path):
+        router = app.router
+        router.static("https://cdn.example.com/assets/", root=tmp_path, name="cdn", fingerprint=False)
+        assert router.url_for("cdn", file="a.css", _full=True) == "https://cdn.example.com/assets/a.css"
+
+    def test_anchor_goes_after_the_path(self, tmp_path):
+        router = BaseRouter()
+        router.static("https://cdn.example.com/assets/", root=tmp_path, name="assets", fingerprint=False)
+        assert router.url_for("assets", file="a.css", _anchor="x") == "https://cdn.example.com/assets/a.css#x"
+
+    def test_matches_the_path_on_any_host(self, tmp_path):
+        router = BaseRouter()
+        route = router.static("https://cdn.example.com/assets/", root=tmp_path, name="assets")
+        assert route.origin == "https://cdn.example.com"
+        assert route.host is None
+        matched, params = router.match("GET", "/assets/css/a.css", host="myapp.com")
+        assert matched is route
+        assert params["file"] == "css/a.css"
+
+    def test_a_path_has_no_origin(self, tmp_path):
+        router = BaseRouter()
+        route = router.static("/assets", root=tmp_path, name="assets")
+        assert route.origin == ""
+
     def test_function_default_of_no_placeholder_is_not_called(self):
         def fail():
             raise AssertionError("called")

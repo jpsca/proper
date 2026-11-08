@@ -92,7 +92,7 @@ def _foreign_key_problem(
     target = field.rel_model
     if target is model:
         return ""
-    if target not in models:
+    if not _is_declared(target, models):
         return (
             f"{label} points to {target.__name__}, which `models/__init__.py` "
             f"doesn't import: the migrations don't make its table"
@@ -106,6 +106,22 @@ def _foreign_key_problem(
             f"nor the key enforced"
         )
     return ""
+
+
+def _is_declared(target: type[pw.Model], models: list[type[pw.Model]]) -> bool:
+    """Whether `models/__init__.py` imports `target`, or a subclass of it
+    that maps to the same table of the same database. `attachment_for()`
+    declares the foreign key of `AttachmentReference` against the
+    `Attachment` it builds, and the app imports its own subclass of it.
+    """
+    if target in models:
+        return True
+    return any(
+        issubclass(model, target)
+        and model._meta.table_name == target._meta.table_name
+        and model._meta.database is target._meta.database
+        for model in models
+    )
 
 
 def _hidden_by_field(model: type, name: str) -> type | None:

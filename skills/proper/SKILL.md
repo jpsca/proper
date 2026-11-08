@@ -2,8 +2,8 @@
 name: proper
 description: Use when building features, adding resources, writing controllers/models/forms/views, or working with addons (auth, storage, i18n, channels) in a Proper web framework application. Also use when the user asks about Proper framework conventions or patterns.
 user-invocable: false
-proper_version: 0.49.0
-last_verified: 2026-11-01
+proper_version: 0.50.0
+last_verified: 2026-11-07
 sources:
   - src/proper/generators
   - blueprint/tests
@@ -60,9 +60,9 @@ Controller  ──────────────  receives the request, ru
 
 **Cross-cutting systems**, available from any controller via `self` or the `current` context:
 
-- **Sessions / Auth**: `self.request.session`, `current.user`, `sign_in`
+- **Sessions / Auth**: `self.request.session`, `current.user`, `self.new_session_for(user)`
 - **Caching**: `app.cache` key-value store, `{% cache %}` template tag
-- **Background tasks**: `app.queue` (Huey), `@task()` decorator
+- **Background tasks**: `app.queue` (Huey), `@app.queue.task()` decorator
 - **Emails**: `EmailMessage` composed and sent via mailer backends
 - **Storage**: `Attachment` model for file uploads (S3 or disk)
 - **Rich Text**: `RichTextField` for formatted documents with embedded attachments (Lexxy editor)

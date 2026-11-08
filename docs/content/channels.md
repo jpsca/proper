@@ -298,6 +298,7 @@ Names starting with `_`           | Private methods are not actions
 `subscribed`, `unsubscribed`      | Lifecycle hooks, not client-callable
 `send`, `broadcast`, `reject`     | Channel internals
 `stream_from`, `stop_stream_from`, `stop_all_streams` | Stream control belongs to the server
+`track`, `untrack`, `update_presence`, `find_user`, `find_session` | Presence and authentication belong to the server
 Missing or non-callable names     | There is nothing to run
 
 Any other public method is reachable from the client, so keep helpers private with a leading `_`.
@@ -797,13 +798,13 @@ def up(self):
     return self.render_json(self.app.cable.health())
 ```
 
-For graphs and alerts over time, the cable also exports Prometheus metrics. The process that serves the WebSockets answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`: `proper_cable_connections`, `proper_cable_streams` and `proper_cable_users`. Point Prometheus at that port on each machine. It is a loopback port, so the metrics are never exposed to the outside. `app.cable.metrics()` returns the same text, empty where nothing is served.
+For graphs and alerts over time, the cable also exports Prometheus metrics: `proper_cable_connections`, `proper_cable_streams` and `proper_cable_users`. `app.cable.metrics()` returns them as Prometheus text, empty where nothing is served. With `Cable`, the process that serves the WebSockets also answers `GET /metrics` on the loopback port the other processes forward to, `127.0.0.1:CABLE_PORT + 1`; it is a loopback port, so the metrics are never exposed to the outside. `RedisCable` has no forwarding port, so there serve `app.cable.metrics()` from a route of your own.
 
 ```yaml {title="prometheus.yml"}
 scrape_configs:
   - job_name: proper-cable
     static_configs:
-      - targets: ["10.0.0.1:2302", "10.0.0.2:2302"]
+      - targets: ["127.0.0.1:2302"]
 ```
 
 ### Slow clients
@@ -841,7 +842,7 @@ Each machine keeps its own recovery buffers, with their own positions. A client 
 
 Presence is one list for all the machines, kept in Redis: `presence()` shows who is in a stream anywhere, and a user joins with their first connection on any machine and leaves with their last. A machine that dies is noticed within 15 seconds, and its users leave. Without Redis, each machine lists only its own.
 
-Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. A list of who is online across machines, or the last value for a client that subscribes late, is something you keep yourself.
+Keep in mind that `RedisCable` shares *broadcasts* between machines, not *state*. Redis pub/sub carries messages; it doesn't store them. The last value for a client that subscribes late is something you keep yourself.
 
 ---
 
@@ -851,7 +852,7 @@ Browsers send a site's cookies with any WebSocket to it, even one opened by a pa
 
 - A handshake with no `Origin` (it doesn't come from a browser).
 - One from the same host the WebSocket was opened to, or from the app's `HOST`.
-- In `DEBUG`, one from `localhost` or `127.0.0.1` on the app's `PORT`.
+- In `DEBUG`, one from `localhost` or `127.0.0.1` on the app's `PORT`, or from any port of the host name the WebSocket was opened to.
 - One listed in `CABLE_ALLOWED_ORIGINS`.
 
 Any other is refused with a 403, and so is an `Origin` that is not a valid URL (`http://[abc]`). To allow another site, list it:
@@ -1023,11 +1024,11 @@ A broadcast is one frame, the same for every subscriber, so it can't carry each 
 
 The `tp`, `e` and `o` fields are the recovery stamp: the stream, the epoch of its buffer (eight hex digits; it changes when the server restarts) and the offset of the broadcast in it. A `subscribe` may carry `positions`, the last `o` the client saw per stream and epoch (a list per stream, the latest epoch last, because the server's buffer of a stream gets a new epoch when it starts again; one `{"e", "o"}` is accepted too; the server reads one position per epoch, the earliest, and the last 4 epochs of a stream); the server sends again the broadcasts after them, for the streams the channel streams from, and they may arrive before the confirmation. The confirmation has the current `positions` of the streams (`null` for one without broadcasts yet) and `recovered`: `true` when everything asked for in the latest epoch of each stream was sent again, `false` when some couldn't be, `null` when nothing was asked. Sending `subscribe` again for an existing subscription, with `positions`, also recovers. Without recovery (`recovery=False`), broadcasts carry no stamp and `recovered` is always `null`.
 
-Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name, and `"reason": "error"` when `subscribed()` raised an exception; a subscription your own `reject()` turned away has no reason.
+Subscribing again to a subscription that already exists only sends its confirmation again. A `reject_subscription` has `"reason": "unknown_channel"` when no channel has that name, `"reason": "too_many_subscriptions"` when the connection is past the cable's `max_subscriptions`, and `"reason": "error"` when `subscribed()` raised an exception; a subscription your own `reject()` turned away has no reason.
 
 A `reply` answers the `message` with the same `id`: `status: "ok"` with what the action returned as `data` (`null` if nothing), or `status: "error"` with a `reason` in `data`: the one of an `ActionError`, along with its other data; `error` when the action raised anything else; or `not_subscribed`, `invalid_action` or `unknown_action` when there was nothing to run.
 
-A `message` without an `id` gets no reply. What would have been an error reply is an `error` frame instead, with the `reason` (and the data of an `ActionError`) at the top level; an action that raises anything else sends nothing. An `error` also reports a command the server couldn't read: `invalid_json`, `invalid_message` (JSON that is not an object), or `unknown_command`.
+A `message` without an `id` gets no reply. What would have been an error reply is an `error` frame instead, with the `reason` (and the data of an `ActionError`) at the top level; an action that raises anything else sends `{"type": "error", "reason": "error"}`. An `error` also reports a command the server couldn't read: `invalid_json`, `invalid_message` (JSON that is not an object, or whose `channel` is not a string or `params` not an object), or `unknown_command`.
 
 The confirmation's `presence` lists who is in each stream the channel tracks, `{key: data}`. The `presence_join`, `presence_leave` and `presence_update` frames go to every subscriber of the stream (`topic`), when a user's first connection is tracked, their last one leaves, or their data changes; they may arrive before the confirmation of the subscription that caused them.
 

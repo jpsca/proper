@@ -7,7 +7,7 @@ TEMPLATE = """\
 Some examples (model - class or model name)::
 
     > Model = migrator.orm['table_name']            # Return model in current state by name
-    > Model = migrator.ModelClass                   # Return model in current state by name
+    > Model = migrator.orm.ModelClass               # Return model in current state by name
 
     > migrator.sql(sql)                             # Run custom SQL
     > migrator.run(func, *args, **kwargs)           # Run python function with the given args

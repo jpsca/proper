@@ -1,7 +1,7 @@
 ---
 title: Deployment
 description: |
-  How to run a Proper application in production. Covers the Linux requirement, free-threaded Python, the `proper run` server and its settings, sizing workers, threads and processes, production configuration, the Docker image, Compose and nginx, the background worker, a deploy checklist, and how Proper performs against other frameworks.
+  How to run a Proper application in production. Covers the Linux requirement, free-threaded Python, the `proper run` server and its settings, sizing workers, threads and processes, production configuration, the Docker image, Compose and nginx, the background worker, and a deploy checklist.
 number_headers: true
 ---
 
@@ -20,7 +20,6 @@ After reading this guide, you will know:
 - How the Docker image is built, and how one image runs the web server, the worker and the migrations.
 - How to put nginx in front of the app, including the WebSocket port.
 - What to do, in order, on each deploy.
-- How Proper performs compared to other Python, Ruby, Go and Rust frameworks.
 
 ---
 
@@ -315,6 +314,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-install-project --no-dev
 COPY . .
 RUN uv sync --frozen --no-dev
+RUN APP_ENV=dev .venv/bin/proper jx compile
 
 # --- Stage 2: runtime
 FROM debian:trixie-slim AS runtime
@@ -328,7 +328,7 @@ RUN apt-get update \
     && useradd --system --gid app --home-dir /app --no-create-home app
 WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
-RUN mkdir -p storage log && chown -R app:app storage log
+RUN mkdir -p storage log _compiled && chown -R app:app storage log _compiled
 USER app
 
 EXPOSE 2300 2301
@@ -541,7 +541,7 @@ Option | What it is
 ------ | ----------
 `workers` | How many tasks run at once
 `worker_type` | `"thread"` (default), `"process"` or `"greenlet"`
-`graceful_signal` | The signal that stops the consumer after the running tasks finish (`"TERM"` by default)
+`graceful_signal` | The signal that stops the consumer after the running tasks finish (Huey's default is `"INT"`; the generated `config/storage.py` sets `"TERM"`, what `docker stop` sends)
 `shutdown_timeout` | Seconds to wait for running tasks on a graceful stop; `None` (the default) waits
 
 `graceful_signal` is `"TERM"` because `docker stop` and most supervisors send `SIGTERM`. With it, a deploy lets the running tasks finish instead of killing them halfway.

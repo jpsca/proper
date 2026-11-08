@@ -8,7 +8,7 @@ import re
 import typing as t
 from hashlib import sha256
 from pathlib import Path
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 
 import inflection
 
@@ -305,6 +305,10 @@ class Route:
         self.redirect = redirect
         self.redirect_status = redirect_status
         self.defaults = defaults or {}
+        # `scheme://host` (or `//host`) that `url_for` puts before the path,
+        # when the URLs of this route point at another host, as those of a
+        # `StaticRoute` made with a full URL do. Empty for a route of the app.
+        self.origin: str = ""
         # The defaults of the placeholders, made by `_compile_defaults` when
         # the route is added to a router: the scope's prefix and host are
         # not part of the route before.
@@ -696,7 +700,13 @@ class StaticRoute(Route):
 
     Arguments:
         url:
-            The base URL for these static files.
+            The base URL for these static files: a path (`/assets/`), or a
+            full URL with the host the URLs should point at (a CDN:
+            `https://cdn.example.com/assets/`, or `//cdn.example.com/assets/`
+            to keep the scheme of the page). With a host, `url_for` returns
+            `https://cdn.example.com/assets/css/base.css`, and the route
+            still serves `/assets/css/base.css` on the app's own host, where
+            the CDN fetches the files from.
         root:
             The absolute path to the folder where the static files are.
         name:
@@ -740,6 +750,11 @@ class StaticRoute(Route):
         defaults["fp"] = bool(fingerprint)
         if allowed_ext:
             defaults["allowed_ext"] = allowed_ext
+        origin = ""
+        if "://" in url or url.startswith("//"):
+            parts = urlsplit(url)
+            origin = f"{parts.scheme}://{parts.netloc}" if parts.scheme else f"//{parts.netloc}"
+            url = parts.path
         path = f"{url.strip('/')}/:file<path>"
 
         super().__init__(
@@ -750,6 +765,7 @@ class StaticRoute(Route):
             host=host,
             defaults=defaults,
         )
+        self.origin = origin
 
     def _format(self, kw: dict) -> str:
         if not self.defaults["fp"]:

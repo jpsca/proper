@@ -138,6 +138,7 @@ CREATE TABLE "article" (
     "title" VARCHAR(255) NOT NULL,
     "body" TEXT NOT NULL,
     "author_id" INTEGER NOT NULL,
+    "created_at" DATETIME NOT NULL,
     FOREIGN KEY ("author_id") REFERENCES "user" ("id") ON DELETE CASCADE
 );
 
@@ -182,7 +183,7 @@ When the parent record is deleted, what should happen to the children? You decid
 | `"SET NULL"`    | Set the FK column to `NULL` (requires `null=True` on the FK)   |
 | `"RESTRICT"`    | Refuse to delete the parent if children exist                  |
 | `"NO ACTION"`   | Same as `RESTRICT` on most databases, but checked at end of transaction |
-| (not set)       | Database default - usually `NO ACTION`. **Don't rely on it.**  |
+| (not set)       | No clause is written; the database decides (`NO ACTION`, which most engines treat like `RESTRICT`). **Don't rely on it.** |
 
 ```python
 class Article(BaseModel):

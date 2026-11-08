@@ -2,6 +2,93 @@
 
 All notable changes to Proper are documented in this file.
 
+## 0.50.0
+
+### Added
+
+- `ASSETS_URL` (and the `url` of `router.static()`) can be a full URL, so
+  the assets are served from a CDN: `https://cdn.example.com/assets/`, or
+  `//cdn.example.com/assets/` to keep the scheme of the page. `url_for`
+  then returns `https://cdn.example.com/assets/css/base-<fingerprint>.css`,
+  with or without `_full`, and the app still serves `/assets/...` on its
+  own host, where the CDN fetches the files from. A route has an `origin`
+  (`scheme://host`, empty for a route of the app) that `url_for` puts
+  before the path.
+
+### Changed
+
+- An attachment embedded in a rich text field is purged only when the last
+  record that embeds it stops doing so. Before, `HasRichText` assumed that
+  each record owned its attachments: when two records embedded the same
+  one (a copy of a post, each version of a document), editing or deleting
+  one of them purged the files the other still showed.
+  The rows that embed each attachment are kept in a new table,
+  `attachment_reference` (the model is `Attachment.Reference`, exported as
+  `AttachmentReference` by `models/attachment.py`), with the table name,
+  primary key and column of each record that embeds it. `HasRichText` keeps
+  it in sync on `save()` and `delete_instance()`. New:
+  - `record.release_rich_text_attachments()`: drops the references of a
+    record and purges the attachments left without any. Call it before
+    deleting a record with a query, which doesn't run the hooks.
+  - `rebuild_rich_text_references(*models)`: makes the references of these
+    models match their bodies, and drops the ones of deleted rows.
+  - `attachment.is_referenced` and `attachment.references`.
+- The `pending` column of `Attachment` is gone: an attachment is pending
+  when it has no references. `purge_abandoned_uploads()` sweeps the
+  attachments with `source="rich_text"`, without a parent, older than the
+  grace period and without references. Its `source` argument defaults to
+  `"rich_text"`.
+- The uploads of the rich text editor have `source="rich_text"`, and a
+  file sent with a form or attached from code has an empty `source`
+  (before, both had `"direct"`). `DirectUploadController` has a `source`
+  class attribute, `"rich_text"`, that its `create` action passes to
+  `Attachment.create_pending_blob()`; it no longer reads a `blob_source`
+  from the request: the client doesn't choose the lifecycle of its uploads.
+
+  To update an app with the storage addon:
+
+  1. Add at the end of `models/attachment.py`
+     `AttachmentReference = Attachment.Reference`, and export it from
+     `models/__init__.py`.
+  2. In `controllers/storage_controller.py`, add `source = "rich_text"` to
+     `DirectUploadController` and pass `source=self.source` to
+     `Attachment.create_pending_blob(...)` in `create`, instead of
+     `blob.get("blob_source") or "direct"`.
+  3. Run `proper db create --name attachment_references`. The migration
+     creates the table and removes the `pending` column (the default of
+     `source` lives in the model, so it isn't part of the migration).
+     Before running it, add to its `migrate()`: the uploads in progress,
+     so they are swept if nobody embeds them, **before** the column is
+     removed; and, at the end, the references of the records that exist,
+     the source of the attachments they embed, and the empty source of the
+     rest:
+
+     ```python
+     from proper.rich_text import rebuild_rich_text_references
+     from myapp.models import Comment, Post
+
+     def migrate(migrator, database, *, fake=False):
+         migrator.sql("UPDATE attachment SET source = 'rich_text' WHERE pending")
+
+         # ... the generated operations ...
+
+         migrator.run(rebuild_rich_text_references, Post, Comment)
+         migrator.sql(
+             "UPDATE attachment SET source = 'rich_text' "
+             "WHERE id IN (SELECT attachment_id FROM attachment_reference)"
+         )
+         migrator.sql("UPDATE attachment SET source = '' WHERE source = 'direct'")
+     ```
+
+  4. Run `proper db migrate`.
+
+### Fixed
+
+- `proper check` reported `AttachmentReference.attachment` as a foreign key
+  to a model that `models/__init__.py` doesn't import. The key points to
+  the `Attachment` that `attachment_for()` builds, and the app imports its
+  own subclass of it, of the same table; the check now accepts that.
+
 ## 0.49.0
 
 ### Changed

@@ -1,7 +1,7 @@
 ---
 title: Rich Text
 description: Rich Text addon — formatted-text field with embedded attachments, Lexxy editor, attachment lifecycle
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/rich_text
   - src/proper/_blueprints/addon_rich_text
@@ -41,11 +41,10 @@ This:
 - Adds the Lexxy editor (JS + CSS) into your assets.
 - Creates three Jx components: `rich_text_editor.jx`, `rich_text_toolbar.jx`, and `rich_text_attachment.jx`.
 - Adds a periodic task at `tasks/abandoned_uploads_sweep.py` for cleaning up abandoned pre-uploads, imported from `tasks/__init__.py` so Huey registers it.
-- Adds the Lexxy editor to your assets (`js/vendor/lexxy.js`, `js/lexxy-config.js`, `css/lexxy-editor.css`, `css/lexxy-content.css`, `css/lexxy-variables.css`) and the `lexxy` entry to `config/import_map.py`. The vendored `lexxy.js` loads `@rails/activestorage` from `esm.sh` at runtime, so the page needs network and CSP access to that host.
-- Adds `config/rich_text.py` (the sanitizer allowlists), imports it from `config/__init__.py`, and adds the `nh3` dependency.
-- Adds `config/rich_text.py` (the allowlist of the [sanitizer](#sanitizing)) and the `nh3` dependency.
+- Adds the Lexxy editor to your assets (`js/vendor/lexxy.js`, `js/vendor/lexxy-helpers.js`, `js/lexxy-config.js`, `css/lexxy-editor.css`, `css/lexxy-content.css`, `css/lexxy-variables.css`) and the `lexxy` entry to `config/import_map.py`. The vendored `lexxy.js` loads `@rails/activestorage` from `esm.sh` at runtime, so the page needs network and CSP access to that host.
+- Adds `config/rich_text.py` (the allowlists of the [sanitizer](#sanitizing)), imports it from `config/__init__.py`, and adds the `nh3` dependency.
 
-The migration is for the `attachment` table added by the storage addon — rich_text itself doesn't add or change columns. The field stores the HTML on whatever text column you already have.
+The migration is for the `attachment` and `attachment_reference` tables added by the storage addon — rich_text itself doesn't add or change columns. The field stores the HTML on whatever text column you already have.
 
 ## Adding Rich Text to a Model
 
@@ -248,34 +247,42 @@ Lexxy also lets you load items inline or remotely, and filter locally or server-
 
 The editor uploads each file the moment the user drops it in — **before** the form is submitted. This sets up an interesting reconciliation problem: until the parent form is saved, the attachment is provisional. The user might close the tab.
 
+Proper keeps the records that embed each attachment in a table, `attachment_reference`: one row per `(record_type, record_id, field, attachment)`, where `record_type` is the table name of the model, `record_id` its primary key as a string and `field` the rich text column. The model is `Attachment.Reference`, built by `attachment_for()` and exported as `AttachmentReference` by the storage addon's `models/attachment.py` (so `proper db create` makes its table). Two records can embed the same attachment (a copied post, each version of a versioned document): it is purged only when its **last** reference goes away.
+
+- `att.is_referenced` — whether some record embeds it.
+- `att.references` — the reference rows (peewee backref).
+
 The flow:
 
 1. User drops a file → browser POSTs metadata to `DirectUpload.create`.
-2. Server creates an `Attachment` row with `source="direct"` and `pending=True`, and returns its `signed_id`, its `url` and a `direct_upload` envelope (`url` + `headers`) telling the browser where to PUT the bytes.
+2. Server creates an `Attachment` row with `source="rich_text"` (the `source` class attribute of `DirectUploadController`) and no references, and returns its `signed_id`, its `url` and a `direct_upload` envelope (`url` + `headers`) telling the browser where to PUT the bytes.
 3. Browser PUTs the bytes directly to storage (S3) or to `DirectUpload.update` (Disk).
 4. Editor inserts `<proper-attachment sgid="...">` into the document.
 5. User submits the form → parent model's `save()` runs.
 
 `HasRichText` hooks `save()` and `delete_instance()` to keep the database honest:
 
-**On save**, for every rich-text column:
+**On save**, for every rich-text column, diffs the attachment ids of the **new body** against the **references** of the record for that column:
 
-- Diffs the **new body** against the **prior body** (loaded fresh by PK).
-- Marks every attachment referenced by the new body as `pending=False` (single batched UPDATE).
-- Schedules `purge_later()` for every attachment that *was* in the prior body but no longer appears.
+- Inserts a reference for each new id (ids of attachments that don't exist are skipped: the embed renders empty).
+- Deletes the references of the ids that are gone, then schedules `purge_later()` for the ones that **no other record references**.
 
-**On delete**, for every rich-text column:
+The save and the reference changes run in one transaction; the purges are queued after it.
 
-- Collects all referenced attachment IDs *before* the parent row is deleted.
-- Schedules `purge_later()` for each one after the parent row is gone.
+**On delete**, deletes every reference of the record and schedules `purge_later()` for the attachments left without any.
 
 All purges go through Huey, so they don't block the save or the user's request.
 
-If a model holds rich text but **should not** own its attachments (e.g. they're shared between records), don't include `HasRichText`. Rendering still works, but nothing marks the uploads as confirmed, so the abandoned-uploads sweep purges them after `grace_hours`: set `pending=False` on the referenced rows yourself, or give those uploads another `source`.
+Deletions by query and by the database don't run the hooks:
+
+- `record.release_rich_text_attachments()` — drops the references of the record and purges the attachments left without any. Call it **before** `Model.delete().where(...).execute()`.
+- `rebuild_rich_text_references(*models)` (in `proper.rich_text`) — for each model, drops the references of rows that no longer exist and syncs the references of every row with its bodies. Purges nothing (the sweep handles unreferenced uploads). Use it from a data migration to fill the table for existing records (`migrator.run(rebuild_rich_text_references, Post, Comment)`), and to repair after `ON DELETE CASCADE` or `Model.update()` of a body.
+
+Composite primary keys are not supported (`record_id` is one string).
 
 ## Sweeping Abandoned Uploads
 
-Pre-uploaded files that never get confirmed are orphans — bytes in storage with no document pointing at them. The installer generates `tasks/abandoned_uploads_sweep.py` (already imported from `tasks/__init__.py`):
+Pre-uploaded files that no record ever embeds are orphans — bytes in storage with no document pointing at them. The installer generates `tasks/abandoned_uploads_sweep.py` (already imported from `tasks/__init__.py`):
 
 ```python
 from huey import crontab
@@ -290,12 +297,12 @@ def sweep_abandoned_uploads():
     purge_abandoned_uploads(Attachment, grace_hours=24)
 ```
 
-`purge_abandoned_uploads(attachment_cls, *, grace_hours=24, source="direct")` queries for rows where `source == source AND pending == True AND created_at < now - grace_hours` and calls `purge_later()` on each. Returns the count of rows scheduled.
+`purge_abandoned_uploads(attachment_cls, *, grace_hours=24, source="rich_text")` queries for rows where `source == source AND parent IS NULL AND created_at < now - grace_hours AND NOT EXISTS (reference)` and calls `purge_later()` on each. Returns the count of rows scheduled. Variants are skipped: they are purged with their parent.
 
 - A **short** `grace_hours` reclaims storage faster but risks deleting an upload while the user is still composing a long post.
 - A **long** `grace_hours` is gentler on users but keeps orphans around longer.
 
-The sweep only touches rows where `source` matches — other addons that pre-upload with their own lifecycle policy (and their own `source` value) aren't affected.
+The sweep only touches rows where `source` matches. "Without references" means "unused" only for the editor's uploads: a file sent with a form or attached through a foreign key has an empty `source` and no references, and is in use, so it is never swept. Other addons that pre-upload with their own lifecycle policy (and their own `source` value) aren't affected either.
 
 ## Working with Documents from Python
 

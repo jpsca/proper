@@ -35,11 +35,11 @@ class ORM:
 
     def add(self, model: TModelType):
         self.__models__[model.__name__] = model
-        self.__tables__[model._meta.table_name] = model  # type: ignore[]
+        self.__tables__[model._meta.table_name] = model
 
     def remove(self, model: TModelType):
         del self.__models__[model.__name__]
-        del self.__tables__[model._meta.table_name]  # type: ignore[]
+        del self.__tables__[model._meta.table_name]
 
     def __getattr__(self, name: str) -> TModelType:
         return self.__models__[name]
@@ -123,7 +123,7 @@ class Migrator:
 
         >> migrator.create_model(Model)
         """
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         self.orm.add(model)
         model_cls = cast("type[pw.Model]", model)
 
@@ -141,7 +141,7 @@ class Migrator:
         """
         model = self.__get_model__(model)
         self.orm.remove(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         self.__ops__.append(
             self.__migrator__.drop_table(
                 meta.table_name, cascade=cascade, schema=meta.schema
@@ -159,12 +159,12 @@ class Migrator:
         >> migrator.change_fields(Model, name=pw.CharField(null=True))
         """
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         for name, field in fields.items():
             meta.add_field(name, field)
 
             self.__ops__.append(
-                self.__migrator__.add_column(  # type: ignore[]
+                self.__migrator__.add_column(
                     meta.table_name,
                     field.column_name,
                     field,
@@ -189,7 +189,7 @@ class Migrator:
         >> migrator.change_fields(Model, name=pw.CharField(null=True))
         """
         model = self.__get_model__(model)
-        meta: pw.Metadata = model._meta  # type: ignore[]
+        meta: pw.Metadata = model._meta
         for name, field in fields.items():
             old_field = meta.fields.get(name, field)
             old_column_name = old_field and old_field.column_name
@@ -226,7 +226,7 @@ class Migrator:
                 continue
 
             self.__ops__.append(
-                self.__migrator__.change_column(  # type: ignore[]
+                self.__migrator__.change_column(
                     meta.table_name, field.column_name, field
                 )
             )
@@ -265,7 +265,7 @@ class Migrator:
         >> migrator.remove_fields(Model, "name", "age", cascade=True)
         """
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         fields = [field for field in meta.fields.values() if field.name in names]
         for field in fields:
             self.__del_field__(model, field)
@@ -280,7 +280,7 @@ class Migrator:
                 )
 
             self.__ops__.append(
-                self.__migrator__.drop_column(  # type: ignore[]
+                self.__migrator__.drop_column(
                     meta.table_name, field.column_name, cascade=cascade, **params
                 )
             )
@@ -298,7 +298,7 @@ class Migrator:
         >> migrator.rename_field(Model, "name", "full_name")
         """
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         field = meta.fields[old_name]
         if isinstance(field, pw.ForeignKeyField):
             old_name = field.column_name
@@ -314,7 +314,7 @@ class Migrator:
 
     def __del_field__(self, model: TModelType, field: pw.Field):
         """Delete field from model."""
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         meta.remove_field(field.name)
         delattr(model, field.name)
         if isinstance(field, pw.ForeignKeyField):
@@ -328,7 +328,7 @@ class Migrator:
     def rename_table(self, model: str | TModelType, new_name: str) -> TModelType:
         """Rename table in database."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         old_name = meta.table_name
         self.orm.remove(model)
         meta.table_name = new_name
@@ -341,7 +341,7 @@ class Migrator:
     ) -> TModelType:
         """Create indexes."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         meta.indexes.append((columns, unique))
         columns_ = []
         for col in columns:
@@ -363,7 +363,7 @@ class Migrator:
     def drop_index(self, model: str | TModelType, *columns: str) -> TModelType:
         """Drop indexes."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         columns_ = []
         for col in columns:
             field = meta.fields.get(col)
@@ -383,7 +383,7 @@ class Migrator:
     def add_not_null(self, model: str | TModelType, *names: str) -> TModelType:
         """Add not null."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         for name in names:
             field = meta.fields[name]
             field.null = False
@@ -395,7 +395,7 @@ class Migrator:
     def drop_not_null(self, model: str | TModelType, *names: str) -> TModelType:
         """Drop not null."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         for name in names:
             field = meta.fields[name]
             field.null = True
@@ -407,7 +407,7 @@ class Migrator:
     def add_default(self, model: str | TModelType, name: str, default: Any) -> TModelType:
         """Add default."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         field = meta.fields[name]
         # Removed and added again, so that the model keeps track of the
         # new default the same way as of one the field was declared with
@@ -420,7 +420,7 @@ class Migrator:
     def add_constraint(self, model: str | TModelType, name, constraint):
         """Add constraint."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         self.__ops__.append(
             self.__migrator__.add_constraint(meta.table_name, name, constraint)
         )
@@ -429,7 +429,7 @@ class Migrator:
     def drop_constraints(self, model: str | TModelType, *names: str) -> TModelType:
         """Drop constraints."""
         model = self.__get_model__(model)
-        meta = model._meta  # type: ignore[]
+        meta = model._meta
         self.__ops__.extend(
             [self.__migrator__.drop_constraint(meta.table_name, name) for name in names]
         )
@@ -587,7 +587,7 @@ class SqliteMigrator(SchemaMigrator, SqM):
             ctx.sql(field.ddl(ctx))
             return ctx.query()[0]
 
-        return [self._update_column(table, column, fn)]  # type: ignore[]
+        return [self._update_column(table, column, fn)]
 
 
 class SyncContext:

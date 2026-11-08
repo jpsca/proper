@@ -59,7 +59,7 @@ Browsers tell the server where a request comes from: the `Origin` header has the
 1. A `GET`, `HEAD`, `OPTIONS` or `QUERY` request is allowed. These methods must not change anything.
 2. A request with neither `Origin` nor `Sec-Fetch-Site` is allowed. Browsers send at least one of them with every state-changing request, so this one doesn't come from a browser, and only browsers add the user's cookies on their own.
 3. A request whose `Origin` is in the `TRUSTED_ORIGINS` setting is allowed.
-4. If `Sec-Fetch-Site` is present: `same-origin` or `none` (the user typed the URL, or used a bookmark) is allowed; any other value is refused. This protects every current browser on HTTPS or `localhost`.
+4. If `Sec-Fetch-Site` is present: `same-origin` or `none` (the user typed the URL, or used a bookmark) is allowed; any other value goes on to the next steps. This protects every current browser on HTTPS or `localhost`.
 5. A request whose `Origin` host and port are the same as its `Host` is allowed. This is a request over plain HTTP, or from an old browser.
 6. A request whose `Origin` and `Host` are both on the local network (a private, loopback or link-local address) is allowed, so you can test from a phone on your LAN.
 7. Any other request is refused with `InvalidOrigin`, a `403 Forbidden`.
@@ -402,7 +402,7 @@ A path that starts with `//` or `/\` is not a problem: `redirect_to` turns them 
 
 Serve your application only over HTTPS. Without it, anyone on the network between your user and your server, on a public Wi-Fi for example, can read and change everything, cookies included.
 
-Proper doesn't handle TLS itself: a reverse proxy in front of it does, like nginx or the load balancer of your hosting. Make the proxy redirect HTTP to HTTPS. Once a browser has visited your site over HTTPS, if you enable the `Strict-Transport-Security` header in the `SecurityHeaders` concerm, it will make it use HTTPS for the `max-age` you set, even for an `http://` link.
+Proper doesn't handle TLS itself: a reverse proxy in front of it does, like nginx or the load balancer of your hosting. Make the proxy redirect HTTP to HTTPS. Once a browser has visited your site over HTTPS, if you enable the `Strict-Transport-Security` header in the `SecurityHeaders` concern, it will make it use HTTPS for the `max-age` you set, even for an `http://` link.
 
 ### Trusted proxies
 

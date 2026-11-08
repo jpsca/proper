@@ -1,7 +1,7 @@
 ---
 title: Storage
 description: Storage addon: setup, Disk and S3 services, public services, attaching files to models (forms and manual), serving (redirect vs proxy, URL helpers), direct uploads, downloading and removing
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py
@@ -37,7 +37,7 @@ proper install storage
 proper db migrate
 ```
 
-This sets up configuration in your application, creates the Attachment model, the serving controllers, and the `attachment` table Proper Storage needs.
+This sets up configuration in your application, creates the Attachment model, the serving controllers, and the `attachment` and `attachment_reference` tables Proper Storage needs.
 
 The installer creates:
 
@@ -75,13 +75,16 @@ Field            | Type                   | Description
 `service_name`   | CharField(64)          | Which storage service holds the file
 `filename`       | CharField(255)         | Parameterized filename (lowercased, special chars → dashes)
 `content_type`   | CharField(64)          | MIME type: the upload's own `content_type` if it has one, else guessed from the filename, else `application/octet-stream`
-`byte_size`      | IntegerField           | File size in bytes, set by the service during `save()` (a pending blob of a direct upload gets the size the client declared until then)
+`byte_size`      | IntegerField           | File size in bytes, set by the service during `save()` (a blob of a direct upload gets the size the client declared until then)
 `created_at`     | DateTimeField          | Creation timestamp (UTC)
 `metadata`       | pw.JSONField           | Arbitrary metadata (nullable)
 `parent`         | ForeignKeyField(self)  | Parent attachment for variants (nullable)
 `variant_key`    | CharField(64)          | SHA-256 digest of the variant's transformations
-`source`         | CharField(32)          | Where the upload came from. Default `"direct"`. Addons set their own values when they pre-upload with a different lifecycle policy
-`pending`        | BooleanField           | True for pre-uploaded blobs that haven't been confirmed by a parent record's save. The rich_text sweeper purges rows that stay pending past a grace period
+`source`         | CharField(32)          | Where the upload came from. Empty (the default) for a file sent with a form or attached from code; `"rich_text"` for an upload of the rich text editor. Addons set their own values when they pre-upload with a different lifecycle policy
+
+And two attributes about the records that embed the attachment in a rich text field (see [Rich Text](rich_text.md#attachment-lifecycle)): `is_referenced` (bool) and `references` (the rows of `Attachment.Reference`).
+
+`attachment_for()` also builds `Attachment.Reference`, the model of those rows (table `attachment_reference`: `attachment` FK with `ON DELETE CASCADE`, `record_type`, `record_id`, `field`, unique together). The generated `models/attachment.py` exports it as `AttachmentReference`, so `proper db create` makes its table. Only the rich text addon writes to it.
 
 ### Configuring services
 
@@ -398,7 +401,7 @@ The `DirectUploadController` lets clients (e.g. the Lexxy rich-text editor) uplo
 The flow:
 
 1. Client POSTs `{"blob": {"filename": ..., "content_type": ..., "byte_size": ..., "checksum": "<base64-md5>"}}` to `POST /storage/direct`.
-2. Server creates a pending `Attachment` row via `Attachment.create_pending_blob(...)` (sets `pending=True`, `source="direct"`) and asks the service for a `direct_upload_url(att, checksum=...)` envelope.
+2. Server creates an `Attachment` row via `Attachment.create_pending_blob(..., source=self.source)` (metadata only) and asks the service for a `direct_upload_url(att, checksum=...)` envelope. `source` is a class attribute of the controller, `"rich_text"`; the client can't choose it.
 3. Server responds:
    ```json
    {
@@ -412,7 +415,7 @@ The flow:
 4. Client PUTs the bytes to `direct_upload.url` with the supplied headers.
    - **S3**: presigned PUT URL → S3 directly.
    - **Disk**: `PUT /storage/direct/<token>` → app stores bytes via `DirectUploadController.update`, which calls `obj.service.upload(BytesIO(self.request.body), obj)`. The token uses salt `"upload"` (distinct from `"redirect"`/`"proxy"`) and expires after 15 minutes (`resolve_token()`'s default `max_age`).
-5. The row stays `pending=True` until a parent model's save confirms ownership (rich_text's `HasRichText` mixin does this automatically). If nothing confirms it, a sweep task purges it after the grace period.
+5. The row has no references until a parent model's save records that it embeds it (rich_text's `HasRichText` mixin does this automatically). If nothing ever embeds it, a sweep task purges it after the grace period.
 
 `DirectUploadController` is rate-limited to 10 requests/minute per IP address out of the box (needs a configured cache; without one no limit applies). Tune via `rate_limit = {"to": N, "within": SECONDS, "by": ...}` on the controller. Unlike the two serving controllers, it does not set `skip_authentication`, so with the auth addon installed direct uploads need a signed-in user.
 
@@ -435,7 +438,7 @@ attachment.purge()        # synchronous (CLI scripts, background jobs)
 attachment.purge_later()  # enqueues a Huey task, returns immediately
 ```
 
-`purge()` also purges every variant (each from its own service) before deleting the row. `purge_later()` takes only the PK and re-fetches the row before acting, so it's safe even if the row is deleted some other way before the task runs.
+`purge()` also purges every variant (each from its own service) and deletes the references of the records that embed the attachment before deleting the row. `purge_later()` takes only the PK and re-fetches the row before acting, so it's safe even if the row is deleted some other way before the task runs.
 
 `AttachmentField` uses `purge_later()` for the previous attachment after a successful replacement: new upload is saved synchronously (you want to know if that fails), cleanup of the old file happens in the background (a slow S3 delete shouldn't block the form response).
 

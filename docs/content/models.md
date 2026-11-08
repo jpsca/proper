@@ -51,20 +51,34 @@ Every model in a Proper application inherits from `BaseModel`, which is defined 
 
 ```python
 # models/base.py
-from proper import ProperModel, scope  # noqa
+import typing as t
+from datetime import datetime, timezone
 
+import peewee as pw
+
+from proper import ProperModel, scope  # noqa
 from ..main import app
 
 
 db = app.db["main"]
 
 
+def utcnow() -> datetime:
+    """The naive UTC datetime peewee's `utcnow` returns, with a type."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class _MainDatabase:
+    database = db
+
+
 class BaseModel(ProperModel):
-    class Meta:
-        database = app.db["main"]
+    Meta: t.Any = _MainDatabase
+
+    created_at = pw.DateTimeField(default=utcnow)
 ```
 
-`BaseModel` inherits from `ProperModel`, which is a Peewee `Model` with extra capabilities that Proper adds - namely [scopes](#scopes) and [token generation](https://docs.peewee-orm.com). If a model doesn't use any of these extras, it behaves exactly like a standard Peewee model.
+`BaseModel` inherits from `ProperModel`, which is a Peewee `Model` with extra capabilities that Proper adds - namely [scopes](#scopes) and signed tokens for a record (`generate_token_for` / `resolve_token_for`). It also gives every model a `created_at` column. If a model doesn't use any of these extras, it behaves exactly like a standard Peewee model.
 
 To create a model, add a new file in the `models/` directory and subclass `BaseModel`:
 
@@ -81,7 +95,7 @@ class Book(BaseModel):
     views = pw.IntegerField(default=0)
 ```
 
-This creates a `Book` model mapped to a `book` table in the database, with columns `id`, `title`, `author`, `published`, and `views`. Peewee automatically adds an auto-incrementing `id` primary key unless you define one yourself.
+This creates a `Book` model mapped to a `book` table in the database, with columns `id`, `title`, `author`, `published`, `views`, and the `created_at` of `BaseModel`. Peewee automatically adds an auto-incrementing `id` primary key unless you define one yourself.
 
 You can also generate models from the command line:
 
@@ -161,7 +175,7 @@ class Book(BaseModel):
     title = pw.CharField()
     status = pw.CharField(default="draft")           # Static default
     views = pw.IntegerField(default=0)               # Static default
-    created_at = pw.DateTimeField(default=pw.utcnow) # Callable default (called at insert time)
+    reviewed_at = pw.DateTimeField(default=utcnow)   # Callable default (called at insert time)
 ```
 
 When a callable is used (note: no parentheses - `pw.utcnow`, not `pw.utcnow()`), Peewee calls it each time a new record is created, so every record gets its own timestamp.
@@ -265,8 +279,8 @@ book.title    # => "The Hobbit"
 The resulting SQL:
 
 ```sql
-INSERT INTO "book" ("title", "author", "published", "views")
-VALUES ('The Hobbit', 'J.R.R. Tolkien', false, 0)
+INSERT INTO "book" ("title", "author", "published", "views", "created_at")
+VALUES ('The Hobbit', 'J.R.R. Tolkien', false, 0, '2026-11-07 10:00:00')
 ```
 
 Alternatively, you can instantiate the object, set its attributes, and call `save()`:
@@ -313,16 +327,21 @@ The resulting SQL for each:
 
 ```sql
 -- Book.select()
-SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
+SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views", "t1"."created_at"
 FROM "book" AS "t1"
 
--- Book.get_by_id(1) and Book.find(1)
-SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
+-- Book.get_by_id(1)
+SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views", "t1"."created_at"
 FROM "book" AS "t1"
 WHERE ("t1"."id" = 1) LIMIT 1
 
+-- Book.find(1): the same, compiled once per model and without the LIMIT
+SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views", "t1"."created_at"
+FROM "book" AS "t1"
+WHERE ("t1"."id" = 1)
+
 -- Book.get_or_none(Book.title == "The Hobbit")
-SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
+SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views", "t1"."created_at"
 FROM "book" AS "t1"
 WHERE ("t1"."title" = 'The Hobbit') LIMIT 1
 ```
@@ -358,12 +377,12 @@ The resulting SQL for the filter example:
 
 ```sql
 -- published_books
-SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
+SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views", "t1"."created_at"
 FROM "book" AS "t1"
 WHERE ("t1"."published" = true)
 
 -- popular_tolkien
-SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views"
+SELECT "t1"."id", "t1"."title", "t1"."author", "t1"."published", "t1"."views", "t1"."created_at"
 FROM "book" AS "t1"
 WHERE (("t1"."author" = 'J.R.R. Tolkien') AND ("t1"."views" >= 1000))
 ```
@@ -452,7 +471,7 @@ with db.atomic():
     # Both are committed together, or both rolled back on error
 ```
 
-Proper automatically manages database connections per request - it opens a connection before routing and closes it after the response is sent.
+For a database configured with `"autoconnect": False`, Proper manages the connection per request - it opens one before routing and closes it after the response is sent. With Peewee's default `autoconnect=True`, the database connects by itself on the first query.
 
 ---
 
@@ -507,7 +526,6 @@ class Article(BaseModel):
     status = pw.CharField(default="draft")
     views = pw.IntegerField(default=0)
     category = pw.CharField(default="general")
-    created_at = pw.DateTimeField(default=pw.utcnow)
 
     @scope
     def published(cls, query):
@@ -681,7 +699,8 @@ CREATE TABLE "user" (
     "email" VARCHAR(255) NOT NULL UNIQUE,
     "username" VARCHAR(255) NOT NULL,
     "bio" TEXT,
-    "role" VARCHAR(255) NOT NULL DEFAULT 'member'
+    "role" VARCHAR(255) NOT NULL DEFAULT 'member',
+    "created_at" DATETIME NOT NULL
 )
 
 CREATE INDEX "user_username" ON "user" ("username")
@@ -695,7 +714,6 @@ For indexes that span multiple columns, use the `indexes` tuple in the `Meta` cl
 class Session(BaseModel):
     token = pw.CharField(max_length=43, unique=True, index=True)
     user = pw.ForeignKeyField(User, backref="sessions", on_delete="CASCADE")
-    created_at = pw.DateTimeField(default=pw.utcnow)
     expires_at = pw.DateTimeField()
     revoked = pw.BooleanField(default=False)
 
@@ -819,5 +837,5 @@ uv add pymysql
 `pymysql` is pure-Python and works with both MySQL and MariaDB. If you'd rather use the official MariaDB connector (faster, but requires the `mariadb` C library installed on your system), set `type` to `playhouse.mysql_ext.MariaDBConnectorDatabase` and run `uv add mariadb`.
 
 :::tip | Connection pooling
-For production workloads with many concurrent requests, swap the database class for one of the pooled variants in `playhouse.pool` (e.g. `playhouse.pool.PooledPostgresqlExtDatabase`). Pooled classes accept the same keys plus `max_connections` and `stale_timeout`.
+For production workloads with many concurrent requests, swap the database class for one of the pooled variants (e.g. `playhouse.postgres_ext.PooledPsycopg3Database`, what the blueprint writes for production, or `playhouse.pool.PooledPostgresqlDatabase`). Pooled classes accept the same keys plus `max_connections` and `stale_timeout`.
 :::

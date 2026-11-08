@@ -1,7 +1,7 @@
 ---
 title: Security
 description: CSRF protection, rate limiting, sessions, signed cookies, security headers
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/concerns/origin_protection.py
   - src/proper/concerns/request_forgery_protection.py
@@ -146,7 +146,7 @@ token = app.dumps({"user_id": 42}, salt="my-feature")
 data = app.loads(token, max_age=3600, salt="my-feature")
 ```
 
-These tokens have the format of itsdangerous' `URLSafeTimedSerializer` with HMAC-SHA256 key derivation: URL-safe, with a timestamp. `dumps(..., timed=False)` makes a token without one, identical on every call and never expiring (`loads` must then get `max_age=None`); `loads(..., return_timestamp=True)` also returns when a timed token was made. Proper makes and checks them with its own compiled code (`proper._native`). Only the newest secret key is used for signing; all keys are tried for verification.
+These tokens have the format of itsdangerous' `URLSafeTimedSerializer` with HMAC-SHA256 key derivation: URL-safe, with a timestamp. `dumps(..., timed=False)` makes a token without one, identical on every call and never expiring (read it back with `loads(..., timed=False)`, without `max_age`); `loads(..., return_timestamp=True)` also returns when a timed token was made. Proper makes and checks them with its own compiled code (`proper._native`). Only the newest secret key is used for signing; all keys are tried for verification.
 
 For model-level token workflows (password resets, email verification, signed URLs), use the `generate_token()` / `resolve_token()` API on `ProperModel` instead of calling `app.dumps()` / `app.loads()` directly. See [Token Generation](models_advanced.md#token-generation).
 

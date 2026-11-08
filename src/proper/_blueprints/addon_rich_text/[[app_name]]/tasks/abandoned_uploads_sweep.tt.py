@@ -5,8 +5,8 @@ from [[app_name]].main import app
 from [[app_name]].models import Attachment
 
 
-# Daily sweep of direct uploads that were created but
-# never confirmed by a form submission (user closed the tab, etc.).
+# Daily sweep of the uploads of the rich text editor that no record
+# embeds (the user closed the tab before submitting the form, etc.).
 #
 # Tune `crontab(...)` and `grace_hours=` to taste. Setting `grace_hours`
 # too low risks purging a legitimate upload that the user is still

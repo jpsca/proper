@@ -1,7 +1,7 @@
 ---
 title: Jx Catalog API
 description: Reference: `app.catalog` (globals, filters, tests, block tags via TEMPLATE_TAGS), the `Catalog` constructor, `render()` and `render_string()`
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/views/catalog.py
 ---
@@ -28,7 +28,7 @@ def card_box(title, *, caller, template):
     return Markup(f'<section class="box"><h2>{escape(title)}</h2>{caller()}</section>')
 ```
 
-`caller()` renders the body only if the function calls it; `template` is the path of the component the tag is in. What the function returns is not escaped.
+`caller()` renders the body only if the function calls it; `template` is the path of the component the tag is in. What the function returns is escaped unless it is `Markup` (the body `caller()` returns is), so wrap the HTML you build in `Markup`.
 
 ### Constructor
 

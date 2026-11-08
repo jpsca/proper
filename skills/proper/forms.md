@@ -1,7 +1,7 @@
 ---
 title: Formidable Forms
 description: Form validation library — defining forms, constructor, validation and saving, field attributes and rendering, ORM integration, error messages
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/forms
   - src/proper/concerns/form_validation.py
@@ -103,8 +103,6 @@ form.validate()    # Manually trigger validation, returns bool
 form.get_errors()   # Returns dict of {field_name: error_code} for all fields with errors.
                     # For a FormField the value is the sub-form's own error dict; for NestedForms
                     # it is "invalid" and field.error_args maps each sub-form index to its errors.
-                    # For a FormField the value is the sub-form's own error dict; for NestedForms
-                    # it is "invalid" and field.error_args maps each sub-form index to its errors
 ```
 
 Useful for API/JSON error responses.
@@ -120,7 +118,7 @@ The return value and persistence behavior depend on how the form was constructed
 | Constructed with | Returns | Persists? |
 |---|---|---|
 | No `orm_cls`, no `object` | A plain dict of field values | No |
-| An `object` (plain dict) | The same dict, updated with field values | No |
+| An `object` (plain dict) | A new dict: the object's items plus the field values | No |
 | An `object` (ORM model) | The same instance, updated with field values | **Yes** — calls `object.save()` |
 | `orm_cls` set, no `object` | A new model instance | **Yes** — created via `orm_cls.create(...)` |
 
@@ -176,10 +174,6 @@ When adding explicit fields, pick the right type:
 | `f.ListField()` | Multi-select/checkboxes | `type`, `min_items`, `max_items` |
 | `f.FormField(F)` | Nested object | embeds another form |
 | `f.NestedForms(F)` | One-to-many | `min_items`, `max_items`, `allow_delete` |
-| `f.RichTextField()` | Rich text body bound to a model `RichTextField` | `required=False`; `strip` fixed to `False` |
-| `f.JSONField()` | JSON text parsed to a dict | — |
-
-Every field also takes `label=` (the text `label()` renders when called without one) and `messages=`; Proper's `JSONField` and `AttachmentField` don't take `label`.
 | `f.RichTextField()` | Rich text body bound to a model `RichTextField` | `required=False`; `strip` fixed to `False` |
 | `f.JSONField()` | JSON text parsed to a dict | — |
 
@@ -310,6 +304,18 @@ You can write form HTML manually using field attributes instead of the render he
 The table above is enough to pick a field. Every option of every field, with examples (`AttachmentField`, `RichTextField`, `FormField`, `NestedForms` included), is in [reference/form_fields.md](reference/form_fields.md).
 
 
+## The FormValidation concern
+
+`proper.concerns.FormValidation` gives a controller `validate_form`: when `self.form.is_invalid`, it calls `self.redo()`, which renders the form again with its errors and a 422. Register it in `before` after the callback that builds `self.form`:
+
+```python
+before = [
+    {"do": "set_post", "exclude": ["index", "new", "create"]},
+    {"do": "set_form", "exclude": ["index", "show", "delete"]},
+    {"do": "validate_form", "only": ["create", "update"]},
+]
+```
+
 ## ORM Integration
 
 Add a `Meta` class with `orm_cls`:
@@ -368,9 +374,6 @@ Built-in error codes and their default messages:
 | `invalid_url` | `"Doesn't seem to be a valid URL"` |
 | `invalid_email` | `"Doesn't seem to be a valid email address"` |
 | `invalid_slug` | `"A valid 'slug' can only have a-z letters, numbers, underscores, or hyphens"` |
-| `invalid_json` | `"Invalid JSON format"` |
-| `file_too_large` | `"File size should be {max_size} or less"` |
-| `invalid_content_type` | `"Invalid content type"` |
 | `invalid_json` | `"Invalid JSON format"` |
 | `file_too_large` | `"File size should be {max_size} or less"` |
 | `invalid_content_type` | `"Invalid content type"` |
