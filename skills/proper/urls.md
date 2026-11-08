@@ -1,7 +1,7 @@
 ---
 title: URL Generation
 description: `url_for` with placeholders, objects, defaults, query parameters, anchors and absolute URLs; `url_is` / `url_startswith`; asset URLs
-last_verified: 2026-11-01
+last_verified: 2026-11-08
 sources:
   - src/proper/router
   - src/proper/helpers/html.py
@@ -174,5 +174,7 @@ app.url_for("assets", file="app.css")
 app.url_for("assets", file="images/logo.png")
 # /assets/images/logo-e5f6a1b2c3d4...png  (with fingerprint)
 ```
+
+With a full URL as `ASSETS_URL` (`"https://cdn.example.com/assets/"`, or `"//cdn.example.com/assets/"` to keep the scheme of the page), the route has an `origin` and `url_for("assets", ...)` returns `https://cdn.example.com/assets/app-a1b2...css`, with or without `_full`; the app still serves `/assets/...` on its own host, where the CDN fetches the files from.
 
 The fingerprint is a SHA-256 of the file's modification time, inserted before the extension (`app-<64 hex chars>.css`); a file that doesn't exist under `assets/` gets its URL without one. The cache headers and `X-Sendfile` are in [app.md](app.md#static-assets).

@@ -2,6 +2,7 @@
 
 ```python {title="myapp/models/article.py"}
 import peewee as pw
+from proper import current
 from proper.rich_text import HasRichText, RichTextField
 
 from .base import BaseModel, scope

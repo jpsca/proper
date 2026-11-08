@@ -1,7 +1,7 @@
 ---
 title: Jx Components
 description: Component template system — syntax, imports, props, content and slots, attrs, component assets, SVG icons
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/views
 ---

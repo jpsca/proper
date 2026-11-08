@@ -89,37 +89,32 @@ title: "API - View Helpers"
 
 ---
 
-::: api proper.router.BaseRouter:url_startswith
-:::
-
----
-
 ::: api proper.helpers.dom_id
 :::
 
 ---
 
-::: api jx.component.Component:render_css
+::: api proper.views.Component:render_css
 :::
 
 ---
 
-::: api jx.component.Component:render_js
+::: api proper.views.Component:render_js
 :::
 
 ---
 
-::: api jx.component.Component:render_assets
+::: api proper.views.Component:render_assets
 :::
 
 ---
 
-::: api jx.component.Component:collect_css
+::: api proper.views.Component:collect_css
 :::
 
 ---
 
-::: api jx.component.Component:collect_js
+::: api proper.views.Component:collect_js
 :::
 
 ---

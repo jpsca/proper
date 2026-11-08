@@ -66,7 +66,7 @@ This is the documentation for **Proper**. These guides are designed to make you 
 
 <a href="/docs/controllers_advanced" class="doc-index-section">
   <h3>Controllers Advanced Topics</h3>
-  <p>The Controllers Overview covered the day-to-day shape of a controller. This guide picks up where it stops - the topics that don't come up on every page, but that you will reach for sooner or later: HTTP errors, custom error handlers, wiring an error tracker for production, conditional GETs, file downloads, controllers that don't fit the CRUD mold, and the harder corners of rate limiting.</p>
+  <p>The Controllers Overview covered the day-to-day shape of a controller. This guide picks up where it stops - the topics that don't come up on every page, but that you will reach for sooner or later: HTTP errors, custom error handlers, conditional GETs, file downloads, controllers that don't fit the CRUD mold, and the harder corners of rate limiting.</p>
 </a>
 
 

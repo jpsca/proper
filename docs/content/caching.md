@@ -251,7 +251,7 @@ cache.clear()
 `delete_expired()` removes already-expired rows. The SQLite backend does *lazy* expiration - an expired key is only physically deleted when something tries to read it - so a long-running app accumulates dead rows until they're touched again. Calling `delete_expired()` from a scheduled task once a day keeps the table small:
 
 ```python
-@app.queue.periodic_task(crontab(hour="3"))
+@app.queue.periodic_task(crontab(minute="0", hour="3"))
 def prune_cache():
     current.app.cache.delete_expired()
 ```
@@ -318,7 +318,7 @@ A string key is the same in every template: `{% cache("sidebar") %}` in two temp
 
 This is the powerful one. The key looks like `cards/show.jx:1735689600.0/card/42`: the path of the template, the `updated_at` timestamp as a floating-point number, the class name, and the ID. Because the template is part of the key, the same card cached in two different templates gives two fragments. When the card is saved, `updated_at` changes, which changes the key, which means the next render is a *miss* and re-renders the block. The old entry stays around until it expires (or `delete_expired` cleans it up), but nobody reads from it because nobody can build its key anymore. You get automatic invalidation without ever calling `cache.delete`.
 
-This pattern is sometimes called *key-based expiration* or "the cache is its own invalidation strategy." It works because Proper's `BaseModel` ships an `updated_at` column out of the box; if you're caching objects that don't have one, set `expires_in` explicitly or supply a `version`.
+This pattern is sometimes called *key-based expiration* or "the cache is its own invalidation strategy." It works for models with an `updated_at` column: the generated `BaseModel` has only `created_at`, and the `RussianDollCached` concern (`models/concerns/russian_doll_cached.py`) adds `updated_at` and bumps it on save. A model without one is cached with version `0`, so its fragment never invalidates on update: set `expires_in` explicitly or supply a `version`.
 
 **A collection** (a list, tuple, or any iterable of model objects) generates a key from the class name, the count, and the maximum `updated_at` across the collection:
 
@@ -624,7 +624,11 @@ Default: `NoCache`. Every `set` is a no-op, every `get` returns `None`. Code tha
 If a specific test cares about cache behavior (caching counters, race conditions, the actual hit/miss flow), swap to in-memory SQLite for that test:
 
 ```python
-def test_increment_persists_across_calls(app):
+from proper.cache import SqliteCache
+from myapp.main import app
+
+
+def test_increment_persists_across_calls():
     app.cache = SqliteCache(":memory:")
     app.cache.increment("counter")
     app.cache.increment("counter")
@@ -635,7 +639,7 @@ Don't forget to reset it - in practice, scope a fixture to the test that needs i
 
 ### Production
 
-Default: `SqliteCache("storage/cache.sqlite3")`. A SQLite file at the project root works fine for single-process and small multi-process deployments - SQLite's WAL mode handles concurrent reads while one writer updates, and the cache database is small enough that it stays hot in the OS page cache.
+Default: `SqliteCache("storage/cache.sqlite3")`. A SQLite file under `storage/` (the volume) works fine for single-process and small multi-process deployments - SQLite's WAL mode handles concurrent reads while one writer updates, and the cache database is small enough that it stays hot in the OS page cache.
 
 When you need a cache that's accessible from multiple machines, switch to Redis. The change is one config block; nothing else moves:
 
@@ -655,8 +659,8 @@ If you use `SqliteCache` in production, schedule `cache.delete_expired()` to run
 
 Caching connects to several other parts of Proper. A few places to go from here:
 
-- [Controllers Advanced, section 6](/docs/controllers_advanced#http-caching-with-fresh_when) - the full reference for `fresh_when`, strong vs weak ETags, and when conditional GETs pay off.
+- [Controllers Advanced, section 5](/docs/controllers_advanced#http-caching-with-fresh_when) - the full reference for `fresh_when`, strong vs weak ETags, and when conditional GETs pay off.
 - [Static Assets](/docs/assets) - how fingerprinted asset URLs let the browser cache CSS and JS aggressively without ever showing a stale version.
 - [Background Tasks](/docs/tasks) - schedule `cache.delete_expired()` to keep the SQLite cache table small.
-- [Models](/docs/models) - the `updated_at` column that drives so much of this guide is a property of `BaseModel`; the models guide covers how it's maintained and when to override it.
+- [Models](/docs/models) - the `updated_at` column that drives so much of this guide comes from the `RussianDollCached` concern; the models guide covers how it's maintained and when to override it.
 - [Jx Components and Layouts](/docs/jx_components) - the templates that `{% cache %}` wraps. Component-level CSS/JS dependencies are also cached aggressively.

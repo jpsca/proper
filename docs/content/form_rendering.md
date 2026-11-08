@@ -282,7 +282,7 @@ For `proper g resource Card title:str body:text`, the generator writes `views/ca
   </div>
   <div class="field">
     {{ form.body.label("Body") }}
-    {{ form.body.text_input() }}
+    {{ form.body.textarea() }}
     {{ form.body.error_tag() }}
   </div>
 
@@ -420,7 +420,7 @@ The list field consumes all the values that came in under `tags` and exposes the
 form.tags.value   # ["python", "ruby"]
 ```
 
-You sometimes see the convention `name="tags[]"` (with empty brackets) to make it visually obvious that the field is multi-valued. Formidable accepts both forms.
+In a form, the `[]` suffix is required: the parser keeps only the last value of a repeated `tags`, and builds a list only for `tags[]`. `form.tags.name` already renders as `tags[]` for that reason, so the checkboxes above should use it.
 
 ### Nested Objects
 
@@ -565,7 +565,7 @@ class PersonForm(f.Form):
         orm_cls = Person
 
     name = f.TextField()
-    addresses = f.NestedForms(AddressForm)
+    addresses = f.NestedForms(AddressForm, allow_delete=True)
 ```
 
 ### The Markup
@@ -679,7 +679,7 @@ The generator's `form.jx` already includes:
 {#js "js/nestedform.js" #}
 ```
 
-`{#js #}` is a Jx directive that adds the script to the page's `<head>`. The file lives in the `assets/js/` folder at the root of your project, alongside the rest of your front-end code. If you wrote the controller by hand and don't have the file, copy it from the [Formidable repository](https://github.com/jpsca/formidable/blob/main/src/formidable/nestedform.js).
+`{#js #}` is a Jx directive that adds the script to the page's `<head>`. The file lives in the `assets/js/` folder at the root of your project, alongside the rest of your front-end code. Every generated app has it in `assets/js/nestedform.js`.
 
 ### Step 2. The forms
 
@@ -890,7 +890,7 @@ Two things to notice:
 The HTML the component produces:
 
 ```html
-<form method="patch" action="/users/42/avatar" enctype="multipart/form-data" novalidate>
+<form method="post" action="/users/42/avatar" enctype="multipart/form-data" novalidate>
   <input type="hidden" name="_method" value="patch">
   <label for="..."> Avatar </label>
   <input type="file" id="..." name="avatar" accept="image/*" required>
@@ -906,11 +906,11 @@ In the controller, the uploaded file arrives in `self.request.form` (not a `File
 def update_avatar(self):
     upload = self.request.form.get("avatar")
     if upload:
-        # upload.filename, upload.content_type, upload.read(), upload.save(...)
+        # upload.filename, upload.content_type, upload.raw, upload.save_as(...)
         ...
 ```
 
-The Storage guide covers turning that upload into an `Attachment` model record. For one-off cases, `upload.save("/path/to/destination")` works.
+The Storage guide covers turning that upload into an `Attachment` model record. For one-off cases, `upload.save_as("/path/to/destination")` works.
 
 ### Multiple Files
 

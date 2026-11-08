@@ -60,6 +60,7 @@ $ proper db migrate
 This writes a few files into your application:
 
 - An `Attachment` model that lives in your application and inherits from the one in Proper, so you can extend it with extra fields or methods. It uses an UUID as primary key.
+- An `AttachmentReference` model, exported from the same file: the records that embed each attachment in a rich text field. The [Rich Text](/docs/rich_text) addon writes it.
 - Drop-in Jx components for file inputs with image previews, paired with Stimulus controllers and CSS.
 - Several controllers at `storage_controller.py`:
 
@@ -67,7 +68,7 @@ Controller                  | Purpose
 --------------------------- | --------------------
 `StorageRedirectController` | Redirect to the storage service's native URL (e.g. a presigned S3 link) for signed URLs. Fallback to streaming if the service doesn't implement them.
 `StorageProxyController`    | Streams the attachment bytes through the app.
-`DirectUploadController`    | To upload files directly to remote services plus a fallback for the Disk service.
+`DirectUploadController`    | To upload files directly to remote services plus a fallback for the Disk service. Used by the rich text editor; its uploads get the `source` of the controller, `"rich_text"`.
 
 
 ### Services Configuration
@@ -165,7 +166,7 @@ $ uv add boto3
 
 ### Public Access
 
-Public access is decided at the *service* level. Each entry in `STORAGES` can carry a `public: True` flag; every attachment stored in that service is reachable through a stable, unsigned URL. Attachments in services without the flag (the default) are reachable only through a signed URL with an expiration.
+Public access is decided at the *service* level. Each entry in `STORAGES` can carry a `public: True` flag; every attachment stored in that service is reachable through a stable, unsigned URL. Attachments in services without the flag (the default) are reachable only through a signed URL (stable, and on S3 it leads to a short-lived URL of the service).
 
 ```python
 STORAGES = {
@@ -209,7 +210,7 @@ avatar = f.AttachmentField(Attachment, service_name="public")
 
 ### Baseline Configuration
 
-Three more keys, all populated by the installer, control how files are served and how variants are encoded:
+Four more keys, all populated by the installer, control how files are served and how variants are encoded (a fifth, `STORAGE_MAX_IMAGE_PIXELS`, has a framework default and is described below):
 
 ```python
 STORAGE_ALLOWED_INLINE = [
@@ -321,7 +322,7 @@ If you don't need any extra columns, you can still use a through-model with just
 
 ### Attaching File or IO Objects
 
-The `Attachment` constructor accepts anything with a `read()` method, like an open file, an in-memory `BytesIO`, or a request body. It also accepts the `MultipartPart` objects produced by the form parser, which is what `AttachmentField` uses under the hood.
+The `Attachment` constructor accepts a seekable binary file object, like an open file or an in-memory `BytesIO`. It also accepts the `MultipartPart` objects produced by the form parser, which is what `AttachmentField` uses under the hood.
 
 ```python
 from io import BytesIO
@@ -495,7 +496,7 @@ user.avatar.purge()
 user.avatar.purge_later()
 ```
 
-`purge()` calls `service.purge()`, removes any variants of the attachment, and deletes the row. It's the right call from a CLI script or a background job, where you want the work done before the next thing runs.
+`purge()` calls `service.purge()`, removes any variants of the attachment and the references of the records that embed it, and deletes the row. It's the right call from a CLI script or a background job, where you want the work done before the next thing runs.
 
 `purge_later()` enqueues a Huey task that does the same work in a worker process. The task takes only the attachment's primary key and re-fetches the row before acting, so it's safe even if the row is deleted some other way before the task runs.
 
@@ -541,7 +542,7 @@ app.url_for(
 
 The `StorageRedirectController` decodes the token, checks the signature, looks up the attachment, and redirects to the actual service endpoint. This indirection decouples the service URL from the actual one.
 
-The URL of the service might be valid only for a few minutes (15 is the Amazon S3 default), but the one returned by `user.avatar.url` never changes.
+The URL of the service might be valid only for a few minutes (5 by default on S3, the `url_expires_in` key of the service), but the one returned by `user.avatar.url` never changes.
 
 :::note
 Technically the URL _does_ change, but only if you remove your current secret key, because the token generated will become invalid. So, if you do that, you need to also purge the cache of any page with old URLs.
@@ -774,7 +775,7 @@ Call `variant(**ops)` on any attachment (with variants enabled):
 ```python
 thumb = user.avatar.variant(resize_to_fill=(200, 200))
 thumb.url
-# => "/storage/aBcDe..."
+# => "/storage/redirect/aBcDe.../avatar.jpg"
 ```
 
 The first call processes the image and creates a new `Attachment` row. Subsequent calls with the same operations look up the existing row by hash and return it.
@@ -901,7 +902,7 @@ In production you usually want to avoid the "first request pays" cost. Two commo
 **A. Pre-generate after upload.** Right after an attachment is saved, queue the variants you'll need:
 
 ```python
-@app.queue.task
+@app.queue.task()
 def generate_avatar_variants(attachment_id):
     att = Attachment.get_or_none(Attachment.id == attachment_id)
     if att is None:
@@ -1109,7 +1110,7 @@ For end-to-end tests that should hit a real bucket - smoke tests on staging, int
 
 ## Implementing Support for Other Cloud Services
 
-Proper ships with two services: `Disk` and `S3`. To add support for another one, subclass `proper.storage.services.Service` and implement these six methods:
+Proper ships with two services: `Disk` and `S3`. To add support for another one, subclass `proper.storage.services.Service` and implement these methods (the first four are required; `service_url()` has a default that returns `None`, and `direct_upload_url()` is needed only for direct uploads):
 
 ```python
 # myapp/storage/gcs.py
@@ -1137,7 +1138,7 @@ class GigaCloud(Service):
     def service_url(self, att, *, as_attachment=False):
         """Generates a short-lived signed URL for the file"""
 
-    def direct_upload_url(attachment, checksum):
+    def direct_upload_url(self, att, *, checksum=""):
         """Generates a presigned PUT URL + headers where the
         browser uploads to directly"""
 
@@ -1156,7 +1157,7 @@ STORAGE = "giga"
 ```
 
 
-Look at [`proper/storage/services/disk.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/disk.py) and [`proper/storage/services/s3.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/s3.py) for working references. Both are short and cover all six methods plus their constructors.
+Look at [`proper/storage/services/disk.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/disk.py) and [`proper/storage/services/s3.py`](https://github.com/jpsca/proper/blob/main/src/proper/storage/services/s3.py) for working references. Both are short: `s3.py` covers all six methods, `disk.py` all but `service_url()`, plus their constructors.
 
 For services with native streaming responses (presigned URLs, range requests), `send_file` is where you'd integrate with that machinery. The signature `(attachment, response, as_attachment)` is the contract; how you fulfill it is up to the service.
 

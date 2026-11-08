@@ -41,18 +41,17 @@ class _Attachment(ProperModel):
     metadata: dict | None
     parent: t.Self | None
     variant_key: str
-    # Where this attachment came from. "direct"
-    # a form submission (the historical default). Addons may use other
-    # values to mark uploads with their own lifecycle policy.
+    # Where this attachment came from. An empty string is a file sent with a
+    # form or attached from code; "rich_text" is a file the rich text
+    # editor uploaded before the form was submitted. Addons may use
+    # other values to mark uploads with their own lifecycle policy.
     source: str
-    # True when the upload exists but no parent record has confirmed
-    # ownership yet. Addons that pre-upload (e.g. rich-text editors
-    # uploading before form submit) set this to True and a sweep task
-    # purges rows that stay pending past a grace period.
-    pending: bool
 
     _app: "App"  # set by attachment_for()
     _default_service_name: str  # set by attachment_for()
+    # The model of the rows that embed each attachment, one row per
+    # (record, field, attachment). Set by attachment_for().
+    Reference: "t.ClassVar[type[_AttachmentReference]]"
 
     # Service-instance cache (was Storage._services). Lives on the class
     # so all instances of this Attachment share lookups.
@@ -157,6 +156,15 @@ class _Attachment(ProperModel):
         return ""
 
     @property
+    def is_referenced(self) -> bool:
+        """Whether some record embeds this attachment in a rich text
+        field. An attachment with `source="rich_text"` that nobody
+        references is an abandoned upload.
+        """
+        Reference = type(self).Reference
+        return Reference.select().where(Reference.attachment == self.id).exists()
+
+    @property
     def variants(self) -> "pw.ModelSelect[t.Self]":
         # Query through `type(self)` so the result is bound to the leaf
         # subclass's database. A peewee `backref` would pin its `rel_model`
@@ -179,15 +187,17 @@ class _Attachment(ProperModel):
         content_type: str = "",
         byte_size: int = 0,
         service_name: str = "",
-        source: str = "direct",
+        source: str = "",
     ) -> t.Self:
-        """Create a pending Attachment row with metadata only (no file
-        bytes yet). Used by the DirectUpload protocol: the client posts
-        blob metadata, we register a row + signed token, the client
-        then PUTs the bytes to the token-scoped upload URL.
+        """Create an Attachment row with metadata only (no file bytes
+        yet). Used by the DirectUpload protocol: the client posts blob
+        metadata, we register a row + signed token, the client then PUTs
+        the bytes to the token-scoped upload URL.
 
-        The row is `pending=True` so the rich_text sweeper purges it
-        if the upload never completes (tab closed mid-upload, etc.).
+        Pass the `source` of the lifecycle policy of the upload: with
+        "rich_text", the row has no references until a record embeds it,
+        so the rich_text sweeper purges it if the upload never completes
+        (tab closed mid-upload, etc.) or the form is never submitted.
         """
         service_name = service_name or cls._default_service_name
         if not service_name:
@@ -214,7 +224,6 @@ class _Attachment(ProperModel):
         )
         obj.id = uuid4().hex
         obj.source = source
-        obj.pending = True
         obj.save(force_insert=True)
         return obj
 
@@ -363,6 +372,10 @@ class _Attachment(ProperModel):
     def purge(self) -> None:
         self.service.purge(self)
         self.purge_variants()
+        # The database would do it with `ON DELETE CASCADE`, but SQLite
+        # only enforces foreign keys when asked to.
+        Reference = type(self).Reference
+        Reference.delete().where(Reference.attachment == self.id).execute()
         self.delete_instance()
 
     def purge_later(self) -> None:
@@ -645,6 +658,21 @@ class _Attachment(ProperModel):
             inst.purge_variants()
 
 
+class _AttachmentReference(ProperModel):
+    """A record that embeds an attachment in a rich text field.
+
+    `record_type` is the table name of the model, `record_id` its primary
+    key as a string and `field` the name of the rich text column. The
+    rows are written by `HasRichText` (`proper.rich_text`); an attachment
+    is purged when its last reference goes away.
+    """
+    id: int
+    attachment: "_Attachment"
+    record_type: str
+    record_id: str
+    field: str
+
+
 def _service_types() -> dict[str, type[Service]]:
     """The subclasses of `Service` at any depth, by class name. A subclass
     with the name of its parent takes its place."""
@@ -690,15 +718,25 @@ def attachment_for(
         metadata: dict | None = pw.JSONField(null=True)  # type: ignore
         parent: t.Self | None = pw.ForeignKeyField("self", null=True)  # type: ignore
         variant_key: str = pw.CharField(64, default="", index=True)  # type: ignore
-        # Where this attachment came from. "direct" = uploaded as part of
-        # a form submission (the historical default). Addons may use other
-        # values to mark uploads with their own lifecycle policy.
-        source: str = pw.CharField(32, default="direct", index=True)  # type: ignore
-        # True when the upload exists but no parent record has confirmed
-        # ownership yet. Addons that pre-upload (e.g. rich-text editors
-        # uploading before form submit) set this to True and a sweep task
-        # purges rows that stay pending past a grace period.
-        pending: bool = pw.BooleanField(default=False)  # type: ignore
+        # Where this attachment came from. An empty string is a file sent with a
+        # form or attached from code; "rich_text" is a file the rich text
+        # editor uploaded before the form was submitted. Addons may use
+        # other values to mark uploads with their own lifecycle policy.
+        source: str = pw.CharField(32, default="", index=True)  # type: ignore
+
+    class AttachmentReference(base_model_cls, _AttachmentReference):
+        attachment = pw.ForeignKeyField(
+            Attachment, backref="references", on_delete="CASCADE"
+        )
+        record_type: str = pw.CharField(64)  # type: ignore
+        record_id: str = pw.CharField(64)  # type: ignore
+        field: str = pw.CharField(64)  # type: ignore
+
+        class Meta:
+            table_name = "attachment_reference"
+            indexes = ((("record_type", "record_id", "field", "attachment"), True),)
+
+    Attachment.Reference = AttachmentReference
 
     # Namespace task names by the base class so multiple Attachment classes
     # (e.g. distinct bases on the same app) don't collide in Huey's registry.

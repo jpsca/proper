@@ -25,7 +25,8 @@ class StorageRedirectController(AppController):
         if not attachment:
             raise NotFound
 
-        # extra checks here
+        ### WARNING: Add access control checks here
+        ###
 
         service_url = attachment.service_url()
         if service_url:
@@ -55,9 +56,10 @@ class StorageProxyController(AppController):
 @router.resource("storage/direct", pk="token")
 class DirectUploadController(AppController):
     rate_limit = {"to": 10, "within": 1 * MINUTES}
+    source = "rich_text"
 
     def create(self):
-        """Registers a pending `Attachment` row and respond with
+        """Registers an `Attachment` row and responds with
         a `direct_upload` envelope telling the client
         where (and with which headers) to PUT the bytes:
 
@@ -95,11 +97,14 @@ class DirectUploadController(AppController):
         if not filename:
             raise BadRequest("Missing blob.filename")
 
+        ### WARNING: Add access control checks here
+        ###
+
         attachment = Attachment.create_pending_blob(
             filename=filename,
             content_type=blob.get("content_type") or "",
             byte_size=int(blob.get("byte_size") or 0),
-            source=blob.get("blob_source") or "direct",
+            source=self.source,
         )
         # For Disk, this will be
         # `url_for("DirectUpload.update", token=token, _full=True)`
@@ -130,6 +135,9 @@ class DirectUploadController(AppController):
         obj = Attachment.resolve_token(token, salt="upload")
         if obj is None:
             raise NotFound
+
+        ### WARNING: Add access control checks here
+        ###
 
         obj.service.upload(BytesIO(self.request.body), obj)
         return ""

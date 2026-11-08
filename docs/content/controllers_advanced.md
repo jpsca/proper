@@ -182,7 +182,7 @@ class SessionController(AppController):
     ]
 ```
 
-The first limit catches an attacker brute-forcing one account; the second catches a single IP that's brute-forcing many accounts. Both apply to `create`. If both would trigger, both react in order - in practice, the first one's `react_with` short-circuits the dispatch, so the second one doesn't get a chance to raise.
+The first limit catches an attacker brute-forcing one account; the second catches a single IP that's brute-forcing many accounts. Both apply to `create`. If both would trigger, both are counted and react in order, and a later limit that raises wins over an earlier redirect.
 
 ### Dynamic Limits
 

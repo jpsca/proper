@@ -246,12 +246,11 @@ turbo_stream.replace(post, "post/post.jx", post=post)
 turbo_stream.remove(targets=".flash")
 ```
 
-For **what goes inside**, you have three options, checked in this order - pick one:
+For **what goes inside**, you have two options, checked in this order - pick one:
 
 Argument               | Renders
 ---------------------- | -------------------------------------------------
-`component="path.jx"`  | the Jx component through the catalog, like `self.render`
-`content=...`          | a string or `Markup`, or a callable returning one
+`component="path.jx"`  | the Jx component through the catalog, with only the props you pass (unlike `self.render`, the controller's attributes are not passed)
 `html=...`             | ready-made HTML
 
 In a template, the `stream` tag takes the action and then the same arguments as the method; its body becomes the content:

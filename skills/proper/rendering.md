@@ -1,7 +1,7 @@
 ---
 title: Rendering Responses
 description: What an action returns: implicit and explicit templates, JSON and text, Turbo Streams, redirects and flash messages, HTTP errors and error handlers, request/response basics
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/controller
   - src/proper/core/response

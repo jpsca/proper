@@ -10,7 +10,7 @@ This page lists the view helpers available in your views. The [full API Document
 
 These are the ones **added by Proper**. The [builtin filters of Jinja](https://jinja.palletsprojects.com/en/stable/templates/#builtin-filters){target="_blank"} are available too, except `xmlattr`, `pprint` and `urlize`.
 
-All of these helpers _can_ be also used in your views with the pipe operator. For example, `{{value|format_date(args)}}` instead of `{{format_date(value, args)}}`.
+The formatting helpers (`format_*` and `truncate`) _can_ be also used in your views with the pipe operator. For example, `{{value|format_date(args)}}` instead of `{{format_date(value, args)}}`.
 
 ---
 
@@ -24,7 +24,7 @@ Formats a date/datetime according to the current locale and timezone.
 format_date(date(2007, 4, 1), locale='en_US')
 # => 'Apr 1, 2007'
 
-format_date(date(2007, 4, 1, 15, 30), locale='en_US')
+format_date(datetime(2007, 4, 1, 15, 30), locale='en_US')
 # => 'Apr 1, 2007, 3:30:00\u202fPM'
 ```
 
@@ -79,6 +79,20 @@ format_timedelta(timedelta(hours=3), granularity='day', locale='en_US')
 ```
 
 See the [format_timedelta API Documentation](/docs/api/view_helpers#format_timedelta) for more information.
+
+### format_skeleton
+
+Return a date or time formatted with a skeleton, a pattern of the fields to show (`yMMMd`, `Hm`, ...) that the locale arranges.
+
+```python
+format_skeleton('yMMMd', datetime(2007, 4, 1, 15, 30), locale='en_US')
+# => 'Apr 1, 2007'
+
+format_skeleton('yMMMd', datetime(2007, 4, 1, 15, 30), locale='de_DE')
+# => '1. Apr. 2007'
+```
+
+See the [format_skeleton API Documentation](/docs/api/view_helpers#format_skeleton) for more information.
 
 ### format_interval
 
@@ -210,11 +224,23 @@ format_percent(25.1234, locale='sv_SE')
 
 See the [format_percent API Documentation](/docs/api/view_helpers#format_percent) for more information.
 
+### format_scientific
+
+Return a value formatted in scientific notation for a specific locale.
+
+```python
+format_scientific(10000, locale='en_US')
+# => '1E4'
+
+format_scientific(1234567, format='##0.##E00', locale='en_US')
+# => '1.23E06'
+```
+
+See the [format_scientific API Documentation](/docs/api/view_helpers#format_scientific) for more information.
+
 ---
 
 ## Format Text
-
-See the [format_date API Documentation](/docs/api/view_helpers#format_date) for more information.
 
 ### format_list
 
@@ -273,16 +299,16 @@ Strings that only exceed the length by the tolerance margin given in the fifth (
 parameter will not be truncated.
 
 ```python
-truncate("foo bar baz qux", 9) }}
+truncate("foo bar baz qux", 9)
 # -> "foo..."
 
-truncate("foo bar baz qux", 9, True) }}
+truncate("foo bar baz qux", 9, True)
 # -> "foo ba..."
 
-truncate("foo bar baz qux", 11) }}
+truncate("foo bar baz qux", 11)
 # -> "foo bar baz qux"
 
-truncate("foo bar baz qux", 11, False, '...', 0) }}
+truncate("foo bar baz qux", 11, False, '...', 0)
 # -> "foo bar..."
 ```
 
@@ -308,7 +334,7 @@ url_for("Page.show", page_id=123, _anchor="section1")
 # The host is determined by the route's host constraint
 # or by the application's default host.
 url_for("Page.show", page_id=123, _full=True)
-# => "http://www.example.com/pages/123#section1"
+# => "http://www.example.com/pages/123"
 ```
 
 The URL is percent-encoded, so pass the values as they are, not encoded (an encoded

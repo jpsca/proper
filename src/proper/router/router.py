@@ -250,7 +250,9 @@ class BaseRouter:
             _full:
                 Optional. If `True`, builds a full URL including the protocol and host.
                 The host is determined by the route's host constraint if it has one,
-                or by the application's default host otherwise. A value for a
+                or by the application's default host otherwise. A static route
+                made with a full URL (`router.static("https://cdn.example.com/assets/", ...)`)
+                always gives that URL, with or without `_full`. A value for a
                 host placeholder may have only letters, digits and `-._~`
                 (the unreserved characters of RFC 3986), or
                 `BadRoutePlaceholder` is raised.
@@ -299,6 +301,11 @@ class BaseRouter:
 
         if _anchor:
             url += "#" + quote(_anchor, safe=FRAGMENT_SAFE)
+
+        if route.origin:
+            # The URLs of the route point at another host (a CDN), with
+            # or without `_full`.
+            return route.origin + url
 
         if _full and current.app:
             config = current.app.config
@@ -606,7 +613,13 @@ class BaseRouter:
 
         Arguments:
             url:
-                The base URL for these static files.
+                The base URL for these static files: a path (`/assets/`), or a
+                full URL with the host the URLs should point at (a CDN:
+                `https://cdn.example.com/assets/`, or `//cdn.example.com/assets/`
+                to keep the scheme of the page). With a host, `url_for` returns
+                `https://cdn.example.com/assets/css/base.css`, and the route
+                still serves `/assets/css/base.css` on the app's own host,
+                where the CDN fetches the files from.
             root:
                 The absolute path to the folder where the static files are.
             name:

@@ -76,7 +76,7 @@ def Attachment(app, db, BaseModel):
     Attachment = app.attachment_for(BaseModel)
     Attachment.VARIANTS_ENABLED_FOR = {"image/*": "preview_image"}
     Attachment.bind(db)
-    db.create_tables([Attachment])
+    db.create_tables([Attachment, Attachment.Reference])
     return Attachment
 
 

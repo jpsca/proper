@@ -76,7 +76,8 @@ A new application starts with this layout under `myapp/views/`:
 views/
 ├── layouts/
 │   ├── base.jx              # bare HTML shell (head, body, assets)
-│   └── app.jx               # layout used by pages (base + nav + flashes)
+│   ├── app.jx               # layout used by pages (base + nav + flashes)
+│   └── email.jx             # layout of the emails
 ├── public/
 │   ├── index.jx
 │   └── error.jx
@@ -95,12 +96,12 @@ views/
 The convention is one folder per "kind" of template:
 
 - **`<controller>/`** - one folder per controller. Each file matches an action (`index.jx`, `show.jx`, `new.jx`, `edit.jx`). The resource generator creates these for you.
-- **`layouts/`** - the layouts pages wrap themselves in. Two by default; you can add more.
+- **`layouts/`** - the layouts pages wrap themselves in. Three by default; you can add more.
 - **Top-level `.jx` files** (`nav.jx`, `flashes.jx`, `form.jx`, …) - components shared across the whole app: anything reused on most pages.
 - **`emails/`** - templates rendered by mailers, not by HTTP requests.
 - **Anywhere else** - feel free to add subdirectories like `components/`, `forms/`, `widgets/` for organizing your own components.
 
-File names are **lowercase, snake_case, with the `.jx` extension**: `card.jx`, `nav_item.jx`, `pricing_table.jx`. The component is *invoked* with the PascalCase name (`<Card>`, `<NavItem>`, `<PricingTable>`) - Jx converts between the two.
+File names are **lowercase, snake_case, with the `.jx` extension**: `card.jx`, `nav_item.jx`, `pricing_table.jx`. The component is *invoked* with the name you give it in the `{#import #}` (`as Card`), PascalCase by convention (`<Card>`, `<NavItem>`, `<PricingTable>`); only the uppercase first letter is required.
 
 :::note | What about `.html`?
 Jx files use `.jx` rather than `.html` so editors and bundlers don't try to format them as HTML. The body is HTML; the header is not. Treating the whole file as plain HTML usually breaks the directives at the top.
@@ -181,7 +182,7 @@ Two implicit variables come for free in every component:
 A few HTML-shaped things you might expect that Jx leaves alone:
 
 - **No CSS scoping.** A component named `Card` doesn't get its CSS auto-scoped to itself; you write your selectors yourself ([CSS Scoping Conventions](#css-scoping-conventions) covers conventions).
-- **No automatic prop validation by type.** `#def title` accepts anything truthy; `#def title: str` is valid syntax but the type is informational, not enforced at render time. Required vs optional *is* enforced (covered in [Props (Arguments)](#props-arguments)).
+- **Prop types are checked, but only the built-in ones.** `#def title: str` is checked with `isinstance` when the component renders (and at compile time when the value is a literal); required vs optional is enforced too (covered in [Props (Arguments)](#props-arguments)).
 - **No client-side reactivity.** Jx is a server-side rendering library. To re-render parts of a page in the browser, pair Jx with htmx or Turbo Frames - both work because the component output is plain HTML.
 
 ---
@@ -198,7 +199,7 @@ Three steps: import, invoke, optionally pass content.
 
 The path is relative to the catalog root (`myapp/views/`). The `as` name is what you'll use in the body - usually the PascalCase form of the file name, but anything that's a valid identifier works.
 
-Imports are stored in a dict keyed by the `as` name, so importing the same component under two different `as` names produces two independent, both-usable entries. Reusing the *same* `as` name is what causes a conflict - the last import with that name wins. Either way, Jx scopes imports to the file that declared them, so names never leak between files.
+Imports are stored in a dict keyed by the `as` name, so importing the same component under two different `as` names produces two independent, both-usable entries. Reusing the *same* `as` name is a compile error (`Duplicate import alias`). Either way, Jx scopes imports to the file that declared them, so names never leak between files.
 
 ### Invoke It
 
@@ -244,7 +245,7 @@ file: pricing_table.jx  → tag: <PricingTable>
 file: app_layout.jx     → tag: <AppLayout>
 ```
 
-This is how Jx's parser distinguishes a component invocation from a regular HTML tag (which is always lowercase). Mixing cases (`<navItem>`, `<Pricing-Table>`) won't work.
+The tag name is the `as` of the import, and the uppercase first letter is how Jx's parser distinguishes a component invocation from a regular HTML tag (which is always lowercase). `<navItem>` won't work.
 
 ---
 
@@ -298,15 +299,17 @@ That declares three arguments:
 - `count` - **optional**, defaults to `0`.
 - `status` - **optional**, defaults to `"active"`.
 
-The order matters only for callers using positional arguments (which is rare); name your arguments at the call site and you can declare them in any order in `#def`.
+Arguments are always named at the call site, so you can declare them in any order in `#def`.
 
 ### Required vs Optional
 
 Any argument with a default is optional. Any argument without one is required. Forgetting a required argument raises a clear error at render time:
 
 ```
-MissingRequiredArgument: card.jx component requires a `title` argument
+page.jx:2:1: `<Card>` needs the argument `title` (card.jx)
 ```
+
+(at compile time; at render time it is a `TypeError` about a missing keyword-only argument `title`)
 
 To make an argument optional with no sensible default, default it to `None` and check in the body:
 
@@ -568,9 +571,7 @@ Pass keyword arguments to `attrs.render()` to add defaults that the caller can o
 <button {{ attrs.render(type="button", role="button") }}>
 ```
 
-If the caller passed `type="submit"`, the output uses `type="submit"` (the call-site value wins). If the caller passed nothing, the output uses `type="button"`.
-
-This is a *setdefault* semantic - you're saying "use this if the caller didn't provide one." For attributes that should always have a specific value regardless of the caller, see `attrs.set()` below.
+The keyword arguments of `render()` *override* what the caller passed (only `class` merges): with `type="submit"` from the caller, the output is still `type="button"`. For a value the caller may override, call `attrs.setdefault("type", "button")` before rendering.
 
 ### Class Merging
 
@@ -657,7 +658,7 @@ The underscore form is the Python identifier; the dash form is what shows up in 
 {# → <button type="button" class="Button danger">Delete</button> #}
 
 <Button label="Submit" type="submit" />
-{# → <button type="submit" class="Button">Submit</button> #}
+{# → <button type="button" class="Button">Submit</button>: render() overrides it #}
 ```
 
 **Card.** Default classes, but also force a `role="article"` for accessibility:
@@ -856,7 +857,7 @@ The collection happens during rendering, so it picks up exactly the components u
 
 ## Implicit Rendering: How Proper Picks a Template
 
-When a controller action returns `None` and doesn't set a response body, Proper renders a template automatically. The template path comes from the controller's class hierarchy and the action name, and the file extension comes from the request's `Accept` header. The whole algorithm is in `proper/template_resolver.py` and isn't long, so this section walks through what happens for a typical request.
+When a controller action returns `None` and doesn't set a response body, Proper renders a template automatically. The template path comes from the controller's class hierarchy and the action name, and the file extension comes from the request's `Accept` header. The whole algorithm is in `proper/controller/template_resolver.py` (the prefix chain in `proper/compile/dispatch.py`) and isn't long, so this section walks through what happens for a typical request.
 
 ### The Pattern
 
@@ -949,7 +950,7 @@ For JSON or text responses without a template, the [Controllers Overview](/docs/
 
 A layout is a component that wraps the page. The page calls it as a tag, the layout renders the surrounding HTML (head, nav, footer), and the page's own content goes in the slot.
 
-The generator creates two layouts in `views/layouts/`:
+The generator creates three layouts in `views/layouts/` (the third, `email.jx`, is for the emails):
 
 - **`base.jx`** - the bare HTML document (head, body, asset collection, import map). This is the outer shell.
 - **`app.jx`** - wraps `base.jx` and adds the navigation bar and the flash region. This is what your pages use.
@@ -1141,7 +1142,8 @@ Global                  | What it does
 `render_importmap`      | Emit the `<script type="importmap">` for the `IMPORT_MAP` config.
 `stream`/`turbo_stream` | Generates a `<turbo-stream>` tag, See [Turbo](/docs/turbo/)
 `frame`/`turbo_frame`   | Generates a `<turbo-frame>` tag, See [Turbo](/docs/turbo/)
-`render_importmap`      | Emit the `<script type="importmap">` for the `IMPORT_MAP` config.
+`truncate`              | Shortens a string (also a filter).
+`_` and `format_*`      | Translation and the locale-aware formatters (see below).
 `assets`                | The asset collector (`render`, `render_css`, `render_js`, `collect_css`, `collect_js`).
 
 That's the full set in a base Proper application. Addons (i18n, auth) and your own code can add more.
@@ -1226,7 +1228,7 @@ A set of Babel-backed formatting filters is also always available, regardless of
 <p>{{ attendees | format_list }}</p>
 ```
 
-The full set: `format_date`, `format_time`, `format_timedelta`, `format_skeleton`, `format_list`, `format_decimal`, `format_compact_decimal`, `format_currency`, `format_compact_currency`, `format_percent`, `format_scientific`, `format_size`. Each filter takes the same keyword arguments as the matching `app.i18n.format_*` method - see the [Internationalization guide](/docs/i18n) for the per-filter options.
+The full set: `format_date`, `format_time`, `format_timedelta`, `format_skeleton`, `format_list`, `format_decimal`, `format_compact_decimal`, `format_currency`, `format_compact_currency`, `format_percent`, `format_scientific`, `format_size`, `format_interval`. Each filter takes the same keyword arguments as the matching `app.i18n.format_*` method - see the [Internationalization guide](/docs/i18n) for the per-filter options.
 
 ### Controller Instance Attributes
 

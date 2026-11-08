@@ -1,7 +1,7 @@
 ---
 title: Background Tasks
 description: Huey task queue — task definition, scheduling, retries, pipelines, worker config
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/tools/queue.py
   - blueprint/[[app_name]]/tasks

@@ -1,7 +1,7 @@
 ---
 title: Frontend
 description: Frontend conventions — the views folder, layouts (slots, nesting, navigation), component assets, import maps, Stimulus, flash messages
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - blueprint/[[app_name]]/views
   - blueprint/assets
@@ -52,7 +52,7 @@ Templates live in the `views/` folder. The catalog is configured automatically a
 
 A component declares its props with a `{#def ... #}` comment and receives child content through `{{ content }}`:
 
-```html+jinja {title="myapp/views/form.jx"}
+```html+jinja {title="myapp/views/form.jx (trimmed: the real file also lowercases `method`, turns put/patch/delete into a post with a hidden `_method` input, and sets `enctype` and `novalidate`)"}
 {#def action="", method="post", multipart=False, novalidate=True -#}
 
 <form {{ attrs.render(method=method, action=action) }}>

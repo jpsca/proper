@@ -63,7 +63,6 @@ router = app.router
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 
 # Root-level assets
-router.get("favicon.ico", redirect="/assets/favicon.ico")
 router.get("robots.txt", redirect="/assets/robots.txt")
 router.get("humans.txt", redirect="/assets/humans.txt")
 ```
@@ -78,7 +77,7 @@ You'll only edit `router.py` by hand for assets, redirects, or a new `scope(...)
 
 ### Match Order
 
-Routes are matched **top to bottom**. The first route that matches the request method, host, and path wins.
+Routes are matched **top to bottom**. The first route that matches the request method, host, and path wins. One exception: a route without placeholders and without a host (`users/me`) is always tried before the ones with placeholders, whatever the order they were registered in; registration order decides only among the routes with placeholders.
 
 This matters when two routes could plausibly match the same URL. Placeholders are greedy: a generic `:username` will happily capture the digits `42`. To make a more specific route win, register it first.
 
@@ -628,11 +627,15 @@ If several handlers match an error, the most specific one wins: the one for the 
 A route with no handler and no `redirect=` is a "build-only" route. It will never match a request, but it can still be used with `url_for` to produce a URL string. This is useful when you need a stable name for a path that's actually handled outside Proper - an OAuth callback, a static file served by your reverse proxy, or anything generated externally:
 
 ```python
-router.get("external/callback", name="oauth_callback")
+from proper import Route
+
+router.add_route(Route("GET", "external/callback", name="oauth_callback"))
 
 # Later, in a controller or template:
 app.url_for("oauth_callback")   # /external/callback
 ```
+
+(`router.get(...)` without `redirect=` only returns a decorator; the route is added when the decorator is applied to an action, so a build-only route goes through `add_route`.)
 
 Build-only routes give you the same naming benefits (refactor the URL, keep the name) for paths Proper doesn't actually serve.
 
@@ -844,6 +847,8 @@ Proper ships with a built-in `StaticFilesController` for serving files from the 
 router.static(app.config.ASSETS_URL, root=app.assets_path, name="assets")
 ```
 
+`ASSETS_URL` is `/assets/` by default. It can also be a full URL (`https://cdn.example.com/assets/`): `url_for` then points at that host, and the app still serves the files at `/assets/...` on its own, where the CDN fetches them from. See the [Static Assets](/docs/assets#using-a-cdn-to-serve-assets) guide.
+
 Generate URLs to specific files with `url_for`:
 
 ```python
@@ -890,9 +895,8 @@ Routes match in priority from top to bottom.
 The rules that don't have a `to` property are build-only and never match.
 
        PATH                     TO                          NAME              HOST
-       ------------------------ --------------------------- ----------------- ----
+------ ------------------------ --------------------------- ----------------- ----
 GET    /assets/:file<path>      StaticFilesController.show  assets            -
-GET    /favicon.ico             ↪ /assets/favicon.ico       -                 -
 GET    /robots.txt              ↪ /assets/robots.txt        -                 -
 GET    /humans.txt              ↪ /assets/humans.txt        -                 -
 GET    /photos                  PhotoController.index       Photo.index       -
@@ -917,4 +921,4 @@ How to read it:
 - The **NAME** column is what you pass to `url_for`. Routes without a name (like redirects) show `-`.
 - The **HOST** column shows any host constraint, or `-` if the route matches all hosts.
 
-The output reflects exactly the order Proper uses for matching, so this is also the tool for debugging the [match order](#match-order) rule from §1: if a request is hitting the wrong route, find both candidates in the table and check which one comes first.
+The output is in registration order, which is the order Proper uses for matching among the routes with placeholders (a route without placeholders is always tried first), so this is also the tool for debugging the [match order](#match-order) rule from §1: if a request is hitting the wrong route, find both candidates in the table and check which one comes first.

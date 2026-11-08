@@ -1,7 +1,7 @@
 ---
 title: Authentication
 description: Auth addon — user registration, login/logout, password reset, session management
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/auth
   - src/proper/concerns/authentication.py
@@ -69,7 +69,7 @@ The installer also:
 - Writes `controllers/concerns/authentication.py`, a subclass of `proper.concerns.Authentication` with `Session = Session`, and adds it as the first base of `AppController`
 - Adds the views (`layouts/auth.jx`, `password.jx`, `session/new.jx`, `sign_up/new.jx`, `password_reset/{new,edit,show,invalid}.jx`, `emails/password_reset.jx`), a sign-in/sign-out block in `nav.jx`, `assets/css/auth.css` and `assets/js/show-password-controller.js`
 - Adds `tests/controllers/test_{sign_up,session,password_reset}.py` and fixtures to `tests/conftest.py`; `auth = app.auth` to `main.py`; `from .auth import *` to `config/__init__.py`; `from . import auth_cli` to `cli/__init__.py`
-- Installs `passlib`, `argon2-cffi`, and `idna` as dependencies
+- Installs `passlib`, `argon2-cffi`, and `idna` as dependencies of the app. `passlib` is not a dependency of Proper itself: hashing or checking a password without it raises `ConfigError`
 - Runs `proper db create "users"`
 
 
@@ -114,7 +114,7 @@ from .concerns.authenticable import Authenticable
 
 
 class User(Authenticable, BaseModel):
-    pass  # created_at comes from BaseModel
+    created_at = pw.DateTimeField(default=utcnow)
 ```
 
 The `Authenticable` mixin adds:
@@ -183,9 +183,16 @@ class Session(BaseModel):
     expires_at = pw.DateTimeField(index=True)
     last_seen_at = pw.DateTimeField(default=utcnow, index=True)
     ip_address = pw.CharField(max_length=255, null=True)  # request.remote_ip
-    user_agent_hash = pw.CharField(max_length=64)
+    user_agent_hash = pw.CharField(max_length=64, index=True)
     user = pw.ForeignKeyField(User, backref="sessions", on_delete="CASCADE")
-    revoked = pw.BooleanField(default=False)
+    revoked = pw.BooleanField(default=False, index=True)
+
+    class Meta:
+        table_name = "session"
+        indexes = (
+            (("expires_at", "revoked"), False),  # cleanup job
+            (("user", "revoked"), False),  # "my active sessions"
+        )
 ```
 
 `ip_address` is `request.remote_ip` at sign-in (IPv4, IPv6, or a proxy's `unknown`/`_hidden`), cut to 255 chars, `None` if empty. An older app's `pw.IPField(null=True)` holds only IPv4: any `remote_ip` that `socket.inet_aton()` refuses (IPv6, `::ffff:`-mapped IPv4, `unknown`/`_hidden`, `""`) makes sign-in raise `OSError` (a 500). The migration in the CHANGELOG, to `CharField(max_length=255, null=True)`, is required.
@@ -415,7 +422,7 @@ The generated `PasswordResetController` handles the full password reset flow:
 2. The `PasswordResetForm` validates the login exists.
 3. A `PasswordResetEmail` is sent asynchronously with a token generated via `user.generate_token_for("password_reset")`.
 4. The user is redirected to a confirmation page.
-5. When the user clicks the link, `User.resolve_token_for("password_reset", token)` validates the token.
+5. When the user clicks the link, `User.resolve_token_for("password_reset", token, max_age=config.AUTH_TOKEN_LIFE)` validates the token.
 6. If the token is valid, the user sees a password change form; otherwise `password_reset/invalid.jx` is rendered.
 7. The `PasswordChangeForm` validates the new password (minimum length, not pwned, passwords match).
 8. The password is saved, every other session of the user is revoked (`Session.revoke_all_for`), a new session is created, and the user is redirected with a "Password updated" flash.
@@ -505,13 +512,13 @@ The auth blueprint adds CLI commands for user management:
 
 ```bash
 # Create a new user
-myapp auth user alice@example.com "s3cret-password"
+proper auth user alice@example.com "s3cret-password"
 
 # Update a user's password
-myapp auth password alice@example.com "new-password"
+proper auth password alice@example.com "new-password"
 ```
 
-Replace `myapp` with your app's command name. The password is hashed automatically.
+The password is hashed automatically.
 
 
 ## Security Features

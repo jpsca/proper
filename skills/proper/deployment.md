@@ -1,7 +1,7 @@
 ---
 title: Deployment
 description: Running a Proper app in production: free-threaded Python, what runs (web, cable, worker, migrations, proxy), sizing WORKERS/MAX_THREADS/PROCESSES, the prod config and .env, compiled views, the Dockerfile, compose.yml, the nginx config, trusted proxies, the deploy checklist
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - blueprint/Dockerfile.tt
   - blueprint/Dockerfile.tt.workers
@@ -49,7 +49,7 @@ A new app already has every file a deploy needs: `Dockerfile`, `Dockerfile.worke
 
 Broadcasts made outside the web process (the worker, extra `PROCESSES`, a shell) are forwarded to it as a signed `POST` on `127.0.0.1:CABLE_PORT + 1`; if that process is down the message is lost and a warning logged. On several machines use `RedisCable` ([cable.md](cable.md#several-machines-rediscable)).
 
-Every new app has a `GET /up` route (`PublicController.up`, returns 200 when serving): the Docker `HEALTHCHECK` and the load balancer use it. With channels, `app.cable.health()` reports the WebSockets and `127.0.0.1:CABLE_PORT + 1/metrics` serves Prometheus text ([cable.md](cable.md#cable-bearings)).
+Every new app has a `GET /up` route (`PublicController.health`, route `Public.health`, returns 200 when serving): the Docker `HEALTHCHECK` and the load balancer use it. With channels, `app.cable.health()` reports the WebSockets and `127.0.0.1:CABLE_PORT + 1/metrics` serves Prometheus text ([cable.md](cable.md#cable-bearings)).
 
 
 ## Sizing

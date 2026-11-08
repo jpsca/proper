@@ -1,7 +1,7 @@
 ---
 title: Callbacks and Concerns
 description: before/after callbacks, writing a concern, and the built-in concerns: OriginProtection, Pagination, RateLimiting, CurrentLocale, CurrentTimezone, SecurityHeaders
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/concerns
   - src/proper/controller

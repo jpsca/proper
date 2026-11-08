@@ -1,7 +1,7 @@
 ---
 title: Databases, Migrations and Seeds
 description: DATABASES config (SQLite, PostgreSQL, several databases), migrations (create, migrate, rollback, merge, fake, adding fields), and seeds (`db/seeds/`, `envs`, `proper db seed`)
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/models
   - src/proper/db
@@ -67,7 +67,7 @@ DATABASES = {
 }
 ```
 
-`PooledPsycopg3Database` is what the blueprint writes in its `prod` branch; psycopg needs the `libpq5` system library (the blueprint's Docker image installs it). Proper manages database connections per request: it opens one before routing and closes it after the response is sent. If an unhandled error occurs, Proper issues a rollback before closing.
+`PooledPsycopg3Database` is what the blueprint writes in its `prod` branch; psycopg needs the `libpq5` system library (the blueprint's Docker image installs it). For a database configured with `"autoconnect": False`, Proper manages the connection per request: it opens one before routing and closes it after the response is sent, with a rollback first if an unhandled error occurs. A database with Peewee's default `autoconnect=True` connects by itself on the first query.
 
 ### Per-Environment Overrides
 
@@ -245,8 +245,8 @@ This auto-detects the new fields by comparing your model definitions against the
 ```python
 def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
     migrator.add_fields(
-        'photo',
-        status=pw.CharField(default='draft'),
+        "photo",
+        status=pw.CharField(default="draft", max_length=255),
         featured=pw.BooleanField(default=False),
     )
 
@@ -260,7 +260,7 @@ def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
 proper db migrate
 ```
 
-**Important:** If the table already has rows, new fields must either have a `default` value or be `null=True`. A non-nullable field without a default will fail to add to a table that contains data.
+**Important:** New fields must either have a `default` value or be `null=True`. `add_fields` refuses a non-nullable field without a default with a `ValueError`, rows or not, unless it is called with `allow_not_null=True` (then the database decides: SQLite and PostgreSQL refuse it on a table with rows).
 
 The same `proper db create` workflow also detects removed fields and changed field options (e.g., adding `unique=True` to an existing field).
 
@@ -290,7 +290,7 @@ def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
     migrator.remove_model("photo")
 ```
 
-No `proper db` command runs against an in-memory database (`"database": ":memory:"`); the test configuration relies on this. The generated file's docstring also lists every `migrator` method (`add_fields`, `change_fields`, `rename_field`, `add_index`, ...), and the file is formatted with `ruff` when it is on the `PATH`.
+No migration command of `proper db` runs against an in-memory database (`"database": ":memory:"`); the test configuration relies on this. The generated file's docstring also lists every `migrator` method (`add_fields`, `change_fields`, `rename_field`, `add_index`, ...), and the file is formatted with `ruff` when it is on the `PATH`.
 
 
 ## Seeds

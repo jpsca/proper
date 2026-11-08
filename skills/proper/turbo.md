@@ -1,7 +1,7 @@
 ---
 title: Turbo
 description: Turbo on the server — Drive navigation, Frames, and Streams (the turbo_stream builder, *.turbo_stream.jx responses, render(stream=), broadcasting, and the request predicates)
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/turbo
   - blueprint/assets/js
@@ -185,7 +185,7 @@ turbo_stream.replace(post, "post/Post.jx", post=post)   # target="post_42"
 turbo_stream.remove(targets=".flash")                   # targets=".flash", no content
 ```
 
-**What goes inside.** Two ways, checked in this order (in a template, the `stream` tag's body is the third):
+**What goes inside.** Two ways, checked in this order (in a template, the `stream` tag's body comes second, before `html=`):
 
 | Argument | Renders |
 |----------|---------|

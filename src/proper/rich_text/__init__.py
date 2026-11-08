@@ -6,12 +6,12 @@ document knows how to expand `<proper-attachment>` placeholders into the
 `RichTextAttachment` partial (for templates) and how to flatten the
 HTML to plain text (for search, previews, OG tags).
 
-For attachment lifecycle (purging removed embeds, marking surviving
-ones as confirmed, sweeping abandoned uploads), mix `HasRichText`
-into the parent model and run `purge_abandoned_uploads` periodically
-from a Huey task.
+For attachment lifecycle (keeping the references of each embed,
+purging the ones no record embeds anymore, sweeping abandoned uploads),
+mix `HasRichText` into the parent model and run
+`purge_abandoned_uploads` periodically from a Huey task.
 """
-from .concerns import HasRichText
+from .concerns import HasRichText, rebuild_rich_text_references
 from .document import RichTextDocument
 from .field import RichTextField, make_rich_text_field
 from .install import install
@@ -26,5 +26,6 @@ __all__ = (
     "install",
     "make_rich_text_field",
     "purge_abandoned_uploads",
+    "rebuild_rich_text_references",
     "sanitize",
 )

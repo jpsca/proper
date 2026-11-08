@@ -1,7 +1,7 @@
 ---
 title: Generators
 description: `proper g model|resource|controller|seed|email|channel`: attribute syntax (`title:str,unique`, `user:fk-User,backref:comments`), `--only`/`--exclude`, `--namespace`, `--migration`
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/generators
   - src/proper/_blueprints/controller
@@ -143,7 +143,7 @@ proper g resource Photo title:str --migration
 
 ### Generating a Controller
 
-`proper g controller NAME` creates a controller, a form and views without a model (or uses the model of the same name when `models/__init__.py` imports one). The same `--only`/`--exclude` options apply.
+`proper g controller NAME` creates a controller, a form, views and `tests/controllers/test_<name>.py` without a model (or uses the model of the same name when `models/__init__.py` imports one). The same `--only`/`--exclude` options apply; with `--namespace`, no test file is written.
 
 ```bash
 proper g controller Dashboard --only=index

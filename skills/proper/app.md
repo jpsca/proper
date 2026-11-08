@@ -1,7 +1,7 @@
 ---
 title: Application
 description: App layout, request lifecycle, the `current` context, configuration, lifecycle hooks, static assets, debug error pages
-last_verified: 2026-11-01
+last_verified: 2026-11-08
 sources:
   - src/proper/app.py
   - src/proper/core
@@ -101,7 +101,7 @@ Proper serves on free-threaded Python (a `3.14t` build) with Bearings (Linux onl
 Every request flows through a pipeline in this exact order:
 
 1. **head_to_get** — converts HEAD requests to GET; the body is dropped when the response is prepared
-2. **method_override** — converts POST to PUT/PATCH/DELETE via `_method` param or `X-HTTP-Method-Override` header
+2. **method_override** — converts POST to PUT/PATCH/DELETE/QUERY via `_method` param or `X-HTTP-Method-Override` header
 3. **match** — matches the URL to a route, sets `request.matched_route` and `request.matched_params`
 4. **redirect** — if the matched route is a redirect, sends the redirect response and stops
 5. **copy_session** — reads the signed `_session` cookie into `request.session`, when there is one
@@ -181,7 +181,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `MAX_FORM_PART_SIZE`       | `2 * MB`          | Max size of each field that isn't a file, in a multipart form |
 | `LOCALE_DEFAULT`           | `"en"`            | Fallback locale when none is set on the request |
 | `TIMEZONE_DEFAULT`         | `"UTC"`           | Fallback timezone when none is set on the request |
-| `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets                   |
+| `ASSETS_URL`               | `"/assets/"`      | URL prefix for static assets; a full URL (`https://cdn.example.com/assets/`) makes `url_for("assets")` point at that host while the app still serves the path |
 | `STATIC_X_SENDFILE_HEADER` | `""`              | Header for web server file serving             |
 | `LOG_FORMAT`               | `None`            | How the root logger's handler writes every logger's records to stderr: `"console"`, `"json"` (one object per line, tracebacks without frame variables), or `"off"` (no handler). `None` = `"console"` with `DEBUG`, `"json"` without; anything else = `ConfigError` |
 | `LOG_LEVEL`                | `"info"`       | Level of the `proper` logger (`proper.helpers.logger`): `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"`; anything else = `ConfigError`. Doesn't follow `DEBUG`. Other loggers keep their own levels |

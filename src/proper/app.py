@@ -365,7 +365,9 @@ class App(AppWsgi):
         The returned class carries all of the storage behavior (URLs, signed
         tokens, variants, purge, lookups) while inheriting `_meta.database`
         from `base_model_cls` - no separate `Meta` declaration needed on the
-        consumer's class.
+        consumer's class. Its `Reference` attribute is the model of the
+        records that embed each attachment in a rich text field; the app
+        exports it too, so `proper db create` makes its table.
 
         Calls are memoized per-`(app, base_model_cls)` so repeated invocations
         return the same class. This keeps `VARIANTS_ENABLED_FOR` and the

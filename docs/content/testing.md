@@ -51,7 +51,7 @@ The whole rest of this guide unpacks those three lines.
 A freshly generated Proper application is already set up for testing. There are no extra packages to install, no test runner to configure, no test-specific entry point to wire up. The pieces are:
 
 - The **test environment**, selected by `APP_ENV=test`, which swaps in fast in-memory replacements for the database, queue, cache, and mailer.
-- The **`tests/` directory**, with a `conftest.py` that provides the `client` and `db_reset` fixtures and a stub `test_public.py` to confirm the harness works.
+- The **`tests/` directory**, with a `conftest.py` that provides the `client` and `db_reset` fixtures and `tests/controllers/test_public.py`, three tests of the generated controller, to confirm the harness works.
 - **pytest** as the runner, invoked through `uv run pytest`.
 
 ### The test environment
@@ -95,7 +95,7 @@ Override          | Effect
 ----------------- | ------
 `:memory:` SQLite | The database lives in RAM. Suites of hundreds of tests finish in seconds, and nothing on disk to clean up.
 `MemoryHuey` with `immediate=True` | Background tasks run inline, in the calling process, the moment they are enqueued. `send_later()` behaves like `send()`. No worker required.
-`NoCache` | `app.cache.set(...)` is a no-op; `app.cache.get(...)` always returns the default. Test assertions never see stale cached state from a previous test.
+`NoCache` | `app.cache.set(...)` is a no-op; `app.cache.get(...)` always returns `None`. Test assertions never see stale cached state from a previous test.
 `ToMemoryMailer` | Sent emails go to `app.mailer.outbox` instead of an SMTP server. You inspect them like any other Python list.
 
 How does `APP_ENV=test` actually get set? The test package's `__init__.py` does it before any other import:
@@ -223,7 +223,7 @@ def db_reset(db_setup):
 
 Runs **once per test**, automatically. Each test executes inside a Peewee transaction (`db.atomic()`); when the test returns, the transaction is rolled back. Anything you wrote to the database during the test - records, updates, deletes - disappears. The next test sees the same starting state.
 
-Because the fixture is `autouse=True`, you don't list `db_reset` in your test signature unless you want pytest's dependency-ordering rules to make it explicit. The generated test scaffold does name it, mostly as a hint to the reader that this test touches the database:
+Because the fixture is `autouse=True`, you don't list `db_reset` in your test signature unless you want pytest's dependency-ordering rules to make it explicit, as a hint to the reader that this test touches the database:
 
 ```python
 def test_photo_show(db_reset):
@@ -604,15 +604,23 @@ def test_create_post_as_authenticated_user(client):
     assert result.status == 303
 ```
 
-When you find yourself repeating the create-user-then-sign-in dance across many tests, extract a fixture. The auth addon already ships one in `tests/conftest.py` called `signed_client` - a client that is already signed in:
+When you find yourself repeating the create-user-then-sign-in dance across many tests, extract a fixture. The auth addon already ships two in `tests/conftest.py`: `sign_in_as`, a function that signs the client in as a user, and `signed_client`, a client that is already signed in:
 
 ```python {title="tests/conftest.py"}
 @pytest.fixture()
-def signed_client(client):
+def sign_in_as(client):
+    def _sign_in_as(user):
+        """Signs in as the given user using the provided test client."""
+        session = Session.create_for_user(user=user)
+        client.sign_in(session)
+    return _sign_in_as
+
+
+@pytest.fixture()
+def signed_client(client, sign_in_as):
     """A test client with a signed-in user."""
     user = User.create(login="testuser", password="password123")
-    session = Session.create_for_user(user=user)
-    client.sign_in(session)
+    sign_in_as(user)
     return client
 
 
@@ -700,7 +708,7 @@ def test_valid_form_passes():
 def test_missing_title_is_invalid():
     form = PhotoForm({"title": "", "caption": "Anything"})
     assert form.is_invalid
-    assert "title" in form.errors
+    assert "title" in form.get_errors()
 
 
 def test_save_returns_cleaned_data():
@@ -828,8 +836,9 @@ The shape is always the same: connect, subscribe, exchange messages, close. The 
 | Method                                      | Description                                         |
 |---------------------------------------------|-----------------------------------------------------|
 | `ws.connect()`                              | Open the connection, returns an async task          |
-| `ws.subscribe(channel, **params)`           | Subscribe and return the confirmation message       |
-| `ws.send_action(channel, action, data)`     | Invoke a channel action                             |
+| `ws.subscribe(channel, positions=None, **params)` | Subscribe and return the confirmation message (`positions` to recover broadcasts) |
+| `ws.send_action(channel, action, data, id=None, **params)` | Invoke a channel action, without waiting for a reply |
+| `ws.perform(channel, action, data=None, **params)` | Invoke a channel action and return its `reply` (`status` `ok` or `error`) |
 | `ws.unsubscribe(channel, **params)`         | Unsubscribe from a channel                          |
 | `ws.receive(timeout=1.0)`                   | Receive the next message (parsed JSON)              |
 | `ws.receive_raw(timeout=1.0)`               | Receive the next raw event: `{"type": "accept"}`, a frame, or a close |
@@ -837,7 +846,7 @@ The shape is always the same: connect, subscribe, exchange messages, close. The 
 | `ws.client_send_text(text)`                 | Send a raw text frame to the app                    |
 | `ws.close()`                                | Disconnect the client                               |
 
-`receive()` parses the next outgoing message as JSON. If you need the raw event (to see the accept, or the close when the server ends the connection), `receive_raw()` returns it as a dict with a `type` key. Both methods take a `timeout=` in seconds; if no message arrives in time, `asyncio.TimeoutError` is raised. Default is one second - generous for a test served from memory, tight enough that a hung channel fails fast.
+`receive()` parses the next outgoing message as JSON. If you need the raw event (to see the accept, or the close when the server ends the connection), `receive_raw()` returns it as a dict with a `type` key. Both methods take a `timeout=` in seconds; if no message arrives in time, `TimeoutError` is raised. Default is one second - generous for a test served from memory, tight enough that a hung channel fails fast.
 
 An app whose cable serves no WebSockets (`CABLE = {}`) can't open a session: `connect()` raises a `RuntimeError`.
 
@@ -867,7 +876,7 @@ Three things to know about the autouse transactional fixture, in roughly the ord
 
 **The safety check is load-bearing.** The `assert os.getenv("APP_ENV") == "test"` and `assert "test" in db.database or "memory" in db.database` in `db_setup` protect you from someone who accidentally ran pytest with `APP_ENV=production` in their shell. An assertion firing in the wrong place costs nothing; dropping a production schema costs far more. Leave them.
 
-**Explicit naming is a hint, not a requirement.** Because `db_reset` has `autouse=True`, every test runs inside the rollback transaction whether it lists the fixture or not. The generator scaffolds it explicitly (`def test_x(db_reset):`) as a signal to the reader that the test touches the database. Both styles work; pick one and be consistent.
+**Explicit naming is a hint, not a requirement.** Because `db_reset` has `autouse=True`, every test runs inside the rollback transaction whether it lists the fixture or not. Naming it (`def test_x(db_reset):`) is a signal to the reader that the test touches the database. Both styles work; pick one and be consistent.
 
 **When you genuinely need a commit.** If you're testing code that itself calls `db.atomic()` and expects to commit - rare in application code, common when testing migrations or low-level utilities - the outer rollback turns the inner transaction into a savepoint. The cleanest escape is a marker that opts out of the fixture:
 

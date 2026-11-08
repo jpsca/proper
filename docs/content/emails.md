@@ -102,12 +102,13 @@ The email body comes from `views/emails/password_reset.jx`:
 `views/layouts/email.jx` is a thin HTML document that every email wraps in. The generated one is intentionally minimal:
 
 ```html+jinja
-{#def lang='en' #}
+{#def title='', lang='en' #}
 
 <!DOCTYPE html>
 <html lang="{{ lang }}">
   <head>
     <meta charset="utf-8">
+    <title>{{ title }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
       /* Email styles need to be inline */
@@ -148,7 +149,7 @@ That's the whole loop. The rest of this guide is the reference for each piece.
 
 ## Generating an email
 
-The `proper g email` generator stubs the three files that go together. Pass a PascalCase name, singular, **without** an `_email` suffix:
+The `proper g email` generator stubs the two files that go together, and imports the new class in `emails/__init__.py`. Pass a PascalCase name, singular, **without** an `_email` suffix:
 
 ```bash
 $ proper g email Welcome
@@ -219,12 +220,12 @@ EmailMessage(
 
 ### Class-level defaults
 
-Any attribute you set at class level becomes the default for every instance. `subject` is the most common, but `from_email`, `content_subtype`, and `charset` work the same way:
+Any attribute you set at class level becomes the default for every instance. `subject` is the most common, and `to`, `cc`, `bcc`, `reply_to`, `headers`, `body`, `content_subtype`, and `charset` work the same way (`from_email` doesn't: pass it to the constructor or set it in `MAILER_DEFAULT_OPTIONS`):
 
 ```python
 class NewsletterEmail(BaseEmail):
     subject = "Your weekly digest"
-    from_email = "news@example.com"
+    reply_to = "news@example.com"
     content_subtype = "html"
 ```
 
@@ -282,7 +283,7 @@ WelcomeEmail(user).send_later(to=user.email)
 
 ## Templates
 
-Setting `body=` explicitly works, but the usual path is to let the email auto-render a template. When `send()` (or the worker behind `send_later()`) sees an empty `body`, it goes looking for templates by class-module name.
+Setting `body=` explicitly works, but the usual path is to let the email auto-render a template. When `send()` or `send_later()` sees an empty `body`, it goes looking for templates by class-module name. The rendering happens in the request, before the worker: the worker only receives the serialized message.
 
 ### The discovery rule
 
@@ -383,7 +384,7 @@ The pragmatic workarounds today are:
 
 1. **Host the image externally.** Reference it with a normal `https://` URL. Most modern clients block remote images by default, but they let users opt in - and for transactional mail this is usually fine.
 2. **Inline as a data URI.** `<img src="data:image/png;base64,...">`. Bigger payload, but no server hop.
-3. **Drop to the stdlib `email` package** for that specific message and assemble the `multipart/related` yourself, then send it through `app.mailer.send_now()`.
+3. **Drop to the stdlib `email` package** for that specific message and assemble the `multipart/related` yourself, then send it with `smtplib` directly (`app.mailer.send_now()` only takes serialized `EmailMessage`s).
 
 First-class CID support is on the list - see [Where this could grow](#where-this-could-grow).
 
@@ -429,6 +430,10 @@ from ..tasks import send_email_task
 class BaseEmail(EmailMessage):
     def send_later(self, *, via=None, **options):
         self.update(**options)
+        # Render the template now: the worker only receives the serialized dict,
+        # so it can no longer render the body. Mirrors `EmailMessage.send()`.
+        if not self.body:
+            self._render()
         send_email_task(message=self.serialize(), via=via)
 ```
 

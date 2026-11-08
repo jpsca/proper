@@ -40,7 +40,7 @@ Now `(article_id, tag_id)` is the primary key. There's no `id` column, and the u
 :::note | Trade-offs
 Composite keys are honest about the data model - but they're slightly less convenient:
 
-- You can't look up rows with `get_by_id(...)`; use `.get(article=a, tag=t)`.
+- `get_by_id(...)` needs a tuple, `get_by_id((a.id, t.id))`, and `find()` doesn't work at all; `.get(article=a, tag=t)` reads better.
 - Other models can't `ForeignKeyField` to a composite-key model without extra work.
 - Some ORM-adjacent tools (admin scaffolds, JSON serializers, etc.) assume a single-column id.
 
@@ -250,23 +250,42 @@ By default Peewee connects on the first query of a request (`autoconnect=True`).
 The existing `BaseModel` is bound to `app.db["main"]` through its `Meta` class. To use the second database, define a sibling base class and have models inherit from it instead:
 
 ```python
-# models/base.py
-from proper import ProperModel, scope
+# models/base.py (the generated file, plus the analytics base)
+import typing as t
+from datetime import datetime, timezone
 
+import peewee as pw
+
+from proper import ProperModel, scope  # noqa
 from ..main import app
 
 
 db = app.db["main"]
 
 
+def utcnow() -> datetime:
+    """The naive UTC datetime peewee's `utcnow` returns, with a type."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class _MainDatabase:
+    database = db
+
+
+class _AnalyticsDatabase:
+    database = app.db["analytics"]
+
+
 class BaseModel(ProperModel):
-    class Meta:
-        database = app.db["main"]
+    Meta: t.Any = _MainDatabase
+
+    created_at = pw.DateTimeField(default=utcnow)
 
 
 class AnalyticsBaseModel(ProperModel):
-    class Meta:
-        database = app.db["analytics"]
+    Meta: t.Any = _AnalyticsDatabase
+
+    created_at = pw.DateTimeField(default=utcnow)
 ```
 
 Then any model that should live in the analytics database inherits from `AnalyticsBaseModel`:
@@ -389,13 +408,13 @@ In terms of time, executing a prepared query costs about the same as running raw
 
 ```python
 Message.raw(
-    "SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?",
+    "SELECT * FROM message WHERE room_id = ? ORDER BY id DESC LIMIT ?",
     room_id, 40
 )
 # or
 
 db.execute_sql(
-    "SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?",
+    "SELECT * FROM message WHERE room_id = ? ORDER BY id DESC LIMIT ?",
     (room_id, 40)
 )
 ```

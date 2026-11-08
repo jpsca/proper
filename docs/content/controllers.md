@@ -465,13 +465,13 @@ A multipart body is never refused for its charset: with an unknown charset its f
 
 ### File Uploads
 
-Uploaded files arrive in `self.request.form` alongside the regular form fields. Each file is an object with a filename, a content type, and a `.read()` / `.save()` API:
+Uploaded files arrive in `self.request.form` alongside the regular form fields. Each file is an object with a `filename`, a `content_type`, a `size`, the open `file`, its bytes as `raw`, and a `save_as(path)` method:
 
 ```python
 def create(self):
     upload = self.request.form.get("avatar")
     if upload:
-        upload.save(f"/var/uploads/{upload.filename}")
+        upload.save_as(f"/var/uploads/{upload.filename}")
 ```
 
 For attaching files to model records, see the [File Storage](/docs/storage) guide - it gives you S3 support, content-type validation, and image variants without you having to write the plumbing.

@@ -1,7 +1,7 @@
 ---
 title: Model Mixins, Scopes and Tokens
 description: Model concerns (RussianDollCached, your own mixins), chainable `@scope` queries, and signed tokens for a record (`generate_token_for` / `resolve_token_for`)
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/models
 ---
@@ -159,11 +159,31 @@ The generated `BaseModel` already inherits from `ProperModel`, so scopes work on
 
 ```python
 # models/base.py
+import typing as t
+from datetime import datetime, timezone
+
+import peewee as pw
+
 from proper import ProperModel, scope  # noqa
+from ..main import app
+
+
+db = app.db["main"]
+
+
+def utcnow() -> datetime:
+    """The naive UTC datetime peewee's `utcnow` returns, with a type."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class _MainDatabase:
+    database = db
+
 
 class BaseModel(ProperModel):
-    class Meta:
-        database = app.db["main"]
+    Meta: t.Any = _MainDatabase
+
+    created_at = pw.DateTimeField(default=utcnow)
 ```
 
 If a model has no `@scope` methods, it behaves exactly like a regular Peewee model with zero overhead.
@@ -264,7 +284,7 @@ user = User.resolve_token(token, lambda u: u.email, max_age=24 * HOURS, salt="my
 
 The `fingerprint` argument is a callable that receives the model instance and returns a JSON-serializable value. It defaults to `lambda x: None` (no fingerprint check). The `salt` defaults to the model class name.
 
-Tokens are timed by default: each call gives a different token, and `resolve_token` can enforce `max_age`. Pass `timed=False` for a token without a timestamp: it is identical on every call for the same record, fingerprint and salt, and it can never expire. Since it can't prove its age, it only resolves with `max_age=None`. Use it for stable, cacheable URLs (this is what `attachment.url` does), never for anything that should expire, like password resets.
+Tokens are timed by default: each call gives a different token, and `resolve_token` can enforce `max_age`. Pass `timed=False` for a token without a timestamp: it is identical on every call for the same record, fingerprint and salt, and it can never expire. Since it can't prove its age, it only resolves with `max_age=None`. Use it for stable, cacheable URLs (this is what `attachment.url(stable=True)` does), never for anything that should expire, like password resets.
 
 ```python
 token = record.generate_token(salt="share", timed=False)   # same value every time

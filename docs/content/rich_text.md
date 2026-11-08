@@ -49,7 +49,7 @@ It does the following:
 - Adds a task for cleaning up abandoned uploads.
 - Adds `config/rich_text.py`, with the settings of the [sanitizer](#sanitizing), and the `nh3` library to the dependencies of your project.
 
-Now run the migrations to create the `attachment` table added by the _storage_ addon.
+Now run the migrations to create the `attachment` and `attachment_reference` tables added by the _storage_ addon.
 
 ```bash
 $ proper db migrate
@@ -92,10 +92,10 @@ class Post(HasRichText, BaseModel):
     body = RichTextField(Attachment, null=True)
 ```
 
-As you see, you also need to pass your `Attachment` model to it, so it knows where to upload files.
+As you see, you also need to pass your `Attachment` model to it, so it can load the embedded attachments when rendering.
 
 ::: warning
-**`HasRichText` must be listed before `BaseModel`.** Peewee's `save()` and `delete_instance()` don't call `super()`, so a mixin placed after the model class would never run: embedded files would stay marked as pending and be deleted later as abandoned uploads. Proper raises a `TypeError` when the class is defined in the wrong order, so you can't miss it.
+**`HasRichText` must be listed before `BaseModel`.** Peewee's `save()` and `delete_instance()` don't call `super()`, so a mixin placed after the model class would never run: embedded files would have no references and be deleted later as abandoned uploads. Proper raises a `TypeError` when the class is defined in the wrong order, so you can't miss it.
 :::
 
 **If you don't want to use image/file uploads in that field**, pass `None` instead and drop the mixin. The result is much simpler:
@@ -300,7 +300,7 @@ Beware that removing a button _doesn't mean removing the ability to use the form
 
 "Prompts" is the Lexxy mechanism that lets you implement features like `@mentions`, `/commands`, or any other trigger-based suggestions. When you select an item from the prompt, you have two options:
 
-A. Insert the item as a custom attachment. This allows you to use a standard component to customize how it renders and to use code to process it on the server side.
+A. Insert the item as a custom attachment. Proper's renderer resolves attachments only against your `Attachment` model and drops the ones it can't resolve, so this option is not supported out of the box.
 B. Insert the item as free text in the editor.
 
 Lexxy also lets you configure how to load the items: inline or remotely, and how to do the filtering (locally or on the server).
@@ -354,7 +354,7 @@ An "attachment" inside a rich text document is any file the user drops into the 
 The placeholder looks like this in the stored HTML:
 
 ```html
-<proper-attachment sgid="0193c9f7-...-2dba"
+<proper-attachment sgid="0193c9f7a4b84c6e9f1d2e3a4b5c6d7e"
   caption="A picture of my cat"></proper-attachment>
 ```
 
@@ -362,7 +362,7 @@ That is *all* that gets stored: the attachment's ID and what the author typed (`
 
 The reason is the URL. It carries a token signed with your `SECRET_KEYS`, so a stored copy would stop working the day you copy the database to another environment or replace the keys, and the editor would show broken images. Because the URL is never stored, documents are valid anywhere, and there is nothing to migrate when keys change.
 
-This section walks through how those rows get created, when they get confirmed or cleaned up, and how to work with them from your Python code.
+This section walks through how those rows get created, how Proper knows which records use them, when they get cleaned up, and how to work with them from your Python code.
 
 
 ### The attachment lifecycle
@@ -370,35 +370,69 @@ This section walks through how those rows get created, when they get confirmed o
 Unlike a regular form field, the editor uploads files _before_ the user submits the form. The flow looks like this:
 
 1. The user drops a file into the editor (or clicks the upload button).
-2. The browser POSTs the file's metadata to your app's `DirectUpload.create` endpoint. An `Attachment` row is created with `source="direct"` and `pending=True`, and the server returns a signed URL.
+2. The browser POSTs the file's metadata to your app's `DirectUpload.create` endpoint. An `Attachment` row is created with the `source` of that controller, `"rich_text"`, and the server returns a signed URL.
 3. The browser PUTs the file bytes directly to storage using that URL.
 4. The editor inserts a `<proper-attachment sgid="...">` placeholder in the document.
-5. When the user submits the form, the parent model's `save()` reconciles the body with what was there before.
+5. When the user submits the form, the parent model's `save()` records that this record embeds the attachment.
 
-The `pending` flag is the key: until step 5 happens, the row is provisional. The user might close the tab, hit "back", or just walk away. The sweeper job described below cleans up rows that stay pending too long.
+Until step 5 happens, no record embeds the row: it is provisional. The user might close the tab, hit "back", or just walk away. The sweeper job described below cleans up rows that nobody embeds for too long.
+
+
+### Who uses each attachment
+
+Proper keeps a table, `attachment_reference`, with one row for each record and rich text column that embeds an attachment. The model is `Attachment.Reference`, exported as `AttachmentReference` by `models/attachment.py` so that `proper db create` makes its table. You don't write to it: `HasRichText` does.
+
+Two records can embed the same attachment. Copying a post copies its HTML, and the images inside it, without copying the files; each version of a versioned document is a new row with the same HTML. The attachment is purged only when the last record that embeds it lets it go.
+
+From an attachment, `is_referenced` says whether some record embeds it, and `references` lists the rows:
+
+```python
+att.is_referenced  # True or False
+for ref in att.references:
+    print(ref.record_type, ref.record_id, ref.field)  # "post", "42", "body"
+```
 
 
 ### Save and delete behavior
 
 The `HasRichText` mixin (which you added to your model in the [Models](#models) section) hooks into two events:
 
-**On save**, the mixin:
+**On save**, for each rich text column, the mixin compares the attachments in the new body with the references of the record:
 
-- Marks every attachment still referenced in the new body as `pending=False`. The upload now has a home and the sweeper will leave it alone.
-- Schedules a purge for every attachment that _was_ in the previous body but is no longer in the new one. Editing a post to remove an image frees its storage automatically.
+- Adds a reference for every attachment that is new in the body. The upload now has a home and the sweeper will leave it alone.
+- Removes the reference of every attachment that _was_ in the body but is no longer there, and schedules a purge for the ones that no other record embeds. Editing a post to remove an image frees its storage automatically, unless a copy of the post still shows it.
 
-**On delete**, the mixin schedules every attachment referenced by every rich text column on the record for purge. Tearing down a post tears down its embedded files too.
+**On delete**, the mixin removes every reference of the record and schedules a purge for the attachments left without any. Tearing down a post tears down its embedded files too, unless another record embeds them.
 
 Purges are dispatched as background jobs, so they don't block the save or the user's request. If your record has multiple `RichTextField` columns, the mixin handles them all without extra configuration.
 
-If you build a model that holds rich text but for some reason should _not_ own its attachments (e.g. attachments shared between records), don't include `HasRichText`. The document will still render fine; you just lose the automatic cleanup.
+Deleting a record with a query doesn't run the hooks. Release its attachments first:
+
+```python
+post.release_rich_text_attachments()
+Post.delete().where(Post.id == post.id).execute()
+```
+
+This removes the references of the record and purges the attachments that no other record embeds, the same as `delete_instance()` does.
+
+Rows deleted by the database, with an `ON DELETE CASCADE`, or by a query without releasing them, leave references to records that no longer exist. Rows changed with `Model.update()` have references that don't match their bodies. `rebuild_rich_text_references()` repairs both for the models you give it, and is also how you fill the table for records that exist from before:
+
+```python
+from proper.rich_text import rebuild_rich_text_references
+
+rebuild_rich_text_references(Post, Comment)
+```
+
+It doesn't purge anything. An attachment left without references is swept by the task below once it is older than the grace period.
+
+Composite primary keys are not supported: `record_id` holds the primary key as a single string.
 
 
 ### Sweeping abandoned uploads
 
-Pre-uploaded files that never get confirmed are orphans. They take up storage with no document pointing at them. The rich-text addon generates a periodic task that sweeps these up:
+Pre-uploaded files that no record ever embeds are orphans. They take up storage with no document pointing at them. The rich-text addon generates a periodic task that sweeps these up:
 
-```python {title="tasks/abandoned_uploads_sweep.tt.py"}
+```python {title="tasks/abandoned_uploads_sweep.py"}
 from huey import crontab
 from proper.rich_text import purge_abandoned_uploads
 
@@ -411,12 +445,12 @@ def sweep_abandoned_uploads():
     purge_abandoned_uploads(Attachment, grace_hours=24)
 ```
 
-By default it runs at 3 AM each day and purges any `pending=True` row older than 24 hours. Tune the crontab and `grace_hours` to taste:
+By default it runs at 3 AM each day and purges any row with `source="rich_text"` that is older than 24 hours and that no record embeds. Variants are skipped: they go with their parent. Tune the crontab and `grace_hours` to taste:
 
 - A short grace period reclaims storage faster but risks deleting an upload while the user is still composing a long post.
 - A long grace period is gentler on users but keeps orphans around longer.
 
-The sweep only touches rows where `source="direct"`, so other addons that pre-upload with their own lifecycle policy aren't affected.
+The sweep only touches rows where `source="rich_text"`. A file sent with a form or attached from code has an empty `source` and no references, and is in use: it is never swept. Other addons that pre-upload with their own lifecycle policy, and their own `source`, aren't affected either.
 
 
 ### Accessing attachments from Python
@@ -440,4 +474,4 @@ This is useful for things like building a gallery of every image in a post, pick
 ## Related
 
 - [File Storage](/docs/storage) - the `Attachment` model and storage services rich text builds on.
-- [Working with Forms](/docs/forms) - `JSONField` and form rendering.
+- [Working with Forms](/docs/forms) - `RichTextField` and form rendering.

@@ -91,6 +91,9 @@ default_config = {
     "MAX_FORM_FIELDS": 100,
     "MAX_FORM_PART_SIZE": 2 * MB,
 
+    # Where `url_for("assets", ...)` points: a path, or a full URL with the
+    # host of a CDN (`https://cdn.example.com/assets/`), which the app still
+    # serves at that path on its own host.
     "ASSETS_URL": "/assets/",
 
     # The name of the header to use to return a file

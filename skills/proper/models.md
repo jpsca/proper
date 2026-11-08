@@ -1,7 +1,7 @@
 ---
 title: Models
 description: Peewee ORM models: defining, field types, relationships, querying, Meta options, custom methods, BaseModel
-last_verified: 2026-11-01
+last_verified: 2026-11-07
 sources:
   - src/proper/models
   - src/proper/_blueprints/model
@@ -180,7 +180,7 @@ The `on_delete` parameter controls what happens when the referenced record is de
 | `"CASCADE"`    | Delete the child records too                  |
 | `"SET NULL"`   | Set the foreign key to NULL (requires `null=True`) |
 | `"RESTRICT"`   | Prevent deletion if children exist            |
-| (not set)      | Database default (usually RESTRICT)           |
+| (not set)      | No clause; the database decides (`NO ACTION`, like `RESTRICT` on most engines) |
 
 #### Self-Referencing Foreign Keys
 

@@ -145,7 +145,7 @@ Field             | Use for                          | Common options
 `f.FormField()`   | Embedded sub-form                | covered in [Sub-forms with `FormField`](#sub-forms-with-formfield)
 `f.NestedForms()` | One-to-many sub-forms            | covered in [Nested Forms](#nested-forms)
 
-Every field accepts the arguments `required=...` (`True` by the default for everything except `BooleanField`), `default=...` (a value or a callable evaluated at form instantiation), and `messages={...}` for per-field error strings.
+Every field accepts the arguments `required=...` (`True` by the default for everything except `BooleanField`), `default=...` (a value or a callable evaluated at form instantiation), and `messages={...}` for per-field error strings. The exceptions: `FormField` takes no `messages`, `NestedForms` takes neither (`required` follows from `min_items`), and `AttachmentField` and `JSONField` take no `label`.
 
 For the full list of options on each field, see the [Formidable field reference](https://formidable.scaletti.dev/docs/fields/).
 
@@ -218,7 +218,7 @@ form = CardForm()
 print(form.title.value)   # None
 ```
 
-The form has no values; it's only good for rendering the empty page. Validation will fail on any required field, but you wouldn't call `is_valid` here anyway.
+The form has no values; it's only good for rendering the empty page. With no data set, `is_valid` is `True` (the required checks run once data is set), but you wouldn't call it here anyway.
 
 #### Submission only - for `create`
 
@@ -351,7 +351,7 @@ The form constructor takes up to two arguments (`reqdata`, `object`); together w
 | `Meta.orm_cls`? | Built with `object`? | `form.save()` returns |
 | --------------- | -------------------- | --------------------- |
 | no              | no                   | a plain dict (no persistence) |
-| no              | yes (dict or model)  | the same object, updated (no persistence) |
+| no              | yes (dict or model)  | a new dict with the field values, or the same model instance updated (no persistence) |
 | yes             | no                   | a new model instance, INSERTed |
 | yes             | yes (a model)        | the same model, UPDATEd |
 
@@ -643,7 +643,7 @@ class ContactController(AppController):
         if self.form.is_invalid:
             return self.redo()
         data = self.form.save()
-        SupportMailer.contact_received(data).deliver_later()
+        ContactEmail(data).send_later(to="support@example.com")
         self.response.redirect_to("Contact.show", flash="Thanks - we'll be in touch.")
 ```
 
@@ -756,7 +756,7 @@ class PersonForm(f.Form):
     addresses = f.NestedForms(AddressForm, allow_delete=True)
 ```
 
-With deletion enabled, the rendered HTML includes a hidden `_destroy` input on each sub-form. When that input has a non-empty value at submit time, `form.save()` calls `delete()` on the matching ORM object. The Rendering Forms guide shows [how the JavaScript fills `_destroy`](/docs/form_rendering#dynamic) when the user clicks a remove button.
+With deletion enabled, the rendered HTML includes a hidden `_destroy` input on each sub-form. When that input has a non-empty value at submit time, `form.save()` calls `delete_instance()` on the matching ORM object. The Rendering Forms guide shows [how the JavaScript fills `_destroy`](/docs/form_rendering#dynamic) when the user clicks a remove button.
 
 ### Custom Primary Keys
 
@@ -823,7 +823,7 @@ class Book(BaseModel):
 
 Every other field on a form is a *value translator* - it takes a string (or a few strings) from the request, validates and coerces them, and hands the result back through `form.save()`. `AttachmentField` does more: when the user uploads a new file, the field's `save()` step uploads the file through the storage service, INSERTs an `Attachment` row, purges the previous attachment (if any), and returns the new `Attachment` for the FK.
 
-Because [the whole save runs in a transaction](#transactions), an upload + INSERT either both succeed or both roll back together. The `purge_later()` call on a replaced original runs after the transaction commits, so the bytes for the old file survive until the new save is durable.
+Because [the whole save runs in a transaction](#transactions), an upload + INSERT either both succeed or both roll back together. The `purge_later()` call on a replaced original enqueues a background task that deletes the old file.
 
 ### The Three Behaviors
 
@@ -884,7 +884,7 @@ The Python `accept` argument and the HTML `<input type="file" accept="...">` att
 `max_size` is a per-field, application-level limit. It runs after the request parser has already accepted the upload, so it's the right place for "covers should be ≤ 5 MB" but not for "stop runaway uploads that would exhaust the server." The hard ceiling for uploads is the `MAX_CONTENT_LENGTH` setting in `config/main.py`: a request with a larger body is refused before it is read. (`MAX_FORM_PART_SIZE` limits only the fields that aren't files.)
 :::
 
-Both checks are skipped when the underlying value doesn't carry the relevant attribute. That matters for forms bound to an existing record - the bound `Attachment` is a database row, not a fresh upload, and shouldn't be re-validated against current rules. The user pressing "Submit" without touching the file input lets the existing attachment through unchanged.
+The `max_size` check is skipped when the value is a bound `Attachment` (a database row, not a fresh upload); `accept` is still checked against its `content_type`. The user pressing "Submit" without touching the file input lets the existing attachment through unchanged.
 
 `accept=None` or `accept=[]` disables the content-type check entirely; same for `max_size=None`.
 
@@ -939,9 +939,9 @@ For end-to-end tests, use Proper's `TestClient` and assert on the response:
 
 ```python
 def test_create_card_with_invalid_data(client):
-    response = client.post("/cards", form={"body": "..."})  # missing title
+    response = client.post("/cards", body={"body": "..."})  # missing title
     assert response.status == 422
-    assert "field-error" in response.text
+    assert "field-error" in response.body
 ```
 
 The `422` status is what `self.redo()` returns. It's the easiest way to assert "the form was rejected" without coupling your test to the exact error message.
