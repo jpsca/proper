@@ -1,7 +1,7 @@
 ---
 title: API Reference
 description: Reference: attributes and methods of Controller, App, Request and Response; other public exports; units; DotDict and MultiDict
-last_verified: 2026-11-07
+last_verified: 2026-11-08
 sources:
   - src/proper/controller/controller.py
   - src/proper/app.py

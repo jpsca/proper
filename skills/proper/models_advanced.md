@@ -1,7 +1,7 @@
 ---
 title: Model Mixins, Scopes and Tokens
 description: Model concerns (RussianDollCached, your own mixins), chainable `@scope` queries, and signed tokens for a record (`generate_token_for` / `resolve_token_for`)
-last_verified: 2026-11-07
+last_verified: 2026-11-08
 sources:
   - src/proper/models
 ---

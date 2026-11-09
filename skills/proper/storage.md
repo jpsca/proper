@@ -1,7 +1,7 @@
 ---
 title: Storage
 description: Storage addon: setup, Disk and S3 services, public services, attaching files to models (forms and manual), serving (redirect vs proxy, URL helpers), direct uploads, downloading and removing
-last_verified: 2026-11-07
+last_verified: 2026-11-08
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py
@@ -361,7 +361,7 @@ Both URLs embed a signed token tied to the attachment's PK. The controllers reso
 
 Use `attachment.get_proxy_url()` (and `StorageProxyController`) when you specifically need a URL on your own domain — for CDN caching, app-controlled response headers, or auth gating beyond the signed token.
 
-Both controllers set `skip_authentication = True` because the signed token IS the access credential. Add app-specific guards (per-user access checks, etc.) by editing the generated `show()` method in your project. For more granular gating, create a separate controller and use a custom salt:
+Both controllers set `skip_authentication = True` because the signed token IS the access credential. Add app-specific guards (per-user access checks, etc.) by editing the generated `show()` methods in your project: comments in the generated file mark the spot. `Attachment` has no owner column, so an app where users must not see each other's files adds one (`owner_id`, `tenant_id`), sets it where the attachment is created (`DirectUploadController.create` for editor uploads) and compares it with `current.user` in `show()`; `current.user` is loaded on public actions too. The check means nothing for a service with `public: True`, whose bucket URL is open anyway. For more granular gating, create a separate controller and use a custom salt:
 
 ```python
 class DownloadController(AppController):
