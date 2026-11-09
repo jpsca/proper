@@ -1,7 +1,7 @@
 ---
 title: Routing
 description: Defining routes: `@router.resource`, individual routes and placeholder types, redirects, scoped routes, host-based routes, QUERY, error handlers, method override, `proper routes`
-last_verified: 2026-11-07
+last_verified: 2026-11-08
 sources:
   - src/proper/router
   - src/proper/pipeline.py

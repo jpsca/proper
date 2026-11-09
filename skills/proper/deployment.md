@@ -1,7 +1,7 @@
 ---
 title: Deployment
 description: Running a Proper app in production: free-threaded Python, what runs (web, cable, worker, migrations, proxy), sizing WORKERS/MAX_THREADS/PROCESSES, the prod config and .env, compiled views, the Dockerfile, compose.yml, the nginx config, trusted proxies, the deploy checklist
-last_verified: 2026-11-07
+last_verified: 2026-11-08
 sources:
   - blueprint/Dockerfile.tt
   - blueprint/Dockerfile.tt.workers

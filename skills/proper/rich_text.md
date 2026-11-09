@@ -1,7 +1,7 @@
 ---
 title: Rich Text
 description: Rich Text addon — formatted-text field with embedded attachments, Lexxy editor, attachment lifecycle
-last_verified: 2026-11-07
+last_verified: 2026-11-08
 sources:
   - src/proper/rich_text
   - src/proper/_blueprints/addon_rich_text
