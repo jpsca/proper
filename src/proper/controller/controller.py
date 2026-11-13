@@ -21,6 +21,9 @@ if t.TYPE_CHECKING:
 
 class Controller:
     etag = ""
+    #: Properties that the debug error page shows, with the attributes of
+    #: `self`, for the frames of the controller.
+    debug_properties: tuple[str, ...] = ("params",)
 
     def __init__(
         self,

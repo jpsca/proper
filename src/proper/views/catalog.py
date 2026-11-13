@@ -197,6 +197,36 @@ def module_path(jx_path: Path) -> Path:
     return jx_path.with_name(name.replace(".", "_") + ".py")
 
 
+#: A `Catalog.tracer`: `tracer(relpath, render, kwargs)` returns
+#: `render(**kwargs)`.
+TTracer = t.Callable[[str, t.Callable[..., str], dict[str, t.Any]], str]
+
+
+def trace_module(module: types.ModuleType, tracer: TTracer) -> None:
+    """
+    Make every component of a compiled module render through `tracer`.
+
+    The module has one function per component: its own and those it
+    imports, named in `COMPONENTS`. They call each other by name, so
+    replacing them in the module is enough.
+    """
+    namespace = module.__dict__
+    entry = namespace.get("render")
+    for name, relpath in getattr(module, "COMPONENTS", {}).items():
+        render = namespace[name]
+        traced = _traced(tracer, relpath, render)
+        namespace[name] = traced
+        if render is entry:
+            namespace["render"] = traced
+
+
+def _traced(tracer: TTracer, relpath: str, render: t.Callable[..., str]) -> t.Callable[..., str]:
+    def traced(**kwargs: t.Any) -> str:
+        return tracer(relpath, render, kwargs)
+
+    return traced
+
+
 class Component:
     """
     A loaded component module.
@@ -364,12 +394,53 @@ class Catalog:
         self._string_files: dict[str, tuple[Path, Path]] = {}
         self._strings_dir: Path | None = None
         self._lock = threading.RLock()
+        self._tracer: TTracer | None = None
         if filters or tests:
             self._set_env({**(filters or {})}, {**(tests or {})})
         if tags:
             self.add_tags(tags)
         if folder:
             self.add_folder(folder)
+
+    @property
+    def tracer(self) -> "TTracer | None":
+        """
+        A function that every component is rendered through, or `None`
+        (the default). For development tools: timing each component,
+        drawing the tree of the ones a page is made of.
+
+        ```python
+        def tracer(relpath, render, kwargs):
+            start = time.perf_counter()
+            try:
+                return render(**kwargs)
+            finally:
+                print(relpath, time.perf_counter() - start)
+
+        catalog.tracer = tracer
+        ```
+
+        It is called with the component's path (`"layouts/base.jx"`), the
+        function that renders it, and the arguments it was called with
+        (those of `catalog.render()`, or the attributes of its tag in
+        another component, plus `content`, `_globals` and `_fills`). It
+        must return what `render(**kwargs)` returns. The components a
+        component uses are rendered by it, so their calls to the tracer
+        happen inside `render(**kwargs)`; the content of a component is
+        rendered before it, by the one that uses it.
+
+        Setting it forgets the loaded components: they are loaded again,
+        with or without the tracer, on their next render. Without one,
+        nothing is added to a render.
+        """
+        return self._tracer
+
+    @tracer.setter
+    def tracer(self, tracer: "TTracer | None") -> None:
+        with self._lock:
+            self._tracer = tracer
+            self._cache.clear()
+            self._strings.clear()
 
     # Registration
 
@@ -555,7 +626,10 @@ class Catalog:
             if result.returncode != 0:
                 raise CompileError(self._errors(result).replace(str(jx), "<string>"))
             py = module_path(out / output_names([src, *self.folders])[0] / jx.name)
-            co = Component(f"<string {key}>", py, self._exec(py), py.stat().st_mtime_ns)
+            module = self._exec(py)
+            if self._tracer is not None:
+                trace_module(module, self._tracer)
+            co = Component(f"<string {key}>", py, module, py.stat().st_mtime_ns)
             self._strings[key] = co
             self._string_files[key] = (jx, py)
             while len(self._strings) > self.max_strings:
@@ -655,6 +729,8 @@ class Catalog:
         reason = self._incompatible(module)
         if reason:
             raise ComponentNotCompiledError(f"{relpath}: {py.name} {reason}; recompile it")
+        if self._tracer is not None:
+            trace_module(module, self._tracer)
         return Component(relpath, py, module, mtime)
 
     def _incompatible(self, module: types.ModuleType) -> "str | None":

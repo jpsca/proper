@@ -174,5 +174,5 @@ def test_items():
 
 
 def test_repr():
-    md = MultiDict([("a", 1)])
-    assert "MultiDict" in repr(md)
+    md = MultiDict([("a", 1), ("b", "x"), ("a", 2)])
+    assert repr(md) == "MultiDict([('a', 1), ('a', 2), ('b', 'x')])"

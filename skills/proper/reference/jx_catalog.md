@@ -81,3 +81,26 @@ html = catalog.render_string("{#def name #}<p>{{ name }}</p>", name="World")
 It returns `Markup` for a component with autoescape, `str` otherwise. An error while rendering has a traceback that points to the `.jx` file, line and expression.
 
 `catalog.has_component(relpath)` tells if a component exists.
+
+### Tracing
+
+`catalog.tracer` is a function that every component is rendered through, or `None` (the default). It is for development tools: timing each component, listing the ones a page is made of.
+
+```python
+def tracer(relpath, render, kwargs):
+    start = time.perf_counter()
+    try:
+        return render(**kwargs)
+    finally:
+        print(relpath, time.perf_counter() - start)
+
+catalog.tracer = tracer
+```
+
+- `relpath` — the component's path, e.g. `"layouts/base.jx"`
+- `render` — the function that renders it
+- `kwargs` — what it was called with: the arguments of `catalog.render()`, or the attributes of its tag in another component, plus `content`, `_globals` and `_fills`
+
+It must return what `render(**kwargs)` returns. The components a component uses are rendered inside its `render(**kwargs)`, so their calls to the tracer are nested in it. The content of a component (`{{ content }}`) is rendered before it, by the component that uses it.
+
+Setting `catalog.tracer` forgets the loaded components: each is loaded again on its next render. Without a tracer, nothing is added to a render.

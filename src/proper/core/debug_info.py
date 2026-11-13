@@ -11,6 +11,9 @@ import sysconfig
 import typing as t
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import unquote_plus
+
+from ..helpers.dicts.multidict import MultiDict
 
 
 if t.TYPE_CHECKING:
@@ -67,7 +70,25 @@ LIBRARY_PATHS = tuple(
     }
 )
 
-_repr = reprlib.Repr(
+class _DebugRepr(reprlib.Repr):
+    """A `reprlib.Repr` that masks the values of the secret keys of dicts
+    and of `MultiDict`s."""
+
+    def repr1(self, x: t.Any, level: int) -> str:
+        if isinstance(x, MultiDict):
+            # Like `repr(x)`, but masked and shortened value by value
+            pairs = [
+                (key, MASK if is_sensitive(key) and value else value)
+                for key, values in x.data.items()
+                for value in values
+            ]
+            return f"{type(x).__name__}({self.repr1(pairs, level)})"
+        if type(x) is dict:
+            x = _masked(x)
+        return super().repr1(x, level)
+
+
+_repr = _DebugRepr(
     maxlevel=3,
     maxlist=10,
     maxtuple=10,
@@ -231,7 +252,7 @@ def describe_request(request: t.Any) -> str:
     try:
         text = f"{request.method} {request.path}"
         if request.query_string:
-            text += f"?{hide_url_passwords(request.query_string)}"
+            text += f"?{_masked_query(request.query_string)}"
         route = request.matched_route
         to = getattr(route, "to", None) if route else None
         if to is not None:
@@ -242,6 +263,18 @@ def describe_request(request: t.Any) -> str:
 
 
 # Private
+
+
+def _masked_query(query_string: str) -> str:
+    """The query string with the values of its secret parameters masked,
+    and the passwords of the URLs in it hidden."""
+    parts = []
+    for part in query_string.split("&"):
+        name, sep, value = part.partition("=")
+        if sep and value and is_sensitive(unquote_plus(name)):
+            part = f"{name}={MASK}"
+        parts.append(part)
+    return hide_url_passwords("&".join(parts))
 
 
 def _type_name(exc: BaseException) -> str:
@@ -305,10 +338,45 @@ def _add_details(frame: Frame) -> None:
     for name, value in variables.items():
         if name.startswith((".", "__")):
             continue
-        if is_sensitive(name) and value:
-            frame.variables[name] = MASK
+        frame.variables[name] = _show(name, value)
+        if name == "self":
+            frame.variables.update(_attributes(value))
+
+
+def _show(name: str, value: t.Any) -> str:
+    return MASK if is_sensitive(name) and value else safe_repr(value)
+
+
+def _masked(data: dict) -> dict:
+    """`data` with the values of its secret keys masked."""
+    if not any(is_sensitive(key) for key in data):
+        return data
+    return {key: MASK if is_sensitive(key) and value else value for key, value in data.items()}
+
+
+def _attributes(obj: t.Any) -> dict[str, str]:
+    """`self.name: repr()` of the attributes of `obj`: first the properties
+    its class lists in `debug_properties`, then those of its `__dict__`.
+    An attribute `_name` is left out if the property `name` is shown."""
+    out: dict[str, str] = {}
+    properties = tuple(getattr(type(obj), "debug_properties", ()))
+    for name in properties:
+        try:
+            value = getattr(obj, name)
+        except Exception as error:
+            out[f"self.{name}"] = f"<raised {_type_name(error)}>"
         else:
-            frame.variables[name] = safe_repr(value)
+            out[f"self.{name}"] = _show(name, value)
+
+    try:
+        attrs = dict(vars(obj))
+    except TypeError:  # no `__dict__`
+        attrs = {}
+    for name, value in attrs.items():
+        if name.startswith("__") or name.lstrip("_") in properties:
+            continue
+        out[f"self.{name}"] = _show(name, value)
+    return out
 
 
 def _text_params(request: t.Any) -> list[str]:
