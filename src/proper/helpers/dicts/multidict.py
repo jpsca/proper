@@ -49,7 +49,8 @@ class MultiDict(MutableMapping):
         return self.append(key, value)
 
     def __repr__(self):
-        return f"{type(self).__name__}({list(self)!r})"
+        pairs = [(key, value) for key, values in self.data.items() for value in values]
+        return f"{type(self).__name__}({pairs!r})"
 
     def _normalize_key(self, key: t.Any) -> t.Any:
         return key

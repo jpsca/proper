@@ -4,6 +4,7 @@ The output file naming and the runtime Catalog.
 
 import os
 import time
+import traceback
 
 import pytest
 
@@ -321,3 +322,128 @@ def test_module_from_another_version_is_stale(tmp_path):
         Catalog(tmp_path, compiler=False, auto_reload=False).render("a.jx")
     # checked when first loaded, in any mode: compiled again
     assert Catalog(tmp_path, compiler=BIN, auto_reload=False).render("a.jx") == "new"
+
+
+# Tracer
+
+TRACED = {
+    "card.jx": '{#def title #}<div class="card"><h2>{{ title }}</h2>{{ content }}</div>',
+    "badge.jx": "{#def text #}<b>{{ text }}</b>",
+    "page.jx": (
+        '{#import "card.jx" as Card #}{#import "badge.jx" as Badge #}{#def name #}'
+        '<Card title="Hi"><Badge text={{ name }} /></Card><Badge text="end" />'
+    ),
+}
+
+
+def recorder(calls):
+    def tracer(relpath, render, kwargs):
+        calls.append(("start", relpath))
+        try:
+            return render(**kwargs)
+        finally:
+            calls.append(("end", relpath))
+
+    return tracer
+
+
+def test_tracer_gets_every_component(tmp_path):
+    write(tmp_path, TRACED)
+    plain = Catalog(tmp_path).render("page.jx", name="Lime")
+    calls = []
+    cat = Catalog(tmp_path)
+    assert cat.tracer is None
+    cat.tracer = recorder(calls)
+
+    html = cat.render("page.jx", name="Lime")
+
+    assert html == plain
+    assert collapse(html) == '<div class="card"><h2>Hi</h2><b>Lime</b></div><b>end</b>'
+    # The content of the card is rendered by the page, before the card
+    assert calls == [
+        ("start", "page.jx"),
+        ("start", "badge.jx"),
+        ("end", "badge.jx"),
+        ("start", "card.jx"),
+        ("end", "card.jx"),
+        ("start", "badge.jx"),
+        ("end", "badge.jx"),
+        ("end", "page.jx"),
+    ]
+
+
+def test_tracer_gets_the_arguments(tmp_path):
+    write(tmp_path, TRACED)
+    seen = {}
+
+    def tracer(relpath, render, kwargs):
+        seen.setdefault(relpath, kwargs)
+        return render(**kwargs)
+
+    cat = Catalog(tmp_path, site="Limon")
+    cat.tracer = tracer
+    cat.render("page.jx", name="Lime")
+
+    assert seen["page.jx"]["name"] == "Lime"
+    assert seen["page.jx"]["_globals"]["site"] == "Limon"
+    assert seen["card.jx"]["title"] == "Hi"
+    assert seen["card.jx"]["content"] == "<b>Lime</b>"
+    assert seen["badge.jx"]["text"] == "Lime"
+
+
+def test_tracer_can_change_what_is_rendered(tmp_path):
+    write(tmp_path, TRACED)
+    cat = Catalog(tmp_path)
+    cat.tracer = lambda relpath, render, kwargs: f"[{relpath}]{render(**kwargs)}"
+
+    html = cat.render("badge.jx", text="x")
+
+    assert html == "[badge.jx]<b>x</b>"
+
+
+def test_tracer_set_after_a_render(tmp_path):
+    write(tmp_path, TRACED)
+    cat = Catalog(tmp_path, auto_reload=False)
+    cat.render("page.jx", name="Lime")
+    calls = []
+
+    cat.tracer = recorder(calls)
+    cat.render("page.jx", name="Lime")
+    assert ("start", "card.jx") in calls
+
+    # And taken away
+    cat.tracer = None
+    calls.clear()
+    assert collapse(cat.render("page.jx", name="Lime")).endswith("<b>end</b>")
+    assert calls == []
+
+
+def test_tracer_of_render_string(tmp_path):
+    write(tmp_path, TRACED)
+    calls = []
+    cat = Catalog(tmp_path)
+    source = '{#import "badge.jx" as Badge #}<Badge text="s" />'
+    assert cat.render_string(source) == "<b>s</b>"
+
+    cat.tracer = recorder(calls)
+
+    assert cat.render_string(source) == "<b>s</b>"
+    assert [relpath for event, relpath in calls if event == "start"][-1] == "badge.jx"
+    assert len(calls) == 4
+
+
+def test_error_in_a_traced_component_points_to_the_template(tmp_path):
+    write(tmp_path, {
+        "broken.jx": "{#def item #}\n<p>\n{{ item.missing.deeper }}\n</p>",
+        "page.jx": '{#import "broken.jx" as Broken #}<Broken item={{ 1 }} />',
+    })
+    cat = Catalog(tmp_path)
+    cat.tracer = lambda relpath, render, kwargs: render(**kwargs)
+
+    with pytest.raises(Exception) as info:
+        cat.render("page.jx")
+
+    frames = traceback.extract_tb(info.value.__traceback__)
+    templates = [(os.path.basename(f.filename), f.lineno) for f in frames if f.filename.endswith(".jx")]
+    assert templates[-1] == ("broken.jx", 3)
+    assert ("page.jx", 1) in templates

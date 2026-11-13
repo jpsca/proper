@@ -66,7 +66,7 @@ class _Attachment(ProperModel):
     # required dependencies. Note that you can also add your own custom previewers.
     #
     # Read the storage docs for details https://properproject.org/docs/storage/.
-    VARIANTS_ENABLED_FOR: dict[str, str] = {
+    VARIANTS_ENABLED_FOR: dict[str, str] #= {
         # Requires the `pyvips` python library and the
         # [libvips](https://www.libvips.org/install.html) system library.
         # "image/*": "preview_image",
@@ -76,7 +76,7 @@ class _Attachment(ProperModel):
 
         # Requires [ffmpeg v3.4+](https://ffmpeg.org/)
         # "video/*": "preview_video",
-    }
+    #}
 
     # How long, in seconds, a served file may be cached (`Cache-Control:
     # max-age`). The bytes of an attachment never change, so it can be long.
@@ -165,7 +165,7 @@ class _Attachment(ProperModel):
         return Reference.select().where(Reference.attachment == self.id).exists()
 
     @property
-    def variants(self) -> "pw.ModelSelect[t.Self]":
+    def variants(self) -> pw.ModelSelect[t.Self]:
         # Query through `type(self)` so the result is bound to the leaf
         # subclass's database. A peewee `backref` would pin its `rel_model`
         # to the class that declared the FK, breaking further subclassing.
@@ -188,6 +188,7 @@ class _Attachment(ProperModel):
         byte_size: int = 0,
         service_name: str = "",
         source: str = "",
+        **kwargs: t.Any
     ) -> t.Self:
         """Create an Attachment row with metadata only (no file bytes
         yet). Used by the DirectUpload protocol: the client posts blob
@@ -216,14 +217,15 @@ class _Attachment(ProperModel):
             content_type = guess[0] or ""
         content_type = content_type or DEFAULT_CONTENT_TYPE
 
-        obj = cls(
-            service_name=service_name,
+        kwargs.update(
+            id=uuid4().hex,
             filename=filename,
             content_type=content_type,
             byte_size=byte_size,
+            service_name=service_name,
+            source=source,
         )
-        obj.id = uuid4().hex
-        obj.source = source
+        obj = cls(**kwargs)
         obj.save(force_insert=True)
         return obj
 

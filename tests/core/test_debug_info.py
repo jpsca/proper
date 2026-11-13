@@ -17,6 +17,7 @@ from proper.core.debug_info import (
     safe_repr,
 )
 from proper.errors import NotFound
+from proper.helpers import MultiDict
 from proper.test_client import make_test_request
 
 
@@ -83,6 +84,12 @@ def test_safe_repr():
             raise RuntimeError("no repr")
 
     assert safe_repr(Bad()).startswith("<Bad instance at 0x")
+
+
+def test_safe_repr_masks_the_secret_keys_of_dicts_and_multidicts():
+    assert safe_repr({"user": "ana", "password": "hunter2"}) == f"{{'password': '{MASK}', 'user': 'ana'}}"
+    md = MultiDict([("q", "x"), ("tag", "a"), ("tag", "b"), ("api_key", "sk-123")])
+    assert safe_repr(md) == f"MultiDict([('q', 'x'), ('tag', 'a'), ('tag', 'b'), ('api_key', '{MASK}')])"
 
 
 # --- The error and its frames ---
@@ -289,6 +296,11 @@ def test_describe_request():
     assert describe_request(object()) == ""
 
 
+def test_describe_request_masks_the_secret_query_parameters():
+    request = make_test_request("/go?q=x&password=hunter2&api%5Fkey=sk-1&token=&page=2")
+    assert describe_request(request) == f"GET /go?q=x&password={MASK}&api%5Fkey={MASK}&token=&page=2"
+
+
 def test_the_text_of_a_request_whose_form_raises():
     class Request:
         method = "GET"
@@ -314,6 +326,11 @@ class OrderController(Controller):
 
     def show(self):
         raise ValueError(self.params.get("q"))
+
+    def index(self):
+        self.orders = ["a", "b"]
+        self.secret_token = "tok-123"
+        raise ValueError("no")
 
     def chained(self):
         try:
@@ -455,3 +472,35 @@ def test_the_text_of_a_frame_without_variables():
     frame = Frame(path="a.py", lineno=1, name="f", line="x()", context=[(1, "x()")])
     text = format_text([ErrorInfo(type="E", message="", frames=[frame])])
     assert "At a.py:1, in f\n  > 1 | x()\n\nTraceback" in text
+
+
+def test_the_variables_of_a_frame_show_the_attributes_of_self(client):
+    client.app.router.add_route(Route("POST", "orders/list", to=OrderController.index))
+    result = client.post("/orders/list?q=x&token=tok-456", body={"password": "hunter2"})
+
+    body = result.body
+    assert f"POST /orders/list?q=x&token={MASK} -> OrderController.index" in body
+    assert f"self.params = MultiDict([('q', 'x'), ('token', '{MASK}'), ('password', '{MASK}')])" in body
+    assert "self.orders = ['a', 'b']" in body
+    assert f"self.secret_token = {MASK}" in body
+    assert "self.request = " in body
+    assert "self._params" not in body
+    assert "hunter2" not in body and "tok-456" not in body and "'tok-123'" not in body
+
+
+def test_a_debug_property_that_raises_and_an_object_without_dict():
+    class Thing:
+        __slots__ = ("x",)
+        debug_properties = ("broken",)
+
+        @property
+        def broken(self):
+            raise KeyError("x")
+
+        def fail(self):
+            raise ValueError
+
+    error = _caught(Thing().fail)
+    where = get_errors(error)[0].where
+    assert where.variables["self.broken"] == "<raised KeyError>"
+    assert [name for name in where.variables if name.startswith("self.")] == ["self.broken"]

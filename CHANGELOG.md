@@ -2,6 +2,16 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `catalog.tracer`: a function that every component is rendered through,
+  `tracer(relpath, render, kwargs)`, for development tools that time each
+  component or show the tree of the ones a page is made of. `None` by
+  default, and then nothing is added to a render. Setting it forgets the
+  loaded components, which are loaded again on their next render.
+
 ## 0.50.0
 
 ### Added
