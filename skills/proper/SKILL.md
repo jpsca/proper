@@ -2,8 +2,8 @@
 name: proper
 description: Use when building features, adding resources, writing controllers/models/forms/views, or working with addons (auth, storage, i18n, channels) in a Proper web framework application. Also use when the user asks about Proper framework conventions or patterns.
 user-invocable: false
-proper_version: 0.50.0
-last_verified: 2026-11-07
+proper_version: 0.51.0
+last_verified: 2026-11-13
 sources:
   - src/proper/generators
   - blueprint/tests

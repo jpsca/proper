@@ -1,7 +1,7 @@
 ---
 title: Models
 description: Peewee ORM models: defining, field types, relationships, querying, Meta options, custom methods, BaseModel
-last_verified: 2026-11-08
+last_verified: 2026-11-13
 sources:
   - src/proper/models
   - src/proper/_blueprints/model

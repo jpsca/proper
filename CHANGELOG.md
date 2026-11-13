@@ -2,7 +2,7 @@
 
 All notable changes to Proper are documented in this file.
 
-## Unreleased
+## 0.51.0
 
 ### Added
 
