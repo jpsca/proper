@@ -1,7 +1,7 @@
 ---
 title: Controllers
 description: Controller fundamentals: CRUD and state-change resources, the generated controller, parameters, sessions
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/controller
   - src/proper/pipeline.py
@@ -212,7 +212,7 @@ class NotNowController(CardScoped, AppController):
         self.response.redirect_to("Card.show", self.card)
 ```
 
-`pk=None` drops the trailing ID — there's only ever one closure for a card, so `/cards/:card_id/closure` is the whole address. Route names follow the standard convention (`Closure.create`, `Closure.delete`, `NotNow.create`), and each controller stays small: a new state change is a new file, not a new method.
+`pk=None` drops the trailing ID — there's only ever one closure for a card, so `/cards/:card_id/closure` is the whole address. The `card/` subfolder prefixes the route names with `Card:` (`Card:Closure.create`, `Card:Closure.delete`, `Card:NotNow.create`), and each controller stays small: a new state change is a new file, not a new method.
 
 The lookup of the parent record lives in a shared concern so every child controller gets it for free:
 
@@ -236,7 +236,7 @@ proper g controller card/closure
 proper g controller card/not_now --only=create
 ```
 
-This generates the `pk=None` controller with `create`/`delete` stubs under `controllers/card/`, creates the `CardScoped` concern (if it doesn't exist yet), and wires the import into `controllers/__init__.py`. No form or views are generated, since a state change redirects rather than rendering a form; a test skeleton `tests/controllers/test_<child>.py` is. Group the parent and its children under the `controllers/card/` subfolder; the original `card_controller.py` can stay where it is or move to `card/main_controller.py`.
+This generates the `pk=None` controller with `create`/`delete` stubs under `controllers/card/`, creates the `CardScoped` concern (if it doesn't exist yet), and wires the import into `controllers/__init__.py`. No form or views are generated, since a state change redirects rather than rendering a form; a test skeleton `tests/controllers/test_<child>.py` is. Group the parent and its children under the `controllers/card/` subfolder; keep the original `card_controller.py` where it is (moved into `card/`, its routes would become `Card:Card.*` and its views folder `views/card/main/`).
 
 
 ### ID parameter
@@ -271,7 +271,7 @@ When a controller defines `new` but not the action of the root path (`index`, or
 
 ### Manually defined URLs
 
-It is also possible to add routes for individual methods using the decorators `router.get`, `router.post`, `router.patch`, and `router.delete`, for example:
+It is also possible to add routes for individual methods using the decorators `router.get`, `router.post`, `router.put`, `router.patch`, `router.delete`, and `router.query`, for example:
 
 ```python {title="myapp/controllers/public_controller.py"}
 from ..router import router
@@ -383,7 +383,7 @@ def prepare_form(self, object=None):
 
 - After a successful create, update, or delete, the controller redirects with a flash message.
 - The `delete` action checks `if self.card` to handle the case where someone deletes the same record twice (e.g., double-clicking the delete button).
-- `form.save()` validates the data, persists the model (creating or updating), and returns it. No follow-up `obj.save()` needed. See [Forms — Saving](./forms.md) for details on the integration with Peewee.
+- `form.save()`, called after `is_invalid` was checked (it raises `ValueError` on an invalid form), persists the model (creating or updating), and returns it. No follow-up `obj.save()` needed. See [Forms — Saving](./forms.md#saving) for details on the integration with Peewee.
 
 ### Data Flow: params → action → form → save
 
@@ -434,7 +434,7 @@ Data sent by the incoming request is available in your controller via `self.para
 2. **Form body parameters** - submitted from an HTML form
 3. **Route parameters** - extracted from the URL path (e.g., `:card_id`)
 
-Route parameters have the highest priority and will override query and form values with the same name.
+Route parameters have the highest priority and will override query and form values with the same name for `get()` and `[]`; `getall()` returns all of them.
 
 ```python
 @router.resource("clients")
@@ -484,7 +484,7 @@ The body is read and parsed before routing, by `Content-Type` (media type and pa
 
 - `multipart/form-data` → `request.form`: fields as `str`, files as `MultipartPart`
 - `application/x-www-form-urlencoded` (or `application/x-url-encoded`) → `request.form`: fields as `str`
-- `application/json` → `request.form`: the members of the JSON **object**, with their JSON types. Any other JSON value (array, string, number, `true`, `null`) leaves `form` empty; parse `request.body` yourself.
+- `application/json` → `request.form`: the members of the JSON **object**, with their JSON types. Any other JSON value (array, string, number, `true`, `false`, `null`) leaves `form` empty; parse `request.body` yourself.
 - anything else → only `request.body`
 
 `request.body` always has the raw bytes. Urlencoded and JSON bodies are decoded with the `charset` parameter (default UTF-8). Errors raised before the controller runs:

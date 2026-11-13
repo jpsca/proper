@@ -43,7 +43,7 @@ It provides:
 - `touches` - names of foreign keys whose records get `touch()`ed on save and delete; each of those models must be `RussianDollCached` too (or define `touch()`), otherwise it is skipped silently
 - `touch()` - bump this record's `updated_at` and propagate through `touches`
 
-`{% cache(obj) %}` and `response.fresh_when(obj)` need `updated_at`, so use this concern on the models you cache.
+`{% cache(obj) %}` and `self.fresh_when(obj)` need `updated_at`, so use this concern on the models you cache.
 
 ### Writing Your Own Mixins
 

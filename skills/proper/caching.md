@@ -1,7 +1,7 @@
 ---
 title: Caching
 description: Server-side caching — configuration, cache store API, fragment caching, HTTP caching
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/cache
   - src/proper/tools/cache.py
@@ -170,7 +170,7 @@ Both backends behave this way. `SqliteCache` extends the row with a compare-and-
 
 ### Increment and Decrement
 
-The `increment` and `decrement` methods atomically modify a counter. If the key doesn't exist or has expired, it starts from the given value:
+The `increment` and `decrement` methods atomically modify a counter. If the key doesn't exist or has expired, it starts from the given value. Each call also resets the key's TTL:
 
 ```python
 # Increment by 1 (default)
@@ -346,7 +346,7 @@ The template side uses nested `{% cache %}` blocks:
 
 The challenge: when a comment changes, its own fragment invalidates (its `updated_at` changed), but the outer `{% cache(post) %}` fragment still has the old `post.updated_at` and keeps serving stale HTML.
 
-The fix is to declare `touches` on the child model, with the `RussianDollCached` concern (`models/concerns/russian_doll_cached.py`, a subclass of `BaseModel`). It is also what provides `updated_at`: the generated `BaseModel` has only `created_at`, and `RussianDollCached` adds the `updated_at` column, bumps it on `save()` and `Model.update()`, and provides `touch()`. A model without `updated_at` is cached with version `0` (its fragment never invalidates on update) and makes `fresh_when(obj)` fail. Every model named in `touches` must be `RussianDollCached` too (or define `touch()`); otherwise it is skipped silently.
+The fix is to declare `touches` on the child model, with the `RussianDollCached` concern (`models/concerns/russian_doll_cached.py`, a subclass of `BaseModel`). It is also what provides `updated_at`: the generated `BaseModel` has only `created_at`, and `RussianDollCached` adds the `updated_at` column, bumps it on `save()` and `Model.update()`, and provides `touch()`. A model without `updated_at` is cached with version `0` (its fragment never invalidates on update) and makes `fresh_when(obj)` fail. Every model reached through a `touches` field must be `RussianDollCached` too (or define `touch()`); otherwise it is skipped silently.
 
 ```python {title="models/comment.py"}
 class Comment(RussianDollCached, BaseModel):
@@ -374,26 +374,41 @@ You can also bump a record's `updated_at` manually with `touch()` (a `RussianDol
 post.touch()
 ```
 
+It updates the row, not the instance: `post.updated_at` keeps its old value until the post is loaded again.
+
 
 ## HTTP Caching
 
-Separate from the server-side cache store, Proper supports HTTP conditional requests using ETag and Last-Modified headers. This is handled at the response level.
+Separate from the server-side cache store, Proper supports HTTP conditional requests using ETag and Last-Modified headers. `self.fresh_when()` sets them in an action.
 
 ### fresh_when
 
-Use `self.response.fresh_when()` to set caching headers on a response. Pass model objects with an `updated_at` attribute:
+Use `self.fresh_when()` to set caching headers on a response. Pass model objects with an `updated_at` attribute:
 
 ```python
 def show(self):
     self.card = Card.get_by_id(self.params["card_id"])
-    self.response.fresh_when(self.card)
+    self.fresh_when(self.card)
 
 def index(self):
     self.cards = Card.select().order_by(Card.created_at.desc())
-    self.response.fresh_when(self.cards)
+    self.fresh_when(self.cards)
 ```
 
 If `fresh_when()` determines the response is fresh, the action's rendered output is discarded and a `304 Not Modified` is returned automatically. You don't need to check the return value.
+
+The controller's `etag` is added to the ETag: a class attribute, `""` in `Controller`, that concerns extend with `super().etag`. `Pagination` adds the page, `CurrentLocale` the locale and `CurrentTimezone` the timezone, so each page, language and timezone of the same objects has its own ETag. Override it for anything else the response depends on:
+
+```python
+from proper import current
+
+class CardController(AppController):
+    @property
+    def etag(self):
+        return f"{super().etag}-{current.user.id}".strip("-")
+```
+
+`self.response.fresh_when()` takes the same arguments (and `request`) and doesn't add the controller's `etag`.
 
 The freshness check (`self.response.is_fresh()`) uses these RFC 9110 rules:
 
@@ -409,7 +424,7 @@ A 304 always goes out without a body: if the action sets `self.response.status =
 Options:
 
 ```python
-self.response.fresh_when(
+self.fresh_when(
     self.card,
     strong=True,     # Strong ETag (default: weak)
     public=True,     # Allow proxy caches (default: private)
@@ -419,8 +434,10 @@ self.response.fresh_when(
 You can also set the ETag and Last-Modified explicitly:
 
 ```python
-self.response.fresh_when(etag="v1-abc123", last_modified=some_datetime)
+self.fresh_when(etag="v1-abc123", last_modified=some_datetime)
 ```
+
+The ETag value is sha1-hashed: the header is `W/"<sha1>"`, not `v1-abc123`. `fresh_when()` always sets `Cache-Control` to `max-age=0, private, must-revalidate` (`public` with `public=True`), replacing a `set_cache_control()` made before it.
 
 ### Cache-Control
 

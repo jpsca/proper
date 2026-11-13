@@ -348,8 +348,8 @@ class Catalog:
                 `{% name args %}body{% endname %}` calls
                 `function(args, caller=body, template="dir/file.jx")`, where
                 `body()` renders the body, only if the function calls it.
-                What the function returns is rendered, escaped unless it is
-                markup (the body is, with autoescape).
+                What the function returns is output as it is, not escaped;
+                the body `caller()` returns is already escaped.
             output:
                 Where the compiled modules go. By default, next to each
                 `.jx`. With a folder, those of each folder of components go
@@ -423,7 +423,8 @@ class Catalog:
         It is called with the component's path (`"layouts/base.jx"`), the
         function that renders it, and the arguments it was called with
         (those of `catalog.render()`, or the attributes of its tag in
-        another component, plus `content`, `_globals` and `_fills`). It
+        another component, plus `_globals`, and `content` and `_fills`
+        when the tag has them). It
         must return what `render(**kwargs)` returns. The components a
         component uses are rendered by it, so their calls to the tracer
         happen inside `render(**kwargs)`; the content of a component is

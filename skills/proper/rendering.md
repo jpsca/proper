@@ -1,7 +1,7 @@
 ---
 title: Rendering Responses
 description: What an action returns: implicit and explicit templates, JSON and text, Turbo Streams, redirects and flash messages, HTTP errors and error handlers, request/response basics
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/controller
   - src/proper/core/response
@@ -105,7 +105,7 @@ def show(self):
     return self.render(json={"id": card.id, "title": card.title})
 ```
 
-This sets the Content-Type to `application/json` and serializes the data using a custom encoder that handles `datetime` objects (dates are prefixed with `"__dt__"` for round-trip parsing).
+This sets the Content-Type to `application/json` and serializes the data using a custom encoder that handles `date` and `datetime` objects (dates are prefixed with `"__dt__"` for round-trip parsing).
 
 ### Turbo Stream Responses
 
@@ -237,9 +237,9 @@ self.response.status = status.im_a_teapot
 All render modes also accept a `status` parameter:
 
 ```python
-return self.redo()
-return self.render(json={"error": "not found"}, status=not_found)
-return self.render(text="created", status=created)
+return self.redo(status=status.conflict)
+return self.render(json={"error": "not found"}, status=status.not_found)
+return self.render(text="created", status=status.created)
 ```
 
 Status codes are imported from `proper.status` as integers (e.g., `proper.status.unprocessable` is `422`).
@@ -278,7 +278,7 @@ self.response.redirect_to("Card.show", card_id=card.id)
 # Redirect to a named route with an object
 self.response.redirect_to("Card.show", card)
 
-# Redirect to an absolute URL
+# Redirect to a path (anything starting with `/` or `http` is a URL, not a route name)
 self.response.redirect_to("/dashboard")
 
 # Redirect to an external URL
@@ -293,7 +293,7 @@ from proper import status
 self.response.redirect_to("/new-location", status=status.moved_permanently)
 ```
 
-When using `url_for` or `redirect` for a route with arguments, prefer passing an object instead of indivual arguments. For example, do `url_for('Post.edit', post)` instead of `url_for('Post.edit', id=post.id)`.
+When using `url_for` or `redirect` for a route with arguments, prefer passing an object instead of individual arguments. For example, do `url_for('Post.edit', post)` instead of `url_for('Post.edit', id=post.id)`.
 
 
 ### Flash Messages
@@ -399,7 +399,7 @@ If several handlers match an error, the most specific one wins: the one for the 
 
 ## HTTP Caching
 
-`self.response.fresh_when(obj_or_collection)` sets `ETag`/`Last-Modified` and turns the response into a `304 Not Modified` when the client already has it. The options and the freshness rules are in [caching.md](caching.md#http-caching).
+`self.fresh_when(obj_or_collection)` sets `ETag`/`Last-Modified` and turns the response into a `304 Not Modified` when the client already has it. The options and the freshness rules are in [caching.md](caching.md#http-caching).
 
 
 ## Request and Response Objects

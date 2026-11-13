@@ -11,10 +11,28 @@ All notable changes to Proper are documented in this file.
   component or show the tree of the ones a page is made of. `None` by
   default, and then nothing is added to a render. Setting it forgets the
   loaded components, which are loaded again on their next render.
+- The debug error page shows the attributes of `self` in each frame
+  (`self.request`, `self.orders`), and the properties its class lists in
+  the new `debug_properties`: `("params",)` in `Controller`.
+- `self.fresh_when()` in controllers: `self.response.fresh_when()` with the
+  controller's `etag` added to the ETag, so the page (`Pagination`), the
+  locale (`CurrentLocale`) and the timezone (`CurrentTimezone`) are part of
+  it. Before, nothing used the controller's `etag`.
 
 ### Changed
 
 - `Attachment.VARIANTS_ENABLED_FOR` is now a tuple of `("pattern", "method")` instead of a dict.
+- The debug error page also masks the secret query parameters, the secret
+  attributes of `self`, and the secret keys of the dicts and `MultiDict`s
+  it shows.
+- `cache.update()` works: it was bound to the `set()` of the base class,
+  which raises `NotImplementedError`.
+- A `SqliteCache` in `:memory:` is no longer added to `app.db` (as
+  `proper_cache`).
+- The test of a generated state-change controller names the route with its
+  folder, like `Card:Closure.create`.
+- `repr()` of a `MultiDict` shows its `(key, value)` pairs, with every
+  value of a repeated key, instead of only its keys.
 
 ## 0.50.0
 

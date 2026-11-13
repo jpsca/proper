@@ -218,7 +218,7 @@ cache.increment("page:views:42", expires_in=3600)
 remaining = cache.decrement("quota:remaining:user-7", 5)
 ```
 
-If the key doesn't exist or has expired, the counter starts from the given value. Under the hood, the SQLite backend wraps the read-modify-write in a transaction; the Redis backend uses an optimistic `WATCH`/`MULTI` loop. Both are safe to call from concurrent requests.
+If the key doesn't exist or has expired, the counter starts from the given value. Each call also resets the key's TTL, so a counter that keeps changing doesn't expire. Under the hood, the SQLite backend wraps the read-modify-write in a transaction; the Redis backend uses an optimistic `WATCH`/`MULTI` loop. Both are safe to call from concurrent requests.
 
 This is the primitive the rate limiter uses internally - see [Controllers Advanced, section 3](/docs/controllers_advanced#rate-limiting-the-hard-cases).
 
@@ -445,7 +445,7 @@ You can also bump a record's timestamp yourself, without going through a save:
 post.touch()
 ```
 
-That's useful when something external changes the post's effective freshness - a moderator approves it, an attached image finishes processing, a related record outside the `touches` chain is updated. `touch()` updates the row's `updated_at` and propagates to anything declared in its own `touches`.
+That's useful when something external changes the post's effective freshness - a moderator approves it, an attached image finishes processing, a related record outside the `touches` chain is updated. `touch()` updates the row's `updated_at` and propagates to anything declared in its own `touches`. It updates the row, not the object: `post.updated_at` keeps its old value until you load the post again.
 
 ### When to reach for it
 
@@ -471,12 +471,12 @@ The mechanism is the **conditional GET**. Every response carries either an `ETag
 
 ### `fresh_when`
 
-The controller-level helper is `self.response.fresh_when`. Pass a model object with an `updated_at` attribute and Proper handles both headers:
+The controller-level helper is `self.fresh_when`. Pass a model object with an `updated_at` attribute and Proper handles both headers:
 
 ```python
 def show(self):
     self.card = Card.get_by_id(self.params["card_id"])
-    self.response.fresh_when(self.card)
+    self.fresh_when(self.card)
 ```
 
 After the action runs, Proper checks the request's `If-None-Match` (or, when the request has none, its `If-Modified-Since`). If the cached version on the client matches, the response body is discarded and the status set to `304`. If not, the rendered HTML is sent as normal. Only `GET` and `HEAD` requests with a 2xx response can get a `304`.

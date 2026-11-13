@@ -168,7 +168,8 @@ class TestTestStub:
         assert "from myapp.main import app" in text
         assert "def test_closure_create(client):" in text
         assert "def test_closure_delete(client):" in text
-        assert 'app.url_for("Closure.create", card_id=card.id)' in text
+        assert 'app.url_for("Card:Closure.create", card_id=card.id)' in text
+        assert 'app.url_for("Card:Closure.delete", card_id=card.id)' in text
 
 
 class TestForce:

@@ -121,18 +121,14 @@ def test_cache_tag_registered_in_the_catalog():
     assert "cache" in app.catalog.tags
 
 
-def test_cache_db_registered_if_present():
-    """If the cache instance has a .database attr, it is added to app.db."""
-    mock_db = MagicMock()
+def test_a_file_cache_db_is_registered(tmp_path):
+    app = _make_app(CACHE={"type": "proper.cache.SqliteCache", "database": str(tmp_path / "cache.db")})
+    assert app.db.get("proper_cache") is app.cache.database
 
-    with patch("proper.tools.cache.get_instance") as mock_get:
-        mock_cache = MagicMock()
-        mock_cache.database = mock_db
-        mock_get.return_value = mock_cache
 
-        app = _make_app(CACHE={"type": "proper.cache.NoCache"})
-
-    assert app.db.get("proper_cache") is mock_db
+def test_a_memory_cache_db_is_not_registered():
+    app = _make_app(CACHE={"type": "proper.cache.SqliteCache", "database": ":memory:"})
+    assert "proper_cache" not in app.db
 
 
 def test_cache_config():

@@ -1,7 +1,7 @@
 ---
 title: Callbacks and Concerns
 description: before/after callbacks, writing a concern, and the built-in concerns: OriginProtection, Pagination, RateLimiting, CurrentLocale, CurrentTimezone, SecurityHeaders
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/concerns
   - src/proper/controller
@@ -58,7 +58,7 @@ The `"do"` argument is one method name, defined in the class or in one of its pa
 
 The `only` option runs the callback only for the listed actions; there is also an `exclude` option which works the other way.
 
-**Warning:** If a before callback sets `response.body`, the action is never called — this is logged.
+**Warning:** If a before callback sets `response.body`, the action is never called — this is logged at debug level.
 
 ### `after` callback
 
@@ -81,7 +81,7 @@ class SecurityHeaders(Concern):
 
 ### Multiple callbacks
 
-Both `before` and `after` callbacks can be written as list of dictionaries, to have many callbacks with different options in the same controller. The callbacks will be executed in MRO order.
+Both `before` and `after` callbacks can be written as list of dictionaries, to have many callbacks with different options in the same controller. Within a class they run in list order. `before` callbacks run from the base class down, so of the bases listed together, the last one's run first (`class AppController(OriginProtection, RateLimiting, Controller)` runs `RateLimiting`'s, then `OriginProtection`'s); `after` callbacks run in the reverse order.
 
 ```python
 from .app_controller import AppController
@@ -134,7 +134,7 @@ class ProjectController(TeamScoped, AppController):
 
 ### Built-in Concerns
 
-These concerns are available from `proper.concerns`:
+These concerns are available from `proper.concerns` (it also has `Authentication`, see [auth.md](auth.md), and `FormValidation`, see [forms.md](forms.md#the-formvalidation-concern)):
 
 #### OriginProtection
 
@@ -183,13 +183,13 @@ def index(self):
 
 `paginate_for(query, *, per_page=None, ordered_by=None, cursor_secret=None)`:
 
-- `per_page`: an int (fixed size) or a list of ints (geared sizes; the last repeats). Defaults to `[15, 30, 50, 100]`.
+- `per_page`: an int (fixed size) or a list of ints (geared sizes; the last repeats). Defaults to `(15, 30, 50, 100)`.
 - `ordered_by`: pass it to switch from `LIMIT/OFFSET` to **cursor (keyset)** paging. A list of `(field, "asc"|"desc")` pairs, bare fields (ascending), or a dict. The last column must be unique (usually the primary key). Cursor paging is count-free.
 - `cursor_secret`: optional secret to sign cursor tokens (tamper-detected on decode).
 
 `self.page` is a `Page`: `.records`, `.number`, `.size`, `.is_first`, `.is_last`, `.is_only`, `.is_before_last`, `.is_empty`, `.next_param` (next page number, cursor token, or `None` on the last page), `.cache_key`, plus `.recordset.page_count` and `.recordset.records_count`. The `Page` is iterable and `len()`-able.
 
-On JSON responses the concern sets `X-Total-Count` (offset mode only) and a `Link: rel="next"` header (omitted on the last page), and folds `self.page.cache_key` into the response `etag`.
+On JSON responses the concern sets `X-Total-Count` (offset mode only) and a `Link: rel="next"` header (omitted on the last page). On any response, it extends the controller's `etag` with `self.page.cache_key`, so `self.fresh_when()` gives each page its own ETag.
 
 
 #### RateLimiting
@@ -280,17 +280,17 @@ This concern is included in the default `AppController` but does nothing unless 
 
 Resolves the current locale for the request and assigns it to `current.locale` in a `before` callback. Wired up by the `i18n` addon — see [i18n.md](i18n.md).
 
-Resolution order: URL param → cookie → `current.user.locale` → `app.i18n.negotiate_locale(accept_language)` → `LOCALE_DEFAULT` config.
+Resolution order: the `locale` param (query, form or route) → the `locale` cookie → `current.user.locale` → `app.i18n.negotiate_locale(accept_language)` → `LOCALE_DEFAULT` config.
 
-The concern also extends `etag` to include `current.locale`, so cached responses vary by language.
+The concern also extends the controller's `etag` with `current.locale`, so `self.fresh_when()` gives each language its own ETag.
 
 #### CurrentTimezone
 
 Resolves the current timezone and assigns it to `current.timezone` in a `before` callback. Wired up by the `i18n` addon — see [i18n.md](i18n.md).
 
-Resolution order: URL param → cookie → `current.user.timezone` → `TIMEZONE_DEFAULT` config.
+Resolution order: the `timezone` param (query, form or route) → the `timezone` cookie → `current.user.timezone` → `TIMEZONE_DEFAULT` config.
 
-Like `CurrentLocale`, this concern extends `etag` to include `current.timezone`.
+Like `CurrentLocale`, this concern extends the controller's `etag` with `current.timezone`.
 
 #### SecurityHeaders
 

@@ -1,7 +1,7 @@
 ---
 title: Jx Components
 description: Component template system — syntax, imports, props, content and slots, attrs, component assets, SVG icons
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/views
 ---
@@ -14,7 +14,7 @@ Jx is a component-based template system with Jinja's syntax. Components are `.jx
 **Not available:** `include`, `extends`, `block` (use components and layouts), `with`, `call`, block `set`, `namespace()`, imports with a `@prefix/`, Jinja extensions.
 
 **Escaping:** `{{ }}` escapes in `.jx`, `.html.jx` and `.xml.jx` files, unless the value is markup (a component's output, `attrs.render()`, form fields, `| safe`). Other files (`.txt.jx`, `.json.jx`) render values as they are.
-**Names:** a name that is not an argument, a `set` variable, a loop variable or a global is a `KeyError` (with a note saying where it was looked for). A `set` of a new name inside a `for` is not visible after the loop; a `set` of a name that already exists changes it (there is no loop scope, unlike Jinja). Inside a `{% fill %}`, a macro or a block tag's body, a `set` never changes the outer value.
+**Names:** a name that is not an argument, a `set` variable, a loop variable or a global is a `KeyError` (with a note saying where it was looked for), except in `| default(...)` and `is defined`. Arguments that the `{#def}` doesn't declare are only in `attrs`. A `set` of a new name inside a `for` is not visible after the loop; a `set` of a name that already exists changes it (there is no loop scope, unlike Jinja). Inside a `{% fill %}`, a macro or a block tag's body, a `set` never changes the outer value.
 
 Component JavaScript is a Stimulus controller declared with `{#js #}`, never inline vanilla JavaScript: see [frontend.md, Stimulus](frontend.md#stimulus). The standalone `jx` skill, when installed, has UI component patterns (buttons, modals, dropdowns); its library mechanics (`jx.Catalog`) are the standalone package's, while a Proper app uses `app.catalog` ([reference/jx_catalog.md](reference/jx_catalog.md)).
 
@@ -140,7 +140,7 @@ Use `{#def ...#}` at the top of a component:
 - `title` — required (no default)
 - `count` — optional (defaults to `0`)
 
-Defaults are Python expressions: strings, numbers, booleans, lists, dicts, etc. A default that is not a plain literal (`tags=[]`, `config={"a": [1]}`) is **evaluated again at every render**, so it is never shared between renders, nested values included.
+Defaults are Python expressions: strings, numbers, booleans, lists, dicts, etc. They can't use globals or other names, except `len`, `max`, `min`, `pow` and `sum` (a compile error). A default that is not a plain literal (`tags=[]`, `config={"a": [1]}`) is **evaluated again at every render**, so it is never shared between renders, nested values included.
 
 For components with many arguments, `{#def}` can span multiple lines:
 
@@ -159,7 +159,7 @@ Arguments can have type annotations for runtime validation of built-in types:
 {#def title: str, count: int = 0 #}
 ```
 
-When the annotation resolves to a Python built-in (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `float`, `bytes`), Jx runs `isinstance(value, expected_type)` at render time (the default value too) and raises `InvalidPropType` (a `TypeError`) on a mismatch. Type checking is **shallow**: for `list[str]`, only the outer `list` is checked; the elements are not inspected. The same applies to `dict[str, int]`.
+When the annotation resolves to a Python built-in (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `frozenset`, `float`, `complex`, `bytes`, `bytearray`, `memoryview`, `range`, `slice`, `type`), Jx runs `isinstance(value, expected_type)` at render time (the default value too) and raises `InvalidPropType` (a `TypeError`) on a mismatch. Type checking is **shallow**: for `list[str]`, only the outer `list` is checked; the elements are not inspected. The same applies to `dict[str, int]`.
 
 Annotations that don't resolve to a built-in — custom classes, unions like `int | str`, `Optional[int]`, `typing.Iterable[str]` — are not checked, nor evaluated: they are kept as text in the signature of the compiled function. Stick to built-ins for strict checking; drop the annotation when you need a permissive shape.
 
@@ -282,7 +282,7 @@ The `attrs` object collects any HTML attributes passed to a component that aren'
 
 For example, given `{#def text #}` and `<Button text="Save" id="save-btn" class="primary" />`, `text` becomes a variable while `id` and `class` go into `attrs`.
 
-An attribute name with a space, a quote, `<`, `>`, `/`, `=` or a control character raises `ValueError` (from `Attrs(...)`, `set()`, `setdefault()` and `render()`), so a name that comes from data (`attrs={{ {key: value} }}`) can't break out of the tag. Values are always quoted and escaped.
+An attribute name with a space, a quote, `<`, `>`, `/`, `=` or a control character raises `ValueError` (from `Attrs(...)`, `set()`, `setdefault()` and `render()`), so a name that comes from data (`attrs={{ {key: value} }}`) can't break out of the tag. Values are always quoted and escaped, except `Markup`.
 
 ### Basic Usage
 
@@ -335,8 +335,8 @@ Renders attributes as `data-user-id`, `aria-label`, `hx-get`.
 
 | Method | Description |
 |--------|-------------|
-| `attrs.render(**kw)` | Render all attributes as an HTML string. Extra kwargs are merged (classes appended, others override). `True` = boolean attr, `False` = remove, underscores become dashes. |
-| `attrs.set(**kw)` | Modify attributes before rendering. Same merging rules as `render()`. Classes are appended, not replaced. |
+| `attrs.render(**kw)` | Render all attributes as an HTML string. Extra kwargs are merged (their classes go before the ones passed to the component, others override). `True` = boolean attr, `False` = remove, underscores become dashes. |
+| `attrs.set(**kw)` | Modify attributes before rendering. Classes are added after the existing ones, not replaced; others override. |
 | `attrs.setdefault(**kw)` | Set attributes only if not already present. |
 | `attrs.get(name, default=None)` | Get the value of an attribute. |
 | `attrs.add_class(*classes)` | Add one or more classes. |
@@ -375,7 +375,7 @@ You can also use the alias `classes` instead of `class` if needed (e.g., to avoi
 
 ```html+jinja
 {%- set btn_type = attrs.get("type", "button") %}
-<button {{ attrs.render() }} type="{{ btn_type }}">{{ content }}</button>
+<button {{ attrs.render(type=btn_type) }}>{{ content }}</button>
 ```
 
 **Adding/removing classes:**
@@ -399,7 +399,7 @@ Pass `attrs` explicitly as an argument:
 </div>
 ```
 
-Do **not** use `{{ attrs.render() }}` on component tags — it won't work. Component tags are preprocessed before rendering.
+Do **not** use `{{ attrs.render() }}` on component tags — it is a compile error. Pass them with `attrs={{ attrs }}`.
 
 ### Best Practices
 
@@ -431,11 +431,11 @@ Asset paths can be:
 - **Absolute path**: `/assets/css/global.css`
 - **Full URL**: `https://cdn.example.com/library.js`
 
-Jx doesn't process or rewrite asset URLs; they're used exactly as you write them.
+Jx doesn't process or rewrite asset URLs; they're collected exactly as you write them. The generated layout passes every one through `url_for('assets', file=url)`, so with it only paths relative to `assets/` work; for an absolute path or a full URL, change the layout's loop.
 
 ### Collecting Assets
 
-In the layout, use `assets.collect_css()` and `assets.collect_js()` to get the URLs declared by all components used on the page:
+In the layout, use `assets.collect_css()` and `assets.collect_js()` to get the URLs declared by the page's component and all the components it imports:
 
 ```html+jinja
 {% for url in assets.collect_css() %}

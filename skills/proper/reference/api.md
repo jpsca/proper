@@ -1,7 +1,7 @@
 ---
 title: API Reference
 description: Reference: attributes and methods of Controller, App, Request and Response; other public exports; units; DotDict and MultiDict
-last_verified: 2026-11-08
+last_verified: 2026-11-13
 sources:
   - src/proper/controller/controller.py
   - src/proper/app.py
@@ -49,18 +49,20 @@ The base class for all controllers. Accessed as `self` inside controller actions
 
 | Method   | Signature                                                    | Description                                                                                                  |
 |----------|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `render` | `(name="", *, status=None, json=None, text=None, stream=None) -> str` | Render a template, JSON, plain text or Turbo Stream response (`stream`: one fragment or a list; sets the `text/vnd.turbo-stream.html` mimetype). Sets `response.body` and optionally `response.status`. |
+| `render` | `(name="", *, status=None, json=None, text=None, stream=None) -> str` | Render a template, JSON, plain text or Turbo Stream response (`stream`: one fragment or a list; sets the `text/vnd.turbo-stream.html` mimetype). Returns the body, for the action to return; sets `response.status` if given, and the mimetype for `json`, `text` and `stream`. |
+| `fresh_when` | `(objects=None, *, etag=None, last_modified=None, strong=False, public=False) -> bool` | `self.response.fresh_when()` with the controller's `etag` added to the ETag. See [caching.md](../caching.md#fresh_when). |
 | `redo`   | `(status=422) -> None`                                       | Re-render the form page for the current action by setting `self.response.body` directly. Maps `update` → `edit.jx`; any other action → `new.jx`. Use in `create`/`update` when `form.is_invalid`. |
 
-### Callbacks
+### Class Attributes
 
-Callbacks are class attributes that control before/after hooks. See [concerns.md](../concerns.md#controller-callbacks) for full details.
+`before` and `after` control the callbacks. See [concerns.md](../concerns.md#controller-callbacks) for full details.
 
 | Attribute    | Type                   | Description                                                        |
 |--------------|------------------------|--------------------------------------------------------------------|
 | `before`     | `dict \| list[dict]`   | Before-action callbacks. Keys: `do`, `only`, `exclude`.            |
 | `after`      | `dict \| list[dict]`   | After-action callbacks. Same keys as `before`.                     |
-| `etag`       | `str`                  | Class attribute, `""` by default: a cache-key fragment that concerns extend with `super().etag` (pagination, locale, timezone). |
+| `etag`       | `str`                  | Class attribute, `""` by default: a part of the ETag that `fresh_when()` sets; concerns extend it with `super().etag` (pagination, locale, timezone). |
+| `debug_properties` | `tuple[str, ...]` | Class attribute, `("params",)` by default: the properties the debug error page shows, with the attributes of `self`, in the frames of the controller. |
 
 ### Template Variables
 
@@ -95,7 +97,7 @@ Accessed via `current.app` or directly from the app instance.
 | `mailer`         | `BaseMailer`                  | Default mailer backend instance                      |
 | `mailers`        | `Mailers`                     | Mailer registry — `app.mailers[name]` selects a backend by config name |
 | `auth`           | `Auth`                        | Auth instance (password hashing, token helpers)      |
-| `i18n`           | `I18n \| None`                | Internationalization instance (`None` if not installed) |
+| `i18n`           | `I18n`                        | Internationalization instance (always set, with or without `config/locales/`) |
 | `cable`          | `BaseCable`                   | The cable of the channels: `Cable` with the channels addon; without it, a `BaseCable` that serves no WebSockets |
 | `request_cls`    | `type[Request]`               | Request class used for creating request objects      |
 | `response_cls`   | `type[Response]`              | Response class used for creating response objects    |
@@ -147,7 +149,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | `port`             | `int`             | The port from the `Host` header, else the server's port; the protocol's default port without one |
 | `content_type`     | `str \| None`     | The `Content-Type` header (`None` without one)                 |
 | `content_length`   | `int`             | Body size from the `Content-Length` header (`0` without one)   |
-| `headers`          | `MultiDict`       | HTTP request headers                                           |
+| `headers`          | `MultiDict`       | HTTP request headers, with lowercase names: look them up in lowercase |
 | `body`             | `bytes`           | The raw request body (`b""` for GET and HEAD)                  |
 | `form`             | `MultiDict`       | Parsed request body (form fields and uploaded files; the members of a JSON object) |
 | `matched_route`    | `Route \| None`   | The route matched during routing                               |
@@ -165,7 +167,7 @@ Accessed via `current.request` or as `self.request` inside a controller. See als
 | Property           | Type                       | Description                                                         |
 |--------------------|----------------------------|---------------------------------------------------------------------|
 | `app`              | `App`                      | The application instance                                            |
-| `session`          | `dict`                     | Session data (read/write)                                           |
+| `session`          | `dict`                     | The session the request came with: read it here, write to `response.session` |
 | `query`            | `MultiDict`                | Query string parameters                                             |
 | `query_string`     | `str`                      | Raw query string                                                    |
 | `url`              | `str`                      | The path and the query string (no scheme or host)                   |
@@ -252,14 +254,14 @@ Accessed via `current.response` or as `self.response` inside a controller. See a
 | Property       | Type      | Description                           |
 |----------------|-----------|---------------------------------------|
 | `app`          | `App`     | The application instance              |
-| `session`      | `dict`    | Session data (read/write)             |
-| `error`        | `Exception \| None` | The exception that caused this response (read/write). Setting it drops the body and its headers, sets `status` from the error (500 by default) and copies the error's `headers` |
-| `has_body`     | `bool`    | `True` if the response has a body     |
+| `session`      | `dict`    | The session to save: changes are written to the session cookie |
+| `error`        | `Exception \| None` | The exception that caused this response (read/write). Setting it drops the body and its headers, sets `status` from the error (500 by default) and copies the error's `headers`. Assigning `None` also sets `status` to 500 |
+| `has_body`     | `bool`    | `True` if `body` is not `None` (an empty string counts) |
 | `status_code`  | `int`     | Alias for `status`                    |
 
 ### Header Properties
 
-All of these are read/write except where noted. Getters return the header as sent. The setters of `cache_control`, `content_encoding` and `vary` take a list of values (`response.vary = ["Accept"]`), `expires` and `last_modified` a `datetime`, `retry_after` an `int`; the `set_*` methods below take the same as positional arguments, and `None` (or no arguments) deletes the header.
+All of these are read/write except where noted. Getters return the stored value (a list, a `datetime`, an `int`), not the header text. The setters of `cache_control`, `content_encoding` and `vary` take a list of values (`response.vary = ["Accept"]`), `expires` and `last_modified` a `datetime` or a timestamp, `retry_after` an `int` (`0` deletes it); the `set_*` methods below take the same as positional arguments, and `None` (or no arguments) deletes the header.
 
 | Property           | Type                | Description                         |
 |--------------------|---------------------|-------------------------------------|
@@ -273,11 +275,11 @@ All of these are read/write except where noted. Getters return the header as sen
 | `mimetype`         | `str`               | MIME type portion of `Content-Type`  |
 | `charset`          | `str`               | Charset portion of `Content-Type`   |
 | `etag`             | `str \| None`       | `ETag` header (read-only, use `set_etag` to write) |
-| `expires`          | `str \| None`       | `Expires` header                    |
+| `expires`          | `datetime \| None`  | `Expires` header                    |
 | `last_modified`    | `datetime \| None`  | `Last-Modified` header              |
 | `location`         | `str \| None`       | `Location` header                   |
-| `retry_after`      | `str \| None`       | `Retry-After` header                |
-| `vary`             | `str \| None`       | `Vary` header                       |
+| `retry_after`      | `int \| None`       | `Retry-After` header                |
+| `vary`             | `list[str] \| None` | `Vary` header                       |
 
 ### Methods
 
@@ -305,6 +307,8 @@ All of these are read/write except where noted. Getters return the header as sen
 | `set_content_location` | `(url) -> None`                                                                                          | Set the `Content-Location` header                        |
 | `prepare`            | `(request=None) -> tuple[int, list[tuple[str, str]], bytes \| Iterable[bytes]]`                             | Status, headers and body ready for the server (an empty body for `HEAD`) |
 | `get_headers_list`   | `() -> list[tuple[str, str]]`                                                                              | Headers and cookies as `(name, value)` pairs             |
+| `get_header_tuples`  | `() -> list[tuple[str, str]]`                                                                              | Headers as `(name, value)` pairs, without the cookies    |
+| `get_cookie_tuples`  | `() -> list[tuple[str, str]]`                                                                              | Cookies as `("Set-Cookie", value)` pairs                 |
 
 ### Setting Headers
 
@@ -398,7 +402,7 @@ See [models.md](../models.md) for full details.
 | `ProperModel`  | Base Peewee model with scope support and token generation methods        |
 | `scope`        | Decorator that tags a classmethod as a chainable query scope             |
 | `ScopedSelect` | The `Select` subclass returned by scoped queries; propagates scopes through chained method calls (rarely used directly). |
-| `JSONField`    | Backwards compatibility only: use `pw.JSONField` (also re-exported from `proper`) |
+| `JSONField`    | A `pw.JSONField` subclass, kept for backwards compatibility only: use `pw.JSONField` |
 | `run_seeds`    | `from proper.models import run_seeds`: `(name="", db="main") -> bool`, the `proper db seed` runner |
 
 ### Channel
@@ -444,7 +448,7 @@ Utility functions and classes available from `proper`.
 |-------------------|----------------------------------------------------------------|
 | `DotDict`         | Dict subclass with attribute-style access (`d.key`)            |
 | `MultiDict`       | Dict that supports multiple values per key (query/form params) |
-| `CIMultiDict`     | Case-insensitive `MultiDict` (request headers)                 |
+| `CIMultiDict`     | Case-insensitive `MultiDict` (the `TestClient`'s response headers) |
 | `JSONField`       | Backwards compatibility only: use `pw.JSONField`                |
 | `make_list`       | `from proper.helpers import make_list`: wrap a value in a list if it isn't one already (a tuple becomes a list) |
 
