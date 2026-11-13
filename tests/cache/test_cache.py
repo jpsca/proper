@@ -101,8 +101,14 @@ class TestBaseCache:
         with pytest.raises(NotImplementedError):
             cache.delete("key")
 
-    def test_update_is_set(self):
-        assert BaseCache.update is BaseCache.set
+    def test_update_calls_set(self):
+        class Recorder(BaseCache):
+            def set(self, key, value, *, expires_in=None):
+                self.called = (key, value, expires_in)
+
+        cache = Recorder()
+        cache.update("a", 1, expires_in=5)
+        assert cache.called == ("a", 1, 5)
 
     def test_delete_expired_is_noop(self):
         cache = BaseCache()

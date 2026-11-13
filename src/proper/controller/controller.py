@@ -7,6 +7,7 @@ from markupsafe import Markup
 
 from ..compile.dispatch import callback_applies, plan_for, resolve_view
 from ..constants import TURBO_STREAM_MIME
+from ..core.response.response import latest_update
 from ..helpers import MultiDict, jsonplus, logger, make_list
 from ..status import not_acceptable, not_modified, unprocessable
 from ..views import ComponentNotFoundError
@@ -20,6 +21,9 @@ if t.TYPE_CHECKING:
 
 
 class Controller:
+    #: A part of the ETag that `fresh_when()` sets, for what changes the
+    #: response besides its objects. Concerns extend it with `super().etag`:
+    #: the page, the locale, the timezone.
     etag = ""
     #: Properties that the debug error page shows, with the attributes of
     #: `self`, for the frames of the controller.
@@ -46,6 +50,43 @@ class Controller:
             params.update(self.request.matched_params or {})
             self._params = params
         return self._params
+
+    def fresh_when(
+        self,
+        objects: t.Any = None,
+        *,
+        etag: t.Any = None,
+        last_modified: t.Any = None,
+        strong: bool = False,
+        public: bool = False,
+    ) -> bool:
+        """
+        `self.response.fresh_when()`, with the controller's `etag` added to
+        the ETag, so a response that also depends on the page, the locale
+        or the timezone has a different ETag for each.
+
+        ```python
+        def show(self):
+            if self.fresh_when(self.post):
+                return
+        ```
+
+        Returns whether the response is fresh. After a fresh response, the
+        action is not rendered: the client gets a `304 Not Modified`.
+        """
+        updated_at = latest_update(objects)
+        if updated_at is not None:
+            etag = updated_at
+            last_modified = updated_at
+        if self.etag:
+            etag = self.etag if etag is None else f"{etag}-{self.etag}"
+        return self.response.fresh_when(
+            etag=etag,
+            last_modified=last_modified,
+            strong=strong,
+            public=public,
+            request=self.request,
+        )
 
     @property
     def defaults(self) -> dict:

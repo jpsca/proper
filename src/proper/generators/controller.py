@@ -545,7 +545,7 @@ def _state_change_test_py(
         blocks.append(
             f"def test_{child_snake}_create({test_client}):\n"
             f"    # {parent_snake} = {parent_pascal}.create( ... )\n"
-            f'    # url = app.url_for("{child_pascal}.create", {_parent_id_kw(parent_snake)})\n'
+            f'    # url = app.url_for("{parent_pascal}:{child_pascal}.create", {_parent_id_kw(parent_snake)})\n'
             f"    # response = {test_client}.post(url)\n"
             "    # assert response.status == 303\n"
             "    pass\n"
@@ -554,7 +554,7 @@ def _state_change_test_py(
         blocks.append(
             f"def test_{child_snake}_delete({test_client}):\n"
             f"    # {parent_snake} = {parent_pascal}.create( ... )\n"
-            f'    # url = app.url_for("{child_pascal}.delete", {_parent_id_kw(parent_snake)})\n'
+            f'    # url = app.url_for("{parent_pascal}:{child_pascal}.delete", {_parent_id_kw(parent_snake)})\n'
             f"    # response = {test_client}.delete(url)\n"
             "    # assert response.status == 303\n"
             "    pass\n"

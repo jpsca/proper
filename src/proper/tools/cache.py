@@ -15,7 +15,7 @@ def setup(app):
 
     app.cache = cache = get_instance(**config)
     database = getattr(app.cache, "database", None)
-    if database and database != ":memory:":
+    if database and not getattr(app.cache, "memory_based", False):
         app.db["proper_cache"] = database
 
     app.catalog.add_tags({"cache": cache_tag(cache)})

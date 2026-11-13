@@ -68,6 +68,22 @@ BODY_HEADERS = (
 )
 
 
+def latest_update(objects: t.Any) -> datetime | None:
+    """The latest `updated_at` of an object or a list of objects, or `None`
+    for no objects (an empty list, or one of `None`s)."""
+    if not objects:
+        return None
+    if not is_iterable(objects):
+        objects = [objects]
+    # objects could be a lazy-loaded empty collection
+    dates = [obj.updated_at for obj in objects if obj is not None]
+    if not dates:
+        return None
+    updated_at = max(dates)
+    assert isinstance(updated_at, datetime), "`updated_at` attribute must be a datetime"
+    return updated_at
+
+
 def is_iterable(obj: t.Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, dict))
 
@@ -385,18 +401,10 @@ class Response(ResponseHeadersMixin):
             returned `True`.
 
         """
-        if objects:
-            if not is_iterable(objects):
-                objects = [objects]
-            dates = [obj.updated_at for obj in objects if obj is not None]
-            if dates:
-                # objects could be a lazy-loaded empty collection
-                updated_at = max(dates)
-                assert isinstance(
-                    updated_at, datetime
-                ), "`updated_at` attribute must be a datetime"
-                etag = updated_at
-                last_modified = updated_at
+        updated_at = latest_update(objects)
+        if updated_at is not None:
+            etag = updated_at
+            last_modified = updated_at
 
         self.set_etag(etag, strong=strong)
         self.set_last_modified(last_modified)

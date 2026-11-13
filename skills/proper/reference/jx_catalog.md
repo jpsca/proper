@@ -1,7 +1,7 @@
 ---
 title: Jx Catalog API
 description: Reference: `app.catalog` (globals, filters, tests, block tags via TEMPLATE_TAGS), the `Catalog` constructor, `render()` and `render_string()`
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/views/catalog.py
 ---
@@ -12,7 +12,7 @@ Read this to extend the catalog (a filter, a block tag) or to render a component
 
 ## Catalog API
 
-In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH` (`_compiled/views/`) at startup (or before, with `proper jx compile`: outside of `DEBUG`, the views already compiled are not compiled again), and the template globals, filters and tags are added. It is a `proper.views.Catalog`.
+In a Proper app the catalog is `app.catalog`, already set up: the `views/` folder is registered, the modules are compiled to `COMPILED_PATH/views/` (`_compiled/views/`) at startup (or before, with `proper jx compile`: outside of `DEBUG`, the views already compiled are not compiled again), and the template globals, filters and tags are added. It is a `proper.views.Catalog`.
 
 ### In Proper
 
@@ -28,7 +28,7 @@ def card_box(title, *, caller, template):
     return Markup(f'<section class="box"><h2>{escape(title)}</h2>{caller()}</section>')
 ```
 
-`caller()` renders the body only if the function calls it; `template` is the path of the component the tag is in. What the function returns is escaped unless it is `Markup` (the body `caller()` returns is), so wrap the HTML you build in `Markup`.
+`caller()` renders the body only if the function calls it; `template` is the path of the component the tag is in. What the function returns is output as it is, not escaped, so escape the data you put in it (`escape(title)`); the body `caller()` returns is already escaped.
 
 ### Constructor
 
@@ -51,7 +51,7 @@ Catalog(
 )
 ```
 
-A module is checked the first time it is loaded, in any mode, and compiled again if it is missing or out of date. `catalog.compile()` compiles every folder and raises `CompileError` listing every error.
+A module is checked the first time it is loaded, in any mode, and compiled again if it is missing or out of date (without a compiler, that raises `ComponentNotCompiledError`). `catalog.compile()` compiles every folder and raises `CompileError` listing every error.
 
 ### Rendering
 
@@ -74,7 +74,7 @@ html = catalog.render_string("{#def name #}<p>{{ name }}</p>", name="World")
 
 **`render()` arguments:**
 
-- `relpath` — path to the component relative to its folder
+- `relpath` — path to the component relative to its folder (the `.jx` can be left out)
 - `globals` — dict of variables available to this component and all its imports
 - `**kwargs` — arguments passed to the component only (not to its imports)
 
@@ -99,7 +99,7 @@ catalog.tracer = tracer
 
 - `relpath` — the component's path, e.g. `"layouts/base.jx"`
 - `render` — the function that renders it
-- `kwargs` — what it was called with: the arguments of `catalog.render()`, or the attributes of its tag in another component, plus `content`, `_globals` and `_fills`
+- `kwargs` — what it was called with: the arguments of `catalog.render()`, or the attributes of its tag in another component (dashes as underscores: `data_id`); plus `_globals`, `content` when the tag has content, and `_fills` when it fills slots
 
 It must return what `render(**kwargs)` returns. The components a component uses are rendered inside its `render(**kwargs)`, so their calls to the tracer are nested in it. The content of a component (`{{ content }}`) is rendered before it, by the component that uses it.
 

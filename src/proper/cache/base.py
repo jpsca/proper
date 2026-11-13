@@ -46,7 +46,9 @@ class BaseCache:
     def get(self, key: str) -> t.Any:
         raise NotImplementedError
 
-    update = set
+    def update(self, key: str, value: t.Any, *, expires_in: int | None = None) -> None:
+        """An alias of `set()`."""
+        self.set(key, value, expires_in=expires_in)
 
     def get_or_set(
         self,

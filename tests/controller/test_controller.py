@@ -1,4 +1,5 @@
 import os
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -1015,3 +1016,71 @@ class TestStaticFilesController:
         co, _ = self._make(tmp_path, file_param="/hello.txt")
         co.show()
         assert co.response.body is not None
+
+
+class TestControllerFreshWhen:
+    """`Controller.fresh_when()` adds the controller's `etag` to the ETag."""
+
+    def _etag_of(self, value):
+        response = Response(MagicMock())
+        response.set_etag(value)
+        return response.etag
+
+    def test_without_a_controller_etag_it_is_the_response_fresh_when(self):
+        post = DotDict(updated_at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC))
+        co = _make_controller()
+        co.fresh_when(post)
+        assert co.response.etag == self._etag_of(post.updated_at)
+        assert co.response.last_modified == post.updated_at
+        assert co.response.cache_control == ["max-age=0", "private", "must-revalidate"]
+
+    def test_the_controller_etag_is_added(self):
+        class MyController(Controller):
+            @property
+            def etag(self):
+                return f"{super().etag}-es".strip("-")
+
+        post = DotDict(updated_at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC))
+        co = _make_controller(cls=MyController)
+        co.fresh_when(post, strong=True, public=True)
+        assert co.response.etag == self._etag_of(f"{post.updated_at}-es").removeprefix("W/")
+        assert co.response.last_modified == post.updated_at
+        assert "public" in co.response.cache_control
+
+    def test_with_an_etag_argument(self):
+        class MyController(Controller):
+            etag = "page-2"
+
+        co = _make_controller(cls=MyController)
+        co.fresh_when(etag="v1")
+        assert co.response.etag == self._etag_of("v1-page-2")
+
+    def test_with_only_the_controller_etag(self):
+        class MyController(Controller):
+            etag = "page-2"
+
+        co = _make_controller(cls=MyController)
+        co.fresh_when([None])
+        assert co.response.etag == self._etag_of("page-2")
+        assert co.response.last_modified is None
+
+    def test_a_fresh_response_is_not_modified(self):
+        class MyController(Controller):
+            etag = "es"
+
+            def index(self):
+                if self.fresh_when(etag="v1"):
+                    return
+                return "Hello"
+
+        co = _make_controller(cls=MyController, headers=[("if-none-match", self._etag_of("v1-es"))])
+        co._call("index")
+        assert co.response.status == not_modified
+        assert co.response.body == ""
+
+        # Another value of the controller's etag is another version
+        MyController.etag = "en"
+        co = _make_controller(cls=MyController, headers=[("if-none-match", self._etag_of("v1-es"))])
+        co._call("index")
+        assert co.response.status == 200
+        assert co.response.body == "Hello"

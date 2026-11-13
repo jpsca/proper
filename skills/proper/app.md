@@ -1,7 +1,7 @@
 ---
 title: Application
 description: App layout, request lifecycle, the `current` context, configuration, lifecycle hooks, static assets, debug error pages
-last_verified: 2026-11-08
+last_verified: 2026-11-13
 sources:
   - src/proper/app.py
   - src/proper/core
@@ -106,13 +106,13 @@ Every request flows through a pipeline in this exact order:
 4. **redirect** — if the matched route is a redirect, sends the redirect response and stops
 5. **copy_session** — reads the signed `_session` cookie into `request.session`, when there is one
 6. **dispatch** — instantiates the controller and calls `_dispatch(action_name)`:
-   - Runs **before** callbacks in MRO order
+   - Runs **before** callbacks from the base class down (reverse MRO)
    - If any before callback sets a response body, the action is **skipped silently**
    - Calls the action method
-   - Runs **after** callbacks in reverse MRO order
+   - Runs **after** callbacks from the subclass up (MRO order)
 7. **update_session_cookie** — writes back a modified session as a signed cookie
 
-For a database configured with `"autoconnect": False`, the framework opens its connection before step 1 and closes it after step 7 (with `autoconnect`, Peewee's default, Peewee connects on the first query). A rollback is issued before closing only when a hook or the error handler itself raises, or `CATCH_ALL_ERRORS` is off.
+For a database configured with `"autoconnect": False`, the framework opens its connection before step 1 and closes it after step 7 (with `autoconnect`, Peewee's default, Peewee connects on the first query). A rollback is issued before closing only when a hook or the error handler itself raises, or `CATCH_ALL_ERRORS` is off and no error handler takes the error (outside `DEBUG`).
 
 With `LOG_LEVEL = "debug"`, every step is logged by the `proper` logger (prefix `[pipeline]`).
 
@@ -163,8 +163,8 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `DEBUG`                    | `False`           | Enable debug mode                              |
 | `PROTOCOL`                 | `"http"`          | `"http"` or `"https"`                          |
 | `HOST`                     | `"localhost:2300"` | Hostname with port                            |
-| `PORT`                     | `2300`            | Port the dev server binds to (used by `app_cli`) |
-| `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest         |
+| `PORT`                     | `2300`            | Port `proper run` binds to |
+| `SECRET_KEYS`              | (required)        | List of signing keys, oldest to newest, each of 48 or more characters |
 | `CATCH_ALL_ERRORS`         | `True`            | Let the app handle all exceptions              |
 | `MAX_THREADS`              | `0`               | Threads that run your code, i.e. requests handled at once (`0` = `min(32, cpus + 4)`) |
 | `WORKERS`                  | `1`               | Bearings event loops per process (network I/O, no Python); the app runs on one pool of `MAX_THREADS` threads shared by them |
@@ -207,7 +207,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 
 ### Other Config Keys
 
-Storage, queue, cache, mailer, i18n, and auth settings are documented in their respective pages.
+Storage, queue, cache, mailer, i18n, auth, and channels (`CABLE_*`) settings are documented in their respective pages.
 
 
 Signed serialization with the secret keys (`app.dumps()` / `app.loads()`) is in [security.md](security.md#signing-and-serialization). The storage addon's `app.attachment_for()` is in [storage.md](storage.md#the-attachment-model).
@@ -256,10 +256,10 @@ Static files in the `assets/` folder at the project root (next to `storage/`, no
 By default, asset URLs include a hash of the file's modification time for cache busting:
 
 ```
-/assets/css/app-a1b2c3d4e5f6.css
+/assets/css/app-<64 hex characters>.css
 ```
 
-Fingerprinted files are served with `Cache-Control: max-age=31536000, public, immutable` (1 year). Non-fingerprinted files use `max-age=0, public, must-revalidate`. Non-fingerprinted files answer `If-Modified-Since` with `304 Not Modified` when the file's modification time, in whole seconds, is not newer.
+Fingerprinted files are served with `Cache-Control: max-age=31536000, public, immutable` (1 year). Non-fingerprinted files use `max-age=0, public, must-revalidate`. All of them answer `If-Modified-Since` with `304 Not Modified` when the file's modification time, in whole seconds, is not newer.
 
 ### X-Sendfile
 
@@ -278,14 +278,10 @@ When set, Proper sends the header instead of the file body, letting the web serv
 
 ## The Debug Error Pages
 
-With `DEBUG`, an error that nothing handles is answered with a debug page, in the format the client asks for first in its `accept` header:
+With `DEBUG`, any error (the `router.error` handlers don't run), or a route that doesn't match, is answered with a debug page, in the format the client asks for first in its `accept` header:
 
-- `text/html` (a browser): an HTML page with the frames of the app open, those of Proper and the libraries folded, the request, and the config; and a "Copy as text" button.
-- `application/json` (or `+json`): `{"error": "KeyError", "message": "'zzz'", "details": "<the text>"}`.
+- `text/html` (a browser): an HTML page.
+- `application/json` (or `+json`): a JSON object.
 - Anything else, like `curl` or an agent (`*/*`): plain text.
 
-The text starts with the error, the request (`POST /orders -> OrderController.create`) and its form data, then the last frame of the app (`At path:line, in function`) with its code and variables, then the traceback, with each run of frames of Proper or libraries in one line. To see the error of a page you are building, request it with `curl -s URL` and read the text.
-
-A route that doesn't match gets the same formats, with the routes in the order they are matched.
-
-Config keys, variables, form fields and headers whose name ends with `PASSWORD`, `PASSWD`, `SECRET(S)`, `SECRET_KEY(S)`, `TOKEN`, `API_KEY`, `APIKEY`, `ACCESS_KEY`, `PRIVATE_KEY`, `CREDENTIALS`, `COOKIE` or `AUTHORIZATION` (any case, `-` as `_`) are masked, and so are the passwords of URLs (`postgres://user:▒▒▒▒@host/db`).
+To see the error of a page you are building, request it with `curl -s URL` and read the text.

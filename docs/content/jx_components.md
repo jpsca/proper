@@ -350,7 +350,7 @@ Type hints are accepted in `#def`:
 {#def title: str, count: int = 0 #}
 ```
 
-When the annotation is a built-in Python type (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `float`, `bytes`), Jx enforces it at render time with `isinstance`. Pass a string to a component declared as `count: int = 0` (`count={{ n }}`, with `n = "abc"`) and the render fails with `InvalidPropType` before the body runs.
+When the annotation is a built-in Python type (`int`, `str`, `bool`, `list`, `dict`, `tuple`, `set`, `frozenset`, `float`, `complex`, `bytes`, `bytearray`, `memoryview`, `range`, `slice`, `type`), Jx enforces it at render time with `isinstance`. Pass a string to a component declared as `count: int = 0` (`count={{ n }}`, with `n = "abc"`) and the render fails with `InvalidPropType` before the body runs.
 
 For parameterized generics (`items: list[str]`), only the outer type is checked - Jx confirms the value is a `list`, but doesn't inspect the elements.
 
@@ -760,10 +760,10 @@ Multiple files are comma-separated. Both directives can repeat for readability:
 Asset paths can be:
 
 - **Relative to the assets folder** (`"card.css"`) - resolved through `url_for("assets", file="card.css")`, which means they get fingerprinted and cached aggressively (covered in the [Static Assets guide](/docs/assets)).
-- **Absolute paths** (`"/vendor/foo.css"`) - used verbatim, no fingerprinting.
-- **Full URLs** (`"https://cdn.example.com/lib.js"`) - used verbatim, no fingerprinting.
+- **Absolute paths** (`"/vendor/foo.css"`) - no fingerprinting.
+- **Full URLs** (`"https://cdn.example.com/lib.js"`) - no fingerprinting.
 
-Use the relative form for assets that live in the `assets/` folder. Use the absolute or URL form for things outside that tree.
+Use the relative form for assets that live in the `assets/` folder. The generated `base.jx` passes every path through `url_for("assets", ...)`, so with it only the relative form works: `/vendor/foo.css` would become `/assets//vendor/foo.css`. For an absolute path or a full URL, use `assets.render_css()` / `assets.render_js()` (below), or change the layout's loop to skip `url_for` for them.
 
 ### The `assets` Global
 
@@ -776,7 +776,7 @@ In any layout (or anywhere you want), call methods on the `assets` global to emi
 </head>
 ```
 
-`assets.render_css()` emits a `<link rel="stylesheet">` for every CSS file declared by every component used on the page. `assets.render_js()` emits a `<script type="module">` for every JS file. `assets.render()` does both.
+`assets.render_css()` emits a `<link rel="stylesheet">` for every CSS file declared by the page's component and every component it imports. `assets.render_js()` emits a `<script type="module">` for every JS file. `assets.render()` does both.
 
 These methods emit each declared path verbatim - they do *not* fingerprint the URLs. Fingerprinting comes from running the paths through `url_for('assets', file=url)`, which is what the generated `base.jx` does with the `collect_css()` / `collect_js()` loop shown below.
 

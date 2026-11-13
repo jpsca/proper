@@ -315,7 +315,7 @@ class NotNowController(CardScoped, AppController):
         self.response.redirect_to("Card.show", self.card)
 ```
 
-`pk=None` (the [singular resource](#singular-resources-pknone) you just met) drops the trailing ID: there's only ever one closure for a card, so `/cards/42/closure` is the whole address. The route names follow the standard convention - `Closure.create`, `Closure.delete`, `NotNow.create` - and each controller stays small. Adding a new state change adds a file, not a method.
+`pk=None` (the [singular resource](#singular-resources-pknone) you just met) drops the trailing ID: there's only ever one closure for a card, so `/cards/42/closure` is the whole address. The `card/` folder is part of the route names - `Card:Closure.create`, `Card:Closure.delete`, `Card:NotNow.create` - and each controller stays small. Adding a new state change adds a file, not a method.
 
 The state change now has a URL shape you can describe in one sentence: *POST creates the closure, DELETE removes it.* That maps cleanly onto your UI - one form per controller, one submit per state change.
 
@@ -550,7 +550,7 @@ def show(self):
     return self.render(json={"id": card.id, "title": card.title})
 ```
 
-This sets `Content-Type: application/json` and serializes the value with a custom encoder that handles `datetime` objects.
+This sets `Content-Type: application/json` and serializes the value with a custom encoder that handles `date` and `datetime` objects.
 
 For full API patterns - content negotiation between HTML and JSON, JSON-only controllers, JSON error responses - see the [Building API-only Applications](/docs/api) guide.
 
@@ -851,7 +851,7 @@ Callbacks run in the order you list them. `require_login` runs first, then `ensu
 
 ### Halting
 
-If a `before` callback sets the response body - by calling `self.render(...)`, `self.response.redirect_to(...)`, or assigning `self.response.body` directly - the action never runs. Subsequent `before` callbacks don't run either. The framework treats it as "this callback already produced a response; we're done here."
+If a `before` callback sets the response body - by returning `self.render(...)`, calling `self.response.redirect_to(...)`, or assigning `self.response.body` directly - the action never runs. Subsequent `before` callbacks don't run either. The framework treats it as "this callback already produced a response; we're done here."
 
 ```python
 class AdminController(AppController):

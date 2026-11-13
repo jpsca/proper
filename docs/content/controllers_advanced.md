@@ -29,7 +29,7 @@ myapp/controllers/
     └── card_scoped.py
 ```
 
-The generator creates the `card/` subfolder and keeps `controllers/__init__.py` in sync as you add each child, so the layout above falls out on its own. The original `card_controller.py` can stay where it is, or you can move it into the subfolder as `card/main_controller.py` if you'd rather keep everything for the resource together - just remember its views move with it, since the template prefix changes from `card/` to `card/main/`.
+The generator creates the `card/` subfolder and keeps `controllers/__init__.py` in sync as you add each child, so the layout above falls out on its own. The original `card_controller.py` can stay where it is, or you can move it into the subfolder as `card/main_controller.py` if you'd rather keep everything for the resource together - just remember its views move with it, since the template prefix changes from `card/` to `card/main/`, and its route names change from `Card.show` to `Card:Card.show` (and so on), so every `url_for` and `redirect_to` that uses them has to change too.
 
 ---
 
@@ -315,7 +315,7 @@ Pass a model object with an `updated_at` attribute:
 ```python
 def show(self):
     self.card = Card.get_by_id(self.params["card_id"])
-    self.response.fresh_when(self.card)
+    self.fresh_when(self.card)
 ```
 
 That's the whole API for the common case. The `updated_at` timestamp drives both the ETag and the `Last-Modified` header, so the next time the same client requests the same card, it gets a `304 Not Modified` until somebody saves the card and the timestamp moves.
@@ -341,7 +341,7 @@ Pass an iterable of objects (a Peewee query is an iterable) and Proper picks the
 ```python
 def index(self):
     self.cards = Card.select().order_by(Card.created_at.desc())
-    self.response.fresh_when(self.cards)
+    self.fresh_when(self.cards)
 ```
 
 The implication: the response is "fresh" until *any* card in the list changes. If your collection is paginated, only the items on the current page are considered, which is usually what you want.
@@ -351,7 +351,7 @@ The implication: the response is "fresh" until *any* card in the list changes. I
 By default, `fresh_when` produces a *weak* ETag and a *private* cache directive. Both defaults are usually right for HTML pages.
 
 ```python
-self.response.fresh_when(self.card, strong=True, public=True)
+self.fresh_when(self.card, strong=True, public=True)
 ```
 
 - `strong=True` produces a strong validator. Use it when you serve byte-for-byte identical responses every time and want range requests or some CDNs to work. For HTML pages that include a session-dependent layout, leave it weak.
@@ -360,10 +360,27 @@ self.response.fresh_when(self.card, strong=True, public=True)
 You can also set the values explicitly:
 
 ```python
-self.response.fresh_when(etag="v1-abc123", last_modified=some_datetime)
+self.fresh_when(etag="v1-abc123", last_modified=some_datetime)
 ```
 
 That form is useful when the "freshness key" isn't a model timestamp - for example, a page that depends on a config file's mtime.
+
+### Pages That Change With the Language or the Page Number
+
+The same cards can be shown in English or in Spanish, or split in pages. Each of those is a different response, so each needs its own ETag. The controller's `etag` takes care of it: `fresh_when` adds it to the ETag, and the concerns of a new app add to it. `Pagination` adds the page number, and `CurrentLocale` and `CurrentTimezone` add the language and the timezone.
+
+If your page also depends on something else, like who is looking at it, add it yourself:
+
+```python
+from proper import current
+
+class CardController(AppController):
+    @property
+    def etag(self):
+        return f"{super().etag}-{current.user.id}".strip("-")
+```
+
+`self.response.fresh_when` works the same, but without the controller's `etag`.
 
 ### When to Reach for It (and When Not To)
 
@@ -477,7 +494,7 @@ If several handlers match an error, the most specific one wins: the one for the 
 
 ### The debug error pages
 
-With `DEBUG` on, an error that nothing handles doesn't get your error page: it gets a debug page, made to find the bug fast. In a browser it shows the error and the request on top, then the traceback, most recent call first, with the frame of your code where it happened open: the lines around it, with the failing one highlighted, and the values of its variables. The frames of Proper and of the libraries are folded, so they don't push your code out of sight. Below are the query, the form data, the headers, and the config.
+With `DEBUG` on, an error doesn't get your error page, even when you have a handler for it: it gets a debug page, made to find the bug fast. In a browser it shows the error and the request on top, then the traceback, most recent call first, with the frame of your code where it happened open: the lines around it, with the failing one highlighted, and the values of its variables. The frames of Proper and of the libraries are folded, so they don't push your code out of sight. Below are the query, the form data, the headers, and the config.
 
 The "Copy as text" button copies the same error as plain text, to paste it into an issue, a chat, or an AI agent.
 
@@ -487,7 +504,7 @@ A client that doesn't ask for HTML gets that text directly, and one that asks fo
 KeyError: 'zzz'
 
 POST /orders -> OrderController.create
-Form data: {'qty': '2'}
+Form data: {'qty': '2', 'sku': 'zzz'}
 
 At myapp/controllers/order_controller.py:24, in create
     22 |     def create(self):
@@ -496,6 +513,9 @@ At myapp/controllers/order_controller.py:24, in create
     25 |
 
   self = <OrderController object at 0x...>
+  self.params = MultiDict([('qty', '2'), ('sku', 'zzz')])
+  self.request = <Request POST “/orders”>
+  self.response = <Response 500>
   prices = {'a': 3, 'b': 4}
 
 Traceback (most recent call last):
@@ -505,7 +525,9 @@ Traceback (most recent call last):
 KeyError: 'zzz'
 ```
 
-The pages hide what looks like a secret: the config keys, variables, form fields, and headers whose name ends with `PASSWORD`, `SECRET`, `TOKEN`, `API_KEY`, `COOKIE`, `AUTHORIZATION`, and the like, and the password of any URL, like `postgres://app:▒▒▒▒@db/main`. Still, they are for development only: never turn `DEBUG` on in production.
+Next to `self`, a frame shows what your controller holds: `self.params`, `self.request`, and anything you set on it, like `self.orders`. To also see one of your own properties there, add its name to `debug_properties` in the controller: `debug_properties = ("params", "cart")`.
+
+The pages hide what looks like a secret: the config keys, variables, form fields, query parameters, and headers whose name ends with `PASSWORD`, `SECRET`, `TOKEN`, `API_KEY`, `COOKIE`, `AUTHORIZATION`, and the like, the same keys inside the values shown, and the password of any URL, like `postgres://app:▒▒▒▒@db/main`. Still, they are for development only: never turn `DEBUG` on in production.
 
 ### The `_not_found` Trick
 
