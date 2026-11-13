@@ -1,7 +1,7 @@
 ---
 title: Storage
 description: Storage addon: setup, Disk and S3 services, public services, attaching files to models (forms and manual), serving (redirect vs proxy, URL helpers), direct uploads, downloading and removing
-last_verified: 2026-11-08
+last_verified: 2026-11-13
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py
@@ -37,7 +37,7 @@ proper install storage
 proper db migrate
 ```
 
-This sets up configuration in your application, creates the Attachment model, the serving controllers, and the `attachment` and `attachment_reference` tables Proper Storage needs.
+This sets up configuration in your application, creates the Attachment model and the serving controllers, adds `pyvips` to the dependencies, and writes the migration of the `attachment` and `attachment_reference` tables (`proper db create "storage"`), which `proper db migrate` applies.
 
 The installer creates:
 
@@ -57,8 +57,8 @@ from .base import BaseModel
 
 
 class Attachment(app.attachment_for(BaseModel)):
-    # You can add any extra fields here, like:
-    # user = pw.ForeignKeyField(User, null=True)
+    # You can add any extra fields here
+    # creator = pw.ForeignKeyField(User, null=True, backref="attachments")
 
     VARIANTS_ENABLED_FOR = (
         ("image/*", "preview_image"),
@@ -75,7 +75,7 @@ Field            | Type                   | Description
 `service_name`   | CharField(64)          | Which storage service holds the file
 `filename`       | CharField(255)         | Parameterized filename (lowercased, special chars → dashes)
 `content_type`   | CharField(64)          | MIME type: the upload's own `content_type` if it has one, else guessed from the filename, else `application/octet-stream`
-`byte_size`      | IntegerField           | File size in bytes, set by the service during `save()` (a blob of a direct upload gets the size the client declared until then)
+`byte_size`      | IntegerField           | File size in bytes, set by the service during `save()`. A direct upload starts with the size the client declared; on Disk, `DirectUploadController.update` saves the real one, while an S3 upload never reaches the app, so its row keeps the declared size
 `created_at`     | DateTimeField          | Creation timestamp (UTC)
 `metadata`       | pw.JSONField           | Arbitrary metadata (nullable)
 `parent`         | ForeignKeyField(self)  | Parent attachment for variants (nullable)
@@ -84,7 +84,7 @@ Field            | Type                   | Description
 
 And two attributes about the records that embed the attachment in a rich text field (see [Rich Text](rich_text.md#attachment-lifecycle)): `is_referenced` (bool) and `references` (the rows of `Attachment.Reference`).
 
-`attachment_for()` also builds `Attachment.Reference`, the model of those rows (table `attachment_reference`: `attachment` FK with `ON DELETE CASCADE`, `record_type`, `record_id`, `field`, unique together). The generated `models/attachment.py` exports it as `AttachmentReference`, so `proper db create` makes its table. Only the rich text addon writes to it.
+`attachment_for()` also builds `Attachment.Reference`, the model of those rows (table `attachment_reference`: `attachment` FK with `ON DELETE CASCADE`, `record_type`, `record_id`, `field`, unique together). The generated `models/attachment.py` exports it as `AttachmentReference`, so `proper db create` makes its table. Only the rich text addon adds rows to it (`purge()` deletes them).
 
 ### Configuring services
 
@@ -150,7 +150,7 @@ Stores files in Amazon S3 or any S3-compatible object storage.
 }
 ```
 
-Required AWS S3 permissions: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`. For direct uploads also: presigned PUT support (no extra permission needed).
+Required AWS S3 permissions: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, and `s3:PutObjectAcl` for a service with `public: True` (its uploads send `ACL: public-read`). For direct uploads also: presigned PUT support (no extra permission needed).
 
 Required dependency: `uv add boto3`.
 
@@ -208,7 +208,7 @@ if obj is None:
     raise NotFound
 ```
 
-> **Tradeoff:** On a public service, the native URL serves whatever `Content-Type` was baked in at upload — disposition can't be overridden per-request the way presigned URLs do. For typical public assets browsers render inline based on `Content-Type`, which is usually what you want. If you need forced-download behaviour for a specific file, use `attachment.get_proxy_url()` instead (streams through the app with the correct disposition).
+> **Tradeoff:** On a public service, the native URL serves whatever `Content-Type` was baked in at upload — disposition can't be overridden per-request the way presigned URLs do. For typical public assets browsers render inline based on `Content-Type`, which is usually what you want. `attachment.get_proxy_url()` streams through the app and applies `STORAGE_ALLOWED_INLINE`, which the native public URL ignores. There is no per-file override: to force a download of one file, write a controller that calls `att.service.send_file(att, response=self.response, as_attachment=True)`.
 
 
 ## Baseline Configuration
@@ -329,7 +329,7 @@ The `proper install storage` command creates three controllers in `controllers/s
 
 - **`StorageRedirectController`** (`GET /storage/redirect/<token>/<filename>`) — serves files via 302 to the service's native URL (e.g. a presigned S3 link) when one exists, falling back to streaming through the app.
 - **`StorageProxyController`** (`GET /storage/proxy/<token>/<filename>`) — sends the bytes through the app. The Disk service streams the file; the S3 service downloads the whole object into memory first, so for large S3 files prefer the redirect.
-- **`DirectUploadController`** (`POST /storage/direct`, `PUT /storage/direct/<token>`) — handles the direct-upload protocol. See [Direct Uploads](#direct-uploads).
+- **`DirectUploadController`** (`POST /storage/direct`, `PUT` or `PATCH /storage/direct/<token>`) — handles the direct-upload protocol. See [Direct Uploads](#direct-uploads).
 
 ### URL helpers
 
@@ -361,7 +361,7 @@ Both URLs embed a signed token tied to the attachment's PK. The controllers reso
 
 Use `attachment.get_proxy_url()` (and `StorageProxyController`) when you specifically need a URL on your own domain — for CDN caching, app-controlled response headers, or auth gating beyond the signed token.
 
-Both controllers set `skip_authentication = True` because the signed token IS the access credential. Add app-specific guards (per-user access checks, etc.) by editing the generated `show()` methods in your project: comments in the generated file mark the spot. `Attachment` has no owner column, so an app where users must not see each other's files adds one (`owner_id`, `tenant_id`), sets it where the attachment is created (`DirectUploadController.create` for editor uploads) and compares it with `current.user` in `show()`; `current.user` is loaded on public actions too. The check means nothing for a service with `public: True`, whose bucket URL is open anyway. For more granular gating, create a separate controller and use a custom salt:
+Both controllers set `skip_authentication = True` because the signed token IS the access credential. Add app-specific guards (per-user access checks, etc.) by editing the generated `show()` methods in your project: comments in the generated file mark the spot. `Attachment` has no owner column, so an app where users must not see each other's files adds one (the generated model has a commented `creator` field), sets it where the attachment is created (`Attachment.create_pending_blob(..., source=self.source, creator=current.user)` in `DirectUploadController.create` for editor uploads: extra keyword arguments become column values) and compares it with `current.user` in `show()` and in `DirectUploadController.update` (a commented check marks the spot); `current.user` is loaded on public actions too. The check means nothing for a service with `public: True`, whose bucket URL is open anyway. For more granular gating, create a separate controller and use a custom salt:
 
 ```python
 class DownloadController(AppController):
@@ -401,7 +401,7 @@ The `DirectUploadController` lets clients (e.g. the Lexxy rich-text editor) uplo
 The flow:
 
 1. Client POSTs `{"blob": {"filename": ..., "content_type": ..., "byte_size": ..., "checksum": "<base64-md5>"}}` to `POST /storage/direct`.
-2. Server creates an `Attachment` row via `Attachment.create_pending_blob(..., source=self.source)` (metadata only) and asks the service for a `direct_upload_url(att, checksum=...)` envelope. `source` is a class attribute of the controller, `"rich_text"`; the client can't choose it.
+2. Server creates an `Attachment` row via `Attachment.create_pending_blob(..., source=self.source)` (metadata only; extra keyword arguments become column values) and asks the service for a `direct_upload_url(att, checksum=...)` envelope. `source` is a class attribute of the controller, `"rich_text"`; the client can't choose it.
 3. Server responds:
    ```json
    {
@@ -415,9 +415,9 @@ The flow:
 4. Client PUTs the bytes to `direct_upload.url` with the supplied headers.
    - **S3**: presigned PUT URL → S3 directly.
    - **Disk**: `PUT /storage/direct/<token>` → app stores bytes via `DirectUploadController.update`, which calls `obj.service.upload(BytesIO(self.request.body), obj)`. The token uses salt `"upload"` (distinct from `"redirect"`/`"proxy"`) and expires after 15 minutes (`resolve_token()`'s default `max_age`).
-5. The row has no references until a parent model's save records that it embeds it (rich_text's `HasRichText` mixin does this automatically). If nothing ever embeds it, a sweep task purges it after the grace period.
+5. The row has no references until a parent model's save records that it embeds it (rich_text's `HasRichText` mixin does this automatically). If nothing ever embeds it, the rich text addon's sweep task purges it after the grace period (24 hours by default); with only the storage addon, nothing sweeps it.
 
-`DirectUploadController` is rate-limited to 10 requests/minute per IP address out of the box (needs a configured cache; without one no limit applies). Tune via `rate_limit = {"to": N, "within": SECONDS, "by": ...}` on the controller. Unlike the two serving controllers, it does not set `skip_authentication`, so with the auth addon installed direct uploads need a signed-in user.
+`DirectUploadController` is rate-limited to 10 requests/minute per IP address out of the box, counting every action: on Disk, the `POST` and the `PUT` of one upload are two (needs a configured cache; without one no limit applies). Tune via `rate_limit = {"to": N, "within": SECONDS, "by": ...}` on the controller. Unlike the two serving controllers, it does not set `skip_authentication`, so with the auth addon installed direct uploads need a signed-in user.
 
 
 ## Downloading Files

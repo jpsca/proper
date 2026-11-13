@@ -9,6 +9,7 @@ import pytest
 
 from proper import App, Controller, current
 from proper.core.response import Response
+from proper.errors import StorageConfigError
 from proper.models import ProperModel
 from proper.router import Route
 from proper.storage.attachment import DEFAULT_CONTENT_TYPE
@@ -1391,3 +1392,40 @@ def test_send_file_leaves_pdfs_out_of_the_sandbox(app, Attachment):
     headers = _send(att, app)
     assert headers["x-content-type-options"] == "nosniff"
     assert "content-security-policy" not in headers
+
+
+def test_variant_stores_its_ops_whole(Attachment):
+    """`transform_image()` pops `format` and `autorot` from `save` and
+    `load`; the ops stored in `metadata` and the caller's dicts keep them."""
+    pyvips = pytest.importorskip("pyvips")
+    png = pyvips.Image.black(4, 4).cast("uchar").write_to_buffer(".png")
+    parent = Attachment(_make_file(png, "dot.png"), content_type="image/png")
+    parent.save(force_insert=True)
+    load = {"autorot": False}
+    save = {"format": "png"}
+
+    v = parent.variant(resize_to_fit=(2, 2), load=load, save=save)
+
+    stored = type(v).get_by_id(v.id).metadata["ops"]
+    assert stored == {"resize_to_fit": [2, 2], "load": {"autorot": False}, "save": {"format": "png"}}
+    assert load == {"autorot": False}
+    assert save == {"format": "png"}
+    # The same call finds the same variant
+    assert parent.variant(resize_to_fit=(2, 2), load=load, save=save).id == v.id
+
+
+def test_a_direct_upload_saves_its_real_size(Attachment):
+    """What the generated `DirectUploadController.update` does: the row of
+    a pending blob gets the size of the bytes, not the declared one."""
+    att = Attachment.create_pending_blob(filename="a.txt", byte_size=999)
+    att.service.upload(BytesIO(b"hello"), att)
+    att.save(only=[Attachment.byte_size])
+    assert Attachment.get_by_id(att.id).byte_size == 5
+
+
+def test_without_a_service_name_it_is_a_config_error(Attachment, monkeypatch):
+    monkeypatch.setattr(Attachment, "_default_service_name", "")
+    with pytest.raises(StorageConfigError, match="STORAGE config"):
+        Attachment(_make_file())
+    with pytest.raises(StorageConfigError, match="STORAGE config"):
+        Attachment.create_pending_blob(filename="a.txt")

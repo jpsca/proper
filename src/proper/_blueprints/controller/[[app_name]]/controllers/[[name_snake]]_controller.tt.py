@@ -22,13 +22,13 @@ from [[app_name]].router import [[namespace]]_router
 from ..app_controller import AppController
 
 
-@[[namespace]]_router.resource("[[plural_snake]]"
+@[[namespace]]_router.resource("[[mount_path]]"
 [%- else -%]
 from [[app_name]].router import router
 from .app_controller import AppController
 
 
-@router.resource("[[plural_snake]]"
+@router.resource("[[mount_path]]"
 [%- endif %]
     [%- if singular %], pk=None
     [%- elif pk %], pk="[[pk]]"

@@ -117,7 +117,7 @@ def gen_model(
     name_pascal = _name_pascal or inflection.camelize(name)
     name_snake = _name_snake or inflection.underscore(name)
     attrs_tuples = [_split_attr(attr) for attr in attrs]
-    rows = _build_rows(attrs_tuples)
+    rows = _build_rows(attrs_tuples, model=name_pascal)
 
     render_blueprint(
         MODEL_BLUEPRINT,
@@ -127,6 +127,7 @@ def gen_model(
             "name_snake": name_snake,
             "name_pascal": name_pascal,
             "rows": rows or ["name = pw.CharField()"],
+            "imports": _build_imports(attrs_tuples, model=name_pascal),
         },
         force=force,
     )
@@ -207,24 +208,42 @@ FIELD_TYPES = {
 }
 
 
-def _build_rows(attrs: list[tuple[str, str, list[str]]]) -> list[str]:
-    return [_build_row(name, ftype, options) for name, ftype, options in attrs]
+def _build_rows(attrs: list[tuple[str, str, list[str]]], *, model: str = "") -> list[str]:
+    return [_build_row(name, ftype, options, model=model) for name, ftype, options in attrs]
 
 
-def _build_row(name: str, ftype: str, options: list[str]) -> str:
+def _build_imports(attrs: list[tuple[str, str, list[str]]], *, model: str = "") -> list[str]:
+    """The imports of the model's module: `BaseModel` and the models of
+    its foreign keys (not the model itself), sorted by module."""
+    models = {"BaseModel": "base"}
+    for _, ftype, _ in attrs:
+        if ftype.lower().startswith("fk-"):
+            related = ftype.split("-", 1)[-1]
+            if related != model:
+                models[related] = inflection.underscore(related)
+    return [
+        f"from .{module} import {name}"
+        for name, module in sorted(models.items(), key=lambda item: item[1])
+    ]
+
+
+def _build_row(name: str, ftype: str, options: list[str], *, model: str = "") -> str:
     if ftype.lower().startswith("fk-"):
-        field = _foreign(ftype, options)
+        field = _foreign(ftype, options, model=model)
     else:
         field = _field(ftype, options)
 
     return f"{name} = {field}"
 
 
-def _foreign(ftype: str, options: list[str]) -> str:
-    model = ftype.split("-", 1)[-1]
+def _foreign(ftype: str, options: list[str], *, model: str = "") -> str:
+    """A `ForeignKeyField`. One to `model`, the model being generated, is
+    to `"self"`, as Peewee needs."""
+    related = ftype.split("-", 1)[-1]
+    related = '"self"' if related == model else related
     field_options = ", ".join(options)
     field_options = f", {field_options}" if field_options else ""
-    return f"pw.ForeignKeyField({model}{field_options})"
+    return f"pw.ForeignKeyField({related}{field_options})"
 
 
 def _field(ftype: str, options: list[str]) -> str:

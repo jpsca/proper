@@ -1,3 +1,5 @@
+import ast
+
 import pytest
 
 from proper.generators.model import (
@@ -258,3 +260,40 @@ def test_complex_model(app_in_tmp):
     assert "body = pw.TextField()" in text
     assert "created_at = pw.DateTimeField()" in text
     assert 'user = pw.ForeignKeyField(User, backref="tweets")' in text
+
+
+def test_foreign_keys_import_their_models(app_in_tmp):
+    gen_model(
+        app_in_tmp, "Comment",
+        "body:text", "user:fk-User", "photo:fk-Photo", "author:fk-User", "post:fk-BlogPost",
+    )
+    text = _model_text(app_in_tmp, "comment")
+    assert text.startswith(
+        "import peewee as pw\n\n"
+        "from .base import BaseModel\n"
+        "from .blog_post import BlogPost\n"
+        "from .photo import Photo\n"
+        "from .user import User\n"
+        "\n\n"
+        "class Comment(BaseModel):\n"
+    )
+    ast.parse(text)
+
+
+def test_a_foreign_key_to_itself_is_to_self(app_in_tmp):
+    gen_model(app_in_tmp, "Comment", "parent:fk-Comment,null")
+    text = _model_text(app_in_tmp, "comment")
+    assert 'parent = pw.ForeignKeyField("self", null=True)' in text
+    assert "from .comment import" not in text
+
+
+def test_a_model_without_foreign_keys_has_the_same_layout(app_in_tmp):
+    gen_model(app_in_tmp, "Product", "name:str")
+    text = _model_text(app_in_tmp, "product")
+    assert text == (
+        "import peewee as pw\n\n"
+        "from .base import BaseModel\n"
+        "\n\n"
+        "class Product(BaseModel):\n"
+        "    name = pw.CharField()\n"
+    )

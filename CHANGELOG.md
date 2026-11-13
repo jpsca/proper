@@ -31,6 +31,19 @@ All notable changes to Proper are documented in this file.
   `proper_cache`).
 - The test of a generated state-change controller names the route with its
   folder, like `Card:Closure.create`.
+- `variant()` stores its `load` and `save` options whole in
+  `metadata["ops"]` (the image pipeline was removing `format` and
+  `autorot` from them), and no longer changes the dicts it is given.
+- The storage blueprint enables only the image previewer again; the PDF and
+  video ones are commented out, as they need poppler and ffmpeg. Its model
+  has the commented `creator` field with the right imports (`from .user`).
+- A direct upload to Disk saves the real size of the file; before, the row
+  kept the size the client declared.
+- `proper g channel` writes a valid channel: the name was not filled in.
+- `proper g model` imports the models of the foreign keys, and writes a
+  foreign key to the model itself as `"self"`.
+- `proper g resource --singular` (and `g controller --singular`) mounts the
+  resource at its singular name (`/profile`, not `/profiles`).
 - `repr()` of a `MultiDict` shows its `(key, value)` pairs, with every
   value of a repeated key, instead of only its keys.
 

@@ -1,6 +1,8 @@
+# import peewee as pw
+
 from ..main import app
-# from ..user import User
 from .base import BaseModel
+# from .user import User
 
 
 # app.attachment_for(BaseModel) must always come first in the inheritance list,
@@ -22,10 +24,10 @@ class Attachment(app.attachment_for(BaseModel)):
         ("image/*", "preview_image"),
 
         # Requires [poppler](https://poppler.freedesktop.org/).
-        ("application/pdf", "preview_pdf"),
+        # ("application/pdf", "preview_pdf"),
 
         # Requires [ffmpeg v3.4+](https://ffmpeg.org/)
-        ("video/*", "preview_video"),
+        # ("video/*", "preview_video"),
     )
     ...
 

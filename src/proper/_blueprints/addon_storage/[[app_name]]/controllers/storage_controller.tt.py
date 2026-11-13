@@ -153,4 +153,6 @@ class DirectUploadController(AppController):
         #     raise Forbidden("You are not the owner of this attachment")
 
         obj.service.upload(BytesIO(self.request.body), obj)
+        # The row has the size the client declared; save the real one
+        obj.save(only=[Attachment.byte_size])
         return ""

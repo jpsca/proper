@@ -179,9 +179,14 @@ class TestForm:
 
 
 class TestSingular:
+    def test_a_resource_is_mounted_at_its_plural(self, app_in_tmp):
+        gen_resource(app_in_tmp, "Profile")
+        assert '@router.resource("profiles")' in _controller_text(app_in_tmp, "profile")
+
     def test_singular_removes_index(self, app_in_tmp):
         gen_resource(app_in_tmp, "Profile", singular=True)
         text = _controller_text(app_in_tmp, "profile")
+        assert '@router.resource("profile", pk=None)' in text
         assert "def index(self):" not in text
         assert "def show(self):" in text
         assert "def new(self):" in text
