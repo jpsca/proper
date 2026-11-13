@@ -310,6 +310,7 @@ class TestWithoutModel:
         gen_controller(app_in_tmp, "Setting", singular=True)
 
         controller = _read(app_in_tmp, "controllers", "setting_controller.py")
+        assert '@router.resource("setting", pk=None)' in controller
         assert "def load_setting" not in controller
         assert "before" not in controller
         assert 'redirect_to("Setting.show", flash=' in controller

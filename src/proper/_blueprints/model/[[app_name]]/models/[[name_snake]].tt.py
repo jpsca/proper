@@ -1,7 +1,8 @@
 import peewee as pw
 
-from .base import BaseModel
-
+[% for line in imports -%]
+[[line | safe]]
+[% endfor %]
 
 class [[name_pascal]](BaseModel):
     [%- for row in rows %]

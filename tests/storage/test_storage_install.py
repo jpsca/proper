@@ -33,6 +33,17 @@ def test_file_creation(app_in_tmp):
     # creates_attachment_model
     path = app_in_tmp.root_path / "models" / "attachment.py"
     assert path.exists()
+    text = path.read_text()
+    # Only the image previewer is on: the others need poppler and ffmpeg
+    assert '        ("image/*", "preview_image"),' in text
+    assert '        # ("application/pdf", "preview_pdf"),' in text
+    assert '        # ("video/*", "preview_video"),' in text
+    assert "# from .user import User" in text
+    assert "# import peewee as pw" in text
+
+    # the direct upload saves the real size of the bytes
+    text = (app_in_tmp.root_path / "controllers" / "storage_controller.py").read_text()
+    assert "obj.save(only=[Attachment.byte_size])" in text
 
     # main.py is left alone - the new shape doesn't need an app.storage alias
     text = (app_in_tmp.root_path / "main.py").read_text()

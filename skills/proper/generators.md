@@ -1,7 +1,7 @@
 ---
 title: Generators
 description: `proper g model|resource|controller|seed|email|channel`: attribute syntax (`title:str,unique`, `user:fk-User,backref:comments`), `--only`/`--exclude`, `--namespace`, `--migration`
-last_verified: 2026-11-07
+last_verified: 2026-11-13
 sources:
   - src/proper/generators
   - src/proper/_blueprints/controller
@@ -98,6 +98,8 @@ class Comment(BaseModel):
     photo = pw.ForeignKeyField(Photo, backref="comments", on_delete="CASCADE")
 ```
 
+The generated module imports the related models (`from .photo import Photo`, `from .user import User`, sorted with `from .base import BaseModel`). A foreign key to the model itself is written as `pw.ForeignKeyField("self", ...)`.
+
 #### Generating with a Migration
 
 Add `--migration` to also create a migration file:
@@ -131,7 +133,7 @@ proper g resource Photo title:str --only=index,show
 # Generate everything except delete
 proper g resource Photo title:str --exclude=delete
 
-# Singular resource (no index, no :id in URLs)
+# Singular resource (no index, no :id in URLs), mounted at the singular name: /profile
 proper g resource Profile --singular
 
 # Name of the id segment in member URLs (/photos/:uuid instead of /photos/:photo_id); ignored with --singular
@@ -148,15 +150,15 @@ proper g resource Photo title:str --migration
 ```bash
 proper g controller Dashboard --only=index
 proper g controller Post --namespace=admin      # controllers/admin/, forms/admin/, views/admin/, and admin_router = router.scope("admin") in router.py if missing (see namespacing.md)
-proper g controller card/closure                # a state-change resource under cards/:card_id (see controllers.md)
+proper g controller card/closure                # controllers/card/closure_controller.py (pk=None, under cards/:card_id), controllers/concerns/card_scoped.py if missing, tests/controllers/test_closure.py; no form or views; routes named Card:Closure.* (see controllers.md)
 ```
 
 ### Other Generators
 
 ```bash
-proper g seed roles            # db/seeds/roles.py (see migrations.md)
+proper g seed roles            # db/seeds/roles.py; --db NAME (other than main) writes db/seeds/NAME/roles.py (see migrations.md)
 proper g email Welcome         # emails/welcome_email.py (WelcomeEmail) + views/emails/welcome.jx (see emails.md)
 proper g channel Chat          # channels/chat_channel.py (see channels.md)
 ```
 
-Every generator accepts `--help`. Read the generated files before editing them, and check that `controllers/__init__.py` / `models/__init__.py` got the new import.
+Every generator accepts `--help`. The model, controller, resource, email and channel generators take `--force` to overwrite existing files without asking. Read the generated files before editing them, and check that `controllers/__init__.py` / `models/__init__.py` got the new import.

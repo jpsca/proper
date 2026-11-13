@@ -245,6 +245,8 @@ def gen_controller(
         "name_snake": name_snake,
         "name_human": name_human,
         "plural_snake": plural_snake,
+        # A singular resource is mounted at its singular name: /profile
+        "mount_path": name_snake if singular else plural_snake,
         "plural_human": plural_human,
         "only": only_list,
         "exclude": exclude_list,

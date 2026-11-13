@@ -1,7 +1,7 @@
 ---
 title: Namespacing Controllers
 description: A separate controller, form and views for the same resource under a URL prefix (an admin interface): generator, scoped router, `Admin:Post.index` route names
-last_verified: 2026-11-08
+last_verified: 2026-11-13
 sources:
   - src/proper/generators
   - src/proper/router
@@ -23,7 +23,7 @@ When you need a separate controller for the same resource — for example, an ad
 
 ### What the generator creates
 
-For `proper g controller Post --namespace=admin`:
+For `proper g controller Post --namespace=admin`, with a `Post` model already imported in `models/__init__.py` (or for `proper g resource Post --namespace=admin`; without the model, the actions are stubs):
 
 ```
 myapp/
@@ -68,7 +68,6 @@ from ..app_controller import AppController
 
 @admin_router.resource("posts")
 class PostController(AppController):
-
     def index(self):
         self.posts = Post.select()
 
@@ -110,6 +109,7 @@ Route names are prefixed with the namespace in PascalCase, separated by a colon.
 | GET | `/admin/posts/:post_id` | `Admin:Post.show` |
 | GET | `/admin/posts/:post_id/edit` | `Admin:Post.edit` |
 | PATCH | `/admin/posts/:post_id` | `Admin:Post.update` |
+| PUT | `/admin/posts/:post_id` | `Admin:Post.update` |
 | DELETE | `/admin/posts/:post_id` | `Admin:Post.delete` |
 
 Use these prefixed names for `url_for` and `redirect_to`:

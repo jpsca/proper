@@ -120,7 +120,7 @@ class _Attachment(ProperModel):
         service_name = service_name or self._default_service_name
         if not service_name:
             raise StorageConfigError(
-                "Missing config.storage.SERVICE or service_name argument"
+                "Missing the STORAGE config or the service_name argument"
             )
 
         filename = filename or getattr(upload, "filename", "") or ""
@@ -203,7 +203,7 @@ class _Attachment(ProperModel):
         service_name = service_name or cls._default_service_name
         if not service_name:
             raise StorageConfigError(
-                "Missing config.storage.SERVICE or service_name argument"
+                "Missing the STORAGE config or the service_name argument"
             )
 
         if "." in filename:
@@ -248,7 +248,7 @@ class _Attachment(ProperModel):
 
     @property
     def url(self) -> str:
-        """The URL for this attachment. Alias of `url_redirect`.
+        """The URL for this attachment. Alias of `get_redirect_url()`.
         """
         return self.get_redirect_url()
 
@@ -421,7 +421,9 @@ class _Attachment(ProperModel):
         # and fall back to STORAGE_FALLBACK_FORMAT for everything else.
         save = dict(ops.get("save") or {})
         save.setdefault("format", self._default_variant_format())
-        ops = {**ops, "save": save.copy()}
+        ops = {**ops, "save": save}
+        if "load" in ops:
+            ops["load"] = dict(ops["load"] or {})
 
         key = self._variant_key(**ops)
         existing = self.__class__.get_or_none(
@@ -437,9 +439,11 @@ class _Attachment(ProperModel):
                 # The previewer gets every option, its own (`page`, `dpi`,
                 # `at_seconds`) included; the image pipeline only the
                 # transformations, since it rejects any other name.
-                image_bytes = method(self.download(), **ops)
+                image_bytes = method(self.download(), **_copy_ops(ops))
+                # `transform_image()` pops from `load` and `save`, so it
+                # gets copies: `ops` is stored as it is in `metadata`.
                 image_ops = {
-                    name: value for name, value in ops.items()
+                    name: value for name, value in _copy_ops(ops).items()
                     if name in VALID_OPS or name in ("load", "save")
                 }
                 image_bytes = transform_image(image_bytes, **image_ops)
@@ -761,3 +765,11 @@ def attachment_for(
     )(Attachment._purge_variants_by_id)
 
     return Attachment
+
+
+def _copy_ops(ops: dict) -> dict:
+    """`ops` with copies of its `load` and `save` dicts."""
+    return {
+        name: dict(value) if name in ("load", "save") and value else value
+        for name, value in ops.items()
+    }

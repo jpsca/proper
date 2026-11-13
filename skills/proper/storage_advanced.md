@@ -1,10 +1,11 @@
 ---
 title: Storage: Variants, Previews and Custom Services
 description: Storage addon, second level: `variant()` transformations, load/save options, purging and eager-loading variants, previews of PDFs and videos, custom previewers, writing a storage service
-last_verified: 2026-11-08
+last_verified: 2026-11-13
 sources:
   - src/proper/storage
   - src/proper/tools/storage.py
+  - src/proper/_blueprints/addon_storage
 ---
 
 # Storage: Variants, Previews and Custom Services
@@ -71,7 +72,7 @@ if attachment.is_previewable:
 
 ### Available transformations
 
-All resize operations preserve the aspect ratio and apply a mild sharpening. Options are forwarded to [`vips_thumbnail()`](https://www.libvips.org/API/current/ctor.Image.thumbnail.html).
+All resize operations preserve the aspect ratio (except `resize_to_fit` with `size="force"`) and apply a mild sharpening. Options are forwarded to [`vips_thumbnail()`](https://www.libvips.org/API/current/ctor.Image.thumbnail.html).
 
 Operation         | Args              | Notes
 ----------------- | ----------------- | --------------------
@@ -116,9 +117,9 @@ When `save["format"]` is not provided, Proper picks one:
 1. If the source content type matches `STORAGE_ALLOWED_VARIANTS` (see [Baseline Configuration](storage.md#baseline-configuration)), preserve the **source format**.
 2. Otherwise, use `STORAGE_FALLBACK_FORMAT` (default `"png"`).
 
-The resolved format is included in `variant_key`, so a JPEG source and a TIFF source with the same kwargs produce **different** variants (one stays JPEG, the other becomes PNG).
+The resolved format is included in `variant_key`, so with the same kwargs a JPEG source gets a JPEG variant and a TIFF source a PNG one.
 
-The argument order within `variant()` matters for the hash (`(200, 100)` ≠ `(100, 200)`), but keys *within* `load` and `save` dicts are sorted before hashing.
+The order of the operations and of the values in each matters for the hash (`resize_to_fill=(200, 100)` ≠ `(100, 200)`; `rotate` then `resize_to_fit` ≠ the reverse), but keys *within* `load` and `save` dicts are sorted before hashing.
 
 ### Iterating and purging variants
 
@@ -204,7 +205,7 @@ video_attachment.variant(resize_to_fit=(400, 400), at_seconds=5.0)
 
 ### Custom previewers
 
-Extend `VARIANTS_ENABLED_FOR` and add a method with the signature `(source: bytes, **ops) -> bytes` that returns the extracted image bytes. The framework then runs the result through `transform_image(image_bytes, **ops)` for any resize / format-conversion ops:
+Extend `VARIANTS_ENABLED_FOR` and add a method with the signature `(source: bytes, **ops) -> bytes` that returns the extracted image bytes. The framework then runs the result through `transform_image()` with the transformations and `load`/`save` (previewer-only options such as `page` are dropped). The bytes must be in a format the allowed loaders read (`STORAGE_SAFE_IMAGE_LOADERS`: PNG, JPEG, …; an SVG fails). Patterns are tried in order and the first match wins:
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
@@ -217,7 +218,7 @@ class Attachment(app.attachment_for(BaseModel)):
         return extract_cover(source)  # your extraction logic
 ```
 
-The method receives all of the kwargs passed to `variant()`, including the resolved `save` dict — branch on `ops["save"]["format"]` if you want the transform to honor format conversions.
+The method receives all of the kwargs passed to `variant()`, including the resolved `save` dict. It doesn't need to convert formats: `transform_image()` writes the requested format after it runs.
 
 
 ## Custom Services
