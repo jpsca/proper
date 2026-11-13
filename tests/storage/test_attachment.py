@@ -63,7 +63,7 @@ def Attachment(app, db, BaseModel):
     # subclassing: `@queue.task` captures the decorated class eagerly,
     # so further subclassing strands Huey task dispatch on the parent.
     Attachment = app.attachment_for(BaseModel)
-    Attachment.VARIANTS_ENABLED_FOR = {"image/*": "preview_image"}
+    Attachment.VARIANTS_ENABLED_FOR = (("image/*", "preview_image"),)
     Attachment.bind(db)
     db.create_tables([Attachment, Attachment.Reference])
     return Attachment
@@ -625,7 +625,7 @@ def test_variant_preserves_source_format_when_allowed(Attachment):
 
 
 def test_variant_uses_fallback_format_when_source_not_allowed(Attachment):
-    # image/bmp matches VARIANTS_ENABLED_FOR ("image/*") but is not in
+    # image/bmp matches VARIANTS_ENABLED_FOR ("image/*", ...) but is not in
     # STORAGE_ALLOWED_VARIANTS, so the variant should fall back to PNG.
     parent = Attachment(_make_file(b"img", "photo.bmp"), content_type="image/bmp")
     parent.save(force_insert=True)
@@ -730,10 +730,10 @@ def test_preview_image_returns_source_unchanged(Attachment):
 
 def test_subclass_can_add_content_types(Attachment):
     class MyAttachment(Attachment):
-        VARIANTS_ENABLED_FOR = {
-            **Attachment.VARIANTS_ENABLED_FOR,
-            "application/epub": "preview_epub",
-        }
+        VARIANTS_ENABLED_FOR = (
+            *Attachment.VARIANTS_ENABLED_FOR,
+            ("application/epub", "preview_epub"),
+        )
 
         def preview_epub(self, source, **ops):
             # Custom previewers follow the same contract as the built-in
@@ -766,10 +766,10 @@ def test_custom_previewer_receives_download_and_resolved_ops(Attachment):
     seen = {}
 
     class MyAttachment(Attachment):
-        VARIANTS_ENABLED_FOR = {
-            **Attachment.VARIANTS_ENABLED_FOR,
-            "application/pdf": "preview_pdf_custom",
-        }
+        VARIANTS_ENABLED_FOR = (
+            *Attachment.VARIANTS_ENABLED_FOR,
+            ("application/pdf", "preview_pdf_custom"),
+        )
 
         def preview_pdf_custom(self, source, **ops):
             seen["source"] = source
@@ -845,10 +845,10 @@ def test_preview_pdf_page_kwarg_passed_to_pdftoppm(Attachment):
 
 def test_variant_passes_previewer_options_to_the_previewer_only(Attachment):
     """`page`/`dpi` reach `preview_pdf` but not the image pipeline, which rejects them."""
-    Attachment.VARIANTS_ENABLED_FOR = {
-        "image/*": "preview_image",
-        "application/pdf": "preview_pdf",
-    }
+    Attachment.VARIANTS_ENABLED_FOR = (
+        ("image/*", "preview_image"),
+        ("application/pdf", "preview_pdf"),
+    )
     att = Attachment(
         _make_file(b"%PDF", "doc.pdf"), content_type="application/pdf"
     )
@@ -911,10 +911,10 @@ def test_preview_pdf_with_path_source_skips_tempfile(Attachment, tmp_path):
 
 
 def test_variant_on_pdf_dispatches_to_preview_pdf(Attachment):
-    Attachment.VARIANTS_ENABLED_FOR = {
-        **Attachment.VARIANTS_ENABLED_FOR,
-        "application/pdf": "preview_pdf",
-    }
+    Attachment.VARIANTS_ENABLED_FOR = (
+        *Attachment.VARIANTS_ENABLED_FOR,
+        ("application/pdf", "preview_pdf"),
+    )
     att = Attachment(
         _make_file(b"%PDF-stub", "doc.pdf"), content_type="application/pdf"
     )
@@ -1036,10 +1036,10 @@ def test_preview_video_refuses_a_playlist(Attachment, tmp_path):
 
 
 def test_variant_on_video_dispatches_to_preview_video(Attachment):
-    Attachment.VARIANTS_ENABLED_FOR = {
-        **Attachment.VARIANTS_ENABLED_FOR,
-        "video/*": "preview_video",
-    }
+    Attachment.VARIANTS_ENABLED_FOR = (
+        *Attachment.VARIANTS_ENABLED_FOR,
+        ("video/*", "preview_video"),
+    )
     att = Attachment(
         _make_file(b"mp4-stub", "clip.mp4"), content_type="video/mp4"
     )

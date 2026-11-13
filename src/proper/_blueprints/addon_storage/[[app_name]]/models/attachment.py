@@ -16,17 +16,17 @@ class Attachment(app.attachment_for(BaseModel)):
     # required dependencies. Note that you can also add your own custom previewers.
     #
     # Read the storage docs for details https://properproject.org/docs/storage/.
-    VARIANTS_ENABLED_FOR = {
+    VARIANTS_ENABLED_FOR = (
         # Requires the `pyvips` python library and the
         # [libvips](https://www.libvips.org/install.html) system library.
-        "image/*": "preview_image",
+        ("image/*", "preview_image"),
 
         # Requires [poppler](https://poppler.freedesktop.org/).
-        # "application/pdf": "preview_pdf",
+        ("application/pdf", "preview_pdf"),
 
         # Requires [ffmpeg v3.4+](https://ffmpeg.org/)
-        # "video/*": "preview_video",
-    }
+        ("video/*", "preview_video"),
+    )
     ...
 
 
