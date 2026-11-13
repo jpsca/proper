@@ -60,11 +60,11 @@ class Attachment(app.attachment_for(BaseModel)):
     # You can add any extra fields here, like:
     # user = pw.ForeignKeyField(User, null=True)
 
-    VARIANTS_ENABLED_FOR = {
-        "image/*": "preview_image",
-        # "application/pdf": "preview_pdf",
-        # "video/*": "preview_video",
-    }
+    VARIANTS_ENABLED_FOR = (
+        ("image/*", "preview_image"),
+        # ("application/pdf", "preview_pdf"),
+        # ("video/*", "preview_video"),
+    )
 ```
 
 The generated parent provides these fields:

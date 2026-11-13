@@ -12,6 +12,10 @@ All notable changes to Proper are documented in this file.
   default, and then nothing is added to a render. Setting it forgets the
   loaded components, which are loaded again on their next render.
 
+### Changed
+
+- `Attachment.VARIANTS_ENABLED_FOR` is now a tuple of `("pattern", "method")` instead of a dict.
+
 ## 0.50.0
 
 ### Added

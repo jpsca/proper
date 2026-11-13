@@ -163,7 +163,7 @@ Edit `rich_text_attachment.jx` to customise rendering — e.g. videos via `<vide
 {% endif %}
 ```
 
-> **Heads up:** the default `rich_text_attachment.jx` calls `attachment.variant(resize_to_limit=(1600, 1600))` for previewable content. Make sure `VARIANTS_ENABLED_FOR["image/*"] = "preview_image"` is enabled on your `Attachment` model (the storage blueprint enables it by default) and `pyvips` + `libvips` are installed. See [storage_advanced.md#variants](storage_advanced.md#variants).
+> **Heads up:** the default `rich_text_attachment.jx` calls `attachment.variant(resize_to_limit=(1600, 1600))` for previewable content. Make sure `("image/*", "preview_image")` is enabled on the  `VARIANTS_ENABLED_FOR` attribute of your `Attachment` model (the storage blueprint enables it by default) and `pyvips` + `libvips` are installed. See [storage_advanced.md#variants](storage_advanced.md#variants).
 
 ## The Editor Component
 

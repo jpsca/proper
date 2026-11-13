@@ -175,11 +175,11 @@ webp = attachment.create_variant(
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "image/*": "preview_image",
-        "application/pdf": "preview_pdf",    # install poppler
-        "video/*": "preview_video",          # install ffmpeg
-    }
+    VARIANTS_ENABLED_FOR = (
+        ("image/*", "preview_image"),
+        ("application/pdf", "preview_pdf"),    # install poppler
+        ("video/*", "preview_video"),          # install ffmpeg
+    )
 ```
 
 System tool installation:
@@ -208,10 +208,10 @@ Extend `VARIANTS_ENABLED_FOR` and add a method with the signature `(source: byte
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "image/*": "preview_image",
-        "application/epub+zip": "preview_epub",
-    }
+    VARIANTS_ENABLED_FOR = (
+        ("image/*", "preview_image"),
+        ("application/epub+zip", "preview_epub"),
+    )
 
     def preview_epub(self, source: bytes, **ops) -> bytes:
         return extract_cover(source)  # your extraction logic

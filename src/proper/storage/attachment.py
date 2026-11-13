@@ -66,17 +66,17 @@ class _Attachment(ProperModel):
     # required dependencies. Note that you can also add your own custom previewers.
     #
     # Read the storage docs for details https://properproject.org/docs/storage/.
-    VARIANTS_ENABLED_FOR: dict[str, str] #= {
+    VARIANTS_ENABLED_FOR: tuple[tuple[str, str], ...] = (
         # Requires the `pyvips` python library and the
         # [libvips](https://www.libvips.org/install.html) system library.
-        # "image/*": "preview_image",
+        # ("image/*", "preview_image"),
 
         # Requires [poppler](https://poppler.freedesktop.org/).
-        # "application/pdf": "preview_pdf",
+        # ("application/pdf", "preview_pdf"),
 
         # Requires [ffmpeg v3.4+](https://ffmpeg.org/)
-        # "video/*": "preview_video",
-    #}
+        # ("video/*", "preview_video"),
+    )
 
     # How long, in seconds, a served file may be cached (`Cache-Control:
     # max-age`). The bytes of an attachment never change, so it can be long.
@@ -295,7 +295,7 @@ class _Attachment(ProperModel):
             **kwargs
         )
 
-    def service_url(self) -> "str | None":
+    def service_url(self) -> str | None:
         """The service's native URL for this attachment (e.g. a presigned
         S3 GET URL), or `None` for services that don't expose one (e.g.
         Disk). Callers should fall back to `send_file()` when this returns
@@ -398,7 +398,7 @@ class _Attachment(ProperModel):
     def is_previewable(self) -> bool:
         return any(
             fnmatch(self.content_type, pattern)
-            for pattern in self.VARIANTS_ENABLED_FOR.keys()
+            for pattern, _ in self.VARIANTS_ENABLED_FOR
         )
 
     @staticmethod
@@ -431,7 +431,7 @@ class _Attachment(ProperModel):
         if existing:
             return existing
 
-        for pattern, method_name in self.VARIANTS_ENABLED_FOR.items():
+        for pattern, method_name in self.VARIANTS_ENABLED_FOR:
             if fnmatch(self.content_type, pattern):
                 method = getattr(self, method_name)
                 # The previewer gets every option, its own (`page`, `dpi`,
@@ -581,7 +581,14 @@ class _Attachment(ProperModel):
 
     @classmethod
     def _validate_previewers(cls):
-        if "image/*" in cls.VARIANTS_ENABLED_FOR:
+        assert isinstance(cls.VARIANTS_ENABLED_FOR, tuple), \
+            "VARIANTS_ENABLED_FOR must be a tuple"
+        assert all(len(item) == 2 for item in cls.VARIANTS_ENABLED_FOR), \
+            "Each item in VARIANTS_ENABLED_FOR must be a tuple of (pattern, method_name)"
+
+        variants_enabled_for = dict(cls.VARIANTS_ENABLED_FOR)
+
+        if "image/*" in variants_enabled_for:
             if load_pyvips() is None:
                 raise ImportError(
                     "preview_image requires the `pyvips` python library and the " \
@@ -590,7 +597,7 @@ class _Attachment(ProperModel):
                     "and then pyvips (https://pypi.org/project/pyvips/)."
                 ) from None
 
-        if "application/pdf" in cls.VARIANTS_ENABLED_FOR:
+        if "application/pdf" in variants_enabled_for:
             if shutil.which("pdftoppm") is None:
                 raise ImportError(
                     "preview_pdf requires the `pdftoppm` command from poppler. "
@@ -598,7 +605,7 @@ class _Attachment(ProperModel):
                     "`pdftoppm` is on PATH."
                 ) from None
 
-        if "video/*" in cls.VARIANTS_ENABLED_FOR:
+        if "video/*" in variants_enabled_for:
             if shutil.which("ffmpeg") is None:
                 raise ImportError(
                     "preview_video requires the `ffmpeg` command from ffmpeg v3.4+. "

@@ -967,11 +967,11 @@ The variant cache (the row in `attachment` plus the bytes in the service) surviv
 The `VARIANTS_ENABLED_FOR` property of your `Attachment` model maps content-type patterns to the names of methods on the same class that generate the preview.
 
 ```python
-VARIANTS_ENABLED_FOR = {
-    "image/*": "preview_image",
-    # "application/pdf": "preview_pdf",
-    # "video/*": "preview_video",
-}
+VARIANTS_ENABLED_FOR = (
+    ("image/*", "preview_image"),
+    # ("application/pdf", "preview_pdf"),
+    # ("video/*", "preview_video"),
+)
 ```
 
 :::warning
@@ -990,10 +990,10 @@ from .base import BaseModel
 
 
 class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "application/pdf": "preview_pdf",
+    VARIANTS_ENABLED_FOR = (
+        ("application/pdf", "preview_pdf"),
         # ...
-    }
+    )
 ```
 
 `pdf_attachment.variant(resize_to_fit=(400, 400))` produces a PNG thumbnail of the first page, stored as a normal variant - cached, deduplicated, served through whatever service the parent uses.
@@ -1011,10 +1011,10 @@ Video previews ship with the framework. To enable them, uncomment the `"video/*"
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "video/*": "preview_video",
+    VARIANTS_ENABLED_FOR = (
+        ("video/*", "preview_video"),
         # ...
-    }
+    )
 ```
 
 `video_attachment.variant(resize_to_fit=(400, 400))` produces a PNG thumbnail of a single frame.
@@ -1033,10 +1033,10 @@ Write a method that takes the attachment bytes plus options and returns the imag
 
 ```python
 class Attachment(app.attachment_for(BaseModel)):
-    VARIANTS_ENABLED_FOR = {
-        "application/epub+zip": "preview_epub",
+    VARIANTS_ENABLED_FOR = (
+        ("application/epub+zip", "preview_epub"),
         # ...
-    }
+    )
 
     def preview_epub(self, source: bytes, **ops) -> bytes:
         image_bytes = extract_cover(source)  # your extraction logic

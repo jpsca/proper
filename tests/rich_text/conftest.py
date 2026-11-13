@@ -48,7 +48,7 @@ def Attachment(app, db, BaseModel):
     # subclassing: `@queue.task` captures the decorated class eagerly,
     # so further subclassing strands Huey task dispatch on the parent.
     Attachment = app.attachment_for(BaseModel)
-    Attachment.VARIANTS_ENABLED_FOR = {"image/*": "preview_image"}
+    Attachment.VARIANTS_ENABLED_FOR = (("image/*", "preview_image"),)
     Attachment.bind(db)
     db.create_tables([Attachment, Attachment.Reference])
     return Attachment
