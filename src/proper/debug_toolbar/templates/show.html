@@ -1,0 +1,169 @@
+{% extends "layout.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ record.method }} {{ record.path }}{% endblock %}
+
+{% block header %}
+<nav><a href="{{ url_prefix }}">← Requests</a></nav>
+<h1>{{ m.status(record) }} {{ record.method }} {{ record.url }}</h1>
+<div class="summary">
+  <span><b>{{ m.ms(record.ms) }}</b> total</span>
+  <span><b>{{ record.app_queries|length }}</b> SQL in <b>{{ m.ms(record.sql_ms) }}</b></span>
+  {% if record.target %}<span>→ <b>{{ record.target }}</b></span>{% endif %}
+  {% if record.turbo_frame %}<span>Turbo Frame <b>{{ record.turbo_frame }}</b></span>{% endif %}
+  {% if record.prefetch %}<span>prefetch</span>{% endif %}
+  <span>{{ record.started_at.strftime("%H:%M:%S") }}</span>
+  <span class="mono">{{ record.id }}</span>
+</div>
+{% if previous %}<p>Redirected from {{ m.status(previous) }} <a class="mono" href="{{ url_prefix }}/{{ previous.id }}">{{ previous.method }} {{ previous.url }}</a></p>{% endif %}
+{% if record.redirect_to %}<p>Redirects to <code>{{ record.redirect_to }}</code></p>{% endif %}
+{% if record.error %}<p><span class="badge error">Error</span> <code>{{ record.error }}</code></p>{% endif %}
+{% endblock %}
+
+{% block body %}
+<h2 id="time">Time</h2>
+<table>
+  <tr><th>Pipeline step</th><th class="num">Time</th><th style="width:50%"></th></tr>
+  {% for name, step_ms in record.steps %}
+  <tr>
+    <td class="mono">{{ name }}</td>
+    <td class="num">{{ m.ms(step_ms) }}</td>
+    <td class="meter"><i style="width:{{ (100 * step_ms / record.ms)|round(1) if record.ms else 0 }}%"></i><span>&nbsp;</span></td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td class="dim">Outside the steps (connections, hooks, error handling)</td>
+    <td class="num">{{ m.ms([record.ms - steps_ms, 0]|max) }}</td>
+    <td></td>
+  </tr>
+  <tr><td><b>Total</b></td><td class="num"><b>{{ m.ms(record.ms) }}</b></td><td></td></tr>
+</table>
+<h3>Inside that time</h3>
+<table>
+  <tr><td>SQL <span class="dim">· {{ record.app_queries|length }} queries</span></td><td class="num">{{ m.ms(record.sql_ms) }}</td><td style="width:50%"></td></tr>
+  <tr><td>Views <span class="dim">· {{ record.renders|length }} rendered, with the queries they run</span></td><td class="num">{{ m.ms(record.render_ms) }}</td><td></td></tr>
+  <tr><td>Cache <span class="dim">· {{ record.cache_calls|length }} calls</span></td><td class="num">{{ m.ms(record.cache_calls_ms) }}</td><td></td></tr>
+</table>
+
+<h2 id="sql">SQL <span class="dim">· {{ record.app_queries|length }} queries, {{ m.ms(record.sql_ms) }}
+  {%- if record.cache_queries %} · {{ record.cache_queries|length }} of the cache, {{ m.ms(record.cache_ms) }}{% endif %}
+  {%- if record.repeated_count %}, <span class="badge warn">{{ record.repeated_count }} repeated</span>{% endif %}</span></h2>
+{% if record.queries %}
+<table>
+  <tr><th class="num">#</th><th class="num">Time</th><th>Query</th></tr>
+  {% for query in record.queries %}
+  <tr{% if query.error %} class="failed"{% endif %}>
+    <td class="num dim">{{ loop.index }}</td>
+    <td class="num meter"><i style="width:{{ (100 * query.ms / slowest)|round(1) if slowest else 0 }}%"></i><span>{{ m.ms(query.ms) }}</span></td>
+    <td>
+      <pre>{{ query.sql }}</pre>
+      {% if query.params %}<pre class="dim">{{ query.params }}</pre>{% endif %}
+      {% if query.error %}<pre><span class="badge error">Error</span> {{ query.error }}</pre>{% endif %}
+      <div class="dim mono">
+        {%- if query.repeated > 1 %}<span class="badge warn">×{{ query.repeated }}</span> {% endif -%}
+        {%- if query.cache %}cache {% elif query.db != "main" %}[{{ query.db }}] {% endif -%}
+        {{ query.origin }}
+        {%- if query.component %} · rendering {{ query.component }}{% endif %}</div>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No queries</p>
+{% endif %}
+
+<h2 id="views">Views <span class="dim">· {{ record.renders|length }} rendered, {{ m.ms(record.render_ms) }}</span></h2>
+{% for render in record.renders %}
+<h3><span class="mono">{{ render.view }}</span> · {{ m.ms(render.ms) }}</h3>
+{% if render.variables %}
+<table>
+  {% for name, value in render.variables.items() %}
+  <tr><td class="name mono">{{ name }}</td><td><pre>{{ value }}</pre></td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No variables</p>
+{% endif %}
+{% if render.rows %}
+<table class="tree">
+  <tr>
+    <th>Component <span class="dim">· {{ render.component_count }} rendered</span></th>
+    <th class="num">Time</th><th class="num">Own time</th><th class="num">SQL</th><th style="width:25%"></th>
+  </tr>
+  {% for depth, call in render.rows %}
+  <tr>
+    <td class="mono" style="padding-left:{{ 10 + depth * 20 }}px">
+      {%- if depth %}<span class="dim">└ </span>{% endif %}{{ call.view }}
+      {%- if call.count > 1 %} <span class="badge plain">×{{ call.count }}</span>{% endif %}</td>
+    <td class="num">{{ m.ms(call.ms) }}</td>
+    <td class="num dim">{{ m.ms(call.self_ms) }}</td>
+    <td class="num">{% if call.queries %}<span class="badge {{ "warn" if call.count > 1 and call.queries >= call.count else "plain" }}">{{ call.queries }}</span>{% endif %}</td>
+    <td class="meter"><i style="width:{{ (100 * call.ms / render.ms)|round(1) if render.ms else 0 }}%"></i><span>&nbsp;</span></td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="dim">The time of a component has that of the components it renders, not that of its content, which is rendered by the one that uses it.</p>
+{% endif %}
+{% else %}
+<p class="empty">No view rendered</p>
+{% endfor %}
+
+<h2 id="cache">Cache <span class="dim">· {{ record.cache_calls|length }} calls, {{ record.cache_hits }} hits, {{ record.cache_misses }} misses, {{ m.ms(record.cache_calls_ms) }}</span></h2>
+{% if record.cache_calls %}
+<table>
+  <tr><th class="num">#</th><th class="num">Time</th><th>Call</th><th>Key</th><th></th></tr>
+  {% for call in record.cache_calls %}
+  <tr>
+    <td class="num dim">{{ loop.index }}</td>
+    <td class="num">{{ m.ms(call.ms) }}</td>
+    <td class="mono">{{ call.op }}</td>
+    <td><pre>{{ call.key }}</pre></td>
+    <td>{% if call.hit is true %}<span class="badge ok">hit</span>{% elif call.hit is false %}<span class="badge warn">miss</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No calls to the cache</p>
+{% endif %}
+
+<h2 id="logs">Logs <span class="dim">· {{ record.logs|length }} lines</span></h2>
+{% if record.logs %}
+<table>
+  <tr><th class="num">At</th><th>Level</th><th>Logger</th><th>Message</th></tr>
+  {% for line in record.logs %}
+  <tr>
+    <td class="num dim">{{ m.ms(line.at) }}</td>
+    <td>{% if line.level in ("ERROR", "CRITICAL") %}<span class="badge error">{{ line.level }}</span>
+      {%- elif line.level == "WARNING" %}<span class="badge warn">{{ line.level }}</span>
+      {%- else %}<span class="mono dim">{{ line.level }}</span>{% endif %}</td>
+    <td class="mono dim">{{ line.logger }}</td>
+    <td><pre>{{ line.message }}</pre></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No log lines. Only what the loggers let through is here: set <code>LOG_LEVEL = "debug"</code> for the debug lines of Proper.</p>
+{% endif %}
+
+<h2 id="request">Request</h2>
+<h3>Route</h3>
+{% if record.route_path %}
+<table>
+  <tr><td class="name mono">path</td><td><pre>{{ record.route_path }}</pre></td></tr>
+  {% if record.route_name %}<tr><td class="name mono">name</td><td><pre>{{ record.route_name }}</pre></td></tr>{% endif %}
+  {% if record.controller %}<tr><td class="name mono">controller</td><td><pre>{{ record.controller }}</pre></td></tr>{% endif %}
+  {% if record.action %}<tr><td class="name mono">action</td><td><pre>{{ record.action }}</pre></td></tr>{% endif %}
+</table>
+{% else %}
+<p class="empty">No route matched</p>
+{% endif %}
+{{ m.tables(record.request_data) }}
+
+<h2 id="response">Response</h2>
+<h3>Status</h3>
+<table>
+  <tr><td class="name mono">status</td><td><pre>{{ record.status }}</pre></td></tr>
+  <tr><td class="name mono">content type</td><td><pre>{{ record.content_type }}</pre></td></tr>
+</table>
+{{ m.tables(record.response_data) }}
+{% endblock %}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{% block title %}{% endblock %} · Debug</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6f4; --panel: #fff; --text: #1d1f23; --dim: #6b7078; --line: #dedede;
+  --ok: #2f7d4f; --redirect: #2d6a9f; --warn: #a8741a; --error: #b3362c; --bar: #c9d6e8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181b; --panel: #1f2125; --text: #e8e8e8; --dim: #9aa0a8; --line: #33363c;
+    --bar: #33475f;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+code, pre, .mono, td.num { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14.5px; }
+a { color: inherit; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 16px 0; }
+header nav { font-size: 15px; color: var(--dim); margin-bottom: 6px; }
+h1 { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+h2 { margin: 28px 0 8px; font-size: 17px; }
+h3 { margin: 16px 0 4px; font-size: 15px; color: var(--dim); font-weight: 600; }
+.summary { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-top: 8px; color: var(--dim); font-size: 15px; }
+.summary b { color: var(--text); font-weight: 600; }
+.badge { display: inline-block; padding: 0 7px; border-radius: 3px; color: #fff; font-weight: 600; font-size: 14px; }
+.badge.ok { background: var(--ok); } .badge.redirect { background: var(--redirect); }
+.badge.warn { background: var(--warn); } .badge.error { background: var(--error); }
+.badge.plain { background: transparent; color: var(--dim); border: 1px solid var(--line); }
+table.tree { margin-top: 8px; }
+table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+th, td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+th { font-size: 14px; color: var(--dim); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+td.name { white-space: nowrap; color: var(--dim); width: 1%; }
+td pre, td code { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dim { color: var(--dim); }
+.empty { color: var(--dim); font-style: italic; }
+.meter { position: relative; }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); z-index: 0; }
+.meter span { position: relative; z-index: 1; }
+tr.failed td { background: color-mix(in srgb, var(--error) 12%, transparent); }
+main { padding-bottom: 60px; }
+</style>
+</head>
+<body>
+<header><div class="wrap">{% block header %}{% endblock %}</div></header>
+<main class="wrap">{% block body %}{% endblock %}</main>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Requests{% endblock %}
+
+{% block header %}
+<h1>Requests</h1>
+<div class="summary"><span>The last <b>{{ records|length }}</b>, newest first. Kept in memory: a restart clears them.</span></div>
+{% endblock %}
+
+{% block body %}
+{% if records %}
+<h2></h2>
+<table>
+  <tr>
+    <th>Time</th><th>Status</th><th>Request</th><th>Action</th>
+    <th class="num">Total</th><th class="num">SQL</th>
+  </tr>
+  {% for record in records %}
+  <tr>
+    <td class="mono dim">{{ record.started_at.strftime("%H:%M:%S") }}</td>
+    <td>{{ m.status(record) }}</td>
+    <td class="mono"><a href="{{ url_prefix }}/{{ record.id }}">{{ record.method }} {{ record.url }}</a>
+      {%- if record.turbo_frame %} <span class="dim">frame: {{ record.turbo_frame }}</span>{% endif %}
+      {%- if record.prefetch %} <span class="dim">prefetch</span>{% endif %}
+      {%- if record.redirect_to %} <span class="dim">→ {{ record.redirect_to }}</span>{% endif %}</td>
+    <td class="mono dim">{{ record.target }}</td>
+    <td class="num">{{ m.ms(record.ms) }}</td>
+    <td class="num">{{ record.app_queries|length }} · {{ m.ms(record.sql_ms) }}
+      {%- if record.repeated_count %} <span class="badge warn">{{ record.repeated_count }} rep.</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No requests recorded yet.</p>
+{% endif %}
+{% endblock %}

@@ -107,6 +107,7 @@ Accessed via `current.app` or directly from the app instance.
 | `pipeline`       | `tuple[function, ...]`        | Class attribute: the request pipeline steps, in order |
 | `tools`          | `tuple[module, ...]`          | Class attribute: the tool modules whose `setup(app)` runs at init |
 | `CLI`            | `type`                        | The `proper` command class for this app             |
+| `debug_toolbar`  | `Toolbar \| None`             | The debug toolbar, after `install_debug_toolbar()`; `None` without it |
 
 ### Properties
 
@@ -127,6 +128,7 @@ Accessed via `current.app` or directly from the app instance.
 | `on_error`         | `(func) -> func`                                           | Decorator to register error handlers                     |
 | `on_teardown`      | `(func) -> func`                                           | Decorator to register teardown handlers                  |
 | `around_request`   | `(func) -> func`                                           | Decorator to register a function `func(request, response, call_next)` that wraps every request |
+| `install_debug_toolbar` | `() -> Toolbar`                                       | Record each request and add the debug toolbar to the HTML pages; for development (see [app.md](../app.md#the-debug-toolbar)) |
 | `attachment_for`   | `(base_model_cls) -> type[_Attachment]`                    | Build an `Attachment` model subclass for the storage addon (memoized per app+base). Its `Reference` attribute is the model of the records that embed each attachment |
 | `has_migrations_pending` | `() -> bool`                                         | Any migration under `db/<name>/` not applied to its database |
 | `lower`            | `() -> None`                                               | Lower the dispatch decisions and compile every view; raises `LoweringError`, and `proper.views.CompileError` outside debug |
