@@ -1,0 +1,84 @@
+<div id="proper-debug-toolbar" data-request-id="{{ record.id }}">
+<style>
+#proper-debug-toolbar {
+  all: initial;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147483000;
+  display: flex; align-items: stretch; gap: 0;
+  height: 34px; overflow: hidden;
+  font: 14px/34px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #e8e8e8; background: #1d1f23; border-top: 1px solid #000;
+}
+#proper-debug-toolbar * { all: unset; }
+#proper-debug-toolbar style, #proper-debug-toolbar script { display: none; }
+#proper-debug-toolbar .pdt-item {
+  display: block; padding: 0 12px; white-space: nowrap;
+  border-right: 1px solid #33363c;
+}
+#proper-debug-toolbar .pdt-grow {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+#proper-debug-toolbar .pdt-dim { color: #9aa0a8; }
+#proper-debug-toolbar .pdt-ok { background: #2f7d4f; color: #fff; }
+#proper-debug-toolbar .pdt-redirect { background: #2d6a9f; color: #fff; }
+#proper-debug-toolbar .pdt-warn { background: #a8741a; color: #fff; }
+#proper-debug-toolbar .pdt-error { background: #b3362c; color: #fff; }
+#proper-debug-toolbar a.pdt-item, #proper-debug-toolbar button.pdt-item { cursor: pointer; }
+#proper-debug-toolbar a.pdt-item:hover, #proper-debug-toolbar button.pdt-item:hover {
+  background: #33363c;
+}
+@media print { #proper-debug-toolbar { display: none; } }
+</style>
+{%- if previous %}
+<a class="pdt-item pdt-{{ previous.kind }}" href="{{ url_prefix }}/{{ previous.id }}" target="_blank" data-turbo="false" title="The request that redirected here">{{ previous.status }} {{ previous.method }} {{ previous.path }} →</a>
+{%- endif %}
+<span class="pdt-item pdt-{{ record.kind }}">{{ record.status }}</span>
+<span class="pdt-item pdt-grow">{{ record.method }} {{ record.path }}
+  {%- if record.target %} <span class="pdt-dim">→ {{ record.target }}</span>{% endif %}</span>
+<a class="pdt-item pdt-sub" style="display:none" target="_blank" data-turbo="false" title="The last request this page made with Turbo"></a>
+<span class="pdt-item">{{ "%.1f"|format(record.ms) }} ms</span>
+<span class="pdt-item{% if record.repeated_count %} pdt-warn{% endif %}">
+  {{- record.app_queries|length }} SQL · {{ "%.1f"|format(record.sql_ms) }} ms
+  {%- if record.repeated_count %} · {{ record.repeated_count }} repeated{% endif %}</span>
+{%- if record.renders %}
+<span class="pdt-item">view {{ "%.1f"|format(record.render_ms) }} ms</span>
+{%- endif %}
+{%- if record.cache_calls %}
+<span class="pdt-item">cache {{ record.cache_calls|length }}
+  {%- if record.cache_hits or record.cache_misses %} · {{ record.cache_hits }} hit · {{ record.cache_misses }} miss{% endif %}</span>
+{%- endif %}
+{%- if record.problems %}
+<span class="pdt-item pdt-warn">{{ record.problems }} log</span>
+{%- endif %}
+<a class="pdt-item" href="{{ url_prefix }}/{{ record.id }}" target="_blank" data-turbo="false">Details</a>
+<a class="pdt-item" href="{{ url_prefix }}" target="_blank" data-turbo="false">Requests</a>
+<button class="pdt-item" type="button" title="Hide" onclick="this.parentNode.remove()">×</button>
+<script>
+(function () {
+  // Turbo runs this script again with every page it shows: listen once.
+  if (window.__properDebugToolbar) return;
+  window.__properDebugToolbar = true;
+  var prefix = "{{ url_prefix }}";
+  document.addEventListener("turbo:before-fetch-response", function (event) {
+    var fetchResponse = event.detail && event.detail.fetchResponse;
+    var id = fetchResponse && fetchResponse.header && fetchResponse.header("x-request-id");
+    if (!id) return;
+    fetch(prefix + "/" + encodeURIComponent(id) + "/summary", {headers: {Accept: "application/json"}})
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) {
+        var bar = document.getElementById("proper-debug-toolbar");
+        // A page Turbo has shown by now has a bar of its own for this request
+        if (!data || !bar || data.prefetch || bar.dataset.requestId === id) return;
+        var link = bar.querySelector(".pdt-sub");
+        var count = Number(link.dataset.count || 0) + 1;
+        link.dataset.count = count;
+        link.href = prefix + "/" + encodeURIComponent(id);
+        link.className = "pdt-item pdt-sub pdt-" + data.kind;
+        link.textContent = "↳ " + data.status + " " + data.method + " " + data.path +
+          " · " + data.ms + " ms · " + data.sql + " SQL" + (count > 1 ? " (" + count + ")" : "");
+        link.style.display = "block";
+      })
+      .catch(function () {});
+  });
+})();
+</script>
+</div>

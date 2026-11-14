@@ -75,7 +75,7 @@ Core:
 | Task | Read | Run |
 |------|------|-----|
 | Create a new app from scratch | [app.md, Setup](app.md#setup) | `uvx proper_new myapp` |
-| Understand the request lifecycle, `current`, config keys, lifecycle hooks | [app.md](app.md) | — |
+| Understand the request lifecycle, `current`, config keys, lifecycle hooks, the debug toolbar | [app.md](app.md) | — |
 | Run, check, serve or log the app | [cli.md](cli.md) | `proper run`, `proper check` |
 | Deploy: Dockerfile, compose, nginx, sizing, prod config, `.env`, checklist | [deployment.md](deployment.md) | `docker compose build`, `proper db prepare` |
 | Generator syntax (`title:str,unique`, `user:fk-User`, `--only`, `--namespace`) | [generators.md](generators.md) | `proper g --help` |

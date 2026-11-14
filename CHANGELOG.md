@@ -2,6 +2,19 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Added
+
+- A debug toolbar for development: `app.install_debug_toolbar()` records
+  what each request does (route, time of each pipeline step, SQL queries
+  with the line that ran them, calls to the cache, rendered views and
+  their components, log lines, request and response data) and adds a bar
+  with a summary to the HTML pages. The page of a request is at
+  `/__debug__/<request id>`, and the list of the last ones at `/__debug__`.
+  Each app has its own toolbar, kept in `app.debug_toolbar` (`None`
+  without one).
+
 ## 0.51.0
 
 ### Added

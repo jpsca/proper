@@ -161,6 +161,11 @@ This is the documentation for **Proper**. These guides are designed to make you 
   <p>Tests give you the confidence to change your code without breaking it. This guide introduces Proper's <code>TestClient</code>, which lets you simulate HTTP requests, upload files, exercise WebSockets, and sign users in - all without running a real server.</p>
 </a>
 
+<a href="/docs/debug_toolbar" class="doc-index-section">
+  <h3>The Debug Toolbar</h3>
+  <p>When a page is slow, the first question is what it did. The debug toolbar adds a bar to every page while you develop, with the time, the SQL queries, the views, the cache calls and the log lines of each request - and marks the queries that run once per row.</p>
+</a>
+
 <a href="/docs/advanced_models" class="doc-index-section">
   <h3>Models Advanced Topics</h3>
   <p>A handful of model patterns that don't come up every day, but are worth having documented for when they do: composite primary keys, circular foreign keys, polymorphic relationships, and using more than one database in the same application.</p>

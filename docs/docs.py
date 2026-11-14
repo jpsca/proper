@@ -72,6 +72,7 @@ pages = [
         "title": "Digging Deeper",
         "pages": [
             "testing.md",
+            "debug_toolbar.md",
             "advanced_models.md",
             "api.md",
         ]

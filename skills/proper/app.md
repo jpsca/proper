@@ -1,12 +1,13 @@
 ---
 title: Application
-description: App layout, request lifecycle, the `current` context, configuration, lifecycle hooks, static assets, debug error pages
+description: App layout, request lifecycle, the `current` context, configuration, lifecycle hooks, static assets, debug error pages, debug toolbar
 last_verified: 2026-11-13
 sources:
   - src/proper/app.py
   - src/proper/core
   - src/proper/global_context.py
   - src/proper/controller/static_files_controller.py
+  - src/proper/debug_toolbar
   - blueprint/[[app_name]]/config
 ---
 
@@ -24,6 +25,7 @@ How a Proper app is laid out, how a request flows through it, and the settings i
 - [Lifecycle Hooks](#lifecycle-hooks)
 - [Static Assets](#static-assets)
 - [The Debug Error Pages](#the-debug-error-pages)
+- [The Debug Toolbar](#the-debug-toolbar)
 
 
 ## Setup
@@ -285,3 +287,34 @@ With `DEBUG`, any error (the `router.error` handlers don't run), or a route that
 - Anything else, like `curl` or an agent (`*/*`): plain text.
 
 To see the error of a page you are building, request it with `curl -s URL` and read the text.
+
+
+## The Debug Toolbar
+
+A bar at the bottom of every HTML page, with what the request did. It is not installed by default. Add it in `main.py`, after the app is created, for development only:
+
+```python
+app = App(__name__, config)
+
+if app.config.DEBUG:
+    app.install_debug_toolbar()
+```
+
+The bar shows the status, the route, the time, and the number of SQL queries, and links to the page of the request at `/__debug__/<request id>`. That page has:
+
+- **Time**: how long each step of the pipeline took.
+- **SQL**: every query, its time, the line of the app that ran it, the component that was rendering, and how many times the same query was repeated (an N+1).
+- **Views**: the rendered view, its variables, and the tree of its components with the time of each.
+- **Cache**: every call to `app.cache`, and whether a read was a hit or a miss.
+- **Logs**: the log lines written during the request.
+- **Request** and **Response**: route parameters, query, form, headers, cookies and session.
+
+Good to know:
+
+- `/__debug__` lists the last requests. Use it for the ones without a page of their own: a redirect, a Turbo Frame, JSON. The bar also shows the redirect that led to the page, and the last request the page made with Turbo.
+- The last 50 requests are kept, in memory, in each process. With `PROCESSES` over 1, the page of a request is found only when the same process answers.
+- Passwords, tokens and other secrets are masked, as in the debug error pages.
+- The requests for assets and for the pages of the toolbar are not recorded.
+- `/__debug__/<request id>/summary` returns the summary of a request as JSON. The request ID is the `x-request-id` header of the response.
+- `app.install_debug_toolbar()` returns the toolbar, also kept in `app.debug_toolbar` (`None` when it is not installed). Set `app.debug_toolbar.enabled = False` to stop recording; the pages then answer 404.
+- In a test, read what a request did from the store: `app.debug_toolbar.store.latest()[0]` is the record of the last request, with `queries`, `renders`, `cache_calls` and `logs`.

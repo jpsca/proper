@@ -8,7 +8,7 @@ import pytest
 import redis
 from botocore.exceptions import ClientError, EndpointConnectionError
 
-from proper import App, current
+from proper import App, TestClient, current
 from proper.models import ProperModel
 
 
@@ -47,6 +47,11 @@ def app():
     app = App(__name__, config)
     current.app = app
     return app
+
+
+@pytest.fixture()
+def client(app):
+    return TestClient(app)
 
 
 @pytest.fixture()

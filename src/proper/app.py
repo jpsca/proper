@@ -46,6 +46,7 @@ if t.TYPE_CHECKING:
 
     from .auth import Auth
     from .cache import BaseCache
+    from .debug_toolbar import Toolbar
     from .emails import BaseMailer
     from .i18n import I18n
     from .storage import _Attachment
@@ -133,6 +134,9 @@ class App(AppWsgi):
         tools.auth,
         tools.storage,
     )
+
+    #: The debug toolbar, after `install_debug_toolbar()`
+    debug_toolbar: "Toolbar | None" = None
 
     db: "dict[str, pw.Database]"
     queue: "Huey"
@@ -351,6 +355,30 @@ class App(AppWsgi):
             call_next = functools.partial(_call_around, hook, call_next)
         self._wrapped_pipeline = call_next
         return func
+
+    def install_debug_toolbar(self) -> "Toolbar":
+        """Record what each request does (route, timings, SQL queries,
+        calls to the cache, rendered views, log lines) and add a bar with a
+        summary to the HTML pages. The pages of the toolbar are served at
+        `/__debug__`. For development only:
+
+        ```python
+        if app.config.DEBUG:
+            app.install_debug_toolbar()
+        ```
+
+        Returns the toolbar, also kept in `app.debug_toolbar`. Calling it
+        again returns the same one.
+        """
+        # Here, because the toolbar imports `proper`
+        from .debug_toolbar import DebugToolbarController, Toolbar
+
+        if self.debug_toolbar is None:
+            toolbar = Toolbar(self)
+            toolbar.install()
+            DebugToolbarController.connect(self.router)
+            self.debug_toolbar = toolbar
+        return self.debug_toolbar
 
     def attachment_for(self, base_model_cls: type) -> "type[_Attachment]":
         """Build an Attachment model subclass of `base_model_cls`.

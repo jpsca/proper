@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+
+{% block title %}Request not found{% endblock %}
+
+{% block header %}
+<nav><a href="{{ url_prefix }}">← Requests</a></nav>
+<h1>Request not found</h1>
+{% endblock %}
+
+{% block body %}
+<p>Only the last {{ size }} requests are kept, in memory. This one is older, or was answered before the server restarted.</p>
+{% endblock %}
