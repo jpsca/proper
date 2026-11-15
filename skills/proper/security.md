@@ -242,7 +242,7 @@ class SecurityHeaders(Concern):
 | `X-Permitted-Cross-Domain-Policies` | `none`                             | Disable Flash/PDF cross-domain policies          |
 | `Referrer-Policy`                   | `strict-origin-when-cross-origin`  | Limit referrer info sent to other origins        |
 
-There is no `Content-Security-Policy` by default. Proper has no CSP nonces, and the `<script type="importmap">` from `render_importmap` is inline, so a policy needs `script-src 'self' 'unsafe-inline'` for the importmap to load.
+There is no `Content-Security-Policy` by default. Proper has no CSP nonces, and the `<script type="importmap">` from `render_importmap` is inline, so a policy needs `script-src 'self' 'unsafe-inline'` for the importmap to load. With Turbo Drive the document isn't reloaded on a visit, so the policy of the first page loaded stays in effect and the header of later pages is ignored: a page with its own policy needs `<meta name="turbo-visit-control" content="reload">` (and `data-turbo="false"` on its links, to leave it with a full load). Don't add `'strict-dynamic'`: Turbo inserts the scripts of a new page with `createElement`, so an injected `<script>` would run after a Turbo visit.
 
 This concern lives in your app at `controllers/concerns/security_headers.py`. You can customize it by changing the defaults or adding headers like `Content-Security-Policy`. The generated file ends with a commented-out `Strict-Transport-Security` header to turn on once the site is HTTPS-only.
 

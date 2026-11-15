@@ -14,6 +14,8 @@ In this guide you will learn how to add client-side behavior to a Proper app wit
 
 That division is what makes Stimulus a good fit for a Proper app. Turbo (see the [Turbo guide](/docs/turbo)) brings HTML from the server; Stimulus handles the small amount of behavior that has to happen in the browser.
 
+Use Stimulus where Turbo does not apply: to change HTML that is already on the page, without asking the server. Some examples are a keyboard shortcut, a text area that grows as the user types, or a drop zone for uploading files.
+
 This page is a compact introduction with the parts that are specific to Proper. The [Stimulus handbook](https://stimulus.hotwired.dev/handbook/introduction) and [reference](https://stimulus.hotwired.dev/reference/controllers) cover every option in more depth.
 
 ---
@@ -282,6 +284,8 @@ renders `data-controller="autosave" data-autosave-url-value="..."`. In plain HTM
   {{ field.error_tag() }}
 </div>
 ```
+
+**Nested forms.** Adding and removing sub-forms in the browser does not need a controller of your own. Formidable ships a script for it; see [Rendering Forms - Dynamic Add / Remove](/docs/form_rendering#dynamic).
 
 **One controller, many components.** Several components can declare the same `{#js #}` file. The layout emits the script once per page, and the controller connects to every element that names it.
 
