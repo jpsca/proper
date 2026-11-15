@@ -1,7 +1,7 @@
 ---
 title: Turbo
 description: Turbo on the server — Drive navigation, Frames, and Streams (the turbo_stream builder, *.turbo_stream.jx responses, render(stream=), broadcasting, and the request predicates)
-last_verified: 2026-11-07
+last_verified: 2026-11-15
 sources:
   - src/proper/turbo
   - blueprint/assets/js
@@ -30,6 +30,7 @@ Drive needs no server code; Frames need a little; Streams are where the backend 
   - [The turbo_stream builder](#the-turbo_stream-builder)
   - [Responding to a form](#responding-to-a-form)
   - [Broadcasting live updates](#broadcasting-live-updates)
+  - [Refreshing the page instead](#refreshing-the-page-instead)
 - [Quick reference](#quick-reference)
 
 ## Turbo Drive
@@ -54,7 +55,19 @@ Because Drive never does a full reload, the `<head>` from the first page sticks 
 <link rel="stylesheet" href="{{ url_for('assets', file='css/app.css') }}" data-turbo-track="reload">
 ```
 
-Drive also shows a progress bar for slow navigations and caches a preview of visited pages for instant back/forward. For the deeper options (morphing page refreshes, visit control, scroll handling) see the [Turbo Drive handbook](https://turbo.hotwired.dev/handbook/drive). The frontend setup (layout, import maps, assets) lives in [frontend.md](frontend.md#import-maps).
+**Page settings.** A few `<meta>` tags in the `<head>` change how Drive treats a page:
+
+| Tag | Effect |
+|-----|--------|
+| `<meta name="turbo-cache-control" content="no-cache">` | Drive does not keep a snapshot of the page |
+| `<meta name="turbo-cache-control" content="no-preview">` | The snapshot is used for "Back", but not as a preview |
+| `<meta name="turbo-visit-control" content="reload">` | Visiting the page always does a full reload |
+| `<meta name="turbo-refresh-method" content="morph">` | A refresh of the page changes only what differs |
+| `<meta name="turbo-refresh-scroll" content="preserve">` | A refresh keeps the scroll position |
+
+For the whole app, add them to `views/layouts/base.jx`. The generated layouts have no slot in the `<head>`; for one page, add `{% slot head %}{% endslot %}` to the `<head>` of `base.jx`, pass it along in `app.jx` with `{% fill head %}{% slot head %}{% endslot %}{% endfill %}` inside its `<Layout>`, and fill it from the page with `{% fill head %}<meta ...>{% endfill %}`.
+
+Drive also shows a progress bar for slow navigations. For the rest of the options see the [Turbo Drive handbook](https://turbo.hotwired.dev/handbook/drive). The frontend setup (layout, import maps, assets) lives in [frontend.md](frontend.md#import-maps).
 
 ## Turbo Frames
 
@@ -167,16 +180,15 @@ turbo_stream.append("messages", "message/Message.jx", message=message)
 # <turbo-stream action="append" target="messages"><template>…Message.jx…</template></turbo-stream>
 ```
 
-The actions map one-to-one to Turbo's:
+The methods are named after Turbo's actions:
 
 | Method | Effect |
 |--------|--------|
 | `append` / `prepend` | Add the fragment as the last / first child of the target |
-| `replace` / `update` | Replace the whole element / just its inner content |
+| `replace` / `update` | Replace the whole element / just its inner content. `method="morph"` renders `method="morph"` on the stream: Turbo 8 morphing, which keeps focus and scroll. Here `method` is not passed to the component as a prop |
 | `before` / `after` | Insert the fragment outside the target, before / after it |
 | `remove` | Delete the target (renders no content) |
-| `morph` | Replace via Turbo 8 morphing (keeps focus and scroll) |
-| `refresh` | Trigger a full Turbo page refresh (no target); `refresh(request_id=...)` lets the originating tab skip its own |
+| `refresh` | Trigger a full Turbo page refresh (no target); `refresh(request_id=...)` lets the originating tab skip its own; `refresh(method="morph", scroll="preserve")` sets how it is applied, over the page's `turbo-refresh-method` / `turbo-refresh-scroll` meta tags (`method`: `morph` or `replace`; `scroll`: `preserve` or `reset`) |
 
 **Target.** The first argument is an element id, or a model — a model is converted with `dom_id` (`dom_id(post)` → `post_42`). To act on many elements at once, pass `targets=` with a CSS selector instead:
 
@@ -207,7 +219,9 @@ turbo_stream.append("messages", "message/Message.jx", message=msg) \
     + turbo_stream.update("new_message", "message/Form.jx")
 ```
 
-The instance is also callable for the positional form — `turbo_stream("append", target, …)` — equivalent to the matching method.
+The instance is also callable for the positional form — `turbo_stream("append", target, …)` — equivalent to the matching method. In this form and in the `stream` tag, `method=` is always the stream's attribute, never a prop: `{% stream "update", post, method="morph" %}`.
+
+There is no `turbo_stream.morph`: Turbo has no `morph` action. Morphing is `replace` or `update` with `method="morph"`.
 
 ### Responding to a form
 
@@ -273,6 +287,25 @@ app.cable.broadcast(
 Clients subscribe with a `<turbo-stream-channel>` element, and each fragment is applied by `Turbo.renderStreamMessage` — no `received()` handler to write. The channel, subscription element, and stream-name authorization are part of the channels addon: see [channels.md, Turbo Streams](channels.md#turbo-streams).
 
 Proper does **not** ship Rails-style model callbacks (`broadcasts_to`, `after_create_commit`) — broadcasts are explicit. Call `app.cable.broadcast` wherever the change happens.
+
+### Refreshing the page instead
+
+When one change touches many places of a page (a counter, a total, a sorted list), broadcast a refresh instead of individual streams:
+
+```python
+app.cable.broadcast(f"board_{board.id}", turbo_stream.refresh())
+```
+
+With the two `turbo-refresh` meta tags (see [Turbo Drive](#turbo-drive)), the browser fetches the page and morphs it: only what changed is touched, and scroll position and focus are kept. No stream templates, no element ids to keep in sync.
+
+The tab that made the change already gets the new page as its form response. Turbo sends an `X-Turbo-Request-Id` header with every request; pass it and that tab skips the refresh:
+
+```python
+request_id = self.request.headers.get("x-turbo-request-id", "")
+app.cable.broadcast(f"board_{board.id}", turbo_stream.refresh(request_id=request_id))
+```
+
+`data-turbo-permanent` on an element (it needs an `id`) keeps it out of the morph.
 
 ## Quick reference
 

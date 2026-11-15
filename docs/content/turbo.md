@@ -91,9 +91,46 @@ addEventListener("turbo:submit-start", ({ target }) => {
 })
 ```
 
-### More
+### Page settings
 
-Drive also shows a progress bar for slow navigations and caches a preview of visited pages for instant back and forward. For the deeper options - morphing page refreshes, visit control, scroll handling - see the [Turbo Drive handbook](https://turbo.hotwired.dev/handbook/drive).
+A few `<meta>` tags in the `<head>` change how Drive treats a page:
+
+Tag                                                       | Effect
+--------------------------------------------------------- | ------------------------------------
+`<meta name="turbo-cache-control" content="no-cache">`    | Drive does not keep a snapshot of the page
+`<meta name="turbo-cache-control" content="no-preview">`  | The snapshot is used for "Back", but not as a preview
+`<meta name="turbo-visit-control" content="reload">`      | Visiting the page always does a full reload
+`<meta name="turbo-refresh-method" content="morph">`      | A refresh of the page changes only what differs
+`<meta name="turbo-refresh-scroll" content="preserve">`   | A refresh keeps the scroll position
+
+To set them for the whole app, add them to `views/layouts/base.jx`. To set them for one page, give the layout a slot inside its `<head>` and fill it from the page:
+
+```html+jinja {title="views/layouts/base.jx"}
+<head>
+  ...
+  {% slot head %}{% endslot %}
+</head>
+```
+
+Pages use the `app.jx` layout, which wraps `base.jx`, so it has to pass the slot along:
+
+```html+jinja {title="views/layouts/app.jx"}
+<Layout attrs={{attrs}}>
+  {% fill head %}{% slot head %}{% endslot %}{% endfill %}
+  ...
+</Layout>
+```
+
+```html+jinja {title="views/report/show.jx"}
+<Layout title="Report">
+  {% fill head %}
+    <meta name="turbo-cache-control" content="no-cache">
+  {% endfill %}
+  ...
+</Layout>
+```
+
+Drive also shows a progress bar for slow navigations. For the rest of the options, see the [Turbo Drive handbook](https://turbo.hotwired.dev/handbook/drive).
 
 ---
 
@@ -226,16 +263,15 @@ turbo_stream.append("messages", "message/message.jx", message=message)
 # </turbo-stream>
 ```
 
-The action methods map one-to-one to Turbo's:
+The action methods are named after Turbo's actions:
 
 Method                | Effect
 --------------------- | --------------------------------------------------------
 `append` / `prepend`  | Add the fragment as the last / first child of the target
-`replace` / `update`  | Replace the whole element / just its inner content
+`replace` / `update`  | Replace the whole element / just its inner content. With `method="morph"`, by morphing: only what differs is changed, preserving focus and scroll
 `before` / `after`    | Insert the fragment outside the target, before / after it
 `remove`              | Delete the target (renders no content)
-`morph`               | Replace by morphing, preserving focus and scroll
-`refresh`             | Trigger a full Turbo page refresh (no target)
+`refresh`             | Trigger a full Turbo page refresh (no target). Takes `request_id`, `method`, and `scroll` (see [Refreshing the page instead](#refreshing-the-page-instead))
 
 The first argument is the **target**: an element id, or a model. A model is converted with `dom_id` (`dom_id(post)` → `post_42`). To act on many elements at once, pass `targets=` with a CSS selector instead:
 
@@ -244,7 +280,11 @@ The first argument is the **target**: an element id, or a model. A model is conv
 turbo_stream.replace(post, "post/post.jx", post=post)
 # targets=".flash", no content
 turbo_stream.remove(targets=".flash")
+# action="replace" method="morph"
+turbo_stream.replace(post, "post/post.jx", post=post, method="morph")
 ```
+
+In `replace` and `update`, `method` is the attribute of the stream, and it is not passed to the component.
 
 For **what goes inside**, you have two options, checked in this order - pick one:
 
@@ -342,6 +382,36 @@ Clients subscribe with a `<turbo-stream-channel>` element, and each fragment is 
 Broadcasts are explicit - call `app.cable.broadcast` wherever a change happens.
 :::
 
+### Refreshing the page instead
+
+Streams that append, replace, and remove work well for a list. On a page where one change touches many places (a counter, a total, a sorted list), it is simpler to tell the browser to load the page again:
+
+```python
+app.cable.broadcast(f"board_{board.id}", turbo_stream.refresh())
+```
+
+With the two `turbo-refresh` meta tags of [Page settings](#page-settings), the browser fetches the page and morphs it: only what changed is touched, and the scroll position, focus, and open menus stay as they were. You write no stream templates and keep no element ids in sync.
+
+A refresh can also say how it is applied, whatever the meta tags of the page say:
+
+```python
+turbo_stream.refresh(method="morph", scroll="preserve")
+```
+
+`method` is `"morph"` or `"replace"`, and `scroll` is `"preserve"` or `"reset"`.
+
+The tab that made the change already gets the new page as the response to its form. Pass the id Turbo sent with that request, and that tab skips the refresh:
+
+```python
+request_id = self.request.headers.get("x-turbo-request-id", "")
+app.cable.broadcast(
+    f"board_{board.id}",
+    turbo_stream.refresh(request_id=request_id),
+)
+```
+
+To keep an element out of the morph, such as a form the user is filling, add `data-turbo-permanent` to it (the element needs an `id`).
+
 ---
 
 ## Patterns & Best Practices
@@ -404,10 +474,10 @@ To fix it, we can wrap our submission panel frame in a div with a controller tha
 
 This is an example of such a controller:
 
-```js
+```js {title="assets/js/frame-recovery-controller.js"}
 import { Controller } from "@hotwired/stimulus"
 
-export default class extends Controller {
+class FrameRecoveryController extends Controller {
   static targets = [ "frame", "error" ]
   static classes = [ "hidden" ]
 
@@ -432,12 +502,14 @@ export default class extends Controller {
 
     if (response.ok && !response.redirected) {
       report.likelyCause =
-        "200 with no matching frame, response missing turbo_frame_tag wrapper"
+        "200 with no matching frame: the response is missing the frame tag"
     }
 
     console.error("[frame-missing]", report)
   }
 }
+
+window.Stimulus.register("frame-recovery", FrameRecoveryController)
 ```
 
 ### Turbo Stream DOM coupling

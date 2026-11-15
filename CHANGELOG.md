@@ -14,6 +14,20 @@ All notable changes to Proper are documented in this file.
   `/__debug__/<request id>`, and the list of the last ones at `/__debug__`.
   Each app has its own toolbar, kept in `app.debug_toolbar` (`None`
   without one).
+- `turbo_stream.replace()` and `turbo_stream.update()` take
+  `method="morph"`, to morph the target instead of swapping it. The
+  `stream` tag and `turbo_stream(action, ...)` take it too.
+- `turbo_stream.refresh()` takes `method` and `scroll`, to say how that
+  refresh is applied instead of the page's `turbo-refresh-method` and
+  `turbo-refresh-scroll` meta tags.
+
+### Removed
+
+- `turbo_stream.morph()`. It rendered `<turbo-stream action="morph">`, an
+  action Turbo doesn't have, so the browser rejected it. Use
+  `turbo_stream.replace(..., method="morph")`, or
+  `turbo_stream.update(..., method="morph")` to morph only the content of
+  the target.
 
 ## 0.51.0
 

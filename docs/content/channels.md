@@ -653,11 +653,10 @@ Action               | Effect
 -------------------- | ---------------------------------------------------------
 `append` / `prepend` | Add the fragment as the last / first child of the target
 `before` / `after`   | Insert the fragment as a sibling before / after the target
-`replace`            | Swap the target element itself
-`update`             | Replace the target's contents, keep the element
+`replace`            | Swap the target element itself. With `method="morph"`, by morphing, keeping unchanged nodes
+`update`             | Replace the target's contents, keep the element. Also takes `method="morph"`
 `remove`             | Remove the target (no fragment)
-`morph`              | Update the target by morphing, keeping unchanged nodes
-`refresh`            | Reload the page (takes no target)
+`refresh`            | Reload the page (takes no target). Takes `request_id`, `method`, and `scroll`
 
 Broadcast it like any other data:
 
