@@ -46,7 +46,7 @@ def test_action_method_matches_positional_call():
 
 
 def test_each_action_method_sets_its_action():
-    for action in ("append", "prepend", "replace", "update", "before", "after", "morph"):
+    for action in ("append", "prepend", "replace", "update", "before", "after"):
         out = str(getattr(turbo_stream, action)("box", html="<p>x</p>"))
         assert out.startswith(f'<turbo-stream action="{action}" target="box">')
         assert "<template><p>x</p></template>" in out
@@ -71,10 +71,61 @@ def test_remove_with_targets_omits_the_template():
     assert out == '<turbo-stream action="remove" targets=".gone"></turbo-stream>'
 
 
-def test_morph_keeps_the_template():
-    out = str(turbo_stream.morph("post_1", html="<p>x</p>"))
+def test_replace_with_the_morph_method():
+    out = str(turbo_stream.replace("post_1", html="<p>x</p>", method="morph"))
     assert out == (
-        '<turbo-stream action="morph" target="post_1">'
+        '<turbo-stream action="replace" method="morph" target="post_1">'
+        "<template><p>x</p></template>"
+        "</turbo-stream>"
+    )
+
+
+def test_update_with_the_morph_method():
+    out = str(turbo_stream.update(targets=".post", html="<p>x</p>", method="morph"))
+    assert out == (
+        '<turbo-stream action="update" method="morph" targets=".post">'
+        "<template><p>x</p></template>"
+        "</turbo-stream>"
+    )
+
+
+def test_method_in_a_positional_call_matches_the_action_method():
+    method = str(turbo_stream.replace("post_1", html="<p>x</p>", method="morph"))
+    positional = str(turbo_stream("replace", "post_1", html="<p>x</p>", method="morph"))
+    assert method == positional
+
+
+def test_method_is_escaped():
+    out = str(turbo_stream.replace("post_1", html="", method='m"x'))
+    assert 'method="m&#34;x"' in out
+
+
+def test_method_is_not_a_prop_of_the_component(app, tmp_path):
+    (tmp_path / "Card.jx").write_text("<div {{ attrs.render() }}>Hi</div>")
+    app.catalog.add_folder(tmp_path)
+
+    out = str(turbo_stream.replace("post_1", "Card.jx", method="morph"))
+    assert "<template><div >Hi</div></template>" in out
+
+
+def test_method_is_a_prop_in_the_other_actions(app, tmp_path):
+    (tmp_path / "Form.jx").write_text('{#def method #}<form method="{{ method }}"></form>')
+    app.catalog.add_folder(tmp_path)
+
+    out = str(turbo_stream.append("forms", "Form.jx", method="post"))
+    assert out == (
+        '<turbo-stream action="append" target="forms">'
+        '<template><form method="post"></form></template>'
+        "</turbo-stream>"
+    )
+
+
+def test_tag_with_the_morph_method(app):
+    out = app.catalog.render_string(
+        '{% stream "update", "post_1", method="morph" %}<p>x</p>{% endstream %}'
+    )
+    assert out.strip() == (
+        '<turbo-stream action="update" method="morph" target="post_1">'
         "<template><p>x</p></template>"
         "</turbo-stream>"
     )
@@ -89,6 +140,22 @@ def test_refresh_has_no_target_or_template():
 def test_refresh_with_request_id():
     out = str(turbo_stream.refresh(request_id="abc"))
     assert out == '<turbo-stream action="refresh" request-id="abc"></turbo-stream>'
+
+
+def test_refresh_with_method_and_scroll():
+    out = str(turbo_stream.refresh(method="morph", scroll="preserve"))
+    assert out == (
+        '<turbo-stream action="refresh" method="morph" scroll="preserve">'
+        "</turbo-stream>"
+    )
+
+
+def test_refresh_escapes_its_attributes():
+    out = str(turbo_stream.refresh(request_id='a"b', method='m"x', scroll='s"y'))
+    assert out == (
+        '<turbo-stream action="refresh" request-id="a&#34;b" method="m&#34;x"'
+        ' scroll="s&#34;y"></turbo-stream>'
+    )
 
 
 def test_component_takes_precedence_over_html(app, tmp_path):

@@ -194,6 +194,14 @@ Adjust the policy to your application:
 
 To try a policy without breaking pages, send it first as `Content-Security-Policy-Report-Only`. The browser then only reports what it would block, in its console, and you can fix the policy before you enforce it.
 
+:::note | The policy and Turbo
+The browser applies the policy of a page when it loads the document. Turbo Drive doesn't load a new document on each visit: it fetches the next page and swaps its `<body>` into the current one (see [Turbo](/docs/turbo#turbo-drive)). So the policy of the first page a user opens stays in effect until a full reload, and the `Content-Security-Policy` header of the pages visited after it is ignored.
+
+With one policy for the whole application, as above, this changes nothing. It matters when a controller sets a different policy for its own pages: a user who arrives there through a link keeps the policy of the page they came from. To make those pages always load as a new document, add `<meta name="turbo-visit-control" content="reload">` to their `<head>` (see [Turbo - Page settings](/docs/turbo#page-settings)). The same happens on the way out: the links of those pages keep their policy for the pages that follow, unless they do a full load, with `data-turbo="false"` on the link or on an element that contains it.
+
+Don't add `'strict-dynamic'` to `script-src`. It lets a script that is already trusted add other scripts, and that is how Turbo puts the scripts of a new page in the document, so a `<script>` an attacker got into a page would run after a Turbo visit.
+:::
+
 :::warning | Why `'unsafe-inline'` in `script-src`
 `render_importmap` writes the import map as an inline `<script type="importmap">`, and without it the browser can't load Turbo, Stimulus, or your JavaScript. A policy can allow an inline script in three ways: with `'unsafe-inline'`, with the hash of the script, or with a *nonce*, a random value made for each response that the script must carry. Proper has no nonces yet, and the hash changes every time an asset changes, because the import map has the fingerprinted URLs. So the policy above allows inline scripts.
 
