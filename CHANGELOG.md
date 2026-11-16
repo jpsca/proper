@@ -2,6 +2,19 @@
 
 All notable changes to Proper are documented in this file.
 
+## Unreleased
+
+### Added
+
+- Model signals: `before_save`, `before_create`, `after_create`,
+  `after_save`, `before_delete` and `after_delete`, importable from
+  `proper`. Decorate a method of a model to run it for that model and its
+  subclasses, or a plain function to run it for every model. Creating a
+  record sends `before_save`, `before_create`, `after_create` and
+  `after_save`, in that order; updating it sends only the two save
+  signals. They are sent by `create()`, `save()` and `delete_instance()`,
+  not by the bulk `insert()`, `update()` and `delete()`.
+
 ## 0.52.0
 
 ### Added

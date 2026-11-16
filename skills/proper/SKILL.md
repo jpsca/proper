@@ -86,7 +86,7 @@ Core:
 | Add routes: resources, individual, scoped, host-based, redirects, method override | [routing.md](routing.md) | `proper routes` |
 | Build URLs: `url_for`, `url_is`, asset URLs | [urls.md](urls.md) | — |
 | Define a model, fields, relationships, queries | [models.md](models.md) | `proper g model NAME attrs...` |
-| Model mixins, `@scope` queries, signed tokens for a record | [models_advanced.md](models_advanced.md) | — |
+| Model mixins, `@scope` queries, signals, signed tokens for a record | [models_advanced.md](models_advanced.md) | — |
 | Database config, migrations, seeds | [migrations.md](migrations.md) | `proper db create "..."`, `proper db migrate`, `proper db seed` |
 | Customize forms / validation | [forms.md](forms.md) | — |
 | Build Jx components | [jx.md](jx.md) | — |

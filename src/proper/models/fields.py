@@ -1,6 +1,13 @@
+from datetime import datetime, timezone
+
 import peewee as pw
 
 from ..helpers import jsonplus
+
+
+def utcnow() -> datetime:
+    """The naive UTC datetime peewee's `utcnow` returns, with a type."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class JSONField(pw.JSONField):

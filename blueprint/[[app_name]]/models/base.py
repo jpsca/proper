@@ -1,18 +1,12 @@
 import typing as t
-from datetime import datetime, timezone
 
 import peewee as pw
+from proper.models import ProperModel, utcnow
 
-from proper import ProperModel, scope  # noqa
 from ..main import app
 
 
 db = app.db["main"]
-
-
-def utcnow() -> datetime:
-    """The naive UTC datetime peewee's `utcnow` returns, with a type."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class _MainDatabase:

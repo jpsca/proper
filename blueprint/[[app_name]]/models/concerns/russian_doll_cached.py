@@ -1,9 +1,10 @@
-import peewee as pw
+from proper.models import after_save, before_delete, utcnow
 
-from ..base import BaseModel, utcnow
+from ..base import BaseModel
+from .timestamped import Timestamped
 
 
-class RussianDollCached(BaseModel):
+class RussianDollCached(Timestamped, BaseModel):
     """A Rails-like russian doll caching mechanism for Peewee models.
 
     When a model declares `touches`, saving or deleting an instance
@@ -21,26 +22,9 @@ class RussianDollCached(BaseModel):
     any `{% cache(post) %}` fragment that wraps `{% cache(comment) %}`.
     """
 
-    updated_at = pw.DateTimeField(default=utcnow, null=True)
-
     # Tuple of ForeignKeyField names whose parent records should be
     # touched when this record is saved or deleted.
     touches: tuple[str, ...] = ()
-
-    @classmethod
-    def update(cls, *args, **kwargs):
-        kwargs["updated_at"] = utcnow()
-        return super().update(*args, **kwargs)
-
-    def save(self, *args, **kwargs):
-        self.updated_at = utcnow()
-        result = super().save(*args, **kwargs)
-        self._touch_related()
-        return result
-
-    def delete_instance(self, *args, **kwargs):
-        self._touch_related()
-        return super().delete_instance(*args, **kwargs)
 
     def touch(self):
         """Bump this record's `updated_at` and propagate to `touches`."""
@@ -49,6 +33,8 @@ class RussianDollCached(BaseModel):
         ).execute()
         self._touch_related()
 
+    @after_save
+    @before_delete
     def _touch_related(self):
         for field_name in self.touches:
             related = getattr(self, field_name, None)

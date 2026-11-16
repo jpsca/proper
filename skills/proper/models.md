@@ -12,7 +12,7 @@ sources:
 
 Proper uses [Peewee ORM](https://docs.peewee-orm.com) for database access. All models inherit from `BaseModel`, which is configured to use your application's database. Peewee is used directly - there is no abstraction layer on top of it.
 
-Mixins, scopes and signed tokens are in [models_advanced.md](models_advanced.md). Database configuration, migrations and seeds are in [migrations.md](migrations.md). The `proper g model` syntax is in [generators.md](generators.md).
+Mixins, scopes, signals and signed tokens are in [models_advanced.md](models_advanced.md). Database configuration, migrations and seeds are in [migrations.md](migrations.md). The `proper g model` syntax is in [generators.md](generators.md).
 
 ## Table of Contents
 
@@ -419,7 +419,7 @@ class Photo(BaseModel):
         return super().save(*args, **kwargs)
 ```
 
-Peewee does not have a built-in event/signal system. Method overriding is the standard pattern for adding before-save or after-save behavior.
+For before/after save, create and delete behavior, prefer a signal (`@before_save` on a method) over overriding: see [models_advanced.md](models_advanced.md#signals).
 
 
 ## BaseModel
@@ -454,7 +454,7 @@ class BaseModel(ProperModel):
     created_at = pw.DateTimeField(default=utcnow)
 ```
 
-- **BaseModel** - the parent class for all your models. Inherits from `ProperModel`, which adds `find()`, scope support and token generation/resolution. `Meta` is assigned instead of declared as an inner class so type checkers don't read every model's `Meta` as an override.
+- **BaseModel** - the parent class for all your models. Inherits from `ProperModel`, which adds `find()`, scope support, signals and token generation/resolution. `Meta` is assigned instead of declared as an inner class so type checkers don't read every model's `Meta` as an override.
 - **`created_at`** - every model gets it, set when the record is created. There is no `updated_at` by default: the `RussianDollCached` concern adds it ([models_advanced.md](models_advanced.md#russiandollcached)).
 - **`utcnow()`** - import it from `.base` for timestamps (`from .base import BaseModel, utcnow`).
 

@@ -15,6 +15,7 @@ After reading this guide, you will know:
 - How to create models that map to database tables.
 - How to use models to create, read, update, and delete data.
 - How to use scopes to build reusable, composable queries.
+- How to use signals to run code when a record is created, saved, or deleted.
 - How to share fields and behavior across models with concerns.
 - How to define indexes and constraints.
 - How to configure your database (SQLite, PostgreSQL, MySQL/MariaDB).
@@ -78,7 +79,7 @@ class BaseModel(ProperModel):
     created_at = pw.DateTimeField(default=utcnow)
 ```
 
-`BaseModel` inherits from `ProperModel`, which is a Peewee `Model` with extra capabilities that Proper adds - namely [scopes](#scopes) and signed tokens for a record (`generate_token_for` / `resolve_token_for`). It also gives every model a `created_at` column. If a model doesn't use any of these extras, it behaves exactly like a standard Peewee model.
+`BaseModel` inherits from `ProperModel`, which is a Peewee `Model` with extra capabilities that Proper adds - namely [scopes](#scopes), [signals](#signals), and signed tokens for a record (`generate_token_for` / `resolve_token_for`). It also gives every model a `created_at` column. If a model doesn't use any of these extras, it behaves exactly like a standard Peewee model.
 
 To create a model, add a new file in the `models/` directory and subclass `BaseModel`:
 
@@ -590,6 +591,106 @@ Each model's scopes are independent - `Article.select()` has `.published()` and 
 
 ---
 
+## Signals
+
+### What Are Signals?
+
+Signals let you run your own code when a record is created, saved, or deleted. Use them for things that must always happen at that moment, no matter which controller or task made the change: filling in a slug, clearing a cache, writing a log entry.
+
+There are six signals:
+
+| Signal          | When it runs                                      |
+| --------------- | ------------------------------------------------- |
+| `before_save`   | Before a record is created or updated             |
+| `before_create` | Before a new record is inserted                   |
+| `after_create`  | After a new record is inserted                    |
+| `after_save`    | After a record is created or updated              |
+| `before_delete` | Before `delete_instance()` deletes the record     |
+| `after_delete`  | After `delete_instance()` deletes the record      |
+
+Creating a record runs four of them, in this order: `before_save`, `before_create`, `after_create`, `after_save`. Updating one runs only `before_save` and `after_save`.
+
+### Signals on a Model
+
+Import the signal from `proper` and decorate a method of the model with it. The method runs for that model and for the models that inherit from it:
+
+```python
+# models/article.py
+import peewee as pw
+
+from proper import after_create, before_delete, before_save
+
+from .base import BaseModel
+
+
+class Article(BaseModel):
+    title = pw.CharField()
+    slug = pw.CharField(default="")
+
+    @before_save
+    def set_slug(self):
+        self.slug = self.title.lower().replace(" ", "-")
+
+    @after_create
+    def log_created(self):
+        print(f"Article {self.id} created")
+
+    @before_delete
+    def log_deleting(self):
+        print(f"Deleting article {self.id}")
+```
+
+```python
+article = Article.create(title="Hello World")
+article.slug  # "hello-world"
+```
+
+A method can listen to more than one signal:
+
+```python
+    @after_create
+    @after_delete
+    def clear_cache(self):
+        cache.delete("articles_count")
+```
+
+If a model overrides a decorated method of its parent, its own version is the one that runs. You don't need to decorate it again.
+
+### Signals for Every Model
+
+Decorate a plain function instead of a method and it runs for every model. It receives the model class and the record:
+
+```python
+from proper import after_save
+
+
+@after_save
+def log_save(sender, instance):
+    print(f"Saved {sender.__name__} {instance.id}")
+```
+
+To listen to only one model, and its subclasses, connect the function yourself:
+
+```python
+after_save.connect(log_save, sender=Article)
+```
+
+`after_save.disconnect(log_save, sender=Article)` undoes it.
+
+::: warning | Important
+A function is connected when Python runs the file it is in. Put these functions in a file your app always imports, like the model's own file.
+:::
+
+### What to Keep in Mind
+
+- **Bulk operations don't send signals.** Only `create()`, `save()`, and `delete_instance()` do. `insert()`, `update()`, and `delete()` work on many rows at once, without loading the records, so there is nothing to send.
+- **An error in a `before_*` signal stops the operation.** The record is not saved or deleted.
+- **An error in an `after_*` signal does not undo it.** The record was already saved or deleted when the error happens. If both must succeed or fail together, wrap the call in `db.atomic()`.
+- **A record with a primary key is an update.** `Country(code="cl").save()` runs only the save signals; `Country.create(code="cl")` and `save(force_insert=True)` run the create signals too.
+- **Signals are shared by the whole app.** In tests, disconnect what a test connects, so it doesn't run in the next ones.
+
+---
+
 ## Model Concerns (Mixins)
 
 When multiple models share the same fields or behavior, you can extract that shared code into a **concern** (also called a mixin). A concern is a regular `BaseModel` subclass that you reuse as a parent for other models.
@@ -623,24 +724,25 @@ The `Post` table now has all the columns defined in `Publishable` and `RussianDo
 Create a file in `models/concerns/` and define a normal `BaseModel` subclass:
 
 ```python
-# models/concerns/touched.py
+# models/concerns/timestamped.py
 import peewee as pw
+
+from proper import before_save
 
 from ..base import BaseModel, utcnow
 
 
-class Touched(BaseModel):
+class Timestamped(BaseModel):
+    """Adds an `updated_at` timestamp to a model."""
+
     updated_at = pw.DateTimeField(default=utcnow, null=True)
 
-    @classmethod
-    def update(cls, *args, **kwargs):
-        kwargs["updated_at"] = pw.utcnow()
-        return super().update(*args, **kwargs)
-
-    def save(self, *args, **kwargs):
-        self.updated_at = pw.utcnow()
-        return super().save(*args, **kwargs)
+    @before_save
+    def _set_updated_at(self):
+        self.updated_at = utcnow()
 ```
+
+The [`before_save` signal](#signals) runs the method every time a record of a model that uses the concern is created or updated.
 
 Here's another example - a `Publishable` concern that adds publish/unpublish behavior:
 

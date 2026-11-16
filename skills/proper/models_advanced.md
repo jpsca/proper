@@ -1,12 +1,12 @@
 ---
-title: Model Mixins, Scopes and Tokens
-description: Model concerns (RussianDollCached, your own mixins), chainable `@scope` queries, and signed tokens for a record (`generate_token_for` / `resolve_token_for`)
-last_verified: 2026-11-08
+title: Model Mixins, Scopes, Signals and Tokens
+description: Model concerns (RussianDollCached, your own mixins), chainable `@scope` queries, signals (`@before_save`, `@after_create`, ...), and signed tokens for a record (`generate_token_for` / `resolve_token_for`)
+last_verified: 2026-11-15
 sources:
   - src/proper/models
 ---
 
-# Model Mixins, Scopes and Tokens
+# Model Mixins, Scopes, Signals and Tokens
 
 Reusable behavior on top of the models in [models.md](models.md).
 
@@ -14,6 +14,7 @@ Reusable behavior on top of the models in [models.md](models.md).
 
 - [Model Concerns (Mixins)](#model-concerns-mixins)
 - [Scopes](#scopes)
+- [Signals](#signals)
 - [Token Generation](#token-generation)
 
 
@@ -187,6 +188,72 @@ class BaseModel(ProperModel):
 ```
 
 If a model has no `@scope` methods, it behaves exactly like a regular Peewee model with zero overhead.
+
+
+## Signals
+
+Run code when a record is created, saved or deleted. Six signals, importable from `proper`: `before_save`, `before_create`, `after_create`, `after_save`, `before_delete`, `after_delete`.
+
+| Operation | Signals sent, in order |
+|---|---|
+| `Model.create()`, `save()` of a new record, `save(force_insert=True)` | `before_save`, `before_create`, `after_create`, `after_save` |
+| `save()` of an existing record | `before_save`, `after_save` |
+| `delete_instance()` | `before_delete`, `after_delete` |
+
+### On a model
+
+Decorate a method. It runs for that class and its subclasses, so it also works in a concern:
+
+```python
+import peewee as pw
+
+from proper import after_create, after_delete, before_save
+
+from .base import BaseModel
+
+
+class Article(BaseModel):
+    title = pw.CharField()
+    slug = pw.CharField(default="")
+
+    @before_save
+    def set_slug(self):
+        self.slug = self.title.lower().replace(" ", "-")
+
+    @after_create
+    @after_delete
+    def clear_cache(self):
+        cache.delete("articles_count")
+```
+
+- Signals can be stacked on one method.
+- A subclass that overrides a decorated method runs its own version, once, decorated again or not. Call `super()` in it to also run the parent's.
+- Decorated methods run in the order they are defined.
+
+### For every model
+
+Decorate a plain function (module level or nested). It gets the model class and the record:
+
+```python
+from proper import after_save
+
+
+@after_save
+def log_save(sender, instance):
+    print(f"Saved {sender.__name__} {instance.id}")
+```
+
+For one model and its subclasses, connect it by hand: `after_save.connect(log_save, sender=Article)`. `disconnect()` takes the same arguments. Connecting the same receiver twice for the same sender, or disconnecting one that is not connected, raises `ValueError`.
+
+A function is connected when its module is imported: put it in a module the app always imports.
+
+### Rules
+
+- Only `create()`, `save()` and `delete_instance()` send signals. Bulk `insert()`, `insert_many()`, `update()` and `delete()` don't, and neither do the dependents removed by `delete_instance(recursive=True)`.
+- A record is new when `force_insert=True` or its primary key is `None` (a model with `primary_key = False` is always new). `Country(code="cl").save()` is an update: only the save signals.
+- An exception in a `before_*` receiver stops the operation. In an `after_*` receiver the row is already written; wrap the call in `db.atomic()` to roll it back.
+- An exception in a receiver stops the receivers after it.
+- The signals are global to the process. In tests, restore `signal._receivers` and `signal._receiver_list` after each test (see `tests/models/test_signals.py` in Proper) or disconnect what the test connected.
 
 
 ## Token Generation
