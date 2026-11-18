@@ -1,0 +1,14 @@
+<section class="section start" id="start">
+  <div class="section-inner start-inner">
+    <h2 class="section-title">
+      One command, and <em>a new project</em> appears
+    </h2>
+    <div class="install-cmd install-cmd-big highlight">
+      <span class="prompt" aria-hidden="true">$ </span><code>uvx proper_new myapp</code>
+    </div>
+    <p class="start-next">
+      It takes 10 seconds. Then read
+      <a href="/docs/getting_started/">Getting Started</a>.
+    </p>
+  </div>
+</section>

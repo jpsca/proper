@@ -1,0 +1,22 @@
+<section class="section claude" id="claude">
+  <div class="section-inner claude-inner">
+    <div class="split-head">
+      <h2 class="section-title">Build, side&nbsp;by&nbsp;side, with AI <span class="claude-dot">*</span></h2>
+      <p class="section-sub">
+        Drop the Proper skill into your skills folder and your AI agent will
+        scaffold, edit, and refactor your app the Proper way.
+        The strong conventions will guide it and keep it from making a mess.
+      </p>
+    </div>
+    <div class="cmd">
+<span class="c"># Step one: download the skill.</span>
+<span class="p">$ </span>curl -LsSfO https://properproject.org/skill.zip
+<span class="p">$ </span>unzip skill.zip -d ~/.claude
+
+<span class="c"># Step two: ask, plainly, for a thing.</span>
+<span class="p">$ </span>cd myapp
+<span class="p">$ </span>claude
+<span class="cl">&gt; </span>add an OAuth login
+    </div>
+  </div>
+</section>

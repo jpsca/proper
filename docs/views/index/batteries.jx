@@ -1,13 +1,15 @@
 <section class="section batteries" id="batteries">
-  <div class="section-inner">
-    <div class="section-head">
-      <h2 class="section-title"><em>Batteries</em>, <br />all of them</h2>
+  <div class="section-inner split">
+
+    <div class="split-head">
+      <h2 class="section-title"><em>Batteries</em>, all of them</h2>
       <p class="section-sub">
-        The boring parts of every web app - solved, documented, and ready to
-        import. No assembly. No glue code. No "pick your favorite from the
+        Proper ships with all the tools needed to build amazing web apps on both the front and back end.
+        All tested, documented, and ready to be used. No assembly, glue code, or "pick your favorite from the
         ecosystem."
       </p>
     </div>
+
     <div class="battery-grid">
       <a href="/docs/models/" class="battery">
         <h3 class="battery-name">
@@ -277,5 +279,6 @@
         <div class="battery-pkg">proper.turbo</div>
       </a>
     </div>
+
   </div>
 </section>

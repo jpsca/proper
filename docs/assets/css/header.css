@@ -4,6 +4,7 @@
   white-space: nowrap;
 }
 .header .wrapper {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -40,6 +41,9 @@
 
 .header__brand {
   display: none;
+  position: absolute;
+  top: 0;
+  left: 2rem;
 }
 @media (min-width: 36rem) {
   .header__brand {
@@ -105,6 +109,18 @@
 .header .version {
   font-weight: 500;
   font-size: 1.1em;
+}
+
+.header__actions {
+  position: absolute;
+  top: 0;
+  right: 2rem;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .header__search {

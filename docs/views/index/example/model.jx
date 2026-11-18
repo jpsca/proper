@@ -32,11 +32,6 @@
       <span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
     <span class="p">)</span>
 
-  <span class="k">def</span><span class="w"> </span><span class="nf">byline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">return</span> <span class="p">(</span>
-       <span class="sa">f</span><span class="s2">"Written by </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> "</span>
-       <span class="sa">f</span><span class="s2">"on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">'%b </span><span class="si">%d</span><span class="s1">, %Y'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-
   <span class="k">def</span><span class="w"> </span><span class="nf">publish</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">is_draft</span> <span class="o">=</span> <span class="kc">False</span>
 

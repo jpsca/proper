@@ -1,23 +1,23 @@
 {#import "./layout.jx" as Layout #}
 {#import "./footer.jx" as Footer #}
-{#import "./index/hero.jx" as HeroSection #}
-{#import "./index/fast.jx" as FastSection #}
-{#import "./index/video.jx" as VideoSection #}
-{#import "./index/example.jx" as ExampleSection #}
-{#import "./index/batteries.jx" as BatteriesSection #}
-{#import "./index/scaffolds.jx" as ScaffoldsSection #}
 {#import "./index/axioms.jx" as AxiomsSection #}
-{#import "./index/claude.jx" as ClaudeSection #}
+{#import "./index/batteries.jx" as BatteriesSection #}
+{#import "./index/ai.jx" as AISection #}
+{#import "./index/fast.jx" as FastSection #}
+{#import "./index/hero.jx" as HeroSection #}
+{#import "./index/scaffolds.jx" as ScaffoldsSection #}
+{#import "./index/start.jx" as StartSection #}
+{#import "./index/video.jx" as VideoSection #}
 {#css /assets/css/index.css #}
 
 <Layout title="Proper web framework">
   <HeroSection />
   {# <VideoSection /> #}
   {# <FastSection /> #}
-  <ExampleSection />
   <BatteriesSection />
   <ScaffoldsSection />
+  <AISection />
   <AxiomsSection />
-  <ClaudeSection />
+  <StartSection />
   <Footer full />
 </Layout>

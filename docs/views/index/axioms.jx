@@ -1,26 +1,26 @@
-<section class="section" id="axioms">
+<section class="section axioms" id="axioms">
   <div class="section-inner axioms-inner">
     <div class="section-head axioms-head">
-      <h2 class="section-title"><em>Opinionated</em> <br />by design</h2>
+      <h2 class="section-title"><em>Opinionated</em> by design</h2>
       <p class="section-sub">
-        These are the ideas the framework will not compromise on - the rules
+        These are the ideas the framework will not compromise on, the rules
         that everything else is built around.
       </p>
     </div>
     <div class="axiom-grid">
       <div class="axiom">
-        <div class="axiom-num">- 01</div>
+        <div class="axiom-num">01</div>
         <h3 class="axiom-title">
-          <em>Humans read code.</em> Machines just run it.
+          <em>Beautiful</em> code
         </h3>
         <p class="axiom-body">
-          Writing code can - and should - be automated. But making that code
+          Writing code can, and should, be automated. But making that code
           <strong>easy to read and understand</strong> is the framework's
           reason for being.
         </p>
       </div>
       <div class="axiom">
-        <div class="axiom-num">- 02</div>
+        <div class="axiom-num">02</div>
         <h3 class="axiom-title">Convention over configuration</h3>
         <p class="axiom-body">
           You already know where things go. A <code>Post</code> model lives at
@@ -32,21 +32,21 @@
         </p>
       </div>
       <div class="axiom">
-        <div class="axiom-num">- 03</div>
+        <div class="axiom-num">03</div>
         <h3 class="axiom-title">CRUD, always</h3>
         <p class="axiom-body">
-          Every controller maps URLs to the same seven actions - index, new,
+          Every controller maps URLs to the same seven actions: index, new,
           create, show, edit, update, delete. Remove those you don't need.
           Create another resource if you need more.
         </p>
       </div>
       <div class="axiom">
-        <div class="axiom-num">- 04</div>
+        <div class="axiom-num">04</div>
         <h3 class="axiom-title">Sync code, parallel runtime</h3>
         <p class="axiom-body">
           The code you write is plain, synchronous Python. It runs on
-          free-threaded Python, on the server's own threads, one process for
-          all your workers - you get parallelism without <code>await</code>,
+          <span class="nowrap">free-threaded</span> Python, on the server's own threads, one process for
+          all your workers. You get parallelism without <code>await</code>,
           and without the colour.
         </p>
       </div>

@@ -1,4 +1,4 @@
-<section class="section" id="scaffolds">
+<section class="section scaffolds" id="scaffolds">
   <div class="section-inner scaffolds-inner">
     <div class="cmd">
 <span class="p">$</span> proper g resource Post title:str body:text
@@ -18,9 +18,9 @@
 <span class="h">create</span> demo/models/post.py
     </div>
     <div class="scaffolds-copy">
-      <h2 class="section-title"><em>Scaffolds</em>, <br />not snippets</h2>
+      <h2 class="section-title"><em>Scaffolds</em>, not snippets</h2>
       <p>
-        Copy-paste is a tax on attention. Proper's generators produce
+        Copy-paste is a tax on attention or a waste of tokens. Proper's generators produce
         complete, idiomatic, pre-tested files - so you read, not reassemble.
       </p>
       <p>
