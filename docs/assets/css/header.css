@@ -44,16 +44,16 @@
   position: absolute;
   top: 0;
   left: 2rem;
+  align-items: center;
+  padding: 0;
+  height: var(--header-height);
+  width: auto;
+  text-decoration: none;
+  outline: none;
 }
 @media (min-width: 36rem) {
   .header__brand {
     display: flex;
-    align-items: center;
-    padding: 0;
-    height: var(--header-height);
-    width: auto;
-    text-decoration: none;
-    outline: none;
 }
 }
 .header__brand img {
@@ -112,15 +112,19 @@
 }
 
 .header__actions {
-  position: absolute;
-  top: 0;
-  right: 2rem;
   height: 100%;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+@media (min-width: 36rem) {
+  .header__actions {
+    position: absolute;
+    top: 0;
+    right: 2rem;
+  }
 }
 
 .header__search {

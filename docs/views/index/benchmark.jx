@@ -1,5 +1,4 @@
 {#def data = [
-  ("Actix Web", "Rust", 48497, False),
   ("Proper", "Python 3.14t", 35063, True),
   ("Beego", "Go", 31138, False),
   ("Flask", "Python 3.14t", 13669, False),
@@ -7,7 +6,6 @@
   ("FastAPI", "Python 3.14t", 11767, False),
   ("Sanic", "Python 3.14t", 10300, False),
   ("Django", "Python 3.14t", 10097, False),
-  ("Ruby on Rails", "Ruby 3.4", 6454, False),
 ] #}
 {#
   A bar chart, in plain divs, of requests per second on the "fortunes" page: 12 rows read
@@ -36,7 +34,7 @@
   <figcaption class="bench-caption">
     Requests per second on the <em>fortunes</em> page, 64 connections, one
     machine.<br>
-    Every app serves the same page over the same database; the code and the numbers for every
+    Every app serves the same page over the same SQLite database; the code and the numbers for every
     framework are in <a href="https://github.com/jpsca/proper-bench" target="_blank" rel="noopener">proper-bench</a>.
   </figcaption>
 </figure>

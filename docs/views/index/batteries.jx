@@ -2,7 +2,7 @@
   <div class="section-inner split">
 
     <div class="split-head">
-      <h2 class="section-title"><em>Batteries</em>, all of them</h2>
+      <h2 class="section-title"><em>Batteries,</em> all of them</h2>
       <p class="section-sub">
         Proper ships with all the tools needed to build amazing web apps on both the front and back end.
         All tested, documented, and ready to be used. No assembly, glue code, or "pick your favorite from the
@@ -25,13 +25,12 @@
             <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"></path>
             <path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"></path>
           </svg>
-          Peewee ORM
+          Active Record ORM
         </h3>
         <p class="battery-desc">
-          A small, expressive ORM with migrations, query helpers, and
-          a database connection per request, opened and closed for you.
+          Migrations, query helpers, scopes, signals, and
+          a database connection per request.
         </p>
-        <div class="battery-pkg">peewee</div>
       </a>
 
       <a href="/docs/forms/" class="battery">
@@ -53,7 +52,6 @@
           Declarative forms with field validation, ORM integration, and
           rendering helpers.
         </p>
-        <div class="battery-pkg">proper.forms</div>
       </a>
 
       <a href="/docs/jx_components/" class="battery">
@@ -77,7 +75,6 @@
           Server-rendered Python components - typed props, slots, and zero
           template language.
         </p>
-        <div class="battery-pkg">jx</div>
       </a>
 
       <a href="/docs/caching/" class="battery">
@@ -101,7 +98,6 @@
           Fragment, action, and low-level caching with SQLite or Redis
           backends.
         </p>
-        <div class="battery-pkg">proper.cache</div>
       </a>
 
       <a href="/docs/tasks/" class="battery">
@@ -122,7 +118,6 @@
         <p class="battery-desc">
           Huey-powered queue with retries, schedules, and cron syntax.
         </p>
-        <div class="battery-pkg">huey</div>
       </a>
 
       <a href="/docs/emails/" class="battery">
@@ -144,7 +139,6 @@
           Templated transactional mail with SMTP and console mailers for
           development.
         </p>
-        <div class="battery-pkg">proper.emails</div>
       </a>
 
       <a href="/docs/authentication/" class="battery">
@@ -166,7 +160,6 @@
           Sessions, password resets, rate limiting, and pwned-password checks
           out of the box.
         </p>
-        <div class="battery-pkg">proper.auth</div>
       </a>
 
       <a href="/docs/storage/" class="battery">
@@ -187,7 +180,6 @@
         <p class="battery-desc">
           Disk and S3 adapters with signed URLs and image variants.
         </p>
-        <div class="battery-pkg">proper.storage</div>
       </a>
 
       <a href="/docs/rich_text/" class="battery">
@@ -211,7 +203,6 @@
         <p class="battery-desc">
           Rich content, including images, to replace boring text fields.
         </p>
-        <div class="battery-pkg">proper.rich_text</div>
       </a>
 
       <a href="/docs/i18n/" class="battery">
@@ -232,7 +223,6 @@
         <p class="battery-desc">
           Locale-aware routing, translations, pluralization, and date formats.
         </p>
-        <div class="battery-pkg">proper.i18n</div>
       </a>
 
       <a href="/docs/channels/" class="battery">
@@ -256,7 +246,6 @@
           Channels, broadcasts and Turbo Streams, served by their own process
           next to the web server, with no extra infrastructure.
         </p>
-        <div class="battery-pkg">proper.channels</div>
       </a>
 
       <a href="/docs/turbo/" class="battery">
@@ -276,7 +265,6 @@
         <p class="battery-desc">
           Speed up page changes and form submissions and stream partial page updates.
         </p>
-        <div class="battery-pkg">proper.turbo</div>
       </a>
     </div>
 
