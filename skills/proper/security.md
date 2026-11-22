@@ -261,7 +261,8 @@ if "Content-Security-Policy" not in headers:
         "default-src 'self'",
         f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
         f"style-src 'self' 'nonce-{nonce}'",
-        "img-src 'self' data:",
+        "style-src-attr 'unsafe-inline'",
+        "img-src 'self' data: blob:",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
@@ -280,7 +281,8 @@ plus `{{ csp_meta_tag() }}` in the layout's `<head>`, before the scripts.
 - The debug toolbar's bar carries the visitor's nonce when the app asked for one (it never asks itself), so it works under a policy with `'nonce-...'` in `script-src` and `style-src`; under a hash-only policy it is blocked.
 - The debug error pages and the fallback error pages (404, 403, 500) carry it too, in their `<style>`/`<script>` and a `csp-nonce` meta: Turbo renders an error response in the current document, under the policy of the page it was visiting from, so without the nonce they would be unstyled. They never ask for a nonce; for an error from before the session is read (no route matched) they read it from the session cookie.
 - Don't put a tag with a nonce inside `{% cache %}`: the cached HTML keeps one visitor's nonce.
-- Without `'unsafe-inline'`, `style="..."` and `onclick="..."` attributes don't work; neither does an inline `<script>`/`<style>` without the nonce.
+- `onclick="..."` attributes don't work; neither does an inline `<script>`/`<style>` without the nonce. `style="..."` attributes do, by `style-src-attr 'unsafe-inline'`.
+- Two sources are for the rich text addon's editor (remove them in an app without it): `style-src-attr 'unsafe-inline'` (text colors and highlights are `style` attributes; without it they aren't rendered, and the editor drops them when it loads a saved body, so the next save loses them), and `blob:` in `img-src` (the preview of an image being uploaded).
 - Don't add `'strict-dynamic'`: Turbo inserts the scripts of a new page with `createElement`, so an injected `<script>` would run after a Turbo visit.
 
 

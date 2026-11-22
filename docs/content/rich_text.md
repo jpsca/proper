@@ -49,6 +49,8 @@ It does the following:
 - Adds a task for cleaning up abandoned uploads.
 - Adds `config/rich_text.py`, with the settings of the [sanitizer](#sanitizing), and the `nh3` library to the dependencies of your project.
 
+If you turn on the `Content-Security-Policy` of your application, keep the parts of it that are [for the editor](/docs/security#adjusting-the-policy): without them, the colors of a text are lost.
+
 Now run the migrations to create the `attachment` and `attachment_reference` tables added by the _storage_ addon.
 
 ```bash

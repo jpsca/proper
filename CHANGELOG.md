@@ -21,6 +21,14 @@ All notable changes to Proper are documented in this file.
 - `TestClient` and `make_test_request(..., app=app)` send a URL without a
   host to the `HOST` of the app, instead of `example.com`. A test that
   requests another host by its full URL needs it in `TRUSTED_HOSTS`.
+- The editor of the rich text addon no longer loads the code that
+  uploads files from `esm.sh`: `@rails/activestorage` is now a file of
+  the addon, `js/vendor/activestorage.js`, with an `activestorage` entry
+  in the import map. An app that already has the addon keeps working as
+  before; to get the change, copy `js/vendor/lexxy.js` and
+  `js/vendor/activestorage.js` from the addon and add
+  `"activestorage": "js/vendor/activestorage.js"` to
+  `config/import_map.py`.
 
 ### Added
 
@@ -39,7 +47,10 @@ All notable changes to Proper are documented in this file.
     script or style that is always the same.
 
   New apps have a policy that uses them, commented out, in their
-  `SecurityHeaders` concern. See the Security guide. The debug toolbar
+  `SecurityHeaders` concern. See the Security guide. It has what the
+  editor of the rich text addon needs: the `style` attributes of the
+  colors of a text, and `blob:` images for the upload previews. The
+  debug toolbar
   works under such a policy: its bar carries the nonce of the visitor,
   and has no `style` or `onclick` attributes. So do the debug error
   pages and the fallback error pages, which Turbo shows under the policy

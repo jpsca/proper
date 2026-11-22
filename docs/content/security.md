@@ -158,7 +158,7 @@ A Content Security Policy (CSP) is a response header that tells the browser wher
 
 New applications don't send one, because the right policy depends on what your application loads. The `SecurityHeaders` concern has one, commented out. Turn it on and adjust it:
 
-```python {title="controllers/concerns/security_headers.py" hl_lines="6-17"}
+```python {title="controllers/concerns/security_headers.py" hl_lines="6-18"}
 class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
@@ -170,7 +170,8 @@ class SecurityHeaders(Concern):
                 "default-src 'self'",
                 f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
                 f"style-src 'self' 'nonce-{nonce}'",
-                "img-src 'self' data:",
+                "style-src-attr 'unsafe-inline'",
+                "img-src 'self' data: blob:",
                 "object-src 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",
@@ -207,7 +208,7 @@ This policy has no `'unsafe-inline'`: a `<script>` or a `<style>` written in the
 
   Turbo needs the nonce too, for the style of its progress bar and the scripts of the pages it loads. It reads it from the tag that `csp_meta_tag()` writes.
 
-The policy has nothing for the `style="..."` attribute and for the `onclick="..."` kind, so they don't work. Use classes, and Stimulus controllers.
+The `onclick="..."` kind of attribute doesn't work either: use Stimulus controllers. The `style="..."` attribute does, because of `style-src-attr 'unsafe-inline'`: a style can't run code, and the rich text editor needs it (see below).
 
 Better than a nonce is no inline script at all: put the code in a file of `assets/js/`, and the data it needs in `data-` attributes.
 
@@ -226,6 +227,13 @@ The debug toolbar and the error pages of Proper use the nonce too, so they work 
 If your pages have no inline scripts or styles of their own, you can do without the nonce and its cookie: remove it from the policy and don't add `csp_meta_tag()`. The only thing you lose is Turbo's progress bar, which you can bring back by copying its few lines of CSS (the `.turbo-progress-bar` class) to your own stylesheet.
 
 #### Adjusting the policy
+
+Two parts of the policy are there for the editor of the rich text addon:
+
+- `style-src-attr 'unsafe-inline'`: the colors and highlights of a text are saved as `style` attributes. Without it they aren't shown, and the editor drops them from a text when it is saved again.
+- `blob:` in `img-src`: the editor shows an image while it uploads.
+
+If your application doesn't use the editor, remove them. Other things you may need to add:
 
 - **Files in S3 or another service.** A private file is served with a redirect to the service, so the browser loads it from there: add the service's domain to `img-src` (and to `media-src`, for videos).
 - **The cable on its own port.** If `CABLE_PORT` is set, add the cable's URL to `connect-src`, like `connect-src 'self' wss://example.com:2301`.

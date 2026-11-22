@@ -54,7 +54,13 @@ def test_install_renders_blueprint(app_in_tmp):
     assert (root / "views" / "rich_text_attachment.jx").exists()
     assert (root / "views" / "rich_text_toolbar.jx").exists()
     assert (root.parent / "assets" / "js" / "lexxy-config.js").exists()
-    assert (root.parent / "assets" / "js" / "vendor" / "lexxy.js").exists()
+    vendor = root.parent / "assets" / "js" / "vendor"
+    assert (vendor / "activestorage.js").exists()
+    # The editor loads nothing from another host: the upload code is
+    # the vendored file, imported by its name in the import map.
+    lexxy = (vendor / "lexxy.js").read_text()
+    assert 'import("activestorage")' in lexxy
+    assert "https://esm.sh" not in lexxy
     assert (root.parent / "assets" / "css" / "lexxy-editor.css").exists()
     assert (root.parent / "assets" / "css" / "lexxy-content.css").exists()
     assert (root / "tasks" / "abandoned_uploads_sweep.py").exists()
@@ -98,7 +104,8 @@ def test_install_does_not_reinstall_storage_when_already_present(app_in_tmp):
 def test_install_appends_lexxy_to_import_map(app_in_tmp):
     rich_text.install(app_in_tmp)
     text = (app_in_tmp.root_path / "config" / "import_map.py").read_text()
-    assert '"lexxy"' in text
+    assert '"lexxy": "js/vendor/lexxy.js"' in text
+    assert '"activestorage": "js/vendor/activestorage.js"' in text
 
 
 def test_install_wires_sweep_task_into_init(app_in_tmp):

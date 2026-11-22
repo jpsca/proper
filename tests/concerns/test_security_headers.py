@@ -92,7 +92,10 @@ def test_the_commented_content_security_policy_works(app, WithPolicy):
     nonce = response.csp_nonce
     assert f"script-src 'self' {app.importmap_csp_hash} 'nonce-{nonce}'" in policy
     assert f"style-src 'self' 'nonce-{nonce}'" in policy
-    assert "'unsafe-inline'" not in policy
+    assert "esm.sh" not in policy
+    assert "; style-src-attr 'unsafe-inline'; " in policy
+    assert "; img-src 'self' data: blob:; " in policy
+    assert policy.count("'unsafe-inline'") == 1
     assert policy.startswith("default-src 'self'; ")
 
 
