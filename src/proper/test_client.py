@@ -1,5 +1,6 @@
 import asyncio
 import enum
+import json
 import mimetypes
 import queue
 import secrets
@@ -21,7 +22,7 @@ from .constants import (
     QUERY,
 )
 from .core.request import Request
-from .helpers import CIMultiDict, DotDict, jsonplus
+from .helpers import CIMultiDict, DotDict, to_json
 
 
 if t.TYPE_CHECKING:
@@ -485,7 +486,7 @@ class WebSocketTestSession:
         if msg == {"type": "accept"}:
             msg = await self.receive_raw(timeout=timeout)
         if msg.get("type") == "text":
-            return jsonplus.loads(msg["text"])
+            return json.loads(msg["text"])
         return msg
 
     async def receive_raw(self, timeout: float = 1.0) -> dict:
@@ -510,7 +511,7 @@ class WebSocketTestSession:
 
     def client_send(self, data: dict) -> None:
         """Send a JSON message from the client to the app."""
-        self.client_send_text(jsonplus.dumps(data))
+        self.client_send_text(to_json(data))
 
     def client_send_text(self, text: str) -> None:
         """Send a raw text frame from the client to the app."""

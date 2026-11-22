@@ -28,12 +28,13 @@ only the last one a leave. Each machine refreshes a key with a TTL; when one
 stops refreshing it (it died), another drops what it had there and tells the
 subscribers who left. Without Redis, each machine lists only its own.
 """
+import json
 import threading
 import time
 import typing as t
 import uuid
 
-from ..helpers import jsonplus, logger
+from ..helpers import logger, to_json
 from .cable import Cable, InMemoryServer, _broadcast_frame
 
 
@@ -162,7 +163,7 @@ class RedisCable(Cable):
         """Publish to the other machines. A Redis that is down loses the
         message and logs it; the page that broadcast still renders."""
         try:
-            self._get_publisher().publish(self._channel, jsonplus.dumps(message))
+            self._get_publisher().publish(self._channel, to_json(message))
         except redis.RedisError as error:
             logger.warning("⚠️ [cable] could not publish to Redis at %s: %s", self._url, error)
 
@@ -256,7 +257,7 @@ class RedisCable(Cable):
         if not self._shares_presence():
             super()._presence_changed(kind, stream_name, user, data, connections)
             return
-        entry = "" if kind == "leave" else jsonplus.dumps([data, connections, time.time()])
+        entry = "" if kind == "leave" else to_json([data, connections, time.time()])
         try:
             if entry:
                 self._get_publisher().sadd(self._streams_key(self._origin), stream_name)
@@ -298,7 +299,7 @@ class RedisCable(Cable):
             return super().presence(stream_name)
         present = {}
         for user, machines in values.items():
-            entries = [jsonplus.loads(entry) for entry in jsonplus.loads(machines).values()]
+            entries = [json.loads(entry) for entry in json.loads(machines).values()]
             present[user.decode()] = {
                 "data": max(entries, key=lambda entry: entry[2])[0],
                 "connections": sum(entry[1] for entry in entries),
@@ -343,7 +344,7 @@ class RedisCable(Cable):
             )
             for user, entry in zip(gone[::2], gone[1::2], strict=True):
                 self._presence_event(
-                    "presence_leave", stream_name, user.decode(), jsonplus.loads(entry)[0]
+                    "presence_leave", stream_name, user.decode(), json.loads(entry)[0]
                 )
         client.delete(streams_key)
         client.srem(f"{self._prefix}machines", origin)
@@ -408,7 +409,7 @@ class RedisCable(Cable):
 
     def _receive(self, raw: bytes | str) -> None:
         try:
-            message = jsonplus.loads(raw)
+            message = json.loads(raw)
         except ValueError:
             logger.warning("⚠️ [cable] ignored a message in Redis that isn't JSON")
             return

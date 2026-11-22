@@ -1,9 +1,10 @@
 """Defects found porting Campfire to Proper. Each test fails on 0.34."""
 
+import json
+
 import pytest
 
 from proper.channels import Channel
-from proper.helpers import jsonplus
 from .test_websocket import (
     FakeAuthChannel,
     FakeSessionModel,
@@ -129,7 +130,7 @@ class TestFanOut:
         app.cable.broadcast("chat", {"html": "<p>hi</p>"})
         frames = [(await ws.receive_raw())["text"] for ws, _ in clients]
         assert len(set(frames)) == 1
-        frame = jsonplus.loads(frames[0])
+        frame = json.loads(frames[0])
         assert frame == {
             # wse's recovery stamp, then Proper's frame
             "tp": "chat", "e": frame["e"], "o": 0,
@@ -139,32 +140,3 @@ class TestFanOut:
         for ws, task in clients:
             await ws.close()
             await task
-
-
-# class TestNoCyclicGarbage:
-#     def test_a_response_is_freed_without_the_cycle_collector(self, app):
-#         """`Response.flash` pointed back to the response: every response, and
-#         its body, waited for the cycle collector, which runs by count of
-#         objects, not by their size. Pages of 400 KB piled up into gigabytes."""
-#         from proper.core.response import Response
-
-#         gc.disable()
-#         try:
-#             response = Response(app)
-#             response.body = "x" * 1000
-#             ref = weakref.ref(response)
-#             del response
-#             assert ref() is None
-#         finally:
-#             gc.enable()
-
-#     def test_loads_leaves_no_cyclic_garbage(self):
-#         gc.collect()
-#         gc.disable()
-#         try:
-#             before = gc.get_count()[0]
-#             for _ in range(50):
-#                 jsonplus.loads('{"a": 1}')
-#             assert gc.collect() == 0, before
-#         finally:
-#             gc.enable()

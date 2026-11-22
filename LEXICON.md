@@ -52,7 +52,7 @@ A Peewee field whose column type is JSON and whose Python value is a
 Rich Text Document.
 
 Built by the `make_rich_text_field(parent_cls)` factory so the backing
-column type can be swapped (`proper.models.JSONField` by default) to
+column type can be chosen: `peewee.JSONField`,
 `playhouse.postgres_ext.JSONField` for Postgres-native `jsonb`, or any
 other JSON-shaped Peewee field.
 

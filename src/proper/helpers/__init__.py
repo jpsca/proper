@@ -1,7 +1,7 @@
 import typing as t
 from pathlib import Path
 
-from . import formatters, jsonplus
+from . import formatters
 from .dicts import CIMultiDict, DotDict, MultiDict
 from .fileops import copy_file
 from .html import (
@@ -30,11 +30,12 @@ from .render import (
     sort_imports_in,
 )
 from .server import show_banner, show_welcome
+from .tojson import to_json
 
 
 __all__ = (
     "formatters",
-    "jsonplus",
+    "to_json",
     #
     "copy_file",
     #

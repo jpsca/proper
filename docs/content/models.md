@@ -139,7 +139,7 @@ As you've seen in the examples, a convenient way to avoid manually importing eac
 import peewee as pw` and then use the `pw.` prefix.
 :::
 
-Peewee's [playhouse extensions](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html) provide additional field types for specific databases, such as `ArrayField`, `HStoreField`, and `TSVectorField` for PostgreSQL. For JSON columns use Peewee's `pw.JSONField`. `from proper import JSONField` exists only for backwards compatibility with the data stored by older versions; don't use it in new code.
+Peewee's [playhouse extensions](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html) provide additional field types for specific databases, such as `ArrayField`, `HStoreField`, and `TSVectorField` for PostgreSQL. For JSON columns use Peewee's `pw.JSONField`.
 
 For the full list of fields and their options, see the [Peewee field documentation](https://docs.peewee-orm.com/en/latest/peewee/models.html#field-types-table).
 

@@ -146,8 +146,6 @@ Photo.create(title="Sunset", metadata={"camera": "Canon EOS R5"})
 Photo.select().where(Photo.metadata["camera"] == "Canon EOS R5")
 ```
 
-`from proper import JSONField` exists only for backwards compatibility with the data stored by older versions (it encoded dates as `"__dt__<iso>"` strings). Don't use it in new code.
-
 
 ## Relationships
 

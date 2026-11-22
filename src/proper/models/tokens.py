@@ -1,10 +1,18 @@
+import json
 import typing as t
 from collections.abc import Callable
 
 import peewee as pw
 
 from ..global_context import current
+from ..helpers import to_json
 from ..units import MINUTES
+
+
+def _as_signed(fingerprint: t.Any) -> t.Any:
+    """The fingerprint as it comes back from a token: a date as its ISO
+    string, a tuple as a list."""
+    return json.loads(to_json(fingerprint))
 
 
 class TokensMixin:
@@ -125,7 +133,7 @@ class TokensMixin:
             return None
 
         fingerprint = (lambda x: None) if fingerprint is None else fingerprint
-        if fingerprint(instance) == data.get("fp"):
+        if _as_signed(fingerprint(instance)) == data.get("fp"):
             return instance
         return None
 
@@ -153,6 +161,6 @@ class TokensMixin:
             return None
 
         fingerprint = getattr(instance, f"generate_token_for_{name}")
-        if fingerprint() == data["fp"]:
+        if _as_signed(fingerprint()) == data["fp"]:
             return instance
         return None

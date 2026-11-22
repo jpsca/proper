@@ -178,7 +178,7 @@ What Rails, Django or Flask habits get wrong in Proper:
 - Custom error handlers run only with `DEBUG` off; in development the debug page shows instead.
 - Views are Jx components: no `include`, `extends` or `block`; layouts are components too.
 - Live UI is Turbo (Drive, Frames, Streams), not htmx.
-- JSON columns are `pw.JSONField`; `proper.JSONField` exists for backwards compatibility only.
+- JSON columns are `pw.JSONField`.
 - `app.i18n.format_date()` takes a datetime too; there is no `format_datetime`.
 - The `TestClient` does not follow redirects: assert the 303 and the `Location`.
 - `client.sign_in(session)` takes a `Session` row; use the `signed_client` fixture.

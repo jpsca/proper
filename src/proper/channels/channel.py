@@ -11,7 +11,7 @@ import typing as t
 from ..constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
 from ..core.request import Request
 from ..global_context import current
-from ..helpers import jsonplus, logger
+from ..helpers import logger, to_json
 
 
 if t.TYPE_CHECKING:
@@ -87,7 +87,7 @@ class Channel:
         # once, so `send()` only has to encode its data.
         self._frame_prefix = (
             '{"type": "message", "channel": %s, "params": %s, "data": '
-            % (jsonplus.dumps(self.channel_name), jsonplus.dumps(params))
+            % (to_json(self.channel_name), to_json(params))
         )
 
     @property
@@ -189,7 +189,7 @@ class Channel:
 
     def send(self, data: t.Any) -> None:
         """Send data directly to this connection."""
-        self._send(self._message(data, jsonplus.dumps(data)))
+        self._send(self._message(data, to_json(data)))
 
     def _message(self, data: t.Any, encoded: str) -> Message:
         return Message(self._frame_prefix, self.channel_name, self.params, data, encoded)

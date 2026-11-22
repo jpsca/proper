@@ -3,6 +3,7 @@
 derivation), with the native code: tokens made before keep working."""
 import datetime
 import hashlib
+import json
 import logging
 import os
 import random
@@ -16,12 +17,19 @@ from itsdangerous.encoding import base64_encode
 
 from proper import App, _native
 from proper.errors import BadSignature, ConfigError
-from proper.helpers import jsonplus
+from proper.helpers import to_json
 
 
 KEY_OLD = "o" * 50
 KEY_NEW = "n" * 50
 NOW = 1_760_000_000
+
+
+class proper_json:
+    """The JSON of Proper's tokens, as a serializer of itsdangerous."""
+
+    dumps = staticmethod(to_json)
+    loads = staticmethod(json.loads)
 
 
 @pytest.fixture(autouse=True)
@@ -37,14 +45,14 @@ def make_app(*keys):
 def reference(key, salt, *, timed=True):
     """itsdangerous with the settings of Proper's tokens."""
     cls = itsdangerous.URLSafeTimedSerializer if timed else itsdangerous.URLSafeSerializer
-    return cls(key, salt=b"", serializer=jsonplus, signer_kwargs={
+    return cls(key, salt=b"", serializer=proper_json, signer_kwargs={
         "key_derivation": "hmac", "digest_method": hashlib.sha256,
     }), salt
 
 
 VALUES = [
     {"id": 1},
-    {"user": "ana", "nested": {"a": [1, 2, {"b": None}]}, "when": datetime.date(2026, 10, 15)},
+    {"user": "ana", "nested": {"a": [1, 2, {"b": None}]}},
     {"big": "x" * 2000},  # compressed: the payload starts with "."
     [1, "two", 3.0, True, None],
     "ñandú",
@@ -63,6 +71,23 @@ def test_the_tokens_of_itsdangerous(obj, salt, timed):
     token = app.dumps(obj, salt=salt, timed=timed)
     assert token == expected
     assert app.loads(token, salt=salt, timed=timed) == obj
+
+
+def test_dates_are_signed_as_iso_strings():
+    app = make_app(KEY_NEW)
+    obj = {
+        "day": datetime.date(2026, 10, 15),
+        "when": datetime.datetime(2026, 10, 15, 9, 30),
+    }
+    assert app.loads(app.dumps(obj, salt="s"), salt="s") == {
+        "day": "2026-10-15",
+        "when": "2026-10-15T09:30:00",
+    }
+
+
+def test_a_value_that_is_not_json_is_refused():
+    with pytest.raises(TypeError, match="set is not JSON serializable"):
+        make_app(KEY_NEW).dumps({"tags": {"a"}})
 
 
 @pytest.mark.parametrize("timed", [True, False])

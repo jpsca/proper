@@ -404,7 +404,6 @@ See [models.md](../models.md) for full details.
 | `ProperModel`  | Base Peewee model with scope support and token generation methods        |
 | `scope`        | Decorator that tags a classmethod as a chainable query scope             |
 | `ScopedSelect` | The `Select` subclass returned by scoped queries; propagates scopes through chained method calls (rarely used directly). |
-| `JSONField`    | A `pw.JSONField` subclass, kept for backwards compatibility only: use `pw.JSONField` |
 | `run_seeds`    | `from proper.models import run_seeds`: `(name="", db="main") -> bool`, the `proper db seed` runner |
 
 ### Channel
@@ -451,8 +450,8 @@ Utility functions and classes available from `proper`.
 | `DotDict`         | Dict subclass with attribute-style access (`d.key`)            |
 | `MultiDict`       | Dict that supports multiple values per key (query/form params) |
 | `CIMultiDict`     | Case-insensitive `MultiDict` (the `TestClient`'s response headers) |
-| `JSONField`       | Backwards compatibility only: use `pw.JSONField`                |
 | `make_list`       | `from proper.helpers import make_list`: wrap a value in a list if it isn't one already (a tuple becomes a list) |
+| `to_json`         | `from proper.helpers import to_json`: `json.dumps(value)` with `date` and `datetime` values as ISO 8601 strings; what `render(json=...)`, the channels and `app.dumps()` use. Read it with `json.loads` |
 
 ### Global Context
 

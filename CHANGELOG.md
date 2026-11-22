@@ -6,6 +6,20 @@ All notable changes to Proper are documented in this file.
 
 ### Changed
 
+- Dates in JSON are plain ISO 8601 text. `self.render(json=...)`, the
+  messages of the channels and the JSON of the debug error pages wrote a
+  `date` or a `datetime` as `"__dt__2026-11-22T10:30:00"`; they now write
+  `"2026-11-22T10:30:00"`. A client that removed the prefix has to stop
+  doing it.
+- The session, the signed cookies and the values of `app.dumps()` save a
+  `date` or a `datetime` as ISO 8601 text too, and `app.loads()` gives it
+  back as a string instead of a date: use `datetime.fromisoformat(value)`.
+  A value saved before the upgrade comes back with its `__dt__` prefix.
+- A record token whose fingerprint is a date (`generate_token_for_NAME`
+  returning `self.updated_at`) made before the upgrade no longer resolves:
+  ask for a new one. New ones work as before, and a fingerprint can now be
+  a tuple.
+
 - The app only answers to the hosts it knows. A request whose `Host` is
   another name gets a `400 Bad Request`, and a WebSocket for it is closed
   as it opens. This stops DNS rebinding, where a page of another site
@@ -29,6 +43,16 @@ All notable changes to Proper are documented in this file.
   `js/vendor/activestorage.js` from the addon and add
   `"activestorage": "js/vendor/activestorage.js"` to
   `config/import_map.py`.
+
+### Removed
+
+- `proper.helpers.jsonplus`. Use `proper.helpers.to_json(value)` to write
+  JSON with dates as ISO 8601 text, and `json.loads` to read it.
+- `proper.JSONField` (`proper.models.JSONField`), kept until now for the
+  data of older versions. Use `pw.JSONField`. If a column holds dates saved
+  by the old field, they are now loaded as the strings they are stored as,
+  `"__dt__2026-11-22"`: rewrite those rows, or give the field your own
+  `loads`.
 
 ### Added
 

@@ -17,7 +17,7 @@ from ..constants import (
     SESSION_COOKIE_SALT,
 )
 from ..global_context import current
-from ..helpers import jsonplus, logger
+from ..helpers import logger, to_json
 from .debug_info import (
     describe_request,
     format_text,
@@ -129,7 +129,7 @@ def wanted_format(request) -> str:
 def set_text_body(response, wants: str, text: str, error_type: str, message: str) -> None:
     if wants == "json":
         response.content_type = "application/json"
-        response.body = jsonplus.dumps({"error": error_type, "message": message, "details": text})
+        response.body = to_json({"error": error_type, "message": message, "details": text})
     else:
         response.content_type = "text/plain"
         response.body = text

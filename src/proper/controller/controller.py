@@ -8,7 +8,7 @@ from markupsafe import Markup
 from ..compile.dispatch import callback_applies, plan_for, resolve_view
 from ..constants import TURBO_STREAM_MIME
 from ..core.response.response import latest_update
-from ..helpers import MultiDict, jsonplus, logger, make_list
+from ..helpers import MultiDict, logger, make_list, to_json
 from ..status import not_acceptable, not_modified, unprocessable
 from ..views import ComponentNotFoundError
 from .template_resolver import formats_for_header
@@ -114,7 +114,7 @@ class Controller:
 
         if json is not None:
             self.response.mimetype = "application/json"
-            return jsonplus.dumps(json)
+            return to_json(json)
 
         if text is not None:
             self.response.mimetype = "text/plain"

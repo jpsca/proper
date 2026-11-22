@@ -105,7 +105,7 @@ def show(self):
     return self.render(json={"id": card.id, "title": card.title})
 ```
 
-This sets the Content-Type to `application/json` and serializes the data using a custom encoder that handles `date` and `datetime` objects (dates are prefixed with `"__dt__"` for round-trip parsing).
+This sets the Content-Type to `application/json` and serializes the data with `proper.helpers.to_json`: `json.dumps`, with `date` and `datetime` values written as ISO 8601 strings (`"2026-11-22T10:30:00"`). Any other non-JSON value (`Decimal`, `set`) raises `TypeError`.
 
 ### Turbo Stream Responses
 
@@ -169,7 +169,7 @@ class CardController(AppController):
     def create(self):
         form = CardForm(self.params)
         if form.is_invalid:
-            return self.render(json={"errors": form.errors}, status=422)
+            return self.render(json={"errors": form.get_errors()}, status=422)
         card = form.save()
         return self.render(json={"id": card.id, "title": card.title}, status=201)
 ```
@@ -209,7 +209,7 @@ def create(self):
     self.form = CardForm(self.params)
     if self.form.is_invalid:
         if self.request.is_xhr:
-            return self.render(json={"errors": self.form.errors}, status=422)
+            return self.render(json={"errors": self.form.get_errors()}, status=422)
         return self.redo()
     card = self.form.save()
     self.response.redirect_to("Card.show", card, flash="Card was created")

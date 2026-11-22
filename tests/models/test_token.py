@@ -1,3 +1,4 @@
+from datetime import datetime
 from time import time
 from unittest.mock import patch
 
@@ -265,3 +266,40 @@ def test_a_signed_value_that_is_not_a_token_payload_resolves_to_none(Item, app):
     for value in ["just a string", ["a", "list"], {"no": "id"}]:
         assert Item.resolve_token(app.dumps(value, salt="Item"), max_age=None) is None
         assert Item.resolve_token(app.dumps(value, salt="Item", timed=False), max_age=None) is None
+
+
+def test_a_date_fingerprint_resolves(db, BaseModel):
+    class Member(BaseModel):
+        seen_at = pw.DateTimeField()
+
+        def generate_token_for_invite(self):
+            return self.seen_at
+
+    db.create_tables([Member])
+    member = Member.create(seen_at=datetime(2026, 11, 22, 10, 30))
+
+    token = member.generate_token_for("invite")
+    assert Member.resolve_token_for("invite", token).id == member.id
+
+    member.seen_at = datetime(2026, 11, 23, 8, 0)
+    member.save()
+    assert Member.resolve_token_for("invite", token) is None
+
+
+def test_a_tuple_fingerprint_with_a_date_resolves(db, BaseModel):
+    class Member(BaseModel):
+        name = pw.CharField()
+        seen_at = pw.DateTimeField()
+
+    db.create_tables([Member])
+    member = Member.create(name="ana", seen_at=datetime(2026, 11, 22, 10, 30))
+
+    def fingerprint(m):
+        return (m.name, m.seen_at)
+
+    token = member.generate_token(fingerprint)
+    assert Member.resolve_token(token, fingerprint).id == member.id
+
+    member.name = "luis"
+    member.save()
+    assert Member.resolve_token(token, fingerprint) is None

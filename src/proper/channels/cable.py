@@ -59,7 +59,7 @@ from bearings import Server, WebSocketHandler
 from ..core.request.headers import parse_host
 from ..errors import InvalidHeader
 from ..global_context import current
-from ..helpers import jsonplus, logger
+from ..helpers import logger, to_json
 from ..pipeline import host_is_trusted
 from .base import CABLE_SALT, BaseCable, allowed_origins
 from .channel import ActionError, Channel
@@ -82,7 +82,7 @@ _BLOCKED_ACTIONS = (
 def _broadcast_frame(stream_name: str, data: t.Any) -> str:
     """The frame of a broadcast: the same text for every subscriber."""
     return '{"c": "P", "type": "broadcast", "stream": %s, "data": %s}' % (
-        jsonplus.dumps(stream_name), jsonplus.dumps(data)
+        to_json(stream_name), to_json(data)
     )
 
 
@@ -154,7 +154,7 @@ def _position(topic_result: dict) -> dict | None:
 def _stamp(frame: str, topic: str, epoch: str, offset: int) -> str:
     """Stamp a frame when recovery is on: the topic, the epoch of its
     buffer and the offset of the message, first."""
-    return '{"tp": %s, "e": "%s", "o": %d, %s' % (jsonplus.dumps(topic), epoch, offset, frame[1:])
+    return '{"tp": %s, "e": "%s", "o": %d, %s' % (to_json(topic), epoch, offset, frame[1:])
 
 
 def _host_is_trusted(app: "App", host_header: str | None) -> bool:
@@ -263,7 +263,7 @@ class Connection:
         if isinstance(msg, str):
             text = msg
         else:
-            text = getattr(msg, "json", None) or jsonplus.dumps(msg)
+            text = getattr(msg, "json", None) or to_json(msg)
         try:
             self.cable.server.send(self.conn_id, text)
         except RuntimeError:  # pragma: no cover - a command ending as the server stops
@@ -536,7 +536,7 @@ class _Streams:
     def _presence_frame(self, kind: str, topic: str, user: str, data: dict) -> None:
         """A presence event, to the subscribers of the stream, as
         `cable.js` reads it."""
-        self._fanout(topic, jsonplus.dumps({
+        self._fanout(topic, to_json({
             "c": "WSE", "t": kind, "p": {"topic": topic, "user_id": user, "data": data},
         }))
 
@@ -1183,7 +1183,7 @@ class Cable(BaseCable):
         self.server.subscribe_connection(conn.conn_id, [stream_name], data)
 
     def _check_presence_data(self, data: t.Any) -> None:
-        size = len(jsonplus.dumps(data).encode())
+        size = len(to_json(data).encode())
         if size > self._presence_max_data_size:
             raise ValueError(
                 f"the presence data is {size} bytes as JSON, more than "

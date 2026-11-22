@@ -269,7 +269,7 @@ Named tokens are the recommended approach, inspired by Rails' `generates_token_f
 
 #### Defining a named token
 
-Add a method named `generate_token_for_NAME` to your model. It takes no arguments (beyond `self`) and returns a JSON-serializable value that changes when the token should be invalidated:
+Add a method named `generate_token_for_NAME` to your model. It takes no arguments (beyond `self`) and returns a JSON-serializable value (a `date` or `datetime` is fine too: it is compared as its ISO string, and a tuple as a list) that changes when the token should be invalidated:
 
 ```python
 class User(Authenticable, BaseModel):

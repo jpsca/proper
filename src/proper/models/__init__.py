@@ -1,5 +1,4 @@
 from .base import ProperModel
-from .fields import JSONField, utcnow
 from .scopes import ScopedSelect, scope
 from .seeds import run_seeds
 from .signals import (
@@ -10,11 +9,11 @@ from .signals import (
     before_delete,
     before_save,
 )
+from .utcnow import utcnow
 
 
 __all__ = (
     "ProperModel",
-    "JSONField",
     "utcnow",
     "ScopedSelect",
     "scope",

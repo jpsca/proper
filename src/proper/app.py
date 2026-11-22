@@ -1,6 +1,7 @@
 import copy
 import datetime
 import functools
+import json
 import logging
 import os
 import threading
@@ -27,7 +28,7 @@ from .core.request import Request
 from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
-from .helpers import DotDict, csp_hash, importmap_json, jsonplus, logger
+from .helpers import DotDict, csp_hash, importmap_json, logger, to_json
 from .helpers.logs import LOG_LEVELS, setup_logging
 from .models.migrations import pending_migrations
 from .router import Route, Router
@@ -270,9 +271,9 @@ class App(AppWsgi):
         base64, then the timestamp and the signature. Python makes the JSON;
         the native code (`proper._native`), the rest.
         """
-        json = jsonplus.dumps(obj).encode()
+        payload = to_json(obj).encode()
         return self._signing(salt).sign_json(
-            json, int(time.time()) if timed else None
+            payload, int(time.time()) if timed else None
         ).decode()
 
     def loads(
@@ -309,7 +310,7 @@ class App(AppWsgi):
                 # A negative one refuses every token, below
                 max_age=None if max_age is None or max_age < 0 else int(max_age),
             )
-            obj = jsonplus.loads(data.decode())
+            obj = json.loads(data.decode())
         except _native.Rejected as rejected:
             logger.debug("%s %s...", _REJECTED[rejected.code], str(value)[:10])
             return None

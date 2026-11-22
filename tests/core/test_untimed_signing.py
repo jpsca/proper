@@ -2,6 +2,7 @@
 Also `app.loads()` of timed tokens that are signed but malformed."""
 
 import hashlib
+import json
 import time
 
 import itsdangerous
@@ -9,11 +10,18 @@ import pytest
 from itsdangerous.encoding import base64_encode, int_to_bytes
 
 from proper import App
-from proper.helpers import jsonplus
+from proper.helpers import to_json
 
 
 KEY_A = "a" * 50
 KEY_B = "b" * 50
+
+
+class proper_json:
+    """The JSON of Proper's tokens, as a serializer of itsdangerous."""
+
+    dumps = staticmethod(to_json)
+    loads = staticmethod(json.loads)
 
 
 def make_app(*keys):
@@ -24,7 +32,7 @@ def reference(key, salt="x"):
     """itsdangerous' untimed serializer and signer with the settings of
     Proper's tokens, to make tokens with any payload."""
     kwargs = {"key_derivation": "hmac", "digest_method": hashlib.sha256}
-    serializer = itsdangerous.URLSafeSerializer(key, salt=salt, serializer=jsonplus,
+    serializer = itsdangerous.URLSafeSerializer(key, salt=salt, serializer=proper_json,
                                                 signer_kwargs=kwargs)
     return serializer, serializer.make_signer(salt)
 

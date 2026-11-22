@@ -1,5 +1,5 @@
 import os
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -90,6 +90,14 @@ class TestRender:
         assert '"key"' in result
         assert '"value"' in result
         assert co.response.mimetype == "application/json"
+
+    def test_render_json_writes_dates_as_iso_strings(self):
+        co = _make_controller()
+        result = co.render(json={
+            "day": date(2026, 11, 22),
+            "when": datetime(2026, 11, 22, 10, 30),
+        })
+        assert result == '{"day": "2026-11-22", "when": "2026-11-22T10:30:00"}'
 
     def test_render_text(self):
         co = _make_controller()

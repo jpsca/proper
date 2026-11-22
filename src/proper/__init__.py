@@ -5,7 +5,6 @@ from .controller import Controller  # noqa
 from .global_context import current  # noqa
 from .helpers import DotDict, CIMultiDict, MultiDict  # noqa
 from .models import (  # noqa
-    JSONField,
     ProperModel,
     ScopedSelect,
     after_create,

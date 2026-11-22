@@ -550,7 +550,7 @@ def show(self):
     return self.render(json={"id": card.id, "title": card.title})
 ```
 
-This sets `Content-Type: application/json` and serializes the value with a custom encoder that handles `date` and `datetime` objects.
+This sets `Content-Type: application/json`. `date` and `datetime` values are written as ISO 8601 text, like `"2026-11-22T10:30:00"`.
 
 For full API patterns - content negotiation between HTML and JSON, JSON-only controllers, JSON error responses - see the [Building API-only Applications](/docs/api) guide.
 
@@ -695,6 +695,8 @@ value = self.request.session.get("key")
 # write
 self.response.session["key"] = value
 ```
+
+The session is saved as JSON, so keep to values JSON has: text, numbers, booleans, `None`, lists, and dicts. A `date` or a `datetime` is saved as ISO 8601 text and comes back as a string; turn it back into a date with `datetime.fromisoformat(value)`.
 
 If the session cookie is missing, its signature doesn't match, it has expired, or its value isn't a JSON object, the session starts empty.
 
