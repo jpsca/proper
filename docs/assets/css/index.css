@@ -754,7 +754,7 @@ html.cs-dark & .scaffolds {
 .claude-dot {
   color: #d97757;
   font-weight: 700;
-  transform: translateY(30px);
+  transform: translateY(1rem);
   display: inline-block;
 }
 .claude-tag {
