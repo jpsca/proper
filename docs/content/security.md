@@ -235,7 +235,7 @@ The `Secure` attribute depends on `request.is_secure`. Behind a proxy that recei
 The auth addon doesn't keep the signed-in user in the session cookie. When a user signs in, it creates a row in the `session` table and sends a random token that points to it in an `_auth` cookie, also signed. So:
 
 - **A session can be revoked**, and the revocation is immediate: the next request with that cookie has no user. `session.revoke()` signs out one browser.
-- **A session expires**, 24 hours after signing in, or 60 days with "remember me", whatever the user does.
+- **A session expires**, 24 hours after signing in, or 60 days with "remember me", whatever the user does. A daily task deletes the expired and the revoked ones.
 - **Changing the password signs out every other browser and device** of that user, so someone who had the old password, or a session made with it, loses access.
 
 See [The Auth Session](/docs/authentication#the-auth-session) in the Authentication guide.

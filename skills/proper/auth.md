@@ -60,6 +60,7 @@ This generates a full authentication system in your app:
 
 **Other:**
 - `config/auth.py` - configuration
+- `tasks/expired_sessions_sweep.py` - daily periodic task that deletes the expired and revoked sessions (imported from `tasks/__init__.py`)
 - `cli/auth_cli.py` - CLI commands for user management
 - `emails/password_reset_email.py` - password reset email
 - Templates for sign-up, sign-in, password reset, and email
@@ -190,7 +191,7 @@ class Session(BaseModel):
     class Meta:
         table_name = "session"
         indexes = (
-            (("expires_at", "revoked"), False),  # cleanup job
+            (("expires_at", "revoked"), False),  # `purge_expired`
             (("user", "revoked"), False),  # "my active sessions"
         )
 ```
@@ -227,6 +228,10 @@ Session.revoke_all_for(user)  # the number revoked
 
 # Check validity
 session.is_valid()  # not revoked and not expired
+
+# Delete the expired and the revoked sessions (the `sweep_expired_sessions`
+# periodic task calls it every day at 4:00; it needs a running worker)
+Session.purge_expired()  # the number deleted
 ```
 
 Tokens are 256-bit cryptographically random values encoded as URL-safe base64 (43 characters). The User-Agent header is stored as a SHA-256 hash.

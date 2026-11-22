@@ -33,6 +33,7 @@ This writes a fair amount into your application; the main pieces are:
 - A `User` model and a `Session` model, plus an `Authenticable` model concern.
 - An `Authentication` controller concern - provided by the framework as `proper.concerns.Authentication` and subclassed in `controllers/concerns/authentication.py` (which sets `Session = Session`) and added to your `AppController` automatically.
 - Three resource controllers - `SignUp`, `Session`, `PasswordReset` - with their templates, forms, and routes already wired together. You typically edit those, not write them.
+- A daily task, in `tasks/expired_sessions_sweep.py`, that deletes the sessions nobody can use anymore.
 
 Don't forget to run the migration (named `users`) that adds the `user` and `session` tables:
 
@@ -180,9 +181,20 @@ A few methods you'd reach for:
 session.revoke()           # flip revoked = True; immediate sign-out for that one session
 session.is_valid()         # False once revoked or past expires_at
 Session.find_by_token(t)   # returns the active session for a token, or None
+Session.purge_expired()    # delete the expired and the revoked sessions
 ```
 
 Revoking is immediate because the lookup also checks `revoked == False` and `expires_at > now()`. There's no cookie-cached state to wait out.
+
+An expired or revoked session is of no use to anyone, but its row stays in the table. The addon adds a task that deletes them every day:
+
+```python {title="tasks/expired_sessions_sweep.py"}
+@app.queue.periodic_task(crontab(hour="4", minute="0"))
+def sweep_expired_sessions():
+    Session.purge_expired()
+```
+
+It needs a worker running, like any other task (see [Tasks](/docs/tasks)). Without one, nothing breaks: the table just keeps growing.
 
 :::tip | Listing a user's active sessions
 `user.sessions` (via the `backref` on the FK) gives you everything. Filter by `revoked == False` and `expires_at > pw.utcnow()` and you have the "manage active sessions" list. Building a small page that calls `session.revoke()` on a button click is straightforward; the model is already there.

@@ -34,7 +34,7 @@ def models(tmp_path, app):
     """The auth addon's models, as `proper install auth` writes them into
     an app, on an in-memory database."""
     root = tmp_path / APP_NAME
-    for folder in ("controllers", "cli", "config", "emails", "forms", "models", "views"):
+    for folder in ("controllers", "cli", "config", "emails", "forms", "models", "tasks", "views"):
         (root / folder).mkdir(parents=True)
     (root / "__init__.py").write_text("")
     (root / "main.py").write_text(
@@ -42,7 +42,7 @@ def models(tmp_path, app):
         # As in a real app: the auth validators import it
         "config = app.config\n"
     )
-    for folder in ("cli", "config", "emails", "models"):
+    for folder in ("cli", "config", "emails", "models", "tasks"):
         (root / folder / "__init__.py").write_text("")
     (root / "models" / "base.py").write_text(BASE_MODEL)
     (root / "views" / "nav.jx").write_text("<nav></nav>\n")

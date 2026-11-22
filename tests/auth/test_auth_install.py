@@ -29,6 +29,7 @@ def app_in_tmp(tmp_path, app):
         "emails",
         "forms",
         "models",
+        "tasks",
         "views/layouts",
         "../tests",
     ):
@@ -41,6 +42,7 @@ def app_in_tmp(tmp_path, app):
     (app_root / "config" / "__init__.py").write_text("")
     (app_root / "emails" / "__init__.py").write_text("")
     (app_root / "models" / "__init__.py").write_text("")
+    (app_root / "tasks" / "__init__.py").write_text("")
     (app_root / "router.py").write_text("from proper.router import Router\nrouter = Router()\n")
     (app_root / "views" / "nav.jx").write_text("<nav></nav>\n")
     (tmp_path / "tests" / "conftest.py").write_text("")
@@ -128,6 +130,13 @@ def test_file_creation(app_in_tmp):
     # creates_password_reset_email_template
     path = root_path / "views" / "emails" / "password_reset.jx"
     assert path.exists()
+
+    # creates_expired_sessions_sweep_task
+    path = root_path / "tasks" / "expired_sessions_sweep.py"
+    assert path.exists()
+    assert "from myapp.models import Session" in path.read_text()
+    text = (root_path / "tasks" / "__init__.py").read_text()
+    assert "from . import expired_sessions_sweep" in text
 
     # appends_to_main
     text = (root_path / "main.py").read_text()

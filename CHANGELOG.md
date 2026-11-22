@@ -24,6 +24,15 @@ All notable changes to Proper are documented in this file.
 
 ### Added
 
+- The auth addon deletes the sessions nobody can use anymore. New apps
+  get `Session.purge_expired()`, which deletes the expired and the
+  revoked sessions, and a `sweep_expired_sessions` task in
+  `tasks/expired_sessions_sweep.py` that calls it every day at 4:00.
+  Before, the `session` table only grew. An app that already has the
+  addon can copy both: the method from
+  `proper/_blueprints/addon_auth/[[app_name]]/models/session.py`, and the
+  task file, imported from `tasks/__init__.py` with
+  `from . import expired_sessions_sweep`.
 - Model signals: `before_save`, `before_create`, `after_create`,
   `after_save`, `before_delete` and `after_delete`, importable from
   `proper`. Decorate a method of a model to run it for that model and its

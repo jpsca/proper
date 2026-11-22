@@ -60,7 +60,7 @@ class Session(BaseModel):
     class Meta:
         table_name = "session"
         indexes = (
-            # Speed up cleanup job
+            # Speed up `purge_expired`
             (("expires_at", "revoked"), False),
             # Speed up "list my active sessions"
             (("user", "revoked"), False),
@@ -104,6 +104,18 @@ class Session(BaseModel):
         return (
             cls.update(revoked=True)
             .where(cls.user == user, cls.revoked == False)  # noqa: E712
+            .execute()
+        )
+
+    @classmethod
+    def purge_expired(cls) -> int:
+        """Deletes the sessions nobody can use anymore: the expired ones
+        and the revoked ones. The number of sessions deleted.
+
+        The `sweep_expired_sessions` task calls it every day."""
+        return (
+            cls.delete()
+            .where((cls.expires_at <= utcnow()) | (cls.revoked == True))  # noqa: E712
             .execute()
         )
 
