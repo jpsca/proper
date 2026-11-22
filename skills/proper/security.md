@@ -255,18 +255,21 @@ Using `setdefault` means individual controllers can override any header before t
 There is no `Content-Security-Policy` by default: the generated concern has one commented out. Turned on:
 
 ```python
-nonce = self.response.csp_nonce
-headers.setdefault("Content-Security-Policy", "; ".join([
-    "default-src 'self'",
-    f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
-    f"style-src 'self' 'nonce-{nonce}'",
-    "img-src 'self' data:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-]))
+if "Content-Security-Policy" not in headers:
+    nonce = self.response.csp_nonce
+    headers["Content-Security-Policy"] = "; ".join([
+        "default-src 'self'",
+        f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
+        f"style-src 'self' 'nonce-{nonce}'",
+        "img-src 'self' data:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self'",
+    ])
 ```
+
+A response with a policy of its own keeps it and gets no nonce (so no session cookie): the files the storage addon serves, and the generated `/up` page (`default-src 'none'; style-src 'unsafe-inline'`, for the `style` of its `<body>`).
 
 plus `{{ csp_meta_tag() }}` in the layout's `<head>`, before the scripts.
 

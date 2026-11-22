@@ -32,17 +32,18 @@ class SecurityHeaders(Concern):
         # loads before turning it on, and add `{{ csp_meta_tag() }}` to the
         # <head> of your layout, so Turbo can show its progress bar.
         # https://properproject.org/docs/security#content-security-policy
-        # nonce = self.response.csp_nonce
-        # headers.setdefault("Content-Security-Policy", "; ".join([
-        #     "default-src 'self'",
-        #     f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
-        #     f"style-src 'self' 'nonce-{nonce}'",
-        #     "img-src 'self' data:",
-        #     "object-src 'none'",
-        #     "base-uri 'self'",
-        #     "form-action 'self'",
-        #     "frame-ancestors 'self'",
-        # ]))
+        # if "Content-Security-Policy" not in headers:
+        #     nonce = self.response.csp_nonce
+        #     headers["Content-Security-Policy"] = "; ".join([
+        #         "default-src 'self'",
+        #         f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
+        #         f"style-src 'self' 'nonce-{nonce}'",
+        #         "img-src 'self' data:",
+        #         "object-src 'none'",
+        #         "base-uri 'self'",
+        #         "form-action 'self'",
+        #         "frame-ancestors 'self'",
+        #     ])
 
         # For the duration of the max-age (seconds), the browser uses HTTPS for this host, even when
         # given an `http://` link. Browsers ignore it in an HTTP response,

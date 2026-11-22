@@ -158,23 +158,24 @@ A Content Security Policy (CSP) is a response header that tells the browser wher
 
 New applications don't send one, because the right policy depends on what your application loads. The `SecurityHeaders` concern has one, commented out. Turn it on and adjust it:
 
-```python {title="controllers/concerns/security_headers.py" hl_lines="6-16"}
+```python {title="controllers/concerns/security_headers.py" hl_lines="6-17"}
 class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
     def set_security_headers(self):
         headers = self.response.headers
-        nonce = self.response.csp_nonce
-        headers.setdefault("Content-Security-Policy", "; ".join([
-            "default-src 'self'",
-            f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
-            f"style-src 'self' 'nonce-{nonce}'",
-            "img-src 'self' data:",
-            "object-src 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "frame-ancestors 'self'",
-        ]))
+        if "Content-Security-Policy" not in headers:
+            nonce = self.response.csp_nonce
+            headers["Content-Security-Policy"] = "; ".join([
+                "default-src 'self'",
+                f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
+                f"style-src 'self' 'nonce-{nonce}'",
+                "img-src 'self' data:",
+                "object-src 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "frame-ancestors 'self'",
+            ])
         ...
 ```
 
@@ -189,7 +190,7 @@ Then add `{{ csp_meta_tag() }}` to the `<head>` of your layout, before the scrip
 </head>
 ```
 
-The headers are set with `setdefault`, so a response that already has the header keeps its own. This matters here: the storage addon sends a stricter policy with every file it serves, and it must not be replaced.
+A response that already has a policy keeps its own, and gets no nonce. Two do in a new application: the storage addon sends a stricter policy with every file it serves, and the `/up` page has one that allows only the style of its green background.
 
 #### Inline scripts and styles
 
@@ -216,7 +217,7 @@ Each visitor gets one nonce, made the first time a page asks for it and kept in 
 
 This has three consequences:
 
-- **Every visitor gets a session cookie**, signed in or not, with the first response that asks for the nonce. With the policy above, that is every response. A page with a cookie can't be shared by a CDN.
+- **Every visitor gets a session cookie**, signed in or not, with the first response that asks for the nonce. With the policy above, that is every response without a policy of its own. A page with a cookie can't be shared by a CDN.
 - **A nonce can't go in a cached fragment.** Inside `{% cache %}`, the HTML that is saved has the nonce of the visitor who made it, and every other visitor gets that one. Keep the tags with a nonce out of the cached parts.
 - **A response with `disable_cookies`** can't keep a new nonce: use a nonce only in pages that can set cookies.
 
