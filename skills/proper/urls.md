@@ -1,7 +1,7 @@
 ---
 title: URL Generation
 description: `url_for` with placeholders, objects, defaults, query parameters, anchors and absolute URLs; `url_is` / `url_startswith`; asset URLs
-last_verified: 2026-11-08
+last_verified: 2026-11-22
 sources:
   - src/proper/router
   - src/proper/helpers/html.py

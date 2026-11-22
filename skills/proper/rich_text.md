@@ -1,7 +1,7 @@
 ---
 title: Rich Text
 description: Rich Text addon — formatted-text field with embedded attachments, Lexxy editor, attachment lifecycle
-last_verified: 2026-11-15
+last_verified: 2026-11-22
 sources:
   - src/proper/rich_text
   - src/proper/_blueprints/addon_rich_text
@@ -41,7 +41,7 @@ This:
 - Adds the Lexxy editor (JS + CSS) into your assets.
 - Creates three Jx components: `rich_text_editor.jx`, `rich_text_toolbar.jx`, and `rich_text_attachment.jx`.
 - Adds a periodic task at `tasks/abandoned_uploads_sweep.py` for cleaning up abandoned pre-uploads, imported from `tasks/__init__.py` so Huey registers it.
-- Adds the Lexxy editor to your assets (`js/vendor/lexxy.js`, `js/vendor/lexxy-helpers.js`, `js/vendor/activestorage.js`, `js/lexxy-config.js`, `css/lexxy-editor.css`, `css/lexxy-content.css`, `css/lexxy-variables.css`) and the `lexxy` and `activestorage` entries to `config/import_map.py`. `lexxy.js` does `import("activestorage")` on the first upload (the vendored `@rails/activestorage`, for the direct upload); the editor loads nothing from another host. `lexxy-helpers.js` (code highlighting outside the editor) is not imported by anything; it loads `prismjs` from `esm.sh` if you use it. The commented-out `Content-Security-Policy` of the `SecurityHeaders` concern has what the editor needs: `style-src-attr 'unsafe-inline'` (colors and highlights are `style` attributes) and `blob:` in `img-src` (upload previews).
+- Adds the Lexxy editor to your assets (`js/vendor/lexxy.js`, `js/vendor/lexxy-helpers.js`, `js/vendor/activestorage.js`, `js/lexxy-config.js`, `css/lexxy-editor.css`, `css/lexxy-content.css`, `css/lexxy-variables.css`) and the `lexxy` and `activestorage` entries to `config/import_map.py`. `lexxy.js` does `import("activestorage")` on the first upload (the vendored `@rails/activestorage`, for the direct upload); the editor loads nothing from another host. The addon also adds `bin/vendor-lexxy.py`: change the versions in it (`@37signals/lexxy`, `@rails/activestorage`) and run `uv run python bin/vendor-lexxy.py` to download the editor's JS and CSS again, with `proper.vendor.lexxy(target, versions)`; it overwrites the three CSS files, so keep your changes to the editor's look in another stylesheet. `lexxy-helpers.js` (code highlighting outside the editor) is not imported by anything; it loads `prismjs` from `esm.sh` if you use it. The commented-out `Content-Security-Policy` of the `SecurityHeaders` concern has what the editor needs: `style-src-attr 'unsafe-inline'` (colors and highlights are `style` attributes) and `blob:` in `img-src` (upload previews).
 - Adds `config/rich_text.py` (the allowlists of the [sanitizer](#sanitizing)), imports it from `config/__init__.py`, and adds the `nh3` dependency.
 
 The migration is for the `attachment` and `attachment_reference` tables added by the storage addon — rich_text itself doesn't add or change columns. The field stores the HTML on whatever text column you already have.

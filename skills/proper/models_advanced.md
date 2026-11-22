@@ -1,7 +1,7 @@
 ---
 title: Model Mixins, Scopes, Signals and Tokens
 description: Model concerns (RussianDollCached, your own mixins), chainable `@scope` queries, signals (`@before_save`, `@after_create`, ...), and signed tokens for a record (`generate_token_for` / `resolve_token_for`)
-last_verified: 2026-11-15
+last_verified: 2026-11-22
 sources:
   - src/proper/models
 ---

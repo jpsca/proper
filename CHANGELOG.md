@@ -32,6 +32,12 @@ All notable changes to Proper are documented in this file.
 
 ### Added
 
+- `proper.vendor.hotwire(target, versions)` and
+  `proper.vendor.lexxy(target, versions)` download the vendored JS and
+  CSS files of an app. New apps have a `bin/vendor-hotwire.py` script
+  that updates Turbo and Stimulus with it, and the rich text addon adds
+  a `bin/vendor-lexxy.py` for the editor: change the versions in the
+  script and run it.
 - What a `Content-Security-Policy` without `'unsafe-inline'` needs:
   - `app.importmap_csp_hash` is the `'sha256-...'` source that allows the
     inline script of `render_importmap()`, for `script-src`. It follows

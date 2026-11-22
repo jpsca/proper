@@ -1,7 +1,7 @@
 ---
 title: Formidable Forms
 description: Form validation library — defining forms, constructor, validation and saving, field attributes and rendering, ORM integration, error messages
-last_verified: 2026-11-07
+last_verified: 2026-11-22
 sources:
   - src/proper/forms
   - src/proper/concerns/form_validation.py

@@ -1,7 +1,7 @@
 ---
 title: Controllers
 description: Controller fundamentals: CRUD and state-change resources, the generated controller, parameters, sessions
-last_verified: 2026-11-13
+last_verified: 2026-11-22
 sources:
   - src/proper/controller
   - src/proper/pipeline.py

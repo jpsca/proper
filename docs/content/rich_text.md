@@ -44,7 +44,7 @@ $ proper install rich_text
 It does the following:
 
 - Installs the _storage_ addon, if it's not already, you need it for attachments.
-- Adds the js and css files for the Lexxy editor
+- Adds the js and css files for the Lexxy editor, and `bin/vendor-lexxy.py`, a script that downloads them again when you want to update the editor: change the versions in it and run `uv run python bin/vendor-lexxy.py`.
 - Creates the components for the editor and for rendering attachments.
 - Adds a task for cleaning up abandoned uploads.
 - Adds `config/rich_text.py`, with the settings of the [sanitizer](#sanitizing), and the `nh3` library to the dependencies of your project.

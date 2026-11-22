@@ -1,7 +1,7 @@
 ---
 title: Generators
 description: `proper g model|resource|controller|seed|email|channel`: attribute syntax (`title:str,unique`, `user:fk-User,backref:comments`), `--only`/`--exclude`, `--namespace`, `--migration`
-last_verified: 2026-11-13
+last_verified: 2026-11-22
 sources:
   - src/proper/generators
   - src/proper/_blueprints/controller

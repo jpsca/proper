@@ -1,7 +1,7 @@
 ---
 title: Namespacing Controllers
 description: A separate controller, form and views for the same resource under a URL prefix (an admin interface): generator, scoped router, `Admin:Post.index` route names
-last_verified: 2026-11-13
+last_verified: 2026-11-22
 sources:
   - src/proper/generators
   - src/proper/router

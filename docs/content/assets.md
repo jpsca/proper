@@ -74,6 +74,12 @@ You're not locked into this layout. The only thing that matters is that the file
 
 :::note | What's already in `assets/js`
 The default `js/` directory ships with two vendored libraries under `js/vendor/` (`turbo.js`, `stimulus.js`), the `nestedform.js` helper, and an `application.js` entry point for your own code. They're not pulled from a CDN at runtime - they're real files in your app, served alongside everything else. This avoids a third-party DNS lookup on every page load.
+
+To update Turbo or Stimulus, change their versions in `bin/vendor-hotwire.py` and run it. It downloads the two files again:
+
+```bash
+$ uv run python bin/vendor-hotwire.py
+```
 :::
 
 ---

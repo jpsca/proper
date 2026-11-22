@@ -1,7 +1,7 @@
 ---
 title: Application
 description: App layout, request lifecycle, the `current` context, configuration, lifecycle hooks, static assets, debug error pages, debug toolbar
-last_verified: 2026-11-13
+last_verified: 2026-11-22
 sources:
   - src/proper/app.py
   - src/proper/core

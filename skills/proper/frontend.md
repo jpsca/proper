@@ -1,12 +1,13 @@
 ---
 title: Frontend
 description: Frontend conventions — the views folder, layouts (slots, nesting, navigation), component assets, import maps, Stimulus, flash messages
-last_verified: 2026-11-07
+last_verified: 2026-11-22
 sources:
   - blueprint/[[app_name]]/views
   - blueprint/assets
   - blueprint/[[app_name]]/config/import_map.tt.py
   - src/proper/helpers/html.py
+  - src/proper/vendor
 ---
 
 # Frontend
@@ -315,7 +316,7 @@ import { Controller } from "@hotwired/stimulus";
 
 ## Stimulus
 
-The generated app bundles [Stimulus](https://stimulus.hotwired.dev) (`assets/js/vendor/stimulus.js`, resolved through the import map as `@hotwired/stimulus`). `assets/js/application.js` starts it and exposes the application as `window.Stimulus`. There is no controller autoloading: every controller file registers itself, and the Jx component that uses it declares the file with `{#js #}`.
+The generated app bundles [Stimulus](https://stimulus.hotwired.dev) (`assets/js/vendor/stimulus.js`, resolved through the import map as `@hotwired/stimulus`). To update it or Turbo, change the versions in the app's `bin/vendor-hotwire.py` and run `uv run python bin/vendor-hotwire.py`: it calls `proper.vendor.hotwire(target, versions)`, which downloads both files from unpkg into `assets/js/vendor/`. `assets/js/application.js` starts it and exposes the application as `window.Stimulus`. There is no controller autoloading: every controller file registers itself, and the Jx component that uses it declares the file with `{#js #}`.
 
 Conventions:
 

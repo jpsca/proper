@@ -1,7 +1,7 @@
 ---
 title: CLI, Serving and Logging
 description: The `proper` command (run, check, routes, generators, db), what `proper run` starts, `proper check`'s checks, and the `proper` logger
-last_verified: 2026-11-08
+last_verified: 2026-11-22
 sources:
   - src/proper/cli
   - src/proper/check

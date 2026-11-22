@@ -64,6 +64,8 @@ def test_install_renders_blueprint(app_in_tmp):
     assert (root.parent / "assets" / "css" / "lexxy-editor.css").exists()
     assert (root.parent / "assets" / "css" / "lexxy-content.css").exists()
     assert (root / "tasks" / "abandoned_uploads_sweep.py").exists()
+    # The script that downloads the editor again, to update it.
+    assert (root.parent / "bin" / "vendor-lexxy.py").exists()
 
 
 def test_install_records_in_proper(app_in_tmp):

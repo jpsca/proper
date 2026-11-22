@@ -1,7 +1,7 @@
 ---
 title: Channels
 description: Channels addon, server side: defining channels, lifecycle, actions and replies, streams, broadcasting and presence, authentication, debugging, testing
-last_verified: 2026-11-07
+last_verified: 2026-11-22
 sources:
   - src/proper/channels
   - src/proper/tools/cable.py
