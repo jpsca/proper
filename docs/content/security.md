@@ -221,7 +221,7 @@ This has three consequences:
 - **A nonce can't go in a cached fragment.** Inside `{% cache %}`, the HTML that is saved has the nonce of the visitor who made it, and every other visitor gets that one. Keep the tags with a nonce out of the cached parts.
 - **A response with `disable_cookies`** can't keep a new nonce: use a nonce only in pages that can set cookies.
 
-The debug toolbar uses the nonce too, so its bar works with this policy while you develop.
+The debug toolbar and the error pages of Proper use the nonce too, so they work with this policy.
 
 If your pages have no inline scripts or styles of their own, you can do without the nonce and its cookie: remove it from the policy and don't add `csp_meta_tag()`. The only thing you lose is Turbo's progress bar, which you can bring back by copying its few lines of CSS (the `.turbo-progress-bar` class) to your own stylesheet.
 

@@ -10,7 +10,13 @@ from typing import TYPE_CHECKING
 from hecto import JinjaRender
 from markupsafe import Markup
 
-from ..constants import GET
+from ..constants import (
+    CSP_NONCE_SESSION_KEY,
+    GET,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_SALT,
+)
+from ..global_context import current
 from ..helpers import jsonplus, logger
 from .debug_info import (
     describe_request,
@@ -19,6 +25,7 @@ from .debug_info import (
     hide_url_passwords,
     is_sensitive,
 )
+from .response.response import RX_CSP_NONCE
 
 
 if TYPE_CHECKING:
@@ -38,14 +45,46 @@ def _include_raw(name):
 jinja_render.globals["include_raw"] = _include_raw
 
 
+FALLBACK_ERROR = "fallback-error.html"
+
+
 def render(template: str, **data) -> str:
-    if not data:
-        return (TEMPLATES / template).read_text()
     try:
         return jinja_render(template, **data)
     except Exception:
         logger.exception("")
-        return render("fallback-error.html")
+        if template == FALLBACK_ERROR:
+            return "Internal Server Error"
+        return render(FALLBACK_ERROR)
+
+
+def csp_nonce(response) -> str | None:
+    """The nonce of the visitor, if the app asked for one, for the inline
+    `<style>` and `<script>` of these pages.
+
+    A page with a `Content-Security-Policy` that Turbo was visiting from
+    shows them under that policy, whatever the headers of the error say:
+    Turbo doesn't load a new document. Without the nonce they would have
+    no styles.
+
+    An error from before the session was read (a path that matches no
+    route) finds it in the session cookie of the request.
+    """
+    try:
+        nonce = response.session.get(CSP_NONCE_SESSION_KEY)
+        if nonce is None:
+            request = current.request
+            session = request.get_signed_cookie(
+                SESSION_COOKIE_NAME,
+                salt=SESSION_COOKIE_SALT,
+                max_age=request.app.config.SESSION_COOKIE_LIFETIME,
+            )
+            nonce = session.get(CSP_NONCE_SESSION_KEY) if type(session) is dict else None
+        if type(nonce) is str and RX_CSP_NONCE.fullmatch(nonce):
+            return nonce
+    except Exception:  # noqa: S110 - an error page is shown whatever happens here
+        pass
+    return None
 
 
 def debug_not_found_handler(app, request, response) -> None:
@@ -65,6 +104,7 @@ def debug_not_found_handler(app, request, response) -> None:
         "description": str(error),
         "request_line": describe_request(request),
         "routes": app.routes,
+        "nonce": csp_nonce(response),
     }
     data.update(get_request_data(request))
     response.body = render("debug-not-found.jx", **data)
@@ -217,6 +257,7 @@ def render_default_index(request, response) -> None:
         "proper_version": version("proper"),
         "server_software": request.server_software,
         "python_version": sys.version,
+        "nonce": csp_nonce(response),
     }
     response.body = render("default-index.jx", **data)
 
@@ -239,6 +280,7 @@ def debug_error_handler(app, request, response) -> None:
         "request_line": describe_request(request),
         "errors": errors,
         "text": text,
+        "nonce": csp_nonce(response),
     }
     data.update(get_request_data(request))
     response.body = render("debug-error.jx", **data)
@@ -269,13 +311,13 @@ def _redact_or_none(data: "Any") -> "dict | None":
 
 
 def fallback_not_found_handler(response) -> None:
-    response.body = render("fallback-not-found.html")
+    response.body = render("fallback-not-found.html", nonce=csp_nonce(response))
 
 
 def fallback_forbidden_handler(response) -> None:
-    response.body = render("fallback-forbidden.html")
+    response.body = render("fallback-forbidden.html", nonce=csp_nonce(response))
 
 
 def fallback_error_handler(response) -> None:
     logger.exception(response.error)
-    response.body = render("fallback-error.html")
+    response.body = render(FALLBACK_ERROR, nonce=csp_nonce(response))

@@ -24,9 +24,6 @@ class PublicController(AppController):
 
     @router.get("up")
     def health(self):
-        # This page loads nothing, and has no content of anyone: its own
-        # policy allows the style of its <body>, whatever the policy of
-        # the app says.
         self.response.headers["Content-Security-Policy"] = (
             "default-src 'none'; style-src 'unsafe-inline'"
         )

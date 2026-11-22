@@ -41,7 +41,9 @@ All notable changes to Proper are documented in this file.
   New apps have a policy that uses them, commented out, in their
   `SecurityHeaders` concern. See the Security guide. The debug toolbar
   works under such a policy: its bar carries the nonce of the visitor,
-  and has no `style` or `onclick` attributes.
+  and has no `style` or `onclick` attributes. So do the debug error
+  pages and the fallback error pages, which Turbo shows under the policy
+  of the page it was visiting from.
 - The auth addon deletes the sessions nobody can use anymore. New apps
   get `Session.purge_expired()`, which deletes the expired and the
   revoked sessions, and a `sweep_expired_sessions` task in

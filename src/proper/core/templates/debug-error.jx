@@ -63,7 +63,7 @@
 {% endfor %}
 
 <textarea id="error-text" hidden readonly>{{ text }}</textarea>
-<script>
+<script{% if nonce %} nonce="{{ nonce }}"{% endif %}>
 document.querySelector("button.copy").addEventListener("click", function (event) {
 	var text = document.getElementById("error-text").value;
 	navigator.clipboard.writeText(text).then(function () {

@@ -7,9 +7,15 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 
 from proper import App, Controller, Route, TestClient
+from proper.constants import (
+    CSP_NONCE_SESSION_KEY,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_SALT,
+)
 from proper.core.error_handlers import (
     MAX_REDACT_DEPTH,
     MAX_REDACT_VALUES,
+    fallback_error_handler,
     fallback_forbidden_handler,
     fallback_not_found_handler,
     get_request_data,
@@ -22,10 +28,15 @@ from proper.core.error_handlers import (
 from proper.test_client import make_test_request
 
 
-def test_render_no_data_reads_raw_file():
+def test_render_without_data():
     body = render("fallback-error.html")
-    assert isinstance(body, str)
-    assert len(body) > 0
+    assert "<style>" in body
+    assert "{%" not in body and "nonce" not in body
+
+
+def test_render_when_the_fallback_page_fails_too():
+    with patch("proper.core.error_handlers.jinja_render", side_effect=Exception("boom")):
+        assert render("fallback-error.html") == "Internal Server Error"
 
 
 def test_render_with_data_uses_jinja():
@@ -475,3 +486,58 @@ def test_debug_pages_render_with_tuple_subclasses_in_the_config(value):
 class BoomController(Controller):
     def boom(self):
         raise ValueError("boom")
+
+
+# With a `Content-Security-Policy`, Turbo shows the page of an error under
+# the policy of the page it was visiting from: the inline tags of these
+# pages carry the nonce of the visitor, when the app asked for one.
+
+NONCE = "abcdefghijklmnopqrstuv"
+
+
+class _Failing(Controller):
+    def boom(self):
+        raise ValueError("boom")
+
+
+@pytest.mark.parametrize(
+    "handler", [fallback_not_found_handler, fallback_forbidden_handler, fallback_error_handler]
+)
+def test_the_fallback_pages_carry_the_nonce_of_the_visitor(handler):
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50]})
+    response = app.response_cls(app)
+    response.error = ValueError("boom")
+    handler(response)
+    assert "<style>" in response.body
+    assert "nonce" not in response.body
+
+    response.session = {CSP_NONCE_SESSION_KEY: NONCE}
+    handler(response)
+    assert f'<style nonce="{NONCE}">' in response.body
+    assert "<style>" not in response.body
+
+
+def _session_cookie(app, session):
+    return f"{SESSION_COOKIE_NAME}={app.dumps(session, salt=SESSION_COOKIE_SALT)}"
+
+
+@pytest.mark.parametrize("path, status", [("/boom", 500), ("/nothing-here", 404), ("/", 404)])
+def test_the_debug_pages_carry_the_nonce_of_the_visitor(path, status):
+    app = App(__name__, {"SECRET_KEYS": ["*" * 50], "DEBUG": True})
+    app.router.add_route(Route(method="GET", path="/boom", to=_Failing.boom))
+    client = TestClient(app, raise_server_errors=False)
+    headers = {"accept": "text/html"}
+
+    page = client.get(path, headers=headers)
+    assert "nonce" not in page.body.split("</head>")[0]
+
+    cookie = _session_cookie(app, {CSP_NONCE_SESSION_KEY: NONCE})
+    page = client.get(path, headers={**headers, "cookie": cookie})
+    head = page.body.split("</head>")[0]
+    assert f'<style nonce="{NONCE}">' in head or f'<style type="text/css" nonce="{NONCE}">' in head
+    assert "<style>" not in page.body
+    if path == "/boom":
+        # Turbo gives the nonce of this tag to the script of the page
+        assert f'<meta name="csp-nonce" nonce="{NONCE}">' in head
+        assert f'<script nonce="{NONCE}">' in page.body
+    assert "set-cookie" not in page.headers  # the pages ask for no nonce

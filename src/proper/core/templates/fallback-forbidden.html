@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<title>Access Denied</title>
-	<style>
+	<style{% if nonce %} nonce="{{ nonce }}"{% endif %}>
 	html, body {
 		padding: 0;
 		margin: 0;

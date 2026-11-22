@@ -4,7 +4,8 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<title>{% block title %}{% endblock %}</title>
-	<style>{{ include_raw("_debug-styles.css") }}</style>
+	{% if nonce %}<meta name="csp-nonce" nonce="{{ nonce }}">{% endif %}
+	<style{% if nonce %} nonce="{{ nonce }}"{% endif %}>{{ include_raw("_debug-styles.css") }}</style>
 </head>
 
 <body>
