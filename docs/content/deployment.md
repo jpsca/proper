@@ -497,6 +497,16 @@ and add `$request_id` to the `log_format` of nginx's access log. An ID from a he
 
 The client chooses the `Host` header, so the app never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the storage URLs use `PROTOCOL` and `HOST` from the config, or the host of the route. Set `HOST` to your public host name, and build the absolute URLs that leave the request (emails, links you store or send to others) with `url_for(..., _full=True)`, not from `request.host`. `X-Forwarded-Host` and `Forwarded: host=` are not read.
 
+### Trusted hosts
+
+The app only answers to the hosts it knows: the one in `HOST`, those of the routes with a `host`, `localhost`, the names without a dot (the name of a container, like `web`) and any IP address. A request for another name gets a `400 Bad Request`. If your site has more names, like the `www.` one, list them:
+
+```python {title="config/main.py"}
+TRUSTED_HOSTS = ["www.example.com"]
+```
+
+A health check that requests the app by its IP address or by the name of its container works without this. One that uses a longer internal name, like `web.default.svc.cluster.local` in Kubernetes, needs that name in the list. See [The `Host` header](/docs/security#the-host-header) in the Security guide.
+
 ### Trusted proxies
 
 The `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers tell the app who the visitor is and whether they connected over HTTPS: `request.remote_ip` comes from them, and so does `request.protocol`. `request.protocol` decides `request.is_secure`, the default port in `request.host_with_port`, and whether the session and auth cookies are `Secure`. Any client can send those headers too, so the app uses them only when the request comes from one of the `TRUSTED_PROXIES`. From any other address they are ignored, and `request.remote_ip` is the address the request came from.

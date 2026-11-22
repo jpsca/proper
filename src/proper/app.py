@@ -49,6 +49,7 @@ if t.TYPE_CHECKING:
     from .debug_toolbar import Toolbar
     from .emails import BaseMailer
     from .i18n import I18n
+    from .pipeline import TrustedHosts
     from .storage import _Attachment
     from .tools.mailer import Mailers
 
@@ -97,6 +98,8 @@ class App(AppWsgi):
     # chain made of them, built once when they are added.
     _around_request: tuple[THandler, ...] = ()
     _wrapped_pipeline: "Callable[[Request, Response], Response] | None" = None
+    # The hosts the app answers to (see `pipeline.host_is_trusted`)
+    _trusted_hosts: "TrustedHosts | None" = None
 
     name: str
     root_path: Path
@@ -114,6 +117,7 @@ class App(AppWsgi):
     catalog: views.Catalog
 
     pipeline: tuple[types.FunctionType, ...] = (
+        pipeline.check_host,
         pipeline.head_to_get,
         pipeline.method_override,
         pipeline.match,

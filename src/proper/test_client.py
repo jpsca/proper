@@ -76,7 +76,9 @@ def make_test_request(
     lowercased, as the server gives them; a name given more than once is
     kept as repeated pairs, in order. A `host` header is added unless
     `headers` already has one; `request.host` and `request.port` come from
-    it. `server` overrides the address the request arrived at
+    it. A URL without a host is for the `HOST` of the `app`, or for
+    `example.com` without one. `server` overrides the address the request
+    arrived at
     (`request.server`), which is the `(host, port)` of the URL, with an
     IPv6 address without its brackets.
 
@@ -86,12 +88,14 @@ def make_test_request(
     upa = urlparse(url)
     scheme = upa.scheme or "http"
     path = unquote(upa.path or "/")
+    app_host = app.config.get("HOST") if app else None
+    netloc = upa.netloc or (app_host if isinstance(app_host, str) else "") or "example.com"
 
-    host, colon, port_str = upa.netloc.rpartition(":")
+    host, colon, port_str = netloc.rpartition(":")
     if colon and "]" not in port_str:
         port = int(port_str)
     else:  # No port, or the last `:` is inside an IPv6 address
-        host = upa.netloc or "example.com"
+        host = netloc
         port = SCHEME_DEFAULT_PORTS.get(scheme, 80)
     # The server gives an IPv6 address without its brackets.
     host = host.removeprefix("[").removesuffix("]")
@@ -101,7 +105,7 @@ def make_test_request(
     # Lowercased, as the server and `TestClient` give them to `Request`.
     pairs = [(name.lower(), value) for name, value in _header_pairs(headers)]
     if not any(name == "host" for name, _ in pairs):
-        pairs.insert(0, ("host", upa.netloc or host))
+        pairs.insert(0, ("host", netloc))
 
     return request_cls(
         method=method,

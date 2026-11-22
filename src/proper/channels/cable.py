@@ -37,7 +37,8 @@ The cable pings every connection each `CABLE_PING_INTERVAL` seconds
 (`{"c": "WSE", "t": "ping"}`), which `cable.js` answers and uses to notice
 a dead connection; one that answers no ping for `idle_timeout` seconds (60)
 is closed. Handshakes from other sites' pages are refused (see
-`origin_allowed`).
+`origin_allowed`), and those for a host the app doesn't answer to are
+closed as they open (see `proper.pipeline.host_is_trusted`).
 """
 import contextvars
 import inspect
@@ -55,8 +56,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from bearings import Server, WebSocketHandler
 
+from ..core.request.headers import parse_host
+from ..errors import InvalidHeader
 from ..global_context import current
 from ..helpers import jsonplus, logger
+from ..pipeline import host_is_trusted
 from .base import CABLE_SALT, BaseCable, allowed_origins
 from .channel import ActionError, Channel
 
@@ -151,6 +155,19 @@ def _stamp(frame: str, topic: str, epoch: str, offset: int) -> str:
     """Stamp a frame when recovery is on: the topic, the epoch of its
     buffer and the offset of the message, first."""
     return '{"tp": %s, "e": "%s", "o": %d, %s' % (jsonplus.dumps(topic), epoch, offset, frame[1:])
+
+
+def _host_is_trusted(app: "App", host_header: str | None) -> bool:
+    """Whether a handshake with this `Host` header is for a host the app
+    answers to (`proper.pipeline.host_is_trusted`). One without the header
+    is not from a browser, and is."""
+    if not host_header:
+        return True
+    try:
+        host, _port = parse_host(host_header)
+    except InvalidHeader:
+        return False
+    return host_is_trusted(app, host.lower())
 
 
 def _handshake_request(app: "App", details: dict) -> t.Any:
@@ -702,6 +719,9 @@ ALL = "all"
 # Close code for a connection that fell too far behind (RFC 6455: "try again
 # later"): `cable.js` reconnects, and recovers what it missed.
 TOO_FAR_BEHIND = 1013
+# The close code of a handshake for a host the app doesn't answer to
+# (1008, "policy violation")
+UNTRUSTED_HOST = 1008
 
 
 def _topic(stream: str) -> str:
@@ -768,6 +788,9 @@ class BearingsServer(_Streams, WebSocketHandler):
     # Bearings' events
 
     def opened(self, ws: int, environ: dict) -> None:
+        if not _host_is_trusted(self.cable.app, environ.get("HTTP_HOST")):
+            self.server.ws_close(ws, UNTRUSTED_HOST, "untrusted host")
+            return
         with self._lock:
             self._open.add(ws)
         self.server.subscribe(ws, ALL)

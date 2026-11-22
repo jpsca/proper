@@ -4,6 +4,24 @@ All notable changes to Proper are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- The app only answers to the hosts it knows. A request whose `Host` is
+  another name gets a `400 Bad Request`, and a WebSocket for it is closed
+  as it opens. This stops DNS rebinding, where a page of another site
+  makes its own domain point at your server to read what it answers.
+  Trusted without any config: the name in `HOST`, the hosts of the routes
+  with a `host`, the names of the machine (`localhost`, anything under
+  `.localhost`), the names without a dot (`web`, as containers call each
+  other), and every IP address. List any other name the app is reached
+  by in the new `TRUSTED_HOSTS` setting, for example
+  `TRUSTED_HOSTS = ["www.example.com"]` if `HOST` is `example.com`.
+  `".example.com"` is that name and every name under it, and `"*"` is any
+  name.
+- `TestClient` and `make_test_request(..., app=app)` send a URL without a
+  host to the `HOST` of the app, instead of `example.com`. A test that
+  requests another host by its full URL needs it in `TRUSTED_HOSTS`.
+
 ### Added
 
 - Model signals: `before_save`, `before_create`, `after_create`,

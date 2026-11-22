@@ -42,6 +42,10 @@ def download(self):
     self.response.send_file("/var/exports/q4-report.pdf")
 ```
 
+:::warning | Paths from the request
+`send_file` sends any file of the server you give it the path of. If part of the path comes from the request, check it first: see [Files from disk](/docs/security#files-from-disk) in the Security guide.
+:::
+
 That sets the content type from the file extension, sets `Content-Length`, sets `Last-Modified` from the file's mtime, and streams the file to the client. You don't need to return anything from the action; `send_file` populates the response body itself.
 
 ### Inline vs. Attachment

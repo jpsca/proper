@@ -4,6 +4,7 @@ Default configuration values and validation logic for user-provided config.
 For tool-specific configuration (db, auth, etc.), see the `tools/` folder.
 """
 import ipaddress
+import re
 import typing as t
 from types import ModuleType
 
@@ -132,6 +133,12 @@ default_config = {
         "fc00::/7",
         "fe80::/10",
     ],
+    # The host names the app answers to, besides the one in `HOST`, those
+    # of the routes with a `host`, the names of this machine, the names
+    # without a dot and any IP address. A request for another one is a 400. `"www.example.com"` is
+    # that name; `".example.com"` is `example.com` and every name under
+    # it; `"*"` is any name. Without protocol or port.
+    "TRUSTED_HOSTS": [],
     "LOCALE_DEFAULT": "en",
     "TIMEZONE_DEFAULT": "UTC",
 
@@ -189,6 +196,7 @@ def normalize_config(config: DotDict) -> DotDict:
         )
 
     config.TRUSTED_PROXIES = parse_trusted_proxies(config.TRUSTED_PROXIES)
+    config.TRUSTED_HOSTS = parse_trusted_hosts(config.TRUSTED_HOSTS)
 
     config.DEBUG = bool(config.DEBUG)
     if config.LOG_FORMAT is None:
@@ -215,6 +223,37 @@ def normalize_config(config: DotDict) -> DotDict:
     config.ASSETS_URL = str(config.ASSETS_URL)
 
     return config
+
+
+# A host name, or a `.` and one (the name and every name under it)
+RX_TRUSTED_HOST = re.compile(r"\.?[a-z0-9_]([a-z0-9_-]*[a-z0-9_])?(\.[a-z0-9_]([a-z0-9_-]*[a-z0-9_])?)*")
+
+
+def parse_trusted_hosts(value: t.Any) -> tuple[str, ...]:
+    """Parse the `TRUSTED_HOSTS` setting: a list of host names, in
+    lowercase and without a trailing dot. `.example.com` is `example.com`
+    and every name under it, and `*` is any name.
+
+    Raises:
+        ConfigError: if it isn't a list or tuple, or an item isn't a host
+            name: it has a protocol, a port or a path, or it is an IP
+            address in brackets (IP addresses are always trusted).
+
+    """
+    if not isinstance(value, (list, tuple)):
+        raise ConfigError(
+            f"TRUSTED_HOSTS must be a list of host names, not {value!r}."
+        )
+    names = []
+    for item in value:
+        name = item.strip().lower().removesuffix(".") if isinstance(item, str) else ""
+        if name != "*" and not RX_TRUSTED_HOST.fullmatch(name):
+            raise ConfigError(
+                f"TRUSTED_HOSTS: {item!r} is not a host name. Write it without "
+                "protocol, port or path, like 'www.example.com' or '.example.com'."
+            )
+        names.append(name)
+    return tuple(names)
 
 
 IP_TYPES = (

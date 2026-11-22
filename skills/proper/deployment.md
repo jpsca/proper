@@ -256,6 +256,7 @@ Rules the proxy must follow, with the reasons in [security.md](security.md#trust
 - **Pass the client's `Host`** (`proxy_set_header Host $host;`). The app never builds URLs from it (it uses `PROTOCOL`/`HOST` from the config), but routes with a `host` and `OriginProtection` compare with it.
 - **Overwrite `X-Forwarded-Proto`** with the scheme nginx got the request on. It decides `request.is_secure` and the `Secure` flag of the session and auth cookies.
 - **Drop headers with `_` in the name** (`X_Forwarded_For`). nginx does so by default: keep `underscores_in_headers off` and `ignore_invalid_headers on`.
+- **Trusted hosts.** A request whose `Host` is not `HOST`, a route's `host`, `localhost`, a name without a dot or an IP address gets a 400: list the other names of the site (`www.example.com`) in `TRUSTED_HOSTS`. See [security.md](security.md#host-header).
 - **Trusted proxies.** The forwarding headers are read only from peers in `TRUSTED_PROXIES`, by default every loopback, private and link-local address. That covers nginx on the same machine, container or VPC. If clients can reach the app from those networks, or a CDN / public load balancer sits in front of nginx, list the proxies' addresses explicitly, **every hop in the chain** (otherwise `remote_ip` is the CDN edge's address for every visitor and the default `rate_limit` puts them all in one bucket):
 
 ```python {title="config/main.py"}

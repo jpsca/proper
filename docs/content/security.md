@@ -1,7 +1,7 @@
 ---
 title: Security
 description: |
-  What Proper does to protect your application and what you have to do yourself. Covers CSRF, XSS and the Content Security Policy, sessions and secret keys, passwords, rate limiting, authorization, input, HTTPS and proxies, security headers, WebSockets, and errors in production.
+  What Proper does to protect your application and what you have to do yourself. Covers CSRF, XSS and the Content Security Policy, sessions and secret keys, passwords, rate limiting, authorization, input, HTTPS and proxies, security headers, WebSockets, logs, errors in production, and dependencies.
 number_headers: true
 ---
 
@@ -18,7 +18,7 @@ After reading this guide, you will know:
 - Where escaping protects you from XSS and where it doesn't, and how to add a Content Security Policy.
 - How sessions, cookies and secret keys work, and how to rotate the keys.
 - What to rate limit, and how.
-- What you must check yourself: authorization, redirects, raw SQL.
+- What you must check yourself: authorization, redirects, raw SQL, file paths, shell commands.
 - What to verify before deploying.
 
 ---
@@ -37,6 +37,7 @@ Rate limits on sign-in, sign-up and password reset | Yes | The controllers of th
 Request size limits                | Yes            | `MAX_CONTENT_LENGTH` and the other `MAX_*` settings
 Security headers                   | Yes            | `SecurityHeaders`, in `AppController`, a file of your app
 WebSocket origin checks            | Yes            | The cable
+Requests for unknown hosts refused | Yes            | Every request, and the cable (see [below](#the-host-header))
 Content Security Policy            | No             | You add it to `SecurityHeaders` (see [below](#content-security-policy))
 Authorization                      | No             | Your controllers and models
 
@@ -216,6 +217,8 @@ This means the policy doesn't stop a `<script>` an attacker manages to put in a 
 
 The session (`request.session` and `response.session`) is stored in the user's browser, in a cookie named `_session`. The cookie is **signed**, so the user can't change it: Proper ignores a session whose signature doesn't match. It isn't **encrypted**, so the user can read it. Don't put anything in the session that the user must not see.
 
+Proper has no encrypted cookies. What the user must not read goes in the database, with only its ID in the session.
+
 The cookie is sent with these attributes:
 
 Attribute  | Value                                       | Setting
@@ -273,7 +276,16 @@ These are the protections of the [auth addon](/docs/authentication). The code is
 Two decisions are yours:
 
 - **Revealing or hiding which accounts exist.** By default, the sign-in and password reset forms say when there is no account with that email. That's friendlier, but it lets anyone check whether an email has an account, a few at a time because of the rate limits. For applications where having an account is sensitive in itself (health, dating, legal help), hide it. See [Revealing vs Hiding Account Existence](/docs/authentication#revealing-vs-hiding-account-existence).
-- **What the addon doesn't include.** There is no multi-factor authentication and no email confirmation: a new user is signed in right away, with an email nobody checked. If your application sends email to the addresses users give, or trusts them, confirm them first.
+- **What the addon doesn't include.** There is no multi-factor authentication and no email confirmation: a new user is signed in right away, with an email nobody checked. If your application sends email to the addresses users give, or trusts them, confirm them first. If you add multi-factor authentication, use an authenticator app (TOTP) or passkeys (WebAuthn). Avoid codes sent by SMS: a phone number can be moved to another SIM without its owner knowing.
+
+### Changing the password or the email
+
+The addon has no account page. If you add one, think of an attacker who got into an account, with a stolen cookie or an unlocked laptop: they will try to make it theirs. Two rules make that hard:
+
+- **Ask for the current password** before changing the password or the email. A stolen session isn't enough then.
+- **Tell the old address** when the email changes, with a way to undo it. The email is how a user recovers the account, so whoever changes it owns the account.
+
+After any of these changes, revoke the sessions of the user with `Session.revoke_all_for(user)`, so a stolen one stops working, and sign this browser in again.
 
 ---
 
@@ -402,6 +414,43 @@ self.response.redirect_to(next_url)
 
 A path that starts with `//` or `/\` is not a problem: `redirect_to` turns them into a single `/`, so `//evil.com` becomes `/evil.com`, a path of your site.
 
+### Files from disk
+
+`send_file` sends whatever path you give it. If part of the path comes from the request, a name like `../../config/main.py` leaves your folder. Check that the final path is still inside it:
+
+```python
+EXPORTS = Path("/var/exports")
+
+def download(self):
+    path = (EXPORTS / self.params["name"]).resolve()
+    if not path.is_relative_to(EXPORTS) or not path.is_file():
+        raise NotFound
+    self.response.send_file(path)
+```
+
+Better yet, don't take file names from the request: save the name in the database and look the file up by its ID. That is what the storage addon does.
+
+### Shell commands
+
+To run another program with values from the request, give the arguments as a list, so each value is one argument and nothing more:
+
+```python
+# Wrong: a name of `x.png; rm -rf .` runs two commands
+subprocess.run(f"convert {name} out.png", shell=True)
+
+# Right
+subprocess.run(["convert", name, "out.png"])
+```
+
+Never use `shell=True` or `os.system()` with a value a user wrote.
+
+### Regular expressions
+
+Two details of Python's regular expressions matter when you validate input with them:
+
+- **`$` also matches before a final line break.** `re.match(r"^\d+$", value)` accepts `"42\n"`. Use `re.fullmatch(r"\d+", value)`, which must match the whole value.
+- **There is no time limit.** A pattern with a repetition inside another, like `(a+)+$`, can take minutes on a short value made for it, and keep a thread busy all that time. Keep the patterns you run on input simple, and check the length of the value first.
+
 ---
 
 ## HTTPS and proxies
@@ -424,6 +473,30 @@ The default trusts the loopback, private and link-local networks, which is right
 See [Trusted proxies](/docs/deployment#trusted-proxies) in the Deployment guide.
 
 ### The `Host` header
+
+A page of another site can't read what your application answers: the browser doesn't let it. The way around it is called *DNS rebinding*: the attacker makes their own domain point at your server, and for the browser their page and your application are now the same site. It works against what the public can't reach: the application running on your computer while you develop, or an internal tool on a private network.
+
+Those requests still carry the attacker's domain in the `Host` header, so Proper only answers to the hosts it knows. Any other one gets a `400 Bad Request`, and a WebSocket for it is closed. These are known without any config:
+
+- The name in the `HOST` setting.
+- The hosts of your routes with a `host`, like `api.example.com` or `:username.myapp.com`.
+- `localhost` and any name under it, like `store.localhost`.
+- A name without a dot, like `web`: containers call each other that way, and nobody can register one.
+- Any IP address, like `192.168.1.50`: only a name can be made to point somewhere else.
+
+List every other name your application is reached by in `TRUSTED_HOSTS`, without protocol or port:
+
+```python {title="config/main.py"}
+HOST = "example.com"
+TRUSTED_HOSTS = [
+    "www.example.com",
+    ".example.org",  # example.org and every name under it
+]
+```
+
+If a request that should work gets a `400`, look at the logs: the line says which host to add. Typical cases are the `www.` version of your domain, a name of your computer on the local network (`mypc.local`), and the internal name of a service in Kubernetes (`web.default.svc.cluster.local`).
+
+An application that serves the domains of its customers can't list them: set `TRUSTED_HOSTS = ["*"]` to answer to any name, and make sure the application is not reachable from a private network.
 
 The client chooses the `Host` header of the request. Proper uses it to choose a route and in `OriginProtection`, but never to build a URL: `url_for(..., _full=True)`, the password reset email and the URLs of files use `PROTOCOL` and `HOST` from your config. Do the same: build every absolute URL that leaves the request, in an email or a link sent to others, with `url_for(..., _full=True)`, never with `request.host`. Otherwise an attacker who sends a request with their own domain in `Host` gets a password reset email with a link to it.
 
@@ -460,11 +533,17 @@ class SecurityHeaders(Concern):
 
 The file is part of your application, so you can change it: add a [Content Security Policy](#content-security-policy), enable `Strict-Transport-Security`, etc. Since the headers are set with `setdefault`, a controller can set a different value for its own responses.
 
+To turn off browser features your application doesn't use, so a script that got into a page can't use them either, add a `Permissions-Policy`:
+
+```python
+headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+```
+
 ---
 
 ## WebSockets
 
-A WebSocket is opened with an HTTP request, and the browser sends your cookies with it, even when a page of another site opens it. That's the same problem as CSRF, and the cable has the same kind of solution: it checks the `Origin` of the connection, and refuses connections from other sites, unless they are in `CABLE_ALLOWED_ORIGINS`. See [Checking where a WebSocket comes from](/docs/channels#checking-where-a-websocket-comes-from).
+A WebSocket is opened with an HTTP request, and the browser sends your cookies with it, even when a page of another site opens it. That's the same problem as CSRF, and the cable has the same kind of solution: it checks the `Origin` of the connection, and refuses connections from other sites, unless they are in `CABLE_ALLOWED_ORIGINS`. See [Checking where a WebSocket comes from](/docs/channels#checking-where-a-websocket-comes-from). A connection for a host the application doesn't know is closed too, as a request for it is refused (see [The `Host` header](#the-host-header)).
 
 Once connected, the channels know the user, as controllers do. What they don't know is which streams that user may listen to. Check it in `subscribed()`, and reject the subscription when the user doesn't belong to that room, document, or account:
 
@@ -481,11 +560,33 @@ See [Authorizing versus authenticating](/docs/channels#authorizing-versus-authen
 
 ---
 
+## Logs
+
+Logs are read by more people than your database, and kept for longer: they go to files, to log services, to bug reports. So nothing secret should be in them.
+
+`proper run` writes one line per request, with its path and its query string. So don't put secrets in a URL: an API key in `?api_key=...` is in your logs, in those of every proxy on the way, and in the browser's history. Send it in a header, or in the body of a `POST`.
+
+Proper doesn't log the body of a request. When you log from your own code, log IDs, not values: `user_id=42`, not the email or the token.
+
+---
+
 ## Errors in production
 
 With `DEBUG` on, an error shows a debug page with your code, the values of its variables, the request, and your config. It hides what looks like a secret, but it still shows far too much to anybody. New applications only turn `DEBUG` on in development. Check that it stays that way. See [The debug error pages](/docs/controllers_advanced#the-debug-error-pages).
 
 In production, users see your error page instead, and the error goes to the logs. Every response has an `X-Request-ID` header, and every line of the logs has the same ID, so a user can give you that ID and you can find what happened without showing them the error.
+
+---
+
+## Dependencies
+
+Your application runs the code of every package it installs. Keep them up to date, and check them against the list of known vulnerabilities:
+
+```bash
+uv run --with pip-audit pip-audit
+```
+
+Run it in your CI, so you find out when a version you use gets a security fix.
 
 ---
 
@@ -496,11 +597,15 @@ In production, users see your error page instead, and the error goes to the logs
 - [ ] The site is only served over HTTPS, and HTTP redirects to HTTPS.
 - [ ] `TRUSTED_PROXIES` lists your proxies: check that `request.remote_ip` is the address of a user, not of your proxy.
 - [ ] `HOST` and `PROTOCOL` are your public domain and `https`.
+- [ ] `TRUSTED_HOSTS` lists the other names of your site, like the `www.` one.
 - [ ] A cache is configured, shared by every machine, so rate limits work.
 - [ ] Every action that loads a record by ID checks that the user may see it.
 - [ ] Every action that changes data uses `POST`, `PATCH`, `PUT` or `DELETE`.
 - [ ] No `|safe` or `Markup` wraps something a user wrote.
 - [ ] No redirect goes to a URL taken from the request without checking it.
 - [ ] No raw SQL has values from the request in its text.
+- [ ] No file path or shell command is made with values from the request.
+- [ ] No secret goes in a URL or in a log line.
+- [ ] The dependencies have no known vulnerabilities.
 - [ ] You decided whether to reveal which accounts exist.
 - [ ] You added a Content Security Policy, or decided not to.

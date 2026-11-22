@@ -860,6 +860,8 @@ Any other is refused with a 403, and so is an `Origin` that is not a valid URL (
 CABLE_ALLOWED_ORIGINS = ["https://admin.example.com"]
 ```
 
+The host the WebSocket was opened to must also be one the app knows, as for any request: a connection for another host is closed right after it opens. See [The `Host` header](/docs/security#the-host-header) in the Security guide.
+
 ---
 
 ## Without channels

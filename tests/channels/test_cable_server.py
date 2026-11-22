@@ -17,6 +17,7 @@ import pytest
 
 from proper import App, Channel, current
 from proper.channels import base as base_module
+from proper.channels import cable as cable_module
 from proper.helpers import BLUEPRINTS
 
 
@@ -30,6 +31,7 @@ class WsClient:
     """A minimal WebSocket client (RFC 6455): text frames only."""
 
     host = "127.0.0.1"  # it connects to the first address: the one the cable listens on
+    host_header = ""  # the `Host` of the handshake, if not the address and port
     read_pause = 0.0  # seconds it waits after each read from the socket
 
     def __init__(
@@ -43,7 +45,8 @@ class WsClient:
         self.sock.connect(first[4])
         key = base64.b64encode(os.urandom(16)).decode()
         request = (
-            f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+            f"GET {path} HTTP/1.1\r\nHost: {self.host_header or f'127.0.0.1:{port}'}\r\n"
+            "Upgrade: websocket\r\n"
             f"Connection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n"
             + (f"Cookie: {cookie}\r\n" if cookie else "")
             + (f"Origin: {origin}\r\n" if origin else "")
@@ -858,6 +861,58 @@ class TestOrigins:
         WsClient(port, origin="https://evil.example", expect=403).close()
         WsClient(port, origin="https://app.example").close()
         WsClient(port).close()  # not a browser
+
+
+class EvilHostClient(WsClient):
+    host_header = "evil.example"
+
+
+class AppHostClient(WsClient):
+    host_header = "app.example"
+
+
+class TestHosts:
+    """A page whose domain was made to point at the server (DNS rebinding)
+    is on the same site as the cable, for the browser and for the `Origin`
+    check: the handshake is for a host the app doesn't answer to."""
+
+    def test_a_handshake_for_an_untrusted_host_is_closed(self, make_app):
+        app = make_app(HOST="app.example")
+        port = app.config.CABLE_PORT
+        client = EvilHostClient(port, _cookie(app), origin="http://evil.example")
+        assert client.recv() is None
+        assert not app.cable._connections
+
+    def test_a_handshake_for_a_host_of_the_app_goes_on(self, make_app):
+        app = make_app(HOST="app.example")
+        port = app.config.CABLE_PORT
+        client = AppHostClient(port, _cookie(app), origin="http://app.example")
+        assert client.subscribe(1)
+        client.close()
+
+    @pytest.mark.parametrize(
+        "host_header, trusted",
+        [
+            (None, True),  # not a browser
+            ("", True),
+            ("app.example", True),
+            ("APP.Example:2301", True),
+            ("127.0.0.1:2301", True),
+            ("[::1]:2301", True),
+            ("evil.example:2301", False),
+            ("[abc]", False),
+            ("exa mple", False),
+        ],
+    )
+    def test_the_host_header_of_a_handshake(self, make_app, host_header, trusted):
+        app = make_app(HOST="app.example")
+        assert cable_module._host_is_trusted(app, host_header) is trusted
+
+    def test_a_listed_host_goes_on(self, make_app):
+        app = make_app(HOST="app.example", TRUSTED_HOSTS=["evil.example"])
+        client = EvilHostClient(app.config.CABLE_PORT, _cookie(app), origin="http://evil.example")
+        assert client.subscribe(1)
+        client.close()
 
 
 class TestObserving:

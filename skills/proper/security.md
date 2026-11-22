@@ -7,6 +7,7 @@ sources:
   - src/proper/concerns/request_forgery_protection.py
   - src/proper/core/request
   - src/proper/core/config.py
+  - src/proper/pipeline.py
   - src/proper/_native
 ---
 
@@ -307,6 +308,16 @@ TRUSTED_PROXIES = []  # app faces the internet directly: ignore the headers
 
 ## Host header
 
+- The app answers only to the hosts it knows; any other `Host` is a `400 Bad Request` in plain text (never an error page or an error handler: it is the first step of the pipeline, `pipeline.check_host`), with a warning in the logs naming the host. The cable closes a WebSocket for such a host as it opens (code 1008). This stops DNS rebinding. A request without a `Host` header goes on.
+- Trusted without config (`pipeline.host_is_trusted(app, host)`), with or without a trailing dot: the name in `HOST` (its port ignored); a name matching the `host` of a route that can match; `localhost`, the loopback addresses and any name under `.localhost`; a name without a dot (`web`, a container's name); any IP address.
+- `TRUSTED_HOSTS` (default `[]`) adds names, without protocol or port: `"www.example.com"` is that name, `".example.com"` is `example.com` and every name under it, `"*"` is any name (for apps serving their customers' domains). Anything else (`"https://a.com"`, `"a.com:8080"`, `"*.a.com"`, a non-string) is a `ConfigError` at startup. Ports are never compared.
+
+```python
+HOST = "example.com"
+TRUSTED_HOSTS = ["www.example.com", ".example.org"]
+```
+
+- Needs listing: the `www.` name, an mDNS name (`mypc.local`), a dotted internal service name (`web.default.svc.cluster.local`). A health check by IP or by container name needs nothing.
 - `request.host` and `request.port` come from the `Host` header (PEP 3333), else from the address the server listens on (`SERVER_NAME`, `0.0.0.0` under `proper run`). Host-constrained routes and `OriginProtection` compare with it. The proxy must pass the client's `Host` (nginx: `proxy_set_header Host $host;`; its default sends the upstream's address).
 - An invalid `Host` (`example.com/x`, a space, `user@host`) is a 400, and so is a request with more than one `Host` line (RFC 9112 §3.2): the server joins them with a comma, so a `Host` with a comma is refused.
 - The client chooses the `Host` header. Proper uses it only to pick the route and to compare with `Origin`; it never builds a URL from it: `url_for(..., _full=True)`, the password-reset email and the direct-upload URL use `PROTOCOL` and `HOST` from the config (or the route's own host); attachment URLs are paths. Do the same in your code: build absolute URLs that leave the request (emails, links stored or sent to others) with `url_for(_full=True)`, not from `request.host`.

@@ -126,7 +126,7 @@ import { cable } from "cable"
 |--------------|------------|------------------------------------|
 | `CABLE_PATH` | `"/cable"` | Path the proxy routes to `CABLE_PORT`, and where other processes `POST` forwarded broadcasts. `cable.js` hardcodes `/cable` |
 | `CABLE_PORT` | `0`        | Port where `Cable` serves the WebSockets, from the web process `proper run` starts. The channels addon sets it to `PORT + 1`. Set with an empty `CABLE`, it is a `ConfigError` |
-| `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the handshake's own `Host`, the app's `HOST` (http and https) and, in `DEBUG`, `localhost`/`127.0.0.1` on `PORT` and any port of the handshake's host name (`allowed_origins()` plus Bearings' `any_port_origin`, checked at the handshake). Handshakes without `Origin` (not browsers) are always allowed; others get a 403 |
+| `CABLE_ALLOWED_ORIGINS` | `[]` | Browser origins allowed besides the handshake's own `Host`, the app's `HOST` (http and https) and, in `DEBUG`, `localhost`/`127.0.0.1` on `PORT` and any port of the handshake's host name (`allowed_origins()` plus Bearings' `any_port_origin`, checked at the handshake). Handshakes without `Origin` (not browsers) are always allowed; others get a 403. A handshake whose `Host` the app doesn't answer to (`TRUSTED_HOSTS`, see [security.md](security.md#host-header)) is accepted and closed at once with code 1008 |
 | `CABLE_PING_INTERVAL` | `3` | Seconds between the cable's pings on every connection: an integer, at least 1, less than `CABLE['idle_timeout']` (60) |
 | `CABLE_MAX_PENDING_BYTES` | `4194304` | A client this many bytes behind is closed; `cable.js` reconnects and recovers. At least 1 |
 

@@ -179,6 +179,8 @@ def test_index(client):
     assert result.status == 200
 ```
 
+A URL without a host, like `"/"`, is requested from the `HOST` of your config. To test a route of another host, give the whole URL: `client.get("http://api.example.com/users")`. The host must be one the app knows (the `host` of a route, or one in `TRUSTED_HOSTS`), or the answer is a `400`.
+
 #### The `db_setup` fixture (session scope)
 
 ```python

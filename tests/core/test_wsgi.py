@@ -50,7 +50,7 @@ def make_environ(url="/", *, method="GET", headers=(), body=b"", client=("10.0.0
     """A WSGI environ the way a server would build it."""
     upa = urlparse(url)
     scheme = upa.scheme or "http"
-    host, _, port = (upa.netloc or "example.com").partition(":")
+    host, _, port = (upa.netloc or "localhost").partition(":")
     port = port or ("443" if scheme == "https" else "80")
     environ = {
         "REQUEST_METHOD": method,
@@ -118,6 +118,7 @@ def header(headers, name):
 class TestHttp:
     def test_request_is_built_from_the_environ(self, app):
         _route(app, "/echo", Echo.index)
+        app.config.TRUSTED_HOSTS = ["api.example.com"]
         environ = make_environ(
             "https://api.example.com:8443/echo?x=1",
             headers=[("x-custom", "a"), ("accept", "text/html")],

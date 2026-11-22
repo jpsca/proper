@@ -34,6 +34,14 @@ else:
     PROTOCOL = "http"
     HOST = f"[[app_name]].localhost:{PORT}"
 
+# The app only answers to the hosts it knows: `HOST`, `localhost`, and any
+# IP address. A request for another name gets a "400 Bad Request".
+# List here the other names of your site, without protocol or port.
+# ".example.com" is `example.com` and every name under it.
+TRUSTED_HOSTS = [
+    # "www.YOUR-DOMAIN.com",
+]
+
 # List of secret keys, **oldest to newest**.
 # Every key in the list is valid, so you can periodically generate a new key
 # and remove the oldest one to add and extra layer of mitigation

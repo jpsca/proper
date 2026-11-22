@@ -2,21 +2,25 @@ from unittest.mock import patch
 
 import pytest
 
-from proper import TestClient, current, status
+from proper import App, TestClient, current, status
 from proper.constants import (
     FLASHES_SESSION_KEY,
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_SALT,
 )
 from proper.controller import Controller
+from proper.core.config import parse_trusted_hosts
 from proper.core.response import Response
-from proper.errors import MatchNotFound
+from proper.errors import ConfigError, MatchNotFound
 from proper.helpers import DotDict
 from proper.pipeline import (
     LOCAL_HOSTS,
+    MAX_KNOWN_HOSTS,
+    check_host,
     copy_session,
     dispatch,
     head_to_get,
+    host_is_trusted,
     is_local_host,
     match,
     method_override,
@@ -54,6 +58,236 @@ def co(make_co):
 @pytest.fixture()
 def client(app):
     return TestClient(app)
+
+
+class TestHostIsTrusted:
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "localhost",  # the default `HOST`, without its port
+            "localhost.",
+            "127.0.0.1",
+            "127.1",
+            "192.168.1.50",
+            "203.0.113.7",
+            "::1",
+            "2001:db8::1",
+            "store.localhost",
+            "a.b.localhost.",
+            "web",
+            "myapp-web-1",
+        ],
+    )
+    def test_trusted_without_any_config(self, app, host):
+        assert host_is_trusted(app, host)
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "evil.example",
+            "example.com",
+            "localhost.evil.example",
+            "127.0.0.1.evil.example",
+            "notlocalhost.example",
+            "1.2.3.4.5",
+        ],
+    )
+    def test_other_names_are_not_trusted(self, app, host):
+        assert not host_is_trusted(app, host)
+
+    @pytest.mark.parametrize(
+        "setting, host",
+        [
+            ("example.com", "example.com"),
+            ("example.com:8080", "example.com"),
+            ("Example.COM.", "example.com"),
+            ("example.com", "example.com."),
+        ],
+    )
+    def test_the_name_in_host_is_trusted(self, app, setting, host):
+        app.config.HOST = setting
+        assert host_is_trusted(app, host)
+        assert not host_is_trusted(app, "www.example.com")
+
+    def test_an_ip_address_in_host_adds_no_name(self, app):
+        app.config.HOST = "[::1]:2300"
+        assert host_is_trusted(app, "::1")
+        assert not host_is_trusted(app, "example.com")
+
+    def test_listed_names_are_trusted(self, app):
+        app.config.TRUSTED_HOSTS = ["www.example.com", "Other.Example."]
+        assert host_is_trusted(app, "www.example.com")
+        assert host_is_trusted(app, "other.example")
+        assert not host_is_trusted(app, "example.com")
+        assert not host_is_trusted(app, "a.www.example.com")
+
+    def test_a_leading_dot_is_the_name_and_those_under_it(self, app):
+        app.config.TRUSTED_HOSTS = [".example.com"]
+        assert host_is_trusted(app, "example.com")
+        assert host_is_trusted(app, "www.example.com")
+        assert host_is_trusted(app, "a.b.example.com.")
+        assert not host_is_trusted(app, "badexample.com")
+        assert not host_is_trusted(app, "example.com.evil.example")
+
+    def test_a_star_is_any_name(self, app):
+        app.config.TRUSTED_HOSTS = ["*"]
+        assert host_is_trusted(app, "anything.example")
+
+    def test_the_hosts_of_the_routes_are_trusted(self, app):
+        class Dummy(Controller):
+            def index(self):
+                pass
+
+        assert not host_is_trusted(app, "api.example.com")
+        app.router.add_route(
+            Route(method="GET", path="/a", to=Dummy.index, host="api.example.com")
+        )
+        app.router.add_route(
+            Route(method="GET", path="/b", to=Dummy.index, host="api.example.com")
+        )
+        app.router.add_route(
+            Route(method="GET", path="/c", to=Dummy.index, host=":user.myapp.example")
+        )
+        assert host_is_trusted(app, "api.example.com")
+        assert host_is_trusted(app, "ana.myapp.example")
+        assert not host_is_trusted(app, "myapp.example")
+        assert not host_is_trusted(app, "www.example.com")
+        assert len(app._trusted_hosts.routes) == 2  # one for each host pattern
+
+    def test_the_host_of_a_build_only_route_is_not_trusted(self, app):
+        app.router.add_route(
+            Route(method="GET", path="/img/:name", host="cdn.example.com")
+        )
+        assert not host_is_trusted(app, "cdn.example.com")
+
+    def test_a_change_of_the_config_counts(self, app):
+        assert not host_is_trusted(app, "example.com")
+        app.config.HOST = "example.com"
+        assert host_is_trusted(app, "example.com")
+        app.config.HOST = "other.example"
+        assert not host_is_trusted(app, "example.com")
+        app.config.TRUSTED_HOSTS = ["example.com"]
+        assert host_is_trusted(app, "example.com")
+
+    def test_trusted_hosts_are_remembered_up_to_a_limit(self, app):
+        app.config.TRUSTED_HOSTS = [".example.com"]
+        for n in range(MAX_KNOWN_HOSTS + 10):
+            assert host_is_trusted(app, f"h{n}.example.com")
+        known = app._trusted_hosts.known
+        assert len(known) == MAX_KNOWN_HOSTS
+        assert "h0.example.com" in known
+        assert host_is_trusted(app, f"h{MAX_KNOWN_HOSTS + 5}.example.com")
+
+    def test_untrusted_hosts_are_not_remembered(self, app):
+        before = set(TestHostIsTrusted._known(app))
+        assert not host_is_trusted(app, "evil.example")
+        assert TestHostIsTrusted._known(app) == before
+
+    @staticmethod
+    def _known(app):
+        host_is_trusted(app, "localhost")
+        return app._trusted_hosts.known
+
+
+class TestParseTrustedHosts:
+    def test_names_are_normalized(self):
+        assert parse_trusted_hosts([" WWW.Example.com. ", ".example.org", "*", "web", "xn--mnchen-3ya.de"]) == (
+            "www.example.com", ".example.org", "*", "web", "xn--mnchen-3ya.de",
+        )
+
+    def test_a_tuple_is_fine(self):
+        assert parse_trusted_hosts(("a.example",)) == ("a.example",)
+
+    @pytest.mark.parametrize("value", ["example.com", None, {"example.com"}])
+    def test_it_must_be_a_list(self, value):
+        with pytest.raises(ConfigError, match="must be a list"):
+            parse_trusted_hosts(value)
+
+    @pytest.mark.parametrize(
+        "item",
+        [
+            "https://example.com",
+            "example.com:8080",
+            "example.com/path",
+            "[::1]",
+            "*.example.com",
+            "exa mple.com",
+            "example..com",
+            "-example.com",
+            ".",
+            "",
+            42,
+            None,
+        ],
+    )
+    def test_an_item_must_be_a_host_name(self, item):
+        with pytest.raises(ConfigError, match="is not a host name"):
+            parse_trusted_hosts([item])
+
+    def test_the_setting_is_checked_when_the_app_starts(self):
+        with pytest.raises(ConfigError, match="is not a host name"):
+            App(__name__, {"SECRET_KEYS": ["*" * 50], "TRUSTED_HOSTS": ["http://a.example"]})
+
+    def test_the_app_keeps_the_parsed_setting(self):
+        app = App(__name__, {"SECRET_KEYS": ["*" * 50], "TRUSTED_HOSTS": ["A.Example"]})
+        assert app.config.TRUSTED_HOSTS == ("a.example",)
+
+
+class TestCheckHost:
+    def test_a_trusted_host_goes_on(self, make_co):
+        co = make_co(url="http://localhost:2300/")
+        assert check_host(co.request, co.response) is None
+
+    def test_an_untrusted_host_is_a_400(self, make_co, caplog):
+        co = make_co(url="http://evil.example/")
+        with caplog.at_level("WARNING", logger="proper"):
+            response = check_host(co.request, co.response)
+        assert response is co.response
+        assert response.status == status.bad_request
+        assert response.content_type.startswith("text/plain")
+        assert "TRUSTED_HOSTS" in response.body
+        assert "evil.example" in caplog.text
+
+    def test_without_a_host_header_the_request_goes_on(self, make_co):
+        # Not from a browser: `request.host` is the address the server listens on
+        co = make_co(url="/", headers=[("host", "")], server=("app.internal.example", 2300))
+        assert co.request.host == "app.internal.example"
+        assert check_host(co.request, co.response) is None
+
+    def test_the_client_refuses_before_anything_else(self, app, client):
+        app.router.add_route(Route(method="GET", path="/", to=_DispatchHello.index))
+        resp = client.get("http://evil.example/")
+        assert resp.status == status.bad_request
+        assert "hello" not in resp.body
+        assert client.get("/").body == "hello"
+
+    def test_in_debug_the_answer_is_not_the_debug_page(self, app, client):
+        app.config.DEBUG = True
+        resp = client.get("http://evil.example/nothing-here")
+        assert resp.status == status.bad_request
+        assert resp.headers["content-type"].startswith("text/plain")
+        assert "TRUSTED_HOSTS" in resp.body
+        assert "<html" not in resp.body
+
+    def test_a_listed_host_is_served(self, app, client):
+        app.router.add_route(Route(method="GET", path="/", to=_DispatchHello.index))
+        app.config.TRUSTED_HOSTS = ["www.example.com"]
+        assert client.get("http://www.example.com/").body == "hello"
+
+
+class TestTestClientHost:
+    def test_a_url_without_host_is_for_the_host_of_the_app(self, app):
+        request = make_test_request("/x", app=app)
+        assert (request.host, request.port) == ("localhost", 2300)
+        app.config.HOST = "shop.example"
+        request = make_test_request("/x", app=app)
+        assert (request.host, request.port) == ("shop.example", 80)
+
+    def test_without_an_app_it_is_example_com(self):
+        assert make_test_request("/x").host == "example.com"
+
+    def test_a_url_with_host_keeps_it(self, app):
+        assert make_test_request("http://other.example:81/x", app=app).host_with_port == "other.example:81"
 
 
 class TestHeadToGet:

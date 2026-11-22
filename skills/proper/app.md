@@ -206,6 +206,7 @@ Environment is set via `APP_ENV` (values: `dev`, `test`, `prod`).
 | `TEMPLATE_TAGS`            | `{}`      | Custom block tags for the views, `{"name": function}`    |
 | `IMPORT_MAP`               | `{"@hotwired/stimulus": "js/vendor/stimulus.js", "@hotwired/turbo": "js/vendor/turbo.js"}` | JavaScript import map; the generated `config/import_map.py` sets the same |
 | `TRUSTED_ORIGINS`          | `[]`      | Origins allowed by `OriginProtection` (e.g. `["https://example.com"]`) |
+| `TRUSTED_HOSTS`            | `[]`      | Host names the app answers to besides `HOST` (e.g. `["www.example.com"]`); see [security.md](security.md#host-header) |
 
 ### Other Config Keys
 

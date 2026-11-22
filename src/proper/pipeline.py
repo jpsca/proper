@@ -3,6 +3,7 @@ import ipaddress
 import typing as t
 from urllib.parse import quote, unquote
 
+from . import status
 from .constants import (
     DELETE,
     FLASHES_SESSION_KEY,
@@ -16,16 +17,20 @@ from .constants import (
     SESSION_COOKIE_SALT,
 )
 from .controller import Controller
+from .core.config import parse_trusted_hosts
 from .helpers import logger
 
 
 if t.TYPE_CHECKING:
+    from .app import App
     from .core.request import Request
     from .core.response import Response
 
 
 __all__ = (
+    "check_host",
     "head_to_get",
+    "host_is_trusted",
     "is_local_host",
     "method_override",
     "match",
@@ -112,14 +117,138 @@ def _ipv4_number(host: str) -> int | None:
     return number
 
 
+# How many hosts found to be trusted are remembered, so the next request
+# with one of them is a single lookup. A wildcard (`.example.com`, or a
+# route with a host placeholder) trusts more names than anyone should keep.
+MAX_KNOWN_HOSTS = 1024
+
+
+class TrustedHosts:
+    """The hosts an app answers to, from its config and its routes as they
+    are now. See `host_is_trusted`."""
+
+    __slots__ = ("host", "listed", "n_routes", "any", "suffixes", "routes", "known")
+
+    def __init__(self, app: "App") -> None:
+        config = app.config
+        routes = app.router.routes
+        # What this was made from, to make it again when one changes
+        self.host = config.HOST
+        self.listed = config.TRUSTED_HOSTS
+        self.n_routes = len(routes)
+
+        listed = parse_trusted_hosts(self.listed)
+        self.any = "*" in listed
+        self.suffixes = tuple(name for name in listed if name[0] == ".")
+        names = {name.removeprefix(".") for name in listed}
+        # `HOST` may have a port: `example.com:8080`, `[::1]:2300`
+        host = str(self.host).strip().lower()
+        if host and host[0] != "[":
+            names.add(host.partition(":")[0].removesuffix("."))
+        # One route for each host pattern
+        patterns = {
+            route.host: route
+            for route in routes
+            if route.host_re is not None and not route.build_only
+        }
+        self.routes = tuple(patterns.values())
+        self.known = names
+
+    def check(self, host: str) -> bool:
+        name = host.removesuffix(".")
+        trusted = (
+            self.any
+            or name in self.known
+            or "." not in name
+            or name.endswith(".localhost")
+            or is_local_host(host)
+            or _is_ip_address(name)
+            or name.endswith(self.suffixes)
+            or any(route.match_host(name) is not None for route in self.routes)
+        )
+        if trusted and len(self.known) < MAX_KNOWN_HOSTS:
+            self.known.add(host)
+        return trusted
+
+
+def _is_ip_address(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+def host_is_trusted(app: "App", host: str) -> bool:
+    """Is `host` (as in `request.host`: lowercase, without the port and the
+    brackets of an IPv6 address) one this app answers to?
+
+    A page of another site can't read the answers of your app, unless its
+    own domain is made to point at your server (DNS rebinding): then the
+    browser takes both for the same site. Its requests still carry the
+    other domain in `Host`, so the app refuses the names it doesn't know.
+
+    Trusted, with or without one trailing dot:
+
+    - an IP address: only a name can be made to point somewhere else;
+    - a name without a dot (`web`, `myapp-web-1`), as containers call each
+      other: no domain anyone can register is one;
+    - a name of this machine (`is_local_host`), or one under `.localhost`,
+      which browsers never look up;
+    - the name in the `HOST` setting;
+    - the names in the `TRUSTED_HOSTS` setting: `www.example.com` is that
+      name, `.example.com` is `example.com` and every name under it, and
+      `*` is any name;
+    - a name that matches the `host` of a route.
+    """
+    trusted = app._trusted_hosts
+    if (
+        trusted is None
+        or trusted.host is not app.config.HOST
+        or trusted.listed is not app.config.TRUSTED_HOSTS
+        or trusted.n_routes != len(app.router.routes)
+    ):
+        trusted = app._trusted_hosts = TrustedHosts(app)
+    return host in trusted.known or trusted.check(host)
+
+
+UNTRUSTED_HOST = (
+    "Bad Request: the host of this request is not one this application "
+    "answers to. If it should be, add it to TRUSTED_HOSTS in the config.\n"
+)
+
+
 # STEP 1
+def check_host(request: "Request", response: "Response") -> "Response | None":
+    """Refuse a request for a host the app doesn't know (see
+    `host_is_trusted`) with a `400 Bad Request`.
+
+    A request without a `Host` header is not from a browser, and goes on.
+    The answer is a line of text, not an error page: in `DEBUG` that page
+    shows the code and the config.
+    """
+    if host_is_trusted(request.app, request.host):
+        return None
+    if not request.headers.get("host"):
+        return None
+    logger.warning(
+        "Untrusted host %r: add it to TRUSTED_HOSTS if the app should answer to it.",
+        request.host[:255],
+    )
+    response.status = status.bad_request
+    response.content_type = "text/plain"
+    response.body = UNTRUSTED_HOST
+    return response
+
+
+# STEP 2
 def head_to_get(request: "Request", _response) -> None:
     """Transform a HEAD request to a fake GET request."""
     if request.request_method == HEAD:
         request.method = GET
 
 
-# STEP 2
+# STEP 3
 def method_override(request: "Request", _response) -> None:
     """Overrides the request's `POST` method with the method defined in
     the `X-HTTP-Method-Override` header or the `_method` parameter in the
@@ -147,7 +276,7 @@ def method_override(request: "Request", _response) -> None:
     request.method = new_method
 
 
-# STEP 3
+# STEP 4
 def match(request: "Request", response) -> "Response | None":
     """Match the request url to a route."""
     host: str | None = request.host
@@ -159,7 +288,7 @@ def match(request: "Request", response) -> "Response | None":
     request.matched_params = params
 
 
-# STEP 4
+# STEP 5
 def redirect(request: "Request", response: "Response") -> "Response | None":
     """If a matched route is a redirect sets the header and response body
     for that redirect to happen and stop further process of the response.
@@ -181,7 +310,7 @@ def redirect(request: "Request", response: "Response") -> "Response | None":
         return response
 
 
-# STEP 5
+# STEP 6
 def copy_session(request: "Request", response: "Response"):
     """Get the session data from the cookie and puts into the request
     and response.
@@ -227,7 +356,7 @@ def _find_session_by_cookie(request: "Request") -> dict | None:
     return session if session and type(session) is dict else None
 
 
-# STEP 6
+# STEP 7
 def dispatch(request: "Request", response: "Response") -> "Response | None":
     route = request.matched_route
     assert route
@@ -241,7 +370,7 @@ def dispatch(request: "Request", response: "Response") -> "Response | None":
     co._dispatch(action_name)
 
 
-# STEP 7
+# STEP 8
 def update_session_cookie(request: "Request", response: "Response") -> None:
     """Update the session cookie if the session was modified."""
     if response.session == request.session:
