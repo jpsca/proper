@@ -173,9 +173,7 @@ This is the documentation for **Proper**. These guides are designed to make you 
 
 <a href="/docs/api" class="doc-index-section">
   <h3>Building API-only Applications</h3>
-  <section class="admonition wip">
-    <p class="admonition-title">Work in progress</p>
-  </section>
+  <p>A Proper application can answer with JSON instead of HTML, for a mobile app, a JavaScript front end, or other programs. This guide shows how to write JSON controllers, read and validate JSON input, return errors as JSON, authenticate with tokens, and paginate, rate limit, version and test an API.</p>
 </a>
 
 <!--
