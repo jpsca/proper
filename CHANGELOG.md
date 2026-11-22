@@ -24,6 +24,24 @@ All notable changes to Proper are documented in this file.
 
 ### Added
 
+- What a `Content-Security-Policy` without `'unsafe-inline'` needs:
+  - `app.importmap_csp_hash` is the `'sha256-...'` source that allows the
+    inline script of `render_importmap()`, for `script-src`. It follows
+    the import map by itself.
+  - `response.csp_nonce`, and `csp_nonce()` in the views, give a nonce for
+    the inline `<script>` and `<style>` tags of the app. Each visitor has
+    one, made the first time it is asked for and kept in the session, so
+    the pages Turbo visits carry the nonce of the policy it started with.
+    Asking for it gives the visitor a session cookie.
+  - `csp_meta_tag()`, in the views, writes the `<meta name="csp-nonce">`
+    tag Turbo reads the nonce from.
+  - `proper.helpers.csp_hash(text)` gives the source of any other inline
+    script or style that is always the same.
+
+  New apps have a policy that uses them, commented out, in their
+  `SecurityHeaders` concern. See the Security guide. The debug toolbar
+  works under such a policy: its bar carries the nonce of the visitor,
+  and has no `style` or `onclick` attributes.
 - The auth addon deletes the sessions nobody can use anymore. New apps
   get `Session.purge_expired()`, which deletes the expired and the
   revoked sessions, and a `sweep_expired_sessions` task in

@@ -84,6 +84,8 @@ The Jx catalog exposes several globals in every template:
 | `stream`/`turbo_stream` | Generates a `<turbo-stream>` tag, See [turbo.md](turbo.md) |
 | `frame`/`turbo_frame`   | Generates a `<turbo-frame>` tag, See [turbo.md](turbo.md) |
 | `render_importmap()`| Renders the `<script type="importmap">` tag (see [Import Maps](#import-maps)) |
+| `csp_nonce()`       | The visitor's CSP nonce, for `<script nonce="{{ csp_nonce() }}">` (see [security.md](security.md#content-security-policy)) |
+| `csp_meta_tag()`    | Renders `<meta name="csp-nonce" nonce="...">`, which Turbo reads; goes in `<head>` before the scripts |
 | `truncate`          | Shorten a string; also available as a filter |
 | `_`, `format_date`, `format_currency`, `format_decimal`, ... | i18n and Babel formatting helpers, always registered (see [i18n.md](i18n.md)) |
 | `assets`            | Asset collector, added by the view compiler to every top-level render: `collect_css()`, `collect_js()` (see [Component Assets](#component-assets)). Its `render_css()`/`render_js()` emit the declared paths as-is, without `url_for`, so in Proper use the `collect_*` loops |

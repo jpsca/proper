@@ -270,6 +270,31 @@ def test_only_whole_html_pages_get_a_bar(app, toolbar):
     assert page.body.endswith("</div></body></html>")
 
 
+def test_the_bar_has_nothing_a_content_security_policy_refuses(client, toolbar):
+    """Without `'unsafe-inline'`, a policy allows no `style` attribute and
+    no event handler attribute, and an inline tag only with the nonce."""
+    client.get(client.app.url_for("Public.health"))
+    record = toolbar.store.latest()[0]
+
+    page = Response(client.app)
+    page.body = "<html><body>Hello</body></html>"
+    toolbar.inject(record, page)
+    bar = page.body[page.body.index('<div id="proper-debug-toolbar"'):]
+    assert " style=" not in bar
+    assert "onclick" not in bar
+    # No nonce was asked for: the bar asks for none, and sets no session
+    assert "nonce" not in bar
+    assert page.session == {}
+
+    page = Response(client.app)
+    page.body = "<html><body>Hello</body></html>"
+    nonce = page.csp_nonce
+    toolbar.inject(record, page)
+    assert f'<style nonce="{nonce}">' in page.body
+    assert f'<script nonce="{nonce}">' in page.body
+    assert page.body.count("<style") == page.body.count("<script") == 1
+
+
 def test_request_page(client, toolbar):
     app = client.app
     client.get(app.url_for("Public.health") + "?q=limes")

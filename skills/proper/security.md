@@ -8,6 +8,8 @@ sources:
   - src/proper/core/request
   - src/proper/core/config.py
   - src/proper/pipeline.py
+  - src/proper/helpers/html.py
+  - src/proper/core/response/response.py
   - src/proper/_native
 ---
 
@@ -25,6 +27,7 @@ For user authentication (registration, login, password reset), see [Authenticati
 - [Secret Keys](#secret-keys)
 - [Signed Cookies](#signed-cookies)
 - [Security Headers](#security-headers)
+  - [Content Security Policy](#content-security-policy)
 - [Request Size Limits](#request-size-limits)
 - [Trusted Proxies](#trusted-proxies)
 - [Host header](#host-header)
@@ -243,11 +246,38 @@ class SecurityHeaders(Concern):
 | `X-Permitted-Cross-Domain-Policies` | `none`                             | Disable Flash/PDF cross-domain policies          |
 | `Referrer-Policy`                   | `strict-origin-when-cross-origin`  | Limit referrer info sent to other origins        |
 
-There is no `Content-Security-Policy` by default. Proper has no CSP nonces, and the `<script type="importmap">` from `render_importmap` is inline, so a policy needs `script-src 'self' 'unsafe-inline'` for the importmap to load. With Turbo Drive the document isn't reloaded on a visit, so the policy of the first page loaded stays in effect and the header of later pages is ignored: a page with its own policy needs `<meta name="turbo-visit-control" content="reload">` (and `data-turbo="false"` on its links, to leave it with a full load). Don't add `'strict-dynamic'`: Turbo inserts the scripts of a new page with `createElement`, so an injected `<script>` would run after a Turbo visit.
-
 This concern lives in your app at `controllers/concerns/security_headers.py`. You can customize it by changing the defaults or adding headers like `Content-Security-Policy`. The generated file ends with a commented-out `Strict-Transport-Security` header to turn on once the site is HTTPS-only.
 
 Using `setdefault` means individual controllers can override any header before the `after` callback runs.
+
+### Content Security Policy
+
+There is no `Content-Security-Policy` by default: the generated concern has one commented out. Turned on:
+
+```python
+nonce = self.response.csp_nonce
+headers.setdefault("Content-Security-Policy", "; ".join([
+    "default-src 'self'",
+    f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
+    f"style-src 'self' 'nonce-{nonce}'",
+    "img-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+]))
+```
+
+plus `{{ csp_meta_tag() }}` in the layout's `<head>`, before the scripts.
+
+- `app.importmap_csp_hash`: the `'sha256-...'` source (quotes included) of the inline `<script type="importmap">` that `render_importmap()` writes; recomputed when the import map changes (a fingerprinted asset URL included). `proper.helpers.csp_hash(text)` gives the source for any other fixed inline script or style (the text between the tags, exactly).
+- `response.csp_nonce` (`csp_nonce()` in views): one nonce per visitor, made on first use with `secrets.token_urlsafe(16)` and kept in the session under `_csp_nonce`; the same in every response to that visitor. Asking for it writes the session cookie (so every visitor gets one, and the page is not shareable by a CDN); with `response.disable_cookies` a new nonce is not kept. `Authentication.terminate_session()` clears the session but keeps the nonce.
+- `csp_meta_tag()`: `<meta name="csp-nonce" nonce="...">`. Turbo reads it for the `<style>` of its progress bar and the scripts of the pages it loads. Without it (and without the nonce in `style-src`) the bar is unstyled.
+- Not per response, because with Turbo Drive the document isn't reloaded on a visit: the policy of the first page loaded stays in effect and the header of later pages is ignored. A page with its own policy needs `<meta name="turbo-visit-control" content="reload">` (and `data-turbo="false"` on its links, to leave it with a full load).
+- The debug toolbar's bar carries the visitor's nonce when the app asked for one (it never asks itself), so it works under a policy with `'nonce-...'` in `script-src` and `style-src`; under a hash-only policy it is blocked.
+- Don't put a tag with a nonce inside `{% cache %}`: the cached HTML keeps one visitor's nonce.
+- Without `'unsafe-inline'`, `style="..."` and `onclick="..."` attributes don't work; neither does an inline `<script>`/`<style>` without the nonce.
+- Don't add `'strict-dynamic'`: Turbo inserts the scripts of a new page with `createElement`, so an injected `<script>` would run after a Turbo visit.
 
 
 ## Request Size Limits

@@ -51,3 +51,44 @@ def test_the_headers(app, SecurityHeaders):
 def test_a_header_already_set_is_kept(app, SecurityHeaders):
     headers = run(app, SecurityHeaders, headers={"X-Frame-Options": "DENY"})
     assert headers.get("X-Frame-Options") == "DENY"
+
+
+def test_no_content_security_policy_by_default(app, SecurityHeaders):
+    assert "Content-Security-Policy" not in run(app, SecurityHeaders)
+
+
+@pytest.fixture()
+def WithPolicy(tmp_path):
+    """The concern with its commented `Content-Security-Policy` turned on."""
+    lines = PATH.read_text().splitlines()
+    start = next(i for i, line in enumerate(lines) if "# nonce = self.response.csp_nonce" in line)
+    end = next(i for i, line in enumerate(lines) if i > start and line.strip() == "# ]))")
+    for i in range(start, end + 1):
+        lines[i] = lines[i].replace("# ", "", 1)
+    path = tmp_path / "security_headers_with_policy.py"
+    path.write_text("\n".join(lines) + "\n")
+    spec = importlib.util.spec_from_file_location("security_headers_with_policy", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.SecurityHeaders
+
+
+def test_the_commented_content_security_policy_works(app, WithPolicy):
+    app.router.static("/assets", root="/tmp/assets", name="assets")
+
+    class _TestController(WithPolicy, Controller):
+        def action(self):
+            return "OK"
+
+    request = make_test_request("/", app=app)
+    request.matched_action = "action"
+    response = Response(app)
+    _TestController(request, response)._dispatch("action")
+
+    policy = response.headers["Content-Security-Policy"].value
+    nonce = response.csp_nonce
+    assert f"script-src 'self' {app.importmap_csp_hash} 'nonce-{nonce}'" in policy
+    assert f"style-src 'self' 'nonce-{nonce}'" in policy
+    assert "'unsafe-inline'" not in policy
+    assert policy.startswith("default-src 'self'; ")

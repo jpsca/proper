@@ -121,3 +121,13 @@ title: "API - View Helpers"
 
 ::: api proper.helpers.render_importmap
 :::
+
+---
+
+::: api proper.helpers.csp_nonce
+:::
+
+---
+
+::: api proper.helpers.csp_meta_tag
+:::

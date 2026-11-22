@@ -27,7 +27,7 @@ from .core.request import Request
 from .core.response import Response
 from .errors import MatchNotFound, MethodNotAllowed
 from .global_context import current
-from .helpers import DotDict, jsonplus, logger
+from .helpers import DotDict, csp_hash, importmap_json, jsonplus, logger
 from .helpers.logs import LOG_LEVELS, setup_logging
 from .models.migrations import pending_migrations
 from .router import Route, Router
@@ -98,6 +98,8 @@ class App(AppWsgi):
     # chain made of them, built once when they are added.
     _around_request: tuple[THandler, ...] = ()
     _wrapped_pipeline: "Callable[[Request, Response], Response] | None" = None
+    # The last import map hashed, and its hash (see `importmap_csp_hash`)
+    _importmap_csp_hash: tuple[str, str] = ("", "")
     # The hosts the app answers to (see `pipeline.host_is_trusted`)
     _trusted_hosts: "TrustedHosts | None" = None
 
@@ -193,6 +195,19 @@ class App(AppWsgi):
     @property
     def debug(self) -> bool:
         return self.config.DEBUG
+
+    @property
+    def importmap_csp_hash(self) -> str:
+        """The source that allows the script of `render_importmap()` in a
+        `Content-Security-Policy`: `'sha256-...'`, with its quotes, to put
+        in `script-src`. It changes when the import map does, a
+        fingerprinted URL of an asset included."""
+        text = importmap_json(self)
+        cached_text, cached_hash = self._importmap_csp_hash
+        if text != cached_text:
+            cached_hash = csp_hash(text)
+            self._importmap_csp_hash = (text, cached_hash)
+        return cached_hash
 
     @debug.setter
     def debug(self, value: bool) -> None:

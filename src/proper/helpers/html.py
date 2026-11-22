@@ -1,9 +1,52 @@
+import base64
+import hashlib
 import inspect
 import json
 import typing as t
 
 import inflection
 from markupsafe import Markup
+
+from ..global_context import current
+
+
+def importmap_json(app) -> str:
+    """The import map of the app, as the JSON `render_importmap` writes in
+    its script: the `IMPORT_MAP` setting, with the URLs of the assets."""
+    importmap = app.config.get("IMPORT_MAP", {})
+    imports = {}
+    for key, value in importmap.items():
+        if value.startswith(("http", "/")):
+            imports[key] = value
+        else:
+            imports[key] = app.url_for("assets", file=value)
+    return json.dumps({"imports": imports})
+
+
+def csp_hash(text: str) -> str:
+    """The source that allows an inline script or style with exactly this
+    text in a `Content-Security-Policy`: `'sha256-...'`, with its quotes.
+    The text is what is between the tags, every space and line break
+    included."""
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return f"'sha256-{base64.b64encode(digest).decode('ascii')}'"
+
+
+def csp_nonce() -> str:
+    """The nonce of this visitor, for the `nonce` attribute of an inline
+    `<script>` or `<style>` (see `Response.csp_nonce`)."""
+    return current.response.csp_nonce
+
+
+def csp_meta_tag() -> str:
+    """A `<meta name="csp-nonce">` tag with the nonce of this visitor.
+
+    Turbo reads it, and gives the nonce to the `<style>` of its progress
+    bar and to the scripts of the pages it loads. The nonce is in the
+    `nonce` attribute, which the browser hides from the CSS selectors, not
+    in `content`.
+    """
+    return Markup(f'<meta name="csp-nonce" nonce="{csp_nonce()}">')
 
 
 def render_importmap(_app) -> str:
@@ -33,16 +76,11 @@ def render_importmap(_app) -> str:
     the app's configuration. It looks for an `IMPORT_MAP` configuration variable, which
     should be a dictionary mapping module specifiers to asset paths or URLs.
 
-    """
-    importmap = _app.config.get("IMPORT_MAP", {})
-    imports = {}
-    for key, value in importmap.items():
-        if value.startswith(("http", "/")):
-            imports[key] = value
-        else:
-            imports[key] = _app.url_for("assets", file=value)
+    The script is inline. With a `Content-Security-Policy`, allow it with
+    `app.importmap_csp_hash` in `script-src`.
 
-    json_imports = json.dumps({"imports": imports})
+    """
+    json_imports = importmap_json(_app)
     tags = f'<script type="importmap" data-turbo-track="reload">{json_imports}</script>'
     # Without a proxy in front, the cable listens on its own port; the
     # client (`cable.js`) reads it from here.

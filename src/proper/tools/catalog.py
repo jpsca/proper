@@ -3,7 +3,7 @@ from functools import partial
 
 from .. import views
 from ..global_context import current
-from ..helpers import dom_id, render_importmap
+from ..helpers import csp_meta_tag, csp_nonce, dom_id, render_importmap
 from ..helpers.formatters import truncate
 from ..turbo import turbo_frame, turbo_stream
 from ..turbo.tags import TAGS as TURBO_TAGS
@@ -20,6 +20,8 @@ def setup(app):
         "url_is": app.url_is,
         "url_startswith": app.url_startswith,
         "render_importmap": partial(render_importmap, app),
+        "csp_nonce": csp_nonce,
+        "csp_meta_tag": csp_meta_tag,
         "dom_id": dom_id,
         "truncate": truncate,
         "frame": turbo_frame,

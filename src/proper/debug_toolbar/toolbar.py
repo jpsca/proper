@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 from hecto import JinjaRender
 
+from proper.constants import CSP_NONCE_SESSION_KEY
 from proper.core.debug_info import MASK, hide_url_passwords, is_sensitive, safe_repr
 from proper.core.error_handlers import redact_sensitive_info, redact_value
 from proper.helpers import logger
@@ -320,7 +321,11 @@ class Toolbar:
             # Not a whole page: a Turbo Frame, a fragment
             return
         previous = self.store.get(record.redirected_from) if record.redirected_from else None
-        bar = render("bar.html", record=record, previous=previous)
+        # With a `Content-Security-Policy`, the bar's inline style and
+        # script need the nonce of the visitor. Only one the app asked
+        # for: the bar doesn't change the session.
+        nonce = response.session.get(CSP_NONCE_SESSION_KEY)
+        bar = render("bar.html", record=record, previous=previous, nonce=nonce)
         response.body = f"{body[:index]}{bar}{body[index:]}"
 
 

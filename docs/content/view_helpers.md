@@ -501,7 +501,30 @@ The `render_importmap` function generates a script tag with the import map based
 the app's configuration. It looks for an `IMPORT_MAP` configuration variable, which
 should be a dictionary mapping module specifiers to asset paths or URLs.
 
+With a `Content-Security-Policy`, this inline script is allowed with `app.importmap_csp_hash`. See [Content Security Policy](/docs/security#content-security-policy) in the Security guide.
+
 See the [render_importmap API Documentation](/docs/api/view_helpers#render_importmap) for more information.
+
+### csp_nonce
+
+The nonce of this visitor, for the `nonce` attribute of an inline `<script>` or `<style>` that a `Content-Security-Policy` must allow:
+
+```html+jinja
+<script nonce="{{ csp_nonce() }}">
+  console.log("This one runs");
+</script>
+```
+
+The policy must have the same value, as `'nonce-...'`: in a controller or a concern it is `self.response.csp_nonce`. The nonce is kept in the session, so asking for it gives the visitor a session cookie. See [Content Security Policy](/docs/security#content-security-policy) in the Security guide.
+
+### csp_meta_tag
+
+Writes a `<meta name="csp-nonce">` tag with the nonce of this visitor. Turbo reads it, and gives the nonce to the style of its progress bar and to the scripts of the pages it loads. Put it in the `<head>` of your layout, before the scripts:
+
+```html+jinja
+{{ csp_meta_tag() }}
+{{ render_importmap() }}
+```
 
 ---
 

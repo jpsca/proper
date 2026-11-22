@@ -1,5 +1,5 @@
 <div id="proper-debug-toolbar" data-request-id="{{ record.id }}">
-<style>
+<style{% if nonce %} nonce="{{ nonce }}"{% endif %}>
 #proper-debug-toolbar {
   all: initial;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147483000;
@@ -26,6 +26,7 @@
 #proper-debug-toolbar a.pdt-item:hover, #proper-debug-toolbar button.pdt-item:hover {
   background: #33363c;
 }
+#proper-debug-toolbar .pdt-sub:empty { display: none; }
 @media print { #proper-debug-toolbar { display: none; } }
 </style>
 {%- if previous %}
@@ -34,7 +35,7 @@
 <span class="pdt-item pdt-{{ record.kind }}">{{ record.status }}</span>
 <span class="pdt-item pdt-grow">{{ record.method }} {{ record.path }}
   {%- if record.target %} <span class="pdt-dim">→ {{ record.target }}</span>{% endif %}</span>
-<a class="pdt-item pdt-sub" style="display:none" target="_blank" data-turbo="false" title="The last request this page made with Turbo"></a>
+<a class="pdt-item pdt-sub" target="_blank" data-turbo="false" title="The last request this page made with Turbo"></a>
 <span class="pdt-item">{{ "%.1f"|format(record.ms) }} ms</span>
 <span class="pdt-item{% if record.repeated_count %} pdt-warn{% endif %}">
   {{- record.app_queries|length }} SQL · {{ "%.1f"|format(record.sql_ms) }} ms
@@ -51,13 +52,17 @@
 {%- endif %}
 <a class="pdt-item" href="{{ url_prefix }}/{{ record.id }}" target="_blank" data-turbo="false">Details</a>
 <a class="pdt-item" href="{{ url_prefix }}" target="_blank" data-turbo="false">Requests</a>
-<button class="pdt-item" type="button" title="Hide" onclick="this.parentNode.remove()">×</button>
-<script>
+<button class="pdt-item pdt-hide" type="button" title="Hide">×</button>
+<script{% if nonce %} nonce="{{ nonce }}"{% endif %}>
 (function () {
   // Turbo runs this script again with every page it shows: listen once.
   if (window.__properDebugToolbar) return;
   window.__properDebugToolbar = true;
   var prefix = "{{ url_prefix }}";
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest && event.target.closest("#proper-debug-toolbar .pdt-hide");
+    if (button) button.parentNode.remove();
+  });
   document.addEventListener("turbo:before-fetch-response", function (event) {
     var fetchResponse = event.detail && event.detail.fetchResponse;
     var id = fetchResponse && fetchResponse.header && fetchResponse.header("x-request-id");
@@ -75,7 +80,6 @@
         link.className = "pdt-item pdt-sub pdt-" + data.kind;
         link.textContent = "↳ " + data.status + " " + data.method + " " + data.path +
           " · " + data.ms + " ms · " + data.sql + " SQL" + (count > 1 ? " (" + count + ")" : "");
-        link.style.display = "block";
       })
       .catch(function () {});
   });

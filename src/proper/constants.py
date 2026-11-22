@@ -24,6 +24,7 @@ ACTION_UPDATE = "update"
 ACTION_DELETE = "delete"
 
 FLASHES_SESSION_KEY: Final = "_flashes"
+CSP_NONCE_SESSION_KEY: Final = "_csp_nonce"
 
 # The MIME type Turbo uses for stream requests and responses
 TURBO_STREAM_MIME: Final = "text/vnd.turbo-stream.html"

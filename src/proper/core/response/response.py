@@ -3,6 +3,7 @@ Response class.
 """
 import html as html_mod
 import re
+import secrets
 import typing as t
 import unicodedata
 from datetime import datetime
@@ -11,7 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from ... import status as pstatus
-from ...constants import GET, HEAD, SIGNED_COOKIE_SALT
+from ...constants import CSP_NONCE_SESSION_KEY, GET, HEAD, SIGNED_COOKIE_SALT
 from ...global_context import current
 from ...types import Iterable, TBody
 from .cookies import make_cookie, validate_cookie_size
@@ -34,6 +35,8 @@ URL_SAFE = "/:@!$&'()*+,;=?#[]%~"
 
 # A file name that can go as it is between the quotes of `filename="..."`:
 # printable ASCII, without `"` or a backslash
+# A nonce of a `Content-Security-Policy`: base64 or its URL-safe variant
+RX_CSP_NONCE = re.compile(r"[A-Za-z0-9+/_-]{16,}={0,2}")
 RX_PLAIN_FILENAME = re.compile(r"[ !#-\[\]-~]+")
 # The characters of a `filename*` value that stay as they are (RFC 5987, attr-char)
 ATTR_CHARS = "!#$&+-.^_`|~"
@@ -139,6 +142,25 @@ class Response(ResponseHeadersMixin):
     @session.setter
     def session(self, value: dict) -> None:
         self._session = value if type(value) is dict else dict(value)
+
+    @property
+    def csp_nonce(self) -> str:
+        """The nonce of this visitor, for a `Content-Security-Policy`
+        (`'nonce-...'` in `script-src` or `style-src`) and for the `nonce`
+        attribute of the inline `<script>` and `<style>` tags it allows.
+
+        It is made the first time it is asked for, and kept in the
+        session, so it is the same in every response to this visitor.
+        Turbo keeps the policy of the first page it loaded, and the pages
+        it visits after must carry the same nonce.
+
+        Asking for it gives the visitor a session cookie. A response with
+        `disable_cookies` can't keep a new one.
+        """
+        nonce = self._session.get(CSP_NONCE_SESSION_KEY)
+        if type(nonce) is not str or RX_CSP_NONCE.fullmatch(nonce) is None:
+            nonce = self._session[CSP_NONCE_SESSION_KEY] = secrets.token_urlsafe(16)
+        return nonce
 
     @property
     def has_body(self) -> bool:

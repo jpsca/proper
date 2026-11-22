@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT
+from proper.constants import AUTH_COOKIE_NAME, AUTH_COOKIE_SALT, CSP_NONCE_SESSION_KEY
 from proper.global_context import current
 from proper.models import ProperModel
 from .concern import Concern
@@ -58,8 +58,14 @@ class Authentication(Concern):
             current.auth_session = None
         current.user = None
         self.response.set_signed_cookie(self.auth_cookie_name, "", max_age=0)
-        # Clear the session on logout to avoid leaking data between users
-        self.response.session.clear()
+        # Clear the session on logout to avoid leaking data between users.
+        # The CSP nonce stays: it is not of the user, and with Turbo the
+        # page after the sign-out is under the policy of the one before.
+        session = self.response.session
+        nonce = session.get(CSP_NONCE_SESSION_KEY)
+        session.clear()
+        if nonce is not None:
+            session[CSP_NONCE_SESSION_KEY] = nonce
 
     def redirect_if_authenticated(self, *, default="/", flash=None):
         if not self.is_authenticated():

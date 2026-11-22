@@ -4,7 +4,7 @@ import pytest
 
 from proper import current
 from proper.concerns import CSRF_SESSION_KEY, Authentication
-from proper.constants import AUTH_COOKIE_NAME
+from proper.constants import AUTH_COOKIE_NAME, CSP_NONCE_SESSION_KEY
 from proper.controller import Controller
 from proper.core.response import Response
 from proper.router import Route
@@ -137,6 +137,17 @@ def test_terminate_session(app, Ctrl, models, user):
     current.user = user
     co.terminate_session()  # without a session
     assert current.user is None
+
+
+def test_terminate_session_keeps_the_csp_nonce(app, Ctrl, user):
+    co = _controller(app, Ctrl)
+    co.new_session_for(user)
+    nonce = co.response.csp_nonce
+    co.response.session["cart"] = [1]
+
+    co.terminate_session()
+
+    assert co.response.session == {CSP_NONCE_SESSION_KEY: nonce}
 
 
 def test_redirect_if_authenticated(app, Ctrl, user):

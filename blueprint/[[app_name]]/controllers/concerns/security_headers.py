@@ -26,6 +26,24 @@ class SecurityHeaders(Concern):
         headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
         headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 
+        # Where the scripts, styles and other resources of a page can come
+        # from: if someone gets their HTML into a page, the browser refuses
+        # to load what this policy doesn't allow. Adjust it to what your app
+        # loads before turning it on, and add `{{ csp_meta_tag() }}` to the
+        # <head> of your layout, so Turbo can show its progress bar.
+        # https://properproject.org/docs/security#content-security-policy
+        # nonce = self.response.csp_nonce
+        # headers.setdefault("Content-Security-Policy", "; ".join([
+        #     "default-src 'self'",
+        #     f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
+        #     f"style-src 'self' 'nonce-{nonce}'",
+        #     "img-src 'self' data:",
+        #     "object-src 'none'",
+        #     "base-uri 'self'",
+        #     "form-action 'self'",
+        #     "frame-ancestors 'self'",
+        # ]))
+
         # For the duration of the max-age (seconds), the browser uses HTTPS for this host, even when
         # given an `http://` link. Browsers ignore it in an HTTP response,
         # so it's only sent over HTTPS.

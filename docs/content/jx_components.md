@@ -1140,6 +1140,8 @@ Global                  | What it does
 `dom_id`                | Generate a stable id for an object, suitable for use in HTML element ids.
 `current`               | The per-request global context (covered below).
 `render_importmap`      | Emit the `<script type="importmap">` for the `IMPORT_MAP` config.
+`csp_nonce`             | The nonce for an inline `<script>` or `<style>`, with a [Content Security Policy](/docs/security#content-security-policy).
+`csp_meta_tag`          | Emit the `<meta name="csp-nonce">` tag Turbo reads the nonce from.
 `stream`/`turbo_stream` | Generates a `<turbo-stream>` tag, See [Turbo](/docs/turbo/)
 `frame`/`turbo_frame`   | Generates a `<turbo-frame>` tag, See [Turbo](/docs/turbo/)
 `truncate`              | Shortens a string (also a filter).

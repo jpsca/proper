@@ -4,7 +4,14 @@ from pathlib import Path
 from . import formatters, jsonplus
 from .dicts import CIMultiDict, DotDict, MultiDict
 from .fileops import copy_file
-from .html import dom_id, render_importmap
+from .html import (
+    csp_hash,
+    csp_meta_tag,
+    csp_nonce,
+    dom_id,
+    importmap_json,
+    render_importmap,
+)
 from .html2text import html2text
 from .imports import (
     ImportStringError,
@@ -35,7 +42,11 @@ __all__ = (
     "CIMultiDict",
     "MultiDict",
     #
+    "csp_hash",
+    "csp_meta_tag",
+    "csp_nonce",
     "dom_id",
+    "importmap_json",
     "render_importmap",
     #
     "html2text",

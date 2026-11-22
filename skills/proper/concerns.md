@@ -312,4 +312,4 @@ class SecurityHeaders(Concern):
         headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
-There is no `Content-Security-Policy` by default; see [security.md](security.md#security-headers). The generated file ends with a commented-out `Strict-Transport-Security` header to turn on once the site is HTTPS-only.
+There is no `Content-Security-Policy` by default: the generated file has one commented out, built with `app.importmap_csp_hash` and `response.csp_nonce`; see [security.md](security.md#content-security-policy). The generated file ends with a commented-out `Strict-Transport-Security` header to turn on once the site is HTTPS-only.

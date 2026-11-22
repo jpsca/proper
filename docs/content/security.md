@@ -38,7 +38,7 @@ Request size limits                | Yes            | `MAX_CONTENT_LENGTH` and t
 Security headers                   | Yes            | `SecurityHeaders`, in `AppController`, a file of your app
 WebSocket origin checks            | Yes            | The cable
 Requests for unknown hosts refused | Yes            | Every request, and the cable (see [below](#the-host-header))
-Content Security Policy            | No             | You add it to `SecurityHeaders` (see [below](#content-security-policy))
+Content Security Policy            | No             | You turn it on in `SecurityHeaders` (see [below](#content-security-policy))
 Authorization                      | No             | Your controllers and models
 
 And what no framework can do for you:
@@ -156,38 +156,75 @@ If you serve uploaded files with your own code, set the same headers.
 
 A Content Security Policy (CSP) is a response header that tells the browser where scripts, styles, images and other resources may come from. It is a second line of defense: if an attacker gets HTML into a page, the browser refuses to load anything the policy doesn't allow.
 
-New applications don't send one, because the right policy depends on what your application loads. Add it to your `SecurityHeaders` concern:
+New applications don't send one, because the right policy depends on what your application loads. The `SecurityHeaders` concern has one, commented out. Turn it on and adjust it:
 
-```python {title="controllers/concerns/security_headers.py" hl_lines="4-14 21"}
-from proper import Concern
-from proper.units import YEARS
-
-CONTENT_SECURITY_POLICY = "; ".join([
-    "default-src 'self'",
-    # The import map that `render_importmap` writes is an inline script
-    "script-src 'self' 'unsafe-inline'",
-    # Turbo's progress bar is an inline style
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-])
-
-
+```python {title="controllers/concerns/security_headers.py" hl_lines="6-16"}
 class SecurityHeaders(Concern):
     after = {"do": "set_security_headers"}
 
     def set_security_headers(self):
         headers = self.response.headers
-        headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+        nonce = self.response.csp_nonce
+        headers.setdefault("Content-Security-Policy", "; ".join([
+            "default-src 'self'",
+            f"script-src 'self' {self.app.importmap_csp_hash} 'nonce-{nonce}'",
+            f"style-src 'self' 'nonce-{nonce}'",
+            "img-src 'self' data:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'self'",
+        ]))
         ...
+```
+
+Then add `{{ csp_meta_tag() }}` to the `<head>` of your layout, before the scripts:
+
+```html+jinja {title="views/layouts/base.jx"}
+<head>
+  ...
+  {{ csp_meta_tag() }}
+  {{ render_importmap() }}
+  ...
+</head>
 ```
 
 The headers are set with `setdefault`, so a response that already has the header keeps its own. This matters here: the storage addon sends a stricter policy with every file it serves, and it must not be replaced.
 
-Adjust the policy to your application:
+#### Inline scripts and styles
+
+This policy has no `'unsafe-inline'`: a `<script>` or a `<style>` written in the page doesn't run, and that is what stops a script an attacker gets into it. The ones that are yours need a way to say so. There are two:
+
+- **A hash**, for a script that is always the same. `app.importmap_csp_hash` is the hash of the import map that `render_importmap()` writes, so the browser accepts that script and no other. It changes by itself when the import map does.
+- **A nonce**, a random value that goes in the policy and in the tag. `csp_nonce()` gives it to your views:
+
+  ```html+jinja
+  <script nonce="{{ csp_nonce() }}">
+    console.log("This one runs");
+  </script>
+  ```
+
+  Turbo needs the nonce too, for the style of its progress bar and the scripts of the pages it loads. It reads it from the tag that `csp_meta_tag()` writes.
+
+The policy has nothing for the `style="..."` attribute and for the `onclick="..."` kind, so they don't work. Use classes, and Stimulus controllers.
+
+Better than a nonce is no inline script at all: put the code in a file of `assets/js/`, and the data it needs in `data-` attributes.
+
+#### The nonce is kept in the session
+
+Each visitor gets one nonce, made the first time a page asks for it and kept in the session. It isn't a new one for each response, because Turbo keeps the policy of the first page it loaded (see the note below), and the pages it visits after must carry the same nonce.
+
+This has three consequences:
+
+- **Every visitor gets a session cookie**, signed in or not, with the first response that asks for the nonce. With the policy above, that is every response. A page with a cookie can't be shared by a CDN.
+- **A nonce can't go in a cached fragment.** Inside `{% cache %}`, the HTML that is saved has the nonce of the visitor who made it, and every other visitor gets that one. Keep the tags with a nonce out of the cached parts.
+- **A response with `disable_cookies`** can't keep a new nonce: use a nonce only in pages that can set cookies.
+
+The debug toolbar uses the nonce too, so its bar works with this policy while you develop.
+
+If your pages have no inline scripts or styles of their own, you can do without the nonce and its cookie: remove it from the policy and don't add `csp_meta_tag()`. The only thing you lose is Turbo's progress bar, which you can bring back by copying its few lines of CSS (the `.turbo-progress-bar` class) to your own stylesheet.
+
+#### Adjusting the policy
 
 - **Files in S3 or another service.** A private file is served with a redirect to the service, so the browser loads it from there: add the service's domain to `img-src` (and to `media-src`, for videos).
 - **The cable on its own port.** If `CABLE_PORT` is set, add the cable's URL to `connect-src`, like `connect-src 'self' wss://example.com:2301`.
@@ -201,12 +238,6 @@ The browser applies the policy of a page when it loads the document. Turbo Drive
 With one policy for the whole application, as above, this changes nothing. It matters when a controller sets a different policy for its own pages: a user who arrives there through a link keeps the policy of the page they came from. To make those pages always load as a new document, add `<meta name="turbo-visit-control" content="reload">` to their `<head>` (see [Turbo - Page settings](/docs/turbo#page-settings)). The same happens on the way out: the links of those pages keep their policy for the pages that follow, unless they do a full load, with `data-turbo="false"` on the link or on an element that contains it.
 
 Don't add `'strict-dynamic'` to `script-src`. It lets a script that is already trusted add other scripts, and that is how Turbo puts the scripts of a new page in the document, so a `<script>` an attacker got into a page would run after a Turbo visit.
-:::
-
-:::warning | Why `'unsafe-inline'` in `script-src`
-`render_importmap` writes the import map as an inline `<script type="importmap">`, and without it the browser can't load Turbo, Stimulus, or your JavaScript. A policy can allow an inline script in three ways: with `'unsafe-inline'`, with the hash of the script, or with a *nonce*, a random value made for each response that the script must carry. Proper has no nonces yet, and the hash changes every time an asset changes, because the import map has the fingerprinted URLs. So the policy above allows inline scripts.
-
-This means the policy doesn't stop a `<script>` an attacker manages to put in a page. It still stops scripts from other domains, plugins (`object-src`), a `<base>` tag that changes where relative URLs go (`base-uri`), forms that send data to other sites (`form-action`), and other sites from framing yours (`frame-ancestors`). Escaping is still your main defense against XSS.
 :::
 
 ---
@@ -531,7 +562,7 @@ class SecurityHeaders(Concern):
         headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
 ```
 
-The file is part of your application, so you can change it: add a [Content Security Policy](#content-security-policy), enable `Strict-Transport-Security`, etc. Since the headers are set with `setdefault`, a controller can set a different value for its own responses.
+The file is part of your application, so you can change it: turn on its [Content Security Policy](#content-security-policy), enable `Strict-Transport-Security`, etc. Since the headers are set with `setdefault`, a controller can set a different value for its own responses.
 
 To turn off browser features your application doesn't use, so a script that got into a page can't use them either, add a `Permissions-Policy`:
 
@@ -608,4 +639,4 @@ Run it in your CI, so you find out when a version you use gets a security fix.
 - [ ] No secret goes in a URL or in a log line.
 - [ ] The dependencies have no known vulnerabilities.
 - [ ] You decided whether to reveal which accounts exist.
-- [ ] You added a Content Security Policy, or decided not to.
+- [ ] You turned on the Content Security Policy, or decided not to.
